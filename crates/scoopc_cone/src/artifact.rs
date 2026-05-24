@@ -88,6 +88,10 @@ pub enum ConeArtifactError {
         "cone artifact is missing required frontend import payload `{file_name}`; rebuild the cone"
     )]
     MissingFrontendImportPayload { file_name: &'static str },
+    #[error(
+        "cone artifact inputs fingerprint mismatch (expected {expected:?}, found {found:?}); rebuild the cone"
+    )]
+    InputsFingerprintMismatch { expected: Vec<u8>, found: Vec<u8> },
 }
 
 /// JSON metadata stored in `manifest.json`.
@@ -432,6 +436,18 @@ impl ConeArtifact {
             manifest,
             objects,
         })
+    }
+
+    /// Read a complete cone artifact and require an exact inputs fingerprint match.
+    pub fn read_with_inputs_fingerprint(dir: &Path, expected: &[u8]) -> Result<Self> {
+        let artifact = Self::read(dir)?;
+        if artifact.inputs_fingerprint != expected {
+            return Err(ConeArtifactError::InputsFingerprintMismatch {
+                expected: expected.to_vec(),
+                found: artifact.inputs_fingerprint,
+            });
+        }
+        Ok(artifact)
     }
 }
 

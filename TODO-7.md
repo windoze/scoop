@@ -944,7 +944,7 @@
   - 新增 regression 单测 `dependency_frontend_uses_its_own_export_entry_points`，证明 dependency cone frontend 会按自身 manifest 执行导出入口规则；保留 `downstream_frontend_uses_dependency_artifact_imports` 对 synthetic decl file / no-body import 的证明。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`git diff --check`。
 
-### [TODO] P10-T04-a：补齐 per-cone artifact cache handoff 边界
+### [DONE] P10-T04-a：补齐 per-cone artifact cache handoff 边界
 
 - 阻塞原因：
   - P10-T04 要求 cache hit 时从磁盘加载上游 cone artifact 并跳过上游所有 stage；当前 `run_frontend` 只在进程内发布 `ConeArtifact`，且发布内容主要用于 frontend import，尚未接入 artifact cache 目录或 cache hit 加载路径。
@@ -975,6 +975,12 @@
   - P10-T04 可以在不靠 whole-project fingerprint、不读 cached dependency source、不使用 placeholder AST 的前提下接入 per-cone inputs/outputs fingerprint chain；
   - 测试稳定证明 dependency cache hit 跳过 source parse/typecheck，cache miss 仍按源文件重建。
 - 依赖：P10-T03R
+- 完成记录：
+  - 2026-05-25：为 frontend/build 增加显式 `FrontendArtifactCache` / `FrontendArtifactCacheEntry` handoff，cache entry 携带 artifact 目录、预期 inputs fingerprint、直接依赖 outputs fingerprint 占位与 miss 写盘策略；`scoop build` 的增量路径现在会为 local dependency cone 准备 `build/<profile>/cones/<cone>@<version>/` artifact cache handoff。
+  - dependency cone cache hit 时，`run_frontend_with_artifact_cache` 从磁盘读取 `ConeArtifact`，校验 compiler/schema 与 inputs fingerprint 后直接发布 artifact；下游 cone 通过既有 artifact frontend import 注入 `Index` / `TypeEnv`，不会 parse/index/typecheck cached dependency source。inputs fingerprint 不匹配或 artifact 缺失时按 cache miss 重建；malformed/incompatible artifact 仍显式报错。
+  - dependency cone cache miss 时沿现有 per-cone frontend orchestration 解析、resolve、typecheck 并构造完整 frontend import payload，随后写出 artifact 供后续命中使用；cached dependency source 会从 active `FrontendOutput` source/AST 集合中移除，避免 placeholder AST 或重新读取上游 source。
+  - 新增 regression `dependency_frontend_cache_hit_uses_artifact_without_reading_source`：先写出 dependency artifact，再把 dependency source 改成 parse/typecheck 失败内容，证明 matching cache hit 仍只消费 artifact；同时证明 fingerprint mismatch 会 cache miss 并重新读取 broken source 报错。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`。
 
 ### [TODO] P10-T04：per-cone fingerprint cache + 增量 build
 

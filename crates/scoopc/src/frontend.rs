@@ -562,19 +562,83 @@ pub fn run_project_frontend(session: &Session, context: ProjectContext) -> Resul
     run_frontend(session, context.into_input())
 }
 
-pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<FrontendOutput> {
+#[derive(Debug, Clone, Default)]
+pub struct FrontendArtifactCache {
+    entries: HashMap<ConeId, FrontendArtifactCacheEntry>,
+}
+
+impl FrontendArtifactCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&mut self, cone_id: ConeId, entry: FrontendArtifactCacheEntry) {
+        self.entries.insert(cone_id, entry);
+    }
+
+    fn entry(&self, cone_id: ConeId) -> Option<&FrontendArtifactCacheEntry> {
+        self.entries.get(&cone_id)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FrontendArtifactCacheEntry {
+    pub artifact_dir: PathBuf,
+    pub expected_inputs_fingerprint: Vec<u8>,
+    pub direct_dependency_outputs_fingerprints: Vec<(ConeId, Vec<u8>)>,
+    pub write_on_cache_miss: bool,
+}
+
+impl FrontendArtifactCacheEntry {
+    pub fn new(artifact_dir: PathBuf, expected_inputs_fingerprint: Vec<u8>) -> Self {
+        Self {
+            artifact_dir,
+            expected_inputs_fingerprint,
+            direct_dependency_outputs_fingerprints: Vec::new(),
+            write_on_cache_miss: true,
+        }
+    }
+
+    pub fn with_dependency_outputs_fingerprints(
+        mut self,
+        fingerprints: Vec<(ConeId, Vec<u8>)>,
+    ) -> Self {
+        self.direct_dependency_outputs_fingerprints = fingerprints;
+        self
+    }
+
+    pub fn with_write_on_cache_miss(mut self, write: bool) -> Self {
+        self.write_on_cache_miss = write;
+        self
+    }
+}
+
+pub fn run_project_frontend_with_artifact_cache(
+    session: &Session,
+    context: ProjectContext,
+    cache: &FrontendArtifactCache,
+) -> Result<FrontendOutput> {
+    run_frontend_with_artifact_cache(session, context.into_input(), Some(cache))
+}
+
+pub fn run_frontend(session: &Session, input: ProjectInput) -> Result<FrontendOutput> {
+    run_frontend_with_artifact_cache(session, input, None)
+}
+
+pub fn run_frontend_with_artifact_cache(
+    session: &Session,
+    mut input: ProjectInput,
+    artifact_cache: Option<&FrontendArtifactCache>,
+) -> Result<FrontendOutput> {
     if input.build_closure_sources.is_empty() {
         return Err(miette::miette!(
             "内部错误：frontend 输入 build closure sources 为空"
         ));
     }
 
-    let source_indices = input
-        .build_closure_sources
-        .iter()
-        .enumerate()
-        .map(|(idx, source)| (source.path().to_path_buf(), idx))
-        .collect::<HashMap<_, _>>();
+    let original_build_closure_sources = input.build_closure_sources.clone();
+    let original_source_cone_ids = input.source_cone_ids.clone();
+    let original_source_cone_infos = input.source_cone_infos.clone();
     let session_sysroot_paths = session
         .sysroot()
         .files
@@ -594,8 +658,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         })
         .map(|node| node.id)
         .collect::<HashSet<_>>();
-    let mut asts_by_source = Vec::with_capacity(input.build_closure_sources.len());
-    asts_by_source.resize_with(input.build_closure_sources.len(), || None);
+    let mut asts_by_source_path: HashMap<PathBuf, ast::File> = HashMap::new();
     let mut published_artifacts: HashMap<ConeId, crate::cone::ConeArtifact> = HashMap::new();
     let mut final_index = None;
     let mut final_env = None;
@@ -607,6 +670,27 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
     let mut all_monomorph_requests: Vec<MonomorphRequest> = Vec::new();
 
     for unit in input.compilation_units() {
+        let cache_entry = artifact_cache.and_then(|cache| cache.entry(unit.id()));
+        if let Some(entry) = cache_entry
+            && !unit.is_consumer()
+            && !default_sysroot_cone_ids.contains(&unit.id())
+            && entry.artifact_dir.is_dir()
+        {
+            match crate::cone::ConeArtifact::read_with_inputs_fingerprint(
+                &entry.artifact_dir,
+                &entry.expected_inputs_fingerprint,
+            ) {
+                Ok(artifact) => {
+                    published_artifacts.insert(unit.id(), artifact);
+                    continue;
+                }
+                Err(crate::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => {}
+                Err(crate::cone::ConeArtifactError::Io { source, .. })
+                    if source.kind() == std::io::ErrorKind::NotFound => {}
+                Err(err) => return Err(miette::miette!("{err}")),
+            }
+        }
+
         let unit_output = crate::pipeline::load_ast_compilation_unit_stage_output(session, unit)
             .map_err(miette::Report::from)?;
         let mut unit_asts = unit_output.into_asts();
@@ -809,13 +893,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         };
 
         for (source, ast) in unit.sources().iter().zip(unit_asts) {
-            let idx = *source_indices.get(source.path()).ok_or_else(|| {
-                miette::miette!(
-                    "内部错误：cone source 未出现在 flattened source view：{}",
-                    source.path().display()
-                )
-            })?;
-            asts_by_source[idx] = Some(ast);
+            asts_by_source_path.insert(source.path().to_path_buf(), ast);
         }
 
         if unit.is_consumer() {
@@ -823,23 +901,56 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
             final_env = Some(env);
         }
         if let Some(artifact) = artifact {
+            if let Some(entry) = cache_entry
+                && entry.write_on_cache_miss
+            {
+                let mut artifact = artifact;
+                artifact.inputs_fingerprint = entry.expected_inputs_fingerprint.clone();
+                artifact
+                    .write(&entry.artifact_dir)
+                    .map_err(|err| miette::miette!("{err}"))?;
+                published_artifacts.insert(unit.id(), artifact);
+                continue;
+            }
             published_artifacts.insert(unit.id(), artifact);
         }
     }
 
-    let asts = asts_by_source
-        .into_iter()
-        .enumerate()
-        .map(|(idx, ast)| {
-            ast.ok_or_else(|| {
-                miette::miette!(
-                    "内部错误：frontend 未生成 source #{} 的 AST：{}",
-                    idx,
-                    input.build_closure_sources[idx].path().display()
-                )
-            })
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let mut active_sources = Vec::new();
+    let mut active_source_cone_ids = Vec::new();
+    let mut active_source_cone_infos = Vec::new();
+    let mut active_asts = Vec::new();
+    let mut main_index = None;
+    let mut cone_anchor_main_index = None;
+    let mut consumer_source_indices = Vec::new();
+    for (idx, source) in original_build_closure_sources.iter().enumerate() {
+        let Some(ast) = asts_by_source_path.remove(source.path()) else {
+            continue;
+        };
+        let active_idx = active_sources.len();
+        if idx == input.main_index {
+            main_index = Some(active_idx);
+        }
+        if idx == input.cone_anchor_main_index {
+            cone_anchor_main_index = Some(active_idx);
+        }
+        if original_source_cone_ids[idx] == input.consumer_cone_id {
+            consumer_source_indices.push(active_idx);
+        }
+        active_sources.push(source.clone());
+        active_source_cone_ids.push(original_source_cone_ids[idx]);
+        active_source_cone_infos.push(original_source_cone_infos[idx].clone());
+        active_asts.push(ast);
+    }
+    input.build_closure_sources = active_sources;
+    input.source_cone_ids = active_source_cone_ids;
+    input.source_cone_infos = active_source_cone_infos;
+    input.consumer_source_indices = consumer_source_indices;
+    input.main_index =
+        main_index.ok_or_else(|| miette::miette!("内部错误：frontend 未生成入口 source AST"))?;
+    input.cone_anchor_main_index = cone_anchor_main_index
+        .ok_or_else(|| miette::miette!("内部错误：frontend 未生成 cone anchor source AST"))?;
+    let asts = active_asts;
     let mut index =
         final_index.ok_or_else(|| miette::miette!("内部错误：consumer cone 未运行 frontend"))?;
     select_cone_entry_main(&mut input, &asts, &mut index)?;
@@ -1127,6 +1238,7 @@ mod tests {
     use super::*;
     use crate::parser::parse_file;
     use crate::resolve::IndexedFile;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn bin_manifest(name: &str) -> ConeManifest {
         ConeManifest {
@@ -1414,6 +1526,92 @@ mod tests {
     }
 
     #[test]
+    fn dependency_frontend_cache_hit_uses_artifact_without_reading_source() {
+        let dep_id = ConeId::new(2);
+        let cache_dir = unique_temp_dir("scoop-frontend-cache-hit");
+        let artifact_dir = cache_dir.join("cones").join("fixture-cache-dep@0.0.0");
+        let expected_inputs = b"cache-hit-inputs".to_vec();
+        let session = Session::new().unwrap();
+
+        let mut first_cache = FrontendArtifactCache::new();
+        first_cache.insert(
+            dep_id,
+            FrontendArtifactCacheEntry::new(artifact_dir.clone(), expected_inputs.clone()),
+        );
+        let first = ProjectInput::from_graph(
+            cached_dependency_graph(
+                dep_id,
+                "package fixtures.cache.dep\npublic fun dep(): Int { return 42 }\n",
+            ),
+            ConeProjectKind::Explicit,
+            None,
+        )
+        .unwrap();
+        run_frontend_with_artifact_cache(&session, first, Some(&first_cache))
+            .expect("cache miss should parse dependency and write artifact");
+        assert!(
+            artifact_dir
+                .join(crate::cone::CONE_ARTIFACT_MANIFEST_FILE_NAME)
+                .is_file(),
+            "cache miss should publish a dependency artifact"
+        );
+
+        let mut hit_cache = FrontendArtifactCache::new();
+        hit_cache.insert(
+            dep_id,
+            FrontendArtifactCacheEntry::new(artifact_dir.clone(), expected_inputs)
+                .with_write_on_cache_miss(false),
+        );
+        let broken_source = ProjectInput::from_graph(
+            cached_dependency_graph(
+                dep_id,
+                "package fixtures.cache.dep\npublic fun dep(): Int {",
+            ),
+            ConeProjectKind::Explicit,
+            None,
+        )
+        .unwrap();
+        let output = run_frontend_with_artifact_cache(&session, broken_source, Some(&hit_cache))
+            .expect("matching cache hit should not parse broken dependency source");
+        assert!(
+            output
+                .input()
+                .build_closure_sources()
+                .iter()
+                .all(|source| !source.path().ends_with("lib.scoop")),
+            "cached dependency sources must be removed from the active lowering source set"
+        );
+        let overload = output.index().by_fqn["fixtures.cache.dep.dep"]
+            .fun
+            .first()
+            .expect("cached dependency public fun should be imported");
+        assert_eq!(
+            overload.symbol.decl_file.display().to_string(),
+            "<cone:fixture-cache-dep@0.0.0>"
+        );
+
+        let mut miss_cache = FrontendArtifactCache::new();
+        miss_cache.insert(
+            dep_id,
+            FrontendArtifactCacheEntry::new(artifact_dir, b"different-inputs".to_vec())
+                .with_write_on_cache_miss(false),
+        );
+        let broken_source = ProjectInput::from_graph(
+            cached_dependency_graph(
+                dep_id,
+                "package fixtures.cache.dep\npublic fun dep(): Int {",
+            ),
+            ConeProjectKind::Explicit,
+            None,
+        )
+        .unwrap();
+        run_frontend_with_artifact_cache(&session, broken_source, Some(&miss_cache))
+            .expect_err("fingerprint mismatch should miss and re-read broken dependency source");
+
+        let _ = std::fs::remove_dir_all(cache_dir);
+    }
+
+    #[test]
     fn dependency_frontend_uses_its_own_export_entry_points() {
         let dep_id = ConeId::new(2);
         let dep = SourceFile::new_virtual(
@@ -1463,6 +1661,53 @@ mod tests {
             err.code().map(|code| code.to_string()).as_deref(),
             Some("scoop::typecheck::export_entry_point_must_declare_closed_pure")
         );
+    }
+
+    fn cached_dependency_graph(dep_id: ConeId, dep_text: &str) -> SourceConeGraph {
+        let dep = SourceFile::new_virtual("/tmp/scoop-cache-dep/src/lib.scoop", dep_text);
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-cache-app/src/main.scoop",
+            "package fixtures.cache.app\nimport fixtures.cache.dep.*\nfun main() { dep() }\n",
+        );
+        let mut dep_manifest = bin_manifest("fixture-cache-dep");
+        dep_manifest.cone.kind = ConeKind::Lib;
+        SourceConeGraph::from_nodes(
+            vec![
+                graph_node(
+                    CONSUMER_CONE_ID,
+                    SourceConeRole::Consumer,
+                    bin_manifest("fixture-cache-app"),
+                    "/tmp/scoop-cache-app",
+                    vec![consumer],
+                    Some(PathBuf::from("/tmp/scoop-cache-app/src/main.scoop")),
+                    vec![SourceConeDependencyEdge {
+                        target: dep_id,
+                        kind: SourceConeDependencyKind::LocalSource,
+                    }],
+                ),
+                graph_node(
+                    dep_id,
+                    SourceConeRole::LocalDependency,
+                    dep_manifest,
+                    "/tmp/scoop-cache-dep",
+                    vec![dep],
+                    None,
+                    Vec::new(),
+                ),
+            ],
+            CONSUMER_CONE_ID,
+        )
+        .unwrap()
+    }
+
+    fn unique_temp_dir(prefix: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("{prefix}-{}-{nanos}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        path
     }
 
     #[test]

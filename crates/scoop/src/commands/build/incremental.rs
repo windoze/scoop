@@ -19,6 +19,7 @@ use scoopc::opt::OptLevel;
 
 pub(crate) const BUILD_JSON_FILE_NAME: &str = "build.json";
 pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 3;
+const FRONTEND_CACHE_INPUT_DOMAIN: &str = "scoop.frontend.artifact-cache-handoff.v0";
 
 /// 本次 build 的输入 fingerprint。
 ///
@@ -204,6 +205,43 @@ pub(crate) fn write_build_json(
         .into_diagnostic()
         .wrap_err_with(|| format!("写入 build.json 失败：{}", build_json.display()))?;
     Ok(())
+}
+
+pub(crate) fn frontend_artifact_cache_for_build(
+    input: &scoopc::frontend::ProjectInput,
+    profile: &str,
+    fp: &BuildFingerprint,
+) -> scoopc::frontend::FrontendArtifactCache {
+    let mut cache = scoopc::frontend::FrontendArtifactCache::new();
+    let build_dir = input.cone_root().join("build").join(profile);
+    for unit in input.compilation_units() {
+        if unit.is_consumer() || unit.role() != scoopc::cone::SourceConeRole::LocalDependency {
+            continue;
+        }
+        let key = unit.source_cone_info().stable_key;
+        let dir = build_dir
+            .join("cones")
+            .join(format!("{}@{}", key.name(), key.version()));
+        let expected = frontend_cache_inputs_fingerprint(fp, unit.id());
+        cache.insert(
+            unit.id(),
+            scoopc::frontend::FrontendArtifactCacheEntry::new(dir, expected),
+        );
+    }
+    cache
+}
+
+fn frontend_cache_inputs_fingerprint(
+    fp: &BuildFingerprint,
+    cone_id: scoopc::cone::ConeId,
+) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(FRONTEND_CACHE_INPUT_DOMAIN.as_bytes());
+    hasher.update(b"\ncone=");
+    hasher.update(cone_id.as_u32().to_le_bytes());
+    hasher.update(b"\nproject=");
+    hasher.update(fp.fingerprint.as_bytes());
+    hasher.finalize().to_vec()
 }
 
 fn sha256_file(path: &Path) -> Result<String> {

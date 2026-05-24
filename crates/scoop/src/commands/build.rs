@@ -236,7 +236,26 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let session = scoopc::session::Session::with_options(session_options.clone())?;
 
     let warning_capture = scoopc::warnings::begin_capture();
-    let front = run_frontend(&session, context)?;
+    let frontend_cache = if let Some((cone_root, _build_json)) = incremental_ctx.as_ref() {
+        let fp = match computed_fingerprint.as_ref() {
+            Some(fp) => fp.clone(),
+            None => incremental::compute_cone_build_fingerprint(
+                cone_root,
+                profile.as_str(),
+                entry_package_for_fingerprint.as_deref(),
+                opt_level,
+            )?,
+        };
+        computed_fingerprint.get_or_insert_with(|| fp.clone());
+        Some(incremental::frontend_artifact_cache_for_build(
+            context.input(),
+            profile.as_str(),
+            &fp,
+        ))
+    } else {
+        None
+    };
+    let front = run_frontend_with_cache(&session, context, frontend_cache.as_ref())?;
     let warnings = warning_capture.finish();
     emit_frontend_warnings(&session, &front, &warnings);
     // 非 llvm 构建下，codegen 分支会被编译掉；这里显式访问一次 main 以避免 dead_code 警告，
@@ -383,11 +402,24 @@ fn default_output_path_for_input_and_emit(
     default_output_path_for_emit(emit)
 }
 
+#[cfg(test)]
 fn run_frontend(
     session: &scoopc::session::Session,
     context: BuildContext,
 ) -> Result<FrontendOutput> {
-    scoopc::frontend::run_project_frontend(session, context)
+    run_frontend_with_cache(session, context, None)
+}
+
+fn run_frontend_with_cache(
+    session: &scoopc::session::Session,
+    context: BuildContext,
+    artifact_cache: Option<&scoopc::frontend::FrontendArtifactCache>,
+) -> Result<FrontendOutput> {
+    if let Some(cache) = artifact_cache {
+        scoopc::frontend::run_project_frontend_with_artifact_cache(session, context, cache)
+    } else {
+        scoopc::frontend::run_project_frontend(session, context)
+    }
 }
 
 fn ensure_output_parent_dir(path: &Path) -> Result<()> {

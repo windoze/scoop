@@ -7,9 +7,10 @@
 //! that re-exports both for backward compatibility with `scoopc::cone::*`.
 
 pub use scoopc_cone::{
-    CONE_ANNOTATION_CLASSES_FILE_NAME, CONE_API_SCOOPIR_FILE_NAME, CONE_PRE_SPECIALIZE_FILE_NAME,
-    CONE_SOURCES_SHA256_FILE_NAME, ConeAnnotationClassEntry, ConeAnnotationClassesFile,
-    ConeArchiveApi, ConeArtifact, ConeArtifactFrontendImport, ConePreSpecializeFile,
+    CONE_ANNOTATION_CLASSES_FILE_NAME, CONE_API_SCOOPIR_FILE_NAME,
+    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_PRE_SPECIALIZE_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME,
+    ConeAnnotationClassEntry, ConeAnnotationClassesFile, ConeArchiveApi, ConeArtifact,
+    ConeArtifactError, ConeArtifactFrontendImport, ConePreSpecializeFile,
     build_frontend_import_for_typechecked_cone,
     collect_cone_preserved_annotation_classes_for_cone_sources, import_upstream_artifacts,
     inject_cone_artifact_frontend_import, inject_cone_dependency_public_api,
