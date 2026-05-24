@@ -5,7 +5,7 @@
 //! already-closed surfaces lives in dedicated fixtures / IR tests instead of this active table.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum CodegenGapRoute {
+pub enum CodegenGapRoute {
     RawMirLlvm,
     EffectLoweredLlvm,
     UpstreamMirContract,
@@ -13,7 +13,7 @@ pub(crate) enum CodegenGapRoute {
 }
 
 impl CodegenGapRoute {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::RawMirLlvm => "raw MIR LLVM",
             Self::EffectLoweredLlvm => "effect-lowered LLVM",
@@ -24,14 +24,14 @@ impl CodegenGapRoute {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct CodegenGapEntry {
-    pub(crate) gap_id: &'static str,
-    pub(crate) owner_task: &'static str,
-    pub(crate) suggested_owner: &'static str,
-    pub(crate) route: CodegenGapRoute,
-    pub(crate) needs_upstream_contract: bool,
-    pub(crate) production_blocker: bool,
-    pub(crate) trigger: &'static str,
+pub struct CodegenGapEntry {
+    pub gap_id: &'static str,
+    pub owner_task: &'static str,
+    pub suggested_owner: &'static str,
+    pub route: CodegenGapRoute,
+    pub needs_upstream_contract: bool,
+    pub production_blocker: bool,
+    pub trigger: &'static str,
 }
 
 macro_rules! gap {
@@ -48,7 +48,7 @@ macro_rules! gap {
     };
 }
 
-pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
+pub const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     gap!(
         "PIPELINE_GAPS §2.3",
         "P2-T03",
@@ -240,13 +240,13 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
 ];
 
-pub(crate) fn codegen_gap_entry(gap_id: &str) -> Option<&'static CodegenGapEntry> {
+pub fn codegen_gap_entry(gap_id: &str) -> Option<&'static CodegenGapEntry> {
     CODEGEN_GAP_INVENTORY
         .iter()
         .find(|entry| entry.gap_id == gap_id)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use std::collections::BTreeSet;
 

@@ -505,7 +505,7 @@
   - 防回归：`dependency_gate` 新增 LLVM stage handoff 与 LLVM production source-tree 规则，禁止 `crate::effect::`、future `scoopc_effect_facts_stage::effect` 与 `scoopc::effect` 回流；LIR HIR/AST source-boundary 继续覆盖迁入的 ordinary-callee planner。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；残余搜索 `rg -n "crate::effect::|scoopc_effect_facts_stage::effect|scoopc::effect" crates/scoopc_codegen_llvm/src/llvm crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 无命中；`git diff --check`。
 
-### [TODO] P9-T06-c：发布 codegen-owned LLVM stage handoff 合同
+### [DONE] P9-T06-c：发布 codegen-owned LLVM stage handoff 合同
 
 - 阻塞原因：
   - 执行 P9-T06 的 `scoopc_codegen_llvm -> scoopc_lir` direct dependency 切换时，当前 `crates/scoopc_codegen_llvm/src/llvm/{emit,frontend}.rs` 仍在 production API 中引用 `crate::frontend` 与 `crate::pipeline::{LlvmCodegenStageInput,LlvmCodegenStageOutput,LlvmStageBaseContext,LlvmArtifactKind}`。
@@ -539,6 +539,11 @@
   - `scoopc_codegen_llvm` production source 不再需要 `crate::frontend` / `crate::pipeline` umbrella owner 才能编译；
   - P9-T06 可以继续完成 codegen direct `scoopc_lir` / `scoopc_lir_facts` 切换。
 - 依赖：P9-T06-b
+- 完成记录：
+  - 2026-05-24：LLVM stage handoff 类型改由 `scoopc_codegen_llvm::llvm` 拥有，包含 `LlvmStageBaseContext`、`LlvmCodegenStageOutput`、`LlvmCallableSourceContract`、`LlvmDispatchCallKey` 与 `LlvmArtifactKind`；`scoopc` pipeline 只负责从 frontend/HIR/MIR/effect facts 构造该 handoff。
+  - `scoopc_codegen_llvm` 已移除 normal `scoopc` façade dependency，改为 direct 依赖 `scoopc_lir` / `scoopc_lir_facts` 与必要 base/backend crates；`scoopc::llvm` 保留单文件 frontend wrapper，现有 CLI/build helper API 继续可用但 orchestration 不进入 codegen crate。
+  - 为保持 P9-T06 后续 LIR/codegen 边界可执行，补齐 LIR-owned source payload re-export、codegen-owned source-boundary dependency gate，并修复抽 crate 后暴露的 stage-test 编译与 in-process effect-facts handoff转换问题；P10 的 stable wire format 仍由后续 P10-T01 处理。
+  - 验证通过：`cargo fmt`；`cargo check -p scoopc_codegen_llvm`；`cargo build --workspace`；`cargo test --all --all-targets`（60 分钟 timeout 完整通过）；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 

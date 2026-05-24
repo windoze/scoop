@@ -1100,7 +1100,13 @@ fn read_repo_file(path: &str) -> String {
 
 fn production_source_text(path: &str) -> String {
     let content = read_repo_file(path);
-    match content.find("\n#[cfg(test)]") {
+    let plain_test_cfg = content.find("\n#[cfg(test)]");
+    let compound_test_cfg = content.find("\n#[cfg(all(test");
+    match [plain_test_cfg, compound_test_cfg]
+        .into_iter()
+        .flatten()
+        .min()
+    {
         Some(cutoff) => content[..cutoff].to_string(),
         None => content,
     }

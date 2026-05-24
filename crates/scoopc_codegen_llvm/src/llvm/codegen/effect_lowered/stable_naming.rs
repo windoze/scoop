@@ -646,7 +646,7 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use std::path::PathBuf;
 

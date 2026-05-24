@@ -5457,7 +5457,7 @@ impl LateLoweredFrameSchema {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests {
     use std::collections::{BTreeSet, HashSet};
     use std::path::PathBuf;

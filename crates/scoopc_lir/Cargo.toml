@@ -4,8 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = []
-llvm = []
+default = ["standalone-stage-crate"]
+llvm = ["scoopc_mir/llvm"]
+standalone-stage-crate = []
 
 [dependencies]
 scoopc_effect_facts = { path = "../scoopc_effect_facts" }

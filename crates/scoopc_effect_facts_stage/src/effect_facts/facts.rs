@@ -49,7 +49,7 @@ impl MirSnapshotBinding {
         &self.canonical_body_fqns
     }
 
-    pub(crate) fn from_pass_view(pass_view: &MaterializedMirPassView<'_>) -> Self {
+    pub fn from_pass_view(pass_view: &MaterializedMirPassView<'_>) -> Self {
         let mut canonical_body_fqns = BTreeSet::new();
         for family in pass_view.instances() {
             for fun in family.callable_bodies() {

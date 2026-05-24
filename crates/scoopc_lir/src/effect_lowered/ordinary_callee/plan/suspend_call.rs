@@ -540,7 +540,7 @@ pub fn collect_known_fun_call_suspendability(
     known_fun_effects
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 pub fn collect_known_local_fun_call_suspendability_in_fun(
     fun: &hir::FunDecl,
     analysis: &SuspendCallAnalysis<'_>,
@@ -561,7 +561,7 @@ pub fn collect_known_local_fun_call_suspendability_in_fun(
         .unwrap_or(seed_locals)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 pub fn collect_effect_analysis_context_for_fun(
     lowered: &hir::LoweredHir,
     owner_fun: &hir::FunDecl,
@@ -569,7 +569,7 @@ pub fn collect_effect_analysis_context_for_fun(
     collect_effect_analysis_context_for_fun_with_pass_view(lowered, owner_fun, None)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 pub fn collect_effect_analysis_context_for_fun_with_pass_view(
     lowered: &hir::LoweredHir,
     owner_fun: &hir::FunDecl,

@@ -682,6 +682,7 @@ dependencies = [
  "miette",
  "object",
  "scoopc_ast",
+ "scoopc_codegen_llvm",
  "scoopc_effect_facts",
  "scoopc_effect_facts_stage",
  "scoopc_hir",
@@ -719,7 +720,15 @@ dependencies = [
 name = "scoopc_codegen_llvm"
 version = "0.1.0"
 dependencies = [
- "scoopc",
+ "inkwell",
+ "llvm-sys",
+ "miette",
+ "scoopc_ids",
+ "scoopc_lir",
+ "scoopc_lir_facts",
+ "scoopc_project_model",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

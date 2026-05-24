@@ -253,7 +253,7 @@ struct CallableEdges {
     dispatch_keys: Vec<LirDispatchKey>,
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
     use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};

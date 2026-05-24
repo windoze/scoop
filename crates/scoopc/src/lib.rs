@@ -61,9 +61,6 @@ pub use scoopc_lir::effect_lowered;
 pub mod frontend;
 pub use scoopc_hir::hir;
 pub use scoopc_hir::infer;
-pub(crate) mod intrinsics {
-    pub(crate) use scoopc_hir::intrinsics::*;
-}
 pub use scoopc_hir::itable;
 pub use scoopc_mir::mir;
 pub use scoopc_mir::monomorph;
@@ -90,7 +87,6 @@ pub use scoopc_hir::warnings;
 ///
 /// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认关闭）。
 #[cfg(feature = "llvm")]
-#[path = "../../scoopc_codegen_llvm/src/llvm/mod.rs"]
 pub mod llvm;
 
 #[cfg(test)]

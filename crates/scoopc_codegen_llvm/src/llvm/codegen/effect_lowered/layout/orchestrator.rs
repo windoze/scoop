@@ -21,7 +21,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 "LLVM ABI materialization received invalid LIR facts: {error}"
             ))
         })?;
-        crate::pipeline::LlvmStageBaseContext::verify_lir_type_store_owner(
+        crate::llvm::LlvmStageBaseContext::verify_lir_type_store_owner(
             source_types,
             lir_facts,
             "physical ABI/layout",

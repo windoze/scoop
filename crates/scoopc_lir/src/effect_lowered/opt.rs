@@ -87,12 +87,12 @@ impl LirOptStats {
 /// - 不重新读取 HIR/P3 MIR/P4 solver 结果；
 /// - 不改动 `StepSchema` / `CaseTag` / `ImplPlan` / canonical dynamic invoke contract；
 /// - 只做 wrapper state 折叠、internal resume interface 去虚化，以及死代码/死 slot 清理。
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg_attr(any(not(test), feature = "standalone-stage-crate"), allow(dead_code))]
 pub(crate) fn optimize_program(program: LateLoweredProgram) -> LateLoweredProgram {
     optimize_program_with_options(program, LateLoweredOptOptions::default())
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg_attr(any(not(test), feature = "standalone-stage-crate"), allow(dead_code))]
 pub(crate) fn optimize_program_with_options(
     program: LateLoweredProgram,
     options: LateLoweredOptOptions,
@@ -1262,7 +1262,7 @@ fn rewrite_captures(
     rewritten
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests {
     use std::path::PathBuf;
 

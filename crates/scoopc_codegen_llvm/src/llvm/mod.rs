@@ -19,38 +19,32 @@ use inkwell::values::InstructionValueError;
 use miette::{Diagnostic, NamedSource};
 use thiserror::Error;
 
-use crate::parser::ParseError;
 use crate::source::SourceFile;
 use crate::span::Span;
 
 mod codegen;
-pub(crate) mod codegen_gap_inventory;
+pub mod codegen_gap_inventory;
 mod emit;
-mod frontend;
+mod handoff;
 mod pipeline;
 mod reachability;
 mod stackmap;
 mod target;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests;
 
-#[cfg(feature = "llvm")]
-pub(crate) use emit::emit_single_file_llvm_artifact_to_file_with_opt_level;
 pub use emit::{
-    StageEmitInput, emit_main_asm_to_file_from_stage_output,
-    emit_main_ir_to_file_from_stage_output, emit_main_obj_to_file_from_stage_output,
-    emit_minimal_main_asm_to_file, emit_minimal_main_asm_to_file_with_opt_level,
-    emit_minimal_main_ir, emit_minimal_main_ir_to_file, emit_minimal_main_obj_to_file,
-    emit_minimal_main_obj_to_file_with_opt_level,
+    StageEmitInput, build_main_module_from_stage_output, emit_main_asm_to_file_from_stage_output,
+    emit_main_ir_from_stage_output, emit_main_ir_to_file_from_stage_output,
+    emit_main_obj_to_file_from_stage_output,
+};
+pub use handoff::{
+    LlvmArtifactKind, LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmDispatchCallKey,
+    LlvmStageBaseContext,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 
-#[cfg(test)]
-pub(crate) use emit::{
-    build_main_module_from_stage_output, build_minimal_main_module,
-    build_minimal_main_module_with_opt_level,
-};
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 pub(crate) use pipeline::run_pass_pipeline;
 
 fn configure_llvm_global_options_once() {
@@ -104,10 +98,6 @@ pub enum LlvmEmitError {
     #[error("LLVM codegen 前端准备失败：{message}")]
     #[diagnostic(code(scoop::llvm::frontend_prepare_failed))]
     Frontend { message: String },
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    Parse(#[from] ParseError),
 
     #[error(transparent)]
     #[diagnostic(transparent)]

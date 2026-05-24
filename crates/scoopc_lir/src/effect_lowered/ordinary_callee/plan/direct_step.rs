@@ -1322,7 +1322,7 @@ pub fn ordinary_callee_resume_slot_type(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod plan_tests {
     use crate::parser::parse_file;
     use crate::resolve::Index;

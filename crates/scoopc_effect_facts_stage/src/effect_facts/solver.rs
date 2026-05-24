@@ -46,6 +46,7 @@ impl EffectFactsSolverConfig {
     }
 
     #[cfg(test)]
+    #[cfg_attr(feature = "standalone-stage-crate", allow(dead_code))]
     fn with_budget(opt_level: OptLevel, budget: EffectFactsSolverBudget) -> Self {
         Self { opt_level, budget }
     }
@@ -163,6 +164,7 @@ impl MaterializedEffectFactsSolver {
     }
 
     #[cfg(test)]
+    #[cfg_attr(feature = "standalone-stage-crate", allow(dead_code))]
     fn with_config(config: EffectFactsSolverConfig) -> Self {
         Self { config }
     }
@@ -1254,7 +1256,7 @@ fn derive_callable_abi_kind(resolved_outward_cases: &CaseSet) -> CallableAbiKind
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests {
     use std::collections::BTreeSet;
 

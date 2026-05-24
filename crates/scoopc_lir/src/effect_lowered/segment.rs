@@ -988,7 +988,7 @@ fn site_facts_kind(site: &SiteEffectFacts) -> &'static str {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests {
     use std::collections::BTreeSet;
     use std::path::PathBuf;

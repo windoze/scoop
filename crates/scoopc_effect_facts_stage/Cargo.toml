@@ -3,6 +3,10 @@ name = "scoopc_effect_facts_stage"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["standalone-stage-crate"]
+standalone-stage-crate = []
+
 [dependencies]
 scoopc_ast = { path = "../scoopc_ast" }
 scoopc_effect_facts = { path = "../scoopc_effect_facts" }

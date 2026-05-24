@@ -1,8 +1,7 @@
 //! LLVM emit API 与 module build 入口。
 //!
 //! 这层负责：
-//! - 面向外部的 stage-only `emit_minimal_main_*` API；
-//! - 消费 LLVM stage handoff 组装单个 LLVM module；
+//! - 消费 codegen-owned LLVM stage handoff 组装单个 LLVM module；
 //! - 在进入 backend lowering 前完成 reachability 与 eager inclusion。
 //!
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
@@ -15,16 +14,16 @@ use inkwell::context::Context;
 use inkwell::targets::{FileType, TargetData};
 
 use crate::opt::OptLevel;
-use crate::pipeline::{LlvmCodegenStageOutput, LlvmStageBaseContext};
-use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
-use super::frontend;
 use super::pipeline::run_pass_pipeline;
 use super::reachability::collect_reachable_top_level_funs;
-use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
+use super::{
+    LlvmCodegenStageOutput, LlvmEmitError, LlvmStageBaseContext, codegen,
+    configure_llvm_global_options_once, target,
+};
 
 struct LoweredCodegenEntry<'a> {
     base_context: &'a LlvmStageBaseContext,
@@ -88,63 +87,6 @@ impl<'a> StageEmitInput<'a> {
     }
 }
 
-fn build_single_file_stage_output(
-    session: &Session,
-    source: &SourceFile,
-    opt_level: OptLevel,
-) -> Result<crate::pipeline::LlvmCodegenStageOutput, LlvmEmitError> {
-    let codegen_unit =
-        frontend::prepare_single_file_codegen_unit_with_opt_level(session, source, opt_level)?;
-    crate::pipeline::run_llvm_codegen_stage(
-        session,
-        crate::pipeline::LlvmCodegenStageInput::new(
-            codegen_unit.lowering,
-            None,
-            codegen_unit.source_map,
-            codegen_unit.entry_source_id,
-            None,
-            opt_level,
-        ),
-    )
-}
-
-pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-    artifact: crate::pipeline::LlvmArtifactKind,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
-    let stage_input = StageEmitInput::from_stage_output(&stage_output);
-    match artifact {
-        crate::pipeline::LlvmArtifactKind::LlvmIr => emit_main_ir_to_file_from_stage_output(
-            stage_output.source_map(),
-            stage_output.entry_source_id(),
-            stage_input,
-            output,
-            stage_output.entry_main_fqn(),
-            stage_output.opt_level(),
-        ),
-        crate::pipeline::LlvmArtifactKind::Object => emit_main_obj_to_file_from_stage_output(
-            stage_output.source_map(),
-            stage_output.entry_source_id(),
-            stage_input,
-            output,
-            stage_output.entry_main_fqn(),
-            stage_output.opt_level(),
-        ),
-        crate::pipeline::LlvmArtifactKind::Asm => emit_main_asm_to_file_from_stage_output(
-            stage_output.source_map(),
-            stage_output.entry_source_id(),
-            stage_input,
-            output,
-            stage_output.entry_main_fqn(),
-            stage_output.opt_level(),
-        ),
-    }
-}
-
 impl<'a> LoweredCodegenEntry<'a> {
     fn from_stage_output(
         base_context: &'a LlvmStageBaseContext,
@@ -166,41 +108,8 @@ impl<'a> LoweredCodegenEntry<'a> {
     }
 }
 
-/// 为一个 Scoop 程序生成默认单文件 LLVM IR（`.ll` 文本）。
-///
-/// 当前默认路径会先运行 LLVM stage，再消费其 authoritative handoff 发射产物。
-///
-/// 输出形态：
-/// - 一个 LLVM module（module name 取决于输入文件名）；
-/// - module target triple / data layout 设为 host；
-/// - `i32 @main(i32 argc, i8** argv)` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
-pub fn emit_minimal_main_ir(
-    session: &Session,
-    source: &SourceFile,
-) -> Result<String, LlvmEmitError> {
-    let context = Context::create();
-    let module = build_minimal_main_module_with_opt_level(session, source, &context, OptLevel::O0)?;
-    Ok(module.print_to_string().to_string())
-}
-
-/// 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
-pub fn emit_minimal_main_ir_to_file(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    let ir = emit_minimal_main_ir(session, source)?;
-
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
-
-    Ok(())
-}
-
 /// 基于 LLVM stage handoff（LIR + LIR facts + LLVM base context）构建 LLVM module。
-pub(crate) fn build_main_module_from_stage_output<'ctx>(
+pub fn build_main_module_from_stage_output<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     context: &'ctx Context,
@@ -223,15 +132,14 @@ pub(crate) fn build_main_module_from_stage_output<'ctx>(
     )
 }
 
-/// 基于 LLVM stage handoff 生成 LLVM IR，并写入到指定路径。
-pub fn emit_main_ir_to_file_from_stage_output(
+/// 基于 LLVM stage handoff 生成 LLVM IR 文本。
+pub fn emit_main_ir_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     stage_input: StageEmitInput<'_>,
-    output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
+) -> Result<String, LlvmEmitError> {
     let context = Context::create();
     let module = build_main_module_from_stage_output(
         source_map,
@@ -243,51 +151,29 @@ pub fn emit_main_ir_to_file_from_stage_output(
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
+    Ok(module.print_to_string().to_string())
+}
 
-    let ir = module.print_to_string().to_string();
+/// 基于 LLVM stage handoff 生成 LLVM IR，并写入到指定路径。
+pub fn emit_main_ir_to_file_from_stage_output(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    stage_input: StageEmitInput<'_>,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    let ir = emit_main_ir_from_stage_output(
+        source_map,
+        entry_source_id,
+        stage_input,
+        entry_main_fqn,
+        opt_level,
+    )?;
     std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
         path: output.to_path_buf(),
         source: e,
     })?;
-    Ok(())
-}
-
-/// 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
-pub fn emit_minimal_main_obj_to_file(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_obj_to_file_with_opt_level(session, source, output, OptLevel::O0)
-}
-
-/// 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
-pub fn emit_minimal_main_obj_to_file_with_opt_level(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
-    // 这里提前做 UTF-8 校验并返回结构化诊断。
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_minimal_main_module_with_opt_level(session, source, &context, opt_level)?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Object, output)
-        .map_err(|e| LlvmEmitError::WriteObjFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-
     Ok(())
 }
 
@@ -326,45 +212,6 @@ pub fn emit_main_obj_to_file_from_stage_output(
     Ok(())
 }
 
-/// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
-pub fn emit_minimal_main_asm_to_file(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_asm_to_file_with_opt_level(session, source, output, OptLevel::O0)
-}
-
-/// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
-pub fn emit_minimal_main_asm_to_file_with_opt_level(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
-    // 这里提前做 UTF-8 校验并返回结构化诊断。
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_minimal_main_module_with_opt_level(session, source, &context, opt_level)?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Assembly, output)
-        .map_err(|e| LlvmEmitError::WriteAsmFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-
-    Ok(())
-}
-
 /// 基于 LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
 pub fn emit_main_asm_to_file_from_stage_output(
     source_map: &SourceMap,
@@ -398,31 +245,6 @@ pub fn emit_main_asm_to_file_from_stage_output(
             message: e.to_string(),
         })?;
     Ok(())
-}
-
-#[cfg(test)]
-pub(crate) fn build_minimal_main_module<'ctx>(
-    session: &Session,
-    source: &SourceFile,
-    context: &'ctx Context,
-) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    build_minimal_main_module_with_opt_level(session, source, context, OptLevel::O0)
-}
-
-pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
-    session: &Session,
-    source: &SourceFile,
-    context: &'ctx Context,
-    opt_level: OptLevel,
-) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
-    build_main_module_from_stage_output(
-        stage_output.source_map(),
-        stage_output.entry_source_id(),
-        context,
-        StageEmitInput::from_stage_output(&stage_output),
-        None,
-    )
 }
 
 fn build_main_module_from_codegen_entry<'ctx>(

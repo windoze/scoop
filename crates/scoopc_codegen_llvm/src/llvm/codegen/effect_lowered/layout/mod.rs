@@ -219,5 +219,5 @@ mod payload;
 mod state_machine;
 mod surface_resume;
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests;

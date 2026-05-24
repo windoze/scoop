@@ -4179,7 +4179,7 @@ fn intrinsic_base_fqn(fqn: &str) -> &str {
         .unwrap_or(fqn)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
 
     #[test]

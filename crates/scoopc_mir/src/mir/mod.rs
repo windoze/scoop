@@ -1594,8 +1594,20 @@ pub type SourceCallArg = crate::hir::CallArg;
 /// MIR is allowed to depend on the frontend stages; LIR should consume these
 /// payloads through explicit LIR contracts instead of re-exporting this module.
 pub mod source_payload {
-    pub use crate::ast::CastOp;
+    pub use crate::ast::{BinaryOp, CastOp, TopLevelFunCallBinding, TypeCheckOp, TypeKind};
     pub use crate::hir::*;
+    pub mod intrinsics {
+        pub use crate::intrinsics::{
+            NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeSignature,
+            NamedIntrinsicRuntimeTy, fallback_named_intrinsic_entry_name_for_fqn,
+            named_intrinsic_audit_entries, named_intrinsic_audit_entry,
+        };
+    }
+    pub use crate::itable::{
+        ClassItableEntry, ClassItableIndex, ITABLE_RECEIVER_REF_TYPE_ID, InterfaceIndex,
+    };
+    pub use crate::syntax::{char_literal, float_literal, int_literal, string_literal};
+    pub use crate::vtable::ClassVtableIndex;
 }
 
 /// Monomorphic class init source contract published to LIR without exposing HIR/AST owner names.

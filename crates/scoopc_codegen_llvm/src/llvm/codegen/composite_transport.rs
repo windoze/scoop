@@ -757,7 +757,7 @@ pub(in crate::llvm::codegen) fn composite_transport_codegen_guard_error<'a, 'ctx
     )
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
     use crate::effect_lowered::mir_source::{MirBoxingIntent, MirTransportRequirements};

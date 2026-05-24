@@ -459,7 +459,7 @@ fn collect_mir_terminator_uses(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
 

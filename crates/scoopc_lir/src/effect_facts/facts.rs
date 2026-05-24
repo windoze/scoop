@@ -51,7 +51,7 @@ impl MirSnapshotBinding {
         &self.canonical_body_fqns
     }
 
-    pub(crate) fn from_pass_view(pass_view: &MaterializedMirPassView<'_>) -> Self {
+    pub fn from_pass_view(pass_view: &MaterializedMirPassView<'_>) -> Self {
         let mut canonical_body_fqns = BTreeSet::new();
         for family in pass_view.instances() {
             for fun in family.callable_bodies() {
@@ -678,6 +678,19 @@ impl BodyEffectFacts {
         }
     }
 
+    pub fn with_local_control_step_schema(
+        blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
+        sites: BTreeMap<SiteId, SiteEffectFacts>,
+        local_control_step_schema: Option<StepSchemaId>,
+    ) -> Self {
+        Self {
+            blocks,
+            sites,
+            local_control_step_schema,
+            solver_facts: BodyEffectSolverFacts::default(),
+        }
+    }
+
     pub(crate) fn with_solver_facts(
         blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
         sites: BTreeMap<SiteId, SiteEffectFacts>,
@@ -749,6 +762,10 @@ impl EffectOwnedTypeContext {
         }
     }
 
+    pub fn from_types(types: TypeStore) -> Self {
+        Self { types }
+    }
+
     pub fn types(&self) -> &TypeStore {
         &self.types
     }
@@ -769,7 +786,7 @@ pub struct MaterializedEffectFacts {
 }
 
 impl MaterializedEffectFacts {
-    pub(crate) fn new(
+    pub fn new(
         type_context: EffectOwnedTypeContext,
         snapshot_binding: MirSnapshotBinding,
         step_schemas: BTreeMap<StepSchemaId, StepSchema>,

@@ -264,7 +264,7 @@ mod contract_step;
 pub mod dispatch_plan;
 mod main;
 mod provenance;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests;
 
 #[allow(unused_imports)]

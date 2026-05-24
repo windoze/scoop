@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 
 use crate::effect_lowered::{
@@ -112,14 +113,7 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
     opt_options: LateLoweredOptOptions,
 ) -> Result<LirStageOutput, EffectLoweringError> {
     let effect_facts =
-        scoopc_lir::effect_facts::MaterializedEffectFacts::from_published_effect_facts(
-            mir_stage_output.materialized_pass_view(),
-            effect_facts_stage_output.published_effect_facts(),
-            effect_facts_stage_output.effect_types(),
-        )
-        .map_err(|error| EffectLoweringError::InvalidEffectFactsContract {
-            detail: error.to_string(),
-        })?;
+        convert_stage_effect_facts_to_lir(mir_stage_output, effect_facts_stage_output);
     let raw_lir = LateLoweredProgramBuilder::from_canonical_inputs(
         mir_stage_output.materialized_pass_view(),
         &effect_facts,
@@ -141,6 +135,339 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
         opt_pipeline,
     )?;
     Ok(LirStageOutput::new(lir, lir_facts))
+}
+
+fn convert_stage_effect_facts_to_lir(
+    mir_stage_output: &MirStageOutput,
+    effect_facts_stage_output: &EffectFactsStageOutput,
+) -> scoopc_lir::effect_facts::MaterializedEffectFacts {
+    let facts = effect_facts_stage_output.effect_facts();
+    scoopc_lir::effect_facts::MaterializedEffectFacts::new(
+        scoopc_lir::effect_facts::EffectOwnedTypeContext::from_types(
+            effect_facts_stage_output.effect_types().clone(),
+        ),
+        scoopc_lir::effect_facts::MirSnapshotBinding::from_pass_view(
+            &mir_stage_output.materialized_pass_view(),
+        ),
+        facts
+            .step_schemas()
+            .iter()
+            .map(|(id, schema)| (map_step_schema_id(*id), map_step_schema(schema)))
+            .collect::<BTreeMap<_, _>>(),
+        facts
+            .continuation_schemas()
+            .iter()
+            .map(|(id, schema)| {
+                (
+                    map_continuation_schema_id(*id),
+                    map_continuation_schema(schema),
+                )
+            })
+            .collect::<BTreeMap<_, _>>(),
+        facts
+            .callable_facts()
+            .iter()
+            .map(|(instance, callable)| (instance.clone(), map_callable_facts(callable)))
+            .collect::<HashMap<_, _>>(),
+        facts
+            .bodies()
+            .iter()
+            .map(|(instance, body)| (instance.clone(), map_body_facts(body)))
+            .collect::<HashMap<_, _>>(),
+    )
+}
+
+fn map_step_schema(
+    schema: &crate::effect_facts_stage::StepSchema,
+) -> scoopc_lir::effect_facts::StepSchema {
+    scoopc_lir::effect_facts::StepSchema::new(
+        schema.invoke_args_tuple_ty(),
+        schema.complete_ty(),
+        schema.continuation_obj_ty(),
+        schema.cases().iter().map(map_step_case).collect(),
+    )
+}
+
+fn map_step_case(
+    case: &crate::effect_facts_stage::StepCaseFact,
+) -> scoopc_lir::effect_facts::StepCaseFact {
+    scoopc_lir::effect_facts::StepCaseFact::new(
+        map_case_tag(case.case_tag()),
+        map_concrete_op_key(case.concrete_op_key()),
+        case.payload_tuple_ty(),
+        map_continuation_schema_id(case.continuation_schema()),
+    )
+}
+
+fn map_concrete_op_key(
+    key: &crate::effect_facts_stage::ConcreteOpKey,
+) -> scoopc_lir::effect_facts::ConcreteOpKey {
+    scoopc_lir::effect_facts::ConcreteOpKey::new(
+        key.instance_key().clone(),
+        key.stable_instance_key().clone(),
+        map_effect_family_key(key.effect_family()),
+    )
+}
+
+fn map_effect_family_key(
+    key: &crate::effect_facts_stage::EffectFamilyKey,
+) -> scoopc_lir::effect_facts::EffectFamilyKey {
+    scoopc_lir::effect_facts::EffectFamilyKey::new(
+        key.effect_fqn().to_string(),
+        key.type_args().to_vec(),
+    )
+}
+
+fn map_continuation_schema(
+    schema: &crate::effect_facts_stage::ContinuationSchema,
+) -> scoopc_lir::effect_facts::ContinuationSchema {
+    scoopc_lir::effect_facts::ContinuationSchema::new(
+        schema.resume_tuple_ty(),
+        schema.answer_ty(),
+        map_step_schema_id(schema.out_step_schema()),
+        schema.surface_ty(),
+    )
+}
+
+fn map_callable_facts(
+    facts: &crate::effect_facts_stage::CallableEffectFacts,
+) -> scoopc_lir::effect_facts::CallableEffectFacts {
+    scoopc_lir::effect_facts::CallableEffectFacts::new(
+        facts.declared_row().clone(),
+        map_callable_abi(facts.call_abi_kind()),
+        facts.invoke_args_tuple_ty_opt(),
+        facts.body_step_schema().map(map_step_schema_id),
+        map_case_set(facts.resolved_outward_cases()),
+        facts.needs_reentry(),
+        map_impl_plan(facts.impl_plan()),
+    )
+}
+
+fn map_body_facts(
+    body: &crate::effect_facts_stage::BodyEffectFacts,
+) -> scoopc_lir::effect_facts::BodyEffectFacts {
+    let blocks = body
+        .blocks()
+        .iter()
+        .map(|(block_id, block)| (*block_id, map_block_facts(block)))
+        .collect();
+    let sites = body
+        .sites()
+        .iter()
+        .map(|(site_id, site)| (*site_id, map_site_facts(site)))
+        .collect();
+    scoopc_lir::effect_facts::BodyEffectFacts::with_local_control_step_schema(
+        blocks,
+        sites,
+        body.local_control_step_schema().map(map_step_schema_id),
+    )
+}
+
+fn map_block_facts(
+    block: &crate::effect_facts_stage::BlockEffectFacts,
+) -> scoopc_lir::effect_facts::BlockEffectFacts {
+    scoopc_lir::effect_facts::BlockEffectFacts::new(
+        map_case_set(block.ambient_cases()),
+        map_case_set(block.outward_cases()),
+        block.has_suspend_boundary(),
+        block.has_handle_boundary(),
+    )
+}
+
+fn map_site_facts(
+    site: &crate::effect_facts_stage::SiteEffectFacts,
+) -> scoopc_lir::effect_facts::SiteEffectFacts {
+    match site {
+        crate::effect_facts_stage::SiteEffectFacts::Call(call) => {
+            scoopc_lir::effect_facts::SiteEffectFacts::Call(map_call_site(call))
+        }
+        crate::effect_facts_stage::SiteEffectFacts::ClassCtor(class_ctor) => {
+            scoopc_lir::effect_facts::SiteEffectFacts::ClassCtor(
+                scoopc_lir::effect_facts::ClassCtorSiteEffectFacts::new(map_case_set(
+                    class_ctor.emitted_cases(),
+                )),
+            )
+        }
+        crate::effect_facts_stage::SiteEffectFacts::Perform(perform) => {
+            scoopc_lir::effect_facts::SiteEffectFacts::Perform(
+                scoopc_lir::effect_facts::PerformSiteEffectFacts::new(
+                    map_case_tag(perform.emitted_case()),
+                    perform.payload_tuple_ty(),
+                    map_continuation_schema_id(perform.captured_cont_schema()),
+                ),
+            )
+        }
+        crate::effect_facts_stage::SiteEffectFacts::Resume(resume) => {
+            scoopc_lir::effect_facts::SiteEffectFacts::Resume(
+                scoopc_lir::effect_facts::ResumeSiteEffectFacts::new(
+                    map_continuation_schema_id(resume.continuation_schema()),
+                    resume.resume_tuple_ty(),
+                    resume.answer_ty(),
+                    map_step_schema_id(resume.out_step_schema()),
+                    map_case_set(resume.resolved_cases()),
+                ),
+            )
+        }
+        crate::effect_facts_stage::SiteEffectFacts::Handle(handle) => {
+            scoopc_lir::effect_facts::SiteEffectFacts::Handle(
+                scoopc_lir::effect_facts::HandleSiteEffectFacts::new(
+                    handle.result_ty(),
+                    map_case_set(handle.handled_cases()),
+                    map_case_set(handle.body_outward_cases()),
+                    handle.arm_facts().iter().map(map_handle_arm).collect(),
+                    map_case_set(handle.finally_outward_cases()),
+                    map_nested_handle_classification(handle.nested_handle_classification()),
+                ),
+            )
+        }
+    }
+}
+
+fn map_call_site(
+    call: &crate::effect_facts_stage::CallSiteEffectFacts,
+) -> scoopc_lir::effect_facts::CallSiteEffectFacts {
+    scoopc_lir::effect_facts::CallSiteEffectFacts::new_with_abi(
+        map_call_site_kind(call.kind()),
+        map_call_site_target(call.target()),
+        map_callable_abi(call.callee_abi_kind()),
+        call.invoke_args_tuple_ty(),
+        call.callee_step_schema().map(map_step_schema_id),
+        map_case_set(call.resolved_cases()),
+        map_effect_precision(call.precision()),
+    )
+}
+
+fn map_call_site_target(
+    target: &crate::effect_facts_stage::CallSiteTarget,
+) -> scoopc_lir::effect_facts::CallSiteTarget {
+    match target {
+        crate::effect_facts_stage::CallSiteTarget::KnownInstance(instance) => {
+            scoopc_lir::effect_facts::CallSiteTarget::KnownInstance(instance.clone())
+        }
+        crate::effect_facts_stage::CallSiteTarget::CandidateSet(instances) => {
+            scoopc_lir::effect_facts::CallSiteTarget::CandidateSet(instances.clone())
+        }
+        crate::effect_facts_stage::CallSiteTarget::DynamicFallback => {
+            scoopc_lir::effect_facts::CallSiteTarget::DynamicFallback
+        }
+    }
+}
+
+fn map_handle_arm(
+    arm: &crate::effect_facts_stage::HandleArmEffectFacts,
+) -> scoopc_lir::effect_facts::HandleArmEffectFacts {
+    scoopc_lir::effect_facts::HandleArmEffectFacts::new(
+        map_case_tag(arm.handled_case()),
+        arm.payload_tuple_ty(),
+        map_continuation_schema_id(arm.continuation_schema()),
+        map_case_set(arm.arm_outward_cases()),
+    )
+}
+
+fn map_case_set(
+    case_set: &crate::effect_facts_stage::CaseSet,
+) -> scoopc_lir::effect_facts::CaseSet {
+    scoopc_lir::effect_facts::CaseSet::new(
+        map_step_schema_id(case_set.schema()),
+        case_set.tags().iter().copied().map(map_case_tag).collect(),
+    )
+}
+
+fn map_step_schema_id(
+    id: crate::effect_facts_stage::StepSchemaId,
+) -> scoopc_lir::effect_facts::StepSchemaId {
+    scoopc_lir::effect_facts::StepSchemaId::new(id.as_u32())
+}
+
+fn map_continuation_schema_id(
+    id: crate::effect_facts_stage::ContinuationSchemaId,
+) -> scoopc_lir::effect_facts::ContinuationSchemaId {
+    scoopc_lir::effect_facts::ContinuationSchemaId::new(id.as_u32())
+}
+
+fn map_case_tag(tag: crate::effect_facts_stage::CaseTag) -> scoopc_lir::effect_facts::CaseTag {
+    scoopc_lir::effect_facts::CaseTag::new(tag.as_u32())
+}
+
+fn map_callable_abi(
+    kind: crate::effect_facts_stage::CallableAbiKind,
+) -> scoopc_lir::effect_facts::CallableAbiKind {
+    match kind {
+        crate::effect_facts_stage::CallableAbiKind::Plain => {
+            scoopc_lir::effect_facts::CallableAbiKind::Plain
+        }
+        crate::effect_facts_stage::CallableAbiKind::EffectStep => {
+            scoopc_lir::effect_facts::CallableAbiKind::EffectStep
+        }
+    }
+}
+
+fn map_impl_plan(plan: crate::effect_facts_stage::ImplPlan) -> scoopc_lir::effect_facts::ImplPlan {
+    match plan {
+        crate::effect_facts_stage::ImplPlan::NoOutward => {
+            scoopc_lir::effect_facts::ImplPlan::NoOutward
+        }
+        crate::effect_facts_stage::ImplPlan::SingleCase(case) => {
+            scoopc_lir::effect_facts::ImplPlan::SingleCase(map_case_tag(case))
+        }
+        crate::effect_facts_stage::ImplPlan::CanonicalFull => {
+            scoopc_lir::effect_facts::ImplPlan::CanonicalFull
+        }
+    }
+}
+
+fn map_call_site_kind(
+    kind: crate::effect_facts_stage::CallSiteKind,
+) -> scoopc_lir::effect_facts::CallSiteKind {
+    match kind {
+        crate::effect_facts_stage::CallSiteKind::Direct => {
+            scoopc_lir::effect_facts::CallSiteKind::Direct
+        }
+        crate::effect_facts_stage::CallSiteKind::Closure => {
+            scoopc_lir::effect_facts::CallSiteKind::Closure
+        }
+        crate::effect_facts_stage::CallSiteKind::FunValue => {
+            scoopc_lir::effect_facts::CallSiteKind::FunValue
+        }
+        crate::effect_facts_stage::CallSiteKind::FunPtr => {
+            scoopc_lir::effect_facts::CallSiteKind::FunPtr
+        }
+        crate::effect_facts_stage::CallSiteKind::Virtual => {
+            scoopc_lir::effect_facts::CallSiteKind::Virtual
+        }
+        crate::effect_facts_stage::CallSiteKind::Interface => {
+            scoopc_lir::effect_facts::CallSiteKind::Interface
+        }
+    }
+}
+
+fn map_effect_precision(
+    precision: crate::effect_facts_stage::EffectPrecision,
+) -> scoopc_lir::effect_facts::EffectPrecision {
+    match precision {
+        crate::effect_facts_stage::EffectPrecision::Precise => {
+            scoopc_lir::effect_facts::EffectPrecision::Precise
+        }
+        crate::effect_facts_stage::EffectPrecision::Widened => {
+            scoopc_lir::effect_facts::EffectPrecision::Widened
+        }
+        crate::effect_facts_stage::EffectPrecision::SignatureFallback => {
+            scoopc_lir::effect_facts::EffectPrecision::SignatureFallback
+        }
+    }
+}
+
+fn map_nested_handle_classification(
+    classification: crate::effect_facts_stage::NestedHandleClassification,
+) -> scoopc_lir::effect_facts::NestedHandleClassification {
+    match classification {
+        crate::effect_facts_stage::NestedHandleClassification::SelfContained => {
+            scoopc_lir::effect_facts::NestedHandleClassification::SelfContained
+        }
+        crate::effect_facts_stage::NestedHandleClassification::MaySuspendOutward => {
+            scoopc_lir::effect_facts::NestedHandleClassification::MaySuspendOutward
+        }
+    }
 }
 
 fn render_stage_output(output: &LirStageOutput) -> String {
@@ -410,17 +737,29 @@ fun main(): Int {
             .callable("sample.main")
             .expect("late-lowered program 应保留 sample.main 边界记录");
 
-        assert_eq!(lowered_main.call_abi_kind(), expected_abi);
-        assert_eq!(lowered_main.body_step_schema(), expected_body_step_schema);
-        assert_eq!(lowered_main.impl_plan(), expected_impl_plan);
+        assert_eq!(
+            format!("{:?}", lowered_main.call_abi_kind()),
+            format!("{:?}", expected_abi)
+        );
+        assert_eq!(
+            format!("{:?}", lowered_main.body_step_schema()),
+            format!("{:?}", expected_body_step_schema)
+        );
+        assert_eq!(
+            format!("{:?}", lowered_main.impl_plan()),
+            format!("{:?}", expected_impl_plan)
+        );
         assert_eq!(lowered_main.needs_reentry(), expected_needs_reentry);
         assert_eq!(
-            lowered_main.resolved_outward_cases(),
-            expected_cases.as_slice()
+            format!("{:?}", lowered_main.resolved_outward_cases()),
+            format!("{:?}", expected_cases.as_slice())
         );
         assert_eq!(
             lowered_main.plain_abi().is_some(),
-            expected_abi == CallableAbiKind::Plain
+            matches!(
+                expected_abi,
+                crate::effect_facts_stage::CallableAbiKind::Plain
+            )
         );
         assert_eq!(
             output.lir_facts().summary.callable_count,

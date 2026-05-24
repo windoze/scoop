@@ -625,7 +625,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let source = self.current_source()?;
         Ok(self
             .dispatch_call_contracts
-            .get(&crate::pipeline::LlvmDispatchCallKey::new(
+            .get(&crate::llvm::LlvmDispatchCallKey::new(
                 source.path().to_path_buf(),
                 span,
                 receiver_ty,

@@ -487,7 +487,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    dispatch_call_contracts: &'a HashMap<crate::pipeline::LlvmDispatchCallKey, LirCallSiteKind>,
+    dispatch_call_contracts: &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
     #[allow(dead_code)]
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -495,7 +495,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     nominal_kinds: &'a hir::NominalKindIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
-    callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
+    callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
     /// ABI 可见性阶段发布的 callable contract。
     ///
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
@@ -824,14 +824,14 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) dispatch_call_contracts:
-        &'a HashMap<crate::pipeline::LlvmDispatchCallKey, LirCallSiteKind>,
+        &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
-    pub(super) callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
+    pub(super) callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) native_callable_funs: &'a hir::NativeCallableFunIndex,
     pub(super) published_late_lowered_program:
@@ -1306,7 +1306,7 @@ fn source_text_int_literal_body(text: &str) -> Option<(bool, &str)> {
     None
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod exported_abi_symbol_registry_tests {
     use std::cell::RefCell;
     use std::collections::HashMap;

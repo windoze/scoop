@@ -43,8 +43,6 @@ const LIR_STAGE_CRATES: &[&str] = &["scoopc_lir"];
 
 const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 
-const TEMPORARY_CODEGEN_FACADE_DEPS: &[&str] = &["scoopc"];
-
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
     "scoopc",
@@ -1070,6 +1068,30 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
             ],
         },
         SourceTreeBoundaryRule {
+            label: "LLVM production direct scoopc handoff residuals",
+            kind_label: "backend-boundary",
+            root: "crates/scoopc_codegen_llvm/src/llvm",
+            exclude_path_fragments: &["/tests/", "tests.rs"],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "crate::pipeline",
+                    reason: "standalone LLVM codegen must consume codegen-owned handoff types, not the scoopc pipeline module",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::frontend",
+                    reason: "single-file/frontend orchestration belongs to the scoopc wrapper, not the LLVM codegen crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::pipeline",
+                    reason: "LLVM codegen must not recover pipeline handoff through the scoopc facade",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::frontend",
+                    reason: "LLVM codegen must not recover frontend orchestration through the scoopc facade",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
             label: "LIR production direct HIR/AST residuals",
             kind_label: "stage-split-boundary",
             root: "crates/scoopc/src/effect_lowered",
@@ -1311,7 +1333,7 @@ fn find_dependency_violations(
             {
                 violations.push(Violation {
                     dependency: dependency.clone(),
-                    reason: "LLVM codegen crates must depend only on base/LIR inputs; the temporary scoopc facade is allowed only until P9-T06"
+                    reason: "LLVM codegen crates must depend only on base, scoopc_lir, and scoopc_lir_facts"
                         .to_string(),
                 });
                 continue;
@@ -1319,11 +1341,10 @@ fn find_dependency_violations(
 
             if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
                 && !allowed_stage_inputs.contains(&dependency_name)
-                && !TEMPORARY_CODEGEN_FACADE_DEPS.contains(&dependency_name)
             {
                 violations.push(Violation {
                     dependency: dependency.clone(),
-                    reason: "LLVM codegen crates must not depend on driver/runtime/tool, frontend stages, MIR/effect stages, or non-LIR fact crates"
+                    reason: "LLVM codegen crates must not depend on the scoopc facade, driver/runtime/tool, frontend stages, MIR/effect stages, or non-LIR fact crates"
                         .to_string(),
                 });
             }
@@ -1632,6 +1653,56 @@ mod tests {
         assert!(rejected.contains("scoopc_hir_facts"));
         assert!(rejected.contains("scoopc_effect_facts_stage"));
         assert!(rejected.contains("scoopc_codegen_llvm"));
+    }
+
+    #[test]
+    fn allows_codegen_stage_direct_lir_dependency_direction() {
+        let violations = find_dependency_violations(
+            "scoopc_codegen_llvm",
+            CrateKind::CodegenStage,
+            &set(&[
+                "scoopc_codegen_llvm",
+                "scoopc_lir",
+                "scoopc_lir_facts",
+                "scoopc_project_model",
+                "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_codegen_stage_facade_or_earlier_stage_dependency() {
+        let violations = find_dependency_violations(
+            "scoopc_codegen_llvm",
+            CrateKind::CodegenStage,
+            &set(&[
+                "scoopc_codegen_llvm",
+                "scoopc_lir",
+                "scoopc_lir_facts",
+                "scoopc",
+                "scoopc_ast",
+                "scoopc_hir",
+                "scoopc_mir",
+                "scoopc_effect_facts_stage",
+                "scoopc_hir_facts",
+            ]),
+        );
+
+        let rejected = violations
+            .iter()
+            .map(|violation| violation.dependency.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(rejected.contains("scoopc"));
+        assert!(rejected.contains("scoopc_ast"));
+        assert!(rejected.contains("scoopc_hir"));
+        assert!(rejected.contains("scoopc_mir"));
+        assert!(rejected.contains("scoopc_effect_facts_stage"));
+        assert!(rejected.contains("scoopc_hir_facts"));
     }
 
     #[test]

@@ -1170,7 +1170,7 @@ fn reachable_case_tags(
         .collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-stage-crate")))]
 mod tests {
     use crate::effect_lowered::ir::SystemSlotKind;
     use crate::pipeline::{

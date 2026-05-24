@@ -1,10 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::path::Path;
 
-use crate::cone::SourceConeInfo;
 use crate::effect_facts_stage::MaterializedEffectFacts;
-use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::ordinary_callee::{
     EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,
     EffectFieldOwnerKind, EffectGlobalRootKind,
@@ -12,20 +9,19 @@ use crate::effect_lowered::ordinary_callee::{
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
-use crate::llvm::LlvmEmitError;
+use crate::llvm::{
+    LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmDispatchCallKey, LlvmEmitError,
+    LlvmStageBaseContext,
+};
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::span::Span;
-use crate::stable_id::{StableConeKey, StableTypeParamKey};
-use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
+use crate::ty::TypeStore;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_lir_facts::{
-    LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
-};
+use scoopc_lir_facts::{LirCallSiteKind, LirFacts};
 
 use super::{
     HirStageOutput, LirStageOutput, LlvmArtifactKind,
@@ -78,340 +74,6 @@ impl LlvmCodegenStageInput {
             entry_main_fqn,
             opt_level,
         }
-    }
-}
-
-/// LLVM/backend 仍需的显式 base context。
-///
-/// `LirFacts.type_context.owner` 指向这个 context：当前 TypeId 仍是同进程
-/// effect-owned `TypeStore` identity，cross-process stable wire format 显式推迟到 P8 的
-/// per-cone build artifact serialization。这里不再嵌套 `LoweredHir`、完整 MIR/effect
-/// wrappers 或 HIR fact wrapper，只保留 LLVM 仍需的显式窄 base contracts。
-#[derive(Debug)]
-pub struct LlvmStageBaseContext {
-    source_cones: HashMap<PathBuf, SourceConeInfo>,
-    stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
-    types: TypeStore,
-    stable_cone_key: StableConeKey,
-    materialized_type_fingerprint: String,
-    effect_type_fingerprint: String,
-    struct_layouts: hir::StructLayoutIndex,
-    enum_layouts: hir::EnumLayoutIndex,
-    top_level_vars: hir::TopLevelVarIndex,
-    top_level_immutable_values: hir::TopLevelImmutableValueIndex,
-    top_level_fun_call_sites: hir::TopLevelFunCallSiteIndex,
-    object_inits: hir::ObjectInitIndex,
-    class_inits: hir::ClassInitIndex,
-    class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-    class_vtables: crate::vtable::ClassVtableIndex,
-    interfaces: crate::itable::InterfaceIndex,
-    class_itables: crate::itable::ClassItableIndex,
-    ctor_call_sites: hir::CtorCallSiteIndex,
-    dispatch_call_contracts: HashMap<LlvmDispatchCallKey, LirCallSiteKind>,
-    effect_op_call_sites: hir::EffectOpCallSiteIndex,
-    continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
-    when_pat_binding_tys: hir::WhenPatBindingTypeIndex,
-    nominal_kinds: hir::NominalKindIndex,
-    direct_supertypes: hir::DirectSupertypesIndex,
-    builtins: BuiltinTypes,
-    callable_sources: HashMap<String, LlvmCallableSourceContract>,
-    extern_funs: hir::ExternFunIndex,
-    native_callable_funs: hir::NativeCallableFunIndex,
-    effect_analysis_facts: Rc<EffectAnalysisFacts>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct LlvmCallableSourceContract {
-    pub(crate) source_path: PathBuf,
-    pub(crate) span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct LlvmDispatchCallKey {
-    pub(crate) source_path: PathBuf,
-    pub(crate) span: Span,
-    pub(crate) receiver_ty: crate::ty::TypeId,
-}
-
-impl LlvmDispatchCallKey {
-    pub(crate) fn new(
-        source_path: impl Into<PathBuf>,
-        span: Span,
-        receiver_ty: crate::ty::TypeId,
-    ) -> Self {
-        Self {
-            source_path: source_path.into(),
-            span,
-            receiver_ty,
-        }
-    }
-}
-
-impl LlvmStageBaseContext {
-    pub(crate) fn from_lowered_hir(
-        lowered_hir: LoweredHir,
-        hir_facts: HirFacts,
-        materialized_mir: MaterializedMir,
-        effect_facts: MaterializedEffectFacts,
-    ) -> Self {
-        let top_level_funs: Vec<hir::FunDecl> = lowered_hir
-            .file
-            .items
-            .into_iter()
-            .filter_map(|item| match item {
-                hir::Item::Fun(fun) => Some(fun),
-                _ => None,
-            })
-            .collect();
-        let effect_analysis_facts =
-            Rc::new(build_ordinary_callee_effect_analysis_facts(&hir_facts));
-        let stable_cone_key = materialized_mir.stable_cone_key().clone();
-        let materialized_type_fingerprint = type_store_fingerprint(&materialized_mir.types);
-        let types = effect_facts.types().clone();
-        let effect_type_fingerprint = type_store_fingerprint(&types);
-        let contracts = materialized_mir.backend_contracts();
-        let mut enum_layouts = contracts.enum_layouts.clone();
-        for (key, value) in lowered_hir.enum_layouts {
-            enum_layouts.entry(key).or_insert(value);
-        }
-        let mut top_level_vars = contracts.top_level_vars.clone();
-        for (key, value) in lowered_hir.top_level_vars {
-            top_level_vars.entry(key).or_insert(value);
-        }
-        let mut top_level_immutable_values = contracts.top_level_immutable_values.clone();
-        for (key, value) in lowered_hir.top_level_immutable_values {
-            top_level_immutable_values.entry(key).or_insert(value);
-        }
-        let mut object_inits = contracts.object_inits.clone();
-        for (key, value) in lowered_hir.object_inits {
-            object_inits.entry(key).or_insert(value);
-        }
-        let mut class_inits = contracts.class_inits.clone();
-        for (key, value) in lowered_hir.class_inits {
-            class_inits.entry(key).or_insert(value);
-        }
-        let class_init_payloads = class_inits
-            .values()
-            .map(crate::mir::MonoClassInit::from_hir)
-            .collect::<Vec<_>>();
-        let class_ctor_init_bodies = crate::effect_lowered::builder::build_class_ctor_init_bodies(
-            class_init_payloads.iter(),
-        )
-        .into_iter()
-        .map(|body| (body.key().as_str().to_string(), body))
-        .collect();
-        let mut class_vtables = contracts.class_vtables.clone();
-        for (key, value) in lowered_hir.class_vtables {
-            class_vtables.entry(key).or_insert(value);
-        }
-        let mut interfaces = contracts.interfaces.clone();
-        for (key, value) in lowered_hir.interfaces {
-            interfaces.entry(key).or_insert(value);
-        }
-        let mut class_itables = contracts.class_itables.clone();
-        for (key, value) in lowered_hir.class_itables {
-            class_itables.entry(key).or_insert(value);
-        }
-        let mut extern_funs = contracts.extern_funs.clone();
-        for (key, value) in lowered_hir.extern_funs {
-            extern_funs.entry(key).or_insert(value);
-        }
-        let mut native_callable_funs = contracts.native_callable_funs.clone();
-        for (key, value) in lowered_hir.native_callable_funs {
-            native_callable_funs.entry(key).or_insert(value);
-        }
-        let callable_sources =
-            build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-        let dispatch_call_contracts =
-            build_dispatch_call_contracts(lowered_hir.dispatch_call_sites);
-        Self {
-            source_cones: lowered_hir.source_cones,
-            stable_type_param_keys: lowered_hir.stable_type_param_keys,
-            types,
-            stable_cone_key,
-            materialized_type_fingerprint,
-            effect_type_fingerprint,
-            struct_layouts: lowered_hir.struct_layouts,
-            enum_layouts,
-            top_level_vars,
-            top_level_immutable_values,
-            top_level_fun_call_sites: lowered_hir.top_level_fun_call_sites,
-            object_inits,
-            class_inits,
-            class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
-            ctor_call_sites: lowered_hir.ctor_call_sites,
-            dispatch_call_contracts,
-            effect_op_call_sites: lowered_hir.effect_op_call_sites,
-            continuation_resume_call_sites: lowered_hir.continuation_resume_call_sites,
-            when_pat_binding_tys: lowered_hir.when_pat_binding_tys,
-            nominal_kinds: lowered_hir.nominal_kinds,
-            direct_supertypes: lowered_hir.direct_supertypes,
-            builtins: lowered_hir.builtins,
-            callable_sources,
-            extern_funs,
-            native_callable_funs,
-            effect_analysis_facts,
-        }
-    }
-
-    pub(crate) fn into_type_store(self) -> TypeStore {
-        self.types
-    }
-
-    pub(crate) fn stable_cone_key(&self) -> &StableConeKey {
-        &self.stable_cone_key
-    }
-
-    pub(crate) fn source_cones(&self) -> &HashMap<PathBuf, SourceConeInfo> {
-        &self.source_cones
-    }
-
-    pub(crate) fn stable_type_param_keys(&self) -> &HashMap<TypeParamType, StableTypeParamKey> {
-        &self.stable_type_param_keys
-    }
-
-    pub(crate) fn types(&self) -> &TypeStore {
-        &self.types
-    }
-
-    pub(crate) fn struct_layouts(&self) -> &hir::StructLayoutIndex {
-        &self.struct_layouts
-    }
-
-    pub(crate) fn enum_layouts(&self) -> &hir::EnumLayoutIndex {
-        &self.enum_layouts
-    }
-
-    pub(crate) fn top_level_vars(&self) -> &hir::TopLevelVarIndex {
-        &self.top_level_vars
-    }
-
-    pub(crate) fn top_level_immutable_values(&self) -> &hir::TopLevelImmutableValueIndex {
-        &self.top_level_immutable_values
-    }
-
-    pub(crate) fn top_level_fun_call_sites(&self) -> &hir::TopLevelFunCallSiteIndex {
-        &self.top_level_fun_call_sites
-    }
-
-    pub(crate) fn object_inits(&self) -> &hir::ObjectInitIndex {
-        &self.object_inits
-    }
-
-    pub(crate) fn class_inits(&self) -> &hir::ClassInitIndex {
-        &self.class_inits
-    }
-
-    pub(crate) fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
-        &self.class_ctor_init_bodies
-    }
-
-    pub(crate) fn class_vtables(&self) -> &crate::vtable::ClassVtableIndex {
-        &self.class_vtables
-    }
-
-    pub(crate) fn interfaces(&self) -> &crate::itable::InterfaceIndex {
-        &self.interfaces
-    }
-
-    pub(crate) fn class_itables(&self) -> &crate::itable::ClassItableIndex {
-        &self.class_itables
-    }
-
-    pub(crate) fn ctor_call_sites(&self) -> &hir::CtorCallSiteIndex {
-        &self.ctor_call_sites
-    }
-
-    pub(crate) fn dispatch_call_contracts(&self) -> &HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
-        &self.dispatch_call_contracts
-    }
-
-    pub(crate) fn effect_op_call_sites(&self) -> &hir::EffectOpCallSiteIndex {
-        &self.effect_op_call_sites
-    }
-
-    pub(crate) fn continuation_resume_call_sites(&self) -> &hir::ContinuationResumeCallSiteIndex {
-        &self.continuation_resume_call_sites
-    }
-
-    pub(crate) fn when_pat_binding_tys(&self) -> &hir::WhenPatBindingTypeIndex {
-        &self.when_pat_binding_tys
-    }
-
-    pub(crate) fn nominal_kinds(&self) -> &hir::NominalKindIndex {
-        &self.nominal_kinds
-    }
-
-    pub(crate) fn direct_supertypes(&self) -> &hir::DirectSupertypesIndex {
-        &self.direct_supertypes
-    }
-
-    pub(crate) fn builtins(&self) -> BuiltinTypes {
-        self.builtins
-    }
-
-    pub(crate) fn callable_sources(&self) -> &HashMap<String, LlvmCallableSourceContract> {
-        &self.callable_sources
-    }
-
-    pub(crate) fn extern_funs(&self) -> &hir::ExternFunIndex {
-        &self.extern_funs
-    }
-
-    pub(crate) fn native_callable_funs(&self) -> &hir::NativeCallableFunIndex {
-        &self.native_callable_funs
-    }
-
-    pub(crate) fn effect_analysis_facts(&self) -> Rc<EffectAnalysisFacts> {
-        Rc::clone(&self.effect_analysis_facts)
-    }
-
-    pub(crate) fn verify_lir_type_context(
-        &self,
-        facts: &LirFacts,
-        role: &'static str,
-    ) -> Result<(), LlvmEmitError> {
-        verify_lir_type_context_header(facts, role)?;
-
-        if facts.type_context.materialized_fingerprint != self.materialized_type_fingerprint {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "LLVM stage {role} LIR facts materialized TypeStore fingerprint 与 LlvmStageBaseContext 不一致"
-                ),
-            });
-        }
-
-        if facts.type_context.effect_facts_fingerprint != self.effect_type_fingerprint {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "LLVM stage {role} LIR facts effect TypeStore fingerprint 与 LlvmStageBaseContext 不一致"
-                ),
-            });
-        }
-
-        Self::verify_lir_type_store_owner(self.types(), facts, role)
-    }
-
-    pub(crate) fn verify_lir_type_store_owner(
-        types: &TypeStore,
-        facts: &LirFacts,
-        role: &'static str,
-    ) -> Result<(), LlvmEmitError> {
-        verify_lir_type_context_header(facts, role)?;
-
-        let effect_facts_fingerprint = type_store_fingerprint(types);
-        if facts.type_context.effect_facts_fingerprint != effect_facts_fingerprint {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "LLVM stage {role} LIR facts effect TypeStore fingerprint 与 handoff TypeStore owner 不一致"
-                ),
-            });
-        }
-
-        Ok(())
     }
 }
 
@@ -550,95 +212,108 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
     )
 }
 
-fn verify_lir_type_context_header(
-    facts: &LirFacts,
-    role: &'static str,
-) -> Result<(), LlvmEmitError> {
-    if facts.type_context.owner != LirTypeContextOwner::LirStageBaseContext {
-        return Err(LlvmEmitError::Frontend {
-            message: format!(
-                "LLVM stage {role} LIR facts 使用了非 LlvmStageBaseContext type owner: {:?}",
-                facts.type_context.owner
-            ),
-        });
+fn build_llvm_stage_base_context_from_lowered_hir(
+    lowered_hir: LoweredHir,
+    hir_facts: HirFacts,
+    materialized_mir: MaterializedMir,
+    effect_facts: MaterializedEffectFacts,
+) -> LlvmStageBaseContext {
+    let top_level_funs: Vec<hir::FunDecl> = lowered_hir
+        .file
+        .items
+        .into_iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .collect();
+    let effect_analysis_facts = build_ordinary_callee_effect_analysis_facts(&hir_facts);
+    let stable_cone_key = materialized_mir.stable_cone_key().clone();
+    let types = effect_facts.types().clone();
+    let contracts = materialized_mir.backend_contracts();
+    let mut enum_layouts = contracts.enum_layouts.clone();
+    for (key, value) in lowered_hir.enum_layouts {
+        enum_layouts.entry(key).or_insert(value);
     }
-    if facts.type_context.stable_wire_format.decision != LirTypeStableWireFormatDecision::Deferred
-        || facts.type_context.stable_wire_format.owner.is_empty()
-    {
-        return Err(LlvmEmitError::Frontend {
-            message: format!("LLVM stage {role} LIR facts 缺少 TypeId wire-format 推迟决策记录"),
-        });
+    let mut top_level_vars = contracts.top_level_vars.clone();
+    for (key, value) in lowered_hir.top_level_vars {
+        top_level_vars.entry(key).or_insert(value);
     }
-    Ok(())
-}
-
-fn type_store_fingerprint(types: &TypeStore) -> String {
-    let mut entries = types
-        .iter_ids()
-        .map(|ty| format!("t{}={}", ty.as_u32(), types.display(ty)))
+    let mut top_level_immutable_values = contracts.top_level_immutable_values.clone();
+    for (key, value) in lowered_hir.top_level_immutable_values {
+        top_level_immutable_values.entry(key).or_insert(value);
+    }
+    let mut object_inits = contracts.object_inits.clone();
+    for (key, value) in lowered_hir.object_inits {
+        object_inits.entry(key).or_insert(value);
+    }
+    let mut class_inits = contracts.class_inits.clone();
+    for (key, value) in lowered_hir.class_inits {
+        class_inits.entry(key).or_insert(value);
+    }
+    let class_init_payloads = class_inits
+        .values()
+        .map(crate::mir::MonoClassInit::from_hir)
         .collect::<Vec<_>>();
-    entries.sort();
-    entries.join("|")
-}
-
-/// LLVM codegen stage 的稳定 handoff。
-///
-/// `.ll/.o/.s` 三类产物都消费同一份 `LIR + LIR facts + LlvmStageBaseContext`，
-/// ABI visibility 只额外携带 request-source LIR/LIR facts/TypeStore，不再嵌套 P5 wrapper。
-#[derive(Debug)]
-pub struct LlvmCodegenStageOutput {
-    source_map: SourceMap,
-    entry_source_id: SourceId,
-    entry_main_fqn: Option<String>,
-    opt_level: OptLevel,
-    base_context: LlvmStageBaseContext,
-    lir: LateLoweredProgram,
-    lir_facts: LirFacts,
-    abi_visibility_lir: Option<LateLoweredProgram>,
-    abi_visibility_lir_facts: Option<LirFacts>,
-    abi_visibility_types: Option<TypeStore>,
-}
-
-impl LlvmCodegenStageOutput {
-    pub fn source_map(&self) -> &SourceMap {
-        &self.source_map
+    let class_ctor_init_bodies =
+        crate::effect_lowered::builder::build_class_ctor_init_bodies(class_init_payloads.iter())
+            .into_iter()
+            .map(|body| (body.key().as_str().to_string(), body))
+            .collect();
+    let mut class_vtables = contracts.class_vtables.clone();
+    for (key, value) in lowered_hir.class_vtables {
+        class_vtables.entry(key).or_insert(value);
     }
-
-    pub fn entry_source_id(&self) -> SourceId {
-        self.entry_source_id
+    let mut interfaces = contracts.interfaces.clone();
+    for (key, value) in lowered_hir.interfaces {
+        interfaces.entry(key).or_insert(value);
     }
-
-    pub fn entry_main_fqn(&self) -> Option<&str> {
-        self.entry_main_fqn.as_deref()
+    let mut class_itables = contracts.class_itables.clone();
+    for (key, value) in lowered_hir.class_itables {
+        class_itables.entry(key).or_insert(value);
     }
-
-    pub fn opt_level(&self) -> OptLevel {
-        self.opt_level
+    let mut extern_funs = contracts.extern_funs.clone();
+    for (key, value) in lowered_hir.extern_funs {
+        extern_funs.entry(key).or_insert(value);
     }
-
-    pub fn base_context(&self) -> &LlvmStageBaseContext {
-        &self.base_context
+    let mut native_callable_funs = contracts.native_callable_funs.clone();
+    for (key, value) in lowered_hir.native_callable_funs {
+        native_callable_funs.entry(key).or_insert(value);
     }
+    let callable_sources =
+        build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
+    let dispatch_call_contracts = build_dispatch_call_contracts(lowered_hir.dispatch_call_sites);
 
-    pub fn lir(&self) -> &LateLoweredProgram {
-        &self.lir
-    }
-
-    pub fn lir_facts(&self) -> &LirFacts {
-        &self.lir_facts
-    }
-
-    pub fn abi_visibility_lir(&self) -> Option<&LateLoweredProgram> {
-        self.abi_visibility_lir.as_ref()
-    }
-
-    pub fn abi_visibility_lir_facts(&self) -> Option<&LirFacts> {
-        self.abi_visibility_lir_facts.as_ref()
-    }
-
-    pub fn abi_visibility_types(&self) -> Option<&TypeStore> {
-        self.abi_visibility_types.as_ref()
-    }
+    LlvmStageBaseContext::new(
+        lowered_hir.source_cones,
+        lowered_hir.stable_type_param_keys,
+        &materialized_mir.types,
+        types,
+        stable_cone_key,
+        lowered_hir.struct_layouts,
+        enum_layouts,
+        top_level_vars,
+        top_level_immutable_values,
+        lowered_hir.top_level_fun_call_sites,
+        object_inits,
+        class_inits,
+        class_ctor_init_bodies,
+        class_vtables,
+        interfaces,
+        class_itables,
+        lowered_hir.ctor_call_sites,
+        dispatch_call_contracts,
+        lowered_hir.effect_op_call_sites,
+        lowered_hir.continuation_resume_call_sites,
+        lowered_hir.when_pat_binding_tys,
+        lowered_hir.nominal_kinds,
+        lowered_hir.direct_supertypes,
+        lowered_hir.builtins,
+        callable_sources,
+        extern_funs,
+        native_callable_funs,
+        effect_analysis_facts,
+    )
 }
 
 struct LlvmLirRun {
@@ -691,8 +366,12 @@ fn run_lir_stage_from_lowered_hir(
     .map_err(|err| stage_error("late lowering", err))?;
     let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
     let effect_facts = effect_facts_stage_output.into_effect_facts();
-    let base_context =
-        LlvmStageBaseContext::from_lowered_hir(base_hir, hir_facts, materialized_mir, effect_facts);
+    let base_context = build_llvm_stage_base_context_from_lowered_hir(
+        base_hir,
+        hir_facts,
+        materialized_mir,
+        effect_facts,
+    );
     base_context.verify_lir_type_context(output.lir_facts(), "primary")?;
     Ok(LlvmLirRun {
         output,
@@ -774,7 +453,7 @@ pub(crate) fn run(
             (None, None, None)
         };
 
-    Ok(LlvmCodegenStageOutput {
+    Ok(LlvmCodegenStageOutput::new(
         source_map,
         entry_source_id,
         entry_main_fqn,
@@ -785,7 +464,7 @@ pub(crate) fn run(
         abi_visibility_lir,
         abi_visibility_lir_facts,
         abi_visibility_types,
-    })
+    ))
 }
 
 pub(crate) fn emit_artifact_to_file(

@@ -21,17 +21,13 @@ use crate::cone::SourceConeCompilationUnit;
 use crate::session::Session;
 use crate::source::SourceFile;
 
+#[cfg(feature = "llvm")]
+pub use crate::llvm::{LlvmArtifactKind, LlvmCodegenStageOutput, LlvmStageBaseContext};
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
-#[cfg(all(feature = "llvm", test))]
-pub(crate) use effect_lowering_stage::build_lir_stage_output_from_stage_outputs;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
-#[cfg(all(feature = "llvm", test))]
-pub(crate) use llvm_codegen_stage::build_ordinary_callee_effect_analysis_facts;
 #[cfg(feature = "llvm")]
-pub(crate) use llvm_codegen_stage::{LlvmCallableSourceContract, LlvmDispatchCallKey};
-#[cfg(feature = "llvm")]
-pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput, LlvmStageBaseContext};
+pub use llvm_codegen_stage::LlvmCodegenStageInput;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 pub use scoopc_hir::stage::HirStageOutput;
 pub(crate) use scoopc_hir::stage::build_hir_declaration_facts_from_lowered_hir;
@@ -199,14 +195,6 @@ pub fn materialize_direct_style_mir_for_dump(
     source: &SourceFile,
 ) -> Result<crate::mir::MaterializedMir, Box<crate::mir::MirMaterializeError>> {
     crate::mir::materialize_for_dump(session, source)
-}
-
-#[cfg(feature = "llvm")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LlvmArtifactKind {
-    LlvmIr,
-    Object,
-    Asm,
 }
 
 #[cfg(feature = "llvm")]

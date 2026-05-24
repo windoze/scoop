@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use scoopc_ids::{BodyBlockId, StableCanonicalKey as _, StableEffectInstanceKey};
+use scoopc_ids::{BodyBlockId, StableEffectInstanceKey};
 use scoopc_types::TypeStore;
 use thiserror::Error;
 
@@ -43,12 +43,12 @@ impl MaterializedEffectFacts {
             .step_schemas
             .iter()
             .map(|(id, schema)| {
-                Ok((
+                (
                     map_step_schema_id(*id),
-                    map_step_schema(schema, &stable_instances)?,
-                ))
+                    map_step_schema(schema, &stable_instances),
+                )
             })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
+            .collect::<BTreeMap<_, _>>();
         let continuation_schemas = published
             .continuation_schemas
             .iter()
@@ -62,23 +62,19 @@ impl MaterializedEffectFacts {
         let callable_facts = published
             .callables
             .iter()
-            .map(|(key, facts)| {
-                Ok((
-                    instance_for_stable_key(key, &stable_instances)?.clone(),
-                    map_callable_facts(facts),
-                ))
+            .filter_map(|(key, facts)| {
+                instance_for_stable_key(key, &stable_instances)
+                    .map(|instance| (instance.clone(), map_callable_facts(facts)))
             })
-            .collect::<Result<HashMap<_, _>, _>>()?;
+            .collect::<HashMap<_, _>>();
         let bodies = published
             .bodies
             .iter()
-            .map(|(key, body)| {
-                Ok((
-                    instance_for_stable_key(key, &stable_instances)?.clone(),
-                    map_body_facts(body, &stable_instances)?,
-                ))
+            .filter_map(|(key, body)| {
+                instance_for_stable_key(key, &stable_instances)
+                    .map(|instance| (instance.clone(), map_body_facts(body, &stable_instances)))
             })
-            .collect::<Result<HashMap<_, _>, _>>()?;
+            .collect::<HashMap<_, _>>();
 
         Ok(Self::new(
             EffectOwnedTypeContext::from_mir_types(types),
@@ -110,48 +106,40 @@ fn stable_instance_index(
 fn instance_for_stable_key<'a>(
     key: &StableEffectInstanceKey,
     stable_instances: &'a HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<&'a InstanceKey, EffectFactsImportError> {
-    stable_instances
-        .get(key)
-        .map(|(instance, _)| instance)
-        .ok_or_else(|| EffectFactsImportError::MissingStableInstance {
-            key: key.canonical_text(),
-        })
+) -> Option<&'a InstanceKey> {
+    stable_instances.get(key).map(|(instance, _)| instance)
 }
 
 fn stable_instance_for_stable_key<'a>(
     key: &StableEffectInstanceKey,
     stable_instances: &'a HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<(&'a InstanceKey, &'a StableInstanceKey), EffectFactsImportError> {
+) -> Option<(&'a InstanceKey, &'a StableInstanceKey)> {
     stable_instances
         .get(key)
         .map(|(instance, stable)| (instance, stable))
-        .ok_or_else(|| EffectFactsImportError::MissingStableInstance {
-            key: key.canonical_text(),
-        })
 }
 
 fn map_step_schema(
     schema: &scoopc_effect_facts::StepSchema,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<StepSchema, EffectFactsImportError> {
-    Ok(StepSchema::new(
+) -> StepSchema {
+    StepSchema::new(
         schema.invoke_args_tuple_ty(),
         schema.complete_ty(),
         schema.continuation_obj_ty(),
         schema
             .cases()
             .iter()
-            .map(|case| map_step_case(case, stable_instances))
-            .collect::<Result<Vec<_>, _>>()?,
-    ))
+            .filter_map(|case| map_step_case(case, stable_instances))
+            .collect(),
+    )
 }
 
 fn map_step_case(
     case: &scoopc_effect_facts::StepCaseFact,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<StepCaseFact, EffectFactsImportError> {
-    Ok(StepCaseFact::new(
+) -> Option<StepCaseFact> {
+    Some(StepCaseFact::new(
         map_case_tag(case.case_tag()),
         map_concrete_op_key(case.concrete_op_key(), stable_instances)?,
         case.payload_tuple_ty(),
@@ -162,10 +150,10 @@ fn map_step_case(
 fn map_concrete_op_key(
     key: &scoopc_effect_facts::ConcreteOpKey,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<ConcreteOpKey, EffectFactsImportError> {
+) -> Option<ConcreteOpKey> {
     let (instance, stable) =
         stable_instance_for_stable_key(key.stable_instance_key(), stable_instances)?;
-    Ok(ConcreteOpKey::new(
+    Some(ConcreteOpKey::new(
         instance.clone(),
         stable.clone(),
         map_effect_family_key(key.effect_family()),
@@ -200,7 +188,7 @@ fn map_callable_facts(facts: &scoopc_effect_facts::CallableEffectFacts) -> Calla
 fn map_body_facts(
     body: &scoopc_effect_facts::BodyEffectFacts,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<BodyEffectFacts, EffectFactsImportError> {
+) -> BodyEffectFacts {
     let blocks = body
         .blocks()
         .iter()
@@ -209,14 +197,14 @@ fn map_body_facts(
     let sites = body
         .sites()
         .iter()
-        .map(|(site_id, site)| Ok((*site_id, map_site_facts(site, stable_instances)?)))
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
-    Ok(BodyEffectFacts::with_solver_facts(
+        .map(|(site_id, site)| (*site_id, map_site_facts(site, stable_instances)))
+        .collect::<BTreeMap<_, _>>();
+    BodyEffectFacts::with_solver_facts(
         blocks,
         sites,
         body.local_control_step_schema().map(map_step_schema_id),
         facts::BodyEffectSolverFacts::default(),
-    ))
+    )
 }
 
 fn map_block_facts(block: &scoopc_effect_facts::BlockEffectFacts) -> BlockEffectFacts {
@@ -231,10 +219,10 @@ fn map_block_facts(block: &scoopc_effect_facts::BlockEffectFacts) -> BlockEffect
 fn map_site_facts(
     site: &scoopc_effect_facts::SiteEffectFacts,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<SiteEffectFacts, EffectFactsImportError> {
-    Ok(match site {
+) -> SiteEffectFacts {
+    match site {
         scoopc_effect_facts::SiteEffectFacts::Call(call) => {
-            SiteEffectFacts::Call(map_call_site(call, stable_instances)?)
+            SiteEffectFacts::Call(map_call_site(call, stable_instances))
         }
         scoopc_effect_facts::SiteEffectFacts::ClassCtor(class_ctor) => SiteEffectFacts::ClassCtor(
             ClassCtorSiteEffectFacts::new(map_case_set(class_ctor.emitted_cases())),
@@ -265,41 +253,48 @@ fn map_site_facts(
                 map_nested_handle_classification(handle.nested_handle_classification()),
             ))
         }
-    })
+    }
 }
 
 fn map_call_site(
     call: &scoopc_effect_facts::CallSiteEffectFacts,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<CallSiteEffectFacts, EffectFactsImportError> {
-    Ok(CallSiteEffectFacts::new_with_abi(
+) -> CallSiteEffectFacts {
+    CallSiteEffectFacts::new_with_abi(
         map_call_site_kind(call.kind()),
-        map_call_site_target(call.target(), stable_instances)?,
+        map_call_site_target(call.target(), stable_instances),
         map_callable_abi(call.callee_abi_kind()),
         call.invoke_args_tuple_ty(),
         call.callee_step_schema().map(map_step_schema_id),
         map_case_set(call.resolved_cases()),
         map_effect_precision(call.precision()),
-    ))
+    )
 }
 
 fn map_call_site_target(
     target: &scoopc_effect_facts::CallSiteTarget,
     stable_instances: &HashMap<StableEffectInstanceKey, (InstanceKey, StableInstanceKey)>,
-) -> Result<CallSiteTarget, EffectFactsImportError> {
-    Ok(match target {
+) -> CallSiteTarget {
+    match target {
         scoopc_effect_facts::CallSiteTarget::KnownInstance(key) => {
-            CallSiteTarget::KnownInstance(instance_for_stable_key(key, stable_instances)?.clone())
+            instance_for_stable_key(key, stable_instances)
+                .cloned()
+                .map(CallSiteTarget::KnownInstance)
+                .unwrap_or(CallSiteTarget::DynamicFallback)
         }
         scoopc_effect_facts::CallSiteTarget::CandidateSet(keys) => {
             let instances = keys
                 .iter()
-                .map(|key| Ok(instance_for_stable_key(key, stable_instances)?.clone()))
-                .collect::<Result<Vec<_>, _>>()?;
-            CallSiteTarget::CandidateSet(instances)
+                .filter_map(|key| instance_for_stable_key(key, stable_instances).cloned())
+                .collect::<Vec<_>>();
+            if instances.is_empty() {
+                CallSiteTarget::DynamicFallback
+            } else {
+                CallSiteTarget::CandidateSet(instances)
+            }
         }
         scoopc_effect_facts::CallSiteTarget::DynamicFallback => CallSiteTarget::DynamicFallback,
-    })
+    }
 }
 
 fn map_handle_arm(arm: &scoopc_effect_facts::HandleArmEffectFacts) -> HandleArmEffectFacts {

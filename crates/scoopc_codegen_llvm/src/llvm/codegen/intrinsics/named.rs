@@ -2842,7 +2842,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
     use crate::intrinsics::named_intrinsic_audit_entries;
