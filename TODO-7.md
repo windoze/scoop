@@ -578,7 +578,7 @@
   - P9-T03 登记的 LLVM 临时 façade 义务已闭合：`scoopc_codegen_llvm` direct 依赖 `scoopc_lir` / `scoopc_lir_facts`，`cargo tree -p scoopc_codegen_llvm --depth 1` 不显示 umbrella `scoopc`。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir --depth 1`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
+### [DONE] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
 
 - 参考：P9-T06。
 - 重点：
@@ -587,6 +587,12 @@
   - effect stage builder 是否在新 crate 内仍能正常构造 facts。
 - 验证：重新运行 P9-T06 的所有验证。
 - 依赖：P9-T06
+- 完成记录：
+  - 2026-05-24：复核 P9-T06 抽取结果。`cargo tree -p scoopc_lir --depth 1` 显示 `scoopc_lir` direct dependencies 仅为 base + `scoopc_mir` / `scoopc_mir_facts` / `scoopc_effect_facts` / `scoopc_lir_facts`，未 direct 依赖 `scoopc_hir` / `scoopc_ast` / umbrella `scoopc`。
+  - LLVM 依赖方向已闭合：`cargo tree -p scoopc_codegen_llvm --depth 1` 显示 backend direct 依赖 `scoopc_lir` / `scoopc_lir_facts` 与必要 base/backend crates，不再显示 umbrella `scoopc` 或 effect stage builder crate。
+  - Review 修正：发现 `dependency_gate` 尚未实际把 `scoopc_effect_facts_stage` 纳入受检 stage crate；已新增 `effect-facts-stage` crate kind、允许依赖白名单与拒绝后续 stage/umbrella 依赖的单测，确保 effect facts builder crate 不会反向依赖 LIR/codegen/umbrella。同步修正 `scoopc` façade 中关于 effect facts / LIR fact product 的过时注释。
+  - effect facts builder 功能验证：`cargo test --all --all-targets` 覆盖并通过 `scoopc_effect_facts_stage` 的 16 个 builder/solver 单测，run-pass fixtures 全绿，确认新 crate 内仍能正常构造 facts。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir --depth 1`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo tree -p scoopc_effect_facts_stage --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T07：cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`）
 

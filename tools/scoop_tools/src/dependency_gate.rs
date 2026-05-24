@@ -39,6 +39,8 @@ const HIR_STAGE_CRATES: &[&str] = &["scoopc_hir"];
 
 const MIR_STAGE_CRATES: &[&str] = &["scoopc_mir"];
 
+const EFFECT_FACTS_STAGE_CRATES: &[&str] = &["scoopc_effect_facts_stage"];
+
 const LIR_STAGE_CRATES: &[&str] = &["scoopc_lir"];
 
 const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
@@ -75,13 +77,14 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} LIR stage, {} codegen stage; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage; {} source boundary files)",
             self.checks.len(),
             self.count_crate_kind(CrateKind::Base),
             self.count_crate_kind(CrateKind::Fact),
             self.count_crate_kind(CrateKind::BaseOnlyStage),
             self.count_crate_kind(CrateKind::HirStage),
             self.count_crate_kind(CrateKind::MirStage),
+            self.count_crate_kind(CrateKind::EffectFactsStage),
             self.count_crate_kind(CrateKind::LirStage),
             self.count_crate_kind(CrateKind::CodegenStage),
             self.source_checks.len()
@@ -167,6 +170,7 @@ enum CrateKind {
     BaseOnlyStage,
     HirStage,
     MirStage,
+    EffectFactsStage,
     LirStage,
     CodegenStage,
 }
@@ -179,6 +183,7 @@ impl CrateKind {
             Self::BaseOnlyStage => "base-only-stage",
             Self::HirStage => "hir-stage",
             Self::MirStage => "mir-stage",
+            Self::EffectFactsStage => "effect-facts-stage",
             Self::LirStage => "lir-stage",
             Self::CodegenStage => "codegen-stage",
         }
@@ -274,6 +279,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::MirStage,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in EFFECT_FACTS_STAGE_CRATES {
+        let dependency_names = cargo_tree_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::EffectFactsStage, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::EffectFactsStage,
             dependency_names,
             violations,
         });
@@ -1285,6 +1302,28 @@ fn find_dependency_violations(
             continue;
         }
 
+        if kind == CrateKind::EffectFactsStage {
+            let allowed_stage_inputs = [
+                "scoopc_ast",
+                "scoopc_hir",
+                "scoopc_hir_facts",
+                "scoopc_mir",
+                "scoopc_mir_facts",
+                "scoopc_effect_facts",
+            ];
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                && !allowed_stage_inputs.contains(&dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "effect-facts stage crates must depend only on base crates, AST/HIR/MIR stage inputs, HIR/MIR facts, and effect facts"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
         if kind == CrateKind::LirStage {
             let allowed_stage_inputs = [
                 "scoopc_mir",
@@ -1601,6 +1640,57 @@ mod tests {
             .collect::<BTreeSet<_>>();
         assert!(rejected.contains("scoopc"));
         assert!(rejected.contains("scoopc_effect_facts"));
+        assert!(rejected.contains("scoopc_lir_facts"));
+        assert!(rejected.contains("scoopc_codegen_llvm"));
+    }
+
+    #[test]
+    fn allows_effect_facts_stage_dependency_direction() {
+        let violations = find_dependency_violations(
+            "scoopc_effect_facts_stage",
+            CrateKind::EffectFactsStage,
+            &set(&[
+                "scoopc_effect_facts_stage",
+                "scoopc_ast",
+                "scoopc_hir",
+                "scoopc_hir_facts",
+                "scoopc_mir",
+                "scoopc_mir_facts",
+                "scoopc_effect_facts",
+                "scoopc_project_model",
+                "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_effect_facts_stage_later_stage_or_facade_dependency() {
+        let violations = find_dependency_violations(
+            "scoopc_effect_facts_stage",
+            CrateKind::EffectFactsStage,
+            &set(&[
+                "scoopc_effect_facts_stage",
+                "scoopc_hir",
+                "scoopc_mir",
+                "scoopc_effect_facts",
+                "scoopc",
+                "scoopc_lir",
+                "scoopc_lir_facts",
+                "scoopc_codegen_llvm",
+            ]),
+        );
+
+        let rejected = violations
+            .iter()
+            .map(|violation| violation.dependency.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(rejected.contains("scoopc"));
+        assert!(rejected.contains("scoopc_lir"));
         assert!(rejected.contains("scoopc_lir_facts"));
         assert!(rejected.contains("scoopc_codegen_llvm"));
     }

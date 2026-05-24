@@ -1,29 +1,31 @@
-# Claude Execution Plan
+# Current Invocation Plan
 
-## Current Invocation
+## Scope
 
-I will complete exactly the first incomplete task from `TODO.md`, then stop after committing the result.
+- Source of truth: `TODO.md`.
+- Goal: identify and complete exactly the first incomplete task whose heading is not prefixed with `[DONE]`, then stop.
+- Constraint: do not proceed to the next task after completing or blocking the selected task.
 
-## Plan
+## Execution Steps
 
-1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
-2. Check recent repository state only as needed for that task, including whether the latest commit mentions an unfinished issue directly relevant to it.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the selected task completely, or add the minimum prerequisite task to `TODO.md` if a concrete blocker makes correct implementation impossible.
-5. Run targeted validation first, then broader required validation for the task, addressing any unscheduled failing tests or fixtures.
-6. Update `TODO.md` with `[DONE]` and a completion record only after implementation and validation pass.
-7. Update this file when key steps complete or the plan changes.
-8. Review git status and diff, then commit all intended changes with a task-specific message.
-9. Stop without starting the next task.
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent git context only as needed for unfinished work directly relevant to that task.
+3. Inspect the affected implementation, tests, fixtures, and docs for the selected task.
+4. Implement the task as specified, without narrowing scope or using workarounds.
+5. Run focused validation first, then broader required validation from the task; address any unscheduled failures discovered.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and recording completion evidence, or add the minimum prerequisite/blocker task if completion is impossible.
+7. Update this plan file after key milestones or plan changes.
+8. Review git status and diffs, then commit all relevant changes with a task-scoped message.
+9. Stop after the commit.
 
-## Status
+## Current Status
 
-- Plan file initialized.
-- `TODO.md` identifies `P9-T06` as the first incomplete task: extract `scoopc_effect_facts_stage` and `scoopc_lir` crates.
-- `TODO-7.md` details `P9-T06`: create `scoopc_effect_facts_stage` for effect-facts builder/stage glue and `scoopc_lir` for `effect_lowered/`, update `scoopc` façade, pipeline imports, dependency gate, and ensure LLVM depends directly on `scoopc_lir`.
-- Latest commit is the completed `P9-T06-c` prerequisite; no additional unfinished blocker from the latest commit was found.
-- Current unrelated untracked file: `PLUGIN_ABI.md`; leave it untouched.
-- Inspection found `scoopc_effect_facts_stage` and `scoopc_lir` already present in the workspace, with `scoopc` facade re-exports and `scoopc_codegen_llvm` direct `scoopc_lir` dependency already wired.
-- Validation passed for `P9-T06`: `cargo fmt`, `cargo build --workspace`, `cargo test --all --all-targets`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`, `cargo run -p scoop_tools -- dependency-gate`, `cargo tree -p scoopc_lir --depth 1`, `cargo tree -p scoopc_codegen_llvm --depth 1`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check`.
-- `TODO.md` and `TODO-7.md` were updated to mark `P9-T06` `[DONE]` and record completion details.
-- Next step: inspect the final diff/status and commit the completed task.
+- First incomplete task identified: `P9-T06R` in `TODO-7.md`.
+- Task type: review of `P9-T06` extraction for `scoopc_effect_facts_stage` and `scoopc_lir`.
+- Review focus: LIR direct dependencies must not include HIR/AST/umbrella `scoopc`; `scoopc_codegen_llvm` must depend directly on `scoopc_lir`; effect facts builder must live and function in the new stage crate.
+- Initial review result: crate manifests and direct cargo trees show `scoopc_lir` and `scoopc_codegen_llvm` have the expected direct dependency direction.
+- Issue found: `dependency_gate` does not yet actively check `scoopc_effect_facts_stage`, even though P9-T06 required activating both `scoopc_effect_facts_stage` and `scoopc_lir`.
+- Fix completed: added an `effect-facts-stage` dependency-gate crate kind/check, plus tests for accepted dependencies and rejected LIR/codegen/umbrella dependencies.
+- Documentation completed: marked `P9-T06R` as `[DONE]` in `TODO-7.md`, updated the root `TODO.md` index/status, and recorded validation evidence.
+- Validation completed: `cargo fmt`; `cargo build --workspace`; `cargo test --all --all-targets`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo run -p scoop_tools -- dependency-gate`; `cargo tree -p scoopc_lir --depth 1`; `cargo tree -p scoopc_codegen_llvm --depth 1`; `cargo tree -p scoopc_effect_facts_stage --depth 1`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- Next step: inspect final diff/status and commit the P9-T06R changes.
