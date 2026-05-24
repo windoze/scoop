@@ -1,10 +1,7 @@
-//! LLVM 工具链基线检查（LLVM 21.1）。
+//! LLVM toolchain baseline check for the standalone LLVM backend crate.
 //!
-//! Scoop 的 LLVM 后端通过 inkwell + llvm-sys 绑定到 LLVM 21.1。
-//! 为避免“系统 LLVM / Homebrew LLVM / 不同机器版本”导致的行为漂移，
-//! 在启用 `llvm` feature 时，这个 build script 会检查 `llvm-config --version`。
-//!
-//! 如需在未安装 LLVM 的环境构建，可使用 `--no-default-features`。
+//! When the `llvm` feature is enabled, this build script checks
+//! `llvm-config --version` before compiling the inkwell/llvm-sys backend.
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -18,7 +15,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LLVM_SYS_211_PREFIX");
     println!("cargo:rerun-if-env-changed=PATH");
 
-    // 未启用 LLVM 后端时，不检查 llvm-config，保持 “无后端模式” 可在纯 Rust 环境构建。
     if std::env::var("CARGO_FEATURE_LLVM").is_err() {
         return;
     }
@@ -84,12 +80,10 @@ stderr:\n\
 }
 
 fn resolve_llvm_config() -> OsString {
-    // 与 llvm-sys 的使用习惯对齐：允许显式指定 llvm-config 路径。
     if let Ok(path) = std::env::var("LLVM_CONFIG_PATH") {
         return path.into();
     }
 
-    // llvm-sys@211.* 常用的前缀变量：LLVM_SYS_211_PREFIX。
     if let Ok(prefix) = std::env::var("LLVM_SYS_211_PREFIX") {
         let candidate = Path::new(&prefix).join("bin").join("llvm-config");
         if candidate.exists() {

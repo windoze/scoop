@@ -165,7 +165,7 @@
 | P9-T06R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06rreview-scoopc_effect_facts_stage-与-scoopc_lir-抽取) | Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取 |
 | P9-T07 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t07cone-两层拆分scoopc_project_model-扩展--新-scoopc_cone) | cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`） |
 | P9-T07R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t07rreview-cone-两层拆分) | Review cone 两层拆分 |
-| P9-T08 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08scoopc-umbrella-crate-收尾--dependency_gate-全面强化) | `scoopc` umbrella crate 收尾 + dependency_gate 全面强化 |
+| P9-T08 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t08scoopc-umbrella-crate-收尾--dependency_gate-全面强化) | `scoopc` umbrella crate 收尾 + dependency_gate 全面强化 |
 | P9-T08R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08rreview-umbrella-收尾) | Review umbrella 收尾 |
 | P9-T09 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t09p9-全包清场文档同步与依赖审计) | P9 全包清场、文档同步与依赖审计 |
 | P9-T09R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t09rreview-p9-全包完成度) | Review P9 全包完成度 |

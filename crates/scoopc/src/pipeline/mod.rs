@@ -21,14 +21,16 @@ use crate::cone::SourceConeCompilationUnit;
 use crate::session::Session;
 use crate::source::SourceFile;
 
-#[cfg(feature = "llvm")]
-pub use crate::llvm::{LlvmArtifactKind, LlvmCodegenStageOutput, LlvmStageBaseContext};
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::LlvmCodegenStageInput;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
+#[cfg(feature = "llvm")]
+pub use scoopc_codegen_llvm::llvm::{
+    LlvmArtifactKind, LlvmCodegenStageOutput, LlvmStageBaseContext,
+};
 pub use scoopc_hir::stage::HirStageOutput;
 
 #[cfg(feature = "llvm")]
@@ -205,6 +207,160 @@ pub(crate) fn run_llvm_codegen_stage(
 }
 
 #[cfg(feature = "llvm")]
+fn frontend_error(error: impl std::fmt::Display) -> crate::llvm::LlvmEmitError {
+    crate::llvm::LlvmEmitError::Frontend {
+        message: error.to_string(),
+    }
+}
+
+#[cfg(feature = "llvm")]
+fn build_single_file_stage_output(
+    session: &Session,
+    source: &SourceFile,
+    opt_level: OptLevel,
+) -> Result<LlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
+    let context = crate::frontend::prepare_virtual_cone_context_with_options(
+        source.clone(),
+        session.options(),
+    )
+    .map_err(frontend_error)?;
+    let front = crate::frontend::run_project_frontend(session, context).map_err(frontend_error)?;
+    let lowering = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        &front,
+        opt_level,
+        crate::frontend::MirRequestRootMode::EntryMain,
+    )
+    .map_err(frontend_error)?;
+    let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
+
+    run_llvm_codegen_stage(
+        session,
+        LlvmCodegenStageInput::new(lowering, None, source_map, entry_source_id, None, opt_level),
+    )
+}
+
+#[cfg(feature = "llvm")]
+pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    artifact: LlvmArtifactKind,
+    opt_level: OptLevel,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
+    let stage_input = crate::llvm::StageEmitInput::from_stage_output(&stage_output);
+    match artifact {
+        LlvmArtifactKind::LlvmIr => crate::llvm::emit_main_ir_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
+        LlvmArtifactKind::Object => crate::llvm::emit_main_obj_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
+        LlvmArtifactKind::Asm => crate::llvm::emit_main_asm_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
+    }
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_ir(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<String, crate::llvm::LlvmEmitError> {
+    let stage_output = build_single_file_stage_output(session, source, OptLevel::O0)?;
+    crate::llvm::emit_main_ir_from_stage_output(
+        stage_output.source_map(),
+        stage_output.entry_source_id(),
+        crate::llvm::StageEmitInput::from_stage_output(&stage_output),
+        None,
+        stage_output.opt_level(),
+    )
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_ir_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    let ir = emit_minimal_main_ir(session, source)?;
+    std::fs::write(output, ir).map_err(|e| crate::llvm::LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_obj_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    emit_minimal_main_obj_to_file_with_opt_level(session, source, output, OptLevel::O0)
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_obj_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
+    crate::llvm::emit_main_obj_to_file_from_stage_output(
+        stage_output.source_map(),
+        stage_output.entry_source_id(),
+        crate::llvm::StageEmitInput::from_stage_output(&stage_output),
+        output,
+        None,
+        opt_level,
+    )
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_asm_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    emit_minimal_main_asm_to_file_with_opt_level(session, source, output, OptLevel::O0)
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_minimal_main_asm_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
+    crate::llvm::emit_main_asm_to_file_from_stage_output(
+        stage_output.source_map(),
+        stage_output.entry_source_id(),
+        crate::llvm::StageEmitInput::from_stage_output(&stage_output),
+        output,
+        None,
+        opt_level,
+    )
+}
+
+#[cfg(feature = "llvm")]
 /// 以 single-source virtual-cone contract 发射 LLVM artifact。
 ///
 /// 该入口只接受裸 `SourceFile` 语义；若调用方拥有显式 cone / 多源 project context，
@@ -215,7 +371,7 @@ pub fn emit_virtual_cone_llvm_artifact_to_file(
     output: &Path,
     artifact: LlvmArtifactKind,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
-    crate::llvm::emit_single_file_llvm_artifact_to_file_with_opt_level(
+    emit_single_file_llvm_artifact_to_file_with_opt_level(
         session,
         source,
         output,

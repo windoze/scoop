@@ -1,39 +1,23 @@
-# Current invocation plan — P9-T07R review
+# Execution Plan
 
-## Current task
+I will follow `TODO.md` as the source of truth, complete exactly the first task whose heading is not prefixed with `[DONE]`, validate the result, update task bookkeeping, commit the finished work, and stop.
 
-- First incomplete task: `P9-T07R` in `TODO.md` / `TODO-7.md`.
-- Task type: review task for `P9-T07` cone two-layer split.
-- Scope:
-  - Verify cone data layer is owned by base/project-model crates only.
-  - Verify cone operation layer is independent in `scoopc_cone`.
-  - Verify no stage crate depends back on `scoopc_cone`.
-  - Verify sysroot loader ownership is settled in `scoopc_project_model`.
+## Steps
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for an explicitly unfinished issue directly relevant to that task.
+3. Inspect the code, fixtures, and docs needed for that task without broad unrelated triage.
+4. Implement the task as specified, avoiding workarounds or scope narrowing.
+5. Run formatting, linting, targeted validation, and then required full validation in the requested order.
+6. If any unscheduled test or fixture failure appears, fix it or add the minimum required prerequisite/follow-up task in `TODO.md` before marking completion.
+7. Mark the completed task heading with `[DONE]` and update its completion record in `TODO.md`; update `PLAN.md` only if phase-level sequencing changed.
+8. Commit all task-related changes with a clear message and stop.
 
-## Step-by-step plan
-
-1. Inspect repository state and latest commit for any unfinished issue directly relevant to `P9-T07R`.
-2. Inspect `P9-T07` implementation surfaces: workspace manifests, `scoopc_project_model`, `scoopc_cone`, `scoopc` facade/imports, sysroot ownership, and dependency gate rules.
-3. Run the review-required validation commands from `P9-T07`:
-   - `cargo fmt`
-   - `cargo build --workspace`
-   - `cargo test --all --all-targets`
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
-   - `cargo run -p scoop_tools -- dependency-gate`
-   - `git diff --check`
-4. Run the explicit dependency-shape checks for the completion conditions:
-   - `cargo tree -p scoopc_project_model`
-   - `cargo tree -p scoopc_cone`
-5. If review finds issues, fix them in scope, update this plan with the changed approach, and rerun the relevant validations.
-6. Mark `P9-T07R` as `[DONE]` in both `TODO.md` and `TODO-7.md`, adding a completion record with review findings and validation results.
-7. Commit all resulting changes with a `P9-T07R` message and stop without starting `P9-T08`.
-
-## Progress log
-
-- Plan updated for `P9-T07R` before implementation commands.
-- Repository state inspected: latest commit is `[P9-T07] Split cone into project-model base and scoopc_cone op layer`; it does not name an unfinished issue for this review.
-- Boundary inspection so far matches the review scope: `scoopc_project_model` owns cone/sysroot data-layer APIs, `scoopc_cone` owns operation-layer APIs, `scoopc::cone` is a façade, and no stage crate references `scoopc_cone`.
-- Documentation gap found in scope: `P9-T07` is marked `[DONE]` but lacks a completion record in `TODO-7.md`; repair this while completing `P9-T07R`.
-- Review correction: the explicit `cargo tree -p scoopc_cone` completion condition requires cone to sit above all stage crates, but `scoopc_cone` lacked a direct `scoopc_codegen_llvm` dependency. Add it without enabling LLVM default features, then rerun validation.
-- Correction completed: `scoopc_cone` now directly depends on `scoopc_codegen_llvm` with `default-features = false`; `TODO.md` and `TODO-7.md` now mark `P9-T07R` done and include completion records for `P9-T07` and `P9-T07R`.
-- Final validation after correction passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo build --workspace`, `cargo test --all --all-targets`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`, `cargo run -p scoop_tools -- dependency-gate`, direct dependency tree checks, and `git diff --check`.
+## Progress
+- Created this plan file before task execution.
+- Identified `P9-T08` as the first incomplete task.
+- Audited the umbrella crate and found `scoopc` still had LLVM-private build/dependency glue plus a non-facade `llvm.rs` wrapper.
+- Implementation focus: move LLVM toolchain ownership to `scoopc_codegen_llvm`, move single-file emit orchestration into `pipeline/`, leave `scoopc::llvm` as a façade, extend `dependency_gate` with cone crate rules, update README/TODO completion records, then validate and commit.
+- Implemented the umbrella/codegen boundary cleanup: removed direct LLVM-private deps, stale umbrella-only manifest deps, and `scoopc/build.rs`; added the LLVM toolchain check to `scoopc_codegen_llvm`; made `scoopc::llvm` a compatibility façade; and re-exported stackmap from the codegen crate.
+- Implemented dependency-gate cone coverage and README crate-structure updates.
+- Validation completed successfully in required order, including the final rerun after manifest cleanup: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo build --workspace`; `cargo test --all --all-targets`; `cargo run -p scoop -- test`; `cargo run -p scoop_tools -- dependency-gate`; `git diff --check`.
+- Marked `P9-T08` `[DONE]` in `TODO.md` and `TODO-7.md` with completion record.

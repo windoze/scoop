@@ -8,9 +8,6 @@ edition.workspace = true
 default = ["llvm"]
 
 llvm = [
-    "dep:inkwell",
-    "dep:llvm-sys",
-    "dep:scoopc_codegen_llvm",
     "scoopc_codegen_llvm/llvm",
     "scoopc_lir/llvm",
     "scoopc_mir/llvm",
@@ -18,7 +15,7 @@ llvm = [
 
 [dependencies]
 scoopc_ast = { path = "../scoopc_ast" }
-scoopc_codegen_llvm = { path = "../scoopc_codegen_llvm", default-features = false, optional = true }
+scoopc_codegen_llvm = { path = "../scoopc_codegen_llvm", default-features = false }
 scoopc_cone = { path = "../scoopc_cone" }
 scoopc_effect_facts_stage = { path = "../scoopc_effect_facts_stage" }
 scoopc_hir = { path = "../scoopc_hir" }
@@ -35,14 +32,6 @@ scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
-tracing = "0.1.40"
-toml = "0.8.23"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tar = "0.4.44"
-sha2 = "0.10.9"
-inkwell = { version = "0.8.0", optional = true, features = ["llvm21-1"] }
-llvm-sys = { version = "211.0.0", optional = true }
 
 [dev-dependencies]
 object = { version = "0.37.3", default-features = false, features = ["read", "std"] }

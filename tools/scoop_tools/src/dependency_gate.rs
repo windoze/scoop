@@ -2,14 +2,13 @@
 //!
 //! The gate checks each base crate from the package's own `cargo tree` view.
 //! That catches accidental reverse dependencies from a base crate back to the
-//! `scoopc` facade, stage crates, fact crates, driver/runtime crates, or a later
-//! base crate in the P1 dependency direction. It also checks fact crates,
-//! currently including `scoopc_hir_facts`, `scoopc_mir_facts`,
+//! `scoopc` facade, stage crates, fact crates, cone crate, driver/runtime crates,
+//! or a later base crate in the P1 dependency direction. It also checks fact
+//! crates, currently including `scoopc_hir_facts`, `scoopc_mir_facts`,
 //! `scoopc_effect_facts`, and `scoopc_lir_facts`, so they only depend on base
-//! crates and never on the facade, stages, or other facts. Stage crates that are
-//! still expected to be base-only, such as `scoopc_ast`, are checked with the
-//! same workspace-boundary rules. Backend crates are checked separately while
-//! P9 is still splitting the remaining stage crates out of the facade.
+//! crates and never on the facade, stages, cone, or other facts. Stage crates are
+//! checked in pipeline order, and the cone-operation crate is checked separately:
+//! cone may depend on stage/fact/base crates, but no stage may depend on cone.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -45,6 +44,8 @@ const LIR_STAGE_CRATES: &[&str] = &["scoopc_lir"];
 
 const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 
+const CONE_CRATES: &[&str] = &["scoopc_cone"];
+
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
     "scoopc",
@@ -78,7 +79,7 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage, {} cone; {} source boundary files)",
             self.checks.len(),
             self.count_crate_kind(CrateKind::Base),
             self.count_crate_kind(CrateKind::Fact),
@@ -88,6 +89,7 @@ impl Report {
             self.count_crate_kind(CrateKind::EffectFactsStage),
             self.count_crate_kind(CrateKind::LirStage),
             self.count_crate_kind(CrateKind::CodegenStage),
+            self.count_crate_kind(CrateKind::Cone),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -174,6 +176,7 @@ enum CrateKind {
     EffectFactsStage,
     LirStage,
     CodegenStage,
+    Cone,
 }
 
 impl CrateKind {
@@ -187,6 +190,7 @@ impl CrateKind {
             Self::EffectFactsStage => "effect-facts-stage",
             Self::LirStage => "lir-stage",
             Self::CodegenStage => "codegen-stage",
+            Self::Cone => "cone",
         }
     }
 }
@@ -319,6 +323,17 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::CodegenStage,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in CONE_CRATES {
+        let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
+        let violations = find_dependency_violations(crate_name, CrateKind::Cone, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::Cone,
             dependency_names,
             violations,
         });
@@ -527,6 +542,40 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 pattern: "const_eval",
                 reason: "backend data initializer helpers must not restore old const-evaluator naming or module boundaries",
             }],
+        },
+        SourceBoundaryRule {
+            label: "scoopc umbrella Cargo backend-private deps",
+            kind_label: "stage-split-boundary",
+            path: "crates/scoopc/Cargo.toml",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "inkwell =",
+                    reason: "scoopc umbrella must not depend directly on backend-private inkwell",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "llvm-sys =",
+                    reason: "scoopc umbrella must not depend directly on backend-private llvm-sys",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "scoopc LLVM facade implementation",
+            kind_label: "stage-split-boundary",
+            path: "crates/scoopc/src/llvm.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use inkwell",
+                    reason: "scoopc::llvm must remain a facade over scoopc_codegen_llvm",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "inkwell::",
+                    reason: "scoopc::llvm must not recreate backend-private LLVM implementation helpers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "llvm_sys",
+                    reason: "scoopc::llvm must not depend directly on llvm-sys",
+                },
+            ],
         },
         SourceBoundaryRule {
             label: "LLVM top-level const initializer residual",
@@ -1110,54 +1159,6 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
             ],
         },
         SourceTreeBoundaryRule {
-            label: "LIR production direct HIR/AST residuals",
-            kind_label: "stage-split-boundary",
-            root: "crates/scoopc/src/effect_lowered",
-            exclude_path_fragments: &[],
-            forbidden: &[
-                ForbiddenSourcePattern {
-                    pattern: "use crate::hir",
-                    reason: "LIR source payloads must enter through MIR/LIR-owned contracts, not raw HIR APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "crate::hir::",
-                    reason: "LIR must not reach directly into raw HIR APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc_hir::",
-                    reason: "future LIR crate must not depend directly on the HIR stage crate",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc::hir",
-                    reason: "future LIR crate must not depend on the scoopc facade for HIR APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "use crate::ast",
-                    reason: "LIR source payloads must enter through MIR/LIR-owned contracts, not raw AST APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "crate::ast::",
-                    reason: "LIR must not reach directly into raw AST APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc_ast::",
-                    reason: "future LIR crate must not depend directly on the AST stage crate",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc::ast",
-                    reason: "future LIR crate must not depend on the scoopc facade for AST APIs",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc_mir::hir",
-                    reason: "LIR must not use the MIR crate's frontend facade as a HIR dependency workaround",
-                },
-                ForbiddenSourcePattern {
-                    pattern: "scoopc_mir::ast",
-                    reason: "LIR must not use the MIR crate's frontend facade as an AST dependency workaround",
-                },
-            ],
-        },
-        SourceTreeBoundaryRule {
             label: "scoopc_lir direct HIR/AST residuals",
             kind_label: "stage-split-boundary",
             root: "crates/scoopc_lir/src",
@@ -1368,6 +1369,7 @@ fn find_dependency_violations(
                 || dependency_name == "scoopc_mir"
                 || dependency_name == "scoopc_effect_facts_stage"
                 || dependency_name == "scoopc_codegen_c"
+                || dependency_name == "scoopc_cone"
                 || FACT_CRATES.contains(&dependency_name)
                     && !allowed_stage_inputs.contains(&dependency_name)
             {
@@ -1385,6 +1387,20 @@ fn find_dependency_violations(
                 violations.push(Violation {
                     dependency: dependency.clone(),
                     reason: "LLVM codegen crates must not depend on the scoopc facade, driver/runtime/tool, frontend stages, MIR/effect stages, or non-LIR fact crates"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
+        if kind == CrateKind::Cone {
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                && !cone_allowed_workspace_dependency(dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "cone crates may depend on base, fact, and stage crates, but not on facade, driver/runtime/tool, codegen-C, or other cone-operation crates"
                         .to_string(),
                 });
             }
@@ -1412,6 +1428,17 @@ fn find_dependency_violations(
     }
 
     violations
+}
+
+fn cone_allowed_workspace_dependency(dependency_name: &str) -> bool {
+    BASE_CRATES.contains(&dependency_name)
+        || FACT_CRATES.contains(&dependency_name)
+        || BASE_ONLY_STAGE_CRATES.contains(&dependency_name)
+        || HIR_STAGE_CRATES.contains(&dependency_name)
+        || MIR_STAGE_CRATES.contains(&dependency_name)
+        || EFFECT_FACTS_STAGE_CRATES.contains(&dependency_name)
+        || LIR_STAGE_CRATES.contains(&dependency_name)
+        || CODEGEN_STAGE_CRATES.contains(&dependency_name)
 }
 
 fn allowed_base_dependencies(base: &str) -> &'static [&'static str] {
@@ -1794,6 +1821,75 @@ mod tests {
         assert!(rejected.contains("scoopc_mir"));
         assert!(rejected.contains("scoopc_effect_facts_stage"));
         assert!(rejected.contains("scoopc_hir_facts"));
+    }
+
+    #[test]
+    fn allows_cone_to_depend_on_stage_fact_and_base_crates() {
+        let violations = find_dependency_violations(
+            "scoopc_cone",
+            CrateKind::Cone,
+            &set(&[
+                "scoopc_cone",
+                "scoopc_ast",
+                "scoopc_hir",
+                "scoopc_hir_facts",
+                "scoopc_mir",
+                "scoopc_mir_facts",
+                "scoopc_effect_facts_stage",
+                "scoopc_effect_facts",
+                "scoopc_lir",
+                "scoopc_lir_facts",
+                "scoopc_codegen_llvm",
+                "scoopc_project_model",
+                "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_stage_dependency_on_cone() {
+        let cases = [
+            ("scoopc_ast", CrateKind::BaseOnlyStage),
+            ("scoopc_hir", CrateKind::HirStage),
+            ("scoopc_mir", CrateKind::MirStage),
+            ("scoopc_effect_facts_stage", CrateKind::EffectFactsStage),
+            ("scoopc_lir", CrateKind::LirStage),
+            ("scoopc_codegen_llvm", CrateKind::CodegenStage),
+        ];
+
+        for (crate_name, kind) in cases {
+            let violations =
+                find_dependency_violations(crate_name, kind, &set(&[crate_name, "scoopc_cone"]));
+
+            assert_eq!(
+                violations.len(),
+                1,
+                "{crate_name} should reject scoopc_cone"
+            );
+            assert_eq!(violations[0].dependency, "scoopc_cone");
+        }
+    }
+
+    #[test]
+    fn rejects_cone_dependency_on_facade_or_driver_crates() {
+        let violations = find_dependency_violations(
+            "scoopc_cone",
+            CrateKind::Cone,
+            &set(&["scoopc_cone", "scoopc", "scoop", "scoop_tools"]),
+        );
+
+        let rejected = violations
+            .iter()
+            .map(|violation| violation.dependency.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(rejected.contains("scoopc"));
+        assert!(rejected.contains("scoop"));
+        assert!(rejected.contains("scoop_tools"));
     }
 
     #[test]

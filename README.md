@@ -159,12 +159,19 @@ cargo run -p scoop_tools -- safepoint-baseline
 ## 目录结构（简述）
 
 - `crates/scoop/`：命令行工具（driver）
-- `crates/scoopc/`：编译器核心库（前端/中端/后端）
+- `crates/scoopc/`：编译器 umbrella crate；只保留 facade re-exports、`frontend.rs`、`pipeline/`、`session/` 与 driver 编排 helper
 - `crates/scoopc_span/`：基础 span / 诊断坐标 crate；后续 stage/fact crate 可共享的 span owner
 - `crates/scoopc_source/`：基础 source identity / source map crate；不承载 cone/project membership
 - `crates/scoopc_types/`：基础 type universe / effect row crate；负责后续跨阶段共享类型基础设施
 - `crates/scoopc_ids/`：基础 stable identity crate；负责后续跨阶段 ID 与 stable key primitives
 - `crates/scoopc_project_model/`：基础 project / source-cone / cone compilation unit 模型 crate
+- `crates/scoopc_ast/`：AST stage crate；承载 lexer / parser / syntax / AST 数据结构
+- `crates/scoopc_hir/`：HIR stage crate；承载 resolve / infer / typecheck / typed-HIR lowering
+- `crates/scoopc_mir/`：MIR stage crate；承载 direct-style MIR、monomorph / RTTI / devirtualization 与 MIR materialization
+- `crates/scoopc_effect_facts_stage/`：effect facts stage crate；从 MIR handoff 发布 effect/control facts
+- `crates/scoopc_lir/`：LIR stage crate；承载 effect lowering、late LIR、LIR opt 与 backend-neutral source-body handoff
+- `crates/scoopc_codegen_llvm/`：LLVM codegen stage crate；拥有 LLVM/inkwell/llvm-sys 依赖与 stackmap parser
+- `crates/scoopc_cone/`：cone-operation crate；依赖 stage/fact/base crate 执行 archive、visibility、pre-specialize、consume 等跨 cone 操作，stage crate 不反向依赖它
 - `crates/scoopc_hir_facts/`：独立 HIR semantic facts 数据产品；只依赖基础 crate，不依赖 `scoopc` facade 或 stage/backend crate
 - `crates/scoopc_mir_facts/`：独立 MIR facts 数据产品；承载 root inventories、snapshot/pass-artifact binding 与 MIR pass pipeline metadata；只依赖基础 crate，不依赖 `scoopc` facade、HIR/MIR stage 或 backend crate
 - `crates/scoopc_effect_facts/`：独立 effect/control facts 数据产品；承载 snapshot binding、callable/body/site facts、step schema 与 continuation schema；只依赖基础 crate，不依赖 `scoopc` facade、MIR/LIR stage 或 backend crate；由 P4 只读分析阶段发布，不回写 MIR snapshot，也不通过 P4 output 嵌套上游 stage output
@@ -173,4 +180,4 @@ cargo run -p scoop_tools -- safepoint-baseline
 - `runtime/c/`：C 运行时实现（GC/effect/线程等；平台差异收敛在 platform/backends）
 - `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）
 
-`scoopc` 在迁移期通过 `scoopc::base::{span, source, types, ids, project_model}` 以及 `scoopc::{hir_facts, mir_facts, effect_facts_product, lir_facts_product}` 暴露 facade anchor；新 stage/fact crate 应直接依赖对应基础 crate 或 fact crate，而不是反向依赖 `scoopc`。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。
+`scoopc` 通过 `scoopc::base::{span, source, types, ids, project_model}`、stage facade（`ast` / `hir` / `mir` / `effect_lowered` / `llvm`）以及 fact facade（`hir_facts` / `mir_facts` / `effect_facts_product` / `lir_facts_product`）提供兼容入口；stage/fact/cone crate 应直接依赖对应基础 crate、fact crate 或前序 stage crate，而不是反向依赖 `scoopc`。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。

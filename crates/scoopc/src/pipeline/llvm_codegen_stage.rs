@@ -552,12 +552,11 @@ mod tests {
     use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use inkwell::context::Context;
     use object::{BinaryFormat, Object, ObjectSymbol, SymbolKind, SymbolScope};
     use scoopc_ids::StableCanonicalKey;
 
     use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
-    use crate::llvm::{LlvmEmitError, build_main_module_from_stage_output};
+    use crate::llvm::{LlvmEmitError, emit_main_ir_from_stage_output};
     use crate::opt::OptLevel;
     use crate::pipeline::{self as pipeline, LlvmArtifactKind};
     use crate::session::{Session, SessionOptions};
@@ -2035,16 +2034,14 @@ fun main() {
             "未显式提供 ABI visibility handoff 时，不应伪造第二份 stage 输出"
         );
 
-        let context = Context::create();
-        let module = build_main_module_from_stage_output(
+        let ir = emit_main_ir_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
-            &context,
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
         )
         .unwrap();
-        let ir = module.print_to_string().to_string();
         assert!(ir.contains("define i32 @main("));
     }
 

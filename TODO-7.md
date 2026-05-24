@@ -645,7 +645,7 @@
   - Review 修正：发现 `scoopc_cone` 缺少 P9-T07 完成条件要求的 direct `scoopc_codegen_llvm` stage edge；已以 `default-features = false` 加入，保证 cone 操作层位于所有 stage crate 之上但不强制启用 LLVM backend。另发现 P9-T07 标题已标 `[DONE]`，但本文件缺少完成记录；本 review 已补齐 P9-T07 完成记录，保持 `TODO.md` / `TODO-7.md` 状态同步。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421）；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo tree -p scoopc_cone`；`git diff --check`。
 
-### [TODO] P9-T08：`scoopc` umbrella crate 收尾 + dependency_gate 全面强化
+### [DONE] P9-T08：`scoopc` umbrella crate 收尾 + dependency_gate 全面强化
 
 - 参考：本文件"细化原则"。
 - 目标：
@@ -674,6 +674,12 @@
   - dependency_gate 输出列出所有新 crate 的依赖关系都符合 PLAN §1.2；
   - README 与 crate overview 反映最终结构。
 - 依赖：P9-T07R
+- 完成记录：
+  - 2026-05-24：移除 `scoopc` umbrella 对 backend-private `inkwell` / `llvm-sys` 的直接 feature/dependency ownership，并清理 stale umbrella manifest deps、删除 `crates/scoopc/build.rs`；LLVM 21.1 toolchain 检查迁入 `scoopc_codegen_llvm/build.rs`，由 backend crate 自己在 `llvm` feature 下负责。
+  - `scoopc::llvm` 收敛为 facade：backend API 直接 re-export `scoopc_codegen_llvm::llvm::*`，单文件 driver helper 移入 `pipeline/` 编排层；`scoopc::stackmap` 改为 re-export `scoopc_codegen_llvm::stackmap`，不再通过 `#[path]` 编译 backend 源文件。
+  - `dependency_gate` 增加 `scoopc_cone` 专门 crate kind 与 cone/stage 方向测试；gate 现在检查 base、fact、AST/HIR/MIR/effect-facts/LIR/codegen stage 与 cone，并新增 umbrella backend-private dependency/facade 残留检查。
+  - README crate overview 更新为最终 P9 crate 结构，明确 `scoopc` 只承担 umbrella facade 与 driver 编排，`scoopc_codegen_llvm` 拥有 LLVM backend 私有依赖，`scoopc_cone` 位于 stage/fact/base crate 之上且 stage 不反向依赖 cone。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507/1507）；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
 ### [TODO] P9-T08R：Review umbrella 收尾
 

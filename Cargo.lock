@@ -677,8 +677,6 @@ dependencies = [
 name = "scoopc"
 version = "0.1.0"
 dependencies = [
- "inkwell",
- "llvm-sys",
  "miette",
  "object",
  "scoopc_ast",
@@ -697,13 +695,7 @@ dependencies = [
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
- "serde",
- "serde_json",
- "sha2",
- "tar",
  "thiserror",
- "toml",
- "tracing",
 ]
 
 [[package]]

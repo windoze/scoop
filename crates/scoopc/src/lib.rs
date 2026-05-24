@@ -1,10 +1,9 @@
-//! Scoop 编译器核心库（`scoopc`）
+//! Scoop compiler umbrella crate（`scoopc`）
 //!
 //! 本 crate 负责：
-//! - 读取源文件、管理 span/位置等基础设施
-//! - 词法/语法分析（后续阶段）
-//! - 名字解析、类型检查、效果系统检查（后续阶段）
-//! - HIR/MIR lowering 与 LLVM(inkwell) codegen（后续阶段）
+//! - 提供 base / fact / stage crate 的 facade re-export；
+//! - 保留 `frontend`、`pipeline`、`session` 与 driver 编排 helper；
+//! - 通过 `llvm` facade 转发到 standalone LLVM backend crate。
 //!
 //! `scoop`（driver）crate 只负责命令行与调度。
 
@@ -70,20 +69,19 @@ pub use scoopc_hir::session;
 pub use scoopc_mir::rtti;
 pub mod source;
 pub mod span;
-pub use scoopc_mir::stable_id;
-#[path = "../../scoopc_codegen_llvm/src/stackmap.rs"]
-pub mod stackmap;
 pub use scoopc_ast::syntax;
+pub use scoopc_codegen_llvm::stackmap;
 pub use scoopc_hir::sysroot;
 pub use scoopc_hir::target;
+pub use scoopc_mir::stable_id;
 pub mod ty;
 pub use scoopc_hir::typecheck;
 pub use scoopc_hir::vtable;
 pub use scoopc_hir::warnings;
 
-/// LLVM 后端（inkwell）。
+/// LLVM 后端 facade。
 ///
-/// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认关闭）。
+/// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认启用，可用 `--no-default-features` 关闭）。
 #[cfg(feature = "llvm")]
 pub mod llvm;
 
