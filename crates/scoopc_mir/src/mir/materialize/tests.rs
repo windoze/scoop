@@ -225,7 +225,7 @@ fn body_with_statement_todo() -> Body {
     let mut body = unit_return_body();
     body.blocks[0].stmts.push(Statement {
         span: test_span(),
-        kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON),
+        kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON.to_string()),
     });
     body
 }
@@ -244,7 +244,7 @@ fn body_with_rvalue_todo(unit_ty: TypeId) -> Body {
             span: test_span(),
             kind: StatementKind::Assign {
                 target: local,
-                value: Rvalue::Todo("missing expr"),
+                value: Rvalue::Todo("missing expr".to_string()),
             },
         }],
         terminator: Terminator {
@@ -264,7 +264,7 @@ fn body_with_terminator_todo() -> Body {
         stmts: Vec::new(),
         terminator: Terminator {
             span: test_span(),
-            kind: TerminatorKind::Todo("unterminated"),
+            kind: TerminatorKind::Todo("unterminated".to_string()),
             unwind: UnwindAction::NoUnwind,
         },
     });
@@ -280,7 +280,7 @@ fn body_with_unwind_todo() -> Body {
         terminator: Terminator {
             span: test_span(),
             kind: TerminatorKind::Return { value: None },
-            unwind: UnwindAction::Todo("perform unwind pending"),
+            unwind: UnwindAction::Todo("perform unwind pending".to_string()),
         },
     });
     body.start = bb;
@@ -585,9 +585,9 @@ fn materialized_mir_no_todo_rejects_statement_template() {
         *err,
         MirMaterializeError::MaterializedTodo {
             category: MirPlaceholderCategory::Statement,
-            reason: SYNTHETIC_STATEMENT_TODO_REASON,
+            reason,
             ..
-        }
+        } if reason == SYNTHETIC_STATEMENT_TODO_REASON
     ));
 }
 
@@ -603,9 +603,9 @@ fn materialized_mir_no_todo_rejects_rvalue_template() {
         *err,
         MirMaterializeError::MaterializedTodo {
             category: MirPlaceholderCategory::Rvalue,
-            reason: "missing expr",
+            reason,
             ..
-        }
+        } if reason == "missing expr"
     ));
 }
 
@@ -618,9 +618,9 @@ fn materialized_mir_no_todo_rejects_terminator_template() {
         *err,
         MirMaterializeError::MaterializedTodo {
             category: MirPlaceholderCategory::Terminator,
-            reason: "unterminated",
+            reason,
             ..
-        }
+        } if reason == "unterminated"
     ));
 }
 
@@ -633,9 +633,9 @@ fn materialized_mir_no_todo_rejects_unwind_template() {
         *err,
         MirMaterializeError::MaterializedTodo {
             category: MirPlaceholderCategory::UnwindAction,
-            reason: "perform unwind pending",
+            reason,
             ..
-        }
+        } if reason == "perform unwind pending"
     ));
 }
 

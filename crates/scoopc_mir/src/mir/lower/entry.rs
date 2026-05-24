@@ -161,7 +161,10 @@ impl<'a> MirLowering<'a> {
                     items.extend(nested.into_iter().map(Item::Fun));
                 }
                 hir::Item::Val(_) => {}
-                hir::Item::Todo { span, kind } => items.push(Item::Todo { span: *span, kind }),
+                hir::Item::Todo { span, kind } => items.push(Item::Todo {
+                    span: *span,
+                    kind: kind.clone(),
+                }),
             }
         }
 

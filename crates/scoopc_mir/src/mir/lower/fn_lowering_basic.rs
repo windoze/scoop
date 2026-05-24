@@ -103,7 +103,7 @@ impl<'a> FnLowering<'a> {
             stmts: Vec::new(),
             terminator: Terminator {
                 span,
-                kind: TerminatorKind::Todo(UNTERMINATED),
+                kind: TerminatorKind::Todo(UNTERMINATED.to_string()),
                 unwind: UnwindAction::NoUnwind,
             },
         })
@@ -179,7 +179,7 @@ impl<'a> FnLowering<'a> {
     pub(in crate::mir::lower) fn current_is_terminated(&self) -> bool {
         let bb = self.current_bb;
         !matches!(
-            self.body.blocks[bb.as_usize()].terminator.kind,
+            &self.body.blocks[bb.as_usize()].terminator.kind,
             TerminatorKind::Todo(msg) if msg == UNTERMINATED
         )
     }
@@ -564,7 +564,9 @@ impl<'a> FnLowering<'a> {
                     },
                 );
             }
-            hir::StmtKind::Todo(kind) => self.push_stmt(stmt.span, StatementKind::Todo(kind)),
+            hir::StmtKind::Todo(kind) => {
+                self.push_stmt(stmt.span, StatementKind::Todo(kind.clone()))
+            }
         }
     }
 
@@ -927,7 +929,7 @@ impl<'a> FnLowering<'a> {
         match &expr.kind {
             hir::ExprKind::Missing => {
                 let tmp = self.push_temp_local(expr.span, expr.ty);
-                self.assign(expr.span, tmp, Rvalue::Todo("missing expr"));
+                self.assign(expr.span, tmp, Rvalue::Todo("missing expr".to_string()));
                 tmp
             }
             hir::ExprKind::UnresolvedIdent { name } => {
@@ -935,7 +937,7 @@ impl<'a> FnLowering<'a> {
             }
             hir::ExprKind::Todo(kind) => {
                 let tmp = self.push_temp_local(expr.span, expr.ty);
-                self.assign(expr.span, tmp, Rvalue::Todo(kind));
+                self.assign(expr.span, tmp, Rvalue::Todo(kind.clone()));
                 tmp
             }
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),

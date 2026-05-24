@@ -15,7 +15,7 @@ use scoopc_types::{EffectRow, TypeId};
 use sha2::{Digest, Sha256};
 
 /// Versioned hash scopes shared by ABI, private symbols, RTTI, and dumps.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum StableHashScope {
     AbiV0,
     PrivateV0,
@@ -41,7 +41,7 @@ pub trait StableCanonicalKey {
 }
 
 /// Ad-hoc stable key wrapper for call sites that already computed canonical text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CanonicalTextKey(String);
 
 impl CanonicalTextKey {
@@ -69,7 +69,9 @@ pub trait StableSymbolKey: StableCanonicalKey {
 ///
 /// `SiteId` is intentionally stage-independent so facts can key site-level data
 /// without depending on MIR-owned node definitions.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct SiteId(u32);
 
 impl SiteId {
@@ -92,7 +94,9 @@ impl fmt::Debug for SiteId {
 ///
 /// This intentionally lives outside MIR node definitions so fact products can
 /// publish block-level summaries without depending on MIR internals.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct BodyBlockId(u32);
 
 impl BodyBlockId {
@@ -115,7 +119,7 @@ impl fmt::Debug for BodyBlockId {
 ///
 /// The current compiler still uses source path and declaration span to locate
 /// bodies during materialization, while exported identities use stable keys.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct TemplateKey {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -138,7 +142,7 @@ impl fmt::Debug for TemplateKey {
 ///
 /// This key intentionally lives in the base identity crate so HIR compatibility
 /// scaffolding and MIR materialization do not point at each other.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct InstanceKey {
     pub template: TemplateKey,
     pub type_args: Vec<TypeId>,
@@ -201,7 +205,9 @@ impl fmt::Debug for EffectRowRepr<'_> {
 /// The current monolithic compiler may still derive this from a MIR
 /// `InstanceKey`, but the fact product only stores canonical text and a readable
 /// path so it remains independent of MIR templates and bodies.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct StableEffectInstanceKey {
     canonical_text: String,
     readable_path: String,
@@ -248,7 +254,9 @@ impl StableSymbolKey for StableEffectInstanceKey {
 /// The current monolithic compiler may still derive this from a stage-owned
 /// semantic instance key, but the fact product only stores canonical text and a
 /// readable path so it remains independent of MIR/LIR implementation types.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct StableLirCallableKey {
     canonical_text: String,
     readable_path: String,
@@ -291,7 +299,7 @@ impl StableSymbolKey for StableLirCallableKey {
 }
 
 /// Reserved stable identity for future body-versioned facts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct BodyVersionKey {
     owner_canonical_text: String,
     role: String,
@@ -345,7 +353,7 @@ impl StableCanonicalKey for BodyVersionKey {
 }
 
 /// Stable identity for a versioned artifact published by a compiler stage.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StageArtifactKey {
     stage: String,
     owner_canonical_text: String,
@@ -418,7 +426,7 @@ impl StableCanonicalKey for StageArtifactKey {
 }
 
 /// Stable local call-site identity for dump labels and private helpers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableCallSiteKey {
     owner_canonical_text: String,
     source_path: String,
@@ -461,7 +469,7 @@ impl StableCanonicalKey for StableCallSiteKey {
 }
 
 /// ABI-visible symbol namespaces defined by the shared mangler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum AbiSymbolKind {
     Fun,
     Global,

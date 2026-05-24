@@ -23,12 +23,53 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+/// Schema version carried by persisted compiler products.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
+pub struct WireSchemaVersion {
+    pub major: u16,
+    pub minor: u16,
+}
+
+impl WireSchemaVersion {
+    pub const fn new(major: u16, minor: u16) -> Self {
+        Self { major, minor }
+    }
+}
+
+/// Initial TypeStore/fact/LIR binary wire schema.
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 0);
+
+pub mod serde_static_str {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(value: &&'static str, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(value)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<&'static str, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let owned = String::deserialize(deserializer)?;
+        Ok(Box::leak(owned.into_boxed_str()))
+    }
+}
+
 /// `TypeStore` 内部类型表的索引。
 ///
 /// 说明：
 /// - 目前用 `u32` 足够覆盖编译期需要的类型数量
 /// - 后续若引入跨 session 的类型缓存或增量编译，可再调整表示
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeId(u32);
 
 impl TypeId {
@@ -42,7 +83,7 @@ impl TypeId {
 /// 这里把“引用类型 vs 值类型”作为第一层分类，便于后续：
 /// - 决定布局与 ABI（value types 可内联，ref types 走对象头/指针）
 /// - 决定 GC 扫描策略（ref types 需要追踪；value types 递归含 ref 字段时另行处理）
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TypeKind {
     Ref(RefTypeKind),
     Value(ValueTypeKind),
@@ -74,7 +115,7 @@ impl TypeKind {
 }
 
 /// 引用类型（GC-managed）。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum RefTypeKind {
     /// 顶层类型：所有引用类型的 supertype。
     ///
@@ -111,7 +152,7 @@ pub enum RefTypeKind {
 }
 
 /// union 类型的规范化表示。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct UnionType {
     /// 已规范化：排序 + 去重 + 无嵌套 union + 不包含 `Nothing`。
     pub variants: Vec<TypeId>,
@@ -122,7 +163,7 @@ pub struct UnionType {
 /// 说明：
 /// - 早期阶段（T0403）仅需要 “FQN + type args” 来完成 TypeRef lowering 与 arity 检查；
 /// - 更丰富的信息（字段/方法、布局、vtable 等）会在后续阶段逐步接入。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NominalType {
     pub fqn: String,
     pub args: Vec<TypeId>,
@@ -171,7 +212,7 @@ fn is_builtin_scalar_nominal_value_fqn(fqn: &str) -> bool {
 }
 
 /// ABI convention accepted by `@Extern` metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum ExternAbi {
     #[default]
     C,
@@ -196,7 +237,7 @@ impl ExternAbi {
 }
 
 /// `*` star projection 的最小内部表示。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StarProjectionType {
     /// 运行时可读视图；当前等价于 boxed `Any?`。
     pub read_ty: TypeId,
@@ -206,7 +247,7 @@ pub struct StarProjectionType {
 ///
 /// 注意：同名的 `T` 在不同声明里应当视为不同的类型参数，因此这里用
 /// `(decl_file, decl_span)` 来唯一标识其来源（用于 Hash/Eq 与 interning）。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct TypeParamType {
     pub name: String,
     pub decl_file: PathBuf,
@@ -227,7 +268,7 @@ pub const EFFECT_ROW_PARAM_DECL_FILE: &str = "<hir-effect-row-param>";
 /// - `A + B + A` 会被 canonicalize 为去重后的集合
 ///
 /// 注意：更完整的 effect polymorphism（row 变量、推断、约束求解）留给后续任务（PLAN §6）。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct EffectRow {
     /// 规范化后的集合（排序 + 去重）。
     pub terms: Vec<TypeId>,
@@ -280,7 +321,7 @@ impl EffectRow {
 }
 
 /// 函数类型（spec §7.5）。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FunctionType {
     pub receiver: Option<TypeId>,
     pub params: Vec<TypeId>,
@@ -295,7 +336,7 @@ pub struct FunctionType {
 }
 
 /// 值类型（copy 语义）。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ValueTypeKind {
     /// `Unit`：0 元 tuple 的语义等价物（spec §2.3.3）。
     Unit,
@@ -345,7 +386,9 @@ pub enum ValueTypeKind {
 ///
 /// `inner()` accessor 仅用于 hash-cons 比较与诊断输出；任何把 `TypeId` 重新喂回
 /// 到需要 `MonoTypeId` 的位置的调用都必须再走一次 `as_mono`。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct MonoTypeId(TypeId);
 
 impl MonoTypeId {
@@ -360,7 +403,7 @@ impl MonoTypeId {
 /// - `offending`：第一个被发现的 `TypeKind::Param` 节点的 `TypeId`；
 /// - `leak_path`：从 `as_mono` 的输入 `TypeId` 走到 `offending` 经过的嵌套位置序列
 ///   （顶到底）。顶层 `Param` 时为空。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ParamLeak {
     pub offending: TypeId,
     pub leak_path: Vec<TypeKindLabel>,
@@ -370,7 +413,7 @@ pub struct ParamLeak {
 /// 从输入 `TypeId` 走到 `Param` 的路径。
 ///
 /// 共 10 个位置，覆盖当前 `TypeKind` 中所有可嵌套 `TypeId` 的语义槽。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TypeKindLabel {
     /// 进入 `NominalType.args[index]`（含 `Ref::Nominal` 与 `Value::Nominal`）。
     NominalArg { fqn: String, index: usize },
@@ -474,10 +517,43 @@ pub struct MonoStarProjection {
 /// 当前阶段采用“push-only arena + 简单去重（hash-cons）”：
 /// - 对同构 `TypeKind` 复用同一个 `TypeId`，让早期 typecheck 可以直接用 `TypeId` 做相等比较；
 /// - 更复杂的跨 session/增量 interning 可在后续需要时再演进。
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
     index: HashMap<TypeKind, TypeId>,
+}
+
+impl Serialize for TypeStore {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.kinds.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TypeStore {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let kinds = Vec::<TypeKind>::deserialize(deserializer)?;
+        let mut store = TypeStore::new();
+        for kind in kinds {
+            let expected =
+                TypeId(u32::try_from(store.kinds.len()).map_err(serde::de::Error::custom)?);
+            let actual = store.intern(kind);
+            if actual != expected {
+                return Err(serde::de::Error::custom(
+                    "portable TypeStore wire format contains duplicate type kind",
+                ));
+            }
+        }
+        store
+            .validate_references()
+            .map_err(serde::de::Error::custom)?;
+        Ok(store)
+    }
 }
 
 impl TypeStore {
@@ -502,6 +578,81 @@ impl TypeStore {
 
     pub fn kind(&self, id: TypeId) -> &TypeKind {
         &self.kinds[id.0 as usize]
+    }
+
+    pub fn validate_references(&self) -> Result<(), String> {
+        for id in self.iter_ids() {
+            self.validate_type_id(id, self.kind(id))?;
+        }
+        Ok(())
+    }
+
+    fn validate_type_id(&self, owner: TypeId, kind: &TypeKind) -> Result<(), String> {
+        let check = |slot: &'static str, child: TypeId| {
+            if (child.0 as usize) < self.kinds.len() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "type t{} references out-of-range {slot} t{} in portable TypeStore",
+                    owner.as_u32(),
+                    child.as_u32()
+                ))
+            }
+        };
+        match kind {
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_),
+            )
+            | TypeKind::Param(_) => Ok(()),
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                for &arg in &n.args {
+                    check("nominal arg", arg)?;
+                }
+                if let Some(eff) = &n.eff {
+                    for &term in &eff.terms {
+                        check("nominal effect term", term)?;
+                    }
+                }
+                Ok(())
+            }
+            TypeKind::Ref(RefTypeKind::Function(f)) => {
+                if let Some(receiver) = f.receiver {
+                    check("function receiver", receiver)?;
+                }
+                for &param in &f.params {
+                    check("function param", param)?;
+                }
+                check("function return", f.return_ty)?;
+                for &term in &f.effects.terms {
+                    check("function effect term", term)?;
+                }
+                Ok(())
+            }
+            TypeKind::Ref(RefTypeKind::Union(u)) => {
+                for &variant in &u.variants {
+                    check("union variant", variant)?;
+                }
+                Ok(())
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => check("option inner", *inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                for &element in elements {
+                    check("tuple element", element)?;
+                }
+                Ok(())
+            }
+            TypeKind::StarProjection(star) => check("star projection read type", star.read_ty),
+        }
     }
 
     pub fn intern(&mut self, kind: TypeKind) -> TypeId {
@@ -1008,7 +1159,7 @@ fn push_tuple(
 }
 
 /// `TypeStore` 中 builtin 类型的 ID 集合。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BuiltinTypes {
     pub any: TypeId,
     pub string: TypeId,
@@ -1244,6 +1395,38 @@ mod tests {
             tys.display(effectful).to_string(),
             "String.(Any) -> Any / scoop.core.Raise<Any>"
         );
+    }
+
+    #[test]
+    fn portable_type_store_round_trip_preserves_type_ids() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let effect = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "app.Log".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+        let option_string = types.ty_option(builtins.string);
+        let callable = types.ty_function(
+            Some(option_string),
+            vec![builtins.int],
+            builtins.unit,
+            EffectRow::new(vec![effect]),
+            true,
+        );
+
+        let bytes = bincode::serialize(&types).expect("serialize portable TypeStore");
+        let decoded: TypeStore =
+            bincode::deserialize(&bytes).expect("deserialize portable TypeStore");
+
+        assert_eq!(decoded, types);
+        assert_eq!(
+            decoded.display(callable).to_string(),
+            types.display(callable).to_string()
+        );
+        decoded
+            .validate_references()
+            .expect("decoded TypeStore references are valid");
     }
 
     #[test]

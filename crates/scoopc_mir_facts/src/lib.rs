@@ -25,14 +25,29 @@ use roots::RootInventories;
 use snapshot::SnapshotBindings;
 
 /// Complete set of MIR-owned facts published by the MIR stage.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirFacts {
+    pub schema_version: scoopc_types::WireSchemaVersion,
     pub roots: RootInventories,
     pub snapshots: SnapshotBindings,
     pub families: InstanceFamilyInventory,
     pub pass_artifacts: PassArtifactMetadata,
     pub pass_pipeline: MirPassPipelineMetadata,
     pub metadata: MirMetadataFacts,
+}
+
+impl Default for MirFacts {
+    fn default() -> Self {
+        Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
+            roots: RootInventories::default(),
+            snapshots: SnapshotBindings::default(),
+            families: InstanceFamilyInventory::default(),
+            pass_artifacts: PassArtifactMetadata::default(),
+            pass_pipeline: MirPassPipelineMetadata::default(),
+            metadata: MirMetadataFacts::default(),
+        }
+    }
 }
 
 impl MirFacts {
@@ -85,6 +100,16 @@ mod tests {
         assert!(dump.contains("roots: callable_bodies=0"));
         assert!(dump.contains("snapshots: canonical=<none>"));
         assert!(dump.contains("pass_pipeline: runs=0"));
+    }
+
+    #[test]
+    fn mir_facts_bincode_round_trip_preserves_schema_and_content() {
+        let facts = MirFacts::new();
+        let bytes = bincode::serialize(&facts).expect("serialize MIR facts");
+        let decoded: MirFacts = bincode::deserialize(&bytes).expect("deserialize MIR facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
     }
 
     #[test]

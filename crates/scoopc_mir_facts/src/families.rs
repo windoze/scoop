@@ -6,7 +6,7 @@ use scoopc_types::TypeId;
 use crate::common::{FactIdentity, MirBodyReference};
 
 /// MIR-owned inventory for materialized instances and callable families.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct InstanceFamilyInventory {
     pub instances: Vec<InstanceInventoryEntry>,
     pub callable_families: Vec<CallableFamilyFact>,
@@ -20,7 +20,7 @@ impl InstanceFamilyInventory {
 }
 
 /// Stable materialized-instance entry that does not expose MIR-internal keys.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct InstanceInventoryEntry {
     pub identity: FactIdentity,
     pub artifact: StageArtifactKey,
@@ -49,7 +49,7 @@ impl InstanceInventoryEntry {
 }
 
 /// Stable callable-family entry that does not expose MIR-internal keys.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallableFamilyFact {
     pub identity: FactIdentity,
     pub callable: CanonicalTextKey,

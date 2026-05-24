@@ -194,7 +194,7 @@ pub(super) fn validate_materialized_item(
             block: None,
             span: *span,
             category: MirPlaceholderCategory::Item,
-            reason: kind,
+            reason: kind.clone(),
         })),
     }
 }
@@ -808,7 +808,7 @@ pub(super) fn validate_materialized_statement(
                 block: Some(block),
                 span: stmt.span,
                 category: MirPlaceholderCategory::Statement,
-                reason,
+                reason: reason.clone(),
             }))
         }
         StatementKind::Nop => Ok(()),
@@ -1366,7 +1366,7 @@ pub(super) fn validate_materialized_rvalue(
             block: Some(block),
             span,
             category: MirPlaceholderCategory::Rvalue,
-            reason,
+            reason: reason.clone(),
         })),
     }
 }
@@ -3185,7 +3185,7 @@ pub(super) fn validate_materialized_terminator(
                 block: Some(block),
                 span: terminator.span,
                 category: MirPlaceholderCategory::Terminator,
-                reason,
+                reason: reason.clone(),
             }))
         }
         TerminatorKind::ResumeUnwind
@@ -3359,7 +3359,7 @@ pub(super) fn validate_materialized_unwind_action(
             block: Some(block),
             span,
             category: MirPlaceholderCategory::UnwindAction,
-            reason,
+            reason: reason.clone(),
         })),
         UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => Ok(()),
     }

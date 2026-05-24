@@ -110,7 +110,7 @@ impl<'a> FnLowering<'a> {
             return result;
         }
         let result = self.push_temp_local(span, ty);
-        self.assign(span, result, Rvalue::Todo("missing expr"));
+        self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
         result
     }
 
@@ -140,7 +140,7 @@ impl<'a> FnLowering<'a> {
                 }
 
                 let result = self.push_temp_local(span, result_ty);
-                self.assign(span, result, Rvalue::Todo("missing expr"));
+                self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
                 result
             }
             ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
@@ -156,7 +156,7 @@ impl<'a> FnLowering<'a> {
                 }
 
                 let result = self.push_temp_local(span, result_ty);
-                self.assign(span, result, Rvalue::Todo("missing expr"));
+                self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
                 result
             }
             _ => {
@@ -167,7 +167,7 @@ impl<'a> FnLowering<'a> {
                 }
 
                 let result = self.push_temp_local(span, result_ty);
-                self.assign(span, result, Rvalue::Todo("missing expr"));
+                self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
                 result
             }
         }

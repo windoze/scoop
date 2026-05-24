@@ -7,7 +7,7 @@ use scoopc_types::{EffectRow, TypeId};
 use crate::common::FactIdentity;
 
 /// HIR-owned facts about nominal declarations, callables, fields, and dispatch tables.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DeclarationFacts {
     pub nominals: Vec<NominalDeclarationFact>,
     pub callables: Vec<CallableDeclarationFact>,
@@ -28,7 +28,7 @@ impl DeclarationFacts {
 }
 
 /// Coarse declaration family for nominal entities.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum NominalKind {
     Struct,
     Enum,
@@ -39,7 +39,7 @@ pub enum NominalKind {
 }
 
 /// Variance attached to a type or effect parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Variance {
     Invariant,
     Covariant,
@@ -47,7 +47,7 @@ pub enum Variance {
 }
 
 /// Stable type/effect parameter metadata for declaration facts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TypeParameterFact {
     pub key: CanonicalTextKey,
     pub name: String,
@@ -56,7 +56,7 @@ pub struct TypeParameterFact {
 }
 
 /// Fact describing a nominal declaration and its direct type hierarchy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct NominalDeclarationFact {
     pub identity: FactIdentity,
     pub kind: NominalKind,
@@ -65,7 +65,7 @@ pub struct NominalDeclarationFact {
 }
 
 /// Fact describing a body-bearing or declared callable signature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct CallableDeclarationFact {
     pub identity: FactIdentity,
     pub receiver_ty: Option<TypeId>,
@@ -77,7 +77,7 @@ pub struct CallableDeclarationFact {
 }
 
 /// Source-level family for a field or property owner.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum FieldOwnerKind {
     Struct,
     Class,
@@ -86,7 +86,7 @@ pub enum FieldOwnerKind {
 }
 
 /// Fact describing a field or property type owned by a nominal/object declaration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct FieldDeclarationFact {
     pub identity: FactIdentity,
     pub owner: CanonicalTextKey,
@@ -97,7 +97,7 @@ pub struct FieldDeclarationFact {
 }
 
 /// Fact describing one enum variant and its stable tag.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct EnumVariantDeclarationFact {
     pub identity: FactIdentity,
     pub enum_owner: CanonicalTextKey,
@@ -107,7 +107,7 @@ pub struct EnumVariantDeclarationFact {
 }
 
 /// Dispatch metadata that remains source-semantic rather than MIR-derived.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DispatchFacts {
     pub vtables: Vec<DispatchTableFact>,
     pub interface_tables: Vec<DispatchTableFact>,
@@ -121,14 +121,14 @@ impl DispatchFacts {
 }
 
 /// Stable slot table for virtual or interface dispatch.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DispatchTableFact {
     pub owner: CanonicalTextKey,
     pub slots: Vec<DispatchSlotFact>,
 }
 
 /// One source-level dispatch slot resolved during the HIR barrier.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DispatchSlotFact {
     pub index: u32,
     pub declaration: CanonicalTextKey,

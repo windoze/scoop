@@ -23,13 +23,27 @@ use source_sites::SourceSiteFacts;
 use type_context::TypeContextFacts;
 
 /// Complete set of source-semantic facts published by the HIR barrier.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HirFacts {
+    pub schema_version: scoopc_types::WireSchemaVersion,
     pub declarations: DeclarationFacts,
     pub source_sites: SourceSiteFacts,
     pub globals: GlobalRootFacts,
     pub native: NativeExternFacts,
     pub type_context: TypeContextFacts,
+}
+
+impl Default for HirFacts {
+    fn default() -> Self {
+        Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
+            declarations: DeclarationFacts::default(),
+            source_sites: SourceSiteFacts::default(),
+            globals: GlobalRootFacts::default(),
+            native: NativeExternFacts::default(),
+            type_context: TypeContextFacts::default(),
+        }
+    }
 }
 
 impl HirFacts {
@@ -80,6 +94,16 @@ mod tests {
         assert!(dump.contains("declarations: nominals=0"));
         assert!(dump.contains("source_sites: function_effects=0"));
         assert!(dump.contains("type_context: universe=<none>"));
+    }
+
+    #[test]
+    fn hir_facts_bincode_round_trip_preserves_schema_and_content() {
+        let facts = HirFacts::new();
+        let bytes = bincode::serialize(&facts).expect("serialize HIR facts");
+        let decoded: HirFacts = bincode::deserialize(&bytes).expect("deserialize HIR facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
     }
 
     #[test]

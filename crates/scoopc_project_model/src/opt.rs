@@ -4,7 +4,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 /// 编译优化等级（`-O*` / `--opt-level` / `Cone.toml[native-build].opt-level`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum OptLevel {
     O0,
     O1,

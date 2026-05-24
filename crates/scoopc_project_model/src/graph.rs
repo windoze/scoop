@@ -10,7 +10,9 @@ use scoopc_source::SourceFile;
 use crate::manifest::{ConeKind, ConeManifest, ConeNativeBuildConfig};
 
 /// Cone（编译包/分发单元）标识。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct ConeId(u32);
 
 impl ConeId {
@@ -42,7 +44,7 @@ impl ConeInfo {
 }
 
 /// Semantic cone identity derived from `Cone.toml` instead of `ConeId`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableConeKey {
     name: String,
     version: String,
@@ -92,14 +94,14 @@ impl StableCanonicalKey for StableConeKey {
 /// The synthetic consumer cone id used for virtual or explicitly requested roots.
 pub const CONSUMER_CONE_ID: ConeId = ConeId::new(1);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceConeRole {
     SysrootAuto,
     LocalDependency,
     Consumer,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceConeTrust {
     Untrusted,
     TrustedSyslib,

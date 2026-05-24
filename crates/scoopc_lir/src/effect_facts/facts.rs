@@ -11,7 +11,7 @@ use super::schema::{
 };
 
 /// callable body 或 call-site 当前选择的 ABI protocol。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallableAbiKind {
     /// 普通函数 ABI；不发布 body `StepSchema` / continuation object / state-machine shell。
     Plain,
@@ -20,13 +20,13 @@ pub enum CallableAbiKind {
 }
 
 /// `MaterializedEffectFacts` 当前绑定到哪一种 canonical MIR 查询面。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CanonicalMirQuerySurface {
     PassView,
 }
 
 /// facts 与当前 canonical materialized MIR snapshot 的绑定信息。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirSnapshotBinding {
     query_surface: CanonicalMirQuerySurface,
     opt_level: OptLevel,
@@ -71,7 +71,7 @@ impl MirSnapshotBinding {
 ///
 /// builder 会先种下保守壳层，随后由 P4 的 solver 基于 body/site facts 完成
 /// `resolved_outward_cases` / `needs_reentry` / `impl_plan` 的 finalization。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallableEffectFacts {
     declared_row: EffectRow,
     call_abi_kind: CallableAbiKind,
@@ -148,7 +148,7 @@ impl CallableEffectFacts {
 }
 
 /// site-level effect facts 当前的精度来源。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EffectPrecision {
     Precise,
     Widened,
@@ -156,7 +156,7 @@ pub enum EffectPrecision {
 }
 
 /// 当前 call site 的 target 解析档位。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallTargetMode {
     KnownInstance,
     CandidateSet,
@@ -164,7 +164,7 @@ pub enum CallTargetMode {
 }
 
 /// 当前 call site 对外暴露的 target 身份。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteTarget {
     KnownInstance(InstanceKey),
     CandidateSet(Vec<InstanceKey>),
@@ -182,7 +182,7 @@ impl CallSiteTarget {
 }
 
 /// `Rvalue::Call` 在 MIR 上的语言级调用形态分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteKind {
     Direct,
     Closure,
@@ -193,7 +193,7 @@ pub enum CallSiteKind {
 }
 
 /// 普通 call site 的结构化 effect facts。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallSiteEffectFacts {
     kind: CallSiteKind,
     target_mode: CallTargetMode,
@@ -315,7 +315,7 @@ impl CallSiteEffectFacts {
 }
 
 /// `perform` site 的 emitted-case / captured continuation contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PerformSiteEffectFacts {
     emitted_case: CaseTag,
     payload_tuple_ty: TypeId,
@@ -323,7 +323,7 @@ pub struct PerformSiteEffectFacts {
 }
 
 /// `Rvalue::ClassCtor` site 发布的 hidden init outward cases。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorSiteEffectFacts {
     emitted_cases: CaseSet,
 }
@@ -365,7 +365,7 @@ impl PerformSiteEffectFacts {
 }
 
 /// `resume` site 的 continuation contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ResumeSiteEffectFacts {
     continuation_schema: ContinuationSchemaId,
     resume_tuple_ty: TypeId,
@@ -413,14 +413,14 @@ impl ResumeSiteEffectFacts {
 }
 
 /// nested `handle` 是否会把 suspension/outward 继续暴露给外层。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NestedHandleClassification {
     SelfContained,
     MaySuspendOutward,
 }
 
 /// 单个 handle arm 的结构化 effect facts。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleArmEffectFacts {
     handled_case: CaseTag,
     payload_tuple_ty: TypeId,
@@ -461,7 +461,7 @@ impl HandleArmEffectFacts {
 }
 
 /// `handle` site 的结构化 contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleSiteEffectFacts {
     result_ty: TypeId,
     handled_cases: CaseSet,
@@ -516,7 +516,7 @@ impl HandleSiteEffectFacts {
 }
 
 /// body 内单个 site 的 facts 变体。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SiteEffectFacts {
     Call(CallSiteEffectFacts),
     ClassCtor(ClassCtorSiteEffectFacts),
@@ -526,7 +526,7 @@ pub enum SiteEffectFacts {
 }
 
 /// 单个 basic block 的结构化 effect facts。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BlockEffectFacts {
     ambient_cases: CaseSet,
     outward_cases: CaseSet,
@@ -567,7 +567,7 @@ impl BlockEffectFacts {
 }
 
 /// solver 重新计算 `handle` site 最终 outward/classification 所需的区域入口信息。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct HandleSiteSolverFacts {
     body_target: BasicBlockId,
     arm_targets: Vec<BasicBlockId>,
@@ -608,7 +608,7 @@ impl HandleSiteSolverFacts {
 }
 
 /// solver 在当前 body 上完成 callable/block finalization 所需的结构输入。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct BodyEffectSolverFacts {
     block_successors: BTreeMap<BasicBlockId, Vec<BasicBlockId>>,
     block_sites: BTreeMap<BasicBlockId, Vec<SiteId>>,
@@ -656,7 +656,7 @@ impl BodyEffectSolverFacts {
 }
 
 /// 当前 materialized callable body 的局部 effect facts。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct BodyEffectFacts {
     blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
@@ -750,7 +750,7 @@ pub(crate) type MaterializedEffectFactsParts = (
 /// P4 只读消费 MIR snapshot：所有 compiler-generated runtime-error effect、tuple carrier、
 /// continuation surface/object/schema 等追加类型都写入这份 context。MIR-owned `TypeStore`
 /// 只作为初始快照被克隆，之后不再被 P4 修改。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectOwnedTypeContext {
     types: TypeStore,
 }
@@ -775,7 +775,7 @@ impl EffectOwnedTypeContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MaterializedEffectFacts {
     type_context: EffectOwnedTypeContext,
     snapshot_binding: MirSnapshotBinding,

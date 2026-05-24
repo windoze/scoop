@@ -9,7 +9,7 @@
 use std::fmt;
 
 /// UTF-8 byte-offset range within one source buffer.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Span {
     pub start: usize,
     pub end: usize,

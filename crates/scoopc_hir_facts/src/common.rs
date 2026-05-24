@@ -5,7 +5,7 @@ use scoopc_project_model::StableConeKey;
 use scoopc_source::SourceMapSpan;
 
 /// Stage-neutral identity for a declaration, root, or native binding fact.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FactIdentity {
     pub key: CanonicalTextKey,
     pub display_name: String,

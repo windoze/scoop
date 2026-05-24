@@ -7,5 +7,6 @@ edition.workspace = true
 miette = { version = "7.6.0", features = ["fancy"] }
 scoopc_ids = { path = "../scoopc_ids" }
 scoopc_source = { path = "../scoopc_source" }
+serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.12"
 toml = "0.8.23"

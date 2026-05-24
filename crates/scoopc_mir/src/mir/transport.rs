@@ -6,7 +6,7 @@ use crate::ty::{TypeKind, TypeStore, ValueTypeKind, is_builtin_scalar_nominal_va
 use super::LocalId;
 
 /// Backend-agnostic transport classification for a MIR value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirTransportKind {
     Scalar,
     Reference,
@@ -21,7 +21,7 @@ pub enum MirTransportKind {
 }
 
 /// Why an aggregate value must be boxed before crossing a transport boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirBoxingReason {
     AnyErasure,
     RefErasure,
@@ -31,7 +31,7 @@ pub enum MirBoxingReason {
     FunctionValueAdapter,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirBoxingIntent {
     pub source_ty: TypeId,
     pub target_ty: Option<TypeId>,
@@ -39,7 +39,7 @@ pub struct MirBoxingIntent {
 }
 
 /// Copy/drop/trace obligations that later layout/codegen must honor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirTransportRequirements {
     pub trace: bool,
     pub copy: bool,
@@ -56,7 +56,7 @@ impl MirTransportRequirements {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ValueTransportMetadata {
     pub source_ty: TypeId,
     pub kind: MirTransportKind,
@@ -161,7 +161,7 @@ fn transport_niche_domain(types: &TypeStore, ty: TypeId) -> Option<NicheDomain> 
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AggregateTransportKind {
     Tuple,
     Struct,
@@ -169,7 +169,7 @@ pub enum AggregateTransportKind {
     ClosureEnv,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AggregateTransportField {
     pub index: usize,
     pub name: Option<String>,
@@ -177,14 +177,14 @@ pub struct AggregateTransportField {
     pub transport: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AggregateTransportMetadata {
     pub aggregate_ty: TypeId,
     pub kind: AggregateTransportKind,
     pub fields: Vec<AggregateTransportField>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClosureCaptureTransportMetadata {
     pub name: String,
     pub decl_span: Span,
@@ -193,7 +193,7 @@ pub struct ClosureCaptureTransportMetadata {
     pub transport: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClosureEnvTransportMetadata {
     pub env_ty: TypeId,
     pub captures: Vec<ClosureCaptureTransportMetadata>,
@@ -208,7 +208,7 @@ impl ClosureEnvTransportMetadata {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ArrayTransportOperation {
     BuilderNew,
     BuilderPush,
@@ -218,7 +218,7 @@ pub enum ArrayTransportOperation {
     Set,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ArrayElementTransportMetadata {
     pub operation: ArrayTransportOperation,
     pub array_ty: TypeId,
@@ -227,7 +227,7 @@ pub struct ArrayElementTransportMetadata {
     pub element: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GcIntrinsicOperation {
     Pin,
     Unpin,
@@ -236,7 +236,7 @@ pub enum GcIntrinsicOperation {
     HandleDrop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GcRootLifetime {
     PinnedUntilUnpin,
     EndsPinnedRoot,
@@ -245,7 +245,7 @@ pub enum GcRootLifetime {
     EndsStableHandle,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GcIntrinsicPairing {
     PinMustPairUnpin,
     UnpinMatchesPin,
@@ -254,7 +254,7 @@ pub enum GcIntrinsicPairing {
     HandleDropMatchesHandleNew,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GcIntrinsicTransportMetadata {
     pub callee_fqn: String,
     pub operation: GcIntrinsicOperation,
@@ -266,14 +266,14 @@ pub struct GcIntrinsicTransportMetadata {
     pub subject: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirCallableAbiKind {
     Plain,
     EffectStep,
     DeferredToEffectFacts,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirCallableImplPlan {
     NoOutward,
     SingleCase,
@@ -282,7 +282,7 @@ pub enum MirCallableImplPlan {
 }
 
 /// MIR-side ABI handoff marker for call-like values.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallAbiHandoffMetadata {
     pub callable_abi_kind: MirCallableAbiKind,
     pub resolved_outward_cases: Vec<String>,
@@ -310,7 +310,7 @@ impl CallAbiHandoffMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallTransportMetadata {
     pub result: ValueTransportMetadata,
     pub aggregate_return: Option<ValueTransportMetadata>,

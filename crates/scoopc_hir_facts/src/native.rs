@@ -6,7 +6,7 @@ use scoopc_types::{EffectRow, TypeId};
 use crate::common::FactIdentity;
 
 /// Facts for declarations that cross the native ABI boundary.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct NativeExternFacts {
     pub extern_functions: Vec<ExternFunctionFact>,
     pub native_callables: Vec<NativeCallableFact>,
@@ -25,7 +25,7 @@ impl NativeExternFacts {
 }
 
 /// Metadata for an `@Extern` function declaration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ExternFunctionFact {
     pub identity: FactIdentity,
     pub symbol: String,
@@ -36,7 +36,7 @@ pub struct ExternFunctionFact {
 }
 
 /// Metadata for a body-bearing `@CallingConvention` function.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct NativeCallableFact {
     pub identity: FactIdentity,
     pub symbol: String,
@@ -47,7 +47,7 @@ pub struct NativeCallableFact {
 }
 
 /// Metadata for an `@Extern` global declaration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ExternGlobalFact {
     pub identity: FactIdentity,
     pub symbol: String,
@@ -56,7 +56,7 @@ pub struct ExternGlobalFact {
 }
 
 /// Link metadata emitted by source-level extern library annotations.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ExternLibraryFact {
     pub name: String,
     pub source: Option<SourceMapSpan>,

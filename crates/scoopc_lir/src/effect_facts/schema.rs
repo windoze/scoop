@@ -3,7 +3,9 @@ use crate::stable_id::StableInstanceKey;
 use crate::ty::TypeId;
 
 /// `StepSchema(F)` 的稳定 identity。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct StepSchemaId(u32);
 
 impl StepSchemaId {
@@ -17,7 +19,9 @@ impl StepSchemaId {
 }
 
 /// `ContinuationSchema` 的稳定 identity。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct ContinuationSchemaId(u32);
 
 impl ContinuationSchemaId {
@@ -31,7 +35,9 @@ impl ContinuationSchemaId {
 }
 
 /// 某个 `StepSchema(F)` 内部的稳定 case tag。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct CaseTag(u32);
 
 impl CaseTag {
@@ -48,7 +54,9 @@ impl CaseTag {
 ///
 /// 底层仍直接复用现有 `InstanceKey` 形状，但通过语义 newtype 避免后续阶段把它当成“普通
 /// callable instance key”裸露出去。
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct EffectFamilyKey {
     effect_fqn: String,
     type_args: Vec<TypeId>,
@@ -71,7 +79,7 @@ impl EffectFamilyKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ConcreteOpKey {
     instance: InstanceKey,
     stable_instance_key: StableInstanceKey,
@@ -105,7 +113,7 @@ impl ConcreteOpKey {
 }
 
 /// 某个 schema 内的一组稳定 case tag 子集。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CaseSet {
     schema: StepSchemaId,
     tags: Vec<CaseTag>,
@@ -132,7 +140,7 @@ impl CaseSet {
 }
 
 /// 当前 callable 在 late lowering 前选中的实现档位。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ImplPlan {
     NoOutward,
     SingleCase(CaseTag),
@@ -140,7 +148,7 @@ pub enum ImplPlan {
 }
 
 /// `StepSchema(F)` 中的单个 canonical case。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StepCaseFact {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -181,7 +189,7 @@ impl StepCaseFact {
 }
 
 /// continuation surface/resume contract 的 canonical schema。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ContinuationSchema {
     resume_tuple_ty: TypeId,
     answer_ty: TypeId,
@@ -222,7 +230,7 @@ impl ContinuationSchema {
 }
 
 /// 单个 callable instance `F` 的 canonical `StepSchema(F)`。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StepSchema {
     invoke_args_tuple_ty: TypeId,
     complete_ty: TypeId,

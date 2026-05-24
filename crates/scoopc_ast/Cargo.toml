@@ -8,4 +8,5 @@ scoopc_source = { path = "../scoopc_source" }
 scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }
 miette = { version = "7.6.0", features = ["fancy"] }
+serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.12"

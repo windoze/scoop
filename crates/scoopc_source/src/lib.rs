@@ -15,13 +15,13 @@ use std::path::{Path, PathBuf};
 use miette::{Result, miette};
 use scoopc_span::Span;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceOrigin {
     User,
     Sysroot,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceTrust {
     Untrusted,
     TrustedSyslib,
@@ -181,7 +181,7 @@ impl SourceFile {
 /// - `SourceId` 只在当前 `SourceMap` 实例内有效；
 /// - 后续多文件 lowering / codegen / diagnostics 可以用它把“文件身份”和本地 `Span`
 ///   绑定在一起，而不需要立刻把整个编译器的 `Span` 结构改成全局偏移。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SourceId(usize);
 
 impl SourceId {
@@ -195,7 +195,7 @@ impl SourceId {
 /// 说明：
 /// - `span` 仍然是该文件内的本地 UTF-8 字节偏移；
 /// - `SourceMap` 负责把它转换为源文本、位置，以及未来可能需要的“全局 offset 空间”。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SourceMapSpan {
     pub source_id: SourceId,
     pub span: Span,
@@ -208,7 +208,7 @@ impl SourceMapSpan {
 }
 
 /// 一个源位置（文件 + 1-based 行列号）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceLocation {
     pub path: PathBuf,
     pub line: usize,

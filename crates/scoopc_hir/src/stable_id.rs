@@ -27,7 +27,7 @@ pub use scoopc_project_model::StableConeKey;
 const MAX_CANONICAL_DEPTH: usize = 64;
 
 /// Export-visible declaration namespaces kept distinct by stable-id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum StableDefNamespace {
     Type,
     Value,
@@ -57,7 +57,7 @@ impl StableDefNamespace {
 }
 
 /// Semantic declaration identity used by exported symbols and stable templates.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableDefKey {
     cone: StableConeKey,
     namespace: StableDefNamespace,
@@ -126,7 +126,7 @@ impl StableSymbolKey for StableDefKey {
 }
 
 /// Semantic template identity that replaces exported uses of `TemplateKey`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableTemplateKey {
     def: StableDefKey,
 }
@@ -154,7 +154,7 @@ impl StableSymbolKey for StableTemplateKey {
 }
 
 /// Semantic monomorphic instance identity derived from canonical type/effect text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableInstanceKey {
     template: StableTemplateKey,
     canonical_type_args: Vec<String>,
@@ -233,7 +233,7 @@ impl StableSymbolKey for StableInstanceKey {
 }
 
 /// Closure identity anchored by owner semantic key and lexical path.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableClosureKey {
     owner_canonical_text: String,
     readable_path: String,
@@ -282,7 +282,7 @@ impl StableSymbolKey for StableClosureKey {
 }
 
 /// Stable effect step schema identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableEffectSchemaKey {
     owner_canonical_text: String,
     schema_role: String,
@@ -317,7 +317,7 @@ impl StableCanonicalKey for StableEffectSchemaKey {
 }
 
 /// Stable continuation schema identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableContinuationSchemaKey {
     owner_canonical_text: String,
     schema_role: String,
@@ -352,7 +352,7 @@ impl StableCanonicalKey for StableContinuationSchemaKey {
 }
 
 /// Stable private boundary identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableBoundaryKey {
     owner_canonical_text: String,
     structural_role: String,
@@ -387,7 +387,7 @@ impl StableCanonicalKey for StableBoundaryKey {
 }
 
 /// Stable state identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableStateKey {
     owner_canonical_text: String,
     structural_role: String,
@@ -422,7 +422,7 @@ impl StableCanonicalKey for StableStateKey {
 }
 
 /// Stable frame-slot identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableFrameSlotKey {
     owner_canonical_text: String,
     structural_role: String,
@@ -457,7 +457,7 @@ impl StableCanonicalKey for StableFrameSlotKey {
 }
 
 /// Stable type-parameter identity used by canonical type text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableTypeParamKey {
     owner_def_key: String,
     index: usize,
@@ -505,7 +505,7 @@ impl StableTypeParamResolver for HashMap<TypeParamType, StableTypeParamKey> {
 }
 
 /// Resolver for canonical text that is guaranteed to fail on type parameters.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct NoTypeParamResolver;
 
 impl StableTypeParamResolver for NoTypeParamResolver {
@@ -515,7 +515,7 @@ impl StableTypeParamResolver for NoTypeParamResolver {
 }
 
 /// Errors raised while building canonical type/effect text.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Error, serde::Serialize, serde::Deserialize)]
 pub enum CanonicalEncodingError {
     #[error("missing stable type parameter key for `{param_name}`")]
     MissingTypeParamKey { param_name: String },

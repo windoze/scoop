@@ -7,7 +7,7 @@ use scoopc_types::TypeId;
 use crate::common::FactIdentity;
 
 /// Facts describing top-level roots and source-level initializer metadata.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct GlobalRootFacts {
     pub roots: Vec<GlobalRootFact>,
     pub object_initializers: Vec<InitializerFact>,
@@ -24,7 +24,7 @@ impl GlobalRootFacts {
 }
 
 /// Source-level global root family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GlobalRootKind {
     TopLevelVal,
     TopLevelVar,
@@ -32,14 +32,14 @@ pub enum GlobalRootKind {
 }
 
 /// Storage policy required for mutable top-level globals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GlobalStoragePolicy {
     Global,
     ThreadLocal,
 }
 
 /// HIR fact for one legal, monomorphic global root.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct GlobalRootFact {
     pub identity: FactIdentity,
     pub kind: GlobalRootKind,
@@ -50,7 +50,7 @@ pub struct GlobalRootFact {
 }
 
 /// HIR-owned initializer contract for object/class setup.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct InitializerFact {
     pub identity: FactIdentity,
     pub initialized_root: CanonicalTextKey,
@@ -58,7 +58,7 @@ pub struct InitializerFact {
 }
 
 /// One initialized field or property and its type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct InitializerFieldFact {
     pub name: String,
     pub ty: TypeId,

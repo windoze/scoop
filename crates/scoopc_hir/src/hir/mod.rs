@@ -57,7 +57,7 @@ pub fn lower_fun_with_type_bindings_and_mir_facts(
 /// 说明：
 /// - 当前阶段它主要用于把 AST 中的 ident 引用（`x`/`foo`）绑定到某个“解析结果”（local/top-level）；
 /// - 后续若引入真正的全局 symbol table / 增量编译缓存，可把该 ID 扩展为跨 session 稳定的形式。
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SymbolId(u32);
 
 impl SymbolId {
@@ -81,7 +81,7 @@ impl fmt::Debug for SymbolId {
 /// 说明：
 /// - 该 ID 仅在“单文件 lowering”的 HIR 中稳定（用于 dump/fixtures 的可回归输出）；
 /// - 后续若引入跨文件/跨 session 的 closure 符号表，可替换为更稳定的形式。
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ClosureId(u32);
 
 impl ClosureId {
@@ -97,7 +97,7 @@ impl fmt::Debug for ClosureId {
 }
 
 /// 一个源文件 lowering 后的 HIR。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct File {
     pub decls: Vec<Decl>,
     pub items: Vec<Item>,
@@ -115,7 +115,7 @@ impl fmt::Debug for File {
 }
 
 /// HIR declaration graph entry for non-function top-level declarations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
     TypeAlias(TypeAliasDecl),
     Nominal(NominalDecl),
@@ -124,7 +124,7 @@ pub enum Decl {
 }
 
 /// Declaration-site type parameter metadata retained by HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DeclTypeParam {
     pub span: Span,
     pub name: String,
@@ -132,7 +132,7 @@ pub struct DeclTypeParam {
     pub ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeAliasDecl {
     pub span: Span,
     pub fqn: String,
@@ -141,7 +141,7 @@ pub struct TypeAliasDecl {
     pub ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NominalDecl {
     pub span: Span,
     pub fqn: String,
@@ -154,7 +154,7 @@ pub struct NominalDecl {
     pub members: Vec<DeclMember>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ObjectDecl {
     pub span: Span,
     pub fqn: String,
@@ -166,7 +166,7 @@ pub struct ObjectDecl {
     pub members: Vec<DeclMember>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionPropertyDecl {
     pub span: Span,
     pub fqn: String,
@@ -179,7 +179,7 @@ pub struct ExtensionPropertyDecl {
     pub setter: Option<AccessorContract>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SupertypeDecl {
     pub span: Span,
     pub fqn: Option<String>,
@@ -187,7 +187,7 @@ pub struct SupertypeDecl {
     pub ctor_arg_count: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum DeclMember {
     Field(FieldDecl),
     Property(PropertyDecl),
@@ -197,7 +197,7 @@ pub enum DeclMember {
     Nested(Decl),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FieldDecl {
     pub span: Span,
     pub fqn: String,
@@ -207,14 +207,14 @@ pub struct FieldDecl {
     pub origin: FieldOrigin,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FieldOrigin {
     PrimaryCtorParam,
     BodyProperty,
     EnumVariantPayload,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PropertyDecl {
     pub span: Span,
     pub fqn: String,
@@ -226,13 +226,13 @@ pub struct PropertyDecl {
     pub setter: Option<AccessorContract>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccessorContract {
     pub span: Span,
     pub fqn: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemberFunDecl {
     pub span: Span,
     pub fqn: String,
@@ -242,7 +242,7 @@ pub struct MemberFunDecl {
     pub return_ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantDecl {
     pub span: Span,
     pub fqn: String,
@@ -250,7 +250,7 @@ pub struct EnumVariantDecl {
     pub fields: Vec<FieldDecl>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorDecl {
     pub span: Span,
     pub kind: ClassCtorKind,
@@ -258,7 +258,7 @@ pub struct CtorDecl {
     pub delegation: Option<ast::CtorDelegationKind>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorParamDecl {
     pub span: Span,
     pub name: String,
@@ -268,19 +268,19 @@ pub struct CtorParamDecl {
 }
 
 /// 顶层条目（top-level items）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Item {
     Fun(FunDecl),
     Val(ValDecl),
     /// 未纳入当前阶段 HIR 的条目占位（例如 type/object/typealias 等）。
     Todo {
         span: Span,
-        kind: &'static str,
+        kind: String,
     },
 }
 
 /// 函数声明（顶层或方法；当前阶段只做顶层 fun 的最小承载）。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct FunDecl {
     pub span: Span,
     pub fqn: String,
@@ -309,7 +309,7 @@ impl fmt::Debug for FunDecl {
 }
 
 /// 函数参数（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Param {
     pub span: Span,
     pub id: SymbolId,
@@ -318,7 +318,7 @@ pub struct Param {
 }
 
 /// `val`/`var` 声明（顶层或局部）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ValDecl {
     pub span: Span,
     pub id: Option<SymbolId>,
@@ -329,7 +329,7 @@ pub struct ValDecl {
 }
 
 /// 表达式块（block expression）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Block {
     pub span: Span,
     pub ty: TypeId,
@@ -337,14 +337,14 @@ pub struct Block {
 }
 
 /// 语句（statement）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Stmt {
     pub span: Span,
     pub ty: TypeId,
     pub kind: StmtKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum StmtKind {
     Empty,
     Expr(Expr),
@@ -374,11 +374,11 @@ pub enum StmtKind {
     Return {
         value: Option<Expr>,
     },
-    Todo(&'static str),
+    Todo(String),
 }
 
 /// 表达式（expression）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Expr {
     pub span: Span,
     pub ty: TypeId,
@@ -386,7 +386,7 @@ pub struct Expr {
 }
 
 /// struct literal 的字段初始化项（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructLitField {
     pub span: Span,
     pub name: String,
@@ -396,7 +396,7 @@ pub struct StructLitField {
 }
 
 /// 插值字符串的片段（spec §8.2）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum InterpolatedStringPart {
     /// 纯文本片段（保留源码 span；转义/去重写回等语义由后续阶段决定）。
     Text { span: Span },
@@ -404,7 +404,7 @@ pub enum InterpolatedStringPart {
     Expr { expr: Expr },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
@@ -527,15 +527,15 @@ pub enum ExprKind {
     /// - 支持 non-resuming arms（`->`）与 escape-continuation arms（`, k ->`，T0617）；
     /// - HIR 保留 arm 语义形态与显式 continuation binder 符号，供后续 lowering/codegen 识别。
     Handle(HandleExpr),
-    Todo(&'static str),
+    Todo(String),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeMetadataLiteralKind {
     TypeNameString,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassLiteralExpr {
     pub source_ty: TypeId,
     pub source_fqn: Option<String>,
@@ -550,7 +550,7 @@ pub struct ClassLiteralExpr {
 /// - 当前阶段仅记录 `SymbolId + name + decl_span`，供后续 env layout / codegen 使用；
 /// - 可变捕获（`var`）在 lowering 时会被标记为 `mutable: true`，让 closure body 从 env load
 ///   后创建的 per-call local 仍可重新绑定；该重新绑定不写回外层局部，也不跨调用持久化。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Capture {
     pub id: SymbolId,
     pub name: String,
@@ -559,7 +559,7 @@ pub struct Capture {
 }
 
 /// closure（lambda）的 HIR 表示（TODO T0710）。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClosureExpr {
     pub span: Span,
     pub id: ClosureId,
@@ -588,7 +588,7 @@ impl fmt::Debug for ClosureExpr {
 /// 一个 effect operation 的“引用”（以 FQN 表示）。
 ///
 /// 说明：该结构主要用于 HIR dump/fixtures 的稳定输出；后续可替换为更结构化的 symbol 引用。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectOpRef {
     pub span: Span,
     pub fqn: String,
@@ -607,7 +607,7 @@ impl fmt::Debug for EffectOpRef {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum LiteralKind {
     /// Integer literal resolved on demand from source text (`Expr.span` + source provenance).
     Int,
@@ -627,7 +627,7 @@ pub enum LiteralKind {
 }
 
 /// 已解析的“值引用”（local/top-level）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ValueRef {
     Local {
         id: SymbolId,
@@ -641,7 +641,7 @@ pub enum ValueRef {
 }
 
 /// 成员访问中的“已解析引用”（来自 resolver 写回的 `ResolvedMemberRef`）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MemberRef {
     Value { id: SymbolId, fqn: String },
     Fun { id: SymbolId, fqn: String },
@@ -654,7 +654,7 @@ pub enum MemberRef {
 /// 说明：
 /// - `span/name` 用于保持 dump/fixtures 输出稳定且可读；
 /// - `resolved` 为空时表示 resolver 未能给出绑定结果（仍保留结构以避免 panic）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemberAccess {
     pub span: Span,
     pub name: String,
@@ -662,7 +662,7 @@ pub struct MemberAccess {
 }
 
 /// HIR handoff contract for an assignment statement's left-hand side place.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AssignPlaceContract {
     pub span: Span,
     pub kind: AssignPlaceKind,
@@ -673,7 +673,7 @@ pub struct AssignPlaceContract {
     pub unsafe_required: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AssignPlaceKind {
     Local {
         id: SymbolId,
@@ -695,7 +695,7 @@ pub enum AssignPlaceKind {
 }
 
 /// 调用实参（位置参数或命名参数）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CallArg {
     Positional(Expr),
     Named {
@@ -710,7 +710,7 @@ pub enum CallArg {
 /// 说明：
 /// - 当前后端只需要“字段顺序 + 字段类型”，以便对字段生成稳定的 GEP 索引；
 /// - padding/对齐由 LLVM data layout 决定（TODO T0811 目标）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructLayout {
     pub fqn: String,
     pub fields: Vec<StructFieldLayout>,
@@ -723,7 +723,7 @@ pub struct StructLayout {
 }
 
 /// `@CLayout(aligned, packed)` 的最小后端视图（供 LLVM codegen 使用）。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct StructCLayout {
     /// 显式指定的结构体整体对齐（单位：字节）。`None` 表示未指定（使用默认 ABI）。
     pub aligned: Option<u32>,
@@ -732,7 +732,7 @@ pub struct StructCLayout {
 }
 
 /// struct 的单个字段布局信息。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructFieldLayout {
     pub span: Span,
     pub name: String,
@@ -758,7 +758,7 @@ pub type StructLayoutIndex = HashMap<String, StructLayout>;
 ///   - variant 顺序与 tag（按声明顺序分配，从 0 开始）；
 ///   - payload 字段的类型（仅对 `TypeRef::Path` 可解析；其它类型留空）。
 /// - 更复杂的布局策略（niche / boxing / size disparity lint）留给后续任务（T0826）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum EnumRepr {
     /// 常规 rich enum：tagged union（tag 由编译器按声明顺序分配）。
     TaggedUnion,
@@ -770,7 +770,7 @@ pub enum EnumRepr {
 }
 
 /// enum 的布局摘要（供后端查询）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumLayout {
     pub fqn: String,
     pub repr: EnumRepr,
@@ -778,7 +778,7 @@ pub struct EnumLayout {
 }
 
 /// enum 的一个 variant 的布局信息。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantLayout {
     pub span: Span,
     pub name: String,
@@ -790,7 +790,7 @@ pub struct EnumVariantLayout {
 }
 
 /// enum variant 的一个字段布局信息。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantFieldLayout {
     pub span: Span,
     pub name: String,
@@ -843,7 +843,9 @@ pub type ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>;
 /// 该 key 的字符串表示仍与既有 dump/wire format 兼容（非泛型为 FQN，泛型为 mangled FQN），
 /// 但外部不能从任意 `&str` / `String` 直接构造它。codegen 必须从已单态化的 nominal
 /// `MonoTypeId` 或已经验证过的 [`MonoClassInit`] 取得 key。
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct ClassInstanceKey(String);
 
 impl ClassInstanceKey {
@@ -888,7 +890,7 @@ pub type GenericClassDeclIndex = HashMap<String, GenericClassDecl>;
 ///
 /// 它与 [`MonoClassInit`] 是两个独立 nominal struct，而不是 type alias；调用方必须显式走
 /// [`MonoClassInit::from_generic_decl`] 才能把源声明升级为 codegen 可见的单态化视图。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenericClassDecl {
     pub fqn: String,
     /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
@@ -916,7 +918,7 @@ pub struct GenericClassDecl {
 /// 单态化视图（codegen / RTTI / mir-materialize / lir_facts 使用）。字段类型为 `MonoTypeId`。
 ///
 /// 该类型只能由已完成 `as_mono` 校验的字段/参数组成，避免含 `Param` 的源声明误入 codegen。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MonoClassInit {
     pub fqn: String,
     /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
@@ -946,7 +948,7 @@ pub struct MonoClassInit {
 /// 用途：
 /// - 非泛型 class 在 HIR lowering 阶段构造 `MonoClassInit` 失败 → typecheck 之外的 verifier-style assertion；
 /// - 泛型 class 实例化在 substitute 后构造 `MonoClassInit` 失败 → monomorph driver bug。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MonoLeakDiag {
     pub class_fqn: String,
     pub slot: MonoLeakSlot,
@@ -954,7 +956,7 @@ pub struct MonoLeakDiag {
 }
 
 /// `MonoClassInit` 构造时哪个 slot 含有 `Param` 泄漏。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum MonoLeakSlot {
     /// `fields[i].ty` 含 `Param`。
     Field { name: String },
@@ -1069,7 +1071,7 @@ impl MonoClassInit {
 }
 
 /// class 的一个字段（最小后端视图，参数化于字段类型槽位）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassField<T> {
     pub fqn: String,
     pub name: String,
@@ -1078,7 +1080,7 @@ pub struct ClassField<T> {
 }
 
 /// class 初始化的一步（按源码顺序执行）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ClassInitStep {
     /// 执行某个 property 的 initializer，并写入字段。
     PropertyInit { field_fqn: String, init: Expr },
@@ -1086,14 +1088,14 @@ pub enum ClassInitStep {
     InitBlock { block: Block },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ClassCtorKind {
     Primary,
     Secondary,
 }
 
 /// 一个 class 构造器（primary 或 secondary）的最小后端视图，参数化于参数 TypeId 槽位。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtor<T> {
     pub kind: ClassCtorKind,
     pub span: Span,
@@ -1104,7 +1106,7 @@ pub struct ClassCtor<T> {
     pub body: Option<Block>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorDelegation {
     pub kind: ast::CtorDelegationKind,
     pub span: Span,
@@ -1112,7 +1114,7 @@ pub struct ClassCtorDelegation {
     pub args: Vec<CallArg>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorParam<T> {
     pub id: SymbolId,
     pub name: String,
@@ -1126,7 +1128,7 @@ pub struct ClassCtorParam<T> {
     pub property_field_fqn: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorCallInfo {
     pub class_fqn: String,
     pub ctor_span: Option<Span>,
@@ -1141,7 +1143,7 @@ pub struct CtorCallInfo {
 /// - 多文件 lowering 中，裸 `Span` 只在“单个源文件内部”唯一；
 /// - 因此任何需要跨文件合并的 side table，都必须把 `source_path` 一起作为 key；
 /// - 当前主要用于 ctor 调用点与 `Continuation.resume` 调用点。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CallSite {
     pub source_path: PathBuf,
     pub span: Span,
@@ -1162,7 +1164,7 @@ impl CallSite {
 /// - `source_path + span` 负责跨文件定位同一源码调用点；
 /// - `receiver_ty` 用于区分“同一 generic call-site 在不同单态实例下收敛出的不同 receiver 精确类型”；
 /// - 这样 HIR/MIR/LLVM 都能在不回退到名字猜测的前提下，消费显式分类后的 dispatch 调用点。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DispatchCallSite {
     pub source_path: PathBuf,
     pub span: Span,
@@ -1180,7 +1182,7 @@ impl DispatchCallSite {
 }
 
 /// HIR 上显式记录的动态 dispatch 种类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DispatchCallKind {
     Virtual,
     Interface,
@@ -1203,7 +1205,7 @@ pub type CtorCallSiteIndex = HashMap<CallSite, CtorCallInfo>;
 ///   第 `arg_idx` 个显式实参提供；
 /// - `payload_tuple_ty` 仅在 2+ payload 时存在，表示后端 transport 采用的“按形参顺序打包”的 tuple 类型；
 /// - 该 side table 不影响 `dump-hir` 输出稳定性。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectOpCallInfo {
     pub arg_mapping: Vec<usize>,
     pub payload_tuple_ty: Option<TypeId>,
@@ -1264,7 +1266,7 @@ pub type NonPureContinuationResumeCallSiteIndex = HashSet<CallSite>;
 /// 说明：
 /// - `decl_span` 单独不足以跨文件唯一，因此要连同 `source_path` 一起作为 key；
 /// - 该索引只服务于后端恢复 binder 的精确 `TypeId`，不影响 `dump-hir` 输出稳定性。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct WhenPatBindingSite {
     pub source_path: PathBuf,
     pub decl_span: Span,
@@ -1279,7 +1281,7 @@ pub type WhenPatBindingTypeIndex = HashMap<WhenPatBindingSite, TypeId>;
 /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
 /// - 当前阶段前端/HIR 已支持 `C` 与 `Scoop` 两类 extern ABI 元数据；
 /// - `symbol` 为最终参与链接的符号名（例如 `@Extern("puts")` / `@Extern("scoop_println")`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallableAbiIdentity {
     ManagedOrdinary,
     NativeExtern,
@@ -1320,7 +1322,7 @@ impl CallableAbiIdentity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ExternFun {
     pub abi: ExternAbi,
     pub symbol: String,
@@ -1351,7 +1353,7 @@ pub type ExternFunIndex = HashMap<String, ExternFun>;
 ///
 /// 该 symbol 只用于同一最终链接产物内的 native object 调用，不表示 package/dylib export，
 /// 也不改变 Scoop 代码内对该函数的 ordinary managed ABI 调用方式。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NativeCallableFun {
     pub symbol: String,
     pub calling_convention: String,
@@ -1364,7 +1366,7 @@ pub type NativeCallableFunIndex = HashMap<String, NativeCallableFun>;
 ///
 /// 说明：该 side table 把外部符号、链接语义与 unsafe access requirement 显式交给后续阶段，
 /// 避免 MIR/LLVM 重新回 AST 或注解语法推断 extern global 语义。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ExternGlobal {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -1378,7 +1380,7 @@ pub struct ExternGlobal {
     pub unsafe_required: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ExternGlobalLinkage {
     External,
 }
@@ -1391,7 +1393,7 @@ pub type ExternGlobalIndex = HashMap<String, ExternGlobal>;
 /// 说明：
 /// - 这些变量在 typecheck 阶段已被门禁为 GC-free，因此当前不需要参与 GC roots 扫描；
 /// - 早期阶段我们只要求“可生成静态存储并在函数内读写”，更复杂的初始化语义可后续补齐。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopLevelVar {
     pub fqn: String,
     /// 声明所在源文件路径；供静态 initializer 在 codegen 期解析源码字面量。
@@ -1403,7 +1405,7 @@ pub struct TopLevelVar {
     pub init: Option<Expr>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TopLevelVarStorage {
     /// `@ThreadLocal`：每个 OS 线程拥有独立的存储实例（TLS）。
     ThreadLocal,
@@ -1420,7 +1422,7 @@ pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
 /// - 这类绑定需要运行期“一次初始化 + 后续稳定读取”语义；
 /// - 保持独立 side table，避免把 eager-init / backing global 等后端细节塞回通用 `ValDecl`；
 /// - 后续顶层 pattern binding 可复用同一表示，为每个 binder 建立一条记录。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopLevelImmutableValue {
     pub fqn: String,
     /// 声明所在源文件路径；供 init function codegen 时切换源码上下文。
@@ -1434,7 +1436,7 @@ pub struct TopLevelImmutableValue {
 pub type TopLevelImmutableValueIndex = HashMap<String, TopLevelImmutableValue>;
 
 /// 一个 object（含 companion object）的初始化顺序与成员信息。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ObjectInit {
     pub fqn: String,
     pub span: Span,
@@ -1447,7 +1449,7 @@ pub struct ObjectInit {
 }
 
 /// object 的一个属性声明信息（最小后端视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ObjectProperty {
     pub name: String,
     pub mutable: bool,
@@ -1456,7 +1458,7 @@ pub struct ObjectProperty {
 }
 
 /// object 一次初始化的步骤（按源码顺序执行）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ObjectInitStep {
     /// 执行 `val/var name = init` 的 init 表达式，并写入 backing storage。
     PropertyInit { name: String, init: Expr },
@@ -1465,7 +1467,7 @@ pub enum ObjectInitStep {
 }
 
 /// `when` 的一个分支（arm）：`pat (if guard)? -> body`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WhenArm {
     pub span: Span,
     pub pat: WhenPat,
@@ -1475,7 +1477,7 @@ pub struct WhenArm {
 }
 
 /// `when` 分支的模式（早期最小子集；后续会与通用 Pattern 统一）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WhenPat {
     Else {
         span: Span,
@@ -1554,7 +1556,7 @@ impl WhenPat {
 }
 
 /// `handle` 表达式（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleExpr {
     pub body: Block,
     pub arms: Vec<HandleArm>,
@@ -1562,7 +1564,7 @@ pub struct HandleExpr {
 }
 
 /// `handle` 的一个 handler arm（HIR 视图）。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleArm {
     pub span: Span,
     pub op: HandleOp,
@@ -1589,7 +1591,7 @@ impl fmt::Debug for HandleArm {
 }
 
 /// handler arm 的语义形态（spec §5.4）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HandleArmKind {
     /// `->`：非恢复 arm；handled computation 被放弃（try/catch lowering 产物）。
     NonResuming,
@@ -1600,7 +1602,7 @@ pub enum HandleArmKind {
 }
 
 /// handler arm head 中的 effect operation：`Effect.op(binders...)`（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleOp {
     pub span: Span,
     pub effect_ty: TypeId,
@@ -1609,7 +1611,7 @@ pub struct HandleOp {
 }
 
 /// handler arm 的一个参数 binder：`name` 或 `name: Type`（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleBinder {
     pub span: Span,
     pub id: SymbolId,

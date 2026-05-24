@@ -687,7 +687,7 @@ impl MirInstanceMaterializer {
                     block: Some(block_id),
                     span: stmt.span,
                     category: MirPlaceholderCategory::Statement,
-                    reason,
+                    reason: reason.clone(),
                 }));
             }
             StatementKind::Nop => {}
@@ -730,7 +730,7 @@ impl MirInstanceMaterializer {
                     block: Some(block_id),
                     span: terminator.span,
                     category: MirPlaceholderCategory::Terminator,
-                    reason,
+                    reason: reason.clone(),
                 }));
             }
         }
@@ -751,7 +751,7 @@ impl MirInstanceMaterializer {
                     block: Some(block_id),
                     span,
                     category: MirPlaceholderCategory::UnwindAction,
-                    reason,
+                    reason: reason.clone(),
                 }))
             }
             UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => {
@@ -1001,7 +1001,7 @@ impl MirInstanceMaterializer {
                     block: Some(block_id),
                     span: stmt_span,
                     category: MirPlaceholderCategory::Rvalue,
-                    reason,
+                    reason: reason.clone(),
                 }));
             }
         }

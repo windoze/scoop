@@ -3,7 +3,7 @@
 use crate::common::FactIdentity;
 
 /// MIR-owned metadata facts that are derived from declaration metadata roots.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirMetadataFacts {
     pub nominal_direct_supertypes: Vec<NominalDirectSupertypesFact>,
 }
@@ -24,7 +24,7 @@ impl MirMetadataFacts {
 }
 
 /// Direct supertypes published for a nominal or object declaration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NominalDirectSupertypesFact {
     pub identity: FactIdentity,
     pub owner_kind: MirNominalOwnerKind,
@@ -50,7 +50,7 @@ impl NominalDirectSupertypesFact {
 }
 
 /// Declaration kinds that can own nominal direct-supertype facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirNominalOwnerKind {
     Nominal,
     Object,

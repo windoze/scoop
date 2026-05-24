@@ -216,7 +216,9 @@ fn scan_mir_lower_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Plac
     );
     collect_emit_todo_value_calls(&source, observed);
 
-    if source.contains("TerminatorKind::Todo(UNTERMINATED)") {
+    if source.contains("TerminatorKind::Todo(UNTERMINATED)")
+        || source.contains("TerminatorKind::Todo(UNTERMINATED.to_string())")
+    {
         observed.insert(PlaceholderKey::new(
             PlaceholderSurface::Terminator,
             "unterminated",

@@ -3,7 +3,7 @@
 use scoopc_ids::StageArtifactKey;
 
 /// Published metadata for the MIR pass pipeline execution.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirPassPipelineMetadata {
     pub runs: Vec<MirPassRun>,
 }
@@ -16,7 +16,7 @@ impl MirPassPipelineMetadata {
 }
 
 /// One scheduled MIR pass execution and its artifact revisions.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirPassRun {
     pub pass: MirPassKind,
     pub enabled: bool,
@@ -43,7 +43,7 @@ impl MirPassRun {
 }
 
 /// Stable names for the MIR pass family tracked by P3.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirPassKind {
     Devirtualization,
     SummaryDrivenInlining,

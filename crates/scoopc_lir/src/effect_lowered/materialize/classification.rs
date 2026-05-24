@@ -314,16 +314,16 @@ pub(crate) fn classify_effect_neutral_source_statement(
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
         }
         StatementKind::Assign { target, value } => {
-            if matches!(value, Rvalue::Todo("missing expr"))
+            if matches!(value, Rvalue::Todo(reason) if reason == "missing expr")
                 && local_is_only_value_member_namespace_receiver(body, *target)
             {
                 return LateLoweredSourceStatementClassificationKind::EffectNeutralValue;
             }
             classify_effect_neutral_rvalue(value)
         }
-        StatementKind::Todo(reason) => {
-            LateLoweredSourceStatementClassificationKind::Unsupported { reason }
-        }
+        StatementKind::Todo(reason) => LateLoweredSourceStatementClassificationKind::Unsupported {
+            reason: (*reason).to_string(),
+        },
     }
 }
 
@@ -356,15 +356,15 @@ pub(crate) fn classify_effect_neutral_rvalue(
         }
         Rvalue::UnresolvedName { .. } => {
             LateLoweredSourceStatementClassificationKind::Unsupported {
-                reason: "unresolved name requires earlier lowering",
+                reason: "unresolved name requires earlier lowering".to_string(),
             }
         }
         Rvalue::PerformResult { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: "perform result requires published resume payload injection",
+            reason: "perform result requires published resume payload injection".to_string(),
         },
-        Rvalue::Todo(reason) => {
-            LateLoweredSourceStatementClassificationKind::Unsupported { reason }
-        }
+        Rvalue::Todo(reason) => LateLoweredSourceStatementClassificationKind::Unsupported {
+            reason: (*reason).to_string(),
+        },
     }
 }
 

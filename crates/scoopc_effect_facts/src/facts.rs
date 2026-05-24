@@ -8,13 +8,13 @@ use scoopc_types::{EffectRow, TypeId};
 use crate::schema::{CaseSet, CaseTag, ContinuationSchemaId, ImplPlan, StepSchemaId};
 
 /// Canonical MIR query surface used to seed this effect-facts product.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CanonicalMirQuerySurface {
     PassView,
 }
 
 /// Binding between effect facts and the canonical MIR snapshot they summarize.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EffectSnapshotBinding {
     query_surface: CanonicalMirQuerySurface,
     instance_count: usize,
@@ -54,14 +54,14 @@ impl EffectSnapshotBinding {
 }
 
 /// Callable body or call-site ABI protocol selected by effect facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallableAbiKind {
     Plain,
     EffectStep,
 }
 
 /// Callable-level effect facts published after solving.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallableEffectFacts {
     declared_row: EffectRow,
     call_abi_kind: CallableAbiKind,
@@ -123,7 +123,7 @@ impl CallableEffectFacts {
 }
 
 /// Precision source for site-level effect facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EffectPrecision {
     Precise,
     Widened,
@@ -131,7 +131,7 @@ pub enum EffectPrecision {
 }
 
 /// Current call target resolution mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallTargetMode {
     KnownInstance,
     CandidateSet,
@@ -139,7 +139,7 @@ pub enum CallTargetMode {
 }
 
 /// Stable target identity for a call site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteTarget {
     KnownInstance(StableEffectInstanceKey),
     CandidateSet(Vec<StableEffectInstanceKey>),
@@ -157,7 +157,7 @@ impl CallSiteTarget {
 }
 
 /// Language-level call shape observed at a call site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteKind {
     Direct,
     Closure,
@@ -168,7 +168,7 @@ pub enum CallSiteKind {
 }
 
 /// Structured facts for an ordinary call site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallSiteEffectFacts {
     kind: CallSiteKind,
     target_mode: CallTargetMode,
@@ -237,7 +237,7 @@ impl CallSiteEffectFacts {
 }
 
 /// Facts for a `perform` site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PerformSiteEffectFacts {
     emitted_case: CaseTag,
     payload_tuple_ty: TypeId,
@@ -271,7 +271,7 @@ impl PerformSiteEffectFacts {
 }
 
 /// Facts for a class-constructor site with hidden init outward cases.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorSiteEffectFacts {
     emitted_cases: CaseSet,
 }
@@ -287,7 +287,7 @@ impl ClassCtorSiteEffectFacts {
 }
 
 /// Facts for a `resume` site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ResumeSiteEffectFacts {
     continuation_schema: ContinuationSchemaId,
     resume_tuple_ty: TypeId,
@@ -335,14 +335,14 @@ impl ResumeSiteEffectFacts {
 }
 
 /// Whether a nested `handle` can still suspend outward.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NestedHandleClassification {
     SelfContained,
     MaySuspendOutward,
 }
 
 /// Facts for a single `handle` arm.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleArmEffectFacts {
     handled_case: CaseTag,
     payload_tuple_ty: TypeId,
@@ -383,7 +383,7 @@ impl HandleArmEffectFacts {
 }
 
 /// Structured contract for a `handle` site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleSiteEffectFacts {
     result_ty: TypeId,
     handled_cases: CaseSet,
@@ -438,7 +438,7 @@ impl HandleSiteEffectFacts {
 }
 
 /// Facts for one effect-relevant source/MIR site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SiteEffectFacts {
     Call(CallSiteEffectFacts),
     ClassCtor(ClassCtorSiteEffectFacts),
@@ -448,7 +448,7 @@ pub enum SiteEffectFacts {
 }
 
 /// Block-level effect summary.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BlockEffectFacts {
     ambient_cases: CaseSet,
     outward_cases: CaseSet,
@@ -489,7 +489,7 @@ impl BlockEffectFacts {
 }
 
 /// Body-level effect facts keyed by stage-independent body-local IDs.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BodyEffectFacts {
     blocks: BTreeMap<BodyBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,

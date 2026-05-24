@@ -427,7 +427,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
-                if matches!(rvalue, mir::Rvalue::Todo("missing expr"))
+                if matches!(rvalue, mir::Rvalue::Todo(reason) if reason == "missing expr")
                     && self.local_is_only_static_member_namespace_receiver(*target)
                 {
                     return Ok(());

@@ -6,7 +6,7 @@ use scoopc_types::TypeId;
 use crate::common::{FactIdentity, MirBodyReference};
 
 /// All direct-style MIR roots that downstream stages may need to query.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RootInventories {
     pub callable_bodies: Vec<MirRootFact>,
     pub initializers: Vec<MirRootFact>,
@@ -81,7 +81,7 @@ fn root_by_fqn<'a>(roots: &'a [MirRootFact], fqn: &str) -> Option<&'a MirRootFac
 }
 
 /// A single root inventory entry owned by the MIR stage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirRootFact {
     pub identity: FactIdentity,
     pub kind: MirRootKind,
@@ -150,7 +150,7 @@ impl MirRootFact {
 }
 
 /// Stable reference to an item inside the direct-style MIR file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MirItemReference {
     pub index: usize,
 }
@@ -163,7 +163,7 @@ impl MirItemReference {
 }
 
 /// A dependency edge between MIR-published initializer roots.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirInitializerDependencyFact {
     pub owner_fqn: String,
     pub target_fqn: String,
@@ -171,7 +171,7 @@ pub struct MirInitializerDependencyFact {
 }
 
 /// Stable dependency categories for initializer root ordering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirInitializerDependencyKind {
     TopLevelValue,
     ObjectSingleton,
@@ -188,7 +188,7 @@ impl MirInitializerDependencyKind {
 }
 
 /// Stable categories for MIR root inventories.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirRootKind {
     CallableBody,
     Initializer,
@@ -209,7 +209,7 @@ impl MirRootKind {
 }
 
 /// Root-kind-specific data published without depending on MIR node types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirRootDetail {
     CallableBody,
     Initializer {
@@ -230,7 +230,7 @@ pub enum MirRootDetail {
 }
 
 /// Stable categories for top-level initializer roots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirInitializerRootKind {
     RuntimeImmutableVal,
     RuntimeMutableGlobalVar,
@@ -251,7 +251,7 @@ impl MirInitializerRootKind {
 }
 
 /// Stable storage categories for MIR-published global roots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirGlobalStorageKind {
     Global,
     ThreadLocal,
@@ -268,7 +268,7 @@ impl MirGlobalStorageKind {
 }
 
 /// Stable categories for MIR declaration metadata roots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MirMetadataRootKind {
     TypeAlias,
     Nominal,

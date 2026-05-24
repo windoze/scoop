@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 miette = "7.6.0"
 scoopc_span = { path = "../scoopc_span" }
+serde = { version = "1.0.228", features = ["derive"] }

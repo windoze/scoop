@@ -7,7 +7,7 @@ use scoopc_types::TypeId;
 macro_rules! id_key {
     ($(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
         pub struct $name(u32);
 
         impl $name {
@@ -46,7 +46,9 @@ id_key!(/// Stable per-cone init routine identity scoped to one LIR fact product
     LirConeInitRoutineKey);
 
 /// Stable global/init root identity published by LIR facts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LirGlobalRootKey(String);
 
 impl LirGlobalRootKey {
@@ -60,7 +62,7 @@ impl LirGlobalRootKey {
 }
 
 /// Backend-neutral global/init root family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LirGlobalRootKind {
     TopLevelImmutableVal,
     TopLevelMutableVar,
@@ -80,7 +82,7 @@ impl LirGlobalRootKind {
 }
 
 /// Backend-neutral storage policy for mutable or extern global storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LirGlobalStoragePolicy {
     Global,
     ThreadLocal,
@@ -96,7 +98,7 @@ impl LirGlobalStoragePolicy {
 }
 
 /// Stable dependency categories for global initialization roots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LirGlobalDependencyKind {
     TopLevelValue,
     ObjectSingleton,
@@ -112,7 +114,7 @@ impl LirGlobalDependencyKind {
 }
 
 /// Backend-neutral source/body family for a published initializer contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LirInitializerBodyKind {
     TopLevelImmutableVal,
     TopLevelMutableVar,
@@ -130,7 +132,7 @@ impl LirInitializerBodyKind {
 }
 
 /// Source/body handoff for a root initializer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirInitializerBodyFacts {
     pub root: LirGlobalRootKey,
     pub kind: LirInitializerBodyKind,
@@ -141,14 +143,14 @@ pub struct LirInitializerBodyFacts {
 }
 
 /// Dependency edge from one global/init root to another published root.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirGlobalRootDependency {
     pub target: LirGlobalRootKey,
     pub kind: LirGlobalDependencyKind,
 }
 
 /// Extern global declaration contract needed by backend physicalization.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirExternGlobalFacts {
     pub symbol: String,
     pub linkage: LirExternGlobalLinkage,
@@ -158,7 +160,7 @@ pub struct LirExternGlobalFacts {
 }
 
 /// Backend-neutral linkage for an extern global declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LirExternGlobalLinkage {
     External,
 }
@@ -172,7 +174,7 @@ impl LirExternGlobalLinkage {
 }
 
 /// Complete backend-neutral contract for one global/init root.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirGlobalRootFacts {
     pub root: LirGlobalRootKey,
     pub kind: LirGlobalRootKind,
@@ -188,14 +190,14 @@ pub struct LirGlobalRootFacts {
 }
 
 /// Object singleton once-initialization contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirObjectOnceFacts {
     pub root: LirGlobalRootKey,
     pub has_initializer: bool,
 }
 
 /// Top-level eager initialization contract executed before user entry bodies.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirTopLevelEagerInitFacts {
     pub root: LirGlobalRootKey,
     pub storage: Option<LirGlobalStoragePolicy>,
@@ -203,7 +205,7 @@ pub struct LirTopLevelEagerInitFacts {
 }
 
 /// Per-cone eager init routine contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirConeInitRoutineFacts {
     pub routine: LirConeInitRoutineKey,
     pub cone: StableConeKey,
@@ -212,13 +214,13 @@ pub struct LirConeInitRoutineFacts {
 }
 
 /// Final system-entry ordering for per-cone init routines.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirFinalEntryInitOrderFacts {
     pub routines: Vec<LirConeInitRoutineKey>,
 }
 
 /// Global initialization and storage contract group owned by LIR facts.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirGlobalInitFacts {
     pub roots: std::collections::BTreeMap<LirGlobalRootKey, LirGlobalRootFacts>,
     pub object_once: std::collections::BTreeMap<LirGlobalRootKey, LirObjectOnceFacts>,
@@ -240,7 +242,7 @@ impl LirGlobalInitFacts {
 }
 
 /// Class field layout facts needed before backend-private physicalization.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassFieldFacts {
     pub fqn: String,
     pub name: String,
@@ -249,7 +251,7 @@ pub struct LirClassFieldFacts {
 }
 
 /// Class instance layout facts published without carrying the HIR class-init table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassLayoutFacts {
     pub fqn: String,
     pub layout_key: String,
@@ -258,7 +260,7 @@ pub struct LirClassLayoutFacts {
 }
 
 /// Backend-neutral enum representation family.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirEnumReprFacts {
     TaggedUnion,
     ValueOnly { underlying_ty_fqn: Option<String> },
@@ -273,13 +275,13 @@ impl LirEnumReprFacts {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirEnumVariantFieldFacts {
     pub name: String,
     pub ty: Option<TypeId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirEnumVariantFacts {
     pub name: String,
     pub tag: u64,
@@ -287,14 +289,14 @@ pub struct LirEnumVariantFacts {
 }
 
 /// Enum variant/repr facts published without the HIR enum-layout side table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirEnumLayoutFacts {
     pub fqn: String,
     pub repr: LirEnumReprFacts,
     pub variants: Vec<LirEnumVariantFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassVtableSlotFacts {
     pub slot: u32,
     pub name: String,
@@ -303,7 +305,7 @@ pub struct LirClassVtableSlotFacts {
     pub impl_member_fqn: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirInterfaceMethodSlotFacts {
     pub slot: u32,
     pub name: String,
@@ -313,7 +315,7 @@ pub struct LirInterfaceMethodSlotFacts {
     pub has_body: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirInterfaceLayoutFacts {
     pub fqn: String,
     pub interface_id: u64,
@@ -321,7 +323,7 @@ pub struct LirInterfaceLayoutFacts {
     pub method_slots: Vec<LirInterfaceMethodSlotFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassItableEntryFacts {
     pub interface_fqn: String,
     pub interface_id: u64,
@@ -333,13 +335,13 @@ pub struct LirClassItableEntryFacts {
     pub method_receiver_type_ids: Vec<u64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassItableFacts {
     pub class_fqn: String,
     pub entries: Vec<LirClassItableEntryFacts>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallableSymbolKind {
     ManagedOrdinary,
     NativeExtern,
@@ -358,7 +360,7 @@ impl LirCallableSymbolKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirNativeCallableSignatureFacts {
     pub symbol: String,
     pub calling_convention: String,
@@ -367,7 +369,7 @@ pub struct LirNativeCallableSignatureFacts {
     pub return_ty: TypeId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirExternCallableSignatureFacts {
     pub symbol: String,
     pub abi: String,
@@ -379,7 +381,7 @@ pub struct LirExternCallableSignatureFacts {
 }
 
 /// Source callable signature published for body-less/runtime/helper call targets.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirSourceCallableSignatureFacts {
     pub root_fqn: String,
     pub param_names: Vec<String>,
@@ -388,7 +390,9 @@ pub struct LirSourceCallableSignatureFacts {
 }
 
 /// Stable identity for a class constructor init body contract.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LirClassCtorInitKey(String);
 
 impl LirClassCtorInitKey {
@@ -409,7 +413,7 @@ impl LirClassCtorInitKey {
 }
 
 /// Source-level constructor family selected before backend lowering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirClassCtorKind {
     Primary,
     Secondary,
@@ -425,7 +429,7 @@ impl LirClassCtorKind {
 }
 
 /// Constructor delegation shape fixed by the LIR ctor-init contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirClassCtorDelegationKind {
     This,
     Super,
@@ -441,7 +445,7 @@ impl LirClassCtorDelegationKind {
 }
 
 /// One executable step in a class constructor init body.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirClassCtorInitStepKind {
     PropertyParamAssignment,
     PropertyInitializer,
@@ -460,7 +464,7 @@ impl LirClassCtorInitStepKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorParamFacts {
     pub name: String,
     pub ty: TypeId,
@@ -469,7 +473,7 @@ pub struct LirClassCtorParamFacts {
     pub property_field_fqn: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorSuperCallFacts {
     pub target: LirClassCtorInitKey,
     pub class_fqn: String,
@@ -478,7 +482,7 @@ pub struct LirClassCtorSuperCallFacts {
     pub source_span_end: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorDelegationFacts {
     pub kind: LirClassCtorDelegationKind,
     pub target: LirClassCtorInitKey,
@@ -488,7 +492,7 @@ pub struct LirClassCtorDelegationFacts {
     pub source_span_end: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorInitStepFacts {
     pub kind: LirClassCtorInitStepKind,
     pub field_fqn: Option<String>,
@@ -497,7 +501,7 @@ pub struct LirClassCtorInitStepFacts {
 }
 
 /// Backend-neutral class constructor init body ownership contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorInitFacts {
     pub key: LirClassCtorInitKey,
     pub class_fqn: String,
@@ -511,7 +515,7 @@ pub struct LirClassCtorInitFacts {
     pub steps: Vec<LirClassCtorInitStepFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableSymbolFacts {
     pub callable: StableLirCallableKey,
     pub root_fqn: String,
@@ -527,7 +531,7 @@ pub struct LirCallableSymbolFacts {
 }
 
 /// Physical ABI/layout contracts that LLVM may map to backend-private LLVM types.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPhysicalLayoutFacts {
     pub classes: std::collections::BTreeMap<String, LirClassLayoutFacts>,
     pub enums: std::collections::BTreeMap<String, LirEnumLayoutFacts>,
@@ -548,7 +552,7 @@ impl LirPhysicalLayoutFacts {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirTypeContextOwner {
     LirStageBaseContext,
 }
@@ -561,7 +565,7 @@ impl LirTypeContextOwner {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirTypeContextBridgeMode {
     Identical,
     ExplicitDisplayNameRemap,
@@ -576,7 +580,7 @@ impl LirTypeContextBridgeMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirTypeStableWireFormatDecision {
     Implemented,
     Deferred,
@@ -591,7 +595,7 @@ impl LirTypeStableWireFormatDecision {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirTypeStableWireFormatFacts {
     pub decision: LirTypeStableWireFormatDecision,
     pub owner: String,
@@ -600,7 +604,7 @@ pub struct LirTypeStableWireFormatFacts {
 }
 
 /// Type context bridge facts for LIR/backend consumers.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirTypeContextFacts {
     pub owner: LirTypeContextOwner,
     pub primary_fingerprint: String,
@@ -631,7 +635,9 @@ impl Default for LirTypeContextFacts {
 }
 
 /// Stable source slice retained by a plain callable or control-body state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LirSourceSliceKey {
     pub block_id: LirBodyBlockKey,
     pub start_statement_index: u32,
@@ -640,21 +646,25 @@ pub struct LirSourceSliceKey {
 }
 
 /// Stable dynamic-invoke identity scoped by owner callable and source site.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LirDynamicInvokeKey {
     pub owner_callable: StableLirCallableKey,
     pub site_id: SiteId,
 }
 
 /// Stable dispatch identity scoped by owner callable and source site.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LirDispatchKey {
     pub owner_callable: StableLirCallableKey,
     pub site_id: SiteId,
 }
 
 /// Body-version identity and semantic flags selected before LIR lowering.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirBodyVersionFacts {
     pub key: BodyVersionKey,
     pub impl_plan: String,
@@ -663,21 +673,21 @@ pub struct LirBodyVersionFacts {
 }
 
 /// Callable ABI family published by LIR facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallableKind {
     Plain,
     EffectStep,
 }
 
 /// Source-level callable family used by backend entry selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallableSourceKind {
     TopLevel,
     MemberOrSynthetic,
 }
 
 /// Backend-neutral call-site source kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallSiteKind {
     Direct,
     Closure,
@@ -688,7 +698,7 @@ pub enum LirCallSiteKind {
 }
 
 /// Target-resolution mode for a LIR call site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallTargetMode {
     KnownInstance,
     CandidateSet,
@@ -696,7 +706,7 @@ pub enum LirCallTargetMode {
 }
 
 /// Callable ABI selected for a call-site target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallableAbiKind {
     Plain,
     EffectStep,
@@ -706,7 +716,7 @@ pub enum LirCallableAbiKind {
 pub const LIR_OPT_PIPELINE_REVISION: u64 = 1;
 
 /// Named pass family owned by LIR optimization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirOptPassKind {
     LocalStateMachineElimination,
     HigherOrderWrapperInlineDevirt,
@@ -732,7 +742,7 @@ impl LirOptPassKind {
 }
 
 /// Whether a named LIR opt pass ran or was intentionally disabled.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirOptPassStatus {
     Applied,
     NoOp,
@@ -740,7 +750,7 @@ pub enum LirOptPassStatus {
 }
 
 /// Stable metadata for one LIR opt pass invocation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirOptPassFacts {
     pub kind: LirOptPassKind,
     pub status: LirOptPassStatus,
@@ -758,7 +768,7 @@ impl LirOptPassFacts {
 }
 
 /// Pipeline metadata binding LIR facts to the post-opt LIR body revision.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirOptPipelineFacts {
     pub revision: u64,
     pub preserve_published_resume_shells: bool,
@@ -788,7 +798,7 @@ impl LirOptPipelineFacts {
 }
 
 /// Precision of a published call-site effect/control contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirEffectPrecision {
     Precise,
     Widened,
@@ -796,7 +806,7 @@ pub enum LirEffectPrecision {
 }
 
 /// Structured call-site contract after replacing raw MIR target keys with stable LIR keys.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallSiteContract {
     pub kind: LirCallSiteKind,
     pub target_mode: LirCallTargetMode,
@@ -809,13 +819,13 @@ pub struct LirCallSiteContract {
 }
 
 /// Plain callable source slice.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPlainBodySliceFacts {
     pub source_slice: LirSourceSliceKey,
 }
 
 /// Plain callable call site with its source-slice identity.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPlainCallSiteFacts {
     pub site_id: SiteId,
     pub source_slice: LirSourceSliceKey,
@@ -826,7 +836,7 @@ pub struct LirPlainCallSiteFacts {
 }
 
 /// Plain callable ordinary ABI and body-source contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPlainCallableFacts {
     pub function_ty: TypeId,
     pub param_names: Vec<String>,
@@ -838,7 +848,7 @@ pub struct LirPlainCallableFacts {
 }
 
 /// Canonical dynamic callable surface for an effect-step callable.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableDynamicInvokeEntryFacts {
     pub invoke_args_tuple_ty: TypeId,
     pub step_schema: LirStepSchemaKey,
@@ -847,7 +857,7 @@ pub struct LirCallableDynamicInvokeEntryFacts {
 }
 
 /// Effect-step callable ABI and control-body contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirEffectStepCallableFacts {
     pub param_tys: Vec<TypeId>,
     pub closure_carrier_arg_tys: Vec<TypeId>,
@@ -857,7 +867,7 @@ pub struct LirEffectStepCallableFacts {
 }
 
 /// Callable-specific ABI contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallableContract {
     Plain(Box<LirPlainCallableFacts>),
     EffectStep(Box<LirEffectStepCallableFacts>),
@@ -880,7 +890,7 @@ impl LirCallableContract {
 }
 
 /// Complete callable inventory entry and ABI/query contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableFacts {
     pub root_fqn: String,
     pub stable_instance_key: String,
@@ -912,7 +922,7 @@ impl LirCallableFacts {
 }
 
 /// Query keys published for a callable state graph.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStateGraphFacts {
     pub entry_state: LirStateKey,
     pub complete_state: LirStateKey,
@@ -922,21 +932,21 @@ pub struct LirStateGraphFacts {
 }
 
 /// Query keys and payload bindings published for a frame schema.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirFrameSchemaFacts {
     pub slots: Vec<LirFrameSlotFacts>,
     pub resume_payload_bindings: Vec<LirResumePayloadBindingFacts>,
     pub completion_payload_bindings: Vec<LirCompletionPayloadBindingFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirFrameSlotFacts {
     pub slot_id: LirFrameSlotKey,
     pub ty: TypeId,
     pub kind: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirResumePayloadBindingFacts {
     pub boundary_id: LirBoundaryKey,
     pub resume_state: LirStateKey,
@@ -944,7 +954,7 @@ pub struct LirResumePayloadBindingFacts {
     pub consumer_frame_slot: Option<LirFrameSlotKey>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCompletionPayloadBindingFacts {
     pub return_state: LirStateKey,
     pub complete_state: LirStateKey,
@@ -952,12 +962,12 @@ pub struct LirCompletionPayloadBindingFacts {
 }
 
 /// Boundary-map query keys and attached call/dynamic/dispatch contracts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirBoundaryMapFacts {
     pub boundaries: Vec<LirBoundaryFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirBoundaryFacts {
     pub boundary_id: LirBoundaryKey,
     pub source_kind: String,
@@ -970,19 +980,19 @@ pub struct LirBoundaryFacts {
 }
 
 /// Resume-state query keys for a control body.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirResumeStateMapFacts {
     pub entries: Vec<LirResumeStateFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirResumeStateFacts {
     pub boundary_id: LirBoundaryKey,
     pub state_id: LirStateKey,
 }
 
 /// Shared control-body contract used by effect-step callables and plain local control.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirControlBodyFacts {
     pub step_schema: LirStepSchemaKey,
     pub state_graph: LirStateGraphFacts,
@@ -995,7 +1005,7 @@ pub struct LirControlBodyFacts {
 }
 
 /// Step type shell and case contracts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStepTypeFacts {
     pub step_schema: LirStepSchemaKey,
     pub invoke_args_tuple_ty: TypeId,
@@ -1004,7 +1014,7 @@ pub struct LirStepTypeFacts {
     pub cases: Vec<LirStepCaseFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStepCaseFacts {
     pub case_tag: LirCaseKey,
     pub payload_tuple_ty: TypeId,
@@ -1012,7 +1022,7 @@ pub struct LirStepCaseFacts {
 }
 
 /// Dynamic-invoke source location.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirDynamicInvokeSource {
     Boundary {
         boundary_id: LirBoundaryKey,
@@ -1027,7 +1037,7 @@ pub enum LirDynamicInvokeSource {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirDynamicInvokeCarrierKind {
     ClosureObject,
     FunPtr,
@@ -1035,7 +1045,7 @@ pub enum LirDynamicInvokeCarrierKind {
     InterfaceReceiver,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDynamicInvokeCarrierContract {
     pub kind: LirDynamicInvokeCarrierKind,
     pub source_ty: Option<TypeId>,
@@ -1043,7 +1053,7 @@ pub struct LirDynamicInvokeCarrierContract {
 }
 
 /// Backend-neutral dynamic-invoke contract for a call site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDynamicInvokeContract {
     pub owner_callable: StableLirCallableKey,
     pub owner_step_schema: Option<LirStepSchemaKey>,
@@ -1056,7 +1066,7 @@ pub struct LirDynamicInvokeContract {
 }
 
 /// Dispatch owner/slot selection published before backend layout.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDispatchContract {
     pub owner_callable: StableLirCallableKey,
     pub site_id: SiteId,
@@ -1072,7 +1082,7 @@ pub struct LirDispatchContract {
 }
 
 /// Effect-family resume packing helper.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirResumePackingFacts {
     pub interface_id: LirResumePackingKey,
     pub effect_fqn: String,
@@ -1081,7 +1091,7 @@ pub struct LirResumePackingFacts {
     pub methods: Vec<LirResumeMethodFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirResumeMethodFacts {
     pub case_tag: LirCaseKey,
     pub continuation_schema: LirContinuationSchemaKey,
@@ -1091,7 +1101,7 @@ pub struct LirResumeMethodFacts {
     pub surface_ty: TypeId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirContinuationResumeBody {
     ResumeCapturedState,
     OneShotRuntimeErrorPublication,
@@ -1099,7 +1109,7 @@ pub enum LirContinuationResumeBody {
 }
 
 /// Continuation object and per-case resume publication.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirContinuationObjectFacts {
     pub object_id: LirContinuationObjectKey,
     pub owner_body_version: BodyVersionKey,
@@ -1109,7 +1119,7 @@ pub struct LirContinuationObjectFacts {
     pub methods: Vec<LirContinuationMethodFacts>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirContinuationResumeFacts {
     pub case_tag: LirCaseKey,
     pub continuation_schema: LirContinuationSchemaKey,
@@ -1120,13 +1130,13 @@ pub struct LirContinuationResumeFacts {
     pub body: LirContinuationResumeBody,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirContinuationMethodFacts {
     pub packing_interface_id: LirResumePackingKey,
     pub resume: LirContinuationResumeFacts,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirSurfaceResumeDispatchSourceKind {
     ContinuationObjectMethod,
     ResumeBoundaryOnly,
@@ -1136,7 +1146,7 @@ pub enum LirSurfaceResumeDispatchSourceKind {
 }
 
 /// Surface-resume dispatch inventory and wrapper projection completeness.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirSurfaceResumeDispatchFacts {
     pub continuation_schema: LirContinuationSchemaKey,
     pub resume_tuple_ty: TypeId,

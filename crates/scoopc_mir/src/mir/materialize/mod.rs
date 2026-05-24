@@ -342,7 +342,7 @@ pub enum MirMaterializeError {
         block: Option<BasicBlockId>,
         span: Span,
         category: MirPlaceholderCategory,
-        reason: &'static str,
+        reason: String,
     },
 
     #[error("materialized MIR `{fqn}` failed structural validation: {error}")]

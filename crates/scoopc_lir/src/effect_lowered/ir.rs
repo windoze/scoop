@@ -44,8 +44,9 @@ pub mod mir_source {
 ///
 /// `LirStageOutput::lir()` 正式发布这份结构作为当前 LIR 本体。后续任务只能继续在这些类型里
 /// 补算法和内容，而不能再另起一套临时 IR。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredProgram {
+    schema_version: scoopc_types::WireSchemaVersion,
     step_types: Vec<LateLoweredStepType>,
     resume_packings: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
@@ -54,6 +55,7 @@ pub struct LateLoweredProgram {
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     dump_type_texts: HashMap<TypeId, String>,
+    #[serde(skip, default)]
     dump_body_labels: HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels>,
 }
 
@@ -67,6 +69,7 @@ impl LateLoweredProgram {
         let surface_resume_dispatch_inventory =
             build_surface_resume_dispatch_inventory(&step_types, &continuation_objects, &callables);
         Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
             step_types,
             resume_packings,
             continuation_objects,
@@ -104,6 +107,7 @@ impl LateLoweredProgram {
         surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     ) -> Self {
         Self {
+            schema_version: self.schema_version,
             step_types: self.step_types.clone(),
             resume_packings: self.resume_packings.clone(),
             continuation_objects: self.continuation_objects.clone(),
@@ -277,7 +281,7 @@ impl LateLoweredProgram {
 /// - `needs_reentry`。
 ///
 /// 后续 widening / specialization 只能在这套显式 key 空间里发生，不能再回到 span、名字或隐藏缓存。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredBodyVersionKey {
     surface_instance: InstanceKey,
     allowed_row: EffectRow,
@@ -337,7 +341,7 @@ pub type LateLoweredSourceClassCtorExpr = class_ctor_source::Expr;
 
 pub type LateLoweredSourceClassCtorBlock = class_ctor_source::Block;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorParam {
     id: class_ctor_source::SymbolId,
     name: String,
@@ -390,7 +394,7 @@ impl LateLoweredClassCtorParam {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorSuperCall {
     target: scoopc_lir_facts::LirClassCtorInitKey,
     class_fqn: String,
@@ -437,7 +441,7 @@ impl LateLoweredClassCtorSuperCall {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorDelegation {
     kind: scoopc_lir_facts::LirClassCtorDelegationKind,
     target: scoopc_lir_facts::LirClassCtorInitKey,
@@ -491,7 +495,7 @@ impl LateLoweredClassCtorDelegation {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredClassCtorInitStep {
     PropertyParamAssignment {
         param_index: usize,
@@ -541,7 +545,7 @@ impl LateLoweredClassCtorInitStep {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorInitBody {
     key: scoopc_lir_facts::LirClassCtorInitKey,
     class_fqn: String,
@@ -657,7 +661,7 @@ impl LateLoweredBodyVersionKey {
 }
 
 /// plain callable body 在 P5 handoff 中保留的 ordinary source slice。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainBodySlice {
     block_id: BasicBlockId,
     start_statement_index: u32,
@@ -669,7 +673,7 @@ pub struct LateLoweredPlainBodySlice {
 ///
 /// Plain body 不拥有 state-machine boundary map；因此普通 call / effect-step callee call 的 ABI
 /// 选择必须直接发布在 source-slice call contract 上，供 P6 按 ordinary call 或 Step dispatch 消费。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainCallSite {
     site_id: SiteId,
     source_slice: LateLoweredPlainBodySlice,
@@ -681,7 +685,7 @@ pub struct LateLoweredPlainCallSite {
 ///
 /// 该 contract 只服务于 plain body 内部的 `handle` / `perform` / `resume` / runtime-error
 /// 控制流；callable 的公开 ABI 仍是普通函数 ABI，不暴露 direct/dynamic `Step_F` entry。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainLocalEffectControl {
     step_schema: StepSchemaId,
     state_graph: LateLoweredStateGraph,
@@ -818,7 +822,7 @@ impl LateLoweredPlainBodySlice {
 ///
 /// 该分支不携带 `Step_F`、continuation object、state graph、frame、boundary map 或 resume map；
 /// P6 应按普通 callable ABI 翻译这些 source slices，而不是把它们重新包装成 complete-only step body。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainCallable {
     function_ty: TypeId,
     param_tys: Vec<TypeId>,
@@ -880,7 +884,7 @@ impl LateLoweredPlainCallable {
 ///
 /// `resume_packings` 只是该 callable continuation object 对外附带发布的 effect-family packing
 /// helper 列表，不能替代 per-op/per-schema 语义本体。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredEffectStepCallable {
     step_schema: StepSchemaId,
     dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
@@ -956,7 +960,7 @@ impl LateLoweredEffectStepCallable {
 }
 
 /// callable version 在 P5 handoff 中选择的 ABI contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredCallableAbi {
     Plain(LateLoweredPlainCallable),
     EffectStep(Box<LateLoweredEffectStepCallable>),
@@ -967,7 +971,7 @@ pub enum LateLoweredCallableAbi {
 /// `abi` 显式区分普通函数 ABI 与 effect-step ABI：Plain 分支的公开 callable ABI 始终是
 /// 普通函数；若 body 内含本地 effect/control，则在 plain ABI 内额外发布仅供本地控制流消费的
 /// `LateLoweredPlainLocalEffectControl`，而不是把 plain body 暴露成 direct/dynamic `Step_F` entry。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCallable {
     root_fqn: String,
     stable_instance_key: StableInstanceKey,
@@ -1251,7 +1255,7 @@ impl LateLoweredCallable {
 }
 
 /// canonical dynamic callable surface 的稳定表示：`invoke(args_tuple) -> Step_F`。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredDynamicInvokeEntry {
     invoke_args_tuple_ty: TypeId,
     step_schema: StepSchemaId,
@@ -1292,7 +1296,7 @@ impl LateLoweredDynamicInvokeEntry {
 }
 
 /// `StepSchema(F)` 对应的内部 `Step_F` enum 物化壳层。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStepType {
     step_schema: StepSchemaId,
     invoke_args_tuple_ty: TypeId,
@@ -1349,7 +1353,7 @@ impl LateLoweredStepType {
 ///   lowering 的 authoritative 输入；
 /// - `surface_ty` 只保留源码层 `Continuation<..., eff Out>` contract，不能被 internal
 ///   one-shot runtime-error upper bound 反向扩大。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredContinuationContract {
     continuation_schema: ContinuationSchemaId,
     resume_tuple_ty: TypeId,
@@ -1397,7 +1401,7 @@ impl LateLoweredContinuationContract {
 }
 
 /// shared surface `resume(...) -> Step_F` 符号的最小 published contract。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSurfaceResumeContract {
     continuation_schema: ContinuationSchemaId,
     resume_tuple_ty: TypeId,
@@ -1438,7 +1442,7 @@ impl LateLoweredSurfaceResumeContract {
 }
 
 /// 一个 shared surface-resume schema 当前 authoritative 来自哪类 source。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredSurfaceResumeDispatchSourceKind {
     ContinuationObjectMethod,
     ResumeBoundaryOnly,
@@ -1448,7 +1452,7 @@ pub enum LateLoweredSurfaceResumeDispatchSourceKind {
 }
 
 /// 单个 `ContinuationSchemaId` 在 late-lowered handoff 中出现的位置记录。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredSurfaceResumeDispatchPublication {
     SurfaceCase {
         object_id: ContinuationObjectId,
@@ -1490,7 +1494,7 @@ impl LateLoweredSurfaceResumeDispatchPublication {
 }
 
 /// 一个 continuation local 在 published handoff 中可回查到的 authoritative underlying route。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredContinuationRoute {
     continuation_schema: ContinuationSchemaId,
     publication: LateLoweredSurfaceResumeDispatchPublication,
@@ -1517,7 +1521,7 @@ impl LateLoweredContinuationRoute {
 }
 
 /// shared surface-resume wrapper 在 owner step 上观察到 `Complete` 时的显式投影。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredSurfaceResumeWrapperCompletePayloadSource {
     OwnerComplete { answer_ty: TypeId },
     WrapperPayload(LateLoweredCompletionPayloadSource),
@@ -1548,7 +1552,7 @@ impl LateLoweredSurfaceResumeWrapperCompletePayloadSource {
 }
 
 /// shared surface-resume wrapper 在 owner step 上观察到 `Complete` 时的显式投影。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSurfaceResumeWrapperCompleteProjection {
     owner_answer_ty: TypeId,
     wrapper_answer_ty: TypeId,
@@ -1582,7 +1586,7 @@ impl LateLoweredSurfaceResumeWrapperCompleteProjection {
 }
 
 /// owner step outward case 投影回 shared wrapper step 时的显式 published mapping。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSurfaceResumeWrapperCaseProjection {
     owner_case_tag: CaseTag,
     owner_concrete_op_key: ConcreteOpKey,
@@ -1645,7 +1649,7 @@ impl LateLoweredSurfaceResumeWrapperCaseProjection {
 }
 
 /// shared surface-resume wrapper 对 owner-specific lowering 返回 step 的显式投影合同。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSurfaceResumeWrapperProjection {
     underlying_route: LateLoweredContinuationRoute,
     owner_step_schema: StepSchemaId,
@@ -1693,7 +1697,7 @@ impl LateLoweredSurfaceResumeWrapperProjection {
 }
 
 /// `ContinuationSchemaId` 到 authoritative dispatch source inventory 的 published entry。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
     continuation_schema: ContinuationSchemaId,
     contract: LateLoweredSurfaceResumeContract,
@@ -1762,7 +1766,7 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 struct SurfaceResumeDispatchInventoryAccumulator {
     contract: Option<LateLoweredSurfaceResumeContract>,
     publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
@@ -2716,7 +2720,7 @@ fn surface_resume_contract_from_resume_facts(
 }
 
 /// `Step_F` 中某个 canonical outward case 的稳定记录。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStepCase {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -2777,7 +2781,9 @@ impl LateLoweredStepCase {
 }
 
 /// internal resume interface 的稳定 identity。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct ResumeInterfaceId(u32);
 
 impl ResumeInterfaceId {
@@ -2796,7 +2802,7 @@ impl ResumeInterfaceId {
 /// object-side packing / query helper；语义主体仍然是 `LateLoweredStepCase`、
 /// `LateLoweredContinuationSurfaceResume`、`LateLoweredContinuationMethod` 与
 /// `LateLoweredSurfaceResumeDispatchInventoryEntry`。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeInterface {
     interface_id: ResumeInterfaceId,
     effect_family: EffectFamilyKey,
@@ -2837,7 +2843,7 @@ impl LateLoweredResumeInterface {
 }
 
 /// single resume method shell。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeMethod {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -2891,7 +2897,9 @@ impl LateLoweredResumeMethod {
 }
 
 /// continuation object 的稳定 identity。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct ContinuationObjectId(u32);
 
 impl ContinuationObjectId {
@@ -2908,7 +2916,7 @@ impl ContinuationObjectId {
 ///
 /// `surface_resumes` / `methods` 是 authoritative per-case publication；
 /// `implemented_packings` 仅表示这些 publication 同时被哪些 effect-family packing helper 镜像。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredContinuationObject {
     object_id: ContinuationObjectId,
     owner_version_key: LateLoweredBodyVersionKey,
@@ -2975,26 +2983,26 @@ impl LateLoweredContinuationObject {
 }
 
 /// continuation 对 frame/context 的显式 capture ref。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredContinuationCapture {
     FrameSlot(FrameSlotId),
     State(StateId),
 }
 
 /// 单个 continuation method 的可达性壳层。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredContinuationMethodReachability {
     Reachable,
     Unreachable,
 }
 
 /// continuation `resume(...)` / `k.op$ret(...)` 的显式 body kind。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredOneShotPolicy {
     OrdinaryRuntimeErrorOutward,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredContinuationResumeBody {
     ResumeCapturedState {
         repeated_resume: LateLoweredOneShotPolicy,
@@ -3003,7 +3011,7 @@ pub enum LateLoweredContinuationResumeBody {
 }
 
 /// continuation source-visible `resume(...) -> Step_F` 合同壳层。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredContinuationSurfaceResume {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -3075,7 +3083,7 @@ impl LateLoweredContinuationSurfaceResume {
 }
 
 /// continuation method shell。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredContinuationMethod {
     packing_interface_id: ResumeInterfaceId,
     case_tag: CaseTag,
@@ -3159,7 +3167,9 @@ impl LateLoweredContinuationMethod {
 }
 
 /// callable version 内局部可用的 state id。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct StateId(u32);
 
 impl StateId {
@@ -3173,7 +3183,9 @@ impl StateId {
 }
 
 /// callable version 内的稳定 boundary id。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct BoundaryId(u32);
 
 impl BoundaryId {
@@ -3187,7 +3199,9 @@ impl BoundaryId {
 }
 
 /// frame schema 内的稳定 slot id。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct FrameSlotId(u32);
 
 impl FrameSlotId {
@@ -3201,7 +3215,7 @@ impl FrameSlotId {
 }
 
 /// state graph 中单个 state 的稳定 role。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredStateRole {
     Entry,
     Segment,
@@ -3215,7 +3229,7 @@ pub enum LateLoweredStateRole {
 ///
 /// P5-T03 先把 segmentation skeleton 固定到“block + statement slice (+ 可选 terminator)”这一层，
 /// 以便后续 frame lifting / boundary lowering 在不回 P3 MIR 猜测的前提下，继续沿用同一套切分结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStateSlice {
     block_id: BasicBlockId,
     start_statement_index: u32,
@@ -3256,7 +3270,7 @@ impl LateLoweredStateSlice {
 }
 
 /// source-slice 中单条 statement 的 published 用途分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSourceStatementClassification {
     source_slice: LateLoweredStateSlice,
     statement_index: u32,
@@ -3285,12 +3299,12 @@ impl LateLoweredSourceStatementClassification {
     }
 
     pub fn kind(&self) -> LateLoweredSourceStatementClassificationKind {
-        self.kind
+        self.kind.clone()
     }
 }
 
 /// backend 消费 source-slice statement 时唯一允许使用的语义分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredSourceStatementClassificationKind {
     EffectNeutralValue,
     BoundaryConsumedAnchor {
@@ -3316,19 +3330,19 @@ pub enum LateLoweredSourceStatementClassificationKind {
     },
     ElidedUnreachable,
     Unsupported {
-        reason: &'static str,
+        reason: String,
     },
 }
 
 /// boundary operand 的最小值来源。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredOperandValueSource {
     Local(LocalId),
     Const(ConstValue),
 }
 
 /// body emitter 可直接消费的已发布 operand/source contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredOperandSource {
     value: LateLoweredOperandValueSource,
     source_ty: TypeId,
@@ -3366,7 +3380,7 @@ impl LateLoweredOperandSource {
 }
 
 /// callable completion path 的 published payload source。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredCompletionPayloadSource {
     Unit { complete_ty: TypeId },
     Operand(LateLoweredOperandSource),
@@ -3401,7 +3415,7 @@ impl LateLoweredCompletionPayloadSource {
 }
 
 /// boundary 在 owner state source-slice 中消费哪一个 anchor。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredBoundarySourceConsumption {
     Statement {
         source_slice: LateLoweredStateSlice,
@@ -3470,7 +3484,9 @@ impl LateLoweredBoundarySourceConsumption {
 }
 
 /// 单个 state 结束时的显式控制流合同。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum LateLoweredHandlePendingCompletion {
     ContinueToExit,
     ReturnFromFunction,
@@ -3481,7 +3497,9 @@ pub enum LateLoweredHandlePendingCompletion {
 ///
 /// 同一个 outward case 可以来自多个 boundary / resume state；只用 case tag
 /// 无法在 finally 结束后恢复正确 continuation。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct LateLoweredHandlePendingCompletionOrigin {
     completion: LateLoweredHandlePendingCompletion,
     boundary_id: BoundaryId,
@@ -3522,7 +3540,7 @@ impl LateLoweredHandlePendingCompletionOrigin {
 }
 
 /// `HandleDispatch` 需要消费的 compiler-owned system carrier。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleDispatchCarrierContract {
     state_tag_slot: SystemSlotKind,
     completion_tag_slot: SystemSlotKind,
@@ -3556,7 +3574,7 @@ impl LateLoweredHandleDispatchCarrierContract {
 }
 
 /// `HandleDispatch` 的 pending completion 在 cleanup/finally 之间传递 typed payload 的 published contract。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandlePendingPayloadTransport {
     completion: LateLoweredHandlePendingCompletion,
     payload_tuple_ty: TypeId,
@@ -3590,7 +3608,7 @@ impl LateLoweredHandlePendingPayloadTransport {
 }
 
 /// 单个 handled case 的 authoritative arm dispatch 映射。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandlePayloadBinder {
     ordinal: u32,
     local: LocalId,
@@ -3619,7 +3637,7 @@ impl LateLoweredHandlePayloadBinder {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleContinuationBinder {
     local: LocalId,
     frame_slot: Option<FrameSlotId>,
@@ -3660,7 +3678,7 @@ impl LateLoweredHandleContinuationBinder {
 }
 
 /// 单个 handled case 的 authoritative arm dispatch 映射。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleArmDispatch {
     handled_case: CaseTag,
     arm_state: StateId,
@@ -3730,7 +3748,7 @@ impl LateLoweredHandleArmDispatch {
 }
 
 /// 当前 state 在某个 `HandleDispatch` 子图中的 authoritative region 归属。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredHandleStateRegion {
     OutsideHandle,
     Dispatch,
@@ -3744,7 +3762,7 @@ pub enum LateLoweredHandleStateRegion {
 }
 
 /// `HandleDispatch` 对单个 state 发布的 region membership。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleStateRegionEntry {
     state_id: StateId,
     region: LateLoweredHandleStateRegion,
@@ -3765,7 +3783,7 @@ impl LateLoweredHandleStateRegionEntry {
 }
 
 /// 单个 boundary outward case 在当前 handle 下的 authoritative routing。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredHandleBoundaryCaseRoutingAction {
     ConsumeToArm {
         arm_state: StateId,
@@ -3779,7 +3797,7 @@ pub enum LateLoweredHandleBoundaryCaseRoutingAction {
 }
 
 /// `BoundaryId + CaseTag` 的 published handle-routing 结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleBoundaryCaseRouting {
     case_tag: CaseTag,
     action: LateLoweredHandleBoundaryCaseRoutingAction,
@@ -3800,7 +3818,7 @@ impl LateLoweredHandleBoundaryCaseRouting {
 }
 
 /// 单个 boundary 在当前 `HandleDispatch` 子图中的 region / case-routing published contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleBoundaryRouting {
     boundary_id: BoundaryId,
     owner_state: StateId,
@@ -3854,7 +3872,7 @@ impl LateLoweredHandleBoundaryRouting {
 }
 
 /// `HandleDispatch` 在 P5/P6 handoff 中显式发布的 completion/state contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleDispatchContract {
     carrier: LateLoweredHandleDispatchCarrierContract,
     body_complete_target: StateId,
@@ -4060,7 +4078,7 @@ impl LateLoweredHandleDispatchContract {
 // `HandleDispatch` 承载的是单个 handle site 的完整 published contract；
 // 这里保持按值内联，避免为了枚举大小把阶段 handoff 再拆成额外 Box 层。
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredStateTerminator {
     Suspend {
         boundary_ids: Vec<BoundaryId>,
@@ -4100,7 +4118,7 @@ pub enum LateLoweredStateTerminator {
     Abandon,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredPublishedRuntimeEntry {
     RuntimeErrorFatal,
 }
@@ -4113,7 +4131,7 @@ impl LateLoweredPublishedRuntimeEntry {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredLocalRuntimeErrorTerminalAction {
     RuntimeFatal {
         runtime_entry: LateLoweredPublishedRuntimeEntry,
@@ -4211,7 +4229,7 @@ impl LateLoweredStateTerminator {
 }
 
 /// state graph 中的单个 state shell。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredState {
     state_id: StateId,
     role: LateLoweredStateRole,
@@ -4268,7 +4286,7 @@ impl LateLoweredState {
 }
 
 /// late-lowered callable 的 state graph 壳层。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStateGraph {
     entry_state: StateId,
     complete_state: StateId,
@@ -4364,7 +4382,7 @@ impl LateLoweredStateGraph {
 }
 
 /// boundary 对应的 source category。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BoundarySiteKind {
     Call,
     ClassCtor,
@@ -4374,7 +4392,7 @@ pub enum BoundarySiteKind {
 }
 
 /// boundary 必须能稳定映射回 `SiteId` 或 boundary kind。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredBoundarySource {
     Site {
         site_id: SiteId,
@@ -4386,7 +4404,7 @@ pub enum LateLoweredBoundarySource {
 }
 
 /// 构造 outward `Step_F` case 的显式 P5 contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStepCaseEmission {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -4433,7 +4451,7 @@ impl LateLoweredStepCaseEmission {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCompleteStepDispatch {
     answer_ty: TypeId,
     target_state: StateId,
@@ -4462,7 +4480,7 @@ impl LateLoweredCompleteStepDispatch {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStepCaseForwarding {
     input_case_tag: CaseTag,
     input_concrete_op_key: ConcreteOpKey,
@@ -4495,7 +4513,7 @@ impl LateLoweredStepCaseForwarding {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStepDispatchPlan {
     input_step_schema: StepSchemaId,
     complete: LateLoweredCompleteStepDispatch,
@@ -4533,7 +4551,7 @@ impl LateLoweredStepDispatchPlan {
 /// 当 callee 的 outward `Step_F` case 被 caller 本地 handle arm 捕获，或继续向外投影时，
 /// 暴露给源码的 continuation 必须先恢复 callee continuation，再把 callee `Complete` 写回 caller
 /// boundary result home，并回到 caller resume state。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCallBoundaryContinuationComposition {
     boundary_id: BoundaryId,
     input_step_schema: StepSchemaId,
@@ -4629,7 +4647,7 @@ impl LateLoweredCallBoundaryContinuationComposition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredConsumedRuntimeErrorCase {
     input_case_tag: CaseTag,
     input_concrete_op_key: ConcreteOpKey,
@@ -4676,7 +4694,7 @@ impl LateLoweredConsumedRuntimeErrorCase {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCallBoundaryOperandContract {
     source_consumption: LateLoweredBoundarySourceConsumption,
     carrier_source: Option<LateLoweredOperandSource>,
@@ -4709,7 +4727,7 @@ impl LateLoweredCallBoundaryOperandContract {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPerformBoundaryOperandContract {
     source_consumption: LateLoweredBoundarySourceConsumption,
     payload_sources: Vec<LateLoweredOperandSource>,
@@ -4735,7 +4753,7 @@ impl LateLoweredPerformBoundaryOperandContract {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeBoundaryOperandContract {
     source_consumption: LateLoweredBoundarySourceConsumption,
     continuation_source: LateLoweredOperandSource,
@@ -4782,7 +4800,7 @@ impl LateLoweredResumeBoundaryOperandContract {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCallBoundaryLowering {
     facts: CallSiteEffectFacts,
     result_local: LocalId,
@@ -4845,7 +4863,7 @@ impl LateLoweredCallBoundaryLowering {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorBoundaryLowering {
     facts: ClassCtorSiteEffectFacts,
     result_local: LocalId,
@@ -4892,7 +4910,7 @@ impl LateLoweredClassCtorBoundaryLowering {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPerformBoundaryLowering {
     facts: PerformSiteEffectFacts,
     operand_contract: Box<LateLoweredPerformBoundaryOperandContract>,
@@ -4925,7 +4943,7 @@ impl LateLoweredPerformBoundaryLowering {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeBoundaryLowering {
     facts: ResumeSiteEffectFacts,
     result_local: LocalId,
@@ -4988,7 +5006,7 @@ impl LateLoweredResumeBoundaryLowering {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredRuntimeErrorBoundaryLowering {
     origin_site: SiteId,
     resume_boundary: BoundaryId,
@@ -5021,7 +5039,7 @@ impl LateLoweredRuntimeErrorBoundaryLowering {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredHandleBoundaryLowering {
     facts: HandleSiteEffectFacts,
     outward_emissions: Vec<LateLoweredStepCaseEmission>,
@@ -5048,7 +5066,7 @@ impl LateLoweredHandleBoundaryLowering {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredBoundaryLowering {
     Call(LateLoweredCallBoundaryLowering),
     ClassCtor(LateLoweredClassCtorBoundaryLowering),
@@ -5059,7 +5077,7 @@ pub enum LateLoweredBoundaryLowering {
 }
 
 /// boundary shell。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredBoundary {
     boundary_id: BoundaryId,
     source: LateLoweredBoundarySource,
@@ -5111,7 +5129,7 @@ impl LateLoweredBoundary {
 }
 
 /// `BoundaryId -> boundary shell` 的稳定容器。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredBoundaryMap {
     entries: Vec<LateLoweredBoundary>,
 }
@@ -5139,7 +5157,7 @@ impl LateLoweredBoundaryMap {
 }
 
 /// `BoundaryId -> resume state` 的稳定绑定。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeState {
     boundary_id: BoundaryId,
     state_id: StateId,
@@ -5163,7 +5181,7 @@ impl LateLoweredResumeState {
 }
 
 /// `BoundaryId -> resume state` 的稳定容器。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumeStateMap {
     entries: Vec<LateLoweredResumeState>,
 }
@@ -5192,7 +5210,9 @@ impl LateLoweredResumeStateMap {
 }
 
 /// 系统保留 frame 字段的分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum SystemSlotKind {
     StateTag,
     ResumePayloadCarrier,
@@ -5203,7 +5223,9 @@ pub enum SystemSlotKind {
 }
 
 /// frame slot 的稳定分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum LateLoweredFrameSlotKind {
     SourceLocal(LocalId),
     CompilerTemporary(LocalId),
@@ -5240,7 +5262,7 @@ pub enum LateLoweredFrameSlotKind {
 }
 
 /// frame schema 内的单个 slot。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredFrameSlot {
     slot_id: FrameSlotId,
     kind: LateLoweredFrameSlotKind,
@@ -5291,7 +5313,7 @@ impl LateLoweredFrameSlot {
 ///
 /// 这里显式区分“恢复值写回哪个源码 local”与“若该 local 已被 lifting，它在 frame 中的 home slot 是哪个”。
 /// 后续 P6 backend 只能消费这张已发布表，不能再回 canonical MIR 找 `PerformResult` / assign target。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredResumePayloadBinding {
     boundary_id: BoundaryId,
     resume_state: StateId,
@@ -5332,7 +5354,7 @@ impl LateLoweredResumePayloadBinding {
 }
 
 /// callable `Complete(answer)` 构造时使用的 payload source 与 frame home contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredCompletionPayloadBinding {
     return_state: StateId,
     complete_state: StateId,
@@ -5373,7 +5395,7 @@ impl LateLoweredCompletionPayloadBinding {
 }
 
 /// late-lowered callable 的 frame schema 壳层。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredFrameSchema {
     slots: Vec<LateLoweredFrameSlot>,
     resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
@@ -5454,6 +5476,24 @@ impl LateLoweredFrameSchema {
         self.completion_payload_bindings
             .iter()
             .find(|binding| binding.return_state() == return_state)
+    }
+}
+
+#[cfg(test)]
+mod wire_tests {
+    use super::*;
+
+    #[test]
+    fn late_lowered_program_bincode_round_trip_preserves_schema() {
+        let program = LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let bytes = bincode::serialize(&program).expect("serialize LIR program");
+        let decoded: LateLoweredProgram =
+            bincode::deserialize(&bytes).expect("deserialize LIR program");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert!(decoded.is_empty());
+        assert!(decoded.class_ctor_init_bodies.is_empty());
+        assert!(decoded.dump_type_texts.is_empty());
     }
 }
 

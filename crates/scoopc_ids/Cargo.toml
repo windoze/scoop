@@ -6,4 +6,5 @@ edition.workspace = true
 [dependencies]
 scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }
+serde = { version = "1.0.228", features = ["derive"] }
 sha2 = "0.10.9"

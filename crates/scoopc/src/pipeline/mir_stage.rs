@@ -2262,7 +2262,7 @@ fun bad() {
         let file = crate::mir::File {
             items: vec![crate::mir::Item::Todo {
                 span: crate::span::Span::new(0, 1),
-                kind: SYNTHETIC_ITEM_TODO_REASON,
+                kind: SYNTHETIC_ITEM_TODO_REASON.to_string(),
             }],
         };
 

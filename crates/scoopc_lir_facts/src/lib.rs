@@ -21,8 +21,9 @@ pub mod verify;
 pub use contract::*;
 
 /// Complete LIR fact product published by the LIR stage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirFacts {
+    pub schema_version: scoopc_types::WireSchemaVersion,
     pub summary: LirStageSummary,
     pub opt_pipeline: LirOptPipelineFacts,
     pub global_init: LirGlobalInitFacts,
@@ -41,7 +42,7 @@ pub struct LirFacts {
 }
 
 /// Grouped LIR facts used to construct a complete product.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirFactGroups {
     pub global_init: LirGlobalInitFacts,
     pub physical_layout: LirPhysicalLayoutFacts,
@@ -62,6 +63,7 @@ impl LirFacts {
     /// Create an empty fact product for tests and staged construction.
     pub fn new(opt_level: OptLevel) -> Self {
         Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
             summary: LirStageSummary::new(opt_level),
             opt_pipeline: LirOptPipelineFacts::empty(0),
             global_init: LirGlobalInitFacts::default(),
@@ -95,6 +97,7 @@ impl LirFacts {
         groups: LirFactGroups,
     ) -> Self {
         Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
             summary,
             opt_pipeline,
             global_init: groups.global_init,
@@ -154,7 +157,7 @@ impl LirFacts {
 }
 
 /// Stage-level LIR summary fixed by the P5 output shell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStageSummary {
     pub opt_level: OptLevel,
     pub opt_revision: u64,
@@ -376,6 +379,16 @@ mod tests {
         assert!(dump.contains("opt_level: O2"));
         assert!(dump.contains("opt_pipeline: revision=0"));
         assert!(dump.contains("callables=0"));
+    }
+
+    #[test]
+    fn lir_facts_bincode_round_trip_preserves_schema_and_content() {
+        let facts = LirFacts::new(OptLevel::O2);
+        let bytes = bincode::serialize(&facts).expect("serialize LIR facts");
+        let decoded: LirFacts = bincode::deserialize(&bytes).expect("deserialize LIR facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
     }
 
     #[test]

@@ -695,7 +695,7 @@ impl<'a> FnLowering<'a> {
             .or_else(|| self.scalar_operator_owner_fqn_for_expr(rhs))
             .or_else(|| self.scalar_operator_owner_fqn_for_local(rhs_local));
         let Some(owner_fqn) = owner_fqn else {
-            self.assign(span, result, Rvalue::Todo("missing expr"));
+            self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
             return Some(result);
         };
 
@@ -746,7 +746,7 @@ impl<'a> FnLowering<'a> {
             .scalar_operator_owner_fqn_for_expr(operand)
             .or_else(|| self.scalar_operator_owner_fqn_for_local(operand_local))
         else {
-            self.assign(span, result, Rvalue::Todo("missing expr"));
+            self.assign(span, result, Rvalue::Todo("missing expr".to_string()));
             return Some(result);
         };
         let kind = CallKind::Direct {

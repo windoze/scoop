@@ -87,7 +87,7 @@ pub use transport::{
 };
 
 /// MIR materialization 的 request-root 策略。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum MaterializeRequestRootMode<'a> {
     /// 将 request source 中的全部 callable 作为 request roots；dump / 调试路径沿用该模式。
     RequestSources,
@@ -191,12 +191,13 @@ pub fn materialize_compilation_unit_from_typechecked_inputs_with_options(
 }
 
 /// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub struct File {
     pub items: Vec<Item>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 struct ProductionSiteContext<'a> {
     fqn: &'a str,
     block: BasicBlockId,
@@ -235,7 +236,7 @@ impl File {
                         block: None,
                         span: *span,
                         category: MirPlaceholderCategory::Item,
-                        reason: kind,
+                        reason: kind.clone(),
                     });
                 }
             }
@@ -266,7 +267,7 @@ impl File {
                 block: Some(block),
                 span,
                 category,
-                reason,
+                reason: reason.clone(),
             },
             other => MirValidationError::ProductionBodyContract {
                 fqn: fun.fqn.clone(),
@@ -397,7 +398,7 @@ impl File {
                 block: Some(block),
                 span: stmt.span,
                 category: MirPlaceholderCategory::Statement,
-                reason,
+                reason: reason.clone(),
             }),
             StatementKind::Nop => Ok(()),
         }
@@ -519,7 +520,7 @@ impl File {
                 block: Some(block),
                 span,
                 category: MirPlaceholderCategory::Rvalue,
-                reason,
+                reason: reason.clone(),
             }),
             Rvalue::Use(operand) => self
                 .validate_production_operand(fqn, block, span, body, "source value", operand)
@@ -1257,7 +1258,7 @@ impl File {
                 block: Some(block),
                 span,
                 category: MirPlaceholderCategory::UnwindAction,
-                reason,
+                reason: reason.clone(),
             }),
             UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => {
                 Ok(())
@@ -1288,7 +1289,7 @@ impl File {
                 block: Some(block_id),
                 span: block.terminator.span,
                 category: MirPlaceholderCategory::Terminator,
-                reason,
+                reason: reason.clone(),
             }),
             TerminatorKind::Perform {
                 op_fqn,
@@ -1520,7 +1521,8 @@ impl File {
 }
 
 /// 顶层条目（top-level items）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub enum Item {
     Fun(FunDecl),
     /// Non-function root used by later stages to discover top-level initialization.
@@ -1532,12 +1534,12 @@ pub enum Item {
     /// 未纳入当前阶段 MIR 的条目占位（例如顶层 val/global init、type decl 等）。
     Todo {
         span: Span,
-        kind: &'static str,
+        kind: String,
     },
 }
 
 /// A top-level value/object initializer root visible from MIR stage output.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InitializerRoot {
     pub span: Span,
     pub fqn: String,
@@ -1550,7 +1552,7 @@ pub struct InitializerRoot {
     pub hidden_effects: EffectRow,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InitializerRootKind {
     RuntimeImmutableVal,
     RuntimeMutableVar {
@@ -1559,13 +1561,13 @@ pub enum InitializerRootKind {
     ObjectSingleton,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct InitializerDependency {
     pub fqn: String,
     pub kind: InitializerDependencyKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InitializerDependencyKind {
     TopLevelValue,
     ObjectSingleton,
@@ -1611,7 +1613,7 @@ pub mod source_payload {
 }
 
 /// Monomorphic class init source contract published to LIR without exposing HIR/AST owner names.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MonoClassInit {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -1646,7 +1648,7 @@ impl MonoClassInit {
 }
 
 /// Class field source contract for backend-neutral class layout consumers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassField<T> {
     pub fqn: String,
     pub name: String,
@@ -1666,7 +1668,7 @@ impl<T: Copy> ClassField<T> {
 }
 
 /// One source-ordered class initialization step consumed by LIR ctor lowering.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ClassInitStep {
     PropertyInit { field_fqn: String, init: SourceExpr },
     InitBlock { block: SourceBlock },
@@ -1687,7 +1689,7 @@ impl ClassInitStep {
 }
 
 /// Source constructor kind normalized into a MIR-owned enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ClassCtorKind {
     Primary,
     Secondary,
@@ -1703,7 +1705,7 @@ impl ClassCtorKind {
 }
 
 /// A monomorphic class constructor payload consumed by LIR class init lowering.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtor<T> {
     pub kind: ClassCtorKind,
     pub span: Span,
@@ -1725,7 +1727,7 @@ impl<T: Copy> ClassCtor<T> {
 }
 
 /// Constructor delegation kind normalized away from the AST owner enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ClassCtorDelegationKind {
     This,
     Super,
@@ -1741,7 +1743,7 @@ impl ClassCtorDelegationKind {
 }
 
 /// Constructor delegation payload with AST ownership hidden behind MIR names.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorDelegation {
     pub kind: ClassCtorDelegationKind,
     pub span: Span,
@@ -1761,7 +1763,7 @@ impl ClassCtorDelegation {
 }
 
 /// Constructor parameter payload published to LIR class init lowering.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorParam<T> {
     pub id: SymbolId,
     pub name: String,
@@ -1789,7 +1791,7 @@ impl<T: Copy> ClassCtorParam<T> {
 }
 
 /// Constructor call binding payload needed for named/default argument replay.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorCallInfo {
     pub class_fqn: String,
     pub ctor_span: Option<Span>,
@@ -1807,7 +1809,7 @@ impl CtorCallInfo {
 }
 
 /// MIR-owned contract for an `@Extern` top-level global variable.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExternGlobalRoot {
     pub span: Span,
     pub fqn: String,
@@ -1822,7 +1824,7 @@ pub struct ExternGlobalRoot {
 }
 
 /// MIR-owned declaration metadata root for type/object declarations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum MetadataRoot {
     TypeAlias(TypeAliasMetadata),
     Nominal(NominalMetadata),
@@ -1841,7 +1843,7 @@ impl MetadataRoot {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeAliasMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1850,7 +1852,7 @@ pub struct TypeAliasMetadata {
     pub ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NominalMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1863,7 +1865,7 @@ pub struct NominalMetadata {
     pub members: Vec<DeclMemberMetadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ObjectMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1875,7 +1877,7 @@ pub struct ObjectMetadata {
     pub members: Vec<DeclMemberMetadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionPropertyMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1888,7 +1890,7 @@ pub struct ExtensionPropertyMetadata {
     pub setter: Option<AccessorMetadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DeclTypeParamMetadata {
     pub span: Span,
     pub name: String,
@@ -1896,7 +1898,7 @@ pub struct DeclTypeParamMetadata {
     pub ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SupertypeMetadata {
     pub span: Span,
     pub fqn: Option<String>,
@@ -1904,7 +1906,7 @@ pub struct SupertypeMetadata {
     pub ctor_arg_count: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorMetadata {
     pub span: Span,
     pub kind: crate::hir::ClassCtorKind,
@@ -1912,7 +1914,7 @@ pub struct CtorMetadata {
     pub delegation: Option<ast::CtorDelegationKind>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorParamMetadata {
     pub span: Span,
     pub name: String,
@@ -1921,7 +1923,7 @@ pub struct CtorParamMetadata {
     pub property: Option<ast::ValKind>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum DeclMemberMetadata {
     Field(FieldMetadata),
     Property(PropertyMetadata),
@@ -1931,7 +1933,7 @@ pub enum DeclMemberMetadata {
     Nested(Box<MetadataRoot>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FieldMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1941,7 +1943,7 @@ pub struct FieldMetadata {
     pub origin: crate::hir::FieldOrigin,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PropertyMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1953,13 +1955,13 @@ pub struct PropertyMetadata {
     pub setter: Option<AccessorMetadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccessorMetadata {
     pub span: Span,
     pub fqn: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemberFunMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1969,7 +1971,7 @@ pub struct MemberFunMetadata {
     pub return_ty: TypeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantMetadata {
     pub span: Span,
     pub fqn: String,
@@ -1978,7 +1980,7 @@ pub struct EnumVariantMetadata {
 }
 
 /// 函数声明在 MIR 视图下的承载。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FunDecl {
     pub span: Span,
     pub fqn: String,
@@ -1990,7 +1992,7 @@ pub struct FunDecl {
 }
 
 /// 参数在 MIR 视图下的表示：它同时对应一个 local。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Param {
     pub span: Span,
     pub name: String,
@@ -1999,7 +2001,9 @@ pub struct Param {
 }
 
 /// 基本块 ID（在 `Body::blocks` 内的索引）。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct BasicBlockId(u32);
 
 impl BasicBlockId {
@@ -2023,7 +2027,9 @@ impl fmt::Debug for BasicBlockId {
 }
 
 /// 局部变量 ID（在 `Body::locals` 内的索引）。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LocalId(u32);
 
 impl LocalId {
@@ -2043,7 +2049,7 @@ impl fmt::Debug for LocalId {
 }
 
 /// 一个函数（或顶层 initializer）在 MIR 中的 body。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Body {
     /// locals 声明表（参数/局部/临时变量；后续会扩展 return local 等约定）。
     pub locals: Vec<LocalDecl>,
@@ -2202,7 +2208,7 @@ impl Body {
                         block,
                         span: stmt.span,
                         category: MirPlaceholderCategory::Statement,
-                        reason,
+                        reason: reason.clone(),
                     });
                 }
                 Ok(())
@@ -2223,7 +2229,7 @@ impl Body {
                 block,
                 span,
                 category: MirPlaceholderCategory::Rvalue,
-                reason,
+                reason: reason.clone(),
             });
         }
         Ok(())
@@ -2250,7 +2256,7 @@ impl Body {
                 block,
                 span,
                 category: MirPlaceholderCategory::UnwindAction,
-                reason,
+                reason: reason.clone(),
             }),
         }
     }
@@ -2306,7 +2312,7 @@ impl Body {
                     block,
                     span,
                     category: MirPlaceholderCategory::Terminator,
-                    reason,
+                    reason: reason.clone(),
                 })
             }
             TerminatorKind::Return { .. }
@@ -2384,14 +2390,14 @@ impl Body {
 }
 
 /// MIR local 的稳定来源分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LocalSourceKind {
     SourceLocal,
     CompilerTemporary,
 }
 
 /// 一个 local 的声明信息。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LocalDecl {
     pub span: Span,
     pub name: Option<String>,
@@ -2400,7 +2406,7 @@ pub struct LocalDecl {
 }
 
 /// MIR 基本块：顺序语句 + 终结指令（terminator）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BasicBlock {
     /// 是否为 cleanup block（用于 `finally`/effect unwinding）。
     ///
@@ -2411,13 +2417,15 @@ pub struct BasicBlock {
 }
 
 /// MIR 语句（顺序执行）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub struct Statement {
     pub span: Span,
     pub kind: StatementKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub enum StatementKind {
     Nop,
     /// `target = value`（最小赋值语句，用于 if/when merge 等场景）。
@@ -2449,18 +2457,18 @@ pub enum StatementKind {
         value_ty: TypeId,
     },
     /// 未实现节点占位（用于尽早落地数据结构但避免 `todo!()`/panic）。
-    Todo(&'static str),
+    Todo(String),
 }
 
 /// 一个“可以被使用的值”（最小 operand 模型）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Operand {
     Local(LocalId),
     Const(ConstValue),
 }
 
 /// 顶层值/函数引用在 MIR 上保留的最小 provenance。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TopLevelRef {
     pub fqn: String,
     pub site_id: Option<SiteId>,
@@ -2468,7 +2476,7 @@ pub struct TopLevelRef {
 }
 
 /// 成员访问在 MIR 上保留的最小语言级 metadata。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MemberAccessMetadata {
     pub name: String,
     pub receiver_ty: TypeId,
@@ -2477,7 +2485,7 @@ pub struct MemberAccessMetadata {
 }
 
 /// 已解析成员在 MIR 上的稳定目标种类。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MemberTarget {
     Value { fqn: String },
     Fun { fqn: String },
@@ -2490,7 +2498,7 @@ pub enum MemberTarget {
 /// 说明：
 /// - `value` 总是已经先被 lowering 为 operand / local，便于后续按 ANF 风格分析求值顺序；
 /// - `name` 仅在源级为命名参数时存在；当前阶段保留它，避免后续 pass 被迫回到 HIR 读取调用形状。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallArg {
     pub span: Span,
     pub name: Option<String>,
@@ -2498,7 +2506,7 @@ pub struct CallArg {
 }
 
 /// 插值字符串在 MIR 上保留的 ANF 片段。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum InterpolatedStringPart {
     Text {
         span: Span,
@@ -2511,7 +2519,7 @@ pub enum InterpolatedStringPart {
 }
 
 /// struct literal 在 MIR 上保留的 ANF 字段初始化项。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructLitField {
     pub span: Span,
     pub name: String,
@@ -2522,14 +2530,14 @@ pub struct StructLitField {
 ///
 /// Scoop 0.1 keeps runtime `T::class` as a stable type-name string value while retaining the
 /// source type identity needed by later stages to upgrade this to richer metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeMetadataLiteral {
     pub source_ty: TypeId,
     pub source_fqn: Option<String>,
     pub kind: TypeMetadataLiteralKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeMetadataLiteralKind {
     TypeNameString,
 }
@@ -2540,7 +2548,7 @@ pub enum TypeMetadataLiteralKind {
 /// - `value` 仍按源码求值顺序先被 lower 为 operand/local；
 /// - `source_arg_index` 记录该 payload 来自调用点第几个显式实参，便于后续 pass 同时看到
 ///   “按参数顺序归一化后的 payload 视图”和“原始调用点位置”。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PerformArg {
     pub span: Span,
     pub source_arg_index: usize,
@@ -2549,7 +2557,7 @@ pub struct PerformArg {
 }
 
 /// `perform` 调用点在 MIR 上保留的最小 metadata。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct PerformMetadata {
     pub effect_ty: TypeId,
     pub op_type_args: Vec<TypeId>,
@@ -2581,7 +2589,7 @@ impl fmt::Debug for PerformMetadata {
 /// 注意：
 /// - 这里只保留 receiver 的静态类型与被调成员的声明身份；
 /// - 不把 vtable slot / itable id / runtime thunk 等后端细节编码进 MIR。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DispatchMetadata {
     pub owner_fqn: String,
     pub member_name: String,
@@ -2591,7 +2599,7 @@ pub struct DispatchMetadata {
 }
 
 /// class constructor call 在 MIR 上发布的 selected ctor / ordered-args contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorCallMetadata {
     pub selected_ctor_span: Option<Span>,
     pub ordered_param_count: usize,
@@ -2603,7 +2611,7 @@ pub struct ClassCtorCallMetadata {
 /// - 当前会显式记录 `ResumeTuple` / `Answer` / `Out`，以及 ordinary `Raise<RuntimeError>`
 ///   required-effect contract；
 /// - runtime replay token / payload transport 等细节仍属于更晚的 lowering 阶段。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResumeMetadata {
     pub continuation_ty: TypeId,
     pub resume_ty: TypeId,
@@ -2615,7 +2623,7 @@ pub struct ResumeMetadata {
 }
 
 /// `handle { ... } with { ... }` 站点在 MIR 上保留的 typed contract。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleMetadata {
     pub result_ty: TypeId,
     pub body_result_ty: TypeId,
@@ -2623,7 +2631,7 @@ pub struct HandleMetadata {
 }
 
 /// `handle` arm 在 MIR 上的显式语义 kind。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HandlerArmKind {
     NonResuming,
     EscapeContinuation,
@@ -2635,7 +2643,7 @@ pub enum HandlerArmKind {
 /// - 这里刻意只表达语言级调用形态，不表达 LLVM vtable/itable/statepoint 等后端细节；
 /// - direct / closure / fun-value / funptr / virtual / interface / resume 共用同一调用层级，
 ///   避免后续 pass 再回到 HIR 或 LLVM codegen 现场恢复控制转移语义。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CallKind {
     /// 目标函数在 MIR 上已经静态唯一确定。
     Direct { callee_fqn: String },
@@ -2665,7 +2673,7 @@ pub enum CallKind {
 }
 
 /// 常量值（当前阶段不保留字面量原始内容，仅保留种类）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ConstValue {
     Bool(bool),
     Char,
@@ -2688,13 +2696,13 @@ pub enum ConstValue {
 ///
 /// 该 key 保留 backend 需要的稳定身份，而不是要求后续阶段从 `TypeId` 重新猜测
 /// class/interface/function/value 等运行时分类。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeTypeDescriptorKey {
     pub ty: TypeId,
     pub kind: RuntimeTypeDescriptorKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeTypeDescriptorKind {
     Any,
     String,
@@ -2711,14 +2719,14 @@ pub enum RuntimeTypeDescriptorKind {
     Union,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeTypeStaticFold {
     AlwaysTrue,
     AlwaysFalse,
     Dynamic,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeTypeParameterizedMatch {
     None,
     Nominal {
@@ -2746,7 +2754,7 @@ pub enum RuntimeTypeParameterizedMatch {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeTypeTestMetadata {
     pub source_ty: TypeId,
     pub target_ty: TypeId,
@@ -2755,7 +2763,7 @@ pub struct RuntimeTypeTestMetadata {
     pub parameterized: RuntimeTypeParameterizedMatch,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeCastFailure {
     Raise {
         effect_ty: Option<TypeId>,
@@ -2764,20 +2772,20 @@ pub enum RuntimeCastFailure {
     ReturnNone,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeCastResult {
     Target { ty: TypeId },
     Option { option_ty: TypeId, some_ty: TypeId },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeCastMetadata {
     pub test: RuntimeTypeTestMetadata,
     pub failure: RuntimeCastFailure,
     pub result: RuntimeCastResult,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimePatternTypeTestKind {
     StaticValue,
     RuntimeRef,
@@ -2787,7 +2795,7 @@ pub enum RuntimePatternTypeTestKind {
     RuntimeParameterized,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimePatternTypeTestMetadata {
     pub subject_ty: TypeId,
     pub target_ty: TypeId,
@@ -2798,7 +2806,7 @@ pub struct RuntimePatternTypeTestMetadata {
 }
 
 /// `when` pattern 在 MIR 上的 backend-agnostic 表示。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Pattern {
     Else,
     Or {
@@ -2836,14 +2844,16 @@ pub enum Pattern {
 }
 
 /// 从一个已匹配 subject 中提取 binder 值时使用的投影路径。
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum PatternBindingStep {
     TupleIndex(usize),
     VariantField { variant: String, field_index: usize },
 }
 
 /// member write 中“值内 continuation payload 路径”的最小 published contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StoredContinuationValueRoute {
     pub source_local: LocalId,
     pub source_ty: TypeId,
@@ -2851,7 +2861,7 @@ pub struct StoredContinuationValueRoute {
 }
 
 /// member write 对 continuation payload path 的 published 结论。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StoredContinuationRoutePublication {
     None,
     Unique(StoredContinuationValueRoute),
@@ -2859,7 +2869,8 @@ pub enum StoredContinuationRoutePublication {
 }
 
 /// 右值（最小 rvalue 模型）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub enum Rvalue {
     Use(Operand),
     /// Explicit value transport/coercion boundary published by MIR lowering.
@@ -2978,11 +2989,12 @@ pub enum Rvalue {
         op_fqn: String,
         effect_ty: TypeId,
     },
-    Todo(&'static str),
+    Todo(String),
 }
 
 /// MIR terminator（显式控制流）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub struct Terminator {
     pub span: Span,
     pub kind: TerminatorKind,
@@ -2991,7 +3003,8 @@ pub struct Terminator {
 }
 
 /// terminator 在发生 unwinding 时应采取的动作（最小模型，用于 `finally`/effect unwinding）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub enum UnwindAction {
     /// 该 terminator 不会发生 unwinding。
     NoUnwind,
@@ -3000,10 +3013,11 @@ pub enum UnwindAction {
     /// 若发生 unwinding，则先跳转到 cleanup block 执行清理逻辑。
     Cleanup { target: BasicBlockId },
     /// 未实现占位：表示“可能会 unwind，但具体行为尚未建模”。
-    Todo(&'static str),
+    Todo(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = ""))]
 pub enum TerminatorKind {
     /// 从当前 callable 正常返回；`value=None` 表示 `Unit`/隐式返回。
     Return {
@@ -3050,11 +3064,11 @@ pub enum TerminatorKind {
         exit_target: BasicBlockId,
     },
     /// 未实现控制流占位（例如 if/switch/call/cleanup 等）。
-    Todo(&'static str),
+    Todo(String),
 }
 
 /// `handle` 在 MIR 视图下的一个 handler arm（结构占位）。
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandlerArm {
     pub op_fqn: String,
     pub op_type_args: Vec<TypeId>,
@@ -3185,7 +3199,7 @@ impl Terminator {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirPlaceholderCategory {
     Item,
     Statement,
@@ -3206,7 +3220,7 @@ impl fmt::Display for MirPlaceholderCategory {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MirSiteMetadataKind {
     Call,
     Resume,
@@ -3225,7 +3239,7 @@ impl fmt::Display for MirSiteMetadataKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Error, serde::Serialize, serde::Deserialize)]
 pub enum MirValidationError {
     /// MIR body 为空（没有任何基本块）。
     #[error("MIR body is empty")]
@@ -3284,7 +3298,7 @@ pub enum MirValidationError {
         block: BasicBlockId,
         span: Span,
         category: MirPlaceholderCategory,
-        reason: &'static str,
+        reason: String,
     },
     #[error("production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}")]
     ProductionTodo {
@@ -3292,7 +3306,7 @@ pub enum MirValidationError {
         block: Option<BasicBlockId>,
         span: Span,
         category: MirPlaceholderCategory,
-        reason: &'static str,
+        reason: String,
     },
     #[error("production MIR `{fqn}` failed direct-style contract: {error}")]
     ProductionBodyContract {
@@ -3523,7 +3537,7 @@ mod tests {
         let file = File {
             items: vec![Item::Todo {
                 span: test_span(),
-                kind: SYNTHETIC_ITEM_TODO_REASON,
+                kind: SYNTHETIC_ITEM_TODO_REASON.to_string(),
             }],
         };
 
@@ -3534,7 +3548,7 @@ mod tests {
                 block: None,
                 span: test_span(),
                 category: MirPlaceholderCategory::Item,
-                reason: SYNTHETIC_ITEM_TODO_REASON,
+                reason: SYNTHETIC_ITEM_TODO_REASON.to_string(),
             })
         );
     }
@@ -3545,7 +3559,7 @@ mod tests {
         let builtins = types.intern_builtins();
         let stmt = Statement {
             span: test_span(),
-            kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON),
+            kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON.to_string()),
         };
         let file = production_file(
             builtins.unit,
@@ -3563,7 +3577,7 @@ mod tests {
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 category: MirPlaceholderCategory::Statement,
-                reason: SYNTHETIC_STATEMENT_TODO_REASON,
+                reason: SYNTHETIC_STATEMENT_TODO_REASON.to_string(),
             })
         );
     }
@@ -3574,7 +3588,7 @@ mod tests {
         let builtins = types.intern_builtins();
         let file = production_file(
             builtins.unit,
-            body_with_assign(Rvalue::Todo("missing expr"), builtins.unit),
+            body_with_assign(Rvalue::Todo("missing expr".to_string()), builtins.unit),
         );
 
         assert_eq!(
@@ -3584,7 +3598,7 @@ mod tests {
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 category: MirPlaceholderCategory::Rvalue,
-                reason: "missing expr",
+                reason: "missing expr".to_string(),
             })
         );
     }
@@ -3811,7 +3825,7 @@ mod tests {
             builtins.unit,
             single_block_body(
                 Vec::new(),
-                TerminatorKind::Todo("unterminated"),
+                TerminatorKind::Todo("unterminated".to_string()),
                 UnwindAction::NoUnwind,
             ),
         );
@@ -3823,7 +3837,7 @@ mod tests {
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 category: MirPlaceholderCategory::Terminator,
-                reason: "unterminated",
+                reason: "unterminated".to_string(),
             })
         );
     }
@@ -3832,7 +3846,7 @@ mod tests {
     fn mir_no_todo_direct_style_rejects_unterminated_sentinel() {
         let body = single_block_body(
             Vec::new(),
-            TerminatorKind::Todo("unterminated"),
+            TerminatorKind::Todo("unterminated".to_string()),
             UnwindAction::NoUnwind,
         );
 
@@ -3842,7 +3856,7 @@ mod tests {
                 block: BasicBlockId(0),
                 span: test_span(),
                 category: MirPlaceholderCategory::Terminator,
-                reason: "unterminated",
+                reason: "unterminated".to_string(),
             })
         );
     }
@@ -3856,7 +3870,7 @@ mod tests {
             single_block_body(
                 Vec::new(),
                 TerminatorKind::Return { value: None },
-                UnwindAction::Todo("perform unwind pending"),
+                UnwindAction::Todo("perform unwind pending".to_string()),
             ),
         );
 
@@ -3867,7 +3881,7 @@ mod tests {
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 category: MirPlaceholderCategory::UnwindAction,
-                reason: "perform unwind pending",
+                reason: "perform unwind pending".to_string(),
             })
         );
     }

@@ -10,7 +10,7 @@ use scoopc_types::{EffectRow, TypeId};
 use crate::globals::GlobalStoragePolicy;
 
 /// HIR facts keyed by source-level sites inside a body.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct SourceSiteFacts {
     pub function_effects: Vec<FunctionEffectContract>,
     pub call_sites: Vec<CallSiteContract>,
@@ -92,7 +92,7 @@ impl SourceSiteFacts {
 }
 
 /// Stable source-site identity scoped to a lowered body.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SourceSiteIdentity {
     pub owner: CanonicalTextKey,
     pub site: SiteId,
@@ -120,7 +120,7 @@ impl SourceSiteIdentity {
 }
 
 /// Single callable's allowed effect row published by the HIR barrier.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FunctionEffectContract {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -131,7 +131,7 @@ pub struct FunctionEffectContract {
 }
 
 /// Source-level category of a resolved call expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteKind {
     DirectTopLevel,
     MemberDirect,
@@ -148,7 +148,7 @@ pub enum CallSiteKind {
 }
 
 /// Typed contract for a resolved call site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallSiteContract {
     pub identity: SourceSiteIdentity,
     pub kind: CallSiteKind,
@@ -156,7 +156,7 @@ pub struct CallSiteContract {
 }
 
 /// Detailed source-site contract for one call-like expression.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteContractKind {
     DirectTopLevel(FunctionTarget),
     MemberDirect(MemberCallTarget),
@@ -194,7 +194,7 @@ pub enum CallSiteContractKind {
 }
 
 /// Callable ABI family needed by later lowering without depending on HIR nodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CallableAbi {
     ManagedOrdinary,
     NativeExtern,
@@ -203,7 +203,7 @@ pub enum CallableAbi {
 }
 
 /// Compiler/runtime intrinsic family for a typed call-site fact.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum IntrinsicKind {
     Reflection {
         name: String,
@@ -227,7 +227,7 @@ pub enum IntrinsicKind {
 }
 
 /// Resolved function target identity and instantiation arguments.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FunctionTarget {
     pub fqn: String,
     pub decl_file: Option<PathBuf>,
@@ -239,7 +239,7 @@ pub struct FunctionTarget {
 }
 
 /// Member call target identity and receiver type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MemberCallTarget {
     pub owner_fqn: String,
     pub member_name: String,
@@ -249,7 +249,7 @@ pub struct MemberCallTarget {
 }
 
 /// Constructor call target identity and argument mapping.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConstructorCallTarget {
     pub owner_fqn: String,
     pub ctor_span: Option<Span>,
@@ -258,13 +258,13 @@ pub struct ConstructorCallTarget {
 }
 
 /// Canonical mapping from source arguments to callable parameter slots.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallArgBindingContract {
     pub params: Vec<CallArgParamContract>,
 }
 
 /// One parameter slot's source argument provenance.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallArgParamContract {
     Receiver,
     Explicit(CallArgElementContract),
@@ -273,21 +273,21 @@ pub enum CallArgParamContract {
 }
 
 /// Source argument element feeding a parameter or vararg slot.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallArgElementContract {
     pub arg_index: usize,
     pub spread: bool,
 }
 
 /// Canonical mapping from source argument position to callable parameter slot.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ArgumentBindingContract {
     pub identity: SourceSiteIdentity,
     pub binding: CallArgBindingContract,
 }
 
 /// Typed contract for an assignment place.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AssignmentContract {
     pub identity: SourceSiteIdentity,
     pub span: Span,
@@ -300,7 +300,7 @@ pub struct AssignmentContract {
 }
 
 /// Assignment LHS family resolved during typecheck/HIR lowering.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AssignPlaceKind {
     Local {
         symbol_id: u32,
@@ -322,7 +322,7 @@ pub enum AssignPlaceKind {
 }
 
 /// Member binding target used by assignment place metadata.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MemberRef {
     Value { symbol_id: u32, fqn: String },
     Fun { symbol_id: u32, fqn: String },
@@ -331,14 +331,14 @@ pub enum MemberRef {
 }
 
 /// Write-barrier requirement attached to an assignment place.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AssignWriteBarrierRequirement {
     NotRequired,
     StorageSlot { slot_ty: TypeId },
 }
 
 /// Typed contract for aggregate copy/update syntax.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateContract {
     pub identity: SourceSiteIdentity,
     pub base_ty: TypeId,
@@ -348,7 +348,7 @@ pub struct WithUpdateContract {
 }
 
 /// One aggregate on a copy/update path.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateAggregateContract {
     pub prefix: String,
     pub ty: TypeId,
@@ -356,7 +356,7 @@ pub struct WithUpdateAggregateContract {
 }
 
 /// Aggregate shape for a copy/update path segment.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WithUpdateAggregateContractKind {
     Struct {
         fqn: String,
@@ -371,14 +371,14 @@ pub enum WithUpdateAggregateContractKind {
 }
 
 /// Field metadata for a struct aggregate on a copy/update path.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateAggregateFieldContract {
     pub name: String,
     pub ty: TypeId,
 }
 
 /// One user-visible update in aggregate copy/update syntax.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateUpdateContract {
     pub path: String,
     pub target_ty: TypeId,
@@ -387,7 +387,7 @@ pub struct WithUpdateUpdateContract {
 }
 
 /// One segment in an aggregate copy/update path.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdatePathSegmentContract {
     pub aggregate_prefix: String,
     pub aggregate_ty: TypeId,
@@ -396,7 +396,7 @@ pub struct WithUpdatePathSegmentContract {
 }
 
 /// Copy/update path segment family.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WithUpdatePathSegmentKind {
     StructField {
         owner_fqn: String,
@@ -413,35 +413,35 @@ pub enum WithUpdatePathSegmentKind {
 }
 
 /// Resolved enum shape for aggregate copy/update syntax.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateResolvedEnum {
     pub enum_fqn: String,
     pub variants: Vec<WithUpdateResolvedEnumVariant>,
 }
 
 /// Resolved enum variant shape for aggregate copy/update syntax.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateResolvedEnumVariant {
     pub name: String,
     pub fields: Vec<WithUpdateResolvedEnumField>,
 }
 
 /// Resolved enum field shape for aggregate copy/update syntax.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateResolvedEnumField {
     pub name: String,
     pub ty: TypeId,
 }
 
 /// Structured typed payload for `perform` / `handle` sites.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PayloadTypeContract {
     pub ty: Option<TypeId>,
     pub components: Vec<TypeId>,
 }
 
 /// Single `perform` site typed contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PerformSiteContract {
     pub identity: SourceSiteIdentity,
     pub effect_ty: TypeId,
@@ -452,14 +452,14 @@ pub struct PerformSiteContract {
 }
 
 /// Stable typed HIR kind for a `handle` arm.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum HandleArmContractKind {
     NonResuming,
     EscapeContinuation,
 }
 
 /// Single `handle` arm typed contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleArmSiteContract {
     pub handled_effect_ty: TypeId,
     pub op_fqn: String,
@@ -469,7 +469,7 @@ pub struct HandleArmSiteContract {
 }
 
 /// Single `handle { ... } with { ... }` site typed contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleSiteContract {
     pub identity: SourceSiteIdentity,
     pub result_ty: TypeId,
@@ -479,14 +479,14 @@ pub struct HandleSiteContract {
 }
 
 /// MIR lowering should not rediscover the continuation receiver from callee syntax.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ContinuationResumeReceiverRoute {
     CallArg { index: usize },
     MemberReceiver,
 }
 
 /// Typed contract for a continuation resume site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ContinuationResumeContract {
     pub identity: SourceSiteIdentity,
     pub receiver_route: ContinuationResumeReceiverRoute,
@@ -507,7 +507,7 @@ impl ContinuationResumeContract {
 }
 
 /// Precise type assigned to a source pattern binding.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PatternBindingContract {
     pub identity: SourceSiteIdentity,
     pub binding_name: String,
@@ -515,7 +515,7 @@ pub struct PatternBindingContract {
 }
 
 /// Typed HIR handoff root for top-level initialization/storage ordering.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TopLevelInitRootContract {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -528,7 +528,7 @@ pub struct TopLevelInitRootContract {
 }
 
 /// Top-level initialization root family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TopLevelInitRootKind {
     RuntimeImmutableVal,
     RuntimeMutableVar { storage: GlobalStoragePolicy },
@@ -536,21 +536,21 @@ pub enum TopLevelInitRootKind {
 }
 
 /// Initialization dependency edge for a top-level root.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TopLevelInitDependency {
     pub fqn: String,
     pub kind: TopLevelInitDependencyKind,
 }
 
 /// Initialization dependency family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TopLevelInitDependencyKind {
     TopLevelValue,
     ObjectSingleton,
 }
 
 /// Typed HIR handoff contract for an `@Extern` top-level variable.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ExternGlobalContract {
     pub fqn: String,
     pub source_path: PathBuf,
@@ -565,7 +565,7 @@ pub struct ExternGlobalContract {
 }
 
 /// Extern global linkage family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ExternGlobalLinkage {
     External,
 }

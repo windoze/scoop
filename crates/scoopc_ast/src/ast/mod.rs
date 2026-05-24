@@ -602,7 +602,7 @@ impl std::fmt::Debug for AnnotationArg {
 /// 类型参数的变型标记（spec §3.2~§3.3）。
 ///
 /// 说明：当前阶段（T0249）仅做语法层“解析并存储”，不做任何合法性校验。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeParamVariance {
     In,
     Out,
@@ -798,7 +798,7 @@ impl std::fmt::Debug for TypeDecl {
 }
 
 /// object 声明（Appendix B.9）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ObjectKind {
     /// `object Name { ... }`
     Object,
@@ -931,7 +931,7 @@ pub struct InitBlockDecl {
 /// - delegation call 的参数列表按“调用参数列表”规则解析（支持命名参数/`*spread` 等语法），
 ///   但其语义门禁与调用规则由后续 typecheck/lowering 决定；
 /// - 更完整的调用解析与语义检查交给后续阶段。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CtorDelegationKind {
     This,
     Super,
@@ -1091,7 +1091,7 @@ pub enum AccessorBody {
     Missing,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeKind {
     Class,
     Interface,
@@ -1324,7 +1324,7 @@ pub enum AssignPlaceContractKind {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AssignWriteBarrierRequirement {
     NotRequired,
     StorageSlot { slot_ty: TypeId },
@@ -1398,7 +1398,7 @@ pub struct StructLitField {
     pub value: Expr,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BinaryOp {
     // arithmetic
     Add,
@@ -1438,7 +1438,7 @@ pub enum BinaryOp {
     Elvis,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum UnaryOp {
     /// `!expr`
     Not,
@@ -1449,7 +1449,7 @@ pub enum UnaryOp {
 }
 
 /// 类型相关的表达式操作符：运行期类型判断。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeCheckOp {
     /// `expr is Type`
     Is,
@@ -1458,7 +1458,7 @@ pub enum TypeCheckOp {
 }
 
 /// 类型相关的表达式操作符：显式转换。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CastOp {
     /// `expr as Type`（失败时抛出/raise，由后续阶段决定）
     As,
@@ -2451,7 +2451,7 @@ fn collect_pattern_bound_idents(pattern: &Pattern, out: &mut Vec<Ident>) {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ValKind {
     Val,
     Var,

@@ -5,7 +5,7 @@ use scoopc_ids::StageArtifactKey;
 use crate::common::MirBodyReference;
 
 /// Metadata published for pass-visible MIR artifacts.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PassArtifactMetadata {
     pub revisions: Vec<PassArtifactRevision>,
     pub callable_body_overrides: Vec<CallableBodyArtifact>,
@@ -24,7 +24,7 @@ impl PassArtifactMetadata {
 }
 
 /// Revision marker for a pass artifact table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PassArtifactRevision {
     pub key: StageArtifactKey,
     pub pass_name: String,
@@ -43,7 +43,7 @@ impl PassArtifactRevision {
 }
 
 /// Metadata for a pass-published callable body override.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CallableBodyArtifact {
     pub revision: StageArtifactKey,
     pub body: MirBodyReference,
@@ -57,7 +57,7 @@ impl CallableBodyArtifact {
 }
 
 /// Metadata for a pass-published summary table entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SummaryArtifact {
     pub revision: StageArtifactKey,
     pub owner: StageArtifactKey,
@@ -71,7 +71,7 @@ impl SummaryArtifact {
 }
 
 /// Metadata for MIR escape facts produced by a pass revision.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EscapeFactsArtifact {
     pub revision: StageArtifactKey,
     pub body_count: usize,

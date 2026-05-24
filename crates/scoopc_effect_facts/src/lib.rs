@@ -32,13 +32,27 @@ pub use schema::{
 };
 
 /// Complete effect/control fact product published by the effect-facts stage.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EffectFacts {
+    pub schema_version: scoopc_types::WireSchemaVersion,
     pub snapshot_binding: EffectSnapshotBinding,
     pub step_schemas: BTreeMap<StepSchemaId, StepSchema>,
     pub continuation_schemas: BTreeMap<ContinuationSchemaId, ContinuationSchema>,
     pub callables: BTreeMap<StableEffectInstanceKey, CallableEffectFacts>,
     pub bodies: BTreeMap<StableEffectInstanceKey, BodyEffectFacts>,
+}
+
+impl Default for EffectFacts {
+    fn default() -> Self {
+        Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
+            snapshot_binding: EffectSnapshotBinding::default(),
+            step_schemas: BTreeMap::new(),
+            continuation_schemas: BTreeMap::new(),
+            callables: BTreeMap::new(),
+            bodies: BTreeMap::new(),
+        }
+    }
 }
 
 impl EffectFacts {
@@ -56,6 +70,7 @@ impl EffectFacts {
         bodies: BTreeMap<StableEffectInstanceKey, BodyEffectFacts>,
     ) -> Self {
         Self {
+            schema_version: scoopc_types::WIRE_SCHEMA_VERSION,
             snapshot_binding,
             step_schemas,
             continuation_schemas,
@@ -104,6 +119,16 @@ mod tests {
         assert!(dump.contains("snapshot_binding: surface=PassView"));
         assert!(dump.contains("schemas: steps=0 continuations=0"));
         assert!(dump.contains("bodies=0"));
+    }
+
+    #[test]
+    fn effect_facts_bincode_round_trip_preserves_schema_and_content() {
+        let facts = EffectFacts::new();
+        let bytes = bincode::serialize(&facts).expect("serialize effect facts");
+        let decoded: EffectFacts = bincode::deserialize(&bytes).expect("deserialize effect facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
     }
 
     #[test]

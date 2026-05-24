@@ -4,7 +4,7 @@ use scoopc_ids::StageArtifactKey;
 use scoopc_project_model::{OptLevel, StableConeKey};
 
 /// Published MIR snapshot bindings for one cone compilation unit.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SnapshotBindings {
     pub canonical: Option<StageArtifactKey>,
     pub snapshots: Vec<MaterializedSnapshotBinding>,
@@ -18,7 +18,7 @@ impl SnapshotBindings {
 }
 
 /// Metadata that binds a canonical materialized snapshot to its cone and opt level.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MaterializedSnapshotBinding {
     pub key: StageArtifactKey,
     pub cone: StableConeKey,

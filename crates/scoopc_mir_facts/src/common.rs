@@ -6,7 +6,7 @@ use scoopc_source::SourceMapSpan;
 use scoopc_types::TypeId;
 
 /// Stage-neutral identity for a MIR-published fact.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FactIdentity {
     pub key: CanonicalTextKey,
     pub display_name: String,
@@ -37,7 +37,7 @@ impl FactIdentity {
 }
 
 /// Stable reference to a direct-style or materialized MIR body.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MirBodyReference {
     pub key: BodyVersionKey,
     pub owner: CanonicalTextKey,
@@ -63,7 +63,7 @@ impl MirBodyReference {
 }
 
 /// Stable reference to a MIR-stage artifact such as a snapshot or revision.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MirArtifactReference {
     pub key: StageArtifactKey,
     pub label: String,

@@ -4,7 +4,9 @@ use scoopc_ids::StableEffectInstanceKey;
 use scoopc_types::TypeId;
 
 /// Stable identity of a `StepSchema(F)` fact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct StepSchemaId(u32);
 
 impl StepSchemaId {
@@ -18,7 +20,9 @@ impl StepSchemaId {
 }
 
 /// Stable identity of a continuation schema fact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct ContinuationSchemaId(u32);
 
 impl ContinuationSchemaId {
@@ -32,7 +36,9 @@ impl ContinuationSchemaId {
 }
 
 /// Stable case tag inside one `StepSchema`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct CaseTag(u32);
 
 impl CaseTag {
@@ -46,7 +52,9 @@ impl CaseTag {
 }
 
 /// Specialized effect family identity used by concrete operation cases.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct EffectFamilyKey {
     effect_fqn: String,
     type_args: Vec<TypeId>,
@@ -70,7 +78,9 @@ impl EffectFamilyKey {
 }
 
 /// Concrete effect operation selected by a step case.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct ConcreteOpKey {
     stable_instance_key: StableEffectInstanceKey,
     effect_family: EffectFamilyKey,
@@ -97,7 +107,7 @@ impl ConcreteOpKey {
 }
 
 /// Stable subset of cases inside one step schema.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CaseSet {
     schema: StepSchemaId,
     tags: Vec<CaseTag>,
@@ -124,7 +134,7 @@ impl CaseSet {
 }
 
 /// Lowering plan selected after effect facts are solved.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ImplPlan {
     NoOutward,
     SingleCase(CaseTag),
@@ -132,7 +142,7 @@ pub enum ImplPlan {
 }
 
 /// Single canonical case inside one step schema.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StepCaseFact {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
@@ -173,7 +183,7 @@ impl StepCaseFact {
 }
 
 /// Continuation surface/resume contract for one captured continuation shape.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ContinuationSchema {
     resume_tuple_ty: TypeId,
     answer_ty: TypeId,
@@ -214,7 +224,7 @@ impl ContinuationSchema {
 }
 
 /// Canonical `StepSchema(F)` for one callable or local control owner.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StepSchema {
     invoke_args_tuple_ty: TypeId,
     complete_ty: TypeId,

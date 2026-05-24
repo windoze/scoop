@@ -8,7 +8,7 @@ use scoopc_source::{SourceId, SourceMapSpan};
 use scoopc_types::BuiltinTypes;
 
 /// Facts that reference, but do not duplicate, the HIR type context.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct TypeContextFacts {
     pub type_universe: Option<TypeContextReference>,
     pub stable_type_params: Vec<StableTypeParamFact>,
@@ -25,7 +25,7 @@ impl TypeContextFacts {
 }
 
 /// Stable reference to the HIR-owned `TypeStore` used by these facts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct TypeContextReference {
     pub label: String,
     pub type_count: usize,
@@ -33,7 +33,7 @@ pub struct TypeContextReference {
 }
 
 /// Stable owner/index key for a type or effect parameter.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StableTypeParamFact {
     pub owner: CanonicalTextKey,
     pub index: u32,
@@ -43,7 +43,7 @@ pub struct StableTypeParamFact {
 }
 
 /// Source file ownership by cone after source-cone graph resolution.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceConeFact {
     pub source_id: Option<SourceId>,
     pub source_path: PathBuf,

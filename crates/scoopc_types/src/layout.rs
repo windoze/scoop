@@ -8,7 +8,7 @@
 //! - 当前实现使用“宿主机（host）指针大小/对齐”作为 target layout（T0803 会替换为真实 target machine）。
 //! - 当前只建模我们在前端阶段需要的最小信息：size/align、niche domain、enum tag 类型、以及 variant boxing 决策。
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TargetLayout {
     pub pointer_size: u64,
     pub pointer_align: u64,
@@ -27,7 +27,7 @@ impl TargetLayout {
 }
 
 /// niche 的存储类型（用于解释 `none_value`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NicheStorage {
     Pointer,
     U8,
@@ -41,7 +41,7 @@ pub enum NicheStorage {
 ///   并把剩余 domain 传递给外层（支持 nested niche，例如 `Option<Option<Bool>>`）。
 ///   对于 `Pointer` niche（GC-managed ref），实现侧会额外收紧规则以满足 GC trace safety：
 ///   只允许 `None = NULL`，并禁止把“剩余 niche domain”继续向外传播（见 spec §2.3.2；T1518）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NicheDomain {
     pub storage: NicheStorage,
     pub next: u64,
@@ -69,7 +69,7 @@ impl NicheDomain {
 }
 
 /// 一个类型的最小布局信息。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TypeLayout {
     pub size: u64,
     pub align: u64,
@@ -94,7 +94,7 @@ impl TypeLayout {
 }
 
 /// enum tag 的表示类型（spec §2.3.2）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EnumTagType {
     U8,
     U16,
@@ -126,7 +126,7 @@ impl EnumTagType {
 }
 
 /// `Option<T>` / rich enum 的表示选择。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EnumRepr {
     /// 常规 tagged union：`tag + union`。
     TaggedUnion { tag: EnumTagType },
@@ -145,7 +145,7 @@ pub enum EnumRepr {
 }
 
 /// 单个 enum variant 的布局决策（只记录 boxing 与 payload layout）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantLayout {
     pub name: String,
     pub boxed: bool,
@@ -153,7 +153,7 @@ pub struct EnumVariantLayout {
 }
 
 /// 一个 enum（或 enum-like，例如 `Option<T>`）的布局摘要。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EnumLayout {
     pub repr: EnumRepr,
     pub layout: TypeLayout,

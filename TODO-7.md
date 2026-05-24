@@ -735,7 +735,7 @@
 
 利用 P9 已经独立出来的 stage / fact crate 边界，让每个 cone 的编译产物落地到磁盘，下游 cone 通过反序列化 fact 注入而不是吃源码。
 
-### [TODO] P10-T01：解决 `TypeId` cross-process stable wire format
+### [DONE] P10-T01：解决 `TypeId` cross-process stable wire format
 
 - 参考：
   - 本文件"进入门禁"
@@ -771,6 +771,12 @@
   - schema version 字段就位；
   - 选择的方案在完成记录里有明确依据。
 - 依赖：P9-T09R
+- 完成记录：
+  - 2026-05-24：选择方案 B（portable `TypeStore` serialization）并落地。理由：当前 facts/LIR 已大量以本地 `TypeId` 表达类型关系，直接替换为文本 key 会扩大 schema 改动并丢失进程内查询效率；按 `TypeStore` 的拓扑序 `TypeKind` 列表序列化，可让下游进程先重建同构本地 type universe，再安全消费 facts/LIR 内的 `TypeId`。
+  - 新增 `WireSchemaVersion` / `WIRE_SCHEMA_VERSION`，并把 schema version 挂到 `HirFacts`、`MirFacts`、`EffectFacts`、`LirFacts` 与 `LateLoweredProgram`；新增 portable `TypeStore` serde 实现，反序列化时重建 hash-cons index 并校验所有子 `TypeId` 引用范围。
+  - 为 base identity/source/span/project/type 类型、四套 fact crate、LIR facts、LIR program 与必要 MIR/HIR source payload 增加 `Serialize` / `Deserialize`；MIR/HIR placeholder reason 改为 wire-friendly owned string或显式静态字符串 serde helper，并同步 placeholder inventory guard。
+  - 新增 bincode round-trip 测试：`scoopc_types` 覆盖含 builtin、nominal、function、effect row 的 `TypeStore` 往返；四套 fact crate覆盖 schema/content 往返；`scoopc_lir` 覆盖 `LateLoweredProgram` 往返。新增字段后必须继续满足同一 wire-format 约束：持久化结构需可 serde 往返，并通过 schema version 管理兼容性。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_types -p scoopc_hir_facts -p scoopc_mir_facts -p scoopc_effect_facts -p scoopc_lir_facts -p scoopc_lir`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507/1507，fixtures: ok 1536）；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
 ### [TODO] P10-T01R：Review TypeStore wire format
 
