@@ -738,6 +738,7 @@ dependencies = [
 name = "scoopc_cone"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "miette",
  "scoopc_ast",
  "scoopc_codegen_llvm",
@@ -758,6 +759,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tar",
+ "tempfile",
  "thiserror",
 ]
 

@@ -1,0 +1,458 @@
+//! Per-cone build artifact disk layout and read/write API.
+//!
+//! A cone artifact is a directory tree rooted at
+//! `build/<profile>/cones/<cone-name>@<version>/`. The root contains a JSON
+//! manifest with cone identity, compiler version, and schema versions for every
+//! persisted product. Stage products are stored next to it as bincode payloads:
+//! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_facts.bin`, and
+//! `lir_program.bin`. Object files live under `objs/`, while
+//! `inputs.fingerprint` and `outputs.fingerprint` record cache identity.
+//!
+//! Compatibility is intentionally coarse-grained: if the compiler version or any
+//! persisted schema version in `manifest.json` is incompatible with the current
+//! compiler, the whole cone should be rebuilt instead of attempting partial
+//! migration.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use scoopc_effect_facts::EffectFacts;
+use scoopc_hir_facts::HirFacts;
+use scoopc_lir::LateLoweredProgram;
+use scoopc_lir_facts::LirFacts;
+use scoopc_mir_facts::MirFacts;
+use scoopc_project_model::StableConeKey;
+use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use thiserror::Error;
+
+pub const CONE_ARTIFACT_MANIFEST_FILE_NAME: &str = "manifest.json";
+pub const CONE_ARTIFACT_HIR_FACTS_FILE_NAME: &str = "hir_facts.bin";
+pub const CONE_ARTIFACT_MIR_FACTS_FILE_NAME: &str = "mir_facts.bin";
+pub const CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME: &str = "effect_facts.bin";
+pub const CONE_ARTIFACT_LIR_FACTS_FILE_NAME: &str = "lir_facts.bin";
+pub const CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME: &str = "lir_program.bin";
+pub const CONE_ARTIFACT_OBJS_DIR_NAME: &str = "objs";
+pub const CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME: &str = "inputs.fingerprint";
+pub const CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME: &str = "outputs.fingerprint";
+
+const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Result type for per-cone artifact IO.
+pub type Result<T> = std::result::Result<T, ConeArtifactError>;
+
+/// Errors reported while reading or writing a cone artifact directory.
+#[derive(Debug, Error)]
+pub enum ConeArtifactError {
+    #[error("failed to access cone artifact path `{path}`")]
+    Io {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("failed to encode cone artifact JSON manifest")]
+    ManifestEncode(#[from] serde_json::Error),
+    #[error("failed to encode or decode cone artifact binary payload `{path}`")]
+    Binary {
+        path: PathBuf,
+        #[source]
+        source: Box<bincode::ErrorKind>,
+    },
+    #[error("invalid object file name `{file_name}` in cone artifact")]
+    InvalidObjectFileName { file_name: String },
+}
+
+/// JSON metadata stored in `manifest.json`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConeArtifactManifest {
+    pub cone_name: String,
+    pub cone_version: String,
+    pub compiler_version: String,
+    pub schema_versions: ConeArtifactSchemaVersions,
+    pub object_files: Vec<String>,
+}
+
+impl ConeArtifactManifest {
+    /// Build manifest metadata for the current compiler and wire schema.
+    pub fn current(cone: &StableConeKey, object_files: Vec<String>) -> Self {
+        Self {
+            cone_name: cone.name().to_owned(),
+            cone_version: cone.version().to_owned(),
+            compiler_version: COMPILER_VERSION.to_owned(),
+            schema_versions: ConeArtifactSchemaVersions::current(),
+            object_files,
+        }
+    }
+
+    /// Return this manifest's stable cone identity.
+    pub fn stable_cone_key(&self) -> StableConeKey {
+        StableConeKey::new(&self.cone_name, &self.cone_version)
+    }
+}
+
+/// Schema versions for every persisted fact and LIR payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConeArtifactSchemaVersions {
+    pub hir_facts: WireSchemaVersion,
+    pub mir_facts: WireSchemaVersion,
+    pub effect_facts: WireSchemaVersion,
+    pub lir_facts: WireSchemaVersion,
+    pub lir_program: WireSchemaVersion,
+}
+
+impl ConeArtifactSchemaVersions {
+    /// Use the currently linked wire schema for every persisted payload.
+    pub const fn current() -> Self {
+        Self {
+            hir_facts: WIRE_SCHEMA_VERSION,
+            mir_facts: WIRE_SCHEMA_VERSION,
+            effect_facts: WIRE_SCHEMA_VERSION,
+            lir_facts: WIRE_SCHEMA_VERSION,
+            lir_program: WIRE_SCHEMA_VERSION,
+        }
+    }
+}
+
+/// Object file payload stored under the artifact `objs/` directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConeArtifactObject {
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+}
+
+impl ConeArtifactObject {
+    /// Construct an object entry and reject names that would escape `objs/`.
+    pub fn new(file_name: impl Into<String>, bytes: Vec<u8>) -> Result<Self> {
+        let file_name = file_name.into();
+        validate_object_file_name(&file_name)?;
+        Ok(Self { file_name, bytes })
+    }
+}
+
+/// Persisted stage products stored as bincode files in the artifact root.
+#[derive(Debug, Clone)]
+pub struct ConeArtifactStageProducts {
+    pub hir_facts: HirFacts,
+    pub mir_facts: MirFacts,
+    pub effect_facts: EffectFacts,
+    pub lir_facts: LirFacts,
+    pub lir_program: LateLoweredProgram,
+}
+
+impl ConeArtifactStageProducts {
+    /// Construct the complete set of persisted stage products.
+    pub fn new(
+        hir_facts: HirFacts,
+        mir_facts: MirFacts,
+        effect_facts: EffectFacts,
+        lir_facts: LirFacts,
+        lir_program: LateLoweredProgram,
+    ) -> Self {
+        Self {
+            hir_facts,
+            mir_facts,
+            effect_facts,
+            lir_facts,
+            lir_program,
+        }
+    }
+}
+
+/// Input/output fingerprint payloads stored next to stage products.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ConeArtifactFingerprints {
+    pub inputs: Vec<u8>,
+    pub outputs: Vec<u8>,
+}
+
+impl ConeArtifactFingerprints {
+    /// Construct artifact fingerprints from precomputed bytes.
+    pub fn new(inputs: Vec<u8>, outputs: Vec<u8>) -> Self {
+        Self { inputs, outputs }
+    }
+}
+
+/// Complete on-disk artifact for one source cone.
+#[derive(Debug, Clone)]
+pub struct ConeArtifact {
+    pub manifest: ConeArtifactManifest,
+    pub hir_facts: HirFacts,
+    pub mir_facts: MirFacts,
+    pub effect_facts: EffectFacts,
+    pub lir_facts: LirFacts,
+    pub lir_program: LateLoweredProgram,
+    pub objects: Vec<ConeArtifactObject>,
+    pub inputs_fingerprint: Vec<u8>,
+    pub outputs_fingerprint: Vec<u8>,
+}
+
+impl ConeArtifact {
+    /// Construct an artifact with current manifest schema metadata.
+    pub fn new(
+        cone: StableConeKey,
+        hir_facts: HirFacts,
+        mir_facts: MirFacts,
+        effect_facts: EffectFacts,
+        lir_facts: LirFacts,
+        lir_program: LateLoweredProgram,
+    ) -> Self {
+        Self::with_parts(
+            cone,
+            ConeArtifactStageProducts::new(
+                hir_facts,
+                mir_facts,
+                effect_facts,
+                lir_facts,
+                lir_program,
+            ),
+            Vec::new(),
+            ConeArtifactFingerprints::default(),
+        )
+    }
+
+    /// Construct an artifact with object and fingerprint payloads.
+    pub fn with_parts(
+        cone: StableConeKey,
+        products: ConeArtifactStageProducts,
+        objects: Vec<ConeArtifactObject>,
+        fingerprints: ConeArtifactFingerprints,
+    ) -> Self {
+        let object_files = objects
+            .iter()
+            .map(|object| object.file_name.clone())
+            .collect();
+        Self {
+            manifest: ConeArtifactManifest::current(&cone, object_files),
+            hir_facts: products.hir_facts,
+            mir_facts: products.mir_facts,
+            effect_facts: products.effect_facts,
+            lir_facts: products.lir_facts,
+            lir_program: products.lir_program,
+            objects,
+            inputs_fingerprint: fingerprints.inputs,
+            outputs_fingerprint: fingerprints.outputs,
+        }
+    }
+
+    /// Write this artifact into `dir`, creating the documented layout.
+    pub fn write(&self, dir: &Path) -> Result<()> {
+        create_dir_all(dir)?;
+        let objs_dir = dir.join(CONE_ARTIFACT_OBJS_DIR_NAME);
+        create_dir_all(&objs_dir)?;
+
+        let mut manifest = self.manifest.clone();
+        manifest.object_files = self
+            .objects
+            .iter()
+            .map(|object| object.file_name.clone())
+            .collect();
+
+        write_json(&dir.join(CONE_ARTIFACT_MANIFEST_FILE_NAME), &manifest)?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_HIR_FACTS_FILE_NAME),
+            &self.hir_facts,
+        )?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_MIR_FACTS_FILE_NAME),
+            &self.mir_facts,
+        )?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME),
+            &self.effect_facts,
+        )?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME),
+            &self.lir_facts,
+        )?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME),
+            &self.lir_program,
+        )?;
+        write_bytes(
+            &dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME),
+            &self.inputs_fingerprint,
+        )?;
+        write_bytes(
+            &dir.join(CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME),
+            &self.outputs_fingerprint,
+        )?;
+
+        for object in &self.objects {
+            validate_object_file_name(&object.file_name)?;
+            write_bytes(&objs_dir.join(&object.file_name), &object.bytes)?;
+        }
+
+        Ok(())
+    }
+
+    /// Read a complete cone artifact from `dir`.
+    pub fn read(dir: &Path) -> Result<Self> {
+        let manifest: ConeArtifactManifest =
+            read_json(&dir.join(CONE_ARTIFACT_MANIFEST_FILE_NAME))?;
+        let objs_dir = dir.join(CONE_ARTIFACT_OBJS_DIR_NAME);
+        let mut objects = Vec::with_capacity(manifest.object_files.len());
+        for file_name in &manifest.object_files {
+            validate_object_file_name(file_name)?;
+            objects.push(ConeArtifactObject {
+                file_name: file_name.clone(),
+                bytes: read_bytes(&objs_dir.join(file_name))?,
+            });
+        }
+
+        Ok(Self {
+            hir_facts: read_bincode(&dir.join(CONE_ARTIFACT_HIR_FACTS_FILE_NAME))?,
+            mir_facts: read_bincode(&dir.join(CONE_ARTIFACT_MIR_FACTS_FILE_NAME))?,
+            effect_facts: read_bincode(&dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME))?,
+            lir_facts: read_bincode(&dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME))?,
+            lir_program: read_bincode(&dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME))?,
+            inputs_fingerprint: read_bytes(&dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME))?,
+            outputs_fingerprint: read_bytes(
+                &dir.join(CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME),
+            )?,
+            manifest,
+            objects,
+        })
+    }
+}
+
+fn validate_object_file_name(file_name: &str) -> Result<()> {
+    let path = Path::new(file_name);
+    if file_name.is_empty() || path.components().count() != 1 || path.file_name().is_none() {
+        return Err(ConeArtifactError::InvalidObjectFileName {
+            file_name: file_name.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn create_dir_all(path: &Path) -> Result<()> {
+    fs::create_dir_all(path).map_err(|source| ConeArtifactError::Io {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
+    let bytes = serde_json::to_vec_pretty(value)?;
+    write_bytes(path, &bytes)
+}
+
+fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
+    let bytes = read_bytes(path)?;
+    serde_json::from_slice(&bytes).map_err(ConeArtifactError::ManifestEncode)
+}
+
+fn write_bincode<T: Serialize>(path: &Path, value: &T) -> Result<()> {
+    let bytes = bincode::serialize(value).map_err(|source| ConeArtifactError::Binary {
+        path: path.to_owned(),
+        source,
+    })?;
+    write_bytes(path, &bytes)
+}
+
+fn read_bincode<T: DeserializeOwned>(path: &Path) -> Result<T> {
+    let bytes = read_bytes(path)?;
+    bincode::deserialize(&bytes).map_err(|source| ConeArtifactError::Binary {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+fn write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
+    fs::write(path, bytes).map_err(|source| ConeArtifactError::Io {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+fn read_bytes(path: &Path) -> Result<Vec<u8>> {
+    fs::read(path).map_err(|source| ConeArtifactError::Io {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use scoopc_lir::LateLoweredProgram;
+    use scoopc_project_model::OptLevel;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn cone_artifact_round_trip_preserves_stage_products_and_layout() {
+        let dir = tempdir().expect("create temp dir");
+        let cone = StableConeKey::new("upstream-lib", "1.2.3");
+        let artifact = ConeArtifact::with_parts(
+            cone.clone(),
+            ConeArtifactStageProducts::new(
+                HirFacts::new(),
+                MirFacts::new(),
+                EffectFacts::new(),
+                LirFacts::new(OptLevel::O2),
+                LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+            ),
+            vec![
+                ConeArtifactObject::new("scoop.o", b"scoop object".to_vec())
+                    .expect("valid scoop object"),
+                ConeArtifactObject::new("native_runtime.o", b"native object".to_vec())
+                    .expect("valid native object"),
+            ],
+            ConeArtifactFingerprints::new(
+                b"inputs:fingerprint".to_vec(),
+                b"outputs:fingerprint".to_vec(),
+            ),
+        );
+
+        artifact.write(dir.path()).expect("write artifact");
+        let decoded = ConeArtifact::read(dir.path()).expect("read artifact");
+
+        assert_eq!(decoded.manifest.stable_cone_key(), cone);
+        assert_eq!(decoded.manifest.compiler_version, COMPILER_VERSION);
+        assert_eq!(
+            decoded.manifest.schema_versions,
+            ConeArtifactSchemaVersions::current()
+        );
+        assert_eq!(decoded.hir_facts, artifact.hir_facts);
+        assert_eq!(decoded.mir_facts, artifact.mir_facts);
+        assert_eq!(decoded.effect_facts, artifact.effect_facts);
+        assert_eq!(decoded.lir_facts, artifact.lir_facts);
+        assert!(decoded.lir_program.is_empty());
+        assert_eq!(decoded.objects, artifact.objects);
+        assert_eq!(decoded.inputs_fingerprint, artifact.inputs_fingerprint);
+        assert_eq!(decoded.outputs_fingerprint, artifact.outputs_fingerprint);
+
+        for relative in [
+            CONE_ARTIFACT_MANIFEST_FILE_NAME,
+            CONE_ARTIFACT_HIR_FACTS_FILE_NAME,
+            CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
+            CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME,
+            CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
+            CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+            CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
+            CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
+        ] {
+            assert!(dir.path().join(relative).is_file(), "missing {relative}");
+        }
+        assert!(
+            dir.path()
+                .join(CONE_ARTIFACT_OBJS_DIR_NAME)
+                .join("scoop.o")
+                .is_file()
+        );
+        assert!(
+            dir.path()
+                .join(CONE_ARTIFACT_OBJS_DIR_NAME)
+                .join("native_runtime.o")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn object_file_names_must_stay_inside_objs_dir() {
+        assert!(ConeArtifactObject::new("../escape.o", Vec::new()).is_err());
+        assert!(ConeArtifactObject::new("nested/escape.o", Vec::new()).is_err());
+        assert!(ConeArtifactObject::new("", Vec::new()).is_err());
+    }
+}

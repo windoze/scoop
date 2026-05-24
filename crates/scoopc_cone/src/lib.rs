@@ -9,6 +9,7 @@
 
 pub mod annotations;
 pub mod archive;
+pub mod artifact;
 pub mod consume;
 pub mod pre_specialize;
 pub mod scoopir;
@@ -21,6 +22,15 @@ pub use annotations::{
 pub use archive::{
     CONE_API_SCOOPIR_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME, list_cone_archive_entries,
     read_cone_archive_entry, try_read_cone_archive_entry, write_cone_archive_v0,
+};
+pub use artifact::{
+    CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_HIR_FACTS_FILE_NAME,
+    CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
+    CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
+    CONE_ARTIFACT_MIR_FACTS_FILE_NAME, CONE_ARTIFACT_OBJS_DIR_NAME,
+    CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, ConeArtifact, ConeArtifactError,
+    ConeArtifactFingerprints, ConeArtifactManifest, ConeArtifactObject, ConeArtifactSchemaVersions,
+    ConeArtifactStageProducts,
 };
 pub use consume::{
     ConeArchiveApi, inject_cone_dependency_public_api, load_cone_archive_api,

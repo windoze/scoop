@@ -793,7 +793,7 @@
   - 补强 review 发现的覆盖缺口：原 round-trip 多为空产品，新增复杂类型/控制合同测试，覆盖 generic type parameter、nominal args/use-site effect row、star projection/union、effect step schema、continuation schema、callable/body effect facts、LIR effect-step callable、dynamic invoke、resume packing、continuation object 与 surface resume dispatch。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_types -p scoopc_hir_facts -p scoopc_mir_facts -p scoopc_effect_facts -p scoopc_lir_facts -p scoopc_lir`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`git diff --check`。
 
-### [TODO] P10-T02：定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API
+### [DONE] P10-T02：定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API
 
 - 参考：本文件"Per-cone build artifact 现状基线"。
 - 目标：
@@ -834,6 +834,12 @@
   - artifact IO 单测通过；
   - 磁盘布局文档化。
 - 依赖：P10-T01R
+- 完成记录：
+  - 2026-05-24：在 `scoopc_cone::artifact` 发布 per-cone build artifact API：`ConeArtifact`、`ConeArtifactManifest`、`ConeArtifactSchemaVersions`、stage product/fingerprint 分组，以及 `ConeArtifact::write(&self, dir: &Path)` / `ConeArtifact::read(dir: &Path)`。
+  - 磁盘布局按任务要求落地并文档化：`manifest.json` 记录 cone name/version、compiler version、HIR/MIR/effect/LIR facts 与 LIR program schema version；五个 stage payload 使用 bincode 写入 `hir_facts.bin` / `mir_facts.bin` / `effect_facts.bin` / `lir_facts.bin` / `lir_program.bin`；objects 写入 `objs/`；fingerprint bytes 写入 `inputs.fingerprint` / `outputs.fingerprint`。
+  - 与现有 ScoopIR consume 路径并存：本任务只新增 artifact IO surface 和 public re-export，没有切换 `inject_cone_dependency_public_api`。
+  - 新增 `scoopc_cone` 单测覆盖写入 → 读取 → fact/LIR/object/fingerprint 等价、布局文件存在性，以及 object file name 不得逃逸 `objs/`。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`git diff --check`。
 
 ### [TODO] P10-T02R：Review per-cone artifact schema
 
