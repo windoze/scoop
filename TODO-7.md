@@ -853,7 +853,7 @@
   - 新增 `scoopc_cone` 回归测试覆盖 incompatible compiler version 与 schema version 拒绝路径，保留原有写入 -> 读取 -> stage product/object/fingerprint/layout 等价验证。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`git diff --check`。
 
-### [TODO] P10-T03-a：补齐 `ConeArtifact` frontend import payload
+### [DONE] P10-T03-a：补齐 `ConeArtifact` frontend import payload
 
 - 阻塞原因：
   - 执行 P10-T03 前置审计时发现，P10-T02 的 `ConeArtifact` 只持久化 HIR/MIR/effect/LIR facts、LIR program、objects 与 fingerprints；
@@ -886,6 +886,12 @@
   - P10-T03 可以在不读取上游 source、不临时重新导出 ScoopIR 的情况下实现 `import_upstream_artifacts(&[&ConeArtifact], &mut Index, &mut TypeEnv)`；
   - 完成记录说明选择复用 ScoopIR payload 或新增 payload 的依据。
 - 依赖：P10-T02R
+- 完成记录：
+  - 2026-05-24：补齐 per-cone artifact frontend import payload。选择复用现有 `.cone` ScoopIR / annotation classes / symbol visibility / pre-specialize schema，封装为 artifact-owned `ConeArtifactFrontendImport` 并持久化为 `frontend_import.json`；选择 JSON 而不是 bincode 的依据是这些 schema 已按 JSON/tagged enum surface 设计并用于 `.cone` 兼容边界，避免新增平行 wire model 或从上游源码重新导出。
+  - `manifest.json` 的 `ConeArtifactSchemaVersions` 新增 `frontend_import` schema version；`ConeArtifact::read` 对缺失 frontend schema 或缺失 `frontend_import.json` 显式报错并要求整 cone 重编，保持 P10-T02 的 coarse-grained 兼容策略。
+  - 新增 artifact-to-frontend 注入基础：`inject_cone_artifact_frontend_import` 复用既有 `.cone` 注入逻辑，`import_upstream_artifacts(&[&ConeArtifact], &mut Index, &mut TypeEnv)` 可直接从 artifact payload 注入 public API、annotation metadata 与 non-public visibility placeholder，不读取上游 source、不临时重新导出 ScoopIR。
+  - 单测覆盖 artifact 写入 -> 读取 -> frontend payload 等价、缺失 payload/schema 的显式错误，以及 artifact payload 注入 `Index` / `TypeEnv` 的 public type/fun 与 hidden visibility 数据来源。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`git diff --check`。
 
 ### [TODO] P10-T03：`run_frontend` 改造为按 cone DAG 拓扑顺序运行
 

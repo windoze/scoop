@@ -5,13 +5,15 @@
 //! manifest with cone identity, compiler version, and schema versions for every
 //! persisted product. Stage products are stored next to it as bincode payloads:
 //! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_facts.bin`, and
-//! `lir_program.bin`. Object files live under `objs/`, while
+//! `lir_program.bin`; frontend import metadata is stored as
+//! `frontend_import.json` because it reuses the existing JSON-oriented `.cone`
+//! API schemas. Object files live under `objs/`, while
 //! `inputs.fingerprint` and `outputs.fingerprint` record cache identity.
 //!
 //! Compatibility is intentionally coarse-grained: if the compiler version or any
 //! persisted schema version in `manifest.json` is incompatible with the current
-//! compiler, the whole cone should be rebuilt instead of attempting partial
-//! migration.
+//! compiler, or if the frontend import payload is absent, the whole cone should
+//! be rebuilt instead of attempting partial migration.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,12 +28,18 @@ use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
+use crate::annotations::ConeAnnotationClassesFile;
+use crate::pre_specialize::ConePreSpecializeFile;
+use crate::scoopir::ScoopIrFile;
+use crate::visibility::ConeSymbolVisibilityFile;
+
 pub const CONE_ARTIFACT_MANIFEST_FILE_NAME: &str = "manifest.json";
 pub const CONE_ARTIFACT_HIR_FACTS_FILE_NAME: &str = "hir_facts.bin";
 pub const CONE_ARTIFACT_MIR_FACTS_FILE_NAME: &str = "mir_facts.bin";
 pub const CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME: &str = "effect_facts.bin";
 pub const CONE_ARTIFACT_LIR_FACTS_FILE_NAME: &str = "lir_facts.bin";
 pub const CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME: &str = "lir_program.bin";
+pub const CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME: &str = "frontend_import.json";
 pub const CONE_ARTIFACT_OBJS_DIR_NAME: &str = "objs";
 pub const CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME: &str = "inputs.fingerprint";
 pub const CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME: &str = "outputs.fingerprint";
@@ -71,6 +79,10 @@ pub enum ConeArtifactError {
     },
     #[error("invalid object file name `{file_name}` in cone artifact")]
     InvalidObjectFileName { file_name: String },
+    #[error(
+        "cone artifact is missing required frontend import payload `{file_name}`; rebuild the cone"
+    )]
+    MissingFrontendImportPayload { file_name: &'static str },
 }
 
 /// JSON metadata stored in `manifest.json`.
@@ -108,6 +120,11 @@ impl ConeArtifactManifest {
                 found: self.compiler_version.clone(),
             });
         }
+        if !self.schema_versions.has_frontend_import_payload() {
+            return Err(ConeArtifactError::MissingFrontendImportPayload {
+                file_name: CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
+            });
+        }
         let expected = ConeArtifactSchemaVersions::current();
         if self.schema_versions != expected {
             return Err(ConeArtifactError::IncompatibleSchemaVersions {
@@ -127,6 +144,8 @@ pub struct ConeArtifactSchemaVersions {
     pub effect_facts: WireSchemaVersion,
     pub lir_facts: WireSchemaVersion,
     pub lir_program: WireSchemaVersion,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frontend_import: Option<WireSchemaVersion>,
 }
 
 impl ConeArtifactSchemaVersions {
@@ -138,7 +157,13 @@ impl ConeArtifactSchemaVersions {
             effect_facts: WIRE_SCHEMA_VERSION,
             lir_facts: WIRE_SCHEMA_VERSION,
             lir_program: WIRE_SCHEMA_VERSION,
+            frontend_import: Some(WIRE_SCHEMA_VERSION),
         }
+    }
+
+    /// Return whether this manifest declares the required frontend import payload.
+    pub const fn has_frontend_import_payload(self) -> bool {
+        self.frontend_import.is_some()
     }
 }
 
@@ -187,6 +212,49 @@ impl ConeArtifactStageProducts {
     }
 }
 
+/// Frontend-facing import data persisted with a cone artifact.
+///
+/// This reuses the existing `.cone` schemas so downstream frontend injection can
+/// consume an artifact without re-reading upstream source or re-exporting
+/// temporary ScoopIR.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConeArtifactFrontendImport {
+    pub public_api: ScoopIrFile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub annotation_classes: Option<ConeAnnotationClassesFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol_visibility: Option<ConeSymbolVisibilityFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_specialize: Option<ConePreSpecializeFile>,
+}
+
+impl ConeArtifactFrontendImport {
+    /// Construct a frontend import payload from already exported cone metadata.
+    pub fn new(
+        public_api: ScoopIrFile,
+        annotation_classes: Option<ConeAnnotationClassesFile>,
+        symbol_visibility: Option<ConeSymbolVisibilityFile>,
+        pre_specialize: Option<ConePreSpecializeFile>,
+    ) -> Self {
+        Self {
+            public_api,
+            annotation_classes,
+            symbol_visibility,
+            pre_specialize,
+        }
+    }
+
+    /// Construct an empty import payload for cones with no exported frontend API.
+    pub fn empty() -> Self {
+        Self::new(
+            ScoopIrFile::new_v0(Vec::new(), Vec::new()),
+            None,
+            None,
+            None,
+        )
+    }
+}
+
 /// Input/output fingerprint payloads stored next to stage products.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ConeArtifactFingerprints {
@@ -210,6 +278,7 @@ pub struct ConeArtifact {
     pub effect_facts: EffectFacts,
     pub lir_facts: LirFacts,
     pub lir_program: LateLoweredProgram,
+    pub frontend_import: ConeArtifactFrontendImport,
     pub objects: Vec<ConeArtifactObject>,
     pub inputs_fingerprint: Vec<u8>,
     pub outputs_fingerprint: Vec<u8>,
@@ -224,6 +293,7 @@ impl ConeArtifact {
         effect_facts: EffectFacts,
         lir_facts: LirFacts,
         lir_program: LateLoweredProgram,
+        frontend_import: ConeArtifactFrontendImport,
     ) -> Self {
         Self::with_parts(
             cone,
@@ -234,6 +304,7 @@ impl ConeArtifact {
                 lir_facts,
                 lir_program,
             ),
+            frontend_import,
             Vec::new(),
             ConeArtifactFingerprints::default(),
         )
@@ -243,6 +314,7 @@ impl ConeArtifact {
     pub fn with_parts(
         cone: StableConeKey,
         products: ConeArtifactStageProducts,
+        frontend_import: ConeArtifactFrontendImport,
         objects: Vec<ConeArtifactObject>,
         fingerprints: ConeArtifactFingerprints,
     ) -> Self {
@@ -257,6 +329,7 @@ impl ConeArtifact {
             effect_facts: products.effect_facts,
             lir_facts: products.lir_facts,
             lir_program: products.lir_program,
+            frontend_import,
             objects,
             inputs_fingerprint: fingerprints.inputs,
             outputs_fingerprint: fingerprints.outputs,
@@ -297,6 +370,10 @@ impl ConeArtifact {
             &dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME),
             &self.lir_program,
         )?;
+        write_json(
+            &dir.join(CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME),
+            &self.frontend_import,
+        )?;
         write_bytes(
             &dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME),
             &self.inputs_fingerprint,
@@ -329,12 +406,20 @@ impl ConeArtifact {
             });
         }
 
+        let frontend_import_path = dir.join(CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME);
+        if !frontend_import_path.exists() {
+            return Err(ConeArtifactError::MissingFrontendImportPayload {
+                file_name: CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
+            });
+        }
+
         Ok(Self {
             hir_facts: read_bincode(&dir.join(CONE_ARTIFACT_HIR_FACTS_FILE_NAME))?,
             mir_facts: read_bincode(&dir.join(CONE_ARTIFACT_MIR_FACTS_FILE_NAME))?,
             effect_facts: read_bincode(&dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME))?,
             lir_facts: read_bincode(&dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME))?,
             lir_program: read_bincode(&dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME))?,
+            frontend_import: read_json(&frontend_import_path)?,
             inputs_fingerprint: read_bytes(&dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME))?,
             outputs_fingerprint: read_bytes(
                 &dir.join(CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME),
@@ -430,6 +515,7 @@ mod tests {
         assert_eq!(decoded.effect_facts, artifact.effect_facts);
         assert_eq!(decoded.lir_facts, artifact.lir_facts);
         assert!(decoded.lir_program.is_empty());
+        assert_eq!(decoded.frontend_import, artifact.frontend_import);
         assert_eq!(decoded.objects, artifact.objects);
         assert_eq!(decoded.inputs_fingerprint, artifact.inputs_fingerprint);
         assert_eq!(decoded.outputs_fingerprint, artifact.outputs_fingerprint);
@@ -441,6 +527,7 @@ mod tests {
             CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME,
             CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
             CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+            CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
             CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
             CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
         ] {
@@ -499,6 +586,44 @@ mod tests {
     }
 
     #[test]
+    fn read_rejects_missing_frontend_import_payload() {
+        let dir = tempdir().expect("create temp dir");
+        let artifact = sample_artifact(StableConeKey::new("upstream-lib", "1.2.3"));
+        artifact.write(dir.path()).expect("write artifact");
+        fs::remove_file(dir.path().join(CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME))
+            .expect("remove frontend import payload");
+
+        let error = ConeArtifact::read(dir.path()).expect_err("missing frontend import payload");
+        assert!(matches!(
+            error,
+            ConeArtifactError::MissingFrontendImportPayload {
+                file_name: CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME
+            }
+        ));
+    }
+
+    #[test]
+    fn read_rejects_manifest_without_frontend_import_schema_version() {
+        let dir = tempdir().expect("create temp dir");
+        let artifact = sample_artifact(StableConeKey::new("upstream-lib", "1.2.3"));
+        artifact.write(dir.path()).expect("write artifact");
+
+        let manifest_path = dir.path().join(CONE_ARTIFACT_MANIFEST_FILE_NAME);
+        let mut manifest: ConeArtifactManifest = read_json(&manifest_path).expect("read manifest");
+        manifest.schema_versions.frontend_import = None;
+        write_json(&manifest_path, &manifest).expect("write manifest");
+
+        let error =
+            ConeArtifact::read(dir.path()).expect_err("missing frontend import schema version");
+        assert!(matches!(
+            error,
+            ConeArtifactError::MissingFrontendImportPayload {
+                file_name: CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME
+            }
+        ));
+    }
+
+    #[test]
     fn object_file_names_must_stay_inside_objs_dir() {
         assert!(ConeArtifactObject::new("../escape.o", Vec::new()).is_err());
         assert!(ConeArtifactObject::new("nested/escape.o", Vec::new()).is_err());
@@ -515,6 +640,7 @@ mod tests {
                 LirFacts::new(OptLevel::O2),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
             ),
+            sample_frontend_import(),
             vec![
                 ConeArtifactObject::new("scoop.o", b"scoop object".to_vec())
                     .expect("valid scoop object"),
@@ -525,6 +651,63 @@ mod tests {
                 b"inputs:fingerprint".to_vec(),
                 b"outputs:fingerprint".to_vec(),
             ),
+        )
+    }
+
+    fn sample_frontend_import() -> ConeArtifactFrontendImport {
+        ConeArtifactFrontendImport::new(
+            ScoopIrFile::new_v0(
+                vec![crate::scoopir::IrTypeDecl {
+                    fqn: "upstream.Token".to_owned(),
+                    kind: crate::scoopir::IrTypeDeclKind::Struct,
+                    type_params: Vec::new(),
+                    alias_of: None,
+                }],
+                vec![crate::scoopir::IrFunDecl {
+                    fqn: "upstream.make_token".to_owned(),
+                    kind: crate::scoopir::IrFunDeclKind::Regular,
+                    type_params: Vec::new(),
+                    receiver: None,
+                    params: Vec::new(),
+                    return_ty: crate::scoopir::IrType::Named {
+                        fqn: "upstream.Token".to_owned(),
+                        args: Vec::new(),
+                        eff: None,
+                    },
+                    effects: crate::scoopir::IrEffectRow::default(),
+                }],
+            ),
+            Some(ConeAnnotationClassesFile::new_v0(vec![
+                crate::annotations::ConeAnnotationClassEntry {
+                    fqn: "upstream.Trace".to_owned(),
+                    targets: Some(vec!["fun".to_owned()]),
+                    retention: "cone".to_owned(),
+                },
+            ])),
+            Some(ConeSymbolVisibilityFile::new_v0(vec![
+                crate::visibility::ConeSymbolVisibilityEntry {
+                    kind: crate::visibility::ConeSymbolKind::Fun,
+                    fqn: "upstream.hidden".to_owned(),
+                    visibility: crate::visibility::ConeSymbolVisibility::Internal,
+                },
+            ])),
+            Some(ConePreSpecializeFile::new_v0(
+                vec![crate::pre_specialize::PreSpecializedFunInstance {
+                    key: crate::pre_specialize::PreSpecializedFunKey {
+                        fqn: "upstream.id".to_owned(),
+                        type_args: vec!["Int".to_owned()],
+                    },
+                    instance_fqn: "upstream.id::<Int>".to_owned(),
+                    mir_debug: "mir".to_owned(),
+                }],
+                vec![crate::pre_specialize::PreSpecializedTypeInstance {
+                    key: crate::pre_specialize::PreSpecializedTypeKey {
+                        fqn: "upstream.Box".to_owned(),
+                        type_args: vec!["Int".to_owned()],
+                    },
+                    instance_fqn: "upstream.Box::<Int>".to_owned(),
+                }],
+            )),
         )
     }
 }

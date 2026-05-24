@@ -31,6 +31,7 @@ use scoopc_span::Span;
 use super::annotations::{
     CONE_ANNOTATION_CLASSES_FILE_NAME, ConeAnnotationClassesFile, parse_annotation_classes_file,
 };
+use super::artifact::{ConeArtifact, ConeArtifactFrontendImport};
 use super::pre_specialize::{
     CONE_PRE_SPECIALIZE_FILE_NAME, ConePreSpecializeFile, parse_pre_specialize_file,
 };
@@ -190,10 +191,63 @@ pub fn inject_cone_dependency_public_api(
     decl_cone: ConeId,
     dep: &ConeArchiveApi,
 ) -> Result<()> {
-    let decl_file = PathBuf::from(format!(
-        "<cone:{}@{}>",
-        dep.manifest.cone.name, dep.manifest.cone.version
-    ));
+    let payload = ConeArtifactFrontendImport::new(
+        dep.api.clone(),
+        dep.annotation_classes.clone(),
+        dep.symbol_visibility.clone(),
+        dep.pre_specialize.clone(),
+    );
+    inject_frontend_import_payload(
+        index,
+        env,
+        decl_cone,
+        &dep.manifest.cone.name,
+        &dep.manifest.cone.version,
+        &payload,
+    )
+}
+
+/// Import frontend payloads from upstream cone artifacts into this frontend state.
+pub fn import_upstream_artifacts(
+    artifacts: &[&ConeArtifact],
+    index: &mut scoopc_hir::resolve::Index,
+    env: &mut TypeEnv,
+) -> Result<()> {
+    for (offset, artifact) in artifacts.iter().enumerate() {
+        let cone_number = u32::try_from(offset + 1).map_err(|_| {
+            miette!("too many upstream cone artifacts to assign a stable ConeId: {offset}")
+        })?;
+        inject_cone_artifact_frontend_import(index, env, ConeId::new(cone_number), artifact)?;
+    }
+    Ok(())
+}
+
+/// Inject the frontend import payload carried by a per-cone build artifact.
+pub fn inject_cone_artifact_frontend_import(
+    index: &mut scoopc_hir::resolve::Index,
+    env: &mut TypeEnv,
+    decl_cone: ConeId,
+    artifact: &ConeArtifact,
+) -> Result<()> {
+    inject_frontend_import_payload(
+        index,
+        env,
+        decl_cone,
+        &artifact.manifest.cone_name,
+        &artifact.manifest.cone_version,
+        &artifact.frontend_import,
+    )
+}
+
+fn inject_frontend_import_payload(
+    index: &mut scoopc_hir::resolve::Index,
+    env: &mut TypeEnv,
+    decl_cone: ConeId,
+    cone_name: &str,
+    cone_version: &str,
+    payload: &ConeArtifactFrontendImport,
+) -> Result<()> {
+    let decl_file = PathBuf::from(format!("<cone:{}@{}>", cone_name, cone_version));
 
     // NOTE: 这里用一个“合成 SourceFile”承载从 ScoopIR 反解出来的标识符文本，
     // 以便后续在 lowering 时可通过 span 切片拿到 segment/type param 名字。
@@ -206,14 +260,14 @@ pub fn inject_cone_dependency_public_api(
         &str,
         &super::annotations::ConeAnnotationClassEntry,
     > = std::collections::HashMap::new();
-    if let Some(file) = dep.annotation_classes.as_ref() {
+    if let Some(file) = payload.annotation_classes.as_ref() {
         for a in &file.annotations {
             annotation_classes_by_fqn.insert(a.fqn.as_str(), a);
         }
     }
 
     // 1) types：注入 Index + TypeEnv。
-    for ty in &dep.api.types {
+    for ty in &payload.public_api.types {
         let fqn = ty.fqn.clone();
         let local = last_segment(&fqn);
         let local_span = synth.alloc(local);
@@ -305,7 +359,7 @@ pub fn inject_cone_dependency_public_api(
     }
 
     // 2) funs：注入 Index（TypeEnv 已在上面注入 types；函数本体不进入 TypeEnv）。
-    for fun in &dep.api.funs {
+    for fun in &payload.public_api.funs {
         let fqn = fun.fqn.clone();
         let local = last_segment(&fqn);
         let local_span = synth.alloc(local);
@@ -398,7 +452,7 @@ pub fn inject_cone_dependency_public_api(
     }
 
     // 2.5) 注入非 public 符号占位符：仅用于在使用点生成 not_visible 诊断。
-    if let Some(vis) = &dep.symbol_visibility {
+    if let Some(vis) = &payload.symbol_visibility {
         inject_non_public_symbols_into_index(index, &mut synth, decl_cone, &decl_file, vis)?;
     }
 
@@ -695,6 +749,13 @@ fn ir_type_to_type_ref(synth: &mut SyntheticSourceBuilder, ty: &IrType) -> ast::
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use scoopc_effect_facts::EffectFacts;
+    use scoopc_hir_facts::HirFacts;
+    use scoopc_lir::LateLoweredProgram;
+    use scoopc_lir_facts::LirFacts;
+    use scoopc_mir_facts::MirFacts;
+    use scoopc_project_model::{OptLevel, StableConeKey};
+
     use super::*;
 
     fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
@@ -770,5 +831,67 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn artifact_frontend_import_injects_public_and_visibility_payload() {
+        let artifact = ConeArtifact::with_parts(
+            StableConeKey::new("dep", "1.0.0"),
+            crate::artifact::ConeArtifactStageProducts::new(
+                HirFacts::new(),
+                MirFacts::new(),
+                EffectFacts::new(),
+                LirFacts::new(OptLevel::O0),
+                LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+            ),
+            ConeArtifactFrontendImport::new(
+                ScoopIrFile::new_v0(
+                    vec![crate::scoopir::IrTypeDecl {
+                        fqn: "dep.Token".to_owned(),
+                        kind: crate::scoopir::IrTypeDeclKind::Struct,
+                        type_params: Vec::new(),
+                        alias_of: None,
+                    }],
+                    vec![crate::scoopir::IrFunDecl {
+                        fqn: "dep.make_token".to_owned(),
+                        kind: crate::scoopir::IrFunDeclKind::Regular,
+                        type_params: Vec::new(),
+                        receiver: None,
+                        params: Vec::new(),
+                        return_ty: crate::scoopir::IrType::Named {
+                            fqn: "dep.Token".to_owned(),
+                            args: Vec::new(),
+                            eff: None,
+                        },
+                        effects: crate::scoopir::IrEffectRow::default(),
+                    }],
+                ),
+                None,
+                Some(ConeSymbolVisibilityFile::new_v0(vec![
+                    crate::visibility::ConeSymbolVisibilityEntry {
+                        kind: ConeSymbolKind::Fun,
+                        fqn: "dep.hidden".to_owned(),
+                        visibility: crate::visibility::ConeSymbolVisibility::Internal,
+                    },
+                ])),
+                None,
+            ),
+            Vec::new(),
+            crate::artifact::ConeArtifactFingerprints::default(),
+        );
+        let mut index = scoopc_hir::resolve::Index::default();
+        let mut env = TypeEnv::default();
+
+        inject_cone_artifact_frontend_import(&mut index, &mut env, ConeId::new(7), &artifact)
+            .expect("inject artifact frontend import");
+
+        assert!(env.type_symbol("dep.Token").is_some());
+        assert!(index.by_fqn["dep.Token"].ty.is_some());
+        assert_eq!(index.by_fqn["dep.make_token"].fun.len(), 1);
+        assert_eq!(index.by_fqn["dep.hidden"].fun.len(), 1);
+        assert_eq!(
+            index.by_fqn["dep.hidden"].fun[0].symbol.visibility,
+            Visibility::Internal
+        );
     }
 }

@@ -35,7 +35,7 @@ pub const CONE_PRE_SPECIALIZE_FILE_NAME: &str = "PRE_SPECIALIZE.json";
 pub const CONE_PRE_SPECIALIZE_SCHEMA_NAME: &str = "scoop.cone.pre_specialize";
 pub const CONE_PRE_SPECIALIZE_SCHEMA_VERSION: u32 = 0;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConePreSpecializeSchema {
     pub name: String,
     pub version: u32,
@@ -54,7 +54,7 @@ pub struct PreSpecializedFunKey {
     pub type_args: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreSpecializedFunInstance {
     pub key: PreSpecializedFunKey,
     /// 单态化实例的内部符号名（当前阶段沿用 dump-ir 的命名约定：`fqn::<T...>`）。
@@ -76,14 +76,14 @@ pub struct PreSpecializedTypeKey {
     pub type_args: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreSpecializedTypeInstance {
     pub key: PreSpecializedTypeKey,
     /// 单态化实例的内部符号名（当前阶段沿用 `::<...>` 命名约定）。
     pub instance_fqn: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConePreSpecializeFile {
     pub schema: ConePreSpecializeSchema,
     #[serde(default)]

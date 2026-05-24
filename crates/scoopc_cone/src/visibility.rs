@@ -26,7 +26,7 @@ pub const CONE_SYMBOL_VISIBILITY_FILE_NAME: &str = "SYMBOL_VISIBILITY.json";
 pub const CONE_SYMBOL_VISIBILITY_SCHEMA_NAME: &str = "scoop.cone.symbol_visibility";
 pub const CONE_SYMBOL_VISIBILITY_SCHEMA_VERSION: u32 = 0;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConeSymbolVisibilitySchema {
     pub name: String,
     pub version: u32,
@@ -75,7 +75,7 @@ pub struct ConeSymbolVisibilityEntry {
     pub visibility: ConeSymbolVisibility,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConeSymbolVisibilityFile {
     pub schema: ConeSymbolVisibilitySchema,
     pub symbols: Vec<ConeSymbolVisibilityEntry>,

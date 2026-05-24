@@ -28,7 +28,7 @@ pub const CONE_ANNOTATION_CLASSES_FILE_NAME: &str = "ANNOTATION_CLASSES.json";
 pub const CONE_ANNOTATION_CLASSES_SCHEMA_NAME: &str = "scoop.cone.annotation_classes";
 pub const CONE_ANNOTATION_CLASSES_SCHEMA_VERSION: u32 = 0;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConeAnnotationClassesSchema {
     pub name: String,
     pub version: u32,
@@ -45,7 +45,7 @@ pub struct ConeAnnotationClassEntry {
     pub retention: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConeAnnotationClassesFile {
     pub schema: ConeAnnotationClassesSchema,
     pub annotations: Vec<ConeAnnotationClassEntry>,

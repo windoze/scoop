@@ -24,16 +24,17 @@ pub use archive::{
     read_cone_archive_entry, try_read_cone_archive_entry, write_cone_archive_v0,
 };
 pub use artifact::{
-    CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_HIR_FACTS_FILE_NAME,
-    CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
-    CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
-    CONE_ARTIFACT_MIR_FACTS_FILE_NAME, CONE_ARTIFACT_OBJS_DIR_NAME,
-    CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, ConeArtifact, ConeArtifactError,
-    ConeArtifactFingerprints, ConeArtifactManifest, ConeArtifactObject, ConeArtifactSchemaVersions,
-    ConeArtifactStageProducts,
+    CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
+    CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
+    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
+    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, ConeArtifact,
+    ConeArtifactError, ConeArtifactFingerprints, ConeArtifactFrontendImport, ConeArtifactManifest,
+    ConeArtifactObject, ConeArtifactSchemaVersions, ConeArtifactStageProducts,
 };
 pub use consume::{
-    ConeArchiveApi, inject_cone_dependency_public_api, load_cone_archive_api,
-    read_cone_api_scoopir_from_archive, read_cone_manifest_from_archive,
+    ConeArchiveApi, import_upstream_artifacts, inject_cone_artifact_frontend_import,
+    inject_cone_dependency_public_api, load_cone_archive_api, read_cone_api_scoopir_from_archive,
+    read_cone_manifest_from_archive,
 };
 pub use pre_specialize::{CONE_PRE_SPECIALIZE_FILE_NAME, ConePreSpecializeFile};

@@ -1,19 +1,22 @@
-# Execution Plan
+# Claude Execution Plan
 
-## Selected task
-- First incomplete task: `P10-T03` in `TODO-7.md` — refactor `run_frontend` to run in source-cone DAG/topological order and inject upstream cone artifacts instead of making downstream cones parse upstream source.
-- Latest commit: `[P10-T02R] Review per-cone artifact schema`; no explicit unfinished issue was found in the commit subject/body that changes this task selection.
+## Current objective
+Complete exactly the first incomplete task in TODO.md, then stop after documenting and committing the result.
 
-## Plan
-1. Inspect current `run_frontend`, pipeline stage APIs, source cone graph APIs, existing ScoopIR dependency injection, and the new `ConeArtifact` IO schema.
-2. Identify whether current stage outputs contain enough data to construct per-cone `ConeArtifact` values and whether HIR `Index` / `TypeEnv` can be reconstructed from facts alone.
-3. If the required fact-to-frontend injection path is implementable with existing facts, add `scoopc_cone::import_upstream_artifacts`, refactor `run_frontend` to iterate compilation units, and add a regression proving the downstream cone does not parse upstream source.
-4. If a concrete missing feature blocks spec-correct implementation, add the minimum prerequisite task before `P10-T03` in `TODO.md` / `TODO-7.md`, document the blocker, commit that scheduling change, and stop without marking `P10-T03` done.
-5. Run validation in order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then the task-specific build/tests/fixtures, followed by `git diff --check`.
-6. On success, update `TODO.md` and `TODO-7.md` completion records, commit all task-related changes with the required co-author trailer, then stop.
+## Step-by-step plan
+1. Read TODO.md to identify the first task whose heading is not prefixed with [DONE].
+2. Check the latest commit message for an unfinished issue only if it is directly relevant to that selected task.
+3. Read the task details, dependencies, validation requirements, and nearby project context needed for that task.
+4. Implement the selected task completely, avoiding workarounds or scope narrowing.
+5. Run formatting, clippy, relevant tests, then full validation required by the task policy.
+6. If validation exposes an unscheduled failure, fix it or add the minimum prerequisite/follow-up task in TODO.md before marking completion.
+7. Mark the task heading [DONE] in TODO.md and update its completion record. Update PLAN.md only if phase-level sequencing changes.
+8. Commit all task-related changes with a clear task-tagged commit message and the required co-author trailer.
 
-## Current status
-- Task selected initially: `P10-T03`.
-- Blocker found: current `ConeArtifact` does not carry the frontend import payload needed to inject upstream cones into `Index` / `TypeEnv` without reading upstream source. HIR facts also do not contain enough public declaration/typealias/visibility information to reconstruct that surface directly.
-- Action taken: inserted prerequisite `P10-T03-a` before `P10-T03` in `TODO.md` and `TODO-7.md`; `P10-T03` now explicitly depends on `P10-T03-a`.
-- Next step: validate the TODO scheduling change, commit it, and stop so the next invocation completes the new first incomplete task.
+## Progress log
+- Plan initialized before task execution.
+- Selected first incomplete task: P10-T03-a ("补齐 ConeArtifact frontend import payload"). Latest commit also references this prerequisite, so it is directly relevant and in scope.
+- Next: inspect existing artifact, ScoopIR, annotation, visibility, pre-specialize, and consume APIs to add a persisted frontend import payload and helper surface.
+- Implementation approach chosen: reuse the existing `.cone` ScoopIR/annotation/visibility/pre-specialize schemas as `ConeArtifactFrontendImport`, persist it as `frontend_import.bin`, version it in `manifest.json`, and add artifact-based frontend injection helpers.
+- Adjustment: `frontend_import.bin` was changed to `frontend_import.json` because the reused ScoopIR schema is JSON-oriented and bincode does not support its serde-tagged enum shape.
+- Completed implementation and validation for P10-T03-a. Updated TODO.md and TODO-7.md completion records; next step is final diff check and commit.
