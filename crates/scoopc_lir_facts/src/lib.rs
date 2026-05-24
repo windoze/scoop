@@ -392,6 +392,206 @@ mod tests {
     }
 
     #[test]
+    fn lir_facts_bincode_round_trip_preserves_control_continuation_contracts() {
+        let callable_key = StableLirCallableKey::new("lir(instance(app.main))", "app.main");
+        let body_version = BodyVersionKey::new(&callable_key, "effect-step", 0);
+        let step_schema = LirStepSchemaKey::new(1);
+        let continuation_schema = LirContinuationSchemaKey::new(2);
+        let case_tag = LirCaseKey::new(3);
+        let resume_packing = LirResumePackingKey::new(4);
+        let continuation_object = LirContinuationObjectKey::new(5);
+        let entry_state = LirStateKey::new(6);
+        let complete_state = LirStateKey::new(7);
+        let resume_state = LirStateKey::new(8);
+        let boundary = LirBoundaryKey::new(9);
+        let frame_slot = LirFrameSlotKey::new(10);
+        let dynamic_invoke = LirDynamicInvokeKey {
+            owner_callable: callable_key.clone(),
+            site_id: scoopc_ids::SiteId::from_raw(11),
+        };
+        let call_contract = LirCallSiteContract {
+            kind: LirCallSiteKind::Closure,
+            target_mode: LirCallTargetMode::DynamicFallback,
+            target_callables: vec![callable_key.clone()],
+            callee_abi_kind: LirCallableAbiKind::EffectStep,
+            invoke_args_tuple_ty: ty(3),
+            callee_step_schema: Some(step_schema),
+            resolved_cases: vec![case_tag],
+            precision: LirEffectPrecision::Precise,
+        };
+        let control_body = LirControlBodyFacts {
+            step_schema,
+            state_graph: LirStateGraphFacts {
+                entry_state,
+                complete_state,
+                cleanup_state: None,
+                drop_state: None,
+                states: vec![entry_state, complete_state, resume_state],
+            },
+            frame_schema: LirFrameSchemaFacts {
+                slots: vec![LirFrameSlotFacts {
+                    slot_id: frame_slot,
+                    ty: ty(3),
+                    kind: "resume_payload".to_string(),
+                }],
+                resume_payload_bindings: vec![LirResumePayloadBindingFacts {
+                    boundary_id: boundary,
+                    resume_state,
+                    consumer_local: LirLocalKey::new(12),
+                    consumer_frame_slot: Some(frame_slot),
+                }],
+                completion_payload_bindings: Vec::new(),
+            },
+            boundary_map: LirBoundaryMapFacts {
+                boundaries: vec![LirBoundaryFacts {
+                    boundary_id: boundary,
+                    source_kind: "perform".to_string(),
+                    site_id: Some(scoopc_ids::SiteId::from_raw(11)),
+                    owner_state: entry_state,
+                    resume_state,
+                    lowering_kind: Some("dynamic_invoke".to_string()),
+                    dynamic_invoke: Some(dynamic_invoke.clone()),
+                    dispatch: None,
+                }],
+            },
+            resume_state_map: LirResumeStateMapFacts {
+                entries: vec![LirResumeStateFacts {
+                    boundary_id: boundary,
+                    state_id: resume_state,
+                }],
+            },
+            source_statement_count: 1,
+            continuation_object,
+            resume_packings: vec![resume_packing],
+        };
+        let resume_facts = LirContinuationResumeFacts {
+            case_tag,
+            continuation_schema,
+            resume_tuple_ty: ty(3),
+            answer_ty: ty(2),
+            out_step_schema: step_schema,
+            surface_ty: ty(1),
+            body: LirContinuationResumeBody::ResumeCapturedState,
+        };
+
+        let mut groups = LirFactGroups::default();
+        groups.callables.insert(
+            callable_key.clone(),
+            LirCallableFacts {
+                root_fqn: "app.main".to_string(),
+                stable_instance_key: callable_key.as_str().to_string(),
+                source_kind: LirCallableSourceKind::TopLevel,
+                param_names: vec!["message".to_string()],
+                param_tys: vec![ty(3)],
+                return_ty: ty(2),
+                body_version: LirBodyVersionFacts {
+                    key: body_version.clone(),
+                    impl_plan: "CanonicalFull".to_string(),
+                    needs_reentry: true,
+                    allowed_effect_terms: vec![ty(1)],
+                },
+                resolved_outward_cases: vec![case_tag],
+                contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
+                    param_tys: vec![ty(3)],
+                    closure_carrier_arg_tys: vec![ty(1)],
+                    step_schema,
+                    dynamic_invoke_entry: LirCallableDynamicInvokeEntryFacts {
+                        invoke_args_tuple_ty: ty(3),
+                        step_schema,
+                        entry_state,
+                        complete_state,
+                    },
+                    control_body,
+                })),
+            },
+        );
+        groups.step_types.insert(
+            step_schema,
+            LirStepTypeFacts {
+                step_schema,
+                invoke_args_tuple_ty: ty(3),
+                complete_ty: ty(2),
+                continuation_obj_ty: ty(1),
+                cases: vec![LirStepCaseFacts {
+                    case_tag,
+                    payload_tuple_ty: ty(3),
+                    continuation_schema,
+                }],
+            },
+        );
+        groups.dynamic_invokes.insert(
+            dynamic_invoke.clone(),
+            LirDynamicInvokeContract {
+                owner_callable: callable_key,
+                owner_step_schema: Some(step_schema),
+                site_id: dynamic_invoke.site_id,
+                source: LirDynamicInvokeSource::Boundary {
+                    boundary_id: boundary,
+                },
+                call: call_contract,
+                carrier: LirDynamicInvokeCarrierContract {
+                    kind: LirDynamicInvokeCarrierKind::ClosureObject,
+                    source_ty: Some(ty(1)),
+                    dispatch: None,
+                },
+                arg_count: 1,
+                target_body_versions: vec![body_version.clone()],
+            },
+        );
+        groups.resume_packings.insert(
+            resume_packing,
+            LirResumePackingFacts {
+                interface_id: resume_packing,
+                effect_fqn: "app.Log".to_string(),
+                effect_type_args: vec![ty(3)],
+                return_step_schema: step_schema,
+                methods: vec![LirResumeMethodFacts {
+                    case_tag,
+                    continuation_schema,
+                    resume_tuple_ty: ty(3),
+                    answer_ty: ty(2),
+                    out_step_schema: step_schema,
+                    surface_ty: ty(1),
+                }],
+            },
+        );
+        groups.continuation_objects.insert(
+            continuation_object,
+            LirContinuationObjectFacts {
+                object_id: continuation_object,
+                owner_body_version: body_version,
+                continuation_obj_ty: ty(1),
+                implemented_packings: vec![resume_packing],
+                surface_resumes: vec![resume_facts.clone()],
+                methods: vec![LirContinuationMethodFacts {
+                    packing_interface_id: resume_packing,
+                    resume: resume_facts.clone(),
+                }],
+            },
+        );
+        groups.surface_resume_dispatches.insert(
+            continuation_schema,
+            LirSurfaceResumeDispatchFacts {
+                continuation_schema,
+                resume_tuple_ty: ty(3),
+                answer_ty: ty(2),
+                out_step_schema: step_schema,
+                source_kind: LirSurfaceResumeDispatchSourceKind::ContinuationObjectMethod,
+                publication_count: 1,
+                wrapper_projection_count: 1,
+            },
+        );
+        let facts = LirFacts::from_parts(LirStageSummary::new(OptLevel::O2), groups);
+
+        let bytes = bincode::serialize(&facts).expect("serialize populated LIR facts");
+        let decoded: LirFacts =
+            bincode::deserialize(&bytes).expect("deserialize populated LIR facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
+    }
+
+    #[test]
     fn verifier_rejects_opt_revision_mismatch() {
         let facts = LirFacts::from_parts_with_opt_pipeline(
             LirStageSummary::new(OptLevel::O0).with_opt_revision(1),

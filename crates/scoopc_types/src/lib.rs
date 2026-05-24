@@ -1398,22 +1398,35 @@ mod tests {
     }
 
     #[test]
-    fn portable_type_store_round_trip_preserves_type_ids() {
+    fn portable_type_store_round_trip_preserves_generic_effect_and_projection_types() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
+        let generic_t = types.ty_param(TypeParamType {
+            name: "T".to_string(),
+            decl_file: std::path::PathBuf::from("generic.scoop"),
+            decl_span: scoopc_span::Span::new(10, 11),
+        });
         let effect = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
             fqn: "app.Log".to_string(),
-            args: Vec::new(),
+            args: vec![generic_t],
             eff: None,
         })));
+        let tuple = types.ty_tuple(vec![generic_t, builtins.string]);
+        let star = types.ty_star_projection(builtins.any);
+        let union = types.ty_union(vec![star, builtins.string]);
         let option_string = types.ty_option(builtins.string);
         let callable = types.ty_function(
-            Some(option_string),
-            vec![builtins.int],
-            builtins.unit,
+            Some(generic_t),
+            vec![builtins.int, tuple, union],
+            option_string,
             EffectRow::new(vec![effect]),
             true,
         );
+        let generic_box = types.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+            fqn: "app.Box".to_string(),
+            args: vec![generic_t, callable],
+            eff: Some(EffectRow::new(vec![effect])),
+        })));
 
         let bytes = bincode::serialize(&types).expect("serialize portable TypeStore");
         let decoded: TypeStore =
@@ -1423,6 +1436,10 @@ mod tests {
         assert_eq!(
             decoded.display(callable).to_string(),
             types.display(callable).to_string()
+        );
+        assert_eq!(
+            decoded.display(generic_box).to_string(),
+            types.display(generic_box).to_string()
         );
         decoded
             .validate_references()

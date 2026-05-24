@@ -778,7 +778,7 @@
   - 新增 bincode round-trip 测试：`scoopc_types` 覆盖含 builtin、nominal、function、effect row 的 `TypeStore` 往返；四套 fact crate覆盖 schema/content 往返；`scoopc_lir` 覆盖 `LateLoweredProgram` 往返。新增字段后必须继续满足同一 wire-format 约束：持久化结构需可 serde 往返，并通过 schema version 管理兼容性。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_types -p scoopc_hir_facts -p scoopc_mir_facts -p scoopc_effect_facts -p scoopc_lir_facts -p scoopc_lir`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507/1507，fixtures: ok 1536）；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
-### [TODO] P10-T01R：Review TypeStore wire format
+### [DONE] P10-T01R：Review TypeStore wire format
 
 - 参考：P10-T01。
 - 重点：
@@ -787,6 +787,11 @@
   - round-trip 测试是否覆盖 generic / effect / continuation 等复杂类型。
 - 验证：重新运行 P10-T01 的所有验证。
 - 依赖：P10-T01
+- 完成记录：
+  - 2026-05-24：复审 P10-T01 的方案 B（portable `TypeStore` serialization）。`TypeStore` wire 形态按 `TypeKind` 拓扑列表持久化，反序列化时重建 hash-cons index 并校验所有子 `TypeId` 范围，满足跨进程先重建本地同构 type universe 再消费 facts/LIR 的要求。
+  - schema version 覆盖确认：`WireSchemaVersion` / `WIRE_SCHEMA_VERSION` 已挂到 `HirFacts`、`MirFacts`、`EffectFacts`、`LirFacts` 与 `LateLoweredProgram`；四套 fact crate 和 LIR program 都具备 serde/bincode 往返入口。
+  - 补强 review 发现的覆盖缺口：原 round-trip 多为空产品，新增复杂类型/控制合同测试，覆盖 generic type parameter、nominal args/use-site effect row、star projection/union、effect step schema、continuation schema、callable/body effect facts、LIR effect-step callable、dynamic invoke、resume packing、continuation object 与 surface resume dispatch。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_types -p scoopc_hir_facts -p scoopc_mir_facts -p scoopc_effect_facts -p scoopc_lir_facts -p scoopc_lir`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`git diff --check`。
 
 ### [TODO] P10-T02：定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API
 

@@ -132,6 +132,98 @@ mod tests {
     }
 
     #[test]
+    fn effect_facts_bincode_round_trip_preserves_step_and_continuation_contracts() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let effect = types.intern(TypeKind::Ref(scoopc_types::RefTypeKind::Nominal(
+            scoopc_types::NominalType {
+                fqn: "app.Log".to_string(),
+                args: vec![builtins.string],
+                eff: None,
+            },
+        )));
+        let invoke_tuple = types.ty_tuple(vec![builtins.string]);
+        let resume_tuple = types.ty_tuple(vec![builtins.int]);
+        let continuation_surface = types.intern(TypeKind::Ref(scoopc_types::RefTypeKind::Nominal(
+            scoopc_types::NominalType {
+                fqn: "app.Continuation".to_string(),
+                args: vec![builtins.unit],
+                eff: Some(EffectRow::new(vec![effect])),
+            },
+        )));
+        let step_schema_id = StepSchemaId::new(1);
+        let continuation_schema_id = ContinuationSchemaId::new(2);
+        let case_tag = CaseTag::new(3);
+        let callable = StableEffectInstanceKey::new("effect(instance(app.main))", "app.main");
+        let op_key = ConcreteOpKey::new(
+            callable.clone(),
+            EffectFamilyKey::new("app.Log".to_string(), vec![builtins.string]),
+        );
+
+        let mut step_schemas = BTreeMap::new();
+        step_schemas.insert(
+            step_schema_id,
+            StepSchema::new(
+                invoke_tuple,
+                builtins.unit,
+                continuation_surface,
+                vec![StepCaseFact::new(
+                    case_tag,
+                    op_key,
+                    resume_tuple,
+                    continuation_schema_id,
+                )],
+            ),
+        );
+        let mut continuation_schemas = BTreeMap::new();
+        continuation_schemas.insert(
+            continuation_schema_id,
+            ContinuationSchema::new(
+                resume_tuple,
+                builtins.unit,
+                step_schema_id,
+                continuation_surface,
+            ),
+        );
+        let mut callables = BTreeMap::new();
+        callables.insert(
+            callable.clone(),
+            CallableEffectFacts::new(
+                EffectRow::new(vec![effect]),
+                CallableAbiKind::EffectStep,
+                Some(invoke_tuple),
+                Some(step_schema_id),
+                CaseSet::new(step_schema_id, vec![case_tag]),
+                true,
+                ImplPlan::CanonicalFull,
+            ),
+        );
+        let mut bodies = BTreeMap::new();
+        bodies.insert(
+            callable,
+            BodyEffectFacts::with_local_control_step_schema(
+                BTreeMap::new(),
+                BTreeMap::new(),
+                Some(step_schema_id),
+            ),
+        );
+        let facts = EffectFacts::from_parts(
+            EffectSnapshotBinding::default(),
+            step_schemas,
+            continuation_schemas,
+            callables,
+            bodies,
+        );
+
+        let bytes = bincode::serialize(&facts).expect("serialize populated effect facts");
+        let decoded: EffectFacts =
+            bincode::deserialize(&bytes).expect("deserialize populated effect facts");
+
+        assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
+    }
+
+    #[test]
     fn verifier_rejects_missing_callable_step_schema() {
         let unit = unit_ty();
         let callable_key = callable_key("app.main");
