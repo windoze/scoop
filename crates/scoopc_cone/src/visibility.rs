@@ -15,10 +15,10 @@ use std::collections::HashSet;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::cone::ConeId;
-use crate::resolve::{Index, IndexedFile, Visibility};
-use crate::session::Session;
-use crate::source::SourceFile;
+use scoopc_hir::resolve::{Index, IndexedFile, Visibility};
+use scoopc_hir::session::Session;
+use scoopc_project_model::ConeId;
+use scoopc_source::SourceFile;
 
 /// `.cone` 内的符号可见性索引文件名（v0 约定）。
 pub const CONE_SYMBOL_VISIBILITY_FILE_NAME: &str = "SYMBOL_VISIBILITY.json";
@@ -117,7 +117,7 @@ pub fn collect_non_public_symbols_for_cone_sources(
     // 1) parse sources → AST（Index 构建需要 AST 引用）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let ast = scoopc_ast::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
     }
     // 2) build index：sysroot cone=0，当前 cone=1（与 ScoopIR 导出保持一致）。
@@ -126,9 +126,9 @@ pub fn collect_non_public_symbols_for_cone_sources(
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
-                crate::cone::ConeKind::Syslib
+                scoopc_project_model::ConeKind::Syslib
             } else {
-                crate::cone::ConeKind::Lib
+                scoopc_project_model::ConeKind::Lib
             },
             source: &f.source,
             file: &f.ast,
@@ -137,7 +137,7 @@ pub fn collect_non_public_symbols_for_cone_sources(
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(IndexedFile {
             cone: ConeId::new(1),
-            cone_kind: crate::cone::ConeKind::Lib,
+            cone_kind: scoopc_project_model::ConeKind::Lib,
             source,
             file: ast,
         });

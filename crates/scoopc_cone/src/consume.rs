@@ -18,20 +18,19 @@ use std::path::{Path, PathBuf};
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
 use thiserror::Error;
 
-use crate::ast;
-use crate::cone::ConeId;
-use crate::resolve::{
+use scoopc_ast as ast;
+use scoopc_hir::resolve::{
     BuiltinFunFlags, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, ParamSig, Symbol,
     SymbolKind, TypeParamSig, Visibility,
 };
-use crate::source::SourceFile;
-use crate::span::Span;
-use crate::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
+use scoopc_hir::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
+use scoopc_project_model::{CONE_TOML_FILE_NAME, ConeId, ConeManifest};
+use scoopc_source::SourceFile;
+use scoopc_span::Span;
 
 use super::annotations::{
     CONE_ANNOTATION_CLASSES_FILE_NAME, ConeAnnotationClassesFile, parse_annotation_classes_file,
 };
-use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
 use super::pre_specialize::{
     CONE_PRE_SPECIALIZE_FILE_NAME, ConePreSpecializeFile, parse_pre_specialize_file,
 };
@@ -186,7 +185,7 @@ pub fn read_cone_pre_specialize_from_archive(
 ///
 /// - `decl_cone`：该依赖 cone 在当前编译单元中的 cone id（仅用于 internal 语义；public 不受影响）。
 pub fn inject_cone_dependency_public_api(
-    index: &mut crate::resolve::Index,
+    index: &mut scoopc_hir::resolve::Index,
     env: &mut TypeEnv,
     decl_cone: ConeId,
     dep: &ConeArchiveApi,
@@ -243,21 +242,23 @@ pub fn inject_cone_dependency_public_api(
             })
             .collect::<Vec<_>>();
 
-        let (is_annotation_class, annotation_targets, annotation_retention) = if let Some(meta) =
-            annotation_classes_by_fqn.get(fqn.as_str())
-        {
-            let targets = meta.targets.as_ref().map(|ts| {
-                ts.iter()
-                    .filter_map(|t| crate::typecheck::AnnotationTargetKind::from_variant_name(t))
-                    .collect::<Vec<_>>()
-            });
-            let retention = crate::typecheck::AnnotationRetentionPolicy::parse(&meta.retention);
-            let is_annotation_class =
-                retention == Some(crate::typecheck::AnnotationRetentionPolicy::ConePreserved);
-            (is_annotation_class, targets, retention)
-        } else {
-            (false, None, None)
-        };
+        let (is_annotation_class, annotation_targets, annotation_retention) =
+            if let Some(meta) = annotation_classes_by_fqn.get(fqn.as_str()) {
+                let targets = meta.targets.as_ref().map(|ts| {
+                    ts.iter()
+                        .filter_map(|t| {
+                            scoopc_hir::typecheck::AnnotationTargetKind::from_variant_name(t)
+                        })
+                        .collect::<Vec<_>>()
+                });
+                let retention =
+                    scoopc_hir::typecheck::AnnotationRetentionPolicy::parse(&meta.retention);
+                let is_annotation_class = retention
+                    == Some(scoopc_hir::typecheck::AnnotationRetentionPolicy::ConePreserved);
+                (is_annotation_class, targets, retention)
+            } else {
+                (false, None, None)
+            };
 
         env.insert_external_type_symbol(
             fqn.clone(),
@@ -408,7 +409,7 @@ pub fn inject_cone_dependency_public_api(
 }
 
 fn inject_non_public_symbols_into_index(
-    index: &mut crate::resolve::Index,
+    index: &mut scoopc_hir::resolve::Index,
     synth: &mut SyntheticSourceBuilder,
     decl_cone: ConeId,
     decl_file: &Path,
@@ -498,7 +499,7 @@ fn inject_non_public_symbols_into_index(
 }
 
 fn inject_type_symbol_into_index(
-    index: &mut crate::resolve::Index,
+    index: &mut scoopc_hir::resolve::Index,
     fqn: &str,
     local: &str,
     span: Span,
@@ -569,7 +570,7 @@ fn last_segment(fqn: &str) -> &str {
 
 fn ir_effect_row_to_effect_row_expr(
     synth: &mut SyntheticSourceBuilder,
-    row: &crate::cone::scoopir::IrEffectRow,
+    row: &super::scoopir::IrEffectRow,
 ) -> Option<ast::EffectRowExpr> {
     if row.terms.is_empty() {
         return None;
@@ -712,9 +713,7 @@ mod tests {
         let mut builder = tar::Builder::new(file);
 
         let mut header = tar::Header::new_gnu();
-        header
-            .set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME)
-            .unwrap();
+        header.set_path(crate::CONE_API_SCOOPIR_FILE_NAME).unwrap();
         header.set_size(api_json.len() as u64);
         header.set_mode(0o644);
         header.set_cksum();
@@ -735,16 +734,13 @@ mod tests {
   "types": [],
   "funs": []
 }}"#,
-            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
-            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION,
+            name = crate::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::scoopir::SCOOPIR_SCHEMA_VERSION,
         );
         write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
 
         let api = read_cone_api_scoopir_from_archive(&cone_path).unwrap();
-        assert_eq!(
-            api.schema.version,
-            crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION
-        );
+        assert_eq!(api.schema.version, crate::scoopir::SCOOPIR_SCHEMA_VERSION);
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -762,8 +758,8 @@ mod tests {
   "types": [],
   "funs": []
 }}"#,
-            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
-            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION + 1,
+            name = crate::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::scoopir::SCOOPIR_SCHEMA_VERSION + 1,
         );
         write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
 

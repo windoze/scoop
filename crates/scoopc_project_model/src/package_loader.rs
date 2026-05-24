@@ -1,23 +1,17 @@
 //! Filesystem loader for source cone packages.
 //!
-//! This adapter turns an on-disk cone root directory containing `Cone.toml` into:
-//! - manifest（name/version/kind/deps）；
-//! - sources 列表（当前规则：`src/**/*.scoop`）；
-//! - 可执行入口（`bin` cone 规则：`src/main.scoop`）。
-//!
-//! 说明：
-//! - 本模块只负责“目录结构 → 路径列表”的确定性文件系统规则；
-//! - 纯 `ConeSourcePackage` 数据定义由 `scoopc_project_model` 持有；
-//! - dependency graph、`.cone` archive 和 IR export 由各自 adapter 处理。
+//! 本模块负责“目录结构 → 路径列表”的确定性文件系统规则；
+//! 纯 [`ConeSourcePackage`] 数据定义由 [`crate::package`] 持有。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use super::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest, load_cone_manifest_from_path};
-
-pub use scoopc_project_model::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage};
+use crate::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest};
+use crate::manifest_loader::load_cone_manifest_from_path;
+use crate::package::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage};
+use crate::sysroot::default_sysroot_path;
 
 /// 从一个 cone root 目录加载“源级包”的 sources 列表与可选 entry anchor。
 ///
@@ -28,7 +22,7 @@ pub use scoopc_project_model::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourc
 /// - `bin` cone 必须有 `root/src/main.scoop`；
 /// - `lib/syslib` cone 不要求 `root/src/main.scoop`，即使存在也只是普通 source。
 ///
-/// 平台选择器（T1111，spec §13.9）：
+/// 平台选择器（spec §13.9）：
 /// - 初始 source set 仍为 `src/**/*.scoop`；
 /// - 当 `Cone.toml` 含 `[[select]]` 且 `when.platform` 匹配当前 target platform 时：
 ///   - include globs：把匹配到的文件加入 source set；
@@ -40,11 +34,6 @@ pub fn load_cone_source_package(root: impl AsRef<Path>) -> Result<ConeSourcePack
 }
 
 /// 加载 cone source package，但允许显式指定“目标平台 id”（spec §13.9）。
-///
-/// 说明：
-/// - 用于让 selector 的 include/exclude 规则可单测；
-/// - 也为未来交叉编译（显式 target 参数）预留扩展点；
-/// - v0 driver 默认用 host platform（见 `load_cone_source_package`）。
 pub fn load_cone_source_package_for_platform(
     root: impl AsRef<Path>,
     target_platform: &str,
@@ -52,11 +41,11 @@ pub fn load_cone_source_package_for_platform(
     load_cone_source_package_for_platform_with_sysroot_root(
         root,
         target_platform,
-        &crate::sysroot::Sysroot::default_path(),
+        &default_sysroot_path(),
     )
 }
 
-pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
+pub fn load_cone_source_package_for_platform_with_sysroot_root(
     root: impl AsRef<Path>,
     target_platform: &str,
     sysroot_root: &Path,
@@ -124,7 +113,6 @@ pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
         ));
     }
 
-    // canonicalize + 排序，避免不同相对路径导致的重复/不稳定顺序。
     let mut canonical_sources = Vec::with_capacity(sources.len());
     for path in sources {
         let path = path
@@ -135,7 +123,6 @@ pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
     }
     canonical_sources.sort();
 
-    // `bin` 的入口锚点必须在 sources 列表里；`lib/syslib` 中同名文件只是普通 source。
     if let Some(main) = main.as_ref()
         && !canonical_sources.iter().any(|p| p == main)
     {
@@ -162,7 +149,7 @@ pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
     })
 }
 
-fn validate_syslib_package_path(
+pub(crate) fn validate_syslib_package_path(
     root: &Path,
     manifest: &ConeManifest,
     sysroot_root: &Path,
@@ -191,7 +178,7 @@ fn validate_syslib_package_path(
     ))
 }
 
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+pub(crate) fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     for entry in std::fs::read_dir(dir)
         .into_diagnostic()
         .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
@@ -212,11 +199,6 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-/// 将 canonical sources 转为 “相对路径（UTF-8 + forward slashes）→ 绝对路径（canonicalize）” 的稳定映射。
-///
-/// 选择 `BTreeMap` 的原因：
-/// - key 的排序就是最终 sources 列表的排序；
-/// - key 使用平台无关的相对路径，避免绝对路径导致排序跨机器不稳定。
 fn build_source_map(
     root: &Path,
     canonical_sources: &[PathBuf],
@@ -229,8 +211,7 @@ fn build_source_map(
     Ok(out)
 }
 
-/// 归一化为相对于 cone root 的 UTF-8 路径，并统一使用 forward slashes（spec §13.9）。
-fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String> {
+pub(crate) fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String> {
     let rel = abs.strip_prefix(root).map_err(|_| {
         miette!(
             "源文件不在 cone root 下（root={}，path={}）",
@@ -243,13 +224,9 @@ fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String>
         return Err(miette!("源文件路径不是有效 UTF-8：{}", rel.display()));
     };
 
-    // 规范要求路径是“platform-independent（forward slashes）”，这里做一次显式归一化：
-    // - Unix: 原样
-    // - Windows: `\\` → `/`
     Ok(rel_str.replace('\\', "/"))
 }
 
-/// 在默认 source discovery 的基础上，应用 `[[select]]` 的 include/exclude 规则（spec §13.9）。
 fn apply_platform_selectors(
     all_sources: &BTreeMap<String, PathBuf>,
     manifest: &ConeManifest,
@@ -264,10 +241,6 @@ fn apply_platform_selectors(
             continue;
         }
 
-        // 规则（spec §13.9）：
-        // - include：加入 source set
-        // - exclude：从 source set 移除
-        // - 多个 selector：按文件顺序应用
         for pattern in &selector.include {
             let pattern = pattern.replace('\\', "/");
             for (rel, path) in all_sources.iter() {
@@ -317,16 +290,7 @@ enum GlobToken {
     Literal(char),
 }
 
-/// 一个“稳定且平台无关”的最小 glob matcher（spec §13.9：实现定义，但必须稳定）。
-///
-/// 支持的语法子集：
-/// - `*`：匹配任意长度字符序列（不跨 `/`）
-/// - `**`：匹配任意长度字符序列（可跨 `/`）
-/// - `?`：匹配任意单个字符（不匹配 `/`）
-/// - 其它字符：按字面量匹配
-///
-/// 输入要求：
-/// - `pattern` 与 `path` 都应使用 forward slashes 且为 UTF-8。
+/// 一个“稳定且平台无关”的最小 glob matcher（spec §13.9）。
 fn glob_match_forward_slashes(pattern: &str, path: &str) -> bool {
     let tokens = tokenize_glob(pattern);
     let text: Vec<char> = path.chars().collect();
@@ -409,16 +373,7 @@ fn tokenize_glob(pattern: &str) -> Vec<GlobToken> {
 }
 
 /// 生成当前“目标平台 id”（用于 `Cone.toml [[select]]` 的匹配）。
-///
-/// 说明：
-/// - v0 阶段只支持 host target（与 TODO T0803 的范围一致）；
-/// - 该 id 使用 spec 中的 `linux-x64` / `macos-arm64` / `windows-x64` 命名风格（spec §13.7/§13.9）。
-pub(crate) fn host_target_platform_id() -> String {
-    // 说明：不要使用 `CARGO_CFG_TARGET_*`：
-    // - 这些环境变量通常只在 build script（build.rs）环境中可用；
-    // - 在普通 crate 编译单元里，`option_env!()` 往往拿不到，从而退化成 `unknown-unknown`。
-    //
-    // v0 阶段只支持 host target，因此直接使用 Rust 的编译期常量即可。
+pub fn host_target_platform_id() -> String {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
 
@@ -508,7 +463,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "scoopc_cone_package_{label}_{}_{}",
+            "scoopc_cone_package_loader_{label}_{}_{}",
             std::process::id(),
             unique
         ))
@@ -660,7 +615,6 @@ exclude = ["src/main.scoop"]
             ]
         );
 
-        // 若没有 selector 匹配，则保持默认 source discovery（src/**/*.scoop）。
         let unknown = load_cone_source_package_for_platform(&dir, "unknown-unknown").unwrap();
         assert_eq!(
             rel_sources(&unknown),

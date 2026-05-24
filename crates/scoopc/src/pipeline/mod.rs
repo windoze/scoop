@@ -30,7 +30,6 @@ pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
 pub use llvm_codegen_stage::LlvmCodegenStageInput;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 pub use scoopc_hir::stage::HirStageOutput;
-pub(crate) use scoopc_hir::stage::build_hir_declaration_facts_from_lowered_hir;
 
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;

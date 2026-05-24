@@ -17,19 +17,17 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::ast;
-use crate::cone::ConeId;
-use crate::hir;
-use crate::mir;
-use crate::resolve::{Index, IndexedFile};
-use crate::session::Session;
-use crate::source::SourceFile;
-use crate::stable_id::StableConeKey;
-use crate::ty::{
+use scoopc_ast as ast;
+use scoopc_hir::hir;
+use scoopc_hir::resolve::{Index, IndexedFile};
+use scoopc_hir::session::Session;
+use scoopc_hir::stable_id::StableConeKey;
+use scoopc_mir::mir;
+use scoopc_project_model::{ConeId, ConeManifest};
+use scoopc_source::SourceFile;
+use scoopc_types::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
 };
-
-use super::manifest::ConeManifest;
 
 /// `.cone` 内的 pre-specialize 元数据文件名（v0 约定）。
 pub const CONE_PRE_SPECIALIZE_FILE_NAME: &str = "PRE_SPECIALIZE.json";
@@ -218,7 +216,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
     // 1) parse sources → AST（resolver 会写回绑定结果，因此用可变 Vec 承载）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let ast = scoopc_ast::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
     }
     // 2) index：sysroot cone=0，当前 cone=1（与 build/scoopir 导出保持一致）。
@@ -227,9 +225,9 @@ pub fn build_pre_specialize_file_for_cone_sources(
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
-                crate::cone::ConeKind::Syslib
+                scoopc_project_model::ConeKind::Syslib
             } else {
-                crate::cone::ConeKind::Lib
+                scoopc_project_model::ConeKind::Lib
             },
             source: &f.source,
             file: &f.ast,
@@ -249,12 +247,13 @@ pub fn build_pre_specialize_file_for_cone_sources(
     let mut headers = Vec::with_capacity(sources.len());
     for (source, ast) in sources.iter().zip(asts.iter()) {
         headers.push(
-            crate::resolve::check_file_headers(source, ast, &index)
+            scoopc_hir::resolve::check_file_headers(source, ast, &index)
                 .map_err(miette::Report::from)?,
         );
     }
     for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
-        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
+        scoopc_hir::resolve::check_file_bodies(source, ast, &index, h)
+            .map_err(miette::Report::from)?;
     }
 
     // 4) type_kinds：用于把名义类型区分为 value/ref nominal（struct/enum vs class/interface/effect）。
@@ -266,9 +265,9 @@ pub fn build_pre_specialize_file_for_cone_sources(
         compilation_unit.push((source, ast));
     }
     let type_kinds = collect_type_decl_kinds(&compilation_unit);
-    let class_vtables = crate::vtable::collect_class_vtables(&compilation_unit, &index)
+    let class_vtables = scoopc_hir::vtable::collect_class_vtables(&compilation_unit, &index)
         .map_err(miette::Report::from)?;
-    let (_interfaces, _class_itables) = crate::itable::collect_interfaces_and_class_itables(
+    let (_interfaces, _class_itables) = scoopc_hir::itable::collect_interfaces_and_class_itables(
         &compilation_unit,
         &index,
         &class_vtables,
@@ -401,7 +400,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             direct_supertypes: HashMap::new(),
             builtins,
         };
-        let hir_facts = crate::pipeline::build_hir_declaration_facts_from_lowered_hir(
+        let hir_facts = scoopc_hir::stage::build_hir_declaration_facts_from_lowered_hir(
             &hir_fact_scaffold,
             source.path(),
         )

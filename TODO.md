@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a`、`P9-T06-b`、`P9-T06-c`、`P9-T06` 与 `P9-T06R` 已完成；下一项为 `P9-T07`。
+> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a`、`P9-T06-b`、`P9-T06-c`、`P9-T06`、`P9-T06R` 与 `P9-T07` 已完成；下一项为 `P9-T07R`。
 
 ## 总原则
 
@@ -163,7 +163,7 @@
 | P9-T06-c | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06-c发布-codegen-owned-llvm-stage-handoff-合同) | 发布 codegen-owned LLVM stage handoff 合同 |
 | P9-T06 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06抽出-scoopc_effect_facts_stage-与-scoopc_lir-crate) | 抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate |
 | P9-T06R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06rreview-scoopc_effect_facts_stage-与-scoopc_lir-抽取) | Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取 |
-| P9-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t07cone-两层拆分scoopc_project_model-扩展--新-scoopc_cone) | cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`） |
+| P9-T07 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t07cone-两层拆分scoopc_project_model-扩展--新-scoopc_cone) | cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`） |
 | P9-T07R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t07rreview-cone-两层拆分) | Review cone 两层拆分 |
 | P9-T08 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08scoopc-umbrella-crate-收尾--dependency_gate-全面强化) | `scoopc` umbrella crate 收尾 + dependency_gate 全面强化 |
 | P9-T08R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08rreview-umbrella-收尾) | Review umbrella 收尾 |

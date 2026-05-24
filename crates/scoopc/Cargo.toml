@@ -19,6 +19,7 @@ llvm = [
 [dependencies]
 scoopc_ast = { path = "../scoopc_ast" }
 scoopc_codegen_llvm = { path = "../scoopc_codegen_llvm", default-features = false, optional = true }
+scoopc_cone = { path = "../scoopc_cone" }
 scoopc_effect_facts_stage = { path = "../scoopc_effect_facts_stage" }
 scoopc_hir = { path = "../scoopc_hir" }
 scoopc_ids = { path = "../scoopc_ids" }

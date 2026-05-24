@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::hir::lower_for_dump;
-use crate::session::Session;
-use crate::source::SourceFile;
-use crate::typecheck::TypeEnv;
+use scoopc_hir::hir::lower_for_dump;
+use scoopc_hir::session::Session;
+use scoopc_hir::typecheck::TypeEnv;
+use scoopc_source::SourceFile;
 
 use super::export_public_api_for_source;
 

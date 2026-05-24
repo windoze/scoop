@@ -7,9 +7,6 @@
 
 pub mod cone {
     pub use scoopc_project_model::*;
-
-    pub mod manifest;
-    pub mod package;
 }
 
 pub mod base {

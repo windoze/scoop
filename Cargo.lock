@@ -683,6 +683,7 @@ dependencies = [
  "object",
  "scoopc_ast",
  "scoopc_codegen_llvm",
+ "scoopc_cone",
  "scoopc_effect_facts",
  "scoopc_effect_facts_stage",
  "scoopc_hir",
@@ -729,6 +730,32 @@ dependencies = [
  "scoopc_project_model",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "scoopc_cone"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ast",
+ "scoopc_effect_facts",
+ "scoopc_effect_facts_stage",
+ "scoopc_hir",
+ "scoopc_hir_facts",
+ "scoopc_ids",
+ "scoopc_lir",
+ "scoopc_lir_facts",
+ "scoopc_mir",
+ "scoopc_mir_facts",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tar",
+ "thiserror",
 ]
 
 [[package]]

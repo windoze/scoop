@@ -62,6 +62,7 @@ const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoopc_lir_facts",
     "scoopc_codegen_llvm",
     "scoopc_codegen_c",
+    "scoopc_cone",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -4,10 +4,7 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
-pub use scoopc_project_model::{
-    CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
-    ConeSection, ConeSelectEntry, ConeSelectWhen,
-};
+use crate::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
 
 /// 从磁盘读取并解析 `Cone.toml`。
 pub fn load_cone_manifest_from_path(path: impl AsRef<Path>) -> Result<ConeManifest> {

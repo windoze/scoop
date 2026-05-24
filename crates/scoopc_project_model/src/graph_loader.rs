@@ -4,14 +4,19 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
+use scoopc_source::SourceFile;
 
-use crate::cone::{ConeDependencySpec, ConeKind, ConeManifest, ConeSourcePackage};
-use crate::source::SourceFile;
-
-pub use scoopc_project_model::{
-    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
-    SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
-    SourceConeTrust,
+use crate::graph::{
+    CONSUMER_CONE_ID, ConeId, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeGraph,
+    SourceConeNode, SourceConeRole, SourceConeTrust,
+};
+use crate::manifest::{ConeDependencySpec, ConeKind, ConeManifest};
+use crate::package::ConeSourcePackage;
+use crate::package_loader::load_cone_source_package;
+use crate::sysroot::{
+    SysrootSourceConePackage, collect_auto_sysroot_source_cone_packages,
+    collect_sysroot_source_cone_packages, select_auto_sysroot_source_cone_packages,
+    sysroot_source_cone_names,
 };
 
 const FIRST_NON_CONSUMER_CONE_ID: u32 = 2;
@@ -24,16 +29,15 @@ pub fn load_source_cone_graph_for_consumer_package(
     local_dependency_roots: &[PathBuf],
     extra_sysroot_dependencies: &[String],
 ) -> Result<SourceConeGraph> {
-    let all_sysroot_packages =
-        crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
-    let sysroot_names = crate::sysroot::sysroot_source_cone_names(&all_sysroot_packages);
+    let all_sysroot_packages = collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
+    let sysroot_names = sysroot_source_cone_names(&all_sysroot_packages);
     let local_dependencies = collect_local_dependency_closure(&consumer, local_dependency_roots)?;
     let explicit_sysroot_dependencies = collect_explicit_sysroot_dependency_names(
         std::iter::once(&consumer).chain(local_dependencies.iter()),
         &sysroot_names,
         extra_sysroot_dependencies,
     )?;
-    let sysroot_packages = crate::sysroot::select_auto_sysroot_source_cone_packages(
+    let sysroot_packages = select_auto_sysroot_source_cone_packages(
         all_sysroot_packages,
         &explicit_sysroot_dependencies,
     )?;
@@ -54,7 +58,7 @@ pub fn load_source_cone_graph_for_virtual_consumer(
     sysroot_overlay: Option<&Path>,
     extra_sysroot_dependencies: &[String],
 ) -> Result<SourceConeGraph> {
-    let sysroot_packages = crate::sysroot::collect_auto_sysroot_source_cone_packages(
+    let sysroot_packages = collect_auto_sysroot_source_cone_packages(
         sysroot_root,
         sysroot_overlay,
         extra_sysroot_dependencies,
@@ -95,7 +99,7 @@ pub fn load_source_cone_graph_for_virtual_consumer(
 
 fn source_cone_node_from_sysroot_package(
     id: ConeId,
-    package: crate::sysroot::SysrootSourceConePackage,
+    package: SysrootSourceConePackage,
 ) -> Result<SourceConeNode> {
     let trust = if package.trusted_syslib {
         SourceConeTrust::TrustedSyslib
@@ -180,7 +184,7 @@ fn source_cone_node_from_virtual_consumer(
 
 #[cfg_attr(not(test), allow(dead_code))]
 fn source_cone_graph_from_packages(
-    sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
+    sysroot_packages: Vec<SysrootSourceConePackage>,
     local_dependencies: Vec<ConeSourcePackage>,
     consumer: ConeSourcePackage,
 ) -> Result<SourceConeGraph> {
@@ -193,7 +197,7 @@ fn source_cone_graph_from_packages(
 }
 
 fn source_cone_graph_from_packages_with_extra_consumer_roots(
-    sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
+    sysroot_packages: Vec<SysrootSourceConePackage>,
     mut local_dependencies: Vec<ConeSourcePackage>,
     consumer: ConeSourcePackage,
     extra_consumer_dependency_roots: &[PathBuf],
@@ -206,7 +210,7 @@ fn source_cone_graph_from_packages_with_extra_consumer_roots(
             .then_with(|| lhs.root.cmp(&rhs.root))
     });
 
-    let sysroot_names = crate::sysroot::sysroot_source_cone_names(&sysroot_packages);
+    let sysroot_names = sysroot_source_cone_names(&sysroot_packages);
     collect_explicit_sysroot_dependency_names(
         std::iter::once(&consumer).chain(local_dependencies.iter()),
         &sysroot_names,
@@ -369,7 +373,7 @@ fn collect_local_dependency_package(
         return Ok(());
     }
 
-    let package = crate::cone::load_cone_source_package(&root)?;
+    let package = load_cone_source_package(&root)?;
     validate_local_dependency_package(expected, &package)?;
     packages_by_root.insert(package.root.clone(), package.clone());
 
@@ -540,8 +544,10 @@ fn canonicalize_dependency_root(owner_name: &str, root: &Path, dep_name: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cone::{ConeSection, load_cone_source_package};
+    use crate::graph::SourceConeInfo;
+    use crate::manifest::ConeSection;
     use crate::opt::OptLevel;
+    use crate::package_loader::load_cone_source_package;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     struct TempDirGuard(PathBuf);
@@ -558,7 +564,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let dir = std::env::temp_dir().join(format!(
-            "scoopc_source_cone_graph_{label}_{}_{}",
+            "scoopc_source_cone_graph_loader_{label}_{}_{}",
             std::process::id(),
             nanos
         ));
@@ -575,7 +581,7 @@ mod tests {
 
     fn write_manifest(root: &Path, name: &str, kind: ConeKind, extra: &str) {
         write_file(
-            &root.join(crate::cone::CONE_TOML_FILE_NAME),
+            &root.join(crate::manifest::CONE_TOML_FILE_NAME),
             &format!(
                 "[cone]\nname = \"{name}\"\nversion = \"0.0.0\"\nkind = \"{}\"\n{extra}",
                 kind.as_str()

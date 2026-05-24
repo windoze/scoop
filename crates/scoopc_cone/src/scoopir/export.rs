@@ -10,19 +10,19 @@ use std::collections::HashSet;
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::cone::ConeManifest;
-use crate::hir::{Item as HirItem, LoweredHir};
-use crate::resolve::{Index, Visibility};
-use crate::session::Session;
-use crate::source::SourceFile;
-use crate::span::Span;
-use crate::stable_id::StableConeKey;
-use crate::ty::{
+use scoopc_hir::hir::{Item as HirItem, LoweredHir};
+use scoopc_hir::resolve::{Index, Visibility};
+use scoopc_hir::session::Session;
+use scoopc_hir::stable_id::StableConeKey;
+use scoopc_hir::typecheck::{
+    AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind,
+};
+use scoopc_project_model::ConeManifest;
+use scoopc_source::SourceFile;
+use scoopc_span::Span;
+use scoopc_types::{
     BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind,
     TypeParamType, TypeStore, UnionType, ValueTypeKind,
-};
-use crate::typecheck::{
-    AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind,
 };
 
 use super::schema::{
@@ -46,7 +46,7 @@ pub enum ScoopIrExportError {
         fqn: String,
         #[source]
         #[diagnostic_source]
-        source: crate::typecheck::TypeLowerError,
+        source: scoopc_hir::typecheck::TypeLowerError,
     },
 
     #[error(
@@ -121,67 +121,69 @@ pub fn export_public_api_for_cone_sources(
     // 1) parse：得到 AST（后续 resolver 会写回绑定结果，因此这里用可变 Vec 承载）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let ast = scoopc_ast::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
     }
-    let support_sources = crate::frontend::load_default_support_sources(session.options())?
-        .into_iter()
-        .filter(|source| {
-            !session
-                .sysroot()
-                .files
-                .iter()
-                .any(|file| file.source.path() == source.path())
-        })
-        .collect::<Vec<_>>();
+    let support_sources =
+        scoopc_effect_facts_stage::frontend::load_default_support_sources(session.options())?
+            .into_iter()
+            .filter(|source| {
+                !session
+                    .sysroot()
+                    .files
+                    .iter()
+                    .any(|file| file.source.path() == source.path())
+            })
+            .collect::<Vec<_>>();
     let mut support_asts = Vec::with_capacity(support_sources.len());
     for source in &support_sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let ast = scoopc_ast::parser::parse_file(source).map_err(miette::Report::from)?;
         support_asts.push(ast);
     }
     // 2) index：sysroot cone=0，当前 cone=1（与 `scoop build` 对齐）。
-    let mut indexed: Vec<crate::resolve::IndexedFile<'_>> = Vec::new();
+    let mut indexed: Vec<scoopc_hir::resolve::IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {
-        indexed.push(crate::resolve::IndexedFile {
-            cone: crate::cone::ConeId::new(0),
+        indexed.push(scoopc_hir::resolve::IndexedFile {
+            cone: scoopc_project_model::ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
-                crate::cone::ConeKind::Syslib
+                scoopc_project_model::ConeKind::Syslib
             } else {
-                crate::cone::ConeKind::Lib
+                scoopc_project_model::ConeKind::Lib
             },
             source: &f.source,
             file: &f.ast,
         });
     }
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
-        indexed.push(crate::resolve::IndexedFile {
-            cone: crate::cone::ConeId::new(1),
-            cone_kind: crate::cone::ConeKind::Lib,
+        indexed.push(scoopc_hir::resolve::IndexedFile {
+            cone: scoopc_project_model::ConeId::new(1),
+            cone_kind: scoopc_project_model::ConeKind::Lib,
             source,
             file: ast,
         });
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
-        indexed.push(crate::resolve::IndexedFile {
-            cone: crate::cone::ConeId::new(1),
+        indexed.push(scoopc_hir::resolve::IndexedFile {
+            cone: scoopc_project_model::ConeId::new(1),
             cone_kind: manifest.cone.kind,
             source,
             file: ast,
         });
     }
 
-    let index = crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
+    let index =
+        scoopc_hir::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
 
     // 3) resolver：headers + bodies，把绑定结果写回 AST（供 HIR lowering 使用）。
     let mut support_headers = Vec::with_capacity(support_sources.len());
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
-        let h = crate::resolve::check_file_headers(source, ast, &index)
+        let h = scoopc_hir::resolve::check_file_headers(source, ast, &index)
             .map_err(miette::Report::from)?;
         support_headers.push(h);
     }
     let mut headers = Vec::with_capacity(sources.len());
     for (source, ast) in sources.iter().zip(asts.iter()) {
-        let h = crate::resolve::check_file_headers(source, ast, &index)
+        let h = scoopc_hir::resolve::check_file_headers(source, ast, &index)
             .map_err(miette::Report::from)?;
         headers.push(h);
     }
@@ -190,14 +192,16 @@ pub fn export_public_api_for_cone_sources(
         .zip(support_asts.iter_mut())
         .zip(support_headers.iter())
     {
-        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
+        scoopc_hir::resolve::check_file_bodies(source, ast, &index, h)
+            .map_err(miette::Report::from)?;
     }
     for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
-        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
+        scoopc_hir::resolve::check_file_bodies(source, ast, &index, h)
+            .map_err(miette::Report::from)?;
     }
 
     // 4) type env：用于导出 public type 的声明头信息。
-    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+    let mut env = scoopc_hir::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         env.extend_from_file(source, ast, &index)
@@ -209,7 +213,7 @@ pub fn export_public_api_for_cone_sources(
     }
 
     // 5) HIR lowering + per-file export，再聚合。
-    let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+    let mut pairs: Vec<(&SourceFile, &scoopc_ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         pairs.push((&f.source, &f.ast));
     }
@@ -224,7 +228,7 @@ pub fn export_public_api_for_cone_sources(
     let mut all_funs = Vec::new();
     let stable_cone_key = StableConeKey::from_manifest(manifest);
     for (source, ast) in sources.iter().zip(asts.iter()) {
-        let hir = crate::hir::lower_for_compilation_unit_with_stable_cone_key(
+        let hir = scoopc_hir::hir::lower_for_compilation_unit_with_stable_cone_key(
             stable_cone_key.clone(),
             source,
             ast,
@@ -286,11 +290,11 @@ fn export_public_types_for_source(
 
         let kind = match symbol.kind {
             TypeSymbolKind::Nominal(k) => match k {
-                crate::ast::TypeKind::Class => IrTypeDeclKind::Class,
-                crate::ast::TypeKind::Interface => IrTypeDeclKind::Interface,
-                crate::ast::TypeKind::Struct => IrTypeDeclKind::Struct,
-                crate::ast::TypeKind::Enum => IrTypeDeclKind::Enum,
-                crate::ast::TypeKind::Effect => IrTypeDeclKind::Effect,
+                scoopc_ast::TypeKind::Class => IrTypeDeclKind::Class,
+                scoopc_ast::TypeKind::Interface => IrTypeDeclKind::Interface,
+                scoopc_ast::TypeKind::Struct => IrTypeDeclKind::Struct,
+                scoopc_ast::TypeKind::Enum => IrTypeDeclKind::Enum,
+                scoopc_ast::TypeKind::Effect => IrTypeDeclKind::Effect,
             },
             TypeSymbolKind::TypeAlias => IrTypeDeclKind::TypeAlias,
         };
@@ -302,8 +306,8 @@ fn export_public_types_for_source(
             .map(|(name, variance)| IrTypeParam {
                 name: name.clone(),
                 variance: variance.map(|v| match v {
-                    crate::ast::TypeParamVariance::In => IrVariance::In,
-                    crate::ast::TypeParamVariance::Out => IrVariance::Out,
+                    scoopc_ast::TypeParamVariance::In => IrVariance::In,
+                    scoopc_ast::TypeParamVariance::Out => IrVariance::Out,
                 }),
             })
             .collect::<Vec<_>>();
@@ -351,7 +355,7 @@ fn export_type_alias_rhs_ir_type(
     let (pkg_prefix, imports) = env
         .file_type_context(&info.decl_file)
         .map(|ctx| (ctx.pkg_prefix.clone(), ctx.imports.clone()))
-        .unwrap_or_else(|| (String::new(), crate::resolve::ImportTable::default()));
+        .unwrap_or_else(|| (String::new(), scoopc_hir::resolve::ImportTable::default()));
 
     // 为 alias 的 type params 构造占位的 param TypeId（用于 RHS lowering 时识别 `T`）。
     let decl_span = Span::new(0, 0);
@@ -509,8 +513,8 @@ fn export_public_funs_for_source(
         };
 
         let kind = match overload.sig.kind {
-            crate::ast::FunDeclKind::Regular => IrFunDeclKind::Regular,
-            crate::ast::FunDeclKind::EffectOp => IrFunDeclKind::EffectOp,
+            scoopc_ast::FunDeclKind::Regular => IrFunDeclKind::Regular,
+            scoopc_ast::FunDeclKind::EffectOp => IrFunDeclKind::EffectOp,
         };
 
         let FunctionType {

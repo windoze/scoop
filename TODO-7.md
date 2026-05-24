@@ -594,7 +594,7 @@
   - effect facts builder 功能验证：`cargo test --all --all-targets` 覆盖并通过 `scoopc_effect_facts_stage` 的 16 个 builder/solver 单测，run-pass fixtures 全绿，确认新 crate 内仍能正常构造 facts。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir --depth 1`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo tree -p scoopc_effect_facts_stage --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T07：cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`）
+### [DONE] P9-T07：cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`）
 
 - 参考：本文件"当前 `cone/` 内的两层"。
 - 目标：

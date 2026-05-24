@@ -5,6 +5,7 @@ members = [
     "crates/scoopc",
     "crates/scoopc_ast",
     "crates/scoopc_codegen_llvm",
+    "crates/scoopc_cone",
     "crates/scoopc_effect_facts_stage",
     "crates/scoopc_hir",
     "crates/scoopc_lir",

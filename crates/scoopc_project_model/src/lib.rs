@@ -9,18 +9,40 @@
 #![forbid(unsafe_code)]
 
 pub mod graph;
+pub mod graph_loader;
 pub mod manifest;
+pub mod manifest_loader;
 pub mod opt;
 pub mod package;
+pub mod package_loader;
+pub mod sysroot;
 
 pub use graph::{
     CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
     SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
     SourceConeTrust, StableConeKey,
 };
+pub use graph_loader::{
+    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
+};
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
     ConeSection, ConeSelectEntry, ConeSelectWhen,
 };
+pub use manifest_loader::{
+    cone_manifest_path_in_dir, discover_cone_manifest_path, discover_cone_root,
+    load_cone_manifest_from_dir, load_cone_manifest_from_path,
+};
 pub use opt::{InvalidOptLevel, OptLevel};
 pub use package::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage};
+pub use package_loader::{
+    host_target_platform_id, load_cone_source_package, load_cone_source_package_for_platform,
+    load_cone_source_package_for_platform_with_sysroot_root,
+};
+pub use sysroot::{
+    DEFAULT_AUTO_DEPENDENCY_CONES, SYSROOT_OVERLAY_ENV, SysrootSourceConePackage,
+    SysrootSourceEntry, canonicalize_sysroot_root, collect_auto_sysroot_source_cone_packages,
+    collect_auto_sysroot_source_entries, collect_merged_sysroot_entries, collect_sysroot_files,
+    collect_sysroot_source_cone_packages, default_sysroot_path,
+    select_auto_sysroot_source_cone_packages, sysroot_source_cone_names,
+};
