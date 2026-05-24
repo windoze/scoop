@@ -30,4 +30,6 @@
 - Added `scoopc_cone::artifact` with documented per-cone layout, manifest/schema metadata, bincode stage product IO, object file IO, fingerprint files, and round-trip tests.
 - Targeted `cargo test -p scoopc_cone` passed once before lint; clippy then found an overly broad constructor, so the API was adjusted to group stage products and fingerprints explicitly.
 - `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test -p scoopc_cone`, and `cargo test --all --all-targets` passed.
-- Marked P10-T02 `[DONE]` in `TODO.md` and `TODO-7.md`; next step is final diff check and commit.
+- `git diff --check` passed.
+- Marked P10-T02 `[DONE]` in `TODO.md` and `TODO-7.md`.
+- Committed the P10-T02 implementation as `cd3c4c18` (`[P10-T02] Add per-cone artifact IO`).
