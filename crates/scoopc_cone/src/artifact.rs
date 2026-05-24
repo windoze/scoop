@@ -58,6 +58,17 @@ pub enum ConeArtifactError {
         #[source]
         source: Box<bincode::ErrorKind>,
     },
+    #[error(
+        "incompatible cone artifact compiler version `{found}` (expected `{expected}`); rebuild the cone"
+    )]
+    IncompatibleCompilerVersion { expected: String, found: String },
+    #[error(
+        "incompatible cone artifact schema versions {found:?} (expected {expected:?}); rebuild the cone"
+    )]
+    IncompatibleSchemaVersions {
+        expected: ConeArtifactSchemaVersions,
+        found: ConeArtifactSchemaVersions,
+    },
     #[error("invalid object file name `{file_name}` in cone artifact")]
     InvalidObjectFileName { file_name: String },
 }
@@ -87,6 +98,24 @@ impl ConeArtifactManifest {
     /// Return this manifest's stable cone identity.
     pub fn stable_cone_key(&self) -> StableConeKey {
         StableConeKey::new(&self.cone_name, &self.cone_version)
+    }
+
+    /// Reject artifacts produced by an incompatible compiler or wire schema.
+    pub fn ensure_compatible(&self) -> Result<()> {
+        if self.compiler_version != COMPILER_VERSION {
+            return Err(ConeArtifactError::IncompatibleCompilerVersion {
+                expected: COMPILER_VERSION.to_owned(),
+                found: self.compiler_version.clone(),
+            });
+        }
+        let expected = ConeArtifactSchemaVersions::current();
+        if self.schema_versions != expected {
+            return Err(ConeArtifactError::IncompatibleSchemaVersions {
+                expected,
+                found: self.schema_versions,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -289,6 +318,7 @@ impl ConeArtifact {
     pub fn read(dir: &Path) -> Result<Self> {
         let manifest: ConeArtifactManifest =
             read_json(&dir.join(CONE_ARTIFACT_MANIFEST_FILE_NAME))?;
+        manifest.ensure_compatible()?;
         let objs_dir = dir.join(CONE_ARTIFACT_OBJS_DIR_NAME);
         let mut objects = Vec::with_capacity(manifest.object_files.len());
         for file_name in &manifest.object_files {
@@ -384,26 +414,7 @@ mod tests {
     fn cone_artifact_round_trip_preserves_stage_products_and_layout() {
         let dir = tempdir().expect("create temp dir");
         let cone = StableConeKey::new("upstream-lib", "1.2.3");
-        let artifact = ConeArtifact::with_parts(
-            cone.clone(),
-            ConeArtifactStageProducts::new(
-                HirFacts::new(),
-                MirFacts::new(),
-                EffectFacts::new(),
-                LirFacts::new(OptLevel::O2),
-                LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-            ),
-            vec![
-                ConeArtifactObject::new("scoop.o", b"scoop object".to_vec())
-                    .expect("valid scoop object"),
-                ConeArtifactObject::new("native_runtime.o", b"native object".to_vec())
-                    .expect("valid native object"),
-            ],
-            ConeArtifactFingerprints::new(
-                b"inputs:fingerprint".to_vec(),
-                b"outputs:fingerprint".to_vec(),
-            ),
-        );
+        let artifact = sample_artifact(cone.clone());
 
         artifact.write(dir.path()).expect("write artifact");
         let decoded = ConeArtifact::read(dir.path()).expect("read artifact");
@@ -450,9 +461,70 @@ mod tests {
     }
 
     #[test]
+    fn read_rejects_incompatible_compiler_version() {
+        let dir = tempdir().expect("create temp dir");
+        let artifact = sample_artifact(StableConeKey::new("upstream-lib", "1.2.3"));
+        artifact.write(dir.path()).expect("write artifact");
+
+        let manifest_path = dir.path().join(CONE_ARTIFACT_MANIFEST_FILE_NAME);
+        let mut manifest: ConeArtifactManifest = read_json(&manifest_path).expect("read manifest");
+        manifest.compiler_version = "0.0.0".to_owned();
+        write_json(&manifest_path, &manifest).expect("write manifest");
+
+        let error = ConeArtifact::read(dir.path()).expect_err("incompatible compiler version");
+        assert!(matches!(
+            error,
+            ConeArtifactError::IncompatibleCompilerVersion { found, .. } if found == "0.0.0"
+        ));
+    }
+
+    #[test]
+    fn read_rejects_incompatible_schema_versions() {
+        let dir = tempdir().expect("create temp dir");
+        let artifact = sample_artifact(StableConeKey::new("upstream-lib", "1.2.3"));
+        artifact.write(dir.path()).expect("write artifact");
+
+        let manifest_path = dir.path().join(CONE_ARTIFACT_MANIFEST_FILE_NAME);
+        let mut manifest: ConeArtifactManifest = read_json(&manifest_path).expect("read manifest");
+        manifest.schema_versions.hir_facts =
+            WireSchemaVersion::new(WIRE_SCHEMA_VERSION.major + 1, WIRE_SCHEMA_VERSION.minor);
+        write_json(&manifest_path, &manifest).expect("write manifest");
+
+        let error = ConeArtifact::read(dir.path()).expect_err("incompatible schema versions");
+        assert!(matches!(
+            error,
+            ConeArtifactError::IncompatibleSchemaVersions { found, .. }
+                if found.hir_facts.major == WIRE_SCHEMA_VERSION.major + 1
+        ));
+    }
+
+    #[test]
     fn object_file_names_must_stay_inside_objs_dir() {
         assert!(ConeArtifactObject::new("../escape.o", Vec::new()).is_err());
         assert!(ConeArtifactObject::new("nested/escape.o", Vec::new()).is_err());
         assert!(ConeArtifactObject::new("", Vec::new()).is_err());
+    }
+
+    fn sample_artifact(cone: StableConeKey) -> ConeArtifact {
+        ConeArtifact::with_parts(
+            cone,
+            ConeArtifactStageProducts::new(
+                HirFacts::new(),
+                MirFacts::new(),
+                EffectFacts::new(),
+                LirFacts::new(OptLevel::O2),
+                LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+            ),
+            vec![
+                ConeArtifactObject::new("scoop.o", b"scoop object".to_vec())
+                    .expect("valid scoop object"),
+                ConeArtifactObject::new("native_runtime.o", b"native object".to_vec())
+                    .expect("valid native object"),
+            ],
+            ConeArtifactFingerprints::new(
+                b"inputs:fingerprint".to_vec(),
+                b"outputs:fingerprint".to_vec(),
+            ),
+        )
     }
 }

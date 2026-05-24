@@ -841,12 +841,17 @@
   - 新增 `scoopc_cone` 单测覆盖写入 → 读取 → fact/LIR/object/fingerprint 等价、布局文件存在性，以及 object file name 不得逃逸 `objs/`。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`git diff --check`。
 
-### [TODO] P10-T02R：Review per-cone artifact schema
+### [DONE] P10-T02R：Review per-cone artifact schema
 
 - 参考：P10-T02。
 - 重点：磁盘布局是否覆盖 PLAN §1.2 要求的 stage / fact 完整集合；版本兼容策略是否合理。
 - 验证：重新运行 P10-T02 的所有验证。
 - 依赖：P10-T02
+- 完成记录：
+  - 2026-05-24：复审 P10-T02 per-cone artifact schema。确认 `ConeArtifact` 持久化集合覆盖 HIR/MIR/effect/LIR facts、LIR program、本 cone Scoop/native object 与 inputs/outputs fingerprint，磁盘布局保持直接目录树而非 `.cone` tar 归档，符合 PLAN §1.2 下游通过 fact/LIR artifact 消费上游 cone 的边界。
+  - 修复 review 发现的版本兼容缺口：`ConeArtifact::read` 现在先校验 `manifest.json` 中的 compiler version 与 HIR/MIR/effect/LIR facts、LIR program schema versions；不兼容时显式报错并要求整 cone 重编，落实 P10-T02 文档化的 coarse-grained 兼容策略。
+  - 新增 `scoopc_cone` 回归测试覆盖 incompatible compiler version 与 schema version 拒绝路径，保留原有写入 -> 读取 -> stage product/object/fingerprint/layout 等价验证。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`git diff --check`。
 
 ### [TODO] P10-T03：`run_frontend` 改造为按 cone DAG 拓扑顺序运行
 
