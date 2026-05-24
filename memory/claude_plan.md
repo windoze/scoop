@@ -12,11 +12,22 @@ I will follow `TODO.md` as the authoritative task list and complete only the fir
 
 ## Current Task
 
-First incomplete task: `P9-T09` (`P9 全包清场、文档同步与依赖审计`).
+First incomplete task for this invocation: `P9-T09R` (`Review P9 全包完成度`).
 
 ## Progress
 
-- Confirmed `P9-T09` is the first incomplete task in `TODO.md`; `P9-T09R` remains next.
+- Confirmed `P9-T09R` is the first incomplete task in `TODO.md`; `P9-T09` is already `[DONE]`.
+- Checked latest commit `b36262ef [P9-T09] Complete P9 crate split audit`, which is directly relevant as the implementation task under review.
+- Existing unrelated dirty files are present before task edits: `run_agent.sh` and untracked `PLUGIN_ABI.md`.
+- Plan for this review: audit the P9 crate DAG and `scoopc/src/` residual ownership, rerun the P9-T09 validation set, update TODO completion records, commit task-related changes, and stop.
+- Audited PLAN §1.2/P9 requirements against the current crate graph. Direct dependencies for base, fact, stage, codegen, and cone crates follow the intended DAG: stages depend only on base/facts/prior stages, codegen depends on LIR inputs, and cone sits above stage/fact/base crates.
+- Audited `crates/scoopc/src/`: remaining stage/cone/backend names are facade re-exports, `frontend.rs`/`pipeline/` orchestration, driver/session helpers, and audit tests; old stage implementation directories are no longer present under the umbrella crate.
+- Validation passed: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo run -p scoop_tools -- dependency-gate`; `cargo build --workspace`; `cargo test --all --all-targets`; `cargo run -p scoop -- test`; `git diff --check`.
+- Marked `P9-T09R` `[DONE]` in `TODO.md` and `TODO-7.md`; next task is now `P10-T01`.
+
+## Previous Invocation Notes
+
+- Confirmed `P9-T09` was the first incomplete task in `TODO.md`; `P9-T09R` remained next.
 - Checked Git state and latest commit. Existing unrelated dirty files were present before task edits: `run_agent.sh` and untracked `PLUGIN_ABI.md`.
 - Ran `cargo run -p scoop_tools -- dependency-gate`; it passed and reported the P9 crate classes and source-boundary checks.
 - Audited direct stage/cone dependencies with `cargo tree --depth 1`; the current shape matches the P9 task records and dependency gate.

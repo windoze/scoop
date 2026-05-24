@@ -717,12 +717,17 @@
   - README 与 `PIPELINE-CLEANUP.md` 已同步 P9 后边界冻结：后续任何 stage 行为、handoff 或 fact 改动必须落在 owning crate，不能在 umbrella、其它 stage、cone 或 backend crate 中新增跨 crate fallback/shim。
   - 验证通过：`cargo run -p scoop_tools -- dependency-gate`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`git diff --check`。
 
-### [TODO] P9-T09R：Review P9 全包完成度
+### [DONE] P9-T09R：Review P9 全包完成度
 
 - 参考：P9-T09。
 - 重点：是否所有 stage crate 都按 DAG 方向依赖；是否还残留 `scoopc/src/` 下的旧实现；P10 是否可以从干净的 crate 边界开始。
 - 验证：重新运行 P9-T09 的所有验证。
 - 依赖：P9-T09
+- 完成记录：
+  - 2026-05-24：复核 P9-T09 全包清场结果。`cargo tree --depth 1` 复核 base、fact、AST/HIR/MIR/effect-facts/LIR/codegen/cone direct dependencies，stage 方向与 PLAN §1.2 一致；`scoopc_codegen_llvm` 只直接依赖 LIR/LIR facts 与 base，`scoopc_cone` 位于 stage/fact/base 之上，未发现 stage 反向依赖 cone。
+  - `crates/scoopc/src/` 复核结果保持为 umbrella facade 与 driver/orchestration：`lib.rs` re-export base/fact/stage crate，`llvm.rs` 与 `cone.rs` 仅作兼容 facade，实际 stage/backend/cone owner 均在独立 crate；未发现旧 stage 实现目录残留。
+  - P10 可以从 P9 后冻结的干净 crate 边界开始；后续 per-cone artifact、TypeStore wire format 与 frontend orchestration 改动必须落在 owning crate，不能通过 umbrella 或跨 crate shim 绕开。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`（16 个 pipeline crate，549 个 source-boundary 文件）；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507/1507）；`git diff --check`。
 
 ---
 

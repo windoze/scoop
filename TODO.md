@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a`、`P9-T06-b`、`P9-T06-c`、`P9-T06`、`P9-T06R`、`P9-T07`、`P9-T07R`、`P9-T08`、`P9-T08R` 与 `P9-T09` 已完成；下一项为 `P9-T09R`。
+> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a`、`P9-T06-b`、`P9-T06-c`、`P9-T06`、`P9-T06R`、`P9-T07`、`P9-T07R`、`P9-T08`、`P9-T08R`、`P9-T09` 与 `P9-T09R` 已完成；下一项为 `P10-T01`。
 
 ## 总原则
 
@@ -168,7 +168,7 @@
 | P9-T08 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t08scoopc-umbrella-crate-收尾--dependency_gate-全面强化) | `scoopc` umbrella crate 收尾 + dependency_gate 全面强化 |
 | P9-T08R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t08rreview-umbrella-收尾) | Review umbrella 收尾 |
 | P9-T09 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t09p9-全包清场文档同步与依赖审计) | P9 全包清场、文档同步与依赖审计 |
-| P9-T09R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t09rreview-p9-全包完成度) | Review P9 全包完成度 |
+| P9-T09R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t09rreview-p9-全包完成度) | Review P9 全包完成度 |
 | P10-T01 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t01解决-typeid-cross-process-stable-wire-format) | 解决 `TypeId` cross-process stable wire format |
 | P10-T01R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t01rreview-typestore-wire-format) | Review TypeStore wire format |
 | P10-T02 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t02定义-per-cone-build-artifact-磁盘布局与-scoopc_cone-读写-api) | 定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API |
