@@ -944,6 +944,38 @@
   - 新增 regression 单测 `dependency_frontend_uses_its_own_export_entry_points`，证明 dependency cone frontend 会按自身 manifest 执行导出入口规则；保留 `downstream_frontend_uses_dependency_artifact_imports` 对 synthetic decl file / no-body import 的证明。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`git diff --check`。
 
+### [TODO] P10-T04-a：补齐 per-cone artifact cache handoff 边界
+
+- 阻塞原因：
+  - P10-T04 要求 cache hit 时从磁盘加载上游 cone artifact 并跳过上游所有 stage；当前 `run_frontend` 只在进程内发布 `ConeArtifact`，且发布内容主要用于 frontend import，尚未接入 artifact cache 目录或 cache hit 加载路径。
+  - 当前 `FrontendOutput` / codegen lowering 仍以 flattened `build_closure_sources + asts` 作为后续 lowering 输入；如果上游 cone 直接 cache hit 而不 parse/typecheck source，后续 lowering 仍没有正式的 artifact handoff 可以消费。
+  - 仅替换 `crates/scoop/src/commands/build/incremental.rs` 的 fingerprint 计算会得到表面上的 per-cone hash，但无法满足“cache hit：从磁盘加载 artifact；cache miss：跑 stage 后写盘”和“下游用上游 artifact、跳过上游 stage”的任务要求，属于规避实现边界。
+- 目标：
+  - 在 P10-T04 的 fingerprint chain 之前，补齐 build/frontend 与 `ConeArtifact` 之间的 cache handoff；
+  - cache hit 必须能够加载依赖 cone 的 artifact 并注入下游 frontend，而不是读取依赖 cone source；
+  - cache miss 必须写出后续 cache hit 所需的完整下游可见 artifact payload。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/frontend.rs`
+  - `crates/scoop/src/commands/build.rs`
+  - `crates/scoop/src/commands/build/incremental.rs`
+  - `crates/scoopc_cone/src/artifact.rs`
+- 必须实现的内容：
+  1. 为 build/frontend 增加显式 per-cone artifact cache 输入（artifact 目录、预期 inputs fingerprint、直接依赖 outputs fingerprint 等），不能通过全局变量或临时 façade 绕过。
+  2. dependency cone cache hit 时，从磁盘读取 `ConeArtifact`，校验 schema / compiler / inputs fingerprint，并通过 artifact frontend import 注入下游 `Index` / `TypeEnv`；该路径不得 parse、index 或 typecheck 该 dependency cone 的 source。
+  3. dependency cone cache miss 时，按现有 per-cone frontend orchestration 跑该 cone，并写出下一次 cache hit 所需的完整 artifact payload；payload 缺失时必须显式报错或重建，不能静默 fallback 到读源。
+  4. 修正后续 lowering/codegen 对 cached dependency cone source AST 的依赖：要么消费 artifact 中的正式 stage/codegen payload，要么把 cached dependency 从后续 lowering source 集合中移除并保持语义正确；不得使用空 AST、synthetic source 或重新读取上游 source 作为替代。
+  5. 增加 regression 测试证明上游 dependency cache hit 后，即使 dependency source 被改成会 parse/typecheck 失败的内容，下游仍只消费已验证 artifact；cache miss 仍会重新读取并报告该失败。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test --all --all-targets`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`
+  5. `git diff --check`
+- 完成条件：
+  - P10-T04 可以在不靠 whole-project fingerprint、不读 cached dependency source、不使用 placeholder AST 的前提下接入 per-cone inputs/outputs fingerprint chain；
+  - 测试稳定证明 dependency cache hit 跳过 source parse/typecheck，cache miss 仍按源文件重建。
+- 依赖：P10-T03R
+
 ### [TODO] P10-T04：per-cone fingerprint cache + 增量 build
 
 - 参考：本文件"Per-cone build artifact 现状基线"。
@@ -968,7 +1000,7 @@
 - 完成条件：
   - 三种 cache 场景测试通过；
   - 完成记录给出 fresh build vs cache hit 的实测耗时。
-- 依赖：P10-T03R
+- 依赖：P10-T04-a
 
 ### [TODO] P10-T04R：Review per-cone fingerprint cache
 
