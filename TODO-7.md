@@ -545,7 +545,7 @@
   - 为保持 P9-T06 后续 LIR/codegen 边界可执行，补齐 LIR-owned source payload re-export、codegen-owned source-boundary dependency gate，并修复抽 crate 后暴露的 stage-test 编译与 in-process effect-facts handoff转换问题；P10 的 stable wire format 仍由后续 P10-T01 处理。
   - 验证通过：`cargo fmt`；`cargo check -p scoopc_codegen_llvm`；`cargo build --workspace`；`cargo test --all --all-targets`（60 分钟 timeout 完整通过）；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
+### [DONE] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
 - 目标：
@@ -572,6 +572,11 @@
   - `cargo tree -p scoopc_lir --depth 1` 不显示 `scoopc_hir` / `scoopc_ast` / `scoopc`；
   - `cargo tree -p scoopc_codegen_llvm` 直接显示 `scoopc_lir`，不再绕 façade。
 - 依赖：P9-T06-c
+- 完成记录：
+  - 2026-05-24：`scoopc_effect_facts_stage` 与 `scoopc_lir` 已作为独立 workspace crate 接入；`scoopc` 仅保留 façade re-export，原 `effect_facts/builder.rs` 与 effect-facts stage glue 由 `scoopc_effect_facts_stage` 拥有，`effect_lowered/` 由 `scoopc_lir` 拥有。
+  - `scoopc_lir` direct dependencies 为 base + `scoopc_mir` / `scoopc_mir_facts` / `scoopc_effect_facts` / `scoopc_lir_facts`，不 direct 依赖 `scoopc_hir` / `scoopc_ast` / umbrella `scoopc`；`dependency_gate` 已覆盖 LIR direct dependency 与 source-boundary residual。
+  - P9-T03 登记的 LLVM 临时 façade 义务已闭合：`scoopc_codegen_llvm` direct 依赖 `scoopc_lir` / `scoopc_lir_facts`，`cargo tree -p scoopc_codegen_llvm --depth 1` 不显示 umbrella `scoopc`。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir --depth 1`；`cargo tree -p scoopc_codegen_llvm --depth 1`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
 
