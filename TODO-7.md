@@ -624,8 +624,13 @@
   - `cargo tree -p scoopc_cone` 显示对所有 stage crate 的依赖；
   - 任何 stage crate 都不依赖 `scoopc_cone`（dependency_gate 强制）。
 - 依赖：P9-T06R
+- 完成记录：
+  - 2026-05-24：完成 cone 两层拆分。`cone/manifest.rs` / `package.rs` / `graph.rs` 与 sysroot path/FS 层已迁入 base crate `scoopc_project_model`；AST-holding `Sysroot { files }` 留在 `scoopc_hir::sysroot`，并通过 `scoopc_project_model::sysroot` 的 path-layer API 加载源文件。
+  - 新增 `scoopc_cone` 操作层 crate，承载 `.cone` archive read/write、ScoopIR export、annotation classes、visibility tables、pre-specialize index 与 downstream consume/inject API；`scoopc_cone` 作为 cone 操作层位于所有 stage crate 之上（`scoopc_codegen_llvm` 以 `default-features = false` 进入直接依赖，避免为 cone API 启用 LLVM backend feature）；`scoopc::cone::*` 改为单文件 façade，继续 re-export project-model 数据层与 cone 操作层。
+  - dependency gate 已把 `scoopc_cone` 纳入 forbidden workspace crate 集合，使 base/fact/stage crate 不能反向依赖 cone 操作层。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421）；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo tree -p scoopc_cone`；`git diff --check`。
 
-### [TODO] P9-T07R：Review cone 两层拆分
+### [DONE] P9-T07R：Review cone 两层拆分
 
 - 参考：P9-T07。
 - 重点：
@@ -634,6 +639,11 @@
   - sysroot loader 归属决策是否落地。
 - 验证：重新运行 P9-T07 的所有验证。
 - 依赖：P9-T07
+- 完成记录：
+  - 2026-05-24：复核 P9-T07 结果。`scoopc_project_model` direct workspace dependencies 仅为 base crates（`scoopc_ids` / `scoopc_source`，其传递边仍在 base DAG 内），未引用 AST/HIR/MIR/LIR/codegen crate；sysroot path-layer 由 `scoopc_project_model::sysroot` 拥有，`scoopc_hir::sysroot` 仅保留 AST-holding 加载层。
+  - `scoopc_cone` direct dependencies 覆盖 `scoopc_ast`、`scoopc_hir`、`scoopc_mir`、`scoopc_effect_facts_stage`、`scoopc_lir`、`scoopc_codegen_llvm` 以及当前 operation 所需 fact/project/base crates；全仓 `scoopc_cone` 搜索显示除 umbrella façade 与 dependency gate 外无 stage/base/fact crate 反向引用。
+  - Review 修正：发现 `scoopc_cone` 缺少 P9-T07 完成条件要求的 direct `scoopc_codegen_llvm` stage edge；已以 `default-features = false` 加入，保证 cone 操作层位于所有 stage crate 之上但不强制启用 LLVM backend。另发现 P9-T07 标题已标 `[DONE]`，但本文件缺少完成记录；本 review 已补齐 P9-T07 完成记录，保持 `TODO.md` / `TODO-7.md` 状态同步。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421）；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo tree -p scoopc_cone`；`git diff --check`。
 
 ### [TODO] P9-T08：`scoopc` umbrella crate 收尾 + dependency_gate 全面强化
 

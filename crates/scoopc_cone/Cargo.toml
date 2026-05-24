@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 scoopc_ast = { path = "../scoopc_ast" }
+scoopc_codegen_llvm = { path = "../scoopc_codegen_llvm", default-features = false }
 scoopc_effect_facts = { path = "../scoopc_effect_facts" }
 scoopc_effect_facts_stage = { path = "../scoopc_effect_facts_stage" }
 scoopc_hir = { path = "../scoopc_hir" }

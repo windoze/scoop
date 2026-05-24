@@ -738,6 +738,7 @@ version = "0.1.0"
 dependencies = [
  "miette",
  "scoopc_ast",
+ "scoopc_codegen_llvm",
  "scoopc_effect_facts",
  "scoopc_effect_facts_stage",
  "scoopc_hir",
