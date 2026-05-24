@@ -27,7 +27,7 @@ use scoopc_hir_facts::HirFacts;
 use scoopc_lir::LateLoweredProgram;
 use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
-use scoopc_project_model::{ConeManifest, StableConeKey};
+use scoopc_project_model::{ConeKind, ConeManifest, StableConeKey};
 use scoopc_source::SourceFile;
 use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -100,6 +100,10 @@ pub enum ConeArtifactError {
 pub struct ConeArtifactManifest {
     pub cone_name: String,
     pub cone_version: String,
+    /// Cone kind (lib/bin/syslib) — needed by downstream stages that rebuild Index/TypeEnv
+    /// from `compilation_sources` so they can reattach this cone's synthetic `decl_file`
+    /// to the correct `ConeKind` (P10-T04-b).
+    pub cone_kind: ConeKind,
     pub compiler_version: String,
     pub schema_versions: ConeArtifactSchemaVersions,
     pub object_files: Vec<String>,
@@ -107,10 +111,11 @@ pub struct ConeArtifactManifest {
 
 impl ConeArtifactManifest {
     /// Build manifest metadata for the current compiler and wire schema.
-    pub fn current(cone: &StableConeKey, object_files: Vec<String>) -> Self {
+    pub fn current(cone: &StableConeKey, cone_kind: ConeKind, object_files: Vec<String>) -> Self {
         Self {
             cone_name: cone.name().to_owned(),
             cone_version: cone.version().to_owned(),
+            cone_kind,
             compiler_version: COMPILER_VERSION.to_owned(),
             schema_versions: ConeArtifactSchemaVersions::current(),
             object_files,
@@ -296,8 +301,10 @@ pub struct ConeArtifact {
 
 impl ConeArtifact {
     /// Construct an artifact with current manifest schema metadata.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         cone: StableConeKey,
+        cone_kind: ConeKind,
         hir_facts: HirFacts,
         mir_facts: MirFacts,
         effect_facts: EffectFacts,
@@ -307,6 +314,7 @@ impl ConeArtifact {
     ) -> Self {
         Self::with_parts(
             cone,
+            cone_kind,
             ConeArtifactStageProducts::new(
                 hir_facts,
                 mir_facts,
@@ -323,6 +331,7 @@ impl ConeArtifact {
     /// Construct an artifact with object and fingerprint payloads.
     pub fn with_parts(
         cone: StableConeKey,
+        cone_kind: ConeKind,
         products: ConeArtifactStageProducts,
         frontend_import: ConeArtifactFrontendImport,
         objects: Vec<ConeArtifactObject>,
@@ -333,7 +342,7 @@ impl ConeArtifact {
             .map(|object| object.file_name.clone())
             .collect();
         Self {
-            manifest: ConeArtifactManifest::current(&cone, object_files),
+            manifest: ConeArtifactManifest::current(&cone, cone_kind, object_files),
             hir_facts: products.hir_facts,
             mir_facts: products.mir_facts,
             effect_facts: products.effect_facts,
@@ -758,6 +767,7 @@ mod tests {
     fn sample_artifact(cone: StableConeKey) -> ConeArtifact {
         ConeArtifact::with_parts(
             cone,
+            ConeKind::Lib,
             ConeArtifactStageProducts::new(
                 HirFacts::new(),
                 MirFacts::new(),

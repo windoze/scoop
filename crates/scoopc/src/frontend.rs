@@ -13,7 +13,8 @@ use crate::cone::{
 use crate::cone::{
     ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
     SourceConeCompilationUnit, SourceConeGraph, SourceConeInfo, SourceConeRole,
-    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
+    build_cached_cone_import_from_artifact, load_source_cone_graph_for_consumer_package,
+    load_source_cone_graph_for_virtual_consumer,
 };
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -22,6 +23,7 @@ use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
 use crate::typecheck::TypeEnv;
+use scoopc_hir::cone_import::CachedConeImport;
 
 #[cfg(feature = "llvm")]
 use crate::hir;
@@ -356,6 +358,11 @@ pub struct FrontendOutput {
     typecheck_types: TypeStore,
     #[cfg(feature = "llvm")]
     type_env: TypeEnv,
+    /// consumer 的所有 dep cone 注入 payload，按 DAG 顺序保留。
+    ///
+    /// 下游 stage（effect_facts、MIR materialize、LIR codegen）若从 `compilation_sources`
+    /// 重建 `Index`/`TypeEnv`，可以再次注入这些 payload 以恢复 dep cone 的可见性。
+    cached_cone_imports: Vec<CachedConeImport>,
 }
 
 impl FrontendOutput {
@@ -366,6 +373,7 @@ impl FrontendOutput {
         #[cfg(feature = "llvm")] monomorph_requests: Vec<MonomorphRequest>,
         #[cfg(feature = "llvm")] typecheck_types: TypeStore,
         #[cfg(feature = "llvm")] type_env: TypeEnv,
+        cached_cone_imports: Vec<CachedConeImport>,
     ) -> Self {
         Self {
             input,
@@ -379,6 +387,7 @@ impl FrontendOutput {
             typecheck_types,
             #[cfg(feature = "llvm")]
             type_env,
+            cached_cone_imports,
         }
     }
 
@@ -413,6 +422,10 @@ impl FrontendOutput {
     #[cfg(feature = "llvm")]
     pub fn type_env(&self) -> &TypeEnv {
         &self.type_env
+    }
+
+    pub fn cached_cone_imports(&self) -> &[CachedConeImport] {
+        &self.cached_cone_imports
     }
 }
 
@@ -662,6 +675,9 @@ pub fn run_frontend_with_artifact_cache(
     let mut published_artifacts: HashMap<ConeId, crate::cone::ConeArtifact> = HashMap::new();
     let mut final_index = None;
     let mut final_env = None;
+    // consumer 在 frontend 阶段消费的所有 dep cone 注入 payload，按 dep DAG 顺序排列。
+    // 下游 stage 若从 `compilation_sources` 重建 `Index`/`TypeEnv`，可以重新注入这些 payload。
+    let mut consumer_cached_cone_imports: Vec<CachedConeImport> = Vec::new();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -749,6 +765,10 @@ pub fn run_frontend_with_artifact_cache(
             crate::cone::inject_cone_artifact_frontend_import(
                 &mut index, &mut env, dep_id, artifact,
             )?;
+            if unit.is_consumer() {
+                consumer_cached_cone_imports
+                    .push(build_cached_cone_import_from_artifact(dep_id, artifact));
+            }
         }
 
         let mut headers = Vec::with_capacity(unit.sources().len());
@@ -883,6 +903,7 @@ pub fn run_frontend_with_artifact_cache(
             )?;
             Some(crate::cone::ConeArtifact::new(
                 unit.source_cone_info().stable_key,
+                unit.source_cone_info().kind,
                 scoopc_hir_facts::HirFacts::new(),
                 scoopc_mir_facts::MirFacts::new(),
                 scoopc_effect_facts::EffectFacts::new(),
@@ -968,6 +989,7 @@ pub fn run_frontend_with_artifact_cache(
         types,
         #[cfg(feature = "llvm")]
         env,
+        consumer_cached_cone_imports,
     ))
 }
 
@@ -1588,6 +1610,30 @@ mod tests {
         assert_eq!(
             overload.symbol.decl_file.display().to_string(),
             "<cone:fixture-cache-dep@0.0.0>"
+        );
+
+        // P10-T04-b: 验证 cached cone imports 沿 FrontendOutput 透传，下游 stage（effect_facts/mir）
+        // 重建 Index/TypeEnv 时可以重新注入。
+        assert_eq!(
+            output.cached_cone_imports().len(),
+            1,
+            "consumer cache-hit 输出应聚合一个 cached cone import payload"
+        );
+        let cached = &output.cached_cone_imports()[0];
+        assert_eq!(cached.decl_cone, dep_id);
+        assert_eq!(cached.cone_name, "fixture-cache-dep");
+        assert_eq!(cached.cone_version, "0.0.0");
+        assert_eq!(cached.cone_kind, ConeKind::Lib);
+        assert_eq!(
+            cached.decl_file.display().to_string(),
+            "<cone:fixture-cache-dep@0.0.0>"
+        );
+        assert!(
+            cached
+                .funs
+                .iter()
+                .any(|fun| fun.fqn == "fixtures.cache.dep.dep"),
+            "cached cone import 应携带 dep public fun"
         );
 
         let mut miss_cache = FrontendArtifactCache::new();

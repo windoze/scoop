@@ -40,8 +40,13 @@ impl WireSchemaVersion {
     }
 }
 
-/// Initial TypeStore/fact/LIR binary wire schema.
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 0);
+/// TypeStore/fact/LIR binary wire schema.
+///
+/// Version history:
+/// - 1.0：初始版本
+/// - 1.1：`ConeArtifactManifest` 新增 `cone_kind` 字段（P10-T04-b）；同时让旧 artifact
+///   通过 `ensure_compatible` 被显式拒绝。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 1);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

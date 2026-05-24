@@ -4,6 +4,7 @@ use crate::effect_facts_stage::{
 };
 use crate::session::Session;
 use crate::source::SourceFile;
+use scoopc_hir::cone_import::CachedConeImport;
 
 use super::MirStageOutput;
 
@@ -68,6 +69,7 @@ pub(crate) fn run(
         session,
         source,
         std::slice::from_ref(source),
+        &[],
         mir_stage_output,
     )
 }
@@ -76,6 +78,7 @@ pub(crate) fn run_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
+    cached_cone_imports: &[CachedConeImport],
     mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
@@ -88,6 +91,7 @@ pub(crate) fn run_with_compilation_sources(
             session,
             source,
             compilation_sources,
+            cached_cone_imports,
             mir_stage_output.materialized_mir(),
             &mut type_context,
         )
@@ -116,6 +120,7 @@ pub(crate) fn run_with_compilation_sources(
                 session,
                 source,
                 compilation_sources,
+                cached_cone_imports,
                 mir_stage_output.materialized_mir(),
                 &mut type_context,
             )

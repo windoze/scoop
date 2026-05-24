@@ -36,6 +36,9 @@ pub struct MaterializedEffectFactsBuilder<'a> {
     session: &'a Session,
     source: &'a SourceFile,
     compilation_sources: &'a [SourceFile],
+    /// P10-T04-b：cache-hit 的依赖 cone 不在 `compilation_sources` 中，重建 Index/TypeEnv
+    /// 时必须把这些 cached frontend imports 重放回去。
+    cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
     materialized: &'a MaterializedMir,
     type_context: &'a mut EffectOwnedTypeContext,
     compiler_continuation_runtime_error_callables: HashSet<InstanceKey>,
@@ -2030,6 +2033,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             session,
             source,
             std::slice::from_ref(source),
+            &[],
             materialized,
             type_context,
         )
@@ -2039,6 +2043,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         session: &'a Session,
         source: &'a SourceFile,
         compilation_sources: &'a [SourceFile],
+        cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
         materialized: &'a MaterializedMir,
         type_context: &'a mut EffectOwnedTypeContext,
     ) -> Self {
@@ -2046,6 +2051,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             session,
             source,
             compilation_sources,
+            cached_cone_imports,
             materialized,
             type_context,
             compiler_continuation_runtime_error_callables: HashSet::new(),
@@ -2069,6 +2075,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             self.session,
             self.source,
             self.compilation_sources,
+            self.cached_cone_imports,
             self.materialized.stable_cone_key().clone(),
         )?;
         let compiler_generated_runtime_error_effect_ty =
@@ -2165,6 +2172,7 @@ impl EffectFactsTypeContext {
         session: &Session,
         source: &SourceFile,
         compilation_sources: &[SourceFile],
+        cached_cone_imports: &[scoopc_hir::cone_import::CachedConeImport],
         stable_cone_key: StableConeKey,
     ) -> Result<Self, EffectFactsError> {
         let mut sources = compilation_sources.to_vec();
@@ -2194,7 +2202,7 @@ impl EffectFactsTypeContext {
         {
             sources.push(source.clone());
         }
-        let index = session.build_top_level_index(&sources)?;
+        let mut index = session.build_top_level_index(&sources)?;
 
         let parsed_files = sources
             .iter()
@@ -2207,6 +2215,18 @@ impl EffectFactsTypeContext {
             env.extend_from_file(source, parsed, &index)
                 .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
         }
+
+        // P10-T04-b：依赖 cone 在前端是 cache-hit 的话，它的源不在 `compilation_sources` 中，
+        // 重建 Index/TypeEnv 后必须把 cached frontend import 重放回这里，否则下游
+        // surface contract 推断会因为找不到依赖 cone 的 public API 而失败。
+        scoopc_hir::cone_import::inject_cached_cone_imports(
+            &mut index,
+            &mut env,
+            cached_cone_imports,
+        )
+        .map_err(|error| EffectFactsError::Frontend {
+            message: format!("注入 cached cone import 失败：{error}"),
+        })?;
 
         let mut pairs = session
             .sysroot()

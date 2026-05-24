@@ -10,7 +10,8 @@ use crate::opt::OptLevel;
 pub const CONE_TOML_FILE_NAME: &str = "Cone.toml";
 
 /// Cone 的构建/加载类别。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ConeKind {
     Bin,
     Lib,

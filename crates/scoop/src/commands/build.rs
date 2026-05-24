@@ -1553,6 +1553,7 @@ fun main(): Int {
             front.input().entry_main_fqn(),
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            front.cached_cone_imports().to_vec(),
         )
         .expect(
             "build frontend 的 stage-only production codegen 应显式消费 materialized pass view",
@@ -1669,6 +1670,7 @@ fun main(): Int {
             front.input().entry_main_fqn(),
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            front.cached_cone_imports().to_vec(),
         )
         .unwrap();
 
@@ -1711,6 +1713,7 @@ fun main(): Int {
             front.input().entry_main_fqn(),
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            front.cached_cone_imports().to_vec(),
         )
         .expect("reachable self-contained handle 应由 lowering 正常生成 IR");
 

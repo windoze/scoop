@@ -952,6 +952,7 @@ kind = "lib"
         let cone_fp = fp.per_cone.get(&cone_id).unwrap();
         let mut artifact = ConeArtifact::with_parts(
             scoopc::stable_id::StableConeKey::new("dep", "0.0.0"),
+            scoopc::base::project_model::ConeKind::Lib,
             ConeArtifactStageProducts::new(
                 HirFacts::new(),
                 MirFacts::new(),

@@ -34,7 +34,8 @@ pub use artifact::{
     build_frontend_import_for_typechecked_cone,
 };
 pub use consume::{
-    ConeArchiveApi, import_upstream_artifacts, inject_cone_artifact_frontend_import,
+    ConeArchiveApi, build_cached_cone_import_from_archive, build_cached_cone_import_from_artifact,
+    import_upstream_artifacts, inject_cone_artifact_frontend_import,
     inject_cone_dependency_public_api, load_cone_archive_api, read_cone_api_scoopir_from_archive,
     read_cone_manifest_from_archive,
 };

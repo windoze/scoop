@@ -650,6 +650,28 @@ impl Index {
         }
     }
 
+    /// 把一个 “外部 cone” 的合成 `decl_file` 登记进 cone-mapping 表。
+    ///
+    /// 用途（P10-T04-b）：cached dependency cone artifact 经 `cone_import::inject_cached_cone_imports`
+    /// 重放时，需要让 `Index::cone_info_of_source(<synthetic decl file>)` / `Index::cone_kind(decl_cone)`
+    /// 返回正确的 cone metadata，否则下游 stage 重建 Index 时该合成文件被默认归属到
+    /// `ConeId::DEFAULT` / `ConeKind::Bin`，导致 `internal` 可见性等判断失真。
+    ///
+    /// first-write-wins：若 `decl_file` 已登记则保留旧值；若 `cone` 已登记不同 kind 则也保留旧值
+    /// （cone import 对 cone-kind 的视图应当与首次见到该 cone 时一致）。
+    pub fn register_external_cone_decl_file(
+        &mut self,
+        decl_file: PathBuf,
+        cone: ConeId,
+        kind: ConeKind,
+    ) {
+        self.file_cones.entry(decl_file.clone()).or_insert(cone);
+        self.file_cone_infos
+            .entry(decl_file)
+            .or_insert(ConeInfo { id: cone, kind });
+        self.cone_kinds.entry(cone).or_insert(kind);
+    }
+
     pub fn cone_kind(&self, cone: ConeId) -> ConeKind {
         self.cone_info(cone).kind
     }

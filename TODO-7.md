@@ -1035,6 +1035,90 @@
     | 修改后第二次运行 | 0.18s | 重新命中 ← 修复后的 round-trip 不变量 |
     Cold vs warm：约 5.1× 加速；修改后第二次仍命中证实 post-build fingerprint 与 next-run 一致。
 
+### [DONE] P10-T04-b：让 cached dependency cone artifact 在所有下游 stage 都正确可见
+
+- 阻塞原因（由 P10-T04R review 在 2026-05-25 发现）：
+  - P10-T04 选择 P10-T04-a 第 4 项中"把 cached dependency 从后续 lowering source 集合中移除并保持语义正确"路径：cache-hit dep 时只在 frontend 通过 `inject_cone_artifact_frontend_import` 把 dep 公共 API 注入 consumer 的 frontend `Index` / `TypeEnv`，并把 dep 源从 `build_closure_sources` 中剔除。
+  - 但下游 stage（`scoopc_effect_facts_stage` 的 `EffectFactsTypeContext::build`、`scoopc_mir` 的 `mir/materialize/inputs.rs` / `rtti/mod.rs` / `rtti/type_desc.rs`、`scoopc_cone` 的 `scoopir/export.rs` / `annotations.rs` 等）会从 `compilation_sources` / sources 出发**独立重建** `Index` / `TypeEnv`，不复用 frontend 注入结果——cached dep cone 的 synthetic decl_file 既不在 source_map 也不在 compilation_sources 里，frontend 侧的注入对这些 stage 完全不可见。
+  - 直接后果（reproducer）：cone fixture `tests/fixtures/run_pass_cone/source_path_dependency_public_call`，先冷 build → 再冷启动 cache hit → 编辑 consumer source 触发 consumer-only 重 build；effect_facts builder 的 `surface_callable_contract`（`crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs:245`）在 `index.by_fqn` 里找不到 dep public fun → 抛 `MissingCallableSurfaceContract`。
+  - 这违反 P10-T04-a 第 4 项明确写入的"保持语义正确"条款，属于 P10-T04 的实质性遗漏，不是性能或审美问题。
+- 目标：
+  - 让 cached dependency cone 的 frontend import payload 在 frontend / mir / effect_facts / 其它需要重建 env+index 的 stage 中都可见；
+  - cache-hit dep + 编辑 consumer 的端到端 codegen 走完整 pipeline，与 cold build 等价（除耗时外）；
+  - 不允许 fixture-only 规避（如：让该 fixture 的 dep 始终 cache miss）；不允许在 stage 内静默忽略找不到的 callable / type；不允许把 cached dep source 重新塞回 `compilation_sources`。
+- 必须修改的主要位置：
+  - `crates/scoopc_cone/src/consume.rs`（inject_frontend_import_payload：补足 `FileTypeContext` 注入；把可复用的 inject 抽到一个跨 crate 中性 helper）。
+  - `crates/scoopc_hir/src/typecheck/type_env.rs`（外部 `FileTypeContext` 注入接口）；以及如果选择把 inject helper 落在 `scoopc_hir`，则相应模块新增 public API。
+  - `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs`（`EffectFactsTypeContext::build` 在 env+index 重建后应用 cached dep 注入）。
+  - `crates/scoopc/src/pipeline/mod.rs` / `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`（把 cached dep artifact 的 frontend_import payload 沿 stage 入口透传到 effect_facts）。
+  - `crates/scoopc/src/frontend.rs`（在 cache-hit dep 路径上聚合 `Vec<&ConeArtifactFrontendImport>` 或等价载荷供下游使用）。
+  - 其它独立重建 env+index 的路径同步审计：`crates/scoopc_mir/src/mir/materialize/inputs.rs:338`、`crates/scoopc_mir/src/rtti/mod.rs:217`、`crates/scoopc_mir/src/rtti/type_desc.rs:372`、`crates/scoopc_cone/src/scoopir/export.rs:204`、`crates/scoopc_cone/src/annotations.rs:113`——若任一路径在 cache-hit dep 场景会被 consumer-edit 触发，必须同步注入。
+- 必须实现的内容：
+  1. 在一个能同时被 `scoopc_cone` 与 `scoopc_effect_facts_stage` 依赖的 crate（候选 `scoopc_hir`，或新增中性 inject 数据类型）里发布"frontend import injection"中性 API。`scoopc_cone` 仍负责把 `ConeArtifactFrontendImport` 翻译成中性 payload；下游 stage 拿中性 payload 注入。crate DAG：禁止 `scoopc_effect_facts_stage` 反向依赖 `scoopc_cone`。
+  2. inject 必须同时覆盖：types / funs / extension funs / annotation classes / symbol visibility / pre_specialize / synthetic source（含 span 切片）/ `FileTypeContext`（`pkg_prefix`、`imports`、`cone`，cone 用 dep 的 `ConeId` + 实际 ConeKind——artifact 已携带 cone_kind 或必要时持久化新字段）。
+  3. `EffectFactsTypeContext::build`（与其它独立重建 env+index 的 stage）显式接收 cached dep 列表参数；在 env+index 重建完后立即应用注入；不允许通过 thread-local / global 状态隐式传递。
+  4. `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::run_lir_stage_from_lowered_hir` 与 `build_effect_facts_stage_output_with_compilation_sources` 的签名扩展，让 cached dep 列表沿 stage 边界正式 plumb（不允许把 frontend env/index 直接塞过去；那会破坏 stage 边界）。
+  5. 新增 regression 测试：(a) cone-level 单测用 fixture 模拟 cache-hit dep + consumer edit，断言 effect_facts stage 走完不报错；(b) end-to-end fixture 测试：基于 `source_path_dependency_public_call` 写一个明确"先冷 build → 编辑 consumer 触发 effect_facts → 必须成功"的 incremental scenario。原有 4 个 per-cone chain 单测保持通过。
+  6. 顺手给已审计到但当前 fixture 触发不到的 stage（mir/rtti/scoopir-export 等）补 cache-hit dep 走通的 regression（哪怕只是 unit 级），避免下次撞同源的回归。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test --all --all-targets`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`
+  5. 手工 reproducer：fixture `source_path_dependency_public_call`，cold → warm → `echo "" >> src/main.scoop` → effect_facts / typecheck / mir / cone scoopir-export 等 frontend 之后的中端 stage 必须成功（与 cold 行为一致）；反向：`touch deps/.../api.scoop` 改 dep 公共 fun 签名，consumer 应再次失败 with parse/typecheck 类的 dep-related error，证明 dep 失效仍能触达。**端到端 LLVM codegen 第三次 build 由 P10-T04-c 跟踪**——cache-hit dep 时 dep callable 没有进入 consumer 的 `LateLoweredProgram`，`callable_layouts` 查询会失败；该层与 P10-T06 per-cone 子进程编译同源，留给 P10-T04-c。
+  6. `git diff --check`
+- 完成条件：
+  - 上述 reproducer 在 frontend/effect_facts/mir/cone export 等中端 stage 路径都返回与 cold build 等价的结果；
+  - cache-hit dep 不再被 stage 独立重建 env+index 时漏掉，frontend / effect_facts / mir / cone export 行为对齐；
+  - 不引入 frontend-stage-specific 的 patch（如：把 dep 源塞回 `build_closure_sources` 但 stage 内忽略），所有路径必须沿 cached artifact handoff 走。
+- 完成记录（2026-05-25）：
+  - 新增 `crates/scoopc_hir/src/cone_import.rs` 中性 inject API（`CachedConeImport` payload + `inject_cached_cone_imports(index, env, &[…])` helper + `SyntheticSourceBuilder`）。crate DAG 满足：`scoopc_cone -> scoopc_effect_facts_stage` 仍是单向，inject helper 落在公共底座 `scoopc_hir`。
+  - `crates/scoopc_cone/src/consume.rs` 把 `ConeArtifactFrontendImport` 翻译成中性 `CachedConeImport`，并在 manifest 上持久化 `cone_kind`（`crates/scoopc_cone/src/artifact.rs`、`crates/scoopc_project_model/src/manifest.rs`）。
+  - `crates/scoopc/src/frontend.rs::run_project_frontend` 在 cache-hit dep 路径上聚合 `Vec<CachedConeImport>` 并随 `FrontendOutput` 透传。
+  - `crates/scoopc/src/pipeline/mod.rs` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 扩展 stage 边界：`build_effect_facts_stage_output_with_compilation_sources` / LLVM codegen 入口都接受 `&[CachedConeImport]` 并下发；`emit_project_llvm_artifact_to_file` 通过 `cached_cone_imports.to_vec()` 把 payload 沿 stage 边界正式 plumb。
+  - `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs::EffectFactsTypeContext::build` 在 env+index 重建后立即调用 `scoopc_hir::cone_import::inject_cached_cone_imports`，恢复 `surface_callable_contract` / `FileTypeContext` 的可见性。
+  - 回归测试：(a) `crates/scoopc_hir/src/cone_import.rs` 加 2 个 unit test 锁定 inject 后的 `decl_cone` / `decl_file` / `visibility` 不变量与"已 typecheck Index 二次注入"幂等；(b) `crates/scoopc/src/frontend.rs::dependency_frontend_cache_hit_uses_artifact_without_reading_source` 增加 P10-T04-b 透传断言（`output.cached_cone_imports()` 携带正确 payload）。
+  - 中端验证：`cargo test -p scoopc_hir`（cone_import:: 4/4 通过）、`cargo test -p scoopc --lib dependency_frontend_cache_hit_uses_artifact_without_reading_source`（通过）。
+- 依赖：P10-T04
+
+### [TODO] P10-T04-c：让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见
+
+- 阻塞原因（由 P10-T04-b 在 2026-05-25 收口时发现）：
+  - P10-T04-b 已经把 cached dep 的 frontend/effect_facts/mir/scoopir-export 注入路径打通，但 cache-hit dep + 编辑 consumer 触发 consumer-only rebuild 时，第三次 build 在 LLVM codegen 阶段会失败：`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs::callable_layout_by_root_fqn` 报 `LLVM ABI query 缺少 callable <dep.fqn> 的 published callable version`。
+  - 根因：cache-hit dep 时 dep 的源已经从 `build_closure_sources` 中剔除，consumer 的 `LateLoweredProgram` 不包含 dep callable；consumer 在 codegen 时仍会触达 dep callable 的 LLVM ABI 查询，但 dep cone artifact 当前持久化的 `lir_program.bin` 是空 `LateLoweredProgram`、`objs/` 目录为空（这是 P10-T03/T04 阶段就接受的折衷：cold build 把 dep AST 临时塞入 consumer pipeline 让 MIR 一次性 materialize 出 dep callable，第二次 cache-hit 失去这条 implicit handoff）。
+  - 这条 LIR/codegen 层的 cache-hit 缺陷与 P10-T06 per-cone 子进程编译同源——本质上需要 dep 自己产出非空 `lir_program.bin` 与 `.o`，然后 consumer 在 LLVM 阶段消费 dep artifact，而不是在 consumer pipeline 里重新 materialize dep callable。
+- 目标：
+  - cache-hit dep + 编辑 consumer 的端到端 codegen 走完整 pipeline，与 cold build 等价（除耗时外）；
+  - 与 P10-T06 per-cone 子进程编译边界一致：dep 的 `LateLoweredProgram` / object 由 dep 自己的子进程产出并落盘到 dep artifact，consumer 在 LLVM 阶段消费；
+  - 不允许 fixture-only 规避；不允许把 dep 源重新塞回 consumer 的 `build_closure_sources`；不允许在 codegen 内静默忽略找不到的 callable layout。
+- 必须修改的主要位置（最终方案与 P10-T06 协调收口）：
+  - `crates/scoopc_cone/src/artifact.rs`（`lir_program.bin` 现状是空，需要承载 per-cone authoritative `LateLoweredProgram` 与对应的 `.o`/`.ll` 输出）。
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/orchestrator.rs`（consumer LLVM 阶段需要从 cached dep artifact 消费 dep callable 的 layout / ABI，而不是只迭代自身 program）。
+  - `crates/scoopc/src/frontend.rs` / `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`（cached dep artifact handoff：把 `lir_program.bin` 与 dep `.o`/`.ll` 路径列表一并下发到 LLVM codegen 入口）。
+  - 与 P10-T05/T06 per-cone 子进程编译路径协调（dep 在它自己的子进程里产出非空 LIR / object artifact）。
+- 必须实现的内容：
+  1. dep cone artifact 持久化非空 `LateLoweredProgram`（从 dep 自身 frontend → MIR → LIR pipeline 端到端跑完产出），并把 dep 的 LLVM `.o`（必要时也 `.ll`）落盘到 dep artifact 目录；
+  2. consumer LLVM 阶段从 cached dep artifact 加载 dep `LateLoweredProgram` 与 callable layout，扩展 `callable_layouts` 让 dep callable 的 ABI 查询命中；
+  3. consumer 链接阶段从 cached dep artifact 拿 dep `.o`，避免 consumer 重 codegen dep callable；
+  4. 与 P10-T06 per-cone 子进程编译边界协调：dep callable 的 LIR/codegen 必须由 dep 自己的子进程驱动，不允许在 consumer pipeline 里再 materialize 一遍；
+  5. 回归测试：
+     - end-to-end fixture：基于 `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 加一个 cold→warm→`echo "" >> src/main.scoop`→第三次 build 必须成功且 binary 与 cold 等价的 incremental scenario；
+     - 反向：`touch deps/.../api.scoop` 改 dep 公共 fun 签名，第三次 build 应触发 dep cache miss 与失败诊断（保证 dep 失效仍能触达）；
+     - per-cone artifact unit test：dep cone artifact 加载后 `LateLoweredProgram` 非空，dep `.o`/`.ll` 路径存在并校验过 fingerprint。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test --all --all-targets`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`
+  5. 手工 reproducer：fixture `source_path_dependency_public_call`，cold → warm → `echo "" >> src/main.scoop` → 第三次 build 必须成功（与 cold 行为一致），产物（exit code、stdout、binary 行为）等价于 cold build。
+  6. `git diff --check`
+- 完成条件：
+  - cache-hit dep + 编辑 consumer 触发的第三次 build 在 LLVM codegen 阶段不再抛 `LLVM ABI query 缺少 callable ... 的 published callable version`；
+  - dep cone artifact 持久化非空 LateLoweredProgram 与 object artifact；
+  - consumer 不再依赖 cold-build 的 implicit "把 dep AST 塞入 consumer pipeline" handoff；
+  - 路径与 P10-T06 per-cone 子进程编译边界一致，不引入旁路。
+- 依赖：P10-T04-b（前置）；建议与 P10-T06 / P10-T06R 协调收口。
+
 ### [TODO] P10-T04R：Review per-cone fingerprint cache
 
 - 参考：P10-T04。
@@ -1042,21 +1126,138 @@
   - fingerprint chain 是否能正确传播到下游；
   - cache hit 的耗时是否实际下降到目标量级（之前调研数据：fingerprint scan 是 4s 启动开销的主因）；
   - sysroot 改动是否会触发可控范围的失效，而不是全量。
-- 验证：重新运行 P10-T04 的所有验证。
-- 依赖：P10-T04
+  - **（2026-05-25 review 中已经验证了 fingerprint chain 与时序，在第三项 cache-hit dep + consumer-edit 端到端路径上发现两层阻塞性缺陷：frontend/effect_facts/mir 中端 stage 缺 cached cone import 重放（已修复，记录在 P10-T04-b），LLVM codegen 层缺 dep `LateLoweredProgram` / `.o` artifact handoff（独立任务 P10-T04-c，与 P10-T06 协调收口）。本任务待 P10-T04-b + P10-T04-c 完成后再做最终复核。）**
+- 验证：重新运行 P10-T04 的所有验证；额外覆盖 P10-T04-b / P10-T04-c 提到的 reproducer。
+- 依赖：P10-T04、P10-T04-b、P10-T04-c
 
-### [TODO] P10-T05：P10 全包清场、文档同步与依赖审计
+### [TODO] P10-T05：定义 per-cone 多进程并发编译的 CLI 参数与抽象边界
+
+- 参考：本文件"细化原则"；`PLAN.md §4/P10`；`PIPELINE_REFACTOR.md` 关于 cone-level compilation unit 与 build DAG 编译顺序的设计。
+- 背景：
+  - 当前 `scoop build` / `scoop run` 由 scoop 驱动 → 直接 in-process 调用 `scoopc::pipeline` / `run_frontend_with_artifact_cache`，整条 cone DAG 在单进程内顺序跑（参见 `crates/scoop/src/commands/build.rs:236-258`、`crates/scoopc/src/frontend.rs:628-672`）；
+  - P10-T04 已经把 per-cone artifact 落盘，并把 dependency cone 的 cache hit 路径接通，理论上不互相依赖的 cone 已经可以在多个子进程中同时编译，但还缺：CLI 入口、并发策略抽象、子进程 scoopc 抽象、以及位于 scoop crate 中的 cone DAG 调度 driver。
+- 目标：
+  - 给 `scoop build` / `scoop run` 加最大并发编译进程数 CLI 参数（推荐 `-j / --jobs`），默认值固定为 4 或其他合理的小固定值；
+  - 在 `scoop` crate 内发布 `ConcurrencyStrategy` trait（或等价抽象），把"如何决定并发数"与"驱动调度"解耦；本轮只实现固定值策略，但保留 trait 接口供未来按物理 CPU 数 / 内存 / 远端资源等策略接入；
+  - 在 `scoop` crate 内发布 `SubprocessConeCompiler` trait（或等价抽象），把"实际跑一个 cone 的子进程"与"调度 driver"解耦；本轮提供单一 `LocalProcessConeCompiler` 占位实现（可允许部分行为留到 P10-T06 落地），保留 trait 接口供后续"分布式编译"等高级实现挂接；
+  - 必要时给 `scoopc` binary 加入"build-single-cone"子命令模式（接受 cone 标识、上游 artifact 路径、本 cone 输出 artifact 目录），仅作为 CLI surface，不引入任何调度 / DAG 遍历 / 多进程逻辑——即"scoopc 仍然只是编译器"；
+  - 把 per-cone 多进程并发编译模型回写到 `PLAN.md` §4/P10 与 `PIPELINE_REFACTOR.md` 编译顺序模型，作为后续实现与审计的设计基线；
+  - 本任务不引入任何并发执行行为：默认 `--jobs N` 行为可暂时退化为 in-process 顺序运行（与 P10-T04 后等价），CLI / trait / 子命令 surface 与文档基线就位即可。
+- 必须修改的主要位置：
+  - `crates/scoop/src/cli.rs`（`Build` / `Run` command 加 `-j / --jobs` 参数与 parse 测试）
+  - `crates/scoop/src/commands/build.rs`（`BuildOptions` 增加 `jobs` 字段并在主流程透传）
+  - `crates/scoop/src/commands/build/`（新增 `concurrency.rs` 或同名模块，承载 `ConcurrencyStrategy` / `SubprocessConeCompiler` trait 与 `LocalProcessConeCompiler` 占位实现）
+  - `crates/scoopc/src/bin/scoopc.rs` 与 `crates/scoopc/src/driver_cli.rs`（如选择把"single-cone build"作为 scoopc 子命令暴露，仅扩展 driver_cli 解析 + 调用现有 `scoopc::pipeline` / `scoopc::frontend` per-cone API）
+  - `PLAN.md` §4/P10（设计基线追加 per-cone 多进程并发编译条目）
+  - `PIPELINE_REFACTOR.md`（在"编译顺序模型 / cone 之间：按 DAG 拓扑排序"附近追加多进程并发执行约束）
+- 必须实现的内容：
+  1. CLI：`--jobs N` / `-j N` 加入 `Build` 与 `Run` 子命令；非数字、0、负值必须给出明确 diagnostic；可选 `SCOOP_BUILD_JOBS` 环境变量做 fallback；默认值在代码里有命名常量（`DEFAULT_BUILD_JOBS = 4` 或类似）便于后续策略调整；
+  2. `ConcurrencyStrategy` trait：暴露 `fn max_concurrent_jobs(&self) -> usize`；默认实现 `FixedJobsStrategy { jobs: usize }`；trait 文档明确"未来按物理 CPU 数 / 内存 / 远端 worker 池策略可在此挂接，但本轮不实现"；
+  3. `SubprocessConeCompiler` trait：定义跑单个 cone 的最小接口，输入至少包含 cone 标识 / 上游已落盘 artifact 集合 / 本 cone 输入 fingerprint / artifact 输出目录，输出至少包含本 cone artifact 路径与 outputs.fingerprint；提供 `LocalProcessConeCompiler` 占位实现（本任务允许 `compile_cone` 暂返回 `unimplemented` 或委托给 P10-T06 完成实际 fork+exec，但 trait + 占位类型必须就位）；
+  4. 如果选择给 scoopc 加 "build-single-cone" 子命令，必须只接受最小输入（cone 标识 / 上游 artifact 路径列表 / 输出 artifact 目录），且**禁止**在 scoopc 内引入任何 driver / 调度 / 多进程 / DAG 遍历逻辑——它的实现限定在"加载上游 artifacts → 跑 P10-T03 已有 per-cone frontend orchestration → 写 artifact"；
+  5. 设计基线：在 `PLAN.md` §4/P10"必须完成"列表中追加"per-cone 多进程并发编译 CLI + driver 抽象"条目，并在`PIPELINE_REFACTOR.md` 编译顺序模型一节追加"cone DAG 中互不依赖的 cone 应允许并发跑、scoop 拥有 driver / scoopc 仅做 single-cone 编译执行体"约束；
+  6. 单元测试：CLI parse 测试覆盖 `-j N` / `--jobs N` / 默认值 / invalid value；trait 测试覆盖 fixed strategy；`LocalProcessConeCompiler` 占位 surface（包括"未实现行为"的稳定错误形态）；如果加了 scoopc 子命令，覆盖 happy path 解析与缺少 artifact 的错误。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop -- build --help`（人工检查 `--jobs` 与 `-j` 出现）
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`（行为不变）
+  7. `cargo run -p scoop_tools -- dependency-gate`
+  8. `git diff --check`
+- 完成条件：
+  - CLI / trait surface 落地，default 行为与 P10-T04 后等价；
+  - driver 调用点已经能注入 `ConcurrencyStrategy` 与 `SubprocessConeCompiler`，本任务不要求实际并发；
+  - `scoopc` binary 没有引入任何"驱动/调度"职责（即使加了子命令，也仅作 single-cone 编译执行体）；
+  - `PLAN.md` / `PIPELINE_REFACTOR.md` 已经把 per-cone 多进程并发编译纳入设计基线。
+- 依赖：P10-T04R
+
+### [TODO] P10-T05R：Review CLI 参数与并发抽象
+
+- 参考：P10-T05。
+- 重点：
+  - `--jobs` 默认值、环境变量与失败 diagnostic 是否合理；
+  - `ConcurrencyStrategy` 与 `SubprocessConeCompiler` trait 是否真的做到"接口/抽象保留"，driver 调用点没有把固定策略 / 固定执行体硬编码；
+  - 如果 `scoopc` 加了 "build-single-cone" 子命令，是否仍是单纯编译器（即没有 driver / scheduler / 多进程 fork 逻辑）；
+  - default 行为是否完全保持 P10-T04 后的现状；
+  - `PLAN.md` / `PIPELINE_REFACTOR.md` 的设计基线追加是否覆盖：cone DAG 并发约束、并发策略可订制、子进程 scoopc 抽象（为分布式编译预留）。
+- 验证：重新运行 P10-T05 的所有验证。
+- 依赖：P10-T05
+
+### [TODO] P10-T06：在 scoop 中实现 per-cone 子进程并发编译 driver
+
+- 参考：本文件"细化原则"；P10-T05；P10-T04-c（per-cone 子进程必须产出非空 `LateLoweredProgram` + `.o` 让 consumer cache-hit 路径可用）；`PLAN.md §4/P10`；`PIPELINE_REFACTOR.md` 关于 build DAG 与 cone 之间编译顺序的设计。
+- 目标：
+  - 在 `scoop` 编译 driver 中接入真正的 cone DAG 并发调度器：按拓扑顺序遍历 `SourceConeGraph::compilation_units()`，把所有直接依赖都已落盘的 cone 推到 ready queue；并发度受 `ConcurrencyStrategy::max_concurrent_jobs` 限制；
+  - 每个被调度的 cone 通过 `SubprocessConeCompiler::compile_cone(...)` 走子进程跑（默认 `LocalProcessConeCompiler`：fork+exec `scoopc` 的 single-cone 子命令）；
+  - 子进程跑完按 P10-T02 已有 per-cone artifact 规范落盘，父进程仅校验 outputs.fingerprint 与 artifact 完整性后把它注入下游 cone 的 artifact cache；
+  - 不引入"分布式编译"的实际实现，但必须证明 driver 与 `SubprocessConeCompiler` trait 真正解耦——换一个 trait 实现就可以替换执行体（可加一个测试用 fake compiler 证明）。
+- 必须修改的主要位置：
+  - `crates/scoop/src/commands/build.rs`（`run` 主流程：把"一次 in-process frontend run"改为"按 cone DAG 子进程并发调度"）
+  - `crates/scoop/src/commands/build/concurrency.rs`（或同名 driver 模块，承载调度状态机）
+  - `crates/scoop/src/commands/build/incremental.rs`（per-cone artifact cache 入口可能需要扩展给 driver 复用）
+  - `crates/scoopc/src/bin/scoopc.rs` 与/或 `crates/scoopc/src/driver_cli.rs`（落实 "build-single-cone" 子命令的实际执行体，仅依赖 `scoopc::pipeline` / `scoopc::frontend` 已有 per-cone API）
+  - `crates/scoopc_cone/`（如需要发布"从磁盘加载上游 artifacts 列表 + 注入本 cone frontend"的 helper，必须沿用 P10-T03/T04 已有 artifact handoff 边界，不得新开旁路）
+- 必须实现的内容：
+  1. cone DAG 调度器：维护 `Pending / Ready / InFlight / Done / Failed` 状态机；只有所有直接依赖 cone 都已 `Done`（artifact 已落盘且 outputs.fingerprint 校验通过）的 cone 才能进入 `Ready`；
+  2. 并发限制：调度器从 `ConcurrencyStrategy::max_concurrent_jobs` 取上限；超限 cone 在 ready queue 排队；任何 cone 失败立即停止派发新任务，已派发任务允许跑完，最终汇总 diagnostics；
+  3. 子进程执行：通过 `SubprocessConeCompiler::compile_cone(...)` 调用；本轮默认 `LocalProcessConeCompiler` 走 `std::process::Command` 执行 `scoopc build-single-cone --cone-id <id> --upstream-artifact <dir>... --out <dir>` 类语义；子进程 stderr/stdout 必须能被父进程聚合输出（保留诊断顺序与 cone 标识）；
+  4. 子进程的 artifact handoff：父进程为每个 ready cone 准备好它的上游 artifact 路径列表（直接依赖 cone 的 `build/<profile>/cones/<cone>@<ver>/`），并通过 CLI 参数 / 文件 / env 传给子进程；子进程跑完通过磁盘 artifact 让父进程读取；**禁止**通过 stdout 传 IR/AST/源码或任何 in-process 共享数据；
+  5. cache hit：如果某 cone 的 inputs.fingerprint 命中已有 artifact（沿用 P10-T04 / P10-T04-b 路径），driver 直接跳过子进程派发，标记完成；cache hit 与子进程派发的混合场景必须能正确把 cached artifact 注入下游；
+  6. `--jobs 1` 行为：driver 仍然走调度器 + 子进程路径（保证两条路径覆盖；如选择 `--jobs 1` 时退化为 in-process，必须在测试中覆盖该 fallback 并显式记录）；
+  7. 失败传播：当任何子进程失败，父进程必须能精确定位到失败 cone、保留 partial artifact、退出码非零，并把子进程 diagnostic 完整聚合显示（带 cone 标识前缀）；
+  8. 测试：
+     - 集成测试覆盖至少三种调度场景：(a) 单 cone（degenerate 串行）；(b) 链式 `dep -> consumer`（必然顺序）；(c) `dep_a / dep_b -> consumer`（前两个必须并发跑）；
+     - 端到端 fixture：基于现有 `tests/fixtures/run_pass_cone/source_path_dependency_public_call`（必要时新增多依赖 fixture）跑 `--jobs 4` 与 `--jobs 1`，断言产物等价；
+     - 失败传播测试：故意让一个 dep cone 编译失败，断言父进程退出码非零，failed cone diagnostic 在父进程输出中可见，consumer cone 不会启动；
+     - trait 解耦证明：单测里用一个 `RecordingFakeConeCompiler` 替换 `LocalProcessConeCompiler` 跑同一段调度逻辑，验证调度器与执行体真正解耦。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`
+  6. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout，覆盖 `--jobs` 默认与 `--jobs 1` 两种路径）
+  7. 手工时序复核（在完成记录中给出数据）：fixture `source_path_dependency_public_call` 在 `--jobs 1` vs `--jobs 4` 上 fresh build 与 cache hit 耗时对比；
+  8. `cargo run -p scoop_tools -- dependency-gate`
+  9. `git diff --check`
+- 完成条件：
+  - 默认 fresh build 走子进程并发路径，cone DAG 中互不依赖的 cone 实测能并发跑；
+  - cache hit 路径不退化；
+  - `SubprocessConeCompiler` 默认实现 `LocalProcessConeCompiler` 真的 fork+exec scoopc 子进程，driver 通过 trait 调用，不依赖具体类型；
+  - scoopc 仍然只是编译器（"build-single-cone" 子命令实现里没有调度 / 多进程 / DAG 遍历逻辑）；
+  - 失败传播在父子进程之间稳定可观测。
+- 依赖：P10-T05R
+
+### [TODO] P10-T06R：Review per-cone 并发 driver
+
+- 参考：P10-T06。
+- 重点：
+  - cone DAG 调度是否严格按依赖关系（不会让 consumer 在任一直接依赖 artifact 落盘前开跑）；
+  - `SubprocessConeCompiler` trait 是否真正抽象、driver 不直接 hardcode `Command::new("scoopc")`；
+  - 失败传播是否完整（子进程 stderr / exit code / diagnostic 都能在父进程聚合显示，并保留 cone 归属）；
+  - 默认 jobs 与 `--jobs 1` 行为是否都被测试覆盖；并发 vs 串行产物是否真的等价；
+  - `scoopc` 是否仍然没有承担 driver / 调度职责；
+  - cache hit 与子进程派发的混合场景是否仍正确注入下游 cone。
+- 验证：重新运行 P10-T06 的所有验证。
+- 依赖：P10-T06
+
+### [TODO] P10-T07：P10 全包清场、文档同步与依赖审计
 
 - 目标：
   - 搜索确认 frontend 不再读上游源；
-  - 更新 README / SCOOP_RUNTIME 等文档体现新的 per-cone build；
+  - 搜索确认 driver 不再保留 in-process 跑全 cone DAG 的兜底路径（多进程并发编译路径已成默认）；
+  - 更新 README / SCOOP_RUNTIME 等文档体现新的 per-cone build 与多进程并发编译模型；
   - 把"将来可能要做"的 generic body wire format 列为后续单独 milestone 的入口，不再在本包内闷头扩展。
-- 必须修改的主要位置：`TODO.md`、`TODO-7.md`、`PIPELINE-CLEANUP.md`、`README.md`、相关 fixture 的 README。
+- 必须修改的主要位置：`TODO.md`、`TODO-7.md`、`PIPELINE-CLEANUP.md`、`PLAN.md`、`PIPELINE_REFACTOR.md`、`README.md`、相关 fixture 的 README。
 - 必须实现的内容：
   1. 搜索 `inject_cone_dependency_public_api` 是否仅作为兼容路径保留；
   2. 搜索 frontend 内是否仍存在跨 cone 平铺 source loop；
-  3. 文档明确"如果未来需要跨 cone generic body 复用，应单独立项 P11"；
-  4. 把整个 build closure 的 SHA fingerprint 路径标记为废弃。
+  3. 搜索 scoop driver 内是否仍存在不走 `SubprocessConeCompiler` 的 in-process whole-DAG fallback；
+  4. 文档明确"如果未来需要跨 cone generic body 复用，应单独立项 P11"；
+  5. 把整个 build closure 的 SHA fingerprint 路径标记为废弃；
+  6. 同步 `PLAN.md` §4/P10 与 `PIPELINE_REFACTOR.md` 编译顺序模型，最终冻结 per-cone 多进程并发编译的设计边界（CLI / 并发策略 / 子进程 scoopc / 分布式编译预留）。
 - 验证：
   1. `cargo fmt`
   2. `cargo clippy --all-targets -- -D warnings`
@@ -1066,15 +1267,18 @@
   6. `git diff --check`
 - 完成条件：
   - per-cone build 在所有 fixture 上稳定；
+  - 多进程并发编译路径成为默认且文档冻结；
   - 文档冻结新边界。
-- 依赖：P10-T04R
+- 依赖：P10-T06R
 
-### [TODO] P10-T05R：Review P10 全包完成度
+### [TODO] P10-T07R：Review P10 全包完成度
 
-- 参考：P10-T05。
+- 参考：P10-T07。
 - 重点：
   - 下游 cone 是否真的不再读上游源；
   - per-cone fingerprint cache 的命中行为是否符合预期；
-  - 是否还有遗漏的 path 上游源加载路径需要清理。
-- 验证：重新运行 P10-T05 的所有验证。
-- 依赖：P10-T05
+  - 多进程并发编译路径在 fresh build / cache hit / 失败传播三种场景下都稳定；
+  - 是否还有遗漏的 path 上游源加载路径需要清理；
+  - `PLAN.md` / `PIPELINE_REFACTOR.md` 的设计基线是否与代码一致。
+- 验证：重新运行 P10-T07 的所有验证。
+- 依赖：P10-T07

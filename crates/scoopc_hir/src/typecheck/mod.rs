@@ -49,7 +49,7 @@ pub use override_effects::{OverrideEffectError, check_file_override_effects};
 pub use properties::{PropertyDeclError, check_file_properties};
 pub use structs::{StructDeclError, check_file_struct_decls};
 pub use type_env::{
-    AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv, TypeEnvError, TypeSymbol,
-    TypeSymbolKind,
+    AnnotationRetentionPolicy, AnnotationTargetKind, FileTypeContext, TypeEnv, TypeEnvError,
+    TypeSymbol, TypeSymbolKind,
 };
 pub use where_clause::{WhereClauseError, check_file_where_clauses};

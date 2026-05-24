@@ -20,6 +20,7 @@ mod mir_stage;
 use crate::cone::SourceConeCompilationUnit;
 use crate::session::Session;
 use crate::source::SourceFile;
+use scoopc_hir::cone_import::CachedConeImport;
 
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
@@ -111,6 +112,7 @@ pub fn build_effect_facts_stage_output(
         session,
         source,
         std::slice::from_ref(source),
+        &[],
         mir_stage_output,
     )
 }
@@ -119,12 +121,14 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
+    cached_cone_imports: &[CachedConeImport],
     mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
     effect_facts_stage::run_with_compilation_sources(
         session,
         source,
         compilation_sources,
+        cached_cone_imports,
         mir_stage_output,
     )
 }
@@ -419,6 +423,7 @@ pub fn emit_project_llvm_artifact_to_file(
         front.input().entry_main_fqn(),
         opt_level,
         artifact,
+        front.cached_cone_imports().to_vec(),
     )?;
     Ok(extern_libs)
 }
@@ -442,16 +447,18 @@ pub fn emit_production_llvm_artifact_to_file(
     entry_main_fqn: Option<&str>,
     opt_level: crate::opt::OptLevel,
     artifact: LlvmArtifactKind,
+    cached_cone_imports: Vec<CachedConeImport>,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::emit_artifact_to_file(
         session,
-        llvm_codegen_stage::LlvmCodegenStageInput::new(
+        llvm_codegen_stage::LlvmCodegenStageInput::with_cached_cone_imports(
             lowered,
             abi_visibility_lowered,
             source_map.clone(),
             entry_source_id,
             entry_main_fqn.map(str::to_owned),
             opt_level,
+            cached_cone_imports,
         ),
         output,
         artifact,

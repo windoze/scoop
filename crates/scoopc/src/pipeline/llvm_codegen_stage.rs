@@ -18,6 +18,7 @@ use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
+use scoopc_hir::cone_import::CachedConeImport;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
@@ -55,6 +56,10 @@ pub struct LlvmCodegenStageInput {
     entry_source_id: SourceId,
     entry_main_fqn: Option<String>,
     opt_level: OptLevel,
+    /// P10-T04-b：FrontendOutput 在前端被 cache-hit 注入过的依赖 cone import。
+    /// effect-facts stage 重建 Index/TypeEnv 时需要重放它们，否则 cached
+    /// dep 的 public API 在下游不可见。
+    cached_cone_imports: Vec<CachedConeImport>,
 }
 
 impl LlvmCodegenStageInput {
@@ -66,6 +71,26 @@ impl LlvmCodegenStageInput {
         entry_main_fqn: Option<String>,
         opt_level: OptLevel,
     ) -> Self {
+        Self::with_cached_cone_imports(
+            lowered,
+            abi_visibility_lowered,
+            source_map,
+            entry_source_id,
+            entry_main_fqn,
+            opt_level,
+            Vec::new(),
+        )
+    }
+
+    pub fn with_cached_cone_imports(
+        lowered: CodegenLoweringOutput,
+        abi_visibility_lowered: Option<CodegenLoweringOutput>,
+        source_map: SourceMap,
+        entry_source_id: SourceId,
+        entry_main_fqn: Option<String>,
+        opt_level: OptLevel,
+        cached_cone_imports: Vec<CachedConeImport>,
+    ) -> Self {
         Self {
             lowered,
             abi_visibility_lowered,
@@ -73,6 +98,7 @@ impl LlvmCodegenStageInput {
             entry_source_id,
             entry_main_fqn,
             opt_level,
+            cached_cone_imports,
         }
     }
 }
@@ -334,6 +360,7 @@ fn run_lir_stage_from_lowered_hir(
     entry_source: &SourceFile,
     lowered_hir: LoweredHir,
     materialized_mir: MaterializedMir,
+    cached_cone_imports: &[CachedConeImport],
     preserve_published_resume_shells: bool,
 ) -> Result<LlvmLirRun, LlvmEmitError> {
     let source_path = entry_source.path().to_path_buf();
@@ -350,6 +377,7 @@ fn run_lir_stage_from_lowered_hir(
         session,
         entry_source,
         &compilation_sources,
+        cached_cone_imports,
         &mir_stage_output,
     )
     .map_err(|err| stage_error("effect facts", err))?;
@@ -407,6 +435,7 @@ pub(crate) fn run(
         entry_source_id,
         entry_main_fqn,
         opt_level,
+        cached_cone_imports,
     } = input;
     let entry_source =
         source_map
@@ -424,6 +453,7 @@ pub(crate) fn run(
         entry_source,
         lowered_hir,
         materialized_mir,
+        &cached_cone_imports,
         false,
     )?;
     let (lir, lir_facts) = primary_run.output.into_parts();
@@ -437,6 +467,7 @@ pub(crate) fn run(
                 entry_source,
                 lowered_hir,
                 materialized_mir,
+                &cached_cone_imports,
                 true,
             )
             .and_then(|run| {
@@ -1079,6 +1110,7 @@ fun main(): Int {
             entry_main_fqn,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            Vec::new(),
         )?;
         Ok(std::fs::read_to_string(out).unwrap())
     }
@@ -1102,6 +1134,7 @@ fun main(): Int {
             entry_main_fqn,
             OptLevel::O0,
             LlvmArtifactKind::Object,
+            Vec::new(),
         )?;
 
         let bytes = std::fs::read(&out).unwrap();
@@ -2098,6 +2131,7 @@ fun main() {
             None,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            Vec::new(),
         )
         .unwrap();
         assert_eq!(test_stage_run_count(), 1);
@@ -2166,6 +2200,7 @@ fun main() {
                 None,
                 OptLevel::O0,
                 artifact,
+                Vec::new(),
             )
             .unwrap();
             let size = std::fs::metadata(&out).unwrap().len();
@@ -2193,6 +2228,7 @@ fun main() {
             None,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            Vec::new(),
         )
         .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");
 

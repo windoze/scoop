@@ -15,16 +15,21 @@
 
 use std::path::{Path, PathBuf};
 
-use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
+use miette::{Diagnostic, IntoDiagnostic as _, Result, WrapErr as _, miette};
 use thiserror::Error;
 
 use scoopc_ast as ast;
+use scoopc_hir::cone_import::{
+    CachedConeExtensionInfo, CachedConeFun, CachedConeImport, CachedConeNonPublicSymbol,
+    CachedConeSymbolKind, CachedConeType, SyntheticSourceBuilder, inject_cached_cone_imports,
+    last_segment, synthetic_decl_file,
+};
 use scoopc_hir::resolve::{
-    BuiltinFunFlags, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, ParamSig, Symbol,
-    SymbolKind, TypeParamSig, Visibility,
+    BuiltinFunFlags, FunOverload, FunSig, ModifierSet, ParamSig, Symbol, SymbolKind, TypeParamSig,
+    Visibility,
 };
 use scoopc_hir::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
-use scoopc_project_model::{CONE_TOML_FILE_NAME, ConeId, ConeManifest};
+use scoopc_project_model::{CONE_TOML_FILE_NAME, ConeId, ConeKind, ConeManifest};
 use scoopc_source::SourceFile;
 use scoopc_span::Span;
 
@@ -191,20 +196,8 @@ pub fn inject_cone_dependency_public_api(
     decl_cone: ConeId,
     dep: &ConeArchiveApi,
 ) -> Result<()> {
-    let payload = ConeArtifactFrontendImport::new(
-        dep.api.clone(),
-        dep.annotation_classes.clone(),
-        dep.symbol_visibility.clone(),
-        dep.pre_specialize.clone(),
-    );
-    inject_frontend_import_payload(
-        index,
-        env,
-        decl_cone,
-        &dep.manifest.cone.name,
-        &dep.manifest.cone.version,
-        &payload,
-    )
+    let import = build_cached_cone_import_from_archive(decl_cone, dep);
+    inject_cached_cone_imports(index, env, std::slice::from_ref(&import))
 }
 
 /// Import frontend payloads from upstream cone artifacts into this frontend state.
@@ -229,25 +222,57 @@ pub fn inject_cone_artifact_frontend_import(
     decl_cone: ConeId,
     artifact: &ConeArtifact,
 ) -> Result<()> {
-    inject_frontend_import_payload(
-        index,
-        env,
+    let import = build_cached_cone_import_from_artifact(decl_cone, artifact);
+    inject_cached_cone_imports(index, env, std::slice::from_ref(&import))
+}
+
+/// Build a neutral `CachedConeImport` payload from a per-cone artifact.
+///
+/// This payload can be both injected directly into the consumer's `Index`/`TypeEnv`
+/// (as `inject_cone_artifact_frontend_import` does) and threaded through to downstream
+/// stages that rebuild `Index`/`TypeEnv` from `compilation_sources`, so they can
+/// replay the same injection (P10-T04-b).
+pub fn build_cached_cone_import_from_artifact(
+    decl_cone: ConeId,
+    artifact: &ConeArtifact,
+) -> CachedConeImport {
+    build_cached_cone_import_from_payload(
         decl_cone,
         &artifact.manifest.cone_name,
         &artifact.manifest.cone_version,
+        artifact.manifest.cone_kind,
         &artifact.frontend_import,
     )
 }
 
-fn inject_frontend_import_payload(
-    index: &mut scoopc_hir::resolve::Index,
-    env: &mut TypeEnv,
+/// Build a neutral `CachedConeImport` payload from a `.cone` archive (legacy path).
+pub fn build_cached_cone_import_from_archive(
+    decl_cone: ConeId,
+    dep: &ConeArchiveApi,
+) -> CachedConeImport {
+    let payload = ConeArtifactFrontendImport::new(
+        dep.api.clone(),
+        dep.annotation_classes.clone(),
+        dep.symbol_visibility.clone(),
+        dep.pre_specialize.clone(),
+    );
+    build_cached_cone_import_from_payload(
+        decl_cone,
+        &dep.manifest.cone.name,
+        &dep.manifest.cone.version,
+        dep.manifest.cone.kind,
+        &payload,
+    )
+}
+
+fn build_cached_cone_import_from_payload(
     decl_cone: ConeId,
     cone_name: &str,
     cone_version: &str,
+    cone_kind: ConeKind,
     payload: &ConeArtifactFrontendImport,
-) -> Result<()> {
-    let decl_file = PathBuf::from(format!("<cone:{}@{}>", cone_name, cone_version));
+) -> CachedConeImport {
+    let decl_file = synthetic_decl_file(cone_name, cone_version);
 
     // NOTE: 这里用一个“合成 SourceFile”承载从 ScoopIR 反解出来的标识符文本，
     // 以便后续在 lowering 时可通过 span 切片拿到 segment/type param 名字。
@@ -266,11 +291,11 @@ fn inject_frontend_import_payload(
         }
     }
 
-    // 1) types：注入 Index + TypeEnv。
+    let mut types: Vec<CachedConeType> = Vec::with_capacity(payload.public_api.types.len());
     for ty in &payload.public_api.types {
         let fqn = ty.fqn.clone();
-        let local = last_segment(&fqn);
-        let local_span = synth.alloc(local);
+        let local = last_segment(&fqn).to_string();
+        let local_span = synth.alloc(&local);
 
         let type_kind = match ty.kind {
             IrTypeDeclKind::Class => TypeSymbolKind::Nominal(ast::TypeKind::Class),
@@ -314,9 +339,19 @@ fn inject_frontend_import_payload(
                 (false, None, None)
             };
 
-        env.insert_external_type_symbol(
-            fqn.clone(),
-            TypeSymbol {
+        let alias_of = if matches!(ty.kind, IrTypeDeclKind::TypeAlias) {
+            ty.alias_of
+                .as_ref()
+                .map(|rhs| ir_type_to_type_ref(&mut synth, rhs))
+        } else {
+            None
+        };
+
+        types.push(CachedConeType {
+            fqn: fqn.clone(),
+            local: local.clone(),
+            local_span,
+            symbol: TypeSymbol {
                 kind: type_kind,
                 is_sealed_interface: false,
                 is_annotation_class,
@@ -331,38 +366,16 @@ fn inject_frontend_import_payload(
                 span: local_span,
                 decl_file: decl_file.clone(),
             },
-        )
-        .map_err(miette::Report::new)
-        .wrap_err_with(|| format!("注入依赖 cone type 符号失败：{fqn}"))?;
-
-        // T1302：typealias 需要携带 RHS 才能在下游 typecheck lowering 阶段展开。
-        if matches!(ty.kind, IrTypeDeclKind::TypeAlias)
-            && let Some(rhs) = ty.alias_of.as_ref()
-        {
-            env.insert_external_type_alias(
-                fqn.clone(),
-                decl_file.clone(),
-                local_span,
-                ir_type_to_type_ref(&mut synth, rhs),
-            );
-        }
-
-        inject_type_symbol_into_index(
-            index,
-            &fqn,
-            local,
-            local_span,
-            &decl_file,
-            decl_cone,
-            matches!(ty.kind, IrTypeDeclKind::Enum),
-        )?;
+            is_enum: matches!(ty.kind, IrTypeDeclKind::Enum),
+            alias_of,
+        });
     }
 
-    // 2) funs：注入 Index（TypeEnv 已在上面注入 types；函数本体不进入 TypeEnv）。
+    let mut funs: Vec<CachedConeFun> = Vec::with_capacity(payload.public_api.funs.len());
     for fun in &payload.public_api.funs {
         let fqn = fun.fqn.clone();
-        let local = last_segment(&fqn);
-        let local_span = synth.alloc(local);
+        let local = last_segment(&fqn).to_string();
+        let local_span = synth.alloc(&local);
 
         let kind = match fun.kind {
             IrFunDeclKind::Regular => ast::FunDeclKind::Regular,
@@ -401,7 +414,7 @@ fn inject_frontend_import_payload(
         let overload = FunOverload {
             symbol: Symbol {
                 kind: SymbolKind::Fun,
-                name: local.to_string(),
+                name: local.clone(),
                 span: local_span,
                 decl_file: decl_file.clone(),
                 decl_cone,
@@ -422,9 +435,6 @@ fn inject_frontend_import_payload(
             has_body: false,
         };
 
-        let entry = index.by_fqn.entry(fqn.clone()).or_default();
-        entry.fun.push(overload);
-
         // T0322：跨包 extension 导入需要 resolver 能在依赖 cone 的 API 里发现 extension fun。
         //
         // 说明：
@@ -435,191 +445,62 @@ fn inject_frontend_import_payload(
             IrType::Named { fqn, .. } => Some(fqn.clone()),
             _ => None,
         });
-        if receiver_ty_fqn.is_some() {
+        let extension = receiver_ty_fqn.map(|recv_fqn| {
             let pkg_prefix = fqn
                 .rsplit_once('.')
                 .map(|(p, _)| p.to_string())
                 .unwrap_or_default();
-            index.extension_funs.push(ExtensionFunSymbol {
-                fqn: fqn.clone(),
+            CachedConeExtensionInfo {
                 pkg_prefix,
-                decl_cone,
-                name: local.to_string(),
-                receiver_ty_fqn,
+                receiver_ty_fqn: Some(recv_fqn),
                 receiver_is_type_param: false,
+            }
+        });
+
+        funs.push(CachedConeFun {
+            fqn,
+            overload,
+            extension,
+        });
+    }
+
+    let mut non_public_symbols: Vec<CachedConeNonPublicSymbol> = Vec::new();
+    if let Some(vis) = payload.symbol_visibility.as_ref() {
+        for sym in &vis.symbols {
+            let visibility: Visibility = sym.visibility.into();
+            if visibility == Visibility::Public {
+                continue;
+            }
+            let local = last_segment(&sym.fqn).to_string();
+            let local_span = synth.alloc(&local);
+            let kind = match sym.kind {
+                ConeSymbolKind::Type => CachedConeSymbolKind::Type,
+                ConeSymbolKind::Value => CachedConeSymbolKind::Value,
+                ConeSymbolKind::Fun => CachedConeSymbolKind::Fun,
+            };
+            non_public_symbols.push(CachedConeNonPublicSymbol {
+                kind,
+                fqn: sym.fqn.clone(),
+                local,
+                local_span,
+                visibility,
             });
         }
     }
 
-    // 2.5) 注入非 public 符号占位符：仅用于在使用点生成 not_visible 诊断。
-    if let Some(vis) = &payload.symbol_visibility {
-        inject_non_public_symbols_into_index(index, &mut synth, decl_cone, &decl_file, vis)?;
-    }
+    let synthetic_source = SourceFile::new_virtual(decl_file.clone(), synth.finish());
 
-    // 3) 最后注入合成 source，确保 lowering 能在 `decl_file` 上取到文本切片。
-    env.insert_external_source(SourceFile::new_virtual(decl_file, synth.finish()));
-
-    Ok(())
-}
-
-fn inject_non_public_symbols_into_index(
-    index: &mut scoopc_hir::resolve::Index,
-    synth: &mut SyntheticSourceBuilder,
-    decl_cone: ConeId,
-    decl_file: &Path,
-    file: &ConeSymbolVisibilityFile,
-) -> Result<()> {
-    // v0：`SYMBOL_VISIBILITY.json` 只应该包含非 public 项；这里做一层防御性过滤。
-    for sym in &file.symbols {
-        let visibility: Visibility = sym.visibility.into();
-        if visibility == Visibility::Public {
-            continue;
-        }
-
-        let fqn = sym.fqn.as_str();
-        let local = last_segment(fqn);
-        let local_span = synth.alloc(local);
-
-        let entry = index.by_fqn.entry(fqn.to_string()).or_default();
-
-        match sym.kind {
-            ConeSymbolKind::Type => {
-                if entry.ty.is_some() {
-                    continue;
-                }
-                entry.ty = Some(Symbol {
-                    kind: SymbolKind::Type,
-                    name: local.to_string(),
-                    span: local_span,
-                    decl_file: decl_file.to_path_buf(),
-                    decl_cone,
-                    visibility,
-                    modifiers: ModifierSet::default(),
-                });
-            }
-            ConeSymbolKind::Value => {
-                if entry.value.is_some() {
-                    continue;
-                }
-                entry.value = Some(Symbol {
-                    kind: SymbolKind::Value,
-                    name: local.to_string(),
-                    span: local_span,
-                    decl_file: decl_file.to_path_buf(),
-                    decl_cone,
-                    visibility,
-                    modifiers: ModifierSet::default(),
-                });
-            }
-            ConeSymbolKind::Fun => {
-                // 若该 FQN 已有 public overload（来自 api.scoopir），则不额外注入不可见占位符，
-                // 避免在后续阶段引入“public/hidden overload 混合”的模糊语义。
-                if entry
-                    .fun
-                    .iter()
-                    .any(|o| o.symbol.visibility == Visibility::Public)
-                {
-                    continue;
-                }
-
-                entry.fun.push(FunOverload {
-                    symbol: Symbol {
-                        kind: SymbolKind::Fun,
-                        name: local.to_string(),
-                        span: local_span,
-                        decl_file: decl_file.to_path_buf(),
-                        decl_cone,
-                        visibility,
-                        modifiers: ModifierSet::default(),
-                    },
-                    sig: FunSig {
-                        kind: ast::FunDeclKind::Regular,
-                        receiver: None,
-                        type_params: Vec::new(),
-                        eff_param: None,
-                        params: Vec::new(),
-                        return_ty: None,
-                        effects: None,
-                        builtin_flags: BuiltinFunFlags::default(),
-                        where_clause: None,
-                    },
-                    has_body: false,
-                });
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn inject_type_symbol_into_index(
-    index: &mut scoopc_hir::resolve::Index,
-    fqn: &str,
-    local: &str,
-    span: Span,
-    decl_file: &Path,
-    decl_cone: ConeId,
-    also_value_namespace: bool,
-) -> Result<()> {
-    let entry = index.by_fqn.entry(fqn.to_string()).or_default();
-
-    if entry.ty.is_some() {
-        return Err(miette!("Index 已存在同名 type 符号：{fqn}"));
-    }
-    entry.ty = Some(Symbol {
-        kind: SymbolKind::Type,
-        name: local.to_string(),
-        span,
-        decl_file: decl_file.to_path_buf(),
+    CachedConeImport {
         decl_cone,
-        visibility: Visibility::Public,
-        modifiers: ModifierSet::default(),
-    });
-
-    // 与 source 索引保持一致：enum 同时引入同名 value symbol（便于限定名访问）。
-    if also_value_namespace && entry.value.is_none() {
-        entry.value = Some(Symbol {
-            kind: SymbolKind::Value,
-            name: local.to_string(),
-            span,
-            decl_file: decl_file.to_path_buf(),
-            decl_cone,
-            visibility: Visibility::Public,
-            modifiers: ModifierSet::default(),
-        });
+        cone_kind,
+        cone_name: cone_name.to_string(),
+        cone_version: cone_version.to_string(),
+        decl_file,
+        synthetic_source,
+        types,
+        funs,
+        non_public_symbols,
     }
-
-    Ok(())
-}
-
-#[derive(Default)]
-struct SyntheticSourceBuilder {
-    text: String,
-}
-
-impl SyntheticSourceBuilder {
-    fn alloc(&mut self, s: &str) -> Span {
-        let start = self.text.len();
-        self.text.push_str(s);
-        let end = self.text.len();
-        self.text.push('\n');
-        Span::new(start, end)
-    }
-
-    fn ident(&mut self, s: &str) -> ast::Ident {
-        ast::Ident {
-            span: self.alloc(s),
-            text: None,
-        }
-    }
-
-    fn finish(self) -> String {
-        self.text
-    }
-}
-
-fn last_segment(fqn: &str) -> &str {
-    fqn.rsplit('.').next().unwrap_or(fqn)
 }
 
 fn ir_effect_row_to_effect_row_expr(
@@ -837,6 +718,7 @@ mod tests {
     fn artifact_frontend_import_injects_public_and_visibility_payload() {
         let artifact = ConeArtifact::with_parts(
             StableConeKey::new("dep", "1.0.0"),
+            scoopc_project_model::ConeKind::Lib,
             crate::artifact::ConeArtifactStageProducts::new(
                 HirFacts::new(),
                 MirFacts::new(),

@@ -38,6 +38,7 @@ pub mod opt {
     pub use scoopc_project_model::OptLevel;
 }
 
+pub mod cone_import;
 pub mod dump_support;
 pub mod expr_facts;
 pub mod hir;

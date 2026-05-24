@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R`、`P10-T04-a` 与 `P10-T04` 已完成；下一项为 `P10-T04R`。
+> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R`、`P10-T04-a`、`P10-T04` 与 `P10-T04-b` 已完成；`P10-T04R` review 发现 cache-hit dependency cone 在下游 stage 不可见的阻塞性缺陷，由 `P10-T04-b`（frontend/effect_facts/mir 中端注入路径，已完成）与 `P10-T04-c`（LLVM codegen 层 dep `LateLoweredProgram` / `.o` artifact handoff，待办，与 P10-T06 同源协调收口）共同覆盖；为支持 per-cone 多进程并发编译，新增 `P10-T05` / `P10-T05R`（CLI 参数与并发抽象）、`P10-T06` / `P10-T06R`（cone DAG 子进程并发 driver），原 P10 全包清场任务顺延为 `P10-T07` / `P10-T07R`；下一项为 `P10-T04-c`（或先做 `P10-T05`，再用 `P10-T06` 顺手收 `P10-T04-c`）。
 
 ## 总原则
 
@@ -178,9 +178,15 @@
 | P10-T03R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t03rreview-per-cone-frontend-orchestration) | Review per-cone frontend orchestration |
 | P10-T04-a | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-a补齐-per-cone-artifact-cache-handoff-边界) | 补齐 per-cone artifact cache handoff 边界 |
 | P10-T04 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04per-cone-fingerprint-cache--增量-build) | per-cone fingerprint cache + 增量 build |
+| P10-T04-b | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-b让-cached-dependency-cone-artifact-在所有下游-stage-都正确可见) | 让 cached dependency cone artifact 在所有下游 stage 都正确可见 |
+| P10-T04-c | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04-c让-cached-dependency-cone-在-llvm-codegen-层-callable_layoutslateloweredprogram-路径上可见) | 让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见 |
 | P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
-| P10-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
-| P10-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05rreview-p10-全包完成度) | Review P10 全包完成度 |
+| P10-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05定义-per-cone-多进程并发编译的-cli-参数与抽象边界) | 定义 per-cone 多进程并发编译的 CLI 参数与抽象边界 |
+| P10-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05rreview-cli-参数与并发抽象) | Review CLI 参数与并发抽象 |
+| P10-T06 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06在-scoop-中实现-per-cone-子进程并发编译-driver) | 在 scoop 中实现 per-cone 子进程并发编译 driver |
+| P10-T06R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06rreview-per-cone-并发-driver) | Review per-cone 并发 driver |
+| P10-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
+| P10-T07R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07rreview-p10-全包完成度) | Review P10 全包完成度 |
 
 ## 包间验收门禁
 
