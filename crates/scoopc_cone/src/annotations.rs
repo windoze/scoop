@@ -158,6 +158,48 @@ pub fn collect_cone_preserved_annotation_classes_for_cone_sources(
     Ok(ConeAnnotationClassesFile::new_v0(out))
 }
 
+/// Collect cone-preserved public annotation classes from an already built frontend state.
+pub fn collect_cone_preserved_annotation_classes_from_index_env(
+    sources: &[SourceFile],
+    index: &Index,
+    env: &TypeEnv,
+) -> ConeAnnotationClassesFile {
+    let source_paths: HashSet<_> = sources.iter().map(|s| s.path().to_path_buf()).collect();
+    let mut out: Vec<ConeAnnotationClassEntry> = Vec::new();
+    for (fqn, ns) in &index.by_fqn {
+        let Some(sym) = ns.ty.as_ref() else {
+            continue;
+        };
+        if !source_paths.contains(sym.decl_file.as_path()) || sym.visibility != Visibility::Public {
+            continue;
+        }
+
+        let Some(ty) = env.type_symbol(fqn) else {
+            continue;
+        };
+        if !ty.is_annotation_class {
+            continue;
+        }
+        if ty.annotation_retention != Some(AnnotationRetentionPolicy::ConePreserved) {
+            continue;
+        }
+
+        let targets = ty
+            .annotation_targets
+            .as_ref()
+            .map(|v| v.iter().map(|t| t.as_str().to_string()).collect::<Vec<_>>());
+        out.push(ConeAnnotationClassEntry {
+            fqn: fqn.clone(),
+            targets,
+            retention: AnnotationRetentionPolicy::ConePreserved
+                .as_str()
+                .to_string(),
+        });
+    }
+
+    ConeAnnotationClassesFile::new_v0(out)
+}
+
 pub fn parse_annotation_classes_file(bytes: &[u8]) -> Result<ConeAnnotationClassesFile> {
     let file: ConeAnnotationClassesFile = serde_json::from_slice(bytes)
         .into_diagnostic()

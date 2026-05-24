@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
@@ -8,11 +8,11 @@ use crate::ast;
 #[cfg(test)]
 use crate::cone::{
     CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeNode,
-    SourceConeRole, SourceConeTrust,
+    SourceConeTrust,
 };
 use crate::cone::{
     ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
-    SourceConeCompilationUnit, SourceConeGraph, SourceConeInfo,
+    SourceConeCompilationUnit, SourceConeGraph, SourceConeInfo, SourceConeRole,
     load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
 };
 #[cfg(feature = "llvm")]
@@ -569,79 +569,36 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         ));
     }
 
-    let mut asts = Vec::with_capacity(input.build_closure_sources.len());
-    for unit in input.compilation_units() {
-        let unit_output = crate::pipeline::load_ast_compilation_unit_stage_output(session, unit)
-            .map_err(miette::Report::from)?;
-        asts.extend(unit_output.into_asts());
-    }
-    debug_assert_eq!(asts.len(), input.build_closure_sources.len());
-
-    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
-        crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
-        crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
-    }
-
-    let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
-    for f in &session.sysroot().files {
-        if input
-            .build_closure_sources
-            .iter()
-            .any(|source| source.path() == f.source.path())
-        {
-            continue;
-        }
-        indexed.push(IndexedFile {
-            cone: ConeId::new(0),
-            cone_kind: if f.source.is_trusted_syslib() {
-                ConeKind::Syslib
-            } else {
-                ConeKind::Lib
-            },
-            source: &f.source,
-            file: &f.ast,
-        });
-    }
-    for (source_index, (source, ast)) in input
+    let source_indices = input
         .build_closure_sources
         .iter()
-        .zip(asts.iter())
         .enumerate()
-    {
-        indexed.push(IndexedFile {
-            cone: input.source_cone_id(source_index),
-            cone_kind: input.source_cone_kind(source_index),
-            source,
-            file: ast,
-        });
-    }
-
-    let mut index = Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
-    index.set_export_entry_points(input.cone_manifest.export_entry_points.clone());
-
-    let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).map_err(miette::Report::from)?;
-
-    select_cone_entry_main(&mut input, &asts, &mut index)?;
-
-    let mut headers = Vec::with_capacity(input.build_closure_sources.len());
-    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
-        let h = crate::resolve::check_file_headers(source, ast, &index)
-            .map_err(miette::Report::from)?;
-        headers.push(h);
-    }
-    for ((source, ast), h) in input
-        .build_closure_sources
+        .map(|(idx, source)| (source.path().to_path_buf(), idx))
+        .collect::<HashMap<_, _>>();
+    let session_sysroot_paths = session
+        .sysroot()
+        .files
         .iter()
-        .zip(asts.iter_mut())
-        .zip(headers.iter())
-    {
-        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
-    }
-
-    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
-        env.extend_from_file(source, ast, &index)
-            .map_err(miette::Report::from)?;
-    }
+        .map(|file| file.source.path().to_path_buf())
+        .collect::<HashSet<_>>();
+    let default_sysroot_cone_ids = input
+        .graph()
+        .nodes()
+        .iter()
+        .filter(|node| {
+            node.role == SourceConeRole::SysrootAuto
+                && node
+                    .sources
+                    .iter()
+                    .all(|source| session_sysroot_paths.contains(source.path()))
+        })
+        .map(|node| node.id)
+        .collect::<HashSet<_>>();
+    let mut asts_by_source = Vec::with_capacity(input.build_closure_sources.len());
+    asts_by_source.resize_with(input.build_closure_sources.len(), || None);
+    let mut published_artifacts: HashMap<ConeId, crate::cone::ConeArtifact> = HashMap::new();
+    let mut final_index = None;
+    let mut final_env = None;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -649,75 +606,244 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
     #[cfg(feature = "llvm")]
     let mut all_monomorph_requests: Vec<MonomorphRequest> = Vec::new();
 
-    #[cfg(feature = "llvm")]
-    let file_iter = input
-        .build_closure_sources
-        .iter()
-        .zip(asts.iter())
-        .zip(headers.iter())
-        .enumerate();
-    #[cfg(not(feature = "llvm"))]
-    let file_iter = input
-        .build_closure_sources
-        .iter()
-        .zip(asts.iter())
-        .zip(headers.iter());
-
-    for item in file_iter {
-        #[cfg(feature = "llvm")]
-        let (_source_index, ((source, ast), h)) = item;
-        #[cfg(not(feature = "llvm"))]
-        let ((source, ast), h) = item;
-
-        crate::typecheck::check_file_annotations(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-        crate::typecheck::check_file_properties(source, ast, &index, &env)
-            .map_err(|err| miette::Report::from(*err))?;
-        crate::typecheck::check_file_inheritance(source, ast, &index)
+    for unit in input.compilation_units() {
+        let unit_output = crate::pipeline::load_ast_compilation_unit_stage_output(session, unit)
             .map_err(miette::Report::from)?;
-        crate::typecheck::check_file_interfaces(source, ast, &index, &env)
-            .map_err(miette::Report::from)?;
-        crate::typecheck::check_file_override_effects(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(|err| miette::Report::from(*err))?;
-        crate::typecheck::check_file_type_refs(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-        crate::typecheck::check_file_where_clauses(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-        crate::typecheck::check_file_overload_conflicts(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
+        let mut unit_asts = unit_output.into_asts();
+        debug_assert_eq!(unit_asts.len(), unit.sources().len());
 
-        #[cfg(feature = "llvm")]
-        {
-            // Support sources can contain generic calls inside reachable non-generic bodies
-            // (for example sysroot class initializers).  Collect their call-site bindings too;
-            // the MIR materializer still filters initial roots by consumer cone sources.
-            let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
-                source, ast, &index, &h.imports, &env, &mut types, builtins,
-            )
-            .map_err(miette::Report::from)?;
-            all_monomorph_requests.extend(requests);
+        for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
+            crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
+            crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
         }
-        #[cfg(not(feature = "llvm"))]
+
+        let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
+        for f in &session.sysroot().files {
+            if unit
+                .sources()
+                .iter()
+                .any(|source| source.path() == f.source.path())
+            {
+                continue;
+            }
+            indexed.push(IndexedFile {
+                cone: ConeId::new(0),
+                cone_kind: if f.source.is_trusted_syslib() {
+                    ConeKind::Syslib
+                } else {
+                    ConeKind::Lib
+                },
+                source: &f.source,
+                file: &f.ast,
+            });
+        }
+        for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
+            indexed.push(IndexedFile {
+                cone: unit.id(),
+                cone_kind: unit.kind(),
+                source,
+                file: ast,
+            });
+        }
+
+        let mut index = Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
+        index.set_export_entry_points(input.cone_manifest.export_entry_points.clone());
+        let mut env =
+            TypeEnv::from_sysroot(session.sysroot(), &index).map_err(miette::Report::from)?;
+
+        for dep_id in unit.dependency_cone_ids() {
+            let Some(artifact) = published_artifacts.get(&dep_id) else {
+                if default_sysroot_cone_ids.contains(&dep_id) {
+                    continue;
+                }
+                return Err(miette::miette!(
+                    "内部错误：cone {} 在依赖 {} 的 frontend 之前尚未发布 artifact",
+                    dep_id.as_u32(),
+                    unit.id().as_u32()
+                ));
+            };
+            crate::cone::inject_cone_artifact_frontend_import(
+                &mut index, &mut env, dep_id, artifact,
+            )?;
+        }
+
+        let mut headers = Vec::with_capacity(unit.sources().len());
+        for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
+            let h = crate::resolve::check_file_headers(source, ast, &index)
+                .map_err(miette::Report::from)?;
+            headers.push(h);
+        }
+        for ((source, ast), h) in unit
+            .sources()
+            .iter()
+            .zip(unit_asts.iter_mut())
+            .zip(headers.iter())
         {
-            crate::typecheck::check_file_exprs(
+            crate::resolve::check_file_bodies(source, ast, &index, h)
+                .map_err(miette::Report::from)?;
+        }
+
+        for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
+            env.extend_from_file(source, ast, &index)
+                .map_err(miette::Report::from)?;
+        }
+
+        #[cfg(feature = "llvm")]
+        let file_iter = unit
+            .sources()
+            .iter()
+            .zip(unit_asts.iter())
+            .zip(headers.iter())
+            .enumerate();
+        #[cfg(not(feature = "llvm"))]
+        let file_iter = unit
+            .sources()
+            .iter()
+            .zip(unit_asts.iter())
+            .zip(headers.iter());
+
+        for item in file_iter {
+            #[cfg(feature = "llvm")]
+            let (_source_index, ((source, ast), h)) = item;
+            #[cfg(not(feature = "llvm"))]
+            let ((source, ast), h) = item;
+
+            crate::typecheck::check_file_annotations(
                 source, ast, &index, &h.imports, &env, &mut types, builtins,
             )
             .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_properties(source, ast, &index, &env)
+                .map_err(|err| miette::Report::from(*err))?;
+            crate::typecheck::check_file_inheritance(source, ast, &index)
+                .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_interfaces(source, ast, &index, &env)
+                .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_override_effects(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(|err| miette::Report::from(*err))?;
+            crate::typecheck::check_file_type_refs(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_where_clauses(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_overload_conflicts(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+
+            #[cfg(feature = "llvm")]
+            {
+                let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
+                    source, ast, &index, &h.imports, &env, &mut types, builtins,
+                )
+                .map_err(miette::Report::from)?;
+                all_monomorph_requests.extend(requests);
+            }
+            #[cfg(not(feature = "llvm"))]
+            {
+                crate::typecheck::check_file_exprs(
+                    source, ast, &index, &h.imports, &env, &mut types, builtins,
+                )
+                .map_err(miette::Report::from)?;
+            }
+        }
+
+        crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
+            .map_err(miette::Report::from)?;
+
+        let mut lowering_context_files: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &session.sysroot().files {
+            if unit
+                .sources()
+                .iter()
+                .any(|source| source.path() == f.source.path())
+            {
+                continue;
+            }
+            lowering_context_files.push((&f.source, &f.ast));
+        }
+        for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
+            lowering_context_files.push((source, ast));
+        }
+        let artifact = if unit.is_consumer() || default_sysroot_cone_ids.contains(&unit.id()) {
+            None
+        } else {
+            let export_asts = unit_asts.clone();
+            let mut export_lowering_context_files: Vec<(&SourceFile, &ast::File)> =
+                Vec::with_capacity(lowering_context_files.len());
+            let unit_path_to_export_ast = unit
+                .sources()
+                .iter()
+                .zip(export_asts.iter())
+                .map(|(source, ast)| (source.path(), ast))
+                .collect::<HashMap<_, _>>();
+            for (source, ast) in &lowering_context_files {
+                let export_ast = unit_path_to_export_ast
+                    .get(source.path())
+                    .copied()
+                    .unwrap_or(*ast);
+                export_lowering_context_files.push((*source, export_ast));
+            }
+            let frontend_import = crate::cone::build_frontend_import_for_typechecked_cone(
+                session,
+                unit.sources(),
+                &export_asts,
+                &unit.node().manifest,
+                &index,
+                &env,
+                &export_lowering_context_files,
+            )?;
+            Some(crate::cone::ConeArtifact::new(
+                unit.source_cone_info().stable_key,
+                scoopc_hir_facts::HirFacts::new(),
+                scoopc_mir_facts::MirFacts::new(),
+                scoopc_effect_facts::EffectFacts::new(),
+                scoopc_lir_facts::LirFacts::new(crate::opt::OptLevel::O0),
+                scoopc_lir::LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                frontend_import,
+            ))
+        };
+
+        for (source, ast) in unit.sources().iter().zip(unit_asts) {
+            let idx = *source_indices.get(source.path()).ok_or_else(|| {
+                miette::miette!(
+                    "内部错误：cone source 未出现在 flattened source view：{}",
+                    source.path().display()
+                )
+            })?;
+            asts_by_source[idx] = Some(ast);
+        }
+
+        if unit.is_consumer() {
+            final_index = Some(index);
+            final_env = Some(env);
+        }
+        if let Some(artifact) = artifact {
+            published_artifacts.insert(unit.id(), artifact);
         }
     }
 
-    crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
-        .map_err(miette::Report::from)?;
+    let asts = asts_by_source
+        .into_iter()
+        .enumerate()
+        .map(|(idx, ast)| {
+            ast.ok_or_else(|| {
+                miette::miette!(
+                    "内部错误：frontend 未生成 source #{} 的 AST：{}",
+                    idx,
+                    input.build_closure_sources[idx].path().display()
+                )
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut index =
+        final_index.ok_or_else(|| miette::miette!("内部错误：consumer cone 未运行 frontend"))?;
+    select_cone_entry_main(&mut input, &asts, &mut index)?;
+    let env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
 
     Ok(FrontendOutput::new(
         input,
@@ -1227,6 +1353,63 @@ mod tests {
                 PathBuf::from("/tmp/scoop-unit-dep/src/lib.scoop"),
                 PathBuf::from("/tmp/scoop-unit-app/src/main.scoop"),
             ]
+        );
+    }
+
+    #[test]
+    fn downstream_frontend_uses_dependency_artifact_imports() {
+        let dep_id = ConeId::new(2);
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-artifact-dep/src/lib.scoop",
+            "package fixtures.artifact.dep\npublic fun dep(): Int { return 42 }\n",
+        );
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-artifact-app/src/main.scoop",
+            "package fixtures.artifact.app\nimport fixtures.artifact.dep.*\nfun main() { dep() }\n",
+        );
+        let mut dep_manifest = bin_manifest("fixture-artifact-dep");
+        dep_manifest.cone.kind = ConeKind::Lib;
+        let graph = SourceConeGraph::from_nodes(
+            vec![
+                graph_node(
+                    CONSUMER_CONE_ID,
+                    SourceConeRole::Consumer,
+                    bin_manifest("fixture-artifact-app"),
+                    "/tmp/scoop-artifact-app",
+                    vec![consumer],
+                    Some(PathBuf::from("/tmp/scoop-artifact-app/src/main.scoop")),
+                    vec![SourceConeDependencyEdge {
+                        target: dep_id,
+                        kind: SourceConeDependencyKind::LocalSource,
+                    }],
+                ),
+                graph_node(
+                    dep_id,
+                    SourceConeRole::LocalDependency,
+                    dep_manifest,
+                    "/tmp/scoop-artifact-dep",
+                    vec![dep],
+                    None,
+                    Vec::new(),
+                ),
+            ],
+            CONSUMER_CONE_ID,
+        )
+        .unwrap();
+        let input = ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None).unwrap();
+        let session = Session::new().unwrap();
+
+        let output = run_frontend(&session, input).unwrap();
+        let overload = output.index().by_fqn["fixtures.artifact.dep.dep"]
+            .fun
+            .first()
+            .expect("dependency public fun should be imported");
+
+        assert_eq!(overload.symbol.decl_cone, dep_id);
+        assert!(!overload.has_body);
+        assert_eq!(
+            overload.symbol.decl_file.display().to_string(),
+            "<cone:fixture-artifact-dep@0.0.0>"
         );
     }
 

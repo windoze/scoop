@@ -18,12 +18,17 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use scoopc_ast as ast;
 use scoopc_effect_facts::EffectFacts;
+use scoopc_hir::resolve::Index;
+use scoopc_hir::session::Session;
+use scoopc_hir::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_lir::LateLoweredProgram;
 use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
-use scoopc_project_model::StableConeKey;
+use scoopc_project_model::{ConeManifest, StableConeKey};
+use scoopc_source::SourceFile;
 use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
@@ -428,6 +433,42 @@ impl ConeArtifact {
             objects,
         })
     }
+}
+
+/// Build the frontend import payload for a cone from already processed frontend state.
+pub fn build_frontend_import_for_typechecked_cone(
+    session: &Session,
+    sources: &[SourceFile],
+    asts: &[ast::File],
+    manifest: &ConeManifest,
+    index: &Index,
+    env: &TypeEnv,
+    lowering_context_files: &[(&SourceFile, &ast::File)],
+) -> miette::Result<ConeArtifactFrontendImport> {
+    let public_api = crate::scoopir::export_public_api_for_typechecked_cone_sources(
+        sources,
+        asts,
+        manifest,
+        index,
+        env,
+        lowering_context_files,
+    )?;
+    let annotation_classes =
+        crate::annotations::collect_cone_preserved_annotation_classes_from_index_env(
+            sources, index, env,
+        );
+    let symbol_visibility =
+        crate::visibility::collect_non_public_symbols_from_index(sources, index);
+    let pre_specialize = crate::pre_specialize::build_pre_specialize_file_for_cone_sources(
+        session, sources, manifest,
+    )?;
+
+    Ok(ConeArtifactFrontendImport::new(
+        public_api,
+        Some(annotation_classes),
+        Some(symbol_visibility),
+        pre_specialize,
+    ))
 }
 
 fn validate_object_file_name(file_name: &str) -> Result<()> {

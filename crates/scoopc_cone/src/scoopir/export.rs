@@ -253,6 +253,54 @@ pub fn export_public_api_for_cone_sources(
     Ok(ScoopIrFile::new_v0(all_types, all_funs))
 }
 
+/// Export ScoopIR for an already parsed, resolved, and typechecked cone.
+pub fn export_public_api_for_typechecked_cone_sources(
+    sources: &[SourceFile],
+    asts: &[scoopc_ast::File],
+    manifest: &ConeManifest,
+    index: &Index,
+    env: &TypeEnv,
+    lowering_context_files: &[(&SourceFile, &scoopc_ast::File)],
+) -> miette::Result<ScoopIrFile> {
+    if sources.is_empty() {
+        return Err(miette::miette!("导出 ScoopIR 失败：sources 为空"));
+    }
+    if sources.len() != asts.len() {
+        return Err(miette::miette!(
+            "导出 ScoopIR 失败：sources/asts 数量不一致（{} vs {}）",
+            sources.len(),
+            asts.len()
+        ));
+    }
+
+    let mut all_types = Vec::new();
+    let mut all_funs = Vec::new();
+    let stable_cone_key = StableConeKey::from_manifest(manifest);
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        let hir = scoopc_hir::hir::lower_for_compilation_unit_with_stable_cone_key(
+            stable_cone_key.clone(),
+            source,
+            ast,
+            index,
+            lowering_context_files,
+        )
+        .map_err(miette::Report::from)?;
+        let ir = export_public_api_for_source(source, index, env, &hir)
+            .map_err(|err| miette::Report::from(*err))?;
+
+        all_types.extend(ir.types);
+        all_funs.extend(ir.funs);
+    }
+
+    all_types.sort_by(|a, b| a.fqn.cmp(&b.fqn));
+    all_types.dedup_by(|a, b| a.fqn == b.fqn);
+
+    all_funs.sort_by(|a, b| a.fqn.cmp(&b.fqn));
+    all_funs.dedup_by(|a, b| a.fqn == b.fqn);
+
+    Ok(ScoopIrFile::new_v0(all_types, all_funs))
+}
+
 /// 收集某个源文件内声明的 `public` 类型（type header）。
 fn export_public_types_for_source(
     source: &SourceFile,

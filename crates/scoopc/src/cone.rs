@@ -9,8 +9,10 @@
 pub use scoopc_cone::{
     CONE_ANNOTATION_CLASSES_FILE_NAME, CONE_API_SCOOPIR_FILE_NAME, CONE_PRE_SPECIALIZE_FILE_NAME,
     CONE_SOURCES_SHA256_FILE_NAME, ConeAnnotationClassEntry, ConeAnnotationClassesFile,
-    ConeArchiveApi, ConePreSpecializeFile,
-    collect_cone_preserved_annotation_classes_for_cone_sources, inject_cone_dependency_public_api,
+    ConeArchiveApi, ConeArtifact, ConeArtifactFrontendImport, ConePreSpecializeFile,
+    build_frontend_import_for_typechecked_cone,
+    collect_cone_preserved_annotation_classes_for_cone_sources,
+    inject_cone_artifact_frontend_import, inject_cone_dependency_public_api,
     list_cone_archive_entries, load_cone_archive_api, parse_annotation_classes_file,
     read_cone_api_scoopir_from_archive, read_cone_archive_entry, read_cone_manifest_from_archive,
     try_read_cone_archive_entry, write_cone_archive_v0,

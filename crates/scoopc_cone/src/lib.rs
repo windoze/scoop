@@ -31,6 +31,7 @@ pub use artifact::{
     CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, ConeArtifact,
     ConeArtifactError, ConeArtifactFingerprints, ConeArtifactFrontendImport, ConeArtifactManifest,
     ConeArtifactObject, ConeArtifactSchemaVersions, ConeArtifactStageProducts,
+    build_frontend_import_for_typechecked_cone,
 };
 pub use consume::{
     ConeArchiveApi, import_upstream_artifacts, inject_cone_artifact_frontend_import,

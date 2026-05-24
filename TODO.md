@@ -174,7 +174,7 @@
 | P10-T02 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t02定义-per-cone-build-artifact-磁盘布局与-scoopc_cone-读写-api) | 定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API |
 | P10-T02R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t02rreview-per-cone-artifact-schema) | Review per-cone artifact schema |
 | P10-T03-a | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t03-a补齐-coneartifact-frontend-import-payload) | 补齐 `ConeArtifact` frontend import payload |
-| P10-T03 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t03run_frontend-改造为按-cone-dag-拓扑顺序运行) | `run_frontend` 改造为按 cone DAG 拓扑顺序运行 |
+| P10-T03 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t03run_frontend-改造为按-cone-dag-拓扑顺序运行) | `run_frontend` 改造为按 cone DAG 拓扑顺序运行 |
 | P10-T03R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t03rreview-per-cone-frontend-orchestration) | Review per-cone frontend orchestration |
 | P10-T04 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04per-cone-fingerprint-cache--增量-build) | per-cone fingerprint cache + 增量 build |
 | P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |

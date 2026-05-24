@@ -199,6 +199,61 @@ pub fn collect_non_public_symbols_for_cone_sources(
     Ok(ConeSymbolVisibilityFile::new_v0(out))
 }
 
+/// Collect non-public symbol placeholders from an already built frontend index.
+pub fn collect_non_public_symbols_from_index(
+    sources: &[SourceFile],
+    index: &Index,
+) -> ConeSymbolVisibilityFile {
+    let source_paths: HashSet<_> = sources.iter().map(|s| s.path().to_path_buf()).collect();
+    let mut out: Vec<ConeSymbolVisibilityEntry> = Vec::new();
+    for (fqn, ns) in &index.by_fqn {
+        if let Some(sym) = ns.ty.as_ref()
+            && source_paths.contains(sym.decl_file.as_path())
+            && sym.visibility != Visibility::Public
+        {
+            out.push(ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Type,
+                fqn: fqn.clone(),
+                visibility: sym.visibility.into(),
+            });
+        }
+
+        if let Some(sym) = ns.value.as_ref()
+            && source_paths.contains(sym.decl_file.as_path())
+            && sym.visibility != Visibility::Public
+        {
+            out.push(ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Value,
+                fqn: fqn.clone(),
+                visibility: sym.visibility.into(),
+            });
+        }
+
+        if !ns.fun.is_empty() {
+            let declared = ns
+                .fun
+                .iter()
+                .filter(|o| source_paths.contains(o.symbol.decl_file.as_path()))
+                .collect::<Vec<_>>();
+            if declared.is_empty()
+                || declared
+                    .iter()
+                    .any(|o| o.symbol.visibility == Visibility::Public)
+            {
+                continue;
+            }
+
+            out.push(ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Fun,
+                fqn: fqn.clone(),
+                visibility: declared[0].symbol.visibility.into(),
+            });
+        }
+    }
+
+    ConeSymbolVisibilityFile::new_v0(out)
+}
+
 pub fn parse_symbol_visibility_file(bytes: &[u8]) -> Result<ConeSymbolVisibilityFile> {
     let file: ConeSymbolVisibilityFile = serde_json::from_slice(bytes)
         .into_diagnostic()

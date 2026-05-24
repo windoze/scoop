@@ -12,6 +12,7 @@ mod schema;
 
 pub use export::{
     ScoopIrExportError, export_public_api_for_cone_sources, export_public_api_for_source,
+    export_public_api_for_typechecked_cone_sources,
 };
 pub use schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,

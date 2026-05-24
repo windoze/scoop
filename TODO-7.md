@@ -893,7 +893,7 @@
   - 单测覆盖 artifact 写入 -> 读取 -> frontend payload 等价、缺失 payload/schema 的显式错误，以及 artifact payload 注入 `Index` / `TypeEnv` 的 public type/fun 与 hidden visibility 数据来源。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`git diff --check`。
 
-### [TODO] P10-T03：`run_frontend` 改造为按 cone DAG 拓扑顺序运行
+### [DONE] P10-T03：`run_frontend` 改造为按 cone DAG 拓扑顺序运行
 
 - 参考：本文件"Per-cone build artifact 现状基线"。
 - 目标：
@@ -921,6 +921,12 @@
   - 跨 cone fixture 通过；
   - 下游 cone 编译过程中不再 parse 上游 cone 源文件（用 trace 或断言验证）。
 - 依赖：P10-T03-a
+- 完成记录：
+  - 2026-05-25：`run_frontend` 已改为按 `SourceConeGraph::compilation_units()` 拓扑顺序逐 cone 运行 parse/resolve/typecheck；每个 local dependency cone 完成 frontend 后发布 in-memory `ConeArtifact` frontend import payload，下游 cone 只通过 artifact 注入 public API / annotation / visibility / pre-specialize metadata 到自己的 `Index` / `TypeEnv`，不再把依赖 cone source AST 加入下游 indexed/typecheck 输入。
+  - `scoopc_cone` 新增从已 typechecked cone state 构造 frontend import 的 API：ScoopIR export、cone-preserved annotation classes 与 non-public visibility 都可复用当前 frontend state；旧 `.cone` JSON 注入路径与 `inject_cone_dependency_public_api` 保持并存，新 frontend orchestration 默认走 artifact payload 注入。
+  - 默认 sysroot cone 继续由 `Session::sysroot()` 直接提供，显式额外 sysroot dependency（例如 `scoop.runtime.test`）与 local source dependency 一样发布/注入 artifact；consumer cone 不导出 artifact，避免 frontend-import export 消耗最终 codegen 所需的 AST typecheck side tables。
+  - 新增 regression 单测 `downstream_frontend_uses_dependency_artifact_imports`，断言下游只能看到依赖 artifact 注入的无 body synthetic declaration（`<cone:...>`），并保留指定跨 cone fixture 覆盖。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`git diff --check`。
 
 ### [TODO] P10-T03R：Review per-cone frontend orchestration
 
