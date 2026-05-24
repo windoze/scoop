@@ -24,10 +24,16 @@
 
 当前代码已完成 P7-T05 backend cleanup 清场基线：LLVM entry/global 查询、reachability、production body emission、stage handoff 和 physical ABI/layout 均已迁到 `LIR + lir_facts + LlvmStageBaseContext`。`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper，`LirStageOutput` 不再携带 LLVM residual accessor，physical ABI/layout 只把 `LirFacts.physical_layout` / type context 映射成 LLVM-private layout。此前位于 LLVM stage 的 integer literal HIR body precheck 已迁到 typecheck/when-pattern 边界；LLVM stage 不再为该诊断遍历 HIR body。P8-T01 已完成最终 residual 搜索与文档冻结；`dependency-gate` 现在覆盖 LLVM stage handoff、emit handoff、reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 的 forbidden residual 搜索，防止重新引入 P5 wrapper、HIR/raw MIR scan、backend-local ordinary dispatch 去虚化或旧 comptime/const-eval surface。`TypeId` cross-process stable wire format 显式推迟到 P10 per-cone build artifact serialization；P7/P8 不持久化 `TypeId`，仍只消费同进程 `TypeStore` owner。
 
-因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6 与 P7-T05 后，当前仍然成立、并进入 P8 的主结论是：
+## P9-T09 状态更新
 
-1. `llvm_codegen_stage` 仍是 `scoopc` 内的后端 orchestrator；P9/P10 crate split 和 per-cone artifact 才会把 stage/codegen 拆成独立 crate 与持久化产物。
-2. P8-T01 已完成最终 residual 搜索和文档冻结；P8 剩余工作是 release-readiness 验证。
+当前代码已完成 P9 stage crate split 清场：AST/HIR/MIR/effect-facts/LIR/codegen stage 实现分别由 `scoopc_ast`、`scoopc_hir`、`scoopc_mir`、`scoopc_effect_facts_stage`、`scoopc_lir` 与 `scoopc_codegen_llvm` 拥有；HIR/MIR/effect/LIR facts 由独立 fact crate 拥有；cone 操作位于 `scoopc_cone`，不得被 stage crate 反向依赖。`scoopc` umbrella 仅保留 facade re-export、`frontend.rs`、`pipeline/` 编排、session/CLI/driver helper 与测试审计模块；`crates/scoopc/src/` 下的 stage 名称引用只允许作为这些 wrapper 的兼容入口，不是新的 stage 实现 owner。
+
+P9 之后，任何后续 stage 行为、stage handoff 或 stage fact 改动都必须在 owning crate 内完成，并通过基础 crate、前序 stage crate 与已发布 fact crate 显式传递；不得在 `scoopc` umbrella、下游 stage、cone 或 backend crate 中新增跨 crate fallback、facade escape 或临时 shim 来绕过 PLAN §1.2 的依赖方向。
+
+因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6、P7-T05、P8 与 P9 后，当前仍然成立、并进入 P10 的主结论是：
+
+1. `scoopc_codegen_llvm` 已是独立 backend stage crate；`scoopc` 中的 LLVM 路径只剩 pipeline orchestrator 和 facade helper。
+2. dependency gate 已覆盖 base、fact、stage、cone 与 umbrella/backend residual 检查；P10 不应重新引入 stage 间反向依赖或 umbrella fallback。
 3. `TypeId` cross-process stable wire format 仍是 P10 per-cone build artifact serialization 的硬前置；P8-T01 只冻结推迟决策与 owner，不把 `TypeId` 落盘。
 
 ## 目标边界

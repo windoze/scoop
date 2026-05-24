@@ -696,7 +696,7 @@
   - README crate overview 已同步最终 P9 crate 结构，明确 `scoopc` 是 umbrella facade/driver 编排，`scoopc_codegen_llvm` 拥有 LLVM 私有依赖，`scoopc_cone` 位于 stage/fact/base 之上且 stage 不反向依赖 cone。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
-### [TODO] P9-T09：P9 全包清场、文档同步与依赖审计
+### [DONE] P9-T09：P9 全包清场、文档同步与依赖审计
 
 - 目标：搜索确认 P9 完成后没有 stage crate 互相反向依赖、没有 façade 兜底逃避边界、没有遗留的 `crate::` cross-stage import。
 - 必须修改的主要位置：`TODO.md`、`TODO-7.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md`（仅在设计边界实际变化时）、`README.md`。
@@ -711,6 +711,11 @@
   4. `git diff --check`
 - 完成条件：crate DAG 与 PLAN §1.2 一致；TODO 与文档同步。
 - 依赖：P9-T08R
+- 完成记录：
+  - 2026-05-24：完成 P9 全包清场审计。`dependency-gate` 通过并列出 16 个 pipeline crate 分类（base/fact/stage/codegen/cone）与 549 个 source-boundary 文件检查；`cargo tree --depth 1` 复核 AST/HIR/MIR/effect-facts/LIR/codegen/cone direct dependencies 与 P9 任务记录一致。
+  - `crates/scoopc/src/` 复核结果：保留项为 facade re-export、`frontend.rs`、`pipeline/` 编排 wrapper、session/CLI/driver helper 与测试审计模块；stage/backend/cone implementation owner 均在独立 crate 内，未发现需要迁移的旧 stage 实际定义文件。
+  - README 与 `PIPELINE-CLEANUP.md` 已同步 P9 后边界冻结：后续任何 stage 行为、handoff 或 fact 改动必须落在 owning crate，不能在 umbrella、其它 stage、cone 或 backend crate 中新增跨 crate fallback/shim。
+  - 验证通过：`cargo run -p scoop_tools -- dependency-gate`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`git diff --check`。
 
 ### [TODO] P9-T09R：Review P9 全包完成度
 

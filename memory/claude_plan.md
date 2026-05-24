@@ -1,40 +1,25 @@
 # Execution Plan
 
-I will follow `TODO.md` as the source of truth, complete exactly the first task whose heading is not prefixed with `[DONE]`, validate the result, update task bookkeeping, commit the finished work, and stop.
+I will follow `TODO.md` as the authoritative task list and complete only the first incomplete task in this invocation.
 
-## Steps
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Check the latest commit only for an explicitly unfinished issue directly relevant to that task.
-3. Inspect the code, fixtures, and docs needed for that task without broad unrelated triage.
-4. Implement the task as specified, avoiding workarounds or scope narrowing.
-5. Run formatting, linting, targeted validation, and then required full validation in the requested order.
-6. If any unscheduled test or fixture failure appears, fix it or add the minimum required prerequisite/follow-up task in `TODO.md` before marking completion.
-7. Mark the completed task heading with `[DONE]` and update its completion record in `TODO.md`; update `PLAN.md` only if phase-level sequencing changed.
-8. Commit all task-related changes with a clear message and stop.
-
-## Progress
-- Created this plan file before task execution.
-- Identified `P9-T08` as the first incomplete task.
-- Audited the umbrella crate and found `scoopc` still had LLVM-private build/dependency glue plus a non-facade `llvm.rs` wrapper.
-- Implementation focus: move LLVM toolchain ownership to `scoopc_codegen_llvm`, move single-file emit orchestration into `pipeline/`, leave `scoopc::llvm` as a façade, extend `dependency_gate` with cone crate rules, update README/TODO completion records, then validate and commit.
-- Implemented the umbrella/codegen boundary cleanup: removed direct LLVM-private deps, stale umbrella-only manifest deps, and `scoopc/build.rs`; added the LLVM toolchain check to `scoopc_codegen_llvm`; made `scoopc::llvm` a compatibility façade; and re-exported stackmap from the codegen crate.
-- Implemented dependency-gate cone coverage and README crate-structure updates.
-- Validation completed successfully in required order, including the final rerun after manifest cleanup: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo build --workspace`; `cargo test --all --all-targets`; `cargo run -p scoop -- test`; `cargo run -p scoop_tools -- dependency-gate`; `git diff --check`.
-- Marked `P9-T08` `[DONE]` in `TODO.md` and `TODO-7.md` with completion record.
+1. Read `TODO.md` to identify the first heading that is not prefixed with `[DONE]`.
+2. Check the current Git status and latest commit for context relevant to that task.
+3. Inspect only the files needed for the selected task and determine the implementation scope.
+4. Implement the task without changing unrelated code or using workarounds.
+5. Run formatting, linting, relevant tests, then broader validation as required by the task.
+6. Update `TODO.md` to mark the task `[DONE]` and record completion details; update this plan file at key milestones.
+7. Commit all task-related changes with a descriptive message and stop without starting the next task.
 
 ## Current Task
 
-Selected first incomplete task: `P9-T08R` (`Review umbrella 收尾`).
+First incomplete task: `P9-T09` (`P9 全包清场、文档同步与依赖审计`).
 
-Review focus:
-- Confirm `scoopc` remains an umbrella facade plus frontend/pipeline/session/driver helpers.
-- Confirm `dependency_gate` covers stage and cone reverse-dependency boundaries.
-- Confirm README crate overview reflects the final P9 crate structure.
-- Re-run all P9-T08 validation commands, then mark only `P9-T08R` done and commit.
+## Progress
 
-## P9-T08R Progress
-
-- Identified `P9-T08R` as the first incomplete task.
-- Reviewed the umbrella crate, dependency gate, stage/cone manifests, and README crate overview.
-- Completed the required validation sequence successfully.
-- Marked `P9-T08R` as `[DONE]` in `TODO.md` and `TODO-7.md` with a completion record.
+- Confirmed `P9-T09` is the first incomplete task in `TODO.md`; `P9-T09R` remains next.
+- Checked Git state and latest commit. Existing unrelated dirty files were present before task edits: `run_agent.sh` and untracked `PLUGIN_ABI.md`.
+- Ran `cargo run -p scoop_tools -- dependency-gate`; it passed and reported the P9 crate classes and source-boundary checks.
+- Audited direct stage/cone dependencies with `cargo tree --depth 1`; the current shape matches the P9 task records and dependency gate.
+- Searched `crates/scoopc/src`; remaining stage references are facade/orchestration wrappers under the umbrella, not standalone stage implementation ownership.
+- Updated README, `PIPELINE-CLEANUP.md`, `TODO.md`, and `TODO-7.md` for P9-T09 completion and the P9 post-split boundary freeze.
+- Validation completed successfully: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo run -p scoop_tools -- dependency-gate`; `cargo build --workspace`; `cargo test --all --all-targets`; `git diff --check`.
