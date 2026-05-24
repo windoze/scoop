@@ -928,7 +928,7 @@
   - 新增 regression 单测 `downstream_frontend_uses_dependency_artifact_imports`，断言下游只能看到依赖 artifact 注入的无 body synthetic declaration（`<cone:...>`），并保留指定跨 cone fixture 覆盖。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`git diff --check`。
 
-### [TODO] P10-T03R：Review per-cone frontend orchestration
+### [DONE] P10-T03R：Review per-cone frontend orchestration
 
 - 参考：P10-T03。
 - 重点：
@@ -937,6 +937,12 @@
   - 测试是否能稳定证明跳过上游 source。
 - 验证：重新运行 P10-T03 的所有验证。
 - 依赖：P10-T03
+- 完成记录：
+  - 2026-05-25：复审 P10-T03 的 per-cone frontend orchestration。确认 downstream cone 的 active frontend 只索引 sysroot 与本 cone sources，并通过 artifact payload 注入上游 public API / `TypeEnv` / cone-preserved annotations / non-public visibility placeholders；旧 `.cone` `inject_cone_dependency_public_api` 路径仍保留为兼容入口，默认 build frontend 使用 artifact 注入。
+  - 修复 review 发现的 per-cone manifest 边界问题：每个 compilation unit 的 `Index` 现在使用该 unit 自己 manifest 中的 `export_entry_points`，而不是 consumer manifest，避免依赖 cone 的导出入口检查被漏掉或错误继承 consumer exports。
+  - `scoopc::cone` facade 补充 re-export `import_upstream_artifacts`，保证 P10-T03 要求的新 artifact import helper 可从既有 facade 直接访问。
+  - 新增 regression 单测 `dependency_frontend_uses_its_own_export_entry_points`，证明 dependency cone frontend 会按自身 manifest 执行导出入口规则；保留 `downstream_frontend_uses_dependency_artifact_imports` 对 synthetic decl file / no-body import 的证明。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`git diff --check`。
 
 ### [TODO] P10-T04：per-cone fingerprint cache + 增量 build
 

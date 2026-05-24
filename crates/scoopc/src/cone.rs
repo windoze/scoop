@@ -11,7 +11,7 @@ pub use scoopc_cone::{
     CONE_SOURCES_SHA256_FILE_NAME, ConeAnnotationClassEntry, ConeAnnotationClassesFile,
     ConeArchiveApi, ConeArtifact, ConeArtifactFrontendImport, ConePreSpecializeFile,
     build_frontend_import_for_typechecked_cone,
-    collect_cone_preserved_annotation_classes_for_cone_sources,
+    collect_cone_preserved_annotation_classes_for_cone_sources, import_upstream_artifacts,
     inject_cone_artifact_frontend_import, inject_cone_dependency_public_api,
     list_cone_archive_entries, load_cone_archive_api, parse_annotation_classes_file,
     read_cone_api_scoopir_from_archive, read_cone_archive_entry, read_cone_manifest_from_archive,

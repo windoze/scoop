@@ -647,7 +647,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         }
 
         let mut index = Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
-        index.set_export_entry_points(input.cone_manifest.export_entry_points.clone());
+        index.set_export_entry_points(unit.node().manifest.export_entry_points.clone());
         let mut env =
             TypeEnv::from_sysroot(session.sysroot(), &index).map_err(miette::Report::from)?;
 
@@ -1410,6 +1410,58 @@ mod tests {
         assert_eq!(
             overload.symbol.decl_file.display().to_string(),
             "<cone:fixture-artifact-dep@0.0.0>"
+        );
+    }
+
+    #[test]
+    fn dependency_frontend_uses_its_own_export_entry_points() {
+        let dep_id = ConeId::new(2);
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-export-dep/src/lib.scoop",
+            "package fixtures.export.dep\npublic fun exported() { () }\n",
+        );
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-export-app/src/main.scoop",
+            "package fixtures.export.app\npublic fun main() / Pure! { () }\n",
+        );
+        let mut dep_manifest = bin_manifest("fixture-export-dep");
+        dep_manifest.cone.kind = ConeKind::Lib;
+        dep_manifest.export_entry_points = vec!["fixtures.export.dep.exported".to_owned()];
+        let graph = SourceConeGraph::from_nodes(
+            vec![
+                graph_node(
+                    CONSUMER_CONE_ID,
+                    SourceConeRole::Consumer,
+                    bin_manifest("fixture-export-app"),
+                    "/tmp/scoop-export-app",
+                    vec![consumer],
+                    Some(PathBuf::from("/tmp/scoop-export-app/src/main.scoop")),
+                    vec![SourceConeDependencyEdge {
+                        target: dep_id,
+                        kind: SourceConeDependencyKind::LocalSource,
+                    }],
+                ),
+                graph_node(
+                    dep_id,
+                    SourceConeRole::LocalDependency,
+                    dep_manifest,
+                    "/tmp/scoop-export-dep",
+                    vec![dep],
+                    None,
+                    Vec::new(),
+                ),
+            ],
+            CONSUMER_CONE_ID,
+        )
+        .unwrap();
+        let input = ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None).unwrap();
+        let session = Session::new().unwrap();
+
+        let err =
+            run_frontend(&session, input).expect_err("dependency export entry must be checked");
+        assert_eq!(
+            err.code().map(|code| code.to_string()).as_deref(),
+            Some("scoop::typecheck::export_entry_point_must_declare_closed_pure")
         );
     }
 
