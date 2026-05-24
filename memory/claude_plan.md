@@ -21,3 +21,20 @@ I will follow `TODO.md` as the source of truth, complete exactly the first task 
 - Implemented dependency-gate cone coverage and README crate-structure updates.
 - Validation completed successfully in required order, including the final rerun after manifest cleanup: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo build --workspace`; `cargo test --all --all-targets`; `cargo run -p scoop -- test`; `cargo run -p scoop_tools -- dependency-gate`; `git diff --check`.
 - Marked `P9-T08` `[DONE]` in `TODO.md` and `TODO-7.md` with completion record.
+
+## Current Task
+
+Selected first incomplete task: `P9-T08R` (`Review umbrella 收尾`).
+
+Review focus:
+- Confirm `scoopc` remains an umbrella facade plus frontend/pipeline/session/driver helpers.
+- Confirm `dependency_gate` covers stage and cone reverse-dependency boundaries.
+- Confirm README crate overview reflects the final P9 crate structure.
+- Re-run all P9-T08 validation commands, then mark only `P9-T08R` done and commit.
+
+## P9-T08R Progress
+
+- Identified `P9-T08R` as the first incomplete task.
+- Reviewed the umbrella crate, dependency gate, stage/cone manifests, and README crate overview.
+- Completed the required validation sequence successfully.
+- Marked `P9-T08R` as `[DONE]` in `TODO.md` and `TODO-7.md` with a completion record.

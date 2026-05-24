@@ -681,7 +681,7 @@
   - README crate overview 更新为最终 P9 crate 结构，明确 `scoopc` 只承担 umbrella facade 与 driver 编排，`scoopc_codegen_llvm` 拥有 LLVM backend 私有依赖，`scoopc_cone` 位于 stage/fact/base crate 之上且 stage 不反向依赖 cone。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507/1507）；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
-### [TODO] P9-T08R：Review umbrella 收尾
+### [DONE] P9-T08R：Review umbrella 收尾
 
 - 参考：P9-T08。
 - 重点：
@@ -690,6 +690,11 @@
   - 文档（README / crate overview）是否同步。
 - 验证：重新运行 P9-T08 的所有验证。
 - 依赖：P9-T08
+- 完成记录：
+  - 2026-05-24：复核 P9-T08 umbrella 收尾结果。`scoopc` 当前保留 facade re-export、`frontend.rs`、`pipeline/`、CLI/session/driver helper 与测试审计模块；stage/backend/cone 实现均由独立 crate 拥有，`scoopc::llvm` 与 `scoopc::cone` 仅作兼容 re-export。
+  - `dependency_gate` 覆盖 base、fact、AST/HIR/MIR/effect-facts/LIR/codegen stage 与 `scoopc_cone`，并包含 stage 反向依赖 cone、codegen 反向依赖 frontend stage、LIR 反向依赖 HIR/AST、umbrella backend-private dependency/facade residual 等规则和单测。
+  - README crate overview 已同步最终 P9 crate 结构，明确 `scoopc` 是 umbrella facade/driver 编排，`scoopc_codegen_llvm` 拥有 LLVM 私有依赖，`scoopc_cone` 位于 stage/fact/base 之上且 stage 不反向依赖 cone。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`。
 
 ### [TODO] P9-T09：P9 全包清场、文档同步与依赖审计
 
