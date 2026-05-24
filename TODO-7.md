@@ -853,6 +853,40 @@
   - 新增 `scoopc_cone` 回归测试覆盖 incompatible compiler version 与 schema version 拒绝路径，保留原有写入 -> 读取 -> stage product/object/fingerprint/layout 等价验证。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_cone`；`cargo test --all --all-targets`；`git diff --check`。
 
+### [TODO] P10-T03-a：补齐 `ConeArtifact` frontend import payload
+
+- 阻塞原因：
+  - 执行 P10-T03 前置审计时发现，P10-T02 的 `ConeArtifact` 只持久化 HIR/MIR/effect/LIR facts、LIR program、objects 与 fingerprints；
+  - P10-T03 要求 `import_upstream_artifacts(&[&ConeArtifact], &mut Index, &mut TypeEnv) -> Result<()>`，但当前 artifact 不包含现有 `.cone` 注入路径所需的 public API、annotation classes、symbol visibility、pre-specialize metadata，也没有可从 HIR facts 还原 `TypeEnv` 所需的完整 public declaration/typealias/visibility surface；
+  - 直接让 P10-T03 继续从上游源码或临时 ScoopIR 生成器注入会绕开 per-cone artifact 边界，不能证明“下游 cone 不再读上游源”。
+- 目标：
+  - 在 `scoopc_cone` 的 per-cone artifact schema 中补齐 frontend import payload，使 artifact 本身足以给下游 frontend 注入上游 cone 的 public API 与可见性边界；
+  - 复用现有 ScoopIR/annotation/visibility/pre-specialize schema 或抽出等价的 artifact-owned payload，不新增依赖上游源码的导入路径；
+  - 为 P10-T03 提供可直接调用的 artifact-to-frontend import 基础。
+- 必须修改的主要位置：
+  - `crates/scoopc_cone/src/artifact.rs`
+  - `crates/scoopc_cone/src/consume.rs`
+  - `crates/scoopc_cone/src/scoopir/`
+  - `crates/scoopc_cone/src/annotations.rs`
+  - `crates/scoopc_cone/src/visibility.rs`
+  - `crates/scoopc_cone/src/pre_specialize.rs`
+- 必须实现的内容：
+  1. 扩展 `ConeArtifact`/manifest/schema version，使 artifact 可持久化 frontend import payload：public API、cone-preserved annotation classes、symbol visibility、pre-specialize metadata；若选择新 payload 名称，必须文档化并保持 `ConeArtifact::read` 的兼容校验。
+  2. 提供从 artifact payload 构造现有注入输入的 API，避免 P10-T03 再从上游 source 重新导出 public API。
+  3. 新增 `import_upstream_artifacts` 所需的低层 helper 或等价 building block，覆盖 `Index` / `TypeEnv` / annotations / visibility / pre-specialize 的注入数据来源。
+  4. 单测覆盖 artifact 写入 -> 读取 -> 注入 payload 等价，以及缺失/不兼容 frontend payload 的显式错误。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test -p scoopc_cone`
+  4. `cargo test --all --all-targets`
+  5. `git diff --check`
+- 完成条件：
+  - `ConeArtifact` 本身携带下游 frontend 注入所需的全部 API/可见性 payload；
+  - P10-T03 可以在不读取上游 source、不临时重新导出 ScoopIR 的情况下实现 `import_upstream_artifacts(&[&ConeArtifact], &mut Index, &mut TypeEnv)`；
+  - 完成记录说明选择复用 ScoopIR payload 或新增 payload 的依据。
+- 依赖：P10-T02R
+
 ### [TODO] P10-T03：`run_frontend` 改造为按 cone DAG 拓扑顺序运行
 
 - 参考：本文件"Per-cone build artifact 现状基线"。
@@ -880,7 +914,7 @@
 - 完成条件：
   - 跨 cone fixture 通过；
   - 下游 cone 编译过程中不再 parse 上游 cone 源文件（用 trace 或断言验证）。
-- 依赖：P10-T02R
+- 依赖：P10-T03-a
 
 ### [TODO] P10-T03R：Review per-cone frontend orchestration
 
