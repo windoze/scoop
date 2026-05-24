@@ -982,7 +982,7 @@
   - 新增 regression `dependency_frontend_cache_hit_uses_artifact_without_reading_source`：先写出 dependency artifact，再把 dependency source 改成 parse/typecheck 失败内容，证明 matching cache hit 仍只消费 artifact；同时证明 fingerprint mismatch 会 cache miss 并重新读取 broken source 报错。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`。
 
-### [TODO] P10-T04：per-cone fingerprint cache + 增量 build
+### [DONE] P10-T04：per-cone fingerprint cache + 增量 build
 
 - 参考：本文件"Per-cone build artifact 现状基线"。
 - 目标：
@@ -1007,6 +1007,33 @@
   - 三种 cache 场景测试通过；
   - 完成记录给出 fresh build vs cache hit 的实测耗时。
 - 依赖：P10-T04-a
+- 完成记录（2026-05-25）：
+  - 实现：
+    - `crates/scoop/src/commands/build/incremental.rs`：将原本基于整项目 SHA-256 的 fingerprint 替换为 per-cone inputs/outputs fingerprint chain。`BuildFingerprint` 现包含 `consumer_cone_id` 和 `per_cone: HashMap<ConeId, ConeBuildFingerprint>`，每个 cone 有 `inputs_fingerprint`、`cached_outputs_fingerprint` 和 `direct_dependency_outputs_fingerprints`。`compute_cone_build_fingerprint` 按编译图的拓扑序为每个 cone 计算 inputs（包含 toolchain hash + 每个直接依赖的 outputs.fingerprint），随后从磁盘读取 artifact 的 outputs.fingerprint（如果存在且 inputs 匹配）填充 `cached_outputs_fingerprint`，否则用 `inputs_fingerprint` 作为占位向下传递；最终通过 consumer cone 的 inputs.fingerprint 派生总 fingerprint。`build.json` schema 升至 v4，包含 per-cone 的 inputs/outputs 摘要字段以便排查。
+    - `crates/scoopc_cone/src/artifact.rs`：新增 `compute_outputs_fingerprint(dir)`（不含 `outputs.fingerprint` 文件本身的全 artifact 文件 sha256）和 `ConeArtifact::write_with_computed_outputs_fingerprint(dir)`，由 frontend 在写盘时统一调用，确保磁盘上落的 outputs.fingerprint 是确定性函数。
+    - `crates/scoopc/src/frontend.rs`：cache miss 路径走 `write_with_computed_outputs_fingerprint`；cache hit 路径在加载 artifact 时通过 `read_with_inputs_fingerprint` 二次校验 inputs 一致性，避免不一致回退。
+    - `crates/scoopc_cone/src/artifact.rs`：补充 `read_with_inputs_fingerprint` 与 `InputsFingerprintMismatch` 错误类型，使 cache hit 严格按"inputs 完全相等"放行，避免噪声。
+    - `crates/scoop/src/commands/build.rs`：build 完成、产物落盘后，**重新计算一次 fingerprint** 再写入 `build.json`。这是 user-cone short-circuit 不变量的关键：第一次 build 时 cache-miss 的依赖 cone 用 placeholder=inputs 作为占位，build 完成后磁盘上是真实 outputs，下次运行重新计算时直接读真实 outputs；如果 build.json 里存的是 pre-build 的 placeholder fingerprint，下次运行就会 cache miss。修复后 post-build 与下次运行的 fingerprint 严格相等。
+  - 测试：
+    - `crates/scoop/src/commands/build/incremental.rs::tests`：新增四个 per-cone chain 测试：
+      - `per_cone_chain_rebuilds_only_user_cone_when_user_source_changes`（场景 a）；
+      - `per_cone_chain_invalidates_dependency_and_user_when_dependency_source_changes`（场景 b）；
+      - `per_cone_chain_invalidates_all_cones_when_toolchain_inputs_change`（场景 c，通过 OptLevel 变化代理 toolchain 维度）；
+      - `per_cone_chain_post_build_fingerprint_matches_next_run`（防回归：验证 post-build fingerprint == 下一次运行 fingerprint，覆盖修复点）。
+  - 验证通过：
+    - `cargo fmt`、`cargo clippy --all-targets -- -D warnings`：通过（顺手修了一处历史 `sort_by` → `sort_by_key`）。
+    - `cargo test --all --all-targets`：全部通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`：36/36 通过。
+    - `git diff --check`：无空白错误。
+  - 时序数据（fixture: `source_path_dependency_public_call`，含 1 consumer + 1 dep cone，release scoop on Apple Silicon）：
+    | 场景 | real time | 行为 |
+    |---|---|---|
+    | 冷启动（无 build dir）| 0.92s | 全量 build |
+    | Cache-hit（无修改第二次运行）| 0.18s | "skipping build (cache hit)" |
+    | `touch` mtime 但内容未变 | 0.18s | 仍命中（fingerprint 基于内容） |
+    | 修改 dep 源 | 0.86s | 全量 rebuild（cache 正确失效）|
+    | 修改后第二次运行 | 0.18s | 重新命中 ← 修复后的 round-trip 不变量 |
+    Cold vs warm：约 5.1× 加速；修改后第二次仍命中证实 post-build fingerprint 与 next-run 一致。
 
 ### [TODO] P10-T04R：Review per-cone fingerprint cache
 

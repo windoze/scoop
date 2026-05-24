@@ -31,6 +31,7 @@ use scoopc_project_model::{ConeManifest, StableConeKey};
 use scoopc_source::SourceFile;
 use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::annotations::ConeAnnotationClassesFile;
@@ -400,6 +401,20 @@ impl ConeArtifact {
         Ok(())
     }
 
+    /// Write this artifact and fill `outputs.fingerprint` from the written payloads.
+    ///
+    /// The output fingerprint excludes `outputs.fingerprint` itself to avoid a
+    /// self-referential digest.
+    pub fn write_with_computed_outputs_fingerprint(&mut self, dir: &Path) -> Result<()> {
+        self.outputs_fingerprint.clear();
+        self.write(dir)?;
+        self.outputs_fingerprint = compute_outputs_fingerprint(dir)?;
+        write_bytes(
+            &dir.join(CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME),
+            &self.outputs_fingerprint,
+        )
+    }
+
     /// Read a complete cone artifact from `dir`.
     pub fn read(dir: &Path) -> Result<Self> {
         let manifest: ConeArtifactManifest =
@@ -449,6 +464,24 @@ impl ConeArtifact {
         }
         Ok(artifact)
     }
+}
+
+/// Compute the output fingerprint for an already-written artifact directory.
+pub fn compute_outputs_fingerprint(dir: &Path) -> Result<Vec<u8>> {
+    let mut files = Vec::new();
+    collect_artifact_payload_files(dir, dir, &mut files)?;
+    files.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"scoop.cone.artifact.outputs.v0\n");
+    for (rel, path) in files {
+        hasher.update(rel.as_bytes());
+        hasher.update(b"\n");
+        let bytes = read_bytes(&path)?;
+        hasher.update(Sha256::digest(&bytes));
+        hasher.update(b"\n");
+    }
+    Ok(hasher.finalize().to_vec())
 }
 
 /// Build the frontend import payload for a cone from already processed frontend state.
@@ -542,6 +575,41 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>> {
         path: path.to_owned(),
         source,
     })
+}
+
+fn collect_artifact_payload_files(
+    root: &Path,
+    dir: &Path,
+    out: &mut Vec<(String, PathBuf)>,
+) -> Result<()> {
+    for entry in fs::read_dir(dir).map_err(|source| ConeArtifactError::Io {
+        path: dir.to_owned(),
+        source,
+    })? {
+        let entry = entry.map_err(|source| ConeArtifactError::Io {
+            path: dir.to_owned(),
+            source,
+        })?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|source| ConeArtifactError::Io {
+            path: path.clone(),
+            source,
+        })?;
+        if file_type.is_dir() {
+            collect_artifact_payload_files(root, &path, out)?;
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
+        let rel = path.strip_prefix(root).unwrap_or(&path);
+        let rel = rel.to_string_lossy().replace('\\', "/");
+        if rel == CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME {
+            continue;
+        }
+        out.push((rel, path));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

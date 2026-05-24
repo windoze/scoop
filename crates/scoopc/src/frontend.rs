@@ -907,7 +907,7 @@ pub fn run_frontend_with_artifact_cache(
                 let mut artifact = artifact;
                 artifact.inputs_fingerprint = entry.expected_inputs_fingerprint.clone();
                 artifact
-                    .write(&entry.artifact_dir)
+                    .write_with_computed_outputs_fingerprint(&entry.artifact_dir)
                     .map_err(|err| miette::miette!("{err}"))?;
                 published_artifacts.insert(unit.id(), artifact);
                 continue;

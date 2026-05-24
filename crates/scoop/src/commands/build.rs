@@ -332,16 +332,19 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     if let Some((cone_root, build_json)) = incremental_ctx {
         // 仅当最终产物存在时才更新 build.json，避免“只有前端检查”时产生误导性的缓存条目。
+        //
+        // 重新计算 fingerprint：build 期间 cache-miss 的依赖 cone 已经把真实的
+        // `outputs.fingerprint` 写到磁盘上，此时再读一遍磁盘，能让 consumer cone
+        // 的 inputs.fingerprint 直接依赖到“真实 outputs”而不是“placeholder=inputs”，
+        // 否则下次无修改的运行会因 placeholder 与真实 outputs 的差异而 cache miss。
+        let _ = computed_fingerprint;
         if output.is_file() {
-            let fp = match computed_fingerprint {
-                Some(fp) => fp,
-                None => incremental::compute_cone_build_fingerprint(
-                    &cone_root,
-                    profile.as_str(),
-                    entry_package_for_fingerprint.as_deref(),
-                    opt_level,
-                )?,
-            };
+            let fp = incremental::compute_cone_build_fingerprint(
+                &cone_root,
+                profile.as_str(),
+                entry_package_for_fingerprint.as_deref(),
+                opt_level,
+            )?;
             incremental::write_build_json(
                 &build_json,
                 profile.as_str(),

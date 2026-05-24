@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R` 与 `P10-T04-a` 已完成；下一项为 `P10-T04`。
+> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R`、`P10-T04-a` 与 `P10-T04` 已完成；下一项为 `P10-T04R`。
 
 ## 总原则
 
@@ -177,7 +177,7 @@
 | P10-T03 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t03run_frontend-改造为按-cone-dag-拓扑顺序运行) | `run_frontend` 改造为按 cone DAG 拓扑顺序运行 |
 | P10-T03R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t03rreview-per-cone-frontend-orchestration) | Review per-cone frontend orchestration |
 | P10-T04-a | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-a补齐-per-cone-artifact-cache-handoff-边界) | 补齐 per-cone artifact cache handoff 边界 |
-| P10-T04 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04per-cone-fingerprint-cache--增量-build) | per-cone fingerprint cache + 增量 build |
+| P10-T04 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04per-cone-fingerprint-cache--增量-build) | per-cone fingerprint cache + 增量 build |
 | P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
 | P10-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
 | P10-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05rreview-p10-全包完成度) | Review P10 全包完成度 |
