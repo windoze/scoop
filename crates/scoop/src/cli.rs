@@ -166,6 +166,13 @@ pub enum Command {
         /// 输出汇编（`.s` / `.asm`）
         #[arg(long, conflicts_with_all = ["emit_llvm", "emit_obj"])]
         emit_asm: bool,
+
+        /// per-cone 多进程并发编译的最大子进程数（P10-T05；本任务仅落地 CLI/trait surface，不引入并发执行行为）。
+        ///
+        /// 也可用环境变量 `SCOOP_BUILD_JOBS` 设置；CLI 优先级高于 env。未指定时使用 `DEFAULT_BUILD_JOBS`。
+        /// 必须为正整数（0 与负值会被拒绝）。
+        #[arg(short = 'j', long = "jobs", value_name = "N")]
+        jobs: Option<NonZeroUsize>,
     },
 
     /// 运行程序（先 build 后 exec；需要启用 LLVM 后端；默认已启用）
@@ -200,6 +207,13 @@ pub enum Command {
         /// 传递给被运行程序的参数（建议用 `--` 与 `scoop run` 自身参数分隔）
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+
+        /// per-cone 多进程并发编译的最大子进程数（P10-T05；本任务仅落地 CLI/trait surface，不引入并发执行行为）。
+        ///
+        /// 也可用环境变量 `SCOOP_BUILD_JOBS` 设置；CLI 优先级高于 env。未指定时使用 `DEFAULT_BUILD_JOBS`。
+        /// 必须为正整数（0 与负值会被拒绝）。
+        #[arg(short = 'j', long = "jobs", value_name = "N")]
+        jobs: Option<NonZeroUsize>,
     },
 
     /// `.cone` archive packaging is temporarily unsupported during source-only cone redesign
@@ -480,6 +494,150 @@ mod tests {
     fn test_command_rejects_conflicting_run_profile_flags() {
         let err = Args::try_parse_from(["scoop", "run", "--debug", "--release"]).unwrap_err();
         assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn build_command_accepts_jobs_long_flag() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--jobs",
+            "3",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Build { jobs, .. } => {
+                assert_eq!(jobs.unwrap().get(), 3);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_command_accepts_jobs_short_flag() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "-j",
+            "8",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Build { jobs, .. } => {
+                assert_eq!(jobs.unwrap().get(), 8);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_command_jobs_default_is_none() {
+        let args =
+            Args::try_parse_from(["scoop", "build", "tests/fixtures/parse/minimal.scoop"]).unwrap();
+
+        match args.command {
+            Command::Build { jobs, .. } => {
+                assert!(
+                    jobs.is_none(),
+                    "未指定 --jobs 时应为 None（由 driver 解析默认值）"
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_command_rejects_jobs_zero() {
+        let err = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--jobs",
+            "0",
+        ])
+        .unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ValueValidation);
+    }
+
+    #[test]
+    fn build_command_rejects_jobs_non_numeric() {
+        let err = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--jobs",
+            "abc",
+        ])
+        .unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ValueValidation);
+    }
+
+    #[test]
+    fn build_command_rejects_jobs_negative() {
+        // 负值 `-1` 在 clap 中被识别为未知短选项（首字符是 `-`）。这里断言用户拿到稳定的
+        // UnknownArgument diagnostic，而不是无穷阻塞或 panic。
+        let err = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--jobs",
+            "-1",
+        ])
+        .unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::UnknownArgument);
+    }
+
+    #[test]
+    fn run_command_accepts_jobs_long_flag() {
+        let args = Args::try_parse_from(["scoop", "run", "--jobs", "2"]).unwrap();
+
+        match args.command {
+            Command::Run { jobs, .. } => {
+                assert_eq!(jobs.unwrap().get(), 2);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn run_command_accepts_jobs_short_flag() {
+        let args = Args::try_parse_from(["scoop", "run", "-j", "6"]).unwrap();
+
+        match args.command {
+            Command::Run { jobs, .. } => {
+                assert_eq!(jobs.unwrap().get(), 6);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn run_command_jobs_default_is_none() {
+        let args = Args::try_parse_from(["scoop", "run"]).unwrap();
+
+        match args.command {
+            Command::Run { jobs, .. } => {
+                assert!(
+                    jobs.is_none(),
+                    "未指定 --jobs 时应为 None（由 driver 解析默认值）"
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn run_command_rejects_jobs_zero() {
+        let err = Args::try_parse_from(["scoop", "run", "--jobs", "0"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ValueValidation);
     }
 
     #[test]

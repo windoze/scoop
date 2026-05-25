@@ -11,6 +11,7 @@
 //! - profile 复用 `scoop build --debug/--release`；
 //! - 产物落到 `build/<profile>/bin/<project-name>`，并直接运行该产物。
 
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -22,6 +23,7 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 /// - 当未启用 LLVM 后端时（例如用 `--no-default-features` 构建），当前阶段无法产出可执行文件；
 ///   但仍会先做前端检查，然后给出明确报错（提示启用 LLVM）。
 /// - 若被运行程序退出码非 0，会直接以相同退出码退出当前进程（不打印额外诊断）。
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     input: Option<PathBuf>,
     args: Vec<String>,
@@ -29,6 +31,7 @@ pub fn run(
     profile: super::build::BuildProfile,
     opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
+    jobs: NonZeroUsize,
     session_options: scoopc::session::SessionOptions,
 ) -> Result<()> {
     match run_for_exit_code(
@@ -38,6 +41,7 @@ pub fn run(
         profile,
         opt_level,
         incremental,
+        jobs,
         session_options,
     )? {
         0 => Ok(()),
@@ -109,6 +113,7 @@ fn resolve_run_input(input: Option<PathBuf>) -> Result<RunInput> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_for_exit_code(
     input: Option<PathBuf>,
     args: Vec<String>,
@@ -116,6 +121,7 @@ fn run_for_exit_code(
     profile: super::build::BuildProfile,
     opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
+    jobs: NonZeroUsize,
     session_options: scoopc::session::SessionOptions,
 ) -> Result<i32> {
     let input = resolve_run_input(input)?;
@@ -135,6 +141,7 @@ fn run_for_exit_code(
                     profile,
                     opt_level,
                     incremental,
+                    jobs,
                     session_options,
                 },
             )?;
@@ -173,6 +180,7 @@ fn run_for_exit_code(
                     profile,
                     opt_level,
                     incremental,
+                    jobs,
                     session_options,
                 },
             )?;
@@ -221,6 +229,12 @@ fn default_exe_name() -> String {
 mod tests {
     use std::path::PathBuf;
 
+    use std::num::NonZeroUsize;
+
+    fn default_jobs_for_test() -> NonZeroUsize {
+        super::super::build::concurrency::default_build_jobs()
+    }
+
     #[cfg(not(feature = "llvm"))]
     #[test]
     fn run_requires_llvm_feature() {
@@ -234,6 +248,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
+            default_jobs_for_test(),
             scoopc::session::SessionOptions::new(),
         )
         .unwrap_err();
@@ -256,6 +271,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
+            default_jobs_for_test(),
             scoopc::session::SessionOptions::new(),
         )
         .unwrap();

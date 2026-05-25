@@ -21,9 +21,13 @@ mod test;
 
 use tracing_subscriber::EnvFilter;
 
+use std::num::NonZeroUsize;
+
 use crate::cli::{Args, Command};
 use scoopc::opt::OptLevel;
 use scoopc::session::SessionOptions;
+
+use build::concurrency::{self, BuildJobsError};
 
 /// 初始化日志系统。
 ///
@@ -91,6 +95,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             emit_llvm,
             emit_obj,
             emit_asm,
+            jobs,
         } => {
             let emit = if emit_llvm {
                 build::BuildEmit::LlvmIr
@@ -104,6 +109,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
 
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             let incremental = resolve_incremental_enabled(no_incremental);
+            let jobs = resolve_build_jobs(jobs)?;
             build::run(
                 input,
                 output,
@@ -113,6 +119,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                     profile,
                     opt_level: parse_opt_level_flag(opt_level)?,
                     incremental,
+                    jobs,
                     session_options,
                 },
             )
@@ -125,9 +132,11 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             opt_level,
             no_incremental,
             args,
+            jobs,
         } => {
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             let incremental = resolve_incremental_enabled(no_incremental);
+            let jobs = resolve_build_jobs(jobs)?;
             run::run(
                 input,
                 args,
@@ -135,11 +144,28 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 profile,
                 parse_opt_level_flag(opt_level)?,
                 incremental,
+                jobs,
                 session_options,
             )
         }
         Command::Package { input, output } => package::run(input, output, session_options),
     }
+}
+
+/// 把 CLI `--jobs N` 与环境变量 `SCOOP_BUILD_JOBS` 解析成最终的 [`NonZeroUsize`]。
+///
+/// 优先级 CLI > env > [`concurrency::DEFAULT_BUILD_JOBS`]；env 解析失败时返回结构化诊断。
+fn resolve_build_jobs(cli_jobs: Option<NonZeroUsize>) -> Result<NonZeroUsize, miette::Report> {
+    concurrency::resolve_build_jobs(cli_jobs).map_err(|err| match err {
+        BuildJobsError::InvalidEnvValue { value } => miette::miette!(
+            "环境变量 `{}` 的值 `{value}` 无效：必须是正整数（>=1）",
+            concurrency::BUILD_JOBS_ENV_VAR
+        ),
+        BuildJobsError::EnvNotUnicode => miette::miette!(
+            "环境变量 `{}` 不是有效的 UTF-8 字符串",
+            concurrency::BUILD_JOBS_ENV_VAR
+        ),
+    })
 }
 
 fn parse_opt_level_flag(opt_level: Option<String>) -> Result<Option<OptLevel>, miette::Report> {

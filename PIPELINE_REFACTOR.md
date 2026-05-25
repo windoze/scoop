@@ -202,6 +202,18 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 目标上，cone 间不应通过“把所有源 flatten 到一个 giant frontend run”来模拟依赖关系。
 
+#### 多进程并发执行约束（P10-T05/T06）
+
+cone DAG 中互不依赖的 cone 应允许在多个子进程中并发跑，从而把"per-cone artifact 已落盘"的硬解耦兑现为实际的并发收益。
+
+固定的并发执行边界：
+
+1. `scoop` crate 拥有 driver 与调度责任：负责 cone DAG 的拓扑遍历、并发派发、cache hit 短路、上下游 artifact 注入；
+2. `scoopc` binary 仅作 single-cone 编译执行体：即便后续暴露 `build-single-cone` 子命令，也只接受最小输入（cone 标识 / 上游 artifact 路径 / 输出 artifact 目录），不持有 driver / 调度 / 多进程 / DAG 遍历职责；
+3. 并发上限可订制：`ConcurrencyStrategy` trait 把"如何决定并发数"与"如何调度"解耦，本阶段实现固定值（`-j / --jobs N` / `SCOOP_BUILD_JOBS` / 默认值 4），后续按物理 CPU 数 / 内存 / 远端 worker 池等策略可在此挂接；
+4. 子进程执行体可订制：`SubprocessConeCompiler` trait 把"实际跑一个 cone 的子进程"与"调度 driver"解耦，本阶段实现 `LocalProcessConeCompiler`，后续按 RPC / 分布式编译 / 远端 worker 等执行体可在此挂接；
+5. cache hit 与子进程派发的混合场景必须正确处理：driver 跳过子进程派发的 cone 仍要把 cached artifact 注入下游 cone 的子进程参数中。
+
 ### 同一 cone 内：不是文件拓扑，而是阶段屏障
 
 同一个 cone 内，由于文件可以互相引用，所以不存在一个语义上可靠的“文件编译拓扑序”。

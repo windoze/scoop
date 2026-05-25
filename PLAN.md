@@ -345,6 +345,11 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 4. 把 `crates/scoopc/src/frontend.rs::run_frontend` 从扁平 build_closure_sources 循环改为按 `SourceConeGraph::compilation_units()` 拓扑顺序运行；下游 cone 通过 `scoopc_cone` 的 fact 注入接口获取上游内容，不再 parse 上游源。
 5. 把 `crates/scoop/src/commands/build/incremental.rs` 的整项目 SHA-256 fingerprint 替换为 per-cone inputs/outputs fingerprint chain；上游 outputs.fingerprint 不变 → 下游加载 artifact 跳过上游所有 stage。
+6. per-cone 多进程并发编译 CLI + driver 抽象（P10-T05 落地 surface，P10-T06 落地真正子进程并发）：
+   - `scoop build` / `scoop run` 加 `-j / --jobs N` 参数与 `SCOOP_BUILD_JOBS` 环境变量回退，默认 `DEFAULT_BUILD_JOBS = 4`；
+   - 在 `scoop` crate 内发布 `ConcurrencyStrategy` 与 `SubprocessConeCompiler` trait，把"如何决定并发数"和"如何在子进程里跑一个 cone"与调度 driver 解耦，给后续按物理 CPU / 远端 worker 池等策略和分布式编译留接入点；
+   - `scoopc` binary 始终保持单纯编译执行体（即便后续暴露 `build-single-cone` 子命令也只接受最小输入：cone 标识 / 上游 artifact 路径 / 输出 artifact 目录），不持有 driver / 调度 / DAG 遍历职责；
+   - 设计基线：cone DAG 中互不依赖的 cone 应允许并发跑；scoop 拥有 driver、scoopc 仅做 single-cone 编译执行体。
 
 不在本阶段完成（留待后续单独立项 P11）：
 

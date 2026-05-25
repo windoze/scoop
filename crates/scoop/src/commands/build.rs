@@ -6,6 +6,7 @@
 //! - 生成最小 object（当前阶段仍是固定 `main → ret 0`）；
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
+pub(crate) mod concurrency;
 mod incremental;
 pub(crate) mod layout;
 
@@ -126,6 +127,12 @@ pub struct BuildOptions {
     pub opt_level: Option<OptLevel>,
     /// 是否启用粗粒度增量构建（T1124）。
     pub incremental: bool,
+    /// per-cone 多进程并发编译的最大子进程数（P10-T05；本任务不引入并发执行）。
+    ///
+    /// 由 CLI `--jobs N` / 环境变量 `SCOOP_BUILD_JOBS` / [`concurrency::DEFAULT_BUILD_JOBS`]
+    /// 解析后传入；driver 在 P10-T06 之前不会真正并发执行，但需要把该值持有，
+    /// 以便给后续 [`concurrency::ConcurrencyStrategy`] 注入。
+    pub jobs: std::num::NonZeroUsize,
     /// 构造编译 session 时使用的统一配置。
     pub session_options: SessionOptions,
 }
@@ -138,6 +145,7 @@ impl Default for BuildOptions {
             profile: BuildProfile::Debug,
             opt_level: None,
             incremental: true,
+            jobs: concurrency::default_build_jobs(),
             session_options: SessionOptions::new(),
         }
     }
@@ -164,10 +172,23 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         profile,
         opt_level: opt_level_override,
         incremental,
+        jobs,
         session_options,
     } = options;
     let session_options = session_options.with_env_fallback();
     let incremental = incremental && session_options.sysroot_overlay().is_none();
+
+    // P10-T05：把 CLI / env 解析后的最大并发数交给 ConcurrencyStrategy。本任务不引入并发执行
+    // 行为；这里仅持有策略对象、保留注入点，便于 P10-T06 的子进程并发 driver 直接接管。
+    let concurrency_strategy: Box<dyn concurrency::ConcurrencyStrategy> =
+        Box::new(concurrency::FixedJobsStrategy::new(jobs));
+    let subprocess_cone_compiler: Box<dyn concurrency::SubprocessConeCompiler> =
+        Box::new(concurrency::LocalProcessConeCompiler::new());
+    tracing::debug!(
+        max_jobs = concurrency_strategy.max_concurrent_jobs().get(),
+        compiler = ?subprocess_cone_compiler,
+        "P10-T05: per-cone concurrency strategy registered (driver still in-process for this task)"
+    );
 
     let entry_package_for_fingerprint = entry_package.clone();
 
