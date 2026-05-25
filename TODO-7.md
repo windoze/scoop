@@ -1473,6 +1473,198 @@
   - **完整验证**：`cargo fmt` clean、`cargo clippy --all-targets -- -D warnings` clean、`cargo build --workspace` clean、`cargo test --all --all-targets` 全部通过、`cargo run -p scoop -- test` 完整 fixture suite 1507/1507 PASS、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS、`cargo run -p scoop_tools -- dependency-gate` ok、`git diff --check` clean。
   - **结论**：review checklist 6 项全部通过，无阻塞性缺陷；P10-T06 实现满足 spec 边界，可推进 P10-T04-c。
 
+### [TODO] P10-T06-b：抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界
+
+- 参考：P10-T06、P10-T06R；`crates/scoop/src/toolchain.rs:329-407`（`link_objs` / `link_objs_with_runtime` / `LinkOptions`）、`crates/scoop/src/toolchain.rs:493-571`（`compile_runtime_c_sources_to_obj_dir` / `runtime_c_sources` / `runtime_c_dir` / `runtime_public_include_dir`）、`crates/scoopc/src/single_cone.rs:48-168`（`run_single_cone_artifact_compile` 中的上游 cache miss → 源码 lower 兜底）、`crates/scoopc/src/driver_cli.rs:29-34`（`CompilerCli::{Legacy, BuildSingleCone}`）、`runtime/c/`、`crates/scoopc_project_model/src/sysroot.rs:22-27`（auto-dep 列表）。
+- 背景：
+  - P10-T06 已经把 `LocalDependency` cone 走子进程，但 consumer 仍由 scoop 进程 in-process 走 `run_codegen_and_link`；`link_objs` / `link_objs_with_runtime` / runtime C 编译三段都还在 `crates/scoop/src/toolchain.rs`，与 driver 同 crate，使 link 在 facade 与 single-cone 之间归属不清；
+  - `scoopc build-single-cone` 在上游 cache miss 时仍能 silently 从源码 lower（参见 `single_cone.rs:48-168` 中 fallback to lowering upstream from source），违反"scoopc 仅做单 cone 编译"基线；除 sysroot auto-dep 4 cone 外不应再有任何源码兜底；
+  - 用户希望把 link + runtime 编译抽成独立 `scoopld` crate，未来在已经预编译 runtime 的平台上 runtime 步骤可替换为 noop，并保留独立 `scoopld` 二进制可能；runtime 现在是纯 C，scoopld 不需要依赖任何 stage / codegen / scoopc API。
+- 目标：
+  - 新建 `crates/scoopld/`，承载 link + runtime C 编译职责；依赖限定为 base + `scoopc_project_model`（取 `ConeKind`）+ `scoopc_cone`（复用 fingerprint helper），**不**依赖任何 stage crate / codegen / `scoopc`；
+  - 把 `crates/scoop/src/toolchain.rs` 内 `link_objs` / `link_objs_with_runtime` / `LinkOptions` / `compile_runtime_c_sources_to_obj_dir` / `runtime_c_sources` / `link_command*` / `LinkError` / `RuntimeObjError` 全部迁入 scoopld，统一 link 路径（不再分 single-file / cone 两路）；
+  - scoopc 顶层增加 `link-cone` 子命令，内部仅 forward 给 `scoopld::link`；scoopc 自身仍只做单 cone，不引入任何 link 实现；
+  - 收紧 `build-single-cone`：除 sysroot auto-dep 4 cone（`scoop.core` / `scoop.lang.string` / `scoop.collections` / `scoop.delegates`）外，所有上游 cone 必须由 `--upstream-artifact <dir>` 提供，缺失即报硬错；删除 `single_cone.rs` 内"上游 cache miss → 源码 lower"软兜底；
+  - link 产物属于"项目级"输出（不属于 cone artifact），写到 `build/<profile>/link/<consumer-cone>@<ver>/`；final binary 落到 `build/<profile>/<name>`；
+  - 独立 link fingerprint：以 (a) consumer `.o` 内容摘要、(b) 排序后所有 dep `.o` 内容摘要、(c) runtime artifact 摘要、(d) link kind、(e) linker 路径与版本指纹（best-effort）、(f) link_flags 为输入；命中跳 link，直接复用既有 binary；
+  - kind dispatch 暂仅落地 `Bin`（ld）；`Lib` / `Syslib` 在 `link-cone` CLI 接受 `--kind` 参数并验证，实际执行时返回显式 `ScoopldLinkKindNotSupported` 错误；为后续 `Lib→ar` / `Syslib→其他` 留 API surface。
+- 必须修改的主要位置：
+  - `crates/scoopld/`（新 crate，发布 link + runtime 编译入口）
+  - `crates/scoop/src/toolchain.rs`（剥离 link / runtime 三段；保留 cone-internal native C/C++ helper，由 P10-T06-c 再迁）
+  - `crates/scoopc/src/driver_cli.rs`（顶层增加 `LinkCone` 分支）
+  - `crates/scoopc/src/bin/scoopc.rs`（dispatch 到 `scoopld::link`）
+  - `crates/scoopc/src/single_cone.rs`（删除非 sysroot 上游源码兜底）
+  - `crates/scoop/src/commands/build.rs`（`run_codegen_and_link` 改为派发 `scoopc link-cone` 子进程）
+  - `crates/scoop/src/commands/build/incremental.rs`（link fingerprint 入口）
+  - `tools/scoop_tools/src/dependency_gate.rs`（scoopld 允许 deps 列表 + 反向边禁止规则）
+  - `Cargo.toml` workspace members
+  - `PLAN.md` §4/P10、`PIPELINE_REFACTOR.md`、`SCOOP_RUNTIME.md`（追加 scoopld 章节）
+- 必须实现的内容：
+  1. **scoopld 公共 surface**（最小）：
+     - `pub struct LinkRequest { kind: ConeKind, consumer_obj: PathBuf, dep_objs: Vec<PathBuf>, runtime_artifact_dir: PathBuf, output_dir: PathBuf, link_flags: Vec<String>, linker: Option<PathBuf>, /* ... */ }`
+     - `pub struct LinkResponse { binary_path: PathBuf, fingerprint_hex: String }`
+     - `pub fn link(req: LinkRequest) -> Result<LinkResponse, LinkError>`
+     - `pub fn compile_runtime_to_obj_dir(out: &Path, opts: &RuntimeBuildOptions) -> Result<RuntimeArtifact, RuntimeObjError>`
+     - 严格不引入 `scoopc` / stage crate / codegen 依赖；
+  2. **toolchain 迁移**：上述 link / runtime 三段全部从 `crates/scoop/src/toolchain.rs` 删除，`scoop` 改 import scoopld；scoop crate 不再 emit 任何最终 binary；
+  3. **scoopc `link-cone` 子命令**：CLI surface 至少 `scoopc link-cone --kind <bin|lib|syslib> --consumer-obj <path> --dep-obj <path>... --runtime-artifact-dir <dir> --link-flags <flags>... [--linker <path>] --out <dir> --inputs-fingerprint <hex> [--cone-id <key>]`；实现仅 forward `scoopld::link`；不做 DAG / scheduling / 多进程；
+  4. **build-single-cone 收紧**：在 `single_cone.rs::run_single_cone_artifact_compile` 中加显式判定：上游 cone 若属于 sysroot auto-dep 4 cone，允许走 `graph_loader` 加载源码（这是合理的，因为 sysroot 由 graph 自身维护，不参与 driver 派发）；否则上游必须由 `--upstream-artifact` 喂入，缺失抛 `UpstreamArtifactRequired { cone_id }` 错误；
+  5. **link transitive deps 计算归 scoop driver**：scoop 是 cone DAG owner，`run_codegen_and_link` 改造后由 driver 收集所有 transitive dep 的 `manifest.object_files` 并通过 `--dep-obj` 喂给 `link-cone`；scoopc / scoopld 不 walk DAG；
+  6. **link fingerprint cache 独立**：单独存放在 `build/<profile>/link/<consumer-cone>@<ver>/inputs.fingerprint`；命中跳 link；输入摘要算法在 scoopld 内集中实现；
+  7. **kind 枚举透传**：`Bin` 走 ld 完整路径；`Lib` / `Syslib` 在 scoopld 内统一返回 `LinkError::KindNotSupported { kind }`；driver 端 link-cone 调用必须传正确 kind（CLI 层校验值合法）；
+  8. **dependency_gate 新规**：scoopld 允许 deps 白名单 = base + `scoopc_project_model` + `scoopc_cone`；任何 stage / codegen / `scoopc` / `scoop` 反向依赖 scoopld 一律拒绝；规则在 `tools/scoop_tools/src/dependency_gate.rs` 落地，PLAN.md 同步；
+  9. **单测**：
+     - link fingerprint cache hit / miss 各一例；
+     - 缺 `--upstream-artifact`（非 sysroot 上游）报 `UpstreamArtifactRequired` 精确诊断；
+     - `scoopc link-cone` CLI parse（kind 错误值、缺必参、unknown subcommand）；
+     - `Lib` / `Syslib` kind 调用返回 `KindNotSupported` 显式错误；
+     - 集成测试：通过 `scoopc link-cone` 子进程跑通 P10-T06 fixture（`source_path_dependency_public_call`）的 consumer link，并比对默认路径产物字节等价；
+  10. **文档**：`PLAN.md` §4/P10 追加"scoopld 抽出 + scoopc link-cone 子命令"条目；`PIPELINE_REFACTOR.md` 在编译顺序模型中新增 link 阶段为独立 stage；`SCOOP_RUNTIME.md` 增加"runtime 编译归 scoopld，未来可在已预编译平台 noop"段。
+- 不允许：
+  - scoopld 反向调用 scoopc / 任何 stage crate（包括以 trait 注入方式）；
+  - `scoopc link-cone` 内部直接做 link，不通过 `scoopld::link`；
+  - link fingerprint 与 cone artifact fingerprint 共用一份摘要（关心维度不同）；
+  - runtime C 编译留在 `scoop` crate；
+  - `build-single-cone` 在缺 `--upstream-artifact` 时 silently 走源码路径；sysroot 路径例外，但必须在代码中显式检查"是否属于 sysroot auto-dep 集合"；
+  - 用 `Lib` / `Syslib` kind silently fallback 到 `Bin` link。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop_tools -- dependency-gate`（新规则生效）
+  6. `cargo run -p scoop -- test`（完整 fixture suite，30 分钟 timeout）
+  7. 手工：跑 `scoopc build-single-cone --cone-root <consumer> --out <dir> --inputs-fingerprint <hex>` 但不带 `--upstream-artifact`，必须以 `UpstreamArtifactRequired` 退出码非零退出；纯 sysroot consumer（无 LocalDependency）仍能跑通；
+  8. 手工：单独跑 `scoopc link-cone`，输入 P10-T06 fixture 已落盘的 dep `.o` + consumer `.o`，比对 binary 与默认路径产物字节等价；
+  9. `git diff --check`。
+- 完成条件：
+  - `crates/scoopld/` 落地，link + runtime C 编译职责全部迁入；
+  - `scoopc link-cone` 子命令落地，内部仅 forward 给 scoopld；
+  - `build-single-cone` 不再有非 sysroot 上游源码兜底；
+  - dependency_gate 拒绝任何反向边；
+  - link fingerprint cache 独立、fixture suite 全过；
+  - 文档同步。
+- 依赖：P10-T06R。
+- 阻塞：P10-T06-c（consumer subprocess 路径需要 `link-cone` 子命令）。
+
+### [TODO] P10-T06-c：scoop facade 化 + consumer 走子进程 + virtual cone 迁移 + 删除 scoopc Legacy CLI + project_model 边界整顿
+
+- 参考：P10-T06-b（前置）；`crates/scoop/src/commands/build.rs:281-295,522-575`（`dispatch_local_dependency_cones` 后 consumer 仍 in-process）、`crates/scoop/src/commands/build.rs:579-622`（`compile_native_build_sources`）、`crates/scoopc/src/frontend.rs:618-651`（`prepare_virtual_cone_input` / `prepare_virtual_cone_context`）、`crates/scoopc_project_model/src/graph_loader.rs:53-98`（`load_source_cone_graph_for_virtual_consumer`）、`crates/scoopc_hir/src/session/mod.rs:19-20,77-83`（`SCOOP_SYSROOT_DEPS` env / `SessionOptions::with_extra_sysroot_dependencies`）、`crates/scoopc/src/driver_cli.rs:29-34,90-142`（`CompilerCli::Legacy` 单文件 emit-llvm/--obj 模式）、`crates/scoop/src/cli.rs`（Build/Run）、`tests/fixtures/run-pass/*.scoop`（`// SYSROOT-DEPS:` 注解）；`crates/scoopc_cone/`（混合 metadata + stage payload 的当前状态）。
+- 背景：
+  - P10-T06 + T06-b 完成后，所有 dep cone 已走子进程，但 consumer 仍由 scoop 进程 in-process 跑 frontend → codegen，违反"scoop=facade、scoopc=单 cone 编译器"基线；
+  - 单文件 `.scoop` 项目（`scoop build a.scoop`）的"virtual cone wrapping"决策属于 facade 行为，但实现位于 `scoopc::frontend`，导致 scoopc 必须区分"标准 cone vs 单文件包"两条入口；
+  - `scoopc::driver_cli::CompilerCli::Legacy`（单 `.scoop` + `-o` + `--emit-llvm` / `--obj`）是历史遗留 CLI：无 test 直接调用、`scoop` 也不调用，删除成本低；
+  - `--sysroot-dep` 在 `SessionOptions::extra_sysroot_dependencies` 已存在（仅暴露既有机制），fixture 通过 `// SYSROOT-DEPS:` 注解 + `SCOOP_SYSROOT_DEPS` env var 使用过；CLI flag 化后 facade 用户也能用；
+  - cone-internal native build (`compile_native_build_sources`，`build.rs:579-622`) 现在由 scoop driver 在 link 前现编 C/C++，未进入 cone artifact，违反"per-cone artifact = 该 cone 的全部产物"原则；
+  - facade 化后 scoop 不再做任何"编译"工作，应只依赖 project metadata 层；当前 `scoopc_cone` 是混合层，既有 stage payload（HIR/MIR/LIR/bincode）也有 metadata（`StableConeKey` / artifact JSON manifest / inputs/outputs fingerprint 算法 / `read_manifest_and_inputs_fingerprint`），后者属于 project_model 范畴；同时既然 project_model 不再服务于"scoopc 编译流"，crate 名的 `scoopc_` 前缀也已不准确，顺便重命名为 `scoop_project_model` 让命名匹配实际归属。
+- 目标：
+  - consumer cone 也走 `scoopc build-single-cone` + `scoopc link-cone` 双段子进程派发；scoop 不再 in-process 跑 frontend / codegen / link；
+  - 把 `prepare_virtual_cone_input` / `prepare_virtual_cone_context` 从 scoopc 迁到 scoop crate；scoop driver 把单文件 `.scoop` 物化为临时 cone（`build/<profile>/virtual/<sanitized-name>@0.0.0/`，含合成 `Cone.toml` + 源 symlink/拷贝），再走标准 cone DAG 派发；scoopc 只认标准 cone；
+  - `scoop build` / `scoop run` 增加 `--sysroot-dep <name>`（可重复），透传给 `SessionOptions::extra_sysroot_dependencies`；与 `SCOOP_SYSROOT_DEPS` env var 共存（CLI 优先）；
+  - 删除 `scoopc::driver_cli::CompilerCli::Legacy` 与所有只服务于它的支撑代码（单文件 `--emit-llvm` / `--obj` 模式、相关 frontend wrapper、binary dispatch 分支）；不留 deprecated alias；
+  - 审计仍以 scoopc Legacy 行为为前提的 test / fixture：改走 scoop 入口（首选）或如纯 cover 已 dead 路径直接删除；
+  - cone-internal native build (`compile_native_build_sources`) 迁入 `scoopc build-single-cone`（新 `scoopc::native_build` mod），native 产物 `objs/native_*.o` 进入 cone artifact、列入 `manifest.object_files`；scoop driver 在 link 阶段不再触碰任何源码或编译器；
+  - kind dispatch 在 driver 端正确传递（`--kind` 透传给 `link-cone`）；T06-b 中 `Lib` / `Syslib` 仍返回 `KindNotSupported`，本任务不强制实现，但传值路径必须正确（单测覆盖）；
+  - **scoopc_cone 拆分 + scoop 依赖收窄**：把 `StableConeKey`、artifact JSON manifest schema、`inputs_fingerprint` / `outputs_fingerprint` 算法、`read_manifest_and_inputs_fingerprint` 从 `scoopc_cone` 迁到 project_model；`scoopc_cone` 收窄为"stage payload 的磁盘层"（仅含 `ConeArtifact` 聚合体、bincode-encoded HIR/MIR/effect/LIR facts、`type_store.bin` 读写、`frontend_import.json`、stage handoff `*Object` 类型）；
+  - **`scoopc_project_model` 重命名为 `scoop_project_model`**：迁移完成后，由于该 crate 同时服务 scoop（facade）与 scoopc（编译器），`scoopc_` 前缀不再准确；统一用 `scoop_` 前缀；
+  - scoop crate 仅保留 `scoop_project_model` 一项 `scoop*` / `scoopc*` 内部 crate 依赖；其他 `scoopc_*` 一律不允许出现在 scoop 的 Cargo.toml；通过 dependency_gate 强制。
+- 必须修改的主要位置：
+  - `crates/scoop/src/commands/build.rs`（彻底改成 facade：consumer 加入派发集；删除 in-process `run_frontend_with_cache` + `run_codegen_and_link`）
+  - `crates/scoop/src/commands/build/scheduler.rs`（consumer 加入 cone 派发集；`build` / `link` 两阶段调度）
+  - `crates/scoop/src/commands/build/virtual_cone.rs`（新；单文件 wrapping 落盘 + 清理）
+  - `crates/scoop/src/cli.rs`（Build / Run 加 `--sysroot-dep`，clap `action = ArgAction::Append`）
+  - `crates/scoop/src/commands/run.rs` / `mod.rs`（透传 `extra_sysroot_dependencies` 到 `BuildOptions`）
+  - `crates/scoopc/src/frontend.rs`（移除 `prepare_virtual_cone_input` / `prepare_virtual_cone_context`；`load_source_cone_graph_for_virtual_consumer` 改为 `load_source_cone_graph_with_extra_sysroot_deps` 或直接合并进通用入口）
+  - `crates/scoopc/src/driver_cli.rs`（删除 `CompilerCli::Legacy` 分支与解析）
+  - `crates/scoopc/src/bin/scoopc.rs`（顶层 dispatch 收窄到 `BuildSingleCone` / `LinkCone`）
+  - `crates/scoopc/src/lib.rs` 与相关 mod（清理只服务 legacy 的 public API）
+  - `crates/scoop/src/toolchain.rs`（`compile_native_build_sources` 迁出；scoop crate 不再涉及 `.o` 生成）
+  - `crates/scoopc/src/native_build.rs`（新 mod 接收 native compile）
+  - `crates/scoopc_cone/`（剥离 metadata；保留 stage payload 部分）
+  - `crates/scoopc_project_model/` → 重命名整 crate 目录为 `crates/scoop_project_model/`，同时把从 scoopc_cone 迁来的 metadata 落进去
+  - workspace `Cargo.toml`（workspace members 重命名 + 全 workspace `scoopc_project_model = ...` 依赖项改名）
+  - 所有引用 `scoopc_project_model` 的 crate（`scoopc` / `scoopc_hir` / `scoopc_mir` / `scoopc_effect_facts_stage` / `scoopc_lir` / `scoopc_codegen_llvm` / `scoopc_cone` / `scoop` / `scoopld` / `scoop_tools` 等）的 `Cargo.toml` 与 `use` 语句
+  - `tests/` / `fixtures/`（审计 scoopc legacy 调用点；改走 scoop 或删除）
+  - `tools/scoop_tools/src/dependency_gate.rs`（scoop 反向边白名单；project_model 重命名同步）
+  - `PLAN.md` §4/P10、`PIPELINE_REFACTOR.md`、`README.md`、`SCOOP_RUNTIME.md`
+- 必须实现的内容：
+  1. **consumer 子进程派发**：scheduler 把 consumer 与 LocalDependency 一同放进 dispatch plan；consumer 在 dep 全部 `Done` 后 enter `Ready`，通过 `SubprocessConeCompiler::compile_cone(...)` 跑 `build-single-cone`，输出 consumer cone artifact（含 `.o`）；
+  2. **link 派发**：新 trait `SubprocessConeLinker` + 默认 `LocalProcessConeLinker`（`std::process::Command` exec `scoopc link-cone ...`）；scoop driver 在所有 cone 派发完成后调度 link 阶段，把 transitive dep 的 `manifest.object_files` 收齐并通过 `--dep-obj` 列表喂给 `link-cone`；driver 不再 in-process call link；
+  3. **single-file virtual cone 迁移**：`scoop build a.scoop` 时 driver 在 `build/<profile>/virtual/<sanitized>@0.0.0/` 写一个合成 `Cone.toml`（kind=bin、entry_package=主 .scoop 包名）+ 源 symlink/拷贝 + manifest；之后所有路径与 cone build 完全一致；driver 负责清理（cache 行为留给 P10-T07 整顿）；
+  4. **`--sysroot-dep` CLI**：`Build` / `Run` 加 `#[arg(long = "sysroot-dep", value_name = "NAME", action = ArgAction::Append)]`；多次出现累加；与 `SCOOP_SYSROOT_DEPS` env 共存；CLI 优先级高于 env；空字符串 / 重复值给出明确诊断；
+  5. **scoopc Legacy 删除**：`driver_cli.rs` 顶层只剩 `BuildSingleCone` / `LinkCone`；`bin/scoopc.rs` 顶层 dispatch 同步收窄；删除单文件 `--emit-llvm` / `--obj` 模式与所有只服务它的辅助代码；不留 deprecated alias；scoopc `--help` 不再列出 Legacy；
+  6. **legacy test / fixture 审计**：
+     - 任何直接走 scoopc legacy 行为的 unit / integration test 改走 scoop facade，或如纯 cover 已 dead 的单文件 emit-llvm 路径直接删除；
+     - `tests/fixtures/*` 不直接调 scoopc，理论零受影响，但仍跑全 suite 验证；
+     - 任何"纯 cover legacy"的 doc-test 同步删除；
+     - 在完成记录中给出"被改 / 被删的 test 文件清单"；
+  7. **native build 迁移**：`compile_native_build_sources`（`build.rs:579-622`）+ 相关 toolchain helper（`compile_c_source_to_obj` / `compile_cxx_source_to_obj`）迁到 `crates/scoopc/src/native_build.rs`，在 `build-single-cone` 流程内为本 cone 生成 `objs/native_*.o` 写入 cone artifact；`manifest.object_files` 增加 native object entry；`ConeArtifact` schema 必要时扩字段（向后兼容）；
+  8. **kind 透传**：scoop driver 根据 consumer cone kind 在 `link-cone` 子进程参数中传 `--kind`；T06-b 的 Lib/Syslib 仍未支持，但传值路径正确（单测：driver 给 Lib cone 派发 link-cone，断言子进程收到 `--kind lib`，即使返回 `KindNotSupported`）；
+  9. **dependency_gate**：scoop 不再依赖 scoopc 的 lib API（仅通过 CLI 子进程交互）；scoop 新引入 `scoop_project_model` 用于 cone graph 加载与 virtual cone manifest 写入；规则更新；
+  10. **单测 / 集成测试**：
+      - virtual cone wrapping：单文件 `.scoop` → driver 产出标准 cone root 与 manifest，断言后续派发链路与显式 cone 等价；
+      - `--sysroot-dep` CLI parse：多次出现累加；与 `SCOOP_SYSROOT_DEPS` env 共存优先级；空字符串报错；
+      - consumer subprocess 派发：scheduler 测试增加"consumer 也是 dispatchee"场景；失败传播仍正确（consumer 失败时 binary 不出现）；
+      - link-cone 派发：失败传播 / kind 透传 / cache hit 三场景；
+      - `cargo run -p scoop -- test` 完整 fixture suite（30 分钟 timeout）；
+      - `cargo run -p scoop -- build a.scoop` 单文件路径与显式 cone 等价产物（字节比对）；
+      - `scoopc --help` 不再列 Legacy CLI surface；也无单文件 `--emit-llvm` / `--obj` 入口残留；
+  11. **scoopc_cone 拆分 + scoop 依赖收窄**：
+      - 把 `StableConeKey`、artifact JSON manifest schema（含 `object_files` / `kind` / `version` 等纯元数据字段）、`inputs_fingerprint` / `outputs_fingerprint` 算法、`read_manifest_and_inputs_fingerprint`（轻量级 manifest+fingerprint 读盘 helper）从 `crates/scoopc_cone/` 迁到 `crates/scoop_project_model/`（注：迁移目标是已重命名后的路径，见第 12 项）；
+      - `scoopc_cone` 仅保留 `ConeArtifact` 聚合体、bincode-encoded HIR/MIR/effect/LIR facts、`type_store.bin` 读写、`frontend_import.json`、stage handoff `*Object` 类型；
+      - scoop crate `Cargo.toml` 删除除 `scoop_project_model` 外的所有 `scoopc*` / `scoopc_*` 依赖（`scoopc` / `scoopc_cone` 一律删除；scoopld 独立约束已在 T06-b 落实）；
+      - dependency_gate 新增"scoop 反向 scoopc_* 边白名单"规则：仅 `scoop_project_model` 允许，其他全部拒绝；
+  12. **`scoopc_project_model` → `scoop_project_model` 重命名**：
+      - `crates/scoopc_project_model/` 目录重命名为 `crates/scoop_project_model/`；
+      - crate 自身 `Cargo.toml` 的 `name = "scoopc_project_model"` 改为 `name = "scoop_project_model"`；
+      - workspace `Cargo.toml` 的 members 列表与 dependency 别名同步；
+      - 所有反向依赖此 crate 的 `Cargo.toml`（含 scoopld、scoopc 全家、scoop、scoop_tools、新落地的 metadata 迁移目标）改名；
+      - 所有 `use scoopc_project_model::...` 改为 `use scoop_project_model::...`；
+      - dependency_gate 规则中所有 `scoopc_project_model` 引用同步改名；
+      - 不留 deprecated alias / re-export shim；
+  13. **文档**：`PLAN.md` §4/P10 追加"scoop 完全 facade 化、consumer 子进程派发、Legacy 删除、project_model 边界整顿（含 crate 重命名）"；`PIPELINE_REFACTOR.md` 编译顺序模型小节标记"in-process whole-DAG fallback 已完全移除"；`README.md` 更新 `scoop build` / `scoop run` CLI 文档（含 `--sysroot-dep`）；`SCOOP_RUNTIME.md` 同步 native build 的归属变化；所有文档对 `scoopc_project_model` 的引用同步改成 `scoop_project_model`。
+- 不允许：
+  - scoop 在任何场景仍 in-process 跑 stage crate / codegen / link（包括 single-file 路径——必须 wrapping 后走子进程）；
+  - scoopc 内仍保留 `prepare_virtual_cone_*` 函数的"兼容 export"；
+  - 把 `CompilerCli::Legacy` 标 deprecated 而保留实现；
+  - `compile_native_build_sources` 留在 `scoop` crate；
+  - consumer subprocess 通过 stdin/stdout 传 IR / AST / 源码（与 P10-T06 的 artifact handoff 边界一致）；
+  - 用 `scoopc` lib API 调用绕开子进程边界（dependency_gate 应能识别）；
+  - scoop crate Cargo.toml 直接或间接（通过 `re-export`）保留任何除 `scoop_project_model` 之外的 `scoopc*` / `scoopc_*` 依赖；
+  - 拆分 scoopc_cone 时把 stage payload 类型（任何含 bincode-encoded HIR/MIR/LIR）下沉到 `scoop_project_model`（这是反方向的边界破坏）；
+  - 重命名后保留 `scoopc_project_model` 的 deprecated alias / re-export shim。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop_tools -- dependency-gate`
+  6. `cargo run -p scoop -- test`（完整 fixture suite，30 分钟 timeout）
+  7. `cargo run -p scoop -- build tests/fixtures/<single-file>.scoop`（验证 single-file path）
+  8. 手工：为某 fixture 显式提供 `--sysroot-dep scoop.runtime.test` 替代 `// SYSROOT-DEPS:` 注解，验证两条路径产物等价；
+  9. 手工：`scoopc --help` 不再列出 Legacy 子命令；也无单文件 `--emit-llvm` / `--obj` 入口残留；
+  10. `git diff --check`；
+  11. **scoop 依赖审计**：
+      - `cargo metadata --format-version 1 -p scoop | jq -r '.packages[] | select(.name == "scoop") | .dependencies[].name' | grep -E '^scoop' | sort -u` 输出仅含 `scoop_project_model`（以及 `scoop` 自身可能的内部 crate，但不应出现任何 `scoopc*` 名）；
+      - `grep -RInw -E 'scoopc_cone|scoopc_ast|scoopc_hir|scoopc_mir|scoopc_effect_facts_stage|scoopc_lir|scoopc_codegen_llvm|scoopc_project_model' crates/scoop/src/` 全无命中（`use` 与字符串引用都为零）；
+      - `grep -RInE '^use scoopc::|^use scoopc;' crates/scoop/src/` 全无命中；
+      - `grep -RInw scoopc_project_model crates/ tools/ tests/` 全无命中（重命名彻底）；
+      - `cargo run -p scoop_tools -- dependency-gate` 在新规则下通过。
+- 完成条件：
+  - 所有 cone（含 consumer + virtual）走 `build-single-cone` + `link-cone` 双子进程派发；
+  - `prepare_virtual_cone_*` 从 scoopc 迁到 scoop，scoopc 只认标准 cone；
+  - `--sysroot-dep` CLI flag 可用并取代部分 `SCOOP_SYSROOT_DEPS` 用法；
+  - `CompilerCli::Legacy` 与所有相关支撑代码删除；
+  - native build 在 `build-single-cone` 内进入 cone artifact；
+  - 完整 fixture suite 全过；
+  - scoop crate 仅依赖 `scoop_project_model` 一个 `scoop*` / `scoopc_*` 内部 crate；
+  - `scoopc_cone` 已收窄为 stage payload 磁盘层，metadata 全部下沉到 `scoop_project_model`；
+  - `scoopc_project_model` crate 已重命名为 `scoop_project_model`，全 workspace 引用同步、无 deprecated alias 残留；
+  - dependency_gate 反向边规则覆盖以上约束；
+  - 文档同步。
+- 依赖：P10-T06R、P10-T06-b。
+- 阻塞：P10-T07 最终清场（依赖本任务清理 in-process whole-DAG fallback 与 project_model 边界整顿）。
+
 ### [TODO] P10-T07：P10 全包清场、文档同步与依赖审计
 
 - 目标：
@@ -1499,7 +1691,7 @@
   - per-cone build 在所有 fixture 上稳定；
   - 多进程并发编译路径成为默认且文档冻结；
   - 文档冻结新边界。
-- 依赖：P10-T06R
+- 依赖：P10-T06-c
 
 ### [TODO] P10-T07R：Review P10 全包完成度
 
