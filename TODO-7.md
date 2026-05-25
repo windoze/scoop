@@ -1218,7 +1218,7 @@
   - 回归覆盖：新增 `pipeline::llvm_codegen_stage::tests::llvm_stage_materializes_cached_dep_plain_callable_layout`，构造 consumer-only LIR + cached dep LIR handoff，断言 dep `dependencyValue` 的 plain callable symbol 被 consumer LLVM ABI materialization 声明。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test`（1536 checks）；定向 `cargo test -p scoopc --lib llvm_codegen_stage::tests::llvm_stage_materializes_cached_dep_plain_callable_layout`。
 
-### [TODO] P10-T04-c-3：consumer pipeline 在 cache-hit 时剔除 dep AST 的中端适配
+### [DONE] P10-T04-c-3：consumer pipeline 在 cache-hit 时剔除 dep AST 的中端适配
 
 - 参考：上方 `P10-T04-c` 拆分记录的「中端适配工作」段；`crates/scoopc/src/frontend.rs:766-781` 现注释；`crates/scoopc/src/frontend.rs:1675` 测试 `dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources`；`crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs:2222` `inject_cached_cone_imports` 现仅回放 Index/TypeEnv。
 - 背景：
@@ -1256,6 +1256,12 @@
   - 现有 1675 测试被替换为相反方向的断言，新断言 fixture-driven。
 - 依赖：P10-T04-c-1、P10-T04-c-2。
 - 阻塞：P10-T04-c-4。
+- 完成记录：
+  - 2026-05-25：`run_frontend_with_artifact_cache` 在 dependency cone artifact cache hit 后直接发布 cached `ConeArtifact` 并跳过该 cone 的 AST load / resolve / typecheck / artifact rewrite；consumer output 的 `build_closure_sources` / active AST view 不再包含 cache-hit dep source。
+  - 中端适配评估：consumer 自身 typecheck/MIR/effect_facts/LIR 只 lower consumer request sources；dep public API 继续通过 `cached_cone_imports` 重放到重建的 `Index` / `TypeEnv`，dep callable ABI/layout 由 P10-T04-c-2 的 cached dep `LateLoweredProgram` / `LirFacts` handoff 提供。因此本任务不新增 dep `MaterializedEffectFacts` 或 dep MIR body 注入；dep body/object 的最终链接交由已排期的 `P10-T04-c-4`。
+  - 测试更新：`dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources` 改为 `dependency_frontend_cache_hit_uses_artifact_without_reading_source`，用语法损坏的 dep source 验证 cache-hit 不读取 dep 源，并断言 dep source 不在 consumer build closure 中；fingerprint mismatch 仍会重新读取 broken dep source 并报错。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --lib dependency_frontend_cache_hit_uses_artifact_without_reading_source`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/source_path_dependency_public_call`；`cargo run -p scoop -- test`（1536 checks）；`cargo build -p scoopc`。
+  - fresh `target/debug/scoopc` 子进程手工复现：`source_path_dependency_public_call` cold build 已进入 consumer 不再重新 lower dep body 的路径，并在 link 阶段因 dep `.o` 未加入命令出现 unresolved `dependencyValue` symbol；该失败与 `P10-T04-c-4` 的目标完全一致，本任务未用 dep AST 回填或其它 workaround 绕过。
 
 ### [TODO] P10-T04-c-4：consumer link 阶段拉 dep `.o` 与跳过 dep body emit
 

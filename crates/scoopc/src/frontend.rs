@@ -811,22 +811,9 @@ pub fn run_frontend_with_artifact_cache(
     #[cfg(feature = "llvm")]
     let mut all_monomorph_requests: Vec<MonomorphRequest> = Vec::new();
 
-    // P10-T04-c：dep cache-hit 时记录 unit_id，让 fall-through 的 cache-miss 路径在最终
-    // `write_with_computed_outputs_fingerprint` 之前根据这一标志跳过写盘——artifact 已经
-    // 由先前 build 写过、fingerprint 命中也就没必要重写。
-    //
-    // 历史背景：P10-T04-b 让 cache-hit 直接 `continue` 短路 dep 自己的 typecheck/Index/
-    // TypeEnv 重建，**但**后续 MIR/LIR/LLVM 阶段需要 dep 完整 HIR (含 typed call-site
-    // contract / struct decls metadata) 才能为 dep callable 发布 callable layout；
-    // dispatcher subprocess 路径下 mixed cache-hit + dispatch scenario 复现端到端
-    // `LLVM ABI query 缺少 callable ... 的 published callable version` 失败（参见
-    // P10-T04-b commit message 末段："LLVM 第三次 build 留给 T04-c"）。
-    //
-    // 当前 P10-T06 的折中方案：cache-hit 保留为"已经有 artifact 不必再写盘"信号，但
-    // dep 仍走完整 frontend pipeline 让 typecheck metadata 落到 AST 上、dep AST 进入
-    // consumer 的 active_sources 让下游 LLVM stage 完整 lower 出 dep callable。后续
-    // 真正"零开销 cache-hit + LIR/.o 注入" 由独立的 P10-T04-c-2 收口。
-    let mut cache_hit_units: HashSet<ConeId> = HashSet::new();
+    // P10-T04-c-3：fingerprint 命中的 dependency cone 已经有 authoritative artifact。
+    // 这里直接发布 artifact 并跳过该 cone 的 frontend pipeline；consumer 后续只通过
+    // cached frontend import 与 LLVM dep handoff 消费它，不能再把 dep AST 混入 active view。
     #[cfg(feature = "llvm")]
     let mut cache_hit_artifacts: HashMap<ConeId, (PathBuf, crate::cone::ConeArtifact)> =
         HashMap::new();
@@ -842,9 +829,11 @@ pub fn run_frontend_with_artifact_cache(
                 &entry.expected_inputs_fingerprint,
             ) {
                 Ok(artifact) => {
-                    cache_hit_units.insert(unit.id());
                     #[cfg(feature = "llvm")]
-                    cache_hit_artifacts.insert(unit.id(), (entry.artifact_dir.clone(), artifact));
+                    cache_hit_artifacts
+                        .insert(unit.id(), (entry.artifact_dir.clone(), artifact.clone()));
+                    published_artifacts.insert(unit.id(), artifact);
+                    continue;
                 }
                 Err(crate::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => {}
                 Err(crate::cone::ConeArtifactError::IncompatibleCompilerVersion { .. })
@@ -1089,11 +1078,9 @@ pub fn run_frontend_with_artifact_cache(
             if let Some(entry) = cache_entry {
                 let mut artifact = artifact;
                 artifact.inputs_fingerprint = entry.expected_inputs_fingerprint.clone();
-                // P10-T04-c：cache_hit_units 标记 dep 已经在先前 build 写过 artifact，
-                // 当前 frontend 重新跑只是为了让 typecheck metadata 落到 AST 上以喂下游
-                // LLVM stage——dep artifact 内容应当与已落盘的 fingerprint-matched artifact
-                // 一致，没必要再写一次。
-                if entry.write_on_cache_miss && !cache_hit_units.contains(&unit.id()) {
+                // 走到这里说明当前 unit 没有 artifact cache hit；按调用方策略写入新的
+                // artifact。cache-hit 路径已经在 loop 顶部发布旧 artifact 并 `continue`。
+                if entry.write_on_cache_miss {
                     artifact
                         .write_with_computed_outputs_fingerprint(&entry.artifact_dir)
                         .map_err(|err| miette::miette!("{err}"))?;
@@ -1740,14 +1727,10 @@ mod tests {
     }
 
     #[test]
-    fn dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources()
-    {
-        // P10-T04-c：dep cache-hit 跳过昂贵的 typecheck/Index::build_with_cones/TypeEnv 重建，
-        // 但 dep AST 仍然以 active source 形式进入 consumer 的下游 pipeline——后续 LLVM stage
-        // 才能为 dep callable 发布 callable layout，否则 fixture
-        // `source_path_dependency_public_call` 的 mixed cache scenario 会在 LLVM ABI query 失败。
-        // 所以这里只断言 fingerprint 命中时不再触发 dep 自身的 typecheck，但 parser 仍然跑过
-        // dep 源；fingerprint mismatch 时回退到完整 frontend pipeline。
+    fn dependency_frontend_cache_hit_uses_artifact_without_reading_source() {
+        // P10-T04-c-3：fingerprint 命中时 dep cone 必须完全由 artifact 供给，不能再 parse
+        // 或 typecheck dep 源，也不能把 dep AST 留在 consumer active source view 中。
+        // fingerprint mismatch 时仍必须回退到完整 frontend pipeline。
         let dep_id = ConeId::new(2);
         let cache_dir = unique_temp_dir("scoop-frontend-cache-hit");
         let artifact_dir = cache_dir.join("cones").join("fixture-cache-dep@0.0.0");
@@ -1775,31 +1758,33 @@ mod tests {
             "cache miss should publish a dependency artifact"
         );
 
-        // 第二轮：fingerprint 命中。dep 源没变（与 first 一致），cache-hit 路径会跳过 dep 的
-        // typecheck，但仍 parse + 把 dep AST 保留进 consumer 的 active_sources。
+        // 第二轮：fingerprint 命中。故意传入语法损坏的 dep 源；如果 cache-hit 路径仍然
+        // 读取 dep source，这里会在 parser/typecheck 阶段失败。
         let mut hit_cache = FrontendArtifactCache::new();
         hit_cache.insert(
             dep_id,
             FrontendArtifactCacheEntry::new(artifact_dir.clone(), expected_inputs)
                 .with_write_on_cache_miss(false),
         );
-        let unchanged = ProjectInput::from_graph(
-            cached_dependency_graph(dep_id, dep_source),
+        let broken_but_cached = ProjectInput::from_graph(
+            cached_dependency_graph(
+                dep_id,
+                "package fixtures.cache.dep\npublic fun dep(): Int {",
+            ),
             ConeProjectKind::Explicit,
             None,
         )
         .unwrap();
-        let output = run_frontend_with_artifact_cache(&session, unchanged, Some(&hit_cache))
-            .expect("matching cache hit should succeed without re-running dep typecheck");
-        // dep AST 必须仍在 active_sources 中，consumer 才能在 downstream LLVM stage 看到 dep
-        // callable 并发布对应的 callable layout（P10-T04-c）。
+        let output =
+            run_frontend_with_artifact_cache(&session, broken_but_cached, Some(&hit_cache))
+                .expect("matching cache hit should succeed without reading dependency source");
         assert!(
             output
                 .input()
                 .build_closure_sources()
                 .iter()
-                .any(|source| source.path().ends_with("lib.scoop")),
-            "cache-hit 后 dep AST 必须仍出现在 active_sources，否则 consumer LLVM stage 缺 dep callable layout"
+                .all(|source| !source.path().ends_with("lib.scoop")),
+            "cache-hit 后 dep source 不应出现在 consumer build closure source view"
         );
         let overload = output.index().by_fqn["fixtures.cache.dep.dep"]
             .fun
