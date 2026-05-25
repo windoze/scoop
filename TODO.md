@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R`、`P10-T04-a`、`P10-T04`、`P10-T04-b` 与 `P10-T05` 已完成；`P10-T04R` review 发现 cache-hit dependency cone 在下游 stage 不可见的阻塞性缺陷，由 `P10-T04-b`（frontend/effect_facts/mir 中端注入路径，已完成）与 `P10-T04-c`（LLVM codegen 层 dep `LateLoweredProgram` / `.o` artifact handoff，待办，与 P10-T06 同源协调收口）共同覆盖；为支持 per-cone 多进程并发编译，新增 `P10-T05` / `P10-T05R`（CLI 参数与并发抽象）、`P10-T06` / `P10-T06R`（cone DAG 子进程并发 driver），原 P10 全包清场任务顺延为 `P10-T07` / `P10-T07R`；`P10-T05` 已落地 CLI `-j/--jobs` + `SCOOP_BUILD_JOBS` env + `ConcurrencyStrategy` / `SubprocessConeCompiler` trait surface（不引入并发执行行为）；执行顺序：`P10-T05` ✅ → `P10-T05R`（下一步） → `P10-T06`（子进程 driver，顺手收 `P10-T04-c` 的 dep LateLoweredProgram/.o handoff） → `P10-T06R` → `P10-T04-c`（如未被 P10-T06 完全吸收）→ `P10-T04R` → `P10-T07` → `P10-T07R`；下一项为 `P10-T05R`。
+> 当前状态：P0-P8、`TODO-7-INIT`、P9 全部任务、`P10-T01`、`P10-T01R`、`P10-T02`、`P10-T02R`、`P10-T03-a`、`P10-T03`、`P10-T03R`、`P10-T04-a`、`P10-T04`、`P10-T04-b`、`P10-T05` 与 `P10-T05R` 已完成；`P10-T04R` review 发现 cache-hit dependency cone 在下游 stage 不可见的阻塞性缺陷，由 `P10-T04-b`（frontend/effect_facts/mir 中端注入路径，已完成）与 `P10-T04-c`（LLVM codegen 层 dep `LateLoweredProgram` / `.o` artifact handoff，待办，与 P10-T06 同源协调收口）共同覆盖；为支持 per-cone 多进程并发编译，新增 `P10-T05` / `P10-T05R`（CLI 参数与并发抽象）、`P10-T06` / `P10-T06R`（cone DAG 子进程并发 driver），原 P10 全包清场任务顺延为 `P10-T07` / `P10-T07R`；`P10-T05` 已落地 CLI `-j/--jobs` + `SCOOP_BUILD_JOBS` env + `ConcurrencyStrategy` / `SubprocessConeCompiler` trait surface（不引入并发执行行为）；`P10-T05R` review 通过：5 个 focus（CLI 默认值/env/diagnostic、trait 抽象保留、scoopc 仍是单纯编译器、default 行为不变、设计基线追加完整）全部验证通过，无需修正或新增 prerequisite；执行顺序：`P10-T05` ✅ → `P10-T05R` ✅ → `P10-T06`（下一步，子进程 driver，顺手收 `P10-T04-c` 的 dep LateLoweredProgram/.o handoff） → `P10-T06R` → `P10-T04-c`（如未被 P10-T06 完全吸收）→ `P10-T04R` → `P10-T07` → `P10-T07R`；下一项为 `P10-T06`。
 
 ## 总原则
 
@@ -182,7 +182,7 @@
 | P10-T04-c | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04-c让-cached-dependency-cone-在-llvm-codegen-层-callable_layoutslateloweredprogram-路径上可见) | 让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见 |
 | P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
 | P10-T05 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t05定义-per-cone-多进程并发编译的-cli-参数与抽象边界) | 定义 per-cone 多进程并发编译的 CLI 参数与抽象边界 |
-| P10-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05rreview-cli-参数与并发抽象) | Review CLI 参数与并发抽象 |
+| P10-T05R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t05rreview-cli-参数与并发抽象) | Review CLI 参数与并发抽象 |
 | P10-T06 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06在-scoop-中实现-per-cone-子进程并发编译-driver) | 在 scoop 中实现 per-cone 子进程并发编译 driver |
 | P10-T06R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06rreview-per-cone-并发-driver) | Review per-cone 并发 driver |
 | P10-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |

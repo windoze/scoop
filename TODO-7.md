@@ -1190,7 +1190,7 @@
     - `PIPELINE_REFACTOR.md` 在编译顺序模型一节追加"#### 多进程并发执行约束（P10-T05/T06）"小节，5 条规则：scoop 拥有 driver、scoopc 单 cone 执行体、`ConcurrencyStrategy` 可订制、`SubprocessConeCompiler` 可订制、cache hit + subprocess hybrid 处理。
   - 验证：`cargo fmt` ✓；`cargo clippy --all-targets -- -D warnings` ✓；`cargo build --workspace` ✓；`cargo test --all --all-targets` 全绿；`cargo run -q -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS（行为与 P10-T04 后等价）；`cargo run -p scoop_tools -- dependency-gate` ✓；`git diff --check` 无 whitespace 问题。
 
-### [TODO] P10-T05R：Review CLI 参数与并发抽象
+### [DONE] P10-T05R：Review CLI 参数与并发抽象
 
 - 参考：P10-T05。
 - 重点：
@@ -1201,6 +1201,14 @@
   - `PLAN.md` / `PIPELINE_REFACTOR.md` 的设计基线追加是否覆盖：cone DAG 并发约束、并发策略可订制、子进程 scoopc 抽象（为分布式编译预留）。
 - 验证：重新运行 P10-T05 的所有验证。
 - 依赖：P10-T05
+- 完成记录（2026-05-25）：
+  - **Focus 1（CLI 默认值/env/diagnostic）通过**：`crates/scoop/src/commands/build/concurrency.rs` 的 `DEFAULT_BUILD_JOBS = 4`、`BUILD_JOBS_ENV_VAR = "SCOOP_BUILD_JOBS"`、`resolve_build_jobs(cli_jobs)` 实现 CLI > env > default 三级优先级；clap 通过 `Option<NonZeroUsize>` 在解析层拒绝 `0` 与非数字（`ValueValidation`），负数被 `UnknownArgument` 拦截；env 解析失败时 `BuildJobsError` 经 `crates/scoop/src/commands/mod.rs::resolve_build_jobs` 转 miette diagnostic（中文 message + help），合理。
+  - **Focus 2（trait 抽象保留）通过**：`pub trait ConcurrencyStrategy: Debug + Send + Sync` 与 `pub trait SubprocessConeCompiler: Debug + Send + Sync` 均通过 `Box<dyn Trait>` 注入；`commands/build.rs::run` 显式声明 `let concurrency_strategy: Box<dyn concurrency::ConcurrencyStrategy> = Box::new(FixedJobsStrategy::new(jobs));`、`let subprocess_cone_compiler: Box<dyn concurrency::SubprocessConeCompiler> = Box::new(LocalProcessConeCompiler::new());` —— 调用点没有把具体类型硬编码；`concurrency.rs` 自带 object-safety 测试（`fn _assert_concurrency_strategy_is_object_safe(_: &dyn ConcurrencyStrategy) {}` / `fn _assert_subprocess_cone_compiler_is_object_safe(_: &dyn SubprocessConeCompiler) {}`），保证未来替换执行体只需切 trait 实现。
+  - **Focus 3（scoopc 仍是单纯编译器）通过**：`git show 60c72c61 --stat` 显示对 `crates/scoopc/**` 零修改；未新增 `build-single-cone` 子命令。spec 中"如果选择 / 必要时"为可选项，且当前 scoopc 没有"加载上游 artifacts → 跑 per-cone frontend → 写 artifact"的稳定 per-cone API surface；落 `unimplemented` stub 子命令会违反"No Workarounds"。本任务遵守"scoopc 仅编译器"的设计基线，P10-T06 子进程 driver 落地时再决定是否暴露 single-cone 入口（在 PIPELINE_REFACTOR §"多进程并发执行约束 #3"已注明）。
+  - **Focus 4（default 行为不变）通过**：driver 仍然走 in-process 顺序路径（`commands/build.rs::run` 主流程未引入并发执行），仅注册 strategy/compiler 占位；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS，与 P10-T04 后等价；`LocalProcessConeCompiler::compile_cone` 默认返回 `SubprocessConeCompileError::NotYetImplemented`，本任务下不会被 driver 调用，确保零行为变更。
+  - **Focus 5（设计基线追加覆盖完整）通过**：`PLAN.md` §4/P10"必须完成"第 6 项 4 条子条目覆盖 `--jobs/SCOOP_BUILD_JOBS`、`ConcurrencyStrategy`+`SubprocessConeCompiler`、scoopc-as-pure-compiler、cone DAG 并发基线；`PIPELINE_REFACTOR.md` "多进程并发执行约束（P10-T05/T06）" 5 条规则覆盖 driver 归属（scoop）、scoopc 单 cone 执行体角色、`ConcurrencyStrategy` 可订制（分布式编译预留）、`SubprocessConeCompiler` 可订制（远程执行预留）、cache hit + subprocess 混合场景。基线段落对 P10-T06 的子进程 driver 与未来分布式编译均提供了清晰的扩展点。
+  - **review 结论**：5 个 focus 全部通过，无需修正或新增 prerequisite TODO。P10-T05 实现严格遵守"surface only, no behavior change"的任务边界。
+  - **验证全绿**：`cargo fmt --check` ✓；`cargo clippy --all-targets -- -D warnings` ✓；`cargo build --workspace` ✓；`cargo test --all --all-targets` 全部 PASS（156 + 5 + 30 + 5 + 2 + 26 + 其余 crate 全绿）；`cargo run -p scoop -- build --help` 输出 `-j, --jobs <N>` ✓；`cargo run -q -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS；`cargo run -p scoop_tools -- dependency-gate` ✓；`git diff --check` 无 whitespace 问题。
 
 ### [TODO] P10-T06：在 scoop 中实现 per-cone 子进程并发编译 driver
 
