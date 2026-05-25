@@ -8,6 +8,8 @@
 
 > 2026-05-26 更新：`P10-T04-c-4` 已完成，并收口 `P10-T04-c` 主任务；consumer link 阶段已拉入 dep artifact `objs/*.o`，consumer main object 对 dep callable 只保留外部引用，`source_path_dependency_public_call` cold→warm→consumer edit reproducer 与完整 fixture 套件均通过。
 
+> 2026-05-26 更新：`P10-T04R` 最终 review 已完成；修复了未选中 sysroot cone 变更导致整个 build 失效的 over-invalidation，cache-hit dep + consumer edit + LLVM link reproducer 与完整验证均通过。
+
 ## 总原则
 
 - `PLAN.md` 是当前执行计划基线；如果实现时发现阶段边界、crate DAG、facts 归属或全局初始化语义需要改变，必须先回写 `PIPELINE_REFACTOR.md`，再调整 TODO。
@@ -186,7 +188,7 @@
 | P10-T04-c-2 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-c-2cached-dep-lateloweredprogram--lirfacts-handoff-到-llvm-stage) | cached dep `LateLoweredProgram` + `LirFacts` handoff 到 LLVM stage |
 | P10-T04-c-3 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-c-3consumer-pipeline-在-cache-hit-时剔除-dep-ast-的中端适配) | consumer pipeline 在 cache-hit 时剔除 dep AST 的中端适配 |
 | P10-T04-c-4 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04-c-4consumer-link-阶段拉-dep-o-与跳过-dep-body-emit) | consumer link 阶段拉 dep `.o` 与跳过 dep body emit |
-| P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
+| P10-T04R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
 | P10-T05 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t05定义-per-cone-多进程并发编译的-cli-参数与抽象边界) | 定义 per-cone 多进程并发编译的 CLI 参数与抽象边界 |
 | P10-T05R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t05rreview-cli-参数与并发抽象) | Review CLI 参数与并发抽象 |
 | P10-T06 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06在-scoop-中实现-per-cone-子进程并发编译-driver) | 在 scoop 中实现 per-cone 子进程并发编译 driver |

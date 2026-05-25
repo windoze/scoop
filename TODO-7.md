@@ -1309,7 +1309,7 @@
   - 2026-05-26：`emit_lib_obj_to_file_from_stage_output` 的 LibMode 不再定义进程级 `scoop_thread_init_current`，避免 dep object 与 consumer executable object 发生重复强符号；consumer main object 仍定义该入口。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/source_path_dependency_public_call`；`cargo run -p scoop -- test`（1536 checks）；手工 temp reproducer cold→warm→consumer edit 三次运行均输出 `42`；`nm build/debug/obj/main.o` 对 `dependencyValue` 为 `U`，dep `objs/scoop.o` 对同一 symbol 为 `T`，且 dep object 不再定义 `scoop_thread_init_current`。
 
-### [TODO] P10-T04R：Review per-cone fingerprint cache
+### [DONE] P10-T04R：Review per-cone fingerprint cache
 
 - 参考：P10-T04。
 - 重点：
@@ -1319,6 +1319,12 @@
   - **（2026-05-25 review 中已经验证了 fingerprint chain 与时序，在第三项 cache-hit dep + consumer-edit 端到端路径上发现两层阻塞性缺陷：frontend/effect_facts/mir 中端 stage 缺 cached cone import 重放（已修复，记录在 P10-T04-b），LLVM codegen 层缺 dep `LateLoweredProgram` / `.o` artifact handoff（独立任务 P10-T04-c，与 P10-T06 协调收口）。本任务待 P10-T04-b + P10-T04-c 完成后再做最终复核。）**
 - 验证：重新运行 P10-T04 的所有验证；额外覆盖 P10-T04-b / P10-T04-c 提到的 reproducer。
 - 依赖：P10-T04、P10-T04-b、P10-T04-c
+- 完成记录（2026-05-26）：
+  - Review 覆盖 P10-T04 / P10-T04-b / P10-T04-c 的最终状态：fingerprint chain、cache-hit frontend import 重放、LLVM cached dep `LateLoweredProgram` / `.o` handoff 与 consumer link 路径均已重新验证。
+  - Review 发现并修复一个 over-invalidation 缺陷：`compute_cone_build_fingerprint` 原先把整个 `sysroot/` 的 `.scoop` tree 折入全局 toolchain input，导致当前 graph 未选中的 sysroot cone 改动也会使所有 cone 失效。现在 `sysroot_sources_sha256` 只汇总当前 `SourceConeGraph` 中选中的 `SysrootAuto` cone，且 sysroot 不再作为全局 toolchain 维度注入每个 cone；已选中 sysroot cone 的变更继续通过 per-cone dependency outputs fingerprint 向下游传播。
+  - 新增回归：`selected_sysroot_digest_ignores_unselected_sysroot_cones` 锁定未选中 sysroot cone 修改不改变当前 build 的 sysroot digest，选中 sysroot cone 修改仍会被 fingerprint chain 观测到。
+  - 手工 reproducer（release `scoop` + matching release `scoopc`，fixture `source_path_dependency_public_call`）：cold build 2.56s；warm cache hit 0.18s；consumer-only edit rebuild 0.84s 且没有重新派发 dep cone；post-edit warm cache hit 0.19s；最终 binary 输出 `42`。`nm build/debug/obj/main.o` 显示 dep `dependencyValue` 为 `U` 外部引用，dep `build/debug/cones/.../objs/scoop.o` 对同一 symbol 为 `T` 定义。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --bin scoop selected_sysroot_digest_ignores_unselected_sysroot_cones`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/source_path_dependency_public_call`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test`（1536 checks）。
 
 ### [DONE] P10-T05：定义 per-cone 多进程并发编译的 CLI 参数与抽象边界
 

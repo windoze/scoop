@@ -95,8 +95,7 @@ pub(crate) fn compute_cone_build_fingerprint(
     let local_dependency_sources_sha256 = sha256_for_local_dependency_nodes(&graph)?;
     let native_sources_sha256 = sha256_for_native_build_sources(&graph)?;
 
-    let sysroot_sources = collect_scoop_files_sorted(&sysroot_root)?;
-    let sysroot_sources_sha256 = sha256_for_files(&sysroot_root, &sysroot_sources)?;
+    let sysroot_sources_sha256 = sha256_for_selected_sysroot_cones(&graph)?;
 
     let runtime_root = runtime_c_dir()
         .canonicalize()
@@ -113,7 +112,6 @@ pub(crate) fn compute_cone_build_fingerprint(
     let build_dir = cone_root.join("build").join(profile).join("cones");
     let toolchain_inputs_sha256 = sha256_for_named_hex_entries([
         ("runtime", runtime_sources_sha256.as_str()),
-        ("sysroot", sysroot_sources_sha256.as_str()),
         ("toolchain", toolchain_sha256.as_str()),
     ]);
 
@@ -469,6 +467,38 @@ fn sha256_for_native_build_sources(graph: &scoopc::cone::SourceConeGraph) -> Res
     Ok(hex_lower(&hasher.finalize()))
 }
 
+fn sha256_for_selected_sysroot_cones(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+    let mut entries: Vec<(String, PathBuf)> = Vec::new();
+    for node in graph.nodes() {
+        if node.role != scoopc::cone::SourceConeRole::SysrootAuto {
+            continue;
+        }
+
+        entries.push((
+            format!("{}/Cone.toml", node.manifest.cone.name),
+            node.manifest_path.clone(),
+        ));
+        for source in &node.sources {
+            let rel = normalize_rel_path_forward_slashes(&node.root, source.path())?;
+            entries.push((
+                format!("{}/{rel}", node.manifest.cone.name),
+                source.path().to_path_buf(),
+            ));
+        }
+    }
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    let mut hasher = Sha256::new();
+    for (rel, abs) in entries {
+        let file_hash = sha256_file(&abs)?;
+        hasher.update(rel.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(file_hash.as_bytes());
+        hasher.update(b"\n");
+    }
+    Ok(hex_lower(&hasher.finalize()))
+}
+
 fn sha256_for_unit_native_build_sources(unit: SourceConeCompilationUnit<'_>) -> Result<String> {
     let native_build = &unit.node().native_build;
     let mut entries: Vec<(String, PathBuf)> = Vec::new();
@@ -516,34 +546,6 @@ fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String>
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 
-fn collect_scoop_files_sorted(root: &Path) -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    collect_scoop_files(root, &mut paths)?;
-    paths.sort();
-    Ok(paths)
-}
-
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in std::fs::read_dir(dir)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
-    {
-        let entry = entry.into_diagnostic()?;
-        let path = entry.path();
-        let ty = entry.file_type().into_diagnostic()?;
-
-        if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
-            continue;
-        }
-
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
-    Ok(())
-}
-
 fn collect_all_files_sorted(root: &Path) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     collect_all_files(root, &mut out)?;
@@ -589,12 +591,17 @@ fn hex_lower(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoopc::cone::{ConeArtifact, ConeArtifactFingerprints, ConeArtifactStageProducts};
+    use scoopc::cone::{
+        ConeArtifact, ConeArtifactFingerprints, ConeArtifactStageProducts, ConeKind, ConeManifest,
+        ConeNativeBuildConfig, ConeSection, SourceConeDependencyEdge, SourceConeDependencyKind,
+        SourceConeGraph, SourceConeNode, SourceConeRole, SourceConeTrust,
+    };
     use scoopc::effect_facts_product::EffectFacts;
     use scoopc::effect_lowered::LateLoweredProgram;
     use scoopc::hir_facts::HirFacts;
     use scoopc::lir_facts_product::LirFacts;
     use scoopc::mir_facts::MirFacts;
+    use scoopc::source::SourceFile;
     use tempfile::tempdir;
 
     #[test]
@@ -822,6 +829,39 @@ c-sources = ["native/add.c"]
         assert_ne!(fp1.fingerprint, fp2.fingerprint);
     }
 
+    #[test]
+    fn selected_sysroot_digest_ignores_unselected_sysroot_cones() {
+        let dir = tempdir().unwrap();
+        let selected = write_sysroot_cone(dir.path(), "selected-sysroot", "fun selected() {}\n");
+        let unused = write_sysroot_cone(dir.path(), "unused-sysroot", "fun unused() {}\n");
+        let consumer = write_consumer_node(dir.path(), ConeId::new(1), ConeId::new(2));
+        let graph =
+            SourceConeGraph::from_nodes(vec![selected.clone(), consumer], ConeId::new(1)).unwrap();
+
+        let before = sha256_for_selected_sysroot_cones(&graph).unwrap();
+        std::fs::write(
+            unused.root.join("src/lib.scoop"),
+            "fun unused(): Int { return 1 }\n",
+        )
+        .unwrap();
+        let after_unselected_edit = sha256_for_selected_sysroot_cones(&graph).unwrap();
+        assert_eq!(
+            before, after_unselected_edit,
+            "sysroot cones outside the selected source-cone graph must not invalidate the build"
+        );
+
+        std::fs::write(
+            selected.root.join("src/lib.scoop"),
+            "fun selected(): Int { return 1 }\n",
+        )
+        .unwrap();
+        let after_selected_edit = sha256_for_selected_sysroot_cones(&graph).unwrap();
+        assert_ne!(
+            before, after_selected_edit,
+            "selected sysroot cone edits must still be visible to the fingerprint chain"
+        );
+    }
+
     /// 防止回归：`build.rs` 必须在 build 完成（依赖 cone 的 artifact 已写盘）之后
     /// 重新计算 fingerprint 并写入 `build.json`。否则下一次无修改运行会因
     /// “build.json 里存的是 placeholder fingerprint，重新计算用的是真实
@@ -937,6 +977,91 @@ kind = "lib"
         )
         .unwrap();
         root
+    }
+
+    fn write_sysroot_cone(temp_root: &Path, name: &str, source_text: &str) -> SourceConeNode {
+        let root = temp_root.join("sysroot").join(name);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let manifest_path = root.join("Cone.toml");
+        let source_path = root.join("src/lib.scoop");
+        std::fs::write(
+            &manifest_path,
+            format!(
+                r#"
+[cone]
+name = "{name}"
+version = "0.0.0"
+kind = "lib"
+"#
+            ),
+        )
+        .unwrap();
+        std::fs::write(&source_path, source_text).unwrap();
+        let manifest = test_manifest(name, ConeKind::Lib);
+        SourceConeNode {
+            id: ConeId::new(2),
+            role: SourceConeRole::SysrootAuto,
+            root,
+            manifest_path,
+            kind: manifest.cone.kind,
+            native_build: manifest.native_build.clone(),
+            manifest,
+            trust: SourceConeTrust::Untrusted,
+            sources: vec![SourceFile::load_sysroot(&source_path).unwrap()],
+            entry_main: None,
+            dependencies: Vec::new(),
+        }
+    }
+
+    fn write_consumer_node(temp_root: &Path, id: ConeId, sysroot_dep: ConeId) -> SourceConeNode {
+        let root = temp_root.join("app");
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let manifest_path = root.join("Cone.toml");
+        let source_path = root.join("src/main.scoop");
+        std::fs::write(
+            &manifest_path,
+            r#"
+[cone]
+name = "app"
+version = "0.0.0"
+kind = "bin"
+"#,
+        )
+        .unwrap();
+        std::fs::write(&source_path, "fun main() {}\n").unwrap();
+        let manifest = test_manifest("app", ConeKind::Bin);
+        SourceConeNode {
+            id,
+            role: SourceConeRole::Consumer,
+            root,
+            manifest_path,
+            kind: manifest.cone.kind,
+            native_build: manifest.native_build.clone(),
+            manifest,
+            trust: SourceConeTrust::Untrusted,
+            sources: vec![SourceFile::load(&source_path).unwrap()],
+            entry_main: Some(source_path),
+            dependencies: vec![SourceConeDependencyEdge {
+                target: sysroot_dep,
+                kind: SourceConeDependencyKind::SysrootAuto,
+            }],
+        }
+    }
+
+    fn test_manifest(name: &str, kind: ConeKind) -> ConeManifest {
+        ConeManifest {
+            cone: ConeSection {
+                name: name.to_string(),
+                version: "0.0.0".to_string(),
+                kind,
+            },
+            dependencies: Default::default(),
+            pre_specialize_functions: Vec::new(),
+            pre_specialize_types: Vec::new(),
+            export_entry_points: Vec::new(),
+            selectors: Vec::new(),
+            native_build: ConeNativeBuildConfig::default(),
+        }
     }
 
     fn only_dependency_cone_id(fp: &BuildFingerprint) -> ConeId {
