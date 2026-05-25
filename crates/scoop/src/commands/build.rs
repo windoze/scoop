@@ -4,7 +4,7 @@
 //!
 //! T0806：在启用 `scoop` 的 LLVM 后端时（默认开启；可用 `--no-default-features` 关闭），额外执行：
 //! - 生成最小 object（当前阶段仍是固定 `main → ret 0`）；
-//! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
+//! - 通过 `scoopc link-cone` 子进程委托 `scoopld` 链接 object + runtime，产出可执行文件。
 
 pub(crate) mod concurrency;
 mod incremental;
@@ -12,6 +12,7 @@ pub(crate) mod layout;
 mod scheduler;
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use scoopc::opt::OptLevel;
@@ -305,7 +306,14 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Executable => {
             // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
             #[cfg(feature = "llvm")]
-            run_codegen_and_link(&session, &front, &output, profile, opt_level)?;
+            run_codegen_and_link(
+                &session,
+                &front,
+                &output,
+                profile,
+                opt_level,
+                computed_fingerprint.as_ref(),
+            )?;
         }
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
@@ -525,6 +533,7 @@ fn run_codegen_and_link(
     output: &Path,
     profile: BuildProfile,
     opt_level: OptLevel,
+    build_fingerprint: Option<&incremental::BuildFingerprint>,
 ) -> Result<()> {
     // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
     // - cone 包：写入 `build/<profile>/obj/`（由 `scoop build --debug/--release` 控制）。
@@ -552,23 +561,43 @@ fn run_codegen_and_link(
         scoopc::pipeline::LlvmArtifactKind::Object,
     )?;
 
-    let dep_objs = cached_dep_object_files(front.cached_dep_artifacts());
+    let dep_objs = if let Some(fp) = build_fingerprint {
+        transitive_dep_object_files(front.input().graph(), fp)?
+    } else {
+        cached_dep_object_files(front.cached_dep_artifacts())
+    };
     let (extra_objs, use_cxx_linker_driver) = compile_native_build_sources(front, &work_dir)?;
 
     let link_plan = native_link_plan(front.input().graph(), use_cxx_linker_driver)?;
-    let options = link_plan.options();
-    let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + dep_objs.len() + extra_objs.len());
-    objs.push(obj.clone());
-    objs.extend(dep_objs);
-    objs.extend(extra_objs);
+    let mut link_dep_objs: Vec<PathBuf> = Vec::with_capacity(dep_objs.len() + extra_objs.len());
+    link_dep_objs.extend(dep_objs);
+    link_dep_objs.extend(extra_objs);
 
-    if is_cone {
-        let runtime_objs = crate::toolchain::compile_runtime_c_sources_to_obj_dir(&work_dir)?;
-        objs.extend(runtime_objs);
-        crate::toolchain::link_objs(&objs, output, &extern_libs, options)?;
+    let cone = &front.input().cone_manifest().cone;
+    let cone_key = format!("{}@{}", cone.name, cone.version);
+    let link_dir = if is_cone {
+        layout::cone_link_dir(front.input().cone_root(), None, profile.as_str(), &cone_key)
     } else {
-        crate::toolchain::link_objs_with_runtime(&objs, output, &extern_libs, options)?;
-    }
+        work_dir.join("link").join(&cone_key)
+    };
+    let parent_inputs_fingerprint = build_fingerprint
+        .and_then(|fp| fp.per_cone.get(&fp.consumer_cone_id))
+        .map(|fp| fp.inputs_fingerprint.clone())
+        .unwrap_or_default();
+
+    run_link_cone_subprocess(LinkConeDispatchRequest {
+        kind: cone.kind,
+        consumer_obj: obj,
+        dep_objs: link_dep_objs,
+        runtime_artifact_dir: link_dir.join("runtime"),
+        output_dir: link_dir,
+        binary_path: output.to_path_buf(),
+        extern_libs,
+        link_flags: link_plan.link_flags,
+        linker: link_plan.linker.map(PathBuf::from),
+        inputs_fingerprint: parent_inputs_fingerprint,
+        cone_id: Some(cone_key),
+    })?;
 
     if !keep_work_dir {
         let _ = std::fs::remove_dir_all(&work_dir);
@@ -582,6 +611,158 @@ fn cached_dep_object_files(cached_deps: &[scoopc::llvm::CachedDepArtifactHandoff
         .iter()
         .flat_map(|dep| dep.object_files().iter().cloned())
         .collect()
+}
+
+#[cfg(feature = "llvm")]
+fn transitive_dep_object_files(
+    graph: &scoopc::cone::SourceConeGraph,
+    fp: &incremental::BuildFingerprint,
+) -> Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    for unit in graph.compilation_units() {
+        if unit.is_consumer() || unit.role() != scoopc::cone::SourceConeRole::LocalDependency {
+            continue;
+        }
+        let Some(cone_fp) = fp.per_cone.get(&unit.id()) else {
+            continue;
+        };
+        let (manifest, _) =
+            scoopc::cone::ConeArtifact::read_manifest_and_inputs_fingerprint(&cone_fp.artifact_dir)
+                .map_err(|err| {
+                    miette::miette!(
+                        "link-cone 准备阶段无法读取 dependency artifact `{}`: {err}",
+                        cone_fp.artifact_dir.display()
+                    )
+                })?;
+        for file_name in manifest.object_files {
+            let path = cone_fp
+                .artifact_dir
+                .join(scoopc::cone::CONE_ARTIFACT_OBJS_DIR_NAME)
+                .join(&file_name)
+                .canonicalize()
+                .into_diagnostic()
+                .wrap_err_with(|| {
+                    format!(
+                        "dependency artifact `{}` 缺少 object `{file_name}`",
+                        cone_fp.artifact_dir.display()
+                    )
+                })?;
+            out.push(path);
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "llvm")]
+#[derive(Debug, Clone)]
+struct LinkConeDispatchRequest {
+    kind: scoopc::cone::ConeKind,
+    consumer_obj: PathBuf,
+    dep_objs: Vec<PathBuf>,
+    runtime_artifact_dir: PathBuf,
+    output_dir: PathBuf,
+    binary_path: PathBuf,
+    extern_libs: Vec<String>,
+    link_flags: Vec<String>,
+    linker: Option<PathBuf>,
+    inputs_fingerprint: Vec<u8>,
+    cone_id: Option<String>,
+}
+
+#[cfg(feature = "llvm")]
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "scoopc link-cone 失败（cone={label}, status={status}）\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}"
+)]
+#[diagnostic(code(scoopld::link_failed))]
+struct LinkConeSubprocessLinkFailed {
+    label: String,
+    status: String,
+    stdout: String,
+    stderr: String,
+}
+
+#[cfg(feature = "llvm")]
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "scoopc link-cone 子进程失败（cone={label}, status={status}）\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}"
+)]
+#[diagnostic(code(scoop::driver::link_cone_failed))]
+struct LinkConeSubprocessFailed {
+    label: String,
+    status: String,
+    stdout: String,
+    stderr: String,
+}
+
+#[cfg(feature = "llvm")]
+fn run_link_cone_subprocess(request: LinkConeDispatchRequest) -> Result<()> {
+    let label = request.cone_id.as_deref().unwrap_or("link-cone");
+    let scoopc = concurrency::locate_scoopc_bin(label)
+        .map_err(|err| miette::miette!("无法定位 scoopc link-cone 子进程：{err}"))?;
+
+    let mut cmd = Command::new(&scoopc);
+    cmd.arg("link-cone");
+    cmd.arg("--kind").arg(request.kind.as_str());
+    cmd.arg("--consumer-obj").arg(&request.consumer_obj);
+    for dep_obj in &request.dep_objs {
+        cmd.arg("--dep-obj").arg(dep_obj);
+    }
+    cmd.arg("--runtime-artifact-dir")
+        .arg(&request.runtime_artifact_dir);
+    cmd.arg("--out").arg(&request.output_dir);
+    cmd.arg("--binary-out").arg(&request.binary_path);
+    cmd.arg("--inputs-fingerprint")
+        .arg(hex_lower(&request.inputs_fingerprint));
+    if let Some(cone_id) = request.cone_id.as_deref() {
+        cmd.arg("--cone-id").arg(cone_id);
+    }
+    if let Some(linker) = &request.linker {
+        cmd.arg("--linker").arg(linker);
+    }
+    for lib in &request.extern_libs {
+        cmd.arg("--extern-lib").arg(lib);
+    }
+    for flag in &request.link_flags {
+        cmd.arg("--link-flag").arg(flag);
+    }
+
+    let output = cmd
+        .output()
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法启动 scoopc link-cone：{}", scoopc.display()))?;
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let status = output.status.to_string();
+        if stderr.contains("scoopld::link_failed") {
+            return Err(LinkConeSubprocessLinkFailed {
+                label: label.to_string(),
+                status,
+                stdout,
+                stderr,
+            }
+            .into());
+        }
+        return Err(LinkConeSubprocessFailed {
+            label: label.to_string(),
+            status,
+            stdout,
+            stderr,
+        }
+        .into());
+    }
+    Ok(())
+}
+
+#[cfg(feature = "llvm")]
+fn hex_lower(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(&mut out, "{b:02x}");
+    }
+    out
 }
 
 #[cfg(feature = "llvm")]
@@ -636,16 +817,6 @@ fn compile_native_build_sources(
 struct NativeLinkPlan {
     linker: Option<String>,
     link_flags: Vec<String>,
-}
-
-#[cfg(feature = "llvm")]
-impl NativeLinkPlan {
-    fn options(&self) -> crate::toolchain::LinkOptions<'_> {
-        crate::toolchain::LinkOptions {
-            linker: self.linker.as_deref(),
-            link_flags: &self.link_flags,
-        }
-    }
 }
 
 #[cfg(feature = "llvm")]

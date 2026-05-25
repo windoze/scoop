@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::toolchain::link_failed
+// EXPECT-ERROR-CODE: scoopld::link_failed
 // EXPECT-ERROR-CONTAINS: scoop-p7-t02-link-flag-sentinel
 
 package fixtures.run_pass_cone.dependency_link_flags_are_forwarded.app

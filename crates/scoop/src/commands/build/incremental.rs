@@ -97,7 +97,7 @@ pub(crate) fn compute_cone_build_fingerprint(
 
     let sysroot_sources_sha256 = sha256_for_selected_sysroot_cones(&graph)?;
 
-    let runtime_root = runtime_c_dir()
+    let runtime_root = scoopld::runtime_c_dir()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 runtime/c 目录（用于增量 fingerprint）")?;
@@ -572,11 +572,6 @@ fn collect_all_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn runtime_c_dir() -> PathBuf {
-    // 开发期路径：相对于 `crates/scoop` 的 `../../runtime/c`。
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c")
 }
 
 fn hex_lower(bytes: &[u8]) -> String {

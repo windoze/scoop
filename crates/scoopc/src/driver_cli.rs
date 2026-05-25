@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use miette::Result;
 
+use crate::cone::ConeKind;
 use crate::session::SessionOptions;
 
 pub const USAGE: &str = "\
@@ -14,6 +15,10 @@ pub const USAGE: &str = "\
   scoopc --obj <input.scoop> [-o <out.o>]
   scoopc build-single-cone --cone-root <dir> --out <dir> \\
       --inputs-fingerprint <hex> [--upstream-artifact <dir> ...] [--cone-id <key>]
+  scoopc link-cone --kind <bin|lib|syslib> --consumer-obj <path> \\
+      [--dep-obj <path> ...] --runtime-artifact-dir <dir> --out <dir> \\
+      --inputs-fingerprint <hex> [--binary-out <path>] [--linker <path>] \\
+      [--extern-lib <name> ...] [--link-flag <flag> ...] [--cone-id <key>]
 
 说明：
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
@@ -31,6 +36,8 @@ pub enum CompilerCli {
     Legacy(LegacyCompilerCli),
     /// `scoopc build-single-cone ...`：scoop driver 派发的子进程入口。
     BuildSingleCone(BuildSingleConeCli),
+    /// `scoopc link-cone ...`：scoop driver 派发的 link 子进程入口。
+    LinkCone(LinkConeCli),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +74,22 @@ pub struct BuildSingleConeCli {
     pub session_options: SessionOptions,
 }
 
+/// `scoopc link-cone` 子命令的参数。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkConeCli {
+    pub kind: ConeKind,
+    pub consumer_obj: PathBuf,
+    pub dep_objs: Vec<PathBuf>,
+    pub runtime_artifact_dir: PathBuf,
+    pub output_dir: PathBuf,
+    pub binary_output: Option<PathBuf>,
+    pub extern_libs: Vec<String>,
+    pub link_flags: Vec<String>,
+    pub linker: Option<PathBuf>,
+    pub inputs_fingerprint: Vec<u8>,
+    pub expected_cone_id: Option<String>,
+}
+
 pub fn parse_args<I, S>(args: I) -> Result<Option<CompilerCli>>
 where
     I: IntoIterator<Item = S>,
@@ -79,6 +102,9 @@ where
         Some("build-single-cone") => {
             return parse_build_single_cone(args_iter)
                 .map(|cli| Some(CompilerCli::BuildSingleCone(cli)));
+        }
+        Some("link-cone") => {
+            return parse_link_cone(args_iter).map(|cli| Some(CompilerCli::LinkCone(cli)));
         }
         _ => {}
     }
@@ -222,6 +248,137 @@ where
     })
 }
 
+fn parse_link_cone<I>(args: I) -> Result<LinkConeCli>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut kind: Option<ConeKind> = None;
+    let mut consumer_obj: Option<PathBuf> = None;
+    let mut dep_objs: Vec<PathBuf> = Vec::new();
+    let mut runtime_artifact_dir: Option<PathBuf> = None;
+    let mut output_dir: Option<PathBuf> = None;
+    let mut binary_output: Option<PathBuf> = None;
+    let mut extern_libs: Vec<String> = Vec::new();
+    let mut link_flags: Vec<String> = Vec::new();
+    let mut linker: Option<PathBuf> = None;
+    let mut inputs_fingerprint_hex: Option<String> = None;
+    let mut expected_cone_id: Option<String> = None;
+
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => return Err(miette::miette!("{USAGE}")),
+            "--kind" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--kind` 需要 `bin`、`lib` 或 `syslib`\n\n{USAGE}"
+                    ));
+                };
+                kind = Some(ConeKind::parse(&value)?);
+            }
+            "--consumer-obj" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--consumer-obj` 需要一个 object 路径\n\n{USAGE}"
+                    ));
+                };
+                consumer_obj = Some(PathBuf::from(value));
+            }
+            "--dep-obj" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--dep-obj` 需要一个 object 路径\n\n{USAGE}"
+                    ));
+                };
+                dep_objs.push(PathBuf::from(value));
+            }
+            "--runtime-artifact-dir" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--runtime-artifact-dir` 需要一个目录路径\n\n{USAGE}"
+                    ));
+                };
+                runtime_artifact_dir = Some(PathBuf::from(value));
+            }
+            "--out" | "--output-dir" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!("`{arg}` 需要一个目录路径\n\n{USAGE}"));
+                };
+                output_dir = Some(PathBuf::from(value));
+            }
+            "--binary-out" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--binary-out` 需要一个输出路径\n\n{USAGE}"
+                    ));
+                };
+                binary_output = Some(PathBuf::from(value));
+            }
+            "--extern-lib" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!("`--extern-lib` 需要库名\n\n{USAGE}"));
+                };
+                extern_libs.push(value);
+            }
+            "--link-flag" | "--link-flags" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!("`{arg}` 需要一个 linker flag\n\n{USAGE}"));
+                };
+                link_flags.push(value);
+            }
+            "--linker" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--linker` 需要一个链接器路径或名称\n\n{USAGE}"
+                    ));
+                };
+                linker = Some(PathBuf::from(value));
+            }
+            "--inputs-fingerprint" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--inputs-fingerprint` 需要一个 hex 字符串\n\n{USAGE}"
+                    ));
+                };
+                inputs_fingerprint_hex = Some(value);
+            }
+            "--cone-id" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--cone-id` 需要一个 cone stable-key 字符串\n\n{USAGE}"
+                    ));
+                };
+                expected_cone_id = Some(value);
+            }
+            _ => return Err(miette::miette!("link-cone 不接受参数 `{arg}`\n\n{USAGE}")),
+        }
+    }
+
+    let hex_value = inputs_fingerprint_hex
+        .ok_or_else(|| miette::miette!("`link-cone` 缺少 `--inputs-fingerprint`\n\n{USAGE}"))?;
+    let inputs_fingerprint = decode_hex(&hex_value).ok_or_else(|| {
+        miette::miette!("`--inputs-fingerprint` 必须是偶数长度的 hex 字符串：{hex_value}")
+    })?;
+
+    Ok(LinkConeCli {
+        kind: kind.ok_or_else(|| miette::miette!("`link-cone` 缺少 `--kind`\n\n{USAGE}"))?,
+        consumer_obj: consumer_obj
+            .ok_or_else(|| miette::miette!("`link-cone` 缺少 `--consumer-obj`\n\n{USAGE}"))?,
+        dep_objs,
+        runtime_artifact_dir: runtime_artifact_dir.ok_or_else(|| {
+            miette::miette!("`link-cone` 缺少 `--runtime-artifact-dir`\n\n{USAGE}")
+        })?,
+        output_dir: output_dir
+            .ok_or_else(|| miette::miette!("`link-cone` 缺少 `--out`\n\n{USAGE}"))?,
+        binary_output,
+        extern_libs,
+        link_flags,
+        linker,
+        inputs_fingerprint,
+        expected_cone_id,
+    })
+}
+
 fn decode_hex(input: &str) -> Option<Vec<u8>> {
     if !input.len().is_multiple_of(2) {
         return None;
@@ -262,6 +419,13 @@ mod tests {
         match cli {
             CompilerCli::BuildSingleCone(c) => c,
             other => panic!("expected BuildSingleCone, got {other:?}"),
+        }
+    }
+
+    fn link_cone(cli: CompilerCli) -> LinkConeCli {
+        match cli {
+            CompilerCli::LinkCone(c) => c,
+            other => panic!("expected LinkCone, got {other:?}"),
         }
     }
 
@@ -383,5 +547,134 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--out"));
+    }
+
+    #[test]
+    fn link_cone_minimal_cli_parses() {
+        let cli = link_cone(
+            parse_args([
+                "link-cone",
+                "--kind",
+                "bin",
+                "--consumer-obj",
+                "/tmp/main.o",
+                "--runtime-artifact-dir",
+                "/tmp/runtime",
+                "--out",
+                "/tmp/link",
+                "--inputs-fingerprint",
+                "abcd",
+            ])
+            .unwrap()
+            .unwrap(),
+        );
+
+        assert_eq!(cli.kind, ConeKind::Bin);
+        assert_eq!(cli.consumer_obj, PathBuf::from("/tmp/main.o"));
+        assert_eq!(cli.runtime_artifact_dir, PathBuf::from("/tmp/runtime"));
+        assert_eq!(cli.output_dir, PathBuf::from("/tmp/link"));
+        assert_eq!(cli.inputs_fingerprint, vec![0xab, 0xcd]);
+        assert!(cli.dep_objs.is_empty());
+    }
+
+    #[test]
+    fn link_cone_collects_repeated_values() {
+        let cli = link_cone(
+            parse_args([
+                "link-cone",
+                "--kind",
+                "bin",
+                "--consumer-obj",
+                "/tmp/main.o",
+                "--dep-obj",
+                "/tmp/dep1.o",
+                "--dep-obj",
+                "/tmp/dep2.o",
+                "--runtime-artifact-dir",
+                "/tmp/runtime",
+                "--out",
+                "/tmp/link",
+                "--binary-out",
+                "/tmp/app",
+                "--inputs-fingerprint",
+                "00",
+                "--extern-lib",
+                "m",
+                "--link-flag",
+                "-Wl,--gc-sections",
+                "--linker",
+                "clang++",
+                "--cone-id",
+                "app@0.0.0",
+            ])
+            .unwrap()
+            .unwrap(),
+        );
+
+        assert_eq!(
+            cli.dep_objs,
+            vec![PathBuf::from("/tmp/dep1.o"), PathBuf::from("/tmp/dep2.o")]
+        );
+        assert_eq!(cli.binary_output, Some(PathBuf::from("/tmp/app")));
+        assert_eq!(cli.extern_libs, vec!["m".to_string()]);
+        assert_eq!(cli.link_flags, vec!["-Wl,--gc-sections".to_string()]);
+        assert_eq!(cli.linker, Some(PathBuf::from("clang++")));
+        assert_eq!(cli.expected_cone_id.as_deref(), Some("app@0.0.0"));
+    }
+
+    #[test]
+    fn link_cone_rejects_invalid_kind() {
+        let err = parse_args([
+            "link-cone",
+            "--kind",
+            "dylib",
+            "--consumer-obj",
+            "/tmp/main.o",
+            "--runtime-artifact-dir",
+            "/tmp/runtime",
+            "--out",
+            "/tmp/link",
+            "--inputs-fingerprint",
+            "00",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("bin"));
+    }
+
+    #[test]
+    fn link_cone_rejects_missing_required_arg() {
+        let err = parse_args([
+            "link-cone",
+            "--kind",
+            "bin",
+            "--runtime-artifact-dir",
+            "/tmp/runtime",
+            "--out",
+            "/tmp/link",
+            "--inputs-fingerprint",
+            "00",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("--consumer-obj"));
+    }
+
+    #[test]
+    fn link_cone_rejects_unknown_arg() {
+        let err = parse_args([
+            "link-cone",
+            "--kind",
+            "bin",
+            "--consumer-obj",
+            "/tmp/main.o",
+            "--runtime-artifact-dir",
+            "/tmp/runtime",
+            "--out",
+            "/tmp/link",
+            "--inputs-fingerprint",
+            "00",
+            "--surprise",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("link-cone 不接受参数"));
     }
 }

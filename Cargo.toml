@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/scoop",
+    "crates/scoopld",
     "crates/scoopc",
     "crates/scoopc_ast",
     "crates/scoopc_codegen_llvm",

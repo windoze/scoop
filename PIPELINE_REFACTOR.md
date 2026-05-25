@@ -214,6 +214,16 @@ cone DAG 中互不依赖的 cone 应允许在多个子进程中并发跑，从�
 4. 子进程执行体可订制：`SubprocessConeCompiler` trait 把"实际跑一个 cone 的子进程"与"调度 driver"解耦，本阶段实现 `LocalProcessConeCompiler`，后续按 RPC / 分布式编译 / 远端 worker 等执行体可在此挂接；
 5. cache hit 与子进程派发的混合场景必须正确处理：driver 跳过子进程派发的 cone 仍要把 cached artifact 注入下游 cone 的子进程参数中。
 
+#### 独立 link 阶段（P10-T06-b）
+
+link 不属于单个 cone artifact，也不属于 `scoop` facade 的 in-process 编译职责。P10-T06-b 后固定如下边界：
+
+1. `scoopld` crate 拥有最终 native link、runtime C object 编译与 link fingerprint cache；它不依赖 `scoop`、`scoopc`、stage crate 或 codegen crate。
+2. `scoopc link-cone` 是单次 link 执行体：只接收 consumer object、driver 收集好的 dependency/native objects、runtime artifact dir、link flags、link kind 与输出目录，然后 forward 到 `scoopld::link`。
+3. `scoop` 仍是 DAG owner：transitive dependency object 列表由 `scoop` 从各 dependency cone artifact manifest 收集，并通过 `--dep-obj` 传给 `link-cone`；`scoopc` / `scoopld` 不 walk cone DAG。
+4. link cache 独立于 cone artifact fingerprint，存放在 `build/<profile>/link/<consumer-cone>@<version>/inputs.fingerprint`；其摘要维度覆盖 consumer `.o`、排序后的 dep/native `.o`、runtime artifact、link kind、linker/version 与 link flags。
+5. `build-single-cone` 不再允许非默认 sysroot 上游缺 artifact 时回退到源码 lowering；缺失 `--upstream-artifact` 是硬错误，防止 single-cone 执行体偷偷恢复 driver 职责。
+
 ### 同一 cone 内：不是文件拓扑，而是阶段屏障
 
 同一个 cone 内，由于文件可以互相引用，所以不存在一个语义上可靠的“文件编译拓扑序”。

@@ -656,6 +656,7 @@ dependencies = [
  "object",
  "regex",
  "scoopc",
+ "scoopld",
  "serde_json",
  "sha2",
  "tempfile",
@@ -704,6 +705,8 @@ dependencies = [
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
+ "scoopld",
+ "tempfile",
  "thiserror",
 ]
 
@@ -930,6 +933,17 @@ dependencies = [
  "bincode",
  "scoopc_span",
  "serde",
+]
+
+[[package]]
+name = "scoopld"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_project_model",
+ "sha2",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

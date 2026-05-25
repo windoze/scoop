@@ -46,11 +46,14 @@ const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 
 const CONE_CRATES: &[&str] = &["scoopc_cone"];
 
+const LINKER_CRATES: &[&str] = &["scoopld"];
+
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
     "scoopc",
     "scoop_runtime",
     "scoop_tools",
+    "scoopld",
     "scoopc_ast",
     "scoopc_ast_facts",
     "scoopc_hir",
@@ -79,7 +82,7 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage, {} cone; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage, {} cone, {} linker; {} source boundary files)",
             self.checks.len(),
             self.count_crate_kind(CrateKind::Base),
             self.count_crate_kind(CrateKind::Fact),
@@ -90,6 +93,7 @@ impl Report {
             self.count_crate_kind(CrateKind::LirStage),
             self.count_crate_kind(CrateKind::CodegenStage),
             self.count_crate_kind(CrateKind::Cone),
+            self.count_crate_kind(CrateKind::Linker),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -177,6 +181,7 @@ enum CrateKind {
     LirStage,
     CodegenStage,
     Cone,
+    Linker,
 }
 
 impl CrateKind {
@@ -191,6 +196,7 @@ impl CrateKind {
             Self::LirStage => "lir-stage",
             Self::CodegenStage => "codegen-stage",
             Self::Cone => "cone",
+            Self::Linker => "linker",
         }
     }
 }
@@ -334,6 +340,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::Cone,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in LINKER_CRATES {
+        let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::Linker, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::Linker,
             dependency_names,
             violations,
         });
@@ -1408,6 +1426,21 @@ fn find_dependency_violations(
             continue;
         }
 
+        if kind == CrateKind::Linker {
+            if dependency_name == "scoopc_cone" || BASE_CRATES.contains(&dependency_name) {
+                continue;
+            }
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "scoopld may depend only on base/project-model/cone metadata crates, not facade, driver/runtime/tool, stage, fact, or backend crates"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
         if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
             violations.push(Violation {
                 dependency: dependency.clone(),
@@ -1890,6 +1923,41 @@ mod tests {
         assert!(rejected.contains("scoopc"));
         assert!(rejected.contains("scoop"));
         assert!(rejected.contains("scoop_tools"));
+    }
+
+    #[test]
+    fn allows_scoopld_to_depend_on_project_model_only() {
+        let violations = find_dependency_violations(
+            "scoopld",
+            CrateKind::Linker,
+            &set(&["scoopld", "scoopc_project_model", "scoopc_span"]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_scoopld_dependency_on_stage_or_facade() {
+        let violations = find_dependency_violations(
+            "scoopld",
+            CrateKind::Linker,
+            &set(&[
+                "scoopld",
+                "scoopc",
+                "scoop",
+                "scoopc_lir",
+                "scoopc_codegen_llvm",
+            ]),
+        );
+
+        let rejected = violations
+            .iter()
+            .map(|violation| violation.dependency.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(rejected.contains("scoopc"));
+        assert!(rejected.contains("scoop"));
+        assert!(rejected.contains("scoopc_lir"));
+        assert!(rejected.contains("scoopc_codegen_llvm"));
     }
 
     #[test]

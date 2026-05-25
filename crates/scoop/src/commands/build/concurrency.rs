@@ -272,7 +272,7 @@ impl SubprocessConeCompiler for LocalProcessConeCompiler {
     }
 }
 
-fn locate_scoopc_bin(cone_id: &str) -> Result<PathBuf, SubprocessConeCompileError> {
+pub(crate) fn locate_scoopc_bin(cone_id: &str) -> Result<PathBuf, SubprocessConeCompileError> {
     let mut tried: Vec<PathBuf> = Vec::new();
 
     if let Ok(raw) = std::env::var(SCOOPC_BIN_ENV_VAR) {

@@ -22,6 +22,7 @@ sha2 = "0.10.9"
 regex = "1.11.1"
 
 scoopc = { path = "../scoopc", default-features = false }
+scoopld = { path = "../scoopld" }
 
 [dev-dependencies]
 tempfile = "3.10.1"

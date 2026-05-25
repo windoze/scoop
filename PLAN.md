@@ -350,6 +350,11 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
    - 在 `scoop` crate 内发布 `ConcurrencyStrategy` 与 `SubprocessConeCompiler` trait，把"如何决定并发数"和"如何在子进程里跑一个 cone"与调度 driver 解耦，给后续按物理 CPU / 远端 worker 池等策略和分布式编译留接入点；
    - `scoopc` binary 始终保持单纯编译执行体（即便后续暴露 `build-single-cone` 子命令也只接受最小输入：cone 标识 / 上游 artifact 路径 / 输出 artifact 目录），不持有 driver / 调度 / DAG 遍历职责；
    - 设计基线：cone DAG 中互不依赖的 cone 应允许并发跑；scoop 拥有 driver、scoopc 仅做 single-cone 编译执行体。
+7. `scoopld` 抽出 + `scoopc link-cone` 子命令（P10-T06-b）：
+   - `crates/scoopld` 拥有最终 link、runtime C object 编译和独立 link fingerprint cache；依赖只能指向 base/project-model/cone metadata 层，不得依赖 stage/codegen/`scoopc`/`scoop`；
+   - `scoopc link-cone` 只解析单次 link 请求并 forward 到 `scoopld::link`，不 walk DAG、不调度、不 fork 其它 cone；
+   - `scoop` driver 负责收集 transitive dependency artifact 的 `objs/*`，通过 `--dep-obj` 传给 `link-cone`，link cache 存在 `build/<profile>/link/<consumer>@<ver>/inputs.fingerprint`；
+   - `build-single-cone` 不允许在缺非默认 sysroot 上游 artifact 时从源码兜底 lower，上游 artifact 缺失必须是硬错误。
 
 不在本阶段完成（留待后续单独立项 P11）：
 

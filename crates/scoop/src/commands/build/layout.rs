@@ -3,7 +3,7 @@
 //! 约定来自 `CONE-IMPROVEMENTS.md`：
 //! - 默认/host：`build/<profile>/...`
 //! - 预留 cross compile：`build/<target>/<profile>/...`
-//! - 可执行：`build/<profile>/bin/<project-name>`（Windows 为 `.exe`）
+//! - 可执行：`build/<profile>/<project-name>`（Windows 为 `.exe`）
 //! - 中间产物：`build/<profile>/obj/`
 
 use std::path::{Path, PathBuf};
@@ -19,10 +19,6 @@ pub(crate) fn cone_build_dir(cone_root: &Path, target: Option<&str>, profile: &s
     dir.join(profile)
 }
 
-pub(crate) fn cone_bin_dir(cone_root: &Path, target: Option<&str>, profile: &str) -> PathBuf {
-    cone_build_dir(cone_root, target, profile).join("bin")
-}
-
 #[cfg(feature = "llvm")]
 pub(crate) fn cone_obj_dir(cone_root: &Path, target: Option<&str>, profile: &str) -> PathBuf {
     cone_build_dir(cone_root, target, profile).join("obj")
@@ -34,6 +30,18 @@ pub(crate) fn cone_build_json_path(
     profile: &str,
 ) -> PathBuf {
     cone_build_dir(cone_root, target, profile).join(super::incremental::BUILD_JSON_FILE_NAME)
+}
+
+#[cfg(feature = "llvm")]
+pub(crate) fn cone_link_dir(
+    cone_root: &Path,
+    target: Option<&str>,
+    profile: &str,
+    cone_key: &str,
+) -> PathBuf {
+    cone_build_dir(cone_root, target, profile)
+        .join("link")
+        .join(cone_key)
 }
 
 pub(crate) fn cone_exe_file_name(project_name: &str) -> String {
@@ -51,7 +59,7 @@ pub(crate) fn cone_exe_path(
     profile: &str,
     project_name: &str,
 ) -> PathBuf {
-    cone_bin_dir(cone_root, target, profile).join(cone_exe_file_name(project_name))
+    cone_build_dir(cone_root, target, profile).join(cone_exe_file_name(project_name))
 }
 
 #[cfg(feature = "llvm")]

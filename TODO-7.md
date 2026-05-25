@@ -1485,7 +1485,7 @@
   - **完整验证**：`cargo fmt` clean、`cargo clippy --all-targets -- -D warnings` clean、`cargo build --workspace` clean、`cargo test --all --all-targets` 全部通过、`cargo run -p scoop -- test` 完整 fixture suite 1507/1507 PASS、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS、`cargo run -p scoop_tools -- dependency-gate` ok、`git diff --check` clean。
   - **结论**：review checklist 6 项全部通过，无阻塞性缺陷；P10-T06 实现满足 spec 边界，可推进 P10-T04-c。
 
-### [TODO] P10-T06-b：抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界
+### [DONE] P10-T06-b：抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界
 
 - 参考：P10-T06、P10-T06R；`crates/scoop/src/toolchain.rs:329-407`（`link_objs` / `link_objs_with_runtime` / `LinkOptions`）、`crates/scoop/src/toolchain.rs:493-571`（`compile_runtime_c_sources_to_obj_dir` / `runtime_c_sources` / `runtime_c_dir` / `runtime_public_include_dir`）、`crates/scoopc/src/single_cone.rs:48-168`（`run_single_cone_artifact_compile` 中的上游 cache miss → 源码 lower 兜底）、`crates/scoopc/src/driver_cli.rs:29-34`（`CompilerCli::{Legacy, BuildSingleCone}`）、`runtime/c/`、`crates/scoopc_project_model/src/sysroot.rs:22-27`（auto-dep 列表）。
 - 背景：
@@ -1557,7 +1557,17 @@
   - link fingerprint cache 独立、fixture suite 全过；
   - 文档同步。
 - 依赖：P10-T06R。
-- 阻塞：P10-T06-c（consumer subprocess 路径需要 `link-cone` 子命令）。
+- 解锁：P10-T06-c（consumer subprocess 路径需要 `link-cone` 子命令）。
+- 完成记录（2026-05-26）：
+  - **`scoopld` crate 落地**：新增 `crates/scoopld/`，承载 `LinkRequest` / `LinkResponse` / `link` / `compile_runtime_to_obj_dir` / `RuntimeArtifact` / `LinkError` / `RuntimeObjError`；依赖保持在 `scoopc_project_model` + 普通第三方 crate 范围内，不反向依赖 `scoop`、`scoopc`、stage crate 或 LLVM codegen。
+  - **link/runtime 从 `scoop` 剥离**：`crates/scoop/src/toolchain.rs` 仅保留当前仍由 P10-T06-c 迁出的 cone-local C/C++ native build helper；最终 native link、runtime C 编译、runtime include path 与 link fingerprint cache 均迁入 `scoopld`。
+  - **`scoopc link-cone` 子命令落地**：`driver_cli.rs` 新增 `LinkCone` 解析分支（`--kind` / `--consumer-obj` / repeated `--dep-obj` / `--runtime-artifact-dir` / `--out` / `--binary-out` / `--inputs-fingerprint` / `--linker` / `--extern-lib` / `--link-flag` / `--cone-id`），`bin/scoopc.rs` 仅 canonicalize 输入并 forward 到 `scoopld::link`；`Lib` / `Syslib` 由 scoopld 返回显式 `KindNotSupported`。
+  - **driver link 改为子进程**：`run_codegen_and_link` 收集 consumer `.o`、transitive dependency artifact `objs/*`、cone-local native objects、extern libs 与 link flags 后派发 `scoopc link-cone`；成功子进程 stderr 不再污染 run-pass golden，失败时父进程保留 `scoopld::link_failed` 诊断码并带 stdout/stderr。
+  - **`build-single-cone` 上游边界收紧**：`single_cone.rs` 在 frontend lowering 前检查所有 `LocalDependency` cone 是否由 `--upstream-artifact` 提供；缺失时报 `scoopc::single_cone::upstream_artifact_required`，sysroot auto-dep 仍由 graph 自身维护。
+  - **独立 link cache 与输出布局**：link cache 使用 `scoop.link.inputs.v1` domain，纳入 consumer object、排序 dep/native objects、runtime artifact、kind、linker/version、extern libs、显式/隐式 link flags 与父级 inputs fingerprint；cache 存放在 `build/<profile>/link/<consumer>@<ver>/inputs.fingerprint`，默认 final binary 改为 `build/<profile>/<name>`。
+  - **dependency gate 与文档同步**：`tools/scoop_tools` 将 `scoopld` 纳入 linker crate 检查；`PLAN.md`、`PIPELINE_REFACTOR.md`、`SCOOP_RUNTIME.md` 记录 `scoopld` / `link-cone` / runtime 编译归属边界。
+  - **测试与手工验证**：新增/更新单测覆盖 link cache hit/miss、`KindNotSupported`、`link-cone` CLI parse、missing upstream artifact hard error、scoopld dependency gate；手工确认缺非 sysroot `--upstream-artifact` 非零退出且纯 sysroot consumer 能 build；手工对 `source_path_dependency_public_call` 输入 consumer `.o` + dep `.o` + sysroot native `.o` 单独跑 `scoopc link-cone`，产物与默认路径 binary 字节一致。
+  - **完整验证**：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test`（1536 checks）；`git diff --check`。
 
 ### [TODO] P10-T06-c：scoop facade 化 + consumer 走子进程 + virtual cone 迁移 + 删除 scoopc Legacy CLI + project_model 边界整顿
 

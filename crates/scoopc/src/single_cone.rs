@@ -11,10 +11,11 @@
 //!    立刻把它写盘——subprocess 调用方拿到 skeleton 后跑完后端 pipeline，再把非空
 //!    `LateLoweredProgram` / LIR facts / `.o` 装回去并写盘（P10-T04-c 步骤 1）。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use miette::{IntoDiagnostic, Result};
+use miette::{Diagnostic, IntoDiagnostic, Result};
+use thiserror::Error;
 
 use crate::cone::{ConeArtifact, ConeArtifactObject, ConeId, SourceConeRole, StableConeKey};
 use crate::frontend::{
@@ -25,6 +26,13 @@ use crate::frontend::{
 use crate::opt::OptLevel;
 use crate::pipeline::{LlvmCodegenStageInput, run_llvm_codegen_stage};
 use crate::session::{Session, SessionOptions};
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build-single-cone requires `--upstream-artifact` for upstream cone `{cone_id}`")]
+#[diagnostic(code(scoopc::single_cone::upstream_artifact_required))]
+pub struct UpstreamArtifactRequired {
+    pub cone_id: String,
+}
 
 /// 子进程视角下的单 .o 命名：dep artifact 目录里只放一个 LLVM object，
 /// 由 consumer link 阶段沿 manifest 列出的 `object_files` 拉起。
@@ -42,9 +50,9 @@ const SINGLE_CONE_OBJECT_FILE_NAME: &str = "scoop.o";
 /// `upstream_artifact_dirs` lists every upstream cone artifact this cone may
 /// import from. Each upstream's `manifest.json` is read to recover its
 /// [`StableConeKey`], which is matched against the consumer cone's dep graph
-/// nodes — unrelated upstreams are ignored, and dep nodes without a matching
-/// upstream entry will cache-miss back to in-process compilation (which is a
-/// correctness fallback, not the expected path).
+/// nodes. Unrelated upstreams are ignored; non-sysroot upstream nodes without a
+/// matching artifact are rejected before frontend lowering so this subprocess
+/// cannot silently compile an upstream dependency from source.
 pub fn run_single_cone_artifact_compile(
     session: &Session,
     cone_root: &Path,
@@ -72,6 +80,7 @@ pub fn run_single_cone_artifact_compile(
     }
 
     let mut cache = FrontendArtifactCache::new();
+    let mut provided_upstream_keys = HashSet::new();
     for upstream_dir in upstream_artifact_dirs {
         let (manifest, inputs_fp) =
             ConeArtifact::read_manifest_and_inputs_fingerprint(upstream_dir).map_err(|err| {
@@ -81,6 +90,7 @@ pub fn run_single_cone_artifact_compile(
                 )
             })?;
         let key = manifest.stable_cone_key();
+        provided_upstream_keys.insert(key.clone());
         let Some(&dep_cone_id) = deps_by_key.get(&key) else {
             continue;
         };
@@ -89,6 +99,22 @@ pub fn run_single_cone_artifact_compile(
             FrontendArtifactCacheEntry::new(upstream_dir.clone(), inputs_fp)
                 .with_write_on_cache_miss(false),
         );
+    }
+
+    for node in input.graph().nodes() {
+        if node.id == consumer_cone_id {
+            continue;
+        }
+        if node.role != SourceConeRole::LocalDependency {
+            continue;
+        }
+        let key = StableConeKey::from_manifest(&node.manifest);
+        if !provided_upstream_keys.contains(&key) {
+            return Err(UpstreamArtifactRequired {
+                cone_id: format!("{}@{}", key.name(), key.version()),
+            }
+            .into());
+        }
     }
 
     // consumer entry：标记 `is_artifact_target=true` 让 frontend 给 consumer 也构造 skeleton
@@ -165,4 +191,63 @@ pub fn run_single_cone_artifact_compile(
         .write_with_computed_outputs_fingerprint(output_dir)
         .map_err(|err| miette::miette!("{err}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_non_sysroot_upstream_artifact_is_hard_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = dir.path().join("app");
+        let dep = app.join("deps").join("dep");
+        std::fs::create_dir_all(app.join("src")).unwrap();
+        std::fs::create_dir_all(dep.join("src")).unwrap();
+        std::fs::write(
+            app.join("Cone.toml"),
+            r#"
+[cone]
+name = "app"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+dep = { path = "deps/dep" }
+"#,
+        )
+        .unwrap();
+        std::fs::write(app.join("src/main.scoop"), "package app\nfun main() {}\n").unwrap();
+        std::fs::write(
+            dep.join("Cone.toml"),
+            r#"
+[cone]
+name = "dep"
+version = "0.0.0"
+kind = "lib"
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dep.join("src/lib.scoop"),
+            "package dep\npublic fun value(): Int { return 1 }\n",
+        )
+        .unwrap();
+
+        let session = Session::new().unwrap();
+        let err = run_single_cone_artifact_compile(
+            &session,
+            &app,
+            &dir.path().join("out"),
+            vec![0],
+            &[],
+            &SessionOptions::new(),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("dep@0.0.0"),
+            "unexpected diagnostic: {err:?}"
+        );
+    }
 }

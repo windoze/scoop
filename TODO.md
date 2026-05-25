@@ -10,6 +10,8 @@
 
 > 2026-05-26 更新：`P10-T04R` 最终 review 已完成；修复了未选中 sysroot cone 变更导致整个 build 失效的 over-invalidation，cache-hit dep + consumer edit + LLVM link reproducer 与完整验证均通过。
 
+> 2026-05-26 更新：`P10-T06-b` 已完成；新增独立 `scoopld` crate 与 `scoopc link-cone` 子命令，link/runtime C 编译职责从 `scoop` 剥离，`build-single-cone` 对非 sysroot 上游缺失 artifact 改为硬错误，link fingerprint cache 独立落在 `build/<profile>/link/<consumer>@<ver>/`，默认 final binary 落在 `build/<profile>/<name>`。
+
 ## 总原则
 
 - `PLAN.md` 是当前执行计划基线；如果实现时发现阶段边界、crate DAG、facts 归属或全局初始化语义需要改变，必须先回写 `PIPELINE_REFACTOR.md`，再调整 TODO。
@@ -193,7 +195,7 @@
 | P10-T05R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t05rreview-cli-参数与并发抽象) | Review CLI 参数与并发抽象 |
 | P10-T06 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06在-scoop-中实现-per-cone-子进程并发编译-driver) | 在 scoop 中实现 per-cone 子进程并发编译 driver |
 | P10-T06R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06rreview-per-cone-并发-driver) | Review per-cone 并发 driver |
-| P10-T06-b | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06-b抽出-scoopld-crate-与-scoopc-link-cone-子命令收紧-build-single-cone-上游边界) | 抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界 |
+| P10-T06-b | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06-b抽出-scoopld-crate-与-scoopc-link-cone-子命令收紧-build-single-cone-上游边界) | 抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界 |
 | P10-T06-c | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t06-cscoop-facade-化--consumer-走子进程--virtual-cone-迁移--删除-scoopc-legacy-cli--project_model-边界整顿) | scoop facade 化 + consumer 走子进程 + virtual cone 迁移 + 删除 scoopc Legacy CLI + project_model 边界整顿 |
 | P10-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
 | P10-T07R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07rreview-p10-全包完成度) | Review P10 全包完成度 |

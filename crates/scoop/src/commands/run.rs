@@ -9,7 +9,7 @@
 //! T1123：cone 项目目录下的 `scoop run`：
 //! - 省略 input 时默认使用当前目录（向上发现 `Cone.toml`）；
 //! - profile 复用 `scoop build --debug/--release`；
-//! - 产物落到 `build/<profile>/bin/<project-name>`，并直接运行该产物。
+//! - 产物落到 `build/<profile>/<project-name>`，并直接运行该产物。
 
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};

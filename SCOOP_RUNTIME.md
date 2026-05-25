@@ -178,6 +178,17 @@ The exact symbol allowlist is tracked in `TODO.md` and will be enforced by tooli
 
 as part of the toolchain contract, and update them in lockstep with fixtures when changes are required.
 
+### 7.0 Runtime C Build Ownership
+
+Runtime C compilation and final native linking are owned by the `scoopld` crate. The `scoop` facade may prepare object paths and dispatch `scoopc link-cone`, but it must not implement runtime C compilation or final link logic in-process.
+
+Current contract:
+
+- `scoopld::compile_runtime_to_obj_dir` materializes `runtime/c/*.c` into a runtime artifact directory for the current link.
+- `scoopld::link` computes an independent link fingerprint from consumer/dependency objects, runtime artifact contents, link kind, linker/version, and link flags.
+- `scoopc link-cone` is only a CLI execution wrapper around `scoopld::link`; it does not own linker behavior, DAG traversal, or scheduling.
+- Future platforms with precompiled runtime artifacts may replace the runtime compilation step with a `scoopld`-owned noop/cache provider without changing `scoop` or stage crates.
+
 ### 7.1 Explicit root frame substrate contract
 
 The runtime now exposes an explicit root frame substrate for the managed-root path that is being migrated away from stackmap-only lookup.

@@ -30,11 +30,13 @@ scoopc_project_model = { path = "../scoopc_project_model" }
 scoopc_source = { path = "../scoopc_source" }
 scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }
+scoopld = { path = "../scoopld" }
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
 
 [dev-dependencies]
 object = { version = "0.37.3", default-features = false, features = ["read", "std"] }
+tempfile = "3.10.1"
 
 [[bin]]
 name = "scoopc"

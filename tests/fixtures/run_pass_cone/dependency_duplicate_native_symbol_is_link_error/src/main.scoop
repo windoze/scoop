@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::toolchain::link_failed
+// EXPECT-ERROR-CODE: scoopld::link_failed
 // EXPECT-ERROR-CONTAINS: p7_t02_duplicate_native_symbol
 
 package fixtures.run_pass_cone.dependency_duplicate_native_symbol_is_link_error.app
