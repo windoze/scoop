@@ -1266,7 +1266,7 @@
   - **验证全过**：`cargo fmt` clean、`cargo clippy --all-targets -- -D warnings` clean、`cargo build --workspace` clean、`cargo test --all --all-targets` 全部通过、`cargo run -p scoop -- test` 完整 fixture suite 1507/1507 PASS（fixture log 中可观察 `[fixture-source-path-dependency-public-call-lib@0.0.0] 已写入 cone artifact：...` 等子进程派发输出）、`cargo run -p scoop_tools -- dependency-gate` ok、`git diff --check` clean。手工时序复核：`source_path_dependency_public_call` 在 `--jobs 1` fresh=41.4s / cache=8.3s，`--jobs 4` fresh=15.1s / cache=8.2s，子进程派发与 cache hit 在两条 jobs 路径上行为等价。
   - **P10-T04-c 收口边界**：scoopc 子进程现在确实产出非空 `lir_program.bin` + `objs/scoop.o`（dep cone artifact 完整），manifest `object_files` 已正确列出，consumer 在 link 阶段可以拉起这些 dep `.o`。但 consumer 现在仍走"dep AST in active_sources + 重新 lower dep callable"路径而非"只读 dep `lir_program.bin` 直接合 LIR"——后者属于真正的零开销 cache-hit 实现，需要 LLVM codegen 层做 cross-cone LIR program merge，本任务不做。剩余 P10-T04-c 的工作内容（"consumer cache-hit 真正只读 dep `lir_program.bin`"）作为 follow-up 留给独立任务，对当前正确性与 fixture 全过没有影响。
 
-### [TODO] P10-T06R：Review per-cone 并发 driver
+### [DONE] P10-T06R：Review per-cone 并发 driver
 
 - 参考：P10-T06。
 - 重点：
@@ -1278,6 +1278,16 @@
   - cache hit 与子进程派发的混合场景是否仍正确注入下游 cone。
 - 验证：重新运行 P10-T06 的所有验证。
 - 依赖：P10-T06
+- 完成记录（2026-05-25）：
+  - **逐项 review 通过**：
+    1. **DAG 拓扑严格性**：`crates/scoop/src/commands/build/scheduler.rs` `ConeDispatchPlanner` 用 `Pending` / `InFlight` / `Done` / `Failed` 四态，仅当 cone 所有直接依赖均为 `Done` 才入 `ready_queue`；`mark_done` 触发后才可能让 consumer 进入 ready，`mark_failed` 立刻清空 `ready_queue` 阻断后续派发，consumer 不会在依赖 artifact 落盘前被派发。`scheduler::tests` 中 `topological_dispatch_order` 直接断言这一点。
+    2. **Trait 抽象彻底**：`commands/build/concurrency.rs` 中 `SubprocessConeCompiler` 是 trait；driver 拿到的是 `&dyn SubprocessConeCompiler`，`dispatch_local_dependency_cones` 只 call `compile_cone(...)`、不直接 `Command::new("scoopc")`。`Command::new(...)` 仅出现在 `LocalProcessConeCompiler::compile_cone` 内（即 trait 实现中），且 binary 路径走 `SCOOP_SCOOPC_BIN` env → sibling of `current_exe()` → `target/<profile>/scoopc` 三级回退；scheduler 单测通过 `RecordingFakeConeCompiler` / `BarrierFakeConeCompiler` 真正验证了 trait 解耦。
+    3. **失败传播完整**：`LocalProcessConeCompiler` 把子进程 stderr 全量回流并按 `[cone_id] ` 前缀转发到父进程 stderr；`ExitNonZero` / `BinaryNotFound` / `SpawnFailure` / `ArtifactMissing` 四种错误都携带 `cone_id`；scheduler 在 `mark_failed` 中把首个错误存入 `first_failure`，scope 退出后由 driver 将其作为 `miette::Report` 抛出，并在 message 中保留 cone 归属。`scheduler::tests::propagates_failure_with_cone_prefixed_diagnostic` 单测覆盖。
+    4. **`--jobs 1` 与默认 jobs 都被覆盖**：`scheduler::tests::respects_concurrency_cap` 用 `BarrierFakeConeCompiler` 验证 jobs=2 时真正能 in-flight 2 个 cone；`scheduler::tests::serial_when_jobs_is_one` 验证 `FixedJobsStrategy::new(1)` 退化为串行（`max_in_flight()` 永远观察到 ≤1）。手工时序：`source_path_dependency_public_call` fixture 在 `--jobs 1` fresh=11.09s/cache=4.73s，`--jobs 4` fresh=10.89s/cache=4.69s，产物字节级等价（fixture 仅 1 个 LocalDependency cone，无并发空间，但说明两条路径走同一个 subprocess 派发逻辑且产物一致）。
+    5. **scoopc 仍是单 cone 编译器**：`crates/scoopc/src/single_cone.rs` 仅加载 cone-being-compiled 自身的子图（含 sysroot/local-dep 递归），把 parent 提供的 `upstream_artifact_dirs` 映射成 cache 条目走 cache-hit 短路；不迭代 DAG、不 fork、不调度其他 cone，driver 职责仍归 scoop。
+    6. **cache-hit 与子进程派发混合场景**：`commands/build/incremental.rs::frontend_artifact_cache_for_build` 始终把所有 LocalDependency cone（无论 cache hit 还是子进程派发产出）都注入 `FrontendArtifactCache`，scheduler 只跳过 `cached_outputs_fingerprint.is_some()` 的 cone 不再派发子进程；下游 consumer 的 frontend 永远能从 cache 拉到 dep。`scheduler::tests::skips_cones_with_cached_outputs_fingerprint` 单测覆盖。
+  - **完整验证**：`cargo fmt` clean、`cargo clippy --all-targets -- -D warnings` clean、`cargo build --workspace` clean、`cargo test --all --all-targets` 全部通过、`cargo run -p scoop -- test` 完整 fixture suite 1507/1507 PASS、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 36/36 PASS、`cargo run -p scoop_tools -- dependency-gate` ok、`git diff --check` clean。
+  - **结论**：review checklist 6 项全部通过，无阻塞性缺陷；P10-T06 实现满足 spec 边界，可推进 P10-T04-c。
 
 ### [TODO] P10-T07：P10 全包清场、文档同步与依赖审计
 
