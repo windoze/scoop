@@ -552,12 +552,14 @@ fn run_codegen_and_link(
         scoopc::pipeline::LlvmArtifactKind::Object,
     )?;
 
+    let dep_objs = cached_dep_object_files(front.cached_dep_artifacts());
     let (extra_objs, use_cxx_linker_driver) = compile_native_build_sources(front, &work_dir)?;
 
     let link_plan = native_link_plan(front.input().graph(), use_cxx_linker_driver)?;
     let options = link_plan.options();
-    let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
+    let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + dep_objs.len() + extra_objs.len());
     objs.push(obj.clone());
+    objs.extend(dep_objs);
     objs.extend(extra_objs);
 
     if is_cone {
@@ -572,6 +574,14 @@ fn run_codegen_and_link(
         let _ = std::fs::remove_dir_all(&work_dir);
     }
     Ok(())
+}
+
+#[cfg(feature = "llvm")]
+fn cached_dep_object_files(cached_deps: &[scoopc::llvm::CachedDepArtifactHandoff]) -> Vec<PathBuf> {
+    cached_deps
+        .iter()
+        .flat_map(|dep| dep.object_files().iter().cloned())
+        .collect()
 }
 
 #[cfg(feature = "llvm")]
@@ -849,6 +859,44 @@ fun main(): Int {
                 })
                 .collect(),
         }
+    }
+
+    #[cfg(feature = "llvm")]
+    fn cached_dep_handoff_with_objects(
+        cone_id: u32,
+        name: &str,
+        object_files: Vec<PathBuf>,
+    ) -> scoopc::llvm::CachedDepArtifactHandoff {
+        scoopc::llvm::CachedDepArtifactHandoff::new(
+            scoopc::cone::ConeId::new(cone_id),
+            scoopc::stable_id::StableConeKey::new(name, "0.0.0"),
+            scoopc::effect_lowered::LateLoweredProgram::new(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            scoopc::lir_facts_product::LirFacts::new(OptLevel::O0),
+            scoopc::ty::TypeStore::new(),
+            object_files,
+        )
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn cached_dep_object_files_preserve_artifact_order() {
+        let first = PathBuf::from("/tmp/dep-a/objs/scoop.o");
+        let second = PathBuf::from("/tmp/dep-b/objs/scoop.o");
+        let third = PathBuf::from("/tmp/dep-b/objs/native.o");
+        let deps = vec![
+            cached_dep_handoff_with_objects(2, "dep-a", vec![first.clone()]),
+            cached_dep_handoff_with_objects(3, "dep-b", vec![second.clone(), third.clone()]),
+        ];
+
+        assert_eq!(
+            super::cached_dep_object_files(&deps),
+            vec![first, second, third]
+        );
     }
 
     #[cfg(feature = "llvm")]

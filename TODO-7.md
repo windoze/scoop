@@ -1081,7 +1081,7 @@
   - 中端验证：`cargo test -p scoopc_hir`（cone_import:: 4/4 通过）、`cargo test -p scoopc --lib dependency_frontend_cache_hit_uses_artifact_without_reading_source`（通过）。
 - 依赖：P10-T04
 
-### [SPLIT] P10-T04-c：让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见
+### [DONE] P10-T04-c：让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见
 
 > **2026-05-25 拆分记录**：本任务在自治执行 Phase 1/2 调研中被发现存在 spec 文本未覆盖的前置阻塞，整体拆为 `P10-T04-c-1`（mangling 前置）→ `P10-T04-c-2`（LLVM stage handoff）→ `P10-T04-c-3`（consumer 中端剔除 dep AST）→ `P10-T04-c-4`（link / body emit）四个独立任务。原 spec / 完成条件 / 验证 步骤保留在下方作为合并验收基线，由 `P10-T04-c-4` 收口时引用。
 >
@@ -1136,6 +1136,7 @@
   - 路径与 P10-T06 per-cone 子进程编译边界一致，不引入旁路。
 - 依赖：P10-T04-b（前置）；执行顺序已锁定为先 P10-T05 / P10-T05R / P10-T06 / P10-T06R 把子进程基础设施落地（spec 项 4 强制要求 dep callable 的 LIR/codegen 由 dep 自己的子进程驱动），再回头收口 P10-T04-c——若 P10-T06 完成时 dep `LateLoweredProgram` / `.o` artifact handoff 已经天然生效，则 P10-T04-c 在 P10-T06 commit 中合并标 [DONE] 即可。
 - 实际收口：2026-05-25 调研发现 P10-T06 后 dep 子进程虽然产出非空 LIR + `.o`，但 consumer 既没有从 cached artifact 加载 dep `LateLoweredProgram`，也没有把 dep `.o` 接进 link 阶段——consumer 仍在 `active_sources` 里持有 dep AST 并自己 codegen 一份 dep callable body（参见 `crates/scoopc/src/frontend.rs:766-781` 的折中注释 + line 1675 测试 `dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources` 的反向断言）。叠加上面记录的 mangling 不一致 + 中端适配未验证，整体收口超出单次执行单元，拆为 `P10-T04-c-1..-4`。
+- 完成记录（2026-05-26）：`P10-T04-c-1..-4` 已全部完成。最终收口由 `P10-T04-c-4` 完成：consumer LLVM ABI 仍可查询 cached dep callable layout，但 consumer body emit 不再生成 cached dep callable/carrier 定义；consumer link 阶段追加 dep artifact `manifest.object_files` 指向的 `objs/*.o`；`source_path_dependency_public_call` cold→warm→consumer edit reproducer 通过，`nm` 确认 main object 仅保留 `dependencyValue` 外部引用、dep object 提供定义。
 
 ### [DONE] P10-T04-c-1：把 `stable_lir_callable_key` 的 `body#<index>` 后缀替换为 content-stable canonical
 
@@ -1263,7 +1264,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --lib dependency_frontend_cache_hit_uses_artifact_without_reading_source`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/source_path_dependency_public_call`；`cargo run -p scoop -- test`（1536 checks）；`cargo build -p scoopc`。
   - fresh `target/debug/scoopc` 子进程手工复现：`source_path_dependency_public_call` cold build 已进入 consumer 不再重新 lower dep body 的路径，并在 link 阶段因 dep `.o` 未加入命令出现 unresolved `dependencyValue` symbol；该失败与 `P10-T04-c-4` 的目标完全一致，本任务未用 dep AST 回填或其它 workaround 绕过。
 
-### [TODO] P10-T04-c-4：consumer link 阶段拉 dep `.o` 与跳过 dep body emit
+### [DONE] P10-T04-c-4：consumer link 阶段拉 dep `.o` 与跳过 dep body emit
 
 - 参考：上方 `P10-T04-c` 原 spec 完成条件全部 4 项；`crates/scoop/src/commands/build.rs:522-575` `run_codegen_and_link`；`crates/scoopc_codegen_llvm/src/llvm/emit.rs::codegen_program_bodies`；dep `manifest.object_files`。
 - 背景：
@@ -1302,6 +1303,11 @@
   - P10-T04-c 主任务在本任务 commit 内一并标 [DONE]。
 - 依赖：P10-T04-c-1、P10-T04-c-2、P10-T04-c-3。
 - 阻塞：P10-T04R 最终复核。
+- 完成记录：
+  - 2026-05-26：`crates/scoop/src/commands/build.rs::run_codegen_and_link` 收集 `FrontendOutput::cached_dep_artifacts()` 中的 `object_files`，在 native/runtime objects 之前追加到最终 link 输入；新增 `cached_dep_object_files_preserve_artifact_order` 单测锁定 dep object handoff 顺序。
+  - 2026-05-26：`ProgramAbiQuery` 暴露 primary/cached-dep callable version 判定，`codegen_program_bodies` 对 cached dep callable carrier shell 只保留 ABI materialization 产生的 external declaration，不再在 consumer module 中生成定义；`llvm_stage_materializes_cached_dep_plain_callable_layout` 增加断言，确认 cached dep callable 不是 `define`。
+  - 2026-05-26：`emit_lib_obj_to_file_from_stage_output` 的 LibMode 不再定义进程级 `scoop_thread_init_current`，避免 dep object 与 consumer executable object 发生重复强符号；consumer main object 仍定义该入口。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/source_path_dependency_public_call`；`cargo run -p scoop -- test`（1536 checks）；手工 temp reproducer cold→warm→consumer edit 三次运行均输出 `42`；`nm build/debug/obj/main.o` 对 `dependencyValue` 为 `U`，dep `objs/scoop.o` 对同一 symbol 为 `T`，且 dep object 不再定义 `scoop_thread_init_current`。
 
 ### [TODO] P10-T04R：Review per-cone fingerprint cache
 

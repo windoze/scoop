@@ -362,6 +362,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     // Lib mode（subprocess single-cone artifact emit）跳过 entry main 选择：dep cone artifact
     // 只发布 callable bodies，不需要 `fun main`。EntryMain 选择失败仍按 `MissingEntryMain`
     // 早期报错，避免无声跳过 Bin 入口。
+    let is_lib_mode = matches!(root_selector, RootCallableSelector::LibMode);
     let selected_root =
         select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
     let builder = context.create_builder();
@@ -439,7 +440,9 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let thread_local_init_plans = unit_codegen.thread_local_init_routine_plans();
     let thread_local_init_routines =
         declare.ensure_thread_local_init_routines_defined(&thread_local_init_plans)?;
-    declare.ensure_thread_init_current_function_defined(&thread_local_init_routines)?;
+    if !is_lib_mode {
+        declare.ensure_thread_init_current_function_defined(&thread_local_init_routines)?;
+    }
 
     if let Some(selected_root) = selected_root
         && let Some(arg_shape) = selected_root.entry_main_arg_shape

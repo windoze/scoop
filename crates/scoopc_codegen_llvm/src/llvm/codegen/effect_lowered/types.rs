@@ -2973,6 +2973,15 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             })
     }
 
+    pub(super) fn callable_version_is_primary(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> bool {
+        self.callable_layouts_by_version_key
+            .get(version_key)
+            .is_some_and(|step_key| step_key.origin() == AbiProgramOrigin::Primary)
+    }
+
     fn callable_layout_by_step_key(&self, step_key: AbiStepKey) -> Option<&CallableLayout<'ctx>> {
         self.callable_layouts.get(&step_key)
     }

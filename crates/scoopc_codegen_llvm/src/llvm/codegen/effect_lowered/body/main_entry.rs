@@ -37,6 +37,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
+            // Cached dep carrier shells are defined by the dep artifact object;
+            // the consumer module only needs their declarations through ABI materialization.
+            if !abi.callable_version_is_primary(target.body_version_key()) {
+                continue;
+            }
             let mut child = self.fresh_child_codegen();
             child.codegen_callable_carrier_entry_shell(
                 kind,

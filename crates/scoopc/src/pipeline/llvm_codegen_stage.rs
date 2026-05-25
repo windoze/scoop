@@ -2226,6 +2226,11 @@ fun main(): Int {
             ir.contains(&format!("@{dep_symbol}")) || ir.contains(&format!("@\"{dep_symbol}\"")),
             "cached dep plain callable should be declared in consumer LLVM module"
         );
+        assert!(
+            !ir.lines()
+                .any(|line| line.contains("define ") && line.contains(&dep_symbol)),
+            "cached dep callable must remain external in consumer LLVM module:\n{ir}"
+        );
     }
 
     #[test]
