@@ -226,6 +226,80 @@ fn with_inputs_query_result(
         &program,
         &inputs.abi_visibility_lir_facts,
         inputs.primary_types(),
+        &[],
+    );
+    check(&inputs, result, &module);
+}
+
+fn with_inputs_query_result_and_cached_deps(
+    inputs: FixtureAbiInputs,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    let program = rewrite_program(&inputs);
+    let context = Context::create();
+    let module = context.create_module("abi_cached_dep_test");
+    let builder = context.create_builder();
+    let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+    let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+    let base = &inputs.base_context;
+    let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
+    let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
+    let empty_interfaces = crate::itable::InterfaceIndex::default();
+    let empty_class_itables = crate::itable::ClassItableIndex::default();
+    let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+        context: &context,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
+        source_map: &inputs.source_map,
+        entry_source_id: inputs.entry_source_id,
+        stable_cone_key: base.stable_cone_key(),
+        source_cones: base.source_cones(),
+        stable_type_param_keys: base.stable_type_param_keys(),
+        types: base.types(),
+        struct_layouts: base.struct_layouts(),
+        enum_layouts: &empty_enum_layouts,
+        top_level_vars: base.top_level_vars(),
+        top_level_immutable_values: base.top_level_immutable_values(),
+        top_level_fun_call_sites: base.top_level_fun_call_sites(),
+        object_inits: base.object_inits(),
+        class_inits: &empty_class_inits,
+        class_ctor_init_bodies: base.class_ctor_init_bodies(),
+        class_vtables: &empty_class_vtables,
+        interfaces: &empty_interfaces,
+        class_itables: &empty_class_itables,
+        ctor_call_sites: base.ctor_call_sites(),
+        dispatch_call_contracts: base.dispatch_call_contracts(),
+        effect_op_call_sites: base.effect_op_call_sites(),
+        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        when_pat_binding_tys: base.when_pat_binding_tys(),
+        nominal_kinds: base.nominal_kinds(),
+        direct_supertypes: base.direct_supertypes(),
+        builtins: base.builtins(),
+        callable_sources: base.callable_sources(),
+        extern_funs: base.extern_funs(),
+        native_callable_funs: base.native_callable_funs(),
+        published_late_lowered_program: Some(&program),
+        published_late_lowered_types: Some(inputs.primary_types()),
+        published_lir_facts: inputs.lir_stage_output.lir_facts(),
+        effect_analysis_facts: base.effect_analysis_facts(),
+        effect_op_tags,
+    });
+    let mut codegen = unit_codegen.fresh_main_codegen();
+    let result = codegen.materialize_program_abi(
+        &program,
+        &inputs.abi_visibility_lir_facts,
+        inputs.primary_types(),
+        &cached_dep_artifacts,
     );
     check(&inputs, result, &module);
 }
@@ -295,8 +369,12 @@ fn with_inputs_query_result_for_source_types(
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result =
-        codegen.materialize_program_abi(&program, &inputs.abi_visibility_lir_facts, &source_types);
+    let result = codegen.materialize_program_abi(
+        &program,
+        &inputs.abi_visibility_lir_facts,
+        &source_types,
+        &[],
+    );
     check(&inputs, result, &module);
 }
 
@@ -368,6 +446,7 @@ fn with_inputs_query_result_and_codegen(
         &program,
         &inputs.abi_visibility_lir_facts,
         inputs.primary_types(),
+        &[],
     );
     check(&inputs, &mut codegen, result, &module);
 }

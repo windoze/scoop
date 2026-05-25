@@ -14,8 +14,68 @@ use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
 use scoopc_lir_facts::{
     LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
 };
+use scoopc_project_model::ConeId;
 
 use super::LlvmEmitError;
+
+/// Deserialized cached dependency cone payload handed to the LLVM stage.
+///
+/// This is intentionally codegen-owned: `scoopc_cone` reads the artifact format,
+/// while LLVM receives only the already decoded LIR/facts/type-store contract and
+/// object paths it may later pass to the linker.
+#[derive(Debug, Clone)]
+pub struct CachedDepArtifactHandoff {
+    cone_id: ConeId,
+    stable_cone_key: StableConeKey,
+    lir: LateLoweredProgram,
+    lir_facts: LirFacts,
+    type_store: TypeStore,
+    object_files: Vec<PathBuf>,
+}
+
+impl CachedDepArtifactHandoff {
+    pub fn new(
+        cone_id: ConeId,
+        stable_cone_key: StableConeKey,
+        lir: LateLoweredProgram,
+        lir_facts: LirFacts,
+        type_store: TypeStore,
+        object_files: Vec<PathBuf>,
+    ) -> Self {
+        Self {
+            cone_id,
+            stable_cone_key,
+            lir,
+            lir_facts,
+            type_store,
+            object_files,
+        }
+    }
+
+    pub fn cone_id(&self) -> ConeId {
+        self.cone_id
+    }
+
+    pub fn stable_cone_key(&self) -> &StableConeKey {
+        &self.stable_cone_key
+    }
+
+    pub fn lir(&self) -> &LateLoweredProgram {
+        &self.lir
+    }
+
+    pub fn lir_facts(&self) -> &LirFacts {
+        &self.lir_facts
+    }
+
+    pub fn type_store(&self) -> &TypeStore {
+        &self.type_store
+    }
+
+    pub fn object_files(&self) -> &[PathBuf] {
+        &self.object_files
+    }
+}
 
 /// LLVM/backend 仍需的显式 base context。
 ///
@@ -353,6 +413,7 @@ pub struct LlvmCodegenStageOutput {
     abi_visibility_lir: Option<LateLoweredProgram>,
     abi_visibility_lir_facts: Option<LirFacts>,
     abi_visibility_types: Option<TypeStore>,
+    cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
 }
 
 impl LlvmCodegenStageOutput {
@@ -368,6 +429,7 @@ impl LlvmCodegenStageOutput {
         abi_visibility_lir: Option<LateLoweredProgram>,
         abi_visibility_lir_facts: Option<LirFacts>,
         abi_visibility_types: Option<TypeStore>,
+        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
     ) -> Self {
         Self {
             source_map,
@@ -380,6 +442,7 @@ impl LlvmCodegenStageOutput {
             abi_visibility_lir,
             abi_visibility_lir_facts,
             abi_visibility_types,
+            cached_dep_artifacts,
         }
     }
 
@@ -421,6 +484,10 @@ impl LlvmCodegenStageOutput {
 
     pub fn abi_visibility_types(&self) -> Option<&TypeStore> {
         self.abi_visibility_types.as_ref()
+    }
+
+    pub fn cached_dep_artifacts(&self) -> &[CachedDepArtifactHandoff] {
+        &self.cached_dep_artifacts
     }
 }
 

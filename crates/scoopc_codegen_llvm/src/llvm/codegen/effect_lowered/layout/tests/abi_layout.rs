@@ -47,6 +47,60 @@ pub(super) fn llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallba
 }
 
 #[test]
+pub(super) fn llvm_layout_loads_cached_dep_plain_callable_without_primary_body() {
+    let consumer = build_fixture_inputs_from_source(SourceFile::new_virtual(
+        "<mem>/consumer/main.scoop",
+        r#"
+package app
+
+fun main(): Int {
+    return 0
+}
+"#,
+    ));
+    let dep = build_fixture_inputs_from_source(SourceFile::new_virtual(
+        "<mem>/dep/api.scoop",
+        r#"
+package dep
+
+public fun dependencyValue(): Int {
+    return 42
+}
+"#,
+    ));
+    let dep_handoff = crate::llvm::CachedDepArtifactHandoff::new(
+        crate::cone::ConeId::new(42),
+        dep.base_context.stable_cone_key().clone(),
+        dep.abi_visibility_program.clone(),
+        dep.abi_visibility_lir_facts.clone(),
+        dep.primary_types().clone(),
+        Vec::new(),
+    );
+
+    with_inputs_query_result_and_cached_deps(
+        consumer,
+        |inputs| inputs.abi_visibility_program.clone(),
+        vec![dep_handoff],
+        |_inputs, result, module| {
+            let query = result.expect("cached dep ABI materialization 应成功");
+            let layout = query
+                .plain_callable_layout_by_root_fqn("dep.dependencyValue")
+                .expect("cached dep plain callable layout 应可查询");
+            assert!(
+                module
+                    .get_function(layout.direct_entry().symbol_name())
+                    .is_some(),
+                "cached dep callable symbol should be declared in the consumer LLVM module"
+            );
+            assert!(
+                query.plain_callable_layout_by_root_fqn("app.main").is_ok(),
+                "primary program callable layout 应保持可查询"
+            );
+        },
+    );
+}
+
+#[test]
 pub(super) fn llvm_layout_resolves_unit_case_payload_contract() {
     with_fixture_query(
         "effect_lowered_dynamic_invoke_unit_payload.scoop",

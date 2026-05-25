@@ -33,7 +33,8 @@ use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{CallableCarrierKind, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    CallableEntryLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind, StepLayout,
+    CallableEntryLayout, CallableLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind,
+    StepLayout,
 };
 
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
@@ -1927,7 +1928,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
             ))
         })?;
-        self.extract_pure_call_complete(span, layout.step_schema(), step, target_cg)
+        self.extract_pure_call_complete(span, layout, step, target_cg)
     }
 
     fn lower_sync_intrinsic(
@@ -3839,16 +3840,20 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn extract_pure_call_complete(
         &mut self,
         span: Span,
-        step_schema: crate::effect_facts::StepSchemaId,
+        callable_layout: &CallableLayout<'ctx>,
         step: BasicValueEnum<'ctx>,
         target_cg: super::super::types::CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let step_layout = self.abi.step_layout(step_schema).ok_or_else(|| {
-            frontend_error(format!(
-                "pure statement call 缺少 callee step schema s{} layout",
-                step_schema.as_u32()
-            ))
-        })?;
+        let step_schema = callable_layout.step_schema();
+        let step_layout = self
+            .abi
+            .step_layout_for_callable(callable_layout)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "pure statement call 缺少 callee step schema s{} layout",
+                    step_schema.as_u32()
+                ))
+            })?;
         if !step_layout.cases().is_empty() {
             return Err(frontend_error(format!(
                 "pure statement call callee step schema s{} 含 outward case，必须走 boundary lowering",

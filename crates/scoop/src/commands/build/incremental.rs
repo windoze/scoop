@@ -285,6 +285,7 @@ pub(crate) fn frontend_artifact_cache_for_build(
                 cone_fp.artifact_dir.clone(),
                 cone_fp.inputs_fingerprint.clone(),
             )
+            .with_write_on_cache_miss(false)
             .with_dependency_outputs_fingerprints(
                 cone_fp.direct_dependency_outputs_fingerprints.clone(),
             ),
@@ -354,6 +355,10 @@ fn cached_outputs_fingerprint(
     {
         Ok(artifact) => Ok(Some(artifact.outputs_fingerprint)),
         Err(scoopc::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => Ok(None),
+        Err(scoopc::cone::ConeArtifactError::IncompatibleCompilerVersion { .. })
+        | Err(scoopc::cone::ConeArtifactError::IncompatibleSchemaVersions { .. })
+        | Err(scoopc::cone::ConeArtifactError::MissingFrontendImportPayload { .. })
+        | Err(scoopc::cone::ConeArtifactError::ManifestEncode(_)) => Ok(None),
         Err(scoopc::cone::ConeArtifactError::Io { source, .. })
             if source.kind() == std::io::ErrorKind::NotFound =>
         {
@@ -959,6 +964,7 @@ kind = "lib"
                 EffectFacts::new(),
                 LirFacts::new(OptLevel::O0),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                scoopc::ty::TypeStore::new(),
             ),
             scoopc::cone::ConeArtifactFrontendImport::empty(),
             Vec::new(),

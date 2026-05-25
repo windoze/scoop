@@ -590,7 +590,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             "surface_resume_owner_dispatch",
             [
                 stable_naming::callable_version_key_text(
-                    self.codegen.stable_cone_key,
+                    self.stable_cone_key,
                     self.source_types,
                     self.codegen.stable_type_param_resolver(),
                     self.program,

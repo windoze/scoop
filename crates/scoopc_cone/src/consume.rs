@@ -725,6 +725,7 @@ mod tests {
                 EffectFacts::new(),
                 LirFacts::new(OptLevel::O0),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                scoopc_types::TypeStore::new(),
             ),
             ConeArtifactFrontendImport::new(
                 ScoopIrFile::new_v0(

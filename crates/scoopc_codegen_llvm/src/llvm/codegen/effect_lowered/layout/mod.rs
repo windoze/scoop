@@ -40,7 +40,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::effect_lowered::mir_source::{BasicBlockId, InstanceKey, SiteId};
 use crate::llvm::LlvmEmitError;
-use crate::stable_id::canonical_record;
+use crate::stable_id::{StableConeKey, canonical_record};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_lir_facts::{
     LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDynamicInvokeCarrierKind,
@@ -51,10 +51,10 @@ use super::super::types::IntTy;
 use super::super::{AbiMangler, CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    AbiValue, CallBoundaryOperandLayout, CallableCarrierTargetLayout, CallableEntryLayout,
-    CallableLayout, ClassInstanceFieldLayout, ClassInstanceLayout, ClosureCarrierLayout,
-    CompletionPayloadBindingLayout, ContinuationFieldKind, ContinuationFieldLayout,
-    ContinuationObjectLayout, ContinuationSurfaceResumeBinding,
+    AbiProgramOrigin, AbiValue, CallBoundaryOperandLayout, CallableCarrierTargetLayout,
+    CallableEntryLayout, CallableLayout, ClassInstanceFieldLayout, ClassInstanceLayout,
+    ClosureCarrierLayout, CompletionPayloadBindingLayout, ContinuationFieldKind,
+    ContinuationFieldLayout, ContinuationObjectLayout, ContinuationSurfaceResumeBinding,
     ContinuationSurfaceResumeDispatchLayout, ContinuationSurfaceResumeDispatchTarget,
     ContinuationSurfaceResumeHandleBinderRoute, ContinuationSurfaceResumeLayout,
     ContinuationSurfaceResumeMethodLookup, ContinuationSurfaceResumeOwnerTrampolineLayout,
@@ -75,8 +75,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
+        cached_dep_artifacts: &'a [crate::llvm::CachedDepArtifactHandoff],
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
-        ProgramAbiMaterializer::new(self, program, lir_facts, source_types)?.materialize()
+        let primary_stable_cone_key = self.stable_cone_key;
+        let mut query = ProgramAbiMaterializer::new(
+            self,
+            AbiProgramOrigin::Primary,
+            primary_stable_cone_key,
+            program,
+            lir_facts,
+            source_types,
+        )?
+        .materialize()?;
+        for (index, dep) in cached_dep_artifacts.iter().enumerate() {
+            let dep_origin = AbiProgramOrigin::CachedDep(index as u32);
+            let dep_query = ProgramAbiMaterializer::new(
+                self,
+                dep_origin,
+                dep.stable_cone_key(),
+                dep.lir(),
+                dep.lir_facts(),
+                dep.type_store(),
+            )?
+            .materialize()?;
+            let label = format!(
+                "cached dep cone {} ({}@{})",
+                dep.cone_id().as_u32(),
+                dep.stable_cone_key().name(),
+                dep.stable_cone_key().version()
+            );
+            query.merge_cached_dep(&label, dep_query)?;
+        }
+        Ok(query)
     }
 }
 
@@ -161,6 +191,8 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
 
 struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     codegen: &'cg mut MainCodegen<'a, 'ctx>,
+    origin: AbiProgramOrigin,
+    stable_cone_key: &'a StableConeKey,
     program: &'a LateLoweredProgram,
     lir_facts: &'a LirFacts,
     source_types: &'a TypeStore,

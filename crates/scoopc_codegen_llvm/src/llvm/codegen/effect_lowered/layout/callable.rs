@@ -27,7 +27,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?;
         let stable_owner_key_text = stable_naming::callable_version_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,
@@ -243,7 +243,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let dynamic_ty = step_ty.fn_type(&params, false);
         let direct_ty = step_ty.fn_type(&params, false);
         let stable_callable_key_text = stable_naming::callable_version_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,
@@ -287,6 +287,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let resume_packings = callable.resume_packings().to_vec();
 
         Ok(CallableLayout::new(
+            self.origin,
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
             stable_callable_key_text,
@@ -317,7 +318,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable: &LateLoweredCallable,
     ) -> Result<PlainCallableLayout<'ctx>, LlvmEmitError> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,

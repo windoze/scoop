@@ -4,8 +4,8 @@
 //! `build/<profile>/cones/<cone-name>@<version>/`. The root contains a JSON
 //! manifest with cone identity, compiler version, and schema versions for every
 //! persisted product. Stage products are stored next to it as bincode payloads:
-//! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_facts.bin`, and
-//! `lir_program.bin`; frontend import metadata is stored as
+//! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_facts.bin`,
+//! `lir_program.bin`, and `type_store.bin`; frontend import metadata is stored as
 //! `frontend_import.json` because it reuses the existing JSON-oriented `.cone`
 //! API schemas. Object files live under `objs/`, while
 //! `inputs.fingerprint` and `outputs.fingerprint` record cache identity.
@@ -29,7 +29,7 @@ use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
 use scoopc_project_model::{ConeKind, ConeManifest, StableConeKey};
 use scoopc_source::SourceFile;
-use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
+use scoopc_types::{TypeStore, WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use sha2::{Digest as _, Sha256};
 use thiserror::Error;
@@ -45,6 +45,7 @@ pub const CONE_ARTIFACT_MIR_FACTS_FILE_NAME: &str = "mir_facts.bin";
 pub const CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME: &str = "effect_facts.bin";
 pub const CONE_ARTIFACT_LIR_FACTS_FILE_NAME: &str = "lir_facts.bin";
 pub const CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME: &str = "lir_program.bin";
+pub const CONE_ARTIFACT_TYPE_STORE_FILE_NAME: &str = "type_store.bin";
 pub const CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME: &str = "frontend_import.json";
 pub const CONE_ARTIFACT_OBJS_DIR_NAME: &str = "objs";
 pub const CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME: &str = "inputs.fingerprint";
@@ -159,6 +160,7 @@ pub struct ConeArtifactSchemaVersions {
     pub effect_facts: WireSchemaVersion,
     pub lir_facts: WireSchemaVersion,
     pub lir_program: WireSchemaVersion,
+    pub type_store: WireSchemaVersion,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frontend_import: Option<WireSchemaVersion>,
 }
@@ -172,6 +174,7 @@ impl ConeArtifactSchemaVersions {
             effect_facts: WIRE_SCHEMA_VERSION,
             lir_facts: WIRE_SCHEMA_VERSION,
             lir_program: WIRE_SCHEMA_VERSION,
+            type_store: WIRE_SCHEMA_VERSION,
             frontend_import: Some(WIRE_SCHEMA_VERSION),
         }
     }
@@ -206,6 +209,7 @@ pub struct ConeArtifactStageProducts {
     pub effect_facts: EffectFacts,
     pub lir_facts: LirFacts,
     pub lir_program: LateLoweredProgram,
+    pub type_store: TypeStore,
 }
 
 impl ConeArtifactStageProducts {
@@ -216,6 +220,7 @@ impl ConeArtifactStageProducts {
         effect_facts: EffectFacts,
         lir_facts: LirFacts,
         lir_program: LateLoweredProgram,
+        type_store: TypeStore,
     ) -> Self {
         Self {
             hir_facts,
@@ -223,6 +228,7 @@ impl ConeArtifactStageProducts {
             effect_facts,
             lir_facts,
             lir_program,
+            type_store,
         }
     }
 }
@@ -293,6 +299,7 @@ pub struct ConeArtifact {
     pub effect_facts: EffectFacts,
     pub lir_facts: LirFacts,
     pub lir_program: LateLoweredProgram,
+    pub type_store: TypeStore,
     pub frontend_import: ConeArtifactFrontendImport,
     pub objects: Vec<ConeArtifactObject>,
     pub inputs_fingerprint: Vec<u8>,
@@ -310,6 +317,7 @@ impl ConeArtifact {
         effect_facts: EffectFacts,
         lir_facts: LirFacts,
         lir_program: LateLoweredProgram,
+        type_store: TypeStore,
         frontend_import: ConeArtifactFrontendImport,
     ) -> Self {
         Self::with_parts(
@@ -321,6 +329,7 @@ impl ConeArtifact {
                 effect_facts,
                 lir_facts,
                 lir_program,
+                type_store,
             ),
             frontend_import,
             Vec::new(),
@@ -348,6 +357,7 @@ impl ConeArtifact {
             effect_facts: products.effect_facts,
             lir_facts: products.lir_facts,
             lir_program: products.lir_program,
+            type_store: products.type_store,
             frontend_import,
             objects,
             inputs_fingerprint: fingerprints.inputs,
@@ -388,6 +398,10 @@ impl ConeArtifact {
         write_bincode(
             &dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME),
             &self.lir_program,
+        )?;
+        write_bincode(
+            &dir.join(CONE_ARTIFACT_TYPE_STORE_FILE_NAME),
+            &self.type_store,
         )?;
         write_json(
             &dir.join(CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME),
@@ -452,6 +466,7 @@ impl ConeArtifact {
             effect_facts: read_bincode(&dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME))?,
             lir_facts: read_bincode(&dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME))?,
             lir_program: read_bincode(&dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME))?,
+            type_store: read_bincode(&dir.join(CONE_ARTIFACT_TYPE_STORE_FILE_NAME))?,
             frontend_import: read_json(&frontend_import_path)?,
             inputs_fingerprint: read_bytes(&dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME))?,
             outputs_fingerprint: read_bytes(
@@ -664,6 +679,7 @@ mod tests {
         assert_eq!(decoded.effect_facts, artifact.effect_facts);
         assert_eq!(decoded.lir_facts, artifact.lir_facts);
         assert!(decoded.lir_program.is_empty());
+        assert_eq!(decoded.type_store, artifact.type_store);
         assert_eq!(decoded.frontend_import, artifact.frontend_import);
         assert_eq!(decoded.objects, artifact.objects);
         assert_eq!(decoded.inputs_fingerprint, artifact.inputs_fingerprint);
@@ -676,6 +692,7 @@ mod tests {
             CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME,
             CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
             CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+            CONE_ARTIFACT_TYPE_STORE_FILE_NAME,
             CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
             CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
             CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
@@ -789,6 +806,7 @@ mod tests {
                 EffectFacts::new(),
                 LirFacts::new(OptLevel::O2),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                TypeStore::new(),
             ),
             sample_frontend_import(),
             vec![

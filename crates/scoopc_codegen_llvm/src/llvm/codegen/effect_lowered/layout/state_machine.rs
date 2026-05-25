@@ -13,7 +13,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         step_type: &LateLoweredStepType,
     ) -> Result<StepLayout<'ctx>, LlvmEmitError> {
         let stable_effect_key_text = stable_naming::effect_schema_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,
@@ -71,7 +71,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let mut payload_tys = vec![complete_payload_ty];
         for case in step_type.cases() {
             let case_key_text = stable_naming::step_case_key_text(
-                self.codegen.stable_cone_key,
+                self.stable_cone_key,
                 self.source_types,
                 self.codegen.stable_type_param_resolver(),
                 self.program,
@@ -271,7 +271,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     [
                         step_layout.stable_effect_key_text().to_string(),
                         stable_naming::step_case_key_text(
-                            self.codegen.stable_cone_key,
+                            self.stable_cone_key,
                             self.source_types,
                             self.codegen.stable_type_param_resolver(),
                             self.program,
@@ -460,7 +460,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             step_schema,
         );
         let stable_continuation_key_text = stable_naming::surface_resume_contract_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,
@@ -571,7 +571,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable: &LateLoweredCallable,
     ) -> Result<FrameLayout<'ctx>, LlvmEmitError> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
-            self.codegen.stable_cone_key,
+            self.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,

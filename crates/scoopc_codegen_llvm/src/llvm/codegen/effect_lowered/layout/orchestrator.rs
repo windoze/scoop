@@ -11,6 +11,8 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
+        origin: AbiProgramOrigin,
+        stable_cone_key: &'a StableConeKey,
         program: &'a LateLoweredProgram,
         lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
@@ -28,6 +30,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         )?;
         Ok(Self {
             codegen,
+            origin,
+            stable_cone_key,
             program,
             lir_facts,
             source_types,
@@ -155,6 +159,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let class_instance_layouts = this.materialize_class_instance_layouts()?;
 
         Ok(ProgramAbiQuery::new(
+            this.origin,
             this.source_value_layouts,
             class_instance_layouts,
             step_layouts,

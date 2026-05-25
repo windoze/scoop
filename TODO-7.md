@@ -1178,7 +1178,7 @@
   - 手工 `nm` 验证：`tests/fixtures/run_pass_cone/source_path_dependency_public_call` cold build 后，consumer `build/debug/obj/main.o` 与 dep `build/debug/cones/fixture-source-path-dependency-public-call-lib@0.0.0/objs/scoop.o` 对 `dependencyValue` 均导出 `__scoop_abi0_fun__fixtures_run_pass_cone_source_path_dependency_public_call_lib_dependencyValue__h16644f5508fdcad1a359b25c324f6fae`。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；上述手工 `nm` 比对；`cargo test -p scoopc_mir --lib materialized_overloaded_generic_instances_publish_distinct_path_stable_exported_symbols`（定位 source-cone stable template 修复时的针对性复测）。
 
-### [TODO] P10-T04-c-2：cached dep `LateLoweredProgram` + `LirFacts` handoff 到 LLVM stage
+### [DONE] P10-T04-c-2：cached dep `LateLoweredProgram` + `LirFacts` handoff 到 LLVM stage
 
 - 参考：上方 `P10-T04-c` 原 spec「必须实现的内容」第 2 项；`crates/scoopc_cone/src/artifact.rs`；`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::LlvmCodegenStageInput`；`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/orchestrator.rs::ProgramAbiMaterializer::materialize`；`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs::callable_layout_by_root_fqn`。
 - 背景：
@@ -1211,6 +1211,12 @@
   - 无 spec 文本意义上的"silently 忽略"或 fallback 路径。
 - 依赖：P10-T04-c-1（强前置：mangling 必须先一致）。
 - 阻塞：P10-T04-c-3、P10-T04-c-4。
+- 完成记录：
+  - 2026-05-25：LLVM stage/input/output/emit handoff 增加 `CachedDepArtifactHandoff`，`FrontendOutput` 在 cache-hit dependency cone 上聚合 dep `LateLoweredProgram`、`LirFacts`、`TypeStore` 与 object 路径；`ConeArtifact` schema 增加 `type_store.bin`，single-cone subprocess 写入真实 type store，旧/不兼容 artifact 在 fingerprint/cache 读取时按 cache miss 重建。
+  - `ProgramAbiMaterializer` 增加 primary/cached-dep origin，按 dep stable cone key 与 dep TypeStore materialize ABI；`ProgramAbiQuery` 用 origin-scoped step keys 合并 dep callable/step/frame/dynamic/boundary layout，按 body version key 去重同一 callable，避免同一 dep callable 在 consumer program 与 dep artifact 同时出现时误报多版本。
+  - consumer LLVM module 仍只 emit 自身 body；dep body emit/link object handoff 保持给 `P10-T04-c-4`。本任务只保证 dep callable ABI/layout 查询可由 cached dep artifact 命中，不再依赖 dep AST 出现在 consumer 自身 `LateLoweredProgram`。
+  - 回归覆盖：新增 `pipeline::llvm_codegen_stage::tests::llvm_stage_materializes_cached_dep_plain_callable_layout`，构造 consumer-only LIR + cached dep LIR handoff，断言 dep `dependencyValue` 的 plain callable symbol 被 consumer LLVM ABI materialization 声明。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`；`cargo run -p scoop -- test`（1536 checks）；定向 `cargo test -p scoopc --lib llvm_codegen_stage::tests::llvm_stage_materializes_cached_dep_plain_callable_layout`。
 
 ### [TODO] P10-T04-c-3：consumer pipeline 在 cache-hit 时剔除 dep AST 的中端适配
 

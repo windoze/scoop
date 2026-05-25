@@ -27,6 +27,48 @@ use crate::ty::TypeId;
 
 use super::super::CallableCarrierKind;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum AbiProgramOrigin {
+    Primary,
+    CachedDep(u32),
+}
+
+impl AbiProgramOrigin {
+    pub(super) const fn primary_step(step_schema: StepSchemaId) -> AbiStepKey {
+        AbiStepKey::new(Self::Primary, step_schema)
+    }
+
+    pub(super) fn label(self) -> String {
+        match self {
+            Self::Primary => "primary".to_string(),
+            Self::CachedDep(index) => format!("cached dep #{index}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) struct AbiStepKey {
+    origin: AbiProgramOrigin,
+    step_schema: StepSchemaId,
+}
+
+impl AbiStepKey {
+    pub(super) const fn new(origin: AbiProgramOrigin, step_schema: StepSchemaId) -> Self {
+        Self {
+            origin,
+            step_schema,
+        }
+    }
+
+    pub(super) const fn origin(self) -> AbiProgramOrigin {
+        self.origin
+    }
+
+    pub(super) const fn step_schema(self) -> StepSchemaId {
+        self.step_schema
+    }
+}
+
 /// 单个 ABI 值位的 LLVM 形状。
 ///
 /// `elided=true` 表示该值在 function ABI 中可被省略；但若它出现在 frame/step payload field 中，
@@ -2062,6 +2104,7 @@ impl<'ctx> ContinuationObjectLayout<'ctx> {
 
 /// 单个 callable version 暴露给后续 body emitter 的 LLVM ABI 查询面。
 pub(super) struct CallableLayout<'ctx> {
+    origin: AbiProgramOrigin,
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     stable_callable_key_text: String,
@@ -2075,6 +2118,7 @@ pub(super) struct CallableLayout<'ctx> {
 impl<'ctx> CallableLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
+        origin: AbiProgramOrigin,
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         stable_callable_key_text: String,
@@ -2085,6 +2129,7 @@ impl<'ctx> CallableLayout<'ctx> {
         resume_packings: Vec<ResumeInterfaceId>,
     ) -> Self {
         Self {
+            origin,
             root_fqn,
             body_version_key,
             stable_callable_key_text,
@@ -2098,6 +2143,14 @@ impl<'ctx> CallableLayout<'ctx> {
 
     pub(super) fn root_fqn(&self) -> &str {
         &self.root_fqn
+    }
+
+    pub(super) fn origin(&self) -> AbiProgramOrigin {
+        self.origin
+    }
+
+    pub(super) fn step_key(&self) -> AbiStepKey {
+        AbiStepKey::new(self.origin, self.step_schema)
     }
 
     pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
@@ -2222,41 +2275,104 @@ impl CallableCarrierTargetLayout {
 pub(crate) struct ProgramAbiQuery<'ctx> {
     source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
     class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>,
-    step_layouts: BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-    frame_layouts: BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
+    step_layouts: BTreeMap<AbiStepKey, StepLayout<'ctx>>,
+    frame_layouts: BTreeMap<AbiStepKey, FrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
     resume_packing_layouts: BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
     surface_resume_layouts: BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
     surface_resume_dispatch_layouts:
         BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeDispatchLayout<'ctx>>,
-    callable_layouts: BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
-    callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
-    plain_local_effect_step_schemas_by_version_key:
-        HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+    callable_layouts: BTreeMap<AbiStepKey, CallableLayout<'ctx>>,
+    callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, AbiStepKey>,
+    plain_local_effect_step_schemas_by_version_key: HashMap<LateLoweredBodyVersionKey, AbiStepKey>,
     plain_callable_layouts_by_version_key:
         HashMap<LateLoweredBodyVersionKey, PlainCallableLayout<'ctx>>,
-    known_instance_callable_versions:
-        HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>,
+    known_instance_callable_versions: HashMap<(InstanceKey, AbiStepKey), LateLoweredBodyVersionKey>,
     callable_carrier_target_layouts:
         HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
-    dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
-    call_boundary_operand_layouts: BTreeMap<(StepSchemaId, SiteId), CallBoundaryOperandLayout>,
-    perform_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), PerformBoundaryOperandLayout>,
-    resume_boundary_operand_layouts: BTreeMap<(StepSchemaId, SiteId), ResumeBoundaryOperandLayout>,
-    resume_payload_binding_layouts:
-        BTreeMap<(StepSchemaId, BoundaryId), ResumePayloadBindingLayout>,
-    resume_payload_bindings_by_state: BTreeMap<(StepSchemaId, StateId), ResumePayloadBindingLayout>,
+    dynamic_invoke_layouts: BTreeMap<(AbiStepKey, SiteId), DynamicInvokeLayout<'ctx>>,
+    call_boundary_operand_layouts: BTreeMap<(AbiStepKey, SiteId), CallBoundaryOperandLayout>,
+    perform_boundary_operand_layouts: BTreeMap<(AbiStepKey, SiteId), PerformBoundaryOperandLayout>,
+    resume_boundary_operand_layouts: BTreeMap<(AbiStepKey, SiteId), ResumeBoundaryOperandLayout>,
+    resume_payload_binding_layouts: BTreeMap<(AbiStepKey, BoundaryId), ResumePayloadBindingLayout>,
+    resume_payload_bindings_by_state: BTreeMap<(AbiStepKey, StateId), ResumePayloadBindingLayout>,
     completion_payload_binding_layouts:
-        BTreeMap<(StepSchemaId, StateId), CompletionPayloadBindingLayout<'ctx>>,
-    local_runtime_error_contracts:
-        BTreeMap<(StepSchemaId, SiteId), LocalRuntimeErrorContract<'ctx>>,
-    handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), HandleDispatchLayout>,
+        BTreeMap<(AbiStepKey, StateId), CompletionPayloadBindingLayout<'ctx>>,
+    local_runtime_error_contracts: BTreeMap<(AbiStepKey, SiteId), LocalRuntimeErrorContract<'ctx>>,
+    handle_dispatch_layouts: BTreeMap<(AbiStepKey, SiteId), HandleDispatchLayout>,
+}
+
+fn map_step_layouts<T>(
+    origin: AbiProgramOrigin,
+    layouts: BTreeMap<StepSchemaId, T>,
+) -> BTreeMap<AbiStepKey, T> {
+    layouts
+        .into_iter()
+        .map(|(step_schema, layout)| (AbiStepKey::new(origin, step_schema), layout))
+        .collect()
+}
+
+fn map_step_site_layouts<T>(
+    origin: AbiProgramOrigin,
+    layouts: BTreeMap<(StepSchemaId, SiteId), T>,
+) -> BTreeMap<(AbiStepKey, SiteId), T> {
+    layouts
+        .into_iter()
+        .map(|((step_schema, site_id), layout)| {
+            ((AbiStepKey::new(origin, step_schema), site_id), layout)
+        })
+        .collect()
+}
+
+fn extend_unique_btree<K, V>(
+    target: &mut BTreeMap<K, V>,
+    source: BTreeMap<K, V>,
+    dep_label: &str,
+    what: &str,
+) -> Result<(), LlvmEmitError>
+where
+    K: Ord + std::fmt::Debug,
+{
+    for (key, value) in source {
+        if target.insert(key, value).is_some() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!("LLVM ABI materialization 合并 {dep_label} 时发现重复 {what} key"),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn extend_unique_hash<K, V>(
+    target: &mut HashMap<K, V>,
+    source: HashMap<K, V>,
+    dep_label: &str,
+    what: &str,
+) -> Result<(), LlvmEmitError>
+where
+    K: Eq + std::hash::Hash + std::fmt::Debug,
+    V: PartialEq,
+{
+    for (key, value) in source {
+        if let Some(existing) = target.get(&key) {
+            if existing == &value {
+                continue;
+            }
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM ABI materialization 合并 {dep_label} 时发现重复但不一致的 {what} key"
+                ),
+            });
+        }
+        target.insert(key, value);
+    }
+    Ok(())
 }
 
 impl<'ctx> ProgramAbiQuery<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
+        origin: AbiProgramOrigin,
         source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
         class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>,
         step_layouts: BTreeMap<StepSchemaId, StepLayout<'ctx>>,
@@ -2320,28 +2436,243 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         Self {
             source_value_layouts,
             class_instance_layouts,
-            step_layouts,
-            frame_layouts,
+            step_layouts: map_step_layouts(origin, step_layouts),
+            frame_layouts: map_step_layouts(origin, frame_layouts),
             continuation_layouts,
             resume_packing_layouts,
             surface_resume_layouts,
             surface_resume_dispatch_layouts,
-            callable_layouts,
-            callable_layouts_by_version_key,
-            plain_local_effect_step_schemas_by_version_key,
+            callable_layouts: map_step_layouts(origin, callable_layouts),
+            callable_layouts_by_version_key: callable_layouts_by_version_key
+                .into_iter()
+                .map(|(key, step_schema)| (key, AbiStepKey::new(origin, step_schema)))
+                .collect(),
+            plain_local_effect_step_schemas_by_version_key:
+                plain_local_effect_step_schemas_by_version_key
+                    .into_iter()
+                    .map(|(key, step_schema)| (key, AbiStepKey::new(origin, step_schema)))
+                    .collect(),
             plain_callable_layouts_by_version_key,
-            known_instance_callable_versions,
+            known_instance_callable_versions: known_instance_callable_versions
+                .into_iter()
+                .map(|((instance, step_schema), version)| {
+                    ((instance, AbiStepKey::new(origin, step_schema)), version)
+                })
+                .collect(),
             callable_carrier_target_layouts,
-            dynamic_invoke_layouts,
-            call_boundary_operand_layouts,
-            perform_boundary_operand_layouts,
-            resume_boundary_operand_layouts,
-            resume_payload_binding_layouts,
-            resume_payload_bindings_by_state,
-            completion_payload_binding_layouts,
-            local_runtime_error_contracts,
-            handle_dispatch_layouts,
+            dynamic_invoke_layouts: map_step_site_layouts(origin, dynamic_invoke_layouts),
+            call_boundary_operand_layouts: map_step_site_layouts(
+                origin,
+                call_boundary_operand_layouts,
+            ),
+            perform_boundary_operand_layouts: map_step_site_layouts(
+                origin,
+                perform_boundary_operand_layouts,
+            ),
+            resume_boundary_operand_layouts: map_step_site_layouts(
+                origin,
+                resume_boundary_operand_layouts,
+            ),
+            resume_payload_binding_layouts: resume_payload_binding_layouts
+                .into_iter()
+                .map(|((step_schema, boundary), layout)| {
+                    ((AbiStepKey::new(origin, step_schema), boundary), layout)
+                })
+                .collect(),
+            resume_payload_bindings_by_state: resume_payload_bindings_by_state
+                .into_iter()
+                .map(|((step_schema, state), layout)| {
+                    ((AbiStepKey::new(origin, step_schema), state), layout)
+                })
+                .collect(),
+            completion_payload_binding_layouts: completion_payload_binding_layouts
+                .into_iter()
+                .map(|((step_schema, state), layout)| {
+                    ((AbiStepKey::new(origin, step_schema), state), layout)
+                })
+                .collect(),
+            local_runtime_error_contracts: map_step_site_layouts(
+                origin,
+                local_runtime_error_contracts,
+            ),
+            handle_dispatch_layouts: map_step_site_layouts(origin, handle_dispatch_layouts),
         }
+    }
+
+    pub(super) fn merge_cached_dep(
+        &mut self,
+        dep_label: &str,
+        dep: ProgramAbiQuery<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        extend_unique_btree(
+            &mut self.step_layouts,
+            dep.step_layouts,
+            dep_label,
+            "step layout",
+        )?;
+        extend_unique_btree(
+            &mut self.frame_layouts,
+            dep.frame_layouts,
+            dep_label,
+            "frame layout",
+        )?;
+        // Continuation/resume maps are keyed by program-local ids. They are used
+        // while emitting bodies for the owning program; cached dep bodies are not
+        // emitted by the consumer module in P10-T04-c-2, so only callable/step
+        // ABI surfaces are merged across program origins here.
+        extend_unique_btree(
+            &mut self.callable_layouts,
+            dep.callable_layouts,
+            dep_label,
+            "callable layout",
+        )?;
+        self.merge_callable_version_index(dep.callable_layouts_by_version_key, dep_label)?;
+        for (version_key, step_key) in dep.plain_local_effect_step_schemas_by_version_key {
+            self.plain_local_effect_step_schemas_by_version_key
+                .entry(version_key)
+                .or_insert(step_key);
+        }
+        self.merge_plain_callable_layouts(dep.plain_callable_layouts_by_version_key, dep_label)?;
+        extend_unique_hash(
+            &mut self.known_instance_callable_versions,
+            dep.known_instance_callable_versions,
+            dep_label,
+            "known-instance callable selector",
+        )?;
+        self.merge_callable_carrier_target_layouts(dep.callable_carrier_target_layouts, dep_label)?;
+        extend_unique_btree(
+            &mut self.dynamic_invoke_layouts,
+            dep.dynamic_invoke_layouts,
+            dep_label,
+            "dynamic invoke layout",
+        )?;
+        extend_unique_btree(
+            &mut self.call_boundary_operand_layouts,
+            dep.call_boundary_operand_layouts,
+            dep_label,
+            "call boundary operand layout",
+        )?;
+        extend_unique_btree(
+            &mut self.perform_boundary_operand_layouts,
+            dep.perform_boundary_operand_layouts,
+            dep_label,
+            "perform boundary operand layout",
+        )?;
+        extend_unique_btree(
+            &mut self.resume_boundary_operand_layouts,
+            dep.resume_boundary_operand_layouts,
+            dep_label,
+            "resume boundary operand layout",
+        )?;
+        extend_unique_btree(
+            &mut self.resume_payload_binding_layouts,
+            dep.resume_payload_binding_layouts,
+            dep_label,
+            "resume payload binding layout",
+        )?;
+        extend_unique_btree(
+            &mut self.resume_payload_bindings_by_state,
+            dep.resume_payload_bindings_by_state,
+            dep_label,
+            "resume payload binding state layout",
+        )?;
+        extend_unique_btree(
+            &mut self.completion_payload_binding_layouts,
+            dep.completion_payload_binding_layouts,
+            dep_label,
+            "completion payload binding layout",
+        )?;
+        extend_unique_btree(
+            &mut self.local_runtime_error_contracts,
+            dep.local_runtime_error_contracts,
+            dep_label,
+            "local runtime-error contract",
+        )?;
+        extend_unique_btree(
+            &mut self.handle_dispatch_layouts,
+            dep.handle_dispatch_layouts,
+            dep_label,
+            "handle dispatch layout",
+        )?;
+        Ok(())
+    }
+
+    fn merge_callable_version_index(
+        &mut self,
+        source: HashMap<LateLoweredBodyVersionKey, AbiStepKey>,
+        dep_label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for (version_key, step_key) in source {
+            if let Some(existing_step_key) = self.callable_layouts_by_version_key.get(&version_key)
+            {
+                let existing = self.callable_layout_by_step_key(*existing_step_key);
+                let incoming = self.callable_layout_by_step_key(step_key);
+                if existing.zip(incoming).is_some_and(|(lhs, rhs)| {
+                    lhs.root_fqn() == rhs.root_fqn()
+                        && lhs.body_version_key() == rhs.body_version_key()
+                }) {
+                    continue;
+                }
+                return Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI materialization 合并 {dep_label} 时发现 body version key {:?} 指向不同 callable layout",
+                        version_key
+                    ),
+                });
+            }
+            self.callable_layouts_by_version_key
+                .insert(version_key, step_key);
+        }
+        Ok(())
+    }
+
+    fn merge_plain_callable_layouts(
+        &mut self,
+        source: HashMap<LateLoweredBodyVersionKey, PlainCallableLayout<'ctx>>,
+        dep_label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for (version_key, layout) in source {
+            if let Some(existing) = self.plain_callable_layouts_by_version_key.get(&version_key) {
+                if existing.root_fqn() == layout.root_fqn()
+                    && existing.direct_entry().symbol_name() == layout.direct_entry().symbol_name()
+                {
+                    continue;
+                }
+                return Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI materialization 合并 {dep_label} 时发现 body version key {:?} 指向不同 plain callable layout",
+                        version_key
+                    ),
+                });
+            }
+            self.plain_callable_layouts_by_version_key
+                .insert(version_key, layout);
+        }
+        Ok(())
+    }
+
+    fn merge_callable_carrier_target_layouts(
+        &mut self,
+        source: HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+        dep_label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for (key, layout) in source {
+            if let Some(existing) = self.callable_carrier_target_layouts.get(&key) {
+                if existing.body_version_key() == layout.body_version_key()
+                    && existing.symbol_name() == layout.symbol_name()
+                {
+                    continue;
+                }
+                return Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI materialization 合并 {dep_label} 时发现 callable carrier `{}` 指向不同 body version",
+                        key.1
+                    ),
+                });
+            }
+            self.callable_carrier_target_layouts.insert(key, layout);
+        }
+        Ok(())
     }
 
     pub(super) fn source_value_layout(
@@ -2373,7 +2704,22 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     }
 
     pub(super) fn step_layout(&self, step_schema: StepSchemaId) -> Option<&StepLayout<'ctx>> {
-        self.step_layouts.get(&step_schema)
+        self.step_layout_for_origin(AbiProgramOrigin::Primary, step_schema)
+    }
+
+    pub(super) fn step_layout_for_callable(
+        &self,
+        callable: &CallableLayout<'ctx>,
+    ) -> Option<&StepLayout<'ctx>> {
+        self.step_layout_for_origin(callable.origin(), callable.step_schema())
+    }
+
+    fn step_layout_for_origin(
+        &self,
+        origin: AbiProgramOrigin,
+        step_schema: StepSchemaId,
+    ) -> Option<&StepLayout<'ctx>> {
+        self.step_layouts.get(&AbiStepKey::new(origin, step_schema))
     }
 
     pub(super) fn step_layouts(&self) -> impl Iterator<Item = &StepLayout<'ctx>> {
@@ -2387,7 +2733,8 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     }
 
     pub(super) fn frame_layout(&self, step_schema: StepSchemaId) -> Option<&FrameLayout<'ctx>> {
-        self.frame_layouts.get(&step_schema)
+        self.frame_layouts
+            .get(&AbiProgramOrigin::primary_step(step_schema))
     }
 
     pub(super) fn local_effect_step_schema_by_version_key(
@@ -2396,7 +2743,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Option<StepSchemaId> {
         self.plain_local_effect_step_schemas_by_version_key
             .get(key)
-            .copied()
+            .map(|key| key.step_schema())
     }
 
     pub(super) fn continuation_layout(
@@ -2567,18 +2914,26 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         step_schema: StepSchemaId,
     ) -> Option<&CallableLayout<'ctx>> {
-        self.callable_layouts.get(&step_schema)
+        self.callable_layouts
+            .get(&AbiProgramOrigin::primary_step(step_schema))
     }
 
     pub(super) fn callable_layout_by_root_fqn(
         &self,
         root_fqn: &str,
     ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
-        let matches = self
+        let mut matches = Vec::new();
+        for layout in self
             .callable_layouts
             .values()
             .filter(|layout| layout.root_fqn() == root_fqn)
-            .collect::<Vec<_>>();
+        {
+            if !matches.iter().any(|existing: &&CallableLayout<'ctx>| {
+                existing.body_version_key() == layout.body_version_key()
+            }) {
+                matches.push(layout);
+            }
+        }
         match matches.as_slice() {
             [] => Err(LlvmEmitError::Frontend {
                 message: format!(
@@ -2607,14 +2962,19 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                     version_key
                 ),
             })?;
-        self.callable_layout(*step_schema)
+        self.callable_layout_by_step_key(*step_schema)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM ABI query 发现 body version key {:?} 指向缺失的 callable step schema s{}",
+                    "LLVM ABI query 发现 body version key {:?} 指向缺失的 {} callable step schema s{}",
                     version_key,
-                    step_schema.as_u32()
+                    step_schema.origin().label(),
+                    step_schema.step_schema().as_u32()
                 ),
             })
+    }
+
+    fn callable_layout_by_step_key(&self, step_key: AbiStepKey) -> Option<&CallableLayout<'ctx>> {
+        self.callable_layouts.get(&step_key)
     }
 
     pub(super) fn plain_callable_layout_by_version_key(
@@ -2635,11 +2995,18 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         root_fqn: &str,
     ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
-        let matches = self
+        let mut matches = Vec::new();
+        for layout in self
             .plain_callable_layouts_by_version_key
             .values()
             .filter(|layout| layout.root_fqn() == root_fqn)
-            .collect::<Vec<_>>();
+        {
+            if !matches.iter().any(|existing: &&PlainCallableLayout<'ctx>| {
+                existing.body_version_key() == layout.body_version_key()
+            }) {
+                matches.push(layout);
+            }
+        }
         match matches.as_slice() {
             [] => Err(LlvmEmitError::Frontend {
                 message: format!(
@@ -2659,11 +3026,18 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         root_fqn: &str,
     ) -> Result<Option<&PlainCallableLayout<'ctx>>, LlvmEmitError> {
-        let matches = self
+        let mut matches = Vec::new();
+        for layout in self
             .plain_callable_layouts_by_version_key
             .values()
             .filter(|layout| layout.root_fqn() == root_fqn)
-            .collect::<Vec<_>>();
+        {
+            if !matches.iter().any(|existing: &&PlainCallableLayout<'ctx>| {
+                existing.body_version_key() == layout.body_version_key()
+            }) {
+                matches.push(layout);
+            }
+        }
         match matches.as_slice() {
             [] => Ok(None),
             [layout] => Ok(Some(*layout)),
@@ -2714,7 +3088,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         site_id: SiteId,
     ) -> Option<&DynamicInvokeLayout<'ctx>> {
         self.dynamic_invoke_layouts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
     }
 
     pub(super) fn call_boundary_operand_layout(
@@ -2725,7 +3099,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&CallBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .call_boundary_operand_layouts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} call site {} 的 boundary operand contract",
@@ -2755,7 +3129,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&PerformBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .perform_boundary_operand_layouts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} perform site {} 的 boundary operand contract",
@@ -2785,7 +3159,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&ResumeBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .resume_boundary_operand_layouts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} resume site {} 的 boundary operand contract",
@@ -2814,7 +3188,10 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&ResumePayloadBindingLayout, LlvmEmitError> {
         let published = self
             .resume_payload_binding_layouts
-            .get(&(owner_step_schema, binding.boundary_id()))
+            .get(&(
+                AbiProgramOrigin::primary_step(owner_step_schema),
+                binding.boundary_id(),
+            ))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} boundary bd{} 的 resumed local/home contract",
@@ -2842,7 +3219,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         resume_state: StateId,
     ) -> Result<&ResumePayloadBindingLayout, LlvmEmitError> {
         self.resume_payload_bindings_by_state
-            .get(&(owner_step_schema, resume_state))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), resume_state))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} resume state st{} 的 resumed local/home contract",
@@ -2859,7 +3236,10 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&CompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
         let published = self
             .completion_payload_binding_layouts
-            .get(&(owner_step_schema, binding.return_state()))
+            .get(&(
+                AbiProgramOrigin::primary_step(owner_step_schema),
+                binding.return_state(),
+            ))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
@@ -2887,7 +3267,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         return_state: StateId,
     ) -> Result<&CompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
         self.completion_payload_binding_layouts
-            .get(&(owner_step_schema, return_state))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), return_state))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
@@ -2905,7 +3285,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&LocalRuntimeErrorContract<'ctx>, LlvmEmitError> {
         let published = self
             .local_runtime_error_contracts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} call site {} 的 local runtime-error contract",
@@ -2945,7 +3325,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<&HandleDispatchLayout, LlvmEmitError> {
         let published = self
             .handle_dispatch_layouts
-            .get(&(owner_step_schema, site_id))
+            .get(&(AbiProgramOrigin::primary_step(owner_step_schema), site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM ABI query 缺少 owner step schema s{} handle site {} 的 HandleDispatch contract",
@@ -2977,15 +3357,26 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
                 let version_key = self
                     .known_instance_callable_versions
-                    .get(&(instance.clone(), facts.callee_schema()))
+                    .get(&(
+                        instance.clone(),
+                        AbiProgramOrigin::primary_step(facts.callee_schema()),
+                    ))
                     .or_else(|| {
-                        let mut matches = self
+                        let mut matches = Vec::new();
+                        for version in self
                             .known_instance_callable_versions
                             .iter()
                             .filter(|((candidate, _), _)| candidate == instance)
-                            .map(|(_, version)| version);
-                        let first = matches.next()?;
-                        matches.next().is_none().then_some(first)
+                            .map(|(_, version)| version)
+                        {
+                            if !matches.contains(&version) {
+                                matches.push(version);
+                            }
+                        }
+                        match matches.as_slice() {
+                            [version] => Some(*version),
+                            _ => None,
+                        }
                     })
                     .ok_or_else(|| LlvmEmitError::Frontend {
                         message: format!(

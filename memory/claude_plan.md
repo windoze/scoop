@@ -1,41 +1,19 @@
-# 执行计划
+执行计划
 
-## 约束摘要
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 只完成第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
-- 若发现当前任务被具体前置问题阻塞，先修复该问题；若无法在本次完成，则把最小前置任务插入 `TODO.md`，提交后停止。
-- 不用规避、弱化测试或改变规格来绕过实现缺口。
-- 编辑前先建立上下文，变更后按要求运行格式化、lint、测试与夹具验证。
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务，并只处理该任务。
+2. 查看该任务的要求、依赖、验证命令和完成记录；必要时查看 `PLAN.md` 与最近提交，确认是否存在直接相关的未完成事项。
+3. 建立最小实现范围，优先修复会阻塞当前任务或使其行为不符合规格的问题，不做绕路实现。
+4. 按需修改代码、测试、夹具或文档；若发现必须先处理的新前置条件，则更新 `TODO.md` 并停止在该前置任务上。
+5. 运行格式化、lint、相关测试，并按要求逐步扩大到完整验证；发现未排期失败时，修复或在 `TODO.md` 中排入正确位置。
+6. 完成后将当前任务标题加上 `[DONE]`，更新完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 检查 git 状态与差异，提交本次任务的所有相关修改，然后停止，不继续下一个任务。
 
-## 初始执行步骤
-1. 读取 `TODO.md`，定位第一个未完成任务及其验证要求。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成事项。
-3. 阅读当前任务涉及的代码、测试、规格或夹具，确认实现范围。
-4. 如任务可直接完成，则进行最小正确实现并补充或更新测试。
-5. 运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`。
-6. 运行当前任务要求的相关测试；若需要，运行完整 `cargo test --all --all-targets` 与 `cargo run -p scoop -- test`。
-7. 若所有相关验证通过，更新 `TODO.md`：给任务标题加 `[DONE]` 并填写完成记录。
-8. 检查变更范围与 git 状态，提交本次任务所有相关变更。
+进度记录
 
-## 当前状态
-- 已读取 `TODO.md` / `TODO-7.md` 并确认第一个可执行未完成任务为 `P10-T04-c-1`。
-- `P10-T04-c` 是已拆分的父任务占位，正文明确要求按 `P10-T04-c-1..4` 收口，且根索引当前下一项也指向 `P10-T04-c-1`。
-- 最近提交为 `[P10-T06R] Review per-cone subprocess concurrent compilation driver`，与 `P10-T04-c-1` 的前置依赖一致，无需新增前置任务。
-- 已把 LIR callable canonical 改为基于 body version 内容的 `body#h<hash>`，不再使用 program-local callable 下标。
-- 已新增 `stable_lir_callable_key_ignores_program_local_callable_order` 单元测试，并通过 `cargo check -p scoopc --lib` 与该单测。
-- 首轮完整 Rust 测试发现 `scoopc --lib` 中 3 个 effect-lowered dump 测试因 TypeId 越界失败；已定位为 canonical 编码错误使用 MIR `TypeStore`，并改为使用 effect-owned `MaterializedEffectFacts::types()`。
-- 手工 `nm` 首次仍不一致，定位为 `LirCallableSymbolFacts.exported_symbol` 仍保存 MIR materialization 的旧 exported symbol，且 MIR non-generic stable template fallback 未使用 source-cone owner。已改为 LIR callable key 生成导出 ABI symbol，并让 MIR non-generic stable template key携带 source-cone identity。
-- 重新 cold build `source_path_dependency_public_call` 后，consumer `main.o` 与 dep `scoop.o` 的 `dependencyValue` symbol 后缀均为 `h16644f5508fdcad1a359b25c324f6fae`，手工 `nm` 比对通过。
-- 后续完整 Rust 测试只因 panic sentinel 行号基线随 MIR stable-template 修复移动而失败；已更新 `pipeline_user_visible_failure_policy` 的对应行号记录。
-- 已更新 `TODO.md` / `TODO-7.md`，将 `P10-T04-c-1` 标记为 `[DONE]` 并记录实现与验证结果；下一任务为 `P10-T04-c-2`，本次不会继续执行。
-- 最终验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；手工 `nm` 比对。
-
-## P10-T04-c-1 执行计划
-1. 检查工作树状态，避免覆盖用户或并行代理的未提交改动。
-2. 阅读 `stable_lir_callable_key`、`LateLoweredBodyVersionKey`、`StableLirCallableKey`、LLVM reachability 与 LIR facts 相关调用点。
-3. 将 LIR callable canonical 从 `body#<program-local-index>` 改为基于 `LateLoweredBodyVersionKey` 的内容稳定标识，同时保留 readable path 的可读性。
-4. 更新所有直接构造 `StableLirCallableKey` 的现场，消除任何依赖 program-local callable 顺序的 ABI symbol 生成路径。
-5. 添加或调整测试，覆盖同一 callable 在不同 `LateLoweredProgram` 组合/顺序下生成相同 mangled symbol。
-6. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`、`git diff --check`，并执行 `source_path_dependency_public_call` 的 `nm` 手工比对。
-7. 验证通过后，同步更新 `TODO.md` 与 `TODO-7.md`：将 `P10-T04-c-1` 标记为 `[DONE]` 并写完成记录。
-8. 检查 diff / status / recent log 后提交本任务变更并停止。
+- 已创建本执行计划，下一步读取 `TODO.md`。
+- 已确认首个未完成任务为 `P10-T04-c-2`：把 cache-hit dependency cone artifact 中的 `LateLoweredProgram`、`LirFacts`、`TypeStore` 与对象文件 handoff 到 LLVM stage，使 dep callable layout 查询不再依赖 dep AST 出现在 consumer 自身 LIR program。
+- 最近提交 `e82e94c5 [P10-T04-c-1] Stabilize LIR callable ABI keys` 正是当前任务强前置，未发现需要改排的额外前置。
+- 下一步检查 artifact 读写、frontend/pipeline stage 输入和 LLVM ABI materializer 的现有实现，按最小改动接入多 dep cached handoff。
+- 已开始实现：artifact schema 增加 `type_store.bin`，`FrontendOutput` 聚合 cache-hit dep 的 decoded LIR/LirFacts/TypeStore/object 路径，LLVM stage/output/emit handoff 增加 `CachedDepArtifactHandoff`，ABI materializer 开始按 primary/cached-dep origin 合并 callable 与 step layout 查询面。
+- 已完成实现与验证：`P10-T04-c-2` 已接通 cached dep LIR/LirFacts/TypeStore 到 LLVM ABI materializer，处理旧 artifact schema 为 cache miss，补充定向回归测试，并完成 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`、`cargo run -p scoop -- test`。
+- 已将 `TODO.md` 与 `TODO-7.md` 中 `P10-T04-c-2` 标记为 `[DONE]` 并写入完成记录；下一步检查 diff 并提交本任务。

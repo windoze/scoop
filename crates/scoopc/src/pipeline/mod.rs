@@ -424,6 +424,7 @@ pub fn emit_project_llvm_artifact_to_file(
         opt_level,
         artifact,
         front.cached_cone_imports().to_vec(),
+        front.cached_dep_artifacts().to_vec(),
     )?;
     Ok(extern_libs)
 }
@@ -448,6 +449,7 @@ pub fn emit_production_llvm_artifact_to_file(
     opt_level: crate::opt::OptLevel,
     artifact: LlvmArtifactKind,
     cached_cone_imports: Vec<CachedConeImport>,
+    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::emit_artifact_to_file(
         session,
@@ -459,6 +461,7 @@ pub fn emit_production_llvm_artifact_to_file(
             entry_main_fqn.map(str::to_owned),
             opt_level,
             cached_cone_imports,
+            cached_dep_artifacts,
         ),
         output,
         artifact,

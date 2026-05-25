@@ -10,8 +10,8 @@ use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::{
-    LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmDispatchCallKey, LlvmEmitError,
-    LlvmStageBaseContext,
+    CachedDepArtifactHandoff, LlvmCallableSourceContract, LlvmCodegenStageOutput,
+    LlvmDispatchCallKey, LlvmEmitError, LlvmStageBaseContext,
 };
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
@@ -60,6 +60,8 @@ pub struct LlvmCodegenStageInput {
     /// effect-facts stage 重建 Index/TypeEnv 时需要重放它们，否则 cached
     /// dep 的 public API 在下游不可见。
     cached_cone_imports: Vec<CachedConeImport>,
+    /// P10-T04-c-2：LLVM ABI/layout materializer 直接消费的 cache-hit dep LIR handoff。
+    cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
 }
 
 impl LlvmCodegenStageInput {
@@ -79,9 +81,11 @@ impl LlvmCodegenStageInput {
             entry_main_fqn,
             opt_level,
             Vec::new(),
+            Vec::new(),
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_cached_cone_imports(
         lowered: CodegenLoweringOutput,
         abi_visibility_lowered: Option<CodegenLoweringOutput>,
@@ -90,6 +94,7 @@ impl LlvmCodegenStageInput {
         entry_main_fqn: Option<String>,
         opt_level: OptLevel,
         cached_cone_imports: Vec<CachedConeImport>,
+        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
     ) -> Self {
         Self {
             lowered,
@@ -99,6 +104,7 @@ impl LlvmCodegenStageInput {
             entry_main_fqn,
             opt_level,
             cached_cone_imports,
+            cached_dep_artifacts,
         }
     }
 }
@@ -436,6 +442,7 @@ pub(crate) fn run(
         entry_main_fqn,
         opt_level,
         cached_cone_imports,
+        cached_dep_artifacts,
     } = input;
     let entry_source =
         source_map
@@ -495,6 +502,7 @@ pub(crate) fn run(
         abi_visibility_lir,
         abi_visibility_lir_facts,
         abi_visibility_types,
+        cached_dep_artifacts,
     ))
 }
 
@@ -587,7 +595,9 @@ mod tests {
     use scoopc_ids::StableCanonicalKey;
 
     use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
-    use crate::llvm::{LlvmEmitError, emit_main_ir_from_stage_output};
+    use crate::llvm::{
+        CachedDepArtifactHandoff, LlvmEmitError, StageEmitInput, emit_main_ir_from_stage_output,
+    };
     use crate::opt::OptLevel;
     use crate::pipeline::{self as pipeline, LlvmArtifactKind};
     use crate::session::{Session, SessionOptions};
@@ -1111,6 +1121,7 @@ fun main(): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
             Vec::new(),
+            Vec::new(),
         )?;
         Ok(std::fs::read_to_string(out).unwrap())
     }
@@ -1134,6 +1145,7 @@ fun main(): Int {
             entry_main_fqn,
             OptLevel::O0,
             LlvmArtifactKind::Object,
+            Vec::new(),
             Vec::new(),
         )?;
 
@@ -2132,10 +2144,88 @@ fun main() {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
             Vec::new(),
+            Vec::new(),
         )
         .unwrap();
         assert_eq!(test_stage_run_count(), 1);
         assert!(out.is_file());
+    }
+
+    #[test]
+    fn llvm_stage_materializes_cached_dep_plain_callable_layout() {
+        let _guard = test_lock();
+        let dep_source = SourceFile::new_virtual(
+            "<mem>/dep/api.scoop",
+            r#"
+package dep
+
+public fun dependencyValue(): Int {
+    return 42
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        );
+        let (dep_session, dep_source_map, dep_entry_source_id, dep_lowered) =
+            emit_args_for_source(dep_source);
+        let dep_stage = super::run(
+            &dep_session,
+            LlvmCodegenStageInput::new(
+                dep_lowered,
+                None,
+                dep_source_map,
+                dep_entry_source_id,
+                None,
+                OptLevel::O0,
+            ),
+        )
+        .expect("dep LLVM stage 应成功");
+        let dep_symbol = dep_stage
+            .lir_facts()
+            .physical_layout
+            .callable_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn == "dep.dependencyValue")
+            .and_then(|symbol| symbol.exported_symbol.clone())
+            .expect("dep plain callable 应发布 exported ABI symbol");
+        let dep_handoff = CachedDepArtifactHandoff::new(
+            crate::cone::ConeId::new(42),
+            dep_stage.base_context().stable_cone_key().clone(),
+            dep_stage.lir().clone(),
+            dep_stage.lir_facts().clone(),
+            dep_stage.base_context().types().clone(),
+            Vec::new(),
+        );
+
+        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
+        let consumer_stage = super::run(
+            &session,
+            LlvmCodegenStageInput::with_cached_cone_imports(
+                lowered,
+                None,
+                source_map,
+                entry_source_id,
+                None,
+                OptLevel::O0,
+                Vec::new(),
+                vec![dep_handoff],
+            ),
+        )
+        .expect("consumer LLVM stage with cached dep handoff 应成功");
+        let ir = emit_main_ir_from_stage_output(
+            consumer_stage.source_map(),
+            consumer_stage.entry_source_id(),
+            StageEmitInput::from_stage_output(&consumer_stage),
+            consumer_stage.entry_main_fqn(),
+            consumer_stage.opt_level(),
+        )
+        .expect("cached dep ABI materialization 应成功");
+        assert!(
+            ir.contains(&format!("@{dep_symbol}")) || ir.contains(&format!("@\"{dep_symbol}\"")),
+            "cached dep plain callable should be declared in consumer LLVM module"
+        );
     }
 
     #[test]
@@ -2201,6 +2291,7 @@ fun main() {
                 OptLevel::O0,
                 artifact,
                 Vec::new(),
+                Vec::new(),
             )
             .unwrap();
             let size = std::fs::metadata(&out).unwrap().len();
@@ -2228,6 +2319,7 @@ fun main() {
             None,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
+            Vec::new(),
             Vec::new(),
         )
         .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");

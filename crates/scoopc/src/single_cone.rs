@@ -130,6 +130,7 @@ pub fn run_single_cone_artifact_compile(
             None,
             opt_level,
             cached_cone_imports,
+            Vec::new(),
         ),
     )
     .map_err(|err| miette::miette!("{err}"))?;
@@ -153,6 +154,7 @@ pub fn run_single_cone_artifact_compile(
     // 把空 skeleton 升级成包含真实 LIR program / LIR facts / object 的完整 artifact。
     skeleton.lir_program = stage_output.lir().clone();
     skeleton.lir_facts = stage_output.lir_facts().clone();
+    skeleton.type_store = stage_output.base_context().types().clone();
     skeleton.objects = vec![
         ConeArtifactObject::new(SINGLE_CONE_OBJECT_FILE_NAME, obj_bytes)
             .map_err(|err| miette::miette!("{err}"))?,

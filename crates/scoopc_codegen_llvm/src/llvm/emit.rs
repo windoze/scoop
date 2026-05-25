@@ -21,7 +21,7 @@ use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 use super::pipeline::run_pass_pipeline;
 use super::reachability::collect_reachable_top_level_funs;
 use super::{
-    LlvmCodegenStageOutput, LlvmEmitError, LlvmStageBaseContext, codegen,
+    CachedDepArtifactHandoff, LlvmCodegenStageOutput, LlvmEmitError, LlvmStageBaseContext, codegen,
     configure_llvm_global_options_once, target,
 };
 
@@ -33,6 +33,7 @@ struct LoweredCodegenEntry<'a> {
     abi_program: &'a crate::effect_lowered::LateLoweredProgram,
     abi_lir_facts: &'a scoopc_lir_facts::LirFacts,
     abi_types: &'a crate::ty::TypeStore,
+    cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
 }
 
 #[derive(Clone, Copy)]
@@ -43,6 +44,7 @@ pub struct StageEmitInput<'a> {
     abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     abi_visibility_lir_facts: Option<&'a LirFacts>,
     abi_visibility_types: Option<&'a crate::ty::TypeStore>,
+    cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
 }
 
 impl<'a> StageEmitInput<'a> {
@@ -53,6 +55,7 @@ impl<'a> StageEmitInput<'a> {
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
         abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
+        cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
     ) -> Self {
         let has_abi_visibility = abi_visibility_lir.is_some();
         assert_eq!(
@@ -72,6 +75,7 @@ impl<'a> StageEmitInput<'a> {
             abi_visibility_lir,
             abi_visibility_lir_facts,
             abi_visibility_types,
+            cached_dep_artifacts,
         }
     }
 
@@ -83,6 +87,7 @@ impl<'a> StageEmitInput<'a> {
             output.abi_visibility_lir(),
             output.abi_visibility_lir_facts(),
             output.abi_visibility_types(),
+            output.cached_dep_artifacts(),
         )
     }
 }
@@ -95,6 +100,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
         abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
+        cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
     ) -> Self {
         Self {
             base_context,
@@ -104,6 +110,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             abi_program: abi_visibility_lir.unwrap_or(lir),
             abi_lir_facts: abi_visibility_lir_facts.unwrap_or(lir_facts),
             abi_types: abi_visibility_types.unwrap_or_else(|| base_context.types()),
+            cached_dep_artifacts,
         }
     }
 }
@@ -127,6 +134,7 @@ pub fn build_main_module_from_stage_output<'ctx>(
             stage_input.abi_visibility_lir,
             stage_input.abi_visibility_lir_facts,
             stage_input.abi_visibility_types,
+            stage_input.cached_dep_artifacts,
         ),
         entry_main_fqn,
     )
@@ -234,6 +242,7 @@ pub fn build_lib_module_from_stage_output<'ctx>(
             stage_input.abi_visibility_lir,
             stage_input.abi_visibility_lir_facts,
             stage_input.abi_visibility_types,
+            stage_input.cached_dep_artifacts,
         ),
         RootCallableSelector::LibMode,
     )
@@ -336,6 +345,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_program,
         abi_lir_facts,
         abi_types,
+        cached_dep_artifacts,
     } = codegen_entry;
 
     let entry_source = entry_source(source_map, entry_source_id);
@@ -410,7 +420,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             collect_reachable_top_level_funs(selected.root_fqn, late_lowered_lir_facts);
     }
 
-    let abi_query = declare.materialize_program_abi(abi_program, abi_lir_facts, abi_types)?;
+    let abi_query = declare.materialize_program_abi(
+        abi_program,
+        abi_lir_facts,
+        abi_types,
+        cached_dep_artifacts,
+    )?;
     declare.codegen_program_bodies(
         late_lowered_program,
         abi_program,

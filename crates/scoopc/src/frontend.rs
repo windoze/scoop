@@ -387,6 +387,9 @@ pub struct FrontendOutput {
     /// 下游 stage（effect_facts、MIR materialize、LIR codegen）若从 `compilation_sources`
     /// 重建 `Index`/`TypeEnv`，可以再次注入这些 payload 以恢复 dep cone 的可见性。
     cached_cone_imports: Vec<CachedConeImport>,
+    /// cache-hit dependency artifacts decoded for LLVM ABI/layout handoff.
+    #[cfg(feature = "llvm")]
+    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
     /// subprocess single-cone artifact 模式（consumer 是 artifact target）下，frontend
     /// 在 typecheck 完成后构造的 skeleton artifact（含 frontend_import，但 stage products
     /// 仍为空）。subprocess 调用方会跑完后端 pipeline，把非空 LIR/MIR/.o 装回去再写盘。
@@ -403,6 +406,7 @@ impl FrontendOutput {
         #[cfg(feature = "llvm")] typecheck_types: TypeStore,
         #[cfg(feature = "llvm")] type_env: TypeEnv,
         cached_cone_imports: Vec<CachedConeImport>,
+        #[cfg(feature = "llvm")] cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
         consumer_artifact_skeleton: Option<crate::cone::ConeArtifact>,
     ) -> Self {
         Self {
@@ -418,6 +422,8 @@ impl FrontendOutput {
             #[cfg(feature = "llvm")]
             type_env,
             cached_cone_imports,
+            #[cfg(feature = "llvm")]
+            cached_dep_artifacts,
             consumer_artifact_skeleton,
         }
     }
@@ -461,6 +467,11 @@ impl FrontendOutput {
 
     pub fn cached_cone_imports(&self) -> &[CachedConeImport] {
         &self.cached_cone_imports
+    }
+
+    #[cfg(feature = "llvm")]
+    pub fn cached_dep_artifacts(&self) -> &[crate::llvm::CachedDepArtifactHandoff] {
+        &self.cached_dep_artifacts
     }
 }
 
@@ -704,6 +715,41 @@ impl FrontendArtifactCacheEntry {
     }
 }
 
+#[cfg(feature = "llvm")]
+fn build_cached_dep_artifact_handoff(
+    dep_id: ConeId,
+    artifact_dir: &Path,
+    artifact: &crate::cone::ConeArtifact,
+) -> Result<crate::llvm::CachedDepArtifactHandoff> {
+    let object_files = artifact
+        .manifest
+        .object_files
+        .iter()
+        .map(|file_name| {
+            artifact_dir
+                .join(crate::cone::CONE_ARTIFACT_OBJS_DIR_NAME)
+                .join(file_name)
+                .canonicalize()
+                .into_diagnostic()
+                .wrap_err_with(|| {
+                    format!(
+                        "cached dep cone {} artifact 缺少 object `{}`",
+                        dep_id.as_u32(),
+                        file_name
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(crate::llvm::CachedDepArtifactHandoff::new(
+        dep_id,
+        artifact.manifest.stable_cone_key(),
+        artifact.lir_program.clone(),
+        artifact.lir_facts.clone(),
+        artifact.type_store.clone(),
+        object_files,
+    ))
+}
+
 pub fn run_project_frontend_with_artifact_cache(
     session: &Session,
     context: ProjectContext,
@@ -756,6 +802,8 @@ pub fn run_frontend_with_artifact_cache(
     // consumer 在 frontend 阶段消费的所有 dep cone 注入 payload，按 dep DAG 顺序排列。
     // 下游 stage 若从 `compilation_sources` 重建 `Index`/`TypeEnv`，可以重新注入这些 payload。
     let mut consumer_cached_cone_imports: Vec<CachedConeImport> = Vec::new();
+    #[cfg(feature = "llvm")]
+    let mut consumer_cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff> = Vec::new();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -779,6 +827,9 @@ pub fn run_frontend_with_artifact_cache(
     // consumer 的 active_sources 让下游 LLVM stage 完整 lower 出 dep callable。后续
     // 真正"零开销 cache-hit + LIR/.o 注入" 由独立的 P10-T04-c-2 收口。
     let mut cache_hit_units: HashSet<ConeId> = HashSet::new();
+    #[cfg(feature = "llvm")]
+    let mut cache_hit_artifacts: HashMap<ConeId, (PathBuf, crate::cone::ConeArtifact)> =
+        HashMap::new();
     for unit in input.compilation_units() {
         let cache_entry = artifact_cache.and_then(|cache| cache.entry(unit.id()));
         if let Some(entry) = cache_entry
@@ -790,10 +841,16 @@ pub fn run_frontend_with_artifact_cache(
                 &entry.artifact_dir,
                 &entry.expected_inputs_fingerprint,
             ) {
-                Ok(_artifact) => {
+                Ok(artifact) => {
                     cache_hit_units.insert(unit.id());
+                    #[cfg(feature = "llvm")]
+                    cache_hit_artifacts.insert(unit.id(), (entry.artifact_dir.clone(), artifact));
                 }
                 Err(crate::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => {}
+                Err(crate::cone::ConeArtifactError::IncompatibleCompilerVersion { .. })
+                | Err(crate::cone::ConeArtifactError::IncompatibleSchemaVersions { .. })
+                | Err(crate::cone::ConeArtifactError::MissingFrontendImportPayload { .. })
+                | Err(crate::cone::ConeArtifactError::ManifestEncode(_)) => {}
                 Err(crate::cone::ConeArtifactError::Io { source, .. })
                     if source.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) => return Err(miette::miette!("{err}")),
@@ -861,6 +918,14 @@ pub fn run_frontend_with_artifact_cache(
             if unit.is_consumer() {
                 consumer_cached_cone_imports
                     .push(build_cached_cone_import_from_artifact(dep_id, artifact));
+                #[cfg(feature = "llvm")]
+                if let Some((artifact_dir, cached_artifact)) = cache_hit_artifacts.get(&dep_id) {
+                    consumer_cached_dep_artifacts.push(build_cached_dep_artifact_handoff(
+                        dep_id,
+                        artifact_dir,
+                        cached_artifact,
+                    )?);
+                }
             }
         }
 
@@ -1007,6 +1072,7 @@ pub fn run_frontend_with_artifact_cache(
                 scoopc_effect_facts::EffectFacts::new(),
                 scoopc_lir_facts::LirFacts::new(crate::opt::OptLevel::O0),
                 scoopc_lir::LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                TypeStore::new(),
                 frontend_import,
             ))
         };
@@ -1105,6 +1171,8 @@ pub fn run_frontend_with_artifact_cache(
         #[cfg(feature = "llvm")]
         env,
         consumer_cached_cone_imports,
+        #[cfg(feature = "llvm")]
+        consumer_cached_dep_artifacts,
         consumer_artifact_skeleton,
     ))
 }
