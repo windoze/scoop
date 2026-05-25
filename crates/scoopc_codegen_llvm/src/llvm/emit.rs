@@ -212,6 +212,62 @@ pub fn emit_main_obj_to_file_from_stage_output(
     Ok(())
 }
 
+/// 基于 LLVM stage handoff 构建 Lib 模式 LLVM module（不生成 entry main 包装）。
+///
+/// 用于 `scoopc build-single-cone` subprocess：dep cone artifact 只需要
+/// callable bodies + cone_init/thread_local_init routines，不需要也不能要求 `fun main`。
+/// reachability seed 退化为 `seed_published_lir_callables`，覆盖所有发布 callable。
+pub fn build_lib_module_from_stage_output<'ctx>(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    context: &'ctx Context,
+    stage_input: StageEmitInput<'_>,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    build_module_from_codegen_entry_with_root_selector(
+        source_map,
+        entry_source_id,
+        context,
+        LoweredCodegenEntry::from_stage_output(
+            stage_input.base_context,
+            stage_input.lir,
+            stage_input.lir_facts,
+            stage_input.abi_visibility_lir,
+            stage_input.abi_visibility_lir_facts,
+            stage_input.abi_visibility_types,
+        ),
+        RootCallableSelector::LibMode,
+    )
+}
+
+/// 基于 LLVM stage handoff 生成 Lib 模式 LLVM object，并写入到指定路径。
+pub fn emit_lib_obj_to_file_from_stage_output(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    stage_input: StageEmitInput<'_>,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module =
+        build_lib_module_from_stage_output(source_map, entry_source_id, &context, stage_input)?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 /// 基于 LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
 pub fn emit_main_asm_to_file_from_stage_output(
     source_map: &SourceMap,
@@ -293,24 +349,11 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     base_context.verify_lir_type_context(late_lowered_lir_facts, "primary")?;
     LlvmStageBaseContext::verify_lir_type_store_owner(abi_types, abi_lir_facts, "ABI visibility")?;
 
+    // Lib mode（subprocess single-cone artifact emit）跳过 entry main 选择：dep cone artifact
+    // 只发布 callable bodies，不需要 `fun main`。EntryMain 选择失败仍按 `MissingEntryMain`
+    // 早期报错，避免无声跳过 Bin 入口。
     let selected_root =
         select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
-    let root_callable = late_lowered_program
-        .callable(selected_root.root_fqn)
-        .ok_or_else(|| LlvmEmitError::Frontend {
-            message: format!(
-                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
-                selected_root.root_fqn
-            ),
-        })?;
-    let root_source = root_callable
-        .source_callable()
-        .ok_or_else(|| LlvmEmitError::Frontend {
-            message: format!(
-                "LLVM stage handoff 入口 callable `{}` 缺少 LIR-owned source body contract",
-                selected_root.root_fqn
-            ),
-        })?;
     let builder = context.create_builder();
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
     let published_late_lowered_program = Some(abi_program);
@@ -362,8 +405,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         });
     let mut declare = unit_codegen.fresh_main_codegen();
 
-    let _reachable_fqns =
-        collect_reachable_top_level_funs(selected_root.root_fqn, late_lowered_lir_facts);
+    if let Some(selected) = selected_root.as_ref() {
+        let _reachable_fqns =
+            collect_reachable_top_level_funs(selected.root_fqn, late_lowered_lir_facts);
+    }
 
     let abi_query = declare.materialize_program_abi(abi_program, abi_lir_facts, abi_types)?;
     declare.codegen_program_bodies(
@@ -381,7 +426,26 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         declare.ensure_thread_local_init_routines_defined(&thread_local_init_plans)?;
     declare.ensure_thread_init_current_function_defined(&thread_local_init_routines)?;
 
-    if let Some(arg_shape) = selected_root.entry_main_arg_shape {
+    if let Some(selected_root) = selected_root
+        && let Some(arg_shape) = selected_root.entry_main_arg_shape
+    {
+        let root_callable = late_lowered_program
+            .callable(selected_root.root_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
+                    selected_root.root_fqn
+                ),
+            })?;
+        let root_source =
+            root_callable
+                .source_callable()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM stage handoff 入口 callable `{}` 缺少 LIR-owned source body contract",
+                        selected_root.root_fqn
+                    ),
+                })?;
         let i32_type = context.i32_type();
         let i8_ptr_ptr_ty = context.ptr_type(inkwell::AddressSpace::default());
         let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
@@ -483,6 +547,7 @@ struct SelectedRootCallable<'a> {
 #[derive(Clone, Copy)]
 enum RootCallableSelector<'a> {
     EntryMain { entry_main_fqn: Option<&'a str> },
+    LibMode,
 }
 
 fn classify_entry_main_arg_shape(
@@ -554,15 +619,16 @@ fn select_root_callable<'a>(
     lir_facts: &'a LirFacts,
     types: &crate::ty::TypeStore,
     selector: RootCallableSelector<'_>,
-) -> Result<SelectedRootCallable<'a>, LlvmEmitError> {
+) -> Result<Option<SelectedRootCallable<'a>>, LlvmEmitError> {
     match selector {
         RootCallableSelector::EntryMain { entry_main_fqn } => {
             let selected_main = select_entry_main(lir_facts, types, entry_main_fqn)?;
-            Ok(SelectedRootCallable {
+            Ok(Some(SelectedRootCallable {
                 root_fqn: selected_main.root_fqn,
                 entry_main_arg_shape: Some(selected_main.arg_shape),
-            })
+            }))
         }
+        RootCallableSelector::LibMode => Ok(None),
     }
 }
 

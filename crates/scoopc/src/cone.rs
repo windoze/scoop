@@ -8,9 +8,11 @@
 
 pub use scoopc_cone::{
     CONE_ANNOTATION_CLASSES_FILE_NAME, CONE_API_SCOOPIR_FILE_NAME,
-    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_PRE_SPECIALIZE_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME,
-    ConeAnnotationClassEntry, ConeAnnotationClassesFile, ConeArchiveApi, ConeArtifact,
-    ConeArtifactError, ConeArtifactFingerprints, ConeArtifactFrontendImport,
+    CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
+    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
+    CONE_PRE_SPECIALIZE_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME, ConeAnnotationClassEntry,
+    ConeAnnotationClassesFile, ConeArchiveApi, ConeArtifact, ConeArtifactError,
+    ConeArtifactFingerprints, ConeArtifactFrontendImport, ConeArtifactManifest, ConeArtifactObject,
     ConeArtifactStageProducts, ConePreSpecializeFile, build_cached_cone_import_from_artifact,
     build_frontend_import_for_typechecked_cone,
     collect_cone_preserved_annotation_classes_for_cone_sources, import_upstream_artifacts,
@@ -24,7 +26,7 @@ pub use scoopc_project_model::{
     ConeDependencySpec, ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig,
     ConeSection, ConeSelectEntry, ConeSelectWhen, ConeSourcePackage, SourceConeCompilationUnit,
     SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeGraph, SourceConeInfo,
-    SourceConeNode, SourceConeRole, SourceConeTrust, discover_cone_manifest_path,
+    SourceConeNode, SourceConeRole, SourceConeTrust, StableConeKey, discover_cone_manifest_path,
     discover_cone_root, load_cone_manifest_from_dir, load_cone_manifest_from_path,
     load_cone_source_package, load_cone_source_package_for_platform,
     load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,

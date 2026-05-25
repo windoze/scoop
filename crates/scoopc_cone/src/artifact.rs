@@ -473,6 +473,21 @@ impl ConeArtifact {
         }
         Ok(artifact)
     }
+
+    /// Peek at the manifest plus `inputs.fingerprint` of an artifact directory.
+    ///
+    /// Used by subprocess single-cone driver setup to map upstream artifacts to
+    /// dep cones without paying the full bincode read cost; the cache hit path
+    /// will re-read the artifact in full when its dep cone unit is iterated.
+    pub fn read_manifest_and_inputs_fingerprint(
+        dir: &Path,
+    ) -> Result<(ConeArtifactManifest, Vec<u8>)> {
+        let manifest: ConeArtifactManifest =
+            read_json(&dir.join(CONE_ARTIFACT_MANIFEST_FILE_NAME))?;
+        manifest.ensure_compatible()?;
+        let inputs_fingerprint = read_bytes(&dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME))?;
+        Ok((manifest, inputs_fingerprint))
+    }
 }
 
 /// Compute the output fingerprint for an already-written artifact directory.

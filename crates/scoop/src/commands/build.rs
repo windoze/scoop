@@ -9,6 +9,7 @@
 pub(crate) mod concurrency;
 mod incremental;
 pub(crate) mod layout;
+mod scheduler;
 
 use std::path::{Path, PathBuf};
 
@@ -276,6 +277,23 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     } else {
         None
     };
+
+    // P10-T06：把所有 LocalDependency cone 通过 `scoopc build-single-cone` 子进程并发派发
+    // 先编译完。consumer cone 仍由父进程的 in-process frontend + codegen 处理：scheduler
+    // 内部按 `ConcurrencyStrategy::max_concurrent_jobs` 控制并发上限，cache hit 的 cone
+    // 会被 short-circuit。frontend cache 在 run_frontend_with_cache 之前已构造好，子进程
+    // 写好的 artifact 会被 cache 直接命中而不用重新编译。
+    if let Some(fp) = computed_fingerprint.as_ref() {
+        scheduler::dispatch_local_dependency_cones(
+            context.input().graph(),
+            fp,
+            &scheduler::ConeBuildDispatch {
+                strategy: &*concurrency_strategy,
+                compiler: &*subprocess_cone_compiler,
+            },
+        )?;
+    }
+
     let front = run_frontend_with_cache(&session, context, frontend_cache.as_ref())?;
     let warnings = warning_capture.finish();
     emit_frontend_warnings(&session, &front, &warnings);

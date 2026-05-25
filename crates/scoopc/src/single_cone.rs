@@ -1,0 +1,166 @@
+//! Subprocess-friendly single-cone artifact compile entry point (P10-T06).
+//!
+//! `scoop` 的 cone DAG scheduler 把每个 cone 通过 `scoopc build-single-cone` 的子进程
+//! 派发到这里：
+//! 1. 把 cone-being-compiled 视为 graph consumer，加载它自身的 cone 子图（含递归
+//!    sysroot/local-dep）；
+//! 2. 把 parent process 提供的 upstream artifact 目录映射成 [`FrontendArtifactCache`]
+//!    条目，让所有 dep cone 走 cache-hit 短路；
+//! 3. 在主流程里给 consumer 装上 `is_artifact_target=true` 的 cache 条目，让 frontend
+//!    构造 skeleton artifact（只含 `frontend_import`，stage products 为空），但**不**
+//!    立刻把它写盘——subprocess 调用方拿到 skeleton 后跑完后端 pipeline，再把非空
+//!    `LateLoweredProgram` / LIR facts / `.o` 装回去并写盘（P10-T04-c 步骤 1）。
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+use miette::{IntoDiagnostic, Result};
+
+use crate::cone::{ConeArtifact, ConeArtifactObject, ConeId, SourceConeRole, StableConeKey};
+use crate::frontend::{
+    FrontendArtifactCache, FrontendArtifactCacheEntry, MirRequestRootMode,
+    load_single_cone_project_input_from_path, lower_hir_for_codegen_with_request_root_mode,
+    run_frontend_with_artifact_cache,
+};
+use crate::opt::OptLevel;
+use crate::pipeline::{LlvmCodegenStageInput, run_llvm_codegen_stage};
+use crate::session::{Session, SessionOptions};
+
+/// 子进程视角下的单 .o 命名：dep artifact 目录里只放一个 LLVM object，
+/// 由 consumer link 阶段沿 manifest 列出的 `object_files` 拉起。
+const SINGLE_CONE_OBJECT_FILE_NAME: &str = "scoop.o";
+
+/// Build the single-cone artifact for `cone_root`.
+///
+/// `output_dir` receives the artifact directory layout (`manifest.json`,
+/// per-stage `.bin` payloads, `frontend_import.json`, `inputs.fingerprint`,
+/// `outputs.fingerprint`, `objs/`). `inputs_fingerprint` is whatever the parent
+/// driver computed and is written verbatim into the artifact; the parent owns
+/// the responsibility of comparing fingerprints when deciding whether to
+/// dispatch this subprocess at all.
+///
+/// `upstream_artifact_dirs` lists every upstream cone artifact this cone may
+/// import from. Each upstream's `manifest.json` is read to recover its
+/// [`StableConeKey`], which is matched against the consumer cone's dep graph
+/// nodes — unrelated upstreams are ignored, and dep nodes without a matching
+/// upstream entry will cache-miss back to in-process compilation (which is a
+/// correctness fallback, not the expected path).
+pub fn run_single_cone_artifact_compile(
+    session: &Session,
+    cone_root: &Path,
+    output_dir: &Path,
+    inputs_fingerprint: Vec<u8>,
+    upstream_artifact_dirs: &[PathBuf],
+    session_options: &SessionOptions,
+) -> Result<()> {
+    let input = load_single_cone_project_input_from_path(cone_root, session_options)?;
+    let consumer_cone_id = input.consumer_cone_id();
+
+    let mut deps_by_key: HashMap<StableConeKey, ConeId> = HashMap::new();
+    for node in input.graph().nodes() {
+        if node.id == consumer_cone_id {
+            continue;
+        }
+        if !matches!(
+            node.role,
+            SourceConeRole::LocalDependency | SourceConeRole::SysrootAuto
+        ) {
+            continue;
+        }
+        let key = StableConeKey::from_manifest(&node.manifest);
+        deps_by_key.insert(key, node.id);
+    }
+
+    let mut cache = FrontendArtifactCache::new();
+    for upstream_dir in upstream_artifact_dirs {
+        let (manifest, inputs_fp) =
+            ConeArtifact::read_manifest_and_inputs_fingerprint(upstream_dir).map_err(|err| {
+                miette::miette!(
+                    "build-single-cone 无法读取上游 cone artifact `{}`: {err}",
+                    upstream_dir.display()
+                )
+            })?;
+        let key = manifest.stable_cone_key();
+        let Some(&dep_cone_id) = deps_by_key.get(&key) else {
+            continue;
+        };
+        cache.insert(
+            dep_cone_id,
+            FrontendArtifactCacheEntry::new(upstream_dir.clone(), inputs_fp)
+                .with_write_on_cache_miss(false),
+        );
+    }
+
+    // consumer entry：标记 `is_artifact_target=true` 让 frontend 给 consumer 也构造 skeleton
+    // artifact；`write_on_cache_miss=false` 让 frontend 不在这里写盘——subprocess 跑完 LLVM
+    // 阶段后再把非空 LIR/.o 装回 skeleton 一并写出。
+    cache.insert(
+        consumer_cone_id,
+        FrontendArtifactCacheEntry::new(output_dir.to_path_buf(), inputs_fingerprint.clone())
+            .with_artifact_target(true)
+            .with_write_on_cache_miss(false),
+    );
+
+    let mut front = run_frontend_with_artifact_cache(session, input, Some(&cache))?;
+    let mut skeleton = front
+        .take_consumer_artifact_skeleton()
+        .ok_or_else(|| {
+            miette::miette!(
+                "build-single-cone: frontend 未给 consumer cone 生成 artifact skeleton（is_artifact_target=true 应保证）"
+            )
+        })?;
+
+    let opt_level = OptLevel::O0;
+    let lowering = lower_hir_for_codegen_with_request_root_mode(
+        session,
+        &front,
+        opt_level,
+        MirRequestRootMode::RequestSources,
+    )?;
+    let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
+
+    let cached_cone_imports = front.cached_cone_imports().to_vec();
+    let stage_output = run_llvm_codegen_stage(
+        session,
+        LlvmCodegenStageInput::with_cached_cone_imports(
+            lowering,
+            None,
+            source_map,
+            entry_source_id,
+            None,
+            opt_level,
+            cached_cone_imports,
+        ),
+    )
+    .map_err(|err| miette::miette!("{err}"))?;
+
+    // 把 dep 自己的 LLVM object 写到 artifact `objs/` 目录里，待 consumer link 拉起。
+    std::fs::create_dir_all(output_dir).into_diagnostic()?;
+    let objs_dir = output_dir.join(crate::cone::CONE_ARTIFACT_OBJS_DIR_NAME);
+    std::fs::create_dir_all(&objs_dir).into_diagnostic()?;
+    let obj_path = objs_dir.join(SINGLE_CONE_OBJECT_FILE_NAME);
+    let stage_input = crate::llvm::StageEmitInput::from_stage_output(&stage_output);
+    crate::llvm::emit_lib_obj_to_file_from_stage_output(
+        stage_output.source_map(),
+        stage_output.entry_source_id(),
+        stage_input,
+        &obj_path,
+        opt_level,
+    )
+    .map_err(|err| miette::miette!("{err}"))?;
+    let obj_bytes = std::fs::read(&obj_path).into_diagnostic()?;
+
+    // 把空 skeleton 升级成包含真实 LIR program / LIR facts / object 的完整 artifact。
+    skeleton.lir_program = stage_output.lir().clone();
+    skeleton.lir_facts = stage_output.lir_facts().clone();
+    skeleton.objects = vec![
+        ConeArtifactObject::new(SINGLE_CONE_OBJECT_FILE_NAME, obj_bytes)
+            .map_err(|err| miette::miette!("{err}"))?,
+    ];
+    skeleton.inputs_fingerprint = inputs_fingerprint;
+
+    skeleton
+        .write_with_computed_outputs_fingerprint(output_dir)
+        .map_err(|err| miette::miette!("{err}"))?;
+    Ok(())
+}

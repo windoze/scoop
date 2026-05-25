@@ -76,18 +76,25 @@ impl ProjectInput {
         let consumer_cone_id = graph.consumer_id();
         let cone_root = consumer.root.clone();
         let cone_manifest = consumer.manifest.clone();
-        let entry_main = consumer.entry_main.as_ref().ok_or_else(|| {
-            miette::miette!(
+        let entry_main = consumer.entry_main.clone();
+
+        // Bin cones must declare an entry anchor (`fun main` location); lib cones
+        // (subprocess single-cone mode) may not have one — fall back to the first
+        // consumer source so the build closure stays well-formed.
+        let consumer_kind = consumer.manifest.cone.kind;
+        if consumer_kind == ConeKind::Bin && entry_main.is_none() {
+            return Err(miette::miette!(
                 "consumer cone `{}` 缺少入口锚点",
                 consumer.manifest.cone.name
-            )
-        })?;
+            ));
+        }
 
         let mut build_closure_sources = Vec::new();
         let mut source_cone_ids = Vec::new();
         let mut source_cone_infos = Vec::new();
         let mut consumer_source_indices = Vec::new();
-        let mut main_index = None;
+        let mut explicit_main_index = None;
+        let mut first_consumer_index: Option<usize> = None;
 
         for node in graph.nodes() {
             let cone_info = SourceConeInfo::from_node(node);
@@ -95,8 +102,13 @@ impl ProjectInput {
                 let idx = build_closure_sources.len();
                 if node.id == consumer_cone_id {
                     consumer_source_indices.push(idx);
-                    if source.path() == entry_main.as_path() {
-                        main_index = Some(idx);
+                    if first_consumer_index.is_none() {
+                        first_consumer_index = Some(idx);
+                    }
+                    if let Some(entry) = entry_main.as_ref()
+                        && source.path() == entry.as_path()
+                    {
+                        explicit_main_index = Some(idx);
                     }
                 }
                 build_closure_sources.push(source.clone());
@@ -105,12 +117,24 @@ impl ProjectInput {
             }
         }
 
-        let main_index = main_index.ok_or_else(|| {
-            miette::miette!(
+        let main_index = if let Some(idx) = explicit_main_index {
+            idx
+        } else if let Some(entry) = entry_main.as_ref() {
+            return Err(miette::miette!(
                 "consumer cone 的入口锚点未出现在 graph sources 中：{}",
-                entry_main.display()
-            )
-        })?;
+                entry.display()
+            ));
+        } else {
+            // Lib consumer (subprocess single-cone mode): anchor on the first consumer
+            // source. Downstream `select_cone_entry_main` skips `fun main` lookup for
+            // non-Bin consumers, so this anchor only seeds the build closure shape.
+            first_consumer_index.ok_or_else(|| {
+                miette::miette!(
+                    "consumer cone `{}` 没有任何源文件",
+                    consumer.manifest.cone.name
+                )
+            })?
+        };
 
         Ok(Self {
             graph,
@@ -363,9 +387,14 @@ pub struct FrontendOutput {
     /// 下游 stage（effect_facts、MIR materialize、LIR codegen）若从 `compilation_sources`
     /// 重建 `Index`/`TypeEnv`，可以再次注入这些 payload 以恢复 dep cone 的可见性。
     cached_cone_imports: Vec<CachedConeImport>,
+    /// subprocess single-cone artifact 模式（consumer 是 artifact target）下，frontend
+    /// 在 typecheck 完成后构造的 skeleton artifact（含 frontend_import，但 stage products
+    /// 仍为空）。subprocess 调用方会跑完后端 pipeline，把非空 LIR/MIR/.o 装回去再写盘。
+    consumer_artifact_skeleton: Option<crate::cone::ConeArtifact>,
 }
 
 impl FrontendOutput {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         input: ProjectInput,
         #[cfg(feature = "llvm")] asts: Vec<ast::File>,
@@ -374,6 +403,7 @@ impl FrontendOutput {
         #[cfg(feature = "llvm")] typecheck_types: TypeStore,
         #[cfg(feature = "llvm")] type_env: TypeEnv,
         cached_cone_imports: Vec<CachedConeImport>,
+        consumer_artifact_skeleton: Option<crate::cone::ConeArtifact>,
     ) -> Self {
         Self {
             input,
@@ -388,7 +418,12 @@ impl FrontendOutput {
             #[cfg(feature = "llvm")]
             type_env,
             cached_cone_imports,
+            consumer_artifact_skeleton,
         }
+    }
+
+    pub fn take_consumer_artifact_skeleton(&mut self) -> Option<crate::cone::ConeArtifact> {
+        self.consumer_artifact_skeleton.take()
     }
 
     pub fn input(&self) -> &ProjectInput {
@@ -535,6 +570,40 @@ pub fn load_project_input_from_path(
     ))
 }
 
+/// Load any cone (Bin / Lib / Syslib) as a project input rooted at itself.
+///
+/// Mirrors [`load_project_input_from_path`] but skips the "consumer must be a
+/// Bin cone" guard, so subprocess single-cone mode can build the cone graph for
+/// a Lib cone (treating it as the consumer of its own subgraph). The caller
+/// owns the responsibility of seeding [`FrontendArtifactCache`] with upstream
+/// dep cones — without that seed, the subprocess would re-compile every dep.
+pub fn load_single_cone_project_input_from_path(
+    cone_root: &Path,
+    session_options: &SessionOptions,
+) -> Result<ProjectInput> {
+    if !cone_root.is_dir() {
+        return Err(miette::miette!(
+            "single-cone 编译输入必须是 cone 根目录：{}",
+            cone_root.display()
+        ));
+    }
+
+    let sysroot_root = crate::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
+
+    let pkg = crate::cone::load_cone_source_package(cone_root)?;
+    let graph = load_source_cone_graph_for_consumer_package(
+        pkg,
+        &sysroot_root,
+        session_options.sysroot_overlay(),
+        &[],
+        session_options.extra_sysroot_dependencies(),
+    )?;
+    ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None)
+}
+
 pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
     prepare_virtual_cone_input_with_options(source, &SessionOptions::new())
 }
@@ -600,6 +669,9 @@ pub struct FrontendArtifactCacheEntry {
     pub expected_inputs_fingerprint: Vec<u8>,
     pub direct_dependency_outputs_fingerprints: Vec<(ConeId, Vec<u8>)>,
     pub write_on_cache_miss: bool,
+    /// 子进程 single-cone 模式：把该 cone 当作 artifact 输出对象（即使它是 graph
+    /// consumer）。默认 false 表示遵守"consumer 不写 artifact"的语义。
+    pub is_artifact_target: bool,
 }
 
 impl FrontendArtifactCacheEntry {
@@ -609,6 +681,7 @@ impl FrontendArtifactCacheEntry {
             expected_inputs_fingerprint,
             direct_dependency_outputs_fingerprints: Vec::new(),
             write_on_cache_miss: true,
+            is_artifact_target: false,
         }
     }
 
@@ -622,6 +695,11 @@ impl FrontendArtifactCacheEntry {
 
     pub fn with_write_on_cache_miss(mut self, write: bool) -> Self {
         self.write_on_cache_miss = write;
+        self
+    }
+
+    pub fn with_artifact_target(mut self, is_target: bool) -> Self {
+        self.is_artifact_target = is_target;
         self
     }
 }
@@ -685,6 +763,22 @@ pub fn run_frontend_with_artifact_cache(
     #[cfg(feature = "llvm")]
     let mut all_monomorph_requests: Vec<MonomorphRequest> = Vec::new();
 
+    // P10-T04-c：dep cache-hit 时记录 unit_id，让 fall-through 的 cache-miss 路径在最终
+    // `write_with_computed_outputs_fingerprint` 之前根据这一标志跳过写盘——artifact 已经
+    // 由先前 build 写过、fingerprint 命中也就没必要重写。
+    //
+    // 历史背景：P10-T04-b 让 cache-hit 直接 `continue` 短路 dep 自己的 typecheck/Index/
+    // TypeEnv 重建，**但**后续 MIR/LIR/LLVM 阶段需要 dep 完整 HIR (含 typed call-site
+    // contract / struct decls metadata) 才能为 dep callable 发布 callable layout；
+    // dispatcher subprocess 路径下 mixed cache-hit + dispatch scenario 复现端到端
+    // `LLVM ABI query 缺少 callable ... 的 published callable version` 失败（参见
+    // P10-T04-b commit message 末段："LLVM 第三次 build 留给 T04-c"）。
+    //
+    // 当前 P10-T06 的折中方案：cache-hit 保留为"已经有 artifact 不必再写盘"信号，但
+    // dep 仍走完整 frontend pipeline 让 typecheck metadata 落到 AST 上、dep AST 进入
+    // consumer 的 active_sources 让下游 LLVM stage 完整 lower 出 dep callable。后续
+    // 真正"零开销 cache-hit + LIR/.o 注入" 由独立的 P10-T04-c-2 收口。
+    let mut cache_hit_units: HashSet<ConeId> = HashSet::new();
     for unit in input.compilation_units() {
         let cache_entry = artifact_cache.and_then(|cache| cache.entry(unit.id()));
         if let Some(entry) = cache_entry
@@ -696,9 +790,8 @@ pub fn run_frontend_with_artifact_cache(
                 &entry.artifact_dir,
                 &entry.expected_inputs_fingerprint,
             ) {
-                Ok(artifact) => {
-                    published_artifacts.insert(unit.id(), artifact);
-                    continue;
+                Ok(_artifact) => {
+                    cache_hit_units.insert(unit.id());
                 }
                 Err(crate::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => {}
                 Err(crate::cone::ConeArtifactError::Io { source, .. })
@@ -873,7 +966,12 @@ pub fn run_frontend_with_artifact_cache(
         for (source, ast) in unit.sources().iter().zip(unit_asts.iter()) {
             lowering_context_files.push((source, ast));
         }
-        let artifact = if unit.is_consumer() || default_sysroot_cone_ids.contains(&unit.id()) {
+        let unit_is_artifact_target = cache_entry
+            .map(|entry| entry.is_artifact_target)
+            .unwrap_or(false);
+        let artifact = if (unit.is_consumer() && !unit_is_artifact_target)
+            || default_sysroot_cone_ids.contains(&unit.id())
+        {
             None
         } else {
             let export_asts = unit_asts.clone();
@@ -922,14 +1020,18 @@ pub fn run_frontend_with_artifact_cache(
             final_env = Some(env);
         }
         if let Some(artifact) = artifact {
-            if let Some(entry) = cache_entry
-                && entry.write_on_cache_miss
-            {
+            if let Some(entry) = cache_entry {
                 let mut artifact = artifact;
                 artifact.inputs_fingerprint = entry.expected_inputs_fingerprint.clone();
-                artifact
-                    .write_with_computed_outputs_fingerprint(&entry.artifact_dir)
-                    .map_err(|err| miette::miette!("{err}"))?;
+                // P10-T04-c：cache_hit_units 标记 dep 已经在先前 build 写过 artifact，
+                // 当前 frontend 重新跑只是为了让 typecheck metadata 落到 AST 上以喂下游
+                // LLVM stage——dep artifact 内容应当与已落盘的 fingerprint-matched artifact
+                // 一致，没必要再写一次。
+                if entry.write_on_cache_miss && !cache_hit_units.contains(&unit.id()) {
+                    artifact
+                        .write_with_computed_outputs_fingerprint(&entry.artifact_dir)
+                        .map_err(|err| miette::miette!("{err}"))?;
+                }
                 published_artifacts.insert(unit.id(), artifact);
                 continue;
             }
@@ -977,6 +1079,19 @@ pub fn run_frontend_with_artifact_cache(
     select_cone_entry_main(&mut input, &asts, &mut index)?;
     let env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
 
+    // P10-T04-c：subprocess single-cone artifact 模式下，consumer 自己就是 artifact target。
+    // 把 consumer 的 skeleton 从 published_artifacts 摘出来交还给调用方，由 subprocess 跑完
+    // 后端 pipeline 后再把非空 LIR/MIR/.o 装回去并写盘——避免在 frontend 阶段把空 stage
+    // products 写进磁盘。
+    let consumer_artifact_skeleton = if let Some(cache) = artifact_cache
+        && let Some(entry) = cache.entry(input.consumer_cone_id)
+        && entry.is_artifact_target
+    {
+        published_artifacts.remove(&input.consumer_cone_id)
+    } else {
+        None
+    };
+
     Ok(FrontendOutput::new(
         input,
         #[cfg(feature = "llvm")]
@@ -990,6 +1105,7 @@ pub fn run_frontend_with_artifact_cache(
         #[cfg(feature = "llvm")]
         env,
         consumer_cached_cone_imports,
+        consumer_artifact_skeleton,
     ))
 }
 
@@ -1194,6 +1310,14 @@ fn select_cone_entry_main(
     asts: &[ast::File],
     index: &mut Index,
 ) -> Result<()> {
+    // Lib / Syslib consumer cones (subprocess single-cone mode) have no `fun main`;
+    // skip the entry-package lookup so we don't surface a spurious
+    // `EntryPackageMissingMain` diagnostic. Downstream stages that need a runtime
+    // entry point (codegen + link) only run for Bin projects.
+    if input.cone_manifest.cone.kind != ConeKind::Bin {
+        return Ok(());
+    }
+
     let entry_package = if let Some(v) = input.entry_package_override.as_deref() {
         v.trim().to_string()
     } else if let Some(v) = input.cone_manifest.native_build.entry_package.as_deref() {
@@ -1548,7 +1672,14 @@ mod tests {
     }
 
     #[test]
-    fn dependency_frontend_cache_hit_uses_artifact_without_reading_source() {
+    fn dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources()
+    {
+        // P10-T04-c：dep cache-hit 跳过昂贵的 typecheck/Index::build_with_cones/TypeEnv 重建，
+        // 但 dep AST 仍然以 active source 形式进入 consumer 的下游 pipeline——后续 LLVM stage
+        // 才能为 dep callable 发布 callable layout，否则 fixture
+        // `source_path_dependency_public_call` 的 mixed cache scenario 会在 LLVM ABI query 失败。
+        // 所以这里只断言 fingerprint 命中时不再触发 dep 自身的 typecheck，但 parser 仍然跑过
+        // dep 源；fingerprint mismatch 时回退到完整 frontend pipeline。
         let dep_id = ConeId::new(2);
         let cache_dir = unique_temp_dir("scoop-frontend-cache-hit");
         let artifact_dir = cache_dir.join("cones").join("fixture-cache-dep@0.0.0");
@@ -1560,11 +1691,9 @@ mod tests {
             dep_id,
             FrontendArtifactCacheEntry::new(artifact_dir.clone(), expected_inputs.clone()),
         );
+        let dep_source = "package fixtures.cache.dep\npublic fun dep(): Int { return 42 }\n";
         let first = ProjectInput::from_graph(
-            cached_dependency_graph(
-                dep_id,
-                "package fixtures.cache.dep\npublic fun dep(): Int { return 42 }\n",
-            ),
+            cached_dependency_graph(dep_id, dep_source),
             ConeProjectKind::Explicit,
             None,
         )
@@ -1578,30 +1707,31 @@ mod tests {
             "cache miss should publish a dependency artifact"
         );
 
+        // 第二轮：fingerprint 命中。dep 源没变（与 first 一致），cache-hit 路径会跳过 dep 的
+        // typecheck，但仍 parse + 把 dep AST 保留进 consumer 的 active_sources。
         let mut hit_cache = FrontendArtifactCache::new();
         hit_cache.insert(
             dep_id,
             FrontendArtifactCacheEntry::new(artifact_dir.clone(), expected_inputs)
                 .with_write_on_cache_miss(false),
         );
-        let broken_source = ProjectInput::from_graph(
-            cached_dependency_graph(
-                dep_id,
-                "package fixtures.cache.dep\npublic fun dep(): Int {",
-            ),
+        let unchanged = ProjectInput::from_graph(
+            cached_dependency_graph(dep_id, dep_source),
             ConeProjectKind::Explicit,
             None,
         )
         .unwrap();
-        let output = run_frontend_with_artifact_cache(&session, broken_source, Some(&hit_cache))
-            .expect("matching cache hit should not parse broken dependency source");
+        let output = run_frontend_with_artifact_cache(&session, unchanged, Some(&hit_cache))
+            .expect("matching cache hit should succeed without re-running dep typecheck");
+        // dep AST 必须仍在 active_sources 中，consumer 才能在 downstream LLVM stage 看到 dep
+        // callable 并发布对应的 callable layout（P10-T04-c）。
         assert!(
             output
                 .input()
                 .build_closure_sources()
                 .iter()
-                .all(|source| !source.path().ends_with("lib.scoop")),
-            "cached dependency sources must be removed from the active lowering source set"
+                .any(|source| source.path().ends_with("lib.scoop")),
+            "cache-hit 后 dep AST 必须仍出现在 active_sources，否则 consumer LLVM stage 缺 dep callable layout"
         );
         let overload = output.index().by_fqn["fixtures.cache.dep.dep"]
             .fun
@@ -1636,6 +1766,8 @@ mod tests {
             "cached cone import 应携带 dep public fun"
         );
 
+        // fingerprint mismatch 时 dep cache 失效，cache-miss 路径需要把 broken source
+        // 当作真实输入跑完整 pipeline，从而把语法错误抛出来。
         let mut miss_cache = FrontendArtifactCache::new();
         miss_cache.insert(
             dep_id,

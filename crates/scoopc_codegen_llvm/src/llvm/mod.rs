@@ -34,7 +34,8 @@ mod target;
 mod tests;
 
 pub use emit::{
-    StageEmitInput, build_main_module_from_stage_output, emit_main_asm_to_file_from_stage_output,
+    StageEmitInput, build_lib_module_from_stage_output, build_main_module_from_stage_output,
+    emit_lib_obj_to_file_from_stage_output, emit_main_asm_to_file_from_stage_output,
     emit_main_ir_from_stage_output, emit_main_ir_to_file_from_stage_output,
     emit_main_obj_to_file_from_stage_output,
 };
