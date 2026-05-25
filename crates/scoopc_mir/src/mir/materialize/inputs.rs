@@ -43,6 +43,7 @@ pub(super) struct CallableSignatureParam {
 #[derive(Clone)]
 pub(super) struct CallableSignatureInfo {
     pub(super) template: TemplateKey,
+    pub(super) stable_template_key: Option<StableTemplateKey>,
     pub(super) fun_ty: TypeId,
     pub(super) return_ty: TypeId,
     pub(super) params: Vec<CallableSignatureParam>,
@@ -221,6 +222,11 @@ pub(super) fn collect_callable_signature_infos(
         })
         .chain(lowered_hir.member_funs.iter())
         .map(|fun| {
+            let source_stable_cone_key = lowered_hir
+                .source_cones
+                .get(&fun.source_path)
+                .map(|info| info.stable_key.clone())
+                .unwrap_or_else(|| lowered_hir.stable_cone_key.clone());
             let mut type_param_names = Vec::new();
             for param in &fun.params {
                 collect_type_param_names_in_type(
@@ -235,12 +241,31 @@ pub(super) fn collect_callable_signature_infos(
                 &mut type_param_names,
             );
             let has_effect_param = function_type_has_effect_param(&lowered_hir.types, fun.ty);
+            let stable_template_key = canonical_callable_signature_key(
+                &lowered_hir.types,
+                fun.ty,
+                0,
+                0,
+                0,
+                &NoTypeParamResolver,
+            )
+            .ok()
+            .map(|signature_key| {
+                StableTemplateKey::new(StableDefKey::new(
+                    source_stable_cone_key,
+                    StableDefNamespace::Fun,
+                    &fun.fqn,
+                    "non_generic_callable",
+                    Some(signature_key),
+                ))
+            });
             CallableSignatureInfo {
                 template: TemplateKey {
                     fqn: fun.fqn.clone(),
                     source_path: fun.source_path.clone(),
                     decl_span: fun.span,
                 },
+                stable_template_key,
                 fun_ty: fun.ty,
                 return_ty: fun.return_ty,
                 params: fun

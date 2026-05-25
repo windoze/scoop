@@ -86,20 +86,14 @@ impl MirInstanceMaterializer {
         }
         let mut member_value_tys = collect_member_value_type_infos(&generic_file);
         member_value_tys.extend(hir_member_value_tys);
-        let nongeneric_callable_signature_keys = callable_signatures
+        let nongeneric_callable_stable_template_keys = callable_signatures
             .iter()
             .filter(|signature| !signature.has_generic_params_or_effect_param)
             .filter_map(|signature| {
-                canonical_callable_signature_key(
-                    &types,
-                    signature.fun_ty,
-                    0,
-                    0,
-                    0,
-                    &NoTypeParamResolver,
-                )
-                .ok()
-                .map(|signature_key| (signature.template.clone(), signature_key))
+                signature
+                    .stable_template_key
+                    .clone()
+                    .map(|stable_template_key| (signature.template.clone(), stable_template_key))
             })
             .collect::<HashMap<_, _>>();
         let source_callable_signatures = callable_signatures
@@ -381,7 +375,7 @@ impl MirInstanceMaterializer {
             source_callable_signatures,
             template_signatures,
             stable_template_keys,
-            nongeneric_callable_signature_keys,
+            nongeneric_callable_stable_template_keys,
             template_symbol_suffixes,
             roots_by_fqn,
             explicit_dispatch_candidate_instances: HashMap::new(),

@@ -68,7 +68,7 @@ pub struct MaterializedMir {
     pub(super) stable_cone_key: StableConeKey,
     pub(super) stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     pub(super) stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
-    pub(super) nongeneric_callable_signature_keys: HashMap<TemplateKey, String>,
+    pub(super) nongeneric_callable_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) opt_level: OptLevel,
     pub(super) callable_families: MaterializedCallableFamilies,
     pub(super) pass_artifacts: MaterializedMirPassArtifacts,
@@ -172,17 +172,9 @@ impl MaterializedMir {
             .get(&instance.template)
             .cloned()
             .or_else(|| {
-                self.nongeneric_callable_signature_keys
+                self.nongeneric_callable_stable_template_keys
                     .get(&instance.template)
-                    .map(|signature_key| {
-                        StableTemplateKey::new(StableDefKey::new(
-                            self.stable_cone_key.clone(),
-                            StableDefNamespace::Fun,
-                            &instance.template.fqn,
-                            "non_generic_callable",
-                            Some(signature_key.clone()),
-                        ))
-                    })
+                    .cloned()
             })?;
         StableInstanceKey::from_type_arguments(
             stable_template_key,

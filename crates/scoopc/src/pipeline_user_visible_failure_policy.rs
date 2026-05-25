@@ -938,7 +938,7 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc_codegen_llvm/src/llvm/codegen/mod.rs:962:                            panic!(",
     "crates/scoopc_codegen_llvm/src/llvm/codegen/mod.rs:973:                                panic!(",
     "crates/scoopc_mir/src/mir/materialize/dispatch.rs:51:                    panic!(",
-    "crates/scoopc_mir/src/mir/materialize/output.rs:37:            panic!(",
+    "crates/scoopc_mir/src/mir/materialize/output.rs:40:            panic!(",
     "crates/scoopc_hir/src/typecheck/lower.rs:1242:                unreachable!(",
     "crates/scoopc_hir/src/typecheck/lower.rs:2487:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
     "crates/scoopc_hir/src/typecheck/lower.rs:3380:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",

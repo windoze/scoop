@@ -11,18 +11,21 @@ impl MirInstanceMaterializer {
     }
 
     pub(super) fn stable_template_key(&self, template: &TemplateKey) -> StableTemplateKey {
-        self.stable_template_keys
-            .get(template)
-            .cloned()
-            .unwrap_or_else(|| {
-                StableTemplateKey::new(StableDefKey::new(
-                    self.stable_cone_key.clone(),
-                    StableDefNamespace::Fun,
-                    &template.fqn,
-                    "materialized_callable",
-                    None,
-                ))
-            })
+        if let Some(stable_template_key) = self.stable_template_keys.get(template) {
+            return stable_template_key.clone();
+        }
+        if let Some(stable_template_key) =
+            self.nongeneric_callable_stable_template_keys.get(template)
+        {
+            return stable_template_key.clone();
+        }
+        StableTemplateKey::new(StableDefKey::new(
+            self.stable_cone_key.clone(),
+            StableDefNamespace::Fun,
+            &template.fqn,
+            "materialized_callable",
+            None,
+        ))
     }
 
     pub(super) fn stable_instance_key(&self, instance: &InstanceKey) -> StableInstanceKey {

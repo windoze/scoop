@@ -271,7 +271,7 @@ impl MirInstanceMaterializer {
             stable_cone_key: self.stable_cone_key,
             stable_instance_keys,
             stable_template_keys: self.stable_template_keys,
-            nongeneric_callable_signature_keys: self.nongeneric_callable_signature_keys,
+            nongeneric_callable_stable_template_keys: self.nongeneric_callable_stable_template_keys,
             opt_level: self.opt_level,
             callable_families,
             pass_artifacts,

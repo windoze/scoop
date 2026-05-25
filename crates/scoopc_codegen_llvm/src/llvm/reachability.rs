@@ -285,7 +285,10 @@ mod tests {
     }
 
     fn callable_key(root_fqn: &str) -> StableLirCallableKey {
-        StableLirCallableKey::new(format!("lir(instance({root_fqn}))"), root_fqn)
+        StableLirCallableKey::new(
+            format!("lir_callable(instance({root_fqn}),body#hfixture)"),
+            root_fqn,
+        )
     }
 
     fn body_version(owner: &StableLirCallableKey) -> LirBodyVersionFacts {

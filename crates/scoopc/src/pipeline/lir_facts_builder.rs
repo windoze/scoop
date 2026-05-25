@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use scoopc_ids::{BodyVersionKey, StableCanonicalKey, StableLirCallableKey, StableSymbolKey};
+use scoopc_ids::{
+    AbiMangler, BodyVersionKey, StableCanonicalKey, StableHashScope, StableLirCallableKey,
+    StableSymbolKey, canonical_list, canonical_record, stable_hash128_hex,
+};
 use scoopc_lir_facts::*;
 use scoopc_mir_facts::MirFacts;
 use scoopc_mir_facts::roots::{
@@ -12,7 +15,7 @@ use scoopc_mir_facts::roots::{
 
 use scoopc_lir::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind,
-    EffectPrecision, MaterializedEffectFacts, SiteEffectFacts,
+    ConcreteOpKey, EffectPrecision, ImplPlan, MaterializedEffectFacts, SiteEffectFacts,
 };
 use scoopc_lir::effect_lowered::EffectLoweringError;
 use scoopc_lir::effect_lowered::ir::{
@@ -28,6 +31,7 @@ use scoopc_lir::mir::{
     Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
 use scoopc_lir::opt::OptLevel;
+use scoopc_lir::stable_id::{NoTypeParamResolver, canonical_effect_row_text, canonical_type_text};
 use scoopc_lir::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 struct LirFactsBuildContext<'a> {
@@ -64,7 +68,7 @@ pub(crate) fn build_lir_facts(
     opt_level: OptLevel,
     opt_pipeline: LirOptPipelineFacts,
 ) -> Result<LirFacts, EffectLoweringError> {
-    let callable_keys_by_root = callable_key_index(lir);
+    let callable_keys_by_root = callable_key_index(lir, effect_facts.types())?;
     let body_versions_by_key = body_version_index(lir, &callable_keys_by_root)?;
     let ctx = LirFactsBuildContext {
         lir,
@@ -123,17 +127,18 @@ pub(crate) fn build_lir_facts(
     Ok(facts)
 }
 
-fn callable_key_index(lir: &LateLoweredProgram) -> HashMap<String, StableLirCallableKey> {
-    lir.callables()
-        .iter()
-        .enumerate()
-        .map(|(index, callable)| {
-            (
-                callable.root_fqn().to_string(),
-                stable_lir_callable_key(index, callable),
-            )
-        })
-        .collect()
+fn callable_key_index(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+) -> Result<HashMap<String, StableLirCallableKey>, EffectLoweringError> {
+    let mut out = HashMap::new();
+    for callable in lir.callables() {
+        out.insert(
+            callable.root_fqn().to_string(),
+            stable_lir_callable_key(lir, types, callable)?,
+        );
+    }
+    Ok(out)
 }
 
 fn body_version_index(
@@ -148,15 +153,242 @@ fn body_version_index(
     Ok(out)
 }
 
-fn stable_lir_callable_key(index: usize, callable: &LateLoweredCallable) -> StableLirCallableKey {
+fn stable_lir_callable_key(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+    callable: &LateLoweredCallable,
+) -> Result<StableLirCallableKey, EffectLoweringError> {
     let stable_instance_key = callable.stable_instance_key();
-    StableLirCallableKey::new(
-        format!(
-            "lir_callable({},body#{index})",
-            stable_instance_key.canonical_text()
+    let body_canonical = stable_lir_body_version_text(lir, types, callable)?;
+    let body_hash = stable_hash128_hex(StableHashScope::AbiV0, &body_canonical);
+    Ok(StableLirCallableKey::new(
+        canonical_record(
+            "lir_callable",
+            [
+                stable_instance_key.canonical_text(),
+                format!("body#h{body_hash}"),
+            ],
         ),
         stable_instance_key.readable_path(),
-    )
+    ))
+}
+
+fn stable_lir_body_version_text(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+    callable: &LateLoweredCallable,
+) -> Result<String, EffectLoweringError> {
+    let version_key = callable.body_version_key();
+    Ok(canonical_record(
+        "lir_body_version",
+        [
+            callable.stable_instance_key().canonical_text(),
+            canonical_effect_row_fragment(
+                types,
+                version_key.allowed_row(),
+                "LIR callable allowed row",
+            )?,
+            impl_plan_key_text(lir, types, callable, "LIR callable impl plan")?,
+            version_key.needs_reentry().to_string(),
+        ],
+    ))
+}
+
+fn impl_plan_key_text(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+    callable: &LateLoweredCallable,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    match callable.impl_plan() {
+        ImplPlan::NoOutward => Ok(canonical_record("impl_plan", ["no_outward".to_string()])),
+        ImplPlan::CanonicalFull => Ok(canonical_record(
+            "impl_plan",
+            ["canonical_full".to_string()],
+        )),
+        ImplPlan::SingleCase(case_tag) => {
+            let step_schema = callable.body_step_schema().ok_or_else(|| {
+                invalid_lir_facts_error(format!(
+                    "{context} 的 single-case impl_plan 缺少 owner step schema"
+                ))
+            })?;
+            let step_type = lir.step_type(step_schema).ok_or_else(|| {
+                invalid_lir_facts_error(format!(
+                    "{context} 缺少 step schema {} 对应的 late-lowered step type",
+                    step_schema.as_u32()
+                ))
+            })?;
+            let case = step_type.case(case_tag).ok_or_else(|| {
+                invalid_lir_facts_error(format!(
+                    "{context} 的 single-case impl_plan 缺少 case {}",
+                    case_tag.as_u32()
+                ))
+            })?;
+            Ok(canonical_record(
+                "impl_plan",
+                [canonical_record(
+                    "single_case",
+                    [
+                        concrete_op_key_text(
+                            types,
+                            case.concrete_op_key(),
+                            &format!("{context} concrete op"),
+                        )?,
+                        canonical_type_fragment(
+                            types,
+                            case.payload_tuple_ty(),
+                            &format!("{context} payload tuple"),
+                        )?,
+                        continuation_contract_shallow_text(
+                            lir,
+                            types,
+                            case.continuation_contract(),
+                            &format!("{context} continuation contract"),
+                        )?,
+                    ],
+                )],
+            ))
+        }
+    }
+}
+
+fn continuation_contract_shallow_text(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+    contract: scoopc_lir::effect_lowered::ir::LateLoweredContinuationContract,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    Ok(canonical_record(
+        "continuation_contract_shallow",
+        [
+            canonical_type_fragment(
+                types,
+                contract.resume_tuple_ty(),
+                &format!("{context} resume tuple"),
+            )?,
+            canonical_type_fragment(types, contract.answer_ty(), &format!("{context} answer"))?,
+            step_schema_shallow_summary_text(
+                lir,
+                types,
+                contract.out_step_schema(),
+                &format!("{context} out-step summary"),
+            )?,
+            canonical_type_fragment(types, contract.surface_ty(), &format!("{context} surface"))?,
+        ],
+    ))
+}
+
+fn step_schema_shallow_summary_text(
+    lir: &LateLoweredProgram,
+    types: &TypeStore,
+    step_schema: scoopc_lir::effect_facts::StepSchemaId,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    let step_type = lir.step_type(step_schema).ok_or_else(|| {
+        invalid_lir_facts_error(format!(
+            "{context} 缺少 step schema {} 对应的 late-lowered step type",
+            step_schema.as_u32()
+        ))
+    })?;
+    let mut case_fragments = step_type
+        .cases()
+        .iter()
+        .map(|case| {
+            Ok(canonical_record(
+                "step_case_shallow",
+                [
+                    concrete_op_key_text(
+                        types,
+                        case.concrete_op_key(),
+                        &format!("{context} concrete op"),
+                    )?,
+                    canonical_type_fragment(
+                        types,
+                        case.payload_tuple_ty(),
+                        &format!("{context} payload tuple"),
+                    )?,
+                ],
+            ))
+        })
+        .collect::<Result<Vec<_>, EffectLoweringError>>()?;
+    case_fragments.sort();
+    Ok(canonical_record(
+        "step_schema_shallow",
+        [
+            canonical_type_fragment(
+                types,
+                step_type.invoke_args_tuple_ty(),
+                &format!("{context} invoke args tuple"),
+            )?,
+            canonical_type_fragment(
+                types,
+                step_type.complete_ty(),
+                &format!("{context} complete type"),
+            )?,
+            canonical_type_fragment(
+                types,
+                step_type.continuation_obj_ty(),
+                &format!("{context} continuation object type"),
+            )?,
+            canonical_list(&case_fragments),
+        ],
+    ))
+}
+
+fn concrete_op_key_text(
+    types: &TypeStore,
+    concrete_op: &ConcreteOpKey,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    let instance = concrete_op.stable_instance_key().canonical_text();
+    let mut family_type_args = concrete_op
+        .effect_family()
+        .type_args()
+        .iter()
+        .copied()
+        .map(|ty| canonical_type_fragment(types, ty, &format!("{context} effect family arg")))
+        .collect::<Result<Vec<_>, _>>()?;
+    family_type_args.shrink_to_fit();
+    Ok(canonical_record(
+        "concrete_op",
+        [
+            instance,
+            canonical_record(
+                "effect_family",
+                [
+                    concrete_op.effect_family().effect_fqn().to_string(),
+                    canonical_list(&family_type_args),
+                ],
+            ),
+        ],
+    ))
+}
+
+fn canonical_type_fragment(
+    types: &TypeStore,
+    ty: TypeId,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|error| {
+        invalid_lir_facts_error(format!(
+            "{context} 编码 canonical type text 失败（t{}）: {error}",
+            ty.as_u32()
+        ))
+    })
+}
+
+fn canonical_effect_row_fragment(
+    types: &TypeStore,
+    row: &scoopc_lir::ty::EffectRow,
+    context: &str,
+) -> Result<String, EffectLoweringError> {
+    canonical_effect_row_text(types, row, &NoTypeParamResolver).map_err(|error| {
+        invalid_lir_facts_error(format!("{context} 编码 canonical effect row 失败: {error}"))
+    })
+}
+
+fn invalid_lir_facts_error(detail: String) -> EffectLoweringError {
+    EffectLoweringError::InvalidLirFactsContract { detail }
 }
 
 fn callable_key_for_root<'a>(
@@ -775,15 +1007,14 @@ fn build_callable_symbol_facts(
                 param_tys: signature.param_tys.clone(),
                 return_ty: signature.return_ty,
             });
+        let exported_symbol = Some(AbiMangler.fun_symbol(&key));
         out.insert(
             key.clone(),
             LirCallableSymbolFacts {
                 callable: key,
                 root_fqn: callable.root_fqn().to_string(),
                 stable_instance_key: callable.stable_instance_key().canonical_text(),
-                exported_symbol: ctx
-                    .materialized
-                    .instance_exported_fun_symbol(callable.instance_key()),
+                exported_symbol,
                 kind: callable_symbol_kind(callable, native.as_ref(), extern_.as_ref()),
                 abi_kind: callable_abi_kind(callable.call_abi_kind()),
                 param_names: signature.param_names,
@@ -1713,14 +1944,27 @@ fn target_callable_key(
         return key.clone();
     }
     if let Some(stable_key) = ctx.lir.stable_instance_key(instance) {
-        return StableLirCallableKey::new(
-            format!("lir_callable({})", stable_key.canonical_text()),
+        return unpublished_lir_callable_key(
+            stable_key.canonical_text(),
             stable_key.readable_path(),
         );
     }
-    StableLirCallableKey::new(
-        format!("lir_callable(unpublished({}))", instance.template.fqn),
+    unpublished_lir_callable_key(
+        format!("unpublished({})", instance.template.fqn),
         instance.template.fqn.clone(),
+    )
+}
+
+fn unpublished_lir_callable_key(
+    owner_canonical_text: impl Into<String>,
+    readable_path: impl Into<String>,
+) -> StableLirCallableKey {
+    StableLirCallableKey::new(
+        canonical_record(
+            "lir_callable",
+            [owner_canonical_text.into(), "body#unpublished".to_string()],
+        ),
+        readable_path,
     )
 }
 
@@ -1891,10 +2135,7 @@ fn body_version_key_for_owner(
         .get(stable.readable_path())
         .cloned()
         .unwrap_or_else(|| {
-            StableLirCallableKey::new(
-                format!("lir_callable({})", stable.canonical_text()),
-                stable.readable_path(),
-            )
+            unpublished_lir_callable_key(stable.canonical_text(), stable.readable_path())
         });
     ctx.body_versions_by_key
         .get(&callable_key)
@@ -2272,5 +2513,103 @@ fn surface_resume_source_kind(
         LateLoweredSurfaceResumeDispatchSourceKind::Unreachable => {
             LirSurfaceResumeDispatchSourceKind::Unreachable
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use scoopc_ids::AbiMangler;
+    use scoopc_lir::effect_lowered::ir::{LateLoweredPlainCallable, LateLoweredProgram};
+    use scoopc_lir::mir::{InstanceKey, TemplateKey};
+    use scoopc_lir::span::Span;
+    use scoopc_lir::stable_id::{
+        StableConeKey, StableDefKey, StableDefNamespace, StableInstanceKey, StableTemplateKey,
+    };
+    use scoopc_lir::ty::{EffectRow, TypeStore};
+
+    fn test_callable(root_fqn: &str, source_path: &str, span: Span) -> LateLoweredCallable {
+        let template = TemplateKey {
+            fqn: root_fqn.to_string(),
+            source_path: PathBuf::from(source_path),
+            decl_span: span,
+        };
+        let instance = InstanceKey {
+            template: template.clone(),
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+        };
+        let stable_template = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("fixture", "0.0.0"),
+            StableDefNamespace::Fun,
+            root_fqn,
+            "fun",
+            None,
+        ));
+        let stable_instance =
+            StableInstanceKey::from_canonical_args(stable_template, Vec::new(), Vec::new());
+        let body_version_key = scoopc_lir::effect_lowered::ir::LateLoweredBodyVersionKey::new(
+            instance,
+            EffectRow::pure(),
+            ImplPlan::NoOutward,
+            false,
+        );
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let plain = LateLoweredPlainCallable::new(
+            builtins.unit,
+            Vec::new(),
+            builtins.unit,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        LateLoweredCallable::new_plain(
+            root_fqn.to_string(),
+            stable_instance,
+            body_version_key,
+            Vec::new(),
+            plain,
+        )
+    }
+
+    #[test]
+    fn stable_lir_callable_key_ignores_program_local_callable_order() {
+        let mut types = TypeStore::new();
+        types.intern_builtins();
+
+        let dep = test_callable(
+            "lib.dependencyValue",
+            "/workspace/deps/lib/api.scoop",
+            Span::new(10, 30),
+        );
+        let consumer = test_callable("app.main", "/workspace/src/main.scoop", Span::new(40, 60));
+        let dep_only =
+            LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), vec![dep.clone()]);
+        let consumer_then_dep =
+            LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), vec![consumer, dep]);
+
+        let dep_only_key = stable_lir_callable_key(
+            &dep_only,
+            &types,
+            dep_only.callable("lib.dependencyValue").unwrap(),
+        )
+        .unwrap();
+        let consumer_then_dep_key = stable_lir_callable_key(
+            &consumer_then_dep,
+            &types,
+            consumer_then_dep.callable("lib.dependencyValue").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(dep_only_key, consumer_then_dep_key);
+        assert!(dep_only_key.as_str().contains("body#h"));
+        assert_eq!(dep_only_key.readable_path(), "lib.dependencyValue");
+        assert_eq!(
+            AbiMangler.fun_symbol(&dep_only_key),
+            AbiMangler.fun_symbol(&consumer_then_dep_key)
+        );
     }
 }

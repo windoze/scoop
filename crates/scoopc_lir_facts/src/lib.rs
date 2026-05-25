@@ -287,7 +287,10 @@ mod tests {
     }
 
     fn plain_callable(root_fqn: &str) -> LirCallableFacts {
-        let key = StableLirCallableKey::new(format!("lir(instance({root_fqn}))"), root_fqn);
+        let key = StableLirCallableKey::new(
+            format!("lir_callable(instance({root_fqn}),body#hfixture)"),
+            root_fqn,
+        );
         LirCallableFacts {
             root_fqn: root_fqn.to_string(),
             stable_instance_key: key.as_str().to_string(),
@@ -393,7 +396,8 @@ mod tests {
 
     #[test]
     fn lir_facts_bincode_round_trip_preserves_control_continuation_contracts() {
-        let callable_key = StableLirCallableKey::new("lir(instance(app.main))", "app.main");
+        let callable_key =
+            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main");
         let body_version = BodyVersionKey::new(&callable_key, "effect-step", 0);
         let step_schema = LirStepSchemaKey::new(1);
         let continuation_schema = LirContinuationSchemaKey::new(2);
@@ -612,7 +616,7 @@ mod tests {
     fn verifier_rejects_summary_callable_count_mismatch() {
         let mut callables = BTreeMap::new();
         callables.insert(
-            StableLirCallableKey::new("lir(instance(app.main))", "app.main"),
+            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main"),
             plain_callable("app.main"),
         );
         let facts = LirFacts::from_parts(
@@ -634,7 +638,8 @@ mod tests {
 
     #[test]
     fn verifier_accepts_callable_inventory_summary() {
-        let callable_key = StableLirCallableKey::new("lir(instance(app.main))", "app.main");
+        let callable_key =
+            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main");
         let step_schema = LirStepSchemaKey::new(0);
         let object_id = LirContinuationObjectKey::new(0);
         let mut callables = BTreeMap::new();

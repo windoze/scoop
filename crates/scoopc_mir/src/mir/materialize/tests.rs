@@ -355,6 +355,7 @@ fn generic_materializer_for_body_with_template(
             callable_body_infos: Vec::new(),
             callable_signatures: vec![CallableSignatureInfo {
                 template: template.clone(),
+                stable_template_key: Some(test_stable_template_key(&template, "fun||id||Unit")),
                 fun_ty: builtins.unit,
                 return_ty: builtins.unit,
                 params: Vec::new(),
@@ -419,7 +420,7 @@ fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         stable_cone_key: StableConeKey::new("tests", "0.0.0"),
         stable_instance_keys: HashMap::new(),
         stable_template_keys: HashMap::new(),
-        nongeneric_callable_signature_keys: HashMap::new(),
+        nongeneric_callable_stable_template_keys: HashMap::new(),
         opt_level: OptLevel::O0,
         callable_families,
         pass_artifacts,
@@ -2197,6 +2198,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             }],
             callable_body_infos: Vec::new(),
             callable_signatures: vec![CallableSignatureInfo {
+                stable_template_key: Some(test_stable_template_key(&template, "fun||id||Unit")),
                 template,
                 fun_ty: builtins.unit,
                 return_ty: builtins.unit,

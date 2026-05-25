@@ -1081,7 +1081,24 @@
   - 中端验证：`cargo test -p scoopc_hir`（cone_import:: 4/4 通过）、`cargo test -p scoopc --lib dependency_frontend_cache_hit_uses_artifact_without_reading_source`（通过）。
 - 依赖：P10-T04
 
-### [TODO] P10-T04-c：让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见
+### [SPLIT] P10-T04-c：让 cached dependency cone 在 LLVM codegen 层 callable_layouts/LateLoweredProgram 路径上可见
+
+> **2026-05-25 拆分记录**：本任务在自治执行 Phase 1/2 调研中被发现存在 spec 文本未覆盖的前置阻塞，整体拆为 `P10-T04-c-1`（mangling 前置）→ `P10-T04-c-2`（LLVM stage handoff）→ `P10-T04-c-3`（consumer 中端剔除 dep AST）→ `P10-T04-c-4`（link / body emit）四个独立任务。原 spec / 完成条件 / 验证 步骤保留在下方作为合并验收基线，由 `P10-T04-c-4` 收口时引用。
+>
+> **核心阻塞（cross-program ABI mangling 不一致）**：在 fixture `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 上 cold build 后比对 `nm`：
+>
+> ```
+> consumer main.o：__scoop_abi0_fun__..._lib_dependencyValue__h16c9393fbeebd85425e6366b3f266da9
+> dep 子进程 scoop.o：__scoop_abi0_fun__..._lib_dependencyValue__h460648554f83b66f3dc8906ad83f13ab
+> ```
+>
+> 同一个 dep callable 在 consumer pipeline 与 dep 子进程上 hash 不同。根因：`crates/scoopc/src/pipeline/lir_facts_builder.rs:151-160` 的 `stable_lir_callable_key` 把 `body#<index>` 写进 canonical text，index 是 program 内顺序——consumer program（含 consumer 自身 callable + dep callable）与 dep 子进程 program（仅 dep 自身 callable）的顺序不同 → canonical 不同 → `stable_hash128_hex(StableHashScope::AbiV0, &canonical)` 不同。
+>
+> 后果：spec 要求的「consumer 链接阶段从 cached dep artifact 拿 dep `.o`，避免 consumer 重 codegen dep callable」**在当前 mangling 方案下结构性不可实现**——consumer 的 call site 引用 `h16c9...`，dep `.o` 只导出 `h460...`，剥掉 consumer 自己的 dep body 发射并把 dep `.o` 加进 link 会得到 unresolved symbol。必须先在 `P10-T04-c-1` 把 `body#<index>` 替换成 content-stable canonical，才能进入 `P10-T04-c-2..-4`。
+>
+> **额外发现的中端适配工作**：spec 完成条件 3「consumer 不再依赖 cold-build 的 implicit '把 dep AST 塞入 consumer pipeline' handoff」要求 cache-hit 时 dep AST 不再出现在 consumer 的 `active_sources`/`build_closure_sources`，但当前 effect_facts 的 `cached_cone_imports` 回放路径只覆盖 Index/TypeEnv（参见 `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs:2222`），**不**回放 dep callable 的 effect facts/MIR bodies；consumer 中端在 dep AST 缺席时能否完成 lowering 未验证，单独由 `P10-T04-c-3` 覆盖。
+
+
 
 - 阻塞原因（由 P10-T04-b 在 2026-05-25 收口时发现）：
   - P10-T04-b 已经把 cached dep 的 frontend/effect_facts/mir/scoopir-export 注入路径打通，但 cache-hit dep + 编辑 consumer 触发 consumer-only rebuild 时，第三次 build 在 LLVM codegen 阶段会失败：`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs::callable_layout_by_root_fqn` 报 `LLVM ABI query 缺少 callable <dep.fqn> 的 published callable version`。
@@ -1118,6 +1135,161 @@
   - consumer 不再依赖 cold-build 的 implicit "把 dep AST 塞入 consumer pipeline" handoff；
   - 路径与 P10-T06 per-cone 子进程编译边界一致，不引入旁路。
 - 依赖：P10-T04-b（前置）；执行顺序已锁定为先 P10-T05 / P10-T05R / P10-T06 / P10-T06R 把子进程基础设施落地（spec 项 4 强制要求 dep callable 的 LIR/codegen 由 dep 自己的子进程驱动），再回头收口 P10-T04-c——若 P10-T06 完成时 dep `LateLoweredProgram` / `.o` artifact handoff 已经天然生效，则 P10-T04-c 在 P10-T06 commit 中合并标 [DONE] 即可。
+- 实际收口：2026-05-25 调研发现 P10-T06 后 dep 子进程虽然产出非空 LIR + `.o`，但 consumer 既没有从 cached artifact 加载 dep `LateLoweredProgram`，也没有把 dep `.o` 接进 link 阶段——consumer 仍在 `active_sources` 里持有 dep AST 并自己 codegen 一份 dep callable body（参见 `crates/scoopc/src/frontend.rs:766-781` 的折中注释 + line 1675 测试 `dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources` 的反向断言）。叠加上面记录的 mangling 不一致 + 中端适配未验证，整体收口超出单次执行单元，拆为 `P10-T04-c-1..-4`。
+
+### [DONE] P10-T04-c-1：把 `stable_lir_callable_key` 的 `body#<index>` 后缀替换为 content-stable canonical
+
+- 参考：上方 `P10-T04-c` 拆分记录中的「核心阻塞」段落；`crates/scoopc/src/pipeline/lir_facts_builder.rs:151-160`；`crates/scoopc_lir/src/effect_lowered/ir.rs:285-291` `LateLoweredBodyVersionKey`；`crates/scoopc_ids/src/lib.rs:489-510` `AbiMangler::mangle`。
+- 背景：
+  - `stable_lir_callable_key` 当前用 `format!("lir_callable({},body#{index})", stable_instance_key.canonical_text())` 当 canonical text，`index` 是 callable 在 `LateLoweredProgram::callables()` 中的下标；
+  - canonical text 经 `stable_hash128_hex(StableHashScope::AbiV0, ...)` 变成 mangled symbol 后缀 `__h<128bit-hex>`；
+  - consumer 的 `LateLoweredProgram` 含 consumer + dep callables，dep 子进程的 `LateLoweredProgram` 仅含 dep callables，两者顺序不同 → 同一 dep callable 在两端拿到不同 `body#<index>` → 不同 canonical → 不同 hash 后缀 → 同一 callable 在两端导出不同 mangled symbol。
+- 目标：
+  - `stable_lir_callable_key` 的 canonical text **不**再依赖 program-local 顺序；
+  - 同一份源代码在不同 program/不同子进程编译时，对同一 callable 产出**完全相同**的 mangled symbol；
+  - 生成 ABI symbol 之外的 LIR facts/dump 仍需要可读的标识符，不能以「全 hash」的代价丢失可读性。
+- 必须实现的内容：
+  1. 新 canonical 必须是内容稳定的：建议直接基于 `LateLoweredBodyVersionKey`（`surface_instance: InstanceKey + allowed_row: EffectRow + impl_plan: ImplPlan + needs_reentry: bool`）做 stable hash，作为 `body#<stable-hash>` 替代 `body#<index>`；如有同 program 内多 body 必要分支（例如 reentry 与非 reentry 同 instance），须在 hash input 中显式包含全部区分维度，不得依赖 program 顺序；
+  2. 所有调用方（`crates/scoopc/src/pipeline/lir_facts_builder.rs`、`crates/scoopc_codegen_llvm/src/llvm/reachability.rs:288`、`crates/scoopc_lir_facts/src/lib.rs:290`、其它 `StableLirCallableKey::new(format!("lir(instance(...))"...)` 现场）同步改造，确保 readable_path 仍可读、canonical_text 全局稳定；
+  3. 对应单测：在同一 callable 出现在两个不同 program（一个仅含自身、一个含 consumer + 自身）时断言 mangled symbol 完全一致；
+  4. 端到端 fixture 验证：`tests/fixtures/run_pass_cone/source_path_dependency_public_call` cold build 后，`nm build/debug/obj/main.o` 与 `nm build/debug/cones/.../objs/scoop.o` 对 `dependencyValue` 报出相同 `__scoop_abi0_fun__..._dependencyValue__h<hash>`；
+  5. 排查并修正一切因 hash 后缀变化而失真的快照/baseline 测试。
+- 不允许：
+  - 用 wrapper / shim 在两端"事后规范化"符号名；
+  - 给 dep callable 单独走一条 mangling 分支以外的旁路；
+  - fixture-only 校正。
+- 验证：
+  1. `cargo fmt`；
+  2. `cargo clippy --all-targets -- -D warnings`；
+  3. `cargo test --all --all-targets`；
+  4. `cargo run -p scoop -- test`（全套 fixture 1507/1507）；
+  5. 手工：上述 `nm` 比对，两端 hash 后缀必须一致；
+  6. `git diff --check`。
+- 完成条件：
+  - 同一 callable 在 consumer pipeline 与 dep 子进程上产出完全相同的 ABI mangled symbol；
+  - `LateLoweredProgram` 顺序、program 包含的额外 callable 集合不再影响任何被发布的 mangled symbol；
+  - 所有验证通过，且 `lir_facts` 序列化结构未引入新的不稳定性。
+- 依赖：P10-T04-b、P10-T06、P10-T06R。
+- 阻塞：P10-T04-c-2、P10-T04-c-3、P10-T04-c-4 全部。
+- 完成记录：
+  - 2026-05-25：`crates/scoopc/src/pipeline/lir_facts_builder.rs` 的 LIR callable stable canonical 已从 program-local `body#<index>` 切换为 `body#h<content-hash>`；hash 输入覆盖 stable instance、allowed effect row、impl plan（含 single-case 内容摘要）与 reentry 标记，类型编码使用 effect-owned `MaterializedEffectFacts::types()`，避免 MIR TypeStore 与 LIR/effect 新增类型漂移。
+  - 同步修复 ABI symbol 发布链：`LirCallableSymbolFacts.exported_symbol` 统一由 LIR callable key 经 `AbiMangler` 生成；MIR non-generic callable stable template key 改为携带 source-cone owner，避免同一 dep source 在 consumer pipeline 与 dep 子进程中拿到不同 cone identity。
+  - 回归覆盖：新增 `pipeline::lir_facts_builder::tests::stable_lir_callable_key_ignores_program_local_callable_order`，锁定同一 dep callable 在 dep-only program 与 consumer+dep program 中的 LIR key / ABI symbol 一致；同步更新 effect-lowered 与 materialized-MIR golden，以及 `managed_abi_string_gc` fixture 的 managed ABI extern symbol。
+  - 手工 `nm` 验证：`tests/fixtures/run_pass_cone/source_path_dependency_public_call` cold build 后，consumer `build/debug/obj/main.o` 与 dep `build/debug/cones/fixture-source-path-dependency-public-call-lib@0.0.0/objs/scoop.o` 对 `dependencyValue` 均导出 `__scoop_abi0_fun__fixtures_run_pass_cone_source_path_dependency_public_call_lib_dependencyValue__h16644f5508fdcad1a359b25c324f6fae`。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`；上述手工 `nm` 比对；`cargo test -p scoopc_mir --lib materialized_overloaded_generic_instances_publish_distinct_path_stable_exported_symbols`（定位 source-cone stable template 修复时的针对性复测）。
+
+### [TODO] P10-T04-c-2：cached dep `LateLoweredProgram` + `LirFacts` handoff 到 LLVM stage
+
+- 参考：上方 `P10-T04-c` 原 spec「必须实现的内容」第 2 项；`crates/scoopc_cone/src/artifact.rs`；`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::LlvmCodegenStageInput`；`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/orchestrator.rs::ProgramAbiMaterializer::materialize`；`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs::callable_layout_by_root_fqn`。
+- 背景：
+  - 此任务**前置 P10-T04-c-1**——只有 mangling 一致后，consumer LLVM stage 同时持有 consumer 与 dep 的 `LateLoweredProgram` 才有意义；
+  - 当前 `LlvmCodegenStageInput` 只接受单个 consumer `LateLoweredProgram`，`ProgramAbiMaterializer` 只迭代 `program.callables()` 一次；
+  - dep cone artifact 的 `LateLoweredProgram` / `LirFacts` / dep `TypeStore` 已经持久化（P10-T06），但没有上行通道。
+- 目标：
+  - LLVM stage 在 cache-hit dep 场景下**直接读** dep cone artifact 中的 `LateLoweredProgram` + `LirFacts`，把 dep callable 的 layout 注入 consumer 的 `callable_layouts` / `callable_layouts_by_version_key`；
+  - dep callable 的 ABI 查询（`callable_layout_by_root_fqn` / `callable_layout_by_version_key`）能跨 consumer + dep program 命中；
+  - 不引入 `Option<dep_program>` 单例，多 dep cone 同时 cache-hit 必须都被涵盖。
+- 必须实现的内容：
+  1. `LlvmCodegenStageInput` 增加 `cached_dep_artifacts: Vec<CachedDepArtifactHandoff>` 字段（载荷至少含 dep `ConeId` / dep `LateLoweredProgram` / dep `LirFacts` / dep `TypeStore` 的反序列化结果 / dep `manifest.object_files` 的绝对路径列表）；
+  2. `crates/scoopc/src/frontend.rs::run_frontend_with_artifact_cache` / `crates/scoopc/src/pipeline/mod.rs` 的 LLVM stage 装配现场负责把 `published_artifacts` 中所有 cache-hit 且非 sysroot 的 dep cone 反序列化好的载荷塞进 `cached_dep_artifacts`；`crates/scoopc/src/single_cone.rs` 子进程路径不构造 `cached_dep_artifacts`（dep 自身不消费别的 dep artifact），但保持类型一致；
+  3. `ProgramAbiMaterializer::materialize` 改造为可接受 consumer + dep programs 列表，遍历所有 program 的 callables 注入 layout：
+     - `callable_layouts_by_version_key`（key 为 cross-program-stable 的 `LateLoweredBodyVersionKey`）必须不重复，重复时报硬错误；
+     - `callable_layouts: BTreeMap<StepSchemaId, ...>` 的 key 改为可消歧 cross-program 的形式（要么用 `(program_origin, step_schema_id)` 元组，要么 remap dep StepSchemaId 到 consumer 之外的非冲突区段；选择须在该任务内说明并写注释，不得依赖 program-local 隐式假设）；
+     - `callable_layout_by_root_fqn` 等 FQN 查询不变（`.values()` 检索）但必须保证不会因 dep 与 consumer 同 FQN 重复出现而抛"多 published callable version"；若同 FQN 在 dep 和 consumer 两端都出现且 body version key 不同，必须给出明确诊断；
+  4. consumer LLVM module 仍只 codegen 自身 callable bodies（dep body emit 在 P10-T04-c-4 处理，本任务把 dep callable 的 ABI 查询与外部 declare 的 stub 接通到 dep cached layout）；
+  5. 单测：构造一个仅包含 consumer 自身 callable 的 `LateLoweredProgram` + 一个仅含 dep callable 的 `LateLoweredProgram`，喂给改造后的 materializer，断言 dep callable 的 `callable_layout_by_root_fqn` 命中、layout 内容来自 dep program；
+  6. `LlvmCodegenStageInput::with_cached_cone_imports` 现场全部更新到新签名，禁止保留旧签名以编译期遮蔽残留 caller。
+- 验证：
+  1. `cargo fmt`；
+  2. `cargo clippy --all-targets -- -D warnings`；
+  3. `cargo test --all --all-targets`；
+  4. `cargo run -p scoop -- test`；
+  5. 手工：fixture `source_path_dependency_public_call` 第二次 build（cache-hit dep）下，consumer LLVM module IR dump 中 `dependencyValue` 的 callable layout 应来源于 dep cached `LateLoweredProgram`（可通过 dump 注入 origin tag 或断言 layout body version key 等于 dep artifact 中记录的 version key）。
+- 完成条件：
+  - LLVM stage 不再依赖 dep AST/dep callable 出现在 consumer 自身的 `LateLoweredProgram` 才能查到 dep callable layout；
+  - 多 dep cone cache-hit 同时被涵盖；
+  - 无 spec 文本意义上的"silently 忽略"或 fallback 路径。
+- 依赖：P10-T04-c-1（强前置：mangling 必须先一致）。
+- 阻塞：P10-T04-c-3、P10-T04-c-4。
+
+### [TODO] P10-T04-c-3：consumer pipeline 在 cache-hit 时剔除 dep AST 的中端适配
+
+- 参考：上方 `P10-T04-c` 拆分记录的「中端适配工作」段；`crates/scoopc/src/frontend.rs:766-781` 现注释；`crates/scoopc/src/frontend.rs:1675` 测试 `dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources`；`crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs:2222` `inject_cached_cone_imports` 现仅回放 Index/TypeEnv。
+- 背景：
+  - 当前 cache-hit dep 仍走完整 frontend pipeline 让 typecheck metadata 落到 AST 上、dep AST 进入 consumer 的 `active_sources`/`build_closure_sources`；
+  - effect_facts stage 的 `cached_cone_imports` 回放只覆盖 Index/TypeEnv 公共 API，**不**回放 dep callable 的 effect facts（`MaterializedEffectFacts.callable_facts` / `bodies` / `step_schemas`）也不回放 dep MIR/HIR；
+  - 真正零开销 cache-hit 要求 consumer 中端在 dep AST 不在 `compilation_sources` 时仍能完成 lowering——这要求把 dep 的 effect_facts / mir / hir 也通过 cached artifact 注入到中端，或确认 consumer 中端在 dep 缺席下不需要 dep facts/bodies。
+- 目标：
+  - cache-hit dep 时 dep AST **不**进入 consumer 的 `asts_by_source_path`/`active_sources`/`build_closure_sources`，对应 frontend pipeline 步骤（`load_ast_compilation_unit_stage_output`、`check_file_headers/check_file_struct_decls/check_file_*`、Index/TypeEnv 重建）一次都不跑；
+  - consumer 的 typecheck/MIR/effect_facts/LIR 在 dep AST 缺席时通过 cached artifact 拿到所需的 dep 信息，结果与 dep AST 在场时**等价**（fixture diff = 0，包括 fingerprint、LIR dump、序列化产物）；
+  - 删掉 line 1675 反向断言测试，改写为正向断言：cache-hit dep 时 dep source path 不出现在 `build_closure_sources` 中。
+- 必须实现的内容：
+  1. 在 `run_frontend_with_artifact_cache` 中：cache-hit 检测命中后**直接** read `ConeArtifact`、写入 `published_artifacts`、`cache_hit_units` 标记后 `continue`，跳过整个单元的 frontend pipeline；
+  2. consumer 在依赖循环（line 847-865）中通过 `inject_cone_artifact_frontend_import` 把 dep public API 注入 Index/TypeEnv（**已经支持**），同时 `consumer_cached_cone_imports` 也已经被填充，**保留**；
+  3. 评估并按需扩展 `cached_cone_imports` 回放：
+     - 若 effect_facts stage 在 dep 缺席下需要 dep callable effect facts，必须新增 dep `MaterializedEffectFacts` 注入路径（设计字段 + builder 改造，不允许下游"找不到 dep facts 时静默 fallback"）；
+     - MIR stage 同理评估；
+     - 评估结果作为本任务交付物之一写在 commit message / TODO 状态记录里；
+  4. 删除/改写 `dependency_frontend_cache_hit_short_circuits_typecheck_but_keeps_dep_ast_in_active_sources` 单测，与新断言匹配；
+  5. 端到端：fixture `source_path_dependency_public_call` 第二次 build（dep cache-hit）必须不调用 dep 的 `load_ast_compilation_unit_stage_output`（用 instrumentation 或 fingerprint diff 验证）。
+- 不允许：
+  - 把 dep AST 重新塞回 consumer 的 `build_closure_sources`；
+  - 在中端 stage 内"找不到 dep facts 就拿 consumer facts 顶替"或"跳过 dep 部分"；
+  - 单点回退到 cold-build 路径来绕过 dep 缺席。
+- 验证：
+  1. `cargo fmt`；
+  2. `cargo clippy --all-targets -- -D warnings`；
+  3. `cargo test --all --all-targets`；
+  4. `cargo run -p scoop -- test`；
+  5. 手工 reproducer：fixture `source_path_dependency_public_call` cold → warm → `echo "fun foo() {}" >> src/main.scoop` → 第三次 build，`scoop` 必须明确报告 dep cone cache hit、dep AST 不再被读取（可以加 trace log assert），产物 binary 行为与 cold 等价（`./build/debug/bin/...` 退出码与 stdout）；
+  6. 反向 reproducer：`echo "" >> deps/.../api.scoop`（改 dep public API 内容）触发 dep cache miss，consumer 必须重新驱动 dep 子进程，端到端不带"silently OK"路径；
+  7. `git diff --check`。
+- 完成条件：
+  - cache-hit 时 dep source 不出现在 `build_closure_sources`；
+  - 中端 stage 在 dep 缺席下仍能 lower consumer，且与 dep 在场时产物 byte-equal（除 timestamp 等显式允许漂移的字段外）；
+  - 现有 1675 测试被替换为相反方向的断言，新断言 fixture-driven。
+- 依赖：P10-T04-c-1、P10-T04-c-2。
+- 阻塞：P10-T04-c-4。
+
+### [TODO] P10-T04-c-4：consumer link 阶段拉 dep `.o` 与跳过 dep body emit
+
+- 参考：上方 `P10-T04-c` 原 spec 完成条件全部 4 项；`crates/scoop/src/commands/build.rs:522-575` `run_codegen_and_link`；`crates/scoopc_codegen_llvm/src/llvm/emit.rs::codegen_program_bodies`；dep `manifest.object_files`。
+- 背景：
+  - 经过 c-1（mangling 一致）+ c-2（LLVM stage 持有 dep program）+ c-3（consumer 中端 dep AST 缺席）后，consumer 的 LIR 不再含 dep callable，但 LLVM module 仍然按 consumer program 走 body emit；
+  - dep callable 的 body 已经被 dep 子进程发射到 dep `objs/*.o`，并通过 c-1 后的统一 mangling 与 consumer 的 call site 对齐；
+  - 此任务只剩链接接管 + 跳过任何 dep body 重发射的可能性。
+- 目标：
+  - consumer LLVM module 在发射 callable body 时**只**发射自身 callable，对 dep callable 仅 declare external linkage；
+  - consumer 链接阶段把所有 cache-hit dep cone 的 `<dep-artifact-dir>/objs/*.o`（按 dep `manifest.object_files` 列表）追加到 native build 的 `extra_objs`，确保 unresolved symbol 被 dep `.o` 解析；
+  - 整体 cold build 不变（dep 没 cache-hit 时仍走 dep 子进程→ dep `.o` 路径，consumer 永远不重发 dep body）。
+- 必须实现的内容：
+  1. `LateLoweredProgram` / LLVM emit 路径对 callable 增加 origin 区分（来自 consumer / 来自 cached dep program），body emit 时跳过非 consumer-origin callable，只生成 declare；
+  2. `crates/scoop/src/commands/build.rs::run_codegen_and_link` 在 link 阶段读取所有 cache-hit dep cone 的 `manifest.object_files`，把绝对路径追加到 native build 的 `extra_objs`；
+  3. cold build：dep 不 cache-hit 时仍由 dep 子进程产出 `.o`，consumer 链接照样拉 dep `.o`，consumer 自身不再发射 dep body（即使 dep AST 在 cold build 时被自身子进程 lower）；
+  4. duplicate symbol 防御：若 consumer 自身与 dep `.o` 同名导出，必须报硬错（c-1 之后理论上不再发生）；
+  5. 单测：构造 consumer + dep `LateLoweredProgram` 双 program 输入，断言 consumer LLVM module IR 中 `dependencyValue` 是 declare（无 body），最终 link 命令包含 dep `objs/scoop.o`；
+  6. 收口验证：
+     - 整套 P10-T04-c 原 spec 验证步骤（包括 `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone` 与手工 cold→warm→edit→第三次 build），并把 P10-T04-c 主任务标 [DONE]；
+     - 同时把 `P10-T04-c-1..-4` 全部标 [DONE] 并反向链回 P10-T04-c 主任务。
+- 不允许：
+  - dep `.o` 中的符号被 consumer 自己发射的同名 weak symbol 替换；
+  - 若有同名冲突，silently 让 linker 取其一；
+  - 用 GC dead-strip 当作"反正 consumer 重发的 dep body 用不到"的工程化绕道。
+- 验证：
+  1. `cargo fmt`；
+  2. `cargo clippy --all-targets -- -D warnings`；
+  3. `cargo test --all --all-targets`；
+  4. `cargo run -p scoop -- test`；
+  5. 手工 reproducer：fixture `source_path_dependency_public_call` cold build 后，`nm build/debug/obj/main.o` 不再含 `dependencyValue` symbol（仅外部 reference）；`nm build/debug/cones/.../objs/scoop.o` 含 `dependencyValue` 定义；最终 binary 行为与 c-3 完成时一致；
+  6. P10-T04-c 主任务原始端到端 reproducer（cold → warm → edit src → 3rd build）必须通过；
+  7. `git diff --check`。
+- 完成条件：
+  - consumer 自身 `.o` 不含 dep callable body；
+  - 链接阶段 dep `.o` 被引入；
+  - 原 P10-T04-c 完成条件全 4 项满足；
+  - P10-T04-c 主任务在本任务 commit 内一并标 [DONE]。
+- 依赖：P10-T04-c-1、P10-T04-c-2、P10-T04-c-3。
+- 阻塞：P10-T04R 最终复核。
 
 ### [TODO] P10-T04R：Review per-cone fingerprint cache
 

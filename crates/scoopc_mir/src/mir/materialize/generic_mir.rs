@@ -315,7 +315,7 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) source_callable_signatures: Vec<super::MaterializedCallableSignature>,
     pub(super) template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
     pub(super) stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
-    pub(super) nongeneric_callable_signature_keys: HashMap<TemplateKey, String>,
+    pub(super) nongeneric_callable_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) template_symbol_suffixes: HashMap<TemplateKey, String>,
     pub(super) roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     pub(super) explicit_dispatch_candidate_instances: HashMap<String, Vec<InstanceKey>>,
