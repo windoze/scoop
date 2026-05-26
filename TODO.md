@@ -31,7 +31,7 @@
 | [DONE] P0-T02 | [DONE] | 盘点 fixture 发现规则（phase router / `plan_targets` / `is_run_pass_cone_case_root` 等子目录约定） |
 | [DONE] P0-T02R | [DONE] | Review fixture 发现规则盘点结果（python 平迁可读性 + 现有 fixture 全覆盖） |
 | [DONE] P0-T03 | [DONE] | 冻结编译器对外命令的 stdout/stderr/exit-code 契约（`scoopc dump-*` / `emit-artifact` / `build-single-cone` / `link-cone` / `scoop build` / `scoop run`） |
-| P0-T03R | [TODO] | Review 命令面契约冻结结果（外部 runner 需消费的字段已稳定） |
+| [DONE] P0-T03R | [DONE] | Review 命令面契约冻结结果（外部 runner 需消费的字段已稳定） |
 | P0-T04 | [TODO] | 删除 fixture-runner 自检 fixture（依赖 `EXPECT-ERROR-CODE: scoop::fixtures::*` 的 4 条：`timeout_should_fail.scoop` / `exit_code_mismatch.scoop` / `stderr_mismatch_distinguishable.scoop` / `gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`）；同步复核 scoopc 内部确无 cfg(test) 旁路或文件名特判 |
 | P0-T04R | [TODO] | Review fixture-runner 自检 fixture 删除结果（`grep -rn "scoop::fixtures::" tests/fixtures/ --include="*.scoop"` 无命中；旧 runner 在剩余 fixture 集合上仍跑通；checks 计数下降量与删除条数一致） |
 | P1-T01 | [TODO] | `tools/run_fixtures.py`：fixture runner（phase 发现 + `EXPECT-*` 解析 + 子进程驱动 + golden 比对 + 多进程调度 + 超时/SIGKILL） |
@@ -99,3 +99,4 @@
 - [DONE] P0-T02：扩展 `docs/fixtures.md`，盘点 `plan_targets` 目标规划、phase router、`is_run_pass_cone_case_root`、multi/cone case 子目录约定、sysroot overlay 发现与 `umb_fix` 子路由，并给出可供 python runner 平迁的伪代码。验证：自定义 `python3` 文档 token 覆盖检查；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`。（2026-05-26）
 - [DONE] P0-T02R：复审 `docs/fixtures.md` 与 `crates/scoopc/src/fixtures/mod.rs`，确认 target planning、phase routing、case-root predicates、sysroot overlay 跳过、`umb_fix` 子路由与现有 fixture 目录均已覆盖；补充记录 manifest-only `tests/fixtures/cone/` 不产生 fixture target。验证：自定义 `python3` fixture discovery 覆盖检查（1455 ordinary targets；resolve/typecheck/run_pass cone/multi cases 全覆盖）；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1536 checks）。（2026-05-26）
 - [DONE] P0-T03：在 `docs/fixtures.md` 冻结外部 runner 允许调用的 `scoopc dump-*` / `dump-rtti` / `dump-stackmaps` / `emit-artifact` / `build-single-cone` / `link-cone` 与 `scoop build` / `scoop run` stdout、stderr、exit-code、数据产物契约；新增 `p8_docs_cleanup` 文档守卫测试防止命令面契约遗漏。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1536 checks）。（2026-05-26）
+- [DONE] P0-T03R：复审 `docs/fixtures.md` 与实际 `scoopc` tool CLI / `scoop` facade 命令面，补强 `scoop run` 的程序退出码、stdin 继承与诊断流边界，并把 `scoop build` / `scoop run` 的 `--entry-package` 稳定参数纳入契约守卫。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1536 checks）。（2026-05-26）

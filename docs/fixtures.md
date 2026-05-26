@@ -274,8 +274,12 @@ cone project directories, artifact directories, or native binaries. The fixture
 runner contract is:
 
 - exit code `0` means the command completed successfully;
-- any non-zero exit code means argument parsing, compilation, linking, runtime,
-  or verification failed, and the diagnostic stream is `stderr`;
+- for compiler/driver failures, any non-zero exit code means argument parsing,
+  compilation, linking, or verification failed, and the diagnostic stream is
+  `stderr`;
+- `scoop run` is the exception after a program has been executed: the program's
+  numeric exit code is propagated, and stdout/stderr are the program streams
+  rather than compiler diagnostics;
 - `stdout` is reserved for the command's data product or for the program being
   run; compiler diagnostics, driver logs, warnings, link summaries, and cache
   messages go to `stderr`;
@@ -295,8 +299,8 @@ runner contract is:
 | `scoopc emit-artifact --kind {llvm-ir,obj,asm} --input <path> --out <path> [--opt-level <level>]` | Empty. | Empty unless diagnostics are emitted. | The data product is the `--out` file. The runner should use canonical kind names `llvm-ir`, `obj`, or `asm`; accepted aliases are not fixture contract surface. |
 | `scoopc build-single-cone --cone-root <dir> --out <dir> --inputs-fingerprint <hex> [--upstream-artifact <dir> ...] [--cone-id <key>] [--opt-level <level>] [--sysroot-dep <name> ...]` | Empty. | Compile warnings, if any, using source-location text. | The data product is the artifact directory containing `manifest.json`, `frontend_import.json`, stage payloads, `objs/`, `inputs.fingerprint`, and `outputs.fingerprint`. Parent tooling owns fingerprint comparison and should not parse stdout. |
 | `scoopc link-cone --kind <bin\|lib\|syslib> --consumer-obj <path> [--dep-obj <path> ...] --runtime-artifact-dir <dir> --out <dir> --inputs-fingerprint <hex> [--binary-out <path>] [--linker <path>] [--extern-lib <name> ...] [--link-flag <flag> ...] [--cone-id <key>]` | Empty. | One success summary line: either `link-cone cache hit：<path> (<hex>)` or `已写入 link binary：<path> (<hex>)`. | The data product is the link output directory and binary path; runner logic should rely on exit status and files, not on the localized summary text. |
-| `scoop build <file-or-cone-dir> [-o <path>] [--emit-llvm\|--emit-obj\|--emit-asm] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...]` | Empty. | Subprocess warnings, link summaries, and optional `skipping build (cache hit)` messages. | For `--emit-*`, the data product is the selected output file. For executable builds, the data product is the binary. Non-zero exits carry diagnostics on stderr; compiler subprocess failures include captured stdout/stderr sections in the facade diagnostic. |
-| `scoop run [<file-or-cone-dir>] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...] [-- <program-args> ...]` | The executed program's stdout. | Build/link diagnostics before exec, then the executed program's stderr. | Successful program exit returns `0`; non-zero program exits are propagated as the `scoop run` exit code. If the program terminates without a numeric exit code, `scoop run` returns `1`. |
+| `scoop build <file-or-cone-dir> [-o <path>] [--entry-package <PACKAGE>] [--emit-llvm\|--emit-obj\|--emit-asm] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...]` | Empty. | Subprocess warnings, link summaries, and optional `skipping build (cache hit)` messages. | For `--emit-*`, the data product is the selected output file. For executable builds, the data product is the binary. Non-zero exits carry diagnostics on stderr; compiler subprocess failures include captured stdout/stderr sections in the facade diagnostic. |
+| `scoop run [<file-or-cone-dir>] [--entry-package <PACKAGE>] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...] [-- <program-args> ...]` | The executed program's stdout. | Build/link diagnostics before exec, then the executed program's stderr. | Successful program exit returns `0`; non-zero program exits are propagated as the `scoop run` exit code. If the program terminates without a numeric exit code, `scoop run` returns `1`. The process stdin is inherited by the executed program, so a runner may provide `RUN-STDIN` by piping stdin into `scoop run`. |
 
 Failure diagnostics are intentionally stderr-only for these surfaces. A future
 runner may normalize newlines for golden comparison, but it must not depend on

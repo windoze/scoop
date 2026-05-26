@@ -83,11 +83,14 @@ fn fixture_contract_docs_freeze_external_command_surfaces() {
         "`scoopc emit-artifact --kind {llvm-ir,obj,asm}",
         "`scoopc build-single-cone --cone-root <dir>",
         "`scoopc link-cone --kind <bin\\|lib\\|syslib>",
-        "`scoop build <file-or-cone-dir>",
-        "`scoop run [<file-or-cone-dir>]",
+        "`scoop build <file-or-cone-dir> [-o <path>] [--entry-package <PACKAGE>]",
+        "`scoop run [<file-or-cone-dir>] [--entry-package <PACKAGE>]",
         "Success stdout",
         "Success stderr",
         "External runner contract",
+        "compiler/driver failures",
+        "numeric exit code is propagated",
+        "stdin is inherited by the executed program",
     ];
 
     for needle in required {
