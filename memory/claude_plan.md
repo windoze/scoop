@@ -9,7 +9,15 @@
 
 ## Progress
 
-- Plan created before task execution.
-- Selected first incomplete task: P1-T02, implementing `tools/spec_fixtures.py {sync,check}` as the replacement for `scoop_tools spec-fixtures`.
-- Added the initial standalone Python script for spec doctest extraction, validation, sync, check, and check-fix behavior.
-- Validation passed for the new script, old-script parity, cargo formatting/linting/tests, and both fixture runners. P1-T02 has been marked `[DONE]` in `TODO.md`; next step is to commit these changes and stop.
+- Plan updated before executing the current task.
+- Selected first incomplete task: P1-T02R, reviewing `tools/spec_fixtures.py` against the old `scoop_tools spec-fixtures` implementation for semantic equivalence.
+- Review steps:
+  1. Inspect the latest commit for relevant unfinished work, then compare `tools/spec_fixtures.py` with the old Rust implementation and documented contract.
+  2. Run targeted parity checks for `check`, `sync`, and `check --fix`, including mismatch and stale-file behavior if needed.
+  3. Fix any semantic gaps found during the review, without changing task scope or using fixture-specific workarounds.
+  4. Run required formatting, linting, tests, and fixture validation in order.
+  5. Mark P1-T02R `[DONE]` in `TODO.md`, update the completion record, commit all task changes, and stop.
+- Latest commit only completed P1-T02; it did not mention an unfinished blocker for P1-T02R.
+- Targeted parity review found and fixed one mismatch: Python now strips repeated leading `//` pairs before matching `FIXTURE:`, matching the old Rust parser.
+- Validation completed successfully: Python compile, old/new spec fixture parity smoke, current old/new spec checks, `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, new fixture suite, and legacy fixture suite.
+- P1-T02R has been marked `[DONE]` in `TODO.md`; next step is to commit these changes and stop.

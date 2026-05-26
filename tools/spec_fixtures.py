@@ -126,7 +126,12 @@ def parse_block(lines: Sequence[str]) -> GeneratedFixture | None:
         trimmed = line.lstrip()
         if not trimmed.startswith("//"):
             break
-        directive = trimmed.removeprefix("//").strip()
+        # Match Rust `trim_start_matches("//")`: repeated leading `//` pairs
+        # are stripped before directive matching.
+        directive = trimmed
+        while directive.startswith("//"):
+            directive = directive[2:]
+        directive = directive.strip()
         if directive.startswith("FIXTURE:"):
             raw_path = directive.removeprefix("FIXTURE:").strip()
             fixture_path = Path(raw_path)
