@@ -22,3 +22,19 @@ Validation found that `scoopc check-source` returns stable diagnostic codes but 
 ## Milestone: Task complete
 
 Implemented `tools/run_fixtures.py`, fixed the public command surfaces needed by the runner, validated the new runner over `tests/fixtures` with 1532 checks, and confirmed the legacy runner still reports 1532 checks. Final validation passed with `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`. I will now commit the P1-T01 changes and stop.
+
+## Current invocation: P1-T01R review
+
+Selected first incomplete task: `P1-T01R`, reviewing `tools/run_fixtures.py` against the legacy `scoop test` / `scoopc test-fixtures` runner for equivalent pass/fail target sets and check counts.
+
+Execution plan:
+
+1. Inspect the new Python runner and the legacy Rust fixture runner paths that define target planning, expectation parsing, command execution, and summary reporting.
+2. Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, the Rust test suite, the new Python fixture suite, and the legacy fixture suite in the required order.
+3. Compare the new and legacy fixture outputs for total checks and any pass/fail target differences.
+4. If review finds a real equivalence bug, fix it and rerun the affected validations; if it finds an unscheduled blocking failure, update `TODO.md` with the minimum prerequisite instead of marking this task done.
+5. When equivalence is confirmed, mark `P1-T01R` `[DONE]`, record validation details in `TODO.md`, commit the task changes, and stop.
+
+## Milestone: P1-T01R validated
+
+Completed the review of `tools/run_fixtures.py` against the legacy Rust fixture runner. Static comparison found no target planning, expectation parsing, phase execution, environment, timeout, golden comparison, or summary/check-count discrepancy. Validation passed with `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`. The new and legacy fixture logs both reported 1503 passing targets, 0 failures, and 1532 checks; sorted target/status/check lists matched exactly. I will commit the P1-T01R review record and stop.
