@@ -19,4 +19,4 @@ Progress:
 - Next step: run repository formatting/linting/full validation, then update TODO.md and commit P1-T08.
 - Full validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`.
 - Marked P1-T08 as `[DONE]` in TODO.md and appended its completion record.
-- Next step: review the final diff and commit P1-T08 changes.
+- Committed P1-T08 changes in Git.
