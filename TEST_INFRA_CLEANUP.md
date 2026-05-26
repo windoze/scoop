@@ -21,6 +21,7 @@
 | 用途 | 命令 |
 |---|---|
 | AST/HIR/MIR/IR/EffectFacts/EffectLowered dump | `scoopc dump-ast` / `dump-hir` / `dump-mir` / `dump-ir` / `dump-effect-facts` / `dump-effect-lowered` |
+| 前端 phase-only 校验 | `scoopc check-source --phase {parse,resolve,typecheck,infer} --input <file-or-cone-dir> [--source <path>] [--target-platform <id>]` |
 | RTTI dump | `scoopc dump-rtti` |
 | Stackmap dump / 校验 | `scoopc dump-stackmaps [--verify-roots] [--dump-records]` |
 | 单文件 emit artifact | `scoopc emit-artifact --kind {llvm-ir,obj,asm}` |
@@ -29,7 +30,7 @@
 | 端到端 build | `scoop build` |
 | 端到端 build + run | `scoop run` |
 
-这些命令在本次 cleanup 内**不删不改**，只确认它们的 stdout/stderr/exit-code 契约稳定，外部 runner 通过它们驱动 fixture，**不再**通过任何 `test-fixtures` 模式。
+除 P1-T00 新增的通用 `check-source` phase-only 校验入口外，这些命令在本次 cleanup 内**不删不改**，只确认它们的 stdout/stderr/exit-code 契约稳定，外部 runner 通过它们驱动 fixture，**不再**通过任何 `test-fixtures` 模式。`check-source` 不得持有 “fixture” 概念；它只按普通源码 / 普通 cone project 输入运行指定前端阶段，成功时 stdout 为空，失败时沿用结构化 stderr 诊断与非 0 exit code。
 
 ## 2. 要删除的代码
 
@@ -125,7 +126,7 @@ CI 用 `python3 tools/audit_*.py` 直接调用，替换 `cargo test -p scoopc` �
 - **fixture 发现（含 `*_multi_case` / `*_cone_case` / run-pass cone case 等子目录约定）**：python；规则从原 `crates/scoopc/src/fixtures/mod.rs` 中的 `plan_targets` / `is_run_pass_cone_case_root` 等函数平迁。
 - **`EXPECT-*` 指令解析（`EXPECT:` / `EXPECT-ERROR-CODE:` / `RUN-STDOUT:` / `BUILD-LLVM-REGEX:` / `IGNORE-UNTIL-FIX:` / `RUN-MODE:` / `SYSROOT-DEPS:` / `EXPECT-MONOMORPH-HIT:` / `RUN-STACKMAPS-RECORDS-GT:` …）**：python；每条指令的语法和语义照搬 `crates/scoopc/src/fixtures/expectations.rs`。
 - **golden 比对（`.hir` / `.mir` / `.effectfacts` / `.effectlowered` / `.scoopir.json` / `.stdout` / `.stderr`）**：python；当前是字节级 / 行级 diff，python 标准库 `difflib` 足够。
-- **子进程驱动**：python `subprocess.run`，调用对象只能是 §1 列出的 `scoopc dump-*` / `scoopc emit-artifact` / `scoop build` / `scoop run` —— 这些命令对外完全不知道 “fixture” 概念。
+- **子进程驱动**：python `subprocess.run`，调用对象只能是 §1 列出的 `scoopc check-source` / `scoopc dump-*` / `scoopc emit-artifact` / `scoop build` / `scoop run` —— 这些命令对外完全不知道 “fixture” 概念。
 
 `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` / `tools/gc_microbench.sh` 保留为轻量 shell 编排，内部调用对象由 `scoop test --fixtures <fixture>` 一律切换为 `python3 tools/run_fixtures.py <fixture>`。
 

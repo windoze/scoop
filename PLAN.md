@@ -21,7 +21,7 @@
 
 1. `scoop` / `scoopc` 不得保留任何 `fixture` 命名的模块、CLI、env、API。
 2. `tests/fixtures/**` 对编译器而言只是普通源文件，与用户在自己项目里写的 `*.scoop` 完全等价。
-3. 外部 runner 唯一允许使用的入口是 [`TEST_INFRA_CLEANUP.md` §1](./TEST_INFRA_CLEANUP.md#1-编译器driver-对外暴露的-fixture-友好-命令面保留并固化) 列出的命令（`scoopc dump-*` / `scoopc emit-artifact` / `scoopc build-single-cone` / `scoopc link-cone` / `scoop build` / `scoop run`）；这些命令 stdout/stderr/exit-code 契约在本计划期间冻结。
+3. 外部 runner 唯一允许使用的入口是 [`TEST_INFRA_CLEANUP.md` §1](./TEST_INFRA_CLEANUP.md#1-编译器driver-对外暴露的-fixture-友好-命令面保留并固化) 列出的命令（`scoopc check-source` / `scoopc dump-*` / `scoopc emit-artifact` / `scoopc build-single-cone` / `scoopc link-cone` / `scoop build` / `scoop run`）；这些命令 stdout/stderr/exit-code 契约在本计划期间冻结。
 
 ### 1.2 不引入 Rust 测试工具
 
@@ -102,14 +102,15 @@ P0 不引入运行时（编译器/driver）行为变更；P0-T04 只删除 fixtu
 
 任务：
 
-1. **P1-T01**：`tools/run_fixtures.py` —— fixture runner。覆盖 phase 发现、`EXPECT-*` 指令解析、子进程驱动、golden 比对、多进程调度、超时/SIGKILL；调用对象只能是 §1.1 列出的编译器命令。验收：与旧 `scoop test` 在 `tests/fixtures/**` 上 pass/fail 集合与 checks 计数完全一致。
-2. **P1-T02**：`tools/spec_fixtures.py {sync,check}` —— 替代 `scoop_tools spec-fixtures`。从 `SCOOP_FULL_SPEC.md` 抽取 `// FIXTURE:` 代码块，写入 / 比对 `tests/fixtures/spec_doctest/`。
-3. **P1-T03**：`tools/fixtures_matrix.py {check,stdlib}` —— 替代 `scoop_tools fixtures-matrix`。
-4. **P1-T04**：`tools/safepoint_baseline.py` —— 替代 `scoop_tools safepoint-baseline`。内部用 `cargo build` + `scoopc dump-stackmaps`。
-5. **P1-T05**：`tools/dependency_gate.py` —— 替代 `scoop_tools dependency-gate`。建议用 `cargo metadata --format-version 1` JSON 输出。
-6. **P1-T06**：`tools/audit_spec_coverage.py` —— 从 `crates/scoopc/src/audit/spec_coverage.rs` 平迁。
-7. **P1-T07**：`tools/audit_pipeline_gap.py` —— 从 `crates/scoopc/src/pipeline_gap_audit.rs` 平迁。
-8. **P1-T08**：`tools/audit_user_visible_failure_policy.py` —— 从 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 平迁。
+1. **P1-T00**：`scoopc check-source` —— 新增通用 phase-only 校验命令面（非 fixture API），覆盖 `parse` / `resolve` / `typecheck` / `infer`，支持单文件与 cone project 输入、`--source <path>` 选择项目内源文件、`--target-platform <id>`；契约写入 `docs/fixtures.md`。这是 `run_fixtures.py` 不使用 `dump-*` / `build-*` 工作绕过 typecheck-only 语义的前置条件。
+2. **P1-T01**：`tools/run_fixtures.py` —— fixture runner。覆盖 phase 发现、`EXPECT-*` 指令解析、子进程驱动、golden 比对、多进程调度、超时/SIGKILL；调用对象只能是 §1.1 列出的编译器命令。验收：与旧 `scoop test` 在 `tests/fixtures/**` 上 pass/fail 集合与 checks 计数完全一致。
+3. **P1-T02**：`tools/spec_fixtures.py {sync,check}` —— 替代 `scoop_tools spec-fixtures`。从 `SCOOP_FULL_SPEC.md` 抽取 `// FIXTURE:` 代码块，写入 / 比对 `tests/fixtures/spec_doctest/`。
+4. **P1-T03**：`tools/fixtures_matrix.py {check,stdlib}` —— 替代 `scoop_tools fixtures-matrix`。
+5. **P1-T04**：`tools/safepoint_baseline.py` —— 替代 `scoop_tools safepoint-baseline`。内部用 `cargo build` + `scoopc dump-stackmaps`。
+6. **P1-T05**：`tools/dependency_gate.py` —— 替代 `scoop_tools dependency-gate`。建议用 `cargo metadata --format-version 1` JSON 输出。
+7. **P1-T06**：`tools/audit_spec_coverage.py` —— 从 `crates/scoopc/src/audit/spec_coverage.rs` 平迁。
+8. **P1-T07**：`tools/audit_pipeline_gap.py` —— 从 `crates/scoopc/src/pipeline_gap_audit.rs` 平迁。
+9. **P1-T08**：`tools/audit_user_visible_failure_policy.py` —— 从 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 平迁。
 
 每个任务的验收要求：与对应旧实现在相同输入下输出语义等价（exit code、stdout 关键字段、check 计数等）。脚本风格统一：`#!/usr/bin/env python3`、`from __future__ import annotations`、入口 `if __name__ == "__main__":`、错误经 `sys.exit(N)` 上报。
 

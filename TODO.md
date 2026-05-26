@@ -34,7 +34,9 @@
 | [DONE] P0-T03R | [DONE] | Review 命令面契约冻结结果（外部 runner 需消费的字段已稳定） |
 | [DONE] P0-T04 | [DONE] | 删除 fixture-runner 自检 fixture（依赖 `EXPECT-ERROR-CODE: scoop::fixtures::*` 的 4 条：`timeout_should_fail.scoop` / `exit_code_mismatch.scoop` / `stderr_mismatch_distinguishable.scoop` / `gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`）；同步复核 scoopc 内部确无 cfg(test) 旁路或文件名特判 |
 | [DONE] P0-T04R | [DONE] | Review fixture-runner 自检 fixture 删除结果（`grep -rn "scoop::fixtures::" tests/fixtures/ --include="*.scoop"` 无命中；旧 runner 在剩余 fixture 集合上仍跑通；checks 计数下降量与删除条数一致） |
-| P1-T01 | [TODO] | `tools/run_fixtures.py`：fixture runner（phase 发现 + `EXPECT-*` 解析 + 子进程驱动 + golden 比对 + 多进程调度 + 超时/SIGKILL） |
+| P1-T00 | [TODO] | 新增通用 `scoopc check-source` 命令面（非 fixture API）：支持 `parse` / `resolve` / `typecheck` / `infer` 的 phase-only 校验，支持单文件与 cone project 输入、`--source <path>` 选择项目内源文件、`--target-platform <id>` 覆盖；stdout/stderr/exit-code 契约写入 `docs/fixtures.md`，供外部 runner 避免用 `dump-*` / `build-*` 工作绕过 typecheck-only 语义 |
+| P1-T00R | [TODO] | Review `scoopc check-source` 命令面：确认它不引入 fixture 概念、不使用 `fixture` 命名 API/env，且能覆盖当前 `resolve` / `typecheck` / `infer` 单文件、多文件、cone case 的 phase-only 诊断需求 |
+| P1-T01 | [TODO] | `tools/run_fixtures.py`：fixture runner（依赖 P1-T00R；phase 发现 + `EXPECT-*` 解析 + 子进程驱动 + golden 比对 + 多进程调度 + 超时/SIGKILL） |
 | P1-T01R | [TODO] | Review `run_fixtures.py` 与旧 `scoop test` 在 `tests/fixtures/**` 上 pass/fail 集合与 checks 计数等价性 |
 | P1-T02 | [TODO] | `tools/spec_fixtures.py {sync,check}`：替代 `scoop_tools spec-fixtures` |
 | P1-T02R | [TODO] | Review `spec_fixtures.py` 与旧实现语义等价性 |
@@ -89,6 +91,10 @@
 | P4-T05 | [TODO] | CI 在切换后跑通；本地 `cargo fmt` / `cargo clippy --all-targets -- -D warnings` / `cargo test --all --all-targets` 通过 |
 | P4-T06 | [TODO] | `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` 用新入口跑通 |
 | P4-T07R | [TODO] | Review P4 全包完成度（[`TEST_INFRA_CLEANUP.md` §8](./TEST_INFRA_CLEANUP.md#8-验证清单) 验收清单逐项核对） |
+
+## 调整记录
+
+- 2026-05-26：执行 P1-T01 前验证发现现有公开命令面无法 spec-correct 地平迁 resolve/typecheck-only fixture 语义：`dump-hir` 会漏掉旧 typecheck runner 覆盖的诊断，`build-single-cone` 又会运行到 HIR/lowering/codegen 并误伤通过的 typecheck fixture。因此在 P1-T01 前新增 P1-T00/P1-T00R，先落地通用非 fixture 的 `scoopc check-source` phase-only 校验入口；P1-T01 显式依赖 P1-T00R。
 
 ## 完成记录
 
