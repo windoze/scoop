@@ -46,7 +46,9 @@ impl WireSchemaVersion {
 /// - 1.0：初始版本
 /// - 1.1：`ConeArtifactManifest` 新增 `cone_kind` 字段（P10-T04-b）；同时让旧 artifact
 ///   通过 `ensure_compatible` 被显式拒绝。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 1);
+/// - 1.2：P10 final cleanup 后，LIR type-context facts 记录 portable `TypeStore`
+///   wire format 已实现，不再携带 P7/P8 的 deferred 决策。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 2);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

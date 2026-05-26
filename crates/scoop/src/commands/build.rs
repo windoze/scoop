@@ -267,7 +267,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let subprocess_cone_compiler: Box<dyn concurrency::SubprocessConeCompiler> =
         Box::new(concurrency::LocalProcessConeCompiler::new());
 
-    scheduler::dispatch_local_dependency_cones(
+    scheduler::dispatch_artifact_cones(
         &project.graph,
         &fp,
         &scheduler::ConeBuildDispatch {

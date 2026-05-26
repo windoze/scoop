@@ -625,10 +625,12 @@ impl Default for LirTypeContextFacts {
             bridge_mode: LirTypeContextBridgeMode::Identical,
             remapped_type_count: 0,
             stable_wire_format: LirTypeStableWireFormatFacts {
-                decision: LirTypeStableWireFormatDecision::Deferred,
-                owner: String::new(),
-                reason: String::new(),
-                non_blocking_reason: String::new(),
+                decision: LirTypeStableWireFormatDecision::Implemented,
+                owner: "P10 TypeStore portable serialization".to_string(),
+                reason: "Persisted facts and LIR are paired with portable TypeStore serialization."
+                    .to_string(),
+                non_blocking_reason: "Empty placeholder facts carry no materialized type context."
+                    .to_string(),
             },
         }
     }

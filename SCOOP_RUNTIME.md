@@ -188,6 +188,7 @@ Current contract:
 - cone-local C/C++ native sources are compiled inside `scoopc build-single-cone`; their `objs/native_*.o` entries are part of that cone artifact and are linked only because the manifest lists them.
 - `scoopld::link` computes an independent link fingerprint from consumer/dependency objects, runtime artifact contents, link kind, linker/version, and link flags.
 - `scoopc link-cone` is only a CLI execution wrapper around `scoopld::link`; it does not own linker behavior, DAG traversal, or scheduling.
+- `scoop` owns only facade scheduling: it may materialize a virtual cone, dispatch `scoopc build-single-cone`, read cone artifact manifests, and dispatch `scoopc link-cone`. It must not call compiler or linker library APIs in-process.
 - Future platforms with precompiled runtime artifacts may replace the runtime compilation step with a `scoopld`-owned noop/cache provider without changing `scoop` or stage crates.
 
 ### 7.1 Explicit root frame substrate contract

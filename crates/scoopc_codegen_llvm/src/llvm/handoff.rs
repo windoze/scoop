@@ -79,10 +79,9 @@ impl CachedDepArtifactHandoff {
 
 /// LLVM/backend 仍需的显式 base context。
 ///
-/// `LirFacts.type_context.owner` 指向这个 context：当前 TypeId 仍是同进程
-/// effect-owned `TypeStore` identity，cross-process stable wire format 显式推迟到
-/// per-cone build artifact serialization。这里不嵌套 HIR/MIR/effect stage wrapper，
-/// 只保留 LLVM backend 仍需的显式窄 base contracts。
+/// `LirFacts.type_context.owner` 指向这个 context：per-cone artifacts 通过
+/// portable `TypeStore` serialization 恢复跨进程 TypeId 语义；LLVM handoff 只消费
+/// 当前进程内重建后的窄 base contracts，不嵌套 HIR/MIR/effect stage wrapper。
 #[derive(Debug)]
 pub struct LlvmStageBaseContext {
     source_cones: HashMap<PathBuf, SourceConeInfo>,
@@ -378,11 +377,14 @@ fn verify_lir_type_context_header(
             ),
         });
     }
-    if facts.type_context.stable_wire_format.decision != LirTypeStableWireFormatDecision::Deferred
+    if facts.type_context.stable_wire_format.decision
+        != LirTypeStableWireFormatDecision::Implemented
         || facts.type_context.stable_wire_format.owner.is_empty()
     {
         return Err(LlvmEmitError::Frontend {
-            message: format!("LLVM stage {role} LIR facts 缺少 TypeId wire-format 推迟决策记录"),
+            message: format!(
+                "LLVM stage {role} LIR facts 缺少 TypeId portable wire-format 实现记录"
+            ),
         });
     }
     Ok(())

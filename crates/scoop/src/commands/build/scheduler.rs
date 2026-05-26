@@ -3,9 +3,9 @@
 //! 把 `LocalDependency` cone 的子进程派发从 `build.rs` 的主流程里拆出来，做成
 //! 一条可单测的 driver：
 //! - 状态机：`Pending` / `Ready` / `InFlight` / `Done` / `Failed`；
-//! - 拓扑遍历 `SourceConeGraph`，只调度 `LocalDependency` cone（consumer 由父进程
-//!   in-process 跑完成 frontend + 全程 codegen；sysroot 由 frontend cache 流程自动
-//!   在每次 build 内复用，不需要子进程产物）；
+//! - 拓扑遍历 `SourceConeGraph`，调度所有需要 artifact 的 `LocalDependency` 与
+//!   `Consumer` cone；sysroot 由 `scoopc build-single-cone` 内的 sysroot loader 加载，
+//!   不作为 facade 传入的 artifact；
 //! - cache-hit 短路：若 `BuildFingerprint::per_cone[cone_id].cached_outputs_fingerprint`
 //!   已经命中，则 cone 直接进入 `Done` 状态，不派发子进程；
 //! - 失败传播：任何 cone 子进程失败立即停止派发新任务，已派发的任务跑完后聚合
@@ -31,7 +31,7 @@ use super::incremental::BuildFingerprint;
 
 /// driver 派发 cone 子进程时聚合在一起的运行依赖。
 ///
-/// 拆成 struct 是为了让 `dispatch_local_dependency_cones` 的签名长期稳定——若
+/// 拆成 struct 是为了让 `dispatch_artifact_cones` 的签名长期稳定——若
 /// 后续把 strategy / compiler 改成同一个 trait 的多种实现，调用点不必跟着改。
 pub(crate) struct ConeBuildDispatch<'a> {
     pub strategy: &'a (dyn ConcurrencyStrategy + 'a),
@@ -53,15 +53,15 @@ enum ConeJobState {
     Failed,
 }
 
-/// 调度 `LocalDependency` cone 的 frontend artifact 子进程派发。
+/// 调度需要落盘 artifact 的 cone 子进程派发。
 ///
 /// 调用约定：
 /// - `graph` 必须是当前 build 的 source cone graph（`compute_cone_build_fingerprint`
 ///   消费的是同一份）；
 /// - `fingerprint.per_cone` 必须包含 graph 中每个 cone 的条目，否则视为内部错误；
-/// - 该函数只确保 `LocalDependency` cone 的 artifact 上盘后返回 `Ok(())`；consumer 与
-///   sysroot 的 frontend lowering 仍由 driver 在主进程内跑（与现有 in-process 行为一致）。
-pub(crate) fn dispatch_local_dependency_cones(
+/// - 该函数确保 `LocalDependency` 与 `Consumer` cone 的 artifact 上盘后返回 `Ok(())`；
+///   sysroot cone 不生成 facade-owned artifact。
+pub(crate) fn dispatch_artifact_cones(
     graph: &SourceConeGraph,
     fingerprint: &BuildFingerprint,
     dispatch: &ConeBuildDispatch<'_>,
@@ -228,8 +228,6 @@ impl ConeDispatchPlanner {
     ) -> Result<Self> {
         // 先收集所有非 sysroot artifact cone 的 id，用于过滤 upstream_artifact_dirs：
         // sysroot dep 由 scoopc 在 build-single-cone 内通过 sysroot loader 自行加载，
-        // 不会由 facade driver 作为 artifact 传入。
-        // sysroot dep 由 scoopc 在 build-single-cone 内通过 sysroot loader 自行加载，
         // 它们在 fingerprint.per_cone 里虽有占位 artifact_dir，但磁盘上不会真的存在。
         let mut artifact_cone_ids: HashSet<ConeId> = HashSet::new();
         for unit in graph.compilation_units() {
@@ -280,9 +278,9 @@ impl ConeDispatchPlanner {
             let mut upstream_artifact_dirs = Vec::new();
             for dep_id in unit.dependency_cone_ids() {
                 if !artifact_cone_ids.contains(&dep_id) {
-                    // sysroot dep（或其它非 LocalDependency 角色）在 in-process frontend 中加载，
-                    // 不会有上盘 artifact；不能传给 scoopc，否则 import_upstream_artifacts 会
-                    // 在不存在的目录上失败（多 cone fixture 上观察到的 ENOENT 路径）。
+                    // sysroot dep（或其它非 artifact 角色）由 scoopc 单 cone 子进程内部加载，
+                    // 不会有 facade 侧上盘 artifact；不能传给 scoopc，否则 upstream artifact
+                    // 导入会在不存在的目录上失败。
                     continue;
                 }
                 let Some(dep_fp) = fingerprint.per_cone.get(&dep_id) else {
@@ -557,7 +555,7 @@ mod tests {
         let compiler = RecordingFakeConeCompiler::new();
         let strategy = FixedJobsStrategy::new(NonZeroUsize::new(1).unwrap());
 
-        dispatch_local_dependency_cones(
+        dispatch_artifact_cones(
             &graph,
             &fp,
             &ConeBuildDispatch {
@@ -593,7 +591,7 @@ mod tests {
         let compiler = RecordingFakeConeCompiler::new();
         let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
 
-        dispatch_local_dependency_cones(
+        dispatch_artifact_cones(
             &graph,
             &fp,
             &ConeBuildDispatch {

@@ -156,7 +156,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 1. 一个只含单个源文件的 synthetic consumer cone。
 
-见 `crates/scoopc/src/cone/graph.rs::load_source_cone_graph_for_virtual_consumer` 和 `crates/scoopc/src/frontend.rs::ProjectInput::consumer_compilation_unit`。
+P10 后，`scoop` 在 `crates/scoop/src/commands/build/virtual_cone.rs` 中把裸 `.scoop` 输入物化为标准 source cone，随后 `scoopc build-single-cone` 通过 `ProjectInput::consumer_compilation_unit` 只看到普通 cone-level consumer。
 
 所以它不应该成为其它场景的定义依据；它只是“一个 cone 刚好只有一个文件”的特例。
 
@@ -166,7 +166,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 1. 每个 cone 在 `build/<profile>/cones/<cone-name>@<version>/` 下输出一份本 cone 自己的产物。
 2. 产物的内容必须能让下游 cone 完成它本来要从上游源码里推出来的所有事情：HIR 屏障的声明事实、MIR 屏障的实例事实、effect/control 屏障的合同、LIR 屏障的 callable/dispatch/init contract、本 cone emit 的 `.o` 与 native obj。
-3. 下游 cone 通过反序列化 fact 注入自己的 `Index` / `TypeEnv`，而不再 parse 上游源文件；只有在跨 cone 单态化跨过 generic 边界时，才需要回到上游 generic 的 HIR/MIR 模板（这是后续 milestone 的范围，本轮接受下游 re-lower generic 的成本）。
+3. 下游 cone 通过反序列化 fact / frontend import payload 注入自己的 `Index` / `TypeEnv`，而不再 parse 上游源文件；只有在跨 cone 单态化跨过 generic 边界时，才需要回到上游 generic 的 HIR/MIR 模板（这是后续 P11 milestone 的范围，本轮接受下游 re-lower generic 的成本）。
 4. 产物之间通过 `inputs.fingerprint` / `outputs.fingerprint` 链表达失效传播：上游 outputs 不变 → 下游 inputs 不变 → 下游跳过整段 stage。
 
 这个形态依赖于本设计基线里若干已经固定的事实：
@@ -175,7 +175,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 2. `LirFacts.global_init.cone_init_routines` / `final_entry_init_order` 已经按 cone 标记 init routine 入口符号；下游链接时直接消费这些符号即可。
 3. stage / fact crate 边界一旦由 `cargo build` 强制（见 §crate 划分），artifact serialization 只需要给已有 fact 加 wire format，而不必重新设计跨阶段数据。
 
-唯一需要补足的工程能力是 `TypeId` 的 cross-process stable wire format：当前 `TypeId(u32)` 是进程内 `TypeStore` 索引，序列化后下游进程无法解释。要么把 fact / LIR 中的 type 字段替换为 stable text key（`scoopc_ids::CanonicalTextKey`），要么给 `TypeStore` 设计 portable serialization + 反序列化重映射。这是落地 per-cone artifact 的硬前置。P8-T01 已在 LIR stable dump / `LirFacts.type_context` 中永久记录推迟决策，并用 dependency gate 防止 LLVM handoff/emit/reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 回退；wire-format owner 为 P10/per-cone build artifact serialization；P7/P8 LLVM handoff 不持久化 `TypeId`，只校验同进程 `TypeStore` owner。
+P10-T01 已补足 `TypeId` 的 cross-process stable wire format：persisted facts/LIR 继续使用 `TypeId(u32)` 作为进程内高效索引，但每个 cone artifact 同时写出 portable `TypeStore`（`type_store.bin`）。下游进程先反序列化 `TypeStore` 重建同构本地 type universe，再消费 facts/LIR 中的 `TypeId`；`LirFacts.type_context.stable_wire_format` 记录该实现已落地，LLVM ABI/layout handoff 必须看到该 implemented 决策。
 
 ## 编译顺序模型
 
@@ -224,9 +224,9 @@ link 不属于单个 cone artifact，也不属于 `scoop` facade 的 in-process 
 4. link cache 独立于 cone artifact fingerprint，存放在 `build/<profile>/link/<consumer-cone>@<version>/inputs.fingerprint`；其摘要维度覆盖 consumer `.o`、排序后的 dep/native `.o`、runtime artifact、link kind、linker/version 与 link flags。
 5. `build-single-cone` 不再允许非默认 sysroot 上游缺 artifact 时回退到源码 lowering；缺失 `--upstream-artifact` 是硬错误，防止 single-cone 执行体偷偷恢复 driver 职责。
 
-#### Facade build 边界收口（P10-T06-c）
+#### Facade build 边界收口（P10-T06-c / P10-T06-d）
 
-P10-T06-c 后，executable build 的 in-process whole-DAG fallback 被移除：`scoop` 只 materialize 输入、调度 cone 子进程、读取 artifact manifest、派发 link 子进程。
+P10-T06-d 后，executable build 的 in-process whole-DAG fallback 被移除：`scoop` 只 materialize 输入、调度 cone 子进程、读取 artifact manifest、派发 link 子进程。
 
 固定边界：
 
@@ -234,6 +234,8 @@ P10-T06-c 后，executable build 的 in-process whole-DAG fallback 被移除：`
 2. 单文件输入先由 `scoop` 写成 `build/<profile>/virtual/<name>@0.0.0/` 下的标准 cone，再进入同一 DAG 调度路径；`scoopc` 不再提供裸 `<file>` / `--obj` Legacy CLI。
 3. cone-local native C/C++ object 属于该 cone artifact 的 `objs/native_*.o`，最终 link 只消费 manifest 中列出的 object 文件。
 4. artifact metadata（manifest schema、object 清单、inputs/outputs fingerprint helper）属于 `scoop_project_model`；`scoopc_cone` 只保留 HIR/MIR/effect/LIR/type-store/frontend-import 等 stage payload 读写。
+5. `scoop` crate 的内部 workspace 依赖白名单只允许 `scoop_project_model`；任何 compiler/linker 行为必须通过 `scoopc build-single-cone` / `scoopc link-cone` 子进程边界。
+6. 旧的 whole-build SHA fingerprint 路径已废弃；当前 `build.json` 的最终 fingerprint 只聚合 consumer per-cone inputs，真正的失效传播由每个 cone artifact 的 `inputs.fingerprint` / `outputs.fingerprint` 链和独立 link fingerprint 承担。
 
 ### 同一 cone 内：不是文件拓扑，而是阶段屏障
 
@@ -1633,8 +1635,8 @@ P5 已把 late-lowered handoff 收口为正式 `LirStageOutput = { lir, lir_fact
 
 ## 当前状态总结
 
-当前实现离最终目标还剩 P8-T02 最终验证与后续 P9/P10 crate/artifact 拆分，但 P2 已完成 HIR barrier 与 `hir_facts` 收口，P3 已完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口，P4 已完成 effect facts purity 与窄输出收口，P5 已完成正式 `LirStageOutput = { lir, lir_facts }`、backend-neutral LIR facts/query owner 与 LIR opt family 收口，P6 已完成 global init/storage/final-entry owner 收口，P7-T05 已完成 LLVM backend cleanup 清场、stage handoff 与 physical ABI/layout 合并验证，P8-T01 已完成最终 residual 搜索与后端输入文档冻结：
+当前实现已推进到 P10 final cleanup：P2 已完成 HIR barrier 与 `hir_facts` 收口，P3 已完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口，P4 已完成 effect facts purity 与窄输出收口，P5 已完成正式 `LirStageOutput = { lir, lir_facts }`、backend-neutral LIR facts/query owner 与 LIR opt family 收口，P6 已完成 global init/storage/final-entry owner 收口，P7-T05 已完成 LLVM backend cleanup 清场、stage handoff 与 physical ABI/layout 合并验证，P8-T01 已完成最终 residual 搜索与后端输入文档冻结，P9 已完成 stage crate split，P10 已落地 per-cone artifact 与 facade 多进程 build/link 边界：
 
 1. `LlvmCodegenStageOutput` / `StageEmitInput` 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 LLVM residual accessor。
 2. LLVM entry/global、reachability、production body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；integer literal 范围诊断已从 LLVM HIR body precheck 上移到 typecheck，dependency gate 已覆盖 LLVM handoff/emit/reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 的 forbidden residual 搜索。
-3. `TypeId` cross-process stable wire format 显式推迟到 P10 per-cone build artifact serialization；P7/P8 同进程 LLVM handoff 只要求 TypeStore owner/verifier 一致。
+3. `TypeId` cross-process stable wire format 已通过 portable `TypeStore` serialization 落地；`scoop` facade 不再 in-process 跑 whole-DAG frontend/codegen/link，后续未完成的跨 cone generic body 共享必须作为 P11 单独设计。

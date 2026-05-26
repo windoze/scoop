@@ -991,6 +991,10 @@ fun main(): Int {
         assert_eq!(call_virtual.kind, LirCallableSymbolKind::ManagedOrdinary);
         assert_eq!(call_virtual.param_tys.len(), 1);
         assert!(!facts.type_context.primary_fingerprint.is_empty());
+        assert_eq!(
+            facts.type_context.stable_wire_format.decision,
+            scoopc_lir_facts::LirTypeStableWireFormatDecision::Implemented
+        );
         assert!(!facts.type_context.stable_wire_format.owner.is_empty());
         let dump = output.stable_dump();
         assert!(dump.contains("physical_layout:"));

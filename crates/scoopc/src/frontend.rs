@@ -649,11 +649,12 @@ fn graph_with_virtual_source_identity(
     SourceConeGraph::from_nodes(nodes, consumer_id)
 }
 
-pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
+#[cfg(test)]
+pub(crate) fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
     prepare_virtual_cone_input_with_options(source, &SessionOptions::new())
 }
 
-pub fn prepare_virtual_cone_input_with_options(
+pub(crate) fn prepare_virtual_cone_input_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
 ) -> Result<ProjectInput> {
@@ -674,11 +675,7 @@ pub fn prepare_virtual_cone_input_with_options(
     ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
 
-pub fn prepare_virtual_cone_context(source: SourceFile) -> Result<ProjectContext> {
-    prepare_virtual_cone_context_with_options(source, &SessionOptions::new())
-}
-
-pub fn prepare_virtual_cone_context_with_options(
+pub(crate) fn prepare_virtual_cone_context_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
 ) -> Result<ProjectContext> {

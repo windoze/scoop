@@ -1690,7 +1690,7 @@
   - **consumer cone 子进程派发落地**：`scheduler` 由 LocalDependency-only 扩展为 LocalDependency + Consumer，consumer 在 dependency artifacts 完成后通过 `scoopc build-single-cone` 产出 artifact；executable explicit cone build 从 consumer/dependency manifest 收集 `objs/*` 后派发 `scoopc link-cone`。
   - **native build 进入 artifact**：新增 `scoopc::native_build`，cone-local C/C++ sources 编译为 `objs/native_cone*_*.o` 并写入 artifact manifest；Bin consumer 额外吸收 sysroot auto cone native helpers，LocalDependency 不重复吸收 sysroot native，避免 duplicate symbol。
   - **Legacy CLI 删除与 CLI 扩展**：`scoopc` 顶层只保留 `build-single-cone` / `link-cone`；`scoopc --help` 不再列裸 file / `--obj` / `--emit-llvm` Legacy surface；`scoop build/run --sysroot-dep` 可重复解析并优先于 `SCOOP_SYSROOT_DEPS`。
-  - **project model rename 与 metadata 下沉**：`scoopc_project_model` 已重命名为 `scoop_project_model`；artifact manifest/schema/fingerprint helper 下沉到 `scoop_project_model::artifact_metadata`；`scoopc_cone` 继续承载完整 stage payload 读写并复用 metadata 类型。
+  - **project model rename 与 metadata 下沉**：旧 compiler-prefixed project model crate 已重命名为 `scoop_project_model`；artifact manifest/schema/fingerprint helper 下沉到 `scoop_project_model::artifact_metadata`；`scoopc_cone` 继续承载完整 stage payload 读写并复用 metadata 类型。
   - **single-file 现状与后续收口**：`scoop` 已具备 materialize virtual cone helper，但裸 single-file executable 为保持 source-site contract 与完整 fixture suite，仍使用原 virtual-source frontend shape做兼容执行；严格的“single-file 也零 in-process fallback”与 `scoop` crate 彻底移除 `scoopc` lib dependency 已拆到后续 `P10-T06-d`，并阻塞 P10 最终清场。
   - **测试与验证**：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`（最终完整输出通过；一次 45 分钟工具超时后补跑 `scoop_runtime`/`scoop_tools` 通过）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test`（1459 targets / 1488 checks，PASS）；定向验证 `source_path_dependency_public_call`、native C/C++ dependency fixtures、`scoopc --help`。
 
@@ -1724,7 +1724,7 @@
   - **dependency_gate 补强**：新增 `scoop` driver direct-dependency gate 与 `crates/scoop/src` source-boundary 扫描，禁止 `scoopc::*` / stage crate residual 回流；`scoopld` 仍作为独立 linker crate 由 `scoopc link-cone` 使用，`scoop` 不直接依赖。
   - **验证通过**：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test`（1507 targets / 1536 checks）；`cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "scoop") | .dependencies[].name' | grep -E '^scoop' | sort -u` 仅输出 `scoop_project_model`；`grep -RInw -E 'scoopc_cone|scoopc_ast|scoopc_hir|scoopc_mir|scoopc_effect_facts_stage|scoopc_lir|scoopc_codegen_llvm' crates/scoop/src/` 无命中；`grep -RInE '^use scoopc::|^use scoopc;' crates/scoop/src/` 无命中；single-file `scoop build tests/fixtures/spec_doctest/overview_minimal_main.scoop` 通过；`SCOOP_SYSROOT_OVERLAY=... cargo run -p scoop -- run --sysroot-dep scoop.runtime.test .../intrinsic_named_runtime_fun_basic.scoop` 通过；`git diff --check`。
 
-### [TODO] P10-T07：P10 全包清场、文档同步与依赖审计
+### [DONE] P10-T07：P10 全包清场、文档同步与依赖审计
 
 - 目标：
   - 搜索确认 frontend 不再读上游源；
@@ -1751,6 +1751,12 @@
   - 多进程并发编译路径成为默认且文档冻结；
   - 文档冻结新边界。
 - 依赖：P10-T06-d
+- 完成记录（2026-05-26）：
+  - **边界审计完成**：`inject_cone_dependency_public_api` 仅剩 `.cone` archive fixture/compat re-export 路径；`scoop` driver 源码未命中 `run_frontend`、`scoopc::`、`scoopld::link(` 或 stage crate residual；`cargo metadata --format-version 1 | jq ...` 确认 `scoop` 的内部 workspace 依赖仅剩 `scoop_project_model`。
+  - **P10 final cleanup 修正**：scheduler 命名与注释从 LocalDependency-only 收口为 artifact cone dispatch；virtual cone materialization 会先清理旧目录，避免 schema bump 后复用 stale generated artifacts；`scoop run` 单测会在需要真实 subprocess 时确保 `scoopc` binary 可被发现。
+  - **TypeStore wire-format 状态冻结**：`LirFacts.type_context.stable_wire_format` 的生产构造、默认 facts、LLVM handoff verifier 与 effect-lowered golden 均更新为 `implemented` / `P10 TypeStore portable serialization`；`WIRE_SCHEMA_VERSION` bump 到 `1.2`，旧 artifact 会显式 miss/rebuild。
+  - **文档同步**：`PLAN.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`README.md`、`SCOOP_RUNTIME.md` 与 archive fixture README 已同步 per-cone artifact、多进程 subprocess build/link、`scoop` facade 只调度不 in-process 编译/link、旧 whole-build SHA fingerprint 历史化，以及 P11 作为未来跨 cone generic body wire format milestone 的边界。
+  - **验证通过**：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507 targets / 1536 checks）；`cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "scoop") | .dependencies[].name | select(startswith("scoop"))' | sort -u` 仅输出 `scoop_project_model`；targeted residual grep（`crates/scoop/src` forbidden compiler/linker residual、active stable-wire-format deferred residual）无命中；`git diff --check`。
 
 ### [TODO] P10-T07R：Review P10 全包完成度
 

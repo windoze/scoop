@@ -7,7 +7,7 @@
 > - [`docs/archive/designs/SYSROOT_RESHAPE_R2.md`](./docs/archive/designs/SYSROOT_RESHAPE_R2.md)
 > - [`docs/archive/plans/PLAN-sysroot-reshape-r2.md`](./docs/archive/plans/PLAN-sysroot-reshape-r2.md)
 > - [`docs/archive/plans/TODO-sysroot-reshape-r2.md`](./docs/archive/plans/TODO-sysroot-reshape-r2.md)
-> 当前状态：P0-P6 与 P7-T01..T03 / P7-T04-a 已完成；P7-T04 / P7-T05 / P8 仍在推进；P9（stage crate split）与 P10（per-cone build artifact）已加入 `TODO-7.md`，等待 P0-P8 完成后启动
+> 当前状态：P0-P9 已完成；P10 已完成 per-cone artifact、portable TypeStore wire format、fingerprint cache、`scoopld`/`link-cone`、consumer 子进程派发、single-file virtual cone 零回退与 `scoop` facade 依赖收紧；当前只剩 P10 最终清场与 review（`P10-T07` / `P10-T07R`）
 
 ## 0. 目标
 
@@ -328,9 +328,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 必须完成：
 
-1. 决定并实现跨进程 `TypeId` / type identity stable wire format（P7-T04-a 完成记录中显式推迟到本阶段的承诺）。两条候选：
-   - 把 fact / LIR 中所有 `TypeId` 字段替换为 `scoopc_ids::CanonicalTextKey` 等 stable key；
-   - 给 `TypeStore` 设计 portable serialization，反序列化时通过 ID 重映射恢复进程内表示。
+1. 跨进程 `TypeId` / type identity stable wire format 已由 P10-T01 固定为 portable `TypeStore` serialization：persisted facts/LIR 仍可携带 `TypeId`，但必须与 `type_store.bin` 同步落盘，下游进程先重建同构本地 type universe 再消费 facts/LIR。
 2. 给 4 套 fact crate（`hir_facts` / `mir_facts` / `effect_facts` / `lir_facts`）以及 LIR program 加 `Serialize` / `Deserialize`（默认 bincode 二进制）+ schema version。
 3. 在 `scoopc_cone` 内定义 `ConeArtifact` 结构与磁盘布局：
 
@@ -344,7 +342,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
    ```
 
 4. 把 `crates/scoopc/src/frontend.rs::run_frontend` 从扁平 build_closure_sources 循环改为按 `SourceConeGraph::compilation_units()` 拓扑顺序运行；下游 cone 通过 `scoopc_cone` 的 fact 注入接口获取上游内容，不再 parse 上游源。
-5. 把 `crates/scoop/src/commands/build/incremental.rs` 的整项目 SHA-256 fingerprint 替换为 per-cone inputs/outputs fingerprint chain；上游 outputs.fingerprint 不变 → 下游加载 artifact 跳过上游所有 stage。
+5. 把 `crates/scoop/src/commands/build/incremental.rs` 的整项目 SHA-256 fingerprint 替换为 per-cone inputs/outputs fingerprint chain；旧 whole-build SHA 只允许作为历史 `build.json` 审计字段存在，不再作为 cache 决策路径；上游 outputs.fingerprint 不变 → 下游加载 artifact 跳过上游所有 stage。
 6. per-cone 多进程并发编译 CLI + driver 抽象（P10-T05 落地 surface，P10-T06 落地真正子进程并发）：
    - `scoop build` / `scoop run` 加 `-j / --jobs N` 参数与 `SCOOP_BUILD_JOBS` 环境变量回退，默认 `DEFAULT_BUILD_JOBS = 4`；
    - 在 `scoop` crate 内发布 `ConcurrencyStrategy` 与 `SubprocessConeCompiler` trait，把"如何决定并发数"和"如何在子进程里跑一个 cone"与调度 driver 解耦，给后续按物理 CPU / 远端 worker 池等策略和分布式编译留接入点；
@@ -355,15 +353,15 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
    - `scoopc link-cone` 只解析单次 link 请求并 forward 到 `scoopld::link`，不 walk DAG、不调度、不 fork 其它 cone；
    - `scoop` driver 负责收集 transitive dependency artifact 的 `objs/*`，通过 `--dep-obj` 传给 `link-cone`，link cache 存在 `build/<profile>/link/<consumer>@<ver>/inputs.fingerprint`；
    - `build-single-cone` 不允许在缺非默认 sysroot 上游 artifact 时从源码兜底 lower，上游 artifact 缺失必须是硬错误。
-8. scoop facade 化与 project model 边界整顿（P10-T06-c）：
+8. scoop facade 化与 project model 边界整顿（P10-T06-c / P10-T06-d）：
    - `scoop build` / `scoop run` 的 executable 路径把 consumer cone 也纳入 `build-single-cone` 子进程派发，随后只读取 consumer/dependency artifact manifest 的 `objs/*` 并派发 `link-cone`；
-   - 单文件输入由 `scoop` 在 `build/<profile>/virtual/<name>@0.0.0/` materialize 为标准 cone，`scoopc` 不再提供裸文件 Legacy CLI；
+   - 单文件输入由 `scoop` 在 `build/<profile>/virtual/<name>@0.0.0/` materialize 为标准 cone 后走同一 `build-single-cone` / `link-cone` 子进程路径，`scoopc` 不再提供裸文件 Legacy CLI；
    - cone-local native C/C++ object 在 `build-single-cone` 内写入 cone artifact；
-   - 纯 project metadata crate 统一命名为 `scoop_project_model`，artifact manifest/schema/fingerprint helper 下沉到该 crate，`scoopc_cone` 只保留 stage payload 磁盘层。
+   - 纯 project metadata crate 统一命名为 `scoop_project_model`，artifact manifest/schema/fingerprint helper 下沉到该 crate，`scoopc_cone` 只保留 stage payload 磁盘层；`scoop` crate 的内部 workspace 依赖白名单只允许 `scoop_project_model`，编译与 link 只能通过子进程 CLI 交互。
 
 不在本阶段完成（留待后续单独立项 P11）：
 
-- 跨 cone generic body 共享（HIR/MIR template wire format）。本阶段下游对上游 generic 仍 re-lower，但只重做 generic body，不再过完整上游 frontend；这是有意识的范围裁剪。
+- P11：跨 cone generic body 共享（HIR/MIR template wire format）。本阶段下游对上游 generic 仍 re-lower，但只重做 generic body，不再过完整上游 frontend；这是有意识的范围裁剪，不能在 P10 清场中继续扩展。
 - `.cone` archive 复活；磁盘格式直接是目录树，`scoop package` 仍保持停用。
 
 完成标准：
@@ -372,6 +370,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 2. 跨 cone fixture（如 `tests/fixtures/run_pass_cone/source_path_dependency_public_call`）下游 cone 编译时不再 parse 上游源；用 trace 或断言能稳定证明。
 3. per-cone fingerprint chain：上游变 → 上游 + 下游重 build；下游变 → 仅下游重 build；toolchain 变 → 全重 build。
 4. cache hit 启动时间不再受 sysroot 重 hash 拖累（实测从 ~4s 量级降到 < 100ms 量级）。
+5. `scoop build` / `scoop run` 的 executable 路径没有 in-process whole-DAG fallback：driver 只 materialize 输入、调度 `build-single-cone`、读取 artifact metadata 并派发 `link-cone`。
 
 ## 5. 优化 pass 专项约束
 

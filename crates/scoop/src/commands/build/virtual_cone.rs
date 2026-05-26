@@ -10,7 +10,6 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 
 use super::BuildProfile;
 
-#[allow(dead_code)]
 pub(crate) fn materialize_single_file(input: &Path, profile: BuildProfile) -> Result<PathBuf> {
     let parent = input.parent().unwrap_or_else(|| Path::new("."));
     let name = virtual_cone_name(input);
@@ -19,6 +18,11 @@ pub(crate) fn materialize_single_file(input: &Path, profile: BuildProfile) -> Re
         .join(profile.as_str())
         .join("virtual")
         .join(format!("{name}@0.0.0"));
+    if root.exists() {
+        std::fs::remove_dir_all(&root)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法清理旧 virtual cone 目录：{}", root.display()))?;
+    }
     let src_dir = root.join("src");
     std::fs::create_dir_all(&src_dir)
         .into_diagnostic()

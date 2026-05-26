@@ -228,11 +228,37 @@ fn default_exe_name() -> String {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::process::Command;
 
     use std::num::NonZeroUsize;
 
     fn default_jobs_for_test() -> NonZeroUsize {
         super::super::build::concurrency::default_build_jobs()
+    }
+
+    #[cfg(all(feature = "llvm", not(windows)))]
+    fn ensure_scoopc_binary_for_test() {
+        if crate::compiler_tool::locate_compiler_bin().is_ok() {
+            return;
+        }
+
+        let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let output = Command::new(cargo)
+            .args(["build", "-p", "scoopc", "--bin", "scoopc", "--quiet"])
+            .current_dir(&workspace_root)
+            .output()
+            .expect("failed to spawn cargo build for scoopc test binary");
+        assert!(
+            output.status.success(),
+            "failed to build scoopc test subprocess binary\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            crate::compiler_tool::locate_compiler_bin().is_ok(),
+            "scoopc binary should be discoverable after cargo build"
+        );
     }
 
     #[cfg(not(feature = "llvm"))]
@@ -261,6 +287,7 @@ mod tests {
     #[cfg(all(feature = "llvm", not(windows)))]
     #[test]
     fn run_builds_and_executes_minimal_main() {
+        ensure_scoopc_binary_for_test();
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
 

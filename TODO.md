@@ -14,6 +14,8 @@
 
 > 2026-05-26 更新：`P10-T06-d` 已完成；`scoop` facade 删除 `scoopc` / `scoopld` 直接依赖，single-file executable 通过 materialized virtual cone + `build-single-cone` / `link-cone` 子进程路径运行，dump/build emit/test compiler tooling 迁到 `scoopc` 子命令，dependency gate 已强制 `scoop` 只直依赖 `scoop_project_model`。
 
+> 2026-05-26 更新：`P10-T07` 已完成；P10 final cleanup 已冻结 per-cone artifact + 多进程 subprocess build/link 边界，旧 whole-build SHA fingerprint 路径已标记为历史审计字段，跨 cone generic body wire format 已明确后续单独立项 P11，`scoop` facade 依赖与 source residual 审计通过。
+
 ## 总原则
 
 - `PLAN.md` 是当前执行计划基线；如果实现时发现阶段边界、crate DAG、facts 归属或全局初始化语义需要改变，必须先回写 `PIPELINE_REFACTOR.md`，再调整 TODO。
@@ -200,7 +202,7 @@
 | P10-T06-b | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06-b抽出-scoopld-crate-与-scoopc-link-cone-子命令收紧-build-single-cone-上游边界) | 抽出 `scoopld` crate 与 scoopc `link-cone` 子命令；收紧 `build-single-cone` 上游边界 |
 | P10-T06-c | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06-cscoop-facade-化--consumer-走子进程--virtual-cone-迁移--删除-scoopc-legacy-cli--project_model-边界整顿) | scoop facade 化 + consumer 走子进程 + virtual cone 迁移 + 删除 scoopc Legacy CLI + project_model 边界整顿 |
 | P10-T06-d | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t06-d收紧-scoop-facade-剩余-lib-api-依赖与-single-file-virtual-cone-零回退) | 收紧 scoop facade 剩余 lib API 依赖与 single-file virtual cone 零回退 |
-| P10-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
+| P10-T07 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p10-t07p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
 | P10-T07R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t07rreview-p10-全包完成度) | Review P10 全包完成度 |
 
 ## 包间验收门禁

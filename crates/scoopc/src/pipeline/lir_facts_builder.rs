@@ -1306,10 +1306,10 @@ fn build_type_context_facts(
             effect_facts.types().iter_ids().count()
         },
         stable_wire_format: LirTypeStableWireFormatFacts {
-            decision: LirTypeStableWireFormatDecision::Deferred,
-            owner: "P10 per-cone build artifact serialization".to_string(),
-            reason: "TypeId is still an in-process TypeStore identity; portable serialization needs a canonical text key or import remap format.".to_string(),
-            non_blocking_reason: "P7/P8 only need a single in-process LIR/base type context owner; persisted per-cone artifacts are not emitted yet.".to_string(),
+            decision: LirTypeStableWireFormatDecision::Implemented,
+            owner: "P10 TypeStore portable serialization".to_string(),
+            reason: "Persisted facts and LIR retain TypeId fields but are paired with portable TypeStore serialization, so each process reconstructs an isomorphic local type universe before consuming them.".to_string(),
+            non_blocking_reason: "Per-cone artifacts serialize type_store.bin next to facts and LIR; cached dependency handoff imports that TypeStore before ABI/layout queries.".to_string(),
         },
     }
 }
