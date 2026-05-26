@@ -1,9 +1,177 @@
-# Fixture directives
+# Fixture runner contract
 
-This page records the fixture directive contract currently parsed by
-`crates/scoopc/src/fixtures/expectations.rs`. These directives are read from a
-fixture source file's leading line-comment header and drive the legacy
-`scoop test` runner while the Python runner is being introduced.
+This page records the fixture discovery and directive contract currently
+implemented by `crates/scoopc/src/fixtures/mod.rs` and
+`crates/scoopc/src/fixtures/expectations.rs`. The legacy `scoop test` runner
+uses these rules while the Python runner is being introduced.
+
+## Discovery roots and target planning
+
+`scoop test` defaults to `tests/fixtures`, and `--fixtures <path>` may point at
+the whole tree, a phase subtree, a multi-file case directory, a cone case
+directory, or one `.scoop` file. The runner canonicalizes that path before
+planning targets.
+
+`plan_targets(root)` first recognizes roots that already are indivisible
+targets:
+
+| Root shape | Planned target |
+| --- | --- |
+| `<anything>.scoop` | The single file. |
+| `tests/fixtures/resolve_multi/<case>/` | One resolve multi-file case. |
+| `tests/fixtures/resolve_cone/<case>/` | One resolve multi-cone case. |
+| `tests/fixtures/typecheck_multi/<case>/` | One typecheck multi-file case. |
+| `tests/fixtures/typecheck_cone/<case>/` | One typecheck multi-cone case. |
+| `tests/fixtures/run_pass_cone/<case>/` with both `Cone.toml` and `src/main.scoop` | One run-pass cone package case. |
+
+Otherwise `plan_targets(root)` collects targets in this stable order:
+
+1. Recursively collect all ordinary `.scoop` files below `root`, sort them, and
+   add them as file targets.
+2. Append sorted direct child directories from `resolve_multi/`.
+3. Append sorted direct child directories from `resolve_cone/`.
+4. Append sorted direct child directories from `typecheck_multi/`.
+5. Append sorted direct child directories from `typecheck_cone/`.
+6. Append sorted direct child directories from `run_pass_cone/`.
+
+The recursive file scan skips:
+
+- the dedicated case roots listed above, so a multi-file or cone case is not
+  split into separate file targets;
+- companion sysroot overlay directories whose names end in `.sysroot`;
+- cone build output directories named `build` when they contain `debug/` or
+  `release/`.
+
+Empty target sets are accepted only for `umb_fix` subtrees and the retired
+`typecheck_cone_archive` marker directory. Other empty roots fail with a "no
+`.scoop` files found" diagnostic.
+
+Python-portable pseudocode for target planning:
+
+```text
+def plan_targets(root):
+    if (
+        is_file(root)
+        or is_resolve_multi_case_root(root)
+        or is_resolve_cone_case_root(root)
+        or is_typecheck_multi_case_root(root)
+        or is_typecheck_cone_case_root(root)
+        or is_run_pass_cone_case_root(root)
+    ):
+        return [target(path=root, display=basename_or_relative(root, root))]
+
+    resolve_multi = sorted_case_dirs(root / "resolve_multi")
+    resolve_cone = sorted_case_dirs(root / "resolve_cone")
+    typecheck_multi = sorted_case_dirs(root / "typecheck_multi")
+    typecheck_cone = sorted_case_dirs(root / "typecheck_cone")
+    run_pass_cone = sorted_case_dirs(run_pass_cone_root(root))
+
+    skip_dirs = [
+        existing(root / "resolve_multi"),
+        existing(root / "resolve_cone"),
+        existing(root / "typecheck_multi"),
+        existing(root / "typecheck_cone"),
+        existing(run_pass_cone_root(root)),
+    ]
+
+    files = sorted(recursive_scoop_files(root, skip_dirs))
+    targets = [target(file, relative(root, file)) for file in files]
+    targets += [target(case, relative(root, case)) for case in resolve_multi]
+    targets += [target(case, relative(root, case)) for case in resolve_cone]
+    targets += [target(case, relative(root, case)) for case in typecheck_multi]
+    targets += [target(case, relative(root, case)) for case in typecheck_cone]
+    targets += [target(case, relative(root, case)) for case in run_pass_cone]
+
+    if not targets and (is_under_umb_fix(root) or basename(root) == "typecheck_cone_archive"):
+        return []
+    if not targets:
+        error("no .scoop files found")
+    return targets
+```
+
+The case-root predicates are intentionally shallow. The multi-file and
+multi-cone predicates only check that `root` is a directory whose parent is the
+matching collection directory. `is_run_pass_cone_case_root(root)` additionally
+requires `root/Cone.toml` and `root/src/main.scoop`.
+
+## Phase routing
+
+Ordinary file targets are routed by `phase_name(root, relative_path)`:
+
+- If the relative path has at least two components, the first component is the
+  phase directory.
+- If a single file is run directly from inside a known phase directory, the
+  runner walks `root` ancestors and uses the nearest known phase directory.
+- A root-level file with no phase directory falls back to parse.
+
+| Directory | Phase |
+| --- | --- |
+| `parse/`, `spec_doctest/`, or no phase directory | `Parse` |
+| `build/` | `Build` |
+| `resolve/` | `Resolve` |
+| `typecheck/`, `unsafe_nogc/` | `Typecheck` |
+| `infer/` | `Infer` |
+| `codegen/`, `run-pass/`, `runtime_gc/` | `RunPass` |
+| `hir/` | `Hir` |
+| `mir/`, `mir_lowered/` | `Mir` |
+| `mir_materialized/` | `MirMaterialized` |
+| `effect_facts/` | `EffectFacts` |
+| `effect_lowered/` | `EffectLowered` |
+| `scoopir/` | `ScoopIr` |
+| `umb_fix/` | `UmbFix` |
+| any other first component | `Unimplemented(<name>)` |
+
+The special directories `resolve_multi/`, `resolve_cone/`,
+`typecheck_multi/`, `typecheck_cone/`, and `run_pass_cone/` do not route
+through this table when planned from the normal fixture root. They are planned
+as case directory targets and dispatched by `run_all` before per-file phase
+routing.
+
+## Multi-file and cone case directories
+
+Case directories are treated as one fixture target, but their check count is
+the number of `.scoop` files whose expectations are evaluated inside the case.
+
+| Directory shape | Discovery and execution contract |
+| --- | --- |
+| `resolve_multi/<case>/` | Direct child directories of `resolve_multi/` are cases. A case must contain at least two `.scoop` files after recursive scanning. The runner parses all case files plus sysroot files into one resolve index, then runs binding checks for each case file and applies that file's header expectations. |
+| `typecheck_multi/<case>/` | Direct child directories of `typecheck_multi/` are cases. A case must contain at least two `.scoop` files after recursive scanning. The runner builds one resolve index and one type environment for all case files plus sysroot, then typechecks each file and applies that file's header expectations. |
+| `resolve_cone/<case>/<cone>/` | Direct child directories of `resolve_cone/` are cases. Each case must contain at least two cone subdirectories, excluding `.sysroot` overlays. Every cone subdirectory must contain at least one `.scoop` file. Cone ids are assigned by sorted cone directory order starting at 1; sysroot uses cone id 0. Binding checks run per file with each file's own expectations. |
+| `typecheck_cone/<case>/<cone>/` | Same discovery constraints and cone id assignment as `resolve_cone/`. The runner builds one cone-aware resolve index and one type environment across all cone files plus sysroot, then typechecks each file with its own expectations and finally computes layout metadata for the whole case. |
+| `run_pass_cone/<case>/` | Direct child directories of `run_pass_cone/` are scheduled as cases. A valid case root must contain `Cone.toml` and `src/main.scoop`; `is_run_pass_cone_case_root` is exactly this predicate. Expectations, `ARGS:`, stdio golden directives, `SYSROOT-DEPS:`, and `RUN-MODE:` are read from `src/main.scoop`. `EXPECT: pass` runs `scoop run` in the case directory, while `EXPECT: fail` runs `scoop build` and matches the resulting diagnostic. |
+
+`run_pass_cone_root(root)` has one subset convenience rule: if `root` itself is
+named `run_pass_cone`, it is the case collection root; otherwise the runner
+looks for `root/run_pass_cone`.
+
+`typecheck_cone_archive/` is a retired archive suite. It is not an active phase
+name, and the only supported behavior is that its marker directory may produce
+zero planned targets.
+
+## Companion sysroot overlays
+
+A target may have a companion sysroot overlay directory:
+
+| Target | Overlay directory |
+| --- | --- |
+| `path/to/name.scoop` | `path/to/name.sysroot/` |
+| `path/to/case_dir/` | `path/to/case_dir.sysroot/` |
+
+If the overlay directory exists, the runner adds it to the session options for
+that target. Overlay directories are skipped during target discovery and cone
+subdirectory enumeration. `SYSROOT-DEPS:` directives are applied in addition to
+the companion overlay, and are read per source file for ordinary file targets
+or from `run_pass_cone/<case>/src/main.scoop` for cone run-pass cases.
+
+## `umb_fix` sub-routing
+
+Files under `umb_fix/` are discovered as ordinary file targets but use dynamic
+sub-routing after `IGNORE-UNTIL-FIX` handling:
+
+- build-like `ARGS:` or `BUILD-LLVM-*` directives run the build fixture path;
+- run directives, explicit stdout/stderr golden directives, or sibling
+  `.stdout` / `.stderr` files run the run-pass fixture path;
+- all other files run the typecheck fixture path.
 
 ## Header parsing rules
 
