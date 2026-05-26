@@ -8,6 +8,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifact_metadata;
 pub mod graph;
 pub mod graph_loader;
 pub mod manifest;
@@ -17,6 +18,16 @@ pub mod package;
 pub mod package_loader;
 pub mod sysroot;
 
+pub use artifact_metadata::{
+    CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
+    CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
+    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
+    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
+    CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifactFingerprints, ConeArtifactManifest,
+    ConeArtifactMetadataError, ConeArtifactSchemaVersions, compute_outputs_fingerprint,
+    read_manifest_and_inputs_fingerprint, validate_object_file_name,
+};
 pub use graph::{
     CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
     SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
@@ -39,6 +50,7 @@ pub use package_loader::{
     host_target_platform_id, load_cone_source_package, load_cone_source_package_for_platform,
     load_cone_source_package_for_platform_with_sysroot_root,
 };
+pub use scoopc_source::SourceFile;
 pub use sysroot::{
     DEFAULT_AUTO_DEPENDENCY_CONES, SYSROOT_OVERLAY_ENV, SysrootSourceConePackage,
     SysrootSourceEntry, canonicalize_sysroot_root, collect_auto_sysroot_source_cone_packages,

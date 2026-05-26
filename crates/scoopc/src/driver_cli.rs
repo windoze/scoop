@@ -2,29 +2,35 @@
 //!
 //! 该模块只负责把原始参数解析成稳定结构，避免把 session 配置散落在二进制入口里。
 
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 
 use miette::Result;
 
 use crate::cone::ConeKind;
+use crate::opt::OptLevel;
 use crate::session::SessionOptions;
+use crate::tool_commands::EmitArtifactKind;
 
 pub const USAGE: &str = "\
 用法：
-  scoopc [--emit-llvm] <input.scoop> [-o <out.ll>]
-  scoopc --obj <input.scoop> [-o <out.o>]
   scoopc build-single-cone --cone-root <dir> --out <dir> \\
-      --inputs-fingerprint <hex> [--upstream-artifact <dir> ...] [--cone-id <key>]
+      --inputs-fingerprint <hex> [--upstream-artifact <dir> ...] [--cone-id <key>] \\
+      [--opt-level <0|1|2|3|s|z>] [--sysroot-dep <name> ...]
   scoopc link-cone --kind <bin|lib|syslib> --consumer-obj <path> \\
       [--dep-obj <path> ...] --runtime-artifact-dir <dir> --out <dir> \\
       --inputs-fingerprint <hex> [--binary-out <path>] [--linker <path>] \\
       [--extern-lib <name> ...] [--link-flag <flag> ...] [--cone-id <key>]
+  scoopc emit-artifact --kind <llvm-ir|obj|asm> --input <path> --out <path> \
+      [--opt-level <0|1|2|3|s|z>]
+  scoopc dump-ast|dump-hir|dump-mir|dump-ir|dump-effect-facts|dump-effect-lowered <path>
+  scoopc dump-rtti <path> [--type <TYPE>]
+  scoopc dump-stackmaps [--verify-roots] [--dump-records] <path>
+  scoopc test-fixtures [--fixtures <path>] [--processes <N>] [--exit-on-failure] \
+      [--opt-level <0|1|2|3|s|z>] [--gc-stress] [--gc-move] [--threads <N>]
 
 说明：
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
-  - 裸 `<input.scoop>` 按 single-source virtual cone 处理，不会根据相邻 `Cone.toml`
-    自动恢复 explicit cone/project context。
-  - `--obj` 为 object 输出模式；省略时默认输出 LLVM IR。
   - `build-single-cone` 由 scoop 的 cone DAG scheduler 通过子进程派发，将 cone-being
     -compiled 当作 graph consumer 跑完整 frontend 并写入 per-cone artifact。
 ";
@@ -32,26 +38,15 @@ pub const USAGE: &str = "\
 /// scoopc CLI 顶层模式。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompilerCli {
-    /// 默认 single-source virtual cone 模式。
-    Legacy(LegacyCompilerCli),
     /// `scoopc build-single-cone ...`：scoop driver 派发的子进程入口。
     BuildSingleCone(BuildSingleConeCli),
     /// `scoopc link-cone ...`：scoop driver 派发的 link 子进程入口。
     LinkCone(LinkConeCli),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LegacyCompilerCli {
-    pub emit_mode: EmitMode,
-    pub input: PathBuf,
-    pub output: Option<PathBuf>,
-    pub session_options: SessionOptions,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EmitMode {
-    LlvmIr,
-    Object,
+    EmitArtifact(EmitArtifactCli),
+    Dump(DumpCli),
+    DumpRtti(DumpRttiCli),
+    DumpStackmaps(DumpStackmapsCli),
+    TestFixtures(crate::fixture_cli::FixtureCliOptions),
 }
 
 /// `scoopc build-single-cone` 子命令的参数。
@@ -70,6 +65,8 @@ pub struct BuildSingleConeCli {
     pub upstream_artifact_dirs: Vec<PathBuf>,
     /// 期望的 cone stable key（"name@version"）。可选，仅作为父子进程一致性校验。
     pub expected_cone_id: Option<String>,
+    /// 子进程内 LLVM/LIR pipeline 使用的优化等级。
+    pub opt_level: OptLevel,
     /// 子进程内的 session 选项（profile / sysroot overlay / extra sysroot deps 等）。
     pub session_options: SessionOptions,
 }
@@ -90,6 +87,57 @@ pub struct LinkConeCli {
     pub expected_cone_id: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmitArtifactCli {
+    pub kind: EmitArtifactKind,
+    pub input: PathBuf,
+    pub output: PathBuf,
+    pub opt_level: OptLevel,
+    pub session_options: SessionOptions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DumpCli {
+    Ast {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+    Hir {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+    Mir {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+    Ir {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+    EffectFacts {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+    EffectLowered {
+        input: PathBuf,
+        session_options: SessionOptions,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DumpRttiCli {
+    pub input: PathBuf,
+    pub type_name: Option<String>,
+    pub session_options: SessionOptions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DumpStackmapsCli {
+    pub input: PathBuf,
+    pub verify_roots: bool,
+    pub dump_records: bool,
+}
+
 pub fn parse_args<I, S>(args: I) -> Result<Option<CompilerCli>>
 where
     I: IntoIterator<Item = S>,
@@ -98,73 +146,64 @@ where
     let mut args_iter = args.into_iter().map(Into::into);
     let first = args_iter.next();
     match first.as_deref() {
-        Some("-h") | Some("--help") => return Ok(None),
+        Some("-h") | Some("--help") => Ok(None),
         Some("build-single-cone") => {
-            return parse_build_single_cone(args_iter)
-                .map(|cli| Some(CompilerCli::BuildSingleCone(cli)));
+            parse_build_single_cone(args_iter).map(|cli| Some(CompilerCli::BuildSingleCone(cli)))
         }
-        Some("link-cone") => {
-            return parse_link_cone(args_iter).map(|cli| Some(CompilerCli::LinkCone(cli)));
+        Some("link-cone") => parse_link_cone(args_iter).map(|cli| Some(CompilerCli::LinkCone(cli))),
+        Some("emit-artifact") => {
+            parse_emit_artifact(args_iter).map(|cli| Some(CompilerCli::EmitArtifact(cli)))
         }
-        _ => {}
+        Some("dump-ast") => parse_dump_input(args_iter).map(|(input, session_options)| {
+            Some(CompilerCli::Dump(DumpCli::Ast {
+                input,
+                session_options,
+            }))
+        }),
+        Some("dump-hir") => parse_dump_input(args_iter).map(|(input, session_options)| {
+            Some(CompilerCli::Dump(DumpCli::Hir {
+                input,
+                session_options,
+            }))
+        }),
+        Some("dump-mir") => parse_dump_input(args_iter).map(|(input, session_options)| {
+            Some(CompilerCli::Dump(DumpCli::Mir {
+                input,
+                session_options,
+            }))
+        }),
+        Some("dump-ir") => parse_dump_input(args_iter).map(|(input, session_options)| {
+            Some(CompilerCli::Dump(DumpCli::Ir {
+                input,
+                session_options,
+            }))
+        }),
+        Some("dump-effect-facts") => parse_dump_input(args_iter).map(|(input, session_options)| {
+            Some(CompilerCli::Dump(DumpCli::EffectFacts {
+                input,
+                session_options,
+            }))
+        }),
+        Some("dump-effect-lowered") => {
+            parse_dump_input(args_iter).map(|(input, session_options)| {
+                Some(CompilerCli::Dump(DumpCli::EffectLowered {
+                    input,
+                    session_options,
+                }))
+            })
+        }
+        Some("dump-rtti") => parse_dump_rtti(args_iter).map(|cli| Some(CompilerCli::DumpRtti(cli))),
+        Some("dump-stackmaps") => {
+            parse_dump_stackmaps(args_iter).map(|cli| Some(CompilerCli::DumpStackmaps(cli)))
+        }
+        Some("test-fixtures") => {
+            parse_test_fixtures(args_iter).map(|cli| Some(CompilerCli::TestFixtures(cli)))
+        }
+        Some(other) => Err(miette::miette!(
+            "未知 scoopc 子命令或参数：{other}\n\n{USAGE}"
+        )),
+        None => Err(miette::miette!("缺少 scoopc 子命令\n\n{USAGE}")),
     }
-
-    let chained = first.into_iter().chain(args_iter);
-    parse_legacy(chained).map(|maybe| maybe.map(CompilerCli::Legacy))
-}
-
-fn parse_legacy<I>(args: I) -> Result<Option<LegacyCompilerCli>>
-where
-    I: IntoIterator<Item = String>,
-{
-    let mut emit_llvm = false;
-    let mut emit_obj = false;
-    let mut output: Option<PathBuf> = None;
-    let mut input: Option<PathBuf> = None;
-
-    let mut args = args.into_iter();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-h" | "--help" => return Ok(None),
-            "--emit-llvm" => emit_llvm = true,
-            "--emit-obj" | "--obj" => emit_obj = true,
-            "-o" | "--output" => {
-                let Some(value) = args.next() else {
-                    return Err(miette::miette!("参数 `{arg}` 需要一个输出路径\n\n{USAGE}"));
-                };
-                output = Some(PathBuf::from(value));
-            }
-            _ if arg.starts_with('-') => {
-                return Err(miette::miette!("未知参数：{arg}\n\n{USAGE}"));
-            }
-            _ => {
-                if input.is_some() {
-                    return Err(miette::miette!("一次只支持一个输入文件\n\n{USAGE}"));
-                }
-                input = Some(PathBuf::from(arg));
-            }
-        }
-    }
-
-    let emit_mode = match (emit_llvm, emit_obj) {
-        (true, false) => EmitMode::LlvmIr,
-        (false, true) => EmitMode::Object,
-        (false, false) => EmitMode::LlvmIr,
-        (true, true) => {
-            return Err(miette::miette!(
-                "`--emit-llvm` 与 `--obj`/`--emit-obj` 不能同时使用\n\n{USAGE}"
-            ));
-        }
-    };
-
-    let input = input.ok_or_else(|| miette::miette!("缺少输入文件\n\n{USAGE}"))?;
-
-    Ok(Some(LegacyCompilerCli {
-        emit_mode,
-        input,
-        output,
-        session_options: SessionOptions::new(),
-    }))
 }
 
 fn parse_build_single_cone<I>(args: I) -> Result<BuildSingleConeCli>
@@ -176,6 +215,8 @@ where
     let mut inputs_fingerprint_hex: Option<String> = None;
     let mut upstream_artifact_dirs: Vec<PathBuf> = Vec::new();
     let mut expected_cone_id: Option<String> = None;
+    let mut opt_level: Option<OptLevel> = None;
+    let mut extra_sysroot_deps: Vec<String> = Vec::new();
 
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
@@ -219,6 +260,24 @@ where
                 };
                 expected_cone_id = Some(value);
             }
+            "--opt-level" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!("`--opt-level` 需要一个优化等级\n\n{USAGE}"));
+                };
+                opt_level = Some(OptLevel::parse(&value)?);
+            }
+            "--sysroot-dep" => {
+                let Some(value) = args.next() else {
+                    return Err(miette::miette!(
+                        "`--sysroot-dep` 需要一个 sysroot cone 名称\n\n{USAGE}"
+                    ));
+                };
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err(miette::miette!("`--sysroot-dep` 不能是空字符串"));
+                }
+                extra_sysroot_deps.push(trimmed.to_string());
+            }
             _ => {
                 return Err(miette::miette!(
                     "build-single-cone 不接受参数 `{arg}`\n\n{USAGE}"
@@ -238,13 +297,16 @@ where
         miette::miette!("`--inputs-fingerprint` 必须是偶数长度的 hex 字符串：{hex_value}")
     })?;
 
+    let session_options = SessionOptions::new().with_extra_sysroot_dependencies(extra_sysroot_deps);
+
     Ok(BuildSingleConeCli {
         cone_root,
         output_dir,
         inputs_fingerprint,
         upstream_artifact_dirs,
         expected_cone_id,
-        session_options: SessionOptions::new(),
+        opt_level: opt_level.unwrap_or(OptLevel::O0),
+        session_options,
     })
 }
 
@@ -379,6 +441,158 @@ where
     })
 }
 
+fn parse_emit_artifact<I>(args: I) -> Result<EmitArtifactCli>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut kind = None;
+    let mut input = None;
+    let mut output = None;
+    let mut opt_level = None;
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--kind" => {
+                kind = Some(EmitArtifactKind::parse(&required_arg(
+                    &mut args, "--kind",
+                )?)?)
+            }
+            "--input" => input = Some(PathBuf::from(required_arg(&mut args, "--input")?)),
+            "--out" | "-o" => output = Some(PathBuf::from(required_arg(&mut args, &arg)?)),
+            "--opt-level" => {
+                opt_level = Some(OptLevel::parse(&required_arg(&mut args, "--opt-level")?)?)
+            }
+            other => {
+                return Err(miette::miette!(
+                    "emit-artifact 不接受参数 `{other}`\n\n{USAGE}"
+                ));
+            }
+        }
+    }
+    Ok(EmitArtifactCli {
+        kind: kind.ok_or_else(|| miette::miette!("emit-artifact 缺少 --kind\n\n{USAGE}"))?,
+        input: input.ok_or_else(|| miette::miette!("emit-artifact 缺少 --input\n\n{USAGE}"))?,
+        output: output.ok_or_else(|| miette::miette!("emit-artifact 缺少 --out\n\n{USAGE}"))?,
+        opt_level: opt_level.unwrap_or(OptLevel::O0),
+        session_options: SessionOptions::new(),
+    })
+}
+
+fn parse_dump_input<I>(args: I) -> Result<(PathBuf, SessionOptions)>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut input = None;
+    for arg in args {
+        if input.is_none() {
+            input = Some(PathBuf::from(arg));
+        } else {
+            return Err(miette::miette!("dump 子命令只接受一个输入路径\n\n{USAGE}"));
+        }
+    }
+    Ok((
+        input.ok_or_else(|| miette::miette!("dump 子命令缺少输入路径\n\n{USAGE}"))?,
+        SessionOptions::new(),
+    ))
+}
+
+fn parse_dump_rtti<I>(args: I) -> Result<DumpRttiCli>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut input = None;
+    let mut type_name = None;
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--type" => type_name = Some(required_arg(&mut args, "--type")?),
+            other if input.is_none() => input = Some(PathBuf::from(other)),
+            other => return Err(miette::miette!("dump-rtti 不接受参数 `{other}`\n\n{USAGE}")),
+        }
+    }
+    Ok(DumpRttiCli {
+        input: input.ok_or_else(|| miette::miette!("dump-rtti 缺少输入路径\n\n{USAGE}"))?,
+        type_name,
+        session_options: SessionOptions::new(),
+    })
+}
+
+fn parse_dump_stackmaps<I>(args: I) -> Result<DumpStackmapsCli>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut input = None;
+    let mut verify_roots = false;
+    let mut dump_records = false;
+    for arg in args {
+        match arg.as_str() {
+            "--verify-roots" => verify_roots = true,
+            "--dump-records" => dump_records = true,
+            other if input.is_none() => input = Some(PathBuf::from(other)),
+            other => {
+                return Err(miette::miette!(
+                    "dump-stackmaps 不接受参数 `{other}`\n\n{USAGE}"
+                ));
+            }
+        }
+    }
+    Ok(DumpStackmapsCli {
+        input: input.ok_or_else(|| miette::miette!("dump-stackmaps 缺少输入路径\n\n{USAGE}"))?,
+        verify_roots,
+        dump_records,
+    })
+}
+
+fn parse_test_fixtures<I>(args: I) -> Result<crate::fixture_cli::FixtureCliOptions>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut options = crate::fixture_cli::FixtureCliOptions::default();
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--fixtures" => {
+                options.fixtures = Some(PathBuf::from(required_arg(&mut args, "--fixtures")?))
+            }
+            "--processes" => {
+                let raw = required_arg(&mut args, "--processes")?;
+                let parsed: usize = raw
+                    .parse()
+                    .map_err(|_| miette::miette!("--processes 必须是正整数：{raw}"))?;
+                options.processes = NonZeroUsize::new(parsed)
+                    .ok_or_else(|| miette::miette!("--processes 必须大于 0"))?;
+            }
+            "--exit-on-failure" => options.exit_on_failure = true,
+            "--opt-level" => {
+                options.opt_level = Some(OptLevel::parse(&required_arg(&mut args, "--opt-level")?)?)
+            }
+            "--gc-stress" => options.gc_stress = true,
+            "--gc-move" => options.gc_move = true,
+            "--threads" => {
+                let raw = required_arg(&mut args, "--threads")?;
+                let parsed: u32 = raw
+                    .parse()
+                    .map_err(|_| miette::miette!("--threads 必须是正整数：{raw}"))?;
+                options.threads = Some(
+                    NonZeroU32::new(parsed)
+                        .ok_or_else(|| miette::miette!("--threads 必须大于 0"))?,
+                );
+            }
+            other => {
+                return Err(miette::miette!(
+                    "test-fixtures 不接受参数 `{other}`\n\n{USAGE}"
+                ));
+            }
+        }
+    }
+    Ok(options)
+}
+
+fn required_arg(args: &mut impl Iterator<Item = String>, name: &str) -> Result<String> {
+    args.next()
+        .ok_or_else(|| miette::miette!("`{name}` 需要一个参数值\n\n{USAGE}"))
+}
+
 fn decode_hex(input: &str) -> Option<Vec<u8>> {
     if !input.len().is_multiple_of(2) {
         return None;
@@ -408,13 +622,6 @@ mod tests {
 
     use super::*;
 
-    fn legacy(cli: CompilerCli) -> LegacyCompilerCli {
-        match cli {
-            CompilerCli::Legacy(c) => c,
-            other => panic!("expected Legacy, got {other:?}"),
-        }
-    }
-
     fn build_single_cone(cli: CompilerCli) -> BuildSingleConeCli {
         match cli {
             CompilerCli::BuildSingleCone(c) => c,
@@ -430,27 +637,25 @@ mod tests {
     }
 
     #[test]
-    fn bare_file_defaults_to_virtual_cone_llvm_ir_cli() {
-        let cli = legacy(parse_args(["input.scoop"]).unwrap().unwrap());
+    fn bare_file_legacy_cli_is_removed() {
+        let err = parse_args(["input.scoop"]).unwrap_err();
 
-        assert_eq!(cli.emit_mode, EmitMode::LlvmIr);
-        assert_eq!(cli.input, PathBuf::from("input.scoop"));
-        assert_eq!(cli.session_options, crate::session::SessionOptions::new());
+        assert!(err.to_string().contains("未知 scoopc 子命令"));
+        assert!(!USAGE.contains("--emit-llvm"));
     }
 
     #[test]
-    fn obj_flag_selects_object_output_mode() {
-        let cli = legacy(parse_args(["--obj", "input.scoop"]).unwrap().unwrap());
+    fn obj_legacy_cli_is_removed() {
+        let err = parse_args(["--obj", "input.scoop"]).unwrap_err();
 
-        assert_eq!(cli.emit_mode, EmitMode::Object);
-        assert_eq!(cli.input, PathBuf::from("input.scoop"));
+        assert!(err.to_string().contains("未知 scoopc 子命令"));
     }
 
     #[test]
     fn effect_pipeline_selector_removed_for_scoopc_cli() {
         let err = parse_args(["--effect-pipeline", "legacy", "--obj", "input.scoop"]).unwrap_err();
 
-        assert!(err.to_string().contains("未知参数：--effect-pipeline"));
+        assert!(err.to_string().contains("未知 scoopc 子命令"));
     }
 
     #[test]
@@ -459,14 +664,14 @@ mod tests {
             parse_args(["--effect-pipeline", "future", "--emit-llvm", "input.scoop"]).unwrap_err();
 
         let message = err.to_string();
-        assert!(message.contains("未知参数：--effect-pipeline"));
+        assert!(message.contains("未知 scoopc 子命令"));
     }
 
     #[test]
-    fn llvm_and_object_modes_conflict() {
+    fn removed_llvm_and_object_flags_are_unknown() {
         let err = parse_args(["--emit-llvm", "--obj", "input.scoop"]).unwrap_err();
 
-        assert!(err.to_string().contains("不能同时使用"));
+        assert!(err.to_string().contains("未知 scoopc 子命令"));
     }
 
     #[test]

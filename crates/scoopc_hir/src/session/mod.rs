@@ -57,7 +57,8 @@ impl SessionOptions {
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from);
         }
-        if let Some(value) = std::env::var_os(SYSROOT_DEPENDENCIES_ENV)
+        if self.extra_sysroot_dependencies.is_empty()
+            && let Some(value) = std::env::var_os(SYSROOT_DEPENDENCIES_ENV)
             && let Some(value) = value.to_str()
         {
             self = self.with_extra_sysroot_dependencies(parse_sysroot_dependency_env(value));

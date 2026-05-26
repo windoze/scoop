@@ -612,7 +612,41 @@ pub fn load_single_cone_project_input_from_path(
         &[],
         session_options.extra_sysroot_dependencies(),
     )?;
-    ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None)
+    let marker_path = cone_root.join(".scoop-virtual-cone");
+    let is_virtual_cone = marker_path.is_file();
+    let graph = if is_virtual_cone {
+        graph_with_virtual_source_identity(graph, &marker_path)?
+    } else {
+        graph
+    };
+    let project_kind = if is_virtual_cone {
+        ConeProjectKind::Virtual
+    } else {
+        ConeProjectKind::Explicit
+    };
+    ProjectInput::from_graph(graph, project_kind, None)
+}
+
+fn graph_with_virtual_source_identity(
+    graph: SourceConeGraph,
+    marker_path: &Path,
+) -> Result<SourceConeGraph> {
+    let raw = std::fs::read_to_string(marker_path).into_diagnostic()?;
+    let original_path = PathBuf::from(raw.trim());
+    if !original_path.is_file() {
+        return Ok(graph);
+    }
+    let original_source = SourceFile::load(&original_path)?;
+    let consumer_id = graph.consumer_id();
+    let mut nodes = graph.nodes().to_vec();
+    for node in &mut nodes {
+        if node.id != consumer_id {
+            continue;
+        }
+        node.sources = vec![original_source.clone()];
+        node.entry_main = Some(original_source.path().to_path_buf());
+    }
+    SourceConeGraph::from_nodes(nodes, consumer_id)
 }
 
 pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
@@ -1028,13 +1062,12 @@ pub fn run_frontend_with_artifact_cache(
         {
             None
         } else {
-            let export_asts = unit_asts.clone();
             let mut export_lowering_context_files: Vec<(&SourceFile, &ast::File)> =
                 Vec::with_capacity(lowering_context_files.len());
             let unit_path_to_export_ast = unit
                 .sources()
                 .iter()
-                .zip(export_asts.iter())
+                .zip(unit_asts.iter())
                 .map(|(source, ast)| (source.path(), ast))
                 .collect::<HashMap<_, _>>();
             for (source, ast) in &lowering_context_files {
@@ -1044,15 +1077,20 @@ pub fn run_frontend_with_artifact_cache(
                     .unwrap_or(*ast);
                 export_lowering_context_files.push((*source, export_ast));
             }
-            let frontend_import = crate::cone::build_frontend_import_for_typechecked_cone(
-                session,
-                unit.sources(),
-                &export_asts,
-                &unit.node().manifest,
-                &index,
-                &env,
-                &export_lowering_context_files,
-            )?;
+            let frontend_import =
+                if unit.is_consumer() && unit.node().manifest.cone.kind == ConeKind::Bin {
+                    crate::cone::ConeArtifactFrontendImport::empty()
+                } else {
+                    crate::cone::build_frontend_import_for_typechecked_cone(
+                        session,
+                        unit.sources(),
+                        &unit_asts,
+                        &unit.node().manifest,
+                        &index,
+                        &env,
+                        &export_lowering_context_files,
+                    )?
+                };
             Some(crate::cone::ConeArtifact::new(
                 unit.source_cone_info().stable_key,
                 unit.source_cone_info().kind,

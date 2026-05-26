@@ -256,6 +256,7 @@ struct CallableEdges {
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
+    use scoop_project_model::{OptLevel, StableConeKey};
     use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
     use scoopc_lir_facts::{
         LirBodyVersionFacts, LirBoundaryMapFacts, LirCallSiteContract, LirCallSiteKind,
@@ -269,7 +270,6 @@ mod tests {
         LirPlainCallableFacts, LirResumeStateMapFacts, LirSourceSliceKey, LirStageSummary,
         LirStateGraphFacts, LirStateKey, LirStepSchemaKey,
     };
-    use scoopc_project_model::{OptLevel, StableConeKey};
     use scoopc_types::{TypeId, TypeStore};
 
     fn ty(raw: u32) -> TypeId {

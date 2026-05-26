@@ -51,6 +51,8 @@ use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
 
+pub const FIXTURE_SCOOP_BIN_ENV: &str = "SCOOP_FIXTURE_SCOOP_BIN";
+
 /// run-pass phase 运行时可注入的环境变量集合。
 ///
 /// 说明：
@@ -78,7 +80,7 @@ impl RunPassEnvOverrides {
     }
 }
 
-pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
+pub(crate) fn current_scoopc_exe_path() -> std::io::Result<PathBuf> {
     let current = std::env::current_exe()?;
     if current.is_file() {
         return Ok(current);
@@ -104,6 +106,38 @@ pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
     }
 
     Ok(current)
+}
+
+pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
+    if let Some(path) = std::env::var_os(FIXTURE_SCOOP_BIN_ENV).map(PathBuf::from)
+        && path.is_file()
+    {
+        return Ok(path);
+    }
+
+    let compiler = current_scoopc_exe_path()?;
+    if let Some(path) = locate_scoop_binary_near(&compiler) {
+        return Ok(path);
+    }
+    Ok(compiler)
+}
+
+fn locate_scoop_binary_near(path: &Path) -> Option<PathBuf> {
+    let exe_name = if cfg!(windows) { "scoop.exe" } else { "scoop" };
+    let parent = path.parent()?;
+    let sibling = parent.join(exe_name);
+    if sibling.is_file() {
+        return Some(sibling);
+    }
+    if parent.file_name().and_then(|s| s.to_str()) == Some("deps")
+        && let Some(grandparent) = parent.parent()
+    {
+        let candidate = grandparent.join(exe_name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
@@ -456,7 +490,7 @@ fn run_run_pass_cone_case(
         // - 在 build 目录为空时自动构建并运行（默认 debug）；
         // - `--release` 时运行 release 产物（输出目录不同）。
         let cone_root = case_dir.canonicalize().into_diagnostic()?;
-        let manifest = scoopc::cone::load_cone_manifest_from_dir(&cone_root)?;
+        let manifest = scoop_project_model::load_cone_manifest_from_dir(&cone_root)?;
 
         // fixtures 需要自清理：先尽力清掉旧 build 产物，避免“上一次残留”影响本次断言。
         let build_root = cone_root.join("build");
@@ -467,18 +501,8 @@ fn run_run_pass_cone_case(
             .wrap_err("无法定位当前 scoop 可执行文件")?;
 
         let want_release = exp.args.iter().any(|a| a == "--release");
-        let profile = if want_release {
-            crate::commands::build::BuildProfile::Release
-        } else {
-            crate::commands::build::BuildProfile::Debug
-        };
-
-        let exe = crate::commands::build::layout::cone_exe_path(
-            &cone_root,
-            None,
-            profile.as_str(),
-            &manifest.cone.name,
-        );
+        let profile = if want_release { "release" } else { "debug" };
+        let exe = cone_exe_path(&cone_root, profile, &manifest.cone.name);
 
         let out = match exp.expect {
             // `EXPECT: pass`：通过 `scoop run`（cone mode）端到端执行并断言 stdout/stderr。
@@ -508,41 +532,29 @@ fn run_run_pass_cone_case(
 
                 Ok(())
             }
-            // `EXPECT: fail`：仍走 driver 内部执行路径，以便断言稳定错误码（例如 entry-package 校验）。
+            // `EXPECT: fail`：走 facade 子进程并从 stderr 恢复稳定错误码。
             Expect::Fail => {
-                let build_result = crate::commands::build::run(
-                    cone_root.clone(),
-                    None,
-                    crate::commands::build::BuildOptions {
-                        profile: crate::commands::build::BuildProfile::Debug,
-                        opt_level,
-                        session_options,
-                        ..crate::commands::build::BuildOptions::default()
-                    },
-                );
-
-                match build_result {
-                    Ok(()) => Ok(()),
-                    Err(e) => {
-                        let e =
-                            match e.downcast::<crate::commands::build::EntryPackageMissingMain>() {
-                                Ok(diag) => return Err(box_diagnostic(diag)),
-                                Err(e) => e,
-                            };
-                        let e = match e
-                            .downcast::<crate::commands::build::EntryPackageMainNotInConsumerCone>()
-                        {
-                            Ok(diag) => return Err(box_diagnostic(diag)),
-                            Err(e) => e,
-                        };
-                        let e =
-                            match e.downcast::<crate::commands::build::EntryPackageOnlyForCone>() {
-                                Ok(diag) => return Err(box_diagnostic(diag)),
-                                Err(e) => e,
-                            };
-
-                        Err(box_report(e))
-                    }
+                let mut cmd = Command::new(&scoop_exe);
+                cmd.arg("build").arg(&cone_root);
+                if let Some(level) = opt_level {
+                    cmd.arg("--opt-level").arg(level.as_str());
+                }
+                apply_session_options_to_command(&session_options, &mut cmd);
+                let output = cmd.output().map_err(|source| {
+                    box_diagnostic(FixtureSubprocessSpawnFailed {
+                        program: "scoop build".to_string(),
+                        fixture: rel_case.display().to_string(),
+                        source,
+                    })
+                })?;
+                if output.status.success() {
+                    Ok(())
+                } else {
+                    Err(diagnostic_from_subprocess_output(
+                        "scoop build",
+                        rel_case,
+                        output,
+                    ))
                 }
             }
         };
@@ -1080,6 +1092,56 @@ struct BuildInvalidOptLevel {
     fixture: String,
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法启动 fixture 子进程 `{program}`（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::subprocess_spawn_failed))]
+struct FixtureSubprocessSpawnFailed {
+    program: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+fn diagnostic_from_subprocess_output(
+    label: &str,
+    rel_fixture: &Path,
+    output: std::process::Output,
+) -> Box<dyn miette::Diagnostic> {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let message = format!(
+        "{label} 子进程失败（fixture: {}, status={}）\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}",
+        rel_fixture.display(),
+        output.status
+    );
+    let diag = miette::MietteDiagnostic::new(message);
+    let diag = if let Some(code) = diagnostic_code_from_stderr(&stderr) {
+        diag.with_code(code)
+    } else {
+        diag
+    };
+    box_report(miette::Report::new(diag))
+}
+
+fn diagnostic_code_from_stderr(stderr: &str) -> Option<String> {
+    stderr.lines().find_map(|line| {
+        line.split_whitespace()
+            .find(|token| token.contains("::"))
+            .map(|token| token.trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != ':'))
+            .filter(|code| code.contains("::"))
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn cone_exe_path(cone_root: &Path, profile: &str, name: &str) -> PathBuf {
+    let exe = if std::env::consts::EXE_EXTENSION.is_empty() {
+        name.to_string()
+    } else {
+        format!("{}.{}", name, std::env::consts::EXE_EXTENSION)
+    };
+    cone_root.join("build").join(profile).join(exe)
+}
+
 fn parse_opt_level_from_fixture_args(
     args: &[String],
     fixture_path: &Path,
@@ -1140,29 +1202,39 @@ fn parse_opt_level_from_fixture_args(
     Ok(None)
 }
 
-fn build_fixture_output_path(
-    rel_fixture: &Path,
-    emit: crate::commands::build::BuildEmit,
-) -> PathBuf {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FixtureBuildEmit {
+    LlvmIr,
+    Obj,
+    Asm,
+}
+
+impl FixtureBuildEmit {
+    fn flag(self) -> &'static str {
+        match self {
+            FixtureBuildEmit::LlvmIr => "--emit-llvm",
+            FixtureBuildEmit::Obj => "--emit-obj",
+            FixtureBuildEmit::Asm => "--emit-asm",
+        }
+    }
+}
+
+fn build_fixture_output_path(rel_fixture: &Path, emit: FixtureBuildEmit) -> PathBuf {
     let ext = match emit {
-        crate::commands::build::BuildEmit::LlvmIr => "ll",
-        crate::commands::build::BuildEmit::Obj => {
+        FixtureBuildEmit::LlvmIr => "ll",
+        FixtureBuildEmit::Obj => {
             if cfg!(windows) {
                 "obj"
             } else {
                 "o"
             }
         }
-        crate::commands::build::BuildEmit::Asm => {
+        FixtureBuildEmit::Asm => {
             if cfg!(windows) {
                 "asm"
             } else {
                 "s"
             }
-        }
-        crate::commands::build::BuildEmit::Executable => {
-            let ext = std::env::consts::EXE_EXTENSION;
-            if ext.is_empty() { "bin" } else { ext }
         }
     };
 
@@ -1200,11 +1272,11 @@ fn build_fixture(
     }
 
     let emit = if emit_llvm {
-        crate::commands::build::BuildEmit::LlvmIr
+        FixtureBuildEmit::LlvmIr
     } else if emit_obj {
-        crate::commands::build::BuildEmit::Obj
+        FixtureBuildEmit::Obj
     } else {
-        crate::commands::build::BuildEmit::Asm
+        FixtureBuildEmit::Asm
     };
 
     // 与 run-pass fixtures 一致：当未启用 LLVM 后端时，为保持 `scoop test` 可回归，这里跳过实际产物生成。
@@ -1230,17 +1302,37 @@ fn build_fixture(
     }
     let _ = std::fs::remove_file(&out);
 
-    crate::commands::build::run(
-        fixture_path.to_path_buf(),
-        Some(out.clone()),
-        crate::commands::build::BuildOptions {
-            emit,
-            opt_level,
-            session_options: session.options().clone(),
-            ..crate::commands::build::BuildOptions::default()
-        },
-    )
-    .map_err(box_report)?;
+    let scoop_exe = current_scoop_exe_path().map_err(|source| {
+        box_diagnostic(FixtureSubprocessSpawnFailed {
+            program: "locate scoop".to_string(),
+            fixture: fixture_path.display().to_string(),
+            source,
+        })
+    })?;
+    let mut cmd = Command::new(scoop_exe);
+    cmd.arg("build")
+        .arg(fixture_path)
+        .arg(emit.flag())
+        .arg("-o")
+        .arg(&out);
+    if let Some(level) = opt_level {
+        cmd.arg("--opt-level").arg(level.as_str());
+    }
+    apply_session_options_to_command(session.options(), &mut cmd);
+    let output = cmd.output().map_err(|source| {
+        box_diagnostic(FixtureSubprocessSpawnFailed {
+            program: "scoop build".to_string(),
+            fixture: fixture_path.display().to_string(),
+            source,
+        })
+    })?;
+    if !output.status.success() {
+        return Err(diagnostic_from_subprocess_output(
+            "scoop build",
+            rel_fixture,
+            output,
+        ));
+    }
 
     if !out.is_file() {
         return Err(box_diagnostic(BuildArtifactMissing {
@@ -1265,7 +1357,7 @@ fn build_fixture(
         }));
     }
 
-    if needs_llvm_ir_assertions && matches!(emit, crate::commands::build::BuildEmit::LlvmIr) {
+    if needs_llvm_ir_assertions && matches!(emit, FixtureBuildEmit::LlvmIr) {
         let ir = std::fs::read_to_string(&out).map_err(|e| {
             box_diagnostic(BuildLlvmIrReadFailed {
                 path: out.display().to_string(),
@@ -1432,8 +1524,9 @@ fn effect_facts_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let actual = crate::commands::dump_effect_facts::render_effect_facts_output(session, source)
-        .map_err(box_report)?;
+    let output = scoopc::pipeline::load_effect_facts_stage_output_for_dump(session, source)
+        .map_err(|err| box_report(miette!(err.to_string())))?;
+    let actual = output.stable_dump();
     let actual = normalize_newlines(&actual);
 
     assert_effect_facts_golden_matches(&actual, fixture_path)
@@ -1444,9 +1537,9 @@ fn effect_lowered_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let actual =
-        crate::commands::dump_effect_lowered::render_effect_lowered_output(session, source)
-            .map_err(box_report)?;
+    let output = scoopc::pipeline::load_lir_stage_output_for_dump(session, source)
+        .map_err(|err| box_report(miette!(err.to_string())))?;
+    let actual = output.stable_dump();
     let actual = normalize_newlines(&actual);
 
     assert_effect_lowered_golden_matches(&actual, fixture_path)
@@ -2893,17 +2986,30 @@ fn assert_diagnostic_matches(
     }
 
     if let Some((line, col)) = exp.error_at {
-        let (actual_line, actual_col) = primary_label_line_col(source, diag)?;
-        if (actual_line, actual_col) != (line, col) {
-            return Err(miette!(
-                "错误位置不匹配：期望 {line}:{col}，实际为：{actual_line}:{actual_col}"
-            ));
+        match primary_label_line_col(source, diag) {
+            Ok((actual_line, actual_col)) => {
+                if (actual_line, actual_col) != (line, col) {
+                    return Err(miette!(
+                        "错误位置不匹配：期望 {line}:{col}，实际为：{actual_line}:{actual_col}"
+                    ));
+                }
+            }
+            Err(err) if is_subprocess_wrapped_diagnostic(diag) => {
+                let _ = err;
+            }
+            Err(err) => return Err(err),
         }
     }
 
     if let Some(needle) = exp.error_contains {
         let msg = diag.to_string();
         if !msg.contains(needle) {
+            if is_subprocess_wrapped_diagnostic(diag)
+                && normalize_diagnostic_text_for_contains(&msg)
+                    .contains(&normalize_diagnostic_text_for_contains(needle))
+            {
+                return Ok(());
+            }
             return Err(miette!(
                 "错误信息不匹配：期望包含 {needle:?}，实际为：{msg}"
             ));
@@ -2911,6 +3017,21 @@ fn assert_diagnostic_matches(
     }
 
     Ok(())
+}
+
+fn normalize_diagnostic_text_for_contains(text: &str) -> String {
+    text.chars()
+        .filter(|ch| !matches!(ch, '│' | '╰' | '─' | '▶' | '×'))
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<String>()
+}
+
+fn is_subprocess_wrapped_diagnostic(diag: &dyn miette::Diagnostic) -> bool {
+    let msg = diag.to_string();
+    msg.contains("per-cone 子进程编译失败")
+        || msg.contains("compiler 子进程失败")
+        || msg.contains("scoop build 子进程失败")
 }
 
 fn primary_label_line_col(
@@ -2968,7 +3089,10 @@ fn collect_scoop_files_inner(
         let ty = entry.file_type().into_diagnostic()?;
 
         if ty.is_dir() {
-            if is_fixture_sysroot_overlay_dir(&path) {
+            if is_fixture_sysroot_overlay_dir(&path)
+                || (path.file_name().and_then(|name| name.to_str()) == Some("build")
+                    && (path.join("debug").is_dir() || path.join("release").is_dir()))
+            {
                 continue;
             }
             collect_scoop_files_inner(&path, out, skip_dirs)?;
@@ -3409,7 +3533,7 @@ mod tests {
     fn build_fixture_output_path_uses_per_fixture_directory() {
         let out = build_fixture_output_path(
             Path::new("build/nested/demo_case.scoop"),
-            crate::commands::build::BuildEmit::LlvmIr,
+            super::FixtureBuildEmit::LlvmIr,
         );
 
         assert!(

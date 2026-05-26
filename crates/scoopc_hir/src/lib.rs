@@ -6,12 +6,12 @@
 #![forbid(unsafe_code)]
 
 pub mod cone {
-    pub use scoopc_project_model::*;
+    pub use scoop_project_model::*;
 }
 
 pub mod base {
+    pub use scoop_project_model as project_model;
     pub use scoopc_ids as ids;
-    pub use scoopc_project_model as project_model;
     pub use scoopc_source as source;
     pub use scoopc_span as span;
     pub use scoopc_types as types;
@@ -35,7 +35,7 @@ pub mod ty {
 }
 
 pub mod opt {
-    pub use scoopc_project_model::OptLevel;
+    pub use scoop_project_model::OptLevel;
 }
 
 pub mod cone_import;

@@ -14,7 +14,7 @@ pub use scoopc_mir::mir;
 pub use scoopc_mir::stable_id;
 
 pub mod opt {
-    pub use scoopc_project_model::{InvalidOptLevel, OptLevel};
+    pub use scoop_project_model::{InvalidOptLevel, OptLevel};
 }
 pub mod source {
     pub use scoopc_source::*;

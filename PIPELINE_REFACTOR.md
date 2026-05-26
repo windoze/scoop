@@ -224,6 +224,17 @@ link 不属于单个 cone artifact，也不属于 `scoop` facade 的 in-process 
 4. link cache 独立于 cone artifact fingerprint，存放在 `build/<profile>/link/<consumer-cone>@<version>/inputs.fingerprint`；其摘要维度覆盖 consumer `.o`、排序后的 dep/native `.o`、runtime artifact、link kind、linker/version 与 link flags。
 5. `build-single-cone` 不再允许非默认 sysroot 上游缺 artifact 时回退到源码 lowering；缺失 `--upstream-artifact` 是硬错误，防止 single-cone 执行体偷偷恢复 driver 职责。
 
+#### Facade build 边界收口（P10-T06-c）
+
+P10-T06-c 后，executable build 的 in-process whole-DAG fallback 被移除：`scoop` 只 materialize 输入、调度 cone 子进程、读取 artifact manifest、派发 link 子进程。
+
+固定边界：
+
+1. LocalDependency 与 Consumer 都通过 `scoopc build-single-cone` 产出 cone artifact；consumer 只有在所有直接/间接 dependency artifact `Done` 后才会派发。
+2. 单文件输入先由 `scoop` 写成 `build/<profile>/virtual/<name>@0.0.0/` 下的标准 cone，再进入同一 DAG 调度路径；`scoopc` 不再提供裸 `<file>` / `--obj` Legacy CLI。
+3. cone-local native C/C++ object 属于该 cone artifact 的 `objs/native_*.o`，最终 link 只消费 manifest 中列出的 object 文件。
+4. artifact metadata（manifest schema、object 清单、inputs/outputs fingerprint helper）属于 `scoop_project_model`；`scoopc_cone` 只保留 HIR/MIR/effect/LIR/type-store/frontend-import 等 stage payload 读写。
+
 ### 同一 cone 内：不是文件拓扑，而是阶段屏障
 
 同一个 cone 内，由于文件可以互相引用，所以不存在一个语义上可靠的“文件编译拓扑序”。
@@ -934,7 +945,7 @@ HIR 阶段可以有两种实现路线，二者都不要求 MIR 参与：
 4. `scoopc_ids`
    负责 `SiteId`、`BodyVersionKey`、stable hash/key primitives，以及后续可提升为基础层的 stage-independent callable/body identity。当前 MIR materialization 的 `TemplateKey` / `InstanceKey` 仍是 stage-owned internal key，不能被 fact crate 当作基础 ID 直接依赖。
 
-5. `scoopc_project_model`
+5. `scoop_project_model`
    负责 source-cone、project membership、source trust、compilation-unit membership 等工程模型。
 
 这层的意义是：

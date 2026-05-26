@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 scoopc_ids = { path = "../scoopc_ids" }
-scoopc_project_model = { path = "../scoopc_project_model" }
+scoop_project_model = { path = "../scoop_project_model" }
 scoopc_types = { path = "../scoopc_types" }
 serde = { version = "1.0.228", features = ["derive"] }
 

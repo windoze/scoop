@@ -1,6 +1,6 @@
 //! Sysroot 加载（AST 持有层）。
 //!
-//! Path/manifest 级 sysroot 工具由 `scoopc_project_model::sysroot` 持有。
+//! Path/manifest 级 sysroot 工具由 `scoop_project_model::sysroot` 持有。
 //! 本模块在那个基础上构建“文件 + AST 索引”的 [`Sysroot`]，供 HIR/typecheck
 //! 阶段消费。
 
@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, Result, miette};
 
-pub use scoopc_project_model::sysroot::{
+pub use scoop_project_model::sysroot::{
     DEFAULT_AUTO_DEPENDENCY_CONES, SYSROOT_OVERLAY_ENV, SysrootSourceConePackage,
     SysrootSourceEntry, canonicalize_sysroot_root, collect_auto_sysroot_source_cone_packages,
     collect_auto_sysroot_source_entries, collect_merged_sysroot_entries, collect_sysroot_files,

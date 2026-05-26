@@ -13,7 +13,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use scoopc_project_model::ConeId;
+use scoop_project_model::ConeId;
 
 use crate::{ast, source::SourceFile, span::Span};
 

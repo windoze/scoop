@@ -655,14 +655,28 @@ dependencies = [
  "miette",
  "object",
  "regex",
- "scoopc",
- "scoopld",
+ "scoop_project_model",
  "serde_json",
  "sha2",
  "tempfile",
  "thiserror",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "scoop_project_model"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ids",
+ "scoopc_source",
+ "scoopc_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -689,6 +703,8 @@ version = "0.1.0"
 dependencies = [
  "miette",
  "object",
+ "regex",
+ "scoop_project_model",
  "scoopc_ast",
  "scoopc_codegen_llvm",
  "scoopc_cone",
@@ -701,11 +717,11 @@ dependencies = [
  "scoopc_lir_facts",
  "scoopc_mir",
  "scoopc_mir_facts",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
  "scoopld",
+ "serde_json",
  "tempfile",
  "thiserror",
 ]
@@ -729,10 +745,10 @@ dependencies = [
  "inkwell",
  "llvm-sys",
  "miette",
+ "scoop_project_model",
  "scoopc_ids",
  "scoopc_lir",
  "scoopc_lir_facts",
- "scoopc_project_model",
  "thiserror",
  "tracing",
 ]
@@ -743,6 +759,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "miette",
+ "scoop_project_model",
  "scoopc_ast",
  "scoopc_codegen_llvm",
  "scoopc_effect_facts",
@@ -754,7 +771,6 @@ dependencies = [
  "scoopc_lir_facts",
  "scoopc_mir",
  "scoopc_mir_facts",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -781,6 +797,7 @@ name = "scoopc_effect_facts_stage"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "scoop_project_model",
  "scoopc_ast",
  "scoopc_effect_facts",
  "scoopc_hir",
@@ -788,7 +805,6 @@ dependencies = [
  "scoopc_ids",
  "scoopc_mir",
  "scoopc_mir_facts",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -800,10 +816,10 @@ name = "scoopc_hir"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "scoop_project_model",
  "scoopc_ast",
  "scoopc_hir_facts",
  "scoopc_ids",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -817,8 +833,8 @@ name = "scoopc_hir_facts"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "scoop_project_model",
  "scoopc_ids",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -840,12 +856,12 @@ name = "scoopc_lir"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "scoop_project_model",
  "scoopc_effect_facts",
  "scoopc_ids",
  "scoopc_lir_facts",
  "scoopc_mir",
  "scoopc_mir_facts",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -858,8 +874,8 @@ name = "scoopc_lir_facts"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "scoop_project_model",
  "scoopc_ids",
- "scoopc_project_model",
  "scoopc_types",
  "serde",
 ]
@@ -869,12 +885,12 @@ name = "scoopc_mir"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "scoop_project_model",
  "scoopc_ast",
  "scoopc_hir",
  "scoopc_hir_facts",
  "scoopc_ids",
  "scoopc_mir_facts",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
@@ -889,24 +905,12 @@ name = "scoopc_mir_facts"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "scoop_project_model",
  "scoopc_ids",
- "scoopc_project_model",
  "scoopc_source",
  "scoopc_span",
  "scoopc_types",
  "serde",
-]
-
-[[package]]
-name = "scoopc_project_model"
-version = "0.1.0"
-dependencies = [
- "miette",
- "scoopc_ids",
- "scoopc_source",
- "serde",
- "thiserror",
- "toml",
 ]
 
 [[package]]
@@ -940,7 +944,7 @@ name = "scoopld"
 version = "0.1.0"
 dependencies = [
  "miette",
- "scoopc_project_model",
+ "scoop_project_model",
  "sha2",
  "tempfile",
  "thiserror",

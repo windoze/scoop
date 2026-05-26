@@ -18,6 +18,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub use scoop_project_model::{
+    CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
+    CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
+    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
+    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
+    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
+    CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifactFingerprints, ConeArtifactManifest,
+    ConeArtifactSchemaVersions, compute_outputs_fingerprint, validate_object_file_name,
+};
+use scoop_project_model::{ConeKind, ConeManifest, StableConeKey};
 use scoopc_ast as ast;
 use scoopc_effect_facts::EffectFacts;
 use scoopc_hir::resolve::Index;
@@ -27,31 +37,15 @@ use scoopc_hir_facts::HirFacts;
 use scoopc_lir::LateLoweredProgram;
 use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
-use scoopc_project_model::{ConeKind, ConeManifest, StableConeKey};
 use scoopc_source::SourceFile;
-use scoopc_types::{TypeStore, WIRE_SCHEMA_VERSION, WireSchemaVersion};
+use scoopc_types::TypeStore;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::annotations::ConeAnnotationClassesFile;
 use crate::pre_specialize::ConePreSpecializeFile;
 use crate::scoopir::ScoopIrFile;
 use crate::visibility::ConeSymbolVisibilityFile;
-
-pub const CONE_ARTIFACT_MANIFEST_FILE_NAME: &str = "manifest.json";
-pub const CONE_ARTIFACT_HIR_FACTS_FILE_NAME: &str = "hir_facts.bin";
-pub const CONE_ARTIFACT_MIR_FACTS_FILE_NAME: &str = "mir_facts.bin";
-pub const CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME: &str = "effect_facts.bin";
-pub const CONE_ARTIFACT_LIR_FACTS_FILE_NAME: &str = "lir_facts.bin";
-pub const CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME: &str = "lir_program.bin";
-pub const CONE_ARTIFACT_TYPE_STORE_FILE_NAME: &str = "type_store.bin";
-pub const CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME: &str = "frontend_import.json";
-pub const CONE_ARTIFACT_OBJS_DIR_NAME: &str = "objs";
-pub const CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME: &str = "inputs.fingerprint";
-pub const CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME: &str = "outputs.fingerprint";
-
-const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Result type for per-cone artifact IO.
 pub type Result<T> = std::result::Result<T, ConeArtifactError>;
@@ -96,92 +90,30 @@ pub enum ConeArtifactError {
     InputsFingerprintMismatch { expected: Vec<u8>, found: Vec<u8> },
 }
 
-/// JSON metadata stored in `manifest.json`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConeArtifactManifest {
-    pub cone_name: String,
-    pub cone_version: String,
-    /// Cone kind (lib/bin/syslib) — needed by downstream stages that rebuild Index/TypeEnv
-    /// from `compilation_sources` so they can reattach this cone's synthetic `decl_file`
-    /// to the correct `ConeKind` (P10-T04-b).
-    pub cone_kind: ConeKind,
-    pub compiler_version: String,
-    pub schema_versions: ConeArtifactSchemaVersions,
-    pub object_files: Vec<String>,
-}
-
-impl ConeArtifactManifest {
-    /// Build manifest metadata for the current compiler and wire schema.
-    pub fn current(cone: &StableConeKey, cone_kind: ConeKind, object_files: Vec<String>) -> Self {
-        Self {
-            cone_name: cone.name().to_owned(),
-            cone_version: cone.version().to_owned(),
-            cone_kind,
-            compiler_version: COMPILER_VERSION.to_owned(),
-            schema_versions: ConeArtifactSchemaVersions::current(),
-            object_files,
-        }
-    }
-
-    /// Return this manifest's stable cone identity.
-    pub fn stable_cone_key(&self) -> StableConeKey {
-        StableConeKey::new(&self.cone_name, &self.cone_version)
-    }
-
-    /// Reject artifacts produced by an incompatible compiler or wire schema.
-    pub fn ensure_compatible(&self) -> Result<()> {
-        if self.compiler_version != COMPILER_VERSION {
-            return Err(ConeArtifactError::IncompatibleCompilerVersion {
-                expected: COMPILER_VERSION.to_owned(),
-                found: self.compiler_version.clone(),
-            });
-        }
-        if !self.schema_versions.has_frontend_import_payload() {
-            return Err(ConeArtifactError::MissingFrontendImportPayload {
-                file_name: CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
-            });
-        }
-        let expected = ConeArtifactSchemaVersions::current();
-        if self.schema_versions != expected {
-            return Err(ConeArtifactError::IncompatibleSchemaVersions {
+impl From<scoop_project_model::ConeArtifactMetadataError> for ConeArtifactError {
+    fn from(value: scoop_project_model::ConeArtifactMetadataError) -> Self {
+        match value {
+            scoop_project_model::ConeArtifactMetadataError::Io { path, source } => {
+                Self::Io { path, source }
+            }
+            scoop_project_model::ConeArtifactMetadataError::ManifestJson(source) => {
+                Self::ManifestEncode(source)
+            }
+            scoop_project_model::ConeArtifactMetadataError::IncompatibleCompilerVersion {
                 expected,
-                found: self.schema_versions,
-            });
+                found,
+            } => Self::IncompatibleCompilerVersion { expected, found },
+            scoop_project_model::ConeArtifactMetadataError::IncompatibleSchemaVersions {
+                expected,
+                found,
+            } => Self::IncompatibleSchemaVersions { expected, found },
+            scoop_project_model::ConeArtifactMetadataError::InvalidObjectFileName { file_name } => {
+                Self::InvalidObjectFileName { file_name }
+            }
+            scoop_project_model::ConeArtifactMetadataError::MissingFrontendImportPayload {
+                file_name,
+            } => Self::MissingFrontendImportPayload { file_name },
         }
-        Ok(())
-    }
-}
-
-/// Schema versions for every persisted fact and LIR payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConeArtifactSchemaVersions {
-    pub hir_facts: WireSchemaVersion,
-    pub mir_facts: WireSchemaVersion,
-    pub effect_facts: WireSchemaVersion,
-    pub lir_facts: WireSchemaVersion,
-    pub lir_program: WireSchemaVersion,
-    pub type_store: WireSchemaVersion,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub frontend_import: Option<WireSchemaVersion>,
-}
-
-impl ConeArtifactSchemaVersions {
-    /// Use the currently linked wire schema for every persisted payload.
-    pub const fn current() -> Self {
-        Self {
-            hir_facts: WIRE_SCHEMA_VERSION,
-            mir_facts: WIRE_SCHEMA_VERSION,
-            effect_facts: WIRE_SCHEMA_VERSION,
-            lir_facts: WIRE_SCHEMA_VERSION,
-            lir_program: WIRE_SCHEMA_VERSION,
-            type_store: WIRE_SCHEMA_VERSION,
-            frontend_import: Some(WIRE_SCHEMA_VERSION),
-        }
-    }
-
-    /// Return whether this manifest declares the required frontend import payload.
-    pub const fn has_frontend_import_payload(self) -> bool {
-        self.frontend_import.is_some()
     }
 }
 
@@ -273,20 +205,6 @@ impl ConeArtifactFrontendImport {
             None,
             None,
         )
-    }
-}
-
-/// Input/output fingerprint payloads stored next to stage products.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ConeArtifactFingerprints {
-    pub inputs: Vec<u8>,
-    pub outputs: Vec<u8>,
-}
-
-impl ConeArtifactFingerprints {
-    /// Construct artifact fingerprints from precomputed bytes.
-    pub fn new(inputs: Vec<u8>, outputs: Vec<u8>) -> Self {
-        Self { inputs, outputs }
     }
 }
 
@@ -497,30 +415,8 @@ impl ConeArtifact {
     pub fn read_manifest_and_inputs_fingerprint(
         dir: &Path,
     ) -> Result<(ConeArtifactManifest, Vec<u8>)> {
-        let manifest: ConeArtifactManifest =
-            read_json(&dir.join(CONE_ARTIFACT_MANIFEST_FILE_NAME))?;
-        manifest.ensure_compatible()?;
-        let inputs_fingerprint = read_bytes(&dir.join(CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME))?;
-        Ok((manifest, inputs_fingerprint))
+        scoop_project_model::read_manifest_and_inputs_fingerprint(dir).map_err(Into::into)
     }
-}
-
-/// Compute the output fingerprint for an already-written artifact directory.
-pub fn compute_outputs_fingerprint(dir: &Path) -> Result<Vec<u8>> {
-    let mut files = Vec::new();
-    collect_artifact_payload_files(dir, dir, &mut files)?;
-    files.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
-
-    let mut hasher = Sha256::new();
-    hasher.update(b"scoop.cone.artifact.outputs.v0\n");
-    for (rel, path) in files {
-        hasher.update(rel.as_bytes());
-        hasher.update(b"\n");
-        let bytes = read_bytes(&path)?;
-        hasher.update(Sha256::digest(&bytes));
-        hasher.update(b"\n");
-    }
-    Ok(hasher.finalize().to_vec())
 }
 
 /// Build the frontend import payload for a cone from already processed frontend state.
@@ -557,16 +453,6 @@ pub fn build_frontend_import_for_typechecked_cone(
         Some(symbol_visibility),
         pre_specialize,
     ))
-}
-
-fn validate_object_file_name(file_name: &str) -> Result<()> {
-    let path = Path::new(file_name);
-    if file_name.is_empty() || path.components().count() != 1 || path.file_name().is_none() {
-        return Err(ConeArtifactError::InvalidObjectFileName {
-            file_name: file_name.to_owned(),
-        });
-    }
-    Ok(())
 }
 
 fn create_dir_all(path: &Path) -> Result<()> {
@@ -616,45 +502,11 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>> {
     })
 }
 
-fn collect_artifact_payload_files(
-    root: &Path,
-    dir: &Path,
-    out: &mut Vec<(String, PathBuf)>,
-) -> Result<()> {
-    for entry in fs::read_dir(dir).map_err(|source| ConeArtifactError::Io {
-        path: dir.to_owned(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| ConeArtifactError::Io {
-            path: dir.to_owned(),
-            source,
-        })?;
-        let path = entry.path();
-        let file_type = entry.file_type().map_err(|source| ConeArtifactError::Io {
-            path: path.clone(),
-            source,
-        })?;
-        if file_type.is_dir() {
-            collect_artifact_payload_files(root, &path, out)?;
-            continue;
-        }
-        if !file_type.is_file() {
-            continue;
-        }
-        let rel = path.strip_prefix(root).unwrap_or(&path);
-        let rel = rel.to_string_lossy().replace('\\', "/");
-        if rel == CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME {
-            continue;
-        }
-        out.push((rel, path));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
+    use scoop_project_model::OptLevel;
     use scoopc_lir::LateLoweredProgram;
-    use scoopc_project_model::OptLevel;
+    use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
     use tempfile::tempdir;
 
     use super::*;
@@ -669,7 +521,7 @@ mod tests {
         let decoded = ConeArtifact::read(dir.path()).expect("read artifact");
 
         assert_eq!(decoded.manifest.stable_cone_key(), cone);
-        assert_eq!(decoded.manifest.compiler_version, COMPILER_VERSION);
+        assert_eq!(decoded.manifest.compiler_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(
             decoded.manifest.schema_versions,
             ConeArtifactSchemaVersions::current()

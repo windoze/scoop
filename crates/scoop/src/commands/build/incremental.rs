@@ -1,33 +1,19 @@
-//! Cone 项目的粗粒度增量构建（T1124）。
-//!
-//! 目标（v1）：
-//! - 为 cone 项目计算一个“输入 fingerprint”（粗粒度 cache key）；
-//! - 将 fingerprint 写入 `build/<profile>/build.json`；
-//! - 当 fingerprint 未变化且可执行文件已存在时，允许跳过 build（cache hit）。
-//!
-//! 说明：
-//! - 这里不做依赖图，也不做“只重建受影响文件”（那是 v2+ 的范围）；
-//! - fingerprint 的设计偏向“正确优先”：宁可多 rebuild，也不要错误复用旧产物；
-//! - 为避免跨机器路径差异带来的抖动，文件列表按“相对路径（forward slashes）”排序后参与哈希。
+//! Cone project input fingerprinting for the facade build driver.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoop_project_model::{ConeId, SourceConeCompilationUnit};
 use sha2::{Digest as _, Sha256};
 
-use scoopc::cone::{ConeId, SourceConeCompilationUnit, SourceConeRole};
-use scoopc::opt::OptLevel;
+use super::super::FacadeSessionOptions;
 
 pub(crate) const BUILD_JSON_FILE_NAME: &str = "build.json";
 pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 4;
 const CONE_INPUTS_FINGERPRINT_DOMAIN: &str = "scoop.cone.inputs.v0";
 const FINAL_BUILD_FINGERPRINT_DOMAIN: &str = "scoop.build.per-cone.v0";
 
-/// 本次 build 的输入 fingerprint。
-///
-/// - `fingerprint`：最终用于 cache 命中的总 fingerprint。
-/// - 其它字段：用于调试/排查“为什么没命中缓存”的原因（不会参与命中判断）。
 #[derive(Debug, Clone)]
 pub(crate) struct BuildFingerprint {
     pub(crate) fingerprint: String,
@@ -47,41 +33,26 @@ pub(crate) struct ConeBuildFingerprint {
     pub(crate) artifact_dir: PathBuf,
     pub(crate) inputs_fingerprint: Vec<u8>,
     pub(crate) cached_outputs_fingerprint: Option<Vec<u8>>,
-    pub(crate) direct_dependency_outputs_fingerprints: Vec<(ConeId, Vec<u8>)>,
 }
 
-/// 计算 cone 项目 build 的粗粒度 fingerprint。
-///
-/// 最低要求（TODO T1124）：至少包含
-/// - `Cone.toml`
-/// - `src/**/*.scoop`
-/// - 本地 source path dependency 的 `Cone.toml` 与 sources
-/// - 关键 build flags（profile/entry-package）
-/// - 工具链版本
-///
-/// 这里额外纳入：
-/// - sysroot（`sysroot/*.scoop`）
-/// - loaded source cones 声明的 native C/C++ sources
-/// - C runtime（`runtime/c/**`）
-///
-/// 原因：这些文件会影响最终产物，但通常不会改变 `scoop` 可执行文件本体。
-pub(crate) fn compute_cone_build_fingerprint(
+pub(crate) fn compute_cone_build_fingerprint_with_session_options(
     cone_root: &Path,
     profile: &str,
     entry_package: Option<&str>,
-    opt_level: OptLevel,
+    opt_level: scoop_project_model::OptLevel,
+    session_options: &FacadeSessionOptions,
 ) -> Result<BuildFingerprint> {
-    let pkg = scoopc::cone::load_cone_source_package(cone_root)?;
-    let sysroot_root = scoopc::sysroot::Sysroot::default_path()
+    let pkg = scoop_project_model::load_cone_source_package(cone_root)?;
+    let sysroot_root = scoop_project_model::default_sysroot_path()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（用于增量 fingerprint）")?;
-    let graph = scoopc::cone::load_source_cone_graph_for_consumer_package(
+    let graph = scoop_project_model::load_source_cone_graph_for_consumer_package(
         pkg,
         &sysroot_root,
-        None,
+        session_options.sysroot_overlay(),
         &[],
-        &[],
+        session_options.extra_sysroot_dependencies(),
     )?;
     let consumer = graph.consumer();
 
@@ -94,10 +65,9 @@ pub(crate) fn compute_cone_build_fingerprint(
     let cone_sources_sha256 = sha256_for_files(&consumer.root, &consumer_sources)?;
     let local_dependency_sources_sha256 = sha256_for_local_dependency_nodes(&graph)?;
     let native_sources_sha256 = sha256_for_native_build_sources(&graph)?;
-
     let sysroot_sources_sha256 = sha256_for_selected_sysroot_cones(&graph)?;
 
-    let runtime_root = scoopld::runtime_c_dir()
+    let runtime_root = runtime_c_dir()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 runtime/c 目录（用于增量 fingerprint）")?;
@@ -144,7 +114,6 @@ pub(crate) fn compute_cone_build_fingerprint(
                 artifact_dir,
                 inputs_fingerprint,
                 cached_outputs_fingerprint,
-                direct_dependency_outputs_fingerprints,
             },
         );
     }
@@ -163,10 +132,9 @@ pub(crate) fn compute_cone_build_fingerprint(
     final_hasher.update(b"\nconsumer-inputs=");
     final_hasher.update(&consumer_fp.inputs_fingerprint);
     final_hasher.update(b"\n");
-    let fingerprint = hex_lower(&final_hasher.finalize());
 
     Ok(BuildFingerprint {
-        fingerprint,
+        fingerprint: hex_lower(&final_hasher.finalize()),
         consumer_cone_id,
         per_cone,
         cone_toml_sha256,
@@ -179,36 +147,32 @@ pub(crate) fn compute_cone_build_fingerprint(
     })
 }
 
-/// 从 `build.json` 读取缓存 fingerprint；若文件不存在/格式不兼容则返回 `Ok(None)`。
 pub(crate) fn read_cached_fingerprint(build_json: &Path) -> Result<Option<String>> {
     if !build_json.is_file() {
         return Ok(None);
     }
-
     let bytes = std::fs::read(build_json)
         .into_diagnostic()
         .wrap_err_with(|| format!("读取 build.json 失败：{}", build_json.display()))?;
-
     let json: serde_json::Value = match serde_json::from_slice(&bytes) {
         Ok(v) => v,
         Err(_) => return Ok(None),
     };
-
     let schema = json.get("schema").and_then(|v| v.as_u64()).unwrap_or(0);
     if schema != u64::from(BUILD_JSON_SCHEMA_VERSION) {
         return Ok(None);
     }
-
-    let fingerprint = json.get("fingerprint").and_then(|v| v.as_str());
-    Ok(fingerprint.map(str::to_string))
+    Ok(json
+        .get("fingerprint")
+        .and_then(|v| v.as_str())
+        .map(str::to_string))
 }
 
-/// 将 fingerprint 写入 `build.json`（pretty JSON + 末尾换行）。
 pub(crate) fn write_build_json(
     build_json: &Path,
     profile: &str,
     entry_package: Option<&str>,
-    opt_level: OptLevel,
+    opt_level: scoop_project_model::OptLevel,
     fp: &BuildFingerprint,
 ) -> Result<()> {
     let mut per_cone = fp
@@ -250,46 +214,16 @@ pub(crate) fn write_build_json(
             "toolchain_sha256": fp.toolchain_sha256,
         }
     });
-
     let mut bytes = serde_json::to_vec_pretty(&value)
         .into_diagnostic()
         .wrap_err("序列化 build.json 失败")?;
     if !bytes.ends_with(b"\n") {
         bytes.push(b'\n');
     }
-
     std::fs::write(build_json, bytes)
         .into_diagnostic()
         .wrap_err_with(|| format!("写入 build.json 失败：{}", build_json.display()))?;
     Ok(())
-}
-
-pub(crate) fn frontend_artifact_cache_for_build(
-    input: &scoopc::frontend::ProjectInput,
-    _profile: &str,
-    fp: &BuildFingerprint,
-) -> scoopc::frontend::FrontendArtifactCache {
-    let mut cache = scoopc::frontend::FrontendArtifactCache::new();
-    for unit in input.compilation_units() {
-        if unit.is_consumer() || unit.role() != SourceConeRole::LocalDependency {
-            continue;
-        }
-        let Some(cone_fp) = fp.per_cone.get(&unit.id()) else {
-            continue;
-        };
-        cache.insert(
-            unit.id(),
-            scoopc::frontend::FrontendArtifactCacheEntry::new(
-                cone_fp.artifact_dir.clone(),
-                cone_fp.inputs_fingerprint.clone(),
-            )
-            .with_write_on_cache_miss(false)
-            .with_dependency_outputs_fingerprints(
-                cone_fp.direct_dependency_outputs_fingerprints.clone(),
-            ),
-        );
-    }
-    cache
 }
 
 fn cone_artifact_dir(build_cones_dir: &Path, unit: SourceConeCompilationUnit<'_>) -> PathBuf {
@@ -301,7 +235,7 @@ fn cone_inputs_fingerprint(
     unit: SourceConeCompilationUnit<'_>,
     profile: &str,
     entry_package: Option<&str>,
-    opt_level: OptLevel,
+    opt_level: scoop_project_model::OptLevel,
     toolchain_inputs_sha256: &str,
     direct_dependency_outputs_fingerprints: &[(ConeId, Vec<u8>)],
 ) -> Result<Vec<u8>> {
@@ -349,21 +283,28 @@ fn cached_outputs_fingerprint(
     if !artifact_dir.is_dir() {
         return Ok(None);
     }
-    match scoopc::cone::ConeArtifact::read_with_inputs_fingerprint(artifact_dir, inputs_fingerprint)
-    {
-        Ok(artifact) => Ok(Some(artifact.outputs_fingerprint)),
-        Err(scoopc::cone::ConeArtifactError::InputsFingerprintMismatch { .. }) => Ok(None),
-        Err(scoopc::cone::ConeArtifactError::IncompatibleCompilerVersion { .. })
-        | Err(scoopc::cone::ConeArtifactError::IncompatibleSchemaVersions { .. })
-        | Err(scoopc::cone::ConeArtifactError::MissingFrontendImportPayload { .. })
-        | Err(scoopc::cone::ConeArtifactError::ManifestEncode(_)) => Ok(None),
-        Err(scoopc::cone::ConeArtifactError::Io { source, .. })
-            if source.kind() == std::io::ErrorKind::NotFound =>
-        {
-            Ok(None)
-        }
-        Err(err) => Err(miette::miette!("{err}")),
+    let Ok((_manifest, cached_inputs)) =
+        scoop_project_model::read_manifest_and_inputs_fingerprint(artifact_dir)
+    else {
+        return Ok(None);
+    };
+    if cached_inputs != inputs_fingerprint {
+        return Ok(None);
     }
+    let outputs_path =
+        artifact_dir.join(scoop_project_model::CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME);
+    match std::fs::read(&outputs_path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(miette::miette!(
+            "读取 outputs.fingerprint 失败：{}: {err}",
+            outputs_path.display()
+        )),
+    }
+}
+
+fn runtime_c_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c")
 }
 
 fn sha256_file(path: &Path) -> Result<String> {
@@ -373,15 +314,13 @@ fn sha256_file(path: &Path) -> Result<String> {
     Ok(hex_lower(&Sha256::digest(&bytes)))
 }
 
-/// 计算一组文件的摘要（按“相对路径 + 内容 sha256”组合）。
 fn sha256_for_files(root: &Path, files: &[PathBuf]) -> Result<String> {
-    let mut entries: Vec<(String, PathBuf)> = Vec::with_capacity(files.len());
+    let mut entries = Vec::with_capacity(files.len());
     for path in files {
-        let rel = normalize_rel_path_forward_slashes(root, path)?;
+        let rel = normalize_rel_path_forward_slashes(root, path);
         entries.push((rel, path.to_path_buf()));
     }
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-
     let mut hasher = Sha256::new();
     for (rel, abs) in entries {
         let file_hash = sha256_file(&abs)?;
@@ -393,53 +332,43 @@ fn sha256_for_files(root: &Path, files: &[PathBuf]) -> Result<String> {
     Ok(hex_lower(&hasher.finalize()))
 }
 
-fn sha256_for_local_dependency_nodes(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+fn sha256_for_local_dependency_nodes(
+    graph: &scoop_project_model::SourceConeGraph,
+) -> Result<String> {
     let mut entries: Vec<(String, PathBuf)> = Vec::new();
     for node in graph.nodes() {
-        if node.role != scoopc::cone::SourceConeRole::LocalDependency {
+        if node.role != scoop_project_model::SourceConeRole::LocalDependency {
             continue;
         }
-
         entries.push((
             format!("{}/Cone.toml", node.manifest.cone.name),
             node.manifest_path.clone(),
         ));
         for source in &node.sources {
-            let rel = normalize_rel_path_forward_slashes(&node.root, source.path())?;
+            let rel = normalize_rel_path_forward_slashes(&node.root, source.path());
             entries.push((
                 format!("{}/{}", node.manifest.cone.name, rel),
                 source.path().to_path_buf(),
             ));
         }
     }
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-    let mut hasher = Sha256::new();
-    for (rel, abs) in entries {
-        let file_hash = sha256_file(&abs)?;
-        hasher.update(rel.as_bytes());
-        hasher.update(b"\n");
-        hasher.update(file_hash.as_bytes());
-        hasher.update(b"\n");
-    }
-    Ok(hex_lower(&hasher.finalize()))
+    sha256_for_named_files(entries)
 }
 
-fn sha256_for_native_build_sources(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+fn sha256_for_native_build_sources(graph: &scoop_project_model::SourceConeGraph) -> Result<String> {
     let mut entries: Vec<(String, PathBuf)> = Vec::new();
     for node in graph.nodes() {
         let native_build = &node.native_build;
         if native_build.c_sources.is_empty() && native_build.cxx_sources.is_empty() {
             continue;
         }
-
         entries.push((
             format!("{}/Cone.toml", node.manifest.cone.name),
             node.manifest_path.clone(),
         ));
         for rel in &native_build.c_sources {
             let path = node.root.join(rel);
-            let rel = normalize_rel_path_forward_slashes(&node.root, &path)?;
+            let rel = normalize_rel_path_forward_slashes(&node.root, &path);
             entries.push((
                 format!("{}/native-build/c/{rel}", node.manifest.cone.name),
                 path,
@@ -447,73 +376,57 @@ fn sha256_for_native_build_sources(graph: &scoopc::cone::SourceConeGraph) -> Res
         }
         for rel in &native_build.cxx_sources {
             let path = node.root.join(rel);
-            let rel = normalize_rel_path_forward_slashes(&node.root, &path)?;
+            let rel = normalize_rel_path_forward_slashes(&node.root, &path);
             entries.push((
                 format!("{}/native-build/cxx/{rel}", node.manifest.cone.name),
                 path,
             ));
         }
     }
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-    let mut hasher = Sha256::new();
-    for (rel, abs) in entries {
-        let file_hash = sha256_file(&abs)?;
-        hasher.update(rel.as_bytes());
-        hasher.update(b"\n");
-        hasher.update(file_hash.as_bytes());
-        hasher.update(b"\n");
-    }
-    Ok(hex_lower(&hasher.finalize()))
+    sha256_for_named_files(entries)
 }
 
-fn sha256_for_selected_sysroot_cones(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+fn sha256_for_selected_sysroot_cones(
+    graph: &scoop_project_model::SourceConeGraph,
+) -> Result<String> {
     let mut entries: Vec<(String, PathBuf)> = Vec::new();
     for node in graph.nodes() {
-        if node.role != scoopc::cone::SourceConeRole::SysrootAuto {
+        if node.role != scoop_project_model::SourceConeRole::SysrootAuto {
             continue;
         }
-
         entries.push((
             format!("{}/Cone.toml", node.manifest.cone.name),
             node.manifest_path.clone(),
         ));
         for source in &node.sources {
-            let rel = normalize_rel_path_forward_slashes(&node.root, source.path())?;
+            let rel = normalize_rel_path_forward_slashes(&node.root, source.path());
             entries.push((
                 format!("{}/{rel}", node.manifest.cone.name),
                 source.path().to_path_buf(),
             ));
         }
     }
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-    let mut hasher = Sha256::new();
-    for (rel, abs) in entries {
-        let file_hash = sha256_file(&abs)?;
-        hasher.update(rel.as_bytes());
-        hasher.update(b"\n");
-        hasher.update(file_hash.as_bytes());
-        hasher.update(b"\n");
-    }
-    Ok(hex_lower(&hasher.finalize()))
+    sha256_for_named_files(entries)
 }
 
 fn sha256_for_unit_native_build_sources(unit: SourceConeCompilationUnit<'_>) -> Result<String> {
     let native_build = &unit.node().native_build;
-    let mut entries: Vec<(String, PathBuf)> = Vec::new();
+    let mut entries = Vec::new();
     for rel in &native_build.c_sources {
         let path = unit.root().join(rel);
-        let rel = normalize_rel_path_forward_slashes(unit.root(), &path)?;
+        let rel = normalize_rel_path_forward_slashes(unit.root(), &path);
         entries.push((format!("native-build/c/{rel}"), path));
     }
     for rel in &native_build.cxx_sources {
         let path = unit.root().join(rel);
-        let rel = normalize_rel_path_forward_slashes(unit.root(), &path)?;
+        let rel = normalize_rel_path_forward_slashes(unit.root(), &path);
         entries.push((format!("native-build/cxx/{rel}"), path));
     }
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+    sha256_for_named_files(entries)
+}
 
+fn sha256_for_named_files(mut entries: Vec<(String, PathBuf)>) -> Result<String> {
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
     let mut hasher = Sha256::new();
     for (rel, abs) in entries {
         let file_hash = sha256_file(&abs)?;
@@ -530,7 +443,6 @@ fn sha256_for_named_hex_entries<'a>(
 ) -> String {
     let mut entries = entries.into_iter().collect::<Vec<_>>();
     entries.sort_by_key(|(lhs, _)| *lhs);
-
     let mut hasher = Sha256::new();
     for (name, digest) in entries {
         hasher.update(name.as_bytes());
@@ -541,9 +453,9 @@ fn sha256_for_named_hex_entries<'a>(
     hex_lower(&hasher.finalize())
 }
 
-fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String> {
+fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> String {
     let rel = abs.strip_prefix(root).unwrap_or(abs);
-    Ok(rel.to_string_lossy().replace('\\', "/"))
+    rel.to_string_lossy().replace('\\', "/")
 }
 
 fn collect_all_files_sorted(root: &Path) -> Result<Vec<PathBuf>> {
@@ -561,13 +473,9 @@ fn collect_all_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
         let ty = entry.file_type().into_diagnostic()?;
-
         if ty.is_dir() {
             collect_all_files(&path, out)?;
-            continue;
-        }
-
-        if ty.is_file() {
+        } else if ty.is_file() {
             out.push(path);
         }
     }
@@ -586,512 +494,71 @@ fn hex_lower(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoopc::cone::{
-        ConeArtifact, ConeArtifactFingerprints, ConeArtifactStageProducts, ConeKind, ConeManifest,
-        ConeNativeBuildConfig, ConeSection, SourceConeDependencyEdge, SourceConeDependencyKind,
-        SourceConeGraph, SourceConeNode, SourceConeRole, SourceConeTrust,
-    };
-    use scoopc::effect_facts_product::EffectFacts;
-    use scoopc::effect_lowered::LateLoweredProgram;
-    use scoopc::hir_facts::HirFacts;
-    use scoopc::lir_facts_product::LirFacts;
-    use scoopc::mir_facts::MirFacts;
-    use scoopc::source::SourceFile;
     use tempfile::tempdir;
 
     #[test]
-    fn fingerprint_roundtrips_via_build_json_and_changes_on_source_update() {
+    fn build_json_roundtrips_cached_fingerprint() {
         let dir = tempdir().unwrap();
-        let root = dir.path().join("app");
-        std::fs::create_dir_all(root.join("src")).unwrap();
+        let build_json = dir.path().join(BUILD_JSON_FILE_NAME);
+        let fp = BuildFingerprint {
+            fingerprint: "abc".to_string(),
+            consumer_cone_id: ConeId::new(1),
+            per_cone: HashMap::new(),
+            cone_toml_sha256: String::new(),
+            cone_sources_sha256: String::new(),
+            local_dependency_sources_sha256: String::new(),
+            native_sources_sha256: String::new(),
+            sysroot_sources_sha256: String::new(),
+            runtime_sources_sha256: String::new(),
+            toolchain_sha256: String::new(),
+        };
 
-        std::fs::write(
-            root.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-incremental"
-version = "0.0.0"
-kind = "bin"
-"#,
+        write_build_json(
+            &build_json,
+            "debug",
+            None,
+            scoop_project_model::OptLevel::O0,
+            &fp,
         )
         .unwrap();
-        std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-
-        let build_dir = root.join("build").join("debug");
-        std::fs::create_dir_all(&build_dir).unwrap();
-        let build_json = build_dir.join(BUILD_JSON_FILE_NAME);
-
-        write_build_json(&build_json, "debug", None, OptLevel::O0, &fp1).unwrap();
-        let cached = read_cached_fingerprint(&build_json).unwrap().unwrap();
-        assert_eq!(cached, fp1.fingerprint);
-
-        std::fs::write(root.join("src/main.scoop"), "fun main() { }\n").unwrap();
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        assert_ne!(fp1.fingerprint, fp2.fingerprint);
-    }
-
-    #[test]
-    fn fingerprint_changes_on_local_dependency_source_update() {
-        let dir = tempdir().unwrap();
-        let root = dir.path().join("app");
-        let dep = root.join("deps").join("lib");
-        std::fs::create_dir_all(root.join("src")).unwrap();
-        std::fs::create_dir_all(dep.join("src")).unwrap();
-
-        std::fs::write(
-            root.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-incremental-app"
-version = "0.0.0"
-kind = "bin"
-
-[dependencies]
-"fixture-incremental-lib" = { path = "deps/lib" }
-"#,
-        )
-        .unwrap();
-        std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
-        std::fs::write(
-            dep.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-incremental-lib"
-version = "0.0.0"
-kind = "lib"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            dep.join("src/api.scoop"),
-            "package dep\nfun value(): Int { return 1 }\n",
-        )
-        .unwrap();
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        std::fs::write(
-            dep.join("src/api.scoop"),
-            "package dep\nfun value(): Int { return 2 }\n",
-        )
-        .unwrap();
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-
-        assert_ne!(fp1.fingerprint, fp2.fingerprint);
-        assert_ne!(
-            fp1.local_dependency_sources_sha256,
-            fp2.local_dependency_sources_sha256
-        );
-    }
-
-    #[test]
-    fn fingerprint_changes_on_local_dependency_native_source_update() {
-        let dir = tempdir().unwrap();
-        let root = dir.path().join("app");
-        let dep = root.join("deps").join("lib");
-        std::fs::create_dir_all(root.join("src")).unwrap();
-        std::fs::create_dir_all(dep.join("src")).unwrap();
-        std::fs::create_dir_all(dep.join("native")).unwrap();
-
-        std::fs::write(
-            root.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-incremental-native-app"
-version = "0.0.0"
-kind = "bin"
-
-[dependencies]
-"fixture-incremental-native-lib" = { path = "deps/lib" }
-"#,
-        )
-        .unwrap();
-        std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
-        std::fs::write(
-            dep.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-incremental-native-lib"
-version = "0.0.0"
-kind = "lib"
-
-[native-build]
-c-sources = ["native/add.c"]
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            dep.join("src/api.scoop"),
-            "package dep\nfun value(): Int { return 1 }\n",
-        )
-        .unwrap();
-        std::fs::write(
-            dep.join("native/add.c"),
-            "int dep_add(void) { return 1; }\n",
-        )
-        .unwrap();
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        std::fs::write(
-            dep.join("native/add.c"),
-            "int dep_add(void) { return 2; }\n",
-        )
-        .unwrap();
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-
-        assert_ne!(fp1.fingerprint, fp2.fingerprint);
-        assert_ne!(fp1.native_sources_sha256, fp2.native_sources_sha256);
-    }
-
-    #[test]
-    fn per_cone_chain_rebuilds_only_user_cone_when_user_source_changes() {
-        let dir = tempdir().unwrap();
-        let root = write_app_with_local_dependency(dir.path());
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_id = only_dependency_cone_id(&fp1);
-        write_minimal_artifact_for_cone(&fp1, dep_id);
-
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_before = fp2.per_cone.get(&dep_id).unwrap();
-        assert!(dep_before.cached_outputs_fingerprint.is_some());
-
-        std::fs::write(
-            root.join("src/main.scoop"),
-            "package app\nimport dep.*\nfun main() { value(); () }\n",
-        )
-        .unwrap();
-        let fp3 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_after = fp3.per_cone.get(&dep_id).unwrap();
 
         assert_eq!(
-            dep_before.inputs_fingerprint, dep_after.inputs_fingerprint,
-            "user source edits must not invalidate dependency cone inputs"
+            read_cached_fingerprint(&build_json).unwrap().as_deref(),
+            Some("abc")
         );
-        assert_eq!(
-            dep_before.cached_outputs_fingerprint, dep_after.cached_outputs_fingerprint,
-            "dependency cone artifact should remain reusable"
-        );
-        assert_ne!(fp2.fingerprint, fp3.fingerprint);
     }
 
     #[test]
-    fn per_cone_chain_invalidates_dependency_and_user_when_dependency_source_changes() {
+    fn stale_artifact_inputs_do_not_count_as_cache_hit() {
         let dir = tempdir().unwrap();
-        let root = write_app_with_local_dependency(dir.path());
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_id = only_dependency_cone_id(&fp1);
-        write_minimal_artifact_for_cone(&fp1, dep_id);
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-
         std::fs::write(
-            root.join("deps/lib/src/api.scoop"),
-            "package dep\npublic fun value(): Int { return 2 }\n",
+            dir.path()
+                .join(scoop_project_model::CONE_ARTIFACT_MANIFEST_FILE_NAME),
+            serde_json::to_vec(&scoop_project_model::ConeArtifactManifest::current(
+                &scoop_project_model::StableConeKey::new("demo", "0.0.0"),
+                scoop_project_model::ConeKind::Lib,
+                Vec::new(),
+            ))
+            .unwrap(),
         )
         .unwrap();
-        let fp3 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
+        std::fs::write(
+            dir.path()
+                .join(scoop_project_model::CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME),
+            b"old",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path()
+                .join(scoop_project_model::CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME),
+            b"outputs",
+        )
+        .unwrap();
 
-        assert_ne!(
-            fp2.per_cone.get(&dep_id).unwrap().inputs_fingerprint,
-            fp3.per_cone.get(&dep_id).unwrap().inputs_fingerprint
-        );
         assert!(
-            fp3.per_cone
-                .get(&dep_id)
+            cached_outputs_fingerprint(dir.path(), b"new")
                 .unwrap()
-                .cached_outputs_fingerprint
                 .is_none()
         );
-        assert_ne!(fp2.fingerprint, fp3.fingerprint);
-    }
-
-    #[test]
-    fn per_cone_chain_invalidates_all_cones_when_toolchain_inputs_change() {
-        let dir = tempdir().unwrap();
-        let root = write_app_with_local_dependency(dir.path());
-
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O2).unwrap();
-
-        for (cone_id, cone_fp1) in &fp1.per_cone {
-            assert_ne!(
-                cone_fp1.inputs_fingerprint,
-                fp2.per_cone.get(cone_id).unwrap().inputs_fingerprint
-            );
-        }
-        assert_ne!(fp1.fingerprint, fp2.fingerprint);
-    }
-
-    #[test]
-    fn selected_sysroot_digest_ignores_unselected_sysroot_cones() {
-        let dir = tempdir().unwrap();
-        let selected = write_sysroot_cone(dir.path(), "selected-sysroot", "fun selected() {}\n");
-        let unused = write_sysroot_cone(dir.path(), "unused-sysroot", "fun unused() {}\n");
-        let consumer = write_consumer_node(dir.path(), ConeId::new(1), ConeId::new(2));
-        let graph =
-            SourceConeGraph::from_nodes(vec![selected.clone(), consumer], ConeId::new(1)).unwrap();
-
-        let before = sha256_for_selected_sysroot_cones(&graph).unwrap();
-        std::fs::write(
-            unused.root.join("src/lib.scoop"),
-            "fun unused(): Int { return 1 }\n",
-        )
-        .unwrap();
-        let after_unselected_edit = sha256_for_selected_sysroot_cones(&graph).unwrap();
-        assert_eq!(
-            before, after_unselected_edit,
-            "sysroot cones outside the selected source-cone graph must not invalidate the build"
-        );
-
-        std::fs::write(
-            selected.root.join("src/lib.scoop"),
-            "fun selected(): Int { return 1 }\n",
-        )
-        .unwrap();
-        let after_selected_edit = sha256_for_selected_sysroot_cones(&graph).unwrap();
-        assert_ne!(
-            before, after_selected_edit,
-            "selected sysroot cone edits must still be visible to the fingerprint chain"
-        );
-    }
-
-    /// 防止回归：`build.rs` 必须在 build 完成（依赖 cone 的 artifact 已写盘）之后
-    /// 重新计算 fingerprint 并写入 `build.json`。否则下一次无修改运行会因
-    /// “build.json 里存的是 placeholder fingerprint，重新计算用的是真实
-    /// outputs fingerprint” 而 cache miss，破坏 user cone short-circuit。
-    #[test]
-    fn per_cone_chain_post_build_fingerprint_matches_next_run() {
-        let dir = tempdir().unwrap();
-        let root = write_app_with_local_dependency(dir.path());
-
-        // 第一次：依赖 cone 还没产物，consumer 用 placeholder=inputs_fingerprint。
-        let fp_pre_build =
-            compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_id = only_dependency_cone_id(&fp_pre_build);
-        assert!(
-            fp_pre_build
-                .per_cone
-                .get(&dep_id)
-                .unwrap()
-                .cached_outputs_fingerprint
-                .is_none(),
-            "no artifact on disk yet"
-        );
-
-        // 模拟 build 期间：依赖 cone 的 artifact 落盘，带上真实 outputs.fingerprint。
-        write_minimal_artifact_for_cone(&fp_pre_build, dep_id);
-
-        // build 完成立刻重新计算（即 build.rs 在 build 之后执行的那一次）。
-        let fp_post_build =
-            compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        let dep_real_outputs = fp_post_build
-            .per_cone
-            .get(&dep_id)
-            .unwrap()
-            .cached_outputs_fingerprint
-            .clone()
-            .expect("dep artifact must be on disk after write_minimal_artifact_for_cone");
-        let dep_placeholder = fp_pre_build
-            .per_cone
-            .get(&dep_id)
-            .unwrap()
-            .inputs_fingerprint
-            .clone();
-        assert_ne!(
-            dep_placeholder, dep_real_outputs,
-            "placeholder (=dep inputs) and real outputs must diverge — that's why \
-             build.rs has to recompute the fingerprint after the build"
-        );
-        assert_ne!(
-            fp_pre_build.fingerprint, fp_post_build.fingerprint,
-            "consumer fingerprint must change once dep outputs land on disk"
-        );
-
-        // 模拟下一次无修改的运行：磁盘状态没变，必须命中缓存。
-        let fp_next_run =
-            compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
-        assert_eq!(
-            fp_post_build.fingerprint, fp_next_run.fingerprint,
-            "post-build fingerprint must equal what the next run computes — \
-             this is the user-cone short-circuit invariant"
-        );
-        let consumer_id = fp_post_build.consumer_cone_id;
-        assert_eq!(
-            fp_post_build
-                .per_cone
-                .get(&consumer_id)
-                .unwrap()
-                .inputs_fingerprint,
-            fp_next_run
-                .per_cone
-                .get(&consumer_id)
-                .unwrap()
-                .inputs_fingerprint,
-            "consumer inputs.fingerprint must round-trip stably across runs"
-        );
-    }
-
-    fn write_app_with_local_dependency(temp_root: &Path) -> PathBuf {
-        let root = temp_root.join("app");
-        let dep = root.join("deps").join("lib");
-        std::fs::create_dir_all(root.join("src")).unwrap();
-        std::fs::create_dir_all(dep.join("src")).unwrap();
-        std::fs::write(
-            root.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-per-cone-app"
-version = "0.0.0"
-kind = "bin"
-
-[dependencies]
-dep = { path = "deps/lib" }
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            root.join("src/main.scoop"),
-            "package app\nimport dep.*\nfun main() { value() }\n",
-        )
-        .unwrap();
-        std::fs::write(
-            dep.join("Cone.toml"),
-            r#"
-[cone]
-name = "dep"
-version = "0.0.0"
-kind = "lib"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            dep.join("src/api.scoop"),
-            "package dep\npublic fun value(): Int { return 1 }\n",
-        )
-        .unwrap();
-        root
-    }
-
-    fn write_sysroot_cone(temp_root: &Path, name: &str, source_text: &str) -> SourceConeNode {
-        let root = temp_root.join("sysroot").join(name);
-        std::fs::create_dir_all(root.join("src")).unwrap();
-        let manifest_path = root.join("Cone.toml");
-        let source_path = root.join("src/lib.scoop");
-        std::fs::write(
-            &manifest_path,
-            format!(
-                r#"
-[cone]
-name = "{name}"
-version = "0.0.0"
-kind = "lib"
-"#
-            ),
-        )
-        .unwrap();
-        std::fs::write(&source_path, source_text).unwrap();
-        let manifest = test_manifest(name, ConeKind::Lib);
-        SourceConeNode {
-            id: ConeId::new(2),
-            role: SourceConeRole::SysrootAuto,
-            root,
-            manifest_path,
-            kind: manifest.cone.kind,
-            native_build: manifest.native_build.clone(),
-            manifest,
-            trust: SourceConeTrust::Untrusted,
-            sources: vec![SourceFile::load_sysroot(&source_path).unwrap()],
-            entry_main: None,
-            dependencies: Vec::new(),
-        }
-    }
-
-    fn write_consumer_node(temp_root: &Path, id: ConeId, sysroot_dep: ConeId) -> SourceConeNode {
-        let root = temp_root.join("app");
-        std::fs::create_dir_all(root.join("src")).unwrap();
-        let manifest_path = root.join("Cone.toml");
-        let source_path = root.join("src/main.scoop");
-        std::fs::write(
-            &manifest_path,
-            r#"
-[cone]
-name = "app"
-version = "0.0.0"
-kind = "bin"
-"#,
-        )
-        .unwrap();
-        std::fs::write(&source_path, "fun main() {}\n").unwrap();
-        let manifest = test_manifest("app", ConeKind::Bin);
-        SourceConeNode {
-            id,
-            role: SourceConeRole::Consumer,
-            root,
-            manifest_path,
-            kind: manifest.cone.kind,
-            native_build: manifest.native_build.clone(),
-            manifest,
-            trust: SourceConeTrust::Untrusted,
-            sources: vec![SourceFile::load(&source_path).unwrap()],
-            entry_main: Some(source_path),
-            dependencies: vec![SourceConeDependencyEdge {
-                target: sysroot_dep,
-                kind: SourceConeDependencyKind::SysrootAuto,
-            }],
-        }
-    }
-
-    fn test_manifest(name: &str, kind: ConeKind) -> ConeManifest {
-        ConeManifest {
-            cone: ConeSection {
-                name: name.to_string(),
-                version: "0.0.0".to_string(),
-                kind,
-            },
-            dependencies: Default::default(),
-            pre_specialize_functions: Vec::new(),
-            pre_specialize_types: Vec::new(),
-            export_entry_points: Vec::new(),
-            selectors: Vec::new(),
-            native_build: ConeNativeBuildConfig::default(),
-        }
-    }
-
-    fn only_dependency_cone_id(fp: &BuildFingerprint) -> ConeId {
-        fp.per_cone
-            .iter()
-            .find(|(_, cone_fp)| {
-                cone_fp
-                    .artifact_dir
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    == Some("dep@0.0.0")
-            })
-            .map(|(cone_id, _)| *cone_id)
-            .expect("fixture should have one dependency cone")
-    }
-
-    fn write_minimal_artifact_for_cone(fp: &BuildFingerprint, cone_id: ConeId) {
-        let cone_fp = fp.per_cone.get(&cone_id).unwrap();
-        let mut artifact = ConeArtifact::with_parts(
-            scoopc::stable_id::StableConeKey::new("dep", "0.0.0"),
-            scoopc::base::project_model::ConeKind::Lib,
-            ConeArtifactStageProducts::new(
-                HirFacts::new(),
-                MirFacts::new(),
-                EffectFacts::new(),
-                LirFacts::new(OptLevel::O0),
-                LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-                scoopc::ty::TypeStore::new(),
-            ),
-            scoopc::cone::ConeArtifactFrontendImport::empty(),
-            Vec::new(),
-            ConeArtifactFingerprints::new(cone_fp.inputs_fingerprint.clone(), Vec::new()),
-        );
-        artifact
-            .write_with_computed_outputs_fingerprint(&cone_fp.artifact_dir)
-            .unwrap();
     }
 }

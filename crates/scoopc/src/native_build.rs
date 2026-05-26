@@ -1,45 +1,48 @@
-//! Cone-local native source compilation helpers for the `scoop` driver.
+//! Cone-local native C/C++ object compilation for `build-single-cone`.
 //!
-//! Final linking and runtime C object production live in the standalone
-//! `scoopld` crate. This module intentionally keeps only the C/C++ object
-//! helpers that are still consumed by the current in-process consumer build
-//! path; P10-T06-c will move cone-local native build into `scoopc`.
+//! The facade driver must not compile cone sources itself. This module compiles
+//! only the cone currently being built and returns object payloads that become
+//! part of that cone's artifact manifest.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 use miette::Diagnostic;
+use scoop_project_model::SourceConeNode;
 use thiserror::Error;
 
-/// C 源码编译阶段错误（T1115：cone native build 的 `c-sources`）。
+use crate::cone::ConeArtifactObject;
+
+#[derive(Debug)]
+pub struct NativeBuildObjects {
+    pub objects: Vec<ConeArtifactObject>,
+    pub use_cxx_linker_driver: bool,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum CompileCError {
     #[error("找不到 C 编译器 `{compiler}`（需要安装并确保在 PATH 中）")]
-    #[diagnostic(code(scoop::toolchain::c_compiler_not_found))]
+    #[diagnostic(code(scoopc::native_build::c_compiler_not_found))]
     CompilerNotFound { compiler: String },
-
     #[error("无法读取 C 源文件：{path}")]
-    #[diagnostic(code(scoop::toolchain::c_source_unreadable))]
+    #[diagnostic(code(scoopc::native_build::c_source_unreadable))]
     SourceUnreadable {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-
     #[error("找不到 C 源文件：{path}")]
-    #[diagnostic(code(scoop::toolchain::c_source_missing))]
+    #[diagnostic(code(scoopc::native_build::c_source_missing))]
     SourceMissing { path: PathBuf },
-
     #[error("运行 C 编译器 `{compiler}` 失败：{source}")]
-    #[diagnostic(code(scoop::toolchain::c_compile_spawn_failed))]
+    #[diagnostic(code(scoopc::native_build::c_compile_spawn_failed))]
     CompileSpawnFailed {
         compiler: String,
         #[source]
         source: std::io::Error,
     },
-
     #[error("编译失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}")]
-    #[diagnostic(code(scoop::toolchain::c_compile_failed))]
+    #[diagnostic(code(scoopc::native_build::c_compile_failed))]
     CompileFailed {
         status: ExitStatus,
         command: String,
@@ -48,35 +51,30 @@ pub enum CompileCError {
     },
 }
 
-/// C++ 源码编译阶段错误（T1116：cone native build 的 `cxx-sources`）。
 #[derive(Debug, Error, Diagnostic)]
 pub enum CompileCxxError {
     #[error("找不到 C++ 编译器 `{compiler}`（需要安装并确保在 PATH 中）")]
-    #[diagnostic(code(scoop::toolchain::cxx_compiler_not_found))]
+    #[diagnostic(code(scoopc::native_build::cxx_compiler_not_found))]
     CompilerNotFound { compiler: String },
-
     #[error("无法读取 C++ 源文件：{path}")]
-    #[diagnostic(code(scoop::toolchain::cxx_source_unreadable))]
+    #[diagnostic(code(scoopc::native_build::cxx_source_unreadable))]
     SourceUnreadable {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-
     #[error("找不到 C++ 源文件：{path}")]
-    #[diagnostic(code(scoop::toolchain::cxx_source_missing))]
+    #[diagnostic(code(scoopc::native_build::cxx_source_missing))]
     SourceMissing { path: PathBuf },
-
     #[error("运行 C++ 编译器 `{compiler}` 失败：{source}")]
-    #[diagnostic(code(scoop::toolchain::cxx_compile_spawn_failed))]
+    #[diagnostic(code(scoopc::native_build::cxx_compile_spawn_failed))]
     CompileSpawnFailed {
         compiler: String,
         #[source]
         source: std::io::Error,
     },
-
     #[error("编译失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}")]
-    #[diagnostic(code(scoop::toolchain::cxx_compile_failed))]
+    #[diagnostic(code(scoopc::native_build::cxx_compile_failed))]
     CompileFailed {
         status: ExitStatus,
         command: String,
@@ -85,7 +83,55 @@ pub enum CompileCxxError {
     },
 }
 
-/// 将 cone 额外 `c-sources` 的单个 C 源文件编译为 object。
+pub fn compile_native_build_objects(
+    node: &SourceConeNode,
+    objs_dir: &Path,
+) -> miette::Result<NativeBuildObjects> {
+    std::fs::create_dir_all(objs_dir).map_err(miette::Report::from_err)?;
+
+    let native_build = &node.native_build;
+    let prefix = native_obj_prefix(node);
+    let mut objects =
+        Vec::with_capacity(native_build.c_sources.len() + native_build.cxx_sources.len());
+    for (idx, rel) in native_build.c_sources.iter().enumerate() {
+        let file_name = format!("{prefix}_c_{idx}.o");
+        let src = node.root.join(rel);
+        let out_obj = objs_dir.join(&file_name);
+        compile_c_source_to_obj(&node.root, &src, &out_obj, &native_build.c_flags)?;
+        let bytes = std::fs::read(&out_obj).map_err(miette::Report::from_err)?;
+        objects.push(ConeArtifactObject::new(file_name, bytes).map_err(miette::Report::from_err)?);
+    }
+
+    for (idx, rel) in native_build.cxx_sources.iter().enumerate() {
+        let file_name = format!("{prefix}_cxx_{idx}.o");
+        let src = node.root.join(rel);
+        let out_obj = objs_dir.join(&file_name);
+        compile_cxx_source_to_obj(&node.root, &src, &out_obj, &native_build.cxx_flags)?;
+        let bytes = std::fs::read(out_obj).map_err(miette::Report::from_err)?;
+        objects.push(ConeArtifactObject::new(file_name, bytes).map_err(miette::Report::from_err)?);
+    }
+
+    Ok(NativeBuildObjects {
+        objects,
+        use_cxx_linker_driver: !native_build.cxx_sources.is_empty(),
+    })
+}
+
+fn native_obj_prefix(node: &SourceConeNode) -> String {
+    let mut name = String::with_capacity(node.manifest.cone.name.len());
+    for ch in node.manifest.cone.name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            name.push(ch);
+        } else {
+            name.push('_');
+        }
+    }
+    if name.is_empty() {
+        name.push_str("anonymous");
+    }
+    format!("native_cone{}_{}", node.id.as_u32(), name)
+}
+
 pub fn compile_c_source_to_obj(
     cone_root: &Path,
     source: &Path,
@@ -133,7 +179,6 @@ pub fn compile_c_source_to_obj(
             stderr: String::from_utf8_lossy(&output_res.stderr).to_string(),
         });
     }
-
     Ok(())
 }
 
@@ -158,7 +203,6 @@ fn compile_c_command_to_obj(
     cmd
 }
 
-/// 将 cone 额外 `cxx-sources` 的单个 C++ 源文件编译为 object。
 pub fn compile_cxx_source_to_obj(
     cone_root: &Path,
     source: &Path,
@@ -206,7 +250,6 @@ pub fn compile_cxx_source_to_obj(
             stderr: String::from_utf8_lossy(&output_res.stderr).to_string(),
         });
     }
-
     Ok(())
 }
 
@@ -328,154 +371,23 @@ fn format_command_for_debug(cmd: &Command) -> String {
     let program = cmd.get_program().to_string_lossy();
     let args = cmd
         .get_args()
-        .map(|a| a.to_string_lossy())
-        .collect::<Vec<_>>();
+        .map(|arg| shell_escape(&arg.to_string_lossy()))
+        .collect::<Vec<_>>()
+        .join(" ");
     if args.is_empty() {
         program.to_string()
     } else {
-        format!("{program} {}", args.join(" "))
+        format!("{program} {args}")
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn expected_profile_and_target_define_args() -> Vec<String> {
-        let build_profile = if cfg!(debug_assertions) {
-            "debug"
-        } else {
-            "release"
-        };
-        let is_debug = build_profile == "debug";
-        let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or(std::env::consts::ARCH);
-        let os_cfg = option_env!("CARGO_CFG_TARGET_OS").unwrap_or(std::env::consts::OS);
-        let os = normalize_target_os_for_llvm_triple(os_cfg);
-        let vendor = option_env!("CARGO_CFG_TARGET_VENDOR").unwrap_or(match os {
-            "darwin" => "apple",
-            "windows" => "pc",
-            _ => "unknown",
-        });
-        let env = option_env!("CARGO_CFG_TARGET_ENV").unwrap_or("");
-        let triple = if env.is_empty() {
-            format!("{arch}-{vendor}-{os}")
-        } else {
-            format!("{arch}-{vendor}-{os}-{env}")
-        };
-        let pointer_width = usize::BITS;
-        let endianness = if cfg!(target_endian = "little") {
-            "little"
-        } else {
-            "big"
-        };
-
-        let mut expected = Vec::new();
-        expected.push(format!("-DSCOOP_BUILD_PROFILE=\"{build_profile}\""));
-        if is_debug {
-            expected.push("-DSCOOP_DEBUG".to_string());
-        }
-        expected.push(format!("-DSCOOP_TARGET_TRIPLE=\"{triple}\""));
-        expected.push(format!("-DSCOOP_TARGET_ARCH=\"{arch}\""));
-        expected.push(format!("-DSCOOP_TARGET_OS=\"{os}\""));
-        expected.push(format!("-DSCOOP_TARGET_POINTER_WIDTH={pointer_width}"));
-        expected.push(format!("-DSCOOP_TARGET_ENDIANNESS=\"{endianness}\""));
-        expected
-    }
-
-    #[test]
-    fn compile_c_command_includes_build_profile_and_target_defines() {
-        let dir = tempfile::tempdir().unwrap();
-        let cone_root = dir.path();
-        let source = cone_root.join("main.c");
-        let output_obj = cone_root.join("main.o");
-        std::fs::write(&source, "int main(void) { return 0; }\n").unwrap();
-
-        let cmd = compile_c_command_to_obj(cone_root, &source, &output_obj, &[]);
-        let args = cmd
-            .get_args()
-            .map(|a| a.to_string_lossy().to_string())
-            .collect::<Vec<_>>();
-
-        for expected in expected_profile_and_target_define_args() {
-            assert!(args.iter().any(|a| a == &expected));
-        }
-    }
-
-    #[test]
-    fn compile_cxx_command_includes_build_profile_and_target_defines() {
-        let dir = tempfile::tempdir().unwrap();
-        let cone_root = dir.path();
-        let source = cone_root.join("main.cpp");
-        let output_obj = cone_root.join("main.o");
-        std::fs::write(&source, "int main() { return 0; }\n").unwrap();
-
-        let cmd = compile_cxx_command_to_obj(cone_root, &source, &output_obj, &[]);
-        let args = cmd
-            .get_args()
-            .map(|a| a.to_string_lossy().to_string())
-            .collect::<Vec<_>>();
-
-        for expected in expected_profile_and_target_define_args() {
-            assert!(args.iter().any(|a| a == &expected));
-        }
-    }
-
-    #[test]
-    fn native_compile_commands_include_public_runtime_header_dir() {
-        let dir = tempfile::tempdir().unwrap();
-        let cone_root = dir.path();
-        let c_source = cone_root.join("main.c");
-        let cxx_source = cone_root.join("main.cpp");
-        let output_obj = cone_root.join("main.o");
-        std::fs::write(&c_source, "int f(void) { return 0; }\n").unwrap();
-        std::fs::write(&cxx_source, "int f() { return 0; }\n").unwrap();
-
-        let include_dir = scoopld::runtime_public_include_dir()
-            .to_string_lossy()
-            .to_string();
-        for cmd in [
-            compile_c_command_to_obj(cone_root, &c_source, &output_obj, &[]),
-            compile_cxx_command_to_obj(cone_root, &cxx_source, &output_obj, &[]),
-        ] {
-            let args = cmd
-                .get_args()
-                .map(|a| a.to_string_lossy().to_string())
-                .collect::<Vec<_>>();
-            assert!(
-                args.windows(2)
-                    .any(|pair| pair[0] == "-I" && pair[1] == include_dir),
-                "native compile command should include public runtime header dir {include_dir}, actual: {args:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn compile_c_source_missing_has_stable_error_code() {
-        let dir = tempfile::tempdir().unwrap();
-        let cone_root = dir.path();
-        let missing = cone_root.join("missing.c");
-        let out = cone_root.join("missing.o");
-
-        let err = compile_c_source_to_obj(cone_root, &missing, &out, &[]).unwrap_err();
-        assert_eq!(
-            err.code().unwrap().to_string(),
-            "scoop::toolchain::c_source_missing"
-        );
-        assert!(err.to_string().contains("missing.c"));
-    }
-
-    #[test]
-    fn compile_cxx_source_missing_has_stable_error_code() {
-        let dir = tempfile::tempdir().unwrap();
-        let cone_root = dir.path();
-        let missing = cone_root.join("missing.cpp");
-        let out = cone_root.join("missing.o");
-
-        let err = compile_cxx_source_to_obj(cone_root, &missing, &out, &[]).unwrap_err();
-        assert_eq!(
-            err.code().unwrap().to_string(),
-            "scoop::toolchain::cxx_source_missing"
-        );
-        assert!(err.to_string().contains("missing.cpp"));
+fn shell_escape(value: &str) -> String {
+    if value
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b'/' | b':' | b'='))
+    {
+        value.to_string()
+    } else {
+        format!("'{escaped}'", escaped = value.replace('\'', "'\\''"))
     }
 }

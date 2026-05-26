@@ -5,7 +5,7 @@
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(name = "scoop", version, about = "Scoop compiler + tooling")]
@@ -173,6 +173,10 @@ pub enum Command {
         /// 必须为正整数（0 与负值会被拒绝）。
         #[arg(short = 'j', long = "jobs", value_name = "N")]
         jobs: Option<NonZeroUsize>,
+
+        /// 额外启用的 sysroot source cone（可重复；CLI 值覆盖 SCOOP_SYSROOT_DEPS）。
+        #[arg(long = "sysroot-dep", value_name = "NAME", action = ArgAction::Append)]
+        sysroot_dep: Vec<String>,
     },
 
     /// 运行程序（先 build 后 exec；需要启用 LLVM 后端；默认已启用）
@@ -214,6 +218,10 @@ pub enum Command {
         /// 必须为正整数（0 与负值会被拒绝）。
         #[arg(short = 'j', long = "jobs", value_name = "N")]
         jobs: Option<NonZeroUsize>,
+
+        /// 额外启用的 sysroot source cone（可重复；CLI 值覆盖 SCOOP_SYSROOT_DEPS）。
+        #[arg(long = "sysroot-dep", value_name = "NAME", action = ArgAction::Append)]
+        sysroot_dep: Vec<String>,
     },
 
     /// `.cone` archive packaging is temporarily unsupported during source-only cone redesign

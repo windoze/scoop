@@ -19,13 +19,13 @@ mod run;
 pub(crate) mod temp;
 mod test;
 
+use std::num::NonZeroUsize;
+use std::path::{Path, PathBuf};
+
 use tracing_subscriber::EnvFilter;
 
-use std::num::NonZeroUsize;
-
 use crate::cli::{Args, Command};
-use scoopc::opt::OptLevel;
-use scoopc::session::SessionOptions;
+use scoop_project_model::OptLevel;
 
 use build::concurrency::{self, BuildJobsError};
 
@@ -47,7 +47,7 @@ pub fn init_tracing() {
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {
     let Args { command } = args;
-    let session_options = SessionOptions::new();
+    let session_options = FacadeSessionOptions::new();
 
     match command {
         Command::New { project_name } => new::run(project_name),
@@ -96,6 +96,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             emit_obj,
             emit_asm,
             jobs,
+            sysroot_dep,
         } => {
             let emit = if emit_llvm {
                 build::BuildEmit::LlvmIr
@@ -110,6 +111,8 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             let incremental = resolve_incremental_enabled(no_incremental);
             let jobs = resolve_build_jobs(jobs)?;
+            let session_options =
+                session_options_with_cli_sysroot_deps(session_options, sysroot_dep)?;
             build::run(
                 input,
                 output,
@@ -133,10 +136,13 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             no_incremental,
             args,
             jobs,
+            sysroot_dep,
         } => {
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             let incremental = resolve_incremental_enabled(no_incremental);
             let jobs = resolve_build_jobs(jobs)?;
+            let session_options =
+                session_options_with_cli_sysroot_deps(session_options, sysroot_dep)?;
             run::run(
                 input,
                 args,
@@ -177,6 +183,98 @@ fn parse_opt_level_flag(opt_level: Option<String>) -> Result<Option<OptLevel>, m
     Ok(Some(parsed))
 }
 
+pub(crate) const SYSROOT_DEPENDENCIES_ENV: &str = "SCOOP_SYSROOT_DEPS";
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct FacadeSessionOptions {
+    sysroot_overlay: Option<PathBuf>,
+    extra_sysroot_dependencies: Vec<String>,
+}
+
+impl FacadeSessionOptions {
+    pub(crate) const fn new() -> Self {
+        Self {
+            sysroot_overlay: None,
+            extra_sysroot_dependencies: Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_extra_sysroot_dependencies<I, S>(mut self, dependencies: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.extra_sysroot_dependencies
+            .extend(dependencies.into_iter().map(Into::into));
+        self.extra_sysroot_dependencies.sort();
+        self.extra_sysroot_dependencies.dedup();
+        self
+    }
+
+    pub(crate) fn with_env_fallback(mut self) -> Self {
+        if self.sysroot_overlay.is_none() {
+            self.sysroot_overlay = std::env::var_os(scoop_project_model::SYSROOT_OVERLAY_ENV)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from);
+        }
+        if self.extra_sysroot_dependencies.is_empty()
+            && let Some(value) = std::env::var_os(SYSROOT_DEPENDENCIES_ENV)
+            && let Some(value) = value.to_str()
+        {
+            self = self.with_extra_sysroot_dependencies(parse_sysroot_dependency_env(value));
+        }
+        self
+    }
+
+    pub(crate) fn sysroot_overlay(&self) -> Option<&Path> {
+        self.sysroot_overlay.as_deref()
+    }
+
+    pub(crate) fn extra_sysroot_dependencies(&self) -> &[String] {
+        &self.extra_sysroot_dependencies
+    }
+
+    pub(crate) fn apply_to_command(&self, cmd: &mut std::process::Command) {
+        if let Some(overlay_root) = self.sysroot_overlay() {
+            cmd.env(scoop_project_model::SYSROOT_OVERLAY_ENV, overlay_root);
+        }
+        if !self.extra_sysroot_dependencies().is_empty() {
+            cmd.env(
+                SYSROOT_DEPENDENCIES_ENV,
+                self.extra_sysroot_dependencies().join(","),
+            );
+        }
+    }
+}
+
+fn parse_sysroot_dependency_env(value: &str) -> impl Iterator<Item = String> + '_ {
+    value
+        .split(|ch: char| ch == ',' || ch.is_whitespace())
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn session_options_with_cli_sysroot_deps(
+    session_options: FacadeSessionOptions,
+    deps: Vec<String>,
+) -> Result<FacadeSessionOptions, miette::Report> {
+    if deps.is_empty() {
+        return Ok(session_options);
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for dep in &deps {
+        let trimmed = dep.trim();
+        if trimmed.is_empty() {
+            return Err(miette::miette!("`--sysroot-dep` 不能是空字符串"));
+        }
+        if !seen.insert(trimmed.to_string()) {
+            return Err(miette::miette!("重复的 `--sysroot-dep`：{trimmed}"));
+        }
+    }
+    Ok(session_options.with_extra_sysroot_dependencies(seen))
+}
+
 fn resolve_incremental_enabled(no_incremental: bool) -> bool {
     if no_incremental {
         return false;
@@ -194,4 +292,22 @@ fn resolve_incremental_enabled(no_incremental: bool) -> bool {
         }
         Err(_) => true,
     }
+}
+
+pub(crate) fn run_compiler_passthrough<I, S>(
+    args: I,
+    session_options: &FacadeSessionOptions,
+    label: &str,
+) -> Result<(), miette::Report>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let mut cmd = crate::compiler_tool::command()?;
+    cmd.args(args);
+    session_options.apply_to_command(&mut cmd);
+    let output = crate::compiler_tool::run_capture(cmd, label)?;
+    print!("{}", String::from_utf8_lossy(&output.stdout));
+    eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    Ok(())
 }

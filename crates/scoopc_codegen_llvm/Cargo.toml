@@ -12,7 +12,7 @@ standalone-codegen-crate = []
 scoopc_lir = { path = "../scoopc_lir" }
 scoopc_lir_facts = { path = "../scoopc_lir_facts" }
 scoopc_ids = { path = "../scoopc_ids" }
-scoopc_project_model = { path = "../scoopc_project_model" }
+scoop_project_model = { path = "../scoop_project_model" }
 inkwell = { version = "0.8.0", optional = true, features = ["llvm21-1"] }
 llvm-sys = { version = "211.0.0", optional = true }
 miette = { version = "7.6.0", features = ["fancy"] }

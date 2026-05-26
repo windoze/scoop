@@ -18,8 +18,8 @@ use std::path::Path;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 use sha2::{Digest as _, Sha256};
 
+use scoop_project_model::ConeSourcePackage;
 use scoopc_hir::session::Session;
-use scoopc_project_model::ConeSourcePackage;
 
 /// `.cone` 内的 public API 文件名（spec §13.2）。
 pub const CONE_API_SCOOPIR_FILE_NAME: &str = "api.scoopir";
@@ -85,7 +85,7 @@ pub fn write_cone_archive_v0(
     .transpose()?;
 
     let mut owned_entries: Vec<(&'static str, Vec<u8>)> = vec![
-        (scoopc_project_model::CONE_TOML_FILE_NAME, cone_toml),
+        (scoop_project_model::CONE_TOML_FILE_NAME, cone_toml),
         (CONE_API_SCOOPIR_FILE_NAME, api_json),
         (
             super::annotations::CONE_ANNOTATION_CLASSES_FILE_NAME,

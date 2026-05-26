@@ -131,7 +131,7 @@
 - 必须实现的内容：
   1. 新建 `scoopc_mir_facts` crate，至少包含 crate-level 职责文档、`#![forbid(unsafe_code)]`、`MirFacts` 顶层类型、空 verifier/dump skeleton 和单元测试。
   2. 将 `MirFacts` 初始划分为 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 这几组模块或子结构。
-  3. 只使用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model` 中的基础类型表达 identity/type/span/cone 信息；不得引用 `crate::mir`、`crate::hir`、`MaterializedMir`、`TemplateKey`、`InstanceKey` 或 backend ABI 类型。
+  3. 只使用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model` 中的基础类型表达 identity/type/span/cone 信息；不得引用 `crate::mir`、`crate::hir`、`MaterializedMir`、`TemplateKey`、`InstanceKey` 或 backend ABI 类型。
   4. 如现有基础 ID 不足以表达 snapshot/callable/body identity，先在 `scoopc_ids` 中新增 stage-independent key；不得把 MIR 内部 key 泄漏进 fact crate。
   5. 更新依赖门禁，使 `scoopc_mir_facts` 作为 fact crate 被检查，拒绝依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
   6. 在 `scoopc` facade 中只添加必要依赖或 re-export anchor，不迁移业务事实内容。
@@ -152,7 +152,7 @@
 - 依赖：TODO-4-INIT
 - 完成记录：
   - 改动范围：新增 workspace crate `crates/scoopc_mir_facts/`，包含 `MirFacts` 顶层结构、root inventories、materialized snapshot bindings、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata、dump/verifier skeleton 和单元测试；新增 `scoopc::mir_facts` facade anchor，并更新 workspace、README 与 dependency gate。
-  - 核心决策：`scoopc_mir_facts` 只依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`，不依赖 `scoopc` facade、HIR/MIR stage、其它 fact crate 或 backend 类型。为避免泄漏 `TemplateKey` / `InstanceKey`，在 `scoopc_ids` 中新增通用 `StageArtifactKey` 表达 snapshot、instance/family 和 pass artifact revision identity。
+  - 核心决策：`scoopc_mir_facts` 只依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model`，不依赖 `scoopc` facade、HIR/MIR stage、其它 fact crate 或 backend 类型。为避免泄漏 `TemplateKey` / `InstanceKey`，在 `scoopc_ids` 中新增通用 `StageArtifactKey` 表达 snapshot、instance/family 和 pass artifact revision identity。
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；额外运行 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate` 覆盖新增基础 key 和门禁测试。
   - 残余风险：当前 facts crate 仍是数据模型壳层；P3-T02 负责把现有 root inventory 构造迁入 `MirFacts`，P3-T03 之后负责把 canonical snapshot / pass artifacts 与真实 MIR stage handoff 接起来。当前 verifier/dump 只做结构性 skeleton 检查，不替代后续迁移验证。
 
@@ -178,7 +178,7 @@
 - 依赖：P3-T01
 - 完成记录：
   - 改动范围：复查 `P3-T01` 建立的 `scoopc_mir_facts` crate、`scoopc_ids::StageArtifactKey`、`scoopc` facade anchor、workspace/README 条目和 `tools/scoop_tools` dependency gate；review 未发现需要修复的代码问题，本次只更新任务状态与完成记录。
-  - review 结论：`scoopc_mir_facts` 当前仅直接依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`，源码未引用 `scoopc` facade、HIR/MIR stage 类型、其它 fact crate、backend/LLVM 类型、`TemplateKey` 或 `InstanceKey`。`MirFacts` 已按 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 分组，覆盖 P3-T01 要求的事实模型壳层。
+  - review 结论：`scoopc_mir_facts` 当前仅直接依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model`，源码未引用 `scoopc` facade、HIR/MIR stage 类型、其它 fact crate、backend/LLVM 类型、`TemplateKey` 或 `InstanceKey`。`MirFacts` 已按 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 分组，覆盖 P3-T01 要求的事实模型壳层。
   - dependency gate 结论：`FACT_CRATES` 已包含 `scoopc_mir_facts`，门禁会拒绝 fact crate 依赖 facade、driver/runtime/tool、stage/backend crate 或其它 fact crate；`cargo tree -p scoopc_mir_facts` 的 workspace 依赖只包含允许的基础 crate。
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir_facts`；额外复跑 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate`。
   - 残余风险：当前 crate 仍是数据模型与 verifier/dump skeleton；实际 root inventory 构造、canonical snapshot/pass artifacts 绑定和下游查询切换仍由后续 `P3-T02` 到 `P3-T04` 完成。
@@ -469,7 +469,7 @@
   - 改动范围：复查 `P3-T05` 的 `pass_pipeline.rs`、materializer 尾部、inline/escape/closure simplification、summary refresh、pass artifacts 与 MIR facts metadata；修复 review 中发现的两个直接问题：`OptLevel::enables_mir_escape_analysis()` 仍表达旧 O0 gate 语义，以及 `tests/fixtures/mir_materialized` 验证路径缺少真实 fixture phase。新增 `mir_materialized` fixture runner 路由和 `pass_pipeline_metadata` golden，覆盖 P4-ready MIR facts 中的 pass schedule、body/summary override revision 与 closure simplification 后 escape refresh。
   - review 结论：MIR pass 调度已由 `run_mir_pass_pipeline(...)` / `MirPassPipeline` 单一 owner 控制；`MirInstanceMaterializer::run(...)` 只构造 raw snapshot、初始化 pass artifacts、调用 pipeline 并验证。搜索 `run_summary_driven_inlining|run_escape_analysis|run_non_escaping_closure_simplification` 确认除定义外，活跃调度调用只在 `pass_pipeline.rs` 中出现。escape analysis 在 pipeline 中 always-on，`OptLevel::enables_mir_escape_analysis()` 已同步为所有 opt level 都发布 MIR escape-analysis facts。
   - refresh / cleanup 结论：summary refresh 集中在 `MirPassPipelineContext::publish_instance_rewrite(...)`，cleanup 集中在 `cleanup_pass_rewritten_body(...)`，pass 只通过 pipeline context 发布 body/summary/escape facts mutation。`pass_pipeline_metadata.mir` golden 显示 summary-driven inlining -> escape analysis -> closure simplification -> escape-analysis refresh 的 revision 顺序，且 raw materialized MIR 与 pass artifacts 继续分层。
-  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features mir::pass_view`；`cargo test -p scoopc --no-default-features mir::inline`；`cargo test -p scoopc --no-default-features mir::escape`；`cargo test -p scoopc --no-default-features mir::closure_simplify`；`cargo test -p scoopc_project_model`；`cargo test -p scoop --no-default-features fixtures`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features mir::pass_view`；`cargo test -p scoopc --no-default-features mir::inline`；`cargo test -p scoopc --no-default-features mir::escape`；`cargo test -p scoopc --no-default-features mir::closure_simplify`；`cargo test -p scoop_project_model`；`cargo test -p scoop --no-default-features fixtures`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：dispatch 去虚化仍按 `P3-T06` 迁移；`MirPassKind::Devirtualization` 尚未进入实际 schedule。P5/P7 wrapper/backend 过渡读取不属于本 review 的新阻塞项。
 
 ## [DONE] P3-T06：迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner

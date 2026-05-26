@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use miette::Diagnostic;
 use thiserror::Error;
 
+use scoop_project_model::ConeManifest;
 use scoopc_hir::hir::{Item as HirItem, LoweredHir};
 use scoopc_hir::resolve::{Index, Visibility};
 use scoopc_hir::session::Session;
@@ -17,7 +18,6 @@ use scoopc_hir::stable_id::StableConeKey;
 use scoopc_hir::typecheck::{
     AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind,
 };
-use scoopc_project_model::ConeManifest;
 use scoopc_source::SourceFile;
 use scoopc_span::Span;
 use scoopc_types::{
@@ -144,11 +144,11 @@ pub fn export_public_api_for_cone_sources(
     let mut indexed: Vec<scoopc_hir::resolve::IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {
         indexed.push(scoopc_hir::resolve::IndexedFile {
-            cone: scoopc_project_model::ConeId::new(0),
+            cone: scoop_project_model::ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
-                scoopc_project_model::ConeKind::Syslib
+                scoop_project_model::ConeKind::Syslib
             } else {
-                scoopc_project_model::ConeKind::Lib
+                scoop_project_model::ConeKind::Lib
             },
             source: &f.source,
             file: &f.ast,
@@ -156,15 +156,15 @@ pub fn export_public_api_for_cone_sources(
     }
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         indexed.push(scoopc_hir::resolve::IndexedFile {
-            cone: scoopc_project_model::ConeId::new(1),
-            cone_kind: scoopc_project_model::ConeKind::Lib,
+            cone: scoop_project_model::ConeId::new(1),
+            cone_kind: scoop_project_model::ConeKind::Lib,
             source,
             file: ast,
         });
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(scoopc_hir::resolve::IndexedFile {
-            cone: scoopc_project_model::ConeId::new(1),
+            cone: scoop_project_model::ConeId::new(1),
             cone_kind: manifest.cone.kind,
             source,
             file: ast,
@@ -549,9 +549,10 @@ fn export_public_funs_for_source(
 
         // v0：用 Index 的可见性作为 “public API” 的过滤条件。
         let Some(ns) = index.by_fqn.get(&fun.fqn) else {
-            return Err(scoop_ir_export_err(ScoopIrExportError::MissingFunSymbol {
-                fqn: fun.fqn.clone(),
-            }));
+            // HIR also carries compiler-synthesized callable bodies (for example
+            // extension property getters) that are not source-level public fun
+            // declarations. They must not be exported as ScoopIR public API.
+            continue;
         };
         let Some(overload) = ns.fun.iter().find(|o| {
             o.symbol.decl_file.as_path() == source.path()

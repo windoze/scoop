@@ -74,14 +74,14 @@ cargo build
 cargo build --no-default-features
 ```
 
-生成最小 LLVM IR（当前阶段仅生成空 `main`，返回 0）：
+生成 LLVM IR：
 
 ```bash
 # 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@21）：
 # export PATH="/opt/homebrew/opt/llvm@21/bin:$PATH"
 PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
-  cargo run -p scoopc --bin scoopc -- \
-  --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop \
+  cargo run -p scoop -- \
+  build --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop \
   -o /tmp/overview_minimal_main.ll
 ```
 
@@ -116,6 +116,8 @@ PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
   cargo run -p scoop -- \
   run tests/fixtures/spec_doctest/overview_minimal_main.scoop
 ```
+
+`scoop build` / `scoop run` 支持 `--sysroot-dep <name>`（可重复）来显式启用额外 sysroot source cone；CLI 值优先于 `SCOOP_SYSROOT_DEPS` 环境变量。单文件输入会先由 `scoop` materialize 为 `build/<profile>/virtual/<name>@0.0.0/` 下的标准 cone，再走 per-cone 子进程 build/link 路径。
 
 当前 executable `main` 只接受四种形状：`fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!`。若使用 `main(args)`，可在 `scoop run` 后用 `--` 继续传参；运行时会把完整 native argv 传入 `args`（包含 `argv[0]`）。正常返回 `Unit` 会映射为退出码 `0`，正常返回 `Int` 会把该值作为进程退出码。
 
@@ -158,20 +160,20 @@ cargo run -p scoop_tools -- safepoint-baseline
 
 ## 目录结构（简述）
 
-- `crates/scoop/`：命令行工具（driver）
+- `crates/scoop/`：命令行 facade；负责 virtual cone materialization、cone DAG 调度与子进程派发
 - `crates/scoopc/`：编译器 umbrella crate；只保留 facade re-exports、`frontend.rs`、`pipeline/`、`session/` 与 driver 编排 helper
 - `crates/scoopc_span/`：基础 span / 诊断坐标 crate；后续 stage/fact crate 可共享的 span owner
 - `crates/scoopc_source/`：基础 source identity / source map crate；不承载 cone/project membership
 - `crates/scoopc_types/`：基础 type universe / effect row crate；负责后续跨阶段共享类型基础设施
 - `crates/scoopc_ids/`：基础 stable identity crate；负责后续跨阶段 ID 与 stable key primitives
-- `crates/scoopc_project_model/`：基础 project / source-cone / cone compilation unit 模型 crate
+- `crates/scoop_project_model/`：基础 project / source-cone / cone compilation unit 模型与 cone artifact metadata crate
 - `crates/scoopc_ast/`：AST stage crate；承载 lexer / parser / syntax / AST 数据结构
 - `crates/scoopc_hir/`：HIR stage crate；承载 resolve / infer / typecheck / typed-HIR lowering
 - `crates/scoopc_mir/`：MIR stage crate；承载 direct-style MIR、monomorph / RTTI / devirtualization 与 MIR materialization
 - `crates/scoopc_effect_facts_stage/`：effect facts stage crate；从 MIR handoff 发布 effect/control facts
 - `crates/scoopc_lir/`：LIR stage crate；承载 effect lowering、late LIR、LIR opt 与 backend-neutral source-body handoff
 - `crates/scoopc_codegen_llvm/`：LLVM codegen stage crate；拥有 LLVM/inkwell/llvm-sys 依赖与 stackmap parser
-- `crates/scoopc_cone/`：cone-operation crate；依赖 stage/fact/base crate 执行 archive、visibility、pre-specialize、consume 等跨 cone 操作，stage crate 不反向依赖它
+- `crates/scoopc_cone/`：cone stage-payload 磁盘层；依赖 stage/fact/base crate 执行 archive、visibility、pre-specialize、consume 等跨 cone 操作，stage crate 不反向依赖它
 - `crates/scoopc_hir_facts/`：独立 HIR semantic facts 数据产品；只依赖基础 crate，不依赖 `scoopc` facade 或 stage/backend crate
 - `crates/scoopc_mir_facts/`：独立 MIR facts 数据产品；承载 root inventories、snapshot/pass-artifact binding 与 MIR pass pipeline metadata；只依赖基础 crate，不依赖 `scoopc` facade、HIR/MIR stage 或 backend crate
 - `crates/scoopc_effect_facts/`：独立 effect/control facts 数据产品；承载 snapshot binding、callable/body/site facts、step schema 与 continuation schema；只依赖基础 crate，不依赖 `scoopc` facade、MIR/LIR stage 或 backend crate；由 P4 只读分析阶段发布，不回写 MIR snapshot，也不通过 P4 output 嵌套上游 stage output

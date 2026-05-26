@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use miette::Diagnostic;
-use scoopc_project_model::{ConeId, ConeInfo, ConeKind};
+use scoop_project_model::{ConeId, ConeInfo, ConeKind};
 use thiserror::Error;
 
 use crate::{ast, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile, span::Span};

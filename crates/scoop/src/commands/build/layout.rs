@@ -4,7 +4,6 @@
 //! - 默认/host：`build/<profile>/...`
 //! - 预留 cross compile：`build/<target>/<profile>/...`
 //! - 可执行：`build/<profile>/<project-name>`（Windows 为 `.exe`）
-//! - 中间产物：`build/<profile>/obj/`
 
 use std::path::{Path, PathBuf};
 
@@ -17,11 +16,6 @@ pub(crate) fn cone_build_dir(cone_root: &Path, target: Option<&str>, profile: &s
         dir = dir.join(target);
     }
     dir.join(profile)
-}
-
-#[cfg(feature = "llvm")]
-pub(crate) fn cone_obj_dir(cone_root: &Path, target: Option<&str>, profile: &str) -> PathBuf {
-    cone_build_dir(cone_root, target, profile).join("obj")
 }
 
 pub(crate) fn cone_build_json_path(
@@ -60,13 +54,4 @@ pub(crate) fn cone_exe_path(
     project_name: &str,
 ) -> PathBuf {
     cone_build_dir(cone_root, target, profile).join(cone_exe_file_name(project_name))
-}
-
-#[cfg(feature = "llvm")]
-pub(crate) fn obj_file_name(stem: &str) -> String {
-    if cfg!(windows) {
-        format!("{stem}.obj")
-    } else {
-        format!("{stem}.o")
-    }
 }

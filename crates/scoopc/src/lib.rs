@@ -7,6 +7,8 @@
 //!
 //! `scoop`（driver）crate 只负责命令行与调度。
 
+extern crate self as scoopc;
+
 /// Migration anchors for stage-independent base crates.
 ///
 /// `scoopc::{span, source, ty}` are re-export adapters over their base crates;
@@ -15,8 +17,8 @@
 /// stage/fact crates should depend on the base crates directly instead of
 /// depending on this facade.
 pub mod base {
+    pub use scoop_project_model as project_model;
     pub use scoopc_ids as ids;
-    pub use scoopc_project_model as project_model;
     pub use scoopc_source as source;
     pub use scoopc_span as span;
     pub use scoopc_types as types;
@@ -55,12 +57,15 @@ pub(crate) mod dump_support {
 pub use scoopc_effect_facts_stage as effect_facts_stage;
 pub use scoopc_lir::effect_facts;
 pub use scoopc_lir::effect_lowered;
+pub mod fixture_cli;
+pub mod fixtures;
 pub mod frontend;
 pub use scoopc_hir::hir;
 pub use scoopc_hir::infer;
 pub use scoopc_hir::itable;
 pub use scoopc_mir::mir;
 pub use scoopc_mir::monomorph;
+pub mod native_build;
 pub mod opt;
 pub use scoopc_ast::parser;
 pub mod pipeline;
@@ -75,6 +80,7 @@ pub use scoopc_codegen_llvm::stackmap;
 pub use scoopc_hir::sysroot;
 pub use scoopc_hir::target;
 pub use scoopc_mir::stable_id;
+pub mod tool_commands;
 pub mod ty;
 pub use scoopc_hir::typecheck;
 pub use scoopc_hir::vtable;

@@ -158,7 +158,7 @@
 - 必须实现的内容：
   1. 新建 `scoopc_hir_facts` crate，至少包含 crate-level 职责文档、`#![forbid(unsafe_code)]`、`HirFacts` 顶层类型、空 verifier/dump skeleton 和单元测试。
   2. 将 `HirFacts` 先划分为 declaration/entity facts、source-site typed contracts、global root/init facts、native/extern facts、type context reference 这几组模块或子结构。
-  3. 只使用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model` 中的基础类型表达 identity/type/span/cone 信息；不得引用 `crate::hir`、`crate::ast`、`crate::mir` 或 `scoopc` facade 类型。
+  3. 只使用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model` 中的基础类型表达 identity/type/span/cone 信息；不得引用 `crate::hir`、`crate::ast`、`crate::mir` 或 `scoopc` facade 类型。
   4. 更新依赖门禁，使 `scoopc_hir_facts` 作为 fact crate 被检查，拒绝依赖 stage/facade/其它 fact crate。
   5. 在 `scoopc` facade 中只添加必要依赖或 re-export anchor，不迁移业务事实内容。
 - 禁止事项：
@@ -178,7 +178,7 @@
 - 依赖：TODO-3-INIT
 - 完成记录：
   - 改动范围：新增 workspace crate `crates/scoopc_hir_facts`，包含 crate-level 职责文档、`#![forbid(unsafe_code)]`、`HirFacts` 顶层数据产品、fact group 模块、dump/verifier 入口和单元测试；同步接入 workspace、`scoopc` facade re-export anchor、README crate 概览和 `scoop_tools dependency-gate`。
-  - 事实模型：`HirFacts` 初始划分为 declaration/entity facts、source-site typed contracts、global root/init facts、native/extern facts、type context reference/source cone ownership 五组；数据结构只引用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model` 的基础类型，不承载 HIR/AST/MIR/backend ABI 节点。
+  - 事实模型：`HirFacts` 初始划分为 declaration/entity facts、source-site typed contracts、global root/init facts、native/extern facts、type context reference/source cone ownership 五组；数据结构只引用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model` 的基础类型，不承载 HIR/AST/MIR/backend ABI 节点。
   - 依赖门禁：dependency gate 现在同时检查 5 个 base crate 与 1 个 fact crate；`scoopc_hir_facts` 被归类为 fact crate，允许依赖基础 crate，拒绝依赖 `scoopc` facade、stage/backend/tool/runtime crate 或其它 fact crate。
   - 核心决策：type context 在 `scoopc_hir_facts` 中只以 `TypeContextReference` 引用 HIR-owned `TypeStore`，不复制 `TypeStore`；`scoopc` 只新增依赖与 `hir_facts` re-export anchor，不迁移业务事实内容。
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo clippy --all-targets -- -D warnings`。
@@ -206,7 +206,7 @@
 - 完成记录：
   - 复查范围：已复查 workspace 成员、`crates/scoopc_hir_facts/` 模型和测试、`crates/scoopc/Cargo.toml` 与 `scoopc::hir_facts` facade anchor、`tools/scoop_tools` dependency gate、`README.md` crate 概览。
   - 事实模型结论：`HirFacts` 顶层结构按 declaration/entity、source-site typed contracts、global root/init、native/extern、type context reference/source cone ownership 五组划分，覆盖本文件触碰面基线中后续迁移需要承接的事实分类；当前仍是 skeleton，不迁移业务事实内容，符合 P2-T01 范围。
-  - 依赖结论：`scoopc_hir_facts` 直接依赖仅包含 `scoopc_ids`、`scoopc_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。`cargo tree -p scoopc_hir_facts` 显示 workspace 依赖只出现在允许的基础 crate 集合中，外部依赖均来自基础 crate 的传递依赖。
+  - 依赖结论：`scoopc_hir_facts` 直接依赖仅包含 `scoopc_ids`、`scoop_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。`cargo tree -p scoopc_hir_facts` 显示 workspace 依赖只出现在允许的基础 crate 集合中，外部依赖均来自基础 crate 的传递依赖。
   - dependency gate 结论：`scoop_tools dependency-gate` 已把 `scoopc_hir_facts` 归为 fact crate 并拒绝 facade/其它 fact crate 依赖；对应单元测试覆盖允许基础依赖、拒绝 `scoopc` facade 和拒绝其它 fact crate。
   - 修复情况：review 未发现需要在本任务内修复的阻塞项；未修改实现代码。
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`。
@@ -642,7 +642,7 @@
   - 改动范围：同步 `README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`PLAN.md` 的当前阶段描述和 `TODO-4.md` 的 P3 入口范围；收紧 `LoweredHir` / `HirStageOutput` / `scoopc_hir_facts` 注释，明确 `HirFacts` 是 HIR semantic facts 的正式发布面，`LoweredHir` 仅保留 HIR body inventory、type context、lowering helper 和 P7 前 LLVM compatibility scaffold。
   - 清场修复：全量 fixture 验证暴露了三个阻塞当前 P2 清场验收的真实问题，已一并修复：数组字面量合成的 `mutableArrayNew` / `push` / `freeze` call-site binding 现在发布推导出的 type args；`HirFacts` declaration/layout 事实构建会去重 enum variant / field facts，避免 `LoweredHir` decl 与 layout side table 重复发布同一 fact identity；materialized MIR generic substitution 后会重新校验 value-erasure boxing intent，并把不再需要 boxing 的 `Transport` rvalue 收缩为普通 `Use`。
   - P3 入口结论：`MirStageOutput` / MIR lowering 入口只从 `HirStageOutput` 读取 HIR 本体与 `hir_facts()`；`MirLoweringFacts::from_hir_facts(...)` 是 source-site contract input 的单一路径。`TODO-4.md` 已改为从 optional `MaterializedMir`、root inventories、snapshot binding 与 pass artifacts 收口开始，不再把旧 HIR typed contract 泄漏列为 P3 当前输入。
-  - 依赖审计：`scoopc_hir_facts` 的直接 workspace 依赖仍仅为 `scoopc_ids`、`scoopc_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；`scoop_tools dependency-gate` 与 `cargo tree -p scoopc_hir_facts` 均确认未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
+  - 依赖审计：`scoopc_hir_facts` 的直接 workspace 依赖仍仅为 `scoopc_ids`、`scoop_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；`scoop_tools dependency-gate` 与 `cargo tree -p scoopc_hir_facts` 均确认未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
   - 搜索结论：`TypedHirEffectContracts|ProgramFacts|FallbackSideTables|typed_contract_bridge|contract_bridge|SourceSiteMigrationFacts|source_site_migration_facts|MirSiteContractSource|MirLoweringFacts::from_lowered_hir|build_hir_facts_for_migration|build_hir_declaration_facts_for_migration|lower_handle_contract_from_hir|lower_malformed_resume_call|fallback_perform|fallback_resume` 在 `crates/**/*.rs` 中无命中；`materialized_mir|materialized_pass_view|MaterializedMir|MaterializedMirPassView|pass_view\(` 在 `crates/scoopc/src/hir/**/*.rs` 中无命中。当前 markdown 命中均为历史任务记录、P2 已解决说明或 P3+ MIR/effect/LIR/codegen handoff 描述；tests 中旧 typed/fallback/bridge 关键词无命中。
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir_facts`；`git diff --check`；上述 P2 清场关键词搜索。完整 fixture suite 最终结果为 `fixtures: ok (1528)`。
   - 残余风险：LLVM backend 仍通过 `LoweredHir` compatibility scaffold 读取部分 layout/body/codegen 输入，但它不再是跨阶段 source semantic fact owner；`MirStageOutput` 的 optional materialized snapshot/pass artifacts、effect facts/LIR output 嵌套和 backend HIR/MIR 回看继续由 P3-P7 处理。`docs/archive/**` 中保留历史设计/计划旧名称，不作为当前实现边界。

@@ -1,5 +1,5 @@
 [package]
-name = "scoopc_project_model"
+name = "scoop_project_model"
 version.workspace = true
 edition.workspace = true
 
@@ -7,6 +7,9 @@ edition.workspace = true
 miette = { version = "7.6.0", features = ["fancy"] }
 scoopc_ids = { path = "../scoopc_ids" }
 scoopc_source = { path = "../scoopc_source" }
+scoopc_types = { path = "../scoopc_types" }
 serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+sha2 = "0.10.9"
 thiserror = "2.0.12"
 toml = "0.8.23"

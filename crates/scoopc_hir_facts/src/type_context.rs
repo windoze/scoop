@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
+use scoop_project_model::{ConeId, StableConeKey};
 use scoopc_ids::CanonicalTextKey;
-use scoopc_project_model::{ConeId, StableConeKey};
 use scoopc_source::{SourceId, SourceMapSpan};
 use scoopc_types::BuiltinTypes;
 

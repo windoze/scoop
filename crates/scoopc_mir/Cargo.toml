@@ -13,7 +13,7 @@ scoopc_hir = { path = "../scoopc_hir" }
 scoopc_hir_facts = { path = "../scoopc_hir_facts" }
 scoopc_ids = { path = "../scoopc_ids" }
 scoopc_mir_facts = { path = "../scoopc_mir_facts" }
-scoopc_project_model = { path = "../scoopc_project_model" }
+scoop_project_model = { path = "../scoop_project_model" }
 scoopc_source = { path = "../scoopc_source" }
 scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }

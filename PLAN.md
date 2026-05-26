@@ -100,7 +100,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 | P6 | Global init model | 落实 object once、top-level eager init、per-cone init routine 和 storage policy |
 | P7 | LLVM backend cleanup | 让 LLVM backend 只依赖 `LIR + LIR facts + base context` |
 | P8 | Final verification | 清理残余、冻结边界、为未来 C backend 预留干净接口 |
-| P9 | Stage crate split | 把 AST/HIR/MIR/effect_stage/LIR/codegen 拆为独立 stage crate；cone 按数据/操作两层拆为 `scoopc_project_model` 扩展 + 新 `scoopc_cone`；用 `cargo build` 强制 PLAN §1.2 的依赖方向 |
+| P9 | Stage crate split | 把 AST/HIR/MIR/effect_stage/LIR/codegen 拆为独立 stage crate；cone 按数据/操作两层拆为 `scoop_project_model` 扩展 + 新 `scoopc_cone`；用 `cargo build` 强制 PLAN §1.2 的依赖方向 |
 | P10 | Per-cone build artifact | 每个 cone 的编译产物落到 `build/<profile>/cones/<cone>/`；下游 cone 通过反序列化 fact 注入而不再扫上游源码；解决 cross-process `TypeId` stable wire format；per-cone fingerprint chain 替换整项目 fingerprint |
 
 阶段间原则上顺序推进；只有在不破坏上述依赖关系时，才允许在相邻阶段间拆小步 PR。
@@ -309,7 +309,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
    - `scoopc_lir`（effect_lowered）
    - `scoopc_codegen_llvm`（含 stackmap）
 2. 把 cone 模块按数据 vs 操作两层拆开：
-   - `Cone.toml` / `SourceConeGraph` / sysroot loader 等纯数据进 base crate `scoopc_project_model`；
+   - `Cone.toml` / `SourceConeGraph` / sysroot loader 等纯数据进 base crate `scoop_project_model`；
    - archive / scoopir / annotations / visibility / pre-specialize / consume 进新 crate `scoopc_cone`，依赖所有 stage crate。
 3. 删除阻塞拆分的后向边：`InstanceKey` / `TemplateKey` / `ExternAbi` 等被反向引用的小型 stable 数据迁到 base crate；删除 P3 残留 `devirtualize.rs`。
 4. 扩展 `tools/scoop_tools` 的 `dependency-gate` 以覆盖所有新 crate；同时禁止任何 stage crate 反向依赖 `scoopc_cone`。
@@ -355,6 +355,11 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
    - `scoopc link-cone` 只解析单次 link 请求并 forward 到 `scoopld::link`，不 walk DAG、不调度、不 fork 其它 cone；
    - `scoop` driver 负责收集 transitive dependency artifact 的 `objs/*`，通过 `--dep-obj` 传给 `link-cone`，link cache 存在 `build/<profile>/link/<consumer>@<ver>/inputs.fingerprint`；
    - `build-single-cone` 不允许在缺非默认 sysroot 上游 artifact 时从源码兜底 lower，上游 artifact 缺失必须是硬错误。
+8. scoop facade 化与 project model 边界整顿（P10-T06-c）：
+   - `scoop build` / `scoop run` 的 executable 路径把 consumer cone 也纳入 `build-single-cone` 子进程派发，随后只读取 consumer/dependency artifact manifest 的 `objs/*` 并派发 `link-cone`；
+   - 单文件输入由 `scoop` 在 `build/<profile>/virtual/<name>@0.0.0/` materialize 为标准 cone，`scoopc` 不再提供裸文件 Legacy CLI；
+   - cone-local native C/C++ object 在 `build-single-cone` 内写入 cone artifact；
+   - 纯 project metadata crate 统一命名为 `scoop_project_model`，artifact manifest/schema/fingerprint helper 下沉到该 crate，`scoopc_cone` 只保留 stage payload 磁盘层。
 
 不在本阶段完成（留待后续单独立项 P11）：
 
@@ -393,7 +398,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 8. global object/var/val 与 `@CallingConvention` 的 non-generic 约束在前端稳定生效。
 9. top-level eager init 与 object once 语义闭合，覆盖所有 linked cones。
 10. 每个 stage 都是独立 crate，且依赖方向由 `cargo build` 强制（违反 §1.2 的 PR 立即失败）；`scoopc` umbrella crate 仅剩 façade re-exports 与 driver 编排。
-11. cone 按数据 vs 操作两层归位：纯数据在 base crate `scoopc_project_model`，跨 stage 操作在 `scoopc_cone`，没有 stage crate 反向依赖 `scoopc_cone`。
+11. cone 按数据 vs 操作两层归位：纯数据在 base crate `scoop_project_model`，跨 stage 操作在 `scoopc_cone`，没有 stage crate 反向依赖 `scoopc_cone`。
 12. 每个 cone 的编译产物落到 `build/<profile>/cones/<cone>/` 下，schema version 完备；下游 cone 通过反序列化 fact 注入而不再扫上游源；per-cone fingerprint chain 替代旧的整项目 fingerprint，cache hit 启动时间从 sysroot 重 hash 量级降到读取 outputs.fingerprint 量级。
 
 ## 7. 说明

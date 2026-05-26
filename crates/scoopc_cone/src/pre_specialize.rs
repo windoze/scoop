@@ -17,13 +17,13 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use scoop_project_model::{ConeId, ConeManifest};
 use scoopc_ast as ast;
 use scoopc_hir::hir;
 use scoopc_hir::resolve::{Index, IndexedFile};
 use scoopc_hir::session::Session;
 use scoopc_hir::stable_id::StableConeKey;
 use scoopc_mir::mir;
-use scoopc_project_model::{ConeId, ConeManifest};
 use scoopc_source::SourceFile;
 use scoopc_types::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
@@ -225,9 +225,9 @@ pub fn build_pre_specialize_file_for_cone_sources(
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
-                scoopc_project_model::ConeKind::Syslib
+                scoop_project_model::ConeKind::Syslib
             } else {
-                scoopc_project_model::ConeKind::Lib
+                scoop_project_model::ConeKind::Lib
             },
             source: &f.source,
             file: &f.ast,

@@ -15,7 +15,7 @@ members = [
     "crates/scoopc_source",
     "crates/scoopc_types",
     "crates/scoopc_ids",
-    "crates/scoopc_project_model",
+    "crates/scoop_project_model",
     "crates/scoopc_hir_facts",
     "crates/scoopc_mir_facts",
     "crates/scoopc_effect_facts",

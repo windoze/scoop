@@ -7,8 +7,8 @@ edition.workspace = true
 # 默认启用 LLVM 后端；如需在未安装 LLVM/llvm-config 的环境构建，可使用 `--no-default-features`。
 default = ["llvm"]
 
-# 启用后 `scoop build` 将生成 object 并调用 clang 链接运行时（T0806）。
-llvm = ["scoopc/llvm"]
+# 启用后 `scoop build` 会派发 `scoopc` 子进程生成 object 并链接运行时。
+llvm = []
 
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
@@ -21,8 +21,7 @@ object = { version = "0.37.3", default-features = false, features = ["read", "st
 sha2 = "0.10.9"
 regex = "1.11.1"
 
-scoopc = { path = "../scoopc", default-features = false }
-scoopld = { path = "../scoopld" }
+scoop_project_model = { path = "../scoop_project_model" }
 
 [dev-dependencies]
 tempfile = "3.10.1"

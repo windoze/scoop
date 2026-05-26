@@ -63,7 +63,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 2. `scoopc_source`：`SourceId`、`SourceMap`、source identity。
 3. `scoopc_types`：`TypeId`、`TypeStore`、`EffectRow`、builtin type universe。
 4. `scoopc_ids`：`SiteId`、`BodyVersionKey`、stable hash/key primitives，以及后续可提升为基础层的 stage-independent callable/body identity；当前 MIR materialization 的 `TemplateKey` / `InstanceKey` 仍是 stage-owned internal key，不能被 fact crate 当作基础 ID 直接依赖。
-5. `scoopc_project_model`：source-cone / project / compilation-unit membership 等与具体阶段无关的工程模型。
+5. `scoop_project_model`：source-cone / project / compilation-unit membership 等与具体阶段无关的工程模型。
 
 如果某个 fact 需要引用别的阶段/事实里的实体，它只能通过这些基础 ID/type crate 间接表达，不能直接依赖别的 stage/fact crate。
 

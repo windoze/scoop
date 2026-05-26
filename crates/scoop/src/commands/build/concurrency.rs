@@ -142,6 +142,12 @@ pub struct ConeCompileRequest {
     pub cone_root: PathBuf,
     /// 本 cone 可读取的所有上游 cone artifact 目录。
     pub upstream_artifact_dirs: Vec<PathBuf>,
+    /// 子进程内 LLVM/LIR pipeline 使用的优化等级。
+    pub opt_level: scoop_project_model::OptLevel,
+    /// 额外启用的 sysroot source cone 名称。
+    pub extra_sysroot_dependencies: Vec<String>,
+    /// 可选 sysroot overlay 根目录。
+    pub sysroot_overlay: Option<PathBuf>,
     /// 本 cone 输入 fingerprint（与 P10-T04 fingerprint chain 一致）。
     pub inputs_fingerprint: Vec<u8>,
     /// 本 cone 的 artifact 输出目录。driver 应在此目录下找到 manifest / facts / objs。
@@ -231,6 +237,13 @@ impl SubprocessConeCompiler for LocalProcessConeCompiler {
         cmd.arg("--inputs-fingerprint")
             .arg(hex_lower(&request.inputs_fingerprint));
         cmd.arg("--cone-id").arg(&request.cone_id);
+        cmd.arg("--opt-level").arg(request.opt_level.as_str());
+        for dep in &request.extra_sysroot_dependencies {
+            cmd.arg("--sysroot-dep").arg(dep);
+        }
+        if let Some(overlay_root) = &request.sysroot_overlay {
+            cmd.env(scoop_project_model::SYSROOT_OVERLAY_ENV, overlay_root);
+        }
         for upstream in &request.upstream_artifact_dirs {
             cmd.arg("--upstream-artifact").arg(upstream);
         }
@@ -256,7 +269,7 @@ impl SubprocessConeCompiler for LocalProcessConeCompiler {
 
         let outputs_fp_path = request
             .output_artifact_dir
-            .join(scoopc::cone::CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME);
+            .join(scoop_project_model::CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME);
         let outputs_fingerprint = std::fs::read(&outputs_fp_path).map_err(|err| {
             SubprocessConeCompileError::ArtifactMissing {
                 cone_id: request.cone_id.clone(),
@@ -453,6 +466,9 @@ mod tests {
                     cone_id: "demo@0.0.0".to_string(),
                     cone_root: PathBuf::from("/nonexistent/cone"),
                     upstream_artifact_dirs: Vec::new(),
+                    opt_level: scoop_project_model::OptLevel::O0,
+                    extra_sysroot_dependencies: Vec::new(),
+                    sysroot_overlay: None,
                     inputs_fingerprint: Vec::new(),
                     output_artifact_dir: PathBuf::from("/nonexistent/out"),
                 };

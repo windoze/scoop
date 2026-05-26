@@ -17,7 +17,9 @@ use std::path::{Path, PathBuf};
 use miette::{Diagnostic, IntoDiagnostic, Result};
 use thiserror::Error;
 
-use crate::cone::{ConeArtifact, ConeArtifactObject, ConeId, SourceConeRole, StableConeKey};
+use crate::cone::{
+    ConeArtifact, ConeArtifactObject, ConeId, ConeKind, SourceConeRole, StableConeKey,
+};
 use crate::frontend::{
     FrontendArtifactCache, FrontendArtifactCacheEntry, MirRequestRootMode,
     load_single_cone_project_input_from_path, lower_hir_for_codegen_with_request_root_mode,
@@ -60,6 +62,7 @@ pub fn run_single_cone_artifact_compile(
     inputs_fingerprint: Vec<u8>,
     upstream_artifact_dirs: &[PathBuf],
     session_options: &SessionOptions,
+    opt_level: OptLevel,
 ) -> Result<()> {
     let input = load_single_cone_project_input_from_path(cone_root, session_options)?;
     let consumer_cone_id = input.consumer_cone_id();
@@ -136,30 +139,43 @@ pub fn run_single_cone_artifact_compile(
             )
         })?;
 
-    let opt_level = OptLevel::O0;
-    let lowering = lower_hir_for_codegen_with_request_root_mode(
-        session,
-        &front,
-        opt_level,
-        MirRequestRootMode::RequestSources,
-    )?;
+    let is_bin_consumer = front.input().cone_manifest().cone.kind == ConeKind::Bin;
+    let root_mode = if is_bin_consumer {
+        MirRequestRootMode::EntryMain
+    } else {
+        MirRequestRootMode::RequestSources
+    };
+    let lowering =
+        lower_hir_for_codegen_with_request_root_mode(session, &front, opt_level, root_mode)?;
+    let extern_libs = lowering.lowered_hir.extern_libs.clone();
+    let abi_visibility_lowering = if is_bin_consumer {
+        Some(lower_hir_for_codegen_with_request_root_mode(
+            session,
+            &front,
+            opt_level,
+            MirRequestRootMode::RequestSources,
+        )?)
+    } else {
+        None
+    };
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
+    let entry_main_fqn = front.input().entry_main_fqn().map(str::to_owned);
 
     let cached_cone_imports = front.cached_cone_imports().to_vec();
+    let cached_dep_artifacts = front.cached_dep_artifacts().to_vec();
     let stage_output = run_llvm_codegen_stage(
         session,
         LlvmCodegenStageInput::with_cached_cone_imports(
             lowering,
-            None,
+            abi_visibility_lowering,
             source_map,
             entry_source_id,
-            None,
+            entry_main_fqn,
             opt_level,
             cached_cone_imports,
-            Vec::new(),
+            cached_dep_artifacts,
         ),
-    )
-    .map_err(|err| miette::miette!("{err}"))?;
+    )?;
 
     // 把 dep 自己的 LLVM object 写到 artifact `objs/` 目录里，待 consumer link 拉起。
     std::fs::create_dir_all(output_dir).into_diagnostic()?;
@@ -167,24 +183,50 @@ pub fn run_single_cone_artifact_compile(
     std::fs::create_dir_all(&objs_dir).into_diagnostic()?;
     let obj_path = objs_dir.join(SINGLE_CONE_OBJECT_FILE_NAME);
     let stage_input = crate::llvm::StageEmitInput::from_stage_output(&stage_output);
-    crate::llvm::emit_lib_obj_to_file_from_stage_output(
-        stage_output.source_map(),
-        stage_output.entry_source_id(),
-        stage_input,
-        &obj_path,
-        opt_level,
-    )
-    .map_err(|err| miette::miette!("{err}"))?;
+    if is_bin_consumer {
+        crate::llvm::emit_main_obj_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            &obj_path,
+            front.input().entry_main_fqn(),
+            opt_level,
+        )?;
+    } else {
+        crate::llvm::emit_lib_obj_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            &obj_path,
+            opt_level,
+        )?;
+    }
     let obj_bytes = std::fs::read(&obj_path).into_diagnostic()?;
+    let mut native_objects = crate::native_build::compile_native_build_objects(
+        front.input().graph().consumer(),
+        &objs_dir,
+    )?;
+    if is_bin_consumer {
+        for node in front.input().graph().nodes() {
+            if node.role != SourceConeRole::SysrootAuto {
+                continue;
+            }
+            let sysroot_objects =
+                crate::native_build::compile_native_build_objects(node, &objs_dir)?;
+            native_objects.objects.extend(sysroot_objects.objects);
+        }
+    }
 
     // 把空 skeleton 升级成包含真实 LIR program / LIR facts / object 的完整 artifact。
     skeleton.lir_program = stage_output.lir().clone();
     skeleton.lir_facts = stage_output.lir_facts().clone();
     skeleton.type_store = stage_output.base_context().types().clone();
+    skeleton.manifest.extern_libs = extern_libs;
     skeleton.objects = vec![
         ConeArtifactObject::new(SINGLE_CONE_OBJECT_FILE_NAME, obj_bytes)
             .map_err(|err| miette::miette!("{err}"))?,
     ];
+    skeleton.objects.extend(native_objects.objects);
     skeleton.inputs_fingerprint = inputs_fingerprint;
 
     skeleton
@@ -242,6 +284,7 @@ kind = "lib"
             vec![0],
             &[],
             &SessionOptions::new(),
+            OptLevel::O0,
         )
         .unwrap_err();
 

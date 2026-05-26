@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::btree_map::Entry;
 use std::path::{Path, PathBuf};
 
+use scoop_project_model::StableConeKey;
 use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StableCanonicalKey, StageArtifactKey};
 use scoopc_mir_facts::MirFacts;
 use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
@@ -25,7 +26,6 @@ use scoopc_mir_facts::roots::{
     MirRootDetail, MirRootFact, MirRootKind, RootInventories,
 };
 use scoopc_mir_facts::snapshot::{MaterializedSnapshotBinding, SnapshotBindings};
-use scoopc_project_model::StableConeKey;
 
 use crate::dump_support::normalize_dump_path;
 use crate::mir::{
@@ -945,7 +945,7 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
-    use scoopc_project_model::StableConeKey;
+    use scoop_project_model::StableConeKey;
     use std::collections::HashMap;
     use std::path::PathBuf;
 

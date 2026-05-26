@@ -1,7 +1,7 @@
 //! Migration facade for shared stable-id helpers.
 //!
 //! Foundational hash/key primitives live in `scoopc_ids`, and cone identity
-//! lives in `scoopc_project_model`. This facade keeps canonical type/effect
+//! lives in `scoop_project_model`. This facade keeps canonical type/effect
 //! encoding and compiler semantic keys next to the current HIR/MIR/RTTI users
 //! until those stages are split. Callers must feed semantic keys or canonical
 //! text here instead of reusing `TypeStore::display()`, raw `Debug` output, or
@@ -16,13 +16,13 @@ use scoopc_types::{
     ValueTypeKind,
 };
 
+pub use scoop_project_model::StableConeKey;
 pub use scoopc_ids::{
     AbiMangler, AbiSymbolKind, BodyVersionKey, CanonicalTextKey, PrivateSymbolMangler, SiteId,
     StableCallSiteKey, StableCanonicalKey, StableHashScope, StableLirCallableKey, StableSymbolKey,
     canonical_list, canonical_record, stable_digest, stable_dump_label, stable_hash64,
     stable_hash128_hex, stable_local_label, stable_rtti_type_id,
 };
-pub use scoopc_project_model::StableConeKey;
 
 const MAX_CANONICAL_DEPTH: usize = 64;
 

@@ -1,7 +1,7 @@
 //! Canonical materialized MIR snapshot bindings.
 
+use scoop_project_model::{OptLevel, StableConeKey};
 use scoopc_ids::StageArtifactKey;
-use scoopc_project_model::{OptLevel, StableConeKey};
 
 /// Published MIR snapshot bindings for one cone compilation unit.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

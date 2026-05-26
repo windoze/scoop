@@ -180,11 +180,12 @@ as part of the toolchain contract, and update them in lockstep with fixtures whe
 
 ### 7.0 Runtime C Build Ownership
 
-Runtime C compilation and final native linking are owned by the `scoopld` crate. The `scoop` facade may prepare object paths and dispatch `scoopc link-cone`, but it must not implement runtime C compilation or final link logic in-process.
+Runtime C compilation and final native linking are owned by the `scoopld` crate. The `scoop` facade may collect object paths from cone artifact manifests and dispatch `scoopc link-cone`, but it must not implement runtime C compilation or final link logic in-process.
 
 Current contract:
 
 - `scoopld::compile_runtime_to_obj_dir` materializes `runtime/c/*.c` into a runtime artifact directory for the current link.
+- cone-local C/C++ native sources are compiled inside `scoopc build-single-cone`; their `objs/native_*.o` entries are part of that cone artifact and are linked only because the manifest lists them.
 - `scoopld::link` computes an independent link fingerprint from consumer/dependency objects, runtime artifact contents, link kind, linker/version, and link flags.
 - `scoopc link-cone` is only a CLI execution wrapper around `scoopld::link`; it does not own linker behavior, DAG traversal, or scheduling.
 - Future platforms with precompiled runtime artifacts may replace the runtime compilation step with a `scoopld`-owned noop/cache provider without changing `scoop` or stage crates.

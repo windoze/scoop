@@ -12,7 +12,7 @@
 
 - 本包只处理 `PLAN.md` 的 P1：基础 crate 壳层、`ProjectInput` / `ProjectContext` / `SourceConeGraph` 边界，以及 cone = compilation unit API；不提前拆 HIR/MIR/effect/LIR facts 或 backend 输入。
 - 基础 crate 不得依赖任何 stage crate、fact crate 或 `scoopc` facade；允许的方向是 `scoopc` facade 依赖基础 crate，并在迁移期 re-export 旧模块路径。
-- 基础 crate 之间必须保持无环依赖。目标依赖方向优先为：`scoopc_source` / `scoopc_types` / `scoopc_ids` 可依赖 `scoopc_span`，`scoopc_project_model` 可依赖 `scoopc_source` / `scoopc_ids` / 必要的 `scoopc_types`；若实现中必须调整该方向，需在当前任务完成记录中说明原因。
+- 基础 crate 之间必须保持无环依赖。目标依赖方向优先为：`scoopc_source` / `scoopc_types` / `scoopc_ids` 可依赖 `scoopc_span`，`scoop_project_model` 可依赖 `scoopc_source` / `scoopc_ids` / 必要的 `scoopc_types`；若实现中必须调整该方向，需在当前任务完成记录中说明原因。
 - 迁移期可以保留 `scoopc::{span, source, ty, stable_id, cone, frontend}` 的 re-export / adapter，但不得出现两套独立定义或两套 authoritative 查询面。
 - “文件”不能被重新命名或伪装成正式 compilation unit；虚拟单文件输入只能建模为 synthetic consumer cone 中的单文件特例。
 - cone 内文件顺序只允许作为稳定遍历、诊断顺序和 dump 稳定性输入；不得让任何任务把文件顺序升级为语义依赖。
@@ -87,14 +87,14 @@
   - `PIPELINE_REFACTOR.md` “crate 划分”“依赖规则”
   - 本文件“触碰面基线 / Workspace 与 facade”
 - 目标：
-  - 在 workspace 中加入基础 crate 壳层：`scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`；
+  - 在 workspace 中加入基础 crate 壳层：`scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model`；
   - 固定基础 crate 的依赖方向、crate-level 文档和 facade re-export 策略；
   - 建立可重复运行的依赖门禁，防止基础 crate 依赖 stage/fact crate 或 `scoopc`。
 - 必须检查和修改的主要位置：
   - `Cargo.toml`
   - `crates/scoopc/Cargo.toml`
   - `crates/scoopc/src/lib.rs`
-  - 新增 `crates/scoopc_span/`、`crates/scoopc_source/`、`crates/scoopc_types/`、`crates/scoopc_ids/`、`crates/scoopc_project_model/`
+  - 新增 `crates/scoopc_span/`、`crates/scoopc_source/`、`crates/scoopc_types/`、`crates/scoopc_ids/`、`crates/scoop_project_model/`
   - 如需自动化门禁，优先放在 `tools/scoop_tools/` 或 `crates/scoopc/tests/` 中，避免引入外部脚本依赖。
 - 必须实现的内容：
   1. 新建 5 个基础 crate 的最小可编译壳层，写明每个 crate 的职责和禁止依赖。
@@ -117,7 +117,7 @@
   - 依赖门禁能明确证明基础 crate 未反向依赖 stage/fact/facade。
 - 依赖：TODO-2-INIT
 - 完成记录：
-  - 改动范围：新增 workspace 基础 crate 壳层 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`；`scoopc` 增加对这些 crate 的 path 依赖，并通过 `scoopc::base::{span, source, types, ids, project_model}` 预留迁移期 facade anchor；`README.md` 增加 workspace/crate 概览；`scoop_tools` 增加 `dependency-gate` 命令。
+  - 改动范围：新增 workspace 基础 crate 壳层 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model`；`scoopc` 增加对这些 crate 的 path 依赖，并通过 `scoopc::base::{span, source, types, ids, project_model}` 预留迁移期 facade anchor；`README.md` 增加 workspace/crate 概览；`scoop_tools` 增加 `dependency-gate` 命令。
   - 核心决策：P1-T01 不迁移业务类型，现有 `scoopc::{span, source, ty, stable_id, cone}` 仍是 authoritative 定义，后续 P1 迁移任务再把定义物理移动到基础 crate；基础 crate 壳层暂不引入互相依赖，允许方向由依赖门禁编码并在后续迁移时逐步落地。
   - 依赖门禁：`cargo run -p scoop_tools -- dependency-gate` 对 5 个基础 crate 分别运行 `cargo tree`，拒绝依赖 `scoopc` facade、driver/runtime/tool、目标 stage/fact crate 名称，以及违反 P1 基础 crate 方向的 later-base 依赖；单元测试覆盖 parser、允许方向、反向依赖 `scoopc` 和 later-base 依赖检测。
   - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`。
@@ -138,15 +138,15 @@
   - `README.md` 或架构说明更新
 - 验证：
   - 重新运行 P1-T01 的所有验证；
-  - 额外检查 `cargo tree -p scoopc_span`、`cargo tree -p scoopc_source`、`cargo tree -p scoopc_types`、`cargo tree -p scoopc_ids`、`cargo tree -p scoopc_project_model` 的依赖方向。
+  - 额外检查 `cargo tree -p scoopc_span`、`cargo tree -p scoopc_source`、`cargo tree -p scoopc_types`、`cargo tree -p scoopc_ids`、`cargo tree -p scoop_project_model` 的依赖方向。
 - 完成条件：
   - review 结论明确写出：基础 crate 壳层和依赖门禁满足 P1 crate DAG 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T01
 - 完成记录：
-  - 复查范围：确认 root workspace 已包含 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`；复查 5 个基础 crate 的 `Cargo.toml` / `src/lib.rs`、`scoopc` facade anchor、`README.md` crate 概览和 `tools/scoop_tools` 的 `dependency-gate` 实现。
+  - 复查范围：确认 root workspace 已包含 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoop_project_model`；复查 5 个基础 crate 的 `Cargo.toml` / `src/lib.rs`、`scoopc` facade anchor、`README.md` crate 概览和 `tools/scoop_tools` 的 `dependency-gate` 实现。
   - review 结论：P1-T01 的基础 crate 壳层满足当前 P1 crate DAG 约束；基础 crate 当前只包含 crate-level 职责文档和 `#![forbid(unsafe_code)]`，没有误放 HIR/MIR/effect/LIR/codegen 或 fact 类型；`scoopc::base::{span, source, types, ids, project_model}` 只是迁移期 facade anchor，没有复制 authoritative 定义。
   - 依赖门禁结论：`dependency-gate` 从每个基础 crate 的 `cargo tree` 视角拒绝依赖 `scoopc` facade、driver/runtime/tool、列出的 stage/fact/backend crate 名称，以及违反 P1 基础 crate 方向的 later-base 依赖；额外 `cargo tree -p ...` 检查显示 5 个基础 crate 当前均无依赖。
-  - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`。
+  - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoop_project_model`。
   - 残余风险：基础 crate 仍是壳层，实际 `Span` / source / type / ID / project model authoritative 定义尚未迁移；这是后续 `P1-T02` 到 `P1-T04` 的既定范围，本 review 未发现阻塞 `P1-T02` 的依赖或命名问题。
 
 ## [DONE] P1-T02：迁移 `span` 与 `source` 基础设施
@@ -265,7 +265,7 @@
 - 完成记录：
   - 改动范围：`TypeId`、`TypeStore`、`TypeKind`、`EffectRow`、builtin type universe、`TypeDisplay` 和 `ty::layout` 物理迁入 `crates/scoopc_types/`，`crates/scoopc/src/ty/mod.rs` 改为 `scoopc_types` re-export adapter；`scoopc_types` 只新增对 `scoopc_span` 的基础依赖。
   - `ids` 基础层：`crates/scoopc_ids/` 新增 stable hash scope、canonical key traits、canonical text wrapper、ABI/private mangler、canonical record/list helpers、stable hash/dump/RTTI helpers、`SiteId`，并预留 `BodyVersionKey` 扩展点；`crate::mir::SiteId` 改为 re-export `scoopc_ids::SiteId`，因此 facts/stage 后续可共享同一基础 site identity。
-  - `stable_id` 决策：`crates/scoopc/src/stable_id.rs` 不再从 `crate::ty` 或 `crate::span` 消费私有定义，改为组合 `scoopc_types` 与 `scoopc_ids`；type-aware canonical encoding 暂留 facade，因为它同时依赖 type universe 与尚未迁入 project model 的 `ConeManifest`。`StableConeKey::from_manifest(...)` 因 `ConeManifest` 仍属后续 P1-T04 project model 迁移范围而暂留 `scoopc` facade，迁出条件是 `ConeManifest` / cone project model 进入 `scoopc_project_model`。
+  - `stable_id` 决策：`crates/scoopc/src/stable_id.rs` 不再从 `crate::ty` 或 `crate::span` 消费私有定义，改为组合 `scoopc_types` 与 `scoopc_ids`；type-aware canonical encoding 暂留 facade，因为它同时依赖 type universe 与尚未迁入 project model 的 `ConeManifest`。`StableConeKey::from_manifest(...)` 因 `ConeManifest` 仍属后续 P1-T04 project model 迁移范围而暂留 `scoopc` facade，迁出条件是 `ConeManifest` / cone project model 进入 `scoop_project_model`。
   - MIR 内部键：`TemplateKey` / `InstanceKey` 仍只定义在 `crates/scoopc/src/mir/materialize/mod.rs`，未放入 `scoopc_ids`，保持其 MIR materialization internal identity 边界。
   - 依赖方向：`cargo run -p scoop_tools -- dependency-gate` 报告 `scoopc_types -> scoopc_span`、`scoopc_ids -> scoopc_span`，未引入基础 crate 到 `scoopc` facade、stage/fact/backend crate 的反向依赖。
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc_ids`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub struct TypeId|pub struct TypeStore|pub struct EffectRow|pub struct SiteId`；搜索 `TemplateKey` / `InstanceKey` 未出现在 `scoopc_ids`。
@@ -308,7 +308,7 @@
   - `PIPELINE_REFACTOR.md` “编译单元定义”“编译顺序模型”
   - 本文件“触碰面基线 / `cone` / `project_model`”
 - 目标：
-  - 将 stage-independent 的 cone/project 数据模型迁入 `scoopc_project_model`；
+  - 将 stage-independent 的 cone/project 数据模型迁入 `scoop_project_model`；
   - 将 `ConeId` / `ConeInfo` 从 resolver ownership 中移出；
   - 固定 `SourceConeGraph` 作为 build graph，并保留 dependency topo order 语义。
 - 必须检查和修改的主要位置：
@@ -321,33 +321,33 @@
   - `crates/scoopc/src/typecheck/type_env.rs`
   - `crates/scoopc/src/hir/lower/**`、`crates/scoopc/src/mir/**`、`crates/scoopc/src/llvm/**` 中的 `SourceConeInfo` / `ConeId` 调用点。
 - 必须实现的内容：
-  1. 将 `ConeKind`、manifest 数据结构、source-cone role/trust/dependency edge/node/info、`SourceConeGraph` 的纯数据与 topo validation 迁入 `scoopc_project_model`。
+  1. 将 `ConeKind`、manifest 数据结构、source-cone role/trust/dependency edge/node/info、`SourceConeGraph` 的纯数据与 topo validation 迁入 `scoop_project_model`。
   2. 将 `ConeId` / `ConeInfo` 迁出 resolver；resolver 只能消费 project model 发布的 cone identity。
-  3. 处理 `ConeNativeBuildConfig::opt_level` 的基础层依赖：要么将 backend-neutral `OptLevel` 放入基础配置层，要么改成 project model 自己的中立表示，禁止 `scoopc_project_model` 依赖 `scoopc::opt`。
+  3. 处理 `ConeNativeBuildConfig::opt_level` 的基础层依赖：要么将 backend-neutral `OptLevel` 放入基础配置层，要么改成 project model 自己的中立表示，禁止 `scoop_project_model` 依赖 `scoopc::opt`。
   4. 对 filesystem/sysroot package loading 做清晰切分：纯 project model 类型在基础 crate，涉及 sysroot/session/filesystem 策略的 loader 可以暂留 `scoopc::cone` adapter，但不得成为 stage/fact crate 依赖入口。
   5. 更新 `SourceConeInfo` / `StableConeKey` 的来源，使 HIR/MIR/codegen 获取 cone metadata 时不再依赖 resolver 私有类型。
 - 禁止事项：
-  - 禁止让 `scoopc_project_model` 依赖 resolver、typecheck、HIR、MIR、effect facts、LIR、LLVM 或 `scoopc` facade。
+  - 禁止让 `scoop_project_model` 依赖 resolver、typecheck、HIR、MIR、effect facts、LIR、LLVM 或 `scoopc` facade。
   - 禁止把 source package filesystem loader 伪装成 stage/fact crate 可依赖的基础模型。
   - 禁止为了减少修改而继续让 `ConeId` 的 authoritative 定义留在 resolver。
 - 验证：
   1. `cargo fmt`
-  2. `cargo test -p scoopc_project_model`
+  2. `cargo test -p scoop_project_model`
   3. `cargo test --all --all-targets --no-default-features`
   4. `cargo clippy --all-targets -- -D warnings`
   5. 搜索 `pub struct ConeId|pub struct ConeInfo|pub struct SourceConeGraph|pub struct SourceConeInfo`，确认 authoritative 定义位置符合本任务决策。
 - 完成条件：
-  - project/cone membership、graph topology 和 manifest 数据已由 `scoopc_project_model` 承载；
+  - project/cone membership、graph topology 和 manifest 数据已由 `scoop_project_model` 承载；
   - resolver 不再拥有 `ConeId` / `ConeInfo` 定义；
   - `SourceConeGraph` 仍保证 dependency cones 位于 consumer cone 之前。
 - 依赖：P1-T03R
 - 完成记录：
-  - 改动范围：`scoopc_project_model` 新增 `opt`、`manifest`、`package`、`graph` 模块，承载 backend-neutral `OptLevel`、manifest 解析模型、`ConeSourcePackage` 数据、`ConeId` / `ConeInfo`、`StableConeKey`、`SourceConeInfo`、`SourceConeNode` 和 `SourceConeGraph::from_nodes` topo 校验；`scoopc::{opt, stable_id, cone}` 改为 re-export / filesystem adapter。
-  - 核心决策：`scoopc_project_model` 只保存 stage-independent 数据和纯 topo validation；`ConeManifest` 的磁盘发现/读取、source package 文件系统加载、sysroot/local dependency graph 构造继续留在 `scoopc::cone` adapter，并通过 `load_cone_manifest_from_*`、`load_source_cone_graph_for_*` 公开，避免基础 crate 依赖 `scoopc`、sysroot/session 或 filesystem policy。
+  - 改动范围：`scoop_project_model` 新增 `opt`、`manifest`、`package`、`graph` 模块，承载 backend-neutral `OptLevel`、manifest 解析模型、`ConeSourcePackage` 数据、`ConeId` / `ConeInfo`、`StableConeKey`、`SourceConeInfo`、`SourceConeNode` 和 `SourceConeGraph::from_nodes` topo 校验；`scoopc::{opt, stable_id, cone}` 改为 re-export / filesystem adapter。
+  - 核心决策：`scoop_project_model` 只保存 stage-independent 数据和纯 topo validation；`ConeManifest` 的磁盘发现/读取、source package 文件系统加载、sysroot/local dependency graph 构造继续留在 `scoopc::cone` adapter，并通过 `load_cone_manifest_from_*`、`load_source_cone_graph_for_*` 公开，避免基础 crate 依赖 `scoopc`、sysroot/session 或 filesystem policy。
   - resolver identity：`ConeId` / `ConeInfo` 的 authoritative 定义已从 resolver 移入 project model；resolver、typecheck、fixtures、cone archive helpers 和 driver tests 改为消费 `crate::cone` / `scoopc::cone` 发布的同一套 cone identity，不再通过 `resolve::ConeId` / `resolve::ConeInfo` 路径访问。
   - graph / stable key：`SourceConeGraph::from_nodes`、dependency 去重、consumer uniqueness、cycle reject 和 dependency-before-consumer topo order 迁入 project model；`StableConeKey` 迁入 project model 并继续由 `scoopc::stable_id` re-export，`SourceConeInfo::from_node` 直接从 manifest 生成 stable cone metadata。
-  - 依赖方向：`dependency-gate` 报告 `scoopc_project_model` 的 base deps 仅为 `scoopc_ids`、`scoopc_source`、`scoopc_span`；`cargo tree -p scoopc_project_model` 未出现 `scoopc` facade、resolver、typecheck、HIR/MIR/LIR/LLVM 或 fact/backend crate。
-  - 验证命令：`cargo fmt`；`cargo test -p scoopc_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub struct ConeId|pub struct ConeInfo|pub struct SourceConeGraph|pub struct SourceConeInfo`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::Cone|SourceConeGraph::load_|ConeManifest::load_from`。
+  - 依赖方向：`dependency-gate` 报告 `scoop_project_model` 的 base deps 仅为 `scoopc_ids`、`scoopc_source`、`scoopc_span`；`cargo tree -p scoop_project_model` 未出现 `scoopc` facade、resolver、typecheck、HIR/MIR/LIR/LLVM 或 fact/backend crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoop_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoop_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub struct ConeId|pub struct ConeInfo|pub struct SourceConeGraph|pub struct SourceConeInfo`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::Cone|SourceConeGraph::load_|ConeManifest::load_from`。
   - 残余风险：生产 frontend 仍在后续 P1-T05 范围内使用 flatten 后的 build closure 作为过渡输入；本任务只迁移 project/cone 模型和 identity owner，未提前实现 cone-level compilation unit facade。`scoopc::cone` 仍保留 filesystem/sysroot loader adapter，这是 P1-T04 明确允许的迁移边界。
 
 ## [DONE] P1-T04R：Review project model 与 cone graph 迁移结果
@@ -358,7 +358,7 @@
   - resolver/typecheck/HIR/MIR/codegen 是否消费同一套 cone identity；
   - source-cone graph topo order、cycle reject、consumer uniqueness tests 是否仍有效。
 - 必须复查的范围：
-  - `crates/scoopc_project_model/`
+  - `crates/scoop_project_model/`
   - `crates/scoopc/src/cone/`
   - `crates/scoopc/src/resolve/mod.rs`
   - `crates/scoopc/src/frontend.rs`
@@ -369,17 +369,17 @@
 - 验证：
   - 重新运行 P1-T04 的所有验证；
   - 额外运行覆盖 `SourceConeGraph` 的单元测试；
-  - 检查 `cargo tree -p scoopc_project_model` 不含 stage/fact/backend/facade 依赖。
+  - 检查 `cargo tree -p scoop_project_model` 不含 stage/fact/backend/facade 依赖。
 - 完成条件：
   - review 结论明确写出：project model 和 cone graph 迁移满足 P1 crate DAG 与 cone DAG 语义，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T04
 - 完成记录：
-  - 复查范围：复查 `crates/scoopc_project_model/`、`crates/scoopc/src/cone/`、`crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/typecheck/type_env.rs`，并搜索 HIR/MIR/LLVM 中的 `SourceConeInfo` / `StableConeKey` / cone identity 调用点。
+  - 复查范围：复查 `crates/scoop_project_model/`、`crates/scoopc/src/cone/`、`crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/typecheck/type_env.rs`，并搜索 HIR/MIR/LLVM 中的 `SourceConeInfo` / `StableConeKey` / cone identity 调用点。
   - review 结论：project model 只承载 stage-independent manifest、source package data、cone identity、stable cone key 和 source-cone graph topo validation；`scoopc::cone` 中保留的是 filesystem/sysroot loader adapter，没有让基础 crate 反向依赖 facade、resolver、typecheck、HIR/MIR/LIR/LLVM 或 fact/backend crate。
-  - identity 结论：`ConeId`、`ConeInfo`、`SourceConeGraph`、`SourceConeInfo`、`ConeKind`、`ConeManifest`、`ConeNativeBuildConfig`、`ConeSourcePackage`、`OptLevel`、`StableConeKey` 的 authoritative 定义均位于 `scoopc_project_model`；resolver/typecheck/frontend/HIR/MIR/LLVM 通过 project model 或 `scoopc::cone` / `scoopc::stable_id` re-export 消费同一套 identity，未发现旧 `resolve::ConeId` / `resolve::ConeInfo` owner 路径。
+  - identity 结论：`ConeId`、`ConeInfo`、`SourceConeGraph`、`SourceConeInfo`、`ConeKind`、`ConeManifest`、`ConeNativeBuildConfig`、`ConeSourcePackage`、`OptLevel`、`StableConeKey` 的 authoritative 定义均位于 `scoop_project_model`；resolver/typecheck/frontend/HIR/MIR/LLVM 通过 project model 或 `scoopc::cone` / `scoopc::stable_id` re-export 消费同一套 identity，未发现旧 `resolve::ConeId` / `resolve::ConeInfo` owner 路径。
   - graph 语义结论：`SourceConeGraph::from_nodes` 仍覆盖 dependency-before-consumer topo order、cycle reject、unknown dependency reject 和 single consumer uniqueness；adapter 测试覆盖 sysroot/local dependency/consumer DAG order 与 virtual consumer project-model identity。
-  - 依赖方向结论：`cargo run -p scoop_tools -- dependency-gate` 报告 `scoopc_project_model` 的 base deps 为 `scoopc_ids`、`scoopc_source`、`scoopc_span`；`cargo tree -p scoopc_project_model` 未出现 `scoopc` facade 或 stage/fact/backend crate。
-  - 验证命令：`cargo fmt`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features source_cone_graph`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub (struct|enum|type) (ConeId|ConeInfo|SourceConeGraph|SourceConeInfo)`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::ConeId|crate::resolve::ConeInfo|SourceConeGraph::load_|ConeManifest::load_from`。
+  - 依赖方向结论：`cargo run -p scoop_tools -- dependency-gate` 报告 `scoop_project_model` 的 base deps 为 `scoopc_ids`、`scoopc_source`、`scoopc_span`；`cargo tree -p scoop_project_model` 未出现 `scoopc` facade 或 stage/fact/backend crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoop_project_model`；`cargo test -p scoopc --no-default-features source_cone_graph`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoop_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub (struct|enum|type) (ConeId|ConeInfo|SourceConeGraph|SourceConeInfo)`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::ConeId|crate::resolve::ConeInfo|SourceConeGraph::load_|ConeManifest::load_from`。
   - 残余风险：P1-T05 仍需把 frontend facade 的 whole-build flatten 过渡输入收口为明确 cone-level compilation unit API；本 review 未发现阻塞 P1-T05 的 project model / cone graph 迁移问题。
 
 ## [DONE] P1-T05：固定 cone-level compilation unit facade API
@@ -426,12 +426,12 @@
   - 生产路径即使内部仍有过渡 flatten worker，也不再把 whole build closure 暴露为一个 compilation unit。
 - 依赖：P1-T04R
 - 完成记录：
-  - 改动范围：`scoopc_project_model::graph` 新增 `SourceConeCompilationUnit` 视图，并通过 `SourceConeGraph::compilation_units()` / `consumer_compilation_unit()` 暴露 dependency-before-consumer 的 cone-level compilation unit 遍历；`scoopc::cone` facade 同步 re-export。
+  - 改动范围：`scoop_project_model::graph` 新增 `SourceConeCompilationUnit` 视图，并通过 `SourceConeGraph::compilation_units()` / `consumer_compilation_unit()` 暴露 dependency-before-consumer 的 cone-level compilation unit 遍历；`scoopc::cone` facade 同步 re-export。
   - frontend facade：`ProjectInput` 的 flatten source 字段收口为 build-closure source view，新增 `build_closure_sources()`、`compilation_units()`、`consumer_compilation_unit()`、`consumer_source_paths()`；旧 `sources()` 仅保留为 build-closure alias，并明确不能解释为一个 compilation unit。
   - AST handoff：`AstStageOutput` 降级为单文件 worker/dump helper；新增 `AstCompilationUnitOutput` 与 `load_ast_compilation_unit_stage_output(...)`，production frontend 现在按 source-cone compilation unit 遍历解析 AST，再进入现有 resolver/typecheck 过渡路径。
   - metadata 来源：HIR/MIR/codegen 前置 lowering 的 `stable_cone_key`、`source_cones`、request source paths 改为来自 consumer unit / project model API；`SourceConeInfo` map 由 compilation-unit 视图生成，不再由 whole-build flatten 语义直接定义。
   - 测试覆盖：新增 synthetic virtual consumer cone、显式多文件同 cone unit 稳定遍历、dependency cone before consumer、cone-level AST handoff 测试；保留单文件 AST dump/helper 路径测试。
-  - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|current compilation unit.*sources|AstStageOutput`。
+  - 验证命令：`cargo fmt --check`；`cargo test -p scoop_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|current compilation unit.*sources|AstStageOutput`。
   - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；本任务已把公开 facade 与 AST handoff 提升到 cone unit，真正的 AST -> HIR semantic frontend barrier 和 facts 输出拆分仍属于后续 P2 范围。
 
 ## [DONE] P1-T05R：Review cone-level compilation unit API
@@ -457,11 +457,11 @@
   - review 结论明确写出：cone = compilation unit 已在 facade/API 层成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T05
 - 完成记录：
-  - 复查范围：复查 `scoopc_project_model::SourceConeCompilationUnit` / `SourceConeGraph::compilation_units()`，`scoopc::frontend::ProjectInput` 的 build-closure source view 与 cone unit facade，AST pipeline 的 `AstCompilationUnitOutput` handoff，以及 HIR/MIR/LLVM production metadata 入口。
+  - 复查范围：复查 `scoop_project_model::SourceConeCompilationUnit` / `SourceConeGraph::compilation_units()`，`scoopc::frontend::ProjectInput` 的 build-closure source view 与 cone unit facade，AST pipeline 的 `AstCompilationUnitOutput` handoff，以及 HIR/MIR/LLVM production metadata 入口。
   - review 发现与修正：发现多 cone production lowering 中 `stable_type_param_keys`、generic template signature/suffix 相关 stable metadata 仍可能使用单一 consumer fallback `StableConeKey`。本 review 已修正 HIR lowering helper，使 stable type-param key、generic template signature 和 generic template suffix 计算按 source 所属 `SourceConeInfo.stable_key` 取值，并新增覆盖 dependency/consumer 不同 cone key 的单元测试。
   - review 结论：cone = compilation unit 已在 facade/API 层成立；`ProjectInput::build_closure_sources()` 明确只是 build closure source view，`sources()` 仅为 legacy alias 且注释禁止当作 compilation unit；virtual file input 仍是 source cone graph 中的 synthetic consumer cone；`AstStageOutput` 只保留为 dump/helper 单文件 worker，正式 frontend handoff 为 `AstCompilationUnitOutput`。
   - metadata 结论：frontend 的 `consumer_source_paths()`、consumer `stable_cone_key` 和 `source_cone_info_map()` 来自 cone unit / project model API；修正后 HIR stable metadata 也按 source cone metadata 分配，不再把 whole build closure 的依赖/sysroot/consumer 声明统一锚定到 consumer cone。
-  - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test -p scoopc --no-default-features stable_type_param_keys_use_owning_source_cone_key`；`cargo test -p scoopc --no-default-features generic_template_signatures_use_owning_source_cone_key`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|whole build compilation unit|current compilation unit.*sources|AstStageOutput`。
+  - 验证命令：`cargo fmt --check`；`cargo test -p scoop_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test -p scoopc --no-default-features stable_type_param_keys_use_owning_source_cone_key`；`cargo test -p scoopc --no-default-features generic_template_signatures_use_owning_source_cone_key`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|whole build compilation unit|current compilation unit.*sources|AstStageOutput`。
   - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；这是 P1-T05 已记录的过渡边界，后续 P2 的 AST -> HIR semantic frontend barrier 会继续拆分真正的 per-cone HIR/facts 输出。
 
 ## [DONE] P1-T06：P1 全包清场、文档同步与依赖审计
@@ -498,11 +498,11 @@
 - 依赖：P1-T05R
 - 完成记录：
   - 改动范围：同步更新 `README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`scoopc` facade/adapters 与基础 crate 注释，移除 P1 之前的过期描述；文档明确 `ProjectInput::build_closure_sources()` 只是 build-closure source view，cone-level 语义通过 `compilation_units()` / `consumer_compilation_unit()` 表达。
-  - adapter 保留原因：`scoopc::{span, source, ty}` 仅作为迁移期 re-export adapter 保留，方便当前 monolithic `scoopc` 内部调用点继续共享基础类型；`scoopc::stable_id` 继续保留 type/effect canonical encoding 与 compiler semantic stable keys，因为它们仍耦合当前 HIR/MIR/RTTI pipeline，底层 hash/key primitives 与 `StableConeKey` 已来自基础 crate；`scoopc::cone` 保留 filesystem/sysroot/archive/loader adapters，纯 project/cone 数据与 topo validation 由 `scoopc_project_model` 持有。
-  - 依赖审计：`cargo run -p scoop_tools -- dependency-gate` 通过；逐项 `cargo tree` 显示 `scoopc_span -> miette`，`scoopc_source -> scoopc_span + miette`，`scoopc_types -> scoopc_span`，`scoopc_ids -> scoopc_span + sha2`，`scoopc_project_model -> scoopc_ids + scoopc_source + miette/thiserror/toml`，未发现基础 crate 依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate。
+  - adapter 保留原因：`scoopc::{span, source, ty}` 仅作为迁移期 re-export adapter 保留，方便当前 monolithic `scoopc` 内部调用点继续共享基础类型；`scoopc::stable_id` 继续保留 type/effect canonical encoding 与 compiler semantic stable keys，因为它们仍耦合当前 HIR/MIR/RTTI pipeline，底层 hash/key primitives 与 `StableConeKey` 已来自基础 crate；`scoopc::cone` 保留 filesystem/sysroot/archive/loader adapters，纯 project/cone 数据与 topo validation 由 `scoop_project_model` 持有。
+  - 依赖审计：`cargo run -p scoop_tools -- dependency-gate` 通过；逐项 `cargo tree` 显示 `scoopc_span -> miette`，`scoopc_source -> scoopc_span + miette`，`scoopc_types -> scoopc_span`，`scoopc_ids -> scoopc_span + sha2`，`scoop_project_model -> scoopc_ids + scoopc_source + miette/thiserror/toml`，未发现基础 crate 依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate。
   - 搜索分类摘要：authoritative `Span` / `SourceFile` / `SourceId` / `SourceMap` / `TypeId` / `TypeStore` / `EffectRow` / `ConeId` / `ConeInfo` / `SourceConeGraph` / `SourceConeInfo` / `SourceConeCompilationUnit` 定义只位于基础 crate；active Rust 中没有 `crate::resolve::ConeId` / `crate::resolve::ConeInfo` / `resolve::ConeId` / `resolve::ConeInfo` 命中；`crate::span` / `crate::source` / `crate::ty` / `crate::stable_id` 命中均为当前 `scoopc` facade 内部 legacy adapter 消费；`AstStageOutput` 命中只在 pipeline 单文件 worker、cone-level `AstCompilationUnitOutput` 文件列表、dump/fixture helper；active Rust 中没有 `single file compilation unit` / `whole build compilation unit` / `single-source compilation unit` / `current compilation unit.*sources` 命中，active docs 中相关中文/英文命中只作为否定性规则或 TODO 历史记录存在。
   - 文档决策：未更新 `PLAN.md`，因为 P1-T06 没有改变 phase-level sequencing、依赖、假设或完成标准。
-  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`；P1 清场关键词搜索；`git diff --check`。
+  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoop_project_model`；P1 清场关键词搜索；`git diff --check`。
   - 残余风险：P2 仍需把 production frontend 的 resolver/typecheck/HIR 过渡路径拆成正式 cone-level `AST -> HIR` semantic barrier 与 `hir_facts`；本任务未提前实现 P2/P3 facts/stage crate 拆分。
 
 ## [DONE] P1-T06R：Review P1 全包完成度
@@ -519,7 +519,7 @@
   - `crates/scoopc_source/`
   - `crates/scoopc_types/`
   - `crates/scoopc_ids/`
-  - `crates/scoopc_project_model/`
+  - `crates/scoop_project_model/`
   - `crates/scoopc/src/lib.rs`
   - `crates/scoopc/src/frontend.rs`
   - `crates/scoopc/src/pipeline/ast_stage.rs`
@@ -539,8 +539,8 @@
   - 复查范围：复查 `Cargo.toml`、5 个基础 crate 的 `Cargo.toml` / `src/lib.rs`、`crates/scoopc/src/lib.rs` facade anchor、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/pipeline/ast_stage.rs`、`crates/scoopc/src/cone/`、`crates/scoopc/src/resolve/mod.rs`、`README.md`、`PLAN.md`、`PIPELINE_REFACTOR.md` 与 `PIPELINE-CLEANUP.md`。
   - review 发现与修正：发现 active docs 中 `PIPELINE_REFACTOR.md` / `PIPELINE-CLEANUP.md` 仍把 MIR materialization 内部 `InstanceKey` 描述为 `scoopc_ids` 或 fact crate 可直接使用的基础身份；这与 P1-T03 明确保留 `TemplateKey` / `InstanceKey` 为 MIR stage-owned internal key 的决策冲突。本 review 已修正文档表述，改为 `scoopc_ids` 当前发布 `SiteId`、`BodyVersionKey`、stable hash/key primitives 和后续可提升的 stage-independent callable/body identity，并明确当前 MIR `TemplateKey` / `InstanceKey` 不能作为 fact crate 基础 ID。
   - P1 完成结论：P1 完成，可以进入 `TODO-3.md` / P2。基础 crate 已在 workspace 中作为后续 stage/fact crate 可直接依赖的公共层存在；`dependency-gate` 与逐项 `cargo tree` 未发现基础 crate 依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate；fact crate 只依赖基础 crate 的前置依赖形状已经具备。
-  - cone compilation unit 结论：`ProjectInput::build_closure_sources()` 只作为 build-closure source view 暴露，`ProjectInput::compilation_units()` / `consumer_compilation_unit()` 和 `scoopc_project_model::SourceConeCompilationUnit` 表达 cone-level compilation unit；`AstCompilationUnitOutput` 是正式 cone-level AST handoff，`AstStageOutput` 仅保留为单文件 worker / dump / fixture helper。active Rust 中未发现 `single file compilation unit` / `single-source compilation unit` / `whole build compilation unit` / `current compilation unit.*sources` 误导性命中。
+  - cone compilation unit 结论：`ProjectInput::build_closure_sources()` 只作为 build-closure source view 暴露，`ProjectInput::compilation_units()` / `consumer_compilation_unit()` 和 `scoop_project_model::SourceConeCompilationUnit` 表达 cone-level compilation unit；`AstCompilationUnitOutput` 是正式 cone-level AST handoff，`AstStageOutput` 仅保留为单文件 worker / dump / fixture helper。active Rust 中未发现 `single file compilation unit` / `single-source compilation unit` / `whole build compilation unit` / `current compilation unit.*sources` 误导性命中。
   - 搜索与抽查结论：authoritative `Span` / `SourceFile` / `SourceId` / `SourceMap` / `TypeId` / `TypeStore` / `EffectRow` / `ConeId` / `ConeInfo` / `SourceConeGraph` / `SourceConeInfo` / `SourceConeCompilationUnit` 定义仍只位于基础 crate；`TemplateKey` / `InstanceKey` 只定义在 `crates/scoopc/src/mir/materialize/mod.rs`；`resolve::ConeId` / `resolve::ConeInfo` 旧 owner 路径无 active Rust 命中。抽查 `run_pass_cone/multi_file_literal_basic` 和 `run_pass_cone/source_path_dependency_public_call` 均通过，覆盖 multi-file same-cone 与 local dependency cone。
   - 文档决策：未更新 `PLAN.md`，因为本 review 只修正文档与实现状态不一致的 active design/audit 表述，没有改变 phase-level sequencing、依赖、假设或完成标准。
-  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/multi_file_literal_basic`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/source_path_dependency_public_call`；P1 清场关键词搜索；`git diff --check`。
+  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoop_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/multi_file_literal_basic`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/source_path_dependency_public_call`；P1 清场关键词搜索；`git diff --check`。
   - 残余风险：production frontend 仍在当前 monolithic resolver/typecheck/HIR 过渡路径中消费 build closure，`scoopc::stable_id` 仍保留 type/effect canonical encoding 与 compiler semantic stable keys；这些均为 P1 已记录的过渡边界，后续 P2/P3 需要继续收口 HIR barrier、`hir_facts`、MIR output 和 stable callable/body identity owner。

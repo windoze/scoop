@@ -74,8 +74,8 @@ impl HirFacts {
 
 #[cfg(test)]
 mod tests {
+    use scoop_project_model::StableConeKey;
     use scoopc_ids::CanonicalTextKey;
-    use scoopc_project_model::StableConeKey;
     use scoopc_types::{TypeKind, TypeStore, ValueTypeKind};
 
     use super::*;

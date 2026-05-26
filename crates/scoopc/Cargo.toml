@@ -26,16 +26,18 @@ scoopc_effect_facts = { path = "../scoopc_effect_facts" }
 scoopc_hir_facts = { path = "../scoopc_hir_facts" }
 scoopc_lir_facts = { path = "../scoopc_lir_facts" }
 scoopc_mir_facts = { path = "../scoopc_mir_facts" }
-scoopc_project_model = { path = "../scoopc_project_model" }
+scoop_project_model = { path = "../scoop_project_model" }
 scoopc_source = { path = "../scoopc_source" }
 scoopc_span = { path = "../scoopc_span" }
 scoopc_types = { path = "../scoopc_types" }
 scoopld = { path = "../scoopld" }
 miette = { version = "7.6.0", features = ["fancy"] }
+object = { version = "0.37.3", default-features = false, features = ["read", "std"] }
+regex = "1.11.1"
+serde_json = "1.0.149"
 thiserror = "2.0.12"
 
 [dev-dependencies]
-object = { version = "0.37.3", default-features = false, features = ["read", "std"] }
 tempfile = "3.10.1"
 
 [[bin]]

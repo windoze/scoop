@@ -29,10 +29,10 @@ pub fn run(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
-    opt_level: Option<scoopc::opt::OptLevel>,
+    opt_level: Option<scoop_project_model::OptLevel>,
     incremental: bool,
     jobs: NonZeroUsize,
-    session_options: scoopc::session::SessionOptions,
+    session_options: super::FacadeSessionOptions,
 ) -> Result<()> {
     match run_for_exit_code(
         input,
@@ -76,7 +76,7 @@ fn resolve_run_input(input: Option<PathBuf>) -> Result<RunInput> {
             }
 
             if path.is_dir() {
-                let root = scoopc::cone::discover_cone_root(&path).ok_or_else(|| {
+                let root = scoop_project_model::discover_cone_root(&path).ok_or_else(|| {
                     miette::miette!("目录不是 cone 项目（找不到 Cone.toml）：{}", path.display())
                 })?;
 
@@ -97,7 +97,7 @@ fn resolve_run_input(input: Option<PathBuf>) -> Result<RunInput> {
                 .into_diagnostic()
                 .wrap_err("无法获取当前目录")?;
 
-            let root = scoopc::cone::discover_cone_root(&cwd).ok_or_else(|| {
+            let root = scoop_project_model::discover_cone_root(&cwd).ok_or_else(|| {
                 miette::miette!(
                     "未指定输入：当前目录不是 cone 项目（找不到 Cone.toml）：{}",
                     cwd.display()
@@ -119,10 +119,10 @@ fn run_for_exit_code(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
-    opt_level: Option<scoopc::opt::OptLevel>,
+    opt_level: Option<scoop_project_model::OptLevel>,
     incremental: bool,
     jobs: NonZeroUsize,
-    session_options: scoopc::session::SessionOptions,
+    session_options: super::FacadeSessionOptions,
 ) -> Result<i32> {
     let input = resolve_run_input(input)?;
     match input {
@@ -162,7 +162,7 @@ fn run_for_exit_code(
             run_executable(&exe, args)
         }
         RunInput::ConeRoot(cone_root) => {
-            let manifest = scoopc::cone::load_cone_manifest_from_dir(&cone_root)?;
+            let manifest = scoop_project_model::load_cone_manifest_from_dir(&cone_root)?;
             let exe = super::build::layout::cone_exe_path(
                 &cone_root,
                 None,
@@ -249,7 +249,7 @@ mod tests {
             None,
             true,
             default_jobs_for_test(),
-            scoopc::session::SessionOptions::new(),
+            super::super::FacadeSessionOptions::new(),
         )
         .unwrap_err();
         assert!(
@@ -272,7 +272,7 @@ mod tests {
             None,
             true,
             default_jobs_for_test(),
-            scoopc::session::SessionOptions::new(),
+            super::super::FacadeSessionOptions::new(),
         )
         .unwrap();
         assert_eq!(code, 0, "最小 main 应返回 0");

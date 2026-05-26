@@ -6,8 +6,8 @@
 #![forbid(unsafe_code)]
 
 pub mod base {
+    pub use scoop_project_model as project_model;
     pub use scoopc_ids as ids;
-    pub use scoopc_project_model as project_model;
     pub use scoopc_source as source;
     pub use scoopc_span as span;
     pub use scoopc_types as types;
@@ -31,7 +31,7 @@ pub use scoopc_hir_facts as hir_facts;
 pub use scoopc_mir_facts as mir_facts;
 
 pub mod cone {
-    pub use scoopc_project_model::*;
+    pub use scoop_project_model::*;
 }
 
 pub(crate) mod dump_support {
@@ -44,7 +44,7 @@ pub(crate) mod expr_facts {
 
 pub mod monomorph;
 pub mod opt {
-    pub use scoopc_project_model::{InvalidOptLevel, OptLevel};
+    pub use scoop_project_model::{InvalidOptLevel, OptLevel};
 }
 pub mod source {
     pub use scoopc_source::*;

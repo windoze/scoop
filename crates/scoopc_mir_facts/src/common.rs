@@ -1,7 +1,7 @@
 //! Shared identity records for MIR fact groups.
 
+use scoop_project_model::StableConeKey;
 use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StageArtifactKey};
-use scoopc_project_model::StableConeKey;
 use scoopc_source::SourceMapSpan;
 use scoopc_types::TypeId;
 

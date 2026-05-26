@@ -21,7 +21,7 @@ pub mod ty {
     pub use scoopc_types::*;
 }
 pub mod opt {
-    pub use scoopc_project_model::OptLevel;
+    pub use scoop_project_model::OptLevel;
 }
 
 pub mod frontend {

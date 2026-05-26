@@ -79,8 +79,8 @@ impl MirFacts {
 
 #[cfg(test)]
 mod tests {
+    use scoop_project_model::{OptLevel, StableConeKey};
     use scoopc_ids::{CanonicalTextKey, StableCanonicalKey as _, StageArtifactKey};
-    use scoopc_project_model::{OptLevel, StableConeKey};
 
     use super::*;
     use crate::common::FactIdentity;

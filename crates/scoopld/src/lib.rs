@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 use miette::Diagnostic;
-use scoopc_project_model::ConeKind;
+use scoop_project_model::ConeKind;
 use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 

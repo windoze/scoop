@@ -2,7 +2,7 @@
 //!
 //! This base crate owns `SourceId`, source files, source maps, and source trust
 //! data that can be consumed by stages and facts. Cone/project membership lives
-//! in `scoopc_project_model`. This crate may depend on `scoopc_span`, but it
+//! in `scoop_project_model`. This crate may depend on `scoopc_span`, but it
 //! must not depend on `scoopc`,
 //! parser/resolve/typecheck/HIR/MIR/LIR/codegen crates, fact crates, or
 //! repository tools.

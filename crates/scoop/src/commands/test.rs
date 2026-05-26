@@ -1,37 +1,22 @@
-//! `scoop test` 子命令。
-//!
-//! 早期阶段 fixtures runner 的目标是把框架搭起来：
-//! - 能递归发现 `tests/fixtures/**/*.scoop`
-//! - 能按文件头注释指令执行（pass/fail）
-//!
-//! 后续阶段会逐步扩展为：
-//! - parse fixtures（AST snapshot / 错误恢复）
-//! - typecheck fixtures（pass/fail）
-//! - run-pass fixtures（stdout 对比）
+//! `scoop test` facade.
 
-use std::collections::VecDeque;
 use std::num::{NonZeroU32, NonZeroUsize};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::mpsc;
-use std::thread;
+use std::path::PathBuf;
 
-use miette::{Context as _, IntoDiagnostic as _, Result, miette};
-use scoopc::session::SessionOptions;
+use miette::{Context as _, IntoDiagnostic as _, Result};
 
-const FIXTURE_WORKER_ENV: &str = "SCOOP_FIXTURE_WORKER";
-const FIXTURE_WORKER_OK_PREFIX: &str = "SCOOP_FIXTURE_OK=";
 const DEFAULT_FIXTURE_PROCESSES: usize = 5;
+const FIXTURE_SCOOP_BIN_ENV: &str = "SCOOP_FIXTURE_SCOOP_BIN";
 
 #[derive(Debug, Clone)]
 pub struct TestOptions {
-    pub opt_level: Option<scoopc::opt::OptLevel>,
+    pub opt_level: Option<scoop_project_model::OptLevel>,
     pub gc_stress: bool,
     pub gc_move: bool,
     pub threads: Option<NonZeroU32>,
     pub exit_on_failure: bool,
     pub processes: NonZeroUsize,
-    pub session_options: SessionOptions,
+    pub session_options: super::FacadeSessionOptions,
 }
 
 impl Default for TestOptions {
@@ -43,204 +28,22 @@ impl Default for TestOptions {
             threads: None,
             exit_on_failure: false,
             processes: NonZeroUsize::new(DEFAULT_FIXTURE_PROCESSES).unwrap(),
-            session_options: SessionOptions::new(),
+            session_options: super::FacadeSessionOptions::new(),
         }
     }
-}
-
-#[derive(Debug)]
-struct WorkerOutput {
-    checks: usize,
-    stdout: String,
-    stderr: String,
-}
-
-#[derive(Debug)]
-struct WorkerFailure {
-    message: String,
-    stdout: String,
-    stderr: String,
-}
-
-#[derive(Debug)]
-struct WorkerResult {
-    target: crate::fixtures::PlannedFixtureTarget,
-    result: std::result::Result<WorkerOutput, WorkerFailure>,
 }
 
 pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
-    let root = fixtures.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
-    let root = root.canonicalize().into_diagnostic().wrap_err_with(|| {
-        format!(
-            "无法定位 fixtures 路径：{}（可用 --fixtures 指定目录或单个 fixture）",
-            root.display()
-        )
-    })?;
-
-    let mut run_pass_env = crate::fixtures::RunPassEnvOverrides::new();
-    if options.gc_stress {
-        run_pass_env.set("SCOOP_GC_STRESS", "1");
+    let mut cmd = crate::compiler_tool::command()?;
+    cmd.arg("test-fixtures");
+    if let Some(fixtures) = fixtures {
+        cmd.arg("--fixtures").arg(fixtures);
     }
-    if options.gc_move {
-        run_pass_env.set("SCOOP_GC_MOVE", "1");
+    cmd.arg("--processes")
+        .arg(options.processes.get().to_string());
+    if options.exit_on_failure {
+        cmd.arg("--exit-on-failure");
     }
-    if let Some(threads) = options.threads {
-        let v = threads.get().to_string();
-        run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_MARK", v.clone());
-        run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_SWEEP", v);
-    }
-
-    if is_worker_process() {
-        let ok = crate::fixtures::run_all(
-            &root,
-            options.opt_level,
-            options.session_options,
-            &run_pass_env,
-        )?;
-        println!("{FIXTURE_WORKER_OK_PREFIX}{ok}");
-        return Ok(());
-    }
-
-    let targets = crate::fixtures::plan_targets(&root)?;
-    let total_targets = targets.len();
-    let scoop_exe = crate::fixtures::current_scoop_exe_path()
-        .into_diagnostic()
-        .wrap_err("无法定位当前 scoop 可执行文件")?;
-    let max_workers = options.processes.get().min(total_targets);
-    let mut pending: VecDeque<_> = targets.into();
-    let (tx, rx) = mpsc::channel();
-    let mut active = 0usize;
-    let mut completed = 0usize;
-    let mut passed_targets = 0usize;
-    let mut failed_targets = 0usize;
-    let mut passed_checks = 0usize;
-    let mut stopped_early = false;
-
-    while active > 0 || !pending.is_empty() {
-        while active < max_workers
-            && !pending.is_empty()
-            && !(options.exit_on_failure && failed_targets > 0)
-        {
-            let target = pending.pop_front().expect("pending should not be empty");
-            if let Err(failure) = spawn_worker(&tx, &scoop_exe, target, options.clone()) {
-                completed += 1;
-                failed_targets += 1;
-                print_worker_failure(completed, total_targets, &failure.target, &failure.failure);
-                if options.exit_on_failure {
-                    pending.clear();
-                    stopped_early = true;
-                }
-                continue;
-            }
-            active += 1;
-        }
-
-        if active == 0 {
-            break;
-        }
-
-        let worker = rx
-            .recv()
-            .into_diagnostic()
-            .wrap_err("fixture worker 通道提前关闭")?;
-        active -= 1;
-        completed += 1;
-
-        match worker.result {
-            Ok(output) => {
-                emit_stdout(&output.stdout);
-                emit_stderr(&output.stderr);
-                passed_targets += 1;
-                passed_checks += output.checks;
-                println!(
-                    "[{completed}/{total_targets}] PASS {} ({})",
-                    worker.target.display.display(),
-                    format_check_count(output.checks),
-                );
-            }
-            Err(failure) => {
-                failed_targets += 1;
-                print_worker_failure(completed, total_targets, &worker.target, &failure);
-                if options.exit_on_failure {
-                    pending.clear();
-                    stopped_early = true;
-                }
-            }
-        }
-    }
-
-    if failed_targets == 0 {
-        println!("fixtures: ok ({passed_checks})");
-        return Ok(());
-    }
-
-    let mut summary = format!(
-        "fixtures: failed ({failed_targets}/{total_targets} targets failed, {passed_targets} targets passed, {} passed)",
-        format_check_count(passed_checks),
-    );
-    if stopped_early {
-        summary.push_str(", stopped scheduling new targets after the first failure");
-    }
-    println!("{summary}");
-    Err(miette!(
-        "fixtures 失败：{failed_targets} 个 target 执行失败"
-    ))
-}
-
-fn is_worker_process() -> bool {
-    std::env::var_os(FIXTURE_WORKER_ENV).is_some()
-}
-
-fn spawn_worker(
-    tx: &mpsc::Sender<WorkerResult>,
-    scoop_exe: &Path,
-    target: crate::fixtures::PlannedFixtureTarget,
-    options: TestOptions,
-) -> std::result::Result<(), SpawnWorkerFailure> {
-    let child = match build_worker_command(scoop_exe, &target.path, options).spawn() {
-        Ok(child) => child,
-        Err(source) => {
-            return Err(SpawnWorkerFailure {
-                target,
-                failure: WorkerFailure {
-                    message: format!("无法启动 fixture worker：{source}"),
-                    stdout: String::new(),
-                    stderr: String::new(),
-                },
-            });
-        }
-    };
-
-    let tx = tx.clone();
-    thread::spawn(move || {
-        let result = match child.wait_with_output() {
-            Ok(output) => interpret_worker_output(target, output),
-            Err(source) => WorkerResult {
-                target,
-                result: Err(WorkerFailure {
-                    message: format!("等待 fixture worker 结束失败：{source}"),
-                    stdout: String::new(),
-                    stderr: String::new(),
-                }),
-            },
-        };
-        let _ = tx.send(result);
-    });
-
-    Ok(())
-}
-
-fn build_worker_command(scoop_exe: &Path, target_path: &Path, options: TestOptions) -> Command {
-    let mut cmd = Command::new(scoop_exe);
-    cmd.arg("test")
-        .arg("--fixtures")
-        .arg(target_path)
-        .arg("--processes")
-        .arg("1")
-        .env(FIXTURE_WORKER_ENV, "1")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
     if let Some(level) = options.opt_level {
         cmd.arg("--opt-level").arg(level.as_str());
     }
@@ -253,133 +56,69 @@ fn build_worker_command(scoop_exe: &Path, target_path: &Path, options: TestOptio
     if let Some(threads) = options.threads {
         cmd.arg("--threads").arg(threads.get().to_string());
     }
-
-    cmd
-}
-
-fn interpret_worker_output(
-    target: crate::fixtures::PlannedFixtureTarget,
-    output: std::process::Output,
-) -> WorkerResult {
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-
-    if !output.status.success() {
-        return WorkerResult {
-            target,
-            result: Err(WorkerFailure {
-                message: format!("fixture worker 退出状态非 0：{}", output.status),
-                stdout,
-                stderr,
-            }),
-        };
+    options.session_options.apply_to_command(&mut cmd);
+    if let Ok(current) = current_scoop_exe_path() {
+        cmd.env(FIXTURE_SCOOP_BIN_ENV, current);
     }
 
-    let Some((checks, passthrough_stdout)) = parse_worker_success_count(&stdout) else {
-        return WorkerResult {
-            target,
-            result: Err(WorkerFailure {
-                message: "fixture worker 未返回成功计数".to_string(),
-                stdout,
-                stderr,
-            }),
-        };
-    };
-
-    WorkerResult {
-        target,
-        result: Ok(WorkerOutput {
-            checks,
-            stdout: passthrough_stdout,
-            stderr,
-        }),
-    }
-}
-
-fn parse_worker_success_count(stdout: &str) -> Option<(usize, String)> {
-    let mut checks = None;
-    let mut passthrough = Vec::new();
-
-    for line in stdout.lines() {
-        if checks.is_none()
-            && let Some(rest) = line.strip_prefix(FIXTURE_WORKER_OK_PREFIX)
-            && let Ok(parsed) = rest.trim().parse::<usize>()
-        {
-            checks = Some(parsed);
-            continue;
-        }
-        passthrough.push(line);
-    }
-
-    let checks = checks?;
-    let mut passthrough_stdout = passthrough.join("\n");
-    if !passthrough_stdout.is_empty() && stdout.ends_with('\n') {
-        passthrough_stdout.push('\n');
-    }
-    Some((checks, passthrough_stdout))
-}
-
-fn emit_stdout(stdout: &str) {
-    if !stdout.is_empty() {
-        print!("{stdout}");
-        if !stdout.ends_with('\n') {
-            println!();
-        }
-    }
-}
-
-fn emit_stderr(stderr: &str) {
-    if !stderr.is_empty() {
-        eprint!("{stderr}");
-        if !stderr.ends_with('\n') {
-            eprintln!();
-        }
-    }
-}
-
-fn print_worker_failure(
-    completed: usize,
-    total_targets: usize,
-    target: &crate::fixtures::PlannedFixtureTarget,
-    failure: &WorkerFailure,
-) {
-    println!(
-        "[{completed}/{total_targets}] FAIL {} ({})",
-        target.display.display(),
-        failure.message,
-    );
-    emit_stdout(&failure.stdout);
-    emit_stderr(&failure.stderr);
-}
-
-fn format_check_count(checks: usize) -> String {
-    if checks == 1 {
-        "1 check".to_string()
+    let status = cmd
+        .status()
+        .into_diagnostic()
+        .wrap_err("无法启动 fixture compiler 子进程")?;
+    if status.success() {
+        Ok(())
     } else {
-        format!("{checks} checks")
+        Err(miette::miette!("fixtures 失败：{status}"))
     }
 }
 
-#[derive(Debug)]
-struct SpawnWorkerFailure {
-    target: crate::fixtures::PlannedFixtureTarget,
-    failure: WorkerFailure,
+fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
+    let current = std::env::current_exe()?;
+    if current.is_file() {
+        return Ok(current);
+    }
+    if let Some(stripped) = strip_deleted_exe_suffix(&current)
+        && stripped.is_file()
+    {
+        return Ok(stripped);
+    }
+    if let Some(argv0) = std::env::args_os().next() {
+        let argv0 = PathBuf::from(argv0);
+        if argv0.is_file() {
+            return Ok(argv0);
+        }
+        if argv0.is_relative() {
+            let cwd_candidate = std::env::current_dir()?.join(&argv0);
+            if cwd_candidate.is_file() {
+                return Ok(cwd_candidate);
+            }
+        }
+    }
+    Ok(current)
+}
+
+fn strip_deleted_exe_suffix(path: &std::path::Path) -> Option<PathBuf> {
+    let file_name = path.file_name()?.to_str()?;
+    let stripped = file_name.strip_suffix(" (deleted)")?;
+    Some(path.with_file_name(stripped))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_worker_success_count;
+    use super::*;
+    use std::ffi::OsString;
 
     #[test]
-    fn parse_worker_success_count_extracts_count_and_passthrough_stdout() {
-        let stdout = "note\nSCOOP_FIXTURE_OK=3\nextra\n";
-        let parsed = parse_worker_success_count(stdout).unwrap();
-        assert_eq!(parsed.0, 3);
-        assert_eq!(parsed.1, "note\nextra\n");
+    fn default_fixture_processes_is_stable() {
+        assert_eq!(
+            TestOptions::default().processes.get(),
+            DEFAULT_FIXTURE_PROCESSES
+        );
     }
 
     #[test]
-    fn parse_worker_success_count_rejects_missing_marker() {
-        assert!(parse_worker_success_count("ok\n").is_none());
+    fn wrapper_env_key_is_stable() {
+        let key = OsString::from(FIXTURE_SCOOP_BIN_ENV);
+        assert_eq!(key.to_string_lossy(), "SCOOP_FIXTURE_SCOOP_BIN");
     }
 }

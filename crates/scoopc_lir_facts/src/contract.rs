@@ -1,7 +1,7 @@
 //! Backend-neutral contracts published next to the LIR body.
 
+use scoop_project_model::StableConeKey;
 use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
-use scoopc_project_model::StableConeKey;
 use scoopc_types::TypeId;
 
 macro_rules! id_key {

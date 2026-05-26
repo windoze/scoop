@@ -22,7 +22,7 @@ const BASE_CRATES: &[&str] = &[
     "scoopc_source",
     "scoopc_types",
     "scoopc_ids",
-    "scoopc_project_model",
+    "scoop_project_model",
 ];
 
 const FACT_CRATES: &[&str] = &[
@@ -47,6 +47,8 @@ const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 const CONE_CRATES: &[&str] = &["scoopc_cone"];
 
 const LINKER_CRATES: &[&str] = &["scoopld"];
+
+const DRIVER_CRATES: &[&str] = &["scoop"];
 
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
@@ -82,7 +84,7 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage, {} cone, {} linker; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} effect-facts stage, {} LIR stage, {} codegen stage, {} cone, {} linker, {} driver; {} source boundary files)",
             self.checks.len(),
             self.count_crate_kind(CrateKind::Base),
             self.count_crate_kind(CrateKind::Fact),
@@ -94,6 +96,7 @@ impl Report {
             self.count_crate_kind(CrateKind::CodegenStage),
             self.count_crate_kind(CrateKind::Cone),
             self.count_crate_kind(CrateKind::Linker),
+            self.count_crate_kind(CrateKind::Driver),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -182,6 +185,7 @@ enum CrateKind {
     CodegenStage,
     Cone,
     Linker,
+    Driver,
 }
 
 impl CrateKind {
@@ -197,6 +201,7 @@ impl CrateKind {
             Self::CodegenStage => "codegen-stage",
             Self::Cone => "cone",
             Self::Linker => "linker",
+            Self::Driver => "driver",
         }
     }
 }
@@ -352,6 +357,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::Linker,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in DRIVER_CRATES {
+        let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::Driver, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::Driver,
             dependency_names,
             violations,
         });
@@ -1216,6 +1233,50 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
                 },
             ],
         },
+        SourceTreeBoundaryRule {
+            label: "scoop facade compiler library residuals",
+            kind_label: "driver-boundary",
+            root: "crates/scoop/src",
+            exclude_path_fragments: &[],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use scoopc::",
+                    reason: "scoop facade must not import the compiler library API",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::",
+                    reason: "scoop facade must not call compiler library APIs in-process",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_cone",
+                    reason: "scoop facade must not depend on cone stage payload APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_ast",
+                    reason: "scoop facade must not depend on compiler stage crates",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_hir",
+                    reason: "scoop facade must not depend on compiler stage crates",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir",
+                    reason: "scoop facade must not depend on compiler stage crates",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_effect_facts_stage",
+                    reason: "scoop facade must not depend on compiler stage crates",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_lir",
+                    reason: "scoop facade must not depend on compiler stage crates",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_codegen_llvm",
+                    reason: "scoop facade must not depend on backend crates",
+                },
+            ],
+        },
     ]
 }
 
@@ -1441,6 +1502,24 @@ fn find_dependency_violations(
             continue;
         }
 
+        if kind == CrateKind::Driver {
+            if dependency_name == "scoop_project_model" {
+                continue;
+            }
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                || dependency_name.starts_with("scoopc")
+                || dependency_name == "scoopld"
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "scoop facade may depend directly only on scoop_project_model; compiler/linker interaction must go through subprocess CLIs"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
         if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
             violations.push(Violation {
                 dependency: dependency.clone(),
@@ -1480,7 +1559,7 @@ fn allowed_base_dependencies(base: &str) -> &'static [&'static str] {
         "scoopc_source" => &["scoopc_span"],
         "scoopc_types" => &["scoopc_span"],
         "scoopc_ids" => &["scoopc_span", "scoopc_types"],
-        "scoopc_project_model" => &["scoopc_span", "scoopc_source", "scoopc_types", "scoopc_ids"],
+        "scoop_project_model" => &["scoopc_span", "scoopc_source", "scoopc_types", "scoopc_ids"],
         _ => &[],
     }
 }
@@ -1492,12 +1571,12 @@ mod tests {
     #[test]
     fn parses_cargo_tree_package_names() {
         let names = parse_cargo_tree_package_names(
-            "scoopc_project_model v0.1.0 (/repo/crates/scoopc_project_model)\n\
+            "scoop_project_model v0.1.0 (/repo/crates/scoop_project_model)\n\
              scoopc_source v0.1.0 (/repo/crates/scoopc_source)\n\
              scoopc_span v0.1.0 (/repo/crates/scoopc_span)\n",
         );
 
-        assert!(names.contains("scoopc_project_model"));
+        assert!(names.contains("scoop_project_model"));
         assert!(names.contains("scoopc_source"));
         assert!(names.contains("scoopc_span"));
     }
@@ -1505,10 +1584,10 @@ mod tests {
     #[test]
     fn allows_declared_base_direction() {
         let violations = find_dependency_violations(
-            "scoopc_project_model",
+            "scoop_project_model",
             CrateKind::Base,
             &set(&[
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1536,11 +1615,11 @@ mod tests {
         let violations = find_dependency_violations(
             "scoopc_span",
             CrateKind::Base,
-            &set(&["scoopc_span", "scoopc_project_model"]),
+            &set(&["scoopc_span", "scoop_project_model"]),
         );
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].dependency, "scoopc_project_model");
+        assert_eq!(violations[0].dependency, "scoop_project_model");
     }
 
     #[test]
@@ -1550,7 +1629,7 @@ mod tests {
             CrateKind::Fact,
             &set(&[
                 "scoopc_hir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1568,7 +1647,7 @@ mod tests {
             CrateKind::Fact,
             &set(&[
                 "scoopc_mir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1602,7 +1681,7 @@ mod tests {
             CrateKind::Fact,
             &set(&[
                 "scoopc_lir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_ids",
                 "scoopc_span",
             ]),
@@ -1669,7 +1748,7 @@ mod tests {
                 "scoopc_hir",
                 "scoopc_hir_facts",
                 "scoopc_mir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1718,7 +1797,7 @@ mod tests {
                 "scoopc_mir",
                 "scoopc_mir_facts",
                 "scoopc_effect_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1767,7 +1846,7 @@ mod tests {
                 "scoopc_mir_facts",
                 "scoopc_effect_facts",
                 "scoopc_lir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1815,7 +1894,7 @@ mod tests {
                 "scoopc_codegen_llvm",
                 "scoopc_lir",
                 "scoopc_lir_facts",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1873,7 +1952,7 @@ mod tests {
                 "scoopc_lir",
                 "scoopc_lir_facts",
                 "scoopc_codegen_llvm",
-                "scoopc_project_model",
+                "scoop_project_model",
                 "scoopc_source",
                 "scoopc_types",
                 "scoopc_ids",
@@ -1930,7 +2009,7 @@ mod tests {
         let violations = find_dependency_violations(
             "scoopld",
             CrateKind::Linker,
-            &set(&["scoopld", "scoopc_project_model", "scoopc_span"]),
+            &set(&["scoopld", "scoop_project_model", "scoopc_span"]),
         );
 
         assert!(violations.is_empty());

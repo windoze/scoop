@@ -11,8 +11,8 @@
 
 use std::collections::BTreeMap;
 
+use scoop_project_model::OptLevel;
 use scoopc_ids::StableLirCallableKey;
-use scoopc_project_model::OptLevel;
 
 pub mod contract;
 pub mod dump;
@@ -261,8 +261,8 @@ impl Default for LirStageSummary {
 mod tests {
     use super::*;
     use crate::verify::VerifyError;
+    use scoop_project_model::StableConeKey;
     use scoopc_ids::BodyVersionKey;
-    use scoopc_project_model::StableConeKey;
     use scoopc_types::{TypeId, TypeStore};
 
     fn ty(raw: u32) -> TypeId {

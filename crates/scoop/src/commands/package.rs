@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 
 use miette::Result;
-use scoopc::session::SessionOptions;
 
 const ARCHIVE_UNSUPPORTED_MESSAGE: &str = "`.cone` archive packaging is temporarily unsupported while the source-only cone model is being redesigned";
 
@@ -13,7 +12,7 @@ const ARCHIVE_UNSUPPORTED_MESSAGE: &str = "`.cone` archive packaging is temporar
 pub fn run(
     _input: PathBuf,
     _output: Option<PathBuf>,
-    _session_options: SessionOptions,
+    _session_options: super::FacadeSessionOptions,
 ) -> Result<()> {
     Err(miette::miette!(ARCHIVE_UNSUPPORTED_MESSAGE))
 }
@@ -31,7 +30,7 @@ mod tests {
         let err = super::run(
             PathBuf::from("missing-pkg"),
             Some(out.clone()),
-            super::SessionOptions::new(),
+            super::super::FacadeSessionOptions::new(),
         )
         .unwrap_err();
 
@@ -44,7 +43,7 @@ mod tests {
         let err = super::run(
             PathBuf::from("definitely-missing-pkg"),
             None,
-            super::SessionOptions::new(),
+            super::super::FacadeSessionOptions::new(),
         )
         .unwrap_err();
 

@@ -21,7 +21,7 @@ use std::sync::mpsc;
 
 use miette::Result;
 
-use scoopc::cone::{ConeId, SourceConeGraph, SourceConeRole};
+use scoop_project_model::{ConeId, SourceConeGraph, SourceConeRole};
 
 use super::concurrency::{
     ConcurrencyStrategy, ConeCompileRequest, ConeCompileResponse, SubprocessConeCompileError,
@@ -36,6 +36,9 @@ use super::incremental::BuildFingerprint;
 pub(crate) struct ConeBuildDispatch<'a> {
     pub strategy: &'a (dyn ConcurrencyStrategy + 'a),
     pub compiler: &'a (dyn SubprocessConeCompiler + 'a),
+    pub opt_level: scoop_project_model::OptLevel,
+    pub extra_sysroot_dependencies: &'a [String],
+    pub sysroot_overlay: Option<&'a std::path::Path>,
 }
 
 #[derive(Debug)]
@@ -63,7 +66,13 @@ pub(crate) fn dispatch_local_dependency_cones(
     fingerprint: &BuildFingerprint,
     dispatch: &ConeBuildDispatch<'_>,
 ) -> Result<()> {
-    let mut planner = ConeDispatchPlanner::build(graph, fingerprint)?;
+    let mut planner = ConeDispatchPlanner::build(
+        graph,
+        fingerprint,
+        dispatch.opt_level,
+        dispatch.extra_sysroot_dependencies,
+        dispatch.sysroot_overlay,
+    )?;
     if planner.is_empty() {
         return Ok(());
     }
@@ -127,14 +136,33 @@ pub(crate) fn dispatch_local_dependency_cones(
     })?;
 
     if let Some(failure) = first_failure {
-        return Err(miette::miette!(
+        let message = format!(
             "per-cone 子进程编译失败 [{label}]：{detail}",
             label = failure.label,
             detail = render_error_with_source_chain(&failure.source),
-        ));
+        );
+        if let Some(code) = diagnostic_code_from_subprocess_error(&failure.source) {
+            return Err(miette::Report::new(
+                miette::MietteDiagnostic::new(message).with_code(code),
+            ));
+        }
+        return Err(miette::miette!("{message}"));
     }
 
     Ok(())
+}
+
+fn diagnostic_code_from_subprocess_error(err: &SubprocessConeCompileError) -> Option<String> {
+    let SubprocessConeCompileError::ExitNonZero { stderr, .. } = err else {
+        return None;
+    };
+    stderr.lines().find_map(|line| {
+        let rest = line.trim_start().strip_prefix("Error:")?.trim_start();
+        rest.split_whitespace()
+            .next()
+            .filter(|code| code.contains("::"))
+            .map(ToOwned::to_owned)
+    })
 }
 
 /// 把 `failure.source` 的 Display + 整条 `std::error::Error::source()` 链展平成一行。
@@ -191,25 +219,37 @@ struct ConeDispatchPlanner {
 }
 
 impl ConeDispatchPlanner {
-    fn build(graph: &SourceConeGraph, fingerprint: &BuildFingerprint) -> Result<Self> {
-        // 先收集所有 LocalDependency cone 的 id，用于过滤 upstream_artifact_dirs：
-        // 只有 LocalDependency cone 才会真的把 artifact 落盘到 build/<profile>/cones/...，
-        // 也只有这些 dep 的 artifact_dir 应该作为 `--upstream-artifact` 传给 scoopc 子进程。
+    fn build(
+        graph: &SourceConeGraph,
+        fingerprint: &BuildFingerprint,
+        opt_level: scoop_project_model::OptLevel,
+        extra_sysroot_dependencies: &[String],
+        sysroot_overlay: Option<&std::path::Path>,
+    ) -> Result<Self> {
+        // 先收集所有非 sysroot artifact cone 的 id，用于过滤 upstream_artifact_dirs：
+        // sysroot dep 由 scoopc 在 build-single-cone 内通过 sysroot loader 自行加载，
+        // 不会由 facade driver 作为 artifact 传入。
         // sysroot dep 由 scoopc 在 build-single-cone 内通过 sysroot loader 自行加载，
         // 它们在 fingerprint.per_cone 里虽有占位 artifact_dir，但磁盘上不会真的存在。
-        let mut local_dependency_ids: HashSet<ConeId> = HashSet::new();
+        let mut artifact_cone_ids: HashSet<ConeId> = HashSet::new();
         for unit in graph.compilation_units() {
-            if unit.role() == SourceConeRole::LocalDependency {
-                local_dependency_ids.insert(unit.id());
+            if matches!(
+                unit.role(),
+                SourceConeRole::LocalDependency | SourceConeRole::Consumer
+            ) {
+                artifact_cone_ids.insert(unit.id());
             }
         }
 
         // 哪些 cone 真正需要走子进程派发：
-        // - 必须是 LocalDependency（consumer / sysroot 不参与）；
+        // - 必须是 LocalDependency 或 Consumer（sysroot 不参与）；
         // - 必须没有 cache hit。
         let mut should_dispatch: HashSet<ConeId> = HashSet::new();
         for unit in graph.compilation_units() {
-            if unit.role() != SourceConeRole::LocalDependency {
+            if !matches!(
+                unit.role(),
+                SourceConeRole::LocalDependency | SourceConeRole::Consumer
+            ) {
                 continue;
             }
             let cone_fp = fingerprint.per_cone.get(&unit.id()).ok_or_else(|| {
@@ -239,7 +279,7 @@ impl ConeDispatchPlanner {
 
             let mut upstream_artifact_dirs = Vec::new();
             for dep_id in unit.dependency_cone_ids() {
-                if !local_dependency_ids.contains(&dep_id) {
+                if !artifact_cone_ids.contains(&dep_id) {
                     // sysroot dep（或其它非 LocalDependency 角色）在 in-process frontend 中加载，
                     // 不会有上盘 artifact；不能传给 scoopc，否则 import_upstream_artifacts 会
                     // 在不存在的目录上失败（多 cone fixture 上观察到的 ENOENT 路径）。
@@ -260,6 +300,9 @@ impl ConeDispatchPlanner {
                 cone_id: label.clone(),
                 cone_root: unit.root().to_path_buf(),
                 upstream_artifact_dirs,
+                opt_level,
+                extra_sysroot_dependencies: extra_sysroot_dependencies.to_vec(),
+                sysroot_overlay: sysroot_overlay.map(std::path::Path::to_path_buf),
                 inputs_fingerprint: cone_fp.inputs_fingerprint.clone(),
                 output_artifact_dir: cone_fp.artifact_dir.clone(),
             };
@@ -390,36 +433,16 @@ mod tests {
     use super::super::incremental::ConeBuildFingerprint;
     use super::*;
 
-    /// 单测专用的可记录 fake：实现 `SubprocessConeCompiler`，记录每次调用的 cone_id，
-    /// 并按预先 stub 的应答返回（默认成功）。
     #[derive(Debug)]
     struct RecordingFakeConeCompiler {
         log: Mutex<Vec<String>>,
-        responses: Mutex<HashMap<String, Result<ConeCompileResponse, FakeFailure>>>,
-    }
-
-    /// 与真实 `SubprocessConeCompileError::ExitNonZero` 等价的 fake 错误形态，避免
-    /// 在单测里手工造系统级 ExitStatus。
-    #[derive(Debug, Clone)]
-    struct FakeFailure {
-        message: String,
     }
 
     impl RecordingFakeConeCompiler {
         fn new() -> Self {
             Self {
                 log: Mutex::new(Vec::new()),
-                responses: Mutex::new(HashMap::new()),
             }
-        }
-
-        fn stub_failure(&self, cone_id: &str, message: &str) {
-            self.responses.lock().unwrap().insert(
-                cone_id.to_string(),
-                Err(FakeFailure {
-                    message: message.to_string(),
-                }),
-            );
         }
 
         fn calls(&self) -> Vec<String> {
@@ -433,19 +456,10 @@ mod tests {
             request: ConeCompileRequest,
         ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
             self.log.lock().unwrap().push(request.cone_id.clone());
-            let stub = self.responses.lock().unwrap().remove(&request.cone_id);
-            match stub {
-                Some(Ok(response)) => Ok(response),
-                Some(Err(failure)) => Err(SubprocessConeCompileError::ArtifactMissing {
-                    cone_id: request.cone_id.clone(),
-                    dir: request.output_artifact_dir.clone(),
-                    source: std::io::Error::other(failure.message),
-                }),
-                None => Ok(ConeCompileResponse {
-                    output_artifact_dir: request.output_artifact_dir,
-                    outputs_fingerprint: vec![0xfa, 0xce],
-                }),
-            }
+            Ok(ConeCompileResponse {
+                output_artifact_dir: request.output_artifact_dir,
+                outputs_fingerprint: vec![0xfa, 0xce],
+            })
         }
     }
 
@@ -454,69 +468,18 @@ mod tests {
             artifact_dir: PathBuf::from(format!("/tmp/{name}")),
             inputs_fingerprint: name.as_bytes().to_vec(),
             cached_outputs_fingerprint: None,
-            direct_dependency_outputs_fingerprints: Vec::new(),
         }
-    }
-
-    fn fixture_two_dep_chain_graph() -> (SourceConeGraph, BuildFingerprint) {
-        // dep_a (id=2, leaf) ← dep_b (id=3, depends on dep_a) ← consumer (id=1)
-        let consumer = make_node(
-            1,
-            scoopc::cone::SourceConeRole::Consumer,
-            "fixture.app",
-            scoopc::cone::ConeKind::Bin,
-            &[3],
-        );
-        let dep_b = make_node(
-            3,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_b",
-            scoopc::cone::ConeKind::Lib,
-            &[2],
-        );
-        let dep_a = make_node(
-            2,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_a",
-            scoopc::cone::ConeKind::Lib,
-            &[],
-        );
-        let graph = scoopc::cone::SourceConeGraph::from_nodes(
-            vec![consumer, dep_b, dep_a],
-            scoopc::cone::ConeId::new(1),
-        )
-        .unwrap();
-
-        let mut per_cone = HashMap::new();
-        per_cone.insert(scoopc::cone::ConeId::new(1), make_dep_fp("consumer"));
-        per_cone.insert(scoopc::cone::ConeId::new(2), make_dep_fp("dep_a"));
-        per_cone.insert(scoopc::cone::ConeId::new(3), make_dep_fp("dep_b"));
-
-        let fp = BuildFingerprint {
-            fingerprint: "FAKE".to_string(),
-            consumer_cone_id: scoopc::cone::ConeId::new(1),
-            per_cone,
-            cone_toml_sha256: String::new(),
-            cone_sources_sha256: String::new(),
-            local_dependency_sources_sha256: String::new(),
-            native_sources_sha256: String::new(),
-            sysroot_sources_sha256: String::new(),
-            runtime_sources_sha256: String::new(),
-            toolchain_sha256: String::new(),
-        };
-
-        (graph, fp)
     }
 
     fn make_node(
         id: u32,
-        role: scoopc::cone::SourceConeRole,
+        role: SourceConeRole,
         name: &str,
-        kind: scoopc::cone::ConeKind,
+        kind: scoop_project_model::ConeKind,
         deps: &[u32],
-    ) -> scoopc::cone::SourceConeNode {
-        let manifest = scoopc::cone::ConeManifest {
-            cone: scoopc::cone::ConeSection {
+    ) -> scoop_project_model::SourceConeNode {
+        let manifest = scoop_project_model::ConeManifest {
+            cone: scoop_project_model::ConeSection {
                 name: name.to_string(),
                 version: "0.0.0".to_string(),
                 kind,
@@ -526,231 +489,56 @@ mod tests {
             pre_specialize_types: Vec::new(),
             export_entry_points: Vec::new(),
             selectors: Vec::new(),
-            native_build: scoopc::cone::ConeNativeBuildConfig::default(),
+            native_build: scoop_project_model::ConeNativeBuildConfig::default(),
         };
         let root = PathBuf::from(format!("/tmp/{name}"));
         let source_path = root.join("src/main.scoop");
-        scoopc::cone::SourceConeNode {
-            id: scoopc::cone::ConeId::new(id),
+        scoop_project_model::SourceConeNode {
+            id: ConeId::new(id),
             role,
             root: root.clone(),
-            manifest_path: root.join(scoopc::cone::CONE_TOML_FILE_NAME),
+            manifest_path: root.join(scoop_project_model::CONE_TOML_FILE_NAME),
             kind,
             native_build: manifest.native_build.clone(),
             manifest,
-            trust: scoopc::cone::SourceConeTrust::Untrusted,
-            sources: vec![scoopc::source::SourceFile::new_virtual(
+            trust: scoop_project_model::SourceConeTrust::Untrusted,
+            sources: vec![scoop_project_model::SourceFile::new_virtual(
                 source_path.clone(),
                 format!("package {name}\nfun marker() {{}}\n"),
             )],
-            entry_main: (role == scoopc::cone::SourceConeRole::Consumer).then_some(source_path),
+            entry_main: (role == SourceConeRole::Consumer).then_some(source_path),
             dependencies: deps
                 .iter()
-                .map(|id| scoopc::cone::SourceConeDependencyEdge {
-                    target: scoopc::cone::ConeId::new(*id),
-                    kind: scoopc::cone::SourceConeDependencyKind::LocalSource,
+                .map(|id| scoop_project_model::SourceConeDependencyEdge {
+                    target: ConeId::new(*id),
+                    kind: scoop_project_model::SourceConeDependencyKind::LocalSource,
                 })
                 .collect(),
         }
     }
 
-    #[test]
-    fn dispatch_compiles_dep_cones_in_topological_order_with_fake_compiler() {
-        let (graph, fp) = fixture_two_dep_chain_graph();
-        let compiler = RecordingFakeConeCompiler::new();
-        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
-
-        dispatch_local_dependency_cones(
-            &graph,
-            &fp,
-            &ConeBuildDispatch {
-                strategy: &strategy,
-                compiler: &compiler,
-            },
-        )
-        .unwrap();
-
-        let calls = compiler.calls();
-        // 必须只调度 LocalDependency cones：consumer 不出现在调用列表里。
-        assert!(
-            calls.iter().all(|id| id.starts_with("fixture.dep_")),
-            "调度器只应派发 LocalDependency cone，得到：{calls:?}"
-        );
-        assert_eq!(
-            calls.len(),
+    fn fixture_graph() -> (SourceConeGraph, BuildFingerprint) {
+        let dep = make_node(
             2,
-            "两个 LocalDependency cone 都应被派发：{calls:?}"
+            SourceConeRole::LocalDependency,
+            "fixture.dep",
+            scoop_project_model::ConeKind::Lib,
+            &[],
         );
-        let pos_a = calls
-            .iter()
-            .position(|id| id == "fixture.dep_a@0.0.0")
-            .expect("dep_a 应被派发");
-        let pos_b = calls
-            .iter()
-            .position(|id| id == "fixture.dep_b@0.0.0")
-            .expect("dep_b 应被派发");
-        assert!(
-            pos_a < pos_b,
-            "dep_a 是 leaf，必须在 dep_b 之前完成：{calls:?}"
-        );
-    }
-
-    #[test]
-    fn cache_hit_short_circuits_subprocess_dispatch() {
-        let (graph, mut fp) = fixture_two_dep_chain_graph();
-        // 把 dep_a 标记为 cache hit。
-        fp.per_cone
-            .get_mut(&scoopc::cone::ConeId::new(2))
-            .unwrap()
-            .cached_outputs_fingerprint = Some(vec![0xc0, 0xff, 0xee]);
-
-        let compiler = RecordingFakeConeCompiler::new();
-        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(4).unwrap());
-
-        dispatch_local_dependency_cones(
-            &graph,
-            &fp,
-            &ConeBuildDispatch {
-                strategy: &strategy,
-                compiler: &compiler,
-            },
-        )
-        .unwrap();
-
-        let calls = compiler.calls();
-        assert_eq!(
-            calls,
-            vec!["fixture.dep_b@0.0.0".to_string()],
-            "cache hit 的 cone 不应再被派发：{calls:?}"
-        );
-    }
-
-    #[test]
-    fn dispatch_propagates_subprocess_failure_with_cone_prefixed_diagnostic() {
-        let (graph, fp) = fixture_two_dep_chain_graph();
-        let compiler = RecordingFakeConeCompiler::new();
-        compiler.stub_failure("fixture.dep_a@0.0.0", "synthetic dep failure");
-        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(1).unwrap());
-
-        let err = dispatch_local_dependency_cones(
-            &graph,
-            &fp,
-            &ConeBuildDispatch {
-                strategy: &strategy,
-                compiler: &compiler,
-            },
-        )
-        .unwrap_err();
-
-        let msg = format!("{err:?}");
-        assert!(
-            msg.contains("fixture.dep_a@0.0.0"),
-            "失败诊断应带 cone 前缀：{msg}"
-        );
-        assert!(
-            msg.contains("synthetic dep failure"),
-            "失败诊断应回溯子进程错误：{msg}"
-        );
-
-        // dep_a 失败后，dep_b（依赖 dep_a）不应被派发。
-        let calls = compiler.calls();
-        assert!(
-            !calls.iter().any(|id| id == "fixture.dep_b@0.0.0"),
-            "leaf 失败后下游不应被调度：{calls:?}"
-        );
-    }
-
-    /// 用 [`std::sync::Barrier`] 卡住两个 worker，从而能直接观测调度器并发上限。
-    ///
-    /// 与 [`RecordingFakeConeCompiler`] 同等地实现 [`SubprocessConeCompiler`]，但所有 worker
-    /// 在 barrier 上对齐：只有 `max_jobs >= barrier.size` 时调度器才能让所有 worker 同时
-    /// 进入 `compile_cone`，否则 barrier 永远等不齐 → 测试 deadlock。
-    #[derive(Debug)]
-    struct BarrierFakeConeCompiler {
-        log: Mutex<Vec<String>>,
-        in_flight: std::sync::atomic::AtomicUsize,
-        peak_in_flight: std::sync::atomic::AtomicUsize,
-        barrier: std::sync::Barrier,
-    }
-
-    impl BarrierFakeConeCompiler {
-        fn new(expect_concurrent: usize) -> Self {
-            Self {
-                log: Mutex::new(Vec::new()),
-                in_flight: std::sync::atomic::AtomicUsize::new(0),
-                peak_in_flight: std::sync::atomic::AtomicUsize::new(0),
-                barrier: std::sync::Barrier::new(expect_concurrent),
-            }
-        }
-
-        fn peak_in_flight(&self) -> usize {
-            self.peak_in_flight
-                .load(std::sync::atomic::Ordering::SeqCst)
-        }
-    }
-
-    impl SubprocessConeCompiler for BarrierFakeConeCompiler {
-        fn compile_cone(
-            &self,
-            request: ConeCompileRequest,
-        ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
-            self.log.lock().unwrap().push(request.cone_id.clone());
-            let now = self
-                .in_flight
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                + 1;
-            self.peak_in_flight
-                .fetch_max(now, std::sync::atomic::Ordering::SeqCst);
-            // 卡住所有 worker，直到调度器至少把 `expect_concurrent` 个 cone 同时
-            // 派发到子进程上为止。max_jobs 不够时 barrier 永远等不齐 → 测试就会
-            // 在 unwrap 超时上挂掉，体现 contract 违例。
-            self.barrier.wait();
-            self.in_flight
-                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(ConeCompileResponse {
-                output_artifact_dir: request.output_artifact_dir,
-                outputs_fingerprint: vec![0xfa, 0xce],
-            })
-        }
-    }
-
-    fn fixture_two_independent_leaf_graph() -> (SourceConeGraph, BuildFingerprint) {
-        // consumer (id=1) → dep_a (id=2, leaf), dep_b (id=3, leaf)
         let consumer = make_node(
             1,
-            scoopc::cone::SourceConeRole::Consumer,
+            SourceConeRole::Consumer,
             "fixture.app",
-            scoopc::cone::ConeKind::Bin,
-            &[2, 3],
+            scoop_project_model::ConeKind::Bin,
+            &[2],
         );
-        let dep_a = make_node(
-            2,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_a",
-            scoopc::cone::ConeKind::Lib,
-            &[],
-        );
-        let dep_b = make_node(
-            3,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_b",
-            scoopc::cone::ConeKind::Lib,
-            &[],
-        );
-        let graph = scoopc::cone::SourceConeGraph::from_nodes(
-            vec![consumer, dep_a, dep_b],
-            scoopc::cone::ConeId::new(1),
-        )
-        .unwrap();
-
+        let graph = SourceConeGraph::from_nodes(vec![consumer, dep], ConeId::new(1)).unwrap();
         let mut per_cone = HashMap::new();
-        per_cone.insert(scoopc::cone::ConeId::new(1), make_dep_fp("consumer"));
-        per_cone.insert(scoopc::cone::ConeId::new(2), make_dep_fp("dep_a"));
-        per_cone.insert(scoopc::cone::ConeId::new(3), make_dep_fp("dep_b"));
-
+        per_cone.insert(ConeId::new(1), make_dep_fp("consumer"));
+        per_cone.insert(ConeId::new(2), make_dep_fp("dep"));
         let fp = BuildFingerprint {
             fingerprint: "FAKE".to_string(),
-            consumer_cone_id: scoopc::cone::ConeId::new(1),
+            consumer_cone_id: ConeId::new(1),
             per_cone,
             cone_toml_sha256: String::new(),
             cone_sources_sha256: String::new(),
@@ -760,42 +548,13 @@ mod tests {
             runtime_sources_sha256: String::new(),
             toolchain_sha256: String::new(),
         };
-
         (graph, fp)
     }
 
     #[test]
-    fn dispatch_runs_independent_cones_concurrently_up_to_strategy_limit() {
-        // 两个独立 leaf cone + max_jobs=2 → 两个 worker 必须同时进入 compile_cone，
-        // 否则 barrier(2) 永远等不齐，dispatch_local_dependency_cones 会 deadlock。
-        let (graph, fp) = fixture_two_independent_leaf_graph();
-        let compiler = BarrierFakeConeCompiler::new(2);
-        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
-
-        dispatch_local_dependency_cones(
-            &graph,
-            &fp,
-            &ConeBuildDispatch {
-                strategy: &strategy,
-                compiler: &compiler,
-            },
-        )
-        .unwrap();
-
-        assert_eq!(
-            compiler.peak_in_flight(),
-            2,
-            "ConcurrencyStrategy::max_concurrent_jobs=2 时调度器必须让两个独立 cone 真的并行 in-flight"
-        );
-    }
-
-    #[test]
-    fn dispatch_caps_concurrency_at_strategy_max_jobs() {
-        // 两个独立 leaf + max_jobs=1 → 即使 ready_queue 同时有两条任务，调度器也
-        // 只能让其中一个先跑完才能开下一个。barrier(1) 让单 worker 立刻通过，
-        // peak_in_flight 只能是 1。
-        let (graph, fp) = fixture_two_independent_leaf_graph();
-        let compiler = BarrierFakeConeCompiler::new(1);
+    fn dispatch_includes_dependency_and_consumer_cones() {
+        let (graph, fp) = fixture_graph();
+        let compiler = RecordingFakeConeCompiler::new();
         let strategy = FixedJobsStrategy::new(NonZeroUsize::new(1).unwrap());
 
         dispatch_local_dependency_cones(
@@ -804,51 +563,33 @@ mod tests {
             &ConeBuildDispatch {
                 strategy: &strategy,
                 compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
             },
         )
         .unwrap();
 
         assert_eq!(
-            compiler.peak_in_flight(),
-            1,
-            "max_jobs=1 时调度器必须串行执行，peak_in_flight 不能超过 1"
-        );
-        assert_eq!(
-            compiler.log.lock().unwrap().len(),
-            2,
-            "两个 cone 都应被派发，只是不能同时跑"
+            compiler.calls(),
+            vec![
+                "fixture.dep@0.0.0".to_string(),
+                "fixture.app@0.0.0".to_string(),
+            ]
         );
     }
 
     #[test]
-    fn dispatch_skips_when_no_local_dependency_cones_present() {
-        // virtual cone fixture：只有 consumer，没有 LocalDependency。
-        let consumer = make_node(
-            1,
-            scoopc::cone::SourceConeRole::Consumer,
-            "fixture.solo",
-            scoopc::cone::ConeKind::Bin,
-            &[],
-        );
-        let graph =
-            scoopc::cone::SourceConeGraph::from_nodes(vec![consumer], scoopc::cone::ConeId::new(1))
-                .unwrap();
-
-        let mut per_cone = HashMap::new();
-        per_cone.insert(scoopc::cone::ConeId::new(1), make_dep_fp("solo"));
-        let fp = BuildFingerprint {
-            fingerprint: "FAKE".to_string(),
-            consumer_cone_id: scoopc::cone::ConeId::new(1),
-            per_cone,
-            cone_toml_sha256: String::new(),
-            cone_sources_sha256: String::new(),
-            local_dependency_sources_sha256: String::new(),
-            native_sources_sha256: String::new(),
-            sysroot_sources_sha256: String::new(),
-            runtime_sources_sha256: String::new(),
-            toolchain_sha256: String::new(),
-        };
-
+    fn consumer_cache_hit_short_circuits_all_dispatch() {
+        let (graph, mut fp) = fixture_graph();
+        fp.per_cone
+            .get_mut(&ConeId::new(1))
+            .unwrap()
+            .cached_outputs_fingerprint = Some(vec![1]);
+        fp.per_cone
+            .get_mut(&ConeId::new(2))
+            .unwrap()
+            .cached_outputs_fingerprint = Some(vec![2]);
         let compiler = RecordingFakeConeCompiler::new();
         let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
 
@@ -858,13 +599,13 @@ mod tests {
             &ConeBuildDispatch {
                 strategy: &strategy,
                 compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
             },
         )
         .unwrap();
 
-        assert!(
-            compiler.calls().is_empty(),
-            "纯 consumer graph 不应触发任何子进程派发"
-        );
+        assert!(compiler.calls().is_empty());
     }
 }

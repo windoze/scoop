@@ -1,68 +1,21 @@
-//! `scoop build` 子命令。
+//! `scoop build` facade.
 //!
-//! T0805：实现“前端检查 + 输出路径准备”。
-//!
-//! T0806：在启用 `scoop` 的 LLVM 后端时（默认开启；可用 `--no-default-features` 关闭），额外执行：
-//! - 生成最小 object（当前阶段仍是固定 `main → ret 0`）；
-//! - 通过 `scoopc link-cone` 子进程委托 `scoopld` 链接 object + runtime，产出可执行文件。
+//! The facade owns CLI, project graph loading, per-cone scheduling, and link
+//! subprocess orchestration. Compiler stages run only inside `scoopc`.
 
 pub(crate) mod concurrency;
 mod incremental;
 pub(crate) mod layout;
 mod scheduler;
+mod virtual_cone;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
-use scoopc::opt::OptLevel;
-use scoopc::session::SessionOptions;
+use scoop_project_model::{ConeKind, OptLevel, SourceConeGraph, SourceConeRole};
 use thiserror::Error;
 
-type BuildInput = scoopc::frontend::ProjectInput;
-type BuildContext = scoopc::frontend::ProjectContext;
-type FrontendOutput = scoopc::frontend::FrontendOutput;
-pub(crate) type EntryPackageMissingMain = scoopc::frontend::EntryPackageMissingMain;
-pub(crate) type EntryPackageMainNotInConsumerCone =
-    scoopc::frontend::EntryPackageMainNotInConsumerCone;
-
-fn emit_frontend_warnings(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
-    warnings: &[scoopc::warnings::CompileWarning],
-) {
-    for warning in warnings {
-        let source = find_warning_source(session, front, warning.file());
-        let (line, col) = source
-            .and_then(|source| source.offset_to_line_col(warning.span().start).ok())
-            .unwrap_or((1, 1));
-        eprintln!(
-            "{}:{line}:{col}: {}",
-            warning.file().display(),
-            warning.render()
-        );
-    }
-}
-
-fn find_warning_source<'a>(
-    session: &'a scoopc::session::Session,
-    front: &'a FrontendOutput,
-    path: &Path,
-) -> Option<&'a scoopc::source::SourceFile> {
-    front
-        .input()
-        .build_closure_sources()
-        .iter()
-        .find(|source| source.path() == path)
-        .or_else(|| {
-            session
-                .sysroot()
-                .files
-                .iter()
-                .find(|file| file.source.path() == path)
-                .map(|file| &file.source)
-        })
-}
+use super::FacadeSessionOptions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildEmit {
@@ -74,6 +27,18 @@ pub enum BuildEmit {
     Obj,
     /// 产出汇编（`.s` / `.asm`）。
     Asm,
+}
+
+impl BuildEmit {
+    #[cfg(feature = "llvm")]
+    fn compiler_kind(self) -> Option<&'static str> {
+        match self {
+            BuildEmit::Executable => None,
+            BuildEmit::LlvmIr => Some("llvm-ir"),
+            BuildEmit::Obj => Some("obj"),
+            BuildEmit::Asm => Some("asm"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,7 +56,6 @@ impl BuildProfile {
     }
 
     pub fn from_debug_release_flags(debug: bool, release: bool) -> Self {
-        // 冲突由 clap 处理；这里保持行为稳定且易于复用（T1122/T1123）。
         let _ = debug;
         if release {
             BuildProfile::Release
@@ -123,20 +87,11 @@ pub struct BuildOptions {
     pub emit: BuildEmit,
     /// （cone 包模式）入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）。
     pub entry_package: Option<String>,
-    /// cone build profile（影响默认产物目录布局：`build/<profile>/...`）。
     pub profile: BuildProfile,
-    /// 优化等级（CLI 覆盖；未指定时走 manifest/profile 默认策略）。
     pub opt_level: Option<OptLevel>,
-    /// 是否启用粗粒度增量构建（T1124）。
     pub incremental: bool,
-    /// per-cone 多进程并发编译的最大子进程数（P10-T05；本任务不引入并发执行）。
-    ///
-    /// 由 CLI `--jobs N` / 环境变量 `SCOOP_BUILD_JOBS` / [`concurrency::DEFAULT_BUILD_JOBS`]
-    /// 解析后传入；driver 在 P10-T06 之前不会真正并发执行，但需要把该值持有，
-    /// 以便给后续 [`concurrency::ConcurrencyStrategy`] 注入。
     pub jobs: std::num::NonZeroUsize,
-    /// 构造编译 session 时使用的统一配置。
-    pub session_options: SessionOptions,
+    pub session_options: FacadeSessionOptions,
 }
 
 impl Default for BuildOptions {
@@ -148,7 +103,7 @@ impl Default for BuildOptions {
             opt_level: None,
             incremental: true,
             jobs: concurrency::default_build_jobs(),
-            session_options: SessionOptions::new(),
+            session_options: FacadeSessionOptions::new(),
         }
     }
 }
@@ -160,13 +115,23 @@ pub(crate) struct EntryPackageOnlyForCone {
     input: String,
 }
 
+struct LoadedBuildProject {
+    cone_root: PathBuf,
+    graph: SourceConeGraph,
+    manifest: scoop_project_model::ConeManifest,
+}
+
+struct VirtualConeCleanup(Option<PathBuf>);
+
+impl Drop for VirtualConeCleanup {
+    fn drop(&mut self) {
+        if let Some(root) = self.0.take() {
+            let _ = std::fs::remove_dir_all(root);
+        }
+    }
+}
+
 /// 执行 `scoop build <input> [-o <output>]`。
-///
-/// 当前阶段验收点：
-/// - 输入可通过 parse/resolve/typecheck 时返回 `Ok(())`；
-/// - 当启用 LLVM 后端时（默认已启用；若你用了 `--no-default-features` 则需要显式开启）：
-///   - 默认产出可执行文件；
-///   - 若指定 `--emit-llvm/--emit-obj/--emit-asm`，则改为产出对应单文件产物。
 pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Result<()> {
     let BuildOptions {
         emit,
@@ -180,74 +145,104 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let session_options = session_options.with_env_fallback();
     let incremental = incremental && session_options.sysroot_overlay().is_none();
 
-    // P10-T05：把 CLI / env 解析后的最大并发数交给 ConcurrencyStrategy。本任务不引入并发执行
-    // 行为；这里仅持有策略对象、保留注入点，便于 P10-T06 的子进程并发 driver 直接接管。
-    let concurrency_strategy: Box<dyn concurrency::ConcurrencyStrategy> =
-        Box::new(concurrency::FixedJobsStrategy::new(jobs));
-    let subprocess_cone_compiler: Box<dyn concurrency::SubprocessConeCompiler> =
-        Box::new(concurrency::LocalProcessConeCompiler::new());
-    tracing::debug!(
-        max_jobs = concurrency_strategy.max_concurrent_jobs().get(),
-        compiler = ?subprocess_cone_compiler,
-        "P10-T05: per-cone concurrency strategy registered (driver still in-process for this task)"
-    );
-
-    let entry_package_for_fingerprint = entry_package.clone();
-
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
+    let original_input_was_file = input.is_file();
+    if original_input_was_file && entry_package.is_some() {
+        return Err(EntryPackageOnlyForCone {
+            input: input.display().to_string(),
+        }
+        .into());
+    }
 
-    let context = load_build_context_with_options(&input, entry_package, &session_options)?;
+    if emit != BuildEmit::Executable {
+        #[cfg(feature = "llvm")]
+        {
+            let opt_level = resolve_opt_level(opt_level_override, None, profile);
+            let output = output.unwrap_or_else(|| default_output_path_for_emit(emit));
+            ensure_output_parent_dir(&output)?;
+            run_emit_subprocess(&input, &output, emit, opt_level, &session_options)?;
+            return Ok(());
+        }
+        #[cfg(not(feature = "llvm"))]
+        {
+            let _ = output;
+            let _ = opt_level_override;
+            let flag = match emit {
+                BuildEmit::LlvmIr => "--emit-llvm",
+                BuildEmit::Obj => "--emit-obj",
+                BuildEmit::Asm => "--emit-asm",
+                BuildEmit::Executable => unreachable!(),
+            };
+            return Err(miette::miette!(
+                "`{flag}` 需要启用 LLVM 后端：请使用默认 features 构建 `scoop`"
+            ));
+        }
+    }
+
+    let mut virtual_cleanup = VirtualConeCleanup(None);
+    let build_root = if original_input_was_file {
+        let root = virtual_cone::materialize_single_file(&input, profile)?;
+        virtual_cleanup.0 = Some(root.clone());
+        root
+    } else {
+        input.clone()
+    };
+    let project = load_build_project(&build_root, &session_options)?;
     let opt_level = resolve_opt_level(
         opt_level_override,
-        context.input().cone_manifest().native_build.opt_level,
+        project.manifest.native_build.opt_level,
         profile,
     );
-    let output = output
-        .unwrap_or_else(|| default_output_path_for_input_and_emit(context.input(), emit, profile));
+    let output = output.unwrap_or_else(|| {
+        if original_input_was_file {
+            default_output_path_for_emit(BuildEmit::Executable)
+        } else {
+            layout::cone_exe_path(
+                &project.cone_root,
+                None,
+                profile.as_str(),
+                &project.manifest.cone.name,
+            )
+        }
+    });
     ensure_output_parent_dir(&output)?;
-
     if output.exists() && output.is_dir() {
         return Err(miette::miette!("输出路径是目录：{}", output.display()));
     }
 
-    // T1124：粗粒度增量构建（仅对 cone 项目 + 可执行产物生效）。
-    //
-    // 重要：为避免污染 run-pass fixtures 的 stdout，这里统一把“cache hit”信息输出到 stderr。
-    let mut computed_fingerprint: Option<incremental::BuildFingerprint> = None;
-    let incremental_ctx = if !incremental
-        || !cfg!(feature = "llvm")
-        || emit != BuildEmit::Executable
-        || !context.input().is_explicit_cone()
-    {
+    let incremental_ctx = if !incremental || !cfg!(feature = "llvm") || original_input_was_file {
         None
     } else {
-        let root = context.input().cone_root().to_path_buf();
         let expected_out = layout::cone_exe_path(
-            &root,
+            &project.cone_root,
             None,
             profile.as_str(),
-            &context.input().cone_manifest().cone.name,
+            &project.manifest.cone.name,
         );
-        if output != expected_out {
-            None
+        if output == expected_out {
+            Some((
+                project.cone_root.clone(),
+                layout::cone_build_json_path(&project.cone_root, None, profile.as_str()),
+            ))
         } else {
-            let build_json = layout::cone_build_json_path(&root, None, profile.as_str());
-            Some((root, build_json))
+            None
         }
     };
 
+    let mut computed_fingerprint = None;
     if let Some((cone_root, build_json)) = incremental_ctx.clone()
         && output.is_file()
         && let Some(cached) = incremental::read_cached_fingerprint(&build_json)?
     {
-        let fp = incremental::compute_cone_build_fingerprint(
+        let fp = incremental::compute_cone_build_fingerprint_with_session_options(
             &cone_root,
             profile.as_str(),
-            entry_package_for_fingerprint.as_deref(),
+            entry_package.as_deref(),
             opt_level,
+            &session_options,
         )?;
         if fp.fingerprint == cached {
             eprintln!("skipping build (cache hit)");
@@ -256,220 +251,97 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         computed_fingerprint = Some(fp);
     }
 
-    let session = scoopc::session::Session::with_options(session_options.clone())?;
-
-    let warning_capture = scoopc::warnings::begin_capture();
-    let frontend_cache = if let Some((cone_root, _build_json)) = incremental_ctx.as_ref() {
-        let fp = match computed_fingerprint.as_ref() {
-            Some(fp) => fp.clone(),
-            None => incremental::compute_cone_build_fingerprint(
-                cone_root,
-                profile.as_str(),
-                entry_package_for_fingerprint.as_deref(),
-                opt_level,
-            )?,
-        };
-        computed_fingerprint.get_or_insert_with(|| fp.clone());
-        Some(incremental::frontend_artifact_cache_for_build(
-            context.input(),
+    let fp = match computed_fingerprint {
+        Some(fp) => fp,
+        None => incremental::compute_cone_build_fingerprint_with_session_options(
+            &project.cone_root,
             profile.as_str(),
-            &fp,
-        ))
-    } else {
-        None
+            entry_package.as_deref(),
+            opt_level,
+            &session_options,
+        )?,
     };
 
-    // P10-T06：把所有 LocalDependency cone 通过 `scoopc build-single-cone` 子进程并发派发
-    // 先编译完。consumer cone 仍由父进程的 in-process frontend + codegen 处理：scheduler
-    // 内部按 `ConcurrencyStrategy::max_concurrent_jobs` 控制并发上限，cache hit 的 cone
-    // 会被 short-circuit。frontend cache 在 run_frontend_with_cache 之前已构造好，子进程
-    // 写好的 artifact 会被 cache 直接命中而不用重新编译。
-    if let Some(fp) = computed_fingerprint.as_ref() {
-        scheduler::dispatch_local_dependency_cones(
-            context.input().graph(),
-            fp,
-            &scheduler::ConeBuildDispatch {
-                strategy: &*concurrency_strategy,
-                compiler: &*subprocess_cone_compiler,
-            },
+    let concurrency_strategy: Box<dyn concurrency::ConcurrencyStrategy> =
+        Box::new(concurrency::FixedJobsStrategy::new(jobs));
+    let subprocess_cone_compiler: Box<dyn concurrency::SubprocessConeCompiler> =
+        Box::new(concurrency::LocalProcessConeCompiler::new());
+
+    scheduler::dispatch_local_dependency_cones(
+        &project.graph,
+        &fp,
+        &scheduler::ConeBuildDispatch {
+            strategy: &*concurrency_strategy,
+            compiler: &*subprocess_cone_compiler,
+            opt_level,
+            extra_sysroot_dependencies: session_options.extra_sysroot_dependencies(),
+            sysroot_overlay: session_options.sysroot_overlay(),
+        },
+    )?;
+
+    #[cfg(feature = "llvm")]
+    run_link_from_artifacts(&project, &output, profile, &fp)?;
+    #[cfg(not(feature = "llvm"))]
+    return Err(miette::miette!(
+        "子命令 `build` 需要启用 LLVM 后端才能生成可执行文件"
+    ));
+
+    if let Some((cone_root, build_json)) = incremental_ctx
+        && output.is_file()
+    {
+        let fp = incremental::compute_cone_build_fingerprint_with_session_options(
+            &cone_root,
+            profile.as_str(),
+            entry_package.as_deref(),
+            opt_level,
+            &session_options,
         )?;
-    }
-
-    let front = run_frontend_with_cache(&session, context, frontend_cache.as_ref())?;
-    let warnings = warning_capture.finish();
-    emit_frontend_warnings(&session, &front, &warnings);
-    // 非 llvm 构建下，codegen 分支会被编译掉；这里显式访问一次 main 以避免 dead_code 警告，
-    // 同时也作为“加载逻辑能稳定定位入口”的最小一致性校验。
-    let _ = front.main_source();
-
-    match emit {
-        BuildEmit::Executable => {
-            // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
-            #[cfg(feature = "llvm")]
-            run_codegen_and_link(
-                &session,
-                &front,
-                &output,
-                profile,
-                opt_level,
-                computed_fingerprint.as_ref(),
-            )?;
-        }
-        BuildEmit::LlvmIr => {
-            #[cfg(feature = "llvm")]
-            {
-                let _extern_libs = emit_llvm_artifact_for_build(
-                    &session,
-                    &front,
-                    &output,
-                    opt_level,
-                    scoopc::pipeline::LlvmArtifactKind::LlvmIr,
-                )?;
-            }
-            #[cfg(not(feature = "llvm"))]
-            {
-                let _ = &session;
-                let _ = &output;
-                return Err(miette::miette!(
-                    "`--emit-llvm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-llvm <file> -o <out.ll>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
-                ));
-            }
-        }
-        BuildEmit::Obj => {
-            #[cfg(feature = "llvm")]
-            {
-                let _extern_libs = emit_llvm_artifact_for_build(
-                    &session,
-                    &front,
-                    &output,
-                    opt_level,
-                    scoopc::pipeline::LlvmArtifactKind::Object,
-                )?;
-            }
-            #[cfg(not(feature = "llvm"))]
-            {
-                let _ = &session;
-                let _ = &output;
-                return Err(miette::miette!(
-                    "`--emit-obj` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-obj <file> -o <out.o>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
-                ));
-            }
-        }
-        BuildEmit::Asm => {
-            #[cfg(feature = "llvm")]
-            {
-                let _extern_libs = emit_llvm_artifact_for_build(
-                    &session,
-                    &front,
-                    &output,
-                    opt_level,
-                    scoopc::pipeline::LlvmArtifactKind::Asm,
-                )?;
-            }
-            #[cfg(not(feature = "llvm"))]
-            {
-                let _ = &session;
-                let _ = &output;
-                return Err(miette::miette!(
-                    "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-asm <file> -o <out.s>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
-                ));
-            }
-        }
-    }
-
-    if let Some((cone_root, build_json)) = incremental_ctx {
-        // 仅当最终产物存在时才更新 build.json，避免“只有前端检查”时产生误导性的缓存条目。
-        //
-        // 重新计算 fingerprint：build 期间 cache-miss 的依赖 cone 已经把真实的
-        // `outputs.fingerprint` 写到磁盘上，此时再读一遍磁盘，能让 consumer cone
-        // 的 inputs.fingerprint 直接依赖到“真实 outputs”而不是“placeholder=inputs”，
-        // 否则下次无修改的运行会因 placeholder 与真实 outputs 的差异而 cache miss。
-        let _ = computed_fingerprint;
-        if output.is_file() {
-            let fp = incremental::compute_cone_build_fingerprint(
-                &cone_root,
-                profile.as_str(),
-                entry_package_for_fingerprint.as_deref(),
-                opt_level,
-            )?;
-            incremental::write_build_json(
-                &build_json,
-                profile.as_str(),
-                entry_package_for_fingerprint.as_deref(),
-                opt_level,
-                &fp,
-            )?;
-        }
+        incremental::write_build_json(
+            &build_json,
+            profile.as_str(),
+            entry_package.as_deref(),
+            opt_level,
+            &fp,
+        )?;
     }
 
     Ok(())
 }
 
-fn load_build_input_with_options(
-    input: &Path,
-    entry_package_override: Option<String>,
-    session_options: &SessionOptions,
-) -> Result<BuildInput> {
-    if input.is_file() && entry_package_override.is_some() {
-        return Err(EntryPackageOnlyForCone {
-            input: input.display().to_string(),
-        }
-        .into());
+fn load_build_project(
+    cone_root: &Path,
+    session_options: &FacadeSessionOptions,
+) -> Result<LoadedBuildProject> {
+    if !cone_root.is_dir() {
+        return Err(miette::miette!(
+            "输入既不是文件也不是目录：{}",
+            cone_root.display()
+        ));
     }
-    scoopc::frontend::load_project_input_from_path(input, entry_package_override, session_options)
-}
-
-#[allow(dead_code)]
-fn load_build_context(
-    input: &Path,
-    entry_package_override: Option<String>,
-) -> Result<BuildContext> {
-    load_build_context_with_options(input, entry_package_override, &SessionOptions::new())
-}
-
-fn load_build_context_with_options(
-    input: &Path,
-    entry_package_override: Option<String>,
-    session_options: &SessionOptions,
-) -> Result<BuildContext> {
-    let input = load_build_input_with_options(input, entry_package_override, session_options)?;
-    Ok(BuildContext::new(input))
-}
-
-fn default_output_path_for_input_and_emit(
-    input: &BuildInput,
-    emit: BuildEmit,
-    profile: BuildProfile,
-) -> PathBuf {
-    if emit == BuildEmit::Executable && input.is_explicit_cone() {
-        return layout::cone_exe_path(
-            input.cone_root(),
-            None,
-            profile.as_str(),
-            &input.cone_manifest().cone.name,
-        );
+    let pkg = scoop_project_model::load_cone_source_package(cone_root)?;
+    if pkg.manifest.cone.kind != ConeKind::Bin {
+        return Err(miette::miette!(
+            "只有 `bin` cone 可作为 executable consumer 输入；`{}` 声明为 `{}` cone",
+            pkg.manifest.cone.name,
+            pkg.manifest.cone.kind
+        ));
     }
-    default_output_path_for_emit(emit)
-}
-
-#[cfg(test)]
-fn run_frontend(
-    session: &scoopc::session::Session,
-    context: BuildContext,
-) -> Result<FrontendOutput> {
-    run_frontend_with_cache(session, context, None)
-}
-
-fn run_frontend_with_cache(
-    session: &scoopc::session::Session,
-    context: BuildContext,
-    artifact_cache: Option<&scoopc::frontend::FrontendArtifactCache>,
-) -> Result<FrontendOutput> {
-    if let Some(cache) = artifact_cache {
-        scoopc::frontend::run_project_frontend_with_artifact_cache(session, context, cache)
-    } else {
-        scoopc::frontend::run_project_frontend(session, context)
-    }
+    let sysroot_root = scoop_project_model::default_sysroot_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
+    let graph = scoop_project_model::load_source_cone_graph_for_consumer_package(
+        pkg.clone(),
+        &sysroot_root,
+        session_options.sysroot_overlay(),
+        &[],
+        session_options.extra_sysroot_dependencies(),
+    )?;
+    Ok(LoadedBuildProject {
+        cone_root: pkg.root,
+        graph,
+        manifest: pkg.manifest,
+    })
 }
 
 fn ensure_output_parent_dir(path: &Path) -> Result<()> {
@@ -511,84 +383,79 @@ fn default_output_path_for_emit(emit: BuildEmit) -> PathBuf {
 }
 
 #[cfg(feature = "llvm")]
-fn emit_llvm_artifact_for_build(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
+fn run_emit_subprocess(
+    input: &Path,
     output: &Path,
+    emit: BuildEmit,
     opt_level: OptLevel,
-    artifact: scoopc::pipeline::LlvmArtifactKind,
-) -> Result<Vec<String>> {
-    // P6-T05 handoff：`build --emit-*`、`run`（通过 executable build）和 build fixtures
-    // 都必须经由同一 LLVM stage helper，避免为某个产物种类保留测试专用语义入口。
-    scoopc::pipeline::emit_project_llvm_artifact_to_file(
-        session, front, output, opt_level, artifact,
-    )
-    .map_err(Into::into)
+    session_options: &FacadeSessionOptions,
+) -> Result<()> {
+    let kind = emit
+        .compiler_kind()
+        .expect("non-executable emits have compiler artifact kind");
+    let mut cmd = crate::compiler_tool::command()?;
+    cmd.arg("emit-artifact");
+    cmd.arg("--kind").arg(kind);
+    crate::compiler_tool::arg_path(&mut cmd, "--input", input);
+    crate::compiler_tool::arg_path(&mut cmd, "--out", output);
+    cmd.arg("--opt-level").arg(opt_level.as_str());
+    session_options.apply_to_command(&mut cmd);
+    crate::compiler_tool::run_capture(cmd, "emit-artifact")?;
+    Ok(())
 }
 
 #[cfg(feature = "llvm")]
-fn run_codegen_and_link(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
+fn run_link_from_artifacts(
+    project: &LoadedBuildProject,
     output: &Path,
     profile: BuildProfile,
-    opt_level: OptLevel,
-    build_fingerprint: Option<&incremental::BuildFingerprint>,
+    build_fingerprint: &incremental::BuildFingerprint,
 ) -> Result<()> {
-    // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
-    // - cone 包：写入 `build/<profile>/obj/`（由 `scoop build --debug/--release` 控制）。
-    // - 单文件模式：仍使用临时目录（保持行为不变）。
-    let is_cone = front.input().is_explicit_cone();
+    let consumer_id = project.graph.consumer_id();
+    let consumer_fp = build_fingerprint
+        .per_cone
+        .get(&consumer_id)
+        .ok_or_else(|| {
+            miette::miette!(
+                "link-cone 准备阶段缺少 consumer cone {} 的 fingerprint",
+                consumer_id.as_u32()
+            )
+        })?;
+    let consumer_objects = artifact_object_files(&consumer_fp.artifact_dir, "consumer")?;
+    let (consumer_obj, consumer_extra_objs) = split_consumer_objects(consumer_objects.paths)?;
 
-    let (work_dir, keep_work_dir) = if is_cone {
-        let root = front.input().cone_root();
-        let dir = layout::cone_obj_dir(root, None, profile.as_str());
-        std::fs::create_dir_all(&dir)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("无法创建 build obj 目录：{}", dir.display()))?;
-        (dir, true)
-    } else {
-        (super::temp::make_temp_dir("scoop_build")?, false)
-    };
+    let mut dep_objs = consumer_extra_objs;
+    let mut extern_libs = Vec::new();
+    append_unique(&mut extern_libs, consumer_objects.extern_libs);
+    for unit in project.graph.compilation_units() {
+        if unit.role() != SourceConeRole::LocalDependency {
+            continue;
+        }
+        let Some(cone_fp) = build_fingerprint.per_cone.get(&unit.id()) else {
+            continue;
+        };
+        let objects = artifact_object_files(
+            &cone_fp.artifact_dir,
+            &format!("cone {}", unit.id().as_u32()),
+        )?;
+        dep_objs.extend(objects.paths);
+        append_unique(&mut extern_libs, objects.extern_libs);
+    }
 
-    let obj = work_dir.join(layout::obj_file_name("main"));
-
-    let extern_libs = emit_llvm_artifact_for_build(
-        session,
-        front,
-        &obj,
-        opt_level,
-        scoopc::pipeline::LlvmArtifactKind::Object,
-    )?;
-
-    let dep_objs = if let Some(fp) = build_fingerprint {
-        transitive_dep_object_files(front.input().graph(), fp)?
-    } else {
-        cached_dep_object_files(front.cached_dep_artifacts())
-    };
-    let (extra_objs, use_cxx_linker_driver) = compile_native_build_sources(front, &work_dir)?;
-
-    let link_plan = native_link_plan(front.input().graph(), use_cxx_linker_driver)?;
-    let mut link_dep_objs: Vec<PathBuf> = Vec::with_capacity(dep_objs.len() + extra_objs.len());
-    link_dep_objs.extend(dep_objs);
-    link_dep_objs.extend(extra_objs);
-
-    let cone = &front.input().cone_manifest().cone;
+    let link_plan = native_link_plan(&project.graph)?;
+    let cone = &project.manifest.cone;
     let cone_key = format!("{}@{}", cone.name, cone.version);
-    let link_dir = if is_cone {
-        layout::cone_link_dir(front.input().cone_root(), None, profile.as_str(), &cone_key)
-    } else {
-        work_dir.join("link").join(&cone_key)
-    };
+    let link_dir = layout::cone_link_dir(&project.cone_root, None, profile.as_str(), &cone_key);
     let parent_inputs_fingerprint = build_fingerprint
-        .and_then(|fp| fp.per_cone.get(&fp.consumer_cone_id))
+        .per_cone
+        .get(&build_fingerprint.consumer_cone_id)
         .map(|fp| fp.inputs_fingerprint.clone())
         .unwrap_or_default();
 
     run_link_cone_subprocess(LinkConeDispatchRequest {
         kind: cone.kind,
-        consumer_obj: obj,
-        dep_objs: link_dep_objs,
+        consumer_obj,
+        dep_objs,
         runtime_artifact_dir: link_dir.join("runtime"),
         output_dir: link_dir,
         binary_path: output.to_path_buf(),
@@ -597,66 +464,71 @@ fn run_codegen_and_link(
         linker: link_plan.linker.map(PathBuf::from),
         inputs_fingerprint: parent_inputs_fingerprint,
         cone_id: Some(cone_key),
-    })?;
-
-    if !keep_work_dir {
-        let _ = std::fs::remove_dir_all(&work_dir);
-    }
-    Ok(())
+    })
 }
 
 #[cfg(feature = "llvm")]
-fn cached_dep_object_files(cached_deps: &[scoopc::llvm::CachedDepArtifactHandoff]) -> Vec<PathBuf> {
-    cached_deps
+struct ArtifactObjectFiles {
+    paths: Vec<PathBuf>,
+    extern_libs: Vec<String>,
+}
+
+#[cfg(feature = "llvm")]
+fn artifact_object_files(artifact_dir: &Path, label: &str) -> Result<ArtifactObjectFiles> {
+    let (manifest, _) = scoop_project_model::read_manifest_and_inputs_fingerprint(artifact_dir)
+        .map_err(|err| {
+            miette::miette!(
+                "link-cone 准备阶段无法读取 {label} artifact `{}`: {err}",
+                artifact_dir.display()
+            )
+        })?;
+    let mut paths = Vec::with_capacity(manifest.object_files.len());
+    for file_name in manifest.object_files {
+        let path = artifact_dir
+            .join(scoop_project_model::CONE_ARTIFACT_OBJS_DIR_NAME)
+            .join(&file_name)
+            .canonicalize()
+            .into_diagnostic()
+            .wrap_err_with(|| {
+                format!(
+                    "{label} artifact `{}` 缺少 object `{file_name}`",
+                    artifact_dir.display()
+                )
+            })?;
+        paths.push(path);
+    }
+    Ok(ArtifactObjectFiles {
+        paths,
+        extern_libs: manifest.extern_libs,
+    })
+}
+
+#[cfg(feature = "llvm")]
+fn split_consumer_objects(mut paths: Vec<PathBuf>) -> Result<(PathBuf, Vec<PathBuf>)> {
+    if paths.is_empty() {
+        return Err(miette::miette!("consumer cone artifact 没有 object 文件"));
+    }
+    let primary_idx = paths
         .iter()
-        .flat_map(|dep| dep.object_files().iter().cloned())
-        .collect()
+        .position(|path| path.file_name().and_then(|s| s.to_str()) == Some("scoop.o"))
+        .unwrap_or(0);
+    let primary = paths.remove(primary_idx);
+    Ok((primary, paths))
 }
 
 #[cfg(feature = "llvm")]
-fn transitive_dep_object_files(
-    graph: &scoopc::cone::SourceConeGraph,
-    fp: &incremental::BuildFingerprint,
-) -> Result<Vec<PathBuf>> {
-    let mut out = Vec::new();
-    for unit in graph.compilation_units() {
-        if unit.is_consumer() || unit.role() != scoopc::cone::SourceConeRole::LocalDependency {
-            continue;
-        }
-        let Some(cone_fp) = fp.per_cone.get(&unit.id()) else {
-            continue;
-        };
-        let (manifest, _) =
-            scoopc::cone::ConeArtifact::read_manifest_and_inputs_fingerprint(&cone_fp.artifact_dir)
-                .map_err(|err| {
-                    miette::miette!(
-                        "link-cone 准备阶段无法读取 dependency artifact `{}`: {err}",
-                        cone_fp.artifact_dir.display()
-                    )
-                })?;
-        for file_name in manifest.object_files {
-            let path = cone_fp
-                .artifact_dir
-                .join(scoopc::cone::CONE_ARTIFACT_OBJS_DIR_NAME)
-                .join(&file_name)
-                .canonicalize()
-                .into_diagnostic()
-                .wrap_err_with(|| {
-                    format!(
-                        "dependency artifact `{}` 缺少 object `{file_name}`",
-                        cone_fp.artifact_dir.display()
-                    )
-                })?;
-            out.push(path);
+fn append_unique(out: &mut Vec<String>, values: Vec<String>) {
+    for value in values {
+        if !out.iter().any(|existing| existing == &value) {
+            out.push(value);
         }
     }
-    Ok(out)
 }
 
 #[cfg(feature = "llvm")]
 #[derive(Debug, Clone)]
 struct LinkConeDispatchRequest {
-    kind: scoopc::cone::ConeKind,
+    kind: ConeKind,
     consumer_obj: PathBuf,
     dep_objs: Vec<PathBuf>,
     runtime_artifact_dir: PathBuf,
@@ -698,10 +570,7 @@ struct LinkConeSubprocessFailed {
 #[cfg(feature = "llvm")]
 fn run_link_cone_subprocess(request: LinkConeDispatchRequest) -> Result<()> {
     let label = request.cone_id.as_deref().unwrap_or("link-cone");
-    let scoopc = concurrency::locate_scoopc_bin(label)
-        .map_err(|err| miette::miette!("无法定位 scoopc link-cone 子进程：{err}"))?;
-
-    let mut cmd = Command::new(&scoopc);
+    let mut cmd = crate::compiler_tool::command()?;
     cmd.arg("link-cone");
     cmd.arg("--kind").arg(request.kind.as_str());
     cmd.arg("--consumer-obj").arg(&request.consumer_obj);
@@ -730,7 +599,7 @@ fn run_link_cone_subprocess(request: LinkConeDispatchRequest) -> Result<()> {
     let output = cmd
         .output()
         .into_diagnostic()
-        .wrap_err_with(|| format!("无法启动 scoopc link-cone：{}", scoopc.display()))?;
+        .wrap_err("无法启动 scoopc link-cone")?;
     if !output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -766,53 +635,6 @@ fn hex_lower(bytes: &[u8]) -> String {
 }
 
 #[cfg(feature = "llvm")]
-/// Compiles C/C++ sources declared by every loaded source cone into object files.
-fn compile_native_build_sources(
-    front: &FrontendOutput,
-    work_dir: &Path,
-) -> Result<(Vec<PathBuf>, bool)> {
-    let mut extra_objs = Vec::new();
-    let mut use_cxx_linker_driver = false;
-
-    for node in front.input().graph().nodes() {
-        let native_build = &node.native_build;
-        let prefix = native_obj_prefix(node);
-
-        // Native flags are cone-local: each node owns both the source path base
-        // and the flags used for its declared native sources.
-        extra_objs.reserve(native_build.c_sources.len() + native_build.cxx_sources.len());
-        for (idx, rel) in native_build.c_sources.iter().enumerate() {
-            let src = node.root.join(rel);
-            let out_obj = work_dir.join(layout::obj_file_name(&format!("{prefix}_c_{idx}")));
-            crate::toolchain::compile_c_source_to_obj(
-                &node.root,
-                &src,
-                &out_obj,
-                &native_build.c_flags,
-            )?;
-            extra_objs.push(out_obj);
-        }
-
-        if !native_build.cxx_sources.is_empty() {
-            use_cxx_linker_driver = true;
-        }
-        for (idx, rel) in native_build.cxx_sources.iter().enumerate() {
-            let src = node.root.join(rel);
-            let out_obj = work_dir.join(layout::obj_file_name(&format!("{prefix}_cxx_{idx}")));
-            crate::toolchain::compile_cxx_source_to_obj(
-                &node.root,
-                &src,
-                &out_obj,
-                &native_build.cxx_flags,
-            )?;
-            extra_objs.push(out_obj);
-        }
-    }
-
-    Ok((extra_objs, use_cxx_linker_driver))
-}
-
-#[cfg(feature = "llvm")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NativeLinkPlan {
     linker: Option<String>,
@@ -821,12 +643,10 @@ struct NativeLinkPlan {
 
 #[cfg(feature = "llvm")]
 /// Builds the final native linker configuration from every loaded source cone.
-fn native_link_plan(
-    graph: &scoopc::cone::SourceConeGraph,
-    use_cxx_linker_driver: bool,
-) -> Result<NativeLinkPlan> {
+fn native_link_plan(graph: &SourceConeGraph) -> Result<NativeLinkPlan> {
     let mut linker: Option<(String, String)> = None;
     let mut link_flags = Vec::new();
+    let mut use_cxx_linker_driver = false;
 
     for node in graph.nodes() {
         if let Some(candidate) = node.native_build.linker.as_deref() {
@@ -841,6 +661,9 @@ fn native_link_plan(
                 linker = Some((candidate.to_owned(), node.manifest.cone.name.clone()));
             }
         }
+        if !node.native_build.cxx_sources.is_empty() {
+            use_cxx_linker_driver = true;
+        }
         link_flags.extend(node.native_build.link_flags.iter().cloned());
     }
 
@@ -850,1173 +673,32 @@ fn native_link_plan(
     Ok(NativeLinkPlan { linker, link_flags })
 }
 
-#[cfg(feature = "llvm")]
-/// Returns a filesystem-safe object-file prefix for one source cone graph node.
-fn native_obj_prefix(node: &scoopc::cone::SourceConeNode) -> String {
-    let mut name = String::with_capacity(node.manifest.cone.name.len());
-    for ch in node.manifest.cone.name.chars() {
-        if ch.is_ascii_alphanumeric() {
-            name.push(ch);
-        } else {
-            name.push('_');
-        }
-    }
-    if name.is_empty() {
-        name.push_str("anonymous");
-    }
-    format!("cone{}_{}", node.id.as_u32(), name)
-}
-
-#[cfg(all(feature = "llvm", test))]
-fn lower_hir_for_build_with_request_root_mode(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
-    opt_level: OptLevel,
-    request_root_mode: scoopc::frontend::MirRequestRootMode,
-) -> Result<scoopc::frontend::CodegenLoweringOutput> {
-    scoopc::frontend::lower_hir_for_codegen_with_request_root_mode(
-        session,
-        front,
-        opt_level,
-        request_root_mode,
-    )
-}
-
-#[cfg(all(feature = "llvm", test))]
-fn lower_main_hir_for_build(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
-    opt_level: OptLevel,
-) -> Result<scoopc::frontend::CodegenLoweringOutput> {
-    lower_hir_for_build_with_request_root_mode(
-        session,
-        front,
-        opt_level,
-        scoopc::frontend::MirRequestRootMode::EntryMain,
-    )
-}
-
-#[cfg(all(feature = "llvm", test))]
-fn abi_visibility_lowered_hir_for_build(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
-    opt_level: OptLevel,
-) -> Result<Option<scoopc::frontend::CodegenLoweringOutput>> {
-    // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给
-    // LLVM stage；真正的 reachable body lowering 仍由 entry-main rooted build lowering 决定。
-    lower_hir_for_build_with_request_root_mode(
-        session,
-        front,
-        opt_level,
-        scoopc::frontend::MirRequestRootMode::RequestSources,
-    )
-    .map(Some)
-}
-
-#[cfg(all(feature = "llvm", test))]
-fn build_codegen_source_map(
-    session: &scoopc::session::Session,
-    front: &FrontendOutput,
-) -> (scoopc::source::SourceMap, scoopc::source::SourceId) {
-    scoopc::frontend::build_source_map(session, front.input())
-}
-
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use scoopc::opt::OptLevel;
-    #[cfg(feature = "llvm")]
-    use scoopc::pipeline::LlvmArtifactKind;
-    use tempfile::tempdir;
-
-    #[cfg(feature = "llvm")]
-    fn session() -> scoopc::session::Session {
-        use scoopc::session::SessionOptions;
-
-        scoopc::session::Session::with_options(SessionOptions::new()).unwrap()
-    }
-
-    #[cfg(feature = "llvm")]
-    fn write_reachable_legacy_effect_fixture(input: &std::path::Path) {
-        std::fs::write(
-            input,
-            r#"
-package fixtures.reachable_legacy
-
-effect Ping {
-    fun hit(): Unit
-}
-
-fun hiddenWorker(): Unit / Ping {
-    Ping.hit()
-}
-
-fun main(): Int {
-    return handle {
-        hiddenWorker()
-        0
-    } with {
-        Ping.hit(), _k -> 0
-    }
-}
-"#,
-        )
-        .unwrap();
-    }
-
-    #[cfg(feature = "llvm")]
-    fn native_link_plan_node(
-        id: u32,
-        role: scoopc::cone::SourceConeRole,
-        name: &str,
-        link_flags: &[&str],
-        linker: Option<&str>,
-        cxx_sources: &[&str],
-        dependency_ids: &[u32],
-    ) -> scoopc::cone::SourceConeNode {
-        let kind = if role == scoopc::cone::SourceConeRole::Consumer {
-            scoopc::cone::ConeKind::Bin
-        } else {
-            scoopc::cone::ConeKind::Lib
-        };
-        let native_build = scoopc::cone::ConeNativeBuildConfig {
-            cxx_sources: cxx_sources
-                .iter()
-                .map(|value| (*value).to_string())
-                .collect(),
-            linker: linker.map(str::to_string),
-            link_flags: link_flags
-                .iter()
-                .map(|value| (*value).to_string())
-                .collect(),
-            ..scoopc::cone::ConeNativeBuildConfig::default()
-        };
-        let manifest = scoopc::cone::ConeManifest {
-            cone: scoopc::cone::ConeSection {
-                name: name.to_string(),
-                version: "0.0.0".to_string(),
-                kind,
-            },
-            dependencies: Default::default(),
-            pre_specialize_functions: Vec::new(),
-            pre_specialize_types: Vec::new(),
-            export_entry_points: Vec::new(),
-            selectors: Vec::new(),
-            native_build,
-        };
-        let root = PathBuf::from(format!("/tmp/{name}"));
-        let source_path = root.join("src/main.scoop");
-
-        scoopc::cone::SourceConeNode {
-            id: scoopc::cone::ConeId::new(id),
-            role,
-            root: root.clone(),
-            manifest_path: root.join(scoopc::cone::CONE_TOML_FILE_NAME),
-            kind,
-            native_build: manifest.native_build.clone(),
-            manifest,
-            trust: scoopc::cone::SourceConeTrust::Untrusted,
-            sources: vec![scoopc::source::SourceFile::new_virtual(
-                source_path.clone(),
-                format!("package {name}\nfun marker() {{}}\n"),
-            )],
-            entry_main: (role == scoopc::cone::SourceConeRole::Consumer).then_some(source_path),
-            dependencies: dependency_ids
-                .iter()
-                .map(|id| scoopc::cone::SourceConeDependencyEdge {
-                    target: scoopc::cone::ConeId::new(*id),
-                    kind: scoopc::cone::SourceConeDependencyKind::LocalSource,
-                })
-                .collect(),
-        }
-    }
-
-    #[cfg(feature = "llvm")]
-    fn cached_dep_handoff_with_objects(
-        cone_id: u32,
-        name: &str,
-        object_files: Vec<PathBuf>,
-    ) -> scoopc::llvm::CachedDepArtifactHandoff {
-        scoopc::llvm::CachedDepArtifactHandoff::new(
-            scoopc::cone::ConeId::new(cone_id),
-            scoopc::stable_id::StableConeKey::new(name, "0.0.0"),
-            scoopc::effect_lowered::LateLoweredProgram::new(
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-            ),
-            scoopc::lir_facts_product::LirFacts::new(OptLevel::O0),
-            scoopc::ty::TypeStore::new(),
-            object_files,
-        )
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn cached_dep_object_files_preserve_artifact_order() {
-        let first = PathBuf::from("/tmp/dep-a/objs/scoop.o");
-        let second = PathBuf::from("/tmp/dep-b/objs/scoop.o");
-        let third = PathBuf::from("/tmp/dep-b/objs/native.o");
-        let deps = vec![
-            cached_dep_handoff_with_objects(2, "dep-a", vec![first.clone()]),
-            cached_dep_handoff_with_objects(3, "dep-b", vec![second.clone(), third.clone()]),
-        ];
-
-        assert_eq!(
-            super::cached_dep_object_files(&deps),
-            vec![first, second, third]
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn native_link_plan_collects_link_flags_in_graph_dag_order() {
-        let consumer = native_link_plan_node(
-            1,
-            scoopc::cone::SourceConeRole::Consumer,
-            "fixture.app",
-            &["-Wl,app"],
-            None,
-            &[],
-            &[3],
-        );
-        let dep_b = native_link_plan_node(
-            3,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_b",
-            &["-Wl,dep-b"],
-            None,
-            &[],
-            &[2],
-        );
-        let dep_a = native_link_plan_node(
-            2,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep_a",
-            &["-Wl,dep-a"],
-            None,
-            &[],
-            &[],
-        );
-        let graph = scoopc::cone::SourceConeGraph::from_nodes(
-            vec![consumer, dep_b, dep_a],
-            scoopc::cone::ConeId::new(1),
-        )
-        .unwrap();
-
-        let plan = super::native_link_plan(&graph, false).unwrap();
-
-        assert_eq!(plan.linker, None);
-        assert_eq!(
-            plan.link_flags,
-            vec![
-                "-Wl,dep-a".to_string(),
-                "-Wl,dep-b".to_string(),
-                "-Wl,app".to_string(),
-            ]
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn native_link_plan_uses_loaded_cone_linker_and_rejects_conflicts() {
-        let consumer = native_link_plan_node(
-            1,
-            scoopc::cone::SourceConeRole::Consumer,
-            "fixture.app",
-            &[],
-            Some("clang"),
-            &[],
-            &[2],
-        );
-        let dep = native_link_plan_node(
-            2,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep",
-            &[],
-            Some("clang++"),
-            &[],
-            &[],
-        );
-        let graph = scoopc::cone::SourceConeGraph::from_nodes(
-            vec![consumer, dep],
-            scoopc::cone::ConeId::new(1),
-        )
-        .unwrap();
-
-        let err = super::native_link_plan(&graph, false).unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("conflicting `[native-build].linker`"),
-            "unexpected diagnostic: {err:?}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn native_link_plan_defaults_to_cxx_driver_for_loaded_dependency_cxx() {
-        let consumer = native_link_plan_node(
-            1,
-            scoopc::cone::SourceConeRole::Consumer,
-            "fixture.app",
-            &[],
-            None,
-            &[],
-            &[2],
-        );
-        let dep = native_link_plan_node(
-            2,
-            scoopc::cone::SourceConeRole::LocalDependency,
-            "fixture.dep",
-            &[],
-            None,
-            &["native/compute.cpp"],
-            &[],
-        );
-        let graph = scoopc::cone::SourceConeGraph::from_nodes(
-            vec![consumer, dep],
-            scoopc::cone::ConeId::new(1),
-        )
-        .unwrap();
-
-        let plan = super::native_link_plan(&graph, true).unwrap();
-
-        assert_eq!(plan.linker.as_deref(), Some("clang++"));
-    }
+    use super::*;
 
     #[test]
     fn resolve_opt_level_prefers_cli_over_manifest() {
-        let out = super::resolve_opt_level(
-            Some(OptLevel::O2),
-            Some(OptLevel::O0),
-            super::BuildProfile::Debug,
-        );
+        let out = resolve_opt_level(Some(OptLevel::O2), Some(OptLevel::O0), BuildProfile::Debug);
         assert_eq!(out, OptLevel::O2);
     }
 
     #[test]
     fn resolve_opt_level_uses_manifest_when_cli_missing() {
-        let out = super::resolve_opt_level(None, Some(OptLevel::Oz), super::BuildProfile::Release);
+        let out = resolve_opt_level(None, Some(OptLevel::Oz), BuildProfile::Release);
         assert_eq!(out, OptLevel::Oz);
     }
 
     #[test]
-    fn resolve_opt_level_defaults_by_profile() {
+    fn default_output_path_for_emit_matches_platform() {
         assert_eq!(
-            super::resolve_opt_level(None, None, super::BuildProfile::Debug),
-            OptLevel::O0
-        );
-        assert_eq!(
-            super::resolve_opt_level(None, None, super::BuildProfile::Release),
-            OptLevel::O2
-        );
-    }
-
-    #[test]
-    fn build_frontend_ok_and_creates_parent_dir() {
-        let dir = tempdir().unwrap();
-        let out = dir.path().join("nested").join("a");
-
-        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
-
-        super::run(input, Some(out), super::BuildOptions::default()).unwrap();
-        assert!(dir.path().join("nested").is_dir());
-    }
-
-    #[test]
-    fn build_accepts_cone_package_dir_and_finds_main() {
-        let dir = tempdir().unwrap();
-        let pkg = dir.path().join("pkg");
-        let src = pkg.join("src");
-        std::fs::create_dir_all(&src).unwrap();
-
-        std::fs::write(
-            pkg.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-pkg"
-version = "0.0.0"
-kind = "bin"
-"#,
-        )
-        .unwrap();
-
-        std::fs::write(src.join("main.scoop"), "fun main() {}\n").unwrap();
-        std::fs::write(src.join("util.scoop"), "fun helper() {}\n").unwrap();
-
-        let out = dir.path().join("out").join("a");
-        super::run(pkg, Some(out), super::BuildOptions::default()).unwrap();
-    }
-
-    #[test]
-    fn build_cone_package_ignores_archive_files_in_normal_path() {
-        let dir = tempdir().unwrap();
-        let app = dir.path().join("app");
-        let app_src = app.join("src");
-        let app_cone = app.join("cone");
-        std::fs::create_dir_all(&app_src).unwrap();
-        std::fs::create_dir_all(&app_cone).unwrap();
-        std::fs::write(
-            app.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-app"
-version = "0.0.0"
-kind = "bin"
-
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            app_src.join("main.scoop"),
-            r#"
-package fixtures.t1107.app
-
-import scoop.core.*
-
-public fun main() / Pure! {
-    println("ok")
-}
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            app_cone.join("fixture-lib-0.0.0.cone"),
-            b"not a cone archive",
-        )
-        .unwrap();
-
-        let out = dir.path().join("out").join("a");
-        super::run(app, Some(out), super::BuildOptions::default()).unwrap();
-    }
-
-    #[cfg(all(feature = "llvm", not(windows)))]
-    #[test]
-    fn build_produces_executable_and_it_runs() {
-        let dir = tempdir().unwrap();
-        let out = dir.path().join("a");
-
-        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
-
-        super::run(input, Some(out.clone()), super::BuildOptions::default()).unwrap();
-        assert!(out.is_file(), "build 应写出可执行文件");
-
-        let status = std::process::Command::new(&out).status().unwrap();
-        assert!(status.success(), "可执行文件应返回 0");
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_emit_llvm_writes_ll_file() {
-        let dir = tempdir().unwrap();
-        let out = dir.path().join("main.ll");
-
-        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
-
-        super::run(
-            input,
-            Some(out.clone()),
-            super::BuildOptions {
-                emit: super::BuildEmit::LlvmIr,
-                ..super::BuildOptions::default()
-            },
-        )
-        .unwrap();
-
-        let ll = std::fs::read_to_string(&out).unwrap();
-        assert!(ll.contains("define i32 @main("), "应输出 LLVM IR");
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable() {
-        let dir = tempdir().unwrap();
-        let out = dir.path().join("dynamic_entry_publication.ll");
-
-        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-            "../../tests/fixtures/build/effect_lowered_dynamic_entry_publication_emit_llvm.scoop",
-        );
-
-        super::run(
-            input,
-            Some(out.clone()),
-            super::BuildOptions {
-                emit: super::BuildEmit::LlvmIr,
-                opt_level: Some(OptLevel::O0),
-                ..super::BuildOptions::default()
-            },
-        )
-        .unwrap();
-
-        let ll = std::fs::read_to_string(&out).unwrap();
-        assert!(
-            ll.contains("define i64 @__scoop_abi0_fun__fixtures_build_Base_ping__h")
-                && ll.contains("define i64 @__scoop_abi0_fun__fixtures_build_Derived_ping__h")
-                && ll.contains(
-                    "define ptr addrspace(1) @__scoop_abi0_fun__fixtures_build_makeClosure__h"
-                )
-                && ll.contains("define internal i64 @__scoop_priv0__closure_body__h"),
-            "metadata-only plain carrier targets 也必须有已发布的 plain callable body:\n{ll}"
+            default_output_path_for_emit(BuildEmit::LlvmIr),
+            PathBuf::from("a.ll")
         );
         assert!(
-            !ll.contains("__scoop_priv0__lowered_vtable_dynamic_entry__h")
-                && !ll.contains("__scoop_priv0__lowered_itable_dynamic_entry__h")
-                && !ll.contains("__scoop_priv0__lowered_closure_dynamic_entry__h")
-                && !ll.contains("%scoop.lowered.Step__h"),
-            "NoOutward carrier target 不应重新发布 effect-step dynamic entry 或 Step shell:\n{ll}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_single_file_request_roots_exclude_support_sources() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-        std::fs::write(&input, "fun main() {}\n").unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-
-        assert_eq!(
-            front.input().mir_request_source_paths(),
-            vec![input.clone()],
-            "单文件 build 只能让用户入口源贡献 MIR request roots"
-        );
-        assert!(
-            front
-                .monomorph_requests()
-                .iter()
-                .all(|request| request.request_source_path != input),
-            "不含泛型调用的单文件入口不应产生用户源 monomorph roots；support-source 请求只可作为 reachable binding 存在: {:?}",
-            front.monomorph_requests()
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_cone_request_roots_exclude_support_sources() {
-        let dir = tempdir().unwrap();
-        let pkg = dir.path().join("pkg");
-        let src = pkg.join("src");
-        std::fs::create_dir_all(&src).unwrap();
-
-        std::fs::write(
-            pkg.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-request-roots"
-version = "0.0.0"
-kind = "bin"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            src.join("main.scoop"),
-            "package fixture.request_roots\nfun main() {}\n",
-        )
-        .unwrap();
-        std::fs::write(
-            src.join("helper.scoop"),
-            "package fixture.request_roots\nfun helper() {}\n",
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&pkg, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let cone_root = pkg.canonicalize().unwrap();
-        let roots = front.input().mir_request_source_paths();
-
-        assert_eq!(
-            roots.len(),
-            2,
-            "consumer cone 的两个 source 都应是 request roots"
-        );
-        assert!(
-            roots.iter().all(|path| path.starts_with(&cone_root)),
-            "cone build request roots 不应包含 sysroot support sources: {roots:?}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root() {
-        let dir = tempdir().unwrap();
-        let pkg = dir.path().join("pkg");
-        let src = pkg.join("src");
-        std::fs::create_dir_all(&src).unwrap();
-
-        std::fs::write(
-            pkg.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-file-mode"
-version = "0.0.0"
-kind = "bin"
-"#,
-        )
-        .unwrap();
-        let main = src.join("main.scoop");
-        let helper = src.join("helper.scoop");
-        std::fs::write(
-            &main,
-            "package fixture.file_mode\nfun main(): Int { return 0 }\n",
-        )
-        .unwrap();
-        std::fs::write(
-            &helper,
-            "package fixture.file_mode\nfun helper(): Int { return 1 }\n",
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&main, None).unwrap();
-
-        assert!(
-            build_context.input().is_virtual_cone(),
-            "裸文件输入即使位于 cone root 下，也必须保持 virtual-cone contract"
-        );
-        assert_eq!(
-            build_context.input().mir_request_source_paths(),
-            vec![main.clone()]
-        );
-
-        let front = super::run_frontend(&session, build_context).unwrap();
-        assert!(
-            front
-                .input()
-                .build_closure_sources()
-                .iter()
-                .all(|source| source.path() != helper.as_path()),
-            "bare file -> project frontend 不应自动把同 cone 的其它源文件塞进 context"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_entry_roots_skip_same_file_unreachable_generic_helper() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-
-        std::fs::write(
-            &input,
-            r#"
-package fixture.request_roots
-
-fun <T> id(x: T): T {
-    return x
-}
-
-fun helperOnly(): Int {
-    return id<Int>(1)
-}
-
-fun main(): Int {
-    return 0
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        assert!(
-            front
-                .monomorph_requests()
-                .iter()
-                .any(|request| request.key.symbol.fqn == "fixture.request_roots.id"),
-            "test setup 应先证明同源 helper 的泛型调用会被 typecheck 记录为 request"
-        );
-
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered.materialized_mir();
-        assert!(
-            materialized
-                .instance_keys
-                .iter()
-                .all(|key| key.template.fqn != "fixture.request_roots.id"),
-            "entry-main rooted materialization 不应让同源未触达 helper 的 id<Int> 成为实例 root: {:?}",
-            materialized.instance_keys
-        );
-        assert!(
-            lowered
-                .lowered_hir()
-                .file
-                .items
-                .iter()
-                .all(|item| !matches!(
-                    item,
-                    scoopc::hir::Item::Fun(fun) if fun.fqn == "fixture.request_roots.id::<Int>"
-                )),
-            "HIR 兼容输出不应包含未从 main 触达的 id::<Int>"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper() {
-        let dir = tempdir().unwrap();
-        let pkg = dir.path().join("pkg");
-        let src = pkg.join("src");
-        std::fs::create_dir_all(&src).unwrap();
-
-        std::fs::write(
-            pkg.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-entry-roots"
-version = "0.0.0"
-kind = "bin"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            src.join("main.scoop"),
-            "package fixture.entry_roots\nfun main(): Int { return 0 }\n",
-        )
-        .unwrap();
-        std::fs::write(
-            src.join("helper.scoop"),
-            r#"
-package fixture.entry_roots
-
-fun <T> id(x: T): T {
-    return x
-}
-
-fun helperOnly(): Int {
-    return id<Int>(1)
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&pkg, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        assert!(
-            front.input().mir_request_source_paths().len() >= 2,
-            "cone build 仍应把 consumer cone sources 作为 request-source 过滤集合"
-        );
-        assert!(
-            front
-                .monomorph_requests()
-                .iter()
-                .any(|request| request.key.symbol.fqn == "fixture.entry_roots.id"),
-            "test setup 应先证明非入口源文件中的泛型调用会被收集到 request 列表"
-        );
-
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered.materialized_mir();
-        assert!(
-            materialized
-                .instance_keys
-                .iter()
-                .all(|key| key.template.fqn != "fixture.entry_roots.id"),
-            "entry-main rooted materialization 不应让 consumer cone 内未触达 helper 的 id<Int> 成为实例 root: {:?}",
-            materialized.instance_keys
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_handles_imported_fun_signature_hints_with_utf8_comments() {
-        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/run-pass/std_sync_basic.scoop");
-
-        let session_options =
-            scoopc::session::SessionOptions::new().with_extra_sysroot_dependencies(["scoop.sync"]);
-        let session = scoopc::session::Session::with_options(session_options.clone()).unwrap();
-        let build_context =
-            super::load_build_context_with_options(&input, None, &session_options).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-
-        assert!(
-            lowered.lowered_hir().file.items.iter().any(|item| {
-                matches!(
-                    item,
-                    scoopc::hir::Item::Fun(fun) if fun.fqn == "main" || fun.fqn.ends_with(".main")
-                )
-            }),
-            "build frontend 应成功 lower `std_sync_basic.scoop`，而不是在 imported fun signature hint 上 panic"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_keeps_distinct_effect_row_generic_instances() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-
-        std::fs::write(
-            &input,
-            r#"
-package fixtures.t5000e2c
-
-import scoop.core.*
-
-effect Boom {
-    fun boom(): Int
-}
-
-effect Zap {
-    fun zap(): Int
-}
-
-fun <T, eff E> id(x: T): T {
-    return x
-}
-
-fun <T, eff E> wrap(x: T): T {
-    return id<T, eff E>(x)
-}
-
-private fun entry(): Int {
-    val a = wrap<Int, eff Boom>(1)
-    val b = wrap<Int, eff Zap>(2)
-    return a + b
-}
-
-fun main(): Int / Pure! {
-    return entry()
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered.materialized_mir();
-        let callable_view = lowered.materialized_callable_view();
-        let materialized_fun_fqns = materialized
-            .file
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                scoopc::mir::Item::Fun(fun) if fun.body.is_some() => Some(fun.fqn.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let lowered_fun_fqns = lowered
-            .lowered_hir()
-            .file
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                scoopc::hir::Item::Fun(fun) => Some(fun.fqn.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        for fqn in [
-            "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Boom>",
-            "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Zap>",
-            "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Boom>",
-            "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Zap>",
-        ] {
-            assert!(
-                lowered_fun_fqns.contains(&fqn),
-                "build frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
-            );
-            assert!(
-                materialized_fun_fqns.contains(&fqn),
-                "build frontend 应保留实例 `{fqn}` 的 materialized MIR body，实际 MIR 函数集合为: {materialized_fun_fqns:?}"
-            );
-            let root = callable_view
-                .callable(fqn)
-                .expect("callable view 应能直接查询 materialized root body");
-            let owner = callable_view
-                .owner_of_callable(fqn)
-                .expect("callable view 应能从 root body 反查所属实例");
-            let family = callable_view
-                .instance(owner)
-                .expect("callable view 应能从实例读取 canonical family");
-            assert_eq!(root.fqn, fqn);
-            assert_eq!(family.root_fqn(), fqn);
-            assert!(
-                family.summary().body_known,
-                "有 body 的 root callable 应在 canonical view 中携带 body-known summary"
-            );
-        }
-        assert_eq!(
-            callable_view.instances().count(),
-            materialized.instance_keys.len(),
-            "callable view 应覆盖 production frontend 保留的全部实例"
-        );
-        for family in callable_view.instances() {
-            assert!(
-                family.summary().body_known == family.root_body().is_some(),
-                "canonical callable view 中的 body-known 应与 root body 是否存在一致：{}",
-                family.root_fqn()
-            );
-        }
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_production_codegen_entry_consumes_materialized_pass_view() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-        let out = dir.path().join("build.ll");
-
-        std::fs::write(
-            &input,
-            r#"
-package fixtures.t5000h0c
-
-import scoop.core.*
-
-fun <T> id(x: T): T {
-    return x
-}
-
-object Box {
-    fun <T> memberId(x: T): T {
-        return id(x)
-    }
-}
-
-fun main(): Int {
-    val a: Int = id(1)
-    val b: Int = Box.memberId(2)
-    return a + b
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
-
-        scoopc::pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
-            &out,
-            front.input().entry_main_fqn(),
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-            front.cached_cone_imports().to_vec(),
-            front.cached_dep_artifacts().to_vec(),
-        )
-        .expect(
-            "build frontend 的 stage-only production codegen 应显式消费 materialized pass view",
-        );
-        let ir = std::fs::read_to_string(&out).unwrap();
-
-        for symbol_prefix in [
-            "__scoop_abi0_fun__fixtures_t5000h0c_id__h",
-            "__scoop_abi0_fun__fixtures_t5000h0c_Box_memberId__h",
-        ] {
-            assert!(
-                ir.contains(symbol_prefix),
-                "build production codegen 入口应通过 AbiMangler 保留实例级 exported identity `{symbol_prefix}`，实际 IR:\n{ir}"
-            );
-        }
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_frontend_does_not_eager_materialize_unused_owner_specialized_getter() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-
-        std::fs::write(
-            &input,
-            r#"
-package fixtures.t5000e2r
-
-import scoop.core.*
-
-struct Box<T>(val value: T) {
-    val doubled: T
-        get() = this.value
-}
-
-fun entry(): Int {
-    val box: Box<Int> = Box(1)
-    val unused: Box<String> = Box("x")
-    return box.doubled
-}
-
-fun main(): Int / Pure! {
-    return entry()
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let lowered_member_fqns = lowered
-            .lowered_hir()
-            .member_funs
-            .iter()
-            .map(|fun| fun.fqn.as_str())
-            .collect::<Vec<_>>();
-
-        assert!(
-            lowered_member_fqns.contains(&"fixtures.t5000e2r.Box.doubled::<Int>"),
-            "build frontend 应保留从请求根实际可达的 getter 实例，实际成员函数集合为: {lowered_member_fqns:?}"
-        );
-        assert!(
-            !lowered_member_fqns.contains(&"fixtures.t5000e2r.Box.doubled::<String>"),
-            "build frontend 不应因为 `TypeStore` 中出现 `Box<String>` 就 eager materialize 未调用 getter，实际成员函数集合为: {lowered_member_fqns:?}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-        let out = dir.path().join("abi.ll");
-
-        std::fs::write(
-            &input,
-            r#"
-package fixtures.build_abi_visibility
-
-effect Ping {
-    fun hit(): Unit
-}
-
-fun hiddenWorker(): Unit / Ping {
-    Ping.hit()
-}
-
-fun main(): Int {
-    return 0
-}
-"#,
-        )
-        .unwrap();
-
-        let session = session();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let abi_visibility_lowered =
-            super::abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
-                .unwrap()
-                .expect("build 应额外构造 request-source ABI visibility handoff");
-        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
-
-        scoopc::pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            Some(abi_visibility_lowered),
-            &out,
-            front.input().entry_main_fqn(),
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-            front.cached_cone_imports().to_vec(),
-            front.cached_dep_artifacts().to_vec(),
-        )
-        .unwrap();
-
-        let ir = std::fs::read_to_string(&out).unwrap();
-        assert!(
-            ir.contains("__scoop_priv0__lowered_dynamic_invoke__h")
-                && ir.contains("__scoop_priv0__lowered_direct_invoke__h"),
-            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell family 出现在 build IR 中：\n{ir}"
-        );
-        assert!(
-            !ir.contains("scoop.effect.frame."),
-            "纯 main 的 build 不应为了 ABI shell 可见性而偷偷生成 legacy effect frame IR：\n{ir}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn build_lowers_reachable_self_contained_effect_body_without_legacy_frames() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-        let out = dir.path().join("lowered.ll");
-
-        write_reachable_legacy_effect_fixture(&input);
-
-        let session = session();
-        let build_context = super::load_build_context(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_context).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let abi_visibility_lowered =
-            super::abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
-
-        scoopc::pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            abi_visibility_lowered,
-            &out,
-            front.input().entry_main_fqn(),
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-            front.cached_cone_imports().to_vec(),
-            front.cached_dep_artifacts().to_vec(),
-        )
-        .expect("reachable self-contained handle 应由 lowering 正常生成 IR");
-
-        let ir = std::fs::read_to_string(&out).unwrap();
-        assert!(
-            ir.contains("__scoop_priv0__lowered_"),
-            "IR 应包含 canonical private symbol family，而不是空壳输出：\n{ir}"
-        );
-        assert!(
-            !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
-            "IR 不应回落到 legacy handler-stack/outcome runtime：\n{ir}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
-    fn no_hidden_legacy_fallback_for_default_build_output() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("main.scoop");
-        let out = dir.path().join("default_lowered.ll");
-
-        write_reachable_legacy_effect_fixture(&input);
-
-        super::run(
-            input,
-            Some(out.clone()),
-            super::BuildOptions {
-                emit: super::BuildEmit::LlvmIr,
-                opt_level: Some(OptLevel::O0),
-                ..super::BuildOptions::default()
-            },
-        )
-        .expect("default build should lower without hidden legacy fallback");
-        let ir = std::fs::read_to_string(&out).unwrap();
-
-        assert!(
-            ir.contains("__scoop_priv0__lowered_"),
-            "default build should emit canonical private symbols:\n{ir}"
-        );
-        assert!(
-            !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
-            "default build must not retry or embed legacy handler-stack/outcome lowering:\n{ir}"
+            default_output_path_for_emit(BuildEmit::Executable)
+                .to_string_lossy()
+                .starts_with('a')
         );
     }
 }

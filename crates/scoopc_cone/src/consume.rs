@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use miette::{Diagnostic, IntoDiagnostic as _, Result, WrapErr as _, miette};
 use thiserror::Error;
 
+use scoop_project_model::{CONE_TOML_FILE_NAME, ConeId, ConeKind, ConeManifest};
 use scoopc_ast as ast;
 use scoopc_hir::cone_import::{
     CachedConeExtensionInfo, CachedConeFun, CachedConeImport, CachedConeNonPublicSymbol,
@@ -29,7 +30,6 @@ use scoopc_hir::resolve::{
     Visibility,
 };
 use scoopc_hir::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
-use scoopc_project_model::{CONE_TOML_FILE_NAME, ConeId, ConeKind, ConeManifest};
 use scoopc_source::SourceFile;
 use scoopc_span::Span;
 
@@ -630,12 +630,12 @@ fn ir_type_to_type_ref(synth: &mut SyntheticSourceBuilder, ty: &IrType) -> ast::
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use scoop_project_model::{OptLevel, StableConeKey};
     use scoopc_effect_facts::EffectFacts;
     use scoopc_hir_facts::HirFacts;
     use scoopc_lir::LateLoweredProgram;
     use scoopc_lir_facts::LirFacts;
     use scoopc_mir_facts::MirFacts;
-    use scoopc_project_model::{OptLevel, StableConeKey};
 
     use super::*;
 
@@ -718,7 +718,7 @@ mod tests {
     fn artifact_frontend_import_injects_public_and_visibility_payload() {
         let artifact = ConeArtifact::with_parts(
             StableConeKey::new("dep", "1.0.0"),
-            scoopc_project_model::ConeKind::Lib,
+            scoop_project_model::ConeKind::Lib,
             crate::artifact::ConeArtifactStageProducts::new(
                 HirFacts::new(),
                 MirFacts::new(),

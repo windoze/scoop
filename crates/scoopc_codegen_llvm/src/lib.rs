@@ -16,7 +16,7 @@ pub mod ast {
 }
 
 pub mod cone {
-    pub use scoopc_project_model::*;
+    pub use scoop_project_model::*;
 }
 
 pub mod effect_facts {

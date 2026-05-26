@@ -301,32 +301,37 @@ fn run_fixture_dump_stackmaps(
     session_options: scoopc::session::SessionOptions,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // 说明：该模式不执行程序本身，只用于验证“编译产物包含可读 stackmaps”。
-    let dir =
-        crate::commands::temp::make_temp_dir("scoop_fixture_dump_stackmaps").map_err(|e| {
-            super::box_diagnostic(RunExecFailed {
-                program: "make_temp_dir".to_string(),
-                fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::other(e.to_string()),
-            })
-        })?;
+    let dir = make_temp_dir("scoop_fixture_dump_stackmaps").map_err(|e| {
+        super::box_diagnostic(RunExecFailed {
+            program: "make_temp_dir".to_string(),
+            fixture: rel_fixture.display().to_string(),
+            source: e,
+        })
+    })?;
     let exe_path = dir.join(default_exe_name());
 
     let result = (|| {
-        crate::commands::build::run(
-            fixture_path.to_path_buf(),
-            Some(exe_path.clone()),
-            crate::commands::build::BuildOptions {
-                session_options: session_options.clone(),
-                ..crate::commands::build::BuildOptions::default()
-            },
-        )
-        .map_err(|e| {
+        let mut build_cmd = Command::new(&scoop_exe);
+        build_cmd
+            .arg("build")
+            .arg(fixture_path)
+            .arg("-o")
+            .arg(&exe_path);
+        super::apply_session_options_to_command(&session_options, &mut build_cmd);
+        let build_output = build_cmd.output().map_err(|e| {
             super::box_diagnostic(RunExecFailed {
                 program: "scoop build".to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::other(e.to_string()),
+                source: e,
             })
         })?;
+        if !build_output.status.success() {
+            return Err(super::diagnostic_from_subprocess_output(
+                "scoop build",
+                rel_fixture,
+                build_output,
+            ));
+        }
 
         let mut cmd = build_dump_stackmaps_command(scoop_exe, &exe_path, session_options);
         run_pass_env.apply_to_command(&mut cmd);
@@ -336,6 +341,33 @@ fn run_fixture_dump_stackmaps(
     // 清理临时目录（尽力而为；不影响最终结果）。
     let _ = std::fs::remove_dir_all(&dir);
     result
+}
+
+fn make_temp_dir(prefix: &str) -> std::io::Result<PathBuf> {
+    let base = std::env::temp_dir();
+    for attempt in 0..1000u32 {
+        let candidate = base.join(format!(
+            "{prefix}_{}_{}_{attempt}",
+            std::process::id(),
+            current_time_nanos()
+        ));
+        match std::fs::create_dir(&candidate) {
+            Ok(()) => return Ok(candidate),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err),
+        }
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::AlreadyExists,
+        "failed to allocate temporary directory",
+    ))
+}
+
+fn current_time_nanos() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
 }
 
 fn build_dump_stackmaps_command(

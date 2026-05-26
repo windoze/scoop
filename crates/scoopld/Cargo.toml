@@ -7,7 +7,7 @@ edition.workspace = true
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
 sha2 = "0.10.9"
-scoopc_project_model = { path = "../scoopc_project_model" }
+scoop_project_model = { path = "../scoop_project_model" }
 
 [dev-dependencies]
 tempfile = "3.10.1"

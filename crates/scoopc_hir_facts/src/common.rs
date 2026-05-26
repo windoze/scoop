@@ -1,7 +1,7 @@
 //! Common identity records shared by HIR fact groups.
 
+use scoop_project_model::StableConeKey;
 use scoopc_ids::CanonicalTextKey;
-use scoopc_project_model::StableConeKey;
 use scoopc_source::SourceMapSpan;
 
 /// Stage-neutral identity for a declaration, root, or native binding fact.

@@ -11,10 +11,10 @@ use crate::source::{SourceId, SourceMap};
 use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
+use scoop_project_model::ConeId;
 use scoopc_lir_facts::{
     LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
 };
-use scoopc_project_model::ConeId;
 
 use super::LlvmEmitError;
 
