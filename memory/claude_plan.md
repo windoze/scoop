@@ -1,20 +1,22 @@
-# Claude Plan
+# Execution Plan
 
-## Current objective
-Identify the first incomplete task in TODO.md, complete only that task, validate it, update TODO.md, and commit the result.
+I will follow TODO.md as the source of truth and complete exactly the first incomplete task.
 
-## Execution plan
-1. Read TODO.md to find the first heading not prefixed with [DONE].
-2. Inspect only the files and tests relevant to that task, plus latest commit context if it directly mentions an unfinished issue relevant to the task.
-3. Implement the task without workarounds or spec deviations.
-4. Run formatting, linting, targeted validation, then full required validation according to TODO.md and project policy.
-5. Update TODO.md completion status and record. Update PLAN.md only if phase-level plan changes.
-6. Commit all task-related changes and stop.
+1. Read TODO.md to find the first task whose heading is not prefixed with [DONE].
+2. Check the latest commit message only for directly relevant unfinished work tied to that selected task.
+3. Inspect the task requirements, dependencies, and validation instructions.
+4. Make the smallest complete implementation needed for that task without working around spec gaps.
+5. Run formatting, linting, tests, and fixture validation as required by the task and repository policy.
+6. If a blocking prerequisite or unscheduled failing test is found, update TODO.md with the minimum necessary task ordering change, commit that, and stop.
+7. If the task is completed, mark its TODO.md heading with [DONE], update its completion record, commit all relevant changes, and stop without starting the next task.
 
-## Progress
-- Initial plan written before repository inspection.
-- Selected first incomplete task: P1-T07R, review `tools/audit_pipeline_gap.py` against `crates/scoopc/src/pipeline_gap_audit.rs`.
-- Latest commit is P1-T07 and is directly relevant to this review.
-- Review found one small Rust/Python behavior drift in `parse_gap_heading`: empty markdown headings should be ignored instead of raising `IndexError`.
-- Fixed the heading parser drift and completed validation: fmt, clippy, Python compile/audit, old Rust audit test, full Rust tests, new fixture runner, and old fixture runner all passed.
-- Marked P1-T07R done in TODO.md with a completion record.
+Progress:
+- Plan initialized.
+- Identified first incomplete task: P1-T08, porting `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` to `tools/audit_user_visible_failure_policy.py`.
+- Next steps: inspect the existing Rust audit and neighboring Python audit ports, implement the Python script with equivalent checks/output, validate it against the Rust test, update TODO.md completion records, and commit only the completed task changes.
+- Implemented `tools/audit_user_visible_failure_policy.py` with the same audit file set, frontend reject surfaces, upstream guard records, stale unsupported marker guard, no-production-`todo!` check, and exact internal bug sentinel baseline as the Rust audit.
+- Targeted validation passed: `python3 -m py_compile tools/audit_user_visible_failure_policy.py`, `python3 tools/audit_user_visible_failure_policy.py`, and `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`.
+- Next step: run repository formatting/linting/full validation, then update TODO.md and commit P1-T08.
+- Full validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`.
+- Marked P1-T08 as `[DONE]` in TODO.md and appended its completion record.
+- Next step: review the final diff and commit P1-T08 changes.
