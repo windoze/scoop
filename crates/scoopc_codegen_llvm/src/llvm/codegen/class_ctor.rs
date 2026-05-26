@@ -488,6 +488,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let target_class = self.class_init_layout(callee_span, &class_key)?;
         let target_init = self.class_ctor_init_body_for_key(callee_span, target_key)?;
+        let deferred_obj =
+            self.defer_gc_ref_pointer(span, "class_ctor_target_obj_root", obj_ptr)?;
         let target_values = self.codegen_class_ctor_eval_args(
             callee_span,
             callee_span,
@@ -496,6 +498,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             target_init.params(),
             kind,
         )?;
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "class_ctor_target_obj_before_invoke",
+            &deferred_obj,
+        )?;
 
         self.codegen_class_ctor_invoke_inner(
             span,
@@ -503,9 +510,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &target_class,
             &target_init,
             target_values.as_slice(),
-            obj_ptr,
+            current_obj,
             stack,
-        )
+        )?;
+        self.clear_deferred_cg_value_root_homes(span, "class_ctor_target_obj_drop", &deferred_obj)
     }
 
     fn codegen_class_ctor_delegation(

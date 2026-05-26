@@ -363,15 +363,17 @@ INTERNAL_BUG_SENTINEL_HITS: tuple[str, ...] = ('crates/scoopc_codegen_llvm/src/l
  'panic!(',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:19:            '
  'panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");',
- 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:25:                '
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:26:                '
  'panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");',
- 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:244:            '
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:45:                    '
+ 'panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}")',
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:254:            '
  'panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted '
  'arg binding drift")',
- 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:260:                    '
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:270:                    '
  'panic!("codegen_bound_mir_call_args_from_signature: TypeStore equivalence verifier '
  'accepted unsupported call arg type")',
- 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:278:                    '
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/args.rs:288:                    '
  'panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted '
  'missing evaluated arg slot")',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs:32:                        '

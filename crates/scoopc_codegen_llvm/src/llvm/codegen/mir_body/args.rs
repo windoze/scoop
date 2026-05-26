@@ -19,7 +19,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
         }
 
-        let mut evaluated_args = Vec::with_capacity(args.len());
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; args.len()];
         for (idx, (param, arg)) in ctor_params.iter().zip(args).enumerate() {
             if arg.name.is_some() {
                 panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
@@ -33,14 +34,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("class_ctor_ordered_arg_{idx}"),
                 value,
             )?;
-            evaluated_args.push(self.materialize_deferred_cg_value(
-                arg.span,
-                &format!("class_ctor_ordered_arg_reload_{idx}"),
-                deferred,
-            )?);
+            evaluated[idx] = Some((arg.span, deferred));
         }
 
-        Ok(evaluated_args)
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}")
+                });
+                self.materialize_deferred_cg_value(
+                    arg_span,
+                    &format!("class_ctor_ordered_arg_reload_{idx}"),
+                    deferred,
+                )
+            })
+            .collect()
     }
 
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
