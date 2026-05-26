@@ -48,10 +48,10 @@ jobs:
         run: cargo test --all --all-targets
 
       - name: Spec doctest fixtures
-        run: cargo run -p scoop_tools -- spec-fixtures check
+        run: python3 tools/spec_fixtures.py check
 
       - name: Fixture smoke
-        run: cargo run -p scoop -- test
+        run: python3 tools/run_fixtures.py
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings

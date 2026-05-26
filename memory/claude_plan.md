@@ -1,32 +1,33 @@
-# Execution Plan
+# P2-T01 execution plan
 
-I will follow TODO.md as the source of truth and complete exactly the first incomplete task.
+## Current task
 
-1. Read TODO.md to find the first task whose heading is not prefixed with [DONE].
-2. Check the latest commit message only for directly relevant unfinished work tied to that selected task.
-3. Inspect the task requirements, dependencies, and validation instructions.
-4. Make the smallest complete implementation needed for that task without working around spec gaps.
-5. Run formatting, linting, tests, and fixture validation as required by the task and repository policy.
-6. If a blocking prerequisite or unscheduled failing test is found, update TODO.md with the minimum necessary task ordering change, commit that, and stop.
-7. If the task is completed, mark its TODO.md heading with [DONE], update its completion record, commit all relevant changes, and stop without starting the next task.
+First incomplete task in `TODO.md`: **P2-T01** — switch `.github/workflows/ci.yml` from old test-infrastructure entrypoints to the new Python tools.
 
-Progress:
-- Plan initialized.
-- Identified first incomplete task: P1-T08, porting `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` to `tools/audit_user_visible_failure_policy.py`.
-- Next steps: inspect the existing Rust audit and neighboring Python audit ports, implement the Python script with equivalent checks/output, validate it against the Rust test, update TODO.md completion records, and commit only the completed task changes.
-- Implemented `tools/audit_user_visible_failure_policy.py` with the same audit file set, frontend reject surfaces, upstream guard records, stale unsupported marker guard, no-production-`todo!` check, and exact internal bug sentinel baseline as the Rust audit.
-- Targeted validation passed: `python3 -m py_compile tools/audit_user_visible_failure_policy.py`, `python3 tools/audit_user_visible_failure_policy.py`, and `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`.
-- Next step: run repository formatting/linting/full validation, then update TODO.md and commit P1-T08.
-- Full validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`.
-- Marked P1-T08 as `[DONE]` in TODO.md and appended its completion record.
-- Committed P1-T08 changes in Git.
+Required changes:
 
-## Progress Update
-- Identified first incomplete task: P1-T08R, review parity for tools/audit_user_visible_failure_policy.py against the old Rust audit module.
-- Code-review agent completed with no semantic drift or blocking issues found.
-- Proceeding with parity validation commands before updating TODO.md.
+- Replace `cargo run -p scoop_tools -- spec-fixtures check` with `python3 tools/spec_fixtures.py check`.
+- Replace `cargo run -p scoop -- test` with `python3 tools/run_fixtures.py`.
+- Keep the change limited to CI wiring unless validation exposes a task-blocking issue.
 
-## Progress Update
-- Completed P1-T08R review: Python audit and old Rust audit are semantically equivalent; no code changes were required.
-- Validation passed: py_compile, Python audit, Rust audit test, cargo fmt, clippy, full cargo test, Python fixture runner, and old scoop fixture runner.
-- TODO.md has been updated to mark P1-T08R as [DONE] with a completion record. PLAN.md did not need changes.
+## Step-by-step plan
+
+1. Inspect `.github/workflows/ci.yml` and confirm the old CI entrypoints.
+2. Edit only the CI workflow to call the new Python scripts.
+3. Search the workflow for old `scoop_tools`, `scoop test`, and `cargo run -p scoop -- test` entrypoints.
+4. Run repository validation in the requested order where meaningful for this YAML-only task:
+   - `cargo fmt`
+   - `cargo clippy --all-targets -- -D warnings`
+   - targeted new CI commands: `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`
+   - `cargo test --all --all-targets`
+5. If validation exposes an unscheduled failure, fix it if directly in scope or add the minimum prerequisite task to `TODO.md`, commit, and stop.
+6. If validation passes, update `TODO.md` by prefixing P2-T01 with `[DONE]` and appending a completion record.
+7. Review the diff and commit all task-related changes with a `[P2-T01]` message and required co-author trailer.
+
+## Progress
+
+- Identified P2-T01 as the first incomplete task.
+- Confirmed `.github/workflows/ci.yml` currently uses the old `scoop_tools` spec fixture command and old `scoop test` fixture runner command.
+- Updated `.github/workflows/ci.yml` so CI calls `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`.
+- Verified the workflow no longer references old fixture entrypoints.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py` (`fixtures: ok (1533)`).
