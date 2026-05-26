@@ -46,6 +46,11 @@ Empty target sets are accepted only for `umb_fix` subtrees and the retired
 `typecheck_cone_archive` marker directory. Other empty roots fail with a "no
 `.scoop` files found" diagnostic.
 
+`tests/fixtures/cone/` is not a phase directory or case collection in the
+legacy runner. It currently contains manifest-only sample data and no `.scoop`
+files, so it contributes no target during full-tree planning. Passing that
+directory as the fixture root would use the normal empty-root rule and fail.
+
 Python-portable pseudocode for target planning:
 
 ```text

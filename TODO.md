@@ -29,7 +29,7 @@
 | [DONE] P0-T01 | [DONE] | 盘点 `EXPECT-*` 指令清单（语法/语义/参数）并落地 `docs/fixtures.md` 或 `tools/README.md` 一节 |
 | [DONE] P0-T01R | [DONE] | Review `EXPECT-*` 指令清单完整度（覆盖现有 expectations.rs 全部指令） |
 | [DONE] P0-T02 | [DONE] | 盘点 fixture 发现规则（phase router / `plan_targets` / `is_run_pass_cone_case_root` 等子目录约定） |
-| P0-T02R | [TODO] | Review fixture 发现规则盘点结果（python 平迁可读性 + 现有 fixture 全覆盖） |
+| [DONE] P0-T02R | [DONE] | Review fixture 发现规则盘点结果（python 平迁可读性 + 现有 fixture 全覆盖） |
 | P0-T03 | [TODO] | 冻结编译器对外命令的 stdout/stderr/exit-code 契约（`scoopc dump-*` / `emit-artifact` / `build-single-cone` / `link-cone` / `scoop build` / `scoop run`） |
 | P0-T03R | [TODO] | Review 命令面契约冻结结果（外部 runner 需消费的字段已稳定） |
 | P0-T04 | [TODO] | 删除 fixture-runner 自检 fixture（依赖 `EXPECT-ERROR-CODE: scoop::fixtures::*` 的 4 条：`timeout_should_fail.scoop` / `exit_code_mismatch.scoop` / `stderr_mismatch_distinguishable.scoop` / `gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`）；同步复核 scoopc 内部确无 cfg(test) 旁路或文件名特判 |
@@ -97,3 +97,4 @@
 - [DONE] P0-T01：新增 `docs/fixtures.md`，从 `crates/scoopc/src/fixtures/expectations.rs` 盘点当前 22 个 directive 前缀，并记录语法、参数、解析边界与各 phase 语义。验证：`python3` parser/doc 覆盖检查通过（22/22）；`cargo fmt --check` 通过。（2026-05-26）
 - [DONE] P0-T01R：复审 `docs/fixtures.md` 与 `crates/scoopc/src/fixtures/expectations.rs`，确认 22 个 `strip_prefix` directive 前缀、`EXPECT: pass|ok|fail` 语义、header 扫描规则、共享输入与 parse/build/run-pass 消费语义均已覆盖，无需补充文档。验证：自定义 `python3` 前缀覆盖检查（22/22）；`cargo fmt --check`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`。（2026-05-26）
 - [DONE] P0-T02：扩展 `docs/fixtures.md`，盘点 `plan_targets` 目标规划、phase router、`is_run_pass_cone_case_root`、multi/cone case 子目录约定、sysroot overlay 发现与 `umb_fix` 子路由，并给出可供 python runner 平迁的伪代码。验证：自定义 `python3` 文档 token 覆盖检查；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`。（2026-05-26）
+- [DONE] P0-T02R：复审 `docs/fixtures.md` 与 `crates/scoopc/src/fixtures/mod.rs`，确认 target planning、phase routing、case-root predicates、sysroot overlay 跳过、`umb_fix` 子路由与现有 fixture 目录均已覆盖；补充记录 manifest-only `tests/fixtures/cone/` 不产生 fixture target。验证：自定义 `python3` fixture discovery 覆盖检查（1455 ordinary targets；resolve/typecheck/run_pass cone/multi cases 全覆盖）；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1536 checks）。（2026-05-26）
