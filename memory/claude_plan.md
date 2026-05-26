@@ -23,8 +23,10 @@
 ## Progress
 
 - Current invocation plan recorded before task execution.
-- Selected first incomplete task: P1-T04, implementing `tools/safepoint_baseline.py` as the python replacement for `scoop_tools safepoint-baseline`.
-- Latest commit is `[P1-T03R] Review fixtures matrix parity`; it does not mention unfinished safepoint work. Current worktree already contains this plan update and an unrelated untracked `RTTI_REFINE.md`, which will be left untouched.
-- Direct task context reviewed: `TODO.md`, `PLAN.md`, `TEST_INFRA_CLEANUP.md`, old Rust `tools/scoop_tools/src/safepoint_baseline.rs`, old CLI dispatch, and current docs mentioning the safepoint baseline entrypoint.
-- Fixed the direct stale-workload blocker by replacing the deleted async/task handoff workload with a current buildable safepoint root-pressure loop fixture, then added the Python safepoint baseline script with the same report shape and IR metrics parser.
-- Validation completed: Python compile passed; old Rust `safepoint-baseline` and new `tools/safepoint_baseline.py` reports diff cleanly; `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed. `TODO.md` now marks P1-T04 done.
+- Selected first incomplete task: P1-T04R, reviewing `tools/safepoint_baseline.py` against the old `scoop_tools safepoint-baseline` behavior.
+- Latest commit is `[P1-T04] Add safepoint baseline script`; it is directly relevant as the implementation under review, but it does not mention unfinished follow-up work.
+- Current worktree contains this plan update and unrelated untracked `RTTI_REFINE.md` / `CALLER_LOCATION.md` files, which will be left untouched.
+- Next steps: inspect the Python and Rust safepoint baseline implementations, run parity checks, fix any review findings, then update `TODO.md` and commit only this review task's changes.
+- Review completed: Python and Rust safepoint baseline implementations have matching workload definitions, build commands, IR metrics parsing, Markdown report rendering, stderr output, and successful exit behavior.
+- Validation completed: `python3 -m py_compile tools/safepoint_baseline.py`, old/new report diff, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
+- `TODO.md` now marks P1-T04R done with a completion record, and the review task changes are ready to commit.
