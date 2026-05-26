@@ -32,3 +32,12 @@
 - Repository validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
 - `TODO.md` now marks P1-T05 done with a completion record.
 - Task changes were committed as `[P1-T05] Add dependency gate script`.
+
+## Current invocation progress
+
+- Selected first incomplete task: P1-T05R, reviewing `tools/dependency_gate.py` against the old Rust `scoop_tools dependency-gate` implementation in the current repository state.
+- Latest commit is `[P1-T05] Record dependency gate completion`; it directly precedes this review and does not mention an unfinished blocker.
+- Parity validation passed: `python3 tools/dependency_gate.py` and `cargo run -q -p scoop_tools -- dependency-gate` have identical stdout, stderr, and exit status.
+- Repository validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`.
+- `TODO.md` now marks P1-T05R done with a completion record.
+- Next step: commit this invocation.
