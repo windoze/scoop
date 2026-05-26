@@ -34,7 +34,10 @@ pub use graph::{
     SourceConeTrust, StableConeKey,
 };
 pub use graph_loader::{
-    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
+    load_source_cone_graph_for_consumer_package,
+    load_source_cone_graph_for_consumer_package_for_platform,
+    load_source_cone_graph_for_virtual_consumer,
+    load_source_cone_graph_for_virtual_consumer_for_platform,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
@@ -54,7 +57,9 @@ pub use scoopc_source::SourceFile;
 pub use sysroot::{
     DEFAULT_AUTO_DEPENDENCY_CONES, SYSROOT_OVERLAY_ENV, SysrootSourceConePackage,
     SysrootSourceEntry, canonicalize_sysroot_root, collect_auto_sysroot_source_cone_packages,
-    collect_auto_sysroot_source_entries, collect_merged_sysroot_entries, collect_sysroot_files,
-    collect_sysroot_source_cone_packages, default_sysroot_path,
+    collect_auto_sysroot_source_cone_packages_for_platform, collect_auto_sysroot_source_entries,
+    collect_auto_sysroot_source_entries_for_platform, collect_merged_sysroot_entries,
+    collect_sysroot_files, collect_sysroot_source_cone_packages,
+    collect_sysroot_source_cone_packages_for_platform, default_sysroot_path,
     select_auto_sysroot_source_cone_packages, sysroot_source_cone_names,
 };

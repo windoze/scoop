@@ -13,8 +13,9 @@ use crate::cone::{
 use crate::cone::{
     ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
     SourceConeCompilationUnit, SourceConeGraph, SourceConeInfo, SourceConeRole,
-    build_cached_cone_import_from_artifact, load_source_cone_graph_for_consumer_package,
-    load_source_cone_graph_for_virtual_consumer,
+    build_cached_cone_import_from_artifact, load_cone_source_package_for_platform,
+    load_source_cone_graph_for_consumer_package_for_platform,
+    load_source_cone_graph_for_virtual_consumer_for_platform,
 };
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -475,6 +476,13 @@ impl FrontendOutput {
     }
 }
 
+fn target_platform_id(session_options: &SessionOptions) -> String {
+    session_options
+        .target_platform()
+        .map(|platform| platform.id().to_string())
+        .unwrap_or_else(|| crate::target::TargetPlatform::host().id().to_string())
+}
+
 #[derive(Debug, Error, Diagnostic)]
 #[error("入口包 `{entry_package}` 中找不到入口函数 `fun main`")]
 #[diagnostic(code(scoop::driver::entry_package_missing_main))]
@@ -536,6 +544,7 @@ pub fn load_project_input_from_path(
     entry_package_override: Option<String>,
     session_options: &SessionOptions,
 ) -> Result<ProjectInput> {
+    let target_platform = target_platform_id(session_options);
     let sysroot_root = crate::sysroot::Sysroot::default_path()
         .canonicalize()
         .into_diagnostic()
@@ -545,19 +554,20 @@ pub fn load_project_input_from_path(
         let source = SourceFile::load(input)?;
         let virtual_root = source.path().to_path_buf();
         let manifest = default_virtual_cone_manifest(&source);
-        let graph = load_source_cone_graph_for_virtual_consumer(
+        let graph = load_source_cone_graph_for_virtual_consumer_for_platform(
             source,
             virtual_root,
             manifest,
             &sysroot_root,
             session_options.sysroot_overlay(),
             session_options.extra_sysroot_dependencies(),
+            &target_platform,
         )?;
         return ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None);
     }
 
     if input.is_dir() {
-        let pkg = crate::cone::load_cone_source_package(input)?;
+        let pkg = load_cone_source_package_for_platform(input, &target_platform)?;
         if pkg.manifest.cone.kind != ConeKind::Bin {
             return Err(miette::miette!(
                 "只有 `bin` cone 可作为 executable consumer 输入；`{}` 声明为 `{}` cone",
@@ -565,12 +575,13 @@ pub fn load_project_input_from_path(
                 pkg.manifest.cone.kind
             ));
         }
-        let graph = load_source_cone_graph_for_consumer_package(
+        let graph = load_source_cone_graph_for_consumer_package_for_platform(
             pkg,
             &sysroot_root,
             session_options.sysroot_overlay(),
             &[],
             session_options.extra_sysroot_dependencies(),
+            &target_platform,
         )?;
         return ProjectInput::from_graph(graph, ConeProjectKind::Explicit, entry_package_override);
     }
@@ -604,13 +615,15 @@ pub fn load_single_cone_project_input_from_path(
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
 
-    let pkg = crate::cone::load_cone_source_package(cone_root)?;
-    let graph = load_source_cone_graph_for_consumer_package(
+    let target_platform = target_platform_id(session_options);
+    let pkg = load_cone_source_package_for_platform(cone_root, &target_platform)?;
+    let graph = load_source_cone_graph_for_consumer_package_for_platform(
         pkg,
         &sysroot_root,
         session_options.sysroot_overlay(),
         &[],
         session_options.extra_sysroot_dependencies(),
+        &target_platform,
     )?;
     let marker_path = cone_root.join(".scoop-virtual-cone");
     let is_virtual_cone = marker_path.is_file();
@@ -660,17 +673,19 @@ pub(crate) fn prepare_virtual_cone_input_with_options(
 ) -> Result<ProjectInput> {
     let virtual_root = source.path().to_path_buf();
     let manifest = default_virtual_cone_manifest(&source);
+    let target_platform = target_platform_id(session_options);
     let sysroot_root = crate::sysroot::Sysroot::default_path()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
-    let graph = load_source_cone_graph_for_virtual_consumer(
+    let graph = load_source_cone_graph_for_virtual_consumer_for_platform(
         source,
         virtual_root,
         manifest,
         &sysroot_root,
         session_options.sysroot_overlay(),
         session_options.extra_sysroot_dependencies(),
+        &target_platform,
     )?;
     ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
@@ -920,6 +935,9 @@ pub fn run_frontend_with_artifact_cache(
         index.set_export_entry_points(unit.node().manifest.export_entry_points.clone());
         let mut env =
             TypeEnv::from_sysroot(session.sysroot(), &index).map_err(miette::Report::from)?;
+        if let Some(target_platform) = session.options().target_platform().cloned() {
+            env.set_target_platform(target_platform);
+        }
 
         for dep_id in unit.dependency_cone_ids() {
             let Some(artifact) = published_artifacts.get(&dep_id) else {

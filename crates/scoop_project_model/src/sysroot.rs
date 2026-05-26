@@ -75,8 +75,17 @@ pub fn collect_sysroot_source_cone_packages(
     root: &Path,
     overlay_root: Option<&Path>,
 ) -> Result<Vec<SysrootSourceConePackage>> {
+    let target_platform = host_target_platform_id();
+    collect_sysroot_source_cone_packages_for_platform(root, overlay_root, &target_platform)
+}
+
+pub fn collect_sysroot_source_cone_packages_for_platform(
+    root: &Path,
+    overlay_root: Option<&Path>,
+    target_platform: &str,
+) -> Result<Vec<SysrootSourceConePackage>> {
     let root = canonicalize_sysroot_root(root, "sysroot")?;
-    let source_sets = collect_sysroot_cone_source_sets(&root)?;
+    let source_sets = collect_sysroot_cone_source_sets(&root, target_platform)?;
     let overlay_root = overlay_root
         .map(|overlay_root| canonicalize_sysroot_root(overlay_root, "sysroot overlay"))
         .transpose()?;
@@ -119,7 +128,23 @@ pub fn collect_auto_sysroot_source_cone_packages(
     overlay_root: Option<&Path>,
     extra_dependency_names: &[String],
 ) -> Result<Vec<SysrootSourceConePackage>> {
-    let packages = collect_sysroot_source_cone_packages(root, overlay_root)?;
+    let target_platform = host_target_platform_id();
+    collect_auto_sysroot_source_cone_packages_for_platform(
+        root,
+        overlay_root,
+        extra_dependency_names,
+        &target_platform,
+    )
+}
+
+pub fn collect_auto_sysroot_source_cone_packages_for_platform(
+    root: &Path,
+    overlay_root: Option<&Path>,
+    extra_dependency_names: &[String],
+    target_platform: &str,
+) -> Result<Vec<SysrootSourceConePackage>> {
+    let packages =
+        collect_sysroot_source_cone_packages_for_platform(root, overlay_root, target_platform)?;
     select_auto_sysroot_source_cone_packages(packages, extra_dependency_names)
 }
 
@@ -128,8 +153,27 @@ pub fn collect_auto_sysroot_source_entries(
     overlay_root: Option<&Path>,
     extra_dependency_names: &[String],
 ) -> Result<Vec<SysrootSourceEntry>> {
-    let source_sets =
-        collect_auto_sysroot_source_cone_packages(root, overlay_root, extra_dependency_names)?;
+    let target_platform = host_target_platform_id();
+    collect_auto_sysroot_source_entries_for_platform(
+        root,
+        overlay_root,
+        extra_dependency_names,
+        &target_platform,
+    )
+}
+
+pub fn collect_auto_sysroot_source_entries_for_platform(
+    root: &Path,
+    overlay_root: Option<&Path>,
+    extra_dependency_names: &[String],
+    target_platform: &str,
+) -> Result<Vec<SysrootSourceEntry>> {
+    let source_sets = collect_auto_sysroot_source_cone_packages_for_platform(
+        root,
+        overlay_root,
+        extra_dependency_names,
+        target_platform,
+    )?;
     let source_count = source_sets.iter().map(|set| set.sources.len()).sum();
     let mut entries = Vec::with_capacity(source_count);
 
@@ -294,9 +338,11 @@ fn merge_overlay_cone_sources(
     Ok(())
 }
 
-fn collect_sysroot_cone_source_sets(root: &Path) -> Result<Vec<SysrootConeSourceSet>> {
+fn collect_sysroot_cone_source_sets(
+    root: &Path,
+    target_platform: &str,
+) -> Result<Vec<SysrootConeSourceSet>> {
     let manifest_paths = collect_sysroot_cone_manifest_paths(root)?;
-    let target_platform = host_target_platform_id();
     let mut source_sets = Vec::new();
 
     for manifest_path in manifest_paths {
@@ -309,7 +355,7 @@ fn collect_sysroot_cone_source_sets(root: &Path) -> Result<Vec<SysrootConeSource
             .to_path_buf();
         let package = load_cone_source_package_for_platform_with_sysroot_root(
             cone_root,
-            &target_platform,
+            target_platform,
             root,
         )?;
         let trusted_syslib = package.manifest.cone.kind == ConeKind::Syslib;

@@ -12,6 +12,16 @@ Execution plan for this invocation:
 
 Progress update:
 
-- Selected first incomplete task: `P1-T01` (`tools/run_fixtures.py`).
-- Probed the legacy runner against public commands and found a blocker: current approved commands lack a generic resolve/typecheck-only frontend check surface. `dump-hir` misses many expected typecheck failures, while `build-single-cone` runs too far and fails valid typecheck-only fixtures during HIR/lowering.
-- Plan changed to schedule the minimum prerequisite command-surface task before `P1-T01`, update the design/plan/TODO bookkeeping, commit that change, and stop.
+- Selected first incomplete task: `P1-T00` (`scoopc check-source` command surface).
+- Planned implementation steps:
+  1. Inspect `TODO.md`, `PLAN.md`, `TEST_INFRA_CLEANUP.md`, `docs/fixtures.md`, and the existing `scoopc` CLI/frontend APIs for parse, resolve, typecheck, and infer behavior.
+  2. Add a non-fixture `scoopc check-source` CLI command that supports `parse`, `resolve`, `typecheck`, and `infer` phase-only validation for single-file and cone project inputs, including `--source <path>` and `--target-platform <id>`.
+  3. Document stdout, stderr, and exit-code behavior in `docs/fixtures.md`.
+  4. Add or update focused tests covering argument parsing and command behavior without introducing any fixture-specific API or naming.
+  5. Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, relevant tests, and required suites; fix any unscheduled failures.
+  6. Mark `P1-T00` as `[DONE]` in `TODO.md`, update its completion record, update this progress file, commit all changes, and stop.
+- Completed implementation:
+  - Added `scoopc check-source` parsing and dispatch plus frontend-only command execution for single-file and cone project source inputs.
+  - Added target-platform propagation through session sysroot loading, source-cone graph loading, frontend type environments, and typed-HIR support-source loading.
+  - Documented the command contract in `docs/fixtures.md` and marked `P1-T00` complete in `TODO.md`.
+  - Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, targeted `target/debug/scoopc check-source` smoke checks, `cargo test --all --all-targets`, and `cargo run -p scoop -- test` (1532 checks).

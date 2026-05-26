@@ -11,8 +11,10 @@ use miette::{Context as _, Result, miette};
 pub use scoop_project_model::sysroot::{
     DEFAULT_AUTO_DEPENDENCY_CONES, SYSROOT_OVERLAY_ENV, SysrootSourceConePackage,
     SysrootSourceEntry, canonicalize_sysroot_root, collect_auto_sysroot_source_cone_packages,
-    collect_auto_sysroot_source_entries, collect_merged_sysroot_entries, collect_sysroot_files,
-    collect_sysroot_source_cone_packages, default_sysroot_path,
+    collect_auto_sysroot_source_cone_packages_for_platform, collect_auto_sysroot_source_entries,
+    collect_auto_sysroot_source_entries_for_platform, collect_merged_sysroot_entries,
+    collect_sysroot_files, collect_sysroot_source_cone_packages,
+    collect_sysroot_source_cone_packages_for_platform, default_sysroot_path,
     select_auto_sysroot_source_cone_packages, sysroot_source_cone_names,
 };
 
@@ -56,9 +58,28 @@ impl Sysroot {
         overlay_root: Option<&Path>,
         extra_dependency_names: &[String],
     ) -> Result<Self> {
+        let target_platform = crate::target::TargetPlatform::host();
+        Self::load_auto_from_with_overlay_dependencies_and_platform(
+            root,
+            overlay_root,
+            extra_dependency_names,
+            target_platform.id(),
+        )
+    }
+
+    pub fn load_auto_from_with_overlay_dependencies_and_platform(
+        root: impl AsRef<Path>,
+        overlay_root: Option<&Path>,
+        extra_dependency_names: &[String],
+        target_platform: &str,
+    ) -> Result<Self> {
         let root = canonicalize_sysroot_root(root.as_ref(), "sysroot")?;
-        let entries =
-            collect_auto_sysroot_source_entries(&root, overlay_root, extra_dependency_names)?;
+        let entries = collect_auto_sysroot_source_entries_for_platform(
+            &root,
+            overlay_root,
+            extra_dependency_names,
+            target_platform,
+        )?;
         Self::load_from_entries(root, entries)
     }
 

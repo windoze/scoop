@@ -8,8 +8,8 @@
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
 use scoopc::driver_cli::{
-    BuildSingleConeCli, CompilerCli, DumpCli, DumpRttiCli, DumpStackmapsCli, EmitArtifactCli,
-    LinkConeCli, USAGE, parse_args,
+    BuildSingleConeCli, CheckSourceCli, CompilerCli, DumpCli, DumpRttiCli, DumpStackmapsCli,
+    EmitArtifactCli, LinkConeCli, USAGE, parse_args,
 };
 
 fn main() -> Result<()> {
@@ -21,12 +21,23 @@ fn main() -> Result<()> {
     match cli {
         CompilerCli::BuildSingleCone(sub) => run_build_single_cone(sub),
         CompilerCli::LinkCone(sub) => run_link_cone(sub),
+        CompilerCli::CheckSource(sub) => run_check_source(sub),
         CompilerCli::EmitArtifact(sub) => run_emit_artifact(sub),
         CompilerCli::Dump(sub) => run_dump(sub),
         CompilerCli::DumpRtti(sub) => run_dump_rtti(sub),
         CompilerCli::DumpStackmaps(sub) => run_dump_stackmaps(sub),
         CompilerCli::TestFixtures(sub) => scoopc::fixture_cli::run(sub),
     }
+}
+
+fn run_check_source(cli: CheckSourceCli) -> Result<()> {
+    scoopc::tool_commands::run_check_source(
+        cli.input,
+        cli.source,
+        cli.phase,
+        cli.target_platform,
+        cli.session_options.with_env_fallback(),
+    )
 }
 
 fn run_build_single_cone(cli: BuildSingleConeCli) -> Result<()> {

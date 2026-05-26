@@ -1,12 +1,35 @@
 //! Compiler-owned diagnostic/tooling commands exposed through the `scoopc` binary.
 
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use object::{Architecture, Object as _, ObjectSection as _, ObjectSymbol as _, SymbolKind};
 
 use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckSourcePhase {
+    Parse,
+    Resolve,
+    Typecheck,
+    Infer,
+}
+
+impl CheckSourcePhase {
+    pub fn parse(value: &str) -> Result<Self> {
+        match value {
+            "parse" => Ok(Self::Parse),
+            "resolve" => Ok(Self::Resolve),
+            "typecheck" => Ok(Self::Typecheck),
+            "infer" => Ok(Self::Infer),
+            other => Err(miette::miette!(
+                "未知 check-source phase `{other}`（期望 parse|resolve|typecheck|infer）"
+            )),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmitArtifactKind {
@@ -64,6 +87,384 @@ pub fn run_emit_artifact(
         kind.llvm_kind(),
     )?;
     Ok(())
+}
+
+pub fn run_check_source(
+    input: PathBuf,
+    source: Option<PathBuf>,
+    phase: CheckSourcePhase,
+    target_platform: Option<String>,
+    session_options: SessionOptions,
+) -> Result<()> {
+    let session_options = if let Some(platform) = target_platform {
+        session_options.with_target_platform(crate::target::TargetPlatform::new(platform))
+    } else {
+        session_options
+    };
+    let input = canonical_input(input)?;
+    let session = Session::with_options(session_options.clone())?;
+
+    if input.is_file() {
+        if source.is_some() {
+            return Err(miette::miette!(
+                "`check-source --source` 只能配合 cone project 目录输入使用"
+            ));
+        }
+        let source = SourceFile::load(&input)?;
+        return run_check_source_file(&session, &source, phase);
+    }
+
+    if input.is_dir() {
+        let project =
+            crate::frontend::load_single_cone_project_input_from_path(&input, &session_options)?;
+        let selected = select_project_sources(&project, &input, source.as_deref())?;
+        return run_check_source_project(&session, &project, &selected, phase);
+    }
+
+    Err(miette::miette!(
+        "check-source 输入既不是文件也不是目录：{}",
+        input.display()
+    ))
+}
+
+fn run_check_source_file(
+    session: &Session,
+    source: &SourceFile,
+    phase: CheckSourcePhase,
+) -> Result<()> {
+    match phase {
+        CheckSourcePhase::Parse => crate::pipeline::load_ast_stage_output_for_dump(session, source)
+            .map(|_| ())
+            .map_err(miette::Report::from),
+        CheckSourcePhase::Resolve => {
+            let mut ast = parse_source(session, source)?;
+            let index = build_single_source_index(session, source, &ast)?;
+            crate::resolve::check_file_bindings(source, &mut ast, &index)
+                .map_err(miette::Report::from)
+        }
+        CheckSourcePhase::Typecheck => {
+            let mut ast = parse_source(session, source)?;
+            let index = build_single_source_index(session, source, &ast)?;
+            run_typecheck_for_source(session, source, &mut ast, &index)
+        }
+        CheckSourcePhase::Infer => crate::pipeline::load_hir_stage_output_for_dump(session, source)
+            .map(|_| ())
+            .map_err(miette::Report::from),
+    }
+}
+
+fn parse_source(session: &Session, source: &SourceFile) -> Result<crate::ast::File> {
+    session.parse(source).map_err(miette::Report::from)
+}
+
+fn build_single_source_index(
+    session: &Session,
+    source: &SourceFile,
+    ast: &crate::ast::File,
+) -> Result<crate::resolve::Index> {
+    let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+    for file in session.sysroot().index_files() {
+        pairs.push((&file.source, &file.ast));
+    }
+    pairs.push((source, ast));
+    crate::resolve::Index::build(&pairs).map_err(miette::Report::from)
+}
+
+fn run_typecheck_for_source(
+    session: &Session,
+    source: &SourceFile,
+    ast: &mut crate::ast::File,
+    index: &crate::resolve::Index,
+) -> Result<()> {
+    crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
+    crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
+
+    let headers =
+        crate::resolve::check_file_headers(source, ast, index).map_err(miette::Report::from)?;
+    crate::resolve::check_file_bodies(source, ast, index, &headers)
+        .map_err(miette::Report::from)?;
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), index)
+        .map_err(miette::Report::from)?;
+    env.extend_from_file(source, ast, index)
+        .map_err(miette::Report::from)?;
+    if let Some(target_platform) = session.options().target_platform().cloned() {
+        env.set_target_platform(target_platform);
+    }
+
+    let mut types = crate::ty::TypeStore::new();
+    let builtins = types.intern_builtins();
+    run_typecheck_passes(source, ast, index, &headers, &env, &mut types, builtins)?;
+    crate::typecheck::check_file_type_layouts(index, &env, &mut types, builtins)
+        .map_err(miette::Report::from)?;
+    Ok(())
+}
+
+fn select_project_sources(
+    project: &crate::frontend::ProjectInput,
+    input_root: &Path,
+    source: Option<&Path>,
+) -> Result<Vec<usize>> {
+    let Some(source) = source else {
+        return Ok((0..project.build_closure_sources().len()).collect());
+    };
+    let raw = if source.is_absolute() {
+        source.to_path_buf()
+    } else {
+        input_root.join(source)
+    };
+    let selected = raw
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法定位 `--source` 源文件：{}", raw.display()))?;
+    let Some((index, _)) = project
+        .build_closure_sources()
+        .iter()
+        .enumerate()
+        .find(|(_, candidate)| candidate.path() == selected)
+    else {
+        return Err(miette::miette!(
+            "`--source` 不属于该 cone project 的 source graph：{}",
+            selected.display()
+        ));
+    };
+    Ok(vec![index])
+}
+
+fn run_check_source_project(
+    session: &Session,
+    project: &crate::frontend::ProjectInput,
+    selected: &[usize],
+    phase: CheckSourcePhase,
+) -> Result<()> {
+    if phase == CheckSourcePhase::Parse {
+        for index_to_check in selected {
+            parse_source(session, &project.build_closure_sources()[*index_to_check])?;
+        }
+        return Ok(());
+    }
+
+    let mut asts = parse_project_asts(session, project)?;
+    let index = build_project_index(project, &asts)?;
+    if phase == CheckSourcePhase::Resolve {
+        for index_to_check in selected {
+            let source = &project.build_closure_sources()[*index_to_check];
+            crate::resolve::check_file_bindings(source, &mut asts[*index_to_check], &index)
+                .map_err(miette::Report::from)?;
+        }
+        return Ok(());
+    }
+
+    let typed = typecheck_project(session, project, asts, index, selected)?;
+    if phase == CheckSourcePhase::Infer {
+        for index_to_check in selected {
+            infer_project_source(project, &typed, *index_to_check)?;
+        }
+    }
+    Ok(())
+}
+
+fn parse_project_asts(
+    session: &Session,
+    project: &crate::frontend::ProjectInput,
+) -> Result<Vec<crate::ast::File>> {
+    let mut asts = Vec::with_capacity(project.build_closure_sources().len());
+    for source in project.build_closure_sources() {
+        asts.push(parse_source(session, source)?);
+    }
+    Ok(asts)
+}
+
+fn build_project_index(
+    project: &crate::frontend::ProjectInput,
+    asts: &[crate::ast::File],
+) -> Result<crate::resolve::Index> {
+    let indexed = project
+        .build_closure_sources()
+        .iter()
+        .enumerate()
+        .map(|(index, source)| crate::resolve::IndexedFile {
+            cone: project.source_cone_id(index),
+            cone_kind: project.source_cone_kind(index),
+            source,
+            file: &asts[index],
+        })
+        .collect::<Vec<_>>();
+    crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)
+}
+
+struct TypecheckedProject {
+    asts: Vec<crate::ast::File>,
+    index: crate::resolve::Index,
+    env: crate::typecheck::TypeEnv,
+    types: crate::ty::TypeStore,
+}
+
+fn typecheck_project(
+    session: &Session,
+    project: &crate::frontend::ProjectInput,
+    mut asts: Vec<crate::ast::File>,
+    index: crate::resolve::Index,
+    selected: &[usize],
+) -> Result<TypecheckedProject> {
+    let source_count = project.build_closure_sources().len();
+    let mut headers = Vec::with_capacity(source_count);
+
+    for (source, ast) in project.build_closure_sources().iter().zip(asts.iter()) {
+        crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
+        crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
+        headers.push(
+            crate::resolve::check_file_headers(source, ast, &index)
+                .map_err(miette::Report::from)?,
+        );
+    }
+    for ((source, ast), headers) in project
+        .build_closure_sources()
+        .iter()
+        .zip(asts.iter_mut())
+        .zip(headers.iter())
+    {
+        crate::resolve::check_file_bodies(source, ast, &index, headers)
+            .map_err(miette::Report::from)?;
+    }
+
+    let sysroot_paths = session
+        .sysroot()
+        .index_files()
+        .map(|file| file.source.path().to_path_buf())
+        .collect::<HashSet<_>>();
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(miette::Report::from)?;
+    for (source, ast) in project.build_closure_sources().iter().zip(asts.iter()) {
+        if sysroot_paths.contains(source.path()) {
+            continue;
+        }
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::from)?;
+    }
+    if let Some(target_platform) = session.options().target_platform().cloned() {
+        env.set_target_platform(target_platform);
+    }
+
+    let mut types = crate::ty::TypeStore::new();
+    let builtins = types.intern_builtins();
+    for index_to_check in selected {
+        let source = &project.build_closure_sources()[*index_to_check];
+        let ast = &asts[*index_to_check];
+        run_typecheck_passes(
+            source,
+            ast,
+            &index,
+            &headers[*index_to_check],
+            &env,
+            &mut types,
+            builtins,
+        )?;
+    }
+    crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
+        .map_err(miette::Report::from)?;
+
+    Ok(TypecheckedProject {
+        asts,
+        index,
+        env,
+        types,
+    })
+}
+
+fn run_typecheck_passes(
+    source: &SourceFile,
+    ast: &crate::ast::File,
+    index: &crate::resolve::Index,
+    headers: &crate::resolve::FileHeaders,
+    env: &crate::typecheck::TypeEnv,
+    types: &mut crate::ty::TypeStore,
+    builtins: crate::ty::BuiltinTypes,
+) -> Result<()> {
+    crate::typecheck::check_file_annotations(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(miette::Report::from)?;
+    crate::typecheck::check_file_properties(source, ast, index, env)
+        .map_err(|err| miette::Report::from(*err))?;
+    crate::typecheck::check_file_inheritance(source, ast, index).map_err(miette::Report::from)?;
+    crate::typecheck::check_file_interfaces(source, ast, index, env)
+        .map_err(miette::Report::from)?;
+    crate::typecheck::check_file_override_effects(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(|err| miette::Report::from(*err))?;
+    crate::typecheck::check_file_type_refs(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(miette::Report::from)?;
+    crate::typecheck::check_file_where_clauses(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(miette::Report::from)?;
+    crate::typecheck::check_file_overload_conflicts(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(miette::Report::from)?;
+    crate::typecheck::check_file_exprs(source, ast, index, &headers.imports, env, types, builtins)
+        .map_err(miette::Report::from)?;
+    Ok(())
+}
+
+fn infer_project_source(
+    project: &crate::frontend::ProjectInput,
+    typed: &TypecheckedProject,
+    index_to_check: usize,
+) -> Result<()> {
+    let compilation_unit = project
+        .build_closure_sources()
+        .iter()
+        .zip(typed.asts.iter())
+        .collect::<Vec<_>>();
+    let source = &project.build_closure_sources()[index_to_check];
+    let files_to_lower = [(source, &typed.asts[index_to_check])];
+    let lowered = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        project.source_cone_info(index_to_check).stable_key.clone(),
+        &typed.index,
+        &compilation_unit,
+        &files_to_lower,
+        Some(&typed.env),
+        &typed.types,
+    )
+    .map_err(miette::Report::from)?;
+    crate::pipeline::HirStageOutput::new(lowered, source.path())
+        .map(|_| ())
+        .map_err(miette::Report::from)
 }
 
 pub fn run_dump_ast(input: PathBuf, session_options: SessionOptions) -> Result<()> {

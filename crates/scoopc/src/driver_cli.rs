@@ -10,7 +10,7 @@ use miette::Result;
 use crate::cone::ConeKind;
 use crate::opt::OptLevel;
 use crate::session::SessionOptions;
-use crate::tool_commands::EmitArtifactKind;
+use crate::tool_commands::{CheckSourcePhase, EmitArtifactKind};
 
 pub const USAGE: &str = "\
 用法：
@@ -23,6 +23,8 @@ pub const USAGE: &str = "\
       [--extern-lib <name> ...] [--link-flag <flag> ...] [--cone-id <key>]
   scoopc emit-artifact --kind <llvm-ir|obj|asm> --input <path> --out <path> \
       [--opt-level <0|1|2|3|s|z>]
+  scoopc check-source --phase <parse|resolve|typecheck|infer> --input <file-or-cone-dir> \
+      [--source <path>] [--target-platform <id>]
   scoopc dump-ast|dump-hir|dump-mir|dump-ir|dump-effect-facts|dump-effect-lowered <path>
   scoopc dump-rtti <path> [--type <TYPE>]
   scoopc dump-stackmaps [--verify-roots] [--dump-records] <path>
@@ -42,11 +44,21 @@ pub enum CompilerCli {
     BuildSingleCone(BuildSingleConeCli),
     /// `scoopc link-cone ...`：scoop driver 派发的 link 子进程入口。
     LinkCone(LinkConeCli),
+    CheckSource(CheckSourceCli),
     EmitArtifact(EmitArtifactCli),
     Dump(DumpCli),
     DumpRtti(DumpRttiCli),
     DumpStackmaps(DumpStackmapsCli),
     TestFixtures(crate::fixture_cli::FixtureCliOptions),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckSourceCli {
+    pub phase: CheckSourcePhase,
+    pub input: PathBuf,
+    pub source: Option<PathBuf>,
+    pub target_platform: Option<String>,
+    pub session_options: SessionOptions,
 }
 
 /// `scoopc build-single-cone` 子命令的参数。
@@ -151,6 +163,9 @@ where
             parse_build_single_cone(args_iter).map(|cli| Some(CompilerCli::BuildSingleCone(cli)))
         }
         Some("link-cone") => parse_link_cone(args_iter).map(|cli| Some(CompilerCli::LinkCone(cli))),
+        Some("check-source") => {
+            parse_check_source(args_iter).map(|cli| Some(CompilerCli::CheckSource(cli)))
+        }
         Some("emit-artifact") => {
             parse_emit_artifact(args_iter).map(|cli| Some(CompilerCli::EmitArtifact(cli)))
         }
@@ -441,6 +456,48 @@ where
     })
 }
 
+fn parse_check_source<I>(args: I) -> Result<CheckSourceCli>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut phase = None;
+    let mut input = None;
+    let mut source = None;
+    let mut target_platform = None;
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => return Err(miette::miette!("{USAGE}")),
+            "--phase" => {
+                phase = Some(CheckSourcePhase::parse(&required_arg(
+                    &mut args, "--phase",
+                )?)?)
+            }
+            "--input" => input = Some(PathBuf::from(required_arg(&mut args, "--input")?)),
+            "--source" => source = Some(PathBuf::from(required_arg(&mut args, "--source")?)),
+            "--target-platform" => {
+                let value = required_arg(&mut args, "--target-platform")?;
+                if value.trim().is_empty() {
+                    return Err(miette::miette!("`--target-platform` 不能是空字符串"));
+                }
+                target_platform = Some(value);
+            }
+            other => {
+                return Err(miette::miette!(
+                    "check-source 不接受参数 `{other}`\n\n{USAGE}"
+                ));
+            }
+        }
+    }
+    Ok(CheckSourceCli {
+        phase: phase.ok_or_else(|| miette::miette!("check-source 缺少 --phase\n\n{USAGE}"))?,
+        input: input.ok_or_else(|| miette::miette!("check-source 缺少 --input\n\n{USAGE}"))?,
+        source,
+        target_platform,
+        session_options: SessionOptions::new(),
+    })
+}
+
 fn parse_emit_artifact<I>(args: I) -> Result<EmitArtifactCli>
 where
     I: IntoIterator<Item = String>,
@@ -636,6 +693,13 @@ mod tests {
         }
     }
 
+    fn check_source(cli: CompilerCli) -> CheckSourceCli {
+        match cli {
+            CompilerCli::CheckSource(c) => c,
+            other => panic!("expected CheckSource, got {other:?}"),
+        }
+    }
+
     #[test]
     fn bare_file_legacy_cli_is_removed() {
         let err = parse_args(["input.scoop"]).unwrap_err();
@@ -752,6 +816,44 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--out"));
+    }
+
+    #[test]
+    fn check_source_cli_parses_required_and_optional_args() {
+        let cli = check_source(
+            parse_args([
+                "check-source",
+                "--phase",
+                "typecheck",
+                "--input",
+                "/tmp/project",
+                "--source",
+                "src/main.scoop",
+                "--target-platform",
+                "wasm32-unknown",
+            ])
+            .unwrap()
+            .unwrap(),
+        );
+
+        assert_eq!(cli.phase, CheckSourcePhase::Typecheck);
+        assert_eq!(cli.input, PathBuf::from("/tmp/project"));
+        assert_eq!(cli.source, Some(PathBuf::from("src/main.scoop")));
+        assert_eq!(cli.target_platform.as_deref(), Some("wasm32-unknown"));
+    }
+
+    #[test]
+    fn check_source_cli_rejects_unknown_phase() {
+        let err = parse_args([
+            "check-source",
+            "--phase",
+            "lower",
+            "--input",
+            "/tmp/project",
+        ])
+        .unwrap_err();
+
+        assert!(err.to_string().contains("parse|resolve|typecheck|infer"));
     }
 
     #[test]

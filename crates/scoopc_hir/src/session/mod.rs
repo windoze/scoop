@@ -15,6 +15,7 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
+use crate::target::TargetPlatform;
 
 /// 外部 driver 可通过该环境变量为单次构建显式加载额外 sysroot cones。
 pub const SYSROOT_DEPENDENCIES_ENV: &str = "SCOOP_SYSROOT_DEPS";
@@ -24,6 +25,7 @@ pub const SYSROOT_DEPENDENCIES_ENV: &str = "SCOOP_SYSROOT_DEPS";
 pub struct SessionOptions {
     sysroot_overlay: Option<PathBuf>,
     extra_sysroot_dependencies: Vec<String>,
+    target_platform: Option<TargetPlatform>,
 }
 
 impl SessionOptions {
@@ -31,6 +33,7 @@ impl SessionOptions {
         Self {
             sysroot_overlay: None,
             extra_sysroot_dependencies: Vec::new(),
+            target_platform: None,
         }
     }
 
@@ -48,6 +51,11 @@ impl SessionOptions {
             .extend(dependencies.into_iter().map(Into::into));
         self.extra_sysroot_dependencies.sort();
         self.extra_sysroot_dependencies.dedup();
+        self
+    }
+
+    pub fn with_target_platform(mut self, target_platform: TargetPlatform) -> Self {
+        self.target_platform = Some(target_platform);
         self
     }
 
@@ -72,6 +80,10 @@ impl SessionOptions {
 
     pub fn extra_sysroot_dependencies(&self) -> &[String] {
         &self.extra_sysroot_dependencies
+    }
+
+    pub fn target_platform(&self) -> Option<&TargetPlatform> {
+        self.target_platform.as_ref()
     }
 }
 
@@ -109,10 +121,15 @@ impl Session {
 
     /// 使用显式 session options 创建会话。
     pub fn with_options(options: SessionOptions) -> Result<Self> {
-        let sysroot = Sysroot::load_auto_from_with_overlay_and_dependencies(
+        let target_platform = options
+            .target_platform()
+            .cloned()
+            .unwrap_or_else(TargetPlatform::host);
+        let sysroot = Sysroot::load_auto_from_with_overlay_dependencies_and_platform(
             Sysroot::default_path(),
             options.sysroot_overlay(),
             options.extra_sysroot_dependencies(),
+            target_platform.id(),
         )
         .wrap_err("加载默认 sysroot 失败")?;
         Ok(Self { options, sysroot })

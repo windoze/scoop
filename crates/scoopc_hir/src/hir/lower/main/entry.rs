@@ -47,10 +47,15 @@ fn load_default_support_sources(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    let sysroot_entries = crate::sysroot::collect_auto_sysroot_source_entries(
+    let target_platform = session_options
+        .target_platform()
+        .cloned()
+        .unwrap_or_else(crate::target::TargetPlatform::host);
+    let sysroot_entries = crate::sysroot::collect_auto_sysroot_source_entries_for_platform(
         &sysroot_root,
         session_options.sysroot_overlay(),
         session_options.extra_sysroot_dependencies(),
+        target_platform.id(),
     )?;
 
     support_paths.extend(
@@ -438,6 +443,9 @@ pub fn lower_typed_for_dump(
         env.extend_from_file(support_source, support_ast, &index)?;
     }
     env.extend_from_file(source, &ast, &index)?;
+    if let Some(target_platform) = session.options().target_platform().cloned() {
+        env.set_target_platform(target_platform);
+    }
 
     let mut typecheck_types = TypeStore::new();
     let builtins = typecheck_types.intern_builtins();

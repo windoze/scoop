@@ -12,10 +12,10 @@ use crate::graph::{
 };
 use crate::manifest::{ConeDependencySpec, ConeKind, ConeManifest};
 use crate::package::ConeSourcePackage;
-use crate::package_loader::load_cone_source_package;
+use crate::package_loader::{host_target_platform_id, load_cone_source_package_for_platform};
 use crate::sysroot::{
-    SysrootSourceConePackage, collect_auto_sysroot_source_cone_packages,
-    collect_sysroot_source_cone_packages, select_auto_sysroot_source_cone_packages,
+    SysrootSourceConePackage, collect_auto_sysroot_source_cone_packages_for_platform,
+    collect_sysroot_source_cone_packages_for_platform, select_auto_sysroot_source_cone_packages,
     sysroot_source_cone_names,
 };
 
@@ -29,9 +29,33 @@ pub fn load_source_cone_graph_for_consumer_package(
     local_dependency_roots: &[PathBuf],
     extra_sysroot_dependencies: &[String],
 ) -> Result<SourceConeGraph> {
-    let all_sysroot_packages = collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
+    let target_platform = host_target_platform_id();
+    load_source_cone_graph_for_consumer_package_for_platform(
+        consumer,
+        sysroot_root,
+        sysroot_overlay,
+        local_dependency_roots,
+        extra_sysroot_dependencies,
+        &target_platform,
+    )
+}
+
+pub fn load_source_cone_graph_for_consumer_package_for_platform(
+    consumer: ConeSourcePackage,
+    sysroot_root: &Path,
+    sysroot_overlay: Option<&Path>,
+    local_dependency_roots: &[PathBuf],
+    extra_sysroot_dependencies: &[String],
+    target_platform: &str,
+) -> Result<SourceConeGraph> {
+    let all_sysroot_packages = collect_sysroot_source_cone_packages_for_platform(
+        sysroot_root,
+        sysroot_overlay,
+        target_platform,
+    )?;
     let sysroot_names = sysroot_source_cone_names(&all_sysroot_packages);
-    let local_dependencies = collect_local_dependency_closure(&consumer, local_dependency_roots)?;
+    let local_dependencies =
+        collect_local_dependency_closure(&consumer, local_dependency_roots, target_platform)?;
     let explicit_sysroot_dependencies = collect_explicit_sysroot_dependency_names(
         std::iter::once(&consumer).chain(local_dependencies.iter()),
         &sysroot_names,
@@ -58,10 +82,32 @@ pub fn load_source_cone_graph_for_virtual_consumer(
     sysroot_overlay: Option<&Path>,
     extra_sysroot_dependencies: &[String],
 ) -> Result<SourceConeGraph> {
-    let sysroot_packages = collect_auto_sysroot_source_cone_packages(
+    let target_platform = host_target_platform_id();
+    load_source_cone_graph_for_virtual_consumer_for_platform(
+        source,
+        root,
+        manifest,
         sysroot_root,
         sysroot_overlay,
         extra_sysroot_dependencies,
+        &target_platform,
+    )
+}
+
+pub fn load_source_cone_graph_for_virtual_consumer_for_platform(
+    source: SourceFile,
+    root: PathBuf,
+    manifest: ConeManifest,
+    sysroot_root: &Path,
+    sysroot_overlay: Option<&Path>,
+    extra_sysroot_dependencies: &[String],
+    target_platform: &str,
+) -> Result<SourceConeGraph> {
+    let sysroot_packages = collect_auto_sysroot_source_cone_packages_for_platform(
+        sysroot_root,
+        sysroot_overlay,
+        extra_sysroot_dependencies,
+        target_platform,
     )?;
     let mut nodes = Vec::with_capacity(sysroot_packages.len() + 1);
     let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
@@ -297,6 +343,7 @@ fn source_cone_graph_from_packages_with_extra_consumer_roots(
 fn collect_local_dependency_closure(
     consumer: &ConeSourcePackage,
     extra_roots: &[PathBuf],
+    target_platform: &str,
 ) -> Result<Vec<ConeSourcePackage>> {
     let mut packages_by_root = BTreeMap::<PathBuf, ConeSourcePackage>::new();
     for (dep_name, root) in local_path_dependency_roots(consumer)? {
@@ -304,6 +351,7 @@ fn collect_local_dependency_closure(
             root,
             Some((consumer.manifest.cone.name.as_str(), dep_name.as_str())),
             &mut packages_by_root,
+            target_platform,
         )?;
     }
     for root in extra_roots {
@@ -312,7 +360,7 @@ fn collect_local_dependency_closure(
             root,
             "显式 local dependency root",
         )?;
-        collect_local_dependency_package(root, None, &mut packages_by_root)?;
+        collect_local_dependency_package(root, None, &mut packages_by_root, target_platform)?;
     }
 
     Ok(packages_by_root.into_values().collect())
@@ -367,13 +415,14 @@ fn collect_local_dependency_package(
     root: PathBuf,
     expected: Option<(&str, &str)>,
     packages_by_root: &mut BTreeMap<PathBuf, ConeSourcePackage>,
+    target_platform: &str,
 ) -> Result<()> {
     if let Some(existing) = packages_by_root.get(&root) {
         validate_local_dependency_package(expected, existing)?;
         return Ok(());
     }
 
-    let package = load_cone_source_package(&root)?;
+    let package = load_cone_source_package_for_platform(&root, target_platform)?;
     validate_local_dependency_package(expected, &package)?;
     packages_by_root.insert(package.root.clone(), package.clone());
 
@@ -382,6 +431,7 @@ fn collect_local_dependency_package(
             dep_root,
             Some((package.manifest.cone.name.as_str(), dep_name.as_str())),
             packages_by_root,
+            target_platform,
         )?;
     }
 

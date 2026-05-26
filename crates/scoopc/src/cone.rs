@@ -14,7 +14,10 @@ pub use scoop_project_model::{
     SourceConeNode, SourceConeRole, SourceConeTrust, StableConeKey, discover_cone_manifest_path,
     discover_cone_root, load_cone_manifest_from_dir, load_cone_manifest_from_path,
     load_cone_source_package, load_cone_source_package_for_platform,
-    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
+    load_source_cone_graph_for_consumer_package,
+    load_source_cone_graph_for_consumer_package_for_platform,
+    load_source_cone_graph_for_virtual_consumer,
+    load_source_cone_graph_for_virtual_consumer_for_platform,
 };
 pub use scoopc_cone::{
     CONE_ANNOTATION_CLASSES_FILE_NAME, CONE_API_SCOOPIR_FILE_NAME,
