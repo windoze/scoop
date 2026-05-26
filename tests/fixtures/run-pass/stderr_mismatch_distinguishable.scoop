@@ -1,7 +1,0 @@
-// EXPECT: fail
-// RUN-STDOUT: stderr_mismatch_distinguishable.stdout
-// RUN-STDERR: stderr_mismatch_distinguishable.stderr
-// EXPECT-ERROR-CODE: scoop::fixtures::run_stderr_mismatch
-// EXPECT-ERROR: stderr 与 golden 不一致
-
-fun main() {}

@@ -1,18 +1,20 @@
-# Claude execution plan
+# Claude Plan
 
-I will follow TODO.md as the source of truth, complete exactly the first incomplete task, validate it, update the task record, commit the result, and stop.
+## Goal
+Complete exactly the first incomplete task from TODO.md, then stop after committing the result.
 
-## Steps
+## Execution Plan
 1. Read TODO.md and identify the first task whose heading is not prefixed with [DONE].
-2. Inspect only the files and context needed for that task.
-3. Implement the task as written, or add the minimum prerequisite task if a concrete blocker prevents correct implementation.
-4. Run formatting, linting, tests, and fixtures required by the task and repository instructions.
-5. Update TODO.md completion status and this progress file; update PLAN.md only if phase-level planning changes.
-6. Commit all task-related changes with the required co-author trailer, then stop.
+2. Review the selected task details, dependencies, validation requirements, and any directly relevant latest-commit context.
+3. Inspect only the code, fixtures, docs, and tests needed for that task.
+4. Implement the task completely, avoiding workarounds and preserving existing user changes.
+5. Run required formatting, linting, tests, and fixtures in the requested order, adding prerequisite TODO entries if an unscheduled blocking failure is found.
+6. Update TODO.md by prefixing the completed task heading with [DONE] and filling its completion record; update PLAN.md only if phase-level planning changes.
+7. Commit all task-related changes with a clear task-tagged message and the required co-author trailer.
 
 ## Progress
-- Identified P0-T03R as the first incomplete task.
-- Reviewed `docs/fixtures.md` against the actual `scoopc` tool CLI and `scoop` facade command surfaces.
-- Tightened the frozen command contract around `scoop run` program exit/stdin semantics and documented the stable `--entry-package` facade flag.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `cargo run -p scoop -- test` (`fixtures: ok (1536)`).
-- Marked P0-T03R `[DONE]` in `TODO.md` and added its completion record.
+- Plan file initialized before repository inspection.
+- Selected first incomplete task: P0-T04.
+- Removed the four fixture-runner self-test fixtures and their three dedicated golden output files.
+- Completed validation: formatting, clippy, full Rust tests, full fixture suite, and targeted marker greps all passed.
+- Marked P0-T04 as done in TODO.md with validation details.
