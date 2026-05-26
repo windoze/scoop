@@ -1,43 +1,34 @@
-# Claude Plan
+# Current Invocation Plan
 
-## Initial execution plan
+## Scope
+- Use `TODO.md` as the authoritative task list.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one task, then stop.
 
-1. Read TODO.md to identify the first task whose heading is not prefixed with [DONE].
-2. Read the selected task details, related PLAN.md context if needed, and the latest commit only if it explicitly mentions unfinished work relevant to that task.
-3. Inspect the smallest relevant code and test areas for that task.
-4. Implement the task exactly as specified, adding or updating tests/fixtures where required.
-5. Run formatting, clippy, tests, and fixtures as required by the task and repository policy.
-6. Update TODO.md by prefixing the completed task with [DONE] and filling its completion record; update PLAN.md only if phase-level sequencing changes.
-7. Commit all task-related changes with a clear task-tagged message and stop without starting the next task.
+## Execution Steps
+1. Read `TODO.md` to find the first incomplete task and its requirements, dependencies, and validation instructions.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Inspect the code, fixtures, and documentation directly related to the selected task.
+4. Implement the task without changing unrelated behavior or using workarounds.
+5. Run formatting, linting, and task-relevant validation in the required order; run broader suites when code changes require them.
+6. If validation exposes an unscheduled failing test or fixture, either fix it or add the minimum prerequisite/follow-up task to `TODO.md` before marking the task complete.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record. Update `PLAN.md` only if phase-level sequencing changes.
+8. Update this file at key milestones or if the plan changes.
+9. Commit all changes for this task with a clear task-tagged message and the required co-author trailer.
 
-## Current invocation plan
-
-1. Read `TODO.md` first and identify the first task heading that is not prefixed with `[DONE]`.
-2. Review the selected task details, dependencies, and any directly relevant `PLAN.md` or latest-commit context.
-3. Inspect only the code, fixtures, tests, and documentation needed to complete that task.
-4. Implement the selected task fully, or add the minimum prerequisite task to `TODO.md` if a concrete blocker prevents correct implementation.
-5. Run `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then the relevant/full tests and fixture suites required by the task policy.
-6. Update `TODO.md` with `[DONE]` and a completion record when the task is complete; update `PLAN.md` only for phase-level changes.
-7. Commit all task-related changes with a clear task-tagged message, then stop without starting the next task.
+## Notes
+- This file records the actionable plan and progress notes, not private reasoning.
 
 ## Progress
-
-- Current invocation plan recorded before task execution.
-- Selected first incomplete task: P1-T05, implementing `tools/dependency_gate.py` as the Python replacement for `scoop_tools dependency-gate`.
-- Latest commit is `[P1-T04R] Review safepoint baseline parity`; it is not an unfinished blocker for P1-T05.
-- Current worktree includes this plan update plus unrelated untracked `RTTI_REFINE.md` and `CALLER_LOCATION.md`, which will be left untouched.
-- Next steps: port the Rust dependency gate rules to a standard-library Python script, validate it against the old Rust command on the current repository, run required formatting/lint/tests, update `TODO.md`, and commit the task changes.
-- Implemented `tools/dependency_gate.py` using `cargo metadata --format-version 1` plus the source-boundary checks from the old Rust tool.
-- Initial parity validation passed: `python3 -m py_compile tools/dependency_gate.py` and a full diff between `python3 tools/dependency_gate.py` and `cargo run -q -p scoop_tools -- dependency-gate` produced no differences.
-- Repository validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
-- `TODO.md` now marks P1-T05 done with a completion record.
-- Task changes were committed as `[P1-T05] Add dependency gate script`.
-
-## Current invocation progress
-
-- Selected first incomplete task: P1-T05R, reviewing `tools/dependency_gate.py` against the old Rust `scoop_tools dependency-gate` implementation in the current repository state.
-- Latest commit is `[P1-T05] Record dependency gate completion`; it directly precedes this review and does not mention an unfinished blocker.
-- Parity validation passed: `python3 tools/dependency_gate.py` and `cargo run -q -p scoop_tools -- dependency-gate` have identical stdout, stderr, and exit status.
-- Repository validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test`.
-- `TODO.md` now marks P1-T05R done with a completion record.
-- Next step: commit this invocation.
+- Identified first incomplete task: P1-T06 (`tools/audit_spec_coverage.py` port from `crates/scoopc/src/audit/spec_coverage.rs`).
+- Next: inspect Rust audit semantics and existing Python tool conventions before implementing.
+- Focused Rust baseline passed: 7 spec coverage audit tests.
+- Implementing `tools/audit_spec_coverage.py` as a standalone Python standard-library audit.
+- Implemented `tools/audit_spec_coverage.py`; running py_compile, script audit, and focused Rust audit parity validation.
+- Focused validation passed; running `cargo fmt` followed by `cargo clippy --all-targets -- -D warnings`.
+- Formatting and clippy passed; running full Rust test suite with `cargo test --all --all-targets`.
+- Full Rust test suite passed; running full fixture suite with `python3 tools/run_fixtures.py tests/fixtures`.
+- Python fixture suite passed with 1533 checks; running legacy `cargo run -p scoop -- test` parity suite.
+- Legacy fixture suite passed with 1533 checks.
+- Updated `TODO.md` to mark P1-T06 `[DONE]` and added the completion record.
+- Next step: commit P1-T06 changes only, leaving unrelated untracked files untouched.
