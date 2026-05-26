@@ -66,3 +66,34 @@ fn legacy_pipeline_docs_removed_spec_and_tool_indexes_drop_deleted_async_task_su
         }
     }
 }
+
+#[test]
+fn fixture_contract_docs_freeze_external_command_surfaces() {
+    let text = read_workspace_file("docs/fixtures.md");
+    let required = [
+        "## External compiler and driver command contracts",
+        "`scoopc dump-ast <path>`",
+        "`scoopc dump-hir <path>`",
+        "`scoopc dump-mir <path>`",
+        "`scoopc dump-ir <path>`",
+        "`scoopc dump-effect-facts <path>`",
+        "`scoopc dump-effect-lowered <path>`",
+        "`scoopc dump-rtti <path> [--type <TYPE>]`",
+        "`scoopc dump-stackmaps [--verify-roots] [--dump-records] <path>`",
+        "`scoopc emit-artifact --kind {llvm-ir,obj,asm}",
+        "`scoopc build-single-cone --cone-root <dir>",
+        "`scoopc link-cone --kind <bin\\|lib\\|syslib>",
+        "`scoop build <file-or-cone-dir>",
+        "`scoop run [<file-or-cone-dir>]",
+        "Success stdout",
+        "Success stderr",
+        "External runner contract",
+    ];
+
+    for needle in required {
+        assert!(
+            text.contains(needle),
+            "fixture contract docs should freeze external command surface: {needle}"
+        );
+    }
+}

@@ -265,3 +265,40 @@ stderr, stdin, exit, timeout, and environment directives from
 Without `EXPECT-EXIT`, run-pass commands must exit successfully. With
 `EXPECT-EXIT`, a signal termination still fails because no numeric exit code is
 available.
+
+## External compiler and driver command contracts
+
+The Python runner may call only the command surfaces listed below. These
+commands do not know about fixtures; their inputs are ordinary `.scoop` files,
+cone project directories, artifact directories, or native binaries. The fixture
+runner contract is:
+
+- exit code `0` means the command completed successfully;
+- any non-zero exit code means argument parsing, compilation, linking, runtime,
+  or verification failed, and the diagnostic stream is `stderr`;
+- `stdout` is reserved for the command's data product or for the program being
+  run; compiler diagnostics, driver logs, warnings, link summaries, and cache
+  messages go to `stderr`;
+- `scoop dump-*` facade commands forward the corresponding `scoopc dump-*`
+  stdout and stderr without rewriting them.
+
+| Command | Success stdout | Success stderr | External runner contract |
+| --- | --- | --- | --- |
+| `scoopc dump-ast <path>` / `scoop dump-ast <path>` | Pretty debug AST (`{ast:#?}` plus trailing newline). | Empty unless diagnostics are emitted. | Compare stdout to an AST golden when `EXPECT-AST` is present; failures are reported only by non-zero exit + stderr. |
+| `scoopc dump-hir <path>` / `scoop dump-hir <path>` | HIR `stable_dump()` text. | Empty unless diagnostics are emitted. | Compare stdout byte-for-byte after the runner's normal newline normalization. |
+| `scoopc dump-mir <path>` / `scoop dump-mir <path>` | Direct-style MIR `stable_dump()` text. | Empty unless diagnostics are emitted. | Compare stdout against `.mir` goldens. |
+| `scoopc dump-ir <path>` / `scoop dump-ir <path>` | Materialized MIR/IR `stable_dump()` text. | Empty unless diagnostics are emitted. | Treat stdout as the complete IR dump. |
+| `scoopc dump-effect-facts <path>` / `scoop dump-effect-facts <path>` | Effect facts `stable_dump()` text. | Empty unless diagnostics are emitted. | Compare stdout against `.effectfacts` goldens. |
+| `scoopc dump-effect-lowered <path>` / `scoop dump-effect-lowered <path>` | Late-lowered LIR `stable_dump()` text. | Empty unless diagnostics are emitted. | Compare stdout against `.effectlowered` goldens. |
+| `scoopc dump-rtti <path> [--type <TYPE>]` / `scoop dump-rtti <path> [--type <TYPE>]` | Pretty JSON for the whole file, or for the selected type/interface. | Empty unless diagnostics are emitted. | Consume stdout as JSON; an unknown or ambiguous type query is a non-zero stderr diagnostic. |
+| `scoopc dump-stackmaps [--verify-roots] [--dump-records] <path>` / `scoop dump-stackmaps ...` | Stable text header beginning with `stackmaps:`, then `section:`, `version:`, `functions:`, `constants:`, and `records:`. `--verify-roots` also prints `verify-roots: ok` plus root-slot details; `--dump-records` appends `records-detail:`. | Empty unless diagnostics are emitted. | `RUN-STACKMAPS-RECORDS-GT` parses the `records: <n>` stdout line. Verification failures are non-zero stderr diagnostics. |
+| `scoopc emit-artifact --kind {llvm-ir,obj,asm} --input <path> --out <path> [--opt-level <level>]` | Empty. | Empty unless diagnostics are emitted. | The data product is the `--out` file. The runner should use canonical kind names `llvm-ir`, `obj`, or `asm`; accepted aliases are not fixture contract surface. |
+| `scoopc build-single-cone --cone-root <dir> --out <dir> --inputs-fingerprint <hex> [--upstream-artifact <dir> ...] [--cone-id <key>] [--opt-level <level>] [--sysroot-dep <name> ...]` | Empty. | Compile warnings, if any, using source-location text. | The data product is the artifact directory containing `manifest.json`, `frontend_import.json`, stage payloads, `objs/`, `inputs.fingerprint`, and `outputs.fingerprint`. Parent tooling owns fingerprint comparison and should not parse stdout. |
+| `scoopc link-cone --kind <bin\|lib\|syslib> --consumer-obj <path> [--dep-obj <path> ...] --runtime-artifact-dir <dir> --out <dir> --inputs-fingerprint <hex> [--binary-out <path>] [--linker <path>] [--extern-lib <name> ...] [--link-flag <flag> ...] [--cone-id <key>]` | Empty. | One success summary line: either `link-cone cache hit：<path> (<hex>)` or `已写入 link binary：<path> (<hex>)`. | The data product is the link output directory and binary path; runner logic should rely on exit status and files, not on the localized summary text. |
+| `scoop build <file-or-cone-dir> [-o <path>] [--emit-llvm\|--emit-obj\|--emit-asm] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...]` | Empty. | Subprocess warnings, link summaries, and optional `skipping build (cache hit)` messages. | For `--emit-*`, the data product is the selected output file. For executable builds, the data product is the binary. Non-zero exits carry diagnostics on stderr; compiler subprocess failures include captured stdout/stderr sections in the facade diagnostic. |
+| `scoop run [<file-or-cone-dir>] [--debug\|--release] [--opt-level <level>] [--no-incremental] [--jobs <n>] [--sysroot-dep <name> ...] [-- <program-args> ...]` | The executed program's stdout. | Build/link diagnostics before exec, then the executed program's stderr. | Successful program exit returns `0`; non-zero program exits are propagated as the `scoop run` exit code. If the program terminates without a numeric exit code, `scoop run` returns `1`. |
+
+Failure diagnostics are intentionally stderr-only for these surfaces. A future
+runner may normalize newlines for golden comparison, but it must not depend on
+localized diagnostic wording except where an `EXPECT-ERROR*` directive explicitly
+requests diagnostic matching.

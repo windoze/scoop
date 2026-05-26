@@ -15,23 +15,37 @@ Steps:
 
 ## Current Task
 
-Selected task: `P0-T02R` — review the fixture discovery rules inventory for
-Python-portable readability and coverage of the existing fixture tree.
+Selected task: `P0-T03` — freeze the stdout/stderr/exit-code contracts for
+the compiler and driver commands that the future external fixture runner is
+allowed to call.
 
-Review checkpoints:
-1. Compare `docs/fixtures.md` discovery sections with
-   `crates/scoopc/src/fixtures/mod.rs` target planning, phase routing, case-root
-   predicates, sysroot overlay skipping, and `umb_fix` sub-routing.
-2. Verify the documented discovery rules cover every non-archive fixture
-   directory shape currently present under `tests/fixtures/**`.
-3. Run formatting, linting, Rust tests, and the legacy fixture suite before
-   marking the review task complete.
+Execution checkpoints:
+1. Check the latest commit for unfinished work directly related to `P0-T03`.
+2. Inspect existing documentation and CLI implementations for `scoopc dump-*`,
+   `scoopc emit-artifact`, `scoopc build-single-cone`, `scoopc link-cone`,
+   `scoop build`, and `scoop run`.
+3. Document the stable contracts in the fixture infrastructure documentation,
+   including success/failure exit-code behavior and the fields future external
+   tooling may consume.
+4. Add or adjust focused tests if the command contracts are not already covered
+   well enough to keep them stable.
+5. Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, the relevant
+   tests, and the fixture suite required for this task.
+6. Mark `P0-T03` `[DONE]` in `TODO.md`, update its completion record, commit the
+   task changes, and stop.
 
 Progress:
-- Source/documentation comparison found that `tests/fixtures/cone/` exists as a
-  manifest-only directory with no `.scoop` files. I documented that it is not a
-  phase or case collection and contributes no full-tree fixture target.
-- Validation completed successfully: custom fixture discovery coverage check,
-  `cargo fmt`, `cargo clippy --all-targets -- -D warnings`,
-  `cargo test --all --all-targets`, and `cargo run -p scoop -- test`.
-- Marked `P0-T02R` `[DONE]` in `TODO.md` and added the completion record.
+- Identified `P0-T03` as the first incomplete task.
+- Latest commit completed `P0-T02R` and did not mention unfinished `P0-T03`
+  work.
+- Inspected the `scoopc` command parser/binary entry points, `scoop` facade
+  dispatch, build/run subprocess handling, and existing fixture documentation.
+- Added a `docs/fixtures.md` section that freezes stdout, stderr, exit-code,
+  and data-product expectations for the allowed `scoopc` and `scoop` command
+  surfaces.
+- Added a lightweight documentation test so the external command surface and
+  contract columns stay present in live docs.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo test --all --all-targets`, and `cargo run -p scoop -- test`
+  (`fixtures: ok (1536)`).
+- Marked `P0-T03` `[DONE]` in `TODO.md` and added the completion record.
