@@ -30,4 +30,5 @@
 - Implemented `tools/dependency_gate.py` using `cargo metadata --format-version 1` plus the source-boundary checks from the old Rust tool.
 - Initial parity validation passed: `python3 -m py_compile tools/dependency_gate.py` and a full diff between `python3 tools/dependency_gate.py` and `cargo run -q -p scoop_tools -- dependency-gate` produced no differences.
 - Repository validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
-- `TODO.md` now marks P1-T05 done with a completion record. Next step: review the final diff and commit the task changes.
+- `TODO.md` now marks P1-T05 done with a completion record.
+- Task changes were committed as `[P1-T05] Add dependency gate script`.
