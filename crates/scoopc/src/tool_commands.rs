@@ -307,27 +307,6 @@ fn typecheck_project(
     index: crate::resolve::Index,
     selected: &[usize],
 ) -> Result<TypecheckedProject> {
-    let source_count = project.build_closure_sources().len();
-    let mut headers = Vec::with_capacity(source_count);
-
-    for (source, ast) in project.build_closure_sources().iter().zip(asts.iter()) {
-        crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
-        crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
-        headers.push(
-            crate::resolve::check_file_headers(source, ast, &index)
-                .map_err(miette::Report::from)?,
-        );
-    }
-    for ((source, ast), headers) in project
-        .build_closure_sources()
-        .iter()
-        .zip(asts.iter_mut())
-        .zip(headers.iter())
-    {
-        crate::resolve::check_file_bodies(source, ast, &index, headers)
-            .map_err(miette::Report::from)?;
-    }
-
     let sysroot_paths = session
         .sysroot()
         .index_files()
@@ -349,17 +328,17 @@ fn typecheck_project(
     let mut types = crate::ty::TypeStore::new();
     let builtins = types.intern_builtins();
     for index_to_check in selected {
-        let source = &project.build_closure_sources()[*index_to_check];
-        let ast = &asts[*index_to_check];
-        run_typecheck_passes(
-            source,
-            ast,
-            &index,
-            &headers[*index_to_check],
-            &env,
-            &mut types,
-            builtins,
-        )?;
+        let index_to_check = *index_to_check;
+        let source = &project.build_closure_sources()[index_to_check];
+        let ast = &mut asts[index_to_check];
+
+        crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
+        crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
+        let headers = crate::resolve::check_file_headers(source, ast, &index)
+            .map_err(miette::Report::from)?;
+        crate::resolve::check_file_bodies(source, ast, &index, &headers)
+            .map_err(miette::Report::from)?;
+        run_typecheck_passes(source, ast, &index, &headers, &env, &mut types, builtins)?;
     }
     crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
         .map_err(miette::Report::from)?;
@@ -601,6 +580,110 @@ fn canonical_input(input: PathBuf) -> Result<PathBuf> {
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempProject {
+        root: PathBuf,
+    }
+
+    impl TempProject {
+        fn new(label: &str) -> Self {
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "scoopc_check_source_{label}_{}_{}",
+                std::process::id(),
+                nanos
+            ));
+            std::fs::create_dir_all(root.join("src")).unwrap();
+            Self { root }
+        }
+
+        fn write(&self, rel: &str, text: &str) {
+            let path = self.root.join(rel);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(path, text).unwrap();
+        }
+
+        fn write_manifest(&self) {
+            self.write(
+                "Cone.toml",
+                "[cone]\nname = \"sample.check_source\"\nversion = \"0.0.0\"\nkind = \"lib\"\n",
+            );
+        }
+
+        fn path(&self) -> &Path {
+            &self.root
+        }
+    }
+
+    impl Drop for TempProject {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn check_source_typecheck_source_selection_does_not_check_unselected_bodies() {
+        let project = TempProject::new("mixed_typecheck");
+        project.write_manifest();
+        project.write(
+            "src/a_def.scoop",
+            r#"
+package sample.check_source
+
+import scoop.core.*
+
+class C() {
+    private companion object {
+        val x: Int = 1
+    }
+}
+"#,
+        );
+        project.write(
+            "src/b_use.scoop",
+            r#"
+package sample.check_source
+
+import scoop.core.*
+
+val y: Int = C.x
+"#,
+        );
+
+        run_check_source(
+            project.path().to_path_buf(),
+            Some(PathBuf::from("src/a_def.scoop")),
+            CheckSourcePhase::Typecheck,
+            None,
+            SessionOptions::new(),
+        )
+        .expect("selected passing source should not be blocked by an unselected failing body");
+
+        let err = run_check_source(
+            project.path().to_path_buf(),
+            Some(PathBuf::from("src/b_use.scoop")),
+            CheckSourcePhase::Typecheck,
+            None,
+            SessionOptions::new(),
+        )
+        .expect_err("selected failing source should still report its diagnostic");
+        assert_eq!(
+            err.code().map(|code| code.to_string()).as_deref(),
+            Some("scoop::resolve::not_visible")
+        );
+    }
 }
 
 pub fn run_dump_stackmaps(input: PathBuf, verify_roots: bool, dump_records: bool) -> Result<()> {
