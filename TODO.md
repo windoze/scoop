@@ -27,7 +27,7 @@
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
 | [DONE] P0-T01 | [DONE] | 盘点 `EXPECT-*` 指令清单（语法/语义/参数）并落地 `docs/fixtures.md` 或 `tools/README.md` 一节 |
-| P0-T01R | [TODO] | Review `EXPECT-*` 指令清单完整度（覆盖现有 expectations.rs 全部指令） |
+| [DONE] P0-T01R | [DONE] | Review `EXPECT-*` 指令清单完整度（覆盖现有 expectations.rs 全部指令） |
 | P0-T02 | [TODO] | 盘点 fixture 发现规则（phase router / `plan_targets` / `is_run_pass_cone_case_root` 等子目录约定） |
 | P0-T02R | [TODO] | Review fixture 发现规则盘点结果（python 平迁可读性 + 现有 fixture 全覆盖） |
 | P0-T03 | [TODO] | 冻结编译器对外命令的 stdout/stderr/exit-code 契约（`scoopc dump-*` / `emit-artifact` / `build-single-cone` / `link-cone` / `scoop build` / `scoop run`） |
@@ -93,3 +93,4 @@
 > 任务完成后在此追加 `[DONE] PX-TNN：…（YYYY-MM-DD）` 行，附核心验证命令与产出。
 
 - [DONE] P0-T01：新增 `docs/fixtures.md`，从 `crates/scoopc/src/fixtures/expectations.rs` 盘点当前 22 个 directive 前缀，并记录语法、参数、解析边界与各 phase 语义。验证：`python3` parser/doc 覆盖检查通过（22/22）；`cargo fmt --check` 通过。（2026-05-26）
+- [DONE] P0-T01R：复审 `docs/fixtures.md` 与 `crates/scoopc/src/fixtures/expectations.rs`，确认 22 个 `strip_prefix` directive 前缀、`EXPECT: pass|ok|fail` 语义、header 扫描规则、共享输入与 parse/build/run-pass 消费语义均已覆盖，无需补充文档。验证：自定义 `python3` 前缀覆盖检查（22/22）；`cargo fmt --check`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`。（2026-05-26）
