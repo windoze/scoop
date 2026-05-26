@@ -6,14 +6,15 @@ usage() {
   cat <<'EOF'
 Usage: tools/run_fixture_scan.sh [options] [fixtures-root]
 
-Run Scoop fixtures one by one with a per-fixture timeout.
+Run Scoop fixtures one by one through tools/run_fixtures.py with a per-fixture timeout.
 
 Options:
   --timeout-secs N   Per-fixture timeout in seconds (default: 30)
-  --scoop-bin PATH   Scoop binary to run (default: target/debug/scoop)
+  --scoop-bin PATH   Scoop binary for run fixtures (default: target/debug/scoop)
+  --scoopc-bin PATH  Scoop compiler binary to run (default: target/debug/scoopc)
   --out-dir DIR      Output directory (default: target/fixture-scan)
   --env KEY=VALUE    Extra environment variable for each fixture run
-  --no-build         Skip `cargo build -p scoop`
+  --no-build         Skip `cargo build -p scoop -p scoopc`
   -h, --help         Show this help
 
 Examples:
@@ -26,10 +27,13 @@ EOF
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 TARGET_INPUT="tests/fixtures"
 SCOOP_BIN_INPUT="target/debug/scoop"
+SCOOPC_BIN_INPUT="target/debug/scoopc"
 OUT_DIR_INPUT="target/fixture-scan"
 TIMEOUT_SECS="30"
 NO_BUILD="0"
 ENV_OVERRIDES=()
+PYTHON_BIN="${PYTHON:-python3}"
+RUN_FIXTURES="$ROOT_DIR/tools/run_fixtures.py"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --scoop-bin)
       SCOOP_BIN_INPUT="${2:-}"
+      shift 2
+      ;;
+    --scoopc-bin)
+      SCOOPC_BIN_INPUT="${2:-}"
       shift 2
       ;;
     --out-dir)
@@ -186,6 +194,7 @@ append_units_for_target() {
 
 TARGET_PATH="$(resolve_path "$TARGET_INPUT")"
 SCOOP_BIN="$(resolve_path "$SCOOP_BIN_INPUT")"
+SCOOPC_BIN="$(resolve_path "$SCOOPC_BIN_INPUT")"
 OUT_DIR="$(resolve_path "$OUT_DIR_INPUT")"
 
 mkdir -p "$OUT_DIR/logs"
@@ -215,8 +224,8 @@ if [[ "$total" == "0" ]]; then
 fi
 
 if [[ "$NO_BUILD" != "1" ]]; then
-  printf 'Building scoop binary once...\n'
-  if ! (cd "$ROOT_DIR" && cargo build -p scoop > "$BUILD_LOG" 2>&1); then
+  printf 'Building scoop and scoopc binaries once...\n'
+  if ! (cd "$ROOT_DIR" && cargo build -p scoop -p scoopc > "$BUILD_LOG" 2>&1); then
     printf 'Build failed. See %s\n' "$(display_path "$BUILD_LOG")" >&2
     exit 1
   fi
@@ -227,7 +236,12 @@ if [[ ! -x "$SCOOP_BIN" ]]; then
   exit 1
 fi
 
-command_shape="$(display_path "$SCOOP_BIN") test --fixtures <fixture>"
+if [[ ! -x "$SCOOPC_BIN" ]]; then
+  printf 'Missing scoopc binary: %s\n' "$(display_path "$SCOOPC_BIN")" >&2
+  exit 1
+fi
+
+command_shape="SCOOP_BIN=$(display_path "$SCOOP_BIN") SCOOPC_BIN=$(display_path "$SCOOPC_BIN") ${PYTHON_BIN} tools/run_fixtures.py -j 1 --exit-on-failure <fixture>"
 if [[ ${#ENV_OVERRIDES[@]} -gt 0 ]]; then
   command_shape="env ${ENV_OVERRIDES[*]} ${command_shape}"
 fi
@@ -248,15 +262,18 @@ while IFS= read -r fixture; do
 
   if timeout --signal=TERM --kill-after=5s "${TIMEOUT_SECS}s" \
     env CARGO_TERM_COLOR=never "${ENV_OVERRIDES[@]}" \
-    "$SCOOP_BIN" test --fixtures "$fixture" > "$log_file" 2>&1; then
+      SCOOP_BIN="$SCOOP_BIN" \
+      SCOOPC_BIN="$SCOOPC_BIN" \
+    "$PYTHON_BIN" "$RUN_FIXTURES" -j 1 --exit-on-failure "$fixture" > "$log_file" 2>&1; then
     printf '[%d/%d] PASS %s\n' "$index" "$total" "$rel_fixture"
     printf '%s\n' "$rel_fixture" >> "$PASS_FILE"
     pass_count=$((pass_count + 1))
     continue
+  else
+    status=$?
   fi
 
-  status=$?
-  if [[ "$status" -eq 124 || "$status" -eq 137 ]]; then
+  if [[ "${status:-0}" -eq 124 || "${status:-0}" -eq 137 ]]; then
     printf '[%d/%d] TIMEOUT %s\n' "$index" "$total" "$rel_fixture"
     printf '%s\n' "$rel_fixture" >> "$TIMEOUT_FILE"
     timeout_count=$((timeout_count + 1))
@@ -283,3 +300,7 @@ done < "$ALL_FILE"
 } > "$SUMMARY_FILE"
 
 cat "$SUMMARY_FILE"
+
+if [[ "$fail_count" -ne 0 || "$timeout_count" -ne 0 ]]; then
+  exit 1
+fi

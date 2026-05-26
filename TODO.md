@@ -54,7 +54,8 @@
 | [DONE] P1-T08R | [DONE] | Review `audit_user_visible_failure_policy.py` 与旧 `#[cfg(test)]` 模块输出等价性 |
 | [DONE] P2-T01 | [DONE] | `.github/workflows/ci.yml` 切换（`scoop_tools` 调用 → `python3 tools/spec_fixtures.py check`；`cargo run -p scoop -- test` → `python3 tools/run_fixtures.py`） |
 | [DONE] P2-T01R | [DONE] | Review CI 切换结果（CI 跑通 + 不再出现旧入口） |
-| P2-T02 | [TODO] | `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` / `tools/gc_microbench.sh` 内部调用串切换 |
+| P2-T02A | [TODO] | 修复 `tools/run_run_pass_gc_scan.sh` 暴露的 GC verify-roots 失败（`class_ctor_named_default_and_delegation_basic.scoop` / `class_init_super_ctor_args_eval_order_basic.scoop` / `class_secondary_ctor_delegation_this_and_super_basic.scoop` / `inherited_member_call_multi_level_chain_basic.scoop` / `inherited_member_field_access_basic.scoop`）；P2-T02 验证前置 |
+| P2-T02 | [TODO] | `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` / `tools/gc_microbench.sh` 内部调用串切换（依赖 P2-T02A） |
 | P2-T02R | [TODO] | Review shell 脚本切换结果（端到端跑通） |
 | P2-T03 | [TODO] | `AGENTS.md` 更新（[`TEST_INFRA_CLEANUP.md` §6](./TEST_INFRA_CLEANUP.md#6-文档更新) 列点） |
 | P2-T03R | [TODO] | Review `AGENTS.md` 更新（无旧入口残留） |
@@ -95,6 +96,7 @@
 ## 调整记录
 
 - 2026-05-26：执行 P1-T01 前验证发现现有公开命令面无法 spec-correct 地平迁 resolve/typecheck-only fixture 语义：`dump-hir` 会漏掉旧 typecheck runner 覆盖的诊断，`build-single-cone` 又会运行到 HIR/lowering/codegen 并误伤通过的 typecheck fixture。因此在 P1-T01 前新增 P1-T00/P1-T00R，先落地通用非 fixture 的 `scoopc check-source` phase-only 校验入口；P1-T01 显式依赖 P1-T00R。
+- 2026-05-27：执行 P2-T02 时，`tools/run_run_pass_gc_scan.sh` 切到 `python3 tools/run_fixtures.py` 后仍暴露 5 条 `SCOOP_GC_VERIFY_ROOTS=1` run-pass 失败；同一批 fixture 通过旧 `target/debug/scoop test --fixtures` 入口也失败，确认不是新入口切换引入，但该失败未被精确排期。因此在 P2-T02 前新增 P2-T02A，先修复这些 GC verify-roots 失败，再完成脚本切换验收。
 
 ## 完成记录
 
