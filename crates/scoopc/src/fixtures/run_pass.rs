@@ -480,7 +480,9 @@ pub(crate) fn run_fixture_command(
         None
     };
 
-    let output = run_command_collect_output(rel_fixture, exp, &mut cmd, stdin_bytes.as_deref())?;
+    let output = run_command_collect_output(rel_fixture, exp, &mut cmd, stdin_bytes.as_deref());
+    cleanup_single_file_virtual_cone(fixture_path);
+    let output = output?;
     assert_exit_status_matches(rel_fixture, exp, output.status)?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -489,6 +491,41 @@ pub(crate) fn run_fixture_command(
     assert_stdout_matches(fixture_path, exp, &stdout)?;
     assert_stderr_matches(fixture_path, exp, &stderr)?;
     Ok(())
+}
+
+fn cleanup_single_file_virtual_cone(fixture_path: &Path) {
+    if !fixture_path.is_file() {
+        return;
+    }
+    let parent = fixture_path.parent().unwrap_or_else(|| Path::new("."));
+    let root = parent
+        .join("build")
+        .join("debug")
+        .join("virtual")
+        .join(format!("{}@0.0.0", fixture_virtual_cone_name(fixture_path)));
+    if root.exists() {
+        let _ = std::fs::remove_dir_all(root);
+    }
+}
+
+fn fixture_virtual_cone_name(input: &Path) -> String {
+    let stem = input
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("virtual-cone");
+    let mut out = String::with_capacity(stem.len());
+    for ch in stem.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "virtual-cone".to_string()
+    } else {
+        out
+    }
 }
 
 fn assert_stackmaps_records_matches(
@@ -1316,6 +1353,38 @@ mod tests {
             err.code().unwrap().to_string(),
             "scoop::fixtures::run_exec_timeout"
         );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_timeout_removes_single_file_virtual_cone() {
+        let dir = make_temp_dir("run_fixture_command_timeout_removes_single_file_virtual_cone");
+        let fixture_path = dir.join("hello world!.scoop");
+        let virtual_root = dir
+            .join("build")
+            .join("debug")
+            .join("virtual")
+            .join("hello_world_@0.0.0");
+
+        std::fs::write(&fixture_path, "// TIMEOUT: 10\nfun main() {}\n").unwrap();
+        std::fs::create_dir_all(virtual_root.join("src")).unwrap();
+        std::fs::write(virtual_root.join("Cone.toml"), "[cone]\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// TIMEOUT: 10\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("sleep 5");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exec_timeout"
+        );
+        assert!(!virtual_root.exists());
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

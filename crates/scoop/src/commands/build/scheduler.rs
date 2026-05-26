@@ -425,7 +425,8 @@ impl ConeDispatchPlanner {
 mod tests {
     use std::num::NonZeroUsize;
     use std::path::PathBuf;
-    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Barrier, Mutex};
 
     use super::super::concurrency::FixedJobsStrategy;
     use super::super::incremental::ConeBuildFingerprint;
@@ -433,10 +434,46 @@ mod tests {
 
     #[derive(Debug)]
     struct RecordingFakeConeCompiler {
-        log: Mutex<Vec<String>>,
+        log: Mutex<Vec<ConeCompileRequest>>,
     }
 
     impl RecordingFakeConeCompiler {
+        fn new() -> Self {
+            Self {
+                log: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.log
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|request| request.cone_id.clone())
+                .collect()
+        }
+
+        fn requests(&self) -> Vec<ConeCompileRequest> {
+            self.log.lock().unwrap().clone()
+        }
+    }
+
+    impl SubprocessConeCompiler for RecordingFakeConeCompiler {
+        fn compile_cone(
+            &self,
+            request: ConeCompileRequest,
+        ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
+            self.log.lock().unwrap().push(request.clone());
+            Ok(successful_response(request))
+        }
+    }
+
+    #[derive(Debug)]
+    struct FailingFakeConeCompiler {
+        log: Mutex<Vec<String>>,
+    }
+
+    impl FailingFakeConeCompiler {
         fn new() -> Self {
             Self {
                 log: Mutex::new(Vec::new()),
@@ -448,16 +485,118 @@ mod tests {
         }
     }
 
-    impl SubprocessConeCompiler for RecordingFakeConeCompiler {
+    impl SubprocessConeCompiler for FailingFakeConeCompiler {
         fn compile_cone(
             &self,
             request: ConeCompileRequest,
         ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
             self.log.lock().unwrap().push(request.cone_id.clone());
-            Ok(ConeCompileResponse {
-                output_artifact_dir: request.output_artifact_dir,
-                outputs_fingerprint: vec![0xfa, 0xce],
-            })
+            if request.cone_id.contains(".dep") {
+                return Err(SubprocessConeCompileError::SpawnFailure {
+                    cone_id: request.cone_id,
+                    scoopc: PathBuf::from("/missing/scoopc"),
+                    source: std::io::Error::other("boom"),
+                });
+            }
+            Ok(successful_response(request))
+        }
+    }
+
+    #[derive(Debug)]
+    struct BarrierFakeConeCompiler {
+        active: AtomicUsize,
+        max_seen: AtomicUsize,
+        dep_barrier: Barrier,
+        log: Mutex<Vec<String>>,
+    }
+
+    impl BarrierFakeConeCompiler {
+        fn new(dep_count: usize) -> Self {
+            Self {
+                active: AtomicUsize::new(0),
+                max_seen: AtomicUsize::new(0),
+                dep_barrier: Barrier::new(dep_count),
+                log: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn max_in_flight(&self) -> usize {
+            self.max_seen.load(Ordering::SeqCst)
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.log.lock().unwrap().clone()
+        }
+    }
+
+    impl SubprocessConeCompiler for BarrierFakeConeCompiler {
+        fn compile_cone(
+            &self,
+            request: ConeCompileRequest,
+        ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
+            let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            record_max(&self.max_seen, active);
+            self.log.lock().unwrap().push(request.cone_id.clone());
+            if request.cone_id.contains(".dep") {
+                self.dep_barrier.wait();
+            }
+            self.active.fetch_sub(1, Ordering::SeqCst);
+            Ok(successful_response(request))
+        }
+    }
+
+    #[derive(Debug)]
+    struct MaxInFlightFakeConeCompiler {
+        active: AtomicUsize,
+        max_seen: AtomicUsize,
+        log: Mutex<Vec<String>>,
+    }
+
+    impl MaxInFlightFakeConeCompiler {
+        fn new() -> Self {
+            Self {
+                active: AtomicUsize::new(0),
+                max_seen: AtomicUsize::new(0),
+                log: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn max_in_flight(&self) -> usize {
+            self.max_seen.load(Ordering::SeqCst)
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.log.lock().unwrap().clone()
+        }
+    }
+
+    impl SubprocessConeCompiler for MaxInFlightFakeConeCompiler {
+        fn compile_cone(
+            &self,
+            request: ConeCompileRequest,
+        ) -> Result<ConeCompileResponse, SubprocessConeCompileError> {
+            let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            record_max(&self.max_seen, active);
+            self.log.lock().unwrap().push(request.cone_id.clone());
+            self.active.fetch_sub(1, Ordering::SeqCst);
+            Ok(successful_response(request))
+        }
+    }
+
+    fn successful_response(request: ConeCompileRequest) -> ConeCompileResponse {
+        ConeCompileResponse {
+            output_artifact_dir: request.output_artifact_dir,
+            outputs_fingerprint: vec![0xfa, 0xce],
+        }
+    }
+
+    fn record_max(max_seen: &AtomicUsize, active: usize) {
+        let mut current = max_seen.load(Ordering::SeqCst);
+        while active > current {
+            match max_seen.compare_exchange(current, active, Ordering::SeqCst, Ordering::SeqCst) {
+                Ok(_) => break,
+                Err(next) => current = next,
+            }
         }
     }
 
@@ -549,6 +688,49 @@ mod tests {
         (graph, fp)
     }
 
+    fn multi_dep_fixture_graph() -> (SourceConeGraph, BuildFingerprint) {
+        let dep_a = make_node(
+            2,
+            SourceConeRole::LocalDependency,
+            "fixture.dep.a",
+            scoop_project_model::ConeKind::Lib,
+            &[],
+        );
+        let dep_b = make_node(
+            3,
+            SourceConeRole::LocalDependency,
+            "fixture.dep.b",
+            scoop_project_model::ConeKind::Lib,
+            &[],
+        );
+        let consumer = make_node(
+            1,
+            SourceConeRole::Consumer,
+            "fixture.app",
+            scoop_project_model::ConeKind::Bin,
+            &[2, 3],
+        );
+        let graph =
+            SourceConeGraph::from_nodes(vec![consumer, dep_a, dep_b], ConeId::new(1)).unwrap();
+        let mut per_cone = HashMap::new();
+        per_cone.insert(ConeId::new(1), make_dep_fp("consumer"));
+        per_cone.insert(ConeId::new(2), make_dep_fp("dep-a"));
+        per_cone.insert(ConeId::new(3), make_dep_fp("dep-b"));
+        let fp = BuildFingerprint {
+            fingerprint: "FAKE".to_string(),
+            consumer_cone_id: ConeId::new(1),
+            per_cone,
+            cone_toml_sha256: String::new(),
+            cone_sources_sha256: String::new(),
+            local_dependency_sources_sha256: String::new(),
+            native_sources_sha256: String::new(),
+            sysroot_sources_sha256: String::new(),
+            runtime_sources_sha256: String::new(),
+            toolchain_sha256: String::new(),
+        };
+        (graph, fp)
+    }
+
     #[test]
     fn dispatch_includes_dependency_and_consumer_cones() {
         let (graph, fp) = fixture_graph();
@@ -605,5 +787,107 @@ mod tests {
         .unwrap();
 
         assert!(compiler.calls().is_empty());
+    }
+
+    #[test]
+    fn cache_hit_dependency_is_passed_to_consumer_without_dispatch() {
+        let (graph, mut fp) = fixture_graph();
+        fp.per_cone
+            .get_mut(&ConeId::new(2))
+            .unwrap()
+            .cached_outputs_fingerprint = Some(vec![2]);
+        let compiler = RecordingFakeConeCompiler::new();
+        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
+
+        dispatch_artifact_cones(
+            &graph,
+            &fp,
+            &ConeBuildDispatch {
+                strategy: &strategy,
+                compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(compiler.calls(), vec!["fixture.app@0.0.0".to_string()]);
+        let requests = compiler.requests();
+        assert_eq!(
+            requests[0].upstream_artifact_dirs,
+            vec![PathBuf::from("/tmp/dep")]
+        );
+    }
+
+    #[test]
+    fn dependency_failure_stops_downstream_dispatch() {
+        let (graph, fp) = fixture_graph();
+        let compiler = FailingFakeConeCompiler::new();
+        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
+
+        let err = dispatch_artifact_cones(
+            &graph,
+            &fp,
+            &ConeBuildDispatch {
+                strategy: &strategy,
+                compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(compiler.calls(), vec!["fixture.dep@0.0.0".to_string()]);
+        let message = err.to_string();
+        assert!(message.contains("per-cone 子进程编译失败 [fixture.dep@0.0.0]"));
+        assert!(message.contains("boom"));
+    }
+
+    #[test]
+    fn respects_concurrency_cap() {
+        let (graph, fp) = multi_dep_fixture_graph();
+        let compiler = BarrierFakeConeCompiler::new(2);
+        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(2).unwrap());
+
+        dispatch_artifact_cones(
+            &graph,
+            &fp,
+            &ConeBuildDispatch {
+                strategy: &strategy,
+                compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(compiler.max_in_flight(), 2);
+        assert_eq!(compiler.calls().len(), 3);
+    }
+
+    #[test]
+    fn serial_when_jobs_is_one() {
+        let (graph, fp) = multi_dep_fixture_graph();
+        let compiler = MaxInFlightFakeConeCompiler::new();
+        let strategy = FixedJobsStrategy::new(NonZeroUsize::new(1).unwrap());
+
+        dispatch_artifact_cones(
+            &graph,
+            &fp,
+            &ConeBuildDispatch {
+                strategy: &strategy,
+                compiler: &compiler,
+                opt_level: scoop_project_model::OptLevel::O0,
+                extra_sysroot_dependencies: &[],
+                sysroot_overlay: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(compiler.max_in_flight(), 1);
+        assert_eq!(compiler.calls().len(), 3);
     }
 }

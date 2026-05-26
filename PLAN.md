@@ -7,7 +7,7 @@
 > - [`docs/archive/designs/SYSROOT_RESHAPE_R2.md`](./docs/archive/designs/SYSROOT_RESHAPE_R2.md)
 > - [`docs/archive/plans/PLAN-sysroot-reshape-r2.md`](./docs/archive/plans/PLAN-sysroot-reshape-r2.md)
 > - [`docs/archive/plans/TODO-sysroot-reshape-r2.md`](./docs/archive/plans/TODO-sysroot-reshape-r2.md)
-> 当前状态：P0-P9 已完成；P10 已完成 per-cone artifact、portable TypeStore wire format、fingerprint cache、`scoopld`/`link-cone`、consumer 子进程派发、single-file virtual cone 零回退与 `scoop` facade 依赖收紧；当前只剩 P10 最终清场与 review（`P10-T07` / `P10-T07R`）
+> 当前状态：P0-P10 已完成；P10 已冻结 per-cone artifact、portable TypeStore wire format、fingerprint cache、`scoopld`/`link-cone`、consumer 子进程派发、single-file virtual cone 零回退、`scoop` facade 依赖收紧与最终 review。后续跨 cone generic body wire format 如需推进，必须作为 P11 单独设计。
 
 ## 0. 目标
 

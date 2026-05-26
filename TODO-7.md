@@ -1758,7 +1758,7 @@
   - **文档同步**：`PLAN.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`README.md`、`SCOOP_RUNTIME.md` 与 archive fixture README 已同步 per-cone artifact、多进程 subprocess build/link、`scoop` facade 只调度不 in-process 编译/link、旧 whole-build SHA fingerprint 历史化，以及 P11 作为未来跨 cone generic body wire format milestone 的边界。
   - **验证通过**：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507 targets / 1536 checks）；`cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "scoop") | .dependencies[].name | select(startswith("scoop"))' | sort -u` 仅输出 `scoop_project_model`；targeted residual grep（`crates/scoop/src` forbidden compiler/linker residual、active stable-wire-format deferred residual）无命中；`git diff --check`。
 
-### [TODO] P10-T07R：Review P10 全包完成度
+### [DONE] P10-T07R：Review P10 全包完成度
 
 - 参考：P10-T07。
 - 重点：
@@ -1769,3 +1769,8 @@
   - `PLAN.md` / `PIPELINE_REFACTOR.md` 的设计基线是否与代码一致。
 - 验证：重新运行 P10-T07 的所有验证。
 - 依赖：P10-T07
+- 完成记录（2026-05-26）：
+  - **Review 修正**：补回 `scheduler` regression 覆盖，6 个 driver 单测现在直接覆盖 fresh dispatch、全 cache-hit 短路、dep cache-hit + consumer dispatch、失败传播阻止下游派发、jobs=2 并发上限与 jobs=1 串行回退。
+  - **边界复核**：`crates/scoop/src` 未发现 `scoopc::*`、`scoopld::link(`、`run_frontend` 或 stage crate residual；`inject_cone_dependency_public_api` 仅剩 `.cone` archive fixture/compat re-export 路径；`cargo metadata` 确认 `scoop` 的内部 workspace 依赖仅为 `scoop_project_model`。
+  - **设计基线复核**：`PLAN.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md` 与 `README.md` 均已描述 per-cone artifact、subprocess build/link、旧 whole-build fingerprint 历史化、P11 generic body wire format 后续边界，未发现与当前代码冲突的 P10 设计残留。
+  - **验证通过**：`cargo fmt`；`cargo test -p scoop --bin scoop scheduler::tests`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1507 targets / 1536 checks）；`cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "scoop") | .dependencies[].name | select(startswith("scoop"))' | sort -u` 仅输出 `scoop_project_model`；targeted residual grep 无命中。

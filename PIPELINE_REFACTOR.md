@@ -1635,7 +1635,7 @@ P5 已把 late-lowered handoff 收口为正式 `LirStageOutput = { lir, lir_fact
 
 ## 当前状态总结
 
-当前实现已推进到 P10 final cleanup：P2 已完成 HIR barrier 与 `hir_facts` 收口，P3 已完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口，P4 已完成 effect facts purity 与窄输出收口，P5 已完成正式 `LirStageOutput = { lir, lir_facts }`、backend-neutral LIR facts/query owner 与 LIR opt family 收口，P6 已完成 global init/storage/final-entry owner 收口，P7-T05 已完成 LLVM backend cleanup 清场、stage handoff 与 physical ABI/layout 合并验证，P8-T01 已完成最终 residual 搜索与后端输入文档冻结，P9 已完成 stage crate split，P10 已落地 per-cone artifact 与 facade 多进程 build/link 边界：
+当前实现已完成 P10 final cleanup 与 review：P2 已完成 HIR barrier 与 `hir_facts` 收口，P3 已完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口，P4 已完成 effect facts purity 与窄输出收口，P5 已完成正式 `LirStageOutput = { lir, lir_facts }`、backend-neutral LIR facts/query owner 与 LIR opt family 收口，P6 已完成 global init/storage/final-entry owner 收口，P7-T05 已完成 LLVM backend cleanup 清场、stage handoff 与 physical ABI/layout 合并验证，P8-T01 已完成最终 residual 搜索与后端输入文档冻结，P9 已完成 stage crate split，P10 已落地 per-cone artifact 与 facade 多进程 build/link 边界：
 
 1. `LlvmCodegenStageOutput` / `StageEmitInput` 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 LLVM residual accessor。
 2. LLVM entry/global、reachability、production body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；integer literal 范围诊断已从 LLVM HIR body precheck 上移到 typecheck，dependency gate 已覆盖 LLVM handoff/emit/reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 的 forbidden residual 搜索。
