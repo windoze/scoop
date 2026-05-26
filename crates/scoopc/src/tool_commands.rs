@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use object::{Architecture, Object as _, ObjectSection as _, ObjectSymbol as _, SymbolKind};
 
 use crate::session::{Session, SessionOptions};
@@ -135,68 +135,111 @@ fn run_check_source_file(
     match phase {
         CheckSourcePhase::Parse => crate::pipeline::load_ast_stage_output_for_dump(session, source)
             .map(|_| ())
-            .map_err(miette::Report::from),
+            .map_err(|err| located_report(source, err)),
         CheckSourcePhase::Resolve => {
-            let mut ast = parse_source(session, source)?;
-            let index = build_single_source_index(session, source, &ast)?;
+            let mut ast =
+                parse_source(session, source).map_err(|err| located_report(source, err))?;
+            let index = build_single_source_index(session, source, &ast)
+                .map_err(|err| located_report(source, err))?;
             crate::resolve::check_file_bindings(source, &mut ast, &index)
-                .map_err(miette::Report::from)
+                .map_err(|err| located_report(source, err))
         }
         CheckSourcePhase::Typecheck => {
-            let mut ast = parse_source(session, source)?;
-            let index = build_single_source_index(session, source, &ast)?;
-            run_typecheck_for_source(session, source, &mut ast, &index)
+            let mut ast =
+                parse_source(session, source).map_err(|err| located_report(source, err))?;
+            run_typecheck_for_source(session, source, &mut ast)
         }
         CheckSourcePhase::Infer => crate::pipeline::load_hir_stage_output_for_dump(session, source)
             .map(|_| ())
-            .map_err(miette::Report::from),
+            .map_err(|err| located_report(source, err)),
     }
 }
 
-fn parse_source(session: &Session, source: &SourceFile) -> Result<crate::ast::File> {
-    session.parse(source).map_err(miette::Report::from)
+fn parse_source(
+    session: &Session,
+    source: &SourceFile,
+) -> std::result::Result<crate::ast::File, crate::parser::ParseError> {
+    session.parse(source)
 }
 
 fn build_single_source_index(
     session: &Session,
     source: &SourceFile,
     ast: &crate::ast::File,
-) -> Result<crate::resolve::Index> {
+) -> std::result::Result<crate::resolve::Index, crate::resolve::ResolveError> {
     let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
     for file in session.sysroot().index_files() {
         pairs.push((&file.source, &file.ast));
     }
     pairs.push((source, ast));
-    crate::resolve::Index::build(&pairs).map_err(miette::Report::from)
+    crate::resolve::Index::build(&pairs)
 }
 
 fn run_typecheck_for_source(
     session: &Session,
     source: &SourceFile,
     ast: &mut crate::ast::File,
-    index: &crate::resolve::Index,
 ) -> Result<()> {
-    crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
-    crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
+    crate::typecheck::check_file_headers(source, ast).map_err(|err| located_report(source, err))?;
+    crate::typecheck::check_file_struct_decls(source, ast)
+        .map_err(|err| located_report(source, err))?;
 
-    let headers =
-        crate::resolve::check_file_headers(source, ast, index).map_err(miette::Report::from)?;
-    crate::resolve::check_file_bodies(source, ast, index, &headers)
-        .map_err(miette::Report::from)?;
+    let index = build_single_source_index(session, source, ast)
+        .map_err(|err| located_report(source, err))?;
 
-    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), index)
+    let headers = crate::resolve::check_file_headers(source, ast, &index)
+        .map_err(|err| located_report(source, err))?;
+    crate::resolve::check_file_bodies(source, ast, &index, &headers)
+        .map_err(|err| located_report(source, err))?;
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
-    env.extend_from_file(source, ast, index)
-        .map_err(miette::Report::from)?;
+    env.extend_from_file(source, ast, &index)
+        .map_err(|err| located_report(source, err))?;
     if let Some(target_platform) = session.options().target_platform().cloned() {
         env.set_target_platform(target_platform);
     }
 
     let mut types = crate::ty::TypeStore::new();
     let builtins = types.intern_builtins();
-    run_typecheck_passes(source, ast, index, &headers, &env, &mut types, builtins)?;
-    crate::typecheck::check_file_type_layouts(index, &env, &mut types, builtins)
+    typecheck_sysroot_overlay_files(session, &index, &env, &mut types, builtins)?;
+    run_typecheck_passes(source, ast, &index, &headers, &env, &mut types, builtins)?;
+    crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
         .map_err(miette::Report::from)?;
+    Ok(())
+}
+
+fn typecheck_sysroot_overlay_files(
+    session: &Session,
+    index: &crate::resolve::Index,
+    env: &crate::typecheck::TypeEnv,
+    types: &mut crate::ty::TypeStore,
+    builtins: crate::ty::BuiltinTypes,
+) -> Result<()> {
+    let Some(overlay_root) = session.options().sysroot_overlay() else {
+        return Ok(());
+    };
+    let overlay_root = overlay_root
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot overlay")?;
+
+    for file in session.sysroot().index_files() {
+        if !file.source.path().starts_with(&overlay_root) {
+            continue;
+        }
+        let source = &file.source;
+        let mut ast = file.ast.clone();
+        crate::typecheck::check_file_headers(source, &ast)
+            .map_err(|err| located_report(source, err))?;
+        crate::typecheck::check_file_struct_decls(source, &ast)
+            .map_err(|err| located_report(source, err))?;
+        let headers = crate::resolve::check_file_headers(source, &ast, index)
+            .map_err(|err| located_report(source, err))?;
+        crate::resolve::check_file_bodies(source, &mut ast, index, &headers)
+            .map_err(|err| located_report(source, err))?;
+        run_typecheck_passes(source, &ast, index, &headers, env, types, builtins)?;
+    }
     Ok(())
 }
 
@@ -239,7 +282,8 @@ fn run_check_source_project(
 ) -> Result<()> {
     if phase == CheckSourcePhase::Parse {
         for index_to_check in selected {
-            parse_source(session, &project.build_closure_sources()[*index_to_check])?;
+            let source = &project.build_closure_sources()[*index_to_check];
+            parse_source(session, source).map_err(|err| located_report(source, err))?;
         }
         return Ok(());
     }
@@ -250,7 +294,7 @@ fn run_check_source_project(
         for index_to_check in selected {
             let source = &project.build_closure_sources()[*index_to_check];
             crate::resolve::check_file_bindings(source, &mut asts[*index_to_check], &index)
-                .map_err(miette::Report::from)?;
+                .map_err(|err| located_report(source, err))?;
         }
         return Ok(());
     }
@@ -270,7 +314,7 @@ fn parse_project_asts(
 ) -> Result<Vec<crate::ast::File>> {
     let mut asts = Vec::with_capacity(project.build_closure_sources().len());
     for source in project.build_closure_sources() {
-        asts.push(parse_source(session, source)?);
+        asts.push(parse_source(session, source).map_err(|err| located_report(source, err))?);
     }
     Ok(asts)
 }
@@ -290,7 +334,13 @@ fn build_project_index(
             file: &asts[index],
         })
         .collect::<Vec<_>>();
-    crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)
+    let mut index =
+        crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
+    index.set_export_entry_points(project.cone_manifest().export_entry_points.clone());
+    if let Some(entry_main) = project.entry_main_fqn() {
+        index.set_runtime_entry_point(entry_main.to_owned());
+    }
+    Ok(index)
 }
 
 struct TypecheckedProject {
@@ -319,7 +369,7 @@ fn typecheck_project(
             continue;
         }
         env.extend_from_file(source, ast, &index)
-            .map_err(miette::Report::from)?;
+            .map_err(|err| located_report(source, err))?;
     }
     if let Some(target_platform) = session.options().target_platform().cloned() {
         env.set_target_platform(target_platform);
@@ -332,12 +382,14 @@ fn typecheck_project(
         let source = &project.build_closure_sources()[index_to_check];
         let ast = &mut asts[index_to_check];
 
-        crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
-        crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
+        crate::typecheck::check_file_headers(source, ast)
+            .map_err(|err| located_report(source, err))?;
+        crate::typecheck::check_file_struct_decls(source, ast)
+            .map_err(|err| located_report(source, err))?;
         let headers = crate::resolve::check_file_headers(source, ast, &index)
-            .map_err(miette::Report::from)?;
+            .map_err(|err| located_report(source, err))?;
         crate::resolve::check_file_bodies(source, ast, &index, &headers)
-            .map_err(miette::Report::from)?;
+            .map_err(|err| located_report(source, err))?;
         run_typecheck_passes(source, ast, &index, &headers, &env, &mut types, builtins)?;
     }
     crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
@@ -369,12 +421,13 @@ fn run_typecheck_passes(
         types,
         builtins,
     )
-    .map_err(miette::Report::from)?;
+    .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_properties(source, ast, index, env)
-        .map_err(|err| miette::Report::from(*err))?;
-    crate::typecheck::check_file_inheritance(source, ast, index).map_err(miette::Report::from)?;
+        .map_err(|err| located_report(source, *err))?;
+    crate::typecheck::check_file_inheritance(source, ast, index)
+        .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_interfaces(source, ast, index, env)
-        .map_err(miette::Report::from)?;
+        .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_override_effects(
         source,
         ast,
@@ -384,7 +437,7 @@ fn run_typecheck_passes(
         types,
         builtins,
     )
-    .map_err(|err| miette::Report::from(*err))?;
+    .map_err(|err| located_report(source, *err))?;
     crate::typecheck::check_file_type_refs(
         source,
         ast,
@@ -394,7 +447,7 @@ fn run_typecheck_passes(
         types,
         builtins,
     )
-    .map_err(miette::Report::from)?;
+    .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_where_clauses(
         source,
         ast,
@@ -404,7 +457,7 @@ fn run_typecheck_passes(
         types,
         builtins,
     )
-    .map_err(miette::Report::from)?;
+    .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_overload_conflicts(
         source,
         ast,
@@ -414,9 +467,9 @@ fn run_typecheck_passes(
         types,
         builtins,
     )
-    .map_err(miette::Report::from)?;
+    .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_exprs(source, ast, index, &headers.imports, env, types, builtins)
-        .map_err(miette::Report::from)?;
+        .map_err(|err| located_report(source, err))?;
     Ok(())
 }
 
@@ -440,10 +493,66 @@ fn infer_project_source(
         Some(&typed.env),
         &typed.types,
     )
-    .map_err(miette::Report::from)?;
+    .map_err(|err| located_report(source, err))?;
     crate::pipeline::HirStageOutput::new(lowered, source.path())
         .map(|_| ())
-        .map_err(miette::Report::from)
+        .map_err(|err| located_report(source, err))
+}
+
+#[derive(Debug)]
+struct LocatedCheckSourceDiagnostic {
+    message: String,
+    code: Option<String>,
+}
+
+impl std::fmt::Display for LocatedCheckSourceDiagnostic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for LocatedCheckSourceDiagnostic {}
+
+impl Diagnostic for LocatedCheckSourceDiagnostic {
+    fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        self.code
+            .as_ref()
+            .map(|code| Box::new(code.as_str()) as Box<dyn std::fmt::Display + 'a>)
+    }
+}
+
+fn located_report<E>(source: &SourceFile, error: E) -> miette::Report
+where
+    E: Diagnostic + std::error::Error + Send + Sync + 'static,
+{
+    let code = error.code().map(|code| code.to_string());
+    let Some((offset, line, col)) = diagnostic_primary_location(source, &error) else {
+        return miette::Report::new(error);
+    };
+    miette::Report::new(LocatedCheckSourceDiagnostic {
+        message: format!("{error}\nlocation: {line}:{col}\nspan-offset: {offset}"),
+        code,
+    })
+}
+
+fn diagnostic_primary_location(
+    source: &SourceFile,
+    diagnostic: &dyn Diagnostic,
+) -> Option<(usize, usize, usize)> {
+    let mut first = None;
+    let mut primary = None;
+    if let Some(labels) = diagnostic.labels() {
+        for label in labels {
+            first.get_or_insert((label.offset(), label.len()));
+            if label.primary() {
+                primary = Some((label.offset(), label.len()));
+                break;
+            }
+        }
+    }
+    let (offset, _len) = primary.or(first)?;
+    let (line, col) = source.offset_to_line_col(offset).ok()?;
+    Some((offset, line, col))
 }
 
 pub fn run_dump_ast(input: PathBuf, session_options: SessionOptions) -> Result<()> {
@@ -480,9 +589,9 @@ pub fn run_dump_ir(input: PathBuf, session_options: SessionOptions) -> Result<()
     let input = canonical_input(input)?;
     let file = SourceFile::load(&input)?;
     let session = Session::with_options(session_options)?;
-    let materialized = crate::pipeline::materialize_direct_style_mir_for_dump(&session, &file)
-        .map_err(|err| miette::Report::from(*err))?;
-    print!("{}", materialized.stable_dump());
+    let output = crate::pipeline::load_p4_ready_mir_stage_output_for_dump(&session, &file)
+        .map_err(|err| miette::miette!("failed to build P4-ready MIR dump: {err}"))?;
+    print!("{}", output.stable_dump());
     Ok(())
 }
 
