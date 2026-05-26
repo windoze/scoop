@@ -32,6 +32,8 @@
 | P0-T02R | [TODO] | Review fixture 发现规则盘点结果（python 平迁可读性 + 现有 fixture 全覆盖） |
 | P0-T03 | [TODO] | 冻结编译器对外命令的 stdout/stderr/exit-code 契约（`scoopc dump-*` / `emit-artifact` / `build-single-cone` / `link-cone` / `scoop build` / `scoop run`） |
 | P0-T03R | [TODO] | Review 命令面契约冻结结果（外部 runner 需消费的字段已稳定） |
+| P0-T04 | [TODO] | 删除 fixture-runner 自检 fixture（依赖 `EXPECT-ERROR-CODE: scoop::fixtures::*` 的 4 条：`timeout_should_fail.scoop` / `exit_code_mismatch.scoop` / `stderr_mismatch_distinguishable.scoop` / `gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`）；同步复核 scoopc 内部确无 cfg(test) 旁路或文件名特判 |
+| P0-T04R | [TODO] | Review fixture-runner 自检 fixture 删除结果（`grep -rn "scoop::fixtures::" tests/fixtures/ --include="*.scoop"` 无命中；旧 runner 在剩余 fixture 集合上仍跑通；checks 计数下降量与删除条数一致） |
 | P1-T01 | [TODO] | `tools/run_fixtures.py`：fixture runner（phase 发现 + `EXPECT-*` 解析 + 子进程驱动 + golden 比对 + 多进程调度 + 超时/SIGKILL） |
 | P1-T01R | [TODO] | Review `run_fixtures.py` 与旧 `scoop test` 在 `tests/fixtures/**` 上 pass/fail 集合与 checks 计数等价性 |
 | P1-T02 | [TODO] | `tools/spec_fixtures.py {sync,check}`：替代 `scoop_tools spec-fixtures` |

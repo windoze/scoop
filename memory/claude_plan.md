@@ -9,23 +9,15 @@
 - Commit all task-related changes with a clear message and the required co-author trailer.
 - Stop after completing or scheduling the first incomplete task.
 
-## Current Task: P0-T01R
+## Current Task: P0-T02
 
-- First incomplete task identified: `P0-T01R`.
-- Review scope: verify the documented `EXPECT-*` directive inventory covers every directive supported by `crates/scoopc/src/fixtures/expectations.rs` and that syntax/semantics are accurate enough for later Python migration.
-- Compare source parsing logic, existing tests, and `docs/fixtures.md`.
-- Fix documentation or task records if the review finds gaps.
-- Run focused validation first, then formatting/linting/test commands required by the task policy as feasible.
-- Mark only `P0-T01R` done, commit, and stop.
+- First incomplete task identified: `P0-T02`.
+- Task scope: document the current fixture discovery rules from `crates/scoopc/src/fixtures/mod.rs`, including the phase router, `plan_targets`, `is_run_pass_cone_case_root`, and subdirectory conventions, in a form that can be ported directly to the Python runner.
+- Preserve existing task ordering and unrelated uncommitted changes; do not alter `PLAN.md` unless phase-level assumptions change.
+- Inspect the Rust discovery implementation and current fixture tree, add the inventory to `docs/fixtures.md`, run required validation, then mark only `P0-T02` as done and commit the task changes.
 
-## Progress: P0-T01R
+## Progress: P0-T02
 
-- Compared `expectations.rs` parser prefixes, parser unit tests, and `docs/fixtures.md` directive rows.
-- Corrected the focused coverage check to compare parser prefixes, excluding the non-directive ARGS consumer rows in the documentation.
-- Confirmed all 22 parser prefixes and all accepted `EXPECT:` values are documented.
-- No documentation corrections were needed.
-- `cargo fmt --check` passed.
-- `cargo clippy --all-targets -- -D warnings` passed.
-- `cargo test --all --all-targets` passed.
-- `cargo run -p scoop -- test` passed.
-- Updated `TODO.md` to mark only `P0-T01R` as completed and record the review validation.
+- Identified `P0-T02` as the first incomplete task.
+- Confirmed the latest commit only completed `P0-T01R` and does not mention an unfinished issue for `P0-T02`.
+- Noted pre-existing uncommitted changes in `PLAN.md`, `TODO.md`, and `run_agent.sh`; they will be preserved while this task is completed.

@@ -45,6 +45,13 @@
 1. `tests/fixtures/**` 目录结构、子目录命名约定（`*_multi_case` / `*_cone_case` / run-pass cone case 等）保持不变。
 2. `EXPECT-*` 指令语法、`SYSROOT-DEPS:`、`RUN-MODE:`、`IGNORE-UNTIL-FIX:` 等语义照搬，新 runner 平迁实现，不重新设计。
 3. 所有 golden 文件（`.hir` / `.mir` / `.effectfacts` / `.effectlowered` / `.scoopir.json` / `.stdout` / `.stderr` / `.sysroot/`）位置与字节级内容不变。
+4. **例外（fixture-runner 自检 fixture 一并删除）**：依赖 `EXPECT-ERROR-CODE: scoop::fixtures::*`（即旧 fixture runner 自身定义的诊断码）的 fixture 不属于 “编译器/运行时行为测试”，本质是 fixture-runner 的 self-test，必须随旧 runner 一起删除。当前命中如下 4 条，全部不迁移到新 python runner：
+   - `tests/fixtures/run-pass/timeout_should_fail.scoop`（`scoop::fixtures::run_exec_timeout`，依赖 `TIMEOUT:` 指令 + 10ms 触发）
+   - `tests/fixtures/run-pass/exit_code_mismatch.scoop`（`scoop::fixtures::run_exit_code_mismatch`）
+   - `tests/fixtures/run-pass/stderr_mismatch_distinguishable.scoop`（`scoop::fixtures::run_stderr_mismatch`）
+   - `tests/fixtures/runtime_gc/gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`（`scoop::fixtures::run_stdout_mismatch`）
+
+   补充：盘点已确认 `scoopc` 内部**没有**专门为 `timeout_should_fail` 注入的后门（无 cfg(test) sleep / 无文件名特判 / 无 force-fail 注入）；`TIMEOUT:` 是 fixture runner 的通用机制，由 `crates/scoopc/src/fixtures/run_pass.rs` 的 `run_command_collect_output` / `wait_child_with_optional_timeout` 实现，将随 P3-T01 一起整体删除。
 
 ## 2. 现状摘要
 
@@ -60,7 +67,7 @@
 
 | 阶段 | 主题 | 输出 |
 |---|---|---|
-| P0 | 现状冻结与契约盘点 | 文档化外部 runner 唯一可调用的编译器入口、`EXPECT-*` 指令清单、fixture 发现规则；确认 §1 命令面 stdout/stderr/exit-code 契约稳定 |
+| P0 | 现状冻结与契约盘点 | 文档化外部 runner 唯一可调用的编译器入口、`EXPECT-*` 指令清单、fixture 发现规则；确认 §1 命令面 stdout/stderr/exit-code 契约稳定；删除 fixture-runner 自检 fixture（§1.5.4）|
 | P1 | 外部 python 脚本落地 | `tools/run_fixtures.py` + 4 个 `scoop_tools` 替代脚本 + 3 个 audit 替代脚本，跑出与旧实现等价的 pass/fail 集合 |
 | P2 | CI / shell / 文档切换 | `.github/workflows/ci.yml`、`tools/*.sh`、`AGENTS.md`、`README.md`、`tools/README.md`、`PROMPT.md`、`SCOOP_FULL_SPEC.md` 等全部切到新入口 |
 | P3 | 旧实现删除 | 删除 §2 列出的 ~12,000 行代码与 `tools/scoop_tools/` 整个 crate、`Cargo.toml` workspace 条目、相关 `cli.rs` 单测、`p8_docs_cleanup` 引用 |
@@ -79,8 +86,15 @@
 1. **P0-T01**：盘点 `EXPECT-*` 指令清单。从 `crates/scoopc/src/fixtures/expectations.rs` 抽出当前支持的所有指令名、参数语法、语义；落到 `docs/fixtures.md`（新文档）或 `tools/README.md` 内一节。
 2. **P0-T02**：盘点 fixture 发现规则。把 `crates/scoopc/src/fixtures/mod.rs` 中的 phase router、`plan_targets`、`is_run_pass_cone_case_root` 等子目录约定整理为 python 可直接平迁的伪代码描述。
 3. **P0-T03**：冻结编译器对外命令的 stdout/stderr/exit-code 契约。审视 `scoopc dump-*` / `emit-artifact` / `build-single-cone` / `link-cone` / `scoop build` / `scoop run` 当前输出，确认外部 runner 需要消费的字段都已稳定（如有需要补 round-trip 测试）。
+4. **P0-T04**：删除 fixture-runner 自检 fixture（§1.5.4 列出的 4 条 `EXPECT-ERROR-CODE: scoop::fixtures::*` fixture），并复核 `scoopc` 内部确无为 `timeout_should_fail` 等自检 fixture 留下的 cfg(test) 旁路或文件名特判。删除时附带：
+   - `tests/fixtures/run-pass/timeout_should_fail.scoop`
+   - `tests/fixtures/run-pass/exit_code_mismatch.scoop`
+   - `tests/fixtures/run-pass/stderr_mismatch_distinguishable.scoop`
+   - `tests/fixtures/runtime_gc/gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`
 
-P0 不引入运行时变更；产出物只是文档/盘点。
+   验收：`grep -rn "scoop::fixtures::" tests/fixtures/ --include="*.scoop"` 无命中；旧 fixture runner 在剩余 fixture 集合上仍跑通（pass/fail 集合等价于本任务前的基线减去这 4 条，checks 计数对应下降）；scoopc 仓库内 `grep -rn "timeout_should_fail\|TIMEOUT_SHOULD_FAIL" --include="*.rs"` 无命中。
+
+P0 不引入运行时（编译器/driver）行为变更；P0-T04 只删除 fixture 文件，编译器与 fixture runner 的 Rust 实现一律不动（fixture runner 的实际删除统一在 P3-T01）。
 
 ### 4.2 P1：外部 python 脚本落地
 
