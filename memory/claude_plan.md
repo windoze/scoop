@@ -1,12 +1,23 @@
 # Execution Plan
 
-I will follow TODO.md as the source of truth, identify the first incomplete task, inspect only the files needed for that task, implement it completely or add a prerequisite if blocked, run the required formatting/lint/test validation, update TODO.md with the completion record, and commit the resulting changes. This file will be updated at key milestones and if the plan changes.
+I will follow TODO.md as the source of truth, identify the first task whose heading is not prefixed with [DONE], complete exactly that task, update TODO.md with its completion record, validate the changes according to the task requirements, commit the result, and stop. I will not perform broad issue triage before selecting the current task. If implementation is blocked by a concrete prerequisite or an unscheduled failing test/fixture, I will update TODO.md with the minimum required prerequisite task, commit that scheduling change, and stop.
 
-## Milestone: Selected task
-TODO.md identifies P1-T06R as the first incomplete task. I will review tools/audit_spec_coverage.py against the old crates/scoopc/src/audit/spec_coverage.rs implementation, fix any semantic drift, run the required validation, update TODO.md, and commit only the relevant changes.
+Planned steps:
+1. Read TODO.md to identify the first incomplete task and its validation requirements.
+2. Review only the relevant project files for that task, plus the latest commit if it explicitly indicates unfinished work tied to the selected task.
+3. Implement the task without workarounds or spec deviations.
+4. Run formatting, linting, tests, and fixtures required by TODO.md and repository policy.
+5. Fix any failures that are in scope, or schedule concrete prerequisite tasks for blockers according to TODO.md policy.
+6. Mark the completed task title with [DONE], update its completion record, and update this progress file at key milestones.
+7. Commit all task-related changes with the required co-author trailer, then stop.
 
-## Milestone: Review complete
-The Python audit and Rust audit were compared across the index, headers, bucket checks, archive sentinel, matrix links, forbidden-term diagnostics, CSV parser, and reporting behavior. No semantic drift was found; the Python version intentionally aggregates failures for standalone CLI output. I marked P1-T06R complete in TODO.md and will run final formatting, linting, test, and fixture validation before committing.
+Current task:
+- First incomplete TODO entry: P1-T07, `tools/audit_pipeline_gap.py`, ported from `crates/scoopc/src/pipeline_gap_audit.rs`.
+- Next step: inspect the existing Rust audit and adjacent Python audit scripts, then implement the standalone Python equivalent and validate parity.
 
-## Milestone: Validation complete
-Formatting, clippy, the full Rust test suite, the Python fixture runner, and the legacy fixture runner all passed. I cleaned the generated Python cache and will commit the P1-T06R documentation updates only, leaving unrelated untracked files untouched.
+Progress:
+- Implemented `tools/audit_pipeline_gap.py` with the same active audit roots, classification rule names, exit conditions, legacy residual scans, codegen scope-drift baseline, and closed/re-scoped blocker check as the Rust audit.
+- Direct Python validation currently reports `pipeline gap audit: ok (... checks=5)`.
+- Next step: run formatting, linting, full Rust tests, and fixture validation before updating TODO.md and committing.
+- Validation completed: `cargo fmt`, clippy with denied warnings, full Rust tests, Python and legacy fixture suites, plus Python/Rust pipeline gap parity checks all passed.
+- TODO.md now marks P1-T07 as `[DONE]` with a completion record. Next step: inspect the final diff and commit the task changes.
