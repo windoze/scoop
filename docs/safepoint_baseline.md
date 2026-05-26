@@ -28,35 +28,32 @@ cargo run -p scoop_tools -- safepoint-baseline
   普通 direct-call 边界，经 `summary-driven inlining + DirectCallOnly provenance` 摊平后，statepoint/roots 是否明显下降。
 - `non_escaping_closure`
   局部 non-escaping closure 在 `O1+` closure simplification 之后，closure alloc / closure-call 边界是否消失。
-- `task_handoff_gc_stress`
-  task/effect/thread handoff 压力路径在当前主线下仍保留多少 safepoint 与 roots 压力，用于判断后续是否已经进入值得优先做 `mem2reg` / register-root 的窗口。
+- `root_pressure_loop`
+  普通 loop 中多个 live `String` root 跨调用边界时，默认 explicit root frame 模式是否仍避免发射 LLVM statepoint / `gc-live` metadata。
 
-## 当前快照（2026-04-29）
+历史 workload `task_handoff_gc_stress` 已随 async/task surface 删除而退役；当前用 `root_pressure_loop` 覆盖同一类“多个 live root 跨调用边界”的局部压力观测。
+
+## 当前快照（2026-05-26）
 
 通过 `cargo run -p scoop_tools -- safepoint-baseline` 得到：
 
 | workload | opt | statepoints | rooted statepoints | total gc-live roots | max gc-live roots |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `inline_wrapper_string` | `O0` | 12 | 9 | 13 | 2 |
-| `inline_wrapper_string` | `O2` | 5 | 0 | 0 | 0 |
-| `non_escaping_closure` | `O0` | 6 | 3 | 3 | 1 |
-| `non_escaping_closure` | `O2` | 1 | 0 | 0 | 0 |
-| `task_handoff_gc_stress` | `O0` | 255 | 233 | 435 | 5 |
-| `task_handoff_gc_stress` | `O2` | 290 | 241 | 380 | 4 |
+| `inline_wrapper_string` | `O0` | 0 | 0 | 0 | 0 |
+| `inline_wrapper_string` | `O2` | 0 | 0 | 0 | 0 |
+| `non_escaping_closure` | `O0` | 0 | 0 | 0 | 0 |
+| `non_escaping_closure` | `O2` | 0 | 0 | 0 | 0 |
+| `root_pressure_loop` | `O0` | 0 | 0 | 0 | 0 |
+| `root_pressure_loop` | `O2` | 0 | 0 | 0 | 0 |
 
 对应 delta：
 
-- `inline_wrapper_string`：`statepoints 12 -> 5`，`total gc-live roots 13 -> 0`
-- `non_escaping_closure`：`statepoints 6 -> 1`，`total gc-live roots 3 -> 0`
-- `task_handoff_gc_stress`：`statepoints 255 -> 290`，但 `total gc-live roots 435 -> 380`，`max gc-live roots 5 -> 4`
+- `inline_wrapper_string`：`statepoints 0 -> 0`，`total gc-live roots 0 -> 0`
+- `non_escaping_closure`：`statepoints 0 -> 0`，`total gc-live roots 0 -> 0`
+- `root_pressure_loop`：`statepoints 0 -> 0`，`total gc-live roots 0 -> 0`
 
 ## 当前结论
 
-1. 当前中端主线已经能在“小 direct-call wrapper”和“non-escaping local closure”这两类结构上，直接减少 safepoint 数量，并把对应 `gc-live` roots 压力降到 0。后续若新增类似结构回归，这两条 workload 应保持敏感。
-2. `task_handoff_gc_stress` 说明当前更复杂的 task/effect/runtime 路径，仍然是 safepoint 与 roots 压力的主要集中区。`O2` 虽然已经把总 roots 与单点峰值压低，但绝对量仍高，且 statepoint 数量不一定同步下降。
-3. 因此当前更值得继续优先做的是：
-   - 继续减少 task/effect/runtime 路径中的高层调用边界；
-   - 继续压缩每个 safepoint 的 live-root 集；
-   - 而不是立即把 `mem2reg` / register-root 提到主线优先级之前。
-
-换句话说，这份 baseline 当前支持的判断是：`mem2reg` 研究窗口还没有消失，但从现有 workload 看，近期收益仍更可能来自“继续减少调用边界与 roots 压力”，而不是先转向 register-root 改造。
+1. 当前默认 explicit root frame 模式下，这三条 workload 在 `-O0` / `-O2` 都不再发射 LLVM statepoint，也不再产生 `gc-live` metadata roots。
+2. 这份 baseline 当前主要用于防止普通调用边界、non-escaping closure 与局部 loop root-pressure 场景意外退回 stackmap/statepoint 路径。
+3. 如后续重新引入显式 stackmap/statepoint workload，应在本工具中单独新增 opt-in workload，而不是复用已经退役的 async/task handoff fixture。

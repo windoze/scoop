@@ -1,0 +1,32 @@
+// EXPECT: pass
+//
+// Safepoint baseline workload: keeps several managed String values live across
+// ordinary calls in a loop so the report retains a local root-pressure case
+// after the async/task handoff surface was removed.
+
+package fixtures.build
+
+import scoop.core.*
+
+fun keepAlive(a: String, b: String, c: String, d: String): String {
+    return f"{a}:{b}:{c}:{d}"
+}
+
+fun rootPressureLoop(seed: String): String {
+    var current: String = seed
+    var i: Int = 0
+    while (i < 12) {
+        val a: String = f"a-{i}-{current}"
+        val b: String = f"b-{i}-{a}"
+        val c: String = f"c-{i}-{b}"
+        val d: String = f"d-{i}-{c}"
+        current = keepAlive(a, b, c, d)
+        i = i + 1
+    }
+    return current
+}
+
+fun main(): Int {
+    println(rootPressureLoop("seed"))
+    return 0
+}

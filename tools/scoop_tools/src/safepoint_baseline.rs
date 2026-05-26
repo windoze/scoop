@@ -26,9 +26,9 @@ const WORKLOADS: &[Workload] = &[
         intent: "non-escaping closure simplification 对局部 closure 调用边界的影响",
     },
     Workload {
-        name: "task_handoff_gc_stress",
-        fixture_path: "tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop",
-        intent: "当前 task/effect/thread handoff 压力场景，用于观察高 roots 压力是否仍主要集中在复杂 runtime 边界",
+        name: "root_pressure_loop",
+        fixture_path: "tests/fixtures/build/safepoint_root_pressure_loop_basic.scoop",
+        intent: "普通 loop 中多个 live String root 跨调用边界的局部 roots 压力",
     },
 ];
 
@@ -213,7 +213,7 @@ fn render_report(results: &[WorkloadResult]) -> String {
     out.push_str("\n## Notes\n\n");
     out.push_str("- `statepoints` 统计的是 LLVM IR 中实际发射的 `llvm.experimental.gc.statepoint` 调用点，不包含 declaration。\n");
     out.push_str("- `gc-live roots` 统计的是每个 statepoint 上 `\"gc-live\"(...)` metadata 中的 `ptr addrspace(1)` 个数，用作当前 root-pressure 的最小可复验代理指标。\n");
-    out.push_str("- 默认 workload 同时覆盖：普通调用边界摊平、non-escaping closure 简化，以及 task/effect/thread handoff 高压路径。\n");
+    out.push_str("- 默认 workload 同时覆盖：普通调用边界摊平、non-escaping closure 简化，以及 loop 中多个 live root 跨调用边界的局部 roots 压力。\n");
 
     out
 }
