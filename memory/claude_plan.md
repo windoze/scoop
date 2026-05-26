@@ -23,10 +23,11 @@
 ## Progress
 
 - Current invocation plan recorded before task execution.
-- Selected first incomplete task: P1-T04R, reviewing `tools/safepoint_baseline.py` against the old `scoop_tools safepoint-baseline` behavior.
-- Latest commit is `[P1-T04] Add safepoint baseline script`; it is directly relevant as the implementation under review, but it does not mention unfinished follow-up work.
-- Current worktree contains this plan update and unrelated untracked `RTTI_REFINE.md` / `CALLER_LOCATION.md` files, which will be left untouched.
-- Next steps: inspect the Python and Rust safepoint baseline implementations, run parity checks, fix any review findings, then update `TODO.md` and commit only this review task's changes.
-- Review completed: Python and Rust safepoint baseline implementations have matching workload definitions, build commands, IR metrics parsing, Markdown report rendering, stderr output, and successful exit behavior.
-- Validation completed: `python3 -m py_compile tools/safepoint_baseline.py`, old/new report diff, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
-- `TODO.md` now marks P1-T04R done with a completion record, and the review task changes are ready to commit.
+- Selected first incomplete task: P1-T05, implementing `tools/dependency_gate.py` as the Python replacement for `scoop_tools dependency-gate`.
+- Latest commit is `[P1-T04R] Review safepoint baseline parity`; it is not an unfinished blocker for P1-T05.
+- Current worktree includes this plan update plus unrelated untracked `RTTI_REFINE.md` and `CALLER_LOCATION.md`, which will be left untouched.
+- Next steps: port the Rust dependency gate rules to a standard-library Python script, validate it against the old Rust command on the current repository, run required formatting/lint/tests, update `TODO.md`, and commit the task changes.
+- Implemented `tools/dependency_gate.py` using `cargo metadata --format-version 1` plus the source-boundary checks from the old Rust tool.
+- Initial parity validation passed: `python3 -m py_compile tools/dependency_gate.py` and a full diff between `python3 tools/dependency_gate.py` and `cargo run -q -p scoop_tools -- dependency-gate` produced no differences.
+- Repository validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py tests/fixtures`, and `cargo run -p scoop -- test` all passed.
+- `TODO.md` now marks P1-T05 done with a completion record. Next step: review the final diff and commit the task changes.
