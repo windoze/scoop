@@ -1,33 +1,23 @@
-# P2-T01 execution plan
+# Execution Plan
 
 ## Current task
 
-First incomplete task in `TODO.md`: **P2-T01** — switch `.github/workflows/ci.yml` from old test-infrastructure entrypoints to the new Python tools.
+P2-T01R: Review the CI switch result, confirming the workflow uses the new Python fixture/spec commands, no old fixture runner or `scoop_tools` entry remains in CI, and validation passes.
 
-Required changes:
+## Execution plan
 
-- Replace `cargo run -p scoop_tools -- spec-fixtures check` with `python3 tools/spec_fixtures.py check`.
-- Replace `cargo run -p scoop -- test` with `python3 tools/run_fixtures.py`.
-- Keep the change limited to CI wiring unless validation exposes a task-blocking issue.
+1. [DONE] Inspect `TODO.md`, the latest commit, `.github/workflows/ci.yml`, and the relevant cleanup plan requirements.
+2. [DONE] Search the CI workflow for old entries: `scoop_tools`, `cargo run -p scoop -- test`, `scoop test`, and `test-fixtures`.
+3. [DONE] Run formatting and linting first, then the Rust test suite and the new CI fixture/spec commands required by P2-T01R.
+4. [DONE] Fix any CI-switch issue or newly observed unscheduled failure instead of working around it. No issue was found.
+5. [DONE] Mark P2-T01R `[DONE]` in `TODO.md` with a completion record, update this progress file, commit all task-related changes, and stop.
 
-## Step-by-step plan
+## Validation results
 
-1. Inspect `.github/workflows/ci.yml` and confirm the old CI entrypoints.
-2. Edit only the CI workflow to call the new Python scripts.
-3. Search the workflow for old `scoop_tools`, `scoop test`, and `cargo run -p scoop -- test` entrypoints.
-4. Run repository validation in the requested order where meaningful for this YAML-only task:
-   - `cargo fmt`
-   - `cargo clippy --all-targets -- -D warnings`
-   - targeted new CI commands: `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`
-   - `cargo test --all --all-targets`
-5. If validation exposes an unscheduled failure, fix it if directly in scope or add the minimum prerequisite task to `TODO.md`, commit, and stop.
-6. If validation passes, update `TODO.md` by prefixing P2-T01 with `[DONE]` and appending a completion record.
-7. Review the diff and commit all task-related changes with a `[P2-T01]` message and required co-author trailer.
-
-## Progress
-
-- Identified P2-T01 as the first incomplete task.
-- Confirmed `.github/workflows/ci.yml` currently uses the old `scoop_tools` spec fixture command and old `scoop test` fixture runner command.
-- Updated `.github/workflows/ci.yml` so CI calls `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`.
-- Verified the workflow no longer references old fixture entrypoints.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py` (`fixtures: ok (1533)`).
+- Old CI entry search: no `scoop_tools`, `cargo run -p scoop -- test`, `scoop test`, or `test-fixtures` matches in `.github/workflows/ci.yml`.
+- New CI entry search: `.github/workflows/ci.yml` uses `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`.
+- `cargo fmt`: passed.
+- `cargo clippy --all-targets -- -D warnings`: passed.
+- `cargo test --all --all-targets`: passed.
+- `python3 tools/spec_fixtures.py check`: passed.
+- `python3 tools/run_fixtures.py`: passed, 1533 checks.
