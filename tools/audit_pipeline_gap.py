@@ -288,7 +288,10 @@ def parse_gap_heading(line: str) -> str | None:
     rest = strip_any_prefix(trimmed, ("### ", "## "))
     if rest is None:
         return None
-    token = rest.split()[0].removesuffix(".")
+    parts = rest.split()
+    if not parts:
+        return None
+    token = parts[0].removesuffix(".")
     if token and all(char.isascii() and (char.isdigit() or char == ".") for char in token):
         return f"PIPELINE_GAPS §{token}"
     return None
