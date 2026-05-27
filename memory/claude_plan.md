@@ -1,23 +1,19 @@
-# Execution Plan
+# Claude Plan
 
-This file records the execution plan and progress for the current invocation without private reasoning. I will use `TODO.md` as the source of truth, complete exactly the first incomplete task, commit the result, and stop.
+I will not record private chain-of-thought. This file captures the execution plan and progress for the current invocation.
 
-Selected task: `P1-T01` — update pure spec decisions for `Nothing`, cone/package wording, and value type `with`.
+## Initial execution plan
+1. Read TODO.md and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Inspect the task details, dependencies, and validation requirements, plus recent git context if directly relevant.
+3. Implement the selected task completely, or add the minimum prerequisite task if a concrete blocker prevents correct implementation.
+4. Run formatting, linting, tests, and fixtures required by the task policy.
+5. Update TODO.md with `[DONE]` and a completion record if the task is completed; update PLAN.md only if phase-level planning changes.
+6. Commit all changes for this invocation and stop without starting the next task.
 
-1. Read the relevant `P1-T01` task entry in `TODO-1.md`, `SPEC_FIX.md` A1/A2/D1, and the corresponding `PLAN.md` P1 requirements.
-2. Update `SCOOP_FULL_SPEC.md` only in the requested non-behavior-changing spec prose:
-   - add `Nothing` to the type hierarchy as an uninhabited bottom type outside the reference/value split;
-   - rewrite the §13 overview to distinguish cone as the distribution/build unit from `package` as a source namespace;
-   - clarify that value types remain immutable, structs do not gain `var` fields, and `with` remains the copy-update mechanism.
-3. Manually synchronize the maintained split spec files under `docs/spec/language_spec-part*.md` for the same three decisions, without changing P2/P3 surface syntax examples or fixture-affecting code blocks.
-4. Run `python3 tools/spec_fixtures.py check` and manually review the new prose locations.
-5. Mark `P1-T01` `[DONE]` in `TODO.md` and `TODO-1.md`, fill in its completion record, and record that split spec synchronization was manual.
-6. Commit the documentation and progress-record changes with a descriptive `P1-T01` commit message and the required co-author trailer, then stop.
-
-Progress:
-- Identified `P1-T01` as the first incomplete task from `TODO.md`; latest commit is `[P0-T02R] Review overload baseline`, which does not introduce unfinished work that blocks this spec-only task.
-- Reviewed the task details and relevant A1/A2/D1 plan/spec context.
-- Updated `SCOOP_FULL_SPEC.md` and manually synchronized `docs/spec/language_spec-part1.md` / `language_spec-part2.md` for `Nothing`, cone/package wording, and value-type `with` immutability decisions without changing fixture-bearing code blocks.
-- Validation completed: `python3 tools/spec_fixtures.py check` passed with `spec fixtures: ok (1)`, and `git diff --check` reported no whitespace errors.
-- Marked `P1-T01` `[DONE]` in `TODO.md` and `TODO-1.md` with the completion record.
-- Next step is to review the final diff and commit the task changes.
+## Progress
+- Created initial plan file before task execution.
+- Identified `P1-T01R：Review 纯 spec 决议更新` as the first incomplete task.
+- Reviewed the P1-T01 diff against `SPEC_FIX.md` A1, A2, and D1: `Nothing`, cone/package layering, and value-type `with` wording are consistent with the design baseline.
+- Confirmed P1-T01 did not modify compiler behavior, fixtures, or P2/P3 language-surface code blocks.
+- Ran `python3 tools/spec_fixtures.py check` and `git diff --check`; both passed.
+- Marked P1-T01R `[DONE]` in `TODO.md` and `TODO-1.md` with the review completion record.

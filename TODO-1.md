@@ -372,7 +372,7 @@
     - 闭合 `PLAN.md` P1 中纯 spec 部分：§2.1 `Nothing`、§13 cone/package 层级、§2.6 value type immutability + `with` 保留。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P1-T01R：Review 纯 spec 决议更新
+### [DONE] P1-T01R：Review 纯 spec 决议更新
 
 - 参考：
   - P1-T01 完成记录
@@ -397,9 +397,21 @@
 - 依赖：P1-T01
 - 完成记录：
   - 改动范围：
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`，并填写 review 完成记录。
+    - 复核 P1-T01 commit `697ba21e` 对 `SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part1.md`、`docs/spec/language_spec-part2.md` 的 spec-only diff。
+    - 未修改 compiler、sysroot、fixtures、fixture-bearing spec code block 或 `PLAN.md`；本轮只补充 review 结论与 `memory/claude_plan.md` 进度记录。
   - 核心决策：
+    - `Nothing` 的新表述符合 A1：bottom / uninhabited、是所有类型子类型、无运行期值或表示、仅用于永不正常返回的表达式或函数，并且明确位于 reference / value split 之外。
+    - Cone/package wording 符合 A2：cone 是 distribution / build unit 与 `.cone` 归档边界；source-level `package` 是 cone 内 namespace，源文件仍使用 `package foo.bar`，没有把二者混为同一概念。
+    - Value type `with` 表述符合 D1：value type 保持 immutable，struct 直接字段仍必须是 `val`，不引入 struct `var` 或 mutating method；P1-T01 没有提前改变 C1 enum mismatched-variant panic 语义。
+    - P1-T01 diff 只改 spec prose 和 cone archive metadata label，没有迁移 `perform`、handler `with`、f-string、tuple access、`@Inline` 或其他 P2/P3 才应处理的 language-surface code blocks。
   - 验证结果：
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `git diff --check`：通过，无 whitespace error。
+    - 本 review 只修改 markdown/progress 文档，未改编译输出；无需运行 `cargo fmt`、`cargo clippy`、`cargo test` 或全量 fixture suite。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 P1-T01 的独立 review gate；`SPEC_FIX.md` A1、A2、D1 在活跃 spec 与 split spec 中的表述准确，且不影响 compiler / fixture baseline。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P1-T02：删除 `@Inline` annotation surface
 

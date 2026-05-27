@@ -38,7 +38,7 @@
 | P0-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02建立-overload-bug-与-diagnostics-基线样例) | [DONE] 建立 overload bug 与 diagnostics 基线样例 |
 | P0-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02rreview-overload-bug-与-diagnostics-基线) | [DONE] Review P0-T02 overload 基线质量 |
 | P1-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01更新纯-spec-决议nothingconepackagevalue-type-with) | [DONE] 更新纯 spec 决议：`Nothing`、cone/package、value type `with` |
-| P1-T01R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t01rreview-纯-spec-决议更新) | Review P1-T01 spec 更新质量 |
+| P1-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01rreview-纯-spec-决议更新) | [DONE] Review P1-T01 spec 更新质量 |
 | P1-T02 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t02删除-inline-annotation-surface) | 删除 `@Inline` annotation surface |
 | P1-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t02rreview-inline-删除结果) | Review P1-T02 `@Inline` 删除结果 |
 | P2-T01 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t01删除-perform-prefix并迁移-effect-op-调用语法) | 删除 `perform` prefix，并迁移 effect op 调用语法 |
