@@ -2,13 +2,13 @@
 
 ## Project Structure & Module Organization
 
-- `crates/scoop/`: driver CLI (`scoop`) used to run fixtures and (optionally) build/run programs.
+- `crates/scoop/`: driver CLI (`scoop`) used to build/run programs.
 - `crates/scoopc/`: compiler library; LLVM codegen is gated behind the `llvm` feature.
 - `crates/scoop_runtime/`: runtime build glue (Rust) + GC/runtime integration tests.
 - `runtime/c/`: C runtime implementation (GC, effects, threads, platform backends).
 - `stdlib/` / `sysroot/`: standard library sources and sysroot layout used by the compiler.
 - `tests/fixtures/**`: fixture-based regression suite, grouped by phase (e.g. `parse/`, `typecheck/`, `run-pass/`, `spec_doctest/`).
-- `tools/scoop_tools/` + `tools/*.sh`: repo utilities (spec fixture sync/check, GC microbench).
+- `tools/*.py` + `tools/*.sh`: repo utilities (fixture runner, spec sync/check, audits, dependency gate, GC microbench).
 
 ## Build, Test, and Development Commands
 
@@ -20,10 +20,10 @@ cargo build
 cargo test --all --all-targets
 
 # Check spec doctest fixtures generated from SCOOP_FULL_SPEC.md
-cargo run -p scoop_tools -- spec-fixtures check
+python3 tools/spec_fixtures.py check
 
 # Run fixture suite (routes by tests/fixtures/* phase)
-cargo run -p scoop -- test
+python3 tools/run_fixtures.py
 ```
 
 LLVM backend (default): requires `clang` and `llvm-config` in `PATH` (use `--no-default-features` to disable).
@@ -43,8 +43,9 @@ cargo run -p scoop -- build path/to/file.scoop -o /tmp/a.out
 
 - Rust tests live alongside code (`#[test]`) and as integration tests in `crates/scoop_runtime/tests/*.rs`.
 - Fixture regressions live under `tests/fixtures/**`; add new cases to the smallest relevant phase directory.
+- Fixture suites are driven by `tools/run_fixtures.py`; `scoop` / `scoopc` no longer include an internal fixture runner, and fixture utilities live as Python scripts under `tools/`.
 - When editing `SCOOP_FULL_SPEC.md` code blocks tagged as fixtures, run:
-  `cargo run -p scoop_tools -- spec-fixtures sync` and then `... check`.
+  `python3 tools/spec_fixtures.py sync` and then `python3 tools/spec_fixtures.py check`.
 
 ## Documentation Archiving
 
