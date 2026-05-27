@@ -172,7 +172,7 @@ val b = f("hi")
 fun add(a: Int, b: Int): Int = a + b
 
 fun greet(name: String): String {
-    return f"Hello, {name}!"
+    return f"Hello, ${name}!"
 }
 ```
 
@@ -297,7 +297,7 @@ class User(private var _name: String, private var _age: Int) {
     var email: String = ""
 
     val displayName: String
-        get() = f"{_name} (age {_age})"
+        get() = f"${_name} (age ${_age})"
 
     var name: String
         get() = _name
@@ -489,7 +489,7 @@ when (value) {
 when (pair) {
     (0, _) -> "starts with zero"
     (x, y) if x == y -> "equal"
-    (x, y) -> f"different: {x}, {y}"
+    (x, y) -> f"different: ${x}, ${y}"
 }
 
 when (point) {
@@ -759,7 +759,7 @@ Private/internal 非递归函数可省略返回类型：
 ```kotlin
 internal fun greet(name: String) {
     if (name.isEmpty()) return "Hello!"
-    return f"Hello, {name}!"
+    return f"Hello, ${name}!"
 }
 ```
 

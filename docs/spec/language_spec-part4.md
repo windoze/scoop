@@ -190,7 +190,7 @@ handle {
     val data = fetchData()
     println(data)
 } on {
-    Raise.raise(error) -> println(f"caught: {error}")
+    Raise.raise(error) -> println(f"caught: ${error}")
 }
 ```
 

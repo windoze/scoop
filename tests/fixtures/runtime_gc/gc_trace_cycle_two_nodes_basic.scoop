@@ -16,8 +16,8 @@ class Node(val name: String) {
 }
 
 fun main() {
-    val a: Node = Node(f"node {1}")
-    val b: Node = Node(f"node {2}")
+    val a: Node = Node(f"node ${1}")
+    val b: Node = Node(f"node ${2}")
     a.next = Some(b)
     b.next = Some(a)
 

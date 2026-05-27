@@ -13,7 +13,7 @@ import scoop.core.*
 fun managedStringHelper(): String
 
 fun main() {
-    val keep: String = f"keep-{41}"
+    val keep: String = f"keep-${41}"
     val message: String = managedStringHelper()
     println(keep)
     println(message)

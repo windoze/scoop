@@ -1478,22 +1478,15 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            // `{{` / `}}`：字面量大括号（spec §8.2）。
-            if b == b'{' {
-                if i + 1 < content_end && bytes[i + 1] == b'{' {
-                    i += 2;
-                    continue;
-                }
-
-                // 单个 `{`：插值表达式起始。
+            if b == b'$' && i + 1 < content_end && bytes[i + 1] == b'{' {
                 if text_start < i {
                     parts.push(ast::InterpolatedStringPart::Text {
                         span: Span::new(text_start, i),
                     });
                 }
 
-                let open_brace = i;
-                let expr_start = i + 1;
+                let open_brace = i + 1;
+                let expr_start = i + 2;
                 let Some(expr_close) =
                     self.find_interpolation_close_in_f_string(expr_start, content_end)
                 else {
@@ -1510,18 +1503,6 @@ impl<'a> Parser<'a> {
                 i = expr_close + 1;
                 text_start = i;
                 continue;
-            }
-
-            if b == b'}' {
-                if i + 1 < content_end && bytes[i + 1] == b'}' {
-                    i += 2;
-                    continue;
-                }
-
-                // 单个 `}` 出现在插值字符串文本中时是语法错误（应写成 `}}`）。
-                return Err(ParseError::FStringUnescapedRBrace {
-                    span: Span::new(i, i + 1).into(),
-                });
             }
 
             // 其它字符：按 UTF-8 前进，保持 index 在 char boundary 上，避免后续 slice panic。
@@ -1542,10 +1523,10 @@ impl<'a> Parser<'a> {
         Ok(parts)
     }
 
-    /// 在 f-string 的内容区间内，从 `expr_start` 扫描并找到与插值起始 `{` 匹配的 `}`。
+    /// 在 f-string 的内容区间内，从 `expr_start` 扫描并找到与插值起始 `${` 匹配的 `}`。
     ///
     /// 需要忽略表达式内部的字符串/注释，并对表达式内部的 `{}` 进行括号平衡；
-    /// 这样才能正确处理例如：`f"{ if (a) { b } else { c } }"` 这种嵌套 `{}` 的情况。
+    /// 这样才能正确处理例如：`f"${if (a) { b } else { c }}"` 这种嵌套 `{}` 的情况。
     fn find_interpolation_close_in_f_string(
         &self,
         expr_start: usize,

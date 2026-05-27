@@ -36,7 +36,7 @@ fun waitWorkerInNative(): Unit {
 }
 
 fun worker(): Unit {
-    val x: String = f"native {42}"
+    val x: String = f"native ${42}"
 
     // 进入 native 并阻塞：该调用点会被编译器插入 enter_native/leave_native，
     // 从而让当前线程处于 InNative 状态并暴露 native_roots 供 GC 扫描。

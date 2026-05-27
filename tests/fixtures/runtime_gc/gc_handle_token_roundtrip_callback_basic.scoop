@@ -29,7 +29,7 @@ class WakeCell(val message: String)
 fun main() {
     @Unsafe do { handleTokenSlotReset() }
 
-    var obj: Any = WakeCell(f"wake {7}")
+    var obj: Any = WakeCell(f"wake ${7}")
     val wakeHandle: GcHandle = @Unsafe do { GC.handleNew(obj) }
 
     // 模拟 reactor / completion callback 只保存 stable token。

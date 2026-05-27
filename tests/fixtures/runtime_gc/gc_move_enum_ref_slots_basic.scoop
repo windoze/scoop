@@ -20,7 +20,7 @@ enum E {
 class Holder(val e: E)
 
 fun mk(): E {
-    val s: String = f"hello {7}"
+    val s: String = f"hello ${7}"
     return A(42, s)
 }
 

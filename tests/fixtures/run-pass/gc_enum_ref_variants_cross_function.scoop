@@ -28,19 +28,19 @@ fun makeLabeled(name: String, sides: Int): Shape {
 }
 
 fun makeHolder(label: String, s: Shape): ShapeHolder {
-    return ShapeHolder(s, f"holder_{label}")
+    return ShapeHolder(s, f"holder_${label}")
 }
 
 fun describeShape(s: Shape): String {
     return when (s) {
-        Circle(r) -> f"circle(r={r})"
-        Labeled(n, sides) -> f"labeled({n}, sides={sides})"
+        Circle(r) -> f"circle(r=${r})"
+        Labeled(n, sides) -> f"labeled(${n}, sides=${sides})"
     }
 }
 
 fun printHolder(h: ShapeHolder): Unit {
     val desc: String = describeShape(h.shape)
-    println(f"{h.label}: {desc}")
+    println(f"${h.label}: ${desc}")
 }
 
 fun main() {
@@ -49,11 +49,11 @@ fun main() {
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
 
-    val s2: Shape = makeLabeled(f"polygon_{3}", 5)
+    val s2: Shape = makeLabeled(f"polygon_${3}", 5)
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
 
-    val s3: Shape = makeLabeled(f"polygon_{5}", 7)
+    val s3: Shape = makeLabeled(f"polygon_${5}", 7)
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
 
@@ -67,7 +67,7 @@ fun main() {
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
 
-    val h2: ShapeHolder = makeHolder("B", makeLabeled(f"polygon_{4}", 6))
+    val h2: ShapeHolder = makeHolder("B", makeLabeled(f"polygon_${4}", 6))
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
 

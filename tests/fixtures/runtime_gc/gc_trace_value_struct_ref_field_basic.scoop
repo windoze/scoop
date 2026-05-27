@@ -25,15 +25,15 @@ class Holder(val w: Wrap)
 
 fun main() {
     // 1) stack spill slots：值类型局部变量中含 ref 字段。
-    val w: Wrap = Wrap { s: f"hello {7}" }
+    val w: Wrap = Wrap { s: f"hello ${7}" }
     __scoop_gc_collect()
-    println(f"stack={w.s}")
+    println(f"stack=${w.s}")
 
     // 2) heap fields：class 字段中嵌入值类型，需递归扫描其 ref 字段。
-    val h: Holder = Holder(Wrap { s: f"hello {8}" })
+    val h: Holder = Holder(Wrap { s: f"hello ${8}" })
     __scoop_gc_collect()
     val w2: Wrap = h.w
-    println(f"heap={w2.s}")
+    println(f"heap=${w2.s}")
 
     // 保证 h 在 GC 调用点后仍然是 live（避免被优化掉）。
     val _also_keep_holder: Holder = h

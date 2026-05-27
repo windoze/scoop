@@ -7,10 +7,13 @@ package fixtures.run_pass
 fun main(): Int {
     val name = "scoop"
 
-    println(f"value={42}")
-    println(f"{name}:{42}:{true}")
-    println(f"braces={{ok}}, newline=\nend")
-    println(f"""raw={name}, slash=\n, braces={{ok}}""")
+    println(f"value=${42}")
+    println(f"${name}:${42}:${true}")
+    println(f"braces={ok}, newline=\nend")
+    println(f"""raw=${name}, slash=\n, braces={ok}""")
+    println(f"""json={"name":"${name}","ok":true}""")
+    println(f"$name is literal")
+    println(f"old {name} literal")
 
     return 0
 }

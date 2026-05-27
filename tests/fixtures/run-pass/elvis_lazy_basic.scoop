@@ -9,7 +9,7 @@
 import scoop.core.*
 
 fun fallback(label: String, value: Int): Int {
-    println(f"rhs={label}")
+    println(f"rhs=${label}")
     return value
 }
 

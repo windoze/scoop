@@ -103,6 +103,6 @@ fun main() {
 
     println(v1)
     println(v2)
-    println(f"init_started={initStarted}")
+    println(f"init_started=${initStarted}")
     println("ok")
 }

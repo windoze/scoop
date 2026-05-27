@@ -9,7 +9,7 @@ import scoop.core.*
 fun helperExtern(): String
 
 public fun main() / Pure! {
-    val keep: String = f"keep-{41}"
+    val keep: String = f"keep-${41}"
     val message: String = helperExtern()
     println(keep)
     println(message)

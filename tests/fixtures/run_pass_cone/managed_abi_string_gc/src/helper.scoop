@@ -5,7 +5,7 @@ import scoop.core.*
 import scoop.runtime.test.*
 
 public fun helper(): String / Pure! {
-    val message: String = f"managed-{42}"
+    val message: String = f"managed-${42}"
     __scoop_gc_collect()
     return message
 }

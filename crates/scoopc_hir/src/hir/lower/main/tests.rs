@@ -704,7 +704,7 @@ fn fstring_desugar_lowers_to_string_builder_chain() {
 package fixtures.fstring_desugar
 
 fun format(x: Int): String {
-    val s = f"a{x}b"
+    val s = f"a${x}b"
     return s
 }
 

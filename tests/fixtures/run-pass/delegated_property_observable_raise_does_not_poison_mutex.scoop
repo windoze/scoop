@@ -17,7 +17,7 @@ class C() {
             println("boom")
             Raise.raise(7)
         }
-        println(f"x: {old} -> {new}")
+        println(f"x: ${old} -> ${new}")
     }
 }
 
@@ -28,12 +28,12 @@ fun main(): Int {
         c.x = 1
         println("unreachable")
     } catch (e: Int) {
-        println(f"caught {e}")
+        println(f"caught ${e}")
     }
 
-    println(f"after_raise={c.x}")
+    println(f"after_raise=${c.x}")
     c.x = 2
-    println(f"final={c.x}")
+    println(f"final=${c.x}")
     println("ok")
     return 0
 }

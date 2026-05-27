@@ -13,7 +13,7 @@ import scoop.core.*
 import scoop.runtime.test.*
 
 fun makeStrings(prefix: String): Array<String> {
-    val xs: Array<String> = [f"{prefix}_1", f"{prefix}_2", f"{prefix}_3"]
+    val xs: Array<String> = [f"${prefix}_1", f"${prefix}_2", f"${prefix}_3"]
     return xs
 }
 
@@ -55,8 +55,8 @@ fun main() {
     __scoop_gc_collect()
     val first1: String = readFirst(arr1)
     val last2: String = readLast(arr2)
-    println(f"first1={first1}")
-    println(f"last2={last2}")
+    println(f"first1=${first1}")
+    println(f"last2=${last2}")
 
     // Step 3: create a third array while first two are live.
     val arr3: Array<String> = makeStrings("gamma")
@@ -64,12 +64,12 @@ fun main() {
     __scoop_gc_collect()
 
     // All three arrays must survive simultaneously.
-    println(f"arr1[0]={readFirst(arr1)}")
-    println(f"arr2[0]={readFirst(arr2)}")
-    println(f"arr3[0]={readFirst(arr3)}")
+    println(f"arr1[0]=${readFirst(arr1)}")
+    println(f"arr2[0]=${readFirst(arr2)}")
+    println(f"arr3[0]=${readFirst(arr3)}")
 
     // Step 4: verify array size after GC.
     __scoop_gc_debug_alloc_garbage(100)
     __scoop_gc_collect()
-    println(f"sizes={arr1.size()},{arr2.size()},{arr3.size()}")
+    println(f"sizes=${arr1.size()},${arr2.size()},${arr3.size()}")
 }

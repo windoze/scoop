@@ -15,8 +15,8 @@ import scoop.runtime.test.*
 class Pair(val a: Any, val b: Any)
 
 fun main() {
-    val hello: Any = f"hello {7}"
-    val bye: Any = f"bye {0}"
+    val hello: Any = f"hello ${7}"
+    val bye: Any = f"bye ${0}"
     val p: Pair = Pair(hello, bye)
 
     // 说明：moving GC 需要正确更新：
@@ -48,7 +48,7 @@ fun main() {
         None -> "bad"
     }
 
-    println(f"{s1} / {s2}")
+    println(f"${s1} / ${s2}")
 
     @Unsafe do { GC.handleDrop(hp) }
 }

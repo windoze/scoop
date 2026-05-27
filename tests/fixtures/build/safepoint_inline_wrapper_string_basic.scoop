@@ -17,7 +17,7 @@ fun caller(text: String): String {
 }
 
 fun main(): Int {
-    val text: String = f"hello {7}"
+    val text: String = f"hello ${7}"
     println(caller(text))
     return 0
 }

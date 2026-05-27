@@ -17,7 +17,7 @@ import scoop.unsafe.*
 fun get_gc_collect_in_native_funptr(): FunPtr<() -> Unit>
 
 fun main() {
-    val x: Any = f"hello {7}"
+    val x: Any = f"hello ${7}"
     @Unsafe do {
         val fp: FunPtr<() -> Unit> = get_gc_collect_in_native_funptr()
         fp()

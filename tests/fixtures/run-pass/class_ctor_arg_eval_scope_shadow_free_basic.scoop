@@ -8,13 +8,13 @@ struct Tag(val label: String, val score: Int)
 class Node(val name: String, val tag: Tag, val value: Int)
 
 fun makeNode(name: String, label: String, score: Int, value: Int): Node {
-    val t: Tag = Tag { label: f"{label}_tag", score: score }
+    val t: Tag = Tag { label: f"${label}_tag", score: score }
     return Node(name, t, value)
 }
 
 fun describeNode(n: Node): String {
     val t: Tag = n.tag
-    return f"{n.name}/{t.label}/{n.value}"
+    return f"${n.name}/${t.label}/${n.value}"
 }
 
 fun main() {

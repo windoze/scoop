@@ -18,13 +18,13 @@ fun viaBranch(flag: Bool, base: Int): String / (Ask) {
         val inner: String = Ask.ask(base + 1)
         println("true_resume")
         println(inner)
-        f"T:{inner}"
+        f"T:${inner}"
     } else do {
         println("false_enter")
         val inner: String = Ask.ask(base + 2)
         println("false_resume")
         println(inner)
-        f"F:{inner}"
+        f"F:${inner}"
     }
     println("branch_after")
     println(result)

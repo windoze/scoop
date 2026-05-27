@@ -32,7 +32,7 @@ fun makeRecord(key: String, value: Int, label: String): Record {
 
 fun describeRecord(r: Record): String {
     val e: Entry = r.entry
-    return f"{r.label}:{e.key}={e.value}"
+    return f"${r.label}:${e.key}=${e.value}"
 }
 
 fun main() {
@@ -44,19 +44,19 @@ fun main() {
 
         // First suspension
         val s1: String = Ask.ask()
-        println(f"got1={s1}")
+        println(f"got1=${s1}")
 
         // Allocate after resume — creates GC pressure while captured vars live
-        val r1: Record = makeRecord(s1, 1, f"rec_{s1}")
+        val r1: Record = makeRecord(s1, 1, f"rec_${s1}")
         val d1: String = describeRecord(r1)
         println(d1)
 
         // Second suspension — s1, r1 must survive in ContState
         val s2: String = Ask.ask()
-        println(f"got2={s2}")
+        println(f"got2=${s2}")
 
         // More allocation — r1 still live, create r2 referencing s2
-        val r2: Record = makeRecord(s2, 2, f"rec_{s2}")
+        val r2: Record = makeRecord(s2, 2, f"rec_${s2}")
         val d1b: String = describeRecord(r1)
         val d2: String = describeRecord(r2)
         println(d1b)
@@ -64,10 +64,10 @@ fun main() {
 
         // Third suspension — s1, s2, r1, r2 all in ContState
         val s3: String = Ask.ask()
-        println(f"got3={s3}")
+        println(f"got3=${s3}")
 
         // Final allocation + verify all previous refs intact
-        val r3: Record = makeRecord(s3, 3, f"rec_{s3}")
+        val r3: Record = makeRecord(s3, 3, f"rec_${s3}")
         val d1c: String = describeRecord(r1)
         val d2c: String = describeRecord(r2)
         val d3: String = describeRecord(r3)

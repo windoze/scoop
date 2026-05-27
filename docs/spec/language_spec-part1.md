@@ -323,18 +323,19 @@ val json = "{ \"key\": \"value\" }"
 val shell = "echo ${HOME}"
 ```
 
-插值字符串使用 `f` 前缀，插值表达式写在 `{ ... }` 中：
+插值字符串使用 `f` 前缀，插值表达式写在 `${ ... }` 中：
 
 ```kotlin
-val greeting = f"Hello, {name}!"
-val result = f"sum = {a + b}"
-val literal = f"use {{braces}} in f-string"
+val greeting = f"Hello, ${name}!"
+val result = f"sum = ${a + b}"
+val literal = f"use {braces} in f-string"
 ```
 
 规则：
 
 - 普通字符串不允许裸换行。
-- 插值字符串中的 `{{` 和 `}}` 表示字面花括号。
+- 插值字符串中的 `{` 和 `}` 是普通文本；只有 `${ ... }` 开启插值。
+- 不支持 `$name` shorthand；`$` 只有在后面紧跟 `{` 时才开启插值。
 - 插值表达式按普通表达式规则检查和求值。
 
 Raw 字符串使用三引号，无转义处理，可跨行：
@@ -346,7 +347,7 @@ val sql = """
 """.trimIndent()
 
 val text = f"""
-    Hello, {name}
+    Hello, ${name}
 """.trimIndent()
 ```
 

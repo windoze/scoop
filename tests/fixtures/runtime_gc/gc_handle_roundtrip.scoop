@@ -10,11 +10,11 @@ import scoop.core.*
 import scoop.runtime.test.*
 
 fun main() {
-    var x: Any = f"hello {7}"
+    var x: Any = f"hello ${7}"
     val h: GcHandle = @Unsafe do { GC.handleNew(x) }
 
     // 覆盖 roots slot：让原对象仅通过 handle 表保活，然后强制触发一次 GC。
-    x = f"bye {0}"
+    x = f"bye ${0}"
     __scoop_gc_collect()
 
     val gotAny: Any = @Unsafe do { GC.handleGet(h) }

@@ -1505,16 +1505,18 @@ val shell = "echo ${HOME}"         // literal ${HOME}
 
 ### 8.2 Interpolated Strings
 
-Interpolated strings use the `f` prefix. Expressions are enclosed in `{ }`.
+Interpolated strings use the `f` prefix. Expressions are enclosed in `${ }`.
 
 ```kotlin
-val greeting = f"Hello, {name}!"
-val result = f"sum = {a + b}"
-val info = f"user: {user.name}, age: {user.age}"
+val greeting = f"Hello, ${name}!"
+val result = f"sum = ${a + b}"
+val info = f"user: ${user.name}, age: ${user.age}"
 
-// Escape braces with doubling
-val literal = f"use {{braces}} in f-string"  // outputs: use {braces} in f-string
+// Braces are literal text unless preceded by `$`
+val literal = f"use {braces} in f-string"  // outputs: use {braces} in f-string
 ```
+
+`$name` shorthand is not supported; `$` is ordinary text unless immediately followed by `{`.
 
 ### 8.3 Raw Strings
 
@@ -1528,8 +1530,8 @@ val raw = """
 
 // Raw + interpolation
 val raw = f"""
-    Hello, {name}!
-    Your balance is {balance}.
+    Hello, ${name}!
+    Your balance is ${balance}.
 """.trimIndent()
 ```
 
@@ -1573,7 +1575,7 @@ class User(private var _name: String, private var _age: Int) {
 
     // Property with custom getter
     val displayName: String
-        get() = f"{_name} (age {_age})"
+        get() = f"${_name} (age ${_age})"
 
     // Property with custom getter and setter
     var name: String
@@ -1659,7 +1661,7 @@ val heavyData: List<Data> by lazy {
 }
 
 var name: String by observable("unnamed") { old, new ->
-    println(f"name changed: {old} -> {new}")
+    println(f"name changed: ${old} -> ${new}")
 }
 ```
 
@@ -1709,7 +1711,7 @@ val config: Config by lazy(LazyThreadSafetyMode.None) { loadConfig() }
 
 // observable — callback on every change
 var score: Int by observable(0) { old, new ->
-    println(f"score: {old} -> {new}")
+    println(f"score: ${old} -> ${new}")
 }
 
 // vetoable — callback can reject the change
@@ -1995,7 +1997,7 @@ class StringBuilder {
 val s = StringBuilder().add("a").add("b").toString() // "ab"
 ```
 
-An f-string expression such as `f"a={x}"` is lowered to the same shape:
+An f-string expression such as `f"a=${x}"` is lowered to the same shape:
 
 ```kotlin
 StringBuilder().add("a=").add(x.toString()).toString()
@@ -2105,7 +2107,7 @@ private fun fibonacci(n: Int): Int {    // ← recursive, must annotate
 // Return type inferred as String
 internal fun greet(name: String) {      // ← non-recursive, can omit
     if (name.isEmpty()) return "Hello!"
-    return f"Hello, {name}!"
+    return f"Hello, ${name}!"
 }
 
 // Public functions always require return type

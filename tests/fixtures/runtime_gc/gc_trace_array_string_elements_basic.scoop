@@ -12,13 +12,13 @@ import scoop.core.*
 import scoop.runtime.test.*
 
 fun make(): Array<String> {
-    val xs: Array<String> = [f"a {1}", f"b {2}"]
+    val xs: Array<String> = [f"a ${1}", f"b ${2}"]
     return xs
 }
 
 fun main() {
     val xs: Array<String> = make()
     __scoop_gc_collect()
-    println(f"array0={xs.get(0)}")
-    println(f"array1={xs.get(1)}")
+    println(f"array0=${xs.get(0)}")
+    println(f"array1=${xs.get(1)}")
 }

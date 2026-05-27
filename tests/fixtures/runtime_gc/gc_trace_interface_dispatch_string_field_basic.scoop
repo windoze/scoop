@@ -17,14 +17,14 @@ interface IFace {
 
 class Impl(val s: String) : IFace {
     fun ping(): Int {
-        println(f"iface={this.s}")
+        println(f"iface=${this.s}")
         return 0
     }
 }
 
 fun main(): Int {
     // 仅通过 interface 引用保活对象与其字符串字段。
-    val x: IFace = Impl(f"hello {7}")
+    val x: IFace = Impl(f"hello ${7}")
     __scoop_gc_collect()
     val _ignored: Int = x.ping()
     return 0

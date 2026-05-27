@@ -11,11 +11,11 @@ import scoop.delegates.*
 
 class C() {
     var score: Int by observable(0) { old, new ->
-        println(f"score: {old} -> {new}")
+        println(f"score: ${old} -> ${new}")
     }
 
     var age: Int by vetoable(0) { old, new ->
-        println(f"age try: {old} -> {new}")
+        println(f"age try: ${old} -> ${new}")
         new >= 0
     }
 }

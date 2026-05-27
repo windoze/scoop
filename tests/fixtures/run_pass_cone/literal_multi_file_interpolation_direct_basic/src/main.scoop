@@ -19,5 +19,5 @@ fun main() {
     println(42.toString())
     println('A'.toInt())
     println([1, 2, 3].size())
-    println(f"entry ok={false} char={'B'} size={[4, 5].size()} float={1.25}")
+    println(f"entry ok=${false} char=${'B'} size=${[4, 5].size()} float=${1.25}")
 }

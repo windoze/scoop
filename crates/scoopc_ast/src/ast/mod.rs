@@ -1471,7 +1471,7 @@ pub enum CastOp {
 pub enum InterpolatedStringPart {
     /// 纯文本片段（保持源码 span；转义/去重写回等语义留给后续阶段）。
     Text { span: Span },
-    /// 插值表达式片段：`{ expr }`。
+    /// 插值表达式片段：`${ expr }`。
     Expr { expr: Expr },
 }
 
@@ -1737,7 +1737,7 @@ pub enum ExprKind {
     ArrayLit {
         elements: Vec<Expr>,
     },
-    /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
+    /// 插值字符串：`f"Hello, ${name}!"` / `f"""...${x}..."""`（spec §8.2/§8.3）。
     ///
     /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。
     InterpolatedString {

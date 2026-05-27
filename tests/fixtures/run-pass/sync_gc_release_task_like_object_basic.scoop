@@ -37,13 +37,13 @@ fun printCounts(label: String) {
     val mutexCount: Int = @Unsafe do { syncMutexDestroyCount() }
     val condVarCount: Int = @Unsafe do { syncCondVarDestroyCount() }
     val onceCount: Int = @Unsafe do { syncOnceDestroyCount() }
-    println(f"{label} {mutexCount} {condVarCount} {onceCount}")
+    println(f"${label} ${mutexCount} ${condVarCount} ${onceCount}")
 }
 
 fun dropTaskLike(): Unit {
     val task: TaskLike = TaskLike(mutexCreate(), condVarCreate(), onceCreate(), false)
     task.completed = true
-    println(f"drop-task-like {task.completed}")
+    println(f"drop-task-like ${task.completed}")
 }
 
 fun explicitDestroySyncHandles(): Unit {

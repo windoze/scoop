@@ -25,7 +25,7 @@ fun handleTokenSlotTake(): UIntPtr
 fun main() {
     @Unsafe do { handleTokenSlotReset() }
 
-    val obj: Any = f"late {9}"
+    val obj: Any = f"late ${9}"
     val wakeHandle: GcHandle = @Unsafe do { GC.handleNew(obj) }
     @Unsafe do { handleTokenSlotStore(wakeHandle.raw) }
 

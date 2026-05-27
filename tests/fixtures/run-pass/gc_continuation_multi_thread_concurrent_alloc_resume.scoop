@@ -96,7 +96,7 @@ fun main() {
         println("taskA_resumed")
         println(a1)
         println(labelA)
-        println(f"taskA_result={baseA + a1}")
+        println(f"taskA_result=${baseA + a1}")
         println("taskA_done")
     } on {
         AwaitA.pauseA(), k -> {
@@ -116,7 +116,7 @@ fun main() {
         println("taskB_resumed")
         println(b1)
         println(labelB)
-        println(f"taskB_result={baseB + b1}")
+        println(f"taskB_result=${baseB + b1}")
         println("taskB_done")
     } on {
         AwaitB.pauseB(), k -> {

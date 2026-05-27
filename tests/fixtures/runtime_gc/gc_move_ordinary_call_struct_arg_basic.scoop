@@ -18,10 +18,10 @@ struct Payload(val label: String, val value: Int)
 fun describe(payload: Payload): String {
     __scoop_gc_debug_alloc_garbage(32)
     __scoop_gc_collect()
-    return f"{payload.label} {payload.value}"
+    return f"${payload.label} ${payload.value}"
 }
 
 fun main() {
-    val payload: Payload = Payload { label: f"hello {7}", value: 42 }
+    val payload: Payload = Payload { label: f"hello ${7}", value: 42 }
     println(describe(payload))
 }

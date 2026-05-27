@@ -736,7 +736,7 @@ mod tests {
 
     #[test]
     fn lex_f_strings() {
-        let ks = kinds(r#"val a = f"hi {x}"; val b = f"""raw {x}""" "#);
+        let ks = kinds(r#"val a = f"hi ${x}"; val b = f"""raw ${x}""" "#);
         assert!(ks.contains(&TokenKind::StringLiteral(StringKind::Normal {
             interpolated: true
         })));

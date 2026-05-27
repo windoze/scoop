@@ -15,5 +15,5 @@ public fun helperCharCode(): Int {
 }
 
 public fun helperSummary(flag: Bool): String {
-    return f"helper flag={flag} glyph={'Z'} count={[10, 20, 30].size()} frac={0.5f}"
+    return f"helper flag=${flag} glyph=${'Z'} count=${[10, 20, 30].size()} frac=${0.5f}"
 }

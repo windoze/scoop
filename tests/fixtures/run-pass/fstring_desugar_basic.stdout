@@ -3,3 +3,6 @@ scoop:42:true
 braces={ok}, newline=
 end
 raw=scoop, slash=\n, braces={ok}
+json={"name":"scoop","ok":true}
+$name is literal
+old {name} literal

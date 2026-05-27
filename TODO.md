@@ -47,7 +47,7 @@
 | P2-T02R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02rreview-handler-on-切换结果) | [DONE] Review P2-T02 handler `on` 切换结果 |
 | P2-T03 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03实现-tuple-field-0--1-语法并移除-_0-正例) | [DONE] 实现 tuple field `.0` / `.1` 语法并移除 `._0` 正例 |
 | P2-T03R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03rreview-tuple-field-语法切换结果) | [DONE] Review P2-T03 tuple field 语法切换结果 |
-| P2-T04 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04将-f-string-插值从--改为-) | 将 f-string 插值从 `{...}` 改为 `${...}` |
+| P2-T04 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04将-f-string-插值从--改为-) | [DONE] 将 f-string 插值从 `{...}` 改为 `${...}` |
 | P2-T04R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04rreview-f-string-插值切换结果) | Review P2-T04 f-string 插值切换结果 |
 | P2-T05 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t05新增-operator-modifier-的-lexerparserast-surface) | 新增 `operator` modifier 的 lexer/parser/AST surface |
 | P2-T05R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t05rreview-operator-modifier-surface) | Review P2-T05 `operator` modifier surface |

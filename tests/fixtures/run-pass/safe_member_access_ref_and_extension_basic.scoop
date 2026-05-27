@@ -20,8 +20,8 @@ object Config {
 
 fun printOptInt(label: String, value: Int?) {
     when (value) {
-        Some(v) -> println(f"{label}=Some({v})")
-        None -> println(f"{label}=None")
+        Some(v) -> println(f"${label}=Some(${v})")
+        None -> println(f"${label}=None")
     }
 }
 

@@ -23,7 +23,7 @@ fun viaBlock(base: Int): String / (Ask) {
         val inner: String = Ask.ask(base + 1)
         println("block_resume")
         println(inner)
-        f"{prefix}{inner}"
+        f"${prefix}${inner}"
     }
     println("block_after")
     println(result)
@@ -36,7 +36,7 @@ fun viaIf(flag: Bool, base: Int): String / (Ask) {
         val inner: String = Ask.ask(base + 2)
         println("if_resume")
         println(inner)
-        f"I:{inner}"
+        f"I:${inner}"
     } else do {
         "if_else"
     }
@@ -52,7 +52,7 @@ fun viaWhen(mode: Int, base: Int): String / (Ask) {
             val inner: String = Ask.ask(base + 3)
             println("when_resume")
             println(inner)
-            f"W:{inner}"
+            f"W:${inner}"
         }
         else -> "when_else"
     }
@@ -79,7 +79,7 @@ fun viaWhile(base: Int): String / (Ask) {
     }
     println("while_after")
     println(current)
-    f"{current}!"
+    f"${current}!"
 }
 
 fun main() {

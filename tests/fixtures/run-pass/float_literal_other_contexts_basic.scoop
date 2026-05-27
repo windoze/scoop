@@ -8,8 +8,8 @@ import scoop.core.*
 fun main() {
     println(1.5)
     println(0.5f)
-    println(f"wide {1.5}")
-    println(f"narrow {0.5f}")
-    println(f"nan {(0.0 / 0.0)}")
-    println(f"inf {(1.0 / 0.0)}")
+    println(f"wide ${1.5}")
+    println(f"narrow ${0.5f}")
+    println(f"nan ${(0.0 / 0.0)}")
+    println(f"inf ${(1.0 / 0.0)}")
 }

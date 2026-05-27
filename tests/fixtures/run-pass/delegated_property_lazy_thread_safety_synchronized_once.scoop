@@ -96,6 +96,6 @@ fun main() {
 
     println(v1)
     println(v2)
-    println(f"init_calls={initCalls}")
+    println(f"init_calls=${initCalls}")
     println("ok")
 }

@@ -17,9 +17,9 @@ fun callAfterGc(f: () -> Int): Int {
 }
 
 fun main(): Int {
-    val s: String = f"hello {7}"
+    val s: String = f"hello ${7}"
     return callAfterGc {
-        println(f"closure={s}")
+        println(f"closure=${s}")
         0
     }
 }

@@ -9,7 +9,7 @@ import scoop.runtime.test.*
 struct Entry(val label: String, val value: Int)
 
 fun main(): Int {
-    val keep: String = f"entry-{7}"
+    val keep: String = f"entry-${7}"
     val xs: MutableArray<Entry> = [Entry("a", 1)]
     xs.set(0, Entry(keep, 9))
     __scoop_gc_collect()

@@ -16,12 +16,12 @@ import scoop.runtime.test.*
 struct Named(val name: String, val score: Int)
 
 fun makeNamed(prefix: String, n: Int): Named {
-    val s: String = f"{prefix}_{n}"
+    val s: String = f"${prefix}_${n}"
     return Named { name: s, score: n * 10 }
 }
 
 fun printNamed(label: String, item: Named): Unit {
-    println(f"{label}: name={item.name}, score={item.score}")
+    println(f"${label}: name=${item.name}, score=${item.score}")
 }
 
 fun buildTwo(tag: String): Named {

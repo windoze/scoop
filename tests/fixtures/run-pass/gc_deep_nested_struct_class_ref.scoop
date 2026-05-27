@@ -20,23 +20,23 @@ struct Tag(val label: String)
 class Inner(val tag: Tag, val value: Int)
 
 fun makeInner(label: String, v: Int): Inner {
-    val t: Tag = Tag { label: f"{label}_tag" }
+    val t: Tag = Tag { label: f"${label}_tag" }
     return Inner(t, v)
 }
 
 class Outer(val first: Inner, val second: Inner, val name: String)
 
 fun makeOuter(name: String, a: Inner, b: Inner): Outer {
-    return Outer(a, b, f"outer_{name}")
+    return Outer(a, b, f"outer_${name}")
 }
 
 fun printInner(prefix: String, obj: Inner): Unit {
     val t: Tag = obj.tag
-    println(f"{prefix}: label={t.label}, value={obj.value}")
+    println(f"${prefix}: label=${t.label}, value=${obj.value}")
 }
 
 fun printOuter(obj: Outer): Unit {
-    println(f"outer.name={obj.name}")
+    println(f"outer.name=${obj.name}")
     printInner("  first", obj.first)
     printInner("  second", obj.second)
 }

@@ -14,7 +14,7 @@ fun gcCollectInNative(): Unit
 class Box(val a: Any, val b: Int)
 
 fun main() {
-    val x: Any = f"hello {7}"
+    val x: Any = f"hello ${7}"
     val box = Box(x, @Unsafe do {
         gcCollectInNative()
         1

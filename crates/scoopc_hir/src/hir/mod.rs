@@ -435,7 +435,7 @@ pub enum ExprKind {
     TupleLit {
         elements: Vec<Expr>,
     },
-    /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
+    /// 插值字符串：`f"Hello, ${name}!"` / `f"""...${x}..."""`（spec §8.2/§8.3）。
     ///
     /// 说明：
     /// - HIR 保留 parser 拆分后的 Text/Expr 片段列表；

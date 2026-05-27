@@ -27,7 +27,7 @@ class Node(val name: String, val tag: Tag, val value: Int) {
 }
 
 fun makeNode(name: String, label: String, score: Int, value: Int): Node {
-    val t: Tag = Tag { label: f"{label}_tag", score: score }
+    val t: Tag = Tag { label: f"${label}_tag", score: score }
     return Node(name, t, value)
 }
 
@@ -37,7 +37,7 @@ fun attachChild(parent: Node, c: Node): Unit {
 
 fun describeNode(n: Node): String {
     val t: Tag = n.tag
-    return f"{n.name}({t.label},{t.score},{n.value})"
+    return f"${n.name}(${t.label},${t.score},${n.value})"
 }
 
 fun main() {
@@ -59,7 +59,7 @@ fun main() {
 
         // First suspension — root, mid, leaf all captured in ContState
         val r1: Int = Await.pause()
-        println(f"resume1={r1}")
+        println(f"resume1=${r1}")
 
         // Verify entire object graph survived GC across suspension
         println(describeNode(root))
@@ -70,14 +70,14 @@ fun main() {
         when (root.child) {
             Some(c) -> {
                 val desc: String = describeNode(c)
-                println(f"root.child={desc}")
+                println(f"root.child=${desc}")
             }
             None -> println("root.child=NONE")
         }
         when (mid.child) {
             Some(c) -> {
                 val desc: String = describeNode(c)
-                println(f"mid.child={desc}")
+                println(f"mid.child=${desc}")
             }
             None -> println("mid.child=NONE")
         }
@@ -88,7 +88,7 @@ fun main() {
 
         // Second suspension — now 4 nodes in graph + extra, all must be traced
         val r2: Int = Await.pause()
-        println(f"resume2={r2}")
+        println(f"resume2=${r2}")
 
         // Verify extended graph
         println(describeNode(root))
@@ -97,12 +97,12 @@ fun main() {
         when (leaf.child) {
             Some(c) -> {
                 val desc: String = describeNode(c)
-                println(f"leaf.child={desc}")
+                println(f"leaf.child=${desc}")
             }
             None -> println("leaf.child=NONE")
         }
 
-        println(f"sum={r1 + r2}")
+        println(f"sum=${r1 + r2}")
         println("body_done")
     } on {
         Await.pause(), k -> {

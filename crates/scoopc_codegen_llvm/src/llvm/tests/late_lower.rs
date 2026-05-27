@@ -294,7 +294,7 @@ import scoop.core.*
 class Box(val name: String)
 
 fun make(name: String): Box {
-    return Box(f"{name}_boxed")
+    return Box(f"${name}_boxed")
 }
 
 fun main() {

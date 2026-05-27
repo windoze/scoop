@@ -22,8 +22,8 @@ enum E {
 
 fun render(e: E): String {
     return when (e) {
-        A(n, s) -> f"A n={n} s={s}"
-        B(x) -> f"B x={x}"
+        A(n, s) -> f"A n=${n} s=${s}"
+        B(x) -> f"B x=${x}"
     }
 }
 
@@ -34,7 +34,7 @@ fun runSwitchLoop(): Unit {
     var i: Int = 0
     while (i < 12) {
         if (useA) {
-            e = A(i, f"ref {i}")
+            e = A(i, f"ref ${i}")
         } else {
             e = B(i)
         }

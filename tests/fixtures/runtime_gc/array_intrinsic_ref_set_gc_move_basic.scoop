@@ -7,7 +7,7 @@ import scoop.core.*
 import scoop.runtime.test.*
 
 fun main(): Int {
-    val keep: String = f"ref-{7}"
+    val keep: String = f"ref-${7}"
     val xs: MutableArray<String> = ["a"]
     xs.set(0, keep)
     __scoop_gc_collect()

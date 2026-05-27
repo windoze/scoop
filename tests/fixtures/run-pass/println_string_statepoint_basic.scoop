@@ -16,10 +16,10 @@ fun main(): Int {
     println(123)
     __scoop_gc_collect()
 
-    println(f"num={456}")
+    println(f"num=${456}")
     __scoop_gc_collect()
 
-    val s: String = f"again {789}"
+    val s: String = f"again ${789}"
     println(s)
     __scoop_gc_collect()
     println(s)

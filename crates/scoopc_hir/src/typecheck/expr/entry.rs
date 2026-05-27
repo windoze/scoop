@@ -2023,7 +2023,7 @@ package fixtures.typecheck
 class NotText(val x: Int)
 
 fun bad(value: NotText): String {
-    return f"{value}"
+    return f"${value}"
 }
 "#;
 

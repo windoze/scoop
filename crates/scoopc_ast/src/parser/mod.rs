@@ -57,13 +57,6 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
-    #[error("语法错误：插值字符串中出现未转义的 `}}`（使用 `}}}}` 表示字面量 `}}`）")]
-    #[diagnostic(code(scoop::parse::f_string_unescaped_rbrace))]
-    FStringUnescapedRBrace {
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     #[error("语法错误：`::class` 的左侧必须是类型名路径（例如 `String::class`）")]
     #[diagnostic(code(scoop::parse::class_literal_receiver_invalid))]
     ClassLiteralReceiverInvalid {
@@ -220,7 +213,6 @@ impl ParseError {
             ParseError::Many { span, .. } => Some(*span),
             ParseError::Expected { span, .. } => Some(*span),
             ParseError::UnterminatedGroup { span, .. } => Some(*span),
-            ParseError::FStringUnescapedRBrace { span } => Some(*span),
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),

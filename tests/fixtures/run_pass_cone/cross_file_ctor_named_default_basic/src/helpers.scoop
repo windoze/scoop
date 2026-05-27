@@ -3,7 +3,7 @@ package fixtures.run_pass_cone.cross_file_ctor_named_default_basic
 import scoop.core.*
 
 class Box(val x: Int = 10, val y: Int = 20) {
-    val label: String = f"{x}:{y}"
+    val label: String = f"${x}:${y}"
 }
 
 object Store {

@@ -302,7 +302,7 @@
     - 复核闭合 `SPEC_FIX.md` B2：active source surface 使用 `.0` / `.1` tuple field access，旧 `._0` / `_0` tuple spelling 只保留在 negative fixtures、任务记录和历史/design baseline。
     - 未发现 lexer float/member ambiguity regression；未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T04：将 f-string 插值从 `{...}` 改为 `${...}`
+### [DONE] P2-T04：将 f-string 插值从 `{...}` 改为 `${...}`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -334,9 +334,25 @@
 - 依赖：P2-T03R
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc_ast`：将 f-string splitter 改为仅在 `${` 时进入 interpolation expression；裸 `{` / `}` 在 f-string text 中保留为 literal；移除 f-string text 的 `{{` / `}}` undouble 解码路径和旧 unescaped `}` parser diagnostic。
+    - `crates/scoopc_hir` / `crates/scoopc_codegen_llvm`：更新内嵌 Scoop snippets 与注释到 `${...}`，保留现有 StringBuilder-style desugaring 和 ToString 检查。
+    - `SCOOP_FULL_SPEC.md` 与 `docs/spec/language_spec-part*.md`：active f-string 示例迁移到 `${...}`，并说明 literal braces 不需要 doubling。
+    - `tests/fixtures/**`：迁移所有 positive f-string interpolation fixture 到 `${...}`；更新 `f_string_interpolation` parse snapshot；扩展 `fstring_desugar_basic` 覆盖 JSON literal braces、旧 `{name}` literal text、`$name` no-shorthand literal text。
   - 核心决策：
+    - `$x` shorthand 按普通 text 处理而不是诊断报错；因此 `$name` 在 f-string 中输出 `$name`，不进入 name resolution / typecheck。
+    - 旧 `{expr}` spelling 不作为 interpolation 兼容层保留；它现在只是 literal brace text，只有 `${expr}` 会产生 `InterpolatedStringPart::Expr`。
+    - `f` prefix 与 HIR lowering 形态不变：parser 只改变 Text/Expr 分片边界，lowering 继续生成 StringBuilder `add(...).toString()` 链。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo build -p scoop -p scoopc`：通过，用于刷新 fixture runner 使用的 CLI binaries。
+    - Targeted fixtures：`tests/fixtures/parse/f_string_interpolation.scoop`、`tests/fixtures/run-pass/fstring_desugar_basic.scoop`、`tests/fixtures/codegen/f_string_interpolation.scoop`、`tests/fixtures/typecheck/fstring_interpolation_non_tostring_is_error.scoop` 均通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1538)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` B6：f-string interpolation opener 已切换为 `${...}`；literal `{}` 在 f-string 中 JSON-friendly；`$x` shorthand 未作为 positive interpolation surface 支持。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T04R：Review f-string 插值切换结果
 

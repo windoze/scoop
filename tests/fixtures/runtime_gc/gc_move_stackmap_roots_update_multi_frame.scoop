@@ -36,7 +36,7 @@ fun mid(): Unit {
 
 fun main() {
     // 1) 创建一个 heap 对象，并通过 stable handle 额外保活（避免“caller frame roots 未被枚举”时对象直接被回收）。
-    val x: Any = f"hello {7}"
+    val x: Any = f"hello ${7}"
     val hx: GcHandle = @Unsafe do { GC.handleNew(x) }
 
     // 2) 在更深层调用触发一次 moving GC：需要能 walk 到 main frame 并更新其 roots slot。

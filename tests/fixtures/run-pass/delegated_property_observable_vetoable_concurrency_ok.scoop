@@ -27,7 +27,7 @@ class SyncState(
 
 class C() {
     var score: Int by observable(0) { old, new ->
-        println(f"score: {old} -> {new}")
+        println(f"score: ${old} -> ${new}")
         val st: SyncState = Shared.state
         st.lock.lock()
         when (st.callbackCount == 0) {
@@ -44,7 +44,7 @@ class C() {
     }
 
     var age: Int by vetoable(0) { old, new ->
-        println(f"age try: {old} -> {new}")
+        println(f"age try: ${old} -> ${new}")
         new >= 0
     }
 }
@@ -119,9 +119,9 @@ fun main(): Int {
     t1.join()
     t2.join()
 
-    println(f"callbacks={callback1}+{callback2}")
-    println(f"final_score={c.score}")
-    println(f"final_age={c.age}")
+    println(f"callbacks=${callback1}+${callback2}")
+    println(f"final_score=${c.score}")
+    println(f"final_age=${c.age}")
     println("ok")
     return 0
 }

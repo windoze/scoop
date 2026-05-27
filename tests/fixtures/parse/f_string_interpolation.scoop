@@ -1,11 +1,13 @@
 // EXPECT: pass
 // EXPECT-AST: f_string_interpolation.ast
-// 目标：验证 f-string（`f"..."`/`f"""..."""`）在 parser 内被拆分为 text/expr parts（spec §8.2）。
+// 目标：验证 f-string `${...}` interpolation、literal braces 与 `$x` text（spec §8.2）。
 
 package fixtures.parse
 
-val s = f"hi {name}!"
-val raw = f"""raw {name}""".trimIndent()
+val s = f"hi ${name}!"
+val raw = f"""raw ${name}""".trimIndent()
+val json = f"""{"name": "${name}", "shape": {}}"""
+val no_shorthand = f"$name stays literal"
+val old_braces = f"{name} stays literal"
 
 fun main() {}
-

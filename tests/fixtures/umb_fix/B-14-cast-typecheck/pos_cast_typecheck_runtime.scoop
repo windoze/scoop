@@ -28,8 +28,8 @@ class Other() : Base()
 
 fun printBool(label: String, b: Bool): Unit {
     when (b) {
-        true -> println(f"{label}: true")
-        false -> println(f"{label}: false")
+        true -> println(f"${label}: true")
+        false -> println(f"${label}: false")
     }
 }
 

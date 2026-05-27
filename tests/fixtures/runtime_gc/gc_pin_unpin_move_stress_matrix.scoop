@@ -33,8 +33,8 @@ fun runRounds(rounds: Int): Unit {
     var i: Int = 0
     while (i < rounds) {
         // 两个独立对象：一个会被 pin（地址必须稳定），一个不 pin（moving 下应搬迁）。
-        val pinnedObj: Any = f"pinned {i}"
-        val movableObj: Any = f"movable {i}"
+        val pinnedObj: Any = f"pinned ${i}"
+        val movableObj: Any = f"movable ${i}"
 
         val pinnedHandle: GcHandle = @Unsafe do { GC.handleNew(pinnedObj) }
         val movableHandle: GcHandle = @Unsafe do { GC.handleNew(movableObj) }

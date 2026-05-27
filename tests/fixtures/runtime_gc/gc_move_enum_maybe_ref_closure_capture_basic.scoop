@@ -24,8 +24,8 @@ enum E {
 
 fun render(e: E): String {
     return when (e) {
-        A(n, s) -> f"A n={n} s={s}"
-        B(x) -> f"B x={x}"
+        A(n, s) -> f"A n=${n} s=${s}"
+        B(x) -> f"B x=${x}"
     }
 }
 
@@ -37,7 +37,7 @@ fun callAfterGc(f: () -> Int): Int {
 }
 
 fun main(): Int {
-    val e0: E = A(0, f"cap {0}")
+    val e0: E = A(0, f"cap ${0}")
     val e1: E = B(1)
 
     val _r0: Int = callAfterGc {

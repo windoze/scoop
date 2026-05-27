@@ -18,20 +18,20 @@ fun createGarbage(n: Int): Unit {
     // Create n temporary strings that immediately become garbage.
     var i: Int = 0
     while (i < n) {
-        val _tmp: String = f"garbage_{i}"
+        val _tmp: String = f"garbage_${i}"
         i = i + 1
     }
 }
 
 fun verifyLongLived(label: String, obj: LongLived): Unit {
-    println(f"{label}: id={obj.id}, tag={obj.tag}")
+    println(f"${label}: id=${obj.id}, tag=${obj.tag}")
 }
 
 fun main() {
     // Create long-lived objects.
-    val a: LongLived = LongLived(1, f"anchor_{1}")
-    val b: LongLived = LongLived(2, f"anchor_{2}")
-    val c: LongLived = LongLived(3, f"anchor_{3}")
+    val a: LongLived = LongLived(1, f"anchor_${1}")
+    val b: LongLived = LongLived(2, f"anchor_${2}")
+    val c: LongLived = LongLived(3, f"anchor_${3}")
 
     // Round 1: create garbage, collect, verify.
     createGarbage(10)
@@ -46,7 +46,7 @@ fun main() {
     verifyLongLived("r2-c", c)
 
     // Round 3: interleave new long-lived object with garbage.
-    val d: LongLived = LongLived(4, f"anchor_{4}")
+    val d: LongLived = LongLived(4, f"anchor_${4}")
     createGarbage(15)
     __scoop_gc_collect()
     verifyLongLived("r3-a", a)

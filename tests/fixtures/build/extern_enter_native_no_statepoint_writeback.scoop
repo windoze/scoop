@@ -16,7 +16,7 @@ import scoop.core.*
 fun gcCollectInNative(): Unit
 
 fun main() {
-    val x: Any = f"hello {7}"
+    val x: Any = f"hello ${7}"
     @Unsafe do { gcCollectInNative() }
     val h: GcHandle = @Unsafe do { GC.handleNew(x) }
     @Unsafe do { GC.handleDrop(h) }

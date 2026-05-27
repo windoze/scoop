@@ -33,7 +33,7 @@ fun waitWorkerReady(): Unit {
 }
 
 fun worker(): Unit {
-    val x: String = f"hello {7}"
+    val x: String = f"hello ${7}"
 
     @Unsafe do { __atomicIntStore(ready, 1) }
 
