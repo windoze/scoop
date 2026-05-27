@@ -137,7 +137,7 @@ is_run_pass_cone_case_root() {
 list_case_dirs() {
   local root="$1"
   if [[ -d "$root" ]]; then
-    find "$root" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort
+    find "$root" -mindepth 1 -maxdepth 1 -type d ! -name '*.sysroot' -print | LC_ALL=C sort
   fi
 }
 
@@ -181,6 +181,7 @@ append_units_for_target() {
       -o -path "$target/typecheck_cone" \
       -o -path "$target/typecheck_cone_archive" \
       -o -path "$target/run_pass_cone" \
+      -o \( -type d -name '*.sysroot' \) \
     \) -prune -o \
     -type f -name '*.scoop' -print >> "$UNSORTED_LIST"
 

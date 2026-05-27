@@ -1,25 +1,31 @@
 # Execution Plan
 
-## Current task
+I will follow TODO.md as the authoritative task list, complete exactly the first task whose title is not prefixed with [DONE], update TODO.md and this progress file, commit the result, and stop without starting the next task.
 
-- First incomplete task: `P4-T05`.
-- Task goal: confirm CI-equivalent local validation after the test-infrastructure switch by running `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all --all-targets`.
-- Latest commit context: `5c240473 [P4-T04] Validate standalone Python tools`; it does not mention an unfinished issue that changes this task.
+## Selected task
 
-## Step-by-step plan
+P4-T06: `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` 用新入口跑通.
 
-1. Inspect the CI workflow to confirm whether P4-T05 needs only the explicit local commands listed in `TODO.md` or any additional CI-equivalent command that is directly part of this task.
-2. Run validation in the required order: `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then `cargo test --all --all-targets`.
-3. If validation fails, diagnose the failing test or lint as an in-scope project issue. Fix it if it belongs to P4-T05, or add the minimum prerequisite task to `TODO.md` before P4-T05 if it is a concrete blocker that cannot be completed in this invocation.
-4. If validation passes, update `TODO.md` by prefixing `P4-T05` with `[DONE]` in the task index and appending a completion record with the exact validation commands and result.
-5. Commit the task updates and any required fixes with a `[P4-T05] ...` commit message, including the required co-authored trailer.
-6. Stop after the commit without starting P4-T06.
+## Steps
+
+1. Confirm the selected task and relevant validation requirements from TODO.md, PLAN.md, and TEST_INFRA_CLEANUP.md.
+2. Inspect the two shell scripts to confirm they already invoke `python3 tools/run_fixtures.py` rather than removed fixture-runner entries.
+3. Run formatting and linting first as required: `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`.
+4. Run the P4-T06 validation scripts end-to-end:
+   - `tools/run_fixture_scan.sh --out-dir target/fixture-scan/p4-t06`
+   - `tools/run_run_pass_gc_scan.sh target/run-pass-gc-scan/p4-t06`
+5. If validation exposes failures, fix the root cause or add the minimum prerequisite task to TODO.md if a concrete blocker prevents completion.
+6. If validation passes, mark P4-T06 `[DONE]` in TODO.md, append its completion record with the commands and summaries, commit the changes, and stop.
 
 ## Progress
 
-- Identified `P4-T05` as the first incomplete task.
-- Confirmed the latest commit completed `P4-T04` and does not introduce an unfinished prerequisite.
-- Inspected `.github/workflows/ci.yml`; current CI validation surface is cargo test, spec fixture check, fixture smoke, and clippy.
-- Ran `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all --all-targets`; all completed successfully.
-- Ran `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`; both completed successfully, with the fixture suite reporting 1504 targets and 1533 checks.
-- Marked `P4-T05` `[DONE]` in `TODO.md` and appended its completion record.
+- Initialized progress tracking.
+- Identified P4-T06 as the first incomplete task.
+- Confirmed the scripts' command shape uses `tools/run_fixtures.py`.
+- Completed formatting and clippy gate: `cargo fmt` and `cargo clippy --all-targets -- -D warnings` passed.
+- Full `tools/run_fixture_scan.sh` initially failed because it recursively scheduled 46 `.sysroot` overlay source files as standalone fixtures. This violated the documented discovery contract that overlay directories are skipped.
+- Updated `tools/run_fixture_scan.sh` discovery to skip directories whose names end in `.sysroot` during recursive file collection and direct case-directory enumeration.
+- Reran validation successfully: `tools/run_fixture_scan.sh --out-dir target/fixture-scan/p4-t06-fixed` passed with total=1504, pass=1504, fail=0, timeout=0 and no `.sysroot/` targets in `all.txt`.
+- Ran `tools/run_run_pass_gc_scan.sh target/run-pass-gc-scan/p4-t06`; it passed with total=412, pass=412, fail=0, timeout=0.
+- Reran `cargo fmt` and `cargo clippy --all-targets -- -D warnings` after the shell-script edit; both passed.
+- Marked P4-T06 `[DONE]` in TODO.md and added the completion record.
