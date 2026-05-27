@@ -21,7 +21,6 @@ members = [
     "crates/scoopc_effect_facts",
     "crates/scoopc_lir_facts",
     "crates/scoop_runtime",
-    "tools/scoop_tools",
 ]
 
 [workspace.package]
