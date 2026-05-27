@@ -278,7 +278,7 @@
     - 闭合 `PLAN.md` P0 对最小 overload regression / bug baseline 的要求，三个 §1 已知偏离样例已有固定 fixture 落点。
     - 对应 `OVERLOAD_RESOLUTION.md` §1 的 concrete、arity、generic+concrete bug baseline，以及 §10 的 overload diagnostics audit 要求；未改变阶段边界，因此无需更新 `PLAN.md`。
 
-### [TODO] P0-T02R：Review overload bug 与 diagnostics 基线
+### [DONE] P0-T02R：Review overload bug 与 diagnostics 基线
 
 - 参考：
   - P0-T02 完成记录
@@ -305,9 +305,25 @@
 - 依赖：P0-T02
 - 完成记录：
   - 改动范围：
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`，并填写 review 完成记录。
+    - 未修改 compiler / sysroot / fixture / `PLAN.md`；本轮只补充 review 结论与 `memory/claude_plan.md` 进度记录。
   - 核心决策：
+    - 三个 P0-T02 baseline fixture 均保留 `OVERLOAD_RESOLUTION.md` §1 的最小程序形状，并用 `EXPECT: pass` + `EXPECT-EXIT` 固定最终目标行为：`overload_concrete_bug` 返回 11、`overload_arity_bug` 返回 16、`overload_gvc_ok` 返回 110。
+    - `IGNORE-UNTIL-FIX: P5-T04 ...` 由 fixture runner 在执行前直接 skip，只用于承载当前未修复但目标应通过的 run-pass regression；没有把当前 backend/codegen/typecheck 失败接受为最终期望。
+    - `TODO-5.md` 的 P5-T04 已明确要求移除三个 baseline fixture 的 `IGNORE-UNTIL-FIX` 并让它们通过，因此 P5 可直接使用 P0-T02 样例作为 selected callable identity regression。
+    - Diagnostics baseline 与 `OVERLOAD_RESOLUTION.md` §10 对齐：overload reject 需要列候选 file/line/col、完整 signature、不可用或不可比原因，且不得泄露 `backend`、`LLVM`、`UnsupportedMainBody`、`codegen` 等内部术语；P5-T05 已把这些要求写成后续实现与 audit 任务。
+    - 当前实现与既有 fixtures 仍使用 `no_matching_overload` / `overload_conflict` 等旧 diagnostic code 名称；这属于 P5-T05 已排期的 overload diagnostics audit 范围，不阻塞 P0-T02R。
   - 验证结果：
+    - `cargo fmt --all --check`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`：通过，fixture 按 `IGNORE-UNTIL-FIX` skip。
+    - `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_arity_bug.scoop`：通过，fixture 按 `IGNORE-UNTIL-FIX` skip。
+    - `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_gvc_ok.scoop`：通过，fixture 按 `IGNORE-UNTIL-FIX` skip。
+    - `target/debug/scoopc check-source --phase parse --input ...`：三个 baseline fixture 均通过 parse。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1536)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 P0-T02 的独立 review gate；overload bug baseline 可作为 P5 selected callable identity 修复和 diagnostics audit 的直接输入。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ## P1：纯 spec / low-risk cleanup 与 `@Inline` 删除
 
