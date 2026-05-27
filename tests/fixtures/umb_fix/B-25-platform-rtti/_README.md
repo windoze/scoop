@@ -11,4 +11,4 @@ P7-C2 activates this fixture set for Platform and RTTI runtime lowering. The pos
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-25 rows are retired by P7-C2 and this directory is active.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-25 rows are retired by P7-C2 and this directory is active.

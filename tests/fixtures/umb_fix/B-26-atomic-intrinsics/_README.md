@@ -11,4 +11,4 @@ P7-B3.3 retired all B-26 atomic intrinsic `UnsupportedMainBody` rows. The fixtur
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-26 retired IDs are tracked in `audit/UMB_retired.csv`; fixture `COVERS` fields use `NONE` after retired-ledger takeover.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-26 retired IDs are tracked in `audit/UMB_retired.csv`; fixture `COVERS` fields use `NONE` after retired-ledger takeover.

@@ -11,4 +11,4 @@ P7-B2.5 activates this directory as scalar coercion/operator regression coverage
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-17 fixtures are active; retired B-17 IDs are covered by `audit/UMB_retired.csv`, while cross-bucket B-31 coverage remains pending where explicitly listed.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-17 fixtures are active; retired B-17 IDs are covered by `audit/UMB_retired.csv`, while cross-bucket B-31 coverage remains pending where explicitly listed.

@@ -18,4 +18,4 @@ P7-B3.2 keeps active positive and negative coverage for the sync intrinsic contr
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-27 fixtures are active after P7-B3.2.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-27 fixtures are active after P7-B3.2.

@@ -11,4 +11,4 @@ P7-B2.2 keeps MIR CFG/start block/terminator target contracts verified before LL
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-05 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` headers.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-05 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` headers.

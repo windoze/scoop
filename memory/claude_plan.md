@@ -1,34 +1,47 @@
-# 当前执行计划
+# 执行计划
 
-## 范围
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判断第一个未完成任务。
+2. 查看与该任务直接相关的说明、依赖、验证要求和最新提交信息，避免进行无关的历史问题扫查。
+3. 若任务可直接完成，最小化实现所需代码或文档改动；若发现阻塞任务的真实前置缺口，则更新 `TODO.md` 插入最小前置任务并停止。
+4. 按仓库要求先运行格式化，再运行 lint，再运行相关测试；如代码有影响，继续运行完整测试与 fixture 套件。
+5. 更新 `TODO.md`：完成时给任务标题加 `[DONE]` 并填写完成记录；仅当阶段计划变化时才更新 `PLAN.md`。
+6. 检查 git 状态和 diff，提交本次任务相关所有改动，然后停止，不进入下一个任务。
 
-- 本次只处理 `TODO.md` 中第一个未完成任务。
-- 已识别首个未完成任务：`P2-T07R`，复审 `SCOOP_FULL_SPEC.md` 更新，确认旧 fixture runner 入口无残留。
-- 以 `TODO.md` 作为任务顺序、依赖、验证要求和完成记录的权威来源。
-- 完成或阻塞当前任务后停止，不继续处理 `P2-T08`。
+## 当前进度
 
-## 执行计划
+- 已创建初始执行计划。
+- 已读取 `TODO.md`，第一个未完成任务为 `P2-T08`：替换 `tests/fixtures/**/_README.md` 中旧 fixture runner 调用串。
 
-1. 检查最近提交，确认是否存在与 `P2-T07R` 直接相关的未完成事项。
-2. 查看 `SCOOP_FULL_SPEC.md` 中 P2-T07 修改区域，确认 spec doctest / fixture-suite 命令已切换到 Python 脚本。
-3. 搜索 `SCOOP_FULL_SPEC.md` 中旧入口模式：`scoop_tools`、`cargo run -p scoop -- test`、`scoop test`、`test-fixtures`、`target/debug|release scoop test`、`cargo run -p scoopc -- test-fixtures`。
-4. 搜索 `SCOOP_FULL_SPEC.md` 中新入口模式：`python3 tools/spec_fixtures.py` 与 `python3 tools/run_fixtures.py`。
-5. 如复审发现遗漏，直接修正 `SCOOP_FULL_SPEC.md`，并按需要运行 `python3 tools/spec_fixtures.py sync/check`。
-6. 按项目要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`。
-7. 运行任务相关验证：`python3 tools/spec_fixtures.py check` 与 `python3 tools/run_fixtures.py tests/fixtures/spec_doctest`。
-8. 若本轮没有代码语义变更，完整 `cargo test --all --all-targets` 与完整 `python3 tools/run_fixtures.py` 可复用上一条完成记录的绿色结果，并在完成记录中说明跳过原因。
-9. 将 `TODO.md` 中 `P2-T07R` 标题和索引状态标记为 `[DONE]`，并追加完成记录。
-10. 更新本文件记录关键进展。
-11. 检查 `git status`、`git diff`、最近提交，确认只提交本任务相关文件；如工作区已有无关变更，不回退、不纳入提交。
-12. 以 `[P2-T07R] Review spec fixture command cleanup` 提交本任务变更，然后停止。
+## P2-T08 执行步骤
 
-## 进度记录
+1. 查看最新提交，确认是否有与 P2-T08 直接相关的未完成事项。
+2. 搜索 `tests/fixtures/**/_README.md` 中旧入口 token：`scoop_tools`、`cargo run -p scoop -- test`、`scoop test`、`test-fixtures`、`cargo run -p scoopc -- test-fixtures`、`target/debug` 或 `target/release` 下的 `scoop test`。
+3. 只修改命中的 fixture README，将调用串切换为当前 Python runner 或对应 Python 工具。
+4. 运行目标 grep 验证无旧入口残留；由于预期仅修改 markdown/task bookkeeping，若无代码变更则只运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，并记录完整测试/fixture 套件沿用最近绿色结果。
+5. 更新 `TODO.md` 给 `P2-T08` 标题和索引加 `[DONE]`，追加完成记录。
+6. 检查 git 状态、diff 与最近提交，提交本次改动后停止。
 
-- 已读取 `TODO.md`，确认 `P2-T07R` 是当前第一个未完成任务。
-- 本计划已在执行 git/验证命令前写入。
-- 最近提交为 `300992ac [P2-T07] Update spec fixture commands`，直接对应当前 review 任务，未显示额外未完成事项。
-- 当前工作区存在无关变更/未跟踪文件：`run_agent.sh`、`CALLER_LOCATION.md`、`RTTI_REFINE.md`、`tools/__pycache__/`；本任务不会回退或提交这些文件。
-- `SCOOP_FULL_SPEC.md` 旧入口模式搜索无命中；新入口 `python3 tools/spec_fixtures.py` / `python3 tools/run_fixtures.py` 有 3 处命中。
-- 已复审最新提交对 `SCOOP_FULL_SPEC.md` 的 diff：三处 doctest fixture 命令已切换为 `python3 tools/spec_fixtures.py sync/check` 与 `python3 tools/run_fixtures.py tests/fixtures/spec_doctest`，无需修改 spec 正文。
-- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py tests/fixtures/spec_doctest`。
-- 已更新 `TODO.md`：将 `P2-T07R` 标记为 `[DONE]` 并追加完成记录；完整 `cargo test --all --all-targets` 与完整 fixture suite 因本轮仅 markdown/task bookkeeping 且无代码变更而复用最近绿色结果。
+## New Invocation Plan
+
+1. Read TODO.md to identify the first incomplete task whose heading is not prefixed with [DONE].
+2. Check recent git context only for issues explicitly relevant to that task.
+3. Inspect task-specific code, tests, fixtures, and documentation.
+4. Implement, validate, update TODO.md, commit, and stop.
+
+## Selected Task
+
+- First incomplete task: P2-T08 - replace old fixture invocation strings in `tests/fixtures/umb_fix/B-15-when-pattern/_README.md` and other `tests/fixtures/**/_README.md` files.
+- Latest commit reviewed: `[P2-T07R] Review spec fixture command cleanup`; no explicit unfinished issue directly changes P2-T08 scope.
+- Current execution steps:
+  1. Find all fixture `_README.md` files that still mention old `scoop test`, `cargo run -p scoop -- test`, or old `scoop_tools` fixture commands.
+  2. Replace those references with the current Python runner command(s), preserving each README's intent.
+  3. Validate with grep that no old fixture README invocation strings remain.
+  4. Run documentation-appropriate formatting/checks if needed.
+  5. Mark P2-T08 `[DONE]` in `TODO.md`, update its completion record, commit, and stop.
+
+## Progress
+
+- Replaced all obsolete fixture README runner strings found under `tests/fixtures/**/_README.md`.
+- Verified no old fixture README invocations remain and that 35 fixture README files now mention `python3 tools/run_fixtures.py`.
+- Ran `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check`.
+- Marked P2-T08 complete in `TODO.md`; next step is to commit the completed task.

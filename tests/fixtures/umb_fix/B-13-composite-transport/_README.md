@@ -11,4 +11,4 @@ P7-C3 retired the B-13 production fallbacks and keeps this directory as active c
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-13 fixtures are active; retired UMB IDs are covered by `audit/UMB_retired.csv`, so fixture `COVERS` headers use `NONE`.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-13 fixtures are active; retired UMB IDs are covered by `audit/UMB_retired.csv`, so fixture `COVERS` headers use `NONE`.

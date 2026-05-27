@@ -18,4 +18,4 @@ U5-T03 assigns direct B-23 inventory coverage to the positive and negative membe
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. All B-23 fixtures are active after P8 and must remain runnable.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. All B-23 fixtures are active after P8 and must remain runnable.

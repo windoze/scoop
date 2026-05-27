@@ -11,4 +11,4 @@ P7-B2.1 activates this directory as coverage for the MIR local/member type contr
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-02 fixtures are active; `COVERS` headers no longer reference retired B-02 IDs.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-02 fixtures are active; `COVERS` headers no longer reference retired B-02 IDs.

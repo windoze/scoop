@@ -11,4 +11,4 @@ P7-B2.5 activates this directory as literal and string regression coverage after
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-18 fixtures are active; retired B-18 IDs are covered by `audit/UMB_retired.csv`.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-18 fixtures are active; retired B-18 IDs are covered by `audit/UMB_retired.csv`.

@@ -11,4 +11,4 @@ P7-C4 activates this fixture set for closure/lambda/capture lowering. Retired B-
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. All B-12 fixtures are active after P8 and must remain runnable.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. All B-12 fixtures are active after P8 and must remain runnable.

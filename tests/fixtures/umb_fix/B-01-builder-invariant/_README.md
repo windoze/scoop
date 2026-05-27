@@ -18,4 +18,4 @@ B-01 is sentinel-only. User-facing `.scoop` fixtures cannot directly construct a
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-01 remains README-only after P7-B1 because invalid builder state is an internal compiler invariant, not a user-visible fixture surface.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-01 remains README-only after P7-B1 because invalid builder state is an internal compiler invariant, not a user-visible fixture surface.

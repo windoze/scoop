@@ -13,4 +13,4 @@
 
 ## Runner Status
 
-Run with `cargo run -p scoop -- test tests/fixtures/umb_fix/B-15-when-pattern/`. All B-15 fixtures are active; retired B-15 IDs are covered by `audit/UMB_retired.csv` rather than fixture `COVERS` headers.
+Run with `python3 tools/run_fixtures.py tests/fixtures/umb_fix/B-15-when-pattern/`. All B-15 fixtures are active; retired B-15 IDs are covered by `audit/UMB_retired.csv` rather than fixture `COVERS` headers.

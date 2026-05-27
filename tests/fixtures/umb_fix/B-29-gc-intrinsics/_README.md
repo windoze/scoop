@@ -11,4 +11,4 @@ P7-B3.4 retires the B-29 GC intrinsic contract rows. These fixtures remain activ
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-29 fixtures are active after P7-B3.4.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-29 fixtures are active after P7-B3.4.

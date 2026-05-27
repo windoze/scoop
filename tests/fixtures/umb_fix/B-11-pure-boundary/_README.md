@@ -11,4 +11,4 @@ P7-B2.8 retires B-11 by verifying typed HIR local val, assignment place, and whi
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-11 fixtures are active after P7-B2.8; cross-bucket B-10 coverage remains listed only for active B-10 IDs.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-11 fixtures are active after P7-B2.8; cross-bucket B-10 coverage remains listed only for active B-10 IDs.

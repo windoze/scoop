@@ -11,4 +11,4 @@ P7-C5 activates this fixture directory for the retired B-10 effect callable adap
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. All B-10 fixtures are active after P8 and must remain runnable.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. All B-10 fixtures are active after P8 and must remain runnable.

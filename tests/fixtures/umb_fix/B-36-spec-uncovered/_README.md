@@ -11,4 +11,4 @@ P7-A4 activates this directory for spec-uncovered surfaces. Async/await and gene
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-36 fixtures are active after P7-A4; retired B-36 inventory ids are covered by `audit/UMB_retired.csv`, not active `COVERS` headers.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-36 fixtures are active after P7-A4; retired B-36 inventory ids are covered by `audit/UMB_retired.csv`, not active `COVERS` headers.

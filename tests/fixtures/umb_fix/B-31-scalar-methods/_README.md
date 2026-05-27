@@ -11,4 +11,4 @@ P7-B3.1 retired the B-31 scalar method rows. This directory now keeps active pos
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-31 fixtures are active after P7-B3.1.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-31 fixtures are active after P7-B3.1.

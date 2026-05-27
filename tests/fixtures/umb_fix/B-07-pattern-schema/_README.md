@@ -18,4 +18,4 @@ P7-B2.3 activates the positive and negative pattern schema fixtures in this dire
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-07 fixtures are active after P7-B2.3.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-07 fixtures are active after P7-B2.3.

@@ -11,4 +11,4 @@ P7-A2 retired the B-08 FrontendReject rows and activated assignment/member-store
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-08 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-08 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

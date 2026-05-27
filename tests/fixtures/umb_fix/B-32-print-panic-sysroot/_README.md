@@ -11,4 +11,4 @@ P7-B3.1 retired the B-32 sysroot print/panic bridge rows. This directory now kee
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-32 fixtures are active after P7-B3.1.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-32 fixtures are active after P7-B3.1.

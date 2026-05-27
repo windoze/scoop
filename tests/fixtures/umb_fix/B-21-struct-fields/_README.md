@@ -11,4 +11,4 @@ P7-A2 retired the B-21 FrontendReject rows and activated struct-field frontend f
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. P7-A2 fixtures remain active; the parse-only disambiguation fixture remains ignored until its placeholder names are replaced. All retired B-21 IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. P7-A2 fixtures remain active; the parse-only disambiguation fixture remains ignored until its placeholder names are replaced. All retired B-21 IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

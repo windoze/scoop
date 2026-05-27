@@ -11,4 +11,4 @@ P7-A1 retires the B-16 `UnsupportedMainBody` rows and activates this directory. 
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-16 fixtures are active after P7-A1; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-16 fixtures are active after P7-A1; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

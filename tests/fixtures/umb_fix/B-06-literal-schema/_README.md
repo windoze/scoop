@@ -11,4 +11,4 @@ P7-B2.3 activates the B-06 aggregate/tuple/schema fixture set. Retired B-06 IDs 
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-06 fixtures are active after P7-B2.3; some rows still mention B-13/B-23 because those cross-bucket IDs remain active for later tasks.
+The Python fixture runner (`python3 tools/run_fixtures.py`) recognizes `tests/fixtures/umb_fix/**`. B-06 fixtures are active after P7-B2.3; some rows still mention B-13/B-23 because those cross-bucket IDs remain active for later tasks.
