@@ -1,24 +1,21 @@
-# Current Invocation Plan
+# Execution Plan
 
-I will follow `TODO.md` as the source of truth and complete only the first task whose heading is not prefixed with `[DONE]`. I will record concise working rationale and progress here rather than private chain-of-thought.
+1. Read TODO.md to identify the first incomplete task exactly as ordered.
+2. Inspect the relevant implementation, tests, fixtures, and any latest-commit context that directly affects that task.
+3. Implement the task without workarounds, adding only the minimum necessary code, tests, fixtures, and docs.
+4. Run formatting, clippy, targeted validation, then full tests/fixtures when required by the task and repository policy.
+5. Update TODO.md with a [DONE] prefix and completion record if the task is fully complete, or add a prerequisite task if a concrete blocker prevents completion.
+6. Commit all task-related changes with a descriptive message and stop without starting the next task.
 
-## Steps
+## Current Task
 
-1. Read `TODO.md` first and identify the first incomplete task by heading prefix.
-2. Check the latest commit message only for unfinished work directly relevant to that selected task.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the task completely, or add the minimum prerequisite task to `TODO.md` if a concrete blocker makes correct implementation impossible.
-5. Run formatting, clippy, tests, and fixtures as required by the task and repository policy.
-6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record, unless the task is blocked by a newly added prerequisite.
-7. Update this progress file at key milestones or if the plan changes.
-8. Commit all changes for this invocation with a descriptive message and the required co-author trailer.
+- First incomplete task: P4-T04.
+- Task goal: run all standalone Python validation tools (`spec_fixtures`, `fixtures_matrix`, `safepoint_baseline`, `dependency_gate`, and `audit_*`) and confirm dependency-gate remains consistent with the old Rust tool's established conclusion.
 
-## Progress
+## P4-T04 Steps
 
-- Initial execution plan recorded.
-- Identified first incomplete task: `P4-T03`, which requires confirming `python3 tools/run_fixtures.py` matches the most recent old `scoop test` baseline for pass/fail set and check count.
-- Reviewing the baseline evidence and runner output format before running the current full fixture suite and comparison.
-- Formatting and clippy passed in the current worktree.
-- Current `python3 tools/run_fixtures.py` passed with 1504 targets and 1533 checks.
-- Recreated the latest old-runner baseline in an isolated worktree from `713ba8f4`, applying the already-current machine-independent continuation fix `56e265e7` plus the current timeout-only STW fixture headers, then verified old `scoop test` and Python runner both passed with 1533 checks.
-- Normalized log comparison confirmed old runner, compatibility Python runner, and current Python runner have identical target pass/fail statuses and per-target check counts.
+1. Compile the relevant Python tools to catch syntax errors. Done.
+2. Run each required script with the command shape documented in `tools/README.md`. Done; all required scripts exited successfully.
+3. If any script fails, fix the underlying issue or add the minimum prerequisite task to `TODO.md` if a concrete blocker prevents completion.
+4. If all validations pass, update `TODO.md` to mark P4-T04 `[DONE]` and add the completion record. Done.
+5. Commit the validation/task-bookkeeping changes and stop. Ready.
