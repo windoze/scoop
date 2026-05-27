@@ -1,62 +1,46 @@
-# Execution Plan
+# Claude Execution Plan
 
-I will maintain this file as a progress log and plan for the current invocation. I will not include private chain-of-thought; this records the actionable plan and milestone updates.
+Note: This file records the actionable plan and progress updates for the current invocation. It intentionally avoids private chain-of-thought while preserving the steps needed to audit progress.
 
-1. Read TODO.md to identify the first incomplete task by the [DONE] prefix rule.
-2. Check the latest commit only for directly relevant unfinished work tied to that task.
-3. Inspect the files and tests relevant to that task.
-4. Implement the task exactly as specified, avoiding workarounds or spec deviations.
-5. Run formatting, linting, targeted validation, then broader validation required by TODO.md.
-6. If validation exposes unscheduled failures, fix them or add the minimum prerequisite task(s) in TODO.md before marking completion.
-7. Mark the task [DONE] in TODO.md and update its completion record.
-8. Commit all task-related changes with the required co-author trailer, then stop.
+## Initial Plan
+
+1. Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
+2. Inspect that task's requirements, dependencies, and validation instructions, plus any immediately relevant recent commit context.
+3. Implement the selected task completely, without working around missing language/runtime behavior.
+4. Run formatting, linting, relevant tests, and required fixture validation in the prescribed order.
+5. Update `TODO.md` to prefix the completed task heading with `[DONE]` and fill/update its completion record.
+6. Commit all changes for this invocation with a descriptive task-tagged message and stop without starting the next task.
 
 ## Progress
 
-- Created initial execution plan.
+- Plan file initialized.
 
-## Current Task
+- Identified first incomplete task: P2-T01 (`perform` prefix removal and effect op call migration).
+- Latest commit is `[P1-T02R] Review Inline removal`; no directly relevant unfinished issue noted in the commit subject.
+- Next: inspect parser/typecheck/lowering handling and all `perform` fixtures/usages.
 
-- First incomplete task identified: P1-T02R Review P1-T02 `@Inline` deletion results.
-- Next: inspect the review task body, latest commit, and the P1-T02 changes to verify the removal is complete.
+- Confirmed `Effect.op(args)` already reaches effect operation typechecking/lowering through ordinary qualified call dispatch.
+- Implementation decision: keep `perform` lexed as a reserved keyword only to produce a targeted removal diagnostic; remove parser acceptance of prefix `perform expr`.
+- Next: patch parser diagnostics, update examples/tests/spec snippets, and add a negative parse fixture for old syntax.
 
-## Review Audit Started
+- Patched parser to reject `perform` with `scoop::parse::perform_keyword_removed`.
+- Added a negative parse fixture for old `perform` syntax.
+- Rewrote Rust test snippets and active spec examples from `perform Effect.op(...)` to `Effect.op(...)`.
+- Next: run formatting, linting, targeted validation, full Rust tests, and full fixture suite.
 
-- Auditing required P1-T02R surfaces for remaining `Inline` / `@Inline` active support.
-- Checking lowercase `inline` removed-keyword diagnostics separately from removed `@Inline` annotation support.
+- Targeted fixture run showed `perform_keyword_removed.scoop` unexpectedly succeeded.
+- Next: inspect parser behavior and fixture runner path, then fix the root cause before continuing validation.
 
-## Audit Finding
+- Formatting, spec fixture check, clippy, CLI rebuild, and targeted perform fixtures passed after correcting the new fixture expectation.
+- Next: run the full Rust test suite, then the full fixture suite.
 
-- Required active surfaces no longer expose `annotation class Inline`, `BuiltinAnnotationKind::Inline`, or inline-specific checker names.
-- Found active `umb_fix` fixture metadata still referencing the removed `#51-inline` / `#52-non-local-return` spec anchors; checking and correcting if stale.
+- Full Rust test suite passed.
+- Full fixture suite passed.
+- Next: update TODO task status/completion record and commit the completed P2-T01 changes.
 
-## Plan Update
+- Updated `TODO.md` and `TODO-2.md` to mark P2-T01 `[DONE]` with completion details.
+- No phase-level plan change was needed, so `PLAN.md` remains unchanged.
+- Next: run final diff checks and commit all invocation changes.
 
-- Correct stale active fixture metadata that referenced removed `inline` spec anchors.
-- Keep lowercase `inline` removed-keyword diagnostic and `@Inline` negative fixture unchanged.
-
-## Validation Started
-
-- Stale spec anchors corrected; running targeted searches, formatting, linting, spec fixture check, and fixture suite.
-
-## Validation Progress
-
-- `cargo fmt --all` completed.
-- `cargo clippy --all-targets -- -D warnings` completed.
-- Targeted searches found no remaining removed Inline built-in/sysroot/typecheck hooks and no stale `#51-inline` references.
-
-## Validation Completed
-
-- `python3 tools/spec_fixtures.py check` completed with `spec fixtures: ok (1)`.
-- `python3 tools/run_fixtures.py` completed successfully.
-- Next: update TODO completion records and commit.
-
-## Completion Documentation
-
-- Marked P1-T02R `[DONE]` in TODO.md and TODO-1.md.
-- Recorded the review fix, validation results, and no-PLAN-update decision in TODO-1.md.
-- Exact fixture suite summary: `fixtures: ok (1534)`.
-
-## Commit
-
-- Committing P1-T02R review completion and fixture metadata correction.
+- Final diff check passed.
+- Committing P2-T01 completion changes now.

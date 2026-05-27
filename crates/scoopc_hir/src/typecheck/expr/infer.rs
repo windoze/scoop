@@ -3493,7 +3493,7 @@ fun demo(flag: Bool): Int / Raise<RuntimeError> {
     }
 
     #[test]
-    fn member_direct_call_infers_effect_row_from_lambda_with_explicit_perform() {
+    fn member_direct_call_infers_effect_row_from_lambda_effect_op() {
         typecheck_single_source(
             r#"
 package fixtures.typecheck
@@ -3511,13 +3511,13 @@ class Box() {
 fun entry(): Int / Boom {
     val box: Box = Box()
     return box.lift({
-        perform Boom.ping()
+    Boom.ping()
         1
     })
 }
 "#,
         )
-        .expect("typed receiver 成员 direct-call 应能从显式 perform 的 lambda 推断非 Pure eff_arg");
+        .expect("typed receiver 成员 direct-call 应能从 lambda effect op 推断非 Pure eff_arg");
     }
 
     #[test]
@@ -3543,7 +3543,7 @@ class Box() {
 fun entry(): Int / Boom {
     val box: Box = Box()
     return box.lift({
-        perform Boom.ping()
+    Boom.ping()
         1
     })
 }

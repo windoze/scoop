@@ -282,22 +282,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_generic_annotated_expr()?));
         }
 
-        // spec §5.7：`perform E.op(...)`。
-        //
-        // 说明：
-        // - 当前 AST 不单独承载 `perform` 前缀节点；显式 `perform` 只是 effect-op call 的
-        //   源码级语法糖，后续 typecheck/HIR lowering 仍统一消费 effect-op call 绑定；
-        // - 因此这里直接解析后续表达式，并把外层 span 扩成包含 `perform` 关键字。
         if self.peek_keyword(Keyword::Perform) {
-            let perform_kw = self.bump();
-            let tok = *self.peek();
-            let mut expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
-                expected: "表达式（perform 的操作数）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
-            expr.span = Span::new(perform_kw.span.start, expr.span.end);
-            return Ok(Some(expr));
+            return Err(ParseError::PerformKeywordRemoved {
+                span: self.peek().span.into(),
+            });
         }
 
         let TokenKind::Symbol(sym) = self.peek().kind else {

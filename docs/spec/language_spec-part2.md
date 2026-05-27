@@ -58,7 +58,7 @@ effect Raise<E> {
 }
 
 fun fail(): Nothing {
-    perform Raise.raise("failed")
+    Raise.raise("failed")
 }
 ```
 

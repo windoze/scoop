@@ -103,6 +103,16 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
+    #[error("语法错误：`perform` keyword was removed; call effect operation directly")]
+    #[diagnostic(
+        code(scoop::parse::perform_keyword_removed),
+        help("将 `perform Effect.op(args)` 改写为 `Effect.op(args)`")
+    )]
+    PerformKeywordRemoved {
+        #[label("这里的 `perform` 不再作为 effect operation 调用前缀解析")]
+        span: miette::SourceSpan,
+    },
+
     #[error("语法错误：赋值表达式不能进入 HIR；assignment 当前只能作为语句使用")]
     #[diagnostic(
         code(scoop::parse::assignment_expression_not_allowed),
@@ -203,6 +213,7 @@ impl ParseError {
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
             ParseError::InlineModifierRemoved { span } => Some(*span),
+            ParseError::PerformKeywordRemoved { span } => Some(*span),
             ParseError::AssignmentExpressionNotAllowed { span } => Some(*span),
             ParseError::SpreadArgOutsideCall { span } => Some(*span),
             ParseError::NamedArgOutsideCall { span } => Some(*span),

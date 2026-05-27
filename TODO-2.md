@@ -7,7 +7,7 @@
 
 ## P2：Parser / AST 语法 surface 收敛
 
-### [TODO] P2-T01：删除 `perform` prefix，并迁移 effect op 调用语法
+### [DONE] P2-T01：删除 `perform` prefix，并迁移 effect op 调用语法
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -41,9 +41,25 @@
 - 依赖：P1-T02R
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc_ast`：保留 `perform` 词法关键字用于定向诊断；移除 `try_parse_expr_prefix` 对 `perform expr` 的接受，新增 `scoop::parse::perform_keyword_removed`。
+    - `crates/scoopc_hir` / `crates/scoopc_mir`：将 Rust 测试内嵌 Scoop snippets 从 `perform Boom.ping()` 改为普通 `Boom.ping()` effect op call，并更新相关测试命名/注释。
+    - `tests/fixtures/parse/perform_keyword_removed.scoop`：新增旧 `perform` prefix negative fixture；现有 positive effect op fixture 继续使用 `Effect.op(args)` 普通 qualified call。
+    - `SCOOP_FULL_SPEC.md` 与 `docs/spec/language_spec-part*.md`：将活跃 spec 示例/优先级表迁移到普通 qualified effect op call；split spec 明确 `perform` 仅作为移除前缀的解析期错误提示。
   - 核心决策：
+    - `perform` 不作为长期 soft alias 保留；parser 遇到该关键字立即报 “`perform` keyword was removed; call effect operation directly”。
+    - `Keyword::Perform` 暂时保留在 lexer/token 层，只服务旧语法的清晰诊断；`perform` 不再是语句起始或 prefix operator。
+    - effect op 语义继续由 ordinary qualified call resolution 识别：`Effect.op(args)` 在 call dispatch 中进入 `infer_effect_op_call_expr_type`，HIR lowering 仍根据 typecheck 写回的 effect-op call binding 降到内部 effect operation lowering。
   - 验证结果：
+    - `cargo fmt`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo build -p scoop -p scoopc`：通过，用于刷新 fixture runner 使用的 CLI binaries。
+    - Targeted fixtures：`python3 tools/run_fixtures.py tests/fixtures/parse/perform_keyword_removed.scoop`、`tests/fixtures/hir/handle_perform.scoop`、`tests/fixtures/run-pass/effect_escape_continuation_multi_perform_basic.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1535)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` B4：正向 surface 使用 `Effect.op(args)`，旧 `perform` prefix 只作为 parser diagnostic / negative fixture 存在。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T01R：Review `perform` 删除结果
 

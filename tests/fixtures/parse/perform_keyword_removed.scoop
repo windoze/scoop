@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::perform_keyword_removed
+// EXPECT-ERROR: `perform` keyword was removed; call effect operation directly
+// EXPECT-ERROR-AT: 9:5
+
+package fixtures.parse
+
+fun main() {
+    perform Raise.raise(1)
+}

@@ -704,13 +704,13 @@ Effect annotations may be omitted:
 - For a **public** function, omitting the effect annotation is treated as `/ Pure`. Any non-`Pure` effect required by the body is a compile error (see §14.7).
 - For a **private/internal** function, the effect row may be inferred from the body when omitted (see §14.7).
 
-Effect operations are invoked with the `perform` keyword using qualified names (`Effect.operation`):
+Effect operations are invoked as ordinary qualified calls using `Effect.operation(args)`:
 
 ```kotlin
 fun fetchData(): String / Raise<IOError> {
     val resp = httpGet("/data")
     if (resp.status != 200) {
-        perform Raise.raise(IOError("bad status"))
+        Raise.raise(IOError("bad status"))
     }
     resp.body
 }
@@ -867,7 +867,7 @@ Rules:
 
 - `x!!` (not-null assertion) is sugar for:
   - if `x` is `Some(v)`, evaluate to `v`
-  - if `x` is `None`, perform `Raise.raise(RuntimeError.NullAssertionFailed)`
+  - if `x` is `None`, call `Raise.raise(RuntimeError.NullAssertionFailed)`
 - `x as T` (unchecked cast) performs `Raise.raise(RuntimeError.ClassCastFailed)` if the runtime type check fails.
 
 As a consequence, these constructs require `Raise<RuntimeError>` unless the failure is handled by `try`/`catch` (or `handle`).
@@ -904,7 +904,7 @@ effect Emit<T> {
 fun fibonacci(): Sequence<Int> / Emit<Int> {
     var a = 0; var b = 1
     while (true) {
-        perform Emit.emit(a)
+        Emit.emit(a)
         val next = a + b; a = b; b = next
     }
 }
@@ -928,7 +928,7 @@ effect Logger {
 }
 
 fun process() / Logger {
-    perform Logger.log(Info, "starting")
+    Logger.log(Info, "starting")
 }
 
 // Non-resuming handler:
@@ -1353,7 +1353,7 @@ val ok: (Int) -> String / Pure! = { x -> x.toString() }
 val a: Any = ok                  // ✅ ok
 
 val bad: () -> Unit / Raise<RuntimeError> = {
-    perform Raise.raise(RuntimeError.NullAssertionFailed)
+    Raise.raise(RuntimeError.NullAssertionFailed)
 }
 val b: Any = bad                  // ❌ compile error: cannot erase effects into Any
 ```
@@ -2054,7 +2054,7 @@ Scoop uses a **constraint-based bidirectional type inference** system. It is not
 | Lambda parameter types | No (usually) | Inferred from expected type context |
 | Generic type arguments | No (usually) | Inferred from actual arguments and expected type |
 | Public function effects | Yes (unless `Pure`) | API boundary; may omit only if the function is effect-free |
-| Private/internal function effects | No | Inferred from `perform` operations in the body |
+| Private/internal function effects | No | Inferred from effect operation calls in the body |
 
 ### 14.3 Local Variable Inference
 
@@ -2137,7 +2137,7 @@ During type checking, each expression has a **required effect row**: the minimal
 
 Rules:
 
-- `perform E.op(...)` requires the effect item `E` unless the operation is handled by an enclosing `handle { ... } with { ... }` (or `try`/`catch`) that has a matching arm for `E.op`.
+- Calling `E.op(...)` requires the effect item `E` unless the operation is handled by an enclosing `handle { ... } with { ... }` (or `try`/`catch`) that has a matching arm for `E.op`.
 - Calling a function `f` requires the effect row declared on `f` (after substituting any type/effect arguments).
 - Invoking a function value (e.g., `block()`) requires the effect row declared on that function type (see §7.5).
 - This call-site rule is determined by the **static function type** of the callee expression, even when the function value is obtained through an opaque path such as a field/property access, a `when`/`if` branch merge, or a higher-order function return. If that static function type is non-`Pure`, lowering must treat the call as may-suspend even when a particular runtime value happens to be a pure closure.
@@ -2179,7 +2179,7 @@ fun noEffect(): Unit {
     // The inner closure performs Raise<String>.
     // If `run` is effect-polymorphic (as in §11), then the call to `run` also requires Raise<String>.
     someObj.run {
-        perform Raise.raise("Error")
+        Raise.raise("Error")
     }
 }
 ```
@@ -2189,7 +2189,7 @@ Since `noEffect` omits an effect annotation, it is treated as `/ Pure` and this 
 ```kotlin
 fun noEffect(): Unit {
     try {
-        someObj.run { perform Raise.raise("Error") }
+        someObj.run { Raise.raise("Error") }
     } catch (e: String) {
         println(e)
     }
@@ -2200,7 +2200,7 @@ Or unless the function declares the required effect:
 
 ```kotlin
 fun noEffect(): Unit / Raise<String> {
-    someObj.run { perform Raise.raise("Error") }
+    someObj.run { Raise.raise("Error") }
 }
 ```
 
@@ -3038,7 +3038,7 @@ This appendix incorporates the **new effect dispatch specification** described i
 
 ### A.1 Intent
 
-The effect system is lexically scoped by `handle { ... } with { ... }` blocks. When multiple handlers are active due to nesting, `perform` must be delivered to the **nearest** enclosing handler that can handle that specific operation.
+The effect system is lexically scoped by `handle { ... } with { ... }` blocks. When multiple handlers are active due to nesting, an effect operation call must be delivered to the **nearest** enclosing handler that can handle that specific operation.
 
 This appendix makes that scoping rule explicit and also specifies the semantics for effects performed **inside handler arms**.
 
@@ -3051,7 +3051,7 @@ This appendix makes that scoping rule explicit and also specifies the semantics 
 
 ### A.3 Dispatch Rule (Nearest Matching Handler)
 
-When evaluating `perform E.op(args...)`:
+When evaluating `E.op(args...)` as an effect operation call:
 
 1. Evaluate `args...` (in left-to-right source order) to values.
 2. Identify the **target handler** as the nearest enclosing **active handler instance** whose handled set contains `E.op`.
@@ -3066,11 +3066,11 @@ A handler arm is conceptually executed **outside** the handler’s own dynamic s
 
 Normative rule:
 
-- During evaluation of the body of a handler arm (regardless of arm form), the handler instance that selected that arm is treated as **inactive** for the purposes of selecting a target handler for `perform`.
+- During evaluation of the body of a handler arm (regardless of arm form), the handler instance that selected that arm is treated as **inactive** for the purposes of selecting a target handler for an effect operation call.
 
 Consequence:
 
-- If a handler arm performs an operation that the same handler would normally handle, the performed effect is dispatched to the next outer matching handler (or remains unhandled), rather than re-entering the same handler.
+- If a handler arm performs an operation that the same handler would normally handle, the effect is dispatched to the next outer matching handler (or remains unhandled), rather than re-entering the same handler.
 
 This rule prevents accidental self-capture and makes nested handlers behave predictably.
 
@@ -3079,10 +3079,10 @@ This rule prevents accidental self-capture and makes nested handlers behave pred
 ```kotlin
 handle {
     handle {
-        perform Raise.raise("inner")
+        Raise.raise("inner")
     } with {
         Raise.raise(e), k -> {
-            perform Raise.raise("from arm")  // targets the OUTER handler
+            Raise.raise("from arm")  // targets the OUTER handler
         }
     }
 } with {
@@ -3097,7 +3097,7 @@ handle {
 ### A.6 Non-goals
 
 - This appendix does **not** introduce new user-facing syntax.
-- This appendix does **not** change the surface forms of effect declaration, `perform`, or `handle`.
+- This appendix does **not** change the surface forms of effect declaration, effect operation calls, or `handle`.
 - This appendix does **not** specify scheduling, synchronization, or a memory model. Concurrency behavior remains out of scope beyond the rule that dispatch follows the current computation’s dynamic effect context (which is captured and restored with a continuation; §5.5).
 
 ## Appendix B: Kotlin Semantics Adopted by Scoop (Expanded)
@@ -3143,7 +3143,7 @@ For **class instance initialization**, the effect/control-flow semantics are the
 - `init { ... }` blocks,
 - and the secondary-constructor body.
 
-That synthetic callable must use the same effect/control protocol as ordinary callables: explicit effect-context input, explicit resume-token input, explicit propagation/completion outcome, and the same boundary / resumable / reentry rules. In particular, this means that if a class instance initialization path contains `perform`, `handle`, `Raise.raise(...)`, or equivalent effectful control flow, the implementation must lower it through the ordinary callable effect/control machinery rather than treating constructor initialization as a special TLS-only runtime path.
+That synthetic callable must use the same effect/control protocol as ordinary callables: explicit effect-context input, explicit resume-token input, explicit propagation/completion outcome, and the same boundary / resumable / reentry rules. In particular, this means that if a class instance initialization path contains effect operation calls, `handle`, `Raise.raise(...)`, or equivalent effectful control flow, the implementation must lower it through the ordinary callable effect/control machinery rather than treating constructor initialization as a special TLS-only runtime path.
 
 This rule applies only to **class instance initialization**. It does **not** apply to top-level initializers, `object` initialization, or other static initialization surfaces. Those remain subject to the separate static-initializer rule that they must be effectively `Pure!`.
 

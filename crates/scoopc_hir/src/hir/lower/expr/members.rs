@@ -359,7 +359,7 @@ impl<'a> HirLowering<'a> {
         args: &[ast::Expr],
     ) -> Option<(ExprKind, TypeId)> {
         // `Effect.op<T>(...)`：HIR lowering 也把 TypeApply 视为“只包住 callee 的透明外壳”，
-        // 以便 generic effect-op call 与普通 effect-op call 进入同一条 perform lowering 主线。
+        // 以便 generic effect-op call 与普通 effect-op call 进入同一条 effect lowering 主线。
         let callee = self.transparent_call_callee(callee);
 
         let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {

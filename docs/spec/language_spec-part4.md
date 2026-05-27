@@ -37,13 +37,13 @@ effect Emit<T> {
 
 ## 3. 调用效果
 
-效果 operation 使用 `perform`：
+效果 operation 使用普通 qualified call：
 
 ```kotlin
 fun fetchData(): String / Raise<IOError> {
     val resp = httpGet("/data")
     if (resp.status != 200) {
-        perform Raise.raise(IOError("bad status"))
+        Raise.raise(IOError("bad status"))
     }
     return resp.body
 }
@@ -51,14 +51,14 @@ fun fetchData(): String / Raise<IOError> {
 
 规则：
 
-- `perform E.op(args...)` 的实参按源码从左到右求值。
+- `E.op(args...)` 的实参按源码从左到右求值。
 - 若当前动态 handler 栈中有匹配 operation 的 handler，则 dispatch 给最近匹配 handler。
 - 若没有 handler，效果成为 unhandled effect，必须由函数签名 required effect row 表示。
 - 若 unhandled effect 到达程序边界，well-typed 程序应已阻止；实现可将其作为运行期 panic。
 
 注：
 - 当前版本不定义内建 task runtime surface，也不定义 `async` / `await`、用户可见 `spawn` / `join` 等语法；这些属于后续库/语言设计话题，不影响本部分对一般 effect/continuation 的规则。
-- 在目前实现中，`perform` 关键字可省略，此处可暂时保持现状，留待后续设计决定是否强制要求 `perform` 以提高可读性。
+- `perform` 前缀已移除；实现可保留该关键字为解析期错误以提示改写为普通 qualified effect operation call。
 
 ## 4. Effect row
 
@@ -207,7 +207,7 @@ handle {
 
 ```kotlin
 handle {
-    val value = perform Yield.next()
+    val value = Yield.next()
     value + 1
 } with {
     Yield.next(), k -> {
@@ -355,7 +355,7 @@ fun fibonacci(): Unit / Emit<Int> {
     var a = 0
     var b = 1
     while (true) {
-        perform Emit.emit(a)
+        Emit.emit(a)
         val next = a + b
         a = b
         b = next
@@ -380,7 +380,7 @@ handle {
 
 规则：
 
-- `perform E.op(...)` 需要 effect item `E`，除非被内层 handler 处理。
+- `E.op(...)` 需要 effect item `E`，除非被内层 handler 处理。
 - 调用函数需要该函数声明的 effect row，替换类型/effect 实参后计算。
 - 调用函数值需要该函数类型上的 effect row。
 - 调用函数值时是否 may-suspend 由 callee 表达式的静态函数类型决定，即使运行期值恰好是 pure closure。
@@ -428,7 +428,7 @@ fun <T, eff E> run(block: () -> T / E): T / E
 ```kotlin
 fun noEffect(): Unit {
     someObj.run {
-        perform Raise.raise("Error")
+        Raise.raise("Error")
     }
 }
 ```
@@ -438,7 +438,7 @@ fun noEffect(): Unit {
 ```kotlin
 fun noEffect(): Unit {
     try {
-        someObj.run { perform Raise.raise("Error") }
+        someObj.run { Raise.raise("Error") }
     } catch (e: String) {
         println(e)
     }
@@ -449,7 +449,7 @@ fun noEffect(): Unit {
 
 ```kotlin
 fun noEffect(): Unit / Raise<String> {
-    someObj.run { perform Raise.raise("Error") }
+    someObj.run { Raise.raise("Error") }
 }
 ```
 

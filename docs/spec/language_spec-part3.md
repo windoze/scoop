@@ -58,7 +58,7 @@ y = 20
 | 优先级 | 运算符/结构 | 结合性 |
 |---|---|---|
 | postfix | 调用 `()`, 成员 `.`, safe-call `?.`, not-null `!!`, class literal `::class`, type application | 左 |
-| prefix | `!`, unary `-`, `~`, `perform` | 右 |
+| prefix | `!`, unary `-`, `~` | 右 |
 | multiplicative | `*`, `/`, `%` | 左 |
 | additive | `+`, `-` | 左 |
 | shift | `<<`, `>>` | 左 |
@@ -251,7 +251,7 @@ val ok: (Int) -> String / Pure! = { x -> x.toString() }
 val a: Any = ok
 
 val bad: () -> Unit / Raise<RuntimeError> = {
-    perform Raise.raise(RuntimeError.NullAssertionFailed)
+    Raise.raise(RuntimeError.NullAssertionFailed)
 }
 val b: Any = bad // 编译错误
 ```

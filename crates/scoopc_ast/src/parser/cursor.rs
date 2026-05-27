@@ -512,7 +512,6 @@ impl<'a> Parser<'a> {
                     | Keyword::Continue
                     | Keyword::Try
                     | Keyword::Handle
-                    | Keyword::Perform
             ) | TokenKind::Ident
                 | TokenKind::IntLiteral
                 | TokenKind::FloatLiteral

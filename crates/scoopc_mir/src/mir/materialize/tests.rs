@@ -3468,7 +3468,7 @@ fun <eff E = Pure> lift(f: () -> Int / E): Int / E {
 fun entry(): Int / Boom {
 val box: Box = Box()
 return box.lift({
-    perform Boom.ping()
+    Boom.ping()
     1
 })
 }
@@ -3525,7 +3525,7 @@ fun ping(): Unit
 
 struct Box<T>(val value: Int) {
 fun <eff E = Boom> plus(other: Box<T>): Box<T> / Boom {
-    perform Boom.ping()
+    Boom.ping()
     return Box { value: this.value + other.value }
 }
 }
@@ -3598,7 +3598,7 @@ fun ping(): Unit
 
 struct Box<T>(val value: Int) {
 fun <eff E = Boom> compareTo(other: Box<T>): Int / Boom {
-    perform Boom.ping()
+    Boom.ping()
     return this.value - other.value
 }
 }
