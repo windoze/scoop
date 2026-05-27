@@ -168,10 +168,10 @@ lir_facts {
     - class_itable=scoop.lang.string.StringBuilder entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
-    - callable_symbol=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#h92f0db7cde68f43d23033f17bce8c599) root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__h09e24cb337e5d9a1c0805434b8337c26
+    - callable_symbol=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058) root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__hed58d665920cc5194786c13c460921eb
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=454 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=1
-    - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#h92f0db7cde68f43d23033f17bce8c599)
+    - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=4 boundaries=1 continuation_object=cont_obj#0
   step_types=1
     - step#0 invoke_args=t2 complete=t2 continuation_obj=t449 cases=2
@@ -189,17 +189,17 @@ LateLoweredProgram
   surface_resume_dispatch_count: 2
   callable_count: 1
   step_types:
-    - step_schema: step#hfa4626a2746125911d8c472b073e4148
+    - step_schema: step#hf579283409c1a9bcd8808c239ce4e22f
       invoke_args_tuple_ty: Unit
       complete_variant: Complete(Unit)
-      continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_lowered/single_case_impl_plan.scoop:53..95::sample.leaf
+      continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list())
       case_variants:
-        - Case(case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit) payload_tuple_ty=Unit continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 concrete_op=sample.Ping.hit
-        - Case(case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError>) payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h11a1bd1dfef229a81fae4c0c6a47f04c resume_tuple_ty=Nothing answer_ty=Unit surface_ty=scoop.core.Continuation<Nothing, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError>
+        - Case(case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit) payload_tuple_ty=Unit continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f concrete_op=sample.Ping.hit
+        - Case(case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError>) payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h11a1bd1dfef229a81fae4c0c6a47f04c resume_tuple_ty=Nothing answer_ty=Unit surface_ty=scoop.core.Continuation<Nothing, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError>
   continuation_objects:
-    - continuation_object: cont_obj#hde389d113ac79092f07f4a71cb247c3b
+    - continuation_object: cont_obj#h00c9bbc2dc0e48766a701825c4575e56
       owner_version: instance=sample.leaf allowed_row=(sample.Ping) impl_plan=SingleCase(sample.Ping.hit) needs_reentry=true
-      continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_lowered/single_case_impl_plan.scoop:53..95::sample.leaf
+      continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list())
       implemented_packings: [packing#hbda32c11eb474ef2bb4097df707732c2]
       captures:
         - FrameSlot(slot#h87bf8991b13b9396050cf1b03002ff79)
@@ -212,31 +212,31 @@ LateLoweredProgram
         - FrameSlot(slot#h9164311a4449477f563e81974851bdec)
         - State(state#h70734b8a1aa7d482e5962d83755825b6)
       authoritative_surface_resumes:
-        - case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError> resume_tuple_ty=Nothing answer_ty=Unit surface_ty=scoop.core.Continuation<Nothing, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 continuation_schema=cont#h11a1bd1dfef229a81fae4c0c6a47f04c concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError> => Unreachable
+        - case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError> resume_tuple_ty=Nothing answer_ty=Unit surface_ty=scoop.core.Continuation<Nothing, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#h11a1bd1dfef229a81fae4c0c6a47f04c concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError> => Unreachable
       authoritative_internal_methods:
-        - case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit packed_by=packing#hbda32c11eb474ef2bb4097df707732c2 resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit packed_by=packing#hbda32c11eb474ef2bb4097df707732c2 resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
-    - continuation_schema: cont#hc6139592b135838b3e9c9fab8b330535 source=ContinuationObjectMethod resume_tuple_ty=Unit answer_ty=Unit out_step_schema=step#hfa4626a2746125911d8c472b073e4148
+    - continuation_schema: cont#hc6139592b135838b3e9c9fab8b330535 source=ContinuationObjectMethod resume_tuple_ty=Unit answer_ty=Unit out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f
       publications:
-        - surface_case cont_obj#hde389d113ac79092f07f4a71cb247c3b case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit reachability=Reachable
-        - internal_method cont_obj#hde389d113ac79092f07f4a71cb247c3b case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit packed_by=packing#hbda32c11eb474ef2bb4097df707732c2 reachability=Reachable
-    - continuation_schema: cont#h11a1bd1dfef229a81fae4c0c6a47f04c source=Unreachable resume_tuple_ty=Nothing answer_ty=Unit out_step_schema=step#hfa4626a2746125911d8c472b073e4148
+        - surface_case cont_obj#h00c9bbc2dc0e48766a701825c4575e56 case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit reachability=Reachable
+        - internal_method cont_obj#h00c9bbc2dc0e48766a701825c4575e56 case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit packed_by=packing#hbda32c11eb474ef2bb4097df707732c2 reachability=Reachable
+    - continuation_schema: cont#h11a1bd1dfef229a81fae4c0c6a47f04c source=Unreachable resume_tuple_ty=Nothing answer_ty=Unit out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f
       publications:
-        - surface_case cont_obj#hde389d113ac79092f07f4a71cb247c3b case=case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError> reachability=Unreachable
+        - surface_case cont_obj#h00c9bbc2dc0e48766a701825c4575e56 case=case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError> reachability=Unreachable
   resume_packing_interfaces:
     - resume_packing_interface: packing#hbda32c11eb474ef2bb4097df707732c2
       packing_effect_family: sample.Ping
-      authoritative_step_schema: step#hfa4626a2746125911d8c472b073e4148
+      authoritative_step_schema: step#hf579283409c1a9bcd8808c239ce4e22f
       packed_methods:
-        - case: case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hfa4626a2746125911d8c472b073e4148 continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit
+        - case: case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit
   callables:
     - root: sample.leaf
       body_version_key: instance=sample.leaf allowed_row=(sample.Ping) impl_plan=SingleCase(sample.Ping.hit) needs_reentry=true
       resolved_outward_cases: [case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit]
       abi: EffectStep
-      authoritative_step_schema: step#hfa4626a2746125911d8c472b073e4148
-      dynamic_invoke_entry: invoke(Unit) -> step#hfa4626a2746125911d8c472b073e4148 entry=state#h3ab72cca943c63776a0fc547d61f3dfc complete=state#h0d4166bb69c01249663ba19ad0bf7cdd
+      authoritative_step_schema: step#hf579283409c1a9bcd8808c239ce4e22f
+      dynamic_invoke_entry: invoke(Unit) -> step#hf579283409c1a9bcd8808c239ce4e22f entry=state#h3ab72cca943c63776a0fc547d61f3dfc complete=state#h0d4166bb69c01249663ba19ad0bf7cdd
       state_graph:
         entry_state: state#h3ab72cca943c63776a0fc547d61f3dfc
         complete_state: state#h0d4166bb69c01249663ba19ad0bf7cdd
@@ -280,8 +280,8 @@ LateLoweredProgram
               anchor: terminator slice=bb#ha394e35f43f26fb3fc7412ccd4957136 stmts[0..1] + term
               payload_sources:
                 <none>
-            emit: case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit op=sample.Ping.hit payload_tuple_ty=Unit cont_obj#hde389d113ac79092f07f4a71cb247c3b cont_schema=cont#hc6139592b135838b3e9c9fab8b330535 out_step_schema=step#hfa4626a2746125911d8c472b073e4148
+            emit: case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit op=sample.Ping.hit payload_tuple_ty=Unit cont_obj#h00c9bbc2dc0e48766a701825c4575e56 cont_schema=cont#hc6139592b135838b3e9c9fab8b330535 out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f
       resume_state_map:
         - boundary#habba71d15b77867d275b0fd4af7a96fe -> state#h70734b8a1aa7d482e5962d83755825b6
       resume_packing_interfaces: [packing#hbda32c11eb474ef2bb4097df707732c2]
-      continuation_object: cont_obj#hde389d113ac79092f07f4a71cb247c3b
+      continuation_object: cont_obj#h00c9bbc2dc0e48766a701825c4575e56

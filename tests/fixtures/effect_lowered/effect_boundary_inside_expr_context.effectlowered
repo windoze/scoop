@@ -196,18 +196,18 @@ LateLoweredProgram
   surface_resume_dispatch_count: 3
   callable_count: 3
   step_types:
-    - step_schema: step#h21cd9e138ed7888746d586abae722069
+    - step_schema: step#hcb12a822c1660d568c3348c1c3fd4689
       invoke_args_tuple_ty: Unit
       complete_variant: Complete(Int)
-      continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_lowered/effect_boundary_inside_expr_context.scoop:183..814::fixtures.mir_lowered.main
+      continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(185:template(171:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
       case_variants:
-        - Case(case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read) payload_tuple_ty=Unit continuation_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f resume_tuple_ty=Bool answer_ty=Int surface_ty=scoop.core.Continuation<Bool, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 concrete_op=fixtures.mir_lowered.Flag.read
-        - Case(case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next) payload_tuple_ty=Int continuation_schema=cont#h49434172522cf9401df73b6a19433be9 resume_tuple_ty=Int answer_ty=Int surface_ty=scoop.core.Continuation<Int, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 concrete_op=fixtures.mir_lowered.Step.next
-        - Case(case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError>) payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h05f68067a00d971d96b163f67d9d95a4 resume_tuple_ty=Nothing answer_ty=Int surface_ty=scoop.core.Continuation<Nothing, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError>
+        - Case(case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read) payload_tuple_ty=Unit continuation_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f resume_tuple_ty=Bool answer_ty=Int surface_ty=scoop.core.Continuation<Bool, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 concrete_op=fixtures.mir_lowered.Flag.read
+        - Case(case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next) payload_tuple_ty=Int continuation_schema=cont#h49434172522cf9401df73b6a19433be9 resume_tuple_ty=Int answer_ty=Int surface_ty=scoop.core.Continuation<Int, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 concrete_op=fixtures.mir_lowered.Step.next
+        - Case(case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError>) payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h05f68067a00d971d96b163f67d9d95a4 resume_tuple_ty=Nothing answer_ty=Int surface_ty=scoop.core.Continuation<Nothing, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError>
   continuation_objects:
-    - continuation_object: cont_obj#hf2d4ce078d12467f016e11a344a033ff
+    - continuation_object: cont_obj#hca4c4343dcf8a87541e30f45dc7246dc
       owner_version: instance=fixtures.mir_lowered.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_lowered/effect_boundary_inside_expr_context.scoop:183..814::fixtures.mir_lowered.main
+      continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(185:template(171:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
       implemented_packings: []
       captures:
         - FrameSlot(slot#h4d997403e2d4ce103cda777ae135a9ee)
@@ -249,21 +249,21 @@ LateLoweredProgram
         - State(state#h263cff151e4b685f425fb786798bc144)
         - State(state#h8fc4e1d340da157179e870c323537b06)
       authoritative_surface_resumes:
-        - case=case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read resume_tuple_ty=Bool answer_ty=Int surface_ty=scoop.core.Continuation<Bool, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 continuation_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f concrete_op=fixtures.mir_lowered.Flag.read => Unreachable
-        - case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next resume_tuple_ty=Int answer_ty=Int surface_ty=scoop.core.Continuation<Int, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 continuation_schema=cont#h49434172522cf9401df73b6a19433be9 concrete_op=fixtures.mir_lowered.Step.next => Unreachable
-        - case=case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError> resume_tuple_ty=Nothing answer_ty=Int surface_ty=scoop.core.Continuation<Nothing, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#h21cd9e138ed7888746d586abae722069 continuation_schema=cont#h05f68067a00d971d96b163f67d9d95a4 concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError> => Unreachable
+        - case=case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read resume_tuple_ty=Bool answer_ty=Int surface_ty=scoop.core.Continuation<Bool, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 continuation_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f concrete_op=fixtures.mir_lowered.Flag.read => Unreachable
+        - case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next resume_tuple_ty=Int answer_ty=Int surface_ty=scoop.core.Continuation<Int, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 continuation_schema=cont#h49434172522cf9401df73b6a19433be9 concrete_op=fixtures.mir_lowered.Step.next => Unreachable
+        - case=case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError> resume_tuple_ty=Nothing answer_ty=Int surface_ty=scoop.core.Continuation<Nothing, Int, eff (fixtures.mir_lowered.Step + fixtures.mir_lowered.Flag)> out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689 continuation_schema=cont#h05f68067a00d971d96b163f67d9d95a4 concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError> => Unreachable
       authoritative_internal_methods:
         <none>
   authoritative_surface_resume_dispatch_inventory:
-    - continuation_schema: cont#h9c6261fbbbbede33c7853fa416c67c8f source=Unreachable resume_tuple_ty=Bool answer_ty=Int out_step_schema=step#h21cd9e138ed7888746d586abae722069
+    - continuation_schema: cont#h9c6261fbbbbede33c7853fa416c67c8f source=Unreachable resume_tuple_ty=Bool answer_ty=Int out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
       publications:
-        - surface_case cont_obj#hf2d4ce078d12467f016e11a344a033ff case=case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read reachability=Unreachable
-    - continuation_schema: cont#h49434172522cf9401df73b6a19433be9 source=Unreachable resume_tuple_ty=Int answer_ty=Int out_step_schema=step#h21cd9e138ed7888746d586abae722069
+        - surface_case cont_obj#hca4c4343dcf8a87541e30f45dc7246dc case=case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read reachability=Unreachable
+    - continuation_schema: cont#h49434172522cf9401df73b6a19433be9 source=Unreachable resume_tuple_ty=Int answer_ty=Int out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
       publications:
-        - surface_case cont_obj#hf2d4ce078d12467f016e11a344a033ff case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next reachability=Unreachable
-    - continuation_schema: cont#h05f68067a00d971d96b163f67d9d95a4 source=Unreachable resume_tuple_ty=Nothing answer_ty=Int out_step_schema=step#h21cd9e138ed7888746d586abae722069
+        - surface_case cont_obj#hca4c4343dcf8a87541e30f45dc7246dc case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next reachability=Unreachable
+    - continuation_schema: cont#h05f68067a00d971d96b163f67d9d95a4 source=Unreachable resume_tuple_ty=Nothing answer_ty=Int out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
       publications:
-        - surface_case cont_obj#hf2d4ce078d12467f016e11a344a033ff case=case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError> reachability=Unreachable
+        - surface_case cont_obj#hca4c4343dcf8a87541e30f45dc7246dc case=case#h480ff21f71ca8c6993d93d5393b463aa=scoop.core.Raise.raise<scoop.core.RuntimeError> reachability=Unreachable
   resume_packing_interfaces:
     <none>
   callables:
@@ -336,7 +336,7 @@ LateLoweredProgram
         - site#h2a867eebfb313b4283dc5ca6b2cb965d Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#hdfa59d5d1281214337ee0d3c7b81d2b0 stmt0 dispatch=PlainCall
         - site#haba6a69ac1079020b927541b7f30e26d Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h80702e647a6b29316e06ba763d913bdd stmt0 dispatch=PlainCall
         - site#h5abf22681bdbf07b3ae5cfc1af2aa2aa Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#hb8ff48a95e9deb47a0737abcaf8bbc57 stmt0 dispatch=PlainCall
-      plain_local_effect_control: step#h21cd9e138ed7888746d586abae722069 cont_obj#hf2d4ce078d12467f016e11a344a033ff
+      plain_local_effect_control: step#hcb12a822c1660d568c3348c1c3fd4689 cont_obj#hca4c4343dcf8a87541e30f45dc7246dc
       state_graph:
         entry_state: state#h99c096591584d9e713b7ffb8e9654112
         complete_state: state#h3423373b262582e26039dfa859b68738
@@ -716,28 +716,28 @@ LateLoweredProgram
               anchor: terminator slice=bb#hf951b2fcf78fd5bd96c95dd32620ef04 stmts[0..2] + term
               payload_sources:
                 - local#h2b3260e257f460e9b228e669ec1660fa:Int
-            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hf2d4ce078d12467f016e11a344a033ff cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#h21cd9e138ed7888746d586abae722069
+            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hca4c4343dcf8a87541e30f45dc7246dc cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
         - boundary#hf9cdb52144c450bad10179a77f01a38b Perform(site#h97fb6e1205bdfeb740c4a62d2947b47b) owner=state#h53b44428047727a73b4c463b1792d1fc resume=state#h16c552b832d0edb28e44b94220edd75a
           lowering: Perform emitted_case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next captured_cont_schema=cont#h49434172522cf9401df73b6a19433be9 payload_tuple_ty=Int
             operand_contract:
               anchor: terminator slice=bb#heb329fffbd268fdf6fec5f72a8449d63 stmts[0..1] + term
               payload_sources:
                 - local#he514058d751604e90c7c1a288c4a4db8:Int
-            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hf2d4ce078d12467f016e11a344a033ff cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#h21cd9e138ed7888746d586abae722069
+            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hca4c4343dcf8a87541e30f45dc7246dc cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
         - boundary#h3f142427d59e5c7792c619aac16f762c Perform(site#haef1f080a047f0657ecf34fc45ccfc2c) owner=state#hf5093dfe00c4160c53759d3137a7d35c resume=state#h263cff151e4b685f425fb786798bc144
           lowering: Perform emitted_case=case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read captured_cont_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f payload_tuple_ty=Unit
             operand_contract:
               anchor: terminator slice=bb#h3f222fb3b9c0b5db1ee28d8775060c26 stmts[0..1] + term
               payload_sources:
                 <none>
-            emit: case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read op=fixtures.mir_lowered.Flag.read payload_tuple_ty=Unit cont_obj#hf2d4ce078d12467f016e11a344a033ff cont_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f out_step_schema=step#h21cd9e138ed7888746d586abae722069
+            emit: case#h4d400d7c8fa3be38ab929f41a3698c01=fixtures.mir_lowered.Flag.read op=fixtures.mir_lowered.Flag.read payload_tuple_ty=Unit cont_obj#hca4c4343dcf8a87541e30f45dc7246dc cont_schema=cont#h9c6261fbbbbede33c7853fa416c67c8f out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
         - boundary#h1bac847d8a709c07229649093d0ff853 Perform(site#h8b9ed3ad1091765e2aa06e4e78d0b65d) owner=state#h9d0fc208dc91b4597809cc61ba2398d1 resume=state#h8fc4e1d340da157179e870c323537b06
           lowering: Perform emitted_case=case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next captured_cont_schema=cont#h49434172522cf9401df73b6a19433be9 payload_tuple_ty=Int
             operand_contract:
               anchor: terminator slice=bb#h5849328b760ba748374f3437e58f29d7 stmts[0..1] + term
               payload_sources:
                 - local#h61fcec2887ed9b2cba7e5a3e0b4f1ccb:Int
-            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hf2d4ce078d12467f016e11a344a033ff cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#h21cd9e138ed7888746d586abae722069
+            emit: case#h69d8566d82563676f622a80bba0dc68b=fixtures.mir_lowered.Step.next op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int cont_obj#hca4c4343dcf8a87541e30f45dc7246dc cont_schema=cont#h49434172522cf9401df73b6a19433be9 out_step_schema=step#hcb12a822c1660d568c3348c1c3fd4689
       resume_state_map:
         - boundary#h710d89ca8eb5cd22a032cda4c36ffaa9 -> state#hdf248f6a580bf9eabe4c3f30e80fc1bd
         - boundary#hf9cdb52144c450bad10179a77f01a38b -> state#h16c552b832d0edb28e44b94220edd75a

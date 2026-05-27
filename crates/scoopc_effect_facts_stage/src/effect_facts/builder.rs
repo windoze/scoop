@@ -346,7 +346,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
         seed: &CallableSeed,
     ) -> Result<StepSchemaId, EffectFactsError> {
         let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
-        let continuation_obj_ty = continuation_object_ty(types, &seed.key);
+        let continuation_obj_ty = continuation_object_ty(types, &seed.stable_instance_key_text);
         let case_seeds = self.type_ctx.step_case_seeds(
             types,
             &seed.step_effect_row,
@@ -1908,6 +1908,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
 #[derive(Debug, Clone)]
 struct CallableSeed {
     key: InstanceKey,
+    /// Machine-independent canonical text for `key`, used as the disambiguator in
+    /// `ContinuationObject@<...>` names so the resulting LIR body hash is portable.
+    stable_instance_key_text: String,
     root_fun: MirFunDecl,
     declared_row: EffectRow,
     // `surface_effect_row` 只表达源码层 residual row；`step_effect_row` 允许额外带上
@@ -2690,8 +2693,18 @@ fn collect_callable_seeds(
         };
         let body_concrete_effect_ops =
             collect_body_concrete_effect_ops(type_ctx, types, &root_fun)?;
+        let stable_instance_key_text = materialized
+            .authoritative_stable_instance_key(&family_key)
+            .ok_or_else(|| EffectFactsError::Frontend {
+                message: format!(
+                    "callable family `{}` 缺少 authoritative stable instance key，无法生成稳定 continuation 标识",
+                    family_key.template.fqn,
+                ),
+            })?
+            .canonical_text();
         seeds.push(CallableSeed {
             key: family_key,
+            stable_instance_key_text,
             root_fun: root_fun.clone(),
             surface_effect_row,
             step_effect_row,
@@ -3154,41 +3167,9 @@ fn continuation_surface_ty(
     })))
 }
 
-fn continuation_object_ty(types: &mut TypeStore, key: &InstanceKey) -> TypeId {
-    let type_args_suffix = if key.type_args.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "::{}",
-            key.type_args
-                .iter()
-                .map(|ty| types.display(*ty).to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        )
-    };
-    let effect_args_suffix = if key.eff_args.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "#{}",
-            key.eff_args
-                .iter()
-                .map(|row| effect_row_identity_string(types, row))
-                .collect::<Vec<_>>()
-                .join("|")
-        )
-    };
+fn continuation_object_ty(types: &mut TypeStore, stable_instance_text: &str) -> TypeId {
     types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
-        fqn: format!(
-            "scoop.__compiler.ContinuationObject@{}:{}..{}::{}{}{}",
-            key.template.source_path.display(),
-            key.template.decl_span.start,
-            key.template.decl_span.end,
-            key.template.fqn,
-            type_args_suffix,
-            effect_args_suffix,
-        ),
+        fqn: format!("scoop.__compiler.ContinuationObject@{stable_instance_text}"),
         args: Vec::new(),
         eff: None,
     })))
@@ -4866,35 +4847,10 @@ fun pureHelper(): Unit {}
     #[test]
     fn continuation_schema_identity_distinguishes_callable_instances() {
         let mut types = TypeStore::new();
-        let builtins = types.intern_builtins();
-        let raise_string = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
-            fqn: "scoop.core.Raise".to_string(),
-            args: vec![builtins.string],
-            eff: None,
-        })));
-        let raise_int = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
-            fqn: "scoop.core.Raise".to_string(),
-            args: vec![builtins.int],
-            eff: None,
-        })));
-        let template = TemplateKey {
-            fqn: "sample.forward".to_string(),
-            source_path: PathBuf::from("<mem>/forward.scoop"),
-            decl_span: Span::new(0, 1),
-        };
-        let string_key = InstanceKey {
-            template: template.clone(),
-            type_args: vec![builtins.string],
-            eff_args: vec![EffectRow::new(vec![raise_string])],
-        };
-        let int_key = InstanceKey {
-            template,
-            type_args: vec![builtins.int],
-            eff_args: vec![EffectRow::new(vec![raise_int])],
-        };
+        let _ = types.intern_builtins();
 
-        let string_cont_ty = continuation_object_ty(&mut types, &string_key);
-        let int_cont_ty = continuation_object_ty(&mut types, &int_key);
+        let string_cont_ty = continuation_object_ty(&mut types, "instance::sample.forward<String>");
+        let int_cont_ty = continuation_object_ty(&mut types, "instance::sample.forward<Int>");
 
         assert_ne!(string_cont_ty, int_cont_ty);
         assert_ne!(

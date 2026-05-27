@@ -6,10 +6,10 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.callValue
 step_schemas:
-  step#h13433fb4d7751d2dc5ef3fa5d72d34d7:
+  step#h27a8c184557de9c9fe22205bbbb2b3a8:
     invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
     complete_ty: Unit
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dynamic_fallback_widening.scoop:89..169::sample.callValue
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(249:template(235:def(42:cone(25:dynamic_fallback_widening;5:0.0.0);3:fun;16:sample.callValue;20:non_generic_callable;130:callable_sig(1:0;1:0;1:0;100:F(-;[F(-;[]->V(Unit)/E(N(sample.Alpha),N(sample.Beta)))]->V(Unit)/E(N(sample.Alpha),N(sample.Beta))))));6:list();6:list())
     cases:
       - case#hc686a042857d2a8013321a78df990379: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=cont#heff227115cecb22cb01e65c03eaf3436
       - case#h81272d1890acbd5d98731b451e1b7cff: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=cont#heff227115cecb22cb01e65c03eaf3436
@@ -25,12 +25,12 @@ continuation_schemas:
   cont#heff227115cecb22cb01e65c03eaf3436:
     resume_tuple_ty: Unit
     answer_ty: Unit
-    out_step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
+    out_step_schema: step#h27a8c184557de9c9fe22205bbbb2b3a8
     surface_ty: scoop.core.Continuation<Unit, Unit, eff (sample.Alpha + sample.Beta)>
   cont#h4fc1318dde8f5672754e6cb1a2a38664:
     resume_tuple_ty: Nothing
     answer_ty: Unit
-    out_step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
+    out_step_schema: step#h27a8c184557de9c9fe22205bbbb2b3a8
     surface_ty: scoop.core.Continuation<Nothing, Unit, eff (sample.Alpha + sample.Beta)>
   cont#hb853efc84e674a53a12e9bc4fbb71665:
     resume_tuple_ty: Unit
@@ -43,7 +43,7 @@ callable_facts:
     declared_row: (sample.Alpha + sample.Beta)
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
-    step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
+    step_schema: step#h27a8c184557de9c9fe22205bbbb2b3a8
     resolved_outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
     needs_reentry: true
     impl_plan: CanonicalFull

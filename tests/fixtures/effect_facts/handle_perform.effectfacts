@@ -6,10 +6,10 @@ snapshot_binding:
   canonical_body_fqns:
     - a.main
 step_schemas:
-  step#hb6c750bcbb233ee00d25148b5b99f7d9:
+  step#h2cf5a95db4baebffaf26094cfc0eebf1:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_perform.scoop:36..125::a.main
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(144:template(130:def(31:cone(14:handle_perform;5:0.0.0);3:fun;6:a.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
       - case#h65b212f2458f5333a9f8fbaf5630c6df: op=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=cont#h6774ab1578c60fb8ad9581c403060829
       - case#ha2d006b62f1dbb0ac475a198c47f54be: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h6774ab1578c60fb8ad9581c403060829
@@ -17,7 +17,7 @@ continuation_schemas:
   cont#h6774ab1578c60fb8ad9581c403060829:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#hb6c750bcbb233ee00d25148b5b99f7d9
+    out_step_schema: step#h2cf5a95db4baebffaf26094cfc0eebf1
     surface_ty: scoop.core.Continuation<Nothing, Int, eff scoop.core.Raise<Int>>
 callable_facts:
   a.main:

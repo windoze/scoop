@@ -6,10 +6,10 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.leaf
 step_schemas:
-  step#hd9c85926e143697f7156c924ed1d2ed8:
+  step#h1d7523ee59e4cda240c2e4aad39d0e3b:
     invoke_args_tuple_ty: Unit
     complete_ty: Unit
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/single_case_impl_plan.scoop:53..95::sample.leaf
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list())
     cases:
       - case#h5984a934b538fd0056f5fc8e0aae63cf: op=sample.Ping.hit payload_tuple_ty=Unit continuation_schema=cont#hac104a2c38ac46abf0e5d4fba81cf2b7
       - case#h9bf60939ec0ff89d0a7561f7a33a5f1f: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h98095cf2cc77e63df7f0ae64ab3419b0
@@ -17,12 +17,12 @@ continuation_schemas:
   cont#hac104a2c38ac46abf0e5d4fba81cf2b7:
     resume_tuple_ty: Unit
     answer_ty: Unit
-    out_step_schema: step#hd9c85926e143697f7156c924ed1d2ed8
+    out_step_schema: step#h1d7523ee59e4cda240c2e4aad39d0e3b
     surface_ty: scoop.core.Continuation<Unit, Unit, eff sample.Ping>
   cont#h98095cf2cc77e63df7f0ae64ab3419b0:
     resume_tuple_ty: Nothing
     answer_ty: Unit
-    out_step_schema: step#hd9c85926e143697f7156c924ed1d2ed8
+    out_step_schema: step#h1d7523ee59e4cda240c2e4aad39d0e3b
     surface_ty: scoop.core.Continuation<Nothing, Unit, eff sample.Ping>
 callable_facts:
   sample.leaf:
@@ -30,7 +30,7 @@ callable_facts:
     declared_row: sample.Ping
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
-    step_schema: step#hd9c85926e143697f7156c924ed1d2ed8
+    step_schema: step#h1d7523ee59e4cda240c2e4aad39d0e3b
     resolved_outward_cases: [case#h5984a934b538fd0056f5fc8e0aae63cf=sample.Ping.hit]
     needs_reentry: true
     impl_plan: SingleCase(case#h5984a934b538fd0056f5fc8e0aae63cf=sample.Ping.hit)

@@ -9,17 +9,17 @@ snapshot_binding:
     - fixtures.mir_lowered.handled_raise
     - fixtures.mir_lowered.main
 step_schemas:
-  step#hbb2fc0915d9ee935c2cf54f0c5cb4c2c:
+  step#h47752407ea25b20895cbab7f45b4813e:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:94..240::fixtures.mir_lowered.body_completes
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(183:template(169:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;35:fixtures.mir_lowered.body_completes;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
       - case#h6b0ffc40a4c598b8764a6cea9884a428: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h3a4d328d517f0ec1bbe42bcbc735b969
       - case#h27036057dba4ef244706b411a56c01ce: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h14224947e342572199807a14751fe699
-  step#h0027e828aee95001b2883de7c88afb68:
+  step#h068552129b7d6ae6deccef107eb85d40:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:242..412::fixtures.mir_lowered.handled_raise
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(182:template(168:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;34:fixtures.mir_lowered.handled_raise;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
       - case#hfeb226f206e677d3a35aefd7bbf713dd: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#ha8229f640866c76efd9a08151e252f0c
       - case#h7b826e4f3d6ebe7539d64db975146f84: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h46ef1bc150bfb0178b6f2e00e07a10f3
@@ -27,22 +27,22 @@ continuation_schemas:
   cont#h3a4d328d517f0ec1bbe42bcbc735b969:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#hbb2fc0915d9ee935c2cf54f0c5cb4c2c
+    out_step_schema: step#h47752407ea25b20895cbab7f45b4813e
     surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
   cont#h14224947e342572199807a14751fe699:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#hbb2fc0915d9ee935c2cf54f0c5cb4c2c
+    out_step_schema: step#h47752407ea25b20895cbab7f45b4813e
     surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
   cont#ha8229f640866c76efd9a08151e252f0c:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#h0027e828aee95001b2883de7c88afb68
+    out_step_schema: step#h068552129b7d6ae6deccef107eb85d40
     surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
   cont#h46ef1bc150bfb0178b6f2e00e07a10f3:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h0027e828aee95001b2883de7c88afb68
+    out_step_schema: step#h068552129b7d6ae6deccef107eb85d40
     surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
 callable_facts:
   fixtures.mir_lowered.body_completes:

@@ -7,18 +7,18 @@ snapshot_binding:
     - sample.nested_may_suspend_outward
     - sample.nested_self_contained
 step_schemas:
-  step#h6842d4c14faa434657df0badab265ceb:
+  step#h374159a3a7450985a03adfac758a6e5c:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:342..641::sample.nested_may_suspend_outward
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
       - case#h3e5a541db537d4ab2aa0516750bbbccf: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#hedab17548ae02aee833b647120a8df61
       - case#h51aa9ccc69e5b2b768b2c009d1ea75ef: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#hfc173a4a311f6d30101753a09c7adc73
       - case#h7c2cc478a9278a9a331e96e0dd01efca: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hfc1e71a09d9175715af82908c44fd430
-  step#hc3ca2af9eb676c96fa4d1e76af092db6:
+  step#h935edd33c2bde6a25021d2be8223c7f6:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:92..340::sample.nested_self_contained
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
       - case#h2c81545f9ccb73a7da31b046320ac5b0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#h8367054dfe56f76b525d7b473ebecfee
       - case#hb38df534857fcb95d71e201ef5faed2c: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#h236303b34cba83f1fffaf345e396194c
@@ -27,32 +27,32 @@ continuation_schemas:
   cont#hedab17548ae02aee833b647120a8df61:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
+    out_step_schema: step#h374159a3a7450985a03adfac758a6e5c
     surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
   cont#hfc173a4a311f6d30101753a09c7adc73:
     resume_tuple_ty: Unit
     answer_ty: Int
-    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
+    out_step_schema: step#h374159a3a7450985a03adfac758a6e5c
     surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
   cont#hfc1e71a09d9175715af82908c44fd430:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
+    out_step_schema: step#h374159a3a7450985a03adfac758a6e5c
     surface_ty: scoop.core.Continuation<Nothing, Int, eff (sample.Inner + sample.Outer)>
   cont#h8367054dfe56f76b525d7b473ebecfee:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
+    out_step_schema: step#h935edd33c2bde6a25021d2be8223c7f6
     surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
   cont#h236303b34cba83f1fffaf345e396194c:
     resume_tuple_ty: Unit
     answer_ty: Int
-    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
+    out_step_schema: step#h935edd33c2bde6a25021d2be8223c7f6
     surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
   cont#hfde5c68ef1cfd8cdbefb61f18a04308a:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
+    out_step_schema: step#h935edd33c2bde6a25021d2be8223c7f6
     surface_ty: scoop.core.Continuation<Nothing, Int, eff (sample.Inner + sample.Outer)>
 callable_facts:
   sample.nested_may_suspend_outward:
@@ -60,7 +60,7 @@ callable_facts:
     declared_row: Pure
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
-    step_schema: step#h6842d4c14faa434657df0badab265ceb
+    step_schema: step#h374159a3a7450985a03adfac758a6e5c
     resolved_outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
     needs_reentry: true
     impl_plan: SingleCase(case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again)
