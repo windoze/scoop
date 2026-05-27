@@ -57,8 +57,6 @@ pub(crate) mod dump_support {
 pub use scoopc_effect_facts_stage as effect_facts_stage;
 pub use scoopc_lir::effect_facts;
 pub use scoopc_lir::effect_lowered;
-pub mod fixture_cli;
-pub mod fixtures;
 pub mod frontend;
 pub use scoopc_hir::hir;
 pub use scoopc_hir::infer;

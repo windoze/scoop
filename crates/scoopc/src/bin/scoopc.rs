@@ -26,7 +26,6 @@ fn main() -> Result<()> {
         CompilerCli::Dump(sub) => run_dump(sub),
         CompilerCli::DumpRtti(sub) => run_dump_rtti(sub),
         CompilerCli::DumpStackmaps(sub) => run_dump_stackmaps(sub),
-        CompilerCli::TestFixtures(sub) => scoopc::fixture_cli::run(sub),
     }
 }
 

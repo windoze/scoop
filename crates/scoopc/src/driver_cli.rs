@@ -2,7 +2,6 @@
 //!
 //! 该模块只负责把原始参数解析成稳定结构，避免把 session 配置散落在二进制入口里。
 
-use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 
 use miette::Result;
@@ -28,9 +27,6 @@ pub const USAGE: &str = "\
   scoopc dump-ast|dump-hir|dump-mir|dump-ir|dump-effect-facts|dump-effect-lowered <path>
   scoopc dump-rtti <path> [--type <TYPE>]
   scoopc dump-stackmaps [--verify-roots] [--dump-records] <path>
-  scoopc test-fixtures [--fixtures <path>] [--processes <N>] [--exit-on-failure] \
-      [--opt-level <0|1|2|3|s|z>] [--gc-stress] [--gc-move] [--threads <N>]
-
 说明：
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
   - `build-single-cone` 由 scoop 的 cone DAG scheduler 通过子进程派发，将 cone-being
@@ -49,7 +45,6 @@ pub enum CompilerCli {
     Dump(DumpCli),
     DumpRtti(DumpRttiCli),
     DumpStackmaps(DumpStackmapsCli),
-    TestFixtures(crate::fixture_cli::FixtureCliOptions),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -210,9 +205,6 @@ where
         Some("dump-rtti") => parse_dump_rtti(args_iter).map(|cli| Some(CompilerCli::DumpRtti(cli))),
         Some("dump-stackmaps") => {
             parse_dump_stackmaps(args_iter).map(|cli| Some(CompilerCli::DumpStackmaps(cli)))
-        }
-        Some("test-fixtures") => {
-            parse_test_fixtures(args_iter).map(|cli| Some(CompilerCli::TestFixtures(cli)))
         }
         Some(other) => Err(miette::miette!(
             "未知 scoopc 子命令或参数：{other}\n\n{USAGE}"
@@ -598,51 +590,6 @@ where
         verify_roots,
         dump_records,
     })
-}
-
-fn parse_test_fixtures<I>(args: I) -> Result<crate::fixture_cli::FixtureCliOptions>
-where
-    I: IntoIterator<Item = String>,
-{
-    let mut options = crate::fixture_cli::FixtureCliOptions::default();
-    let mut args = args.into_iter();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--fixtures" => {
-                options.fixtures = Some(PathBuf::from(required_arg(&mut args, "--fixtures")?))
-            }
-            "--processes" => {
-                let raw = required_arg(&mut args, "--processes")?;
-                let parsed: usize = raw
-                    .parse()
-                    .map_err(|_| miette::miette!("--processes 必须是正整数：{raw}"))?;
-                options.processes = NonZeroUsize::new(parsed)
-                    .ok_or_else(|| miette::miette!("--processes 必须大于 0"))?;
-            }
-            "--exit-on-failure" => options.exit_on_failure = true,
-            "--opt-level" => {
-                options.opt_level = Some(OptLevel::parse(&required_arg(&mut args, "--opt-level")?)?)
-            }
-            "--gc-stress" => options.gc_stress = true,
-            "--gc-move" => options.gc_move = true,
-            "--threads" => {
-                let raw = required_arg(&mut args, "--threads")?;
-                let parsed: u32 = raw
-                    .parse()
-                    .map_err(|_| miette::miette!("--threads 必须是正整数：{raw}"))?;
-                options.threads = Some(
-                    NonZeroU32::new(parsed)
-                        .ok_or_else(|| miette::miette!("--threads 必须大于 0"))?,
-                );
-            }
-            other => {
-                return Err(miette::miette!(
-                    "test-fixtures 不接受参数 `{other}`\n\n{USAGE}"
-                ));
-            }
-        }
-    }
-    Ok(options)
 }
 
 fn required_arg(args: &mut impl Iterator<Item = String>, name: &str) -> Result<String> {

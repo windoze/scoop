@@ -2,6 +2,32 @@
 
 Note: I cannot record private chain-of-thought, but I will keep this file updated with the concrete execution plan, progress, decisions, and validation results.
 
+Current task: P3-T01 - delete the compiler-side fixture runner engine files `crates/scoopc/src/fixtures/{mod,expectations,run_pass}.rs` and `crates/scoopc/src/fixture_cli.rs`.
+
+Execution plan:
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the current git state and latest commit only for context directly relevant to the selected task.
+3. Inspect the fixture engine modules and their references to determine the smallest safe deletion for P3-T01 without doing later P3 CLI-removal tasks.
+4. Delete the specified fixture engine source files and adjust only directly required module wiring so the crate remains buildable.
+5. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full test and fixture validation as required by the code change.
+6. Mark `P3-T01` `[DONE]` in `TODO.md`, append its completion record, commit task-related changes, and stop.
+
+Progress:
+- Read `TODO.md` and identified `P3-T01` as the first incomplete task.
+- Created the current invocation plan before running repository commands.
+- Checked latest commit `[P2-T09R] Review safepoint baseline docs`; it does not mention unfinished work relevant to P3-T01.
+- Removed the specified fixture engine files and the direct `scoopc` module/dispatch references that depended on those files.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py` (1533 checks), source reference grep, deleted-file glob check, and `cargo run -q -p scoopc -- test-fixtures` unknown-subcommand check.
+- Marked `P3-T01` `[DONE]` in `TODO.md` and appended its completion record.
+
+---
+
+## Previous progress log
+
+# Claude execution plan
+
+Note: I cannot record private chain-of-thought, but I will keep this file updated with the concrete execution plan, progress, decisions, and validation results.
+
 Current task: P2-T09R - review the `docs/safepoint_baseline.md` switch to the Python safepoint baseline tool.
 
 Execution plan:
@@ -15,13 +41,11 @@ Execution plan:
 Progress:
 - Created the current invocation plan before starting repository inspection.
 - Identified `P2-T09R` as the first incomplete task in `TODO.md`.
-- Reviewed `docs/safepoint_baseline.md`; the rerun command and snapshot source both point to `python3 tools/safepoint_baseline.py`, and the old safepoint baseline tool command is absent.
+- Reviewed `docs/safepoint_baseline.md`; the rerun command and snapshot source both point to `python3 tools/safepoint_baseline.py`, and the old safepoint baseline tool is absent.
 - Completed validation for the review: formatting, clippy, whitespace checks, old/new command searches, and `python3 -B tools/safepoint_baseline.py` all passed.
 - Marked `P2-T09R` complete in `TODO.md` with its validation record.
 
 ---
-
-## Previous progress log
 
 # Claude execution plan
 
