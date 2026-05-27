@@ -686,6 +686,14 @@ mod tests {
     }
 
     #[test]
+    fn test_fixtures_subcommand_is_removed() {
+        let err = parse_args(["test-fixtures"]).unwrap_err();
+
+        assert!(err.to_string().contains("未知 scoopc 子命令"));
+        assert!(!USAGE.contains("test-fixtures"));
+    }
+
+    #[test]
     fn build_single_cone_minimal_cli_parses() {
         let cli = build_single_cone(
             parse_args([
