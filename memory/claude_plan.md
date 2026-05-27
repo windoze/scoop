@@ -1,29 +1,27 @@
 # 当前执行计划
 
-## 约束
+## 约束说明
 
-- 以 `TODO.md` 为任务顺序和完成状态的唯一来源。
-- 本轮只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
-- 若遇到阻塞当前任务的缺失功能、规格不匹配或未排期失败，优先修复或在 `TODO.md` 中插入最小前置任务并停止。
-- 完成任务后更新 `TODO.md` 的 `[DONE]` 标记和完成记录，并提交 Git commit。
+- 本文件记录可共享的执行计划、关键决策和进度更新；不会记录不可公开的逐步内部推理。
+- `TODO.md` 是任务顺序、完成状态和验收要求的权威来源。
+- 本次只完成 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
 
-## 步骤
+## 初始计划
 
-1. 读取 `TODO.md`，定位第一个未完成任务，并查看该任务的依赖、验证要求和完成记录。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
-3. 根据任务内容读取必要代码和文档，确认实现范围。
-4. 实施最小正确变更，避免规避规格或使用夹具专用 hack。
-5. 按要求先运行格式化，再运行 lint，再运行相关测试；如仅有文档/任务记录变更，则沿用最近完整绿色结果并记录跳过原因。
-6. 更新 `TODO.md` 的任务标题和完成记录；仅当阶段计划变化时更新 `PLAN.md`。
-7. 检查工作区差异，提交本轮任务相关全部改动，然后停止。
+1. 读取 `TODO.md`，定位第一个未完成任务，并确认其依赖、验收要求和完成记录要求。
+2. 查看最近提交信息，若其明确提到与当前任务直接相关的未完成事项，则纳入当前任务或作为前置任务记录到 `TODO.md`。
+3. 读取当前任务涉及的代码、测试和文档，确定最小正确实现路径。
+4. 实现当前任务；如发现阻塞当前任务的真实缺口，优先修复，或在 `TODO.md` 中插入最小前置任务并停止。
+5. 运行格式化、lint 和相关测试；若代码变更影响范围较大，按要求运行完整测试与 fixture 套件。
+6. 更新 `TODO.md`：将完成任务标题加 `[DONE]`，填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 检查 git 状态和 diff，提交本次任务相关全部变更，然后停止，不继续下一个任务。
 
 ## 当前状态
 
-- 已读取 `TODO.md`，第一个未完成任务为 `P2-T04R`：复审 `README.md` 更新并确认无旧入口残留。
-- 已检查最近提交：`c243cc5b [P2-T04] Update README fixture runner docs`，与本任务直接相关，未发现需要作为前置处理的未完成问题。
-- 已复审 `README.md`：`TEST_INFRA_CLEANUP.md` §6 对 `README.md` 的三项要求均已落地；`python3 tools/run_fixtures.py`、`python3 tools/safepoint_baseline.py` 与 `tests/fixtures/` 执行方说明均存在。
-- 已验证 root `README.md` 旧入口搜索无命中；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
-- 完整 Rust 测试和完整 fixture 套件未重跑，因为本轮仅修改 markdown/任务记录，且最近完成记录已有完整绿色结果。
-- 已更新 `TODO.md`：`P2-T04R` 标题加 `[DONE]`，完成记录已追加验证命令和跳过完整套件的原因。
-- 已检查 diff/status：本轮相关改动为 `TODO.md`、`memory/claude_plan.md`；工作区另有既有无关改动，未纳入本次提交。
-- 已创建提交 `46bd38de [P2-T04R] Review README fixture commands`，本轮任务完成，接下来只做最终状态确认并停止。
+- 已读取 `TODO.md`，第一个未完成任务是 `P2-T05`：`tools/README.md` 整体重写为 python 脚本列表。
+- 最近提交为 `P2-T04R` README review，未发现需要在当前任务前插入的直接相关未完成事项。
+- 已读取 `tools/README.md`、`TEST_INFRA_CLEANUP.md` §6 和当前 `tools/*.py` / `tools/*.sh` 列表。
+- 已重写 `tools/README.md`：主清单覆盖 8 个 Python 脚本，shell helper 段落说明 3 个现有 shell 辅助脚本，并移除旧 Rust 工具箱与旧内置 runner 调用串。
+- 已验证旧入口模式在 `tools/README.md` 无命中，8 个 Python 脚本入口均已列出；`cargo fmt` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 已更新 `TODO.md`，将 `P2-T05` 标记为 `[DONE]` 并追加完成记录；完整 Rust 测试与 fixture 套件因本次仅修改文档/task bookkeeping，复用最近完整绿色结果。
+- 下一步：检查 git 状态和 diff，提交本任务变更后停止。
