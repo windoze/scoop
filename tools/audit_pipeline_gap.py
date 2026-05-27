@@ -234,8 +234,6 @@ def collect_line_hits(repo_root: Path, matches: Callable[[str], bool]) -> list[s
 
     hits: list[str] = []
     for path in files:
-        if path.name == "pipeline_gap_audit.rs":
-            continue
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

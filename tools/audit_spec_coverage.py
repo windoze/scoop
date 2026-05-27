@@ -373,8 +373,8 @@ def check_builder_invariant_readme_records_archive(repo_root: Path) -> list[str]
     failures: list[str] = []
     sentinel = sentinel_marker_value(repo_root, "SENTINEL")
     expected_test_ref = (
-        "crates/scoopc/src/audit/spec_coverage.rs::"
-        "umb_fix_builder_invariant_readme_records_archive"
+        "tools/audit_spec_coverage.py::"
+        "check_builder_invariant_readme_records_archive"
     )
     if expected_test_ref not in sentinel:
         failures.append(f"B-01 README should point at this sentinel test, got `{sentinel}`")

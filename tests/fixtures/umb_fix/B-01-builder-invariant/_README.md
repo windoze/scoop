@@ -11,10 +11,10 @@ B-01 is sentinel-only. User-facing `.scoop` fixtures cannot directly construct a
 
 ## Sentinel Coverage
 
-- SENTINEL: `crates/scoopc/src/audit/spec_coverage.rs::umb_fix_builder_invariant_readme_records_archive`
+- SENTINEL: `tools/audit_spec_coverage.py::check_builder_invariant_readme_records_archive`
 - SENTINEL-STATUS: archived-by-P8-T02
 - SENTINEL-COVERS: ARCHIVED: docs/archive/audits/unsupported-main-body/UMB_retired.csv
-- SENTINEL-NOTES: P7-B1 retired these helper invariant IDs; P8-T02 archived the retired ledger and no `_index.csv` fixture row is created because the coverage anchor is a Rust fixture-set audit.
+- SENTINEL-NOTES: P7-B1 retired these helper invariant IDs; P8-T02 archived the retired ledger and no `_index.csv` fixture row is created because the coverage anchor is the Python spec coverage audit.
 
 ## Runner Status
 

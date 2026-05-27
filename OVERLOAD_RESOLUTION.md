@@ -767,7 +767,7 @@ error: ambiguous overload for h((1, 2))
     - cross-incomparable; no candidate is strictly more specific
 ```
 
-错误信息中**不允许出现** `UnsupportedMainBody`、`backend`、`LLVM`、`codegen` 等内部术语（参见 `pipeline_user_visible_failure_policy.rs::FRONTEND_REJECT_FORBIDDEN_TERMS`）。
+错误信息中**不允许出现** `UnsupportedMainBody`、`backend`、`LLVM`、`codegen` 等内部术语（参见 `tools/audit_user_visible_failure_policy.py::FRONTEND_REJECT_FORBIDDEN_TERMS`）。
 
 ### 10.3 候选位置必填
 

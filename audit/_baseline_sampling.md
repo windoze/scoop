@@ -17,7 +17,7 @@
 | `kind:` 字面量字段出现数 | 1,247 | 不含动态/转发式 `kind` |
 | `kind:` 字面量去重数 | 982 | U1 需决定动态 kind 的 inventory 表达 |
 | 单次出现 `kind:` 字面量数 | 836 | 字面量字段口径 |
-| `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` entry 数 | 41 | `pipeline_user_visible_failure_policy.rs` |
+| `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` entry 数 | 41 | `tools/audit_user_visible_failure_policy.py` |
 | `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 总数 | 638 | 与当前 `assert_eq!(total, 638)` 一致 |
 | `CODEGEN_GAP_INVENTORY` entry 数 | 21 | `codegen_gap_inventory.rs` |
 

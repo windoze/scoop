@@ -42,7 +42,6 @@ FORBIDDEN_WORKSPACE_CRATES = (
     "scoop",
     "scoopc",
     "scoop_runtime",
-    "scoop_tools",
     "scoopld",
     "scoopc_ast",
     "scoopc_ast_facts",

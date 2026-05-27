@@ -93,7 +93,7 @@ def run() -> str:
 
     results: list[WorkloadResult] = []
     with tempfile.TemporaryDirectory(
-        prefix=f"safepoint-baseline-{os.getpid()}-", dir=target_dir
+        prefix=f"safepoint_baseline-{os.getpid()}-", dir=target_dir
     ) as temp_root_name:
         temp_root = Path(temp_root_name)
         for workload in WORKLOADS:

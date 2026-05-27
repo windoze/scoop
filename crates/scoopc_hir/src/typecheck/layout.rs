@@ -2,7 +2,7 @@
 //!
 //! 当前阶段（仍处于前端 typecheck）我们做两件事：
 //! 1. 为后续 codegen 固定“布局选择规则”（niche / boxing / tag type）；
-//! 2. 在 `scoop test` 运行时通过 `tracing` 记录 size disparity lint（warning）。
+//! 2. 在 fixture regression 运行时通过 `tracing` 记录 size disparity lint（warning）。
 //!
 //! 注意：
 //! - 这里的布局计算是“最小可用子集”，并不追求覆盖所有类型语法；

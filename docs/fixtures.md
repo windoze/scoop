@@ -1,16 +1,16 @@
 # Fixture runner contract
 
-This page records the fixture discovery and directive contract currently
-implemented by `crates/scoopc/src/fixtures/mod.rs` and
-`crates/scoopc/src/fixtures/expectations.rs`. The legacy `scoop test` runner
-uses these rules while the Python runner is being introduced.
+This page records the fixture discovery and directive contract implemented by
+`tools/run_fixtures.py`. The `scoop` and `scoopc` binaries treat
+`tests/fixtures/**/*.scoop` as ordinary source files; fixture orchestration lives
+outside the compiler binaries.
 
 ## Discovery roots and target planning
 
-`scoop test` defaults to `tests/fixtures`, and `--fixtures <path>` may point at
-the whole tree, a phase subtree, a multi-file case directory, a cone case
-directory, or one `.scoop` file. The runner canonicalizes that path before
-planning targets.
+`python3 tools/run_fixtures.py` defaults to `tests/fixtures`. Its optional
+positional path, or `--fixtures <path>`, may point at the whole tree, a phase
+subtree, a multi-file case directory, a cone case directory, or one `.scoop`
+file. The runner canonicalizes that path before planning targets.
 
 `plan_targets(root)` first recognizes roots that already are indivisible
 targets:
@@ -220,7 +220,7 @@ Known `ARGS:` consumers:
 | Phase | Accepted argument shapes | Effect |
 | --- | --- | --- |
 | `build` | `--emit-llvm`, `--emit-obj`, `--emit-asm` | Selects the artifact kind to emit. Without one of these flags, build fixtures are no-ops. |
-| `build` | `-O2`, `-Os`, `-Oz`, `-O <level>`, `--opt-level <level>`, `--opt-level=<level>` | Sets a fixture-local optimization level when no global `scoop test` optimization level overrides it. |
+| `build` | `-O2`, `-Os`, `-Oz`, `-O <level>`, `--opt-level <level>`, `--opt-level=<level>` | Sets a fixture-local optimization level when no global runner optimization level overrides it. |
 | `run-pass`, `codegen`, `runtime_gc` | Any tokens | Passed after the fixture path to `scoop run`. |
 | `run_pass_cone` cases | Any tokens; `--release` has special handling | Passed to cone-mode `scoop run`; `--release` also changes the expected output profile to `release`. |
 | `typecheck`, `unsafe_nogc` | `--target-platform <id>`, `--target-platform=<id>` | Overrides the type environment's target platform for platform-gating diagnostics. |
