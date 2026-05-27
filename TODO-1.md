@@ -7,7 +7,7 @@
 
 ## P0：冻结当前偏离、建立迁移清单与最小回归矩阵
 
-### [TODO] P0-T01：建立旧 surface / sysroot / fixture 迁移清单
+### [DONE] P0-T01：建立旧 surface / sysroot / fixture 迁移清单
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -45,9 +45,141 @@
 - 依赖：无
 - 完成记录：
   - 改动范围：
-  - 核心决策：
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`。
+    - 直接在本完成记录中写入迁移清单；未新增独立 inventory 文件，也未改 compiler / sysroot / fixture 行为。
+    - 按用户要求同步更新 `memory/claude_plan.md` 作为本轮执行进度记录。
+  - 旧 surface / sysroot / fixture 命中摘要：
+    - `perform`：
+      - 活跃 spec / split spec 仍有旧语法与说明：`SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part1.md`、`part2.md`、`part3.md`、`part4.md`。
+      - Parser / token 仍接受旧 keyword：`crates/scoopc_ast/src/syntax/lexer.rs` 将 `"perform"` lex 成 `Keyword::Perform`；`crates/scoopc_ast/src/parser/expr.rs::try_parse_expr_prefix` 将 `perform E.op(...)` 当作 effect-op call 语法糖。
+      - 后端与 effect pipeline 中有大量 “perform” 术语 / dump / fixture 命名，后续删除语法时需要区分内部 effect lowering 术语与用户可见旧语法。
+      - fixture 重点：`tests/fixtures/**/**/*perform*.scoop`，尤其 `tests/fixtures/{hir,mir,mir_lowered,effect_facts,effect_lowered}/handle_perform.scoop` 与 `tests/fixtures/run-pass/effect_*perform*.scoop`。
+    - Handler `with`：
+      - `SCOOP_FULL_SPEC.md` 与 split spec 中仍有 `handle { ... } with { ... }` 示例。
+      - Parser 仍固定要求 `with`：`crates/scoopc_ast/src/parser/expr.rs::parse_handle_expr` 在 handle body 后调用 `expect_keyword(Keyword::With)`。
+      - Lexer 只有 `with` keyword；尚无 handler 目标 keyword `on`。
+      - fixture 重点：`tests/fixtures/parse/handle_expr_minimal.scoop`、`handle_immediate_resume_removed.scoop`、`handle_expr_arm_recovery_two_errors.scoop`、`handle_arm_explicit_type_args_basic.scoop`。
+      - 注意不要误删 value / enum `with` update：`tests/fixtures/parse/with_update_expr.scoop` 与后续 `with` update fixtures 不是 handler 旧语法。
+    - Tuple `._0` / `._1`：
+      - Spec 仍写 `t._0` / `t._1`：`SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part2.md`。
+      - Parser member access 只接受 identifier，numeric member `t.0` 当前是 parse negative；typecheck / lowering / codegen 注释和逻辑仍按 `_0` / `_1` 识别。
+      - fixture 重点：`tests/fixtures/run-pass/tuple_access_basic.scoop`、`tuple_access_print_sum.scoop`、`higher_order_aggregate_return_closure_tuple.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`、`tests/fixtures/parse/tuple_access_numeric_member_not_allowed_fail.scoop`、`tests/fixtures/typecheck/with_update_tuple_nested_path_ok.scoop`、`with_update_tuple_overlapping_paths_is_error.scoop`。
+    - f-string `{...}` / `{{` / `}}`：
+      - Spec 仍使用单 `{expr}` 插值与 `{{` / `}}` literal brace escape：`SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part1.md`、`part3.md`、`part4.md`。
+      - Parser `split_interpolated_string_parts` 以单 `{` 开始插值，并把 `{{` / `}}` 当作 literal brace escape；目标是仅 `${...}` 开始插值，普通 `{` / `}` 为文本。
+      - fixture 重点：`tests/fixtures/parse/f_string_interpolation.scoop`、`tests/fixtures/codegen/f_string_interpolation.scoop`、`tests/fixtures/run-pass/fstring_desugar_basic.scoop`、`tests/fixtures/typecheck/fstring_interpolation_non_tostring_is_error.scoop`，以及多处 `runtime_gc` / `run_pass_cone` 中的 f-string 正例。
+    - `@Inline` / `annotation class Inline`：
+      - Spec 仍有 `@Inline` 专节、built-in annotation 表项和示例：`SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part1.md`、`part3.md`、`part5.md`。
+      - Sysroot 仍定义 `annotation class Inline`：`sysroot/lib/scoop.core/src/core.scoop`。
+      - Typecheck 仍识别 builtin annotation：`crates/scoopc_hir/src/typecheck/builtin_annotations.rs` 的 `BuiltinAnnotationKind::Inline` 与 `builtin_annotation_kind`，以及 `annotations.rs` 的 inline 专用检查。
+      - fixture / golden 重点：`tests/fixtures/typecheck/inline_annotation_fun_ok.scoop`、`inline_annotation_invalid_target_is_error.scoop`、`return_in_inline_annotation_lambda_arg_is_error.scoop`、`tests/fixtures/parse/inline_modifier_removed.scoop`，以及 `tests/fixtures/effect_lowered/*.effectlowered` 中由 sysroot annotation class 产生的 `scoop.core.Inline` golden。
+    - `AnyRef` / `AnyValue`：
+      - Spec / sysroot 仍把二者建模为 sealed marker interface：`SCOOP_FULL_SPEC.md`、`sysroot/lib/scoop.core/src/core.scoop`。
+      - Typecheck 仍有 marker 常量与 sealed-marker side table：`crates/scoopc_hir/src/typecheck/type_env.rs`、`where_clause.rs`、`interfaces.rs`。
+      - Runtime / MIR / codegen 侧仍有 marker 依赖：`crates/scoopc_mir/src/rtti/type_desc.rs`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`。
+      - Sysroot unsafe atomic refs 仍以 `where T: AnyRef` 表达：`sysroot/lib/scoop.unsafe/src/unsafe.scoop`。
+      - fixture 重点：`tests/fixtures/typecheck/sealed_interface_*`，尤其 marker 只能作 bound、禁止作参数 / 返回 / type argument / cast / supertype，以及 `sealed_interface_bounds_accept_ok.scoop`。
+    - 隐式 public sysroot / API declarations：
+      - `crates/scoopc_hir/src/resolve/mod.rs::visibility_from_modifiers` 当前默认 `Visibility::Public`。
+      - `sysroot/lib/scoop.core/src/core.scoop` 与 `sysroot/lib/scoop.unsafe/src/unsafe.scoop` 大量 top-level API 没有显式 `public`，包括 builtins、`Any` / `Hashable` / scalar types、`String`、`Array` / `MutableArray`、annotations、GC / reflection structs、numeric structs、unsafe `Ptr` / `FunPtr` / atomic helpers。
+      - Cone export / visibility 只导出 public：`crates/scoopc_cone/src/scoopir/export.rs`、`crates/scoopc_cone/src/visibility.rs`；默认改 internal 前必须先补 sysroot / fixture / cross-package API 的显式 `public`。
+    - 缺少 `operator` modifier 的 operator-like declarations：
+      - Sysroot numeric / char / bool / array / pointer API 大量使用 `plus`、`minus`、`times`、`div`、`rem`、`unaryPlus`、`unaryMinus`、`not`、`compareTo`、`get`、`set`，但 parser / AST 尚无 `operator` modifier surface。
+      - 典型位置：`sysroot/lib/scoop.core/src/core.scoop` 的 `Bool.not`、`Char.plus/minus/compareTo`、`Float32/Float64` 和整数族 arithmetic / comparison、`Array.get` / `MutableArray.set`；`sysroot/lib/scoop.unsafe/src/unsafe.scoop` 的 `Ptr.plus/minus` 与 `FunPtr.invoke`。
+      - fixture 重点：`tests/fixtures/run-pass/operator_overload_struct_basic.scoop`、`tests/fixtures/typecheck/operator_overload_plus_minus_ok.scoop`、`operator_overload_*_missing_is_error.scoop`。
+  - 需要优先关注的 fixture 文件 / glob：
+    - Handler parse：`tests/fixtures/parse/*handle*.scoop`（当前命中 `handle_expr_minimal.scoop`、`handle_immediate_resume_removed.scoop`、`handle_expr_arm_recovery_two_errors.scoop`、`handle_arm_explicit_type_args_basic.scoop`）。
+    - f-string parse：`tests/fixtures/parse/*f_string*.scoop`（当前命中 `f_string_interpolation.scoop`）。
+    - `with` parse：`tests/fixtures/parse/*with*.scoop`（当前命中 `with_update_expr.scoop`；保留为 value / enum `with` update 正例）。
+    - `perform`：`tests/fixtures/**/**/*perform*.scoop`（handle pipeline、run-pass effect escape / resume / indirect perform 系列）。
+    - overload：`tests/fixtures/**/**/*overload*.scoop`（`resolve/overload_*`、`typecheck/call_overload_*`、`infer/overload_resolution_*`、constructor / extension / operator overload 相关 fixtures）。
+    - vararg：`tests/fixtures/**/**/*vararg*.scoop`（`vararg_call_ok.scoop`、spread bridge / missing bridge / non-array error fixtures）。
+    - inline：`tests/fixtures/**/**/*inline*.scoop`（`inline_modifier_removed.scoop`、`inline_annotation_*`、inline lambda return fixtures）。
+    - not-null：`tests/fixtures/**/**/*not_null*.scoop`（`not_null_assert_*`、`safe_call_not_null_assert.scoop`、`elvis_not_null.scoop`）。
+    - cast：`tests/fixtures/**/**/*cast*.scoop`（`cast_as_*`、runtime typecheck cast, smart-cast, unsafe invalid-cast, sealed-marker cast negative fixtures）。
+  - 旧语法 fixture 迁移 / negative 分类：
+    - 机械迁移为新语法的正例：
+      - `perform Effect.op(...)` 正例改为普通 qualified effect op call `Effect.op(...)`。
+      - `handle { ... } with { ... }` 正例改为目标 handler keyword `handle { ... } on { ... }`。
+      - tuple 读取 / nested path 正例从 `t._0` / `t._1` 与 field path `_0` / `_1` 迁移到 numeric segment `.0` / `.1`。
+      - f-string 正例从 `f"{expr}"` 迁移到 `f"${expr}"`；旧 `{{` / `}}` escape 正例改成目标 literal-brace 表达方式。
+      - operator overload 正例在 parser surface 可用后给参与 operator-positioned call 的 callable 加 `operator`。
+      - `AnyRef` / `AnyValue` bound 正例迁移到 `ref` / `value` bound kind。
+      - 依赖跨包可见性的 sysroot / fixture API 在默认 internal 前补显式 `public`。
+    - 保留或新增为 negative 的旧 surface：
+      - `perform` keyword 本身。
+      - handler 专用 `with` keyword（不包括 value / enum `with` update）。
+      - tuple `._0` / `._1` 旧 member access。
+      - 旧 f-string `{expr}` 插值语义；后续应验证它不再求值为插值，或在需要表达旧插值意图时作为 negative / diagnostic fixture。
+      - `@Inline` positive surface；旧 `inline` keyword removed diagnostic fixture 可保留，但不再提示改写为 active `@Inline` surface。
+      - `AnyRef` / `AnyValue` 作为类型、supertype、type argument、cast target 等 marker-type 用法；P3 marker 删除后这些应保持前端 reject 或迁移为新的 bound-kind negative。
+  - overload 三个已知 bug 的最小代码样例：
+    - Concrete overload lowering 不应串扰：
+      ```scoop
+      package overload_concrete_bug
+
+      import scoop.core.*
+
+      fun f(x: Int): Int {
+          return x + 1
+      }
+
+      fun f(x: Bool): Bool {
+          return !x
+      }
+
+      fun main(): Int {
+          return f(10)
+      }
+      ```
+      当前基线：typecheck 放过，codegen / lowering 可能把同名 `f` 的参数类型串到 Bool 版本。目标：`f(Int)` 与 `f(Bool)` 独立 lower，main 返回 11。
+    - Arity overload 应各自 materialize callable version：
+      ```scoop
+      package overload_arity_bug
+
+      import scoop.core.*
+
+      fun g(x: Int): Int {
+          return x + 1
+      }
+
+      fun g(x: Int, y: Int): Int {
+          return x + y
+      }
+
+      fun main(): Int {
+          return g(10) + g(2, 3)
+      }
+      ```
+      当前基线：可能报缺少 `overload_arity_bug.g` published callable version。目标：按 arity 分别绑定并 lower，main 返回 16。
+    - Generic + concrete 同名时 concrete 按 specificity 胜出：
+      ```scoop
+      package overload_gvc_ok
+
+      import scoop.core.*
+
+      fun h<T>(x: T): T {
+          return x
+      }
+
+      fun h(x: Int): Int {
+          return x + 100
+      }
+
+      fun main(): Int {
+          return h(10)
+      }
+      ```
+      当前基线：typecheck 可能报 `scoop::typecheck::ambiguous_overload`。目标：`h(Int)` 比 `h<T>(T)` 更 specific，main 返回 110。
   - 验证结果：
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1533)`。
+    - 对必查 glob / 文件清单做了 `rg` / `glob` 抽样复核，覆盖 spec、sysroot、fixtures、parser、typecheck、lowering、cone visibility 入口。
+    - 完成验证后仅更新 `TODO.md` / `TODO-1.md` / `memory/claude_plan.md` 文档记录，未改编译输出；无需重新运行 suite。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `PLAN.md` P0 第一项：冻结旧 surface、sysroot 默认 public 假设、fixture 迁移范围与 overload bug baseline。
+    - 对应 `SPEC_FIX.md` 的 B4、C2、B2、B6、B1、C4、C5、A3 后续迁移入口。
+    - 对应 `OVERLOAD_RESOLUTION.md` §1 三个当前偏离样例，供 P0-T02 / P5 继续固化为正式 regression。
 
 ### [TODO] P0-T01R：Review 旧 surface / sysroot / fixture 迁移清单
 
