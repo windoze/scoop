@@ -159,7 +159,7 @@
     - 闭合 `SPEC_FIX.md` C2：`handle { ... } on { ... } finally { ... }` 成为唯一 positive handler surface；旧 handler `with` 只保留为 parser negative case / diagnostic 文本，value-update `with` 继续可用。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T02R：Review handler `on` 切换结果
+### [DONE] P2-T02R：Review handler `on` 切换结果
 
 - 参考：
   - P2-T02 完成记录
@@ -185,9 +185,23 @@
 - 依赖：P2-T02
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T02 parser surface：`parse_handle_expr` 只接受 `handle { ... } on { ... }`，旧 `handle { ... } with { ... }` 走 `scoop::parse::handler_with_keyword_removed` 定向诊断；`parse_with_update_expr` 仍保留 `expr with { ... }` postfix value-update 路径。
+    - 复核 handler 正例覆盖 parser / HIR / MIR / effect-facts / effect-lowered fixtures，旧 handler `with` negative fixture 存在且错误码稳定。
+    - 复核 active spec / split spec / comments：handler 示例与 try/catch desugaring均指向 `on`；review 中修正 `docs/spec/language_spec-part1.md` 的关键字列表，补入 `on` 并说明其 handler arm 用途。
   - 核心决策：
+    - 接受 P2-T02 的实现边界：`Keyword::On` 是显式关键字，handler `with` 不作为 soft-deprecated alias 保留。
+    - `with` 继续只作为 value-type copy-update surface 使用；本 review 未改变 handler typecheck、HIR lowering、MIR/effect lowering 语义。
+    - split spec 关键字列表遗漏 `on` 属于 review 修正，不改变 `PLAN.md` 阶段边界或依赖结构。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - Targeted fixtures：`tests/fixtures/parse/handle_expr_minimal.scoop`、`tests/fixtures/parse/handle_with_keyword_removed.scoop`、`tests/fixtures/parse/handle_immediate_resume_removed.scoop`、`tests/fixtures/parse/with_update_expr.scoop`、`tests/fixtures/hir/handle_perform.scoop`、`tests/fixtures/mir/handle_perform.scoop`、`tests/fixtures/effect_facts/handle_perform.scoop`、`tests/fixtures/effect_lowered/handle_perform.scoop`、`tests/fixtures/typecheck/with_update_struct_field_ok.scoop`、`tests/fixtures/run-pass/with_update_simple.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1536)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核闭合 `SPEC_FIX.md` C2：`handle { ... } on { ... } finally { ... }` 是唯一 positive handler surface，旧 handler `with` 只保留为 parser negative case / diagnostic 文本，value-update `with` 继续可用。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T03：实现 tuple field `.0` / `.1` 语法并移除 `._0` 正例
 

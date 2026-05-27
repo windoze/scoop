@@ -194,7 +194,7 @@ var threadCounter: Int = 0
 ```text
 public internal private open abstract sealed inline override vararg annotation
 package import typealias fun val var class interface struct enum effect object companion
-handle with try catch finally
+handle on with try catch finally
 do return if else when for in out where while break continue is as as?
 ```
 
@@ -202,6 +202,7 @@ do return if else when for in out where while break continue is as as?
 
 - `inline` 关键字已废弃；保留为解析期错误以提示删除该修饰符。
 - `perform` 前缀已移除；实现可保留为解析期错误以提示改写为普通 qualified effect operation call。
+- `on` 用于 `handle { ... } on { ... }` 的 handler arm 列表。
 - `with` 保留给值类型 copy-update 表达式；不提供 Kotlin 的 `with(obj) { ... }` scope function 语法。
 - `as?` 词法上作为安全 cast 关键字处理。
 
