@@ -1,3 +1,29 @@
+# Claude execution plan
+
+Note: I cannot record private chain-of-thought, but I will keep this file updated with the concrete execution plan, progress, decisions, and validation results.
+
+Current task: P2-T09 - switch docs/safepoint_baseline.md from the old scoop_tools safepoint-baseline invocation to the Python tool.
+
+Progress:
+- Read TODO.md and identified P2-T09 as the first incomplete task.
+- Checked the latest commit; it is the completed P2-T08R review and does not mention unfinished work relevant to P2-T09.
+- Inspected docs/safepoint_baseline.md and found two old command references: the rerun command and the current snapshot provenance line.
+- Updated docs/safepoint_baseline.md so both references use `python3 tools/safepoint_baseline.py`.
+- Verified docs/safepoint_baseline.md has the Python invocation and no old `cargo run -p scoop_tools -- safepoint-baseline` reference.
+- Ran `python3 tools/safepoint_baseline.py` successfully.
+- Ran `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check` successfully.
+- Marked P2-T09 as [DONE] in TODO.md and appended its completion record.
+- Full `cargo test --all --all-targets` and full `python3 tools/run_fixtures.py` were skipped per TODO policy because this task only changed Markdown/task bookkeeping since the recent green baseline.
+
+Execution plan:
+1. Confirm the final diff contains only the intended docs, TODO, and progress-plan updates.
+2. Commit task-related changes with message `[P2-T09] Update safepoint baseline docs` and the required co-author trailer.
+3. Stop without starting P2-T09R.
+
+---
+
+## Previous progress log
+
 # 执行计划
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判断第一个未完成任务。

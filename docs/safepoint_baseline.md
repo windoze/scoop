@@ -5,7 +5,7 @@
 ## 重跑方法
 
 ```bash
-cargo run -p scoop_tools -- safepoint-baseline
+python3 tools/safepoint_baseline.py
 ```
 
 该命令会自动：
@@ -35,7 +35,7 @@ cargo run -p scoop_tools -- safepoint-baseline
 
 ## 当前快照（2026-05-26）
 
-通过 `cargo run -p scoop_tools -- safepoint-baseline` 得到：
+通过 `python3 tools/safepoint_baseline.py` 得到：
 
 | workload | opt | statepoints | rooted statepoints | total gc-live roots | max gc-live roots |
 | --- | --- | ---: | ---: | ---: | ---: |
