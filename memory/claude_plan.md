@@ -1,31 +1,30 @@
-# 当前执行计划
+# 执行计划
 
-## 约束说明
+## 当前状态
 
-- 本文件记录可共享的执行计划、关键决策和进度更新；不会记录不可公开的逐步内部推理。
-- `TODO.md` 是任务顺序、完成状态和验收要求的权威来源。
-- 本次只完成 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
+- 本次调用目标：依据 `TODO.md` 完成第一个未标记 `[DONE]` 的任务，然后提交并停止。
+- 计划文件先行创建；后续在识别任务、关键实现步骤、验证结果和提交前更新本文件。
+- 本文件记录可审阅的执行计划与进展，不包含不可公开的内部推理。
 
-## 当前任务
+## 步骤计划
 
-- 已识别第一个未完成任务：`P2-T05R`。
-- 任务范围：复审 `tools/README.md` 重写结果，确认覆盖所有 P1 Python 脚本，并确认旧 fixture runner / `scoop_tools` 入口无残留。
-- 最近提交是 `[P2-T05] Record plan completion`，未明确留下与 `P2-T05R` 直接相关的未完成问题。
-- 若复审发现具体文档缺口，则修复 `tools/README.md`；否则只更新任务 bookkeeping。
+1. 读取 `TODO.md`，按文档顺序识别第一个标题未以 `[DONE]` 标记的任务。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成事项；如有，将其作为当前任务范围或必要前置项处理。
+3. 阅读当前任务相关的代码、规格、测试和既有记录，只做与当前任务相关的上下文收集。
+4. 若发现当前任务被具体缺失功能、规格不匹配或未排期失败阻塞，则按要求更新 `TODO.md` 添加最小前置任务，提交后停止。
+5. 若无阻塞，实施当前任务的最小正确变更。
+6. 运行格式化、lint、相关测试，并在必要时运行完整测试与 fixture 套件；发现未排期失败则修复或排期。
+7. 更新 `TODO.md`：给当前任务标题加 `[DONE]`，填写完成记录、验证命令和结果。仅当阶段计划本身变化时更新 `PLAN.md`。
+8. 检查工作区差异，提交本次任务涉及的全部未提交文件，提交信息使用任务编号前缀。
+9. 停止，不继续处理后续任务。
 
-## 复审发现
+## 进展日志
 
-- `tools/README.md` 已列出当前 `tools/*.py` 下全部 8 个 Python 脚本。
-- 常用命令块包含每个 P1 Python 脚本入口。
-- Shell helper 段落覆盖当前 3 个 `tools/*.sh` 文件。
-- `tools/README.md` 的旧入口定向搜索未发现 `scoop_tools`、`scoop test`、`cargo run -p scoop -- test` 或 `test-fixtures` 残留。
-- 无需修改 `tools/README.md`；本轮实际变更仅为 `TODO.md` 完成记录与本计划文件更新。
-
-## 验证与记录
-
-- `cargo fmt` 通过。
-- `cargo clippy --all-targets -- -D warnings` 通过。
-- `tools/README.md` 旧入口反向搜索无命中。
-- `tools/README.md` 新脚本入口搜索显示 8 个 P1 Python 脚本均出现在脚本清单和命令块中。
-- `TODO.md` 已将 `P2-T05R` 标记为 `[DONE]` 并追加完成记录。
-- 完整 Rust 测试与完整 fixture 套件未重跑，因为本 review 仅修改 markdown/task bookkeeping，且前一任务已有完整绿色结果，本轮没有代码变更。
+- 已创建初始执行计划。
+- 已读取 `TODO.md` 并确认第一个未完成任务是 `P2-T06`：更新 `PROMPT.md` 中 fixture-suite 命令与超时说明。
+- 最新提交为 `[P2-T05R] Review tools README scripts`，未显示与 `P2-T06` 直接相关的未完成事项。
+- 下一步只检查 `PROMPT.md` 与 P2 文档更新要求，替换旧 fixture runner 入口并验证无旧入口残留。
+- 已将 `PROMPT.md` 完整 fixture-suite 示例从旧 `cargo run -p scoop -- test` 替换为 `python3 tools/run_fixtures.py`，保留 30 分钟超时要求。
+- 已更新 `TODO.md`：`P2-T06` 标记为 `[DONE]`，并追加完成记录与验证计划。
+- 验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`PROMPT.md` 旧入口反向搜索、新入口与超时说明正向搜索、`git diff --check`。
+- 完整 Rust 测试与完整 fixture 套件未重跑，因为本次只修改 markdown/task bookkeeping，且自最近完整绿色结果以来无代码变更。
