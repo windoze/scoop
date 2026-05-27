@@ -2,45 +2,42 @@
 
 Note: This file records the actionable plan and progress updates for the current invocation. It intentionally avoids private chain-of-thought while preserving the steps needed to audit progress.
 
-## Initial Plan
+## Current task
 
-1. Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
-2. Inspect that task's requirements, dependencies, and validation instructions, plus any immediately relevant recent commit context.
-3. Implement the selected task completely, without working around missing language/runtime behavior.
-4. Run formatting, linting, relevant tests, and required fixture validation in the prescribed order.
-5. Update `TODO.md` to prefix the completed task heading with `[DONE]` and fill/update its completion record.
-6. Commit all changes for this invocation with a descriptive task-tagged message and stop without starting the next task.
+First incomplete task: `P2-T01R` in `TODO-2.md`, mirrored in the root `TODO.md` index.
+
+Goal: review the completed `P2-T01` removal of the `perform` prefix syntax and confirm that ordinary qualified effect operation calls still work end-to-end.
+
+## Plan
+
+1. Check the latest commit message for any unfinished issue directly relevant to `P2-T01R`.
+2. Inspect the `P2-T01` implementation surfaces:
+   - parser keyword/prefix handling;
+   - effect-op typecheck binding;
+   - HIR/MIR lowering paths;
+   - fixtures and spec snippets touched by the `perform` migration.
+3. Search active code, sysroot, specs, and fixtures for remaining `perform` usage.
+4. Confirm old `perform` syntax appears only in diagnostics, negative fixtures, or historical/design baseline documents.
+5. Confirm at least one migrated positive effect-op fixture uses direct `Effect.op(args)` form and still passes.
+6. Run required validation in the requested order:
+   - `cargo fmt`;
+   - `cargo clippy --all-targets -- -D warnings`;
+   - targeted effect-op/perform fixtures;
+   - full `cargo test --all --all-targets`;
+   - full `python3 tools/run_fixtures.py`.
+7. If the audit finds a defect, fix it in scope or add the minimum prerequisite task before `P2-T01R` and stop.
+8. If the audit passes, mark `P2-T01R` as `[DONE]` in both `TODO.md` and `TODO-2.md`, fill its completion record, and commit the task result.
 
 ## Progress
 
-- Plan file initialized.
-
-- Identified first incomplete task: P2-T01 (`perform` prefix removal and effect op call migration).
-- Latest commit is `[P1-T02R] Review Inline removal`; no directly relevant unfinished issue noted in the commit subject.
-- Next: inspect parser/typecheck/lowering handling and all `perform` fixtures/usages.
-
-- Confirmed `Effect.op(args)` already reaches effect operation typechecking/lowering through ordinary qualified call dispatch.
-- Implementation decision: keep `perform` lexed as a reserved keyword only to produce a targeted removal diagnostic; remove parser acceptance of prefix `perform expr`.
-- Next: patch parser diagnostics, update examples/tests/spec snippets, and add a negative parse fixture for old syntax.
-
-- Patched parser to reject `perform` with `scoop::parse::perform_keyword_removed`.
-- Added a negative parse fixture for old `perform` syntax.
-- Rewrote Rust test snippets and active spec examples from `perform Effect.op(...)` to `Effect.op(...)`.
-- Next: run formatting, linting, targeted validation, full Rust tests, and full fixture suite.
-
-- Targeted fixture run showed `perform_keyword_removed.scoop` unexpectedly succeeded.
-- Next: inspect parser behavior and fixture runner path, then fix the root cause before continuing validation.
-
-- Formatting, spec fixture check, clippy, CLI rebuild, and targeted perform fixtures passed after correcting the new fixture expectation.
-- Next: run the full Rust test suite, then the full fixture suite.
-
-- Full Rust test suite passed.
-- Full fixture suite passed.
-- Next: update TODO task status/completion record and commit the completed P2-T01 changes.
-
-- Updated `TODO.md` and `TODO-2.md` to mark P2-T01 `[DONE]` with completion details.
-- No phase-level plan change was needed, so `PLAN.md` remains unchanged.
-- Next: run final diff checks and commit all invocation changes.
-
-- Final diff check passed.
-- Committing P2-T01 completion changes now.
+- Identified `P2-T01R` as the first incomplete task.
+- Latest commit is `[P2-T01] Remove perform prefix syntax`; no unfinished issue in the subject directly changes `P2-T01R`.
+- Parser audit confirms `perform` is still lexed as a reserved keyword, but expression parsing now emits `scoop::parse::perform_keyword_removed` instead of accepting `perform expr`.
+- Typecheck/lowering audit confirms ordinary qualified member calls still route resolved effect operations through `infer_effect_op_call_expr_type` and `try_lower_effect_op_call_expr`.
+- Fixture/spec search found old prefix syntax only in the negative parse fixture and diagnostic/help text; other active `perform` occurrences are comments, prose, or internal runtime terminology.
+- `cargo fmt --all` and `cargo clippy --all-targets -- -D warnings` passed.
+- Initial targeted fixture command used multiple positional paths, but this runner accepts one path per invocation; rerunning the same targeted fixtures as separate commands.
+- Targeted `perform`/effect-op fixtures passed individually.
+- Full `cargo test --all --all-targets` passed.
+- Full `python3 tools/run_fixtures.py` passed with `fixtures: ok (1535)`.
+- Marked `P2-T01R` as `[DONE]` in both `TODO.md` and `TODO-2.md` and filled its completion record.

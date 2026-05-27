@@ -61,7 +61,7 @@
     - 闭合 `SPEC_FIX.md` B4：正向 surface 使用 `Effect.op(args)`，旧 `perform` prefix 只作为 parser diagnostic / negative fixture 存在。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T01R：Review `perform` 删除结果
+### [DONE] P2-T01R：Review `perform` 删除结果
 
 - 参考：
   - P2-T01 完成记录
@@ -87,9 +87,21 @@
 - 依赖：P2-T01
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T01 parser/typecheck/HIR/MIR 路径：`perform` 仍只作为 reserved keyword 提供定向 parser diagnostic，`try_parse_expr_prefix` 不再接受 `perform expr` 正向语法。
+    - 复核 ordinary qualified effect operation call 主线：`Effect.op(args)` / `Raise.raise(args)` 通过 member-call dispatch 进入 `infer_effect_op_call_expr_type`，HIR lowering 继续通过 typecheck 记录的 effect-op binding 生成内部 `Perform` 表达式。
+    - 复核 active spec / fixture / sysroot / compiler 搜索结果：旧 prefix spelling 只保留在 negative fixture、诊断/help 文本、设计/说明性 prose 或内部 lowering/runtime terminology 中；未发现可通过的 old syntax alias。
   - 核心决策：
+    - 接受 P2-T01 的实现边界：保留 `Keyword::Perform` 仅用于清晰错误信息，不作为 soft-deprecated alias。
+    - Review 未发现需要阻塞 P2-T02 的 effect op regression；`perform` 命名仍可作为内部 IR / runtime 概念使用，不代表 source syntax。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - Targeted fixtures：`python3 tools/run_fixtures.py tests/fixtures/parse/perform_keyword_removed.scoop`、`python3 tools/run_fixtures.py tests/fixtures/hir/handle_perform.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/effect_escape_continuation_multi_perform_basic.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1535)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核闭合 `SPEC_FIX.md` B4：source positive surface 已切换到普通 qualified effect op call，旧 `perform` prefix 只作为 parser negative case 存在。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T02：将 handler keyword 从 `with` 改为 `on`
 
