@@ -1,5 +1,5 @@
 // EXPECT: ok
-// SPEC: docs/spec/language_spec-part3.md#5-函数声明;docs/spec/language_spec-part3.md#51-inline;docs/spec/language_spec-part3.md#52-non-local-return
+// SPEC: docs/spec/language_spec-part3.md#5-函数声明;docs/spec/language_spec-part3.md#51-non-local-return
 // COVERS: NONE
 // BUCKETS: B-04
 // REASON: P7-B2.1 verifies function signature completeness before LLVM lowering.

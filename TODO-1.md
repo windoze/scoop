@@ -469,7 +469,7 @@
     - 闭合 `SPEC_FIX.md` B1：删除 `@Inline`，由 compiler 自主 inliner heuristic 决定内联。
     - 闭合 `PLAN.md` P1 中 `@Inline` 删除 gate；未改变阶段边界、依赖结构或后续任务完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P1-T02R：Review `@Inline` 删除结果
+### [DONE] P1-T02R：Review `@Inline` 删除结果
 
 - 参考：
   - P1-T02 完成记录
@@ -498,6 +498,20 @@
 - 依赖：P1-T02
 - 完成记录：
   - 改动范围：
+    - 执行 P1-T02R review audit，覆盖 active spec、split spec、sysroot、typecheck builtin annotation 识别、annotation checker、parser removed-keyword diagnostic、inline 相关 fixtures 与优化 pass 名称。
+    - 修正 `tests/fixtures/umb_fix/B-04-function-signature/{neg_function_signature_missing_type,pos_function_signature_return}.scoop` 与 `tests/fixtures/umb_fix/_index.csv` 中 stale `#51-inline` / `#52-non-local-return` metadata，改为当前 spec 的 `#51-non-local-return` anchor。
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`，并填写完成记录。
   - 核心决策：
+    - `@Inline` 不再是 active language / sysroot / typecheck positive surface；仓库仅保留 `inline_annotation_removed_is_error.scoop` 作为 unresolved annotation negative coverage。
+    - lowercase `inline` 仍作为 parser removed-keyword diagnostic 保留，`inline_modifier_removed.scoop` 验证旧 keyword 会在前端报错，且不会重新指向 `@Inline` annotation。
+    - compiler 自主优化路径仍存在：`SummaryDrivenInlining` MIR pass 与 `HigherOrderWrapperInlineDevirt` LIR pass 未被 P1-T02 删除，也不依赖用户可见 `@Inline`。
   - 验证结果：
+    - targeted search：active spec / split spec / sysroot / typecheck / fixtures 中不再出现 `annotation class Inline`、`BuiltinAnnotationKind::Inline`、`check_inline_annotation_uses`、`check_builtin_inline_annotation` 或 `scoop.core.Inline`。
+    - targeted search：active fixtures 中不再出现 stale `#51-inline` / `#52-non-local-return` spec anchors。
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1534)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` B1 的独立 review gate：`@Inline` 删除在 spec、sysroot、typecheck、fixtures 与 active metadata 中完整闭合，进入 P2 前无 `@Inline` active positive surface。
+    - 本次仅修正 review 发现的 fixture metadata 与任务记录，未改变 phase/stage 边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
