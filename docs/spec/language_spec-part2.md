@@ -6,10 +6,13 @@
 
 ## 1. 类型总览
 
-Scoop 类型分为两大类：
+Scoop 的普通运行期类型分为引用类型和值类型；此外还有不属于任一运行期值类别的特殊类型：
 
 ```text
 Types
+├── Special types（无运行期值类别）
+│   └── Nothing（bottom type，无 inhabitant）
+│
 ├── Reference types（GC 管理、堆分配、按引用访问）
 │   ├── class
 │   ├── interface
@@ -31,6 +34,7 @@ Types
 - 所有值类型不可变；构造后不能修改字段。
 - 值类型没有对象 identity，不能使用引用 identity 比较。
 - 值类型可以包含引用字段，但编译器和运行时必须保证这些引用可被 GC 精确追踪。
+- `Nothing` 没有运行期值或表示；它只用于描述永不正常返回的表达式或函数。
 
 ## 2. 根类型与特殊类型
 
@@ -46,7 +50,7 @@ val x: Any = 1
 
 ### 2.2 `Nothing`
 
-`Nothing` 是 bottom / uninhabited 类型。它没有运行期值，是所有类型的子类型。常见来源：
+`Nothing` 是 bottom / uninhabited 类型。它没有运行期值，是所有类型的子类型，只能作为永不正常返回的表达式或函数的类型。常见来源：
 
 ```kotlin
 effect Raise<E> {
@@ -58,7 +62,7 @@ fun fail(): Nothing {
 }
 ```
 
-`return`、`break`、`continue`、`panic(...)` 或永不正常返回的表达式也可在类型推断中表现为 bottom。
+`return`、`break`、`continue`、`panic(...)` 或永不正常返回的表达式也可在类型推断中表现为 bottom。`Nothing` 既不是引用类型也不是值类型，不参与引用/值类型分类。
 
 ### 2.3 `Unit`
 
@@ -332,6 +336,7 @@ struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
 - Struct 不能继承 struct 或 class。
 - 直接字段可写在主构造器中，也可写在类型体中。
 - 直接字段必须是 `val`。
+- Struct 不引入 `var` 字段；值更新必须构造新值。
 - 直接字段可有默认值。
 - 默认值在构造点求值：先求显式实参，再求缺省字段，最后组装值。
 - 直接字段参与布局、构造、解构和 `with` copy-update。
@@ -520,7 +525,7 @@ val h: Hashable = 42
 
 ## 8. `with` Copy-update
 
-值类型不可变；`with` 表达式创建修改后的副本：
+值类型不可变；`with` 表达式创建修改后的副本。Scoop 保留 `with` 作为值类型的更新机制，不引入 struct `var` 字段或 mutating method，原值不会被修改：
 
 ```kotlin
 val p2 = p with { x: 5 }

@@ -327,7 +327,7 @@
 
 ## P1：纯 spec / low-risk cleanup 与 `@Inline` 删除
 
-### [TODO] P1-T01：更新纯 spec 决议：`Nothing`、cone/package、value type `with`
+### [DONE] P1-T01：更新纯 spec 决议：`Nothing`、cone/package、value type `with`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -353,9 +353,24 @@
 - 依赖：P0-T02R
 - 完成记录：
   - 改动范围：
+    - 更新 `SCOOP_FULL_SPEC.md` §2.1、§2.3.1、§2.6、§13.1/§13.2 的纯 spec prose，写入 `Nothing`、cone/package 分层和 value type `with` 保留决议。
+    - 手工同步 split spec：`docs/spec/language_spec-part1.md` 的 Cone / `package` 语言边界，和 `docs/spec/language_spec-part2.md` 的 `Nothing`、struct `val` 字段、`with` copy-update 表述。
+    - 按用户要求同步更新 `memory/claude_plan.md` 作为本轮执行进度记录。
+    - 未修改 compiler、sysroot、fixtures、fixture-bearing spec code block 或 `PLAN.md`。
   - 核心决策：
+    - `Nothing` 已明确为 bottom / uninhabited type：是所有类型的子类型、无运行期值或表示、仅用于永不正常返回的表达式或函数，并且不属于 reference / value split。
+    - Cone 已明确为 distribution / build unit 与依赖、可见性、产物归档边界；`.cone` 是二进制归档格式；source-level `package` 是 Cone 内 namespace，源文件仍使用 `package foo.bar`。
+    - Value type 决议保持 immutability：struct 不引入 `var` 字段或 mutating method，`with` 保留为构造修改副本的更新机制；未提前修改 enum mismatched-variant failure mode。
+    - Split spec 当前为手工维护，本任务通过直接编辑对应分卷同步，没有生成流程需要执行。
   - 验证结果：
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `git diff --check`：通过，无 whitespace error。
+    - 人工复核 `SCOOP_FULL_SPEC.md` 与 `docs/spec/language_spec-part1.md` / `language_spec-part2.md` 中 `Nothing`、cone/package、value type `with` 的新表述；未改动 `perform`、handler `with`、f-string 等后续任务负责的 fixture-affecting code block。
+    - 本任务仅修改 markdown/progress 文档，未改编译输出；`cargo fmt`、`cargo clippy`、`cargo test` 和全量 fixture suite 按任务验证要求跳过。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` A1、A2、D1。
+    - 闭合 `PLAN.md` P1 中纯 spec 部分：§2.1 `Nothing`、§13 cone/package 层级、§2.6 value type immutability + `with` 保留。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P1-T01R：Review 纯 spec 决议更新
 

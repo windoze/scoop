@@ -27,6 +27,9 @@ fun main() {}
 
 ```
 Types
+├── Special types (no runtime value category)
+│   └── Nothing (bottom type, no inhabitants)
+│
 ├── Reference types (GC managed, heap allocated)
 │   ├── class (open / abstract / sealed)
 │   ├── interface
@@ -40,10 +43,11 @@ Types
     └── Unit (0-arity tuple)
 ```
 
-All types fall into one of two categories: **reference types** and **value types**.
+Ordinary runtime values fall into one of two categories: **reference types** and **value types**.
 
 - **Reference types** are allocated on the GC-managed heap and accessed by reference. Assignment copies the reference, not the value.
 - **Value types** are stored inline (on the stack or embedded in containing types). Assignment copies the entire value. All value types are **immutable** — their fields cannot be modified after construction.
+- **`Nothing`** is the uninhabited bottom type. It is a subtype of every type, has no values or runtime representation, and is used only for expressions or functions that never return normally (for example `raise(...)`, `panic(...)`, `return`, `break`, or `continue`). It is neither a reference type nor a value type and does not participate in reference/value classification.
 - **Sealed interface markers** are compile-time-only generic bounds. They classify types for type checking, but they are not runtime types and cannot hold values.
 
 ### 2.2 Reference Types
@@ -133,6 +137,7 @@ struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
 - Structs cannot extend other structs or classes.
 - Struct direct fields may be declared either in the primary constructor (`struct Point(val x: Int)`)
   or in the type body (`struct Point { val x: Int }`).
+- Struct direct fields must be immutable `val` fields; `var` fields are not part of the struct model.
 - Struct direct fields may have default values. These defaults participate uniformly in both
   `StructName(...)` and `StructName { ... }` construction forms.
 - Structs can contain both value type and reference type fields.
@@ -410,6 +415,8 @@ val list: List<Number> = listOf(1, 2, 3).map { it as Number }  // explicit conve
 ### 2.6 Value Type Update (`with` Expression)
 
 Since value types are immutable, the `with` expression creates a modified copy.
+Scoop keeps `with` as the update mechanism for value types instead of adding
+mutable struct fields or mutating methods; the original value is never changed.
 
 ```kotlin
 val p2 = p with { x: 5 }
@@ -1792,17 +1799,19 @@ combine(1) { it + 1 } { it + 2 } // multiple trailing lambdas
 Because plain local blocks require `do`, `val a = { println("hello") }` is always interpreted as assigning a closure. To assign the evaluated block result, write `val a = do { println("hello") }`.
 Likewise, `combine(1) { ... } { ... }` is still one call with multiple trailing lambdas; a following `do { ... }` starts the next expression/statement unless it is parenthesized as an ordinary argument.
 
-## 13. Package System (Cone)
+## 13. Cone and Package System
 
 ### 13.1 Overview
 
-A Scoop package is called a **Cone**. A compiled `.cone` file is a binary archive (similar to `.a` / `.rlib`) designed for binary distribution. Unlike Rust's `.rlib` (which is tied to rustc internals), the `.cone` format has a **stable IR specification** enabling cross-version compatibility, similar to JVM bytecode stability.
+A **cone** is the distribution and build unit of Scoop, analogous to a Rust crate. It is the boundary for dependencies, visibility, and compiled artifacts. A compiled `.cone` file is the cone's binary archive format (similar to `.a` / `.rlib`) designed for distribution.
+
+A source-level `package` is a namespace inside a cone, analogous to a Rust module. Source files continue to declare namespaces with `package foo.bar`; a cone may contain one or more packages. Unlike Rust's `.rlib` (which is tied to rustc internals), the `.cone` format has a **stable IR specification** enabling cross-version compatibility, similar to JVM bytecode stability.
 
 ### 13.2 Cone File Structure
 
 ```
 example.cone (archive)
-├── CONE_META              # Package metadata (name, version, deps, target, ir_version)
+├── CONE_META              # Cone metadata (name, version, deps, target, ir_version)
 ├── api.scoopir            # Public API signatures + type definitions (non-executable)
 ├── generics.scoopir       # Generic bodies in Scoop IR (non-executable)
 ├── sort.o                 # Non-generic function — precompiled machine code
