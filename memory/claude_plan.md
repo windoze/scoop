@@ -1,25 +1,30 @@
-# Execution Plan
+# 当前执行计划
 
-## Current Invocation
+## 执行原则
 
-This file records the actionable plan and progress checkpoints for the current TODO-driven invocation. It intentionally contains an execution summary rather than private reasoning.
+- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
+- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
+- 若发现阻塞当前任务的缺陷、缺失语言特性或未调度的测试失败，优先修复；若不能在当前任务内正确修复，则在 `TODO.md` 中加入最小必要前置任务并停止。
+- 不修改或回滚无关的既有工作区改动。
+- 完成任务后更新 `TODO.md` 完成记录，按要求运行格式化、lint、测试与 fixture 验证，并提交一次清晰的 Git commit。
 
-## Step-by-Step Plan
+## 步骤计划
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for directly relevant unfinished work after the first incomplete task is identified.
-3. Inspect the files and tests referenced by that task, keeping the scope limited to the task and any concrete prerequisites that block it.
-4. Implement the required change, or if a spec-correct implementation is blocked by an untracked prerequisite, update `TODO.md` with the minimum prerequisite task and stop after committing that bookkeeping.
-5. Run `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then relevant/full validation as required by the task and repository policy.
-6. Address any unscheduled failing tests or fixtures by fixing them or adding explicit prerequisite/follow-up tasks before marking the current task done.
-7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record with implementation and validation details.
-8. Commit all changes for this invocation with a descriptive task-tagged message.
-9. Stop after completing exactly one task.
+1. 读取 `TODO.md`，定位第一个未完成任务；必要时查看最近提交，判断是否有与该任务直接相关的未完成事项。
+2. 阅读当前任务的要求、依赖、验证标准和已有完成记录，确定是否能作为一个执行单元直接完成。
+3. 检查相关代码、测试、fixture 与文档，限定在当前任务所需范围内建立上下文。
+4. 实现当前任务；若遇到 spec mismatch、缺失功能或阻塞缺陷，不采用 workaround，而是修复根因或在 `TODO.md` 增加前置任务后停止。
+5. 运行 `cargo fmt`，随后运行 `cargo clippy --all-targets -- -D warnings`，再根据任务要求运行相关测试、完整测试与 fixture suite。
+6. 若验证失败，修复失败原因；若失败不属于已显式排期事项，必须修复或将其明确排入 `TODO.md`。
+7. 将当前任务标题标记为 `[DONE]`，补充完成记录与验证日志；仅当阶段级计划变化时更新 `PLAN.md`。
+8. 检查 `git status`、`git diff` 与最近提交，确认只提交本次任务应包含的文件；若是恢复未提交任务，则按用户要求纳入所有当前未提交文件。
+9. 创建符合仓库风格的提交，然后停止，不继续下一个任务。
 
-## Progress Log
+## 当前进度
 
-- Initialized invocation plan before inspecting project task state.
-- Identified first incomplete task: `P2-T03` (`AGENTS.md` update per `TEST_INFRA_CLEANUP.md` section 6). Next step is to inspect the relevant documentation requirements and recent commit context before editing.
-- Updated `AGENTS.md` to remove legacy fixture entrypoint descriptions and document the Python fixture/spec commands. Verified the updated file has no old fixture entrypoint strings.
-- Validation completed: `cargo fmt` and `cargo clippy --all-targets -- -D warnings` passed. Full Rust and fixture suites will be recorded as skipped because this invocation only changes markdown/task bookkeeping and the previous TODO entry already recorded green full-suite results.
-- Marked `P2-T03` as `[DONE]` in `TODO.md` and appended the completion record. Next step is to stage only this invocation's files and commit.
+- 已建立本次执行计划。
+- 已读取 `TODO.md`，确认第一个未完成任务是 `P2-T03R`：复审 `AGENTS.md` 更新，重点确认无旧 fixture runner 入口残留。
+- 本次不会推进 `P2-T04` 或后续任务；若复审发现问题，将在当前 review 任务内修正或记录必要前置问题。
+- 已复审 `AGENTS.md` 与 `TEST_INFRA_CLEANUP.md` §6 的 `AGENTS.md` checklist，确认无需修改正文。
+- 已运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、旧入口残留搜索与新 python 入口命中检查，均通过。
+- 已在 `TODO.md` 将 `P2-T03R` 标记为 `[DONE]` 并追加完成记录；完整 Rust 测试与 fixture suite 因本任务仅有 markdown/task bookkeeping 变更而复用最近绿色结果。
