@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: generic_inline_bounds.ast
+
+package fixtures.parse
+
+fun <T: Show> display(x: T): T {}
+
+class RefBox<T: ref> {}
+
+class ValueBox<T: value> {}
+
+class MixedBox<T: ref, U: Clone> where U: Show {}
+

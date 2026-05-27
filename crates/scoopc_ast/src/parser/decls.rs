@@ -303,13 +303,18 @@ impl<'a> Parser<'a> {
 
             let name_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
             let name = ast::Ident::new(name_tok.span);
+            let mut bounds = Vec::new();
+            let mut end = name_tok.span.end;
+            if self.eat_symbol(Symbol::Colon) {
+                let bound = self.parse_generic_bound()?;
+                end = bound.span().end;
+                bounds.push(bound);
+            }
             params.push(ast::TypeParam {
-                span: Span::new(
-                    variance_start.unwrap_or(name_tok.span.start),
-                    name_tok.span.end,
-                ),
+                span: Span::new(variance_start.unwrap_or(name_tok.span.start), end),
                 variance,
                 name,
+                bounds,
             });
 
             if self.eat_symbol(Symbol::Comma) {
@@ -349,7 +354,7 @@ impl<'a> Parser<'a> {
             let ty_param = ast::Ident::new(ty_param_tok.span);
 
             self.expect_symbol(Symbol::Colon)?;
-            let bound = self.parse_type_ref()?;
+            let bound = self.parse_generic_bound()?;
 
             let span = Span::new(ty_param_tok.span.start, bound.span().end);
             constraints.push(ast::WhereConstraint {
@@ -381,6 +386,20 @@ impl<'a> Parser<'a> {
             span: Span::new(start, end),
             constraints,
         }))
+    }
+
+    fn parse_generic_bound(&mut self) -> Result<ast::GenericBound, ParseError> {
+        match self.peek_bound_keyword() {
+            Some("ref") => {
+                let tok = self.bump();
+                Ok(ast::GenericBound::Ref { span: tok.span })
+            }
+            Some("value") => {
+                let tok = self.bump();
+                Ok(ast::GenericBound::Value { span: tok.span })
+            }
+            _ => Ok(ast::GenericBound::Type(self.parse_type_ref()?)),
+        }
     }
 
     /// 解析函数声明头中的“可选 receiver + name”：

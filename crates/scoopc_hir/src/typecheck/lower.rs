@@ -280,6 +280,9 @@ pub fn check_file_type_refs(
             ast::Item::TypeAlias(ta) => {
                 // typealias 的 RHS 允许引用其自身的 type params（例如 `typealias Handler<T> = (T) -> Unit`）。
                 ctx.push_type_params(&ta.type_params);
+                for constraint in ast::generic_constraints(&ta.type_params, None) {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
+                }
                 let _ = ctx.lower_type_ref(&ta.ty)?;
                 ctx.pop_type_params(&ta.type_params);
             }
@@ -307,11 +310,11 @@ pub fn check_file_type_refs(
                 if let Some(ret) = &fun.return_ty {
                     let _ = ctx.lower_type_ref(ret)?;
                 }
-                // T0458：`where` 子句中的 bound 同样属于 type position，需要参与 lowering。
-                if let Some(w) = &fun.where_clause {
-                    for c in &w.constraints {
-                        let _ = ctx.lower_bound_type_ref(&c.bound)?;
-                    }
+                // 泛型 bound 同样属于 type position，需要参与 lowering。
+                for constraint in
+                    ast::generic_constraints(&fun.type_params, fun.where_clause.as_ref())
+                {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 ctx.pop_type_params(&fun.type_params);
                 if eff_binding.is_some() {
@@ -320,6 +323,9 @@ pub fn check_file_type_refs(
             }
             ast::Item::ExtensionProperty(p) => {
                 ctx.push_type_params(&p.type_params);
+                for constraint in ast::generic_constraints(&p.type_params, None) {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
+                }
                 let _ = ctx.lower_type_ref(&p.receiver)?;
                 if let Some(ty) = &p.ty {
                     let _ = ctx.lower_type_ref(ty)?;
@@ -359,7 +365,12 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
+                ctx.push_type_params(&ta.type_params);
+                for constraint in ast::generic_constraints(&ta.type_params, None) {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
+                }
                 let _ = ctx.lower_type_ref(&ta.ty)?;
+                ctx.pop_type_params(&ta.type_params);
             }
             ast::Item::Fun(fun) => {
                 ctx.push_type_params(&fun.type_params);
@@ -385,10 +396,10 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
                 if let Some(ret) = &fun.return_ty {
                     let _ = ctx.lower_type_ref(ret)?;
                 }
-                if let Some(w) = &fun.where_clause {
-                    for c in &w.constraints {
-                        let _ = ctx.lower_bound_type_ref(&c.bound)?;
-                    }
+                for constraint in
+                    ast::generic_constraints(&fun.type_params, fun.where_clause.as_ref())
+                {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 ctx.pop_type_params(&fun.type_params);
                 if eff_binding.is_some() {
@@ -397,6 +408,9 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
             }
             ast::Item::ExtensionProperty(p) => {
                 ctx.push_type_params(&p.type_params);
+                for constraint in ast::generic_constraints(&p.type_params, None) {
+                    let _ = ctx.lower_generic_bound(constraint.bound)?;
+                }
                 let _ = ctx.lower_type_ref(&p.receiver)?;
                 if let Some(ty) = &p.ty {
                     let _ = ctx.lower_type_ref(ty)?;
@@ -432,6 +446,13 @@ pub(super) struct WhereBoundEntry {
     pub bound: ast::TypeRef,
     /// 声明处文件（用于在正确的 source/package/import 上下文中 lower bound type ref）。
     pub decl_file: std::path::PathBuf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoweredGenericBound {
+    Type(TypeId),
+    Ref,
+    Value,
 }
 
 pub struct TypeLowering<'a> {
@@ -1177,12 +1198,12 @@ impl<'a> TypeLowering<'a> {
         out
     }
 
-    pub(super) fn lower_bound_type_ref_in_decl_file_with_bindings(
+    pub(crate) fn lower_generic_bound_in_decl_file_with_bindings(
         &mut self,
         decl_file: &Path,
         bindings: impl IntoIterator<Item = (String, TypeId)>,
-        ty: &ast::TypeRef,
-    ) -> Result<TypeId, TypeLowerError> {
+        bound: &ast::GenericBound,
+    ) -> Result<LoweredGenericBound, TypeLowerError> {
         let decl_source = self.env.source(decl_file).unwrap_or(self.source);
         let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
             Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
@@ -1201,7 +1222,7 @@ impl<'a> TypeLowering<'a> {
         ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
         ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
         ctx.push_type_param_bindings(bindings);
-        let out = ctx.lower_bound_type_ref(ty);
+        let out = ctx.lower_generic_bound(bound);
         ctx.pop_type_param_bindings();
         out
     }
@@ -1462,6 +1483,19 @@ impl<'a> TypeLowering<'a> {
             return self.with_sealed_marker_bounds_allowed(|lower| lower.lower_type_ref(ty));
         }
         self.lower_type_ref(ty)
+    }
+
+    pub(crate) fn lower_generic_bound(
+        &mut self,
+        bound: &ast::GenericBound,
+    ) -> Result<LoweredGenericBound, TypeLowerError> {
+        match bound {
+            ast::GenericBound::Type(ty) => {
+                self.lower_bound_type_ref(ty).map(LoweredGenericBound::Type)
+            }
+            ast::GenericBound::Ref { .. } => Ok(LoweredGenericBound::Ref),
+            ast::GenericBound::Value { .. } => Ok(LoweredGenericBound::Value),
+        }
     }
 
     pub(super) fn lower_effect_row_expr(
@@ -2525,11 +2559,14 @@ impl<'a> TypeLowering<'a> {
             }
 
             // 在声明处文件上下文中 lowering bound，并用 use-site type args 对其中出现的 `T` 做 substitution。
-            let bound_ty = self.lower_bound_type_ref_in_decl_file_with_bindings(
+            let bound_ty = match self.lower_generic_bound_in_decl_file_with_bindings(
                 &sym.decl_file,
                 bindings.iter().cloned(),
                 &c.bound,
-            )?;
+            )? {
+                LoweredGenericBound::Type(bound_ty) => bound_ty,
+                LoweredGenericBound::Ref | LoweredGenericBound::Value => continue,
+            };
 
             if is_type_assignable(arg_ty, bound_ty, self, self.builtins) {
                 continue;
@@ -3566,11 +3603,9 @@ impl<'a> TypeLowering<'a> {
         // 变型位置规则（Appendix B.4）：在 lowering 过程中做最小静态校验。
         self.check_type_decl_variance_rules(ty)?;
 
-        // T0458：`where` 子句中的 bound 也需要参与 lowering（arity/存在性等由 lowering 负责）。
-        if let Some(w) = &ty.where_clause {
-            for c in &w.constraints {
-                let _ = self.lower_bound_type_ref(&c.bound)?;
-            }
+        // 泛型 bound 需要参与 lowering（arity/存在性等由 lowering 负责）。
+        for constraint in ast::generic_constraints(&ty.type_params, ty.where_clause.as_ref()) {
+            let _ = self.lower_generic_bound(constraint.bound)?;
         }
 
         // 主构造头参数类型
@@ -3721,10 +3756,10 @@ impl<'a> TypeLowering<'a> {
                     if let Some(ret) = &f.return_ty {
                         let _ = self.lower_type_ref(ret)?;
                     }
-                    if let Some(w) = &f.where_clause {
-                        for c in &w.constraints {
-                            let _ = self.lower_bound_type_ref(&c.bound)?;
-                        }
+                    for constraint in
+                        ast::generic_constraints(&f.type_params, f.where_clause.as_ref())
+                    {
+                        let _ = self.lower_generic_bound(constraint.bound)?;
                     }
                     if fun_eff_binding {
                         self.pop_effect_row_param_binding();

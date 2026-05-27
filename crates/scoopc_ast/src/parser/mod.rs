@@ -118,6 +118,17 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
+    #[error("语法错误：bound keyword `{keyword}` 只能出现在 generic bound 位置，不能作为类型使用")]
+    #[diagnostic(
+        code(scoop::parse::bound_keyword_type_position),
+        help("将 `{keyword}` 用作泛型约束右侧，例如 `<T: {keyword}>` 或 `where T: {keyword}`")
+    )]
+    BoundKeywordTypePosition {
+        keyword: &'static str,
+        #[label("这里不是 generic bound 右侧")]
+        span: miette::SourceSpan,
+    },
+
     #[error("语法错误：赋值表达式不能进入 HIR；assignment 当前只能作为语句使用")]
     #[diagnostic(
         code(scoop::parse::assignment_expression_not_allowed),
@@ -219,6 +230,7 @@ impl ParseError {
             ParseError::HandlerWithKeywordRemoved { span } => Some(*span),
             ParseError::InlineModifierRemoved { span } => Some(*span),
             ParseError::PerformKeywordRemoved { span } => Some(*span),
+            ParseError::BoundKeywordTypePosition { span, .. } => Some(*span),
             ParseError::AssignmentExpressionNotAllowed { span } => Some(*span),
             ParseError::SpreadArgOutsideCall { span } => Some(*span),
             ParseError::NamedArgOutsideCall { span } => Some(*span),

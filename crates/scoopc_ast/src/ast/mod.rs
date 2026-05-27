@@ -611,16 +611,12 @@ pub enum TypeParamVariance {
 }
 
 /// 声明处的类型参数（type parameter）。
-///
-/// 当前阶段：
-/// - (T0218) 支持无约束的 `T` / `U`
-/// - (T0249) 额外支持 `in T` / `out T` 声明处变型
-/// - 不支持上界/下界（`:` / `where`）（留给后续任务）
 #[derive(Clone)]
 pub struct TypeParam {
     pub span: Span,
     pub variance: Option<TypeParamVariance>,
     pub name: Ident,
+    pub bounds: Vec<GenericBound>,
 }
 
 impl std::fmt::Debug for TypeParam {
@@ -633,7 +629,42 @@ impl std::fmt::Debug for TypeParam {
             s.field("variance", &self.variance);
         }
         s.field("name", &self.name);
+        if !self.bounds.is_empty() {
+            s.field("bounds", &self.bounds);
+        }
         s.finish()
+    }
+}
+
+/// 泛型上界/种类约束右侧。
+///
+/// `ref` / `value` 是 bound-only context keywords，不是普通 `TypeRef`。
+#[derive(Clone)]
+pub enum GenericBound {
+    Type(TypeRef),
+    Ref { span: Span },
+    Value { span: Span },
+}
+
+impl GenericBound {
+    pub fn span(&self) -> Span {
+        match self {
+            GenericBound::Type(ty) => ty.span(),
+            GenericBound::Ref { span } | GenericBound::Value { span } => *span,
+        }
+    }
+}
+
+impl std::fmt::Debug for GenericBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            // 保持普通 `where T: Bound` 的既有 AST golden 形状。
+            GenericBound::Type(ty) => std::fmt::Debug::fmt(ty, f),
+            GenericBound::Ref { span } => f.debug_struct("RefBound").field("span", span).finish(),
+            GenericBound::Value { span } => {
+                f.debug_struct("ValueBound").field("span", span).finish()
+            }
+        }
     }
 }
 
@@ -666,7 +697,7 @@ impl std::fmt::Debug for WhereClause {
 pub struct WhereConstraint {
     pub span: Span,
     pub ty_param: Ident,
-    pub bound: TypeRef,
+    pub bound: GenericBound,
 }
 
 impl std::fmt::Debug for WhereConstraint {
@@ -677,6 +708,39 @@ impl std::fmt::Debug for WhereConstraint {
         s.field("bound", &self.bound);
         s.finish()
     }
+}
+
+pub struct GenericConstraintRef<'a> {
+    pub span: Span,
+    pub ty_param: Ident,
+    pub bound: &'a GenericBound,
+}
+
+/// Iterate inline `<T: Bound>` constraints followed by explicit `where` constraints.
+pub fn generic_constraints<'a>(
+    type_params: &'a [TypeParam],
+    where_clause: Option<&'a WhereClause>,
+) -> Vec<GenericConstraintRef<'a>> {
+    let mut out = Vec::new();
+    for param in type_params {
+        for bound in &param.bounds {
+            out.push(GenericConstraintRef {
+                span: Span::new(param.name.span.start, bound.span().end),
+                ty_param: param.name,
+                bound,
+            });
+        }
+    }
+    if let Some(where_clause) = where_clause {
+        for constraint in &where_clause.constraints {
+            out.push(GenericConstraintRef {
+                span: constraint.span,
+                ty_param: constraint.ty_param,
+                bound: &constraint.bound,
+            });
+        }
+    }
+    out
 }
 
 /// effect row 参数（`eff E = Pure`）（spec §3.4 / §5.8）。

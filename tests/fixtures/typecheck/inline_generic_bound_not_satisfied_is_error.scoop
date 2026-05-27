@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// 目标：inline `<T: Bound>` 进入与 `where T: Bound` 等价的实例化约束检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+
+struct Good : Show {}
+
+struct Bad {}
+
+class Box<T: Show> {}
+
+val ok: Box<Good>
+val nope: Box<Bad>
+

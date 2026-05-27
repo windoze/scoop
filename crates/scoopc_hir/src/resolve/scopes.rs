@@ -1609,7 +1609,8 @@ impl<'a> BlockScopeChecker<'a> {
         type_params: &[ast::TypeParam],
         where_clause: Option<&ast::WhereClause>,
     ) {
-        let Some(wc) = where_clause else {
+        let constraints = ast::generic_constraints(type_params, where_clause);
+        if constraints.is_empty() {
             self.where_bound_scopes.push(Vec::new());
             return;
         };
@@ -1618,12 +1619,15 @@ impl<'a> BlockScopeChecker<'a> {
             .map(|p| self.source.slice(p.name.span).to_string())
             .collect();
         let mut entries = Vec::new();
-        for c in &wc.constraints {
+        for c in constraints {
             let target = self.source.slice(c.ty_param.span).to_string();
             if !param_names.contains(&target) {
                 continue;
             }
-            if let Some(fqn) = self.type_ref_to_fqn(&c.bound) {
+            let ast::GenericBound::Type(bound_ty) = c.bound else {
+                continue;
+            };
+            if let Some(fqn) = self.type_ref_to_fqn(bound_ty) {
                 entries.push(WhereBoundEntry {
                     param_name: target,
                     bound_fqn: fqn,

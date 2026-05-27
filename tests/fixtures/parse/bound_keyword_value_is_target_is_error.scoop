@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::bound_keyword_type_position
+// EXPECT-ERROR: bound keyword `value`
+
+package fixtures.parse
+
+fun bad(x: Any): Bool {
+    return x is value
+}
+

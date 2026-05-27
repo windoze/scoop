@@ -538,8 +538,8 @@ pub(super) fn check_fun_body_exprs(
 
     // T0130：把函数声明处的 where 约束推入 bound 作用域，
     // 以便函数体内对 TypeKind::Param 接收者的方法调用可通过 bound 驱动分发。
-    let where_bounds_pushed = if let Some(wc) = &fun.where_clause {
-        let bounds = build_where_bound_entries(source, &fun.type_params, wc);
+    let bounds = build_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+    let where_bounds_pushed = if !bounds.is_empty() {
         lower.push_where_bounds(bounds);
         true
     } else {
@@ -1777,7 +1777,7 @@ pub(super) fn detect_smart_cast_for_if_condition(
 fn build_where_bound_entries(
     source: &SourceFile,
     type_params: &[ast::TypeParam],
-    where_clause: &ast::WhereClause,
+    where_clause: Option<&ast::WhereClause>,
 ) -> Vec<WhereBoundEntry> {
     let param_names: Vec<String> = type_params
         .iter()
@@ -1785,15 +1785,18 @@ fn build_where_bound_entries(
         .collect();
 
     let mut out = Vec::new();
-    for c in &where_clause.constraints {
+    for c in ast::generic_constraints(type_params, where_clause) {
         let target_name = source.slice(c.ty_param.span).to_string();
         // 只收集当前声明的 type params 的约束。
         if !param_names.contains(&target_name) {
             continue;
         }
+        let ast::GenericBound::Type(bound_ty) = c.bound else {
+            continue;
+        };
         out.push(WhereBoundEntry {
             param_name: target_name,
-            bound: c.bound.clone(),
+            bound: bound_ty.clone(),
             decl_file: source.path().to_path_buf(),
         });
     }

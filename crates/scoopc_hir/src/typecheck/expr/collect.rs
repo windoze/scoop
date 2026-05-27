@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
+use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};
@@ -552,15 +553,16 @@ fn build_fun_where_constraints(
     type_params: &[ast::TypeParam],
     where_clause: Option<&ast::WhereClause>,
 ) -> Vec<FunWhereConstraintInfo> {
-    let Some(wc) = where_clause else {
+    let constraints = ast::generic_constraints(type_params, where_clause);
+    if constraints.is_empty() {
         return Vec::new();
-    };
+    }
     let param_names: Vec<String> = type_params
         .iter()
         .map(|p| p.name.text(source).to_string())
         .collect();
     let mut out = Vec::new();
-    for c in &wc.constraints {
+    for c in constraints {
         let target_name = source.slice(c.ty_param.span).to_string();
         let Some(param_index) = param_names.iter().position(|n| n == &target_name) else {
             // 如果 target 不在当前函数的 type params 中，跳过
@@ -586,22 +588,31 @@ pub(super) fn build_fun_where_constraints_from_resolve_sig(
     type_params: &[crate::resolve::TypeParamSig],
     where_clause: Option<&ast::WhereClause>,
 ) -> Vec<FunWhereConstraintInfo> {
-    let Some(wc) = where_clause else {
-        return Vec::new();
-    };
     let param_names: Vec<&str> = type_params.iter().map(|p| p.name.as_str()).collect();
     let mut out = Vec::new();
-    for c in &wc.constraints {
-        let target_name = decl_source.slice(c.ty_param.span).to_string();
-        let Some(param_index) = param_names.iter().position(|n| *n == target_name) else {
-            continue;
-        };
-        out.push(FunWhereConstraintInfo {
-            _span: c.span,
-            param_index,
-            param_name: target_name,
-            bound: c.bound.clone(),
-        });
+    for (param_index, param) in type_params.iter().enumerate() {
+        for bound in &param.bounds {
+            out.push(FunWhereConstraintInfo {
+                _span: Span::new(param.name_span.start, bound.span().end),
+                param_index,
+                param_name: param.name.clone(),
+                bound: bound.clone(),
+            });
+        }
+    }
+    if let Some(wc) = where_clause {
+        for c in &wc.constraints {
+            let target_name = decl_source.slice(c.ty_param.span).to_string();
+            let Some(param_index) = param_names.iter().position(|n| *n == target_name) else {
+                continue;
+            };
+            out.push(FunWhereConstraintInfo {
+                _span: c.span,
+                param_index,
+                param_name: target_name,
+                bound: c.bound.clone(),
+            });
+        }
     }
     out
 }

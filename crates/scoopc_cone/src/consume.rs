@@ -388,6 +388,7 @@ fn build_cached_cone_import_from_payload(
             .map(|name| TypeParamSig {
                 name: name.clone(),
                 name_span: synth.alloc(name),
+                bounds: Vec::new(),
             })
             .collect::<Vec<_>>();
 

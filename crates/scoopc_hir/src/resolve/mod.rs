@@ -311,7 +311,7 @@ pub struct ParamSig {
     pub is_vararg: bool,
 }
 
-/// Index 侧记录的函数 type parameter（仅名字与 span）。
+/// Index 侧记录的函数 type parameter（名字、span 与 inline bounds）。
 ///
 /// 说明：
 /// - `Index` 会被跨文件调用点查询，因此需要保留 type param 的名字，
@@ -320,6 +320,7 @@ pub struct ParamSig {
 pub struct TypeParamSig {
     pub name: String,
     pub name_span: Span,
+    pub bounds: Vec<ast::GenericBound>,
 }
 
 /// Index 侧记录的“内建注解标记位”。
@@ -1655,6 +1656,7 @@ impl Index {
                 .map(|p| TypeParamSig {
                     name: p.name.text(source).to_string(),
                     name_span: p.name.span,
+                    bounds: p.bounds.clone(),
                 })
                 .collect::<Vec<_>>(),
             eff_param: fun.eff_param.clone(),
@@ -1821,8 +1823,18 @@ pub fn check_file_headers(
             ast::Item::TypeAlias(ta) => {
                 resolve_namespaced_annotations(source, file, index, &imports, &ta.annotations)?;
                 type_params.push_decl(source, &ta.type_params)?;
-                let result =
-                    resolve_type_ref(source, file, index, &imports, &type_params, None, &ta.ty);
+                let result = (|| {
+                    resolve_type_param_bounds(
+                        source,
+                        file,
+                        index,
+                        &imports,
+                        &type_params,
+                        None,
+                        &ta.type_params,
+                    )?;
+                    resolve_type_ref(source, file, index, &imports, &type_params, None, &ta.ty)
+                })();
                 type_params.pop_decl();
                 result?
             }
@@ -1838,6 +1850,15 @@ pub fn check_file_headers(
                 type_params.push_decl(source, &p.type_params)?;
                 let result = (|| {
                     resolve_namespaced_annotations(source, file, index, &imports, &p.annotations)?;
+                    resolve_type_param_bounds(
+                        source,
+                        file,
+                        index,
+                        &imports,
+                        &type_params,
+                        None,
+                        &p.type_params,
+                    )?;
                     resolve_type_ref(
                         source,
                         file,
@@ -1943,6 +1964,15 @@ fn resolve_fun_header(
     for p in &fun.params {
         resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
     }
+    resolve_type_param_bounds(
+        source,
+        file,
+        index,
+        imports,
+        type_params,
+        eff_param,
+        &fun.type_params,
+    )?;
 
     if let Some(receiver) = &fun.receiver {
         resolve_type_ref(
@@ -1983,6 +2013,15 @@ fn resolve_type_decl_headers(
     let result = (|| {
         resolve_namespaced_annotations(source, file, index, imports, &ty.annotations)?;
         let ty_eff_param = ty.eff_param.as_ref().map(|p| source.slice(p.name.span));
+        resolve_type_param_bounds(
+            source,
+            file,
+            index,
+            imports,
+            type_params,
+            ty_eff_param,
+            &ty.type_params,
+        )?;
 
         if let Some(w) = &ty.where_clause {
             resolve_where_clause(source, file, index, imports, type_params, ty_eff_param, w)?;
@@ -2139,7 +2178,7 @@ fn resolve_type_decl_headers(
 /// 解析 `where` 子句：
 ///
 /// - 约束左侧必须是当前可见的类型参数名（type param scope）；
-/// - 约束右侧的 `TypeRef` 复用现有的类型引用解析规则（包前缀 + import + 可见性）。
+/// - 普通类型 bound 复用现有类型引用解析规则；`ref` / `value` bound 不引入类型引用。
 fn resolve_where_clause(
     source: &SourceFile,
     file: &ast::File,
@@ -2157,7 +2196,7 @@ fn resolve_where_clause(
                 span: c.ty_param.span.into(),
             });
         }
-        resolve_type_ref(
+        resolve_generic_bound(
             source,
             file,
             index,
@@ -2168,6 +2207,40 @@ fn resolve_where_clause(
         )?;
     }
     Ok(())
+}
+
+fn resolve_type_param_bounds(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
+    params: &[ast::TypeParam],
+) -> Result<(), ResolveError> {
+    for param in params {
+        for bound in &param.bounds {
+            resolve_generic_bound(source, file, index, imports, type_params, eff_param, bound)?;
+        }
+    }
+    Ok(())
+}
+
+fn resolve_generic_bound(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
+    bound: &ast::GenericBound,
+) -> Result<(), ResolveError> {
+    match bound {
+        ast::GenericBound::Type(ty) => {
+            resolve_type_ref(source, file, index, imports, type_params, eff_param, ty)
+        }
+        ast::GenericBound::Ref { .. } | ast::GenericBound::Value { .. } => Ok(()),
+    }
 }
 
 fn resolve_object_decl_headers(

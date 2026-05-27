@@ -945,12 +945,15 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
             continue;
         }
 
-        // 在声明处文件上下文中 lower bound TypeRef，应用 type arg 替换。
-        let bound_ty = lower.lower_bound_type_ref_in_decl_file_with_bindings(
+        // 在声明处文件上下文中 lower bound，应用 type arg 替换。
+        let bound_ty = match lower.lower_generic_bound_in_decl_file_with_bindings(
             &sig.decl_file,
             bindings.iter().cloned(),
             &c.bound,
-        )?;
+        )? {
+            LoweredGenericBound::Type(bound_ty) => bound_ty,
+            LoweredGenericBound::Ref | LoweredGenericBound::Value => continue,
+        };
 
         if is_type_assignable(arg_ty, bound_ty, lower, builtins) {
             continue;

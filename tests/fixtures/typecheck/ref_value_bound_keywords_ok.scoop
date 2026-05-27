@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：`ref` / `value` 只作为 generic bound keyword 被解析并传入 typecheck；P3-T06 再实现满足性。
+
+package fixtures.typecheck
+
+class RefBox<T: ref> {}
+
+class ValueBox<T: value> {}
+
+fun <T: ref, U: value> pairRefValue(x: T, y: U): T {
+    return x
+}
+

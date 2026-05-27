@@ -153,6 +153,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_path_type(&mut self) -> Result<ast::TypeRef, ParseError> {
+        if let Some(keyword) = self.peek_bound_keyword() {
+            let tok = *self.peek();
+            return Err(ParseError::BoundKeywordTypePosition {
+                keyword,
+                span: tok.span.into(),
+            });
+        }
+
         let first = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
         let start = first.span.start;
         let mut segments = vec![ast::Ident::new(first.span)];
@@ -180,6 +188,16 @@ impl<'a> Parser<'a> {
             segments,
             args,
         }))
+    }
+
+    pub(super) fn peek_bound_keyword(&self) -> Option<&'static str> {
+        if self.peek_ident_text("ref") {
+            Some("ref")
+        } else if self.peek_ident_text("value") {
+            Some("value")
+        } else {
+            None
+        }
     }
 
     pub(super) fn parse_type_args(&mut self) -> Result<(Vec<ast::TypeRef>, usize), ParseError> {

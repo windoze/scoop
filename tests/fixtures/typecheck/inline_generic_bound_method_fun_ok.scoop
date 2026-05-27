@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：inline `<T: Bound>` 与 `where T: Bound` 一样驱动泛型函数体内的 bound 方法分发。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {
+    fun show(): String
+}
+
+fun <T: Show> display(x: T): String {
+    return x.show()
+}
+

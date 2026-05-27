@@ -26,7 +26,7 @@ use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
-use super::super::lower::TypeLowering;
+use super::super::lower::{LoweredGenericBound, TypeLowering};
 use super::super::type_env::{EnumVariantInfo, TypeSymbol};
 use super::super::{TypeLowerError, TypeSymbolKind};
 

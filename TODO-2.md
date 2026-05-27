@@ -489,7 +489,7 @@
     - 复核并闭合 SPEC_FIX A3 / PLAN P2 中 “parser / AST surface 能表达 operator modifier 且 P3 可查询 metadata” 的 review 要求。
     - 阶段边界、依赖结构与完成条件未变化；无需更新 `PLAN.md`。
 
-### [TODO] P2-T06：解析 inline generic bounds 与 `ref` / `value` bound keywords
+### [DONE] P2-T06：解析 inline generic bounds 与 `ref` / `value` bound keywords
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -521,9 +521,24 @@
 - 依赖：P2-T05R
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc_ast`：新增 `GenericBound` AST 表达，`TypeParam` 可携带 inline bounds；parser 接受 `<T: Bound>`、`<T: ref>`、`<T: value>`，并让 `where T: ref/value` 进入同一 bound 表达。
+    - `crates/scoopc_ast`：`ref` / `value` 作为 bound-only context keyword 处理；普通 type position（参数、返回值、type arg、`is` / `as` target、supertype）统一报 `scoop::parse::bound_keyword_type_position`。
+    - `crates/scoopc_hir` / `crates/scoopc_cone`：resolver、TypeEnv、where-clause 检查、函数签名收集、where-bound 方法分发与实例化约束检查统一读取 inline bounds + 显式 `where` constraints；`ref` / `value` 暂只 lower 为 bound kind 占位，满足性语义留给 P3-T06。
+    - 新增 parser/typecheck fixtures 覆盖 inline type bounds、`ref` / `value` 正向 bound surface，以及所有指定非法类型位置。
   - 核心决策：
+    - `ref` / `value` 不加入 lexer keyword 表，保持 context keyword 策略，避免污染普通 identifier surface；只有 generic bound 右侧会消费为 bound kind。
+    - 普通 type bounds 仍以既有 `TypeRef` 语义 lower，保留 `AnyRef` / `AnyValue` sealed marker 与旧 marker 约束逻辑；P3-T06 负责替换为真正 kind-satisfaction 语义并删除 marker。
+    - Inline `<T: Bound>` 与 `where T: Bound` 在 HIR/typecheck consumers 中通过 `ast::generic_constraints(...)` 汇合，避免 P3 再改 parser。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - Targeted fixtures：`generic_inline_bounds.scoop`、全部 `bound_keyword_*_is_error.scoop`、`inline_generic_bound_method_fun_ok.scoop`、`inline_generic_bound_not_satisfied_is_error.scoop`、`ref_value_bound_keywords_ok.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1551)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 SPEC_FIX C4 / PLAN P2 中 parser / AST surface 对 inline bounds 与 `ref` / `value` bound keywords 的前置要求。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T06R：Review generic bound parser surface
 

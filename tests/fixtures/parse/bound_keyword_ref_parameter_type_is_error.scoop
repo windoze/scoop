@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::bound_keyword_type_position
+// EXPECT-ERROR: bound keyword `ref`
+
+package fixtures.parse
+
+fun bad(x: ref): Unit {}
+

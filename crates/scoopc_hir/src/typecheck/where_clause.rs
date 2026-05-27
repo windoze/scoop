@@ -16,7 +16,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 
-use super::lower::{TypeLowerError, TypeLowering};
+use super::lower::{LoweredGenericBound, TypeLowerError, TypeLowering};
 use super::type_env::{ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -96,15 +96,16 @@ fn check_fun_where_clause(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), WhereClauseError> {
-    let Some(w) = &fun.where_clause else {
+    let constraints = ast::generic_constraints(&fun.type_params, fun.where_clause.as_ref());
+    if constraints.is_empty() {
         return Ok(());
-    };
+    }
 
     let declared = collect_type_param_names(source, &fun.type_params);
 
     // `where` 的 bound lowering 允许看到该 fun 的 type params（用于识别/诊断 `T` 这类引用）。
     lower.push_type_params(&fun.type_params);
-    let result = check_one_where_clause(source, w, &declared, lower, builtins);
+    let result = check_one_generic_constraints(source, &constraints, &declared, lower, builtins);
     lower.pop_type_params(&fun.type_params);
     result
 }
@@ -118,9 +119,10 @@ fn check_type_decl_where_clause(
     lower.push_type_params(&decl.type_params);
 
     let result = (|| {
-        if let Some(w) = &decl.where_clause {
+        let constraints = ast::generic_constraints(&decl.type_params, decl.where_clause.as_ref());
+        if !constraints.is_empty() {
             let declared = collect_type_param_names(source, &decl.type_params);
-            check_one_where_clause(source, w, &declared, lower, builtins)?;
+            check_one_generic_constraints(source, &constraints, &declared, lower, builtins)?;
         }
 
         let Some(body) = &decl.body else {
@@ -179,9 +181,9 @@ fn check_object_decl_where_clauses(
     Ok(())
 }
 
-fn check_one_where_clause(
+fn check_one_generic_constraints(
     source: &SourceFile,
-    w: &ast::WhereClause,
+    constraints: &[ast::GenericConstraintRef<'_>],
     declared_type_params: &[String],
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
@@ -194,7 +196,7 @@ fn check_one_where_clause(
     let mut first_class_bound: HashMap<String, (TypeId, Span)> = HashMap::new();
     let mut marker_bounds: HashMap<String, HashSet<String>> = HashMap::new();
 
-    for c in &w.constraints {
+    for c in constraints {
         let param = source.slice(c.ty_param.span).to_string();
         if !declared_set.contains(param.as_str()) {
             return Err(WhereClauseError::TargetNotInCurrentDecl {
@@ -203,7 +205,10 @@ fn check_one_where_clause(
             });
         }
 
-        let bound_ty = lower.lower_bound_type_ref(&c.bound)?;
+        let bound_ty = match lower.lower_generic_bound(c.bound)? {
+            LoweredGenericBound::Type(bound_ty) => bound_ty,
+            LoweredGenericBound::Ref | LoweredGenericBound::Value => continue,
+        };
 
         if let Some(marker_fqn) = lower.sealed_marker_fqn(bound_ty) {
             let markers = marker_bounds.entry(param.clone()).or_default();

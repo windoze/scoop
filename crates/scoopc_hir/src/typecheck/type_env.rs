@@ -176,7 +176,7 @@ pub struct TypeSymbol {
     /// - `None` 表示 invariant；
     /// - `Some(In|Out)` 对应 `in`/`out`。
     pub type_param_variances: Vec<Option<ast::TypeParamVariance>>,
-    /// `where` 子句的约束信息（T0458）。
+    /// 泛型约束信息（T0458）。
     ///
     /// 说明：
     /// - 这里保留 `TypeRef`（而不是提前 lowering 成 `TypeId`），以便在 use-site
@@ -210,14 +210,14 @@ pub struct EffParamInfo {
     pub default: Option<ast::EffectRowExpr>,
 }
 
-/// `where` 子句的一条约束在 type env 中的最小表示。
+/// 泛型约束的一条约束在 type env 中的最小表示。
 #[derive(Debug, Clone)]
 pub struct WhereConstraintInfo {
     pub span: Span,
     /// 约束目标在声明 type param 列表中的索引（0-based）。
     pub param_index: usize,
-    /// 约束右侧的 bound TypeRef（在声明处文件上下文中解析/lower）。
-    pub bound: ast::TypeRef,
+    /// 约束右侧的 bound（在声明处文件上下文中解析/lower）。
+    pub bound: ast::GenericBound,
 }
 
 /// nominal 类型声明头中的一条 direct supertype 定义。
@@ -806,25 +806,23 @@ impl TypeEnv {
             decl.type_params.iter().map(|p| p.variance).collect();
 
         let mut where_constraints: Vec<WhereConstraintInfo> = Vec::new();
-        if let Some(w) = &decl.where_clause {
-            // type param name -> index
-            let mut idx_of: HashMap<&str, usize> = HashMap::new();
-            for (idx, name) in type_params.iter().enumerate() {
-                idx_of.insert(name.as_str(), idx);
-            }
+        // type param name -> index
+        let mut idx_of: HashMap<&str, usize> = HashMap::new();
+        for (idx, name) in type_params.iter().enumerate() {
+            idx_of.insert(name.as_str(), idx);
+        }
 
-            for c in &w.constraints {
-                let name = source.slice(c.ty_param.span);
-                let Some(&param_index) = idx_of.get(name) else {
-                    // resolver/typecheck 会给出更精确的诊断；这里保持健壮性。
-                    continue;
-                };
-                where_constraints.push(WhereConstraintInfo {
-                    span: c.span,
-                    param_index,
-                    bound: c.bound.clone(),
-                });
-            }
+        for c in ast::generic_constraints(&decl.type_params, decl.where_clause.as_ref()) {
+            let name = source.slice(c.ty_param.span);
+            let Some(&param_index) = idx_of.get(name) else {
+                // resolver/typecheck 会给出更精确的诊断；这里保持健壮性。
+                continue;
+            };
+            where_constraints.push(WhereConstraintInfo {
+                span: c.span,
+                param_index,
+                bound: c.bound.clone(),
+            });
         }
 
         let is_sealed_interface = decl.kind == ast::TypeKind::Interface
@@ -1874,7 +1872,7 @@ class Box<T> where T: Show {}
         assert_eq!(sym.where_constraints[0].param_index, 0);
 
         match &sym.where_constraints[0].bound {
-            ast::TypeRef::Path(p) => {
+            ast::GenericBound::Type(ast::TypeRef::Path(p)) => {
                 assert_eq!(p.segments.len(), 1);
                 assert_eq!(src.slice(p.segments[0].span), "Show");
             }

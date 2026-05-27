@@ -619,8 +619,9 @@ fn check_class_member_fun_bodies_in_type_decl(
     if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct) {
         lower.push_type_params(&decl.type_params);
 
-        let type_where_bounds_pushed = if let Some(wc) = &decl.where_clause {
-            let bounds = build_type_where_bound_entries(source, &decl.type_params, wc);
+        let bounds =
+            build_type_where_bound_entries(source, &decl.type_params, decl.where_clause.as_ref());
+        let type_where_bounds_pushed = if !bounds.is_empty() {
             lower.push_where_bounds(bounds);
             true
         } else {
@@ -1771,7 +1772,7 @@ fn reject_static_initializer_effects(
 fn build_type_where_bound_entries(
     source: &SourceFile,
     type_params: &[ast::TypeParam],
-    where_clause: &ast::WhereClause,
+    where_clause: Option<&ast::WhereClause>,
 ) -> Vec<WhereBoundEntry> {
     let param_names: Vec<String> = type_params
         .iter()
@@ -1779,14 +1780,17 @@ fn build_type_where_bound_entries(
         .collect();
 
     let mut out = Vec::new();
-    for c in &where_clause.constraints {
+    for c in ast::generic_constraints(type_params, where_clause) {
         let target_name = source.slice(c.ty_param.span).to_string();
         if !param_names.contains(&target_name) {
             continue;
         }
+        let ast::GenericBound::Type(bound_ty) = c.bound else {
+            continue;
+        };
         out.push(WhereBoundEntry {
             param_name: target_name,
-            bound: c.bound.clone(),
+            bound: bound_ty.clone(),
             decl_file: source.path().to_path_buf(),
         });
     }

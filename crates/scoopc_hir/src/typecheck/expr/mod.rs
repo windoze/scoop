@@ -71,8 +71,8 @@ struct FunWhereConstraintInfo {
     param_index: usize,
     /// 约束目标的 type param 名称（用于诊断消息）。
     param_name: String,
-    /// 约束右侧的 bound TypeRef（在声明处文件上下文中 lower）。
-    bound: ast::TypeRef,
+    /// 约束右侧的 bound（在声明处文件上下文中 lower）。
+    bound: ast::GenericBound,
 }
 
 #[derive(Debug, Clone)]
