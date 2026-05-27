@@ -34,7 +34,7 @@
 | 任务 | 状态 | 文件 | 目标 |
 | --- | --- | --- | --- |
 | P0-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01建立旧-surface--sysroot--fixture-迁移清单) | [DONE] 建立旧 surface / sysroot / fixture 迁移清单 |
-| P0-T01R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t01rreview-旧-surface--sysroot--fixture-迁移清单) | Review P0-T01 迁移清单质量 |
+| P0-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01rreview-旧-surface--sysroot--fixture-迁移清单) | [DONE] Review P0-T01 迁移清单质量 |
 | P0-T02 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02建立-overload-bug-与-diagnostics-基线样例) | 建立 overload bug 与 diagnostics 基线样例 |
 | P0-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02rreview-overload-bug-与-diagnostics-基线) | Review P0-T02 overload 基线质量 |
 | P1-T01 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t01更新纯-spec-决议nothingconepackagevalue-type-with) | 更新纯 spec 决议：`Nothing`、cone/package、value type `with` |

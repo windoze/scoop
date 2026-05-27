@@ -181,7 +181,7 @@
     - 对应 `SPEC_FIX.md` 的 B4、C2、B2、B6、B1、C4、C5、A3 后续迁移入口。
     - 对应 `OVERLOAD_RESOLUTION.md` §1 三个当前偏离样例，供 P0-T02 / P5 继续固化为正式 regression。
 
-### [TODO] P0-T01R：Review 旧 surface / sysroot / fixture 迁移清单
+### [DONE] P0-T01R：Review 旧 surface / sysroot / fixture 迁移清单
 
 - 参考：
   - P0-T01 完成记录
@@ -207,9 +207,23 @@
 - 依赖：P0-T01
 - 完成记录：
   - 改动范围：
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`，并填写 review 完成记录。
+    - 未修改 compiler / sysroot / fixture / `PLAN.md`；本轮只补充 review 结论与 `memory/claude_plan.md` 进度记录。
   - 核心决策：
+    - 独立抽样复查确认 P0-T01 对 `perform`、handler `with`、tuple `._0` / `._1`、f-string `{...}` / `{{` / `}}`、`@Inline`、`AnyRef` / `AnyValue`、隐式 public、缺少 `operator` 的 operator-like declarations 的分类准确，足以支撑后续迁移任务。
+    - 反向检查覆盖 spec、split spec、sysroot、fixtures、parser/token、typecheck、HIR/MIR lowering、cone public export / visibility 入口；未发现需要新增 prerequisite task 的漏项。
+    - Reviewed commit `b6cf70ca` 只修改 `TODO.md`、`TODO-1.md`、`memory/claude_plan.md`，没有新增 positive fixture 或 compiler behavior change，因此没有引入会破坏全量 suite 的 pass fixture。
+    - Review 补充给后续迁移任务的执行提示：handler `with` 迁移不应只看 `tests/fixtures/parse/*handle*.scoop`，还应覆盖 `tests/fixtures/**/*handle*.scoop` 中的 run-pass / typecheck / HIR / MIR / effect goldens；tuple `.0` 迁移应使用内容搜索 `\._[0-9]+` 与 `with { _[0-9]... }`，因为不少命中不在 `*tuple*` 文件名下，也包括 Rust test snippet；f-string `${...}` 迁移同样应使用 `f"...{` / `{{` / `}}` 内容搜索覆盖 run-pass、runtime_gc、run_pass_cone 与 goldens。
+    - `Keyword::On` / handler `on` 入口当前不存在，`parse_handle_expr` 仍固定 `expect_keyword(Keyword::With)`；P2-T02 需要同时新增 lexer/parser surface 并保留 value / enum `with` update。
   - 验证结果：
+    - `cargo fmt --all --check`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1533)`。
+    - 人工抽样 / 反向复查命令覆盖了 P0-T01 记录中的 required glob 与额外内容搜索：`perform`、handler `with` / `Keyword::With`、tuple `._N`、f-string brace interpolation、`@Inline`、`AnyRef` / `AnyValue`、visibility export、operator-like sysroot declarations。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 P0-T01 的独立 review gate；迁移清单可作为 P0-T02 与后续 P1-P6 的执行输入。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P0-T02：建立 overload bug 与 diagnostics 基线样例
 
