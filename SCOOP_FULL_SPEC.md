@@ -10,9 +10,9 @@ Scoop is a statically-typed, garbage-collected programming language. It aims to 
 
 This spec may contain executable Scoop snippets. Code blocks that include a `// FIXTURE:` directive are treated as doctest fixtures:
 
-- Extracted into `tests/fixtures/spec_doctest/` (see `tools/scoop_tools`)
-- Verified in CI via `cargo run -p scoop_tools -- spec-fixtures check`
-- Executed by `cargo run -p scoop -- test`
+- Extracted into `tests/fixtures/spec_doctest/` via `python3 tools/spec_fixtures.py sync`
+- Verified in CI via `python3 tools/spec_fixtures.py check`
+- Executed by `python3 tools/run_fixtures.py tests/fixtures/spec_doctest`
 
 ```scoop
 // FIXTURE: spec_doctest/overview_minimal_main.scoop
