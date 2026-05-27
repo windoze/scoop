@@ -1568,6 +1568,10 @@ impl<'a> Parser<'a> {
                 i = self.skip_string_literal(i, limit);
                 continue;
             }
+            if bytes[i] == b'\'' {
+                i = self.skip_char_literal(i, limit);
+                continue;
+            }
 
             match bytes[i] {
                 b'{' => {
@@ -1631,6 +1635,30 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        limit
+    }
+
+    /// 从 `'` 开始跳过一个字符字面量，返回“紧随其后”的索引。
+    fn skip_char_literal(&self, quote_start: usize, limit: usize) -> usize {
+        let bytes = self.source_text.as_bytes();
+        let mut i = quote_start + 1;
+        let mut escaped = false;
+
+        while i < limit {
+            match bytes[i] {
+                b'\n' => return limit,
+                b'\'' if !escaped => return i + 1,
+                b'\\' if !escaped => {
+                    escaped = true;
+                    i += 1;
+                }
+                _ => {
+                    escaped = false;
+                    i += 1;
+                }
+            }
+        }
+
         limit
     }
 

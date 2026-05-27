@@ -4,5 +4,7 @@ braces={ok}, newline=
 end
 raw=scoop, slash=\n, braces={ok}
 json={"name":"scoop","ok":true}
+nested=1
+char=}
 $name is literal
 old {name} literal

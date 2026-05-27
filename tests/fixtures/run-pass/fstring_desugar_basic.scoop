@@ -12,6 +12,8 @@ fun main(): Int {
     println(f"braces={ok}, newline=\nend")
     println(f"""raw=${name}, slash=\n, braces={ok}""")
     println(f"""json={"name":"${name}","ok":true}""")
+    println(f"nested=${if (true) { 1 } else { 2 }}")
+    println(f"char=${'}'}")
     println(f"$name is literal")
     println(f"old {name} literal")
 

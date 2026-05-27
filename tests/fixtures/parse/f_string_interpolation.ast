@@ -135,20 +135,74 @@ File {
         ),
         Val(
             ValDecl {
-                span: 300..341,
+                span: 300..345,
                 kind: Val,
                 name: Ident {
-                    span: 304..316,
+                    span: 304..310,
                 },
                 ty: None,
                 init: Some(
                     Expr {
-                        span: 319..341,
+                        span: 313..345,
                         kind: InterpolatedString {
                             raw: false,
                             parts: [
-                                Text {
-                                    span: 321..340,
+                                Expr {
+                                    expr: Expr {
+                                        span: 317..343,
+                                        kind: If {
+                                            cond: Expr {
+                                                span: 321..325,
+                                                kind: Ident(
+                                                    Ident {
+                                                        span: 321..325,
+                                                    },
+                                                ),
+                                            },
+                                            then_branch: Expr {
+                                                span: 327..332,
+                                                kind: Block(
+                                                    Block {
+                                                        span: 327..332,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 329..330,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 329..330,
+                                                                        kind: IntLit,
+                                                                    },
+                                                                ),
+                                                                has_trailing_semi: false,
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                            else_branch: Some(
+                                                Expr {
+                                                    span: 338..343,
+                                                    kind: Block(
+                                                        Block {
+                                                            span: 338..343,
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 340..341,
+                                                                    kind: Expr(
+                                                                        Expr {
+                                                                            span: 340..341,
+                                                                            kind: IntLit,
+                                                                        },
+                                                                    ),
+                                                                    has_trailing_semi: false,
+                                                                },
+                                                            ],
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                        },
+                                    },
                                 },
                             ],
                         },
@@ -158,20 +212,69 @@ File {
         ),
         Val(
             ValDecl {
-                span: 342..382,
+                span: 346..372,
                 kind: Val,
                 name: Ident {
-                    span: 346..356,
+                    span: 350..360,
                 },
                 ty: None,
                 init: Some(
                     Expr {
-                        span: 359..382,
+                        span: 363..372,
+                        kind: InterpolatedString {
+                            raw: false,
+                            parts: [
+                                Expr {
+                                    expr: Expr {
+                                        span: 367..370,
+                                        kind: CharLit,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 373..414,
+                kind: Val,
+                name: Ident {
+                    span: 377..389,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 392..414,
                         kind: InterpolatedString {
                             raw: false,
                             parts: [
                                 Text {
-                                    span: 361..381,
+                                    span: 394..413,
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 415..455,
+                kind: Val,
+                name: Ident {
+                    span: 419..429,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 432..455,
+                        kind: InterpolatedString {
+                            raw: false,
+                            parts: [
+                                Text {
+                                    span: 434..454,
                                 },
                             ],
                         },
@@ -181,18 +284,18 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 384..397,
+                span: 457..470,
                 receiver: None,
                 name: Ident {
-                    span: 388..392,
+                    span: 461..465,
                 },
                 type_params: [],
-                params_span: 392..394,
+                params_span: 465..467,
                 params: [],
                 return_ty: None,
                 body: Block(
                     Block {
-                        span: 395..397,
+                        span: 468..470,
                         stmts: [],
                     },
                 ),

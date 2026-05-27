@@ -1,36 +1,27 @@
 # Execution Plan
 
-I will follow the repository task order exactly and complete only the first incomplete task from `TODO.md`.
+I will follow the task order in `TODO.md` and complete exactly the first task whose heading is not prefixed with `[DONE]`.
 
 ## Steps
-1. Inspect `TODO.md` to find the first task whose heading is not prefixed with `[DONE]`.
-2. Review the selected task's requirements, dependencies, validation commands, and any relevant latest-commit context.
-3. Inspect only the code, fixtures, and documentation needed for that task.
-4. Implement the task completely, or if a concrete blocker makes that impossible, add the minimum prerequisite task in `TODO.md` and stop.
-5. Run required formatting, linting, tests, and fixtures according to the task and repository policy.
-6. Update `TODO.md` with the `[DONE]` prefix and completion record only after the task is fully validated.
-7. Commit all changes for this invocation with a descriptive message and the required co-author trailer.
-8. Stop without starting the next task.
 
-## Progress
-- Initial plan recorded.
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for unfinished work directly relevant to that task.
+3. Inspect the task's affected code, tests, fixtures, and documentation.
+4. Implement the task without workarounds or scope narrowing.
+5. Run formatting, linting, and the required tests/fixtures in the prescribed order.
+6. Fix any observed unscheduled failures or add the minimum prerequisite task(s) to `TODO.md` if a blocker prevents correct completion.
+7. Mark the completed task heading with `[DONE]`, update its completion record, and update this file at major milestones.
+8. Commit all changes with a clear task-tagged commit message and then stop.
 
-## Selected Task
-- First incomplete task: P2-T04 — switch f-string interpolation from `{...}` to `${...}`.
-- I will inspect the task-specific parser, spec, and fixtures before editing.
+## Current Status
 
-## Implementation Progress
-- Updated parser f-string splitting so only `${...}` starts interpolation and bare braces remain text.
-- Updated f-string text decoding so braces are no longer doubled/undoubled.
-
-## Targeted Validation
-- Refreshed `tests/fixtures/parse/f_string_interpolation.ast`.
-- Targeted f-string parse, run-pass, codegen, and typecheck fixtures pass.
-
-## Completion Record
-- Marked P2-T04 `[DONE]` in `TODO.md` and `TODO-2.md`.
-- Full validation passed: `cargo test --all --all-targets` and `python3 tools/run_fixtures.py` (`fixtures: ok (1538)`).
-- Next step is committing this invocation only; no next TODO task will be started.
-
-## Final Documentation Check
-- Re-ran `python3 tools/spec_fixtures.py check` after final spec wording edits; it passed.
+- Created initial execution plan before running project commands.
+- Read `TODO.md` and selected first incomplete task: `P2-T04R`, the review of the f-string interpolation switch.
+- Confirmed latest commit is directly relevant: `[P2-T04] Switch f-string interpolation to dollar braces`.
+- Inspected parser/string literal implementation and targeted fixtures.
+- Added missing nested-brace and char-brace interpolation coverage, plus parser scanner handling for char literals inside `${...}` expressions.
+- Regenerated the parse AST snapshot from the updated parser.
+- `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo build -p scoop -p scoopc`, and targeted f-string fixtures passed.
+- `cargo test --all --all-targets` and `python3 tools/run_fixtures.py` passed.
+- Marked `P2-T04R` complete in `TODO.md` and `TODO-2.md`.
+- Next step: review the final diff and commit the task.

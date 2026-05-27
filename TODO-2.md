@@ -354,7 +354,7 @@
     - 闭合 `SPEC_FIX.md` B6：f-string interpolation opener 已切换为 `${...}`；literal `{}` 在 f-string 中 JSON-friendly；`$x` shorthand 未作为 positive interpolation surface 支持。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T04R：Review f-string 插值切换结果
+### [DONE] P2-T04R：Review f-string 插值切换结果
 
 - 参考：
   - P2-T04 完成记录
@@ -380,9 +380,23 @@
 - 依赖：P2-T04
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T04 f-string splitter / string literal text 处理 / dedicated parse + run-pass fixtures，确认 `${...}`、literal braces、旧 `{expr}` text、`$x` text 四条 B6 规则均有覆盖。
+    - 补齐 nested brace positive coverage：`tests/fixtures/parse/f_string_interpolation.scoop` 新增 `${if (true) { 1 } else { 2 }}`，并刷新 `f_string_interpolation.ast`；`tests/fixtures/run-pass/fstring_desugar_basic.scoop` 新增 nested brace runtime 覆盖。
+    - 补齐 interpolation expression 中 char literal brace 的 scanner 覆盖：parser brace matcher 现在跳过字符字面量，避免 `f"${'}'}"` 中的 `}` 被误判为 interpolation close；parse/run-pass fixtures 覆盖该路径。
   - 核心决策：
+    - 不保留旧 `{expr}` interpolation 兼容层；旧写法继续作为 literal text 覆盖。
+    - `$x` shorthand 不作为 interpolation surface；继续作为 literal text 覆盖。
+    - nested brace / char brace 属于同一 f-string delimiter matching 类问题，因此在 review 任务内直接补齐实现与 fixture，而不是新增后置任务。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo build -p scoop -p scoopc`：通过，用于刷新 fixture runner 使用的 CLI binaries。
+    - Targeted fixtures：`tests/fixtures/parse/f_string_interpolation.scoop`、`tests/fixtures/run-pass/fstring_desugar_basic.scoop`、`tests/fixtures/codegen/f_string_interpolation.scoop`、`tests/fixtures/typecheck/fstring_interpolation_non_tostring_is_error.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1538)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核并闭合 `SPEC_FIX.md` B6 review 条件：`${...}` 是唯一 interpolation opener，literal `{}` JSON-friendly，`$x` shorthand 未启用，旧 `{expr}` 不再是 positive surface。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T05：新增 `operator` modifier 的 lexer/parser/AST surface
 
