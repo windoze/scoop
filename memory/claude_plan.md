@@ -1,21 +1,20 @@
 # Execution Plan
 
-## Goal
-Complete exactly the first incomplete task listed in TODO.md, following TODO.md as the authoritative ordering and stopping after one task is completed, documented, validated, and committed.
+I will maintain this file as a high-level, actionable plan and progress log for the current invocation.
 
-## Step-by-step plan
-1. Read TODO.md to identify the first task whose heading is not explicitly prefixed with [DONE].
-2. Check the latest commit message for any unfinished issue directly relevant to that selected task.
-3. Inspect only the files and documentation needed for that task; avoid broad unrelated triage.
-4. Implement the task as specified, adding prerequisite TODO entries only if a concrete blocker makes spec-correct implementation impossible.
-5. Run formatting, linting, tests, and fixtures required by the task and repository policy, addressing any unscheduled failures.
-6. Update TODO.md by prefixing the completed task title with [DONE] and filling its completion record; update PLAN.md only if phase-level planning changed.
-7. Commit all changes for this task with a clear task-tagged message and the required co-author trailer, then stop.
+1. Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Inspect the task requirements, dependencies, validation requirements, and affected code paths.
+4. Implement the selected task exactly as specified, adding only necessary prerequisite TODO entries if a concrete blocker prevents spec-correct implementation.
+5. Run formatting, linting, and the relevant/full validation required by the task.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in the completion record; update `PLAN.md` only if phase-level sequencing changes.
+7. Commit all changes for this invocation with a descriptive task-tagged commit message.
+8. Stop after completing or formally scheduling the first incomplete task.
 
-## Progress
-- Plan initialized before task execution.
-- Selected first incomplete task: P3-T02, removing the `scoopc test-fixtures` CLI surface and module exports.
-- Inspection found the `scoopc` runtime code path already absent from `driver_cli.rs`, `bin/scoopc.rs`, and `lib.rs`; remaining work is to add explicit parser regression coverage, validate the unknown-subcommand behavior, and update TODO bookkeeping.
-- Added `driver_cli::tests::test_fixtures_subcommand_is_removed`.
-- Validation: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test -p scoopc --all-targets`, direct `cargo run -q -p scoopc -- test-fixtures`, and `python3 tools/run_fixtures.py` passed for the P3-T02 boundary.
-- Full `cargo test --all --all-targets` stops in two `scoop test` wrapper integration tests; the exact failures were added to P3-T03 because deleting that wrapper is the next scheduled task.
+Progress:
+- Plan initialized before selecting the first incomplete task.
+- Selected first incomplete task: `P3-T02R`, reviewing removal of the `scoopc test-fixtures` CLI surface.
+- Latest commit is `[P3-T02] Remove scoopc test-fixtures CLI`, directly relevant to this review task.
+- Review focus: confirm `driver_cli.rs`, `bin/scoopc.rs`, `lib.rs`, and deleted `fixtures`/`fixture_cli` paths no longer expose or dispatch `scoopc test-fixtures`; validate the unknown-subcommand behavior and record any already-scheduled failures precisely.
+- Review completed: `scoopc test-fixtures` is rejected as an unknown subcommand, old `scoopc` fixture CLI symbols are absent, the external fixture suite passes, and the only full Rust suite failures are the already scheduled `P3-T03` `scoop test` wrapper tests.
+- `TODO.md` has been updated to mark `P3-T02R` as `[DONE]` with the validation record.
