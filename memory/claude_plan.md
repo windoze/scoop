@@ -3,28 +3,32 @@
 ## 范围
 
 - 本次只处理 `TODO.md` 中第一个未完成任务。
+- 已识别首个未完成任务：`P2-T07R`，复审 `SCOOP_FULL_SPEC.md` 更新，确认旧 fixture runner 入口无残留。
 - 以 `TODO.md` 作为任务顺序、依赖、验证要求和完成记录的权威来源。
-- 完成或阻塞当前任务后停止，不继续处理下一个任务。
+- 完成或阻塞当前任务后停止，不继续处理 `P2-T08`。
 
 ## 执行计划
 
-1. 读取 `TODO.md`，找到第一个标题未带 `[DONE]` 前缀的任务。
-2. 只检查最近提交中是否存在与该任务直接相关的未完成事项。
-3. 查看当前任务需要的代码、fixture 和文档上下文。
-4. 按任务原文完成实现，不缩小范围、不使用 workaround。
-5. 先运行格式化，再运行 lint，最后运行任务要求的相关或完整验证。
-6. 如果验证暴露未排期失败，先修复，或在 `TODO.md` 中加入最小必要前置/后续任务后再决定当前任务状态。
-7. 任务完成后，在 `TODO.md` 中给任务标题加 `[DONE]` 并补充完成记录。
-8. 关键步骤完成或计划变化时更新本文件。
-9. 用清晰的任务编号提交信息提交本任务相关变更。
-10. 提交后停止。
+1. 检查最近提交，确认是否存在与 `P2-T07R` 直接相关的未完成事项。
+2. 查看 `SCOOP_FULL_SPEC.md` 中 P2-T07 修改区域，确认 spec doctest / fixture-suite 命令已切换到 Python 脚本。
+3. 搜索 `SCOOP_FULL_SPEC.md` 中旧入口模式：`scoop_tools`、`cargo run -p scoop -- test`、`scoop test`、`test-fixtures`、`target/debug|release scoop test`、`cargo run -p scoopc -- test-fixtures`。
+4. 搜索 `SCOOP_FULL_SPEC.md` 中新入口模式：`python3 tools/spec_fixtures.py` 与 `python3 tools/run_fixtures.py`。
+5. 如复审发现遗漏，直接修正 `SCOOP_FULL_SPEC.md`，并按需要运行 `python3 tools/spec_fixtures.py sync/check`。
+6. 按项目要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`。
+7. 运行任务相关验证：`python3 tools/spec_fixtures.py check` 与 `python3 tools/run_fixtures.py tests/fixtures/spec_doctest`。
+8. 若本轮没有代码语义变更，完整 `cargo test --all --all-targets` 与完整 `python3 tools/run_fixtures.py` 可复用上一条完成记录的绿色结果，并在完成记录中说明跳过原因。
+9. 将 `TODO.md` 中 `P2-T07R` 标题和索引状态标记为 `[DONE]`，并追加完成记录。
+10. 更新本文件记录关键进展。
+11. 检查 `git status`、`git diff`、最近提交，确认只提交本任务相关文件；如工作区已有无关变更，不回退、不纳入提交。
+12. 以 `[P2-T07R] Review spec fixture command cleanup` 提交本任务变更，然后停止。
 
 ## 进度记录
 
-- 初始计划已在任务发现前写入。
-- 已识别首个未完成任务：`P2-T07`（更新 `SCOOP_FULL_SPEC.md` 中 fixture runner 调用串）。
-- 最近提交 `315d1841 [P2-T06R] Review prompt fixture command` 没有包含与 `P2-T07` 直接相关的未完成事项。
-- 已观察到现有无关工作区变更：`run_agent.sh`、`CALLER_LOCATION.md`、`RTTI_REFINE.md`、`tools/__pycache__/`；本任务不会修改这些文件。
-- 已更新 `SCOOP_FULL_SPEC.md` doctest fixture 说明，改用 `python3 tools/spec_fixtures.py` 与 `python3 tools/run_fixtures.py`。
-- 验证已完成：`SCOOP_FULL_SPEC.md` 旧入口 grep 无命中；新入口 grep 有命中；`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py tests/fixtures/spec_doctest` 均通过。
-- 已更新 `TODO.md`：将 `P2-T07` 标记为 `[DONE]` 并追加完成记录。
+- 已读取 `TODO.md`，确认 `P2-T07R` 是当前第一个未完成任务。
+- 本计划已在执行 git/验证命令前写入。
+- 最近提交为 `300992ac [P2-T07] Update spec fixture commands`，直接对应当前 review 任务，未显示额外未完成事项。
+- 当前工作区存在无关变更/未跟踪文件：`run_agent.sh`、`CALLER_LOCATION.md`、`RTTI_REFINE.md`、`tools/__pycache__/`；本任务不会回退或提交这些文件。
+- `SCOOP_FULL_SPEC.md` 旧入口模式搜索无命中；新入口 `python3 tools/spec_fixtures.py` / `python3 tools/run_fixtures.py` 有 3 处命中。
+- 已复审最新提交对 `SCOOP_FULL_SPEC.md` 的 diff：三处 doctest fixture 命令已切换为 `python3 tools/spec_fixtures.py sync/check` 与 `python3 tools/run_fixtures.py tests/fixtures/spec_doctest`，无需修改 spec 正文。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py tests/fixtures/spec_doctest`。
+- 已更新 `TODO.md`：将 `P2-T07R` 标记为 `[DONE]` 并追加完成记录；完整 `cargo test --all --all-targets` 与完整 fixture suite 因本轮仅 markdown/task bookkeeping 且无代码变更而复用最近绿色结果。
