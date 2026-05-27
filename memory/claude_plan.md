@@ -1,30 +1,26 @@
 # 当前执行计划
 
-## 执行原则
+## 约束
+- 以 `TODO.md` 为任务顺序和完成状态的唯一来源。
+- 本轮只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
+- 若遇到阻塞当前任务的缺失功能、规格不匹配或未排期失败，优先修复或在 `TODO.md` 中插入最小前置任务并停止。
+- 完成任务后更新 `TODO.md` 的 `[DONE]` 标记和完成记录，并提交 Git commit。
 
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
-- 若发现阻塞当前任务的缺陷、缺失语言特性或未调度的测试失败，优先修复；若不能在当前任务内正确修复，则在 `TODO.md` 中加入最小必要前置任务并停止。
-- 不修改或回滚无关的既有工作区改动。
-- 完成任务后更新 `TODO.md` 完成记录，按要求运行格式化、lint、测试与 fixture 验证，并提交一次清晰的 Git commit。
+## 步骤
+1. 读取 `TODO.md`，定位第一个未完成任务，并查看该任务的依赖、验证要求和完成记录。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
+3. 根据任务内容读取必要代码和文档，确认实现范围。
+4. 实施最小正确变更，避免规避规格或使用夹具专用 hack。
+5. 按要求先运行格式化，再运行 lint，再运行相关测试；如有必要运行完整测试和 fixture 套件。
+6. 更新 `TODO.md` 的任务标题和完成记录；仅当阶段计划变化时更新 `PLAN.md`。
+7. 检查工作区差异，提交本轮任务相关全部改动，然后停止。
 
-## 步骤计划
-
-1. 读取 `TODO.md`，定位第一个未完成任务；必要时查看最近提交，判断是否有与该任务直接相关的未完成事项。
-2. 阅读当前任务的要求、依赖、验证标准和已有完成记录，确定是否能作为一个执行单元直接完成。
-3. 检查相关代码、测试、fixture 与文档，限定在当前任务所需范围内建立上下文。
-4. 实现当前任务；若遇到 spec mismatch、缺失功能或阻塞缺陷，不采用 workaround，而是修复根因或在 `TODO.md` 增加前置任务后停止。
-5. 运行 `cargo fmt`，随后运行 `cargo clippy --all-targets -- -D warnings`，再根据任务要求运行相关测试、完整测试与 fixture suite。
-6. 若验证失败，修复失败原因；若失败不属于已显式排期事项，必须修复或将其明确排入 `TODO.md`。
-7. 将当前任务标题标记为 `[DONE]`，补充完成记录与验证日志；仅当阶段级计划变化时更新 `PLAN.md`。
-8. 检查 `git status`、`git diff` 与最近提交，确认只提交本次任务应包含的文件；若是恢复未提交任务，则按用户要求纳入所有当前未提交文件。
-9. 创建符合仓库风格的提交，然后停止，不继续下一个任务。
-
-## 当前进度
-
-- 已建立本次执行计划。
-- 已读取 `TODO.md`，确认第一个未完成任务是 `P2-T03R`：复审 `AGENTS.md` 更新，重点确认无旧 fixture runner 入口残留。
-- 本次不会推进 `P2-T04` 或后续任务；若复审发现问题，将在当前 review 任务内修正或记录必要前置问题。
-- 已复审 `AGENTS.md` 与 `TEST_INFRA_CLEANUP.md` §6 的 `AGENTS.md` checklist，确认无需修改正文。
-- 已运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、旧入口残留搜索与新 python 入口命中检查，均通过。
-- 已在 `TODO.md` 将 `P2-T03R` 标记为 `[DONE]` 并追加完成记录；完整 Rust 测试与 fixture suite 因本任务仅有 markdown/task bookkeeping 变更而复用最近绿色结果。
+## 当前状态
+- 已读取 `TODO.md`，第一个未完成任务为 `P2-T04`：更新 `README.md` 的 fixture runner 描述与命令示例。
+- 已检查最近提交：`[P2-T03R] Review AGENTS fixture commands`，未发现需要作为 `P2-T04` 前置的未完成问题。
+- 已更新 `README.md`：fixture suite 改为 `python3 tools/run_fixtures.py`，Safepoint 基线改为 `python3 tools/safepoint_baseline.py`，并移除“fixture runner 属于 scoop 二进制”的表述。
+- 已验证：README 旧入口搜索无命中；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 完整 Rust 测试和完整 fixture 套件未重跑，因为本轮仅修改 markdown/任务记录，且最近完成记录已有完整绿色结果。
+- 已更新 `TODO.md`：`P2-T04` 标题加 `[DONE]`，完成记录已追加验证命令和跳过完整套件的原因。
+- 已检查 diff/status：本轮相关改动为 `README.md`、`TODO.md`、`memory/claude_plan.md`；工作区另有既有无关改动，将不纳入本次提交。
+- 下一步：暂存本轮相关文件并创建 `P2-T04` commit，然后停止。

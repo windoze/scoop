@@ -68,7 +68,7 @@ cargo build
 > - `LLVM_CONFIG_PATH=/path/to/llvm-config`
 > - `LLVM_SYS_211_PREFIX=/path/to/llvm@21/prefix`（会使用 `$LLVM_SYS_211_PREFIX/bin/llvm-config`）
 
-如需禁用 LLVM 后端（只构建前端/中端与 fixtures runner 的“无后端模式”）：
+如需禁用 LLVM 后端（只构建前端/中端的“无后端模式”）：
 
 ```bash
 cargo build --no-default-features
@@ -91,10 +91,10 @@ PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
 cargo run -p scoop -- --help
 ```
 
-跑 fixtures（递归执行 `tests/fixtures/**`；按 phase 目录路由执行，未实现 phase 会给出清晰诊断）：
+跑 fixture 套件（由 `tools/run_fixtures.py` 递归执行 `tests/fixtures/**`；按 phase 目录路由执行，未实现 phase 会给出清晰诊断）：
 
 ```bash
-cargo run -p scoop -- test
+python3 tools/run_fixtures.py
 ```
 
 生成最小可执行文件（需要启用 LLVM 后端，并安装 `llvm-config`；链接阶段使用 clang）：
@@ -153,7 +153,7 @@ cargo run -p scoop_runtime --release --bin gc_microbench -- \
 > 用途：可重复观察当前优化主线对 LLVM statepoint 数量与 `gc-live` roots 压力的影响，不做阈值 gating。
 
 ```bash
-cargo run -p scoop_tools -- safepoint-baseline
+python3 tools/safepoint_baseline.py
 ```
 
 该命令会自动编译一组内置 workload，并输出 `-O0` / `-O2` 下的 safepoint / roots 统计 Markdown 表。当前方法、workload 与最新快照记录在 `docs/safepoint_baseline.md`。
@@ -180,6 +180,6 @@ cargo run -p scoop_tools -- safepoint-baseline
 - `crates/scoopc_lir_facts/`：独立 LIR facts 数据产品；承载 LIR stage summary、callable ABI、dynamic invoke、dispatch owner/slot、global init/storage/final-entry contracts、physical layout、callable symbols、type context bridge、continuation/resume publication contracts 与 LIR opt pipeline metadata；只依赖基础 crate，不依赖 `scoopc` facade、effect/MIR/LIR stage 或 backend crate；是 LLVM 与未来 backend 的 backend-neutral 输入基础
 - `crates/scoop_runtime/`：运行时构建（C runtime 的 build glue）
 - `runtime/c/`：C 运行时实现（GC/effect/线程等；平台差异收敛在 platform/backends）
-- `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）
+- `tests/fixtures/`：编译期/运行期 fixtures（由 `tools/run_fixtures.py` 驱动，长期保证正确性）
 
 `scoopc` 通过 `scoopc::base::{span, source, types, ids, project_model}`、stage facade（`ast` / `hir` / `mir` / `effect_lowered` / `llvm`）以及 fact facade（`hir_facts` / `mir_facts` / `effect_facts_product` / `lir_facts_product`）提供兼容入口；stage/fact/cone crate 应直接依赖对应基础 crate、fact crate 或前序 stage crate，而不是反向依赖 `scoopc`。P9 之后，任何 stage 行为改动都必须在 owning stage crate 内完成；不得在 `scoopc` umbrella、其它 stage crate、cone crate 或 backend crate 中新增跨 crate 兜底实现来绕过边界。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。
