@@ -45,3 +45,25 @@
 - Verified no old fixture README invocations remain and that 35 fixture README files now mention `python3 tools/run_fixtures.py`.
 - Ran `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check`.
 - Marked P2-T08 complete in `TODO.md`; next step is to commit the completed task.
+
+## Invocation 2026-05-27 13:38 Plan
+
+I will not record private chain-of-thought, but I will keep this file updated with the actionable plan, decisions, and progress.
+
+1. Read `TODO.md` and select the first heading that is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Inspect only the files, tests, and fixtures needed for that task.
+4. Implement the selected task completely, or add the minimum prerequisite task if a concrete blocker prevents correct implementation.
+5. Run validation in the required order: format, lint, then tests/fixtures appropriate to the scope.
+6. Update `TODO.md` by adding `[DONE]` to the completed task title and updating its completion record.
+7. Commit all task-related changes, including progress-file updates, with the required co-author trailer.
+8. Stop after exactly one completed task.
+
+### Progress
+
+- Added this invocation plan before running repository commands.
+- Selected first incomplete task `P2-T08R`: review fixture README replacement results.
+- Reviewed latest commit `[P2-T08] Update fixture README runner commands`; it directly supplies the change under review.
+- Verified `tests/fixtures/**/_README.md` has no old fixture runner invocations and still contains the new `python3 tools/run_fixtures.py` references.
+- Ran `cargo fmt` and `cargo clippy --all-targets -- -D warnings` successfully.
+- Marked `P2-T08R` complete in `TODO.md` with the review validation record.
