@@ -1,33 +1,31 @@
-# P3-T05R execution plan
+# P3-T06 execution plan
 
 I cannot record private chain-of-thought, but this file captures the actionable task interpretation, execution plan, and progress for this invocation.
 
 ## Current task
 
-- Source of truth: `TODO.md`
-- First incomplete task: `P3-T05R`
-- Task title: Review `tools/scoop_tools/` deletion result and confirm `cargo metadata` no longer lists that crate.
-- Scope: perform only P3-T05R, then stop. Do not proceed to P3-T06.
-- Latest commit: `[P3-T05] Remove scoop_tools workspace crate`; it is directly relevant and is the subject of this review.
-- Pre-existing unrelated worktree changes observed before this review: `.gitignore`, `CALLER_LOCATION.md`, and `RTTI_REFINE.md`. These must be preserved and excluded from the P3-T05R commit unless they become directly relevant.
+- Source of truth: `TODO.md`.
+- First incomplete task: `P3-T06`.
+- Task title: clean `crates/scoop/tests/p8_docs_cleanup.rs` so it no longer references the deleted `tools/scoop_tools/src/fixtures_matrix.rs` source path.
+- Scope: complete only P3-T06, update its completion record, commit, and stop before P3-T06R.
+- Latest commit: `[P3-T05R] Review scoop_tools deletion`; no unfinished issue is mentioned, and it directly leaves P3-T06 as the next cleanup.
+- Pre-existing unrelated worktree changes observed before this task: `.gitignore`, `CALLER_LOCATION.md`, and `RTTI_REFINE.md`. Preserve them and keep them out of this task commit unless they become directly relevant.
 
 ## Execution plan
 
-1. Inspect the P3-T05 deletion commit and confirm the root workspace manifest, lockfile, and tracked files reflect removal of the `tools/scoop_tools` crate.
-2. Run the direct P3-T05R validation: `cargo metadata --format-version 1 --no-deps` must not list a package named `scoop_tools` or any package rooted at `tools/scoop_tools`.
-3. Run required formatting/lint validation for the current repository state.
-4. Run broader validation as appropriate. If `cargo test --all --all-targets` still fails only in the already scheduled P3-T06 source-path cleanup, record that explicitly rather than treating it as an unscheduled failure.
-5. Update `TODO.md` by prefixing `P3-T05R` with `[DONE]` and appending a completion record with validation results.
-6. Commit only P3-T05R task changes and this progress file, keeping unrelated local files out of the commit.
-7. Stop after P3-T05R.
+1. Inspect the failing docs-cleanup test and the replacement Python fixture matrix script to determine whether the old source-path guard should be updated or removed.
+2. Make the smallest test update that preserves the test's actual responsibility while removing the deleted `tools/scoop_tools` path reference.
+3. Run the focused test for `p8_docs_cleanup`.
+4. Run required formatting and linting: `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`.
+5. Run broader validation after lint passes: `cargo test --all --all-targets`; run the fixture suite only if compiled-output-affecting changes require it.
+6. Update `TODO.md` by prefixing `P3-T06` with `[DONE]` and append a completion record with validation results.
+7. Commit only the P3-T06 changes and this progress file, excluding unrelated local files.
+8. Stop after P3-T06.
 
 ## Progress
 
-- Selected first incomplete task: `P3-T05R`.
-- Confirmed latest commit is `[P3-T05] Remove scoop_tools workspace crate`, so the review applies to the immediately preceding task.
-- Confirmed root `Cargo.toml` and `Cargo.lock` have no `scoop_tools` / `tools/scoop_tools` matches.
-- Confirmed `git ls-files tools/scoop_tools` returns no tracked files.
-- Confirmed `cargo metadata --format-version 1 --no-deps --quiet` contains no `scoop_tools` package or `tools/scoop_tools` manifest path.
-- Validation: `cargo fmt` passed; `cargo clippy --all-targets -- -D warnings` passed; `python3 tools/run_fixtures.py` passed with 1533 checks.
-- Validation note: `cargo test --all --all-targets` was run and still fails only in `crates/scoop/tests/p8_docs_cleanup.rs::legacy_pipeline_docs_removed_spec_and_tool_indexes_drop_deleted_async_task_surface`, which is explicitly scheduled as P3-T06.
-- Updated `TODO.md` to mark `P3-T05R` as `[DONE]` and appended the completion record.
+- Selected first incomplete task: `P3-T06`.
+- Confirmed the stale reference is in `crates/scoop/tests/p8_docs_cleanup.rs`, where the async/task surface guard still reads `tools/scoop_tools/src/fixtures_matrix.rs`.
+- Updated that guard to read the replacement `tools/fixtures_matrix.py`, preserving the async/task surface regression check without referencing the deleted crate path.
+- Validation passed: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo test -p scoop --test p8_docs_cleanup`.
+- Full validation passed: `cargo test --all --all-targets`; `python3 tools/run_fixtures.py` (`fixtures: ok (1533)`).

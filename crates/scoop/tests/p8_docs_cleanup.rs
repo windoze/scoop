@@ -53,7 +53,7 @@ fn legacy_pipeline_docs_removed_spec_and_tool_indexes_drop_deleted_async_task_su
             vec!["Async.await", "Task<", "async fun"],
         ),
         (
-            "tools/scoop_tools/src/fixtures_matrix.rs",
+            "tools/fixtures_matrix.py",
             vec!["Task / Executor (async)", "std_task_"],
         ),
     ] {
