@@ -255,31 +255,20 @@ fn single_pipeline_runs_receiver_effect_op_cli() {
 }
 
 #[test]
-fn single_effect_pipeline_test_fixtures_cli_works() {
-    let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
-    let output = run_scoop([
-        OsStr::new("test"),
-        OsStr::new("--fixtures"),
-        fixture.as_os_str(),
-    ]);
-
-    assert!(output.status.success(), "fixture run failed: {output:?}");
-    assert!(String::from_utf8_lossy(&output.stdout).contains("fixtures: ok (1)"));
-}
-
-#[test]
-fn single_pipeline_fixture_harness_has_no_hidden_legacy_fallback() {
-    let fixture =
-        workspace_path("tests/fixtures/build/effect_lowered_no_legacy_handler_stack_calls.scoop");
-    let output = run_scoop([
-        OsStr::new("test"),
-        OsStr::new("--fixtures"),
-        fixture.as_os_str(),
-    ]);
+fn scoop_test_subcommand_is_removed() {
+    let output = run_scoop([OsStr::new("test")]);
 
     assert!(
-        output.status.success(),
-        "single pipeline fixture harness should run the build fixture: {output:?}"
+        !output.status.success(),
+        "removed fixture wrapper should fail: {output:?}"
     );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("fixtures: ok (1)"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("test"),
+        "stderr should name removed command: {stderr}"
+    );
+    assert!(
+        stderr.contains("unrecognized subcommand") || stderr.contains("invalid subcommand"),
+        "stderr should report an unknown subcommand: {stderr}"
+    );
 }

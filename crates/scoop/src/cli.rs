@@ -2,7 +2,7 @@
 //!
 //! 本模块只负责“解析参数 → 结构化配置”，不做具体业务逻辑。
 
-use std::num::{NonZeroU32, NonZeroUsize};
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use clap::{ArgAction, Parser, Subcommand};
@@ -20,43 +20,6 @@ pub enum Command {
     New {
         /// 项目名（同时用作目录名与 `[cone].name`）
         project_name: String,
-    },
-
-    /// 运行 fixtures（当前阶段仅做最小 smoke）
-    Test {
-        /// fixtures 目录或单个 fixture 文件（位置参数；默认：`tests/fixtures`）
-        #[arg(value_name = "FIXTURES", conflicts_with = "fixtures")]
-        fixture_path: Option<PathBuf>,
-
-        /// fixtures 目录或单个 fixture 文件（默认：`tests/fixtures`）
-        #[arg(long)]
-        fixtures: Option<PathBuf>,
-
-        /// 遇到首个失败后停止调度新的 fixture（默认：false）
-        #[arg(long = "exit-on-failure")]
-        exit_on_failure: bool,
-
-        /// 并行运行 fixture 的进程数（默认：5）
-        #[arg(short = 'j', long = "processes", value_name = "N", default_value = "5")]
-        processes: NonZeroUsize,
-
-        /// 优化等级（0|1|2|3|s|z）
-        ///
-        /// 说明：用于 `scoop test` 触发的 build/run-pass/build fixtures（默认随 profile 策略）。
-        #[arg(short = 'O', long = "opt-level", value_name = "LEVEL")]
-        opt_level: Option<String>,
-
-        /// run-pass：在每次分配前触发额外 GC（env: `SCOOP_GC_STRESS=1`）
-        #[arg(long)]
-        gc_stress: bool,
-
-        /// run-pass：强制开启 moving GC（env: `SCOOP_GC_MOVE=1`）
-        #[arg(long)]
-        gc_move: bool,
-
-        /// run-pass：Immix 并行 mark/sweep worker 数（env: `SCOOP_GC_IMMIX_PARALLEL_{MARK,SWEEP}`；1=默认 4；N>=2 指定；上限 32）
-        #[arg(long, value_name = "N")]
-        threads: Option<NonZeroU32>,
     },
 
     /// 解析输入并打印 AST（当前阶段输出为占位信息）
@@ -311,7 +274,15 @@ mod tests {
     }
 
     #[test]
-    fn test_command_parses_build_profile_default() {
+    fn test_subcommand_is_removed() {
+        let err = Args::try_parse_from(["scoop", "test"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::InvalidSubcommand);
+        assert!(err.to_string().contains("test"));
+    }
+
+    #[test]
+    fn build_command_parses_profile_default() {
         let args =
             Args::try_parse_from(["scoop", "build", "tests/fixtures/parse/minimal.scoop"]).unwrap();
 
@@ -325,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_parses_build_profile_release() {
+    fn build_command_parses_profile_release() {
         let args = Args::try_parse_from([
             "scoop",
             "build",
@@ -344,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_rejects_conflicting_build_profile_flags() {
+    fn build_command_rejects_conflicting_profile_flags() {
         let err = Args::try_parse_from([
             "scoop",
             "build",
@@ -357,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_parses_build_opt_level() {
+    fn build_command_parses_opt_level() {
         let args = Args::try_parse_from([
             "scoop",
             "build",
@@ -375,91 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_parses_run_pass_gc_flags() {
-        let args = Args::try_parse_from([
-            "scoop",
-            "test",
-            "-O2",
-            "--gc-stress",
-            "--gc-move",
-            "--threads",
-            "4",
-        ])
-        .unwrap();
-
-        match args.command {
-            Command::Test {
-                fixture_path,
-                fixtures,
-                exit_on_failure,
-                processes,
-                opt_level,
-                gc_stress,
-                gc_move,
-                threads,
-            } => {
-                assert!(fixture_path.is_none());
-                assert!(fixtures.is_none());
-                assert!(!exit_on_failure);
-                assert_eq!(processes.get(), 5);
-                assert_eq!(opt_level.as_deref(), Some("2"));
-                assert!(gc_stress);
-                assert!(gc_move);
-                assert_eq!(threads.unwrap().get(), 4);
-            }
-            other => panic!("unexpected command: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn test_command_parses_fixture_parallel_flags() {
-        let args = Args::try_parse_from([
-            "scoop",
-            "test",
-            "--fixtures",
-            "tests/fixtures/parse",
-            "--exit-on-failure",
-            "--processes",
-            "7",
-        ])
-        .unwrap();
-
-        match args.command {
-            Command::Test {
-                fixture_path,
-                fixtures,
-                exit_on_failure,
-                processes,
-                ..
-            } => {
-                assert!(fixture_path.is_none());
-                assert_eq!(fixtures, Some(PathBuf::from("tests/fixtures/parse")));
-                assert!(exit_on_failure);
-                assert_eq!(processes.get(), 7);
-            }
-            other => panic!("unexpected command: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn test_command_parses_fixture_positional_path() {
-        let args = Args::try_parse_from(["scoop", "test", "tests/fixtures/umb_fix"]).unwrap();
-
-        match args.command {
-            Command::Test {
-                fixture_path,
-                fixtures,
-                ..
-            } => {
-                assert_eq!(fixture_path, Some(PathBuf::from("tests/fixtures/umb_fix")));
-                assert!(fixtures.is_none());
-            }
-            other => panic!("unexpected command: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn test_command_parses_run_profile_default_and_optional_input() {
+    fn run_command_parses_profile_default_and_optional_input() {
         let args = Args::try_parse_from(["scoop", "run"]).unwrap();
 
         match args.command {
@@ -480,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_parses_run_profile_release() {
+    fn run_command_parses_profile_release() {
         let args = Args::try_parse_from(["scoop", "run", "--release", "--opt-level", "2"]).unwrap();
 
         match args.command {
@@ -499,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_rejects_conflicting_run_profile_flags() {
+    fn run_command_rejects_conflicting_profile_flags() {
         let err = Args::try_parse_from(["scoop", "run", "--debug", "--release"]).unwrap_err();
         assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }

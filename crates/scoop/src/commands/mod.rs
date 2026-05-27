@@ -17,7 +17,6 @@ mod new;
 mod package;
 mod run;
 pub(crate) mod temp;
-mod test;
 
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
@@ -51,27 +50,6 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
 
     match command {
         Command::New { project_name } => new::run(project_name),
-        Command::Test {
-            fixture_path,
-            fixtures,
-            exit_on_failure,
-            processes,
-            opt_level,
-            gc_stress,
-            gc_move,
-            threads,
-        } => test::run(
-            fixture_path.or(fixtures),
-            test::TestOptions {
-                opt_level: parse_opt_level_flag(opt_level)?,
-                gc_stress,
-                gc_move,
-                threads,
-                exit_on_failure,
-                processes,
-                session_options,
-            },
-        ),
         Command::DumpAst { input } => dump_ast::run(input, session_options),
         Command::DumpEffectFacts { input } => dump_effect_facts::run(input, session_options),
         Command::DumpEffectLowered { input } => dump_effect_lowered::run(input, session_options),
