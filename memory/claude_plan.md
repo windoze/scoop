@@ -25,5 +25,5 @@
 - 已验证 root `README.md` 旧入口搜索无命中；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
 - 完整 Rust 测试和完整 fixture 套件未重跑，因为本轮仅修改 markdown/任务记录，且最近完成记录已有完整绿色结果。
 - 已更新 `TODO.md`：`P2-T04R` 标题加 `[DONE]`，完成记录已追加验证命令和跳过完整套件的原因。
-- 已检查 diff/status：本轮相关改动为 `TODO.md`、`memory/claude_plan.md`；工作区另有既有无关改动，将不纳入本次提交。
-- 下一步：暂存本轮相关文件并创建 `P2-T04R` commit，然后停止。
+- 已检查 diff/status：本轮相关改动为 `TODO.md`、`memory/claude_plan.md`；工作区另有既有无关改动，未纳入本次提交。
+- 已创建提交 `46bd38de [P2-T04R] Review README fixture commands`，本轮任务完成，接下来只做最终状态确认并停止。
