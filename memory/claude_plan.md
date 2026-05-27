@@ -24,4 +24,5 @@
 - 已重写 `tools/README.md`：主清单覆盖 8 个 Python 脚本，shell helper 段落说明 3 个现有 shell 辅助脚本，并移除旧 Rust 工具箱与旧内置 runner 调用串。
 - 已验证旧入口模式在 `tools/README.md` 无命中，8 个 Python 脚本入口均已列出；`cargo fmt` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 已更新 `TODO.md`，将 `P2-T05` 标记为 `[DONE]` 并追加完成记录；完整 Rust 测试与 fixture 套件因本次仅修改文档/task bookkeeping，复用最近完整绿色结果。
-- 下一步：检查 git 状态和 diff，提交本任务变更后停止。
+- 已创建提交 `85ac3a63 [P2-T05] Rewrite tools README scripts`。
+- 下一步：确认工作区只剩本轮无关既有改动，然后停止；不进入 `P2-T05R`。
