@@ -2,23 +2,21 @@
 
 Note: I cannot record private chain-of-thought, but I will keep this file updated with the concrete execution plan, progress, decisions, and validation results.
 
-Current task: P3-T01 - delete the compiler-side fixture runner engine files `crates/scoopc/src/fixtures/{mod,expectations,run_pass}.rs` and `crates/scoopc/src/fixture_cli.rs`.
+Current task: P3-T01R - review the P3-T01 fixture runner engine deletion and confirm the compiler no longer internally holds the fixture runner engine concept.
 
 Execution plan:
 1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
 2. Check the current git state and latest commit only for context directly relevant to the selected task.
-3. Inspect the fixture engine modules and their references to determine the smallest safe deletion for P3-T01 without doing later P3 CLI-removal tasks.
-4. Delete the specified fixture engine source files and adjust only directly required module wiring so the crate remains buildable.
-5. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full test and fixture validation as required by the code change.
-6. Mark `P3-T01` `[DONE]` in `TODO.md`, append its completion record, commit task-related changes, and stop.
+3. Review the P3-T01 commit diff and current source tree for the deleted fixture engine files, module wiring, and remaining compiler-internal fixture references.
+4. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then tests and fixture validation appropriate for this review task.
+5. Mark `P3-T01R` `[DONE]` in `TODO.md`, append its completion record, commit task-related changes, and stop.
 
 Progress:
-- Read `TODO.md` and identified `P3-T01` as the first incomplete task.
-- Created the current invocation plan before running repository commands.
-- Checked latest commit `[P2-T09R] Review safepoint baseline docs`; it does not mention unfinished work relevant to P3-T01.
-- Removed the specified fixture engine files and the direct `scoopc` module/dispatch references that depended on those files.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py` (1533 checks), source reference grep, deleted-file glob check, and `cargo run -q -p scoopc -- test-fixtures` unknown-subcommand check.
-- Marked `P3-T01` `[DONE]` in `TODO.md` and appended its completion record.
+- Read `TODO.md` and identified `P3-T01R` as the first incomplete task.
+- Checked latest commit `[P3-T01] Remove scoopc fixture engine`; it is directly relevant and provides the implementation under review.
+- Reviewed the deleted-file state and source references: `crates/scoopc/src/fixture_cli.rs` and `crates/scoopc/src/fixtures/` are absent, and the old fixture runner API tokens no longer appear in `crates/scoopc/**/*.rs`.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py` (1533 checks), deleted-path assertions, and source-reference grep.
+- Marked `P3-T01R` `[DONE]` in `TODO.md` and appended its completion record.
 
 ---
 
