@@ -23,5 +23,6 @@ Progress:
 - Regenerated affected parser/HIR/MIR/effect snapshots.
 - Completed validation: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, targeted fixtures, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py` all passed.
 - Updated `TODO.md` and `TODO-2.md` to mark P2-T02 done with completion record.
+- Committed the P2-T02 implementation changes in Git.
 
-Next step: review final diff, commit P2-T02 changes, and stop.
+Status: P2-T02 is complete; stop after final response.
