@@ -446,7 +446,7 @@
     - 闭合 SPEC_FIX A3 / PLAN P2 中 “parser / AST surface 能表达 operator modifier” 的前置要求。
     - 阶段边界、依赖结构与完成条件未变化；无需更新 `PLAN.md`。
 
-### [TODO] P2-T05R：Review `operator` modifier surface
+### [DONE] P2-T05R：Review `operator` modifier surface
 
 - 参考：
   - P2-T05 完成记录
@@ -473,9 +473,21 @@
 - 依赖：P2-T05
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T05 的 lexer/parser/AST/resolver 接线与 operator fixtures；未发现需要修改 compiler 代码的缺陷。
+    - 更新 `TODO.md` / `TODO-2.md` / `memory/claude_plan.md` 记录本 review 任务结果。
   - 核心决策：
+    - 接受 `operator` 作为保留 keyword 与 declaration modifier surface：`Keyword::Operator`、`ast::Modifier::Operator`、`parse_decl_prefix` / declaration lookahead 与 `ModifierSet::operator` 均已贯通。
+    - `operator` flag 存在于 `FunOverload.symbol.modifiers`，P3-T01 可直接从 resolver/typecheck 可见的 function candidate metadata 查询。
+    - 当前 production operator-resolution 路径未读取 `modifiers.operator`，因此 P2-T05R 未提前改变普通 `plus` / operator-positioned call 语义；语义 gate 仍归 P3-T01。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - Targeted fixtures：`tests/fixtures/parse/operator_modifier_basic.scoop`、`tests/fixtures/parse/operator_keyword_expression_is_error.scoop`、`tests/fixtures/typecheck/operator_modifier_plus_smoke.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1541)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核并闭合 SPEC_FIX A3 / PLAN P2 中 “parser / AST surface 能表达 operator modifier 且 P3 可查询 metadata” 的 review 要求。
+    - 阶段边界、依赖结构与完成条件未变化；无需更新 `PLAN.md`。
 
 ### [TODO] P2-T06：解析 inline generic bounds 与 `ref` / `value` bound keywords
 
