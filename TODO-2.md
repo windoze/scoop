@@ -540,7 +540,7 @@
     - 闭合 SPEC_FIX C4 / PLAN P2 中 parser / AST surface 对 inline bounds 与 `ref` / `value` bound keywords 的前置要求。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T06R：Review generic bound parser surface
+### [DONE] P2-T06R：Review generic bound parser surface
 
 - 参考：
   - P2-T06 完成记录
@@ -568,6 +568,21 @@
 - 依赖：P2-T06
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T06 新增的 parser / AST / HIR typecheck bound surface：`TypeParam` inline bounds 与 `where` constraints 通过 `ast::generic_constraints(...)` 汇合，resolver、where-clause checker、lowering 与 instantiation constraint 检查读取同一约束流。
+    - 复核 `ref` / `value` 保持 context keyword 策略，只在 generic bound 位置形成 dedicated bound-kind AST / lowered constraint；普通 type position 统一触发 `scoop::parse::bound_keyword_type_position`。
+    - 复核 `AnyRef` / `AnyValue` sysroot marker 与 sealed marker satisfaction 逻辑仍保留，未在 P2 提前删除或替换。
+    - 复核新增 fixtures 覆盖 inline type bounds、`ref` / `value` 正向 bound surface、参数/返回值/type arg/`is`/`as`/supertype 等非法位置。
   - 核心决策：
+    - 接受 P2-T06 的统一约束入口作为 P3-T06 的 parser/AST 前置形态；P3-T06 可在现有 `GenericBound::{Ref,Value}` / lowered bound-kind 分支上补齐 kind satisfaction，无需再改 parser。
+    - 保持 `ref` / `value` 不进入 lexer keyword enum，避免污染普通 identifier surface；它们只在 bound parser 中按文本识别。
+    - 不把 cone artifact 中既有 where-bound export 限制纳入本 review 修复范围；P2-T06R 关注 parser surface，且该限制不是 P2-T06 引入的回归。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo test --all --all-targets`：通过。
+    - Targeted fixtures：`generic_inline_bounds.scoop`、全部 `bound_keyword_*_is_error.scoop`、`inline_generic_bound_method_fun_ok.scoop`、`inline_generic_bound_not_satisfied_is_error.scoop`、`ref_value_bound_keywords_ok.scoop` 均通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1551)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核闭合 SPEC_FIX C4 / PLAN P2 parser surface 前置要求：inline bounds 与 `ref` / `value` bound-only syntax 已足够支撑 P3-T06。
+    - P2 包已全部完成，P3 可以开始语义落地；未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
