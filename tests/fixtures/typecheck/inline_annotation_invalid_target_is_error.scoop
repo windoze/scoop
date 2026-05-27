@@ -1,9 +1,0 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_invalid_target
-// EXPECT-ERROR: 内建注解 `@Inline` 只能用于 函数
-// 目标：T4013 `@Inline` 只允许作为函数声明上的优化提示 marker。
-
-package fixtures.typecheck
-
-@Inline
-val fastValue: Int = 1

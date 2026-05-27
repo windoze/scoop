@@ -441,13 +441,6 @@ enum AnnotationTarget {
 }
 
 annotation class TailRec
-// `@Inline`：唯一的内联提示 surface。
-//
-// 说明：
-// - `inline` 关键字已移除；若用户希望表达“允许/偏好内联”，统一写作 `@Inline fun ...`；
-// - 它只是一种 compile-time marker / 优化提示，不携带 non-local return 等控制流语义。
-@Target(AnnotationTarget.Function)
-annotation class Inline
 // `@AllowIntrinsic`：文件 / 模块级 gate。
 //
 // 说明：

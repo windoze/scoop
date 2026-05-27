@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unresolved_annotation_type
+// EXPECT-ERROR: 未解析的注解类型：Inline
+// 目标：`@Inline` 已从 sysroot 与内建注解 surface 删除。
+
+package fixtures.typecheck
+
+@Inline
+fun fastPath(x: Int): Int {
+    return x
+}

@@ -96,7 +96,7 @@ pub enum ParseError {
     #[error("语法错误：`inline` 关键字已移除")]
     #[diagnostic(
         code(scoop::parse::inline_modifier_removed),
-        help("将 `inline fun ...` 改写为 `@Inline fun ...`")
+        help("删除 `inline` 修饰符；Scoop 不再提供内联提示 surface")
     )]
     InlineModifierRemoved {
         #[label("这里的 `inline` 不再作为声明修饰符解析")]

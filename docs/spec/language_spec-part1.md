@@ -200,7 +200,7 @@ do return if else when for in out where while break continue is as as?
 
 说明：
 
-- `inline` 关键字已废弃；语言语义使用 `@Inline` 注解，见第 3 部分。
+- `inline` 关键字已废弃；保留为解析期错误以提示删除该修饰符。
 - `with` 保留给值类型 copy-update 表达式；不提供 Kotlin 的 `with(obj) { ... }` scope function 语法。
 - `as?` 词法上作为安全 cast 关键字处理。
 

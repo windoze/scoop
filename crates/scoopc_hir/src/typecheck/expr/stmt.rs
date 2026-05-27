@@ -26,7 +26,7 @@ use super::util::{fmt_effect_row, visibility_from_modifiers};
 
 use super::{ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 
-use super::super::annotations::check_inline_annotation_uses;
+use super::super::annotations::check_local_annotation_uses;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::lower::{TypeLowering, WhereBoundEntry};
@@ -1090,7 +1090,7 @@ pub(super) fn check_local_val_decl_exprs(
     state: &mut StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
-    check_inline_annotation_uses(
+    check_local_annotation_uses(
         shared.source,
         &v.annotations,
         AnnotationTargetKind::LocalVariable,
@@ -1243,7 +1243,7 @@ fn check_expr_stmt_with_mode(
             annotations,
             expr: inner,
         } => {
-            check_inline_annotation_uses(
+            check_local_annotation_uses(
                 shared.source,
                 annotations,
                 AnnotationTargetKind::Expression,

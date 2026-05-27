@@ -413,7 +413,7 @@
     - 闭合 P1-T01 的独立 review gate；`SPEC_FIX.md` A1、A2、D1 在活跃 spec 与 split spec 中的表述准确，且不影响 compiler / fixture baseline。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P1-T02：删除 `@Inline` annotation surface
+### [DONE] P1-T02：删除 `@Inline` annotation surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -447,9 +447,27 @@
 - 依赖：P1-T01R
 - 完成记录：
   - 改动范围：
+    - 更新 `TODO.md` 索引与本条任务标题为 `[DONE]`，并填写完成记录。
+    - 从 `SCOOP_FULL_SPEC.md` 和 split spec 删除 `@Inline` 函数章节、annotation overview 示例与 built-in annotation 表项；保留 lowercase `inline` 作为 removed keyword diagnostic，而不是可替代的 annotation hint。
+    - 从 `sysroot/lib/scoop.core/src/core.scoop` 删除 `annotation class Inline`，并同步更新 HIR / effect-lowered goldens 中由该 sysroot class 产生的 nominal / vtable / class init / layout count。
+    - 从 `BuiltinAnnotationKind` / `builtin_annotation_kind` 删除 `Inline` 分支；删除 `check_builtin_inline_annotation`，并将局部 / 表达式注解检查入口从 `check_inline_annotation_uses` 改写为 `check_local_annotation_uses`。
+    - 更新 parser removed-keyword help，不再建议 `inline fun ...` 改写为 `@Inline fun ...`。
+    - 删除过时 `@Inline` positive / target-specific fixtures，新增 `tests/fixtures/typecheck/inline_annotation_removed_is_error.scoop` 验证裸 `@Inline` 不再解析为内建或 sysroot annotation。
   - 核心决策：
+    - `@Inline` 不再是语言、sysroot 或 typecheck 内建 surface；compiler inliner 仍保留在 MIR / LIR 优化路径中，未绑定到用户可见 annotation。
+    - 旧 lowercase `inline` keyword 继续在 parser 中保留为前端错误，以保证旧 surface 有稳定 diagnostic，但 diagnostic help 只要求删除修饰符。
+    - `@Inline` fixture 选择保留一个 negative typecheck 用例，避免无声回归为 active builtin annotation；其余旧 positive / non-local-return 相关用例删除，non-local return 行为继续由 `return_in_non_inline_lambda_arg_is_error.scoop` 覆盖。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `python3 tools/spec_fixtures.py sync`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1534)`。
+    - targeted search：`SCOOP_FULL_SPEC.md`、`docs/spec/`、`sysroot/lib/scoop.core/src/core.scoop`、`crates/scoopc_hir/src/typecheck/` 与 active fixtures 中不再出现 `annotation class Inline`、`BuiltinAnnotationKind::Inline`、`check_inline_annotation_uses`、`check_builtin_inline_annotation` 或 `scoop.core.Inline`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` B1：删除 `@Inline`，由 compiler 自主 inliner heuristic 决定内联。
+    - 闭合 `PLAN.md` P1 中 `@Inline` 删除 gate；未改变阶段边界、依赖结构或后续任务完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P1-T02R：Review `@Inline` 删除结果
 

@@ -470,9 +470,9 @@ File {
 
 
 hir_facts {
-  declarations: nominals=74, callables=2, fields=44, enum_variants=24, vtables=54, itables=32
+  declarations: nominals=73, callables=2, fields=44, enum_variants=24, vtables=53, itables=32
   source_sites: function_effects=2, calls=8, args=4, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
-  globals: roots=1, object_inits=1, class_inits=23
+  globals: roots=1, object_inits=1, class_inits=22
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
   type_context: universe=hir-stage-type-store, type_params=86, source_cones=8
 }
@@ -545,7 +545,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19633..19637),
+            target_decl_span: Some(19285..19289),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -556,7 +556,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19633..19637),
+            target_decl_span: Some(19285..19289),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -576,7 +576,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19633..19637),
+            target_decl_span: Some(19285..19289),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -587,7 +587,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19633..19637),
+            target_decl_span: Some(19285..19289),
             target_type_args: [],
             target_eff_args: [],
         },

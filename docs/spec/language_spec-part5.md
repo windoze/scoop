@@ -194,9 +194,6 @@ my.pkg.TypeName::class
 ```kotlin
 @Deprecated("Use newFoo() instead", replaceWith: "newFoo")
 fun foo() { ... }
-
-@Inline
-fun fastPath(x: Int): Int = x * 2
 ```
 
 规则：
@@ -334,7 +331,6 @@ struct User {
 | `@Intrinsic` | 函数、类型 | 实现由编译器或运行时提供 |
 | `@Extern(lib?, name?)` | 函数、顶层变量 | 外部符号，见第 6 部分 |
 | `@Deprecated(message, replaceWith)` | 函数、类型、属性 | 使用处发 warning |
-| `@Inline` | 函数 | 内联优化提示 |
 | `@TailRec` | 函数 | 要求尾递归优化；否则编译错误 |
 | `@AllowIntrinsic` | 文件/模块 | 允许可信源码声明 intrinsic surface |
 | `@Suppress(warnings...)` | 表达式、声明、文件 | 抑制指定 warning |

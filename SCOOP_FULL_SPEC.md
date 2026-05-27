@@ -1233,25 +1233,11 @@ fun greet(name: String): String {
 
 Function syntax follows Kotlin.
 
-### 7.2 `@Inline`
-
-`@Inline` is an optimization hint only. The compiler may choose to inline or not. It has **no semantic effect** — there is no non-local return, and no special treatment of lambda parameters. The legacy `inline` keyword is removed; use `@Inline` on the function declaration instead.
-
-```kotlin
-@Inline
-fun <T> measure(block: () -> T): T {
-    val start = now()
-    val result = block()
-    println(f"took {now() - start}ms")
-    return result
-}
-```
-
-### 7.3 Non-local Return
+### 7.2 Non-local Return
 
 Non-local return is **not supported**. `return` always exits the immediately enclosing named function. Use `for` loops with `return` or `break` for early exit patterns.
 
-### 7.4 Extension Functions
+### 7.3 Extension Functions
 
 Extension functions add new functions to existing types without modifying their declaration. The receiver type is specified before the function name with a dot.
 
@@ -1651,7 +1637,7 @@ Rules:
 
 ### 10.3 Extension Properties
 
-Properties can be added to existing types via extension syntax, analogous to extension functions (§7.4). Extension properties cannot have backing fields — they must be computed.
+Properties can be added to existing types via extension syntax, analogous to extension functions (§7.3). Extension properties cannot have backing fields — they must be computed.
 
 ```kotlin
 val String.lastChar: Char
@@ -2251,7 +2237,7 @@ This approach handles subtyping, bounded polymorphism, and overload resolution i
 
 ### 15.1 Overview
 
-Annotations attach **static metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`, `@Experimental`) and by tools or static reflection (§6).
+Annotations attach **static metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Deprecated`, `@Suppress`, `@Experimental`) and by tools or static reflection (§6).
 
 Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional static payload. Annotation values have no runtime object representation and do not introduce extra control-flow semantics.
 
@@ -2263,8 +2249,6 @@ annotation class Deprecated(
     val replaceWith: String = ""
 )
 
-@Target(AnnotationTarget.Function)
-annotation class Inline
 annotation class Extern(val lib: String = "", val name: String = "")
 annotation class Experimental(val feature: String)
 annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
@@ -2295,9 +2279,6 @@ Annotations are placed before the declaration they modify, prefixed with `@`:
 ```kotlin
 @Deprecated("Use newFoo() instead", replaceWith: "newFoo")
 fun foo() { ... }
-
-@Inline
-fun fastPath(x: Int): Int = x * 2
 ```
 
 **Argument syntax:** The first parameter may be passed positionally. All subsequent parameters must be named:
@@ -2367,7 +2348,6 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@Intrinsic` | Functions, types | Implementation provided by the compiler/runtime |
 | `@Extern(lib?, name?, abi?)` | Functions, global variables | Links to an external symbol (function or variable), optionally specifying the library, symbol name, and, for functions, the ABI family (see §15.5.1). If `abi` is omitted it defaults to `c`; `abi = "c"` requires an unsafe context and is treated as `@NoGC`, while `abi = "scoop"` uses the managed external ABI and implies neither (see §15.8 and §15.9) |
 | `@Deprecated(message, replaceWith)` | Functions, types, properties | Marks declaration as deprecated; compiler emits warning on use |
-| `@Inline` | Functions | Hint to inline the function body at call sites |
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
 | `@AllowIntrinsic` | Modules/files | Permits `@Intrinsic` declarations in user code |
 | `@Suppress(warnings...)` | Expressions, declarations, files | Suppresses specific compiler warnings |
@@ -3230,7 +3210,7 @@ Scoop may allow implementation-internal uses that are erased or proven safe by t
 
 ### B.5 Functions (Expanded)
 
-§7.1 says “Function syntax follows Kotlin”, with Scoop-specific differences noted in §7.2–§7.4.
+§7.1 says “Function syntax follows Kotlin”, with Scoop-specific differences noted in §7.2–§7.3.
 
 The following Kotlin-like rules apply.
 

@@ -187,23 +187,7 @@ fun greet(name: String): String {
 - 无显式返回类型且无非 Unit 返回路径时，返回 `Unit`。
 - `return` 总是返回最近的具名函数。
 
-### 5.1 `@Inline`
-
-`@Inline` 是优化提示：
-
-```kotlin
-@Inline
-fun <T> measure(block: () -> T): T { ... }
-```
-
-规则：
-
-- `@Inline` 不改变语义。
-- 编译器可选择是否内联。
-- 不提供 Kotlin `inline` 的 non-local return 语义。
-- `inline` 关键字不作为语言表面使用；应写 `@Inline`。
-
-### 5.2 Non-local return
+### 5.1 Non-local return
 
 Scoop 不支持 non-local return。Lambda 内的 `return` 不能返回外层函数。需要早退时使用显式循环、`return` 于当前函数、`break`、`continue` 或效果/异常语义。
 

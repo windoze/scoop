@@ -37,7 +37,7 @@ use super::lower_type_ref_with_enum_subst;
 use super::{EnumTypeSubstContext, ExprInferInputs, ExprTypeError};
 
 use super::super::TypeSymbolKind;
-use super::super::annotations::check_inline_annotation_uses;
+use super::super::annotations::check_local_annotation_uses;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::branch_merge;
 use super::super::int_literals::{
@@ -62,7 +62,7 @@ pub(super) fn infer_expr_type(
         expr: inner,
     } = &expr.kind
     {
-        check_inline_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
+        check_local_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
         return inputs.infer(lower, inner);
     }
 
@@ -1814,7 +1814,7 @@ pub(super) fn infer_expr_type_in_expected_context(
         expr: inner,
     } = &expr.kind
     {
-        check_inline_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
+        check_local_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
         return inputs.infer_in_expected(lower, inner, expected_ty, expected_from);
     }
 
