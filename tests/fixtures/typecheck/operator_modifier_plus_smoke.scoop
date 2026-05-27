@@ -1,0 +1,20 @@
+// EXPECT: pass
+// P2-T05 smoke: parser/resolver carry `operator` without changing operator resolution yet.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Vec2 {
+    val x: Int
+    val y: Int
+
+    operator fun plus(other: Vec2): Vec2 {
+        return other
+    }
+}
+
+fun add(a: Vec2, b: Vec2): Vec2 {
+    val c: Vec2 = a + b
+    return c
+}

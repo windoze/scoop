@@ -398,7 +398,7 @@
     - 复核并闭合 `SPEC_FIX.md` B6 review 条件：`${...}` 是唯一 interpolation opener，literal `{}` JSON-friendly，`$x` shorthand 未启用，旧 `{expr}` 不再是 positive surface。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T05：新增 `operator` modifier 的 lexer/parser/AST surface
+### [DONE] P2-T05：新增 `operator` modifier 的 lexer/parser/AST surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -430,9 +430,21 @@
 - 依赖：P2-T04R
 - 完成记录：
   - 改动范围：
+    - `Keyword::Operator` 与 lexer keyword 表新增 `operator`，parser declaration prefix / lookahead 将其作为普通声明 modifier 接受。
+    - AST `Modifier::Operator` 与 resolver `ModifierSet::operator` 已接线，`Index` 中的 function symbol metadata 可保留该 flag；补充 resolver unit test 覆盖 member `operator fun plus`。
+    - 新增 parser fixtures `operator_modifier_basic.scoop` / `operator_keyword_expression_is_error.scoop`，覆盖 modifier 正例与 expression 位置 reject；新增 typecheck smoke fixture `operator_modifier_plus_smoke.scoop`。
   - 核心决策：
+    - `operator` 作为保留 keyword 进入 lexer；本任务只允许 declaration modifier 位置，`return operator` 等表达式位置稳定报 parser error。
+    - 不改变 overload/operator resolution；P3-T01 仍负责根据 `ModifierSet::operator` 做 operator-positioned call gate。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - Targeted fixtures：`tests/fixtures/parse/operator_modifier_basic.scoop`、`tests/fixtures/parse/operator_keyword_expression_is_error.scoop`、`tests/fixtures/typecheck/operator_modifier_plus_smoke.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1541)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 SPEC_FIX A3 / PLAN P2 中 “parser / AST surface 能表达 operator modifier” 的前置要求。
+    - 阶段边界、依赖结构与完成条件未变化；无需更新 `PLAN.md`。
 
 ### [TODO] P2-T05R：Review `operator` modifier surface
 

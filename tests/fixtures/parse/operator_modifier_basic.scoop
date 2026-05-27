@@ -1,0 +1,17 @@
+// EXPECT: pass
+// EXPECT-AST: operator_modifier_basic.ast
+// P2-T05: `operator` is accepted as a declaration modifier and retained in AST.
+
+package fixtures.parse
+
+operator fun topPlus(x: Int): Int {
+    return x
+}
+
+struct Vec2 {
+    val x: Int
+
+    operator fun plus(other: Vec2): Vec2 {
+        return other
+    }
+}

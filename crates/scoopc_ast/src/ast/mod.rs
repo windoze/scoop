@@ -535,6 +535,8 @@ pub enum Modifier {
     Sealed,
     // misc
     Override,
+    /// Operator-positioned call opt-in marker: `operator fun ...`.
+    Operator,
     /// 注解类标记：`annotation class`（spec §15.2）。
     ///
     /// 说明：

@@ -45,6 +45,8 @@ pub enum Keyword {
     Sealed,
     Inline,
     Override,
+    /// `operator`（声明修饰符；语义 gate 在 parser 之后处理）。
+    Operator,
     /// `vararg`（Appendix B.5.5）。
     ///
     /// 说明：该关键字目前仅在“形参位置”作为修饰符使用；语义由 typecheck 负责。

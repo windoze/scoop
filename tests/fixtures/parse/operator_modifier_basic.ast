@@ -1,0 +1,202 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 141..163,
+            path: [
+                Ident {
+                    span: 149..157,
+                },
+                Ident {
+                    span: 158..163,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 165..215,
+                modifiers: [
+                    Operator,
+                ],
+                receiver: None,
+                name: Ident {
+                    span: 178..185,
+                },
+                type_params: [],
+                params_span: 185..193,
+                params: [
+                    Param {
+                        name: Ident {
+                            span: 186..187,
+                        },
+                        ty: Some(
+                            Path(
+                                TypePath {
+                                    span: 189..192,
+                                    segments: [
+                                        Ident {
+                                            span: 189..192,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    },
+                ],
+                return_ty: Some(
+                    Path(
+                        TypePath {
+                            span: 195..198,
+                            segments: [
+                                Ident {
+                                    span: 195..198,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                body: Block(
+                    Block {
+                        span: 199..215,
+                        stmts: [
+                            Stmt {
+                                span: 205..213,
+                                kind: Return {
+                                    return_span: 205..211,
+                                    value: Some(
+                                        Expr {
+                                            span: 212..213,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 212..213,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                                has_trailing_semi: false,
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 217..318,
+                kind: Struct,
+                name: Ident {
+                    span: 224..228,
+                },
+                type_params: [],
+                body: Some(
+                    TypeBody {
+                        span: 229..318,
+                        members: [
+                            Property(
+                                PropertyDecl {
+                                    span: 235..245,
+                                    kind: Val,
+                                    name: Ident {
+                                        span: 239..240,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 242..245,
+                                                segments: [
+                                                    Ident {
+                                                        span: 242..245,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: None,
+                                    getter: None,
+                                    setter: None,
+                                },
+                            ),
+                            Fun(
+                                FunDecl {
+                                    span: 251..316,
+                                    modifiers: [
+                                        Operator,
+                                    ],
+                                    receiver: None,
+                                    name: Ident {
+                                        span: 264..268,
+                                    },
+                                    type_params: [],
+                                    params_span: 268..281,
+                                    params: [
+                                        Param {
+                                            name: Ident {
+                                                span: 269..274,
+                                            },
+                                            ty: Some(
+                                                Path(
+                                                    TypePath {
+                                                        span: 276..280,
+                                                        segments: [
+                                                            Ident {
+                                                                span: 276..280,
+                                                            },
+                                                        ],
+                                                        args: [],
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                    return_ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 283..287,
+                                                segments: [
+                                                    Ident {
+                                                        span: 283..287,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    body: Block(
+                                        Block {
+                                            span: 288..316,
+                                            stmts: [
+                                                Stmt {
+                                                    span: 298..310,
+                                                    kind: Return {
+                                                        return_span: 298..304,
+                                                        value: Some(
+                                                            Expr {
+                                                                span: 305..310,
+                                                                kind: Ident(
+                                                                    Ident {
+                                                                        span: 305..310,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ),
+                                                    },
+                                                    has_trailing_semi: false,
+                                                },
+                                            ],
+                                        },
+                                    ),
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

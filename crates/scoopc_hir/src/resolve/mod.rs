@@ -256,6 +256,7 @@ pub struct ModifierSet {
     pub abstract_: bool,
     pub sealed: bool,
     pub override_: bool,
+    pub operator: bool,
 }
 
 impl ModifierSet {
@@ -267,6 +268,7 @@ impl ModifierSet {
                 ast::Modifier::Abstract => out.abstract_ = true,
                 ast::Modifier::Sealed => out.sealed = true,
                 ast::Modifier::Override => out.override_ = true,
+                ast::Modifier::Operator => out.operator = true,
                 _ => {}
             }
         }
@@ -2474,6 +2476,20 @@ mod tests {
         let index = Index::build(&[(&src, &ast)]).unwrap();
         let syms = index.by_fqn.get("a.f").unwrap();
         assert_eq!(syms.fun.len(), 2);
+    }
+
+    #[test]
+    fn operator_modifier_is_preserved_in_fun_symbol() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Vec { operator fun plus(other: Vec): Vec { return other } }",
+        );
+        let ast = parse_file(&src).unwrap();
+
+        let index = Index::build(&[(&src, &ast)]).unwrap();
+        let syms = index.by_fqn.get("a.Vec.plus").unwrap();
+        assert_eq!(syms.fun.len(), 1);
+        assert!(syms.fun[0].symbol.modifiers.operator);
     }
 
     #[test]

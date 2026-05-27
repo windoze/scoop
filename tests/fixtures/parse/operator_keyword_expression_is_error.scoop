@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR: 期望 表达式
+// EXPECT-ERROR-AT: 9:12
+
+package fixtures.parse
+
+fun use(): Int {
+    return operator
+}

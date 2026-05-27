@@ -99,6 +99,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(Keyword::Abstract) => ast::Modifier::Abstract,
                 TokenKind::Keyword(Keyword::Sealed) => ast::Modifier::Sealed,
                 TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
+                TokenKind::Keyword(Keyword::Operator) => ast::Modifier::Operator,
                 TokenKind::Keyword(Keyword::Annotation) => ast::Modifier::Annotation,
                 TokenKind::Keyword(Keyword::Inline) => {
                     let tok = self.bump();
