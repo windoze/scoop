@@ -89,12 +89,3 @@ pub use scoopc_hir::warnings;
 /// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认启用，可用 `--no-default-features` 关闭）。
 #[cfg(feature = "llvm")]
 pub mod llvm;
-
-#[cfg(test)]
-mod audit;
-
-#[cfg(test)]
-mod pipeline_gap_audit;
-
-#[cfg(test)]
-mod pipeline_user_visible_failure_policy;

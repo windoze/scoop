@@ -1,41 +1,39 @@
-# P3-T03R execution plan
+# P3-T04 execution plan
 
 I cannot record private chain-of-thought, but this file captures the actionable reasoning, task interpretation, and execution plan for this invocation.
 
 ## Current task
 
 - Source of truth: `TODO.md`
-- First incomplete task: `P3-T03R`
-- Task title: Review `scoop test` subcommand deletion result (`scoop test` should report an unknown subcommand)
-- Scope: review and, if needed, fix the P3-T03 deletion of the `scoop test` CLI surface. Do not proceed to P3-T04.
+- First incomplete task: `P3-T04`
+- Task title: Delete Rust audit modules and remove their `lib.rs` test-only mount points.
+- Scope: delete `crates/scoopc/src/audit/{mod,spec_coverage}.rs`, `crates/scoopc/src/pipeline_gap_audit.rs`, and `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`; remove the corresponding `#[cfg(test)] mod` entries from `crates/scoopc/src/lib.rs`. Do not proceed to P3-T04R.
 
 ## Execution plan
 
-1. Inspect the latest commit message to check whether it mentions unfinished work directly relevant to P3-T03R.
+1. Inspect the latest commit message to check whether it mentions unfinished work directly relevant to P3-T04.
 2. Inspect the current git status so any pre-existing uncommitted work is understood and preserved.
-3. Read the relevant `TODO.md` section for P3-T03/P3-T03R and the associated completion record.
-4. Search the non-archived source tree for remaining `scoop test` CLI implementation references:
-   - `Command::Test`
-   - `commands/test`
-   - parser tests named `test_command_parses_*`
-   - dispatch references to `test::`
-   - direct Rust test calls that invoke `scoop test`
-5. Verify the expected behavior by running `cargo run -p scoop -- test` and confirming it fails as an unknown subcommand rather than dispatching a hidden compatibility wrapper.
-6. Run required validation in order:
+3. Read the relevant `TODO.md` section for P3-T04 and the associated completion record pattern.
+4. Search the non-archived source tree for the Rust audit modules and `lib.rs` mount points named by the task.
+5. Delete only the P3-T04 module files and remove their `#[cfg(test)] mod` entries.
+6. Re-scan the relevant source paths to confirm no deleted module mount points remain.
+7. Run required validation in order:
    - `cargo fmt`
    - `cargo clippy --all-targets -- -D warnings`
    - `cargo test --all --all-targets`
-   - fixture validation only if source/test behavior changed or the review exposes a fixture failure that must be scheduled/fixed.
-7. If the review finds gaps, make precise fixes, re-run the relevant validation, and update this plan file with the changed plan or completed key step.
-8. If review passes, update `TODO.md` by prefixing `P3-T03R` with `[DONE]` in the task index and appending a completion record with validation commands and outcome.
-9. Commit all changes for this invocation with a descriptive message and the required co-author trailer.
-10. Stop after P3-T03R; do not start P3-T04.
+   - fixture validation if source/test changes or observed failures require it under the task policy.
+8. If validation exposes unrelated unscheduled failures, fix them or add the minimum scheduled task before marking P3-T04 done.
+9. Update `TODO.md` by prefixing `P3-T04` with `[DONE]` in the task index and appending a completion record with validation commands and outcome.
+10. Commit all task-related changes with a descriptive message and the required co-author trailer.
+11. Stop after P3-T04; do not start P3-T04R.
 
 ## Progress
 
-- Selected first incomplete task: `P3-T03R`.
-- Latest commit is `[P3-T03] Remove scoop test facade`, directly relevant to this review task and not indicating separate unfinished work.
-- Git status contained pre-existing unrelated changes outside this task (`.gitignore`, `CALLER_LOCATION.md`, `RTTI_REFINE.md`); they will be preserved and not included in the review commit.
-- Review found no remaining `scoop test` implementation in `crates/scoop`: no `Command::Test`, `commands/test.rs`, dispatch branch, fixture-wrapper options, or stale harness wrapper tests remain.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py` (1533 checks), and `cargo run -q -p scoop -- test` rejected the command as an unknown subcommand with exit 2.
-- Updated `TODO.md` to mark `P3-T03R` as `[DONE]` and append the completion record.
+- Selected first incomplete task: `P3-T04`.
+- Latest commit is `[P3-T03R] Review scoop test removal`; it does not mention unfinished work that supersedes P3-T04.
+- Git status contains pre-existing unrelated changes outside this task (`.gitignore`, `CALLER_LOCATION.md`, `RTTI_REFINE.md`); they will be preserved and not included in the P3-T04 commit.
+- Found the expected P3-T04 targets: `crates/scoopc/src/audit/mod.rs`, `crates/scoopc/src/audit/spec_coverage.rs`, `crates/scoopc/src/pipeline_gap_audit.rs`, `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`, and their `lib.rs` `#[cfg(test)] mod` mount points.
+- Deleted the four P3-T04 Rust audit files and removed their `lib.rs` test-only module mount points.
+- Confirmed `crates/scoopc/src` has no remaining deleted audit module mount references, and `crates/scoopc/src/audit/**` has no files.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `python3 tools/run_fixtures.py` (1533 checks).
+- Updated `TODO.md` to mark `P3-T04` as `[DONE]` and appended the completion record.
