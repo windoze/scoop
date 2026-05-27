@@ -1,22 +1,22 @@
-# Execution Plan
+# 执行计划
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for unfinished work that is directly relevant to that selected task.
-3. Read the selected task requirements, dependencies, validation requirements, and completion record.
-4. Inspect the smallest relevant parts of the codebase needed for the selected task.
-5. Implement the task as written, without narrowing scope or using workarounds for missing behavior.
-6. Run formatting and validation in the requested order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixtures as required.
-7. If a blocking prerequisite is discovered, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-8. If the task is completed, mark its heading `[DONE]`, update its completion record with changes and validation, commit all relevant changes, and stop.
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
+2. 查看该任务的要求、依赖、验证方式和完成记录；必要时查看最近提交，确认是否有直接相关的未完成问题。
+3. 基于当前任务检查相关代码、测试和文档，避免进行无关历史问题排查。
+4. 若发现当前任务被具体缺陷或缺失特性阻塞，先在 `TODO.md` 中加入最小必要前置任务并提交后停止。
+5. 若可直接完成，按任务要求实现最小正确修改，并补充或更新对应测试/fixture。
+6. 先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，随后运行任务要求的相关测试；需要完整验证时运行完整 Rust 测试和 fixture 套件并使用足够超时。
+7. 修复验证中发现且未被显式排期的失败；若不能在当前任务内修复，则在 `TODO.md` 中加入正确顺序的前置/后续任务并停止。
+8. 完成后将当前任务标题加上 `[DONE]`，更新完成记录；仅在阶段计划确实变化时更新 `PLAN.md`。
+9. 检查 git 状态和差异，提交本次任务涉及的所有变更，提交信息使用任务编号和简短描述。
+10. 完成一个任务后停止，不继续处理下一个任务。
 
-Progress:
+## 进度
 
-- Initial execution plan written before reading task details.
-- Read `TODO.md`; first incomplete task is `P2-T02`, covering `tools/run_fixture_scan.sh`, `tools/run_run_pass_gc_scan.sh`, and `tools/gc_microbench.sh` internal call-chain migration after completed prerequisite `P2-T02A`.
-- Checked latest commit `d5280db1 [P2-T02A] Fix class ctor GC roots`; it confirms the direct prerequisite was completed and does not mention a separate unfinished issue.
-- Inspected the three target shell scripts. `run_fixture_scan.sh` and `run_run_pass_gc_scan.sh` already invoke `tools/run_fixtures.py`; `gc_microbench.sh` has no fixture-runner invocation. No script code change is currently needed unless validation exposes a failure.
-- Validation found a blocking `tools/run_run_pass_gc_scan.sh` timeout in `delegated_property_lazy_thread_safety_synchronized_once.scoop` under `SCOOP_GC_VERIFY_ROOTS=1 --gc-move --gc-stress`.
-- Reproduction showed STW diagnostics waiting for a non-initiator thread left in `Running` while it was waiting inside thread unregister/register during an active STW. Plan update: fix `scoop_gc_thread_register` and `scoop_gc_thread_unregister` in both baseline and Immix STW implementations so already-registered non-initiator threads park before waiting for STW completion.
-- Implemented the STW register/unregister fix in `runtime/c/scoop_gc.c` and `runtime/c/scoop_gc_backend_immix.c`.
-- Validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, full `python3 tools/run_fixtures.py`, 20x targeted GC-stress reproduction, `tools/run_fixture_scan.sh` parse scan, full `tools/run_run_pass_gc_scan.sh`, both `tools/gc_microbench.sh` smoke scenarios, and old-entry grep for `tools/*.sh` all passed.
-- Updated `TODO.md` to mark `P2-T02` as `[DONE]` with completion record.
+- 已写入初始执行计划；下一步读取 `TODO.md` 识别第一个未完成任务。
+- 已识别第一个未完成任务：`P2-T02R`，目标是复审 `tools/run_fixture_scan.sh` / `tools/run_run_pass_gc_scan.sh` / `tools/gc_microbench.sh` 的入口切换结果并完成端到端验证。
+- 当前执行范围限定为 P2-T02R，不处理后续文档更新任务。
+- 已检查相关 shell 脚本和最新提交：`tools/run_fixture_scan.sh` 与 `tools/run_run_pass_gc_scan.sh` 均通过 `python3 tools/run_fixtures.py` 驱动 fixture；`tools/gc_microbench.sh` 不涉及旧 fixture runner。
+- 发现工作区存在 unrelated 未提交文件，将保持不动并仅提交本任务改动。
+- 验证已完成并通过：旧入口搜索无命中，`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`、`tools/run_fixture_scan.sh` parse 子集、`tools/run_run_pass_gc_scan.sh` 全量 run-pass GC 扫描、两个 `tools/gc_microbench.sh` smoke 均通过。
+- 已将 `TODO.md` 中 `P2-T02R` 标记为 `[DONE]` 并追加完成记录；下一步检查差异并提交本任务改动。
