@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::tuple_member_old_syntax
+// EXPECT-ERROR: 旧写法 `_0` 已移除
+// 目标：P2-T03 tuple `with` path 也必须使用 numeric segment，不再接受 `_0`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use(pair: (Int, Int)) {
+    val updated: (Int, Int) = pair with { _0: 1 }
+}

@@ -13,19 +13,19 @@ import scoop.core.*
 fun combine(seed: Int, builder: (Int) -> (Int, Int)): Int {
     val first: (Int, Int) = builder(seed)
     val second: (Int, Int) = builder(seed + 10)
-    println(first._0)
-    println(first._1)
-    println(second._0)
-    println(second._1)
-    return first._0 + second._1
+    println(first.0)
+    println(first.1)
+    println(second.0)
+    println(second.1)
+    return first.0 + second.1
 }
 
 fun main(): Int {
     val mkPair: (Int) -> (Int, Int) = { n: Int -> (n + 1, n + 2) }
 
     val direct: (Int, Int) = mkPair(3)
-    println(direct._0)
-    println(direct._1)
+    println(direct.0)
+    println(direct.1)
     println(combine(5, mkPair))
     0
 }

@@ -473,8 +473,8 @@ val triple: (Int, Bool, String) = (1, true, "abc")
 
 ```kotlin
 val p = (10, "hi")
-val x = p._0
-val y = p._1
+val x = p.0
+val y = p.1
 ```
 
 规则：

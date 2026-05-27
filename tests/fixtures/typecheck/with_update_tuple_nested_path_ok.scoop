@@ -8,5 +8,5 @@ import scoop.core.*
 struct Point(val x: Int, val y: Int)
 
 fun use(pair: (Point, (Int, Int))) {
-    val updated: (Point, (Int, Int)) = pair with { _0.x: 1, _1._0: 3 }
+    val updated: (Point, (Int, Int)) = pair with { 0.x: 1, 1.0: 3 }
 }

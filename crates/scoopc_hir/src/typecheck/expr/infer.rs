@@ -2750,7 +2750,7 @@ fn infer_with_update_expr_type(
         //
         // 当前阶段支持：
         // - struct 字段：`point.x`
-        // - tuple 元素：`pair._0`
+        // - tuple 元素：`pair.0`
         // - enum payload：`result.Ok.point.x`
         // - 中间层可在 struct / tuple / enum 之间自由切换。
         let mut current_ty = base_ty;
@@ -2822,6 +2822,13 @@ fn infer_with_update_expr_type(
                 WithUpdateAggregateKind::Tuple { elements } => {
                     let seg = &u.path.segments[idx];
                     let field = source.slice(seg.span).to_string();
+                    if let Some(new) = old_with_update_tuple_member_index_replacement(&field) {
+                        return Err(ExprTypeError::TupleMemberOldSyntax {
+                            old: field,
+                            new,
+                            span: seg.span.into(),
+                        });
+                    }
                     let Some(tuple_index) = parse_with_update_tuple_member_index(&field) else {
                         return Err(ExprTypeError::WithUpdateUnknownField {
                             struct_name: current_owner_name.clone(),
@@ -3157,11 +3164,18 @@ fn resolve_with_update_enum_info(
 }
 
 fn parse_with_update_tuple_member_index(text: &str) -> Option<usize> {
+    if text.is_empty() || !text.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<usize>().ok()
+}
+
+fn old_with_update_tuple_member_index_replacement(text: &str) -> Option<String> {
     let digits = text.strip_prefix('_')?;
     if digits.is_empty() || !digits.chars().all(|ch| ch.is_ascii_digit()) {
         return None;
     }
-    digits.parse::<usize>().ok()
+    Some(digits.to_string())
 }
 
 fn check_function_type_cast_boundary(

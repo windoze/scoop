@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::tuple_member_old_syntax
+// EXPECT-ERROR: 旧写法 `_0` 已移除
+// 目标：P2-T03 旧 tuple 字段访问 `t._0` 不再作为正向 surface。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use(t: (Int, Int)): Int {
+    return t._0
+}

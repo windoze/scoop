@@ -632,7 +632,7 @@ impl<'a> HirLowering<'a> {
                 receiver: Box::new(receiver),
                 member: MemberAccess {
                     span,
-                    name: format!("_{index}"),
+                    name: index.to_string(),
                     resolved: None,
                 },
             },

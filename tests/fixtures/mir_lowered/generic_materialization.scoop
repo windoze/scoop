@@ -37,11 +37,11 @@ object Tools {
 fun entry(): Int / Boom {
     val box: Box<Int> = Box(10)
     val pair: (Int, String) = box.pair<String, eff Boom>("tag")
-    val holder: Holder<Int> = Holder(pair._0)
+    val holder: Holder<Int> = Holder(pair.0)
     val ext: Int = 1.effectExt<eff Boom>()
-    val chosen: String = Tools.choose<String>(pair._1)
+    val chosen: String = Tools.choose<String>(pair.1)
     val captured: Int = capture<Int, eff Boom>(holder.item)
-    return top<Int, eff Boom>(captured) + pair._0 + ext
+    return top<Int, eff Boom>(captured) + pair.0 + ext
 }
 
 fun main(): Int {

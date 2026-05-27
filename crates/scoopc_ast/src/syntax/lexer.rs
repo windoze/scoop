@@ -78,11 +78,16 @@ pub fn lex(text: &str) -> Result<Vec<Token>, LexError> {
 struct Lexer<'a> {
     text: &'a str,
     pos: usize,
+    force_next_number_integer: bool,
 }
 
 impl<'a> Lexer<'a> {
     fn new(text: &'a str) -> Self {
-        Self { text, pos: 0 }
+        Self {
+            text,
+            pos: 0,
+            force_next_number_integer: false,
+        }
     }
 
     fn lex_all(mut self) -> Result<Vec<Token>, LexError> {
@@ -104,6 +109,7 @@ impl<'a> Lexer<'a> {
             // identifiers / keywords
             if is_ident_start(ch) {
                 let kind = self.lex_ident_or_keyword()?;
+                self.force_next_number_integer = false;
                 tokens.push(Token {
                     kind,
                     span: Span::new(start, self.pos),
@@ -113,7 +119,9 @@ impl<'a> Lexer<'a> {
 
             // numbers
             if ch.is_ascii_digit() {
-                let kind = self.lex_number_literal()?;
+                let force_integer = self.force_next_number_integer;
+                self.force_next_number_integer = false;
+                let kind = self.lex_number_literal(force_integer)?;
                 tokens.push(Token {
                     kind,
                     span: Span::new(start, self.pos),
@@ -124,6 +132,7 @@ impl<'a> Lexer<'a> {
             // strings: "..." or """...""", optionally prefixed with `f`
             if ch == '"' {
                 let string_kind = self.lex_string(false)?;
+                self.force_next_number_integer = false;
                 tokens.push(Token {
                     kind: TokenKind::StringLiteral(string_kind),
                     span: Span::new(start, self.pos),
@@ -133,6 +142,7 @@ impl<'a> Lexer<'a> {
 
             if ch == '\'' {
                 self.lex_char_literal()?;
+                self.force_next_number_integer = false;
                 tokens.push(Token {
                     kind: TokenKind::CharLiteral,
                     span: Span::new(start, self.pos),
@@ -142,6 +152,7 @@ impl<'a> Lexer<'a> {
 
             // symbols (including multi-char)
             if let Some(sym) = self.lex_symbol() {
+                self.force_next_number_integer = matches!(sym, Symbol::Dot | Symbol::QuestionDot);
                 tokens.push(Token {
                     kind: TokenKind::Symbol(sym),
                     span: Span::new(start, self.pos),
@@ -271,7 +282,7 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    fn lex_number_literal(&mut self) -> Result<TokenKind, LexError> {
+    fn lex_number_literal(&mut self, force_integer: bool) -> Result<TokenKind, LexError> {
         let start = self.pos;
         let Some(first) = self.bump_char() else {
             return Ok(TokenKind::IntLiteral);
@@ -291,6 +302,10 @@ impl<'a> Lexer<'a> {
             return self.finish_int_literal(start);
         }
         self.lex_decimal_digits_candidate();
+
+        if force_integer {
+            return self.finish_int_literal(start);
+        }
 
         let mut is_float = false;
         if let Some([b'.', next]) = self.peek_bytes2()
@@ -812,6 +827,25 @@ mod tests {
                 TokenKind::IntLiteral,
                 TokenKind::Symbol(Symbol::DotDot),
                 TokenKind::IntLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_numeric_member_segments_after_dot_as_int_literals() {
+        assert_eq!(
+            kinds("x.1.2 y?.0 1.2"),
+            vec![
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::Dot),
+                TokenKind::IntLiteral,
+                TokenKind::Symbol(Symbol::Dot),
+                TokenKind::IntLiteral,
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::QuestionDot),
+                TokenKind::IntLiteral,
+                TokenKind::FloatLiteral,
                 TokenKind::Eof,
             ]
         );

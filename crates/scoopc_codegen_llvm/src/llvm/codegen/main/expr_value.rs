@@ -396,7 +396,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => {}
         }
 
-        // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
+        // tuple 元素访问（spec §2.3.3）：`t.0` / `t.1` / ...
         let Some(elem_idx) = parse_tuple_member_index(&member.name) else {
             panic!(
                 "codegen_member_access_expr: typecheck accepted unresolved member access target `{}`",
@@ -404,7 +404,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         };
 
-        // 优先路径：`localTuple._0` —— 用 GEP 从 alloca slot 取元素。
+        // 优先路径：`localTuple.0` —— 用 GEP 从 alloca slot 取元素。
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
             && let Some(local) = self.function_cx.env.get(*id)
             && let CgTy::Tuple(tuple_ty) = local.ty

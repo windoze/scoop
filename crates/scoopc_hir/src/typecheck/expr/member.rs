@@ -427,7 +427,7 @@ fn infer_member_access_with_receiver_ty(
 ) -> Result<MemberAccessInference, ExprTypeError> {
     match resolved {
         None => {
-            // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
+            // tuple 元素访问（spec §2.3.3）：`t.0` / `t.1` / ...
             //
             // 说明：
             // - tuple 并非名义类型，因此 resolver 阶段无法像 `Point.x` 一样写回成员 FQN；
@@ -438,16 +438,24 @@ fn infer_member_access_with_receiver_ty(
                 });
             };
 
-            let member_name = inputs.source.slice(member.span);
-            let Some(idx) = parse_tuple_member_index(member_name) else {
+            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
+            else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
                     span: member.span.into(),
                 });
             };
 
-            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
-            else {
+            let member_name = inputs.source.slice(member.span);
+            if let Some(new) = old_tuple_member_index_replacement(member_name) {
+                return Err(ExprTypeError::TupleMemberOldSyntax {
+                    old: member_name.to_string(),
+                    new,
+                    span: member.span.into(),
+                });
+            }
+
+            let Some(idx) = parse_tuple_member_index(member_name) else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
                     span: member.span.into(),
@@ -731,14 +739,21 @@ fn find_extension_property_candidate(
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {
+    if text.is_empty() {
+        return None;
+    }
+    if !text.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<usize>().ok()
+}
+
+fn old_tuple_member_index_replacement(text: &str) -> Option<String> {
     let digits = text.strip_prefix('_')?;
-    if digits.is_empty() {
+    if digits.is_empty() || !digits.chars().all(|ch| ch.is_ascii_digit()) {
         return None;
     }
-    if !digits.chars().all(|ch| ch.is_ascii_digit()) {
-        return None;
-    }
-    digits.parse::<usize>().ok()
+    Some(digits.to_string())
 }
 
 /// 依据 receiver 的具体 nominal 实例，把成员声明类型重新 lower 成使用点结果类型。

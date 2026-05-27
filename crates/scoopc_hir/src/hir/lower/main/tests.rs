@@ -1345,7 +1345,7 @@ fun main(): Int {
         ),
         "tuple binder 提取应复用隐藏 subject 顶层值"
     );
-    assert_eq!(member.name, "_0");
+    assert_eq!(member.name, "0");
 }
 
 fn assert_raise_runtime_error_effect_ty(types: &TypeStore, effect_ty: TypeId) {
@@ -2050,7 +2050,7 @@ import scoop.core.*
 struct Point(val x: Int, val y: Int)
 
 fun use(pair: (Point, (Int, Int))) {
-    val updated: (Point, (Int, Int)) = pair with { _0.x: 10, _1._0: 30 }
+    val updated: (Point, (Int, Int)) = pair with { 0.x: 10, 1.0: 30 }
 }
 "#,
     );

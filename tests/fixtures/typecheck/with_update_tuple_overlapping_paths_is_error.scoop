@@ -8,5 +8,5 @@ package fixtures.typecheck
 import scoop.core.*
 
 fun use(pair: ((Int, Int), Int)) {
-    val updated: ((Int, Int), Int) = pair with { _0: (1, 2), _0._1: 3 }
+    val updated: ((Int, Int), Int) = pair with { 0: (1, 2), 0.1: 3 }
 }

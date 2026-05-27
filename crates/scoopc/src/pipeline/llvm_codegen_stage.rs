@@ -970,7 +970,7 @@ enum Item {
 fun score(item: Item): Int {
     return when (item) {
         Hit(point) -> point.x + point.y
-        Pair(payload) -> payload._0.x + payload._0.y + payload._1
+        Pair(payload) -> payload.0.x + payload.0.y + payload.1
     }
 }
 
@@ -988,7 +988,7 @@ fun main(): Int {
     items.set(0, Pair((Point(16, 17), 18)))
     val after: Int = score(items.get(0))
 
-    return p.x + p.y + first._0.x + first._0.y + first._1 + second._0.x + second._0.y + second._1 + before + after
+    return p.x + p.y + first.0.x + first.0.y + first.1 + second.0.x + second.0.y + second.1 + before + after
 }
 "#,
         )
@@ -1018,7 +1018,7 @@ fun keepAny(value: Any): Int {
 fun score(item: Item): Int {
     return when (item) {
         Hit(point) -> point.x
-        Pair(payload) -> payload._0.x + payload._1
+        Pair(payload) -> payload.0.x + payload.1
     }
 }
 
@@ -1037,7 +1037,7 @@ fun main(): Int {
 
     val f: () -> Int = {
         mutablePoint = Point(mutablePoint.x + 1, title)
-        point.x + pair._0.x + pair._1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
     }
     return callAfterGc(f)
 }

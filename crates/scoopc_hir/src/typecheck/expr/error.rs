@@ -22,6 +22,18 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("tuple 字段索引请写成 `{new}`；旧写法 `{old}` 已移除")]
+    #[diagnostic(
+        code(scoop::typecheck::tuple_member_old_syntax),
+        help("将 tuple 字段访问从 `._N` / `_N` 改写为 `.N` / `N`")
+    )]
+    TupleMemberOldSyntax {
+        old: String,
+        new: String,
+        #[label("旧 tuple 字段写法")]
+        span: miette::SourceSpan,
+    },
+
     #[error("整数字面量解析失败：{reason}（原文：{text}）")]
     #[diagnostic(code(scoop::typecheck::invalid_integer_literal))]
     InvalidIntegerLiteral {

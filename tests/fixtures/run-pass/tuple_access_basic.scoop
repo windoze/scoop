@@ -5,12 +5,12 @@
 //
 // 说明：
 // - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果。
-// - tuple 元素访问语法使用 `t._0` / `t._1`（与 spec 对齐）。
+// - tuple 元素访问语法使用 `t.0` / `t.1`（与 spec 对齐）。
 
 import scoop.core.*
 
 fun main(): Int {
     val t = (1, 2)
-    return t._0 + t._1
+    return t.0 + t.1
 }
 

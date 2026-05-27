@@ -39,8 +39,8 @@ fun main() {
     } else {
         (3, 4)
     }
-    println(t._0)
-    println(t._1)
+    println(t.0)
+    println(t.1)
 
     // 4) if returning enum
     val s: Result = if (true) {

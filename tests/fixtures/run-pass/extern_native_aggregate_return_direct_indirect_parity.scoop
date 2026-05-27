@@ -19,17 +19,17 @@ fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
 fun main(): Int {
     @Unsafe do {
         val direct: (Int, Int) = make_int_pair(7)
-        println(direct._0)
-        println(direct._1)
+        println(direct.0)
+        println(direct.1)
 
         val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
         val indirect: (Int, Int) = fp(7)
-        println(indirect._0)
-        println(indirect._1)
+        println(indirect.0)
+        println(indirect.1)
 
         val invoked: (Int, Int) = fp.invoke(9)
-        println(invoked._0)
-        println(invoked._1)
+        println(invoked.0)
+        println(invoked.1)
     }
     0
 }

@@ -231,7 +231,7 @@ impl<'a> HirLowering<'a> {
                                     receiver: Box::new(spread_ref.clone()),
                                     member: MemberAccess {
                                         span: call_span,
-                                        name: format!("_{idx}"),
+                                        name: idx.to_string(),
                                         resolved: None,
                                     },
                                 },
@@ -269,7 +269,7 @@ impl<'a> HirLowering<'a> {
                                     receiver: Box::new(value.clone()),
                                     member: MemberAccess {
                                         span: call_span,
-                                        name: format!("_{idx}"),
+                                        name: idx.to_string(),
                                         resolved: None,
                                     },
                                 },
@@ -1517,7 +1517,7 @@ impl<'a> HirLowering<'a> {
 
     /// 递归构造 with-update 的 TupleLit 表达式。
     ///
-    /// tuple 元素沿用 `_0` / `_1` / ... 成员访问语法读取原值，再按 grouped 中的更新重建。
+    /// tuple 元素沿用 `0` / `1` / ... 成员访问语法读取原值，再按 grouped 中的更新重建。
     #[allow(clippy::too_many_arguments)]
     pub(in crate::hir::lower) fn build_with_tuple_lit(
         &mut self,
@@ -1540,7 +1540,7 @@ impl<'a> HirLowering<'a> {
 
         let mut elements = Vec::with_capacity(element_tys.len());
         for (idx, _) in element_tys.iter().enumerate() {
-            let member_name = format!("_{idx}");
+            let member_name = idx.to_string();
             let field_access = Expr {
                 span: with_span,
                 ty: self.builtins.any,

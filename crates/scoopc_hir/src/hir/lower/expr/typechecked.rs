@@ -1515,7 +1515,7 @@ impl<'a> HirLowering<'a> {
                             receiver: Box::new(receiver),
                             member: MemberAccess {
                                 span: call_span,
-                                name: format!("_{idx}"),
+                                name: idx.to_string(),
                                 resolved: None,
                             },
                         },
@@ -1571,7 +1571,7 @@ impl<'a> HirLowering<'a> {
                             receiver: Box::new(lowered.clone()),
                             member: MemberAccess {
                                 span: call_span,
-                                name: format!("_{idx}"),
+                                name: idx.to_string(),
                                 resolved: None,
                             },
                         },

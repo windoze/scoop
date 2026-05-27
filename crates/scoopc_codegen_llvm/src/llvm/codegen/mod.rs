@@ -1162,14 +1162,13 @@ fn unify_int_types(
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<u32> {
-    let digits = text.strip_prefix('_')?;
-    if digits.is_empty() {
+    if text.is_empty() {
         return None;
     }
-    if !digits.chars().all(|ch| ch.is_ascii_digit()) {
+    if !text.chars().all(|ch| ch.is_ascii_digit()) {
         return None;
     }
-    digits.parse::<u32>().ok()
+    text.parse::<u32>().ok()
 }
 
 fn sanitize_llvm_ident(text: &str) -> String {

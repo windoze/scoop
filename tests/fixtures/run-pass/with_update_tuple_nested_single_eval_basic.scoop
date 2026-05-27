@@ -22,11 +22,11 @@ fun build(counter: Counter): (Point, (Int, Int)) {
 
 fun main(): Int {
     val counter: Counter = Counter(0)
-    val updated: (Point, (Int, Int)) = build(counter) with { _0.x: 10, _1._0: 30 }
+    val updated: (Point, (Int, Int)) = build(counter) with { 0.x: 10, 1.0: 30 }
     println(counter.hits)
-    println(updated._0.x)
-    println(updated._0.y)
-    println(updated._1._0)
-    println(updated._1._1)
+    println(updated.0.x)
+    println(updated.0.y)
+    println(updated.1.0)
+    println(updated.1.1)
     0
 }

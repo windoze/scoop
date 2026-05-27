@@ -55,7 +55,7 @@ fun effects(box: Box): Int {
             (box, payload),
         )
     } on {
-        Send.submit(choice: Choice, payload: (Box, Wrapper)) -> payload._0
+        Send.submit(choice: Choice, payload: (Box, Wrapper)) -> payload.0
     }
     val unitVariant: Choice = Empty()
     val wide: Choice = Wide(9)

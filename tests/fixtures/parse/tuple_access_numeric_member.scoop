@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：spec §2.3.3：tuple 元素访问使用 `t.0`，并且 `x.1.2` 不被 lexer 贪婪成 float literal。
+
+package fixtures.parse
+
+fun main() {
+    val t = (1, (2, 3))
+    t.0
+    t.1.0
+    val f = 1.2
+}

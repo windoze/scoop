@@ -5,11 +5,10 @@
 use super::*;
 
 pub(in crate::mir::lower) fn parse_tuple_member_index(text: &str) -> Option<usize> {
-    let digits = text.strip_prefix('_')?;
-    if digits.is_empty() || !digits.chars().all(|ch| ch.is_ascii_digit()) {
+    if text.is_empty() || !text.chars().all(|ch| ch.is_ascii_digit()) {
         return None;
     }
-    digits.parse().ok()
+    text.parse().ok()
 }
 
 pub(in crate::mir::lower) fn payload_tuple_ty_from_components(

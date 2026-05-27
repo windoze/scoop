@@ -22,7 +22,7 @@ fun keepAny(value: Any): Int {
 fun score(item: Item): Int {
     return when (item) {
         Hit(point) -> point.x
-        Pair(payload) -> payload._0.x + payload._1
+        Pair(payload) -> payload.0.x + payload.1
     }
 }
 
@@ -41,7 +41,7 @@ fun main(): Int {
 
     val f: () -> Int = {
         mutablePoint = Point(mutablePoint.x + 1, title)
-        point.x + pair._0.x + pair._1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
     }
 
     return callAfterGc(f)

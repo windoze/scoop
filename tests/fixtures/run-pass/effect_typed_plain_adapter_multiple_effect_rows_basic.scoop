@@ -18,12 +18,12 @@ effect AskB {
 
 fun applyA(f: (Int) -> (Int, Int) / (AskA), seed: Int): Int / AskA {
     val pair: (Int, Int) = f(seed)
-    return pair._0 + pair._1
+    return pair.0 + pair.1
 }
 
 fun applyB(f: (Int) -> (Int, Int) / (AskB), seed: Int): Int / AskB {
     val pair: (Int, Int) = f(seed)
-    return pair._0 + pair._1
+    return pair.0 + pair.1
 }
 
 fun main(): Int {

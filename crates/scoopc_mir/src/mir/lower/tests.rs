@@ -791,7 +791,7 @@ fun main(): Int {
     val items: MutableArray<Item> = [Hit(Point(1, 2)), Pair((Point(3, 4), 5))]
     return when (items.get(0)) {
         Hit(point) -> point.x + point.y
-        Pair(payload) -> payload._0.x + payload._0.y + payload._1
+        Pair(payload) -> payload.0.x + payload.0.y + payload.1
     }
 }
 "#,

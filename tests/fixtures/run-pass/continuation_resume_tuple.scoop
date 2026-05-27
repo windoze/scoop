@@ -17,8 +17,8 @@ fun main() {
     val _: Unit = handle {
         val pair: (Int, String) = Ask.ask()
         println("got_pair")
-        println(pair._0)
-        println(pair._1)
+        println(pair.0)
+        println(pair.1)
     } on {
         Ask.ask(), k -> {
             saved = Some(k)

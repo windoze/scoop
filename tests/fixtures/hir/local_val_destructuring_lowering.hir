@@ -193,7 +193,7 @@ File {
                                                     member:
                                                         MemberAccess {
                                                             span: 216..217,
-                                                            name: "_0",
+                                                            name: "0",
                                                             resolved: None,
                                                         }
                                                 },
@@ -232,7 +232,7 @@ File {
                                                     member:
                                                         MemberAccess {
                                                             span: 219..220,
-                                                            name: "_1",
+                                                            name: "1",
                                                             resolved: None,
                                                         }
                                                 },

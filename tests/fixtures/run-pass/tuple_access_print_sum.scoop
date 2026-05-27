@@ -1,14 +1,14 @@
 // EXPECT: pass
 // RUN-STDOUT: tuple_access_print_sum.stdout
 //
-// 目标：T0824 tuple 字段访问语法与 lowering 对齐 spec（`t._0` / `t._1`）。
+// 目标：T0824 tuple 字段访问语法与 lowering 对齐 spec（`t.0` / `t.1`）。
 // - 通过 `print(Int)` 验证 tuple 元素访问结果可被用于运行期 I/O。
 
 import scoop.core.*
 
 fun main() {
     val t = (1, 2)
-    print(t._0 + t._1)
+    print(t.0 + t.1)
     println("")
 }
 

@@ -9,5 +9,5 @@ import scoop.core.*
 
 fun main(): Int {
     val t = (1, 2)
-    return t._0 + t._1
+    return t.0 + t.1
 }

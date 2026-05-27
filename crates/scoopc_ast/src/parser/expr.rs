@@ -2553,7 +2553,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let member_tok = self.expect_kind(TokenKind::Ident, "成员名（标识符）")?;
+        let member_tok = self.expect_member_segment("成员名（标识符或 tuple 索引）")?;
 
         Ok(ast::Expr {
             span: Span::new(receiver.span.start, member_tok.span.end),
@@ -2569,7 +2569,7 @@ impl<'a> Parser<'a> {
         receiver: ast::Expr,
     ) -> Result<ast::Expr, ParseError> {
         let op = self.expect_symbol(Symbol::QuestionDot)?;
-        let member_tok = self.expect_kind(TokenKind::Ident, "成员名（标识符）")?;
+        let member_tok = self.expect_member_segment("成员名（标识符或 tuple 索引）")?;
 
         Ok(ast::Expr {
             span: Span::new(receiver.span.start, member_tok.span.end),
@@ -2647,24 +2647,79 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_field_path(&mut self) -> Result<ast::FieldPath, ParseError> {
-        let first = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
-        let start = first.span.start;
+        let mut segments = self.expect_field_path_initial_segments()?;
+        let start = segments[0].span.start;
 
-        let mut segments = vec![ast::Ident::new(first.span)];
         while self.eat_symbol(Symbol::Dot) {
-            let seg = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
+            let seg = self.expect_member_segment("字段路径（标识符或 tuple 索引）")?;
             segments.push(ast::Ident::new(seg.span));
         }
 
-        let end = segments
-            .last()
-            .map(|x| x.span.end)
-            .unwrap_or(first.span.end);
+        let end = segments.last().map(|x| x.span.end).unwrap_or(start);
 
         Ok(ast::FieldPath {
             span: Span::new(start, end),
             segments,
         })
+    }
+
+    fn expect_field_path_initial_segments(&mut self) -> Result<Vec<ast::Ident>, ParseError> {
+        let tok = *self.peek();
+        match tok.kind {
+            TokenKind::Ident | TokenKind::IntLiteral => {
+                self.bump();
+                Ok(vec![ast::Ident::new(tok.span)])
+            }
+            TokenKind::FloatLiteral => {
+                if let Some((left, right)) = self.split_numeric_field_path_float_span(tok.span) {
+                    self.bump();
+                    Ok(vec![ast::Ident::new(left), ast::Ident::new(right)])
+                } else {
+                    Err(ParseError::Expected {
+                        expected: "字段路径（标识符或 tuple 索引）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })
+                }
+            }
+            _ => Err(ParseError::Expected {
+                expected: "字段路径（标识符或 tuple 索引）",
+                found: tok.kind,
+                span: tok.span.into(),
+            }),
+        }
+    }
+
+    fn split_numeric_field_path_float_span(&self, span: Span) -> Option<(Span, Span)> {
+        let text = self.source_text.get(span.start..span.end)?;
+        let dot = text.find('.')?;
+        let left = &text[..dot];
+        let right = &text[dot + 1..];
+        if left.is_empty()
+            || right.is_empty()
+            || !left.chars().all(|ch| ch.is_ascii_digit())
+            || !right.chars().all(|ch| ch.is_ascii_digit())
+        {
+            return None;
+        }
+        Some((
+            Span::new(span.start, span.start + dot),
+            Span::new(span.start + dot + 1, span.end),
+        ))
+    }
+
+    fn expect_member_segment(&mut self, expected: &'static str) -> Result<Token, ParseError> {
+        let tok = *self.peek();
+        if matches!(tok.kind, TokenKind::Ident | TokenKind::IntLiteral) {
+            self.bump();
+            Ok(tok)
+        } else {
+            Err(ParseError::Expected {
+                expected,
+                found: tok.kind,
+                span: tok.span.into(),
+            })
+        }
     }
 
     fn try_parse_paren_group_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {

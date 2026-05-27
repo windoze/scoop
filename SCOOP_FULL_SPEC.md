@@ -283,12 +283,12 @@ val quad: (Int, Int, Int, Int) = (1, 2, 3, 4)
 
 **Field access**
 
-Tuple fields are accessed with `._0`, `._1`, etc.:
+Tuple fields are accessed with `.0`, `.1`, etc.:
 
 ```kotlin
 val p = (10, "hi")
-val x = p._0    // 10
-val y = p._1    // "hi"
+val x = p.0    // 10
+val y = p.1    // "hi"
 ```
 
 **Trailing comma rules**

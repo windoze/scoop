@@ -79,12 +79,12 @@ fun main(): Int {
         val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
 
         val a: (Int, Int) = fp(7)
-        println(a._0)
-        println(a._1)
+        println(a.0)
+        println(a.1)
 
         val b: (Int, Int) = fp.invoke(9)
-        println(b._0)
-        println(b._1)
+        println(b.0)
+        println(b.1)
     }
     0
 }
@@ -205,17 +205,17 @@ fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
 fun main(): Int {
     @Unsafe do {
         val direct: (Int, Int) = make_int_pair(7)
-        println(direct._0)
-        println(direct._1)
+        println(direct.0)
+        println(direct.1)
 
         val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
         val indirect: (Int, Int) = fp(7)
-        println(indirect._0)
-        println(indirect._1)
+        println(indirect.0)
+        println(indirect.1)
 
         val invoked: (Int, Int) = fp.invoke(9)
-        println(invoked._0)
-        println(invoked._1)
+        println(invoked.0)
+        println(invoked.1)
     }
     0
 }
@@ -411,8 +411,8 @@ fun managedMakePair(seed: Int): (Int, Int)
 
 fun main(): Int {
     val pair: (Int, Int) = managedMakePair(7)
-    println(pair._0)
-    println(pair._1)
+    println(pair.0)
+    println(pair.1)
     return 0
 }
 "#,

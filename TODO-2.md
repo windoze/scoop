@@ -203,7 +203,7 @@
     - 复核闭合 `SPEC_FIX.md` C2：`handle { ... } on { ... } finally { ... }` 是唯一 positive handler surface，旧 handler `with` 只保留为 parser negative case / diagnostic 文本，value-update `with` 继续可用。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T03：实现 tuple field `.0` / `.1` 语法并移除 `._0` 正例
+### [DONE] P2-T03：实现 tuple field `.0` / `.1` 语法并移除 `._0` 正例
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -238,9 +238,26 @@
 - 依赖：P2-T02R
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc_ast`：lexer 在 `.` / `?.` 后把下一段数字按 integer token 切分，使 `x.1.2` 不再被贪婪为 float；parser 的 ordinary/safe member access 与 `with` field path 接受 numeric tuple segment，并对 `with { 1.0: ... }` 这类路径起始 `FloatLiteral` 做路径段拆分。
+    - `crates/scoopc_hir` / `crates/scoopc_mir` / `crates/scoopc_codegen_llvm`：tuple index parser 从 `_N` 改为 numeric `N`；tuple destructuring、vararg tuple spread、tuple `with` 重建等合成 HIR member name 同步改为 numeric；新增 `scoop::typecheck::tuple_member_old_syntax` 诊断。
+    - Active spec / split spec / Rust embedded Scoop snippets / positive fixtures 迁移到 `.0` / `.1`；新增 `tests/fixtures/parse/tuple_access_numeric_member.scoop`，并新增 `tuple_access_old_member_syntax_is_error.scoop` 与 `with_update_tuple_old_member_syntax_is_error.scoop` negative fixtures。
+    - 重新生成受 tuple member spelling 影响的 HIR / MIR golden snapshots。
   - 核心决策：
+    - AST 仍复用现有 span-backed `MemberIdent` / `FieldPath` segment representation，不为 numeric field 新增 AST enum；typecheck/lowering/codegen 从源码 span 或 HIR member name 解析 numeric index。
+    - 旧 `._N` / `_N` tuple spelling 不保留 soft alias：当 receiver / `with` aggregate 确认为 tuple 时，旧 spelling 走前端 typecheck diagnostic。
+    - `with` path 起始的 `1.0` 在 field-path parser 中拆为 `1`、`0` 两段，避免破坏普通 expression 位置的 `1.2` float literal。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `cargo build -p scoop -p scoopc`：通过，用于刷新 fixture runner / CLI binaries。
+    - Targeted fixtures：`tests/fixtures/parse/tuple_access_numeric_member.scoop`、`tests/fixtures/typecheck/tuple_access_old_member_syntax_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_old_member_syntax_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_nested_path_ok.scoop`、`tests/fixtures/typecheck/with_update_tuple_overlapping_paths_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_field_type_mismatch_is_error.scoop`、`tests/fixtures/run-pass/tuple_access_basic.scoop`、`tests/fixtures/run-pass/with_update_tuple_nested_single_eval_basic.scoop` 均通过。
+    - Focused Rust regression：`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_multi_type_param_effect_payload_dispatch_cli` 通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1538)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` B2：active source surface 使用 Rust-style tuple field `.0` / `.1`，旧 `._0` / `_0` tuple spelling 只保留在 negative fixtures、任务记录和历史/design baseline。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T03R：Review tuple field 语法切换结果
 
