@@ -1,21 +1,25 @@
 # Execution Plan
 
-1. Read TODO.md to identify the first incomplete task exactly as ordered.
-2. Inspect the relevant implementation, tests, fixtures, and any latest-commit context that directly affects that task.
-3. Implement the task without workarounds, adding only the minimum necessary code, tests, fixtures, and docs.
-4. Run formatting, clippy, targeted validation, then full tests/fixtures when required by the task and repository policy.
-5. Update TODO.md with a [DONE] prefix and completion record if the task is fully complete, or add a prerequisite task if a concrete blocker prevents completion.
-6. Commit all task-related changes with a descriptive message and stop without starting the next task.
+## Current task
 
-## Current Task
+- First incomplete task: `P4-T05`.
+- Task goal: confirm CI-equivalent local validation after the test-infrastructure switch by running `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all --all-targets`.
+- Latest commit context: `5c240473 [P4-T04] Validate standalone Python tools`; it does not mention an unfinished issue that changes this task.
 
-- First incomplete task: P4-T04.
-- Task goal: run all standalone Python validation tools (`spec_fixtures`, `fixtures_matrix`, `safepoint_baseline`, `dependency_gate`, and `audit_*`) and confirm dependency-gate remains consistent with the old Rust tool's established conclusion.
+## Step-by-step plan
 
-## P4-T04 Steps
+1. Inspect the CI workflow to confirm whether P4-T05 needs only the explicit local commands listed in `TODO.md` or any additional CI-equivalent command that is directly part of this task.
+2. Run validation in the required order: `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then `cargo test --all --all-targets`.
+3. If validation fails, diagnose the failing test or lint as an in-scope project issue. Fix it if it belongs to P4-T05, or add the minimum prerequisite task to `TODO.md` before P4-T05 if it is a concrete blocker that cannot be completed in this invocation.
+4. If validation passes, update `TODO.md` by prefixing `P4-T05` with `[DONE]` in the task index and appending a completion record with the exact validation commands and result.
+5. Commit the task updates and any required fixes with a `[P4-T05] ...` commit message, including the required co-authored trailer.
+6. Stop after the commit without starting P4-T06.
 
-1. Compile the relevant Python tools to catch syntax errors. Done.
-2. Run each required script with the command shape documented in `tools/README.md`. Done; all required scripts exited successfully.
-3. If any script fails, fix the underlying issue or add the minimum prerequisite task to `TODO.md` if a concrete blocker prevents completion.
-4. If all validations pass, update `TODO.md` to mark P4-T04 `[DONE]` and add the completion record. Done.
-5. Commit the validation/task-bookkeeping changes and stop. Ready.
+## Progress
+
+- Identified `P4-T05` as the first incomplete task.
+- Confirmed the latest commit completed `P4-T04` and does not introduce an unfinished prerequisite.
+- Inspected `.github/workflows/ci.yml`; current CI validation surface is cargo test, spec fixture check, fixture smoke, and clippy.
+- Ran `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all --all-targets`; all completed successfully.
+- Ran `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`; both completed successfully, with the fixture suite reporting 1504 targets and 1533 checks.
+- Marked `P4-T05` `[DONE]` in `TODO.md` and appended its completion record.
