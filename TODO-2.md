@@ -259,7 +259,7 @@
     - 闭合 `SPEC_FIX.md` B2：active source surface 使用 Rust-style tuple field `.0` / `.1`，旧 `._0` / `_0` tuple spelling 只保留在 negative fixtures、任务记录和历史/design baseline。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T03R：Review tuple field 语法切换结果
+### [DONE] P2-T03R：Review tuple field 语法切换结果
 
 - 参考：
   - P2-T03 完成记录
@@ -285,9 +285,22 @@
 - 依赖：P2-T03
 - 完成记录：
   - 改动范围：
+    - 复核 P2-T03 修改的 lexer / parser / typecheck / lowering / codegen 路径：`.` / `?.` 后的 numeric member segment 作为 integer token 进入 parser，ordinary/safe member access 与 `with` field path 均可表达 numeric tuple segment。
+    - 复核 tuple index 解析已从旧 `_N` spelling 切换为 numeric `N`，tuple destructuring / vararg spread / tuple `with` reconstruction / LLVM aggregate member lookup 的合成 member name 与解析逻辑保持一致。
+    - 复核 fixture 覆盖：`t.0` / `t.1` / chained numeric access、普通 `1.2` float literal、旧 `._0` negative、tuple `with` numeric path 与 nested path 均有覆盖。
   - 核心决策：
+    - 接受 P2-T03 的 AST 表示边界：numeric field 继续复用 span-backed member / field-path segment 表示，前端与 lowering/codegen 通过 numeric segment text 解析 tuple index。
+    - 旧 `._N` 不作为 soft-deprecated alias 保留；只有在 tuple receiver / aggregate 语境下走清晰 typecheck diagnostic，非 tuple numeric member 仍按现有 member model 报错。
+    - `with { 1.0: ... }` 的 field-path 拆分仅限 field path parser，不改变 ordinary expression 位置的 float literal 词法与解析。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - Targeted fixtures（逐个运行）：`tests/fixtures/parse/tuple_access_numeric_member.scoop`、`tests/fixtures/typecheck/tuple_access_old_member_syntax_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_old_member_syntax_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_nested_path_ok.scoop`、`tests/fixtures/typecheck/with_update_tuple_overlapping_paths_is_error.scoop`、`tests/fixtures/typecheck/with_update_tuple_field_type_mismatch_is_error.scoop`、`tests/fixtures/run-pass/tuple_access_basic.scoop`、`tests/fixtures/run-pass/with_update_tuple_nested_single_eval_basic.scoop`、`tests/fixtures/run-pass/float_literal_runtime_basic.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1538)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 复核闭合 `SPEC_FIX.md` B2：active source surface 使用 `.0` / `.1` tuple field access，旧 `._0` / `_0` tuple spelling 只保留在 negative fixtures、任务记录和历史/design baseline。
+    - 未发现 lexer float/member ambiguity regression；未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T04：将 f-string 插值从 `{...}` 改为 `${...}`
 
