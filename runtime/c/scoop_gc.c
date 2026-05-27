@@ -98,6 +98,32 @@ static inline const char *scoop_gc_managed_root_map_kind_name(
   }
 }
 
+static void scoop_gc_thread_park_current_for_stw_unlocked(ScoopGcThreadRecord *rec) {
+  if (rec == 0) {
+    return;
+  }
+
+  rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+  if (rec->state == SCOOP_GC_THREAD_IN_NATIVE) {
+    return;
+  }
+  if (rec->parked_epoch == scoop_gc_stw.epoch) {
+    return;
+  }
+
+  rec->explicit_root_frame_top = scoop_gc_current_explicit_root_frame_top();
+  scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+  rec->stack_walking_ctx = 0;
+  if (rec->explicit_root_frame_top == 0) {
+    rec->stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+  }
+
+  rec->state = SCOOP_GC_THREAD_PARKED;
+  rec->parked_epoch = scoop_gc_stw.epoch;
+  scoop_gc_stw.parked_count += 1;
+  (void)pthread_cond_broadcast(&scoop_gc_cond);
+}
+
 // runtime 侧在 `scoop_thread_register/unregister` 中调用这些函数，把线程纳入 GC 的 STW 范围。
 void scoop_gc_thread_register(ScoopThreadTls *tls) {
   if (tls == 0) {
@@ -109,6 +135,16 @@ void scoop_gc_thread_register(ScoopThreadTls *tls) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
 
   ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
+
+  // 若当前有其它线程正在进行 stop-the-world，则已登记线程必须先 park；
+  // 未登记线程不参与本轮 STW，等待结束后再加入线程表。
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) &&
+         !pthread_equal(self, scoop_gc_stw.initiator)) {
+    scoop_gc_thread_park_current_for_stw_unlocked(existing);
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+    existing = scoop_gc_find_thread_unlocked(self);
+  }
+
   if (existing != 0) {
     existing->tls = tls;
     existing->state = SCOOP_GC_THREAD_RUNNING;
@@ -151,9 +187,15 @@ void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
 
   (void)pthread_mutex_lock(&scoop_gc_lock);
 
-  // 若当前有其它线程正在进行 STW，则等它结束后再注销，避免破坏 stop-the-world 计数。
-  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+
+  // 若当前有其它线程正在进行 stop-the-world，则注销前先参与本轮 STW；
+  // 否则线程会以 Running 状态等待，导致 GC 发起方也在等待它 park。
+  while (rec != 0 && scoop_gc_stw_requested_load(&scoop_gc_stw) &&
+         !pthread_equal(self, scoop_gc_stw.initiator)) {
+    scoop_gc_thread_park_current_for_stw_unlocked(rec);
     (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+    rec = scoop_gc_find_thread_unlocked(self);
   }
 
   ScoopGcThreadRecord **link = &scoop_gc_threads;

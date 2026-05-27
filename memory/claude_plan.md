@@ -1,40 +1,22 @@
 # Execution Plan
 
-## Objective
-Complete exactly the first incomplete task listed in `TODO.md`, using `TODO.md` as the authoritative source for ordering, requirements, validation, and completion records.
+1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit only for unfinished work that is directly relevant to that selected task.
+3. Read the selected task requirements, dependencies, validation requirements, and completion record.
+4. Inspect the smallest relevant parts of the codebase needed for the selected task.
+5. Implement the task as written, without narrowing scope or using workarounds for missing behavior.
+6. Run formatting and validation in the requested order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixtures as required.
+7. If a blocking prerequisite is discovered, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
+8. If the task is completed, mark its heading `[DONE]`, update its completion record with changes and validation, commit all relevant changes, and stop.
 
-## Plan
-1. Inspect `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for directly relevant unfinished work tied to that task.
-3. Read the task body and any nearby dependency or validation notes needed to implement it correctly.
-4. Inspect the relevant code, fixtures, and tests for that task without doing unrelated broad triage.
-5. Implement the task completely, or if a concrete blocker prevents correct implementation, add the minimum prerequisite task in `TODO.md`, update dependencies, commit, and stop.
-6. Run formatting and validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant tests/fixtures; run full suites when required by the task and when code changes warrant it.
-7. Address any unscheduled failing tests or fixtures observed during validation before marking the task complete.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record. Update `PLAN.md` only if phase-level sequencing or criteria changed.
-9. Commit all task-related changes with a descriptive message and the required co-author trailer.
-10. Stop after this single task is complete.
+Progress:
 
-## Progress
-- Plan file initialized before task inspection.
-
-## Progress
-- Identified first incomplete task: P2-T02A (fix GC verify-roots failures exposed by tools/run_run_pass_gc_scan.sh before P2-T02).
-
-- Found uncommitted changes while resuming P2-T02A; inspecting before making edits.
-
-- Running cargo fmt and targeted P2-T02A GC verify fixtures.
-
-- Targeted P2-T02A fixtures passed under SCOOP_GC_VERIFY_ROOTS=1 with --gc-move --gc-stress. Running clippy.
-
-- Clippy passed; running full Rust test suite.
-
-- Full Rust test suite passed; running full Python fixture suite.
-
-- Full Python fixture suite passed; running tools/run_run_pass_gc_scan.sh.
-
-- run_run_pass_gc_scan.sh completed successfully. Updating TODO completion record next.
-
-- Marked P2-T02A as [DONE] in TODO.md and added its completion record with validation commands/results.
-- Standalone `python3 tools/audit_user_visible_failure_policy.py` passed after updating its internal bug sentinel baseline.
-- Next step: review final diff, clean generated artifacts if needed, and commit the P2-T02A changes only.
+- Initial execution plan written before reading task details.
+- Read `TODO.md`; first incomplete task is `P2-T02`, covering `tools/run_fixture_scan.sh`, `tools/run_run_pass_gc_scan.sh`, and `tools/gc_microbench.sh` internal call-chain migration after completed prerequisite `P2-T02A`.
+- Checked latest commit `d5280db1 [P2-T02A] Fix class ctor GC roots`; it confirms the direct prerequisite was completed and does not mention a separate unfinished issue.
+- Inspected the three target shell scripts. `run_fixture_scan.sh` and `run_run_pass_gc_scan.sh` already invoke `tools/run_fixtures.py`; `gc_microbench.sh` has no fixture-runner invocation. No script code change is currently needed unless validation exposes a failure.
+- Validation found a blocking `tools/run_run_pass_gc_scan.sh` timeout in `delegated_property_lazy_thread_safety_synchronized_once.scoop` under `SCOOP_GC_VERIFY_ROOTS=1 --gc-move --gc-stress`.
+- Reproduction showed STW diagnostics waiting for a non-initiator thread left in `Running` while it was waiting inside thread unregister/register during an active STW. Plan update: fix `scoop_gc_thread_register` and `scoop_gc_thread_unregister` in both baseline and Immix STW implementations so already-registered non-initiator threads park before waiting for STW completion.
+- Implemented the STW register/unregister fix in `runtime/c/scoop_gc.c` and `runtime/c/scoop_gc_backend_immix.c`.
+- Validation completed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, full `python3 tools/run_fixtures.py`, 20x targeted GC-stress reproduction, `tools/run_fixture_scan.sh` parse scan, full `tools/run_run_pass_gc_scan.sh`, both `tools/gc_microbench.sh` smoke scenarios, and old-entry grep for `tools/*.sh` all passed.
+- Updated `TODO.md` to mark `P2-T02` as `[DONE]` with completion record.
