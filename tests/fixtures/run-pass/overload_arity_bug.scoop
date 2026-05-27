@@ -1,0 +1,22 @@
+// EXPECT: pass
+// IGNORE-UNTIL-FIX: P5-T04 selected callable identity should let this run.
+// EXPECT-EXIT: 16
+// P0-T02 baseline from OVERLOAD_RESOLUTION.md 1.2.
+// Current bug: typecheck passes, then codegen cannot publish both arities.
+// Expected: both arities materialize and dispatch independently.
+
+package overload_arity_bug
+
+import scoop.core.*
+
+fun g(x: Int): Int {
+    return x + 1
+}
+
+fun g(x: Int, y: Int): Int {
+    return x + y
+}
+
+fun main(): Int {
+    return g(10) + g(2, 3)
+}

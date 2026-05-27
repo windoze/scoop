@@ -1,0 +1,22 @@
+// EXPECT: pass
+// IGNORE-UNTIL-FIX: P5-T04 selected callable identity should let this run.
+// EXPECT-EXIT: 11
+// P0-T02 baseline from OVERLOAD_RESOLUTION.md 1.1.
+// Current bug: typecheck passes, then lowering mistypes the Bool overload.
+// Expected: f(Int) is selected and f(Bool) lowers independently.
+
+package overload_concrete_bug
+
+import scoop.core.*
+
+fun f(x: Int): Int {
+    return x + 1
+}
+
+fun f(x: Bool): Bool {
+    return !x
+}
+
+fun main(): Int {
+    return f(10)
+}

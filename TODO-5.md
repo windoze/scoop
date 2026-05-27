@@ -224,7 +224,7 @@
   2. Preserve selected type args, owner, parameter signature, and callable ABI identity through HIR lowering.
   3. MIR materialization must choose template/callable version from binding identity.
   4. LLVM declarations/calls must use the materialized callable version corresponding to the selected overload.
-  5. Add run-pass fixtures for the three P0-T02 bug samples once implementation is ready: concrete `f(Int)` / `f(Bool)` no lowering type pollution; arity `g(Int)` / `g(Int, Int)` both callable versions published; generic + concrete `h(10)` returns concrete result.
+  5. Enable the three P0-T02 run-pass baseline fixtures by removing their `IGNORE-UNTIL-FIX` directives once implementation is ready: `tests/fixtures/run-pass/overload_concrete_bug.scoop`, `tests/fixtures/run-pass/overload_arity_bug.scoop`, and `tests/fixtures/run-pass/overload_gvc_ok.scoop`.
 - 必须遵从的约束：
   - Do not fix by changing symbol names only; the selected semantic identity must drive materialization.
   - Do not leave fallback codegen lookup by same-name FQN in overload-sensitive paths.

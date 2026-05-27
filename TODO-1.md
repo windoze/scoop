@@ -225,7 +225,7 @@
     - 闭合 P0-T01 的独立 review gate；迁移清单可作为 P0-T02 与后续 P1-P6 的执行输入。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P0-T02：建立 overload bug 与 diagnostics 基线样例
+### [DONE] P0-T02：建立 overload bug 与 diagnostics 基线样例
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -256,9 +256,27 @@
 - 依赖：P0-T01R
 - 完成记录：
   - 改动范围：
+    - 新增 P0 baseline run-pass fixtures：
+      - `tests/fixtures/run-pass/overload_concrete_bug.scoop`
+      - `tests/fixtures/run-pass/overload_arity_bug.scoop`
+      - `tests/fixtures/run-pass/overload_gvc_ok.scoop`
+    - 每个 fixture 都保留 `OVERLOAD_RESOLUTION.md` §1 对应最小程序形状，并以 `EXPECT: pass` + 最终 `EXPECT-EXIT` 固定目标行为；同时加 `IGNORE-UNTIL-FIX: P5-T04 ...`，避免把当前 backend / codegen / typecheck 失败接受为最终期望。
+    - 更新 `TODO-5.md` 的 P5-T04 要求：后续不再重新复制样例，而是移除上述三个 fixture 的 `IGNORE-UNTIL-FIX` 并使其通过。
   - 核心决策：
+    - `tools/run_fixtures.py` 已支持 negative fixture 的 `EXPECT: fail`，也支持 current-failing target-pass fixture 的 `IGNORE-UNTIL-FIX`；P0-T02 采用后者承载三个目标应通过的 overload 样例。
+    - 当前失败已定向复核：`overload_concrete_bug` 仍在后端前的 MIR/materialization 路径失败，`overload_arity_bug` 仍暴露缺少同名不同 arity callable version，`overload_gvc_ok` 仍报 `scoop::typecheck::ambiguous_overload`。这些都是 P5-T04 selected callable identity 贯通的输入，不在 P0 修算法。
+    - Diagnostics audit baseline 固定为 `OVERLOAD_RESOLUTION.md` §10：`ambiguous_overload`、`no_applicable_overload`、`conflicting_overloads` 必须列候选 file/line/col 与原因，且用户可见文本不得包含 `backend` / `LLVM` / `UnsupportedMainBody` / `codegen`；现有 `FRONTEND_REJECT_FORBIDDEN_TERMS` 已覆盖 `backend`、`LLVM`、`codegen` 与 `Unsupported*`，P5-T05 已显式负责 overload-specific audit 扩展。
   - 验证结果：
+    - `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop && python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_arity_bug.scoop && python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_gvc_ok.scoop`：通过，三个 fixture 均按 `IGNORE-UNTIL-FIX` skip。
+    - `target/debug/scoopc check-source --phase parse --input ...`：三个新增 fixture 均通过 parse。
+    - `target/debug/scoopc check-source --phase typecheck --input ...`：`overload_concrete_bug` 与 `overload_arity_bug` 通过 typecheck；`overload_gvc_ok` 的当前 `ambiguous_overload` 失败由定向 `scoop run` 复核确认。
+    - `cargo fmt --all --check`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1536)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `PLAN.md` P0 对最小 overload regression / bug baseline 的要求，三个 §1 已知偏离样例已有固定 fixture 落点。
+    - 对应 `OVERLOAD_RESOLUTION.md` §1 的 concrete、arity、generic+concrete bug baseline，以及 §10 的 overload diagnostics audit 要求；未改变阶段边界，因此无需更新 `PLAN.md`。
 
 ### [TODO] P0-T02R：Review overload bug 与 diagnostics 基线
 
