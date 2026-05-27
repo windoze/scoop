@@ -520,7 +520,7 @@ fun helper(base: Base): Int / (Ask) {
 fun main(): Int {
     return handle {
         helper(Derived())
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }
@@ -582,7 +582,7 @@ fun helper(face: IFace): Int / (Ask) {
 fun main(): Int {
     return handle {
         helper(Impl())
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }

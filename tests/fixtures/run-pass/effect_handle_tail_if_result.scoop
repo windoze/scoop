@@ -22,7 +22,7 @@ fun demo(flag: Bool): Int {
         } else {
             15
         }
-    } with {
+    } on {
         Yield.next() -> 99
     }
     result

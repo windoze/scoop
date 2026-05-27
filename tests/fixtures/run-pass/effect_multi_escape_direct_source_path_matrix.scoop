@@ -55,7 +55,7 @@ fun main() {
         println("after_while")
         Abort.stop(if (i == 2) "abort_done" else "abort_bad")
         99
-    } with {
+    } on {
         Ask.ask(label: String), k -> {
             cell.seen = cell.seen + 1
             println("ask_arm")

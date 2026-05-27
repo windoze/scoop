@@ -22,7 +22,7 @@ fun main() {
         println(p.y)
         val sum: Int = p.x + p.y
         println(sum)
-    } with {
+    } on {
         Fetch.fetch(), k -> {
             saved = Some(k)
         }

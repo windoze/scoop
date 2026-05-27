@@ -58,7 +58,7 @@ fun main() {
         println("after_while")
         Abort.stop(if (i == 2) "stop_done" else "stop_bad")
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.count = cell.count + 1
             println("ask_arm")

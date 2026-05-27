@@ -44,7 +44,7 @@ fun main() {
         println("task0_step1")
         println(v0)
         println("task0_done")
-    } with {
+    } on {
         AwaitT0.pause0(), k -> {
             println("enqueue_t0")
             sched.t0 = Some(k)
@@ -67,7 +67,7 @@ fun main() {
         println("task1_result")
         println(acc1 + v1b)
         println("task1_done")
-    } with {
+    } on {
         AwaitT1.pause1(), k -> {
             println("enqueue_t1")
             sched.t1 = Some(k)
@@ -95,7 +95,7 @@ fun main() {
         println("task2_result")
         println(acc2b + v2c)
         println("task2_done")
-    } with {
+    } on {
         AwaitT2.pause2(), k -> {
             println("enqueue_t2")
             sched.t2 = Some(k)

@@ -782,7 +782,7 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    /// 解析 `handle { ... } with { ... }`（spec §5.4）。
+    /// 解析 `handle { ... } on { ... }`（spec §5.4）。
     ///
     /// 当前阶段：
     /// - 支持 non-resuming arm：`Effect.op(binders...) -> body`；
@@ -795,7 +795,7 @@ impl<'a> Parser<'a> {
         // spec 示例固定使用 block：`handle { ... } ...`
         let body = self.parse_block()?;
 
-        self.expect_keyword(Keyword::With)?;
+        self.expect_handle_on_keyword()?;
 
         let open = self.expect_symbol(Symbol::LBrace)?;
         let mut arms = Vec::new();
@@ -826,7 +826,7 @@ impl<'a> Parser<'a> {
         }
         let close = self.expect_symbol(Symbol::RBrace)?;
 
-        // spec §5.7：`handle { ... } with { ... } finally { ... }`
+        // spec §5.7：`handle { ... } on { ... } finally { ... }`
         let finally = if self.peek_keyword(Keyword::Finally) {
             self.bump(); // `finally`
             Some(self.parse_block()?)
@@ -847,6 +847,38 @@ impl<'a> Parser<'a> {
                 finally,
             },
         })
+    }
+
+    fn expect_handle_on_keyword(&mut self) -> Result<(), ParseError> {
+        if self.peek_keyword(Keyword::On) {
+            self.bump();
+            return Ok(());
+        }
+
+        if self.peek_keyword(Keyword::With) {
+            let with_kw = self.bump();
+            if self.peek_symbol(Symbol::LBrace) {
+                let open = self.bump();
+                self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start)?;
+                if self.peek_keyword(Keyword::Finally) {
+                    self.bump();
+                    if self.peek_symbol(Symbol::LBrace) {
+                        let open = self.bump();
+                        self.consume_balanced_after_open(
+                            Symbol::LBrace,
+                            Symbol::RBrace,
+                            open.span.start,
+                        )?;
+                    }
+                }
+            }
+            return Err(ParseError::HandlerWithKeywordRemoved {
+                span: with_kw.span.into(),
+            });
+        }
+
+        self.expect_keyword(Keyword::On)?;
+        Ok(())
     }
 
     /// 解析 `try { ... } catch (e: T) { ... } ... finally { ... }`（spec §5.7），并在 parser

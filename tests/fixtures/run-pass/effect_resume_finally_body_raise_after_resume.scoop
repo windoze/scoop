@@ -32,7 +32,7 @@ fun main() {
             val y: Int = boom()
             println("body_unreachable")
             y
-        } with {
+        } on {
             Yield.next() , k -> {
                 println("arm_start")
                 k.resume(41)

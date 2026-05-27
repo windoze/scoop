@@ -23,7 +23,7 @@ fun usePair(): Int / Pair<String, Int> {
 fun handlePair(): Int {
     return handle {
         usePair()
-    } with {
+    } on {
         Pair<String, Int>.ping(payload) -> {
             val tuple_copy: (String, Int) = payload
             val (_, n) = tuple_copy
@@ -39,7 +39,7 @@ fun handlePair(): Int {
 fun handleImmediate(): Int {
     return handle {
         Query.ask<Int>(5)
-    } with {
+    } on {
         Query.ask<Int>(seed) , k -> {
             val seed_copy: Int = seed
             k.resume(seed_copy + 1)
@@ -51,7 +51,7 @@ fun handleEscape(cell: Box<Continuation<Int, Unit>?>): Unit / Raise<RuntimeError
     val _: Unit = handle {
         val x: Int = Query.ask<Int>(6)
         val _sink: Int = x
-    } with {
+    } on {
         Query.ask<Int>(seed), k -> {
             val seed_copy: Int = seed
             val cont_copy: Continuation<Int, Unit> = k

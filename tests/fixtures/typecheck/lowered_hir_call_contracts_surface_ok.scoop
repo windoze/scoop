@@ -45,6 +45,6 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
     val fp: FunPtr<() -> Int> = @Unsafe do { getFunPtr() }
     val p: Int = @Unsafe do { fp() }
     k.resume(1)
-    val handled: Int = handle { Boom.boom(1) } with { Boom.boom(value: Int) -> value }
+    val handled: Int = handle { Boom.boom(1) } on { Boom.boom(value: Int) -> value }
     return d + e + m + box.value + v + iface + fv + cl + p + handled
 }

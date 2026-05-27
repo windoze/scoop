@@ -2622,7 +2622,7 @@ pub struct ResumeMetadata {
     pub suspends_outward: bool,
 }
 
-/// `handle { ... } with { ... }` 站点在 MIR 上保留的 typed contract。
+/// `handle { ... } on { ... }` 站点在 MIR 上保留的 typed contract。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleMetadata {
     pub result_ty: TypeId,

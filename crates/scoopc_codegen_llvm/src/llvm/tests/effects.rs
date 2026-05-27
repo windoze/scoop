@@ -27,7 +27,7 @@ fun go(): Payload / Ping {
 fun main(): Int {
     val payload: Payload = handle {
         go()
-    } with {
+    } on {
         Ping.pong(value: Payload) -> value
     }
     return payload.value
@@ -116,7 +116,7 @@ fun go(): Int / Edge {
 fun main(): Int {
     return handle {
         go()
-    } with {
+    } on {
         Edge.visit(from, to) -> to + 4
     }
 }
@@ -169,7 +169,7 @@ fun main(): Int {
             val y: Int = Ask.get(x)
             x + y
         }
-    } with {
+    } on {
         Ask.get(key), k -> 99
     }
 }
@@ -237,7 +237,7 @@ fun choose(mode: Mode): () -> Int / Ask {
 fun drive(mode: Mode): Int {
     return handle {
         choose(mode)()
-    } with {
+    } on {
         Ask.ask(seed), k -> seed
     }
 }
@@ -310,7 +310,7 @@ fun main(): Int {
         val x: Int = if (true) Edge.visit("left", 6) else 0
         println("after")
         x + 1
-    } with {
+    } on {
         Edge.visit(from, to) , k -> {
             println(from)
             println(to)
@@ -528,7 +528,7 @@ effect Ask {
 fun hidden(): Int / (Ask) {
     return handle {
         Ask.ask(41)
-    } with {
+    } on {
         Ask.ask(seed) -> seed + 1
     }
 }
@@ -540,7 +540,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }
@@ -603,7 +603,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }
@@ -659,7 +659,7 @@ fun entry(): Int / (Ask) {
     val thunk: () -> Int / (Ask) = {
         handle {
             Ask.ask(41)
-        } with {
+        } on {
             Ask.ask(seed) -> seed + 1
         }
     }
@@ -669,7 +669,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }
@@ -727,7 +727,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }
@@ -789,7 +789,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }

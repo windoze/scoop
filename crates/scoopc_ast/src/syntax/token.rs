@@ -73,6 +73,7 @@ pub enum Keyword {
 
     // effects
     Handle,
+    On,
     With,
     /// Removed source keyword retained so the parser can report a targeted diagnostic.
     Perform,

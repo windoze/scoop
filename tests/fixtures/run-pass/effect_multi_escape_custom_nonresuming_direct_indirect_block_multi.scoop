@@ -59,7 +59,7 @@ fun main() {
         println("after_block")
         println(prefix)
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.count = cell.count + 1
             println("ask_arm")

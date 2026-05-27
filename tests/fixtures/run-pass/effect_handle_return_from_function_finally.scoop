@@ -13,7 +13,7 @@ fun returnThroughFinally(): Int {
     val _: Int = handle {
         println("body")
         return 7
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(0)
         }

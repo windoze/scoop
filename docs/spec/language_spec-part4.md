@@ -173,7 +173,7 @@ Handler 语法：
 ```kotlin
 handle {
     body
-} with {
+} on {
     Effect.op(args...) -> handlerBody
     Other.op(x), k -> resumeBody
 }
@@ -189,7 +189,7 @@ handle {
 handle {
     val data = fetchData()
     println(data)
-} with {
+} on {
     Raise.raise(error) -> println(f"caught: {error}")
 }
 ```
@@ -209,7 +209,7 @@ handle {
 handle {
     val value = Yield.next()
     value + 1
-} with {
+} on {
     Yield.next(), k -> {
         val answer: Int = k.resume(41)
         answer
@@ -256,7 +256,7 @@ handle {
 ```kotlin
 handle {
     body
-} with {
+} on {
     E.op(x) -> h
 } finally {
     cleanup()
@@ -291,7 +291,7 @@ try {
 handle {
     val data = readFile("config.json")
     parse(data)
-} with {
+} on {
     Raise.raise(e: IOError) -> { defaultConfig }
 } finally {
     cleanup()
@@ -364,7 +364,7 @@ fun fibonacci(): Unit / Emit<Int> {
 
 handle {
     fibonacci()
-} with {
+} on {
     Emit.emit(value), k -> {
         println(value)
         k.resume()

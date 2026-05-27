@@ -35,7 +35,7 @@ fun main() {
         }
         println("after_outer")
         seed + 100
-    } with {
+    } on {
         Yield.next() , k -> {
             println("arm")
             k.resume(31)

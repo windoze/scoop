@@ -9,7 +9,7 @@ package fixtures.parse
 fun main() {
     handle {
         1
-    } with {
+    } on {
         Raise.raise(e) println(e)
         Raise.raise(e) -> resume { 2 }
     }

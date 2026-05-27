@@ -31,14 +31,14 @@ fun main() {
             println("after_ask")
             println(msg)
             x + 1
-        } with {
+        } on {
             Ask.ask(), k -> {
                 println("ask_arm")
                 saved = Some(k)
                 7
             }
         }
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(41)

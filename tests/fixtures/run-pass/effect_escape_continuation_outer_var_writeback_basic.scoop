@@ -22,7 +22,7 @@ fun main() {
     val _: Unit = handle {
         bodySeen = 11
         val _pause: Unit = Suspend.pause()
-    } with {
+    } on {
         Suspend.pause(), k -> {
             saved = Some(k)
         }

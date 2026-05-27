@@ -20,7 +20,7 @@ fun main() {
         val x: Int = 10 + 32
         println("body_done")
         x
-    } with {
+    } on {
         Ask.get(), k -> {
             println("arm_unreachable")
             0

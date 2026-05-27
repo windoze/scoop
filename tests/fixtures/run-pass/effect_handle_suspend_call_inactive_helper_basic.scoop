@@ -30,7 +30,7 @@ fun main(): Int {
         val value: Int = helper(false) + 1
         println("inactive_after")
         value
-    } with {
+    } on {
         Ask.ask() , k -> {
             k.resume(2)
         }
@@ -42,7 +42,7 @@ fun main(): Int {
         val value: Int = helper(true) + 1
         println("active_after")
         value
-    } with {
+    } on {
         Ask.ask() , k -> {
             k.resume(2)
         }

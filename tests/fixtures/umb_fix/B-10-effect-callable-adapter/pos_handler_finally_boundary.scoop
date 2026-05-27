@@ -16,7 +16,7 @@ fun cleanup() {}
 fun body_completes(): Int {
     return handle {
         5
-    } with {
+    } on {
         Step.next(value) -> value
     } finally {
         cleanup()
@@ -27,7 +27,7 @@ fun handled_raise(): Int {
     return handle {
         Step.next(1)
         0
-    } with {
+    } on {
         Step.next(value) -> value + 1
     } finally {
         cleanup()

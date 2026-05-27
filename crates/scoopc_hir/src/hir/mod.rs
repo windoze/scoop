@@ -521,7 +521,7 @@ pub enum ExprKind {
         op: EffectOpRef,
         args: Vec<CallArg>,
     },
-    /// effect handler 表达式：`handle { ... } with { ... }`（spec §5.4）。
+    /// effect handler 表达式：`handle { ... } on { ... }`（spec §5.4）。
     ///
     /// 当前阶段：
     /// - 支持 non-resuming arms（`->`）与 escape-continuation arms（`, k ->`，T0617）；

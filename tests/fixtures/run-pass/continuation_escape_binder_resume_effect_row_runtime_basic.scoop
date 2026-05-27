@@ -28,7 +28,7 @@ private fun start(cell: Cell): Int / Boom {
         val extra: Int = Boom.next()
         cell.resumedTotal = seed + extra
         0
-    } with {
+    } on {
         Ask.current(), k -> {
             cell.saved = Some(acceptBoom(k))
             40
@@ -42,7 +42,7 @@ fun main(): Int {
 
     val handled: Int = handle {
         start(cell)
-    } with {
+    } on {
         Boom.next() -> {
             println("unexpected_initial_boom")
             0 - 999
@@ -57,7 +57,7 @@ fun main(): Int {
             val resumeResult: Int = try {
                 handle {
                     k.resume(5)
-                } with {
+                } on {
                     Boom.next() , k -> {
                         k.resume(7)
                     }

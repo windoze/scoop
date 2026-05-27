@@ -22,7 +22,7 @@ class Cell(var k: Continuation<Int, Unit>?, var total: Int)
 fun pair_case(): Int {
     return handle {
         Pair.ping(("left", 7))
-    } with {
+    } on {
         Pair<String, Int>.ping(payload) -> {
             println("pair_payload")
             val (_, n) = payload
@@ -44,7 +44,7 @@ fun immediate_case(): Int {
         println("immediate_after")
         println(x)
         x + 1
-    } with {
+    } on {
         Query.ask<Int>(seed) , k -> {
             println("resume_seed")
             println(seed)
@@ -60,7 +60,7 @@ fun escape_case(cell: Cell) {
         println("escape_after")
         println(x)
         cell.total = x + 1
-    } with {
+    } on {
         Query.ask<Int>(seed), k -> {
             println("escape_seed")
             println(seed)

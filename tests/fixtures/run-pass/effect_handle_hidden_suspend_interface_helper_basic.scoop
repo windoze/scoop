@@ -34,7 +34,7 @@ fun main(): Int {
     val face: IFace = Impl()
     val result: Int = handle {
         helper(face)
-    } with {
+    } on {
         Ask.ask(seed) -> seed + 1
     }
 

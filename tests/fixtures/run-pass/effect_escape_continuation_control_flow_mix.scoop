@@ -64,7 +64,7 @@ fun main() {
         println(final_val)
 
         println("body_done")
-    } with {
+    } on {
         Suspend.fetch(), k -> {
             cell.n = cell.n + 1
             println("enqueue")

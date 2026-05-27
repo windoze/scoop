@@ -27,7 +27,7 @@ fun customThenOuterRaise(): Int {
             val x: Int = throwAlarm(7)
             println("mixed_unreachable")
             x
-        } with {
+        } on {
             Alarm.trip(code: Int) -> {
                 println("alarm_catch")
                 println(code)
@@ -55,7 +55,7 @@ fun bodyRaise(): Int {
         Raise.raise(5)
         println("mixed_body_raise_unreachable")
         0
-    } with {
+    } on {
         Alarm.trip(code: Int) -> {
             println("alarm_should_not_catch")
             println(code)

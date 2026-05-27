@@ -22,7 +22,7 @@ fun main() {
     val ignore: Unit = handle {
         val x: Int = Yield.next()
         println(x)
-    } with {
+    } on {
         Yield.next(), k -> {
             saved = Some(k)
         }

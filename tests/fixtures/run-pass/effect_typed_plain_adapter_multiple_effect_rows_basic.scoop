@@ -36,12 +36,12 @@ fun main(): Int {
 
     val a: Int = handle {
         applyA(first, 10)
-    } with {
+    } on {
         AskA.ask(seed: Int) -> seed
     }
     val b: Int = handle {
         applyB(second, 20)
-    } with {
+    } on {
         AskB.ask(seed: Int) -> seed
     }
 

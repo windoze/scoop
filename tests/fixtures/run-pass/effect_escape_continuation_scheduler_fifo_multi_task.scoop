@@ -44,7 +44,7 @@ fun main() {
         println("taskA_result")
         println(accA + a2)
         println("taskA_done")
-    } with {
+    } on {
         Await.pause(), k -> {
             println("enqueue")
             if (q.writePos == 0) {
@@ -80,7 +80,7 @@ fun main() {
         println("taskB_result")
         println(accB + b2)
         println("taskB_done")
-    } with {
+    } on {
         Await.pause(), k -> {
             println("enqueue")
             if (q.writePos == 0) {

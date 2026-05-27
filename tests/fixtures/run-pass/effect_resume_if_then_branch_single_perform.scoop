@@ -30,7 +30,7 @@ fun executeCase(flag: Bool): Int {
         }
         println("after_if")
         seed + 100
-    } with {
+    } on {
         Yield.next() , k -> {
             println("arm_then")
             k.resume(20)

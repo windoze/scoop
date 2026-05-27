@@ -24,7 +24,7 @@ fun main() {
         println(msg)
         Raise.raise(42)
         99
-    } with {
+    } on {
         Ask.ask(), k -> {
             println("ask_arm")
             saved = Some(k)

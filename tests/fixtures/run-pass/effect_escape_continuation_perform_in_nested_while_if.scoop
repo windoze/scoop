@@ -52,7 +52,7 @@ fun main() {
         println("sum")
         println(sum)
         println("body_done")
-    } with {
+    } on {
         Suspend.fetch(), k -> {
             cell.n = cell.n + 1
             println("enqueue")

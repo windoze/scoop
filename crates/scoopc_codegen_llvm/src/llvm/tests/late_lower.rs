@@ -548,7 +548,7 @@ fun go(named: Named): String / Ping {
 fun main(): Int {
     val value = handle {
         go(Named { name: "hi", score: 1 })
-    } with {
+    } on {
         Ping.pong(value: Named) -> value.name
     }
     return if (value == "hi") 0 else 1
@@ -931,7 +931,7 @@ fun go(): Int / Ping {
 fun main(): Int {
     return handle {
         go()
-    } with {
+    } on {
         Ping.pong(value: Int) -> value
     }
 }

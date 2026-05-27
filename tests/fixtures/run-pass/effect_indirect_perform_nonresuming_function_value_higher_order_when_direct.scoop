@@ -32,7 +32,7 @@ fun choose(mode: Mode): () -> Int / (Ask) {
 fun drive(mode: Mode): Int {
     val result: Int = handle {
         choose(mode)()
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             println("caught")
             println(seed.toString())

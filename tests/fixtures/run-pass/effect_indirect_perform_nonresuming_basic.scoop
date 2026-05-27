@@ -27,7 +27,7 @@ fun main(): Int {
         val v: Int = doFire(42)
         println("body_unreachable")
         v
-    } with {
+    } on {
         Boom.boom(e: Int) -> {
             println("caught")
             println(e)

@@ -6,7 +6,7 @@
 // 但内部 tail-resume fast path 仍需保持可执行。
 //
 // 目标覆盖：
-// - 自定义 effect op 在 `handle ... with { ... , k -> { ... } }` 下可被捕获；
+// - 自定义 effect op 在 `handle ... on { ... , k -> { ... } }` 下可被捕获；
 // - arm 内调用 `k.resume(value)` 后，handle body 能继续执行并使用该返回值。
 
 import scoop.core.*
@@ -22,7 +22,7 @@ fun main(): Int {
         println("after")
         println(x)
         x + 1
-    } with {
+    } on {
         Yield.next() , k -> {
             println("in_handler")
             k.resume(41)

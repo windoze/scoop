@@ -31,7 +31,7 @@ fun main() {
                 println(c)
             }
         }
-    } with {
+    } on {
         Query.query(), k -> {
             saved = Some(k)
         }
@@ -68,7 +68,7 @@ fun main() {
                 println(c)
             }
         }
-    } with {
+    } on {
         Query.query(), k -> {
             saved2 = Some(k)
         }

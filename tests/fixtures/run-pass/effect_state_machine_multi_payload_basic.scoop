@@ -17,7 +17,7 @@ fun plain_branch(flag: Bool): Int {
         } else {
             Edge.visit("plain_false", 2)
         }
-    } with {
+    } on {
         Edge.visit(from, to) -> {
             println(from)
             println(to)
@@ -33,7 +33,7 @@ fun immediate_resume_case(): Int {
         println("immediate_after")
         println(x)
         x + 100
-    } with {
+    } on {
         Edge.visit(from, to) , k -> {
             println(from)
             println(to)
@@ -49,7 +49,7 @@ fun escape_case(cell: Cell) {
         println("escape_after")
         println(x)
         cell.total = x + 2
-    } with {
+    } on {
         Edge.visit(from, to), k -> {
             println(from)
             println(to)

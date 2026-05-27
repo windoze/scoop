@@ -21,7 +21,7 @@ fun demo(flag: Bool): Int {
                 value = value + 1
             }
             value
-        } with {
+        } on {
             Yield.next() -> 99
         } finally {
             println("inner finally")
@@ -31,7 +31,7 @@ fun demo(flag: Bool): Int {
         } else {
             nested + 20
         }
-    } with {
+    } on {
         Yield.next() -> 0
     } finally {
         println("outer finally")

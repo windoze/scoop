@@ -69,7 +69,7 @@ fun main(): Int {
     return handle {
         Raise.raise(1)
         0
-    } with {
+    } on {
         Raise.raise(e) -> 2
     }
 }

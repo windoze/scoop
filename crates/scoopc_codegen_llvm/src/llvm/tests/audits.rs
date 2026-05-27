@@ -737,7 +737,7 @@ fun entry(): Int / (Ask) {
 fun main(): Int {
     return handle {
         entry()
-    } with {
+    } on {
         Ask.ask(seed) -> seed
     }
 }

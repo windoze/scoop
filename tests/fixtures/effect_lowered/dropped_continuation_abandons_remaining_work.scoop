@@ -14,7 +14,7 @@ fun helper(seed: Int): Int / Step {
     return handle {
         Step.next(seed)
         0
-    } with {
+    } on {
         Other.ping() -> 0
     } finally {
         cleanup()

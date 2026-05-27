@@ -22,7 +22,7 @@ fun main() {
             val x: Int = Ask.get()
             println("body_unreachable")
             x
-        } with {
+        } on {
             Ask.get(), k -> {
                 println("arm_start")
                 // Arm raises instead of resuming

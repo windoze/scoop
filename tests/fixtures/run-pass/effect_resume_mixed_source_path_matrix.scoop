@@ -70,7 +70,7 @@ fun main() {
         val nested: Int = handle {
             Abort.stop(if (i == 2) "nested_ok" else "nested_bad")
             99
-        } with {
+        } on {
             Abort.stop(text: String) -> {
                 println("abort_arm")
                 println(text)
@@ -80,7 +80,7 @@ fun main() {
         println("after_nested")
         println(nested)
         base + nested + i
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(40)

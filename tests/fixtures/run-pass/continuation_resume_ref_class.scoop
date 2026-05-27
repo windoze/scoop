@@ -35,7 +35,7 @@ fun main() {
         println("total")
         println(total)
         println("body_done")
-    } with {
+    } on {
         Provide.provide(), k -> {
             cell.k = Some(k)
         }

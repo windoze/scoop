@@ -19,7 +19,7 @@ private fun bad(): Int {
     return handle {
         val seed: Int = Ask.current()
         seed + 1
-    } with {
+    } on {
         Ask.current(), k -> {
             requireUnit(k)
             0

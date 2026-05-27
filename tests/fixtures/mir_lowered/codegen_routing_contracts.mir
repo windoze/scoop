@@ -143,7 +143,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 575..689,
+                span: 575..687,
                 fqn: "mir_lowered.codegen_routing_contracts.handled",
                 name: "handled",
                 ty: () -> Int / Pure,
@@ -151,13 +151,13 @@ File {
                 return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#hc4eab89613a2513c16f7568b518081ae, span: 607..687, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hbf73599e66de72a6ed11e80bff802857, span: 624..634, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h10a07bbe03368430ffefadd7f18a698d, span: 643..644, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h7457c75190f764be7b610156753e482a, span: 680..681, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h61bc66b658210bc5588fb8b6b57864e7, span: 594..689, name: Some("tmp4"), ty: Unit, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#h7cb37782b2426e8039213e08c5358d8f, span: 607..685, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hbf73599e66de72a6ed11e80bff802857, span: 624..634, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h10a07bbe03368430ffefadd7f18a698d, span: 643..644, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h87dd3c5a9263393e6e745d7ab02ec7d1, span: 678..679, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h932f83924017ee0c1dd3f8c22a6d178f, span: 594..687, name: Some("tmp4"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
-                                label: bb#h1743a9c739371dd99d8e88c0b9f06689,
+                                label: bb#h3d94e854585d77743ae93d53871808c6,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 607..687, kind: Handle { site_id: site#hb832348cd06fcefd3555fbf5b796e731, metadata: HandleMetadata { result_ty: Int, body_result_ty: Int, finally_result_ty: None }, arms: [HandlerArm { op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", op_type_args: [], binder_count: 0, binder_locals: [], continuation_local: None, handled_effect_ty: mir_lowered.codegen_routing_contracts.Ping, payload_tuple_ty: Some(Unit), payload_component_tys: [], body_ty: Int, kind: NonResuming }], has_finally: false, body_target: bb#h5dcb4f271c41fc2bf56e662115f9e887, arm_targets: [bb#h8c1317d47235d60d729cb72b0f81c8ca], finally_target: None, exit_target: bb#hf229eba736b7d4063fef3d4f5a588850 }, unwind: NoUnwind },
+                                terminator: Terminator { span: 607..685, kind: Handle { site_id: site#h7821ca616e3840a78b05217fffe994b6, metadata: HandleMetadata { result_ty: Int, body_result_ty: Int, finally_result_ty: None }, arms: [HandlerArm { op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", op_type_args: [], binder_count: 0, binder_locals: [], continuation_local: None, handled_effect_ty: mir_lowered.codegen_routing_contracts.Ping, payload_tuple_ty: Some(Unit), payload_component_tys: [], body_ty: Int, kind: NonResuming }], has_finally: false, body_target: bb#h5dcb4f271c41fc2bf56e662115f9e887, arm_targets: [bb#h05c5de2450db68133479ec75eb3dfcad], finally_target: None, exit_target: bb#h49f22333d7aa53a59228ee7bb0600ea2 }, unwind: NoUnwind },
                             },
                             BasicBlock {
                                 label: bb#h5dcb4f271c41fc2bf56e662115f9e887,
@@ -166,32 +166,32 @@ File {
                                 terminator: Terminator { span: 624..634, kind: Perform { site_id: site#hc3c3c8524fabb889a64502e8fc666934, op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", metadata: PerformMetadata { effect_ty: mir_lowered.codegen_routing_contracts.Ping, op_type_args: [], result_ty: Unit, payload_tuple_ty: Some(Unit), payload_component_tys: [], payload_transport: [], arg_mapping: [] }, args: [], resume_target: bb#hdd4009e319797f36f02cbdbfeb15bd59 }, unwind: Propagate },
                             },
                             BasicBlock {
-                                label: bb#h8c1317d47235d60d729cb72b0f81c8ca,
+                                label: bb#h05c5de2450db68133479ec75eb3dfcad,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 680..681, kind: Assign { target: local#h7457c75190f764be7b610156753e482a, value: Use(Const(Int)) } }, Statement { span: 666..681, kind: Assign { target: local#hc4eab89613a2513c16f7568b518081ae, value: Use(Local(local#h7457c75190f764be7b610156753e482a)) } }],
-                                terminator: Terminator { span: 666..681, kind: Goto { target: bb#hf229eba736b7d4063fef3d4f5a588850 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 678..679, kind: Assign { target: local#h87dd3c5a9263393e6e745d7ab02ec7d1, value: Use(Const(Int)) } }, Statement { span: 664..679, kind: Assign { target: local#h7cb37782b2426e8039213e08c5358d8f, value: Use(Local(local#h87dd3c5a9263393e6e745d7ab02ec7d1)) } }],
+                                terminator: Terminator { span: 664..679, kind: Goto { target: bb#h49f22333d7aa53a59228ee7bb0600ea2 }, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#hf229eba736b7d4063fef3d4f5a588850,
+                                label: bb#h49f22333d7aa53a59228ee7bb0600ea2,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 600..687, kind: Return { value: Some(Local(local#hc4eab89613a2513c16f7568b518081ae)) }, unwind: NoUnwind },
+                                terminator: Terminator { span: 600..685, kind: Return { value: Some(Local(local#h7cb37782b2426e8039213e08c5358d8f)) }, unwind: NoUnwind },
                             },
                             BasicBlock {
                                 label: bb#hdd4009e319797f36f02cbdbfeb15bd59,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 643..644, kind: Assign { target: local#h10a07bbe03368430ffefadd7f18a698d, value: Use(Const(Int)) } }, Statement { span: 614..650, kind: Assign { target: local#hc4eab89613a2513c16f7568b518081ae, value: Use(Local(local#h10a07bbe03368430ffefadd7f18a698d)) } }],
-                                terminator: Terminator { span: 614..650, kind: Goto { target: bb#hf229eba736b7d4063fef3d4f5a588850 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 643..644, kind: Assign { target: local#h10a07bbe03368430ffefadd7f18a698d, value: Use(Const(Int)) } }, Statement { span: 614..650, kind: Assign { target: local#h7cb37782b2426e8039213e08c5358d8f, value: Use(Local(local#h10a07bbe03368430ffefadd7f18a698d)) } }],
+                                terminator: Terminator { span: 614..650, kind: Goto { target: bb#h49f22333d7aa53a59228ee7bb0600ea2 }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#h1743a9c739371dd99d8e88c0b9f06689,
+                        start: bb#h3d94e854585d77743ae93d53871808c6,
                     }
                 ),
             },
         ),
         Fun(
             FunDecl {
-                span: 691..736,
+                span: 689..734,
                 fqn: "mir_lowered.codegen_routing_contracts.outward",
                 name: "outward",
                 ty: () -> Unit / mir_lowered.codegen_routing_contracts.Ping,
@@ -199,29 +199,29 @@ File {
                 return_ty: Unit,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#h77550543ba495c31c08cc63660f6d206, span: 724..734, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#hfb27703180bbc510712a8c4237a8f9a7, span: 722..732, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
-                                label: bb#hc683808ff405e3e5fbc5d9a298c1d928,
+                                label: bb#h3a6b9b1f570429709450a252bad7a342,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 724..734, kind: Assign { target: local#h77550543ba495c31c08cc63660f6d206, value: PerformResult { op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", effect_ty: mir_lowered.codegen_routing_contracts.Ping } } }],
-                                terminator: Terminator { span: 724..734, kind: Perform { site_id: site#h802d8e65b4cbb950539e1cc31ea50fe2, op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", metadata: PerformMetadata { effect_ty: mir_lowered.codegen_routing_contracts.Ping, op_type_args: [], result_ty: Unit, payload_tuple_ty: Some(Unit), payload_component_tys: [], payload_transport: [], arg_mapping: [] }, args: [], resume_target: bb#h62ce3eca5a0fb2ae0815f66c69df1122 }, unwind: Propagate },
+                                stmts: [Statement { span: 722..732, kind: Assign { target: local#hfb27703180bbc510712a8c4237a8f9a7, value: PerformResult { op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", effect_ty: mir_lowered.codegen_routing_contracts.Ping } } }],
+                                terminator: Terminator { span: 722..732, kind: Perform { site_id: site#h2362fd1d0065249ee229bcdf289785d7, op_fqn: "mir_lowered.codegen_routing_contracts.Ping.hit", metadata: PerformMetadata { effect_ty: mir_lowered.codegen_routing_contracts.Ping, op_type_args: [], result_ty: Unit, payload_tuple_ty: Some(Unit), payload_component_tys: [], payload_transport: [], arg_mapping: [] }, args: [], resume_target: bb#hfd2e694251993949793723e10b93dada }, unwind: Propagate },
                             },
                             BasicBlock {
-                                label: bb#h62ce3eca5a0fb2ae0815f66c69df1122,
+                                label: bb#hfd2e694251993949793723e10b93dada,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 691..736, kind: Return { value: None }, unwind: NoUnwind },
+                                terminator: Terminator { span: 689..734, kind: Return { value: None }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#hc683808ff405e3e5fbc5d9a298c1d928,
+                        start: bb#h3a6b9b1f570429709450a252bad7a342,
                     }
                 ),
             },
         ),
         Fun(
             FunDecl {
-                span: 738..790,
+                span: 736..788,
                 fqn: "mir_lowered.codegen_routing_contracts.main",
                 name: "main",
                 ty: () -> Int / Pure,
@@ -229,16 +229,16 @@ File {
                 return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#h88eccbf09fc0c33eb073c9c6e56d57e3, span: 767..788, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hde058cb565d3a3e7961370def5fbe38d, span: 767..776, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h1889bf7f221eeece00ca8635c741ea84, span: 779..788, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h12f4b835c557f5cad3f70bfca8456b58, span: 754..790, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#h49a581e418eadfc52a137671c5ccc351, span: 765..786, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h943be878e528f9acf9cd95afac7043e2, span: 765..774, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h2323e571e3c70e1afcc9a7b27298b7c6, span: 777..786, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h1ff2fe28cbcd0b70e53fb1c128c80fba, span: 752..788, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
-                                label: bb#h9e3ba97689f65ecdf4f47da78d7d46be,
+                                label: bb#h50d6c49794339b8f6e3d1345c98b6a43,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 767..776, kind: Assign { target: local#hde058cb565d3a3e7961370def5fbe38d, value: Call { site_id: site#haba9a49728cab75aa02b36c5ae70f7fb, kind: Direct { callee_fqn: "mir_lowered.codegen_routing_contracts.rawSafe" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 779..788, kind: Assign { target: local#h1889bf7f221eeece00ca8635c741ea84, value: Call { site_id: site#h45f13f767e6813443ca6319e6baef692, kind: Direct { callee_fqn: "mir_lowered.codegen_routing_contracts.handled" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 767..788, kind: Assign { target: local#h88eccbf09fc0c33eb073c9c6e56d57e3, value: Call { site_id: site#h6e8c9ba54131ac17aa08dfe501298307, kind: Direct { callee_fqn: "scoop.core.Int.plus" }, args: [CallArg { span: 767..776, name: None, value: Local(local#hde058cb565d3a3e7961370def5fbe38d) }, CallArg { span: 779..788, name: None, value: Local(local#h1889bf7f221eeece00ca8635c741ea84) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 760..788, kind: Return { value: Some(Local(local#h88eccbf09fc0c33eb073c9c6e56d57e3)) }, unwind: NoUnwind },
+                                stmts: [Statement { span: 765..774, kind: Assign { target: local#h943be878e528f9acf9cd95afac7043e2, value: Call { site_id: site#h5b410e1a4039453517ca848dba64cffa, kind: Direct { callee_fqn: "mir_lowered.codegen_routing_contracts.rawSafe" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 777..786, kind: Assign { target: local#h2323e571e3c70e1afcc9a7b27298b7c6, value: Call { site_id: site#h5d99b0974a0ef6bd4a537a400bfc7111, kind: Direct { callee_fqn: "mir_lowered.codegen_routing_contracts.handled" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 765..786, kind: Assign { target: local#h49a581e418eadfc52a137671c5ccc351, value: Call { site_id: site#hc996ee5ae06183fc5911212656b31589, kind: Direct { callee_fqn: "scoop.core.Int.plus" }, args: [CallArg { span: 765..774, name: None, value: Local(local#h943be878e528f9acf9cd95afac7043e2) }, CallArg { span: 777..786, name: None, value: Local(local#h2323e571e3c70e1afcc9a7b27298b7c6) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 758..786, kind: Return { value: Some(Local(local#h49a581e418eadfc52a137671c5ccc351)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#h9e3ba97689f65ecdf4f47da78d7d46be,
+                        start: bb#h50d6c49794339b8f6e3d1345c98b6a43,
                     }
                 ),
             },
@@ -299,9 +299,9 @@ mir_facts {
     - item=11 fqn=mir_lowered.codegen_routing_contracts.Base.ping kind=callable_body span=208..253
     - item=5 fqn=mir_lowered.codegen_routing_contracts.callInterface kind=callable_body span=407..462
     - item=4 fqn=mir_lowered.codegen_routing_contracts.callVirtual kind=callable_body span=352..405
-    - item=7 fqn=mir_lowered.codegen_routing_contracts.handled kind=callable_body span=575..689
-    - item=9 fqn=mir_lowered.codegen_routing_contracts.main kind=callable_body span=738..790
-    - item=8 fqn=mir_lowered.codegen_routing_contracts.outward kind=callable_body span=691..736
+    - item=7 fqn=mir_lowered.codegen_routing_contracts.handled kind=callable_body span=575..687
+    - item=9 fqn=mir_lowered.codegen_routing_contracts.main kind=callable_body span=736..788
+    - item=8 fqn=mir_lowered.codegen_routing_contracts.outward kind=callable_body span=689..734
     - item=3 fqn=mir_lowered.codegen_routing_contracts.rawSafe kind=callable_body span=297..350
     - item=6 fqn=mir_lowered.codegen_routing_contracts.resumeBoom kind=callable_body span=464..573
   }

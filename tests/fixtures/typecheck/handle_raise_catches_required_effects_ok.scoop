@@ -8,7 +8,7 @@ import scoop.core.*
 fun f(): Int / Pure {
     val x = handle {
         Raise.raise(1)
-    } with {
+    } on {
         Raise.raise(e) -> e
     }
     x

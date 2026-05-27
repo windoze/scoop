@@ -728,7 +728,7 @@ The handled computation is abandoned. Used for error handling (try/catch pattern
 handle {
     val data = fetchData()
     println(data)
-} with {
+} on {
     Raise.raise(error) -> println("caught: " + error)
 }
 ```
@@ -743,7 +743,7 @@ The handler captures the remainder of the handled computation up to the nearest 
 handle {
     val value = Yield.next()
     value + 1
-} with {
+} on {
     Yield.next(), k -> {
         val answer: Int = k.resume(41)
         println("resumed answer = " + answer)
@@ -842,7 +842,7 @@ try {
 handle {
     val data = readFile("config.json")
     parse(data)
-} with {
+} on {
     Raise.raise(e) -> { logError(e); defaultConfig }
 } finally {
     cleanup()
@@ -912,7 +912,7 @@ fun fibonacci(): Sequence<Int> / Emit<Int> {
 // Consumer uses resuming handler:
 handle {
     fibonacci()
-} with {
+} on {
     Emit.emit(value), k -> {
         println(value)
         k.resume()
@@ -934,14 +934,14 @@ fun process() / Logger {
 // Non-resuming handler:
 handle {
     process()
-} with {
+} on {
     Logger.log(level, msg) -> println("[" + level + "] " + msg)
 }
 
 // Resuming handler:
 handle {
     process()
-} with {
+} on {
     Logger.log(level, msg), k -> {
         println("[" + level + "] " + msg)
         k.resume()
@@ -951,7 +951,7 @@ handle {
 // Stored-continuation handler (e.g., buffered logging):
 handle {
     process()
-} with {
+} on {
     Logger.log(level, msg), k -> {
         buffer.add("[" + level + "] " + msg)
         k.resume()
@@ -2137,7 +2137,7 @@ During type checking, each expression has a **required effect row**: the minimal
 
 Rules:
 
-- Calling `E.op(...)` requires the effect item `E` unless the operation is handled by an enclosing `handle { ... } with { ... }` (or `try`/`catch`) that has a matching arm for `E.op`.
+- Calling `E.op(...)` requires the effect item `E` unless the operation is handled by an enclosing `handle { ... } on { ... }` (or `try`/`catch`) that has a matching arm for `E.op`.
 - Calling a function `f` requires the effect row declared on `f` (after substituting any type/effect arguments).
 - Invoking a function value (e.g., `block()`) requires the effect row declared on that function type (see §7.5).
 - This call-site rule is determined by the **static function type** of the callee expression, even when the function value is obtained through an opaque path such as a field/property access, a `when`/`if` branch merge, or a higher-order function return. If that static function type is non-`Pure`, lowering must treat the call as may-suspend even when a particular runtime value happens to be a pure closure.
@@ -3038,7 +3038,7 @@ This appendix incorporates the **new effect dispatch specification** described i
 
 ### A.1 Intent
 
-The effect system is lexically scoped by `handle { ... } with { ... }` blocks. When multiple handlers are active due to nesting, an effect operation call must be delivered to the **nearest** enclosing handler that can handle that specific operation.
+The effect system is lexically scoped by `handle { ... } on { ... }` blocks. When multiple handlers are active due to nesting, an effect operation call must be delivered to the **nearest** enclosing handler that can handle that specific operation.
 
 This appendix makes that scoping rule explicit and also specifies the semantics for effects performed **inside handler arms**.
 
@@ -3047,7 +3047,7 @@ This appendix makes that scoping rule explicit and also specifies the semantics 
 - **Effect operation**: a qualified operation name such as `Raise.raise`.
 - **Handler instance**: a dynamic instance of a `handle` block during execution. (A single syntactic `handle` expression may be entered multiple times via loops or continuation resumes.)
 - **Active handler**: a handler instance that is currently in the dynamic scope of execution.
-- **Handled set**: the set of effect operations that have an arm in the handler’s `with { ... }` block.
+- **Handled set**: the set of effect operations that have an arm in the handler’s `on { ... }` block.
 
 ### A.3 Dispatch Rule (Nearest Matching Handler)
 
@@ -3080,12 +3080,12 @@ This rule prevents accidental self-capture and makes nested handlers behave pred
 handle {
     handle {
         Raise.raise("inner")
-    } with {
+    } on {
         Raise.raise(e), k -> {
             Raise.raise("from arm")  // targets the OUTER handler
         }
     }
-} with {
+} on {
     Raise.raise(e) -> println(e)
 }
 ```

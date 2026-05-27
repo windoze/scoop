@@ -19,7 +19,7 @@ fun main() {
         } else {
             println("no")
         }
-    } with {
+    } on {
         Confirm.confirm(), k -> {
             saved = Some(k)
         }

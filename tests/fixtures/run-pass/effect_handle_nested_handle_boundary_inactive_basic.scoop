@@ -21,14 +21,14 @@ fun main(): Int {
             val inner: Int = Ask.ask()
             println("inactive_inner_after")
             inner + 1
-        } with {
+        } on {
             Ask.ask() , k -> {
                 k.resume(7)
             }
         }) + 10
         println("inactive_outer_after")
         value
-    } with {
+    } on {
         Ask.ask() -> 99
     }
     println(inactive_result)
@@ -40,12 +40,12 @@ fun main(): Int {
             val inner: Int = Ask.ask()
             println("active_inner_after")
             inner + 1
-        } with {
+        } on {
             Raise.raise(err: RuntimeError) -> 0
         }) + 10
         println("active_outer_after")
         value
-    } with {
+    } on {
         Ask.ask() -> 5
     }
     println(active_result)

@@ -22,7 +22,7 @@ fun main() {
             val x: Int = Yield.next()
             println("body_unreachable")
             x
-        } with {
+        } on {
             Yield.next() , k -> {
                 println("arm_start")
                 Raise.raise(77)

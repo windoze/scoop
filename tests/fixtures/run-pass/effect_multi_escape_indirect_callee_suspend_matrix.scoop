@@ -55,7 +55,7 @@ fun main() {
 
         Abort.stop(second)
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.seen = cell.seen + 1
             println("ask_arm")

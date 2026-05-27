@@ -33,7 +33,7 @@ fun main() {
             println("inner_resume_error")
         }
         println("inner_resumed")
-    } with {
+    } on {
         Outer.getK(), k -> {
             outerK = Some(k)
         }
@@ -48,7 +48,7 @@ fun main() {
         val v: Int = Inner.pause()
         println("inner_got")
         println(v)
-    } with {
+    } on {
         Inner.pause(), k -> {
             innerSaved = Some(k)
         }

@@ -28,7 +28,7 @@ fun main(): Int {
         val v: Int = forward(payload)
         println("body_unreachable")
         v
-    } with {
+    } on {
         Data.fail(p: Payload) -> {
             println("caught")
             println(p.label)

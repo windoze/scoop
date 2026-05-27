@@ -52,7 +52,7 @@ fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String, Int>?) {
         println(third)
         Abort.stop(third)
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.count = cell.count + 1
             println("ask_arm")
@@ -132,7 +132,7 @@ fun run_indirect_direct(cell: Cell, none_k: Continuation<String, Int>?) {
         println(second)
         Abort.stop(first)
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.count = cell.count + 1
             println("ask_arm")

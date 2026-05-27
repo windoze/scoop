@@ -29,7 +29,7 @@ fun main() {
         println("body_after_perform")
         println(x)
         x + 1
-    } with {
+    } on {
         Ask.get(), k -> {
             println("arm_start")
             cell.k = Some(k)

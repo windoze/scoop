@@ -44,7 +44,7 @@ fun main() {
         println(second)
         Abort.stop(second)
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             println("ask_arm")
             println(seed)

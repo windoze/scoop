@@ -98,7 +98,7 @@ fun main() {
         println(labelA)
         println(f"taskA_result={baseA + a1}")
         println("taskA_done")
-    } with {
+    } on {
         AwaitA.pauseA(), k -> {
             println("taskA_arm")
             cellA.k = Some(k)
@@ -118,7 +118,7 @@ fun main() {
         println(labelB)
         println(f"taskB_result={baseB + b1}")
         println("taskB_done")
-    } with {
+    } on {
         AwaitB.pauseB(), k -> {
             println("taskB_arm")
             cellB.k = Some(k)

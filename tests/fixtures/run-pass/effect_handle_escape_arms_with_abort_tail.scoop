@@ -39,7 +39,7 @@ fun main() {
 
         Abort.stop(second + 10)
         99
-    } with {
+    } on {
         Ask.ask(seed: Int), k -> {
             println("ask_arm")
             println(seed)

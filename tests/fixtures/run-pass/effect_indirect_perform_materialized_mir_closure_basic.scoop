@@ -29,7 +29,7 @@ fun main(): Int {
             println(y + delta)
             Ask.ask(y + delta)
         }, 40)
-    } with {
+    } on {
         Ask.ask(seed: Int) -> {
             println("caught")
             println(seed)

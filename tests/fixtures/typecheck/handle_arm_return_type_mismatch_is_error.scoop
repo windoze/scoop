@@ -16,7 +16,7 @@ fun f(): Int / Pure {
     val x = handle {
         Raise.raise(1)
         1
-    } with {
+    } on {
         Raise.raise(e: Int) -> "oops"
     }
     x

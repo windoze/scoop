@@ -1824,7 +1824,7 @@ pub enum ExprKind {
         subject: Box<Expr>,
         arms: Vec<WhenArm>,
     },
-    /// `handle { ... } with { ... }`（spec §5.4）。
+    /// `handle { ... } on { ... }`（spec §5.4）。
     ///
     /// 说明：
     /// - 支持 non-resuming arm：`Effect.op(args) -> body`；

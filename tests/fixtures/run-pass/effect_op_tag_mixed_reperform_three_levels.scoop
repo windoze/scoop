@@ -37,7 +37,7 @@ fun main(): Int {
                 println("inner_body")
                 EffectB.fireB(100)
                 999
-            } with {
+            } on {
                 EffectB.fireB(e: Int) -> {
                     println("inner_catch_B")
                     println(e)
@@ -50,7 +50,7 @@ fun main(): Int {
 
             println("unreachable_after_inner")
             inner
-        } with {
+        } on {
             EffectA.fireA(e: Int) -> {
                 println("middle_catch_A")
                 println(e)
@@ -63,7 +63,7 @@ fun main(): Int {
 
         println("unreachable_after_middle")
         mid
-    } with {
+    } on {
         EffectB.fireB(e: Int) -> {
             println("outer_catch_B")
             println(e)

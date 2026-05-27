@@ -208,14 +208,14 @@ LateLoweredProgram
       captures:
         - FrameSlot(slot#h1b9553b99f453af0efc1de2326e97dbc)
         - FrameSlot(slot#ha529365aefd3506024d8fb6a3cf69655)
-        - FrameSlot(slot#h9c8d253405b57a7bb23b1e1395e126d3)
+        - FrameSlot(slot#h202d244cbebc9d0b304d97e65b27d034)
         - FrameSlot(slot#haf1056f47e600af0d3424ce4eb6cc8df)
         - FrameSlot(slot#h1d35062546bd051df752a79c2431478a)
         - FrameSlot(slot#h9a5c007dd5fb279ad8e3adb2e929a132)
         - FrameSlot(slot#h68eaa08adac142bb8990126544874bef)
         - FrameSlot(slot#h392e994fbd30c4448cbadb9a85c670bf)
         - FrameSlot(slot#h7bf577068131cb7f26df2993a0926024)
-        - FrameSlot(slot#h76232ff8a80bf5c7d8ee490612e32405)
+        - FrameSlot(slot#h32dc5ed9aca2493ab2f3f8bf2a4f4488)
         - State(state#hadb2f94369fecdf6a0e12b0a6e1ae37e)
       authoritative_surface_resumes:
         - case=case#h6b172464d5042d99ef68f819e331097b=sample.Other.ping resume_tuple_ty=Int answer_ty=Int surface_ty=scoop.core.Continuation<Int, Int, eff (sample.Step + sample.Other)> out_step_schema=step#h488c04bdab470b08bd534eae480e3a8c continuation_schema=cont#h205ffe7ec8616bcfe4066ac2ac0bd27c concrete_op=sample.Other.ping => Unreachable
@@ -255,29 +255,29 @@ LateLoweredProgram
       resolved_outward_cases: [case#h39ec0c11955c3d90c8b1fef387ea74ce=sample.Step.next]
       abi: EffectStep
       authoritative_step_schema: step#h488c04bdab470b08bd534eae480e3a8c
-      dynamic_invoke_entry: invoke(Int) -> step#h488c04bdab470b08bd534eae480e3a8c entry=state#h2abff8576e11f7ee9f67a62f2053eabc complete=state#hf989658e7b1b390a127900bc9fd94917
+      dynamic_invoke_entry: invoke(Int) -> step#h488c04bdab470b08bd534eae480e3a8c entry=state#h20e62cc8023dd521291f719656313af2 complete=state#hf989658e7b1b390a127900bc9fd94917
       state_graph:
-        entry_state: state#h2abff8576e11f7ee9f67a62f2053eabc
+        entry_state: state#h20e62cc8023dd521291f719656313af2
         complete_state: state#hf989658e7b1b390a127900bc9fd94917
-        cleanup_state: state#hb56af9222042dc1bd3c4763498f8c470
+        cleanup_state: state#h53d75b3584b3f1e990e9d87568c03e52
         drop_state: state#h7774602d9fae204101e45c91c05b2d69
         states:
-          - state#h2abff8576e11f7ee9f67a62f2053eabc Entry term=Handle(site#h71ca301182f4708740fa5b3814c2bd9e body=state#h617e5b6522b849ae1900790642bfb4ff arms=[state#h9c40ea206d0cb7d6c42b31254edccd59] finally=state#hb56af9222042dc1bd3c4763498f8c470 exit=state#h3c99deea845a12636bdfe7af38afc2c7 boundaries=[] drop=state#h7774602d9fae204101e45c91c05b2d69) successors=[state#h617e5b6522b849ae1900790642bfb4ff, state#h9c40ea206d0cb7d6c42b31254edccd59, state#hb56af9222042dc1bd3c4763498f8c470]
+          - state#h20e62cc8023dd521291f719656313af2 Entry term=Handle(site#hc469aad038ec3ccd9d1f74d2f6b02b68 body=state#h617e5b6522b849ae1900790642bfb4ff arms=[state#hf3b0823571575cdc146ed5933402acd2] finally=state#h53d75b3584b3f1e990e9d87568c03e52 exit=state#h13a6e53830687eb3c1b76427ff9ed6df boundaries=[] drop=state#h7774602d9fae204101e45c91c05b2d69) successors=[state#h617e5b6522b849ae1900790642bfb4ff, state#hf3b0823571575cdc146ed5933402acd2, state#h53d75b3584b3f1e990e9d87568c03e52]
             handle_contract:
               carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
-              body_complete_target: state#hb56af9222042dc1bd3c4763498f8c470
-              arm_complete_target: state#hb56af9222042dc1bd3c4763498f8c470
-              finally_complete_target: state#h3c99deea845a12636bdfe7af38afc2c7
-              body_completion_payload: local#h9e7281a5e68a461c4072d81011d822f0:Int
+              body_complete_target: state#h53d75b3584b3f1e990e9d87568c03e52
+              arm_complete_target: state#h53d75b3584b3f1e990e9d87568c03e52
+              finally_complete_target: state#h13a6e53830687eb3c1b76427ff9ed6df
+              body_completion_payload: local#haa2a1bad1f48d49f791954cf696258f3:Int
               abandon_target: state#h7774602d9fae204101e45c91c05b2d69
               body_outward_cases: [case#h39ec0c11955c3d90c8b1fef387ea74ce=sample.Step.next]
               finally_outward_cases: []
               handled_arms:
-                - handled=case#h6b172464d5042d99ef68f819e331097b=sample.Other.ping ordinal=0 -> state#h9c40ea206d0cb7d6c42b31254edccd59 payload_tuple_ty=Unit outward=[]
+                - handled=case#h6b172464d5042d99ef68f819e331097b=sample.Other.ping ordinal=0 -> state#hf3b0823571575cdc146ed5933402acd2 payload_tuple_ty=Unit outward=[]
                   payload_binders:
                     <none>
                   continuation_binder: <none>
-                  completion_payload: local#h9e7281a5e68a461c4072d81011d822f0:Int
+                  completion_payload: local#haa2a1bad1f48d49f791954cf696258f3:Int
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
@@ -286,13 +286,13 @@ LateLoweredProgram
               pending_payload_transports:
                 <none>
               state_regions:
-                - state#h2abff8576e11f7ee9f67a62f2053eabc => dispatch
+                - state#h20e62cc8023dd521291f719656313af2 => dispatch
                 - state#h617e5b6522b849ae1900790642bfb4ff => body
-                - state#h9c40ea206d0cb7d6c42b31254edccd59 => arm(case#h6b172464d5042d99ef68f819e331097b=sample.Other.ping, ordinal=0)
-                - state#hb56af9222042dc1bd3c4763498f8c470 => finally
-                - state#h3c99deea845a12636bdfe7af38afc2c7 => exit
+                - state#hf3b0823571575cdc146ed5933402acd2 => arm(case#h6b172464d5042d99ef68f819e331097b=sample.Other.ping, ordinal=0)
+                - state#h53d75b3584b3f1e990e9d87568c03e52 => finally
+                - state#h13a6e53830687eb3c1b76427ff9ed6df => exit
                 - state#hadb2f94369fecdf6a0e12b0a6e1ae37e => body
-                - state#h1cb4f79bad99aec613f4e4e39ac9afb2 => body
+                - state#h890f911e7124ea529cce0dbec18bd8cb => body
                 - state#hb69dbaee9a25a4139274359a531bf9c4 => body
               boundary_routings:
                 - boundary#h6534fe5771fd5eaf619dde635c27815b owner=state#h617e5b6522b849ae1900790642bfb4ff region=body resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e
@@ -301,42 +301,42 @@ LateLoweredProgram
               outward_emissions:
                 <none>
             source_slices:
-              - bb#h815cd2497620df3cffae9caf843dfef4 stmts[0..0] + term
+              - bb#hecb453b83d043247c5a7012b608338fa stmts[0..0] + term
                 statement_classification:
                   <none>
           - state#hf989658e7b1b390a127900bc9fd94917 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - state#h617e5b6522b849ae1900790642bfb4ff Segment term=Suspend(boundaries=[boundary#h6534fe5771fd5eaf619dde635c27815b], resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e, local_runtime_error=[], cleanup=state#h1cb4f79bad99aec613f4e4e39ac9afb2, drop=state#h7774602d9fae204101e45c91c05b2d69) successors=[state#hadb2f94369fecdf6a0e12b0a6e1ae37e, state#h1cb4f79bad99aec613f4e4e39ac9afb2]
+          - state#h617e5b6522b849ae1900790642bfb4ff Segment term=Suspend(boundaries=[boundary#h6534fe5771fd5eaf619dde635c27815b], resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e, local_runtime_error=[], cleanup=state#h890f911e7124ea529cce0dbec18bd8cb, drop=state#h7774602d9fae204101e45c91c05b2d69) successors=[state#hadb2f94369fecdf6a0e12b0a6e1ae37e, state#h890f911e7124ea529cce0dbec18bd8cb]
             source_slices:
               - bb#hff930400320df4813e0cd3263ecd08a3 stmts[0..1] + term
                 statement_classification:
                   - stmt0: resume-payload-injection boundary#h6534fe5771fd5eaf619dde635c27815b resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e local#hafe87590fa17d9d48a6689e8037c8cc6
-          - state#h9c40ea206d0cb7d6c42b31254edccd59 Segment term=Goto(state#hb56af9222042dc1bd3c4763498f8c470) successors=[state#hb56af9222042dc1bd3c4763498f8c470]
+          - state#hf3b0823571575cdc146ed5933402acd2 Segment term=Goto(state#h53d75b3584b3f1e990e9d87568c03e52) successors=[state#h53d75b3584b3f1e990e9d87568c03e52]
             source_slices:
-              - bb#hb61b2384a5397b3ce523cb36a0e5d77b stmts[0..2] + term
+              - bb#h398fe680d4e3357d62cf2185cb1e8766 stmts[0..2] + term
                 statement_classification:
                   - stmt0: effect-neutral-value
                   - stmt1: effect-neutral-value
-          - state#hb56af9222042dc1bd3c4763498f8c470 Cleanup term=Goto(state#h3c99deea845a12636bdfe7af38afc2c7) successors=[state#h3c99deea845a12636bdfe7af38afc2c7]
+          - state#h53d75b3584b3f1e990e9d87568c03e52 Cleanup term=Goto(state#h13a6e53830687eb3c1b76427ff9ed6df) successors=[state#h13a6e53830687eb3c1b76427ff9ed6df]
             source_slices:
-              - bb#hea341026ced5b8d448b5777d99c07983 stmts[0..1] + term
+              - bb#h493a5437184b6343001106a4279a4ed4 stmts[0..1] + term
                 statement_classification:
                   - stmt0: effect-neutral-value
-          - state#h3c99deea845a12636bdfe7af38afc2c7 Segment term=Return(local#h9e7281a5e68a461c4072d81011d822f0:Int -> state#hf989658e7b1b390a127900bc9fd94917) successors=[state#hf989658e7b1b390a127900bc9fd94917]
+          - state#h13a6e53830687eb3c1b76427ff9ed6df Segment term=Return(local#haa2a1bad1f48d49f791954cf696258f3:Int -> state#hf989658e7b1b390a127900bc9fd94917) successors=[state#hf989658e7b1b390a127900bc9fd94917]
             source_slices:
-              - bb#h4635758f69b80ee69e5f98c9b25cfa82 stmts[0..0] + term
+              - bb#h8306c3037fab6bc696c923486b941807 stmts[0..0] + term
                 statement_classification:
                   <none>
-          - state#hadb2f94369fecdf6a0e12b0a6e1ae37e Resume term=Goto(state#hb56af9222042dc1bd3c4763498f8c470) successors=[state#hb56af9222042dc1bd3c4763498f8c470]
+          - state#hadb2f94369fecdf6a0e12b0a6e1ae37e Resume term=Goto(state#h53d75b3584b3f1e990e9d87568c03e52) successors=[state#h53d75b3584b3f1e990e9d87568c03e52]
             source_slices:
               - bb#h7045fe93be2e1a82c3fb06bf40d6d188 stmts[0..2] + term
                 statement_classification:
                   - stmt0: effect-neutral-value
                   - stmt1: effect-neutral-value
-          - state#h1cb4f79bad99aec613f4e4e39ac9afb2 Cleanup term=Goto(state#hb69dbaee9a25a4139274359a531bf9c4) successors=[state#hb69dbaee9a25a4139274359a531bf9c4]
+          - state#h890f911e7124ea529cce0dbec18bd8cb Cleanup term=Goto(state#hb69dbaee9a25a4139274359a531bf9c4) successors=[state#hb69dbaee9a25a4139274359a531bf9c4]
             source_slices:
-              - bb#hf940d93b5ab76fb99abe129d7bef498f stmts[0..1] + term
+              - bb#h2b55ef4fefe419d0b27b583e6ffafec7 stmts[0..1] + term
                 statement_classification:
                   - stmt0: effect-neutral-value
           - state#hb69dbaee9a25a4139274359a531bf9c4 Cleanup term=ResumeUnwind successors=[]
@@ -351,18 +351,18 @@ LateLoweredProgram
         slots:
           - slot#h1b9553b99f453af0efc1de2326e97dbc BoundaryResult(boundary#h6534fe5771fd5eaf619dde635c27815b, local#hafe87590fa17d9d48a6689e8037c8cc6) ty=Int writes=[state#hadb2f94369fecdf6a0e12b0a6e1ae37e] reads=[]
           - slot#ha529365aefd3506024d8fb6a3cf69655 ResumePayload(boundary#h6534fe5771fd5eaf619dde635c27815b, case#h39ec0c11955c3d90c8b1fef387ea74ce=sample.Step.next) ty=Int writes=[state#hadb2f94369fecdf6a0e12b0a6e1ae37e] reads=[state#hadb2f94369fecdf6a0e12b0a6e1ae37e]
-          - slot#h9c8d253405b57a7bb23b1e1395e126d3 HandleSavedEffectCtx(site#h71ca301182f4708740fa5b3814c2bd9e) ty=Any writes=[] reads=[]
+          - slot#h202d244cbebc9d0b304d97e65b27d034 HandleSavedEffectCtx(site#hc469aad038ec3ccd9d1f74d2f6b02b68) ty=Any writes=[] reads=[]
           - slot#haf1056f47e600af0d3424ce4eb6cc8df System(StateTag) ty=Int writes=[] reads=[]
           - slot#h1d35062546bd051df752a79c2431478a System(ResumePayloadCarrier) ty=Any writes=[] reads=[]
           - slot#h9a5c007dd5fb279ad8e3adb2e929a132 System(CleanupFlag) ty=Bool writes=[] reads=[]
           - slot#h68eaa08adac142bb8990126544874bef System(OneShotFlag) ty=Bool writes=[] reads=[]
           - slot#h392e994fbd30c4448cbadb9a85c670bf System(CompletionTag) ty=Int writes=[] reads=[]
           - slot#h7bf577068131cb7f26df2993a0926024 System(CurrentEffectCtx) ty=Any writes=[] reads=[]
-          - slot#h76232ff8a80bf5c7d8ee490612e32405 HandleArmEffectCtx(site#h71ca301182f4708740fa5b3814c2bd9e, arm#0) ty=Any writes=[] reads=[]
+          - slot#h32dc5ed9aca2493ab2f3f8bf2a4f4488 HandleArmEffectCtx(site#hc469aad038ec3ccd9d1f74d2f6b02b68, arm#0) ty=Any writes=[] reads=[]
         resume_payload_bindings:
           - boundary#h6534fe5771fd5eaf619dde635c27815b resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e local#hafe87590fa17d9d48a6689e8037c8cc6 home=slot#h1b9553b99f453af0efc1de2326e97dbc
         completion_payload_bindings:
-          - return=state#h3c99deea845a12636bdfe7af38afc2c7 complete=state#hf989658e7b1b390a127900bc9fd94917 payload=local#h9e7281a5e68a461c4072d81011d822f0:Int home=<none>
+          - return=state#h13a6e53830687eb3c1b76427ff9ed6df complete=state#hf989658e7b1b390a127900bc9fd94917 payload=local#haa2a1bad1f48d49f791954cf696258f3:Int home=<none>
       boundary_map:
         - boundary#h6534fe5771fd5eaf619dde635c27815b Perform(site#h71517986b2d332fe8aec63ef823fc94e) owner=state#h617e5b6522b849ae1900790642bfb4ff resume=state#hadb2f94369fecdf6a0e12b0a6e1ae37e
           lowering: Perform emitted_case=case#h39ec0c11955c3d90c8b1fef387ea74ce=sample.Step.next captured_cont_schema=cont#h205ffe7ec8616bcfe4066ac2ac0bd27c payload_tuple_ty=Int
@@ -381,7 +381,7 @@ LateLoweredProgram
       abi: Plain
       ordinary_signature: fn_ty=() -> Int / Pure params=[] return=Int
       plain_source_slices:
-        - bb#hd7f5e908206d6ace437c13b9bde0f75f stmts[0..1] + term
+        - bb#h06d40f1a2918f59b740b5d0dcd34e1fb stmts[0..1] + term
       plain_call_sites:
         <none>
       plain_local_effect_control: <none>

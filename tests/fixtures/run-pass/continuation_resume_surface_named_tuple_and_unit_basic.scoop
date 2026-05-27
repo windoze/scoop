@@ -20,7 +20,7 @@ fun main() {
         println("before_pause")
         val _pause: Unit = Suspend.pause()
         println("after_pause")
-    } with {
+    } on {
         Suspend.pause(), k -> {
             savedUnit = Some(k)
             println("saved_unit")
@@ -49,7 +49,7 @@ fun main() {
         println("got_pair")
         println(pair._0)
         println(pair._1)
-    } with {
+    } on {
         Ask.ask(), k -> {
             savedPair = Some(k)
             println("saved_pair")

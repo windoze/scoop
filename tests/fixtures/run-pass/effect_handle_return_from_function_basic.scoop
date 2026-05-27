@@ -15,7 +15,7 @@ fun earlyReturn(): Int {
     val _: Int = handle {
         println("handle_body")
         return 41
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(0)
         }

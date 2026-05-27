@@ -30,7 +30,7 @@ fun demo(mode: Int): Int {
             Boom.boom(10)
             0
         }
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(41)
         }

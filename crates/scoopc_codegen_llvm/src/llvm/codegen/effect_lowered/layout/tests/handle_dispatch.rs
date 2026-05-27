@@ -91,13 +91,13 @@ return handle {
     val nested: Int = handle {
         Outer.again()
         0
-    } with {
+    } on {
         Inner.go() -> 1
     } finally {
         cleanup()
     }
     nested + 10
-} with {
+} on {
     Outer.again() -> 99
 }
 }
@@ -188,13 +188,13 @@ return handle {
     val nested: Int = handle {
         Outer.again()
         0
-    } with {
+    } on {
         Inner.go() -> 1
     } finally {
         cleanup()
     }
     nested + 10
-} with {
+} on {
     Outer.again() -> 99
 }
 }
@@ -450,7 +450,7 @@ fun visit(from: String, to: Int): Int
 fun run(): Int {
 return handle {
     Edge.visit("alpha", 1)
-} with {
+} on {
     Edge.visit(from, to), k -> {
         k.resume(to + 1)
     }
@@ -630,7 +630,7 @@ fun visit(from: String, to: Int): Int
 fun run(): Int {
 return handle {
     Edge.visit("alpha", 1)
-} with {
+} on {
     Edge.visit(from, to), k -> {
         k.resume(to + 1)
     }

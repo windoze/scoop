@@ -103,7 +103,7 @@
     - 复核闭合 `SPEC_FIX.md` B4：source positive surface 已切换到普通 qualified effect op call，旧 `perform` prefix 只作为 parser negative case 存在。
     - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
-### [TODO] P2-T02：将 handler keyword 从 `with` 改为 `on`
+### [DONE] P2-T02：将 handler keyword 从 `with` 改为 `on`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -138,9 +138,26 @@
 - 依赖：P2-T01R
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc_ast`：新增 `Keyword::On` 与 lexer 映射；`parse_handle_expr` 改为接受 `handle { ... } on { ... }`，旧 `handle { ... } with { ... }` 走新增 `scoop::parse::handler_with_keyword_removed` 定向诊断。
+    - 保留 `parse_with_update_expr` 的 `Keyword::With` postfix 路径；`expr with { ... }` value-update 语法未改变。
+    - `SCOOP_FULL_SPEC.md` 与 `docs/spec/language_spec-part4.md`：active handler / try-catch desugaring 示例迁移到 `on`。
+    - Rust 注释/内嵌 Scoop snippets 与所有 positive handler fixtures 从 `} with {` 迁移到 `} on {`；新增 `tests/fixtures/parse/handle_with_keyword_removed.scoop` 作为旧 handler `with` negative fixture。
+    - 重新生成受源码 span 变化影响的 parse / HIR / MIR / effect-facts / effect-lowered golden snapshots。
   - 核心决策：
+    - 采用显式 `Keyword::On` 策略，而不是把 `on` 作为普通 identifier 后的 context keyword；当前 active sysroot / fixtures 未使用 `on` 作为标识符。
+    - 旧 handler `with` 不保留 soft alias；parser 在 handler keyword 位置报迁移错误，同时为了减少级联错误会消费形态完整的旧 arm/finally block 后再返回该诊断。
+    - Handler typecheck、HIR lowering、MIR/effect lowering 的语义输入仍是同一个 AST `Handle` 结构，本任务只更换 source surface，不改变 handler type/effect/dispatch 语义。
   - 验证结果：
+    - `cargo fmt --all`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo build -p scoop -p scoopc`：通过，用于刷新 fixture runner / snapshot 生成使用的 CLI binaries。
+    - Targeted fixtures：`tests/fixtures/parse/handle_expr_minimal.scoop`、`tests/fixtures/parse/handle_with_keyword_removed.scoop`、`tests/fixtures/parse/handle_immediate_resume_removed.scoop`、`tests/fixtures/parse/with_update_expr.scoop`、`tests/fixtures/hir/handle_perform.scoop`、`tests/fixtures/mir/handle_perform.scoop`、`tests/fixtures/effect_facts/handle_perform.scoop`、`tests/fixtures/effect_lowered/handle_perform.scoop` 均通过。
+    - `cargo test --all --all-targets`：通过。
+    - `python3 tools/spec_fixtures.py check`：通过，输出 `spec fixtures: ok (1)`。
+    - `python3 tools/run_fixtures.py`：通过，输出 `fixtures: ok (1536)`。
   - 与 `PLAN.md` / 设计文档对应闭合：
+    - 闭合 `SPEC_FIX.md` C2：`handle { ... } on { ... } finally { ... }` 成为唯一 positive handler surface；旧 handler `with` 只保留为 parser negative case / diagnostic 文本，value-update `with` 继续可用。
+    - 未改变阶段边界、依赖结构或完成条件，因此无需更新 `PLAN.md`。
 
 ### [TODO] P2-T02R：Review handler `on` 切换结果
 

@@ -19,7 +19,7 @@ fun main(): Int {
         println("body_after")
         println(value)
         value + 1
-    } with {
+    } on {
         Yield.next(), k -> {
             println("arm_before")
             val resumed: Int = try {

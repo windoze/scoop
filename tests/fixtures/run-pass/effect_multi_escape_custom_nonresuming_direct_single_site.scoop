@@ -28,7 +28,7 @@ fun main() {
         println(msg)
         Abort.stop(msg)
         99
-    } with {
+    } on {
         Ask.ask(), k -> {
             println("ask_arm")
             saved = Some(k)

@@ -104,7 +104,7 @@ fun main() {
         println("after_while")
         println(while_value)
         while_value
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.seen = cell.seen + 1
             println("arm")

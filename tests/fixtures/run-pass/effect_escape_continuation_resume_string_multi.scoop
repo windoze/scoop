@@ -27,7 +27,7 @@ fun main() {
         println(c)
 
         println("body_done")
-    } with {
+    } on {
         Ask.ask(), k -> {
             cell.k = Some(k)
         }

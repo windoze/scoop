@@ -37,7 +37,7 @@ fun main() {
         println(c)
 
         println("body_done")
-    } with {
+    } on {
         Yield.next(), k -> {
             cell.n = cell.n + 1
             println("arm")

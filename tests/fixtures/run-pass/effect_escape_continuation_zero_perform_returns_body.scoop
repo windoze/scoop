@@ -15,7 +15,7 @@ fun main() {
     val result: Int = handle {
         println("body")
         7
-    } with {
+    } on {
         Yield.next(), k -> {
             println("arm")
             9

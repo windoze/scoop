@@ -39,7 +39,7 @@ fun main(): Int {
             }
 
             999
-        } with {
+        } on {
             EffectA.fireA(code: Int) -> {
                 println("inner_catch_A")
                 println(code)
@@ -52,7 +52,7 @@ fun main(): Int {
 
         println("unreachable_after_inner")
         mid
-    } with {
+    } on {
         EffectB.fireB(code: Int) -> {
             println("outer_catch_B")
             println(code)

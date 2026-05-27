@@ -93,6 +93,18 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
+    #[error("语法错误：handler keyword `with` was replaced by `on`")]
+    #[diagnostic(
+        code(scoop::parse::handler_with_keyword_removed),
+        help(
+            "将 `handle {{ body }} with {{ ... }}` 改写为 `handle {{ body }} on {{ ... }}`；值更新表达式 `expr with {{ ... }}` 保持不变"
+        )
+    )]
+    HandlerWithKeywordRemoved {
+        #[label("这里的 handler `with` 不再作为 handler arm 列表关键字解析")]
+        span: miette::SourceSpan,
+    },
+
     #[error("语法错误：`inline` 关键字已移除")]
     #[diagnostic(
         code(scoop::parse::inline_modifier_removed),
@@ -212,6 +224,7 @@ impl ParseError {
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
+            ParseError::HandlerWithKeywordRemoved { span } => Some(*span),
             ParseError::InlineModifierRemoved { span } => Some(*span),
             ParseError::PerformKeywordRemoved { span } => Some(*span),
             ParseError::AssignmentExpressionNotAllowed { span } => Some(*span),

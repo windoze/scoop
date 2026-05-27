@@ -33,7 +33,7 @@ fun start(cell: Cell): Int {
             println("after_boom")
             println(y)
             x + y
-        } with {
+        } on {
             Inner.enter(), k -> {
                 println("inner_arm_before_resume")
                 val resumed: Int = try {
@@ -50,7 +50,7 @@ fun start(cell: Cell): Int {
         println("after_nested")
         println(nested)
         nested + 100
-    } with {
+    } on {
         Boom.next(), k -> {
             println("boom_arm")
             cell.saved = Some(k)

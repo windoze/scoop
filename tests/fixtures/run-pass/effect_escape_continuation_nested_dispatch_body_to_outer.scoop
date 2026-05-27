@@ -30,7 +30,7 @@ fun main(): Int {
             EffectB.fireB(42)
             // Unreachable: EffectB returns Nothing.
             println("unreachable_inner")
-        } with {
+        } on {
             EffectA.askA(), k -> {
                 println("unreachable_arm")
             }
@@ -38,7 +38,7 @@ fun main(): Int {
 
         println("unreachable_outer")
         999
-    } with {
+    } on {
         EffectB.fireB(code: Int) -> {
             println("outer_catch_B")
             println(code)

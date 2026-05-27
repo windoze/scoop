@@ -19,7 +19,7 @@ fun main(): Int {
     val _x: Int = handle {
         val y: Int = Yield.next()
         y
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(1)
             k.resume(2)

@@ -18,7 +18,7 @@ fun main(): Int {
     val local = handle {
         Step.next(1)
         0
-    } with {
+    } on {
         Step.next(value) -> value
     } finally {
         cleanup()
@@ -27,7 +27,7 @@ fun main(): Int {
     val via_arg = box_int(handle {
         Step.next(local)
         0
-    } with {
+    } on {
         Step.next(value) -> value
     } finally {
         cleanup()
@@ -36,7 +36,7 @@ fun main(): Int {
     if (handle {
         Flag.read()
         false
-    } with {
+    } on {
         Flag.read() -> true
     } finally {
         cleanup()
@@ -47,7 +47,7 @@ fun main(): Int {
     return handle {
         Step.next(via_arg)
         0
-    } with {
+    } on {
         Step.next(value) -> value
     } finally {
         cleanup()

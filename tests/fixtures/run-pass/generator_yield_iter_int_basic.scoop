@@ -14,7 +14,7 @@ effect Yield {
 }
 
 fun main(): Int {
-    // 说明：当前阶段自定义 effect op 的 codegen 仅打通了 `handle { val x = Effect.op(...) ... } with { ... , k -> ... }`
+    // 说明：当前阶段自定义 effect op 的 codegen 仅打通了 `handle { val x = Effect.op(...) ... } on { ... , k -> ... }`
     // 这一条“可回归的最小链路”（T0617）。因此这里用“嵌套 handle + continuation 链”来表达多次 yield；
     // consumer 侧在 handler arm 内“立即 resume”，把多次 yield 串成一次可执行回归用例。
     println("producer_start")
@@ -41,7 +41,7 @@ fun main(): Int {
                 val _z: Int = Yield.yield(3)
 
                 println("producer_done")
-            } with {
+            } on {
                 Yield.yield(v: Int), kk -> {
                     println("consume3")
                     println(v)
@@ -53,7 +53,7 @@ fun main(): Int {
                     }
                 }
             }
-        } with {
+        } on {
             Yield.yield(v: Int), kk -> {
                 println("consume2")
                 println(v)
@@ -64,7 +64,7 @@ fun main(): Int {
                 }
             }
         }
-    } with {
+    } on {
         Yield.yield(v: Int), kk -> {
             println("consume1")
             println(v)

@@ -23,7 +23,7 @@ fun useIntString(): Int / Pair<Int, String> {
 fun handleAnnotatedDispatch(): Int {
     return handle {
         useStringInt()
-    } with {
+    } on {
         Pair.ping(payload: (String, Int)) -> {
             val (label, n) = payload
             println(label)
@@ -40,7 +40,7 @@ fun handleAnnotatedDispatch(): Int {
 fun handleBodyInferredDispatch(): Int {
     return handle {
         useIntString()
-    } with {
+    } on {
         Pair.ping(payload) -> {
             val (n, label) = payload
             println(label)

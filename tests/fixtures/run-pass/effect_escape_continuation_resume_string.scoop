@@ -15,7 +15,7 @@ fun main() {
     val _: Unit = handle {
         val greeting: String = Ask.ask()
         println(greeting)
-    } with {
+    } on {
         Ask.ask(), k -> {
             saved = Some(k)
         }

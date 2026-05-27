@@ -14,7 +14,7 @@ effect Yield {
 fun demo(): Int {
     handle {
         Yield.next()
-    } with {
+    } on {
         Yield.next() -> resume {
             resume(41)
         }

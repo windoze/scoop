@@ -1913,7 +1913,7 @@ private fun demo(): Int {
         val seed: Int = Ask.current()
         val extra: Int = Boom.next()
         seed + extra
-    } with {
+    } on {
         Ask.current(), k -> {
             0
         }
@@ -1943,7 +1943,7 @@ private fun bad(): Int {
         val seed: Int = Ask.current()
         val extra: Int = Boom.next()
         seed + extra
-    } with {
+    } on {
         Ask.current(), k -> {
             requirePure(k)
             requireBoom(k)
@@ -1968,7 +1968,7 @@ private fun bad(): Int {
     return handle {
         val seed: Int = Ask.current()
         seed + 1
-    } with {
+    } on {
         Ask.current(), k -> {
             requireUnit(k)
             0

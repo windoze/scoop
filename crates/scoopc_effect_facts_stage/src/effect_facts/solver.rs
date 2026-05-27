@@ -1506,7 +1506,7 @@ fun choose(mode: Mode): () -> Int / Ask {
 fun drive(mode: Mode): Int {
     val result: Int = handle {
         choose(mode)()
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             println("caught")
             println(seed.toString())
@@ -1542,7 +1542,7 @@ effect Outer {
 fun mixed(): Unit / (Inner + Outer) {
     handle {
         Inner.ping()
-    } with {
+    } on {
         Inner.ping() -> ()
     }
     Outer.pong()
@@ -1570,11 +1570,11 @@ fun nested_self_contained(): Int {
         val inner: Int = handle {
             Inner.go()
             0
-        } with {
+        } on {
             Inner.go() -> 1
         }
         inner + 10
-    } with {
+    } on {
         Outer.again() -> 99
     }
 }
@@ -1584,13 +1584,13 @@ fun nested_may_suspend_outward(): Int {
         val inner: Int = handle {
             Inner.go()
             0
-        } with {
+        } on {
             Inner.go() -> 1
         } finally {
             Outer.again()
         }
         inner + 10
-    } with {
+    } on {
         Outer.again() -> 99
     }
 }
@@ -1619,7 +1619,7 @@ fun emit_alpha(): Unit / (Alpha + Beta) {
 fun outer(): Unit / Beta {
     handle {
         emit_alpha()
-    } with {
+    } on {
         Alpha.go() -> ()
     }
 }
@@ -1648,7 +1648,7 @@ fun emit_beta(): Unit / Beta {
 fun outer(): Unit / (Alpha + Beta) {
     handle {
         emit_beta()
-    } with {
+    } on {
         Alpha.go() -> ()
     }
 }
@@ -1693,7 +1693,7 @@ fun plainHandled(x: Int): Int {
     return handle {
         Raise.raise(x)
         0
-    } with {
+    } on {
         Raise.raise(e) -> e
     }
 }

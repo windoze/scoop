@@ -29,7 +29,7 @@ fun executeCase(): Int {
             i = i + 1
         }
         total + i
-    } with {
+    } on {
         Yield.next() , k -> {
             println("arm")
             k.resume(3)

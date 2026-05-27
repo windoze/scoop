@@ -28,7 +28,7 @@ fun executeCase(limit: Int): Int {
         }
         println("after_loop")
         i
-    } with {
+    } on {
         Yield.next() , k -> {
             println("arm")
             k.resume(1)

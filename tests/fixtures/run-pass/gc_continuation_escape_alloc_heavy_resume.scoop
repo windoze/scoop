@@ -75,7 +75,7 @@ fun main() {
         println(d2c)
         println(d3)
         println("body_done")
-    } with {
+    } on {
         Ask.ask(), k -> {
             println("arm")
             cell.k = Some(k)

@@ -31,7 +31,7 @@ fun main() {
         println(x)
         println(msg)
         99
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(41)

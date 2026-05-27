@@ -30,7 +30,7 @@ fun main(): Int {
             val v: Int = EffectA.fireA(42)
             println("after_fireA")
             println(v)
-        } with {
+        } on {
             EffectA.fireA(code: Int), k -> {
                 println("inner_arm_A")
                 println(code)
@@ -45,7 +45,7 @@ fun main(): Int {
 
         println("unreachable_after_inner")
         999
-    } with {
+    } on {
         EffectB.fireB(code: Int) -> {
             println("outer_catch_B")
             println(code)

@@ -1217,7 +1217,7 @@ fun box_int(value: Int): Int {
 fun helper(seed: Int): Int / Step {
     val handled: Int = handle {
         Step.next(seed)
-    } with {
+    } on {
         Step.next(value), k -> k.resume(value + 1)
     }
     val via_arg: Int = box_int((seed + 1) + Step.next(handled))
@@ -1431,7 +1431,7 @@ fun helper(): Int / Outer {
     return handle {
         Step.next(1)
         0
-    } with {
+    } on {
         Step.next(value) -> {
             Outer.ping(value)
             value
@@ -1483,7 +1483,7 @@ fun start(cell: Cell): Int {
             val x: Int = Inner.enter()
             val y: Int = Boom.next()
             x + y
-        } with {
+        } on {
             Inner.enter(), k -> {
                 val resumed: Int = try {
                     k.resume(7)
@@ -1494,7 +1494,7 @@ fun start(cell: Cell): Int {
             }
         }
         nested + 100
-    } with {
+    } on {
         Boom.next(), k -> {
             cell.saved = Some(k)
             18

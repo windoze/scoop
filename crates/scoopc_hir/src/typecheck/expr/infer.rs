@@ -804,7 +804,7 @@ fn infer_assign_expr_type(
     Ok(inputs.builtins.unit)
 }
 
-/// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606/T2001）。
+/// 推导 `handle { ... } on { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606/T2001）。
 ///
 /// 当前阶段目标：
 /// - 支持同一个 `handle` 中混用 non-resuming / escape-continuation arms；
@@ -3419,7 +3419,7 @@ fun demo(): Int / Raise<RuntimeError> {
     handle {
         val x: Int = Yield.next()
         x
-    } with {
+    } on {
         Yield.next(), k -> {
             k.resume(1)
             2
@@ -3447,7 +3447,7 @@ fun demo(): Int / Raise<RuntimeError> {
     handle {
         val x: Int = Yield.next()
         x
-    } with {
+    } on {
         Yield.next(), k -> {
             k.resume(1)
             k.resume(2)
@@ -3476,7 +3476,7 @@ fun demo(flag: Bool): Int / Raise<RuntimeError> {
     handle {
         val x: Int = Yield.next()
         x
-    } with {
+    } on {
         Yield.next(), k -> {
             if (flag) {
                 k.resume(1)

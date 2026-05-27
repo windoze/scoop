@@ -45,7 +45,7 @@ fun main(): Int {
 
             println("inner_body_done")
             println(a1 + a2)
-        } with {
+        } on {
             EffectA.askA(), k -> {
                 println("inner_arm")
                 cell.k = Some(k)
@@ -87,7 +87,7 @@ fun main(): Int {
         // Now perform EffectB — outer handler catches it.
         EffectB.fireB(42)
         999
-    } with {
+    } on {
         EffectB.fireB(code: Int) -> {
             println("outer_catch_B")
             println(code)

@@ -547,6 +547,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Object => "`object`",
         Keyword::Companion => "`companion`",
         Keyword::Handle => "`handle`",
+        Keyword::On => "`on`",
         Keyword::With => "`with`",
         Keyword::Perform => "`perform`",
         Keyword::Try => "`try`",

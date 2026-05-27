@@ -33,7 +33,7 @@ fun main(): Int {
         val v: Int = outer(21)
         println("body_unreachable")
         v
-    } with {
+    } on {
         Boom.boom(e: Int) -> {
             println("caught")
             println(e)

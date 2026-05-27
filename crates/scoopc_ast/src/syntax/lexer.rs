@@ -234,6 +234,7 @@ impl<'a> Lexer<'a> {
             "object" => Some(Keyword::Object),
             "companion" => Some(Keyword::Companion),
             "handle" => Some(Keyword::Handle),
+            "on" => Some(Keyword::On),
             "with" => Some(Keyword::With),
             "perform" => Some(Keyword::Perform),
             "try" => Some(Keyword::Try),

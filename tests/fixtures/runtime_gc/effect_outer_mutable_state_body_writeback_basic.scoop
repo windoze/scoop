@@ -21,7 +21,7 @@ fun main(): Int {
 
     val result: Int = handle {
         Suspend.pause()
-    } with {
+    } on {
         Suspend.pause(), k -> {
             // RHS 分配在 GC stress 下会触发 moving；如果 store 仍使用 stale slot pointer，
             // handle-return 后读取会错误地看到旧值。

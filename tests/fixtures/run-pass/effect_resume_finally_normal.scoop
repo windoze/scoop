@@ -23,7 +23,7 @@ fun main() {
         println("body_after")
         println(x)
         x + 1
-    } with {
+    } on {
         Yield.next() , k -> {
             println("arm_start")
             k.resume(41)

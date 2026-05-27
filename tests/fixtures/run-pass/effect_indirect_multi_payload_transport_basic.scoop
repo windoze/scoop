@@ -17,7 +17,7 @@ fun go(): Int / Edge {
 fun main(): Int {
     return handle {
         go()
-    } with {
+    } on {
         Edge.visit(from, to) -> {
             println(from)
             println(to)

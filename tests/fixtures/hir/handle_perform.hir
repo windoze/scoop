@@ -2,7 +2,7 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 36..125,
+                span: 36..123,
                 fqn: "a.main",
                 name: "main",
                 ty: () -> Int / Pure,
@@ -11,15 +11,15 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 47..125,
+                        span: 47..123,
                         ty: Int,
                         stmts: [
                             Stmt {
-                                span: 51..123,
+                                span: 51..121,
                                 ty: Unit,
                                 kind: Expr(
                                     Expr {
-                                        span: 51..123,
+                                        span: 51..121,
                                         ty: Int,
                                         kind: Handle(
                                             HandleExpr {
@@ -70,20 +70,20 @@ File {
                                                     }
                                                 arms: [
                                                     HandleArm {
-                                                        span: 100..119,
+                                                        span: 98..117,
                                                         op:
                                                             HandleOp {
-                                                                span: 100..114,
+                                                                span: 98..112,
                                                                 effect_ty: scoop.core.Raise<Int>,
                                                                 op:
                                                                     EffectOpRef {
-                                                                        span: 106..111,
+                                                                        span: 104..109,
                                                                         fqn: "scoop.core.Raise.raise",
                                                                     }
                                                                 binders: [
                                                                     HandleBinder {
-                                                                        span: 112..113,
-                                                                        label: sym#h7cfa49477069afe79ffbcbc6fd360b08,
+                                                                        span: 110..111,
+                                                                        label: sym#hd0814fa56ba585e3963a1cc1b335a720,
                                                                         name: "e",
                                                                         ty: Int,
                                                                     },
@@ -91,7 +91,7 @@ File {
                                                             }
                                                         body:
                                                             Expr {
-                                                                span: 118..119,
+                                                                span: 116..117,
                                                                 ty: Int,
                                                                 kind: Literal(Int),
                                                             }
@@ -123,7 +123,7 @@ hir_facts {
 source_site_contracts {
     function_effects: [
         FunctionEffectContract {
-            span: 36..125,
+            span: 36..123,
             fqn: "a.main",
             return_ty: Int,
             allowed_effects: Pure,
@@ -167,7 +167,7 @@ source_site_contracts {
     ],
     handle_sites: [
         HandleSiteContract {
-            span: 51..123,
+            span: 51..121,
             result_ty: Int,
             body_result_ty: Int,
             arm_contracts: [

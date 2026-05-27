@@ -19,7 +19,7 @@ fun main(): Int {
             println("inner_body")
             Raise.raise(7)
             0
-        } with {
+        } on {
             Raise.raise(err: Int) -> {
                 println("inner_catch")
                 println(err)
@@ -32,7 +32,7 @@ fun main(): Int {
         println("after_inner")
         Alarm.trip(inner + 1)
         0
-    } with {
+    } on {
         Alarm.trip(code: Int) -> {
             println("outer_catch")
             println(code)

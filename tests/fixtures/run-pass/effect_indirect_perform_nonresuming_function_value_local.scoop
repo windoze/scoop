@@ -33,7 +33,7 @@ fun main(): Int {
     val result: Int = handle {
         println("body")
         invokeLater(thunk)
-    } with {
+    } on {
         Boom.boom(e: Int) -> {
             println("caught")
             println(e)

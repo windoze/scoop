@@ -30,7 +30,7 @@ fun main() {
         val x: Int = Suspend.fetch()
         println("resumed")
         println(x)
-    } with {
+    } on {
         Suspend.fetch(), k -> {
             println("suspended")
             cell_k = Some(k)

@@ -21,7 +21,7 @@ fun useIntString(): Int / Pair<Int, String> {
 fun handleAnnotated(): Int {
     val handled: Int = handle {
         useStringInt()
-    } with {
+    } on {
         Pair.ping(payload: (String, Int)) -> {
             val (_, n) = payload
             n
@@ -37,7 +37,7 @@ fun handleAnnotated(): Int {
 fun handleBodyInferred(): Int {
     val handled: Int = handle {
         useIntString()
-    } with {
+    } on {
         Pair.ping(payload) -> {
             val (n, _) = payload
             n

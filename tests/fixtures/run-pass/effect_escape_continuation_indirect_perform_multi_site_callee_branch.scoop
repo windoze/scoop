@@ -45,7 +45,7 @@ fun main() {
         println("after_false")
         println(second)
         second
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             cell.seen = cell.seen + 1
             println("arm")

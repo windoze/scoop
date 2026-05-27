@@ -1,26 +1,26 @@
 File {
     package: Some(
         PackageDecl {
-            span: 180..202,
+            span: 178..200,
             path: [
                 Ident {
-                    span: 188..196,
+                    span: 186..194,
                 },
                 Ident {
-                    span: 197..202,
+                    span: 195..200,
                 },
             ],
         },
     ),
     imports: [
         ImportDecl {
-            span: 204..223,
+            span: 202..221,
             path: [
                 Ident {
-                    span: 211..216,
+                    span: 209..214,
                 },
                 Ident {
-                    span: 217..221,
+                    span: 215..219,
                 },
             ],
             has_star: true,
@@ -30,61 +30,61 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 225..361,
+                span: 223..359,
                 receiver: None,
                 name: Ident {
-                    span: 229..233,
+                    span: 227..231,
                 },
                 type_params: [],
-                params_span: 233..235,
+                params_span: 231..233,
                 params: [],
                 return_ty: None,
                 body: Block(
                     Block {
-                        span: 236..361,
+                        span: 234..359,
                         stmts: [
                             Stmt {
-                                span: 242..353,
+                                span: 240..351,
                                 kind: Val(
                                     ValDecl {
-                                        span: 242..353,
+                                        span: 240..351,
                                         kind: Val,
                                         name: Ident {
-                                            span: 246..247,
+                                            span: 244..245,
                                         },
                                         ty: None,
                                         init: Some(
                                             Expr {
-                                                span: 250..353,
+                                                span: 248..351,
                                                 kind: Handle {
                                                     body: Block {
-                                                        span: 254..294,
+                                                        span: 252..292,
                                                         stmts: [
                                                             Stmt {
-                                                                span: 264..278,
+                                                                span: 262..276,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 264..278,
+                                                                        span: 262..276,
                                                                         kind: Call {
                                                                             callee: Expr {
-                                                                                span: 264..275,
+                                                                                span: 262..273,
                                                                                 kind: MemberAccess {
                                                                                     receiver: Expr {
-                                                                                        span: 264..269,
+                                                                                        span: 262..267,
                                                                                         kind: Ident(
                                                                                             Ident {
-                                                                                                span: 264..269,
+                                                                                                span: 262..267,
                                                                                             },
                                                                                         ),
                                                                                     },
                                                                                     member: Ident {
-                                                                                        span: 270..275,
+                                                                                        span: 268..273,
                                                                                     },
                                                                                 },
                                                                             },
                                                                             args: [
                                                                                 Expr {
-                                                                                    span: 276..277,
+                                                                                    span: 274..275,
                                                                                     kind: IntLit,
                                                                                 },
                                                                             ],
@@ -94,10 +94,10 @@ File {
                                                                 has_trailing_semi: false,
                                                             },
                                                             Stmt {
-                                                                span: 287..288,
+                                                                span: 285..286,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 287..288,
+                                                                        span: 285..286,
                                                                         kind: IntLit,
                                                                     },
                                                                 ),
@@ -107,48 +107,48 @@ File {
                                                     },
                                                     arms: [
                                                         HandleArm {
-                                                            span: 295..327,
+                                                            span: 293..325,
                                                             op: HandleOp {
-                                                                span: 295..309,
+                                                                span: 293..307,
                                                                 effect: TypePath {
-                                                                    span: 295..300,
+                                                                    span: 293..298,
                                                                     segments: [
                                                                         Ident {
-                                                                            span: 295..300,
+                                                                            span: 293..298,
                                                                             text: "scoop",
                                                                         },
                                                                         Ident {
-                                                                            span: 295..300,
+                                                                            span: 293..298,
                                                                             text: "core",
                                                                         },
                                                                         Ident {
-                                                                            span: 295..300,
+                                                                            span: 293..298,
                                                                             text: "Raise",
                                                                         },
                                                                     ],
                                                                     args: [],
                                                                 },
-                                                                dot_span: 295..295,
+                                                                dot_span: 293..293,
                                                                 op: Ident {
-                                                                    span: 295..300,
+                                                                    span: 293..298,
                                                                     text: "raise",
                                                                 },
                                                                 binders: [
                                                                     HandleBinder {
-                                                                        span: 302..308,
+                                                                        span: 300..306,
                                                                         name: Ident {
-                                                                            span: 302..303,
+                                                                            span: 300..301,
                                                                         },
                                                                         colon_span: Some(
-                                                                            303..304,
+                                                                            301..302,
                                                                         ),
                                                                         ty: Some(
                                                                             Path(
                                                                                 TypePath {
-                                                                                    span: 305..308,
+                                                                                    span: 303..306,
                                                                                     segments: [
                                                                                         Ident {
-                                                                                            span: 305..308,
+                                                                                            span: 303..306,
                                                                                         },
                                                                                     ],
                                                                                     args: [],
@@ -158,21 +158,21 @@ File {
                                                                     },
                                                                 ],
                                                             },
-                                                            arrow_span: 295..300,
+                                                            arrow_span: 293..298,
                                                             body: Expr {
-                                                                span: 310..327,
+                                                                span: 308..325,
                                                                 kind: Block(
                                                                     Block {
-                                                                        span: 310..327,
+                                                                        span: 308..325,
                                                                         stmts: [
                                                                             Stmt {
-                                                                                span: 320..321,
+                                                                                span: 318..319,
                                                                                 kind: Expr(
                                                                                     Expr {
-                                                                                        span: 320..321,
+                                                                                        span: 318..319,
                                                                                         kind: Ident(
                                                                                             Ident {
-                                                                                                span: 320..321,
+                                                                                                span: 318..319,
                                                                                             },
                                                                                         ),
                                                                                     },
@@ -187,13 +187,13 @@ File {
                                                     ],
                                                     finally: Some(
                                                         Block {
-                                                            span: 336..353,
+                                                            span: 334..351,
                                                             stmts: [
                                                                 Stmt {
-                                                                    span: 346..347,
+                                                                    span: 344..345,
                                                                     kind: Expr(
                                                                         Expr {
-                                                                            span: 346..347,
+                                                                            span: 344..345,
                                                                             kind: IntLit,
                                                                         },
                                                                     ),
@@ -210,13 +210,13 @@ File {
                                 has_trailing_semi: false,
                             },
                             Stmt {
-                                span: 358..359,
+                                span: 356..357,
                                 kind: Expr(
                                     Expr {
-                                        span: 358..359,
+                                        span: 356..357,
                                         kind: Ident(
                                             Ident {
-                                                span: 358..359,
+                                                span: 356..357,
                                             },
                                         ),
                                     },

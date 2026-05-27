@@ -28,7 +28,7 @@ fun main() {
         println(second)
         Abort.stop(second + 3)
         0
-    } with {
+    } on {
         Step.take(seed: Int) , k -> {
             println("step_arm")
             println(seed)

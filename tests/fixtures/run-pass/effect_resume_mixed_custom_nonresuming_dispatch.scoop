@@ -24,7 +24,7 @@ fun main(): Int {
         println(x)
         Abort.stop(x + 1)
         99
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(40)

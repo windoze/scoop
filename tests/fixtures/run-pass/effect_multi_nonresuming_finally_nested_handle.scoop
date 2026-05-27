@@ -20,7 +20,7 @@ fun customPath(): Int {
                 println("custom_inner_body")
                 Raise.raise(4)
                 0
-            } with {
+            } on {
                 Raise.raise(err: Int) -> {
                     println("custom_inner_catch")
                     println(err)
@@ -33,7 +33,7 @@ fun customPath(): Int {
             Alarm.trip(inner + 1)
             println("custom_unreachable")
             0
-        } with {
+        } on {
             Alarm.trip(code: Int) -> {
                 println("custom_alarm_catch")
                 println(code)
@@ -62,7 +62,7 @@ fun raisePath(): Int {
             println("raise_inner_body")
             Raise.raise(8)
             0
-        } with {
+        } on {
             Raise.raise(err: Int) -> {
                 println("raise_inner_catch")
                 println(err)
@@ -75,7 +75,7 @@ fun raisePath(): Int {
         Raise.raise(inner + 2)
         println("raise_unreachable")
         0
-    } with {
+    } on {
         Alarm.trip(code: Int) -> {
             println("raise_alarm_should_not_catch")
             println(code)

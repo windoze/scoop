@@ -35,7 +35,7 @@ fun main(): Int {
             // Unreachable: outer handler is non-resuming so this never continues.
             println("unreachable_inner_body")
             println(v)
-        } with {
+        } on {
             EffectA.askA(code: Int), k -> {
                 println("inner_arm")
                 println(code)
@@ -48,7 +48,7 @@ fun main(): Int {
 
         println("unreachable_outer_body")
         999
-    } with {
+    } on {
         EffectB.fireB(code: Int) -> {
             println("outer_catch_B")
             println(code)

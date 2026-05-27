@@ -16,7 +16,7 @@ fun main(): Int {
     val result: Int = handle {
         val value: Int = Ping.hit()
         value + 1
-    } with {
+    } on {
         Ping.hit(), k -> {
             k.resume(41)
         }

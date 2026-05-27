@@ -30,7 +30,7 @@ fun main() {
         println(second)
 
         println("body_done")
-    } with {
+    } on {
         Ask.ask(label: String), k -> {
             cell.n = cell.n + 1
             println("ask_arm")

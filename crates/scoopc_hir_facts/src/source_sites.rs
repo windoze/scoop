@@ -468,7 +468,7 @@ pub struct HandleArmSiteContract {
     pub kind: HandleArmContractKind,
 }
 
-/// Single `handle { ... } with { ... }` site typed contract.
+/// Single `handle { ... } on { ... }` site typed contract.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HandleSiteContract {
     pub identity: SourceSiteIdentity,

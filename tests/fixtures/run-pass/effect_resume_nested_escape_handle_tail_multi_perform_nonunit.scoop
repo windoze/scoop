@@ -41,7 +41,7 @@ fun main() {
             println("after_second")
             println(second)
             x + 1
-        } with {
+        } on {
             Ask.ask(), k -> {
                 println("ask_arm")
                 when (note) {
@@ -52,7 +52,7 @@ fun main() {
                 7
             }
         }
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(41)

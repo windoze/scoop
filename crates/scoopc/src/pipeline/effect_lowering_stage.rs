@@ -564,7 +564,7 @@ fun resumeBoom(k: Continuation<Int, Unit, eff Boom>): Unit / (Raise<RuntimeError
 fun handled(): Int {
     return handle {
         Boom.next()
-    } with {
+    } on {
         Boom.next() -> 1
     }
 }

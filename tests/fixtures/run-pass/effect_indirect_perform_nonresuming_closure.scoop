@@ -35,7 +35,7 @@ fun main(): Int {
         }
         println("body_unreachable")
         r
-    } with {
+    } on {
         Boom.boom(e: Int) -> {
             println("caught")
             println(e)

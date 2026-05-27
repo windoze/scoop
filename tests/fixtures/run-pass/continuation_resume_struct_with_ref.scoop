@@ -22,7 +22,7 @@ fun main() {
         println(n.name)
         println(n.score)
         println("body_done")
-    } with {
+    } on {
         GetNamed.get(), k -> {
             saved = Some(k)
         }

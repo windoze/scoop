@@ -44,7 +44,7 @@ fun main() {
 
         println("bodyA_done")
         println(baseA + a1 + a2)
-    } with {
+    } on {
         EffectA.askA(), k -> {
             println("armA")
             cellA.k = Some(k)
@@ -68,7 +68,7 @@ fun main() {
 
         println("bodyB_done")
         println(baseB + b1 + b2)
-    } with {
+    } on {
         EffectB.askB(), k -> {
             println("armB")
             cellB.k = Some(k)

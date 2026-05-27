@@ -29,7 +29,7 @@ fun runAlpha(): Int {
         val x: Int = forwardAlpha(40)
         println("alpha_unreachable")
         x
-    } with {
+    } on {
         Alpha.fail(code: Int) -> {
             println("alpha_catch")
             println(code)
@@ -49,7 +49,7 @@ fun runBeta(): Int {
         Beta.stop("done")
         println("beta_unreachable")
         0
-    } with {
+    } on {
         Alpha.fail(code: Int) -> {
             println("alpha_wrong_catch")
             println(code)

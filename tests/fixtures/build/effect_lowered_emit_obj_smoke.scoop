@@ -10,7 +10,7 @@ effect Ping {
 fun main(): Int {
     return handle {
         Ping.hit()
-    } with {
+    } on {
         Ping.hit() -> 7
     }
 }

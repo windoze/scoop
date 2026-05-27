@@ -17,7 +17,7 @@ fun returnFromNestedHandle(): Int {
         val inner: Int = handle {
             println("inner_handle_body")
             return 13
-        } with {
+        } on {
             Yield.next() , k -> {
                 k.resume(0)
             }
@@ -25,7 +25,7 @@ fun returnFromNestedHandle(): Int {
 
         println("after_inner_handle")
         inner
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(0)
         }

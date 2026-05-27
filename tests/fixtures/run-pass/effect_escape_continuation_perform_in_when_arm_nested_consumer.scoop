@@ -27,7 +27,7 @@ fun main() {
             else -> "else_arm"
         })
         println("after_when")
-    } with {
+    } on {
         Ask.ask(), k -> {
             println("ask_arm")
             saved = Some(k)

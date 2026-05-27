@@ -54,7 +54,7 @@ fun effects(box: Box): Int {
             Nested(payload, (box, (2, "payload"))),
             (box, payload),
         )
-    } with {
+    } on {
         Send.submit(choice: Choice, payload: (Box, Wrapper)) -> payload._0
     }
     val unitVariant: Choice = Empty()

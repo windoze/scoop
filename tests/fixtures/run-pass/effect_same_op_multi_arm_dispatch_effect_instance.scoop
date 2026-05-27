@@ -23,7 +23,7 @@ fun raiseSub(): Int / Raise<Sub> {
 fun handleBase(): Int {
     return handle {
         raiseBase()
-    } with {
+    } on {
         Raise.raise(err: Sub) -> 1
         Raise.raise(err: Base) -> 2
     }
@@ -32,7 +32,7 @@ fun handleBase(): Int {
 fun handleSub(): Int {
     return handle {
         raiseSub()
-    } with {
+    } on {
         Raise.raise(err: Sub) -> 3
         Raise.raise(err: Base) -> 4
     }

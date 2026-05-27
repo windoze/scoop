@@ -22,7 +22,7 @@ fun main(): Int {
 
     val result: Int = handle {
         Ping.hit()
-    } with {
+    } on {
         Ping.hit(), k -> {
             saved = "ok".concat("!")
             0

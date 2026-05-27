@@ -18,7 +18,7 @@ class Cell(var k: Continuation<Int, Unit>?, var total: Int)
 fun direct_case(): Int {
     return handle {
         Echo.bump(by = 2, receiver = "go")
-    } with {
+    } on {
         Echo.bump(text, by) -> {
             println(text)
             println(by)
@@ -34,7 +34,7 @@ fun immediate_case(): Int {
         println("immediate_after")
         println(x)
         x + 10
-    } with {
+    } on {
         Echo.bump(text, by) , k -> {
             println(text)
             println(by)
@@ -50,7 +50,7 @@ fun escape_case(cell: Cell) {
         println("escape_after")
         println(x)
         cell.total = x + 1
-    } with {
+    } on {
         Echo.bump(text, by), k -> {
             println(text)
             println(by)

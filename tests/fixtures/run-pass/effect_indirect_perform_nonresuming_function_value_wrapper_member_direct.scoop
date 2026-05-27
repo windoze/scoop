@@ -18,7 +18,7 @@ struct Wrapper(val f: () -> Int / (Ask))
 fun drive(wrapper: Wrapper): Int {
     val result: Int = handle {
         wrapper.f()
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             println("caught")
             println(seed.toString())

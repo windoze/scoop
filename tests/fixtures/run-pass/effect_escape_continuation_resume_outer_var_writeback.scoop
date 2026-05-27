@@ -22,7 +22,7 @@ fun main() {
     val _: Unit = handle {
         val resumed: Int = Suspend.pause()
         outerValue = resumed + 1
-    } with {
+    } on {
         Suspend.pause(), k -> {
             saved = Some(k)
         }

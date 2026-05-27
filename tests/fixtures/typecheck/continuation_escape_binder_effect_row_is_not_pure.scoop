@@ -25,7 +25,7 @@ private fun bad(): Int {
         val seed: Int = Ask.current()
         val extra: Int = Boom.next()
         seed + extra
-    } with {
+    } on {
         Ask.current(), k -> {
             requirePure(k)
             requireBoom(k)

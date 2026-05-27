@@ -20,7 +20,7 @@ fun callReceiverEffect(): Int / Echo {
 fun handleReceiverEffect(): Int {
     return handle {
         Echo.bump(by = 2, receiver = "ha")
-    } with {
+    } on {
         Echo.bump(text: String, delta: Int) -> {
             val text_copy: String = text
             val delta_copy: Int = delta

@@ -16,7 +16,7 @@ fun main() {
         val value: Int = Step.next(1)
         println("body_after")
         value + 10
-    } with {
+    } on {
         Step.next(seed), k -> {
             println("arm")
             k.resume(seed + 1)

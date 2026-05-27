@@ -19,7 +19,7 @@ fun earlyReturnAny(): Any {
     println("enter")
     val _: Int = handle {
         return 1
-    } with {
+    } on {
         Yield.next() , k -> {
             k.resume(0)
         }

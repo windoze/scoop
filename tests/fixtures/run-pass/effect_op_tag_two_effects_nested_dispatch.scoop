@@ -35,7 +35,7 @@ fun main(): Int {
                 // This EffectA.fireA should be caught by the inner handler (nearest EffectA).
                 EffectA.fireA(10)
                 999
-            } with {
+            } on {
                 EffectA.fireA(e: Int) -> {
                     println("inner_catch_A")
                     println(e)
@@ -48,7 +48,7 @@ fun main(): Int {
 
             println("unreachable_after_inner")
             inner
-        } with {
+        } on {
             EffectB.fireB(e: Int) -> {
                 println("middle_catch_B")
                 println(e)
@@ -58,7 +58,7 @@ fun main(): Int {
 
         println("unreachable_after_middle")
         mid
-    } with {
+    } on {
         EffectA.fireA(e: Int) -> {
             println("outer_catch_A")
             println(e)

@@ -449,7 +449,7 @@ impl HandleArmSiteContract {
     }
 }
 
-/// 单个 `handle { ... } with { ... }` 站点的 typed contract。
+/// 单个 `handle { ... } on { ... }` 站点的 typed contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleSiteContract {
     result_ty: TypeId,

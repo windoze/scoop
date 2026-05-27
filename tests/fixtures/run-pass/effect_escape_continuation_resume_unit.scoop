@@ -16,7 +16,7 @@ fun main() {
         println("before_pause")
         val _p: Unit = Suspend.pause()
         println("after_pause")
-    } with {
+    } on {
         Suspend.pause(), k -> {
             saved = Some(k)
             println("arm_saved")

@@ -57,7 +57,7 @@ fun executeCase(flag: Bool, cell: Cell, none_k: Continuation<String, Int>?) {
         println(cell.seen)
         Abort.stop(if (flag) "then_abort" else "else_abort")
         99
-    } with {
+    } on {
         Ask.ask(seed), k -> {
             println("ask_arm")
             println(seed)

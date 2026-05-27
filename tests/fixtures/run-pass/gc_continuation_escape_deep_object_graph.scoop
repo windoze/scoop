@@ -104,7 +104,7 @@ fun main() {
 
         println(f"sum={r1 + r2}")
         println("body_done")
-    } with {
+    } on {
         Await.pause(), k -> {
             println("arm")
             cell.k = Some(k)

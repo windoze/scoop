@@ -3768,7 +3768,7 @@ fun handled_raise(): Int {
     return handle {
         Raise.raise(1)
         0
-    } with {
+    } on {
         Raise.raise(e) -> e + 1
     }
 }
@@ -3795,11 +3795,11 @@ fun nested_self_contained(): Int {
         val inner: Int = handle {
             Inner.go()
             0
-        } with {
+        } on {
             Inner.go() -> 1
         }
         inner + 10
-    } with {
+    } on {
         Outer.again() -> 99
     }
 }
@@ -3809,13 +3809,13 @@ fun nested_may_suspend_outward(): Int {
         val inner: Int = handle {
             Inner.go()
             0
-        } with {
+        } on {
             Inner.go() -> 1
         } finally {
             Outer.again()
         }
         inner + 10
-    } with {
+    } on {
         Outer.again() -> 99
     }
 }

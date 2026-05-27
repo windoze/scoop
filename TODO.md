@@ -43,7 +43,7 @@
 | P1-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02rreview-inline-删除结果) | [DONE] Review P1-T02 `@Inline` 删除结果 |
 | P2-T01 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01删除-perform-prefix并迁移-effect-op-调用语法) | [DONE] 删除 `perform` prefix，并迁移 effect op 调用语法 |
 | P2-T01R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01rreview-perform-删除结果) | [DONE] Review P2-T01 `perform` 删除结果 |
-| P2-T02 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t02将-handler-keyword-从-with-改为-on) | 将 handler keyword 从 `with` 改为 `on` |
+| P2-T02 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02将-handler-keyword-从-with-改为-on) | [DONE] 将 handler keyword 从 `with` 改为 `on` |
 | P2-T02R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t02rreview-handler-on-切换结果) | Review P2-T02 handler `on` 切换结果 |
 | P2-T03 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03实现-tuple-field-0--1-语法并移除-_0-正例) | 实现 tuple field `.0` / `.1` 语法并移除 `._0` 正例 |
 | P2-T03R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03rreview-tuple-field-语法切换结果) | Review P2-T03 tuple field 语法切换结果 |

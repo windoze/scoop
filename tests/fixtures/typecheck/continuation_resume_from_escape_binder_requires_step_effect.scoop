@@ -21,7 +21,7 @@ private fun bad(): Int / Ask {
         val seed: Int = Ask.current()
         val extra: Int = Boom.next()
         seed + extra
-    } with {
+    } on {
         Ask.current(), k -> {
             val resumed: Int = try {
                 k.resume(1)

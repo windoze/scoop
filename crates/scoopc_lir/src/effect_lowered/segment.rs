@@ -1204,7 +1204,7 @@ fun main(): Int {
     while (handle {
         Flag.read()
         false
-    } with {
+    } on {
         Flag.read() -> true
     } finally {
         cleanup()

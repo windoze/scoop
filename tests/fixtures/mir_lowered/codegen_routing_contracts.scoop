@@ -40,7 +40,7 @@ fun handled(): Int {
     return handle {
         Ping.hit()
         0
-    } with {
+    } on {
         Ping.hit() -> 2
     }
 }

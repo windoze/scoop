@@ -19,7 +19,7 @@ effect Query {
 fun demo() {
     val _: Int = handle {
         Pair.ping(("left", 7))
-    } with {
+    } on {
         Pair<String, Int>.ping(payload) -> {
             val (_, n) = payload
             n
@@ -28,7 +28,7 @@ fun demo() {
 
     val _ignored: Int = handle {
         Query.ask<Int>(5)
-    } with {
+    } on {
         Query.ask<Int>(seed) , k -> {
             k.resume(seed + 1)
         }
@@ -36,7 +36,7 @@ fun demo() {
 
     val _escape: Unit = handle {
         val _: Int = Query.ask<Int>(6)
-    } with {
+    } on {
         Query.ask<Int>(seed), k -> {
             ()
         }

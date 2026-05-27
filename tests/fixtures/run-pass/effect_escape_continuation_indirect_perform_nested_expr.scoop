@@ -27,7 +27,7 @@ fun main() {
         println("body_done")
         println(v)
         v
-    } with {
+    } on {
         Ask.get(key), k -> {
             println("arm")
             saved_k = Some(k)

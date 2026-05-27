@@ -101,7 +101,7 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 170..625,
+                span: 170..623,
                 fqn: "fixtures.hir.demo",
                 name: "demo",
                 ty: (Int) -> Int / Pure,
@@ -116,22 +116,22 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 195..625,
+                        span: 195..623,
                         ty: Int,
                         stmts: [
                             Stmt {
-                                span: 201..612,
+                                span: 201..610,
                                 ty: Unit,
                                 kind: Val(
                                     ValDecl {
-                                        span: 201..612,
+                                        span: 201..610,
                                         label: sym#h86581efb204d7ddec13111642bff80d0,
                                         name: "result",
                                         mutable: false,
                                         ty: Int,
                                         init: Some(
                                             Expr {
-                                                span: 219..612,
+                                                span: 219..610,
                                                 ty: Int,
                                                 kind: Handle(
                                                     HandleExpr {
@@ -466,40 +466,40 @@ File {
                                                             }
                                                         arms: [
                                                             HandleArm {
-                                                                span: 486..542,
+                                                                span: 484..540,
                                                                 op:
                                                                     HandleOp {
-                                                                        span: 486..498,
+                                                                        span: 484..496,
                                                                         effect_ty: fixtures.hir.Yield,
                                                                         op:
                                                                             EffectOpRef {
-                                                                                span: 492..496,
+                                                                                span: 490..494,
                                                                                 fqn: "fixtures.hir.Yield.next",
                                                                             }
                                                                         binders: [
                                                                         ],
                                                                     }
-                                                                continuation: continuation#h781344154741f8314a542a3d12771467,
+                                                                continuation: continuation#hfbed2c2288adbbcadfb01e7d63824588,
                                                                 body:
                                                                     Expr {
-                                                                        span: 506..542,
+                                                                        span: 504..540,
                                                                         ty: Int,
                                                                         kind: Block(
                                                                             Block {
-                                                                                span: 506..542,
+                                                                                span: 504..540,
                                                                                 ty: Int,
                                                                                 stmts: [
                                                                                     Stmt {
-                                                                                        span: 520..532,
+                                                                                        span: 518..530,
                                                                                         ty: Unit,
                                                                                         kind: Expr(
                                                                                             Expr {
-                                                                                                span: 520..532,
+                                                                                                span: 518..530,
                                                                                                 ty: Int,
                                                                                                 kind: Call {
                                                                                                     callee:
                                                                                                         Expr {
-                                                                                                            span: 520..528,
+                                                                                                            span: 518..526,
                                                                                                             ty: Any,
                                                                                                             kind: VarRef(
                                                                                                                 TopLevel {
@@ -510,20 +510,20 @@ File {
                                                                                                     args: [
                                                                                                         Positional(
                                                                                                             Expr {
-                                                                                                                span: 520..521,
+                                                                                                                span: 518..519,
                                                                                                                 ty: scoop.core.Continuation<Int, Int, eff Pure>,
                                                                                                                 kind: VarRef(
                                                                                                                     Local {
-                                                                                                                        label: sym#h0a04568165ca0bc9011ec3f4f59ca0d9,
+                                                                                                                        label: sym#h0a384ea308328846ff29de3d7efff9ca,
                                                                                                                         name: "k",
-                                                                                                                        decl_span: 501..502,
+                                                                                                                        decl_span: 499..500,
                                                                                                                     }
                                                                                                                 ),
                                                                                                             }
                                                                                                         ),
                                                                                                         Positional(
                                                                                                             Expr {
-                                                                                                                span: 529..531,
+                                                                                                                span: 527..529,
                                                                                                                 ty: Int,
                                                                                                                 kind: Literal(Int),
                                                                                                             }
@@ -539,42 +539,42 @@ File {
                                                                     }
                                                             }
                                                             HandleArm {
-                                                                span: 551..572,
+                                                                span: 549..570,
                                                                 op:
                                                                     HandleOp {
-                                                                        span: 551..564,
+                                                                        span: 549..562,
                                                                         effect_ty: fixtures.hir.Ask,
                                                                         op:
                                                                             EffectOpRef {
-                                                                                span: 555..562,
+                                                                                span: 553..560,
                                                                                 fqn: "fixtures.hir.Ask.current",
                                                                             }
                                                                         binders: [
                                                                         ],
                                                                     }
-                                                                continuation: continuation#h0003de5fea418d67d3d025aea46ea271,
+                                                                continuation: continuation#h321c459d5fd506b172bf3b9b9ebcaabf,
                                                                 body:
                                                                     Expr {
-                                                                        span: 571..572,
+                                                                        span: 569..570,
                                                                         ty: Int,
                                                                         kind: Literal(Int),
                                                                     }
                                                             }
                                                             HandleArm {
-                                                                span: 581..606,
+                                                                span: 579..604,
                                                                 op:
                                                                     HandleOp {
-                                                                        span: 581..601,
+                                                                        span: 579..599,
                                                                         effect_ty: fixtures.hir.Boom,
                                                                         op:
                                                                             EffectOpRef {
-                                                                                span: 586..590,
+                                                                                span: 584..588,
                                                                                 fqn: "fixtures.hir.Boom.boom",
                                                                             }
                                                                         binders: [
                                                                             HandleBinder {
-                                                                                span: 591..600,
-                                                                                label: sym#ha5fb09d2632fed39ffec0b9bcc733e8d,
+                                                                                span: 589..598,
+                                                                                label: sym#hc86b18435072180991e1224289f22ee3,
                                                                                 name: "code",
                                                                                 ty: Int,
                                                                             },
@@ -582,7 +582,7 @@ File {
                                                                     }
                                                                 body:
                                                                     Expr {
-                                                                        span: 605..606,
+                                                                        span: 603..604,
                                                                         ty: Int,
                                                                         kind: Literal(Int),
                                                                     }
@@ -597,11 +597,11 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 617..623,
+                                span: 615..621,
                                 ty: Unit,
                                 kind: Expr(
                                     Expr {
-                                        span: 617..623,
+                                        span: 615..621,
                                         ty: Int,
                                         kind: VarRef(
                                             Local {
@@ -654,7 +654,7 @@ source_site_contracts {
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 170..625,
+            span: 170..623,
             fqn: "fixtures.hir.demo",
             return_ty: Int,
             allowed_effects: Pure,
@@ -743,7 +743,7 @@ source_site_contracts {
             arg_mapping: [0],
         },
         CallSiteContract {
-            span: 520..532,
+            span: 518..530,
             kind: ContinuationResume,
             receiver_route: CallArg { index: 0 },
             payload_arg_indices: [1],
@@ -762,7 +762,7 @@ source_site_contracts {
     ],
     continuation_resume_sites: [
         ContinuationResumeSiteContract {
-            span: 520..532,
+            span: 518..530,
             receiver_route: CallArg { index: 0 },
             payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<Int, Int, eff Pure>,
@@ -809,7 +809,7 @@ source_site_contracts {
     ],
     handle_sites: [
         HandleSiteContract {
-            span: 219..612,
+            span: 219..610,
             result_ty: Int,
             body_result_ty: Int,
             arm_contracts: [

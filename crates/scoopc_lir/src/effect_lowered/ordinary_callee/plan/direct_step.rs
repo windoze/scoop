@@ -1474,7 +1474,7 @@ fun start(cell: Cell): Int / Boom {
             val x: Int = Inner.enter()
             val y: Int = Boom.next()
             x + y
-        } with {
+        } on {
             Inner.enter(), k -> {
                 val resumed: Int = try {
                     k.resume(7)
@@ -1486,7 +1486,7 @@ fun start(cell: Cell): Int / Boom {
         }
         cell.total = seed + nested
         seed + nested
-    } with {
+    } on {
         Ask.current(), k -> {
             cell.saved = Some(k)
             0 - 1
@@ -1539,7 +1539,7 @@ fun demo(cell: Cell): Int {
             val x: Int = Inner.enter()
             val y: Int = Boom.next()
             x + y
-        } with {
+        } on {
             Inner.enter(), k -> {
                 val resumed: Int = try {
                     k.resume(7)
@@ -1553,7 +1553,7 @@ fun demo(cell: Cell): Int {
         println("after_nested")
         println(nested)
         nested
-    } with {
+    } on {
         Boom.next(), k -> {
             cell.saved = Some(k)
             18
@@ -1641,7 +1641,7 @@ fun demo(): Int / (Boom) {
         }
         val value: Int = Ask.current()
         burst(value)
-    } with {
+    } on {
         Ask.current(), k -> 7
     }
 }
@@ -1682,7 +1682,7 @@ fun demo(): Int / (Boom) {
         val first: Int = Ask.current()
         val second: Int = Ask.current()
         Boom.boom(second)
-    } with {
+    } on {
         Ask.current(), k -> 7
     }
 }
@@ -1740,7 +1740,7 @@ fun demo(): Int / (Boom) {
         val first: Int = Ask.current()
         val second: Int = Yield.next()
         first + second
-    } with {
+    } on {
         Ask.current(), k -> 7
         Yield.next() , k -> {
             val _: Int = Boom.boom(41)
@@ -1785,7 +1785,7 @@ fun demo(): Int / (Boom) {
         val first: Int = Ask.current()
         val second: Int = Ask.current()
         first + second
-    } with {
+    } on {
         Ask.current(), k -> {
             val _: Int = Boom.boom(9)
             7
@@ -1837,7 +1837,7 @@ fun demo(): Int / (Boom) {
     return handle {
         val value: Int = Ask.current()
         value + 1
-    } with {
+    } on {
         Ask.current(), k -> 7
     } finally {
         val _: Int = Boom.boom(5)
@@ -1884,11 +1884,11 @@ fun demo(): Int / (Boom) {
         val seed: Int = Ask.current()
         val nested: Int = handle {
             Yield.next()
-        } with {
+        } on {
             Raise.raise(err: RuntimeError) -> 0
         }
         seed + nested
-    } with {
+    } on {
         Ask.current(), k -> 7
         Yield.next() , k -> {
             val _: Int = Boom.boom(11)

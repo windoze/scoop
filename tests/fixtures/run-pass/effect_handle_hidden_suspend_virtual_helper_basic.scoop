@@ -36,7 +36,7 @@ fun main(): Int {
     val base: Base = Derived()
     val result: Int = handle {
         helper(base)
-    } with {
+    } on {
         Ask.ask(seed) -> seed + 1
     }
 

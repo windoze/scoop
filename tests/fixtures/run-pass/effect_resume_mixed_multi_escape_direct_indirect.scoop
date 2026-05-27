@@ -55,7 +55,7 @@ fun main() {
 
         Abort.stop(second)
         99
-    } with {
+    } on {
         Yield.next() , k -> {
             println("yield_arm")
             k.resume(40)

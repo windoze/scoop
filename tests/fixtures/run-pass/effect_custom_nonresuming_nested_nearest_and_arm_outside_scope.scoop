@@ -28,7 +28,7 @@ fun main(): Int {
                 println("inner_body")
                 Boom.boom(10)
                 111
-            } with {
+            } on {
                 Boom.boom(e: Int) -> {
                     println("inner_catch")
                     println(e)
@@ -40,7 +40,7 @@ fun main(): Int {
 
             println("unreachable_after_inner")
             z
-        } with {
+        } on {
             Boom.boom(e: Int) -> {
                 println("middle_catch")
                 println(e)
@@ -52,7 +52,7 @@ fun main(): Int {
 
         println("unreachable_after_middle")
         y
-    } with {
+    } on {
         Boom.boom(e: Int) -> {
             println("outer_catch")
             println(e)
