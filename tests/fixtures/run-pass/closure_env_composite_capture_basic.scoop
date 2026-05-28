@@ -37,11 +37,11 @@ fun main(): Int {
     val pair: (Point, Int) = (Point(2, "tuple"), 3)
     val item: Item = Pair((Point(4, "enum"), 5))
     val points: Array<Point> = [Point(6, "array")]
-    var mutablePoint: Point = Point(7, "box")
+    val mutablePoint: RefCell<Point> = RefCell(Point(7, "box"))
 
     val f: () -> Int = {
-        mutablePoint = Point(mutablePoint.x + 1, title)
-        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+        mutablePoint.value = Point(mutablePoint.value.x + 1, title)
+        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.value.x + keepAny(title)
     }
 
     return callAfterGc(f)

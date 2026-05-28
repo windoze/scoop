@@ -12,6 +12,7 @@ use super::call::{
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate,
     infer_continuation_resume_call_expr_type, infer_effect_op_call_expr_type,
 };
+use super::closure_capture::reject_lambda_var_captures;
 use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
 use super::member::{
@@ -171,6 +172,8 @@ fn check_lambda_expr_stmt_body(
     state: &StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
+    reject_lambda_var_captures(lam, Some(&*state.mutable_bindings))?;
+
     // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”逻辑来：
     // - 捕获非法 `return`（`return` 只能离开立即包裹的命名函数）
     // - 避免 lambda 内的局部声明污染外层作用域（clone 快照）

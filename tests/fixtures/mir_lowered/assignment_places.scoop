@@ -16,7 +16,8 @@ fun use(box: Box, holder: Holder): Int {
     local = 2
 
     var captured: Int = local
-    val reader: () -> Int = { captured }
+    val snapshot: Int = captured
+    val reader: () -> Int = { snapshot }
     captured = captured + 1
 
     G = captured

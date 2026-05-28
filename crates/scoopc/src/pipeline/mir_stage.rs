@@ -1270,7 +1270,7 @@ fun main() {}
         assert!(saw_extern_store, "extern global store missing: {dump}");
         assert!(
             captured_local_assign_count >= 2,
-            "captured mutable local should remain an ordinary assignable local: {dump}"
+            "mutable local should remain an ordinary assignable local: {dump}"
         );
         assert!(
             box_value_store_count >= 2,
@@ -1279,7 +1279,7 @@ fun main() {}
     }
 
     #[test]
-    fn mir_closure_mutable_capture_lowers_to_per_call_local() {
+    fn mir_closure_var_capture_is_rejected_before_mir() {
         let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/closure_mutable_capture_per_call.scoop",
@@ -1303,94 +1303,13 @@ fun main(): Int {
 "#,
         );
 
-        let typed_hir_output =
-            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
-        let output = super::run(typed_hir_output).expect("closure source should lower to MIR");
-        let dump = output.stable_dump();
-
-        let main = validated_callable_body(&output, "sample.main");
-        let mut saw_mutable_env_contract = false;
-        for stmt in main.blocks.iter().flat_map(|block| block.stmts.iter()) {
-            if let StatementKind::Assign {
-                value: Rvalue::MakeClosure { env_contract, .. },
-                ..
-            } = &stmt.kind
-            {
-                saw_mutable_env_contract |= env_contract
-                    .captures
-                    .iter()
-                    .any(|capture| capture.name == "x" && capture.mutable);
-            }
-        }
+        let err = super::super::load_hir_stage_output_for_dump(&session, &source)
+            .expect_err("closure var capture should be rejected before MIR");
+        let report = format!("{err:?}");
         assert!(
-            saw_mutable_env_contract,
-            "mutable capture metadata should survive into closure env contract: {dump}"
-        );
-
-        let closure_fun = output
-            .file()
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                Item::Fun(fun) if fun.fqn.starts_with("sample.main.$lambda") => Some(fun),
-                _ => None,
-            })
-            .next()
-            .expect("main closure fun should be materialized");
-        let body = closure_fun
-            .body
-            .as_ref()
-            .expect("closure fun should have MIR body");
-        body.validate_direct_style()
-            .unwrap_or_else(|err| panic!("closure body should validate: {err}"));
-
-        let env_local = closure_fun
-            .params
-            .first()
-            .expect("closure should receive env param")
-            .local;
-        let x_local = body
-            .locals
-            .iter()
-            .enumerate()
-            .find_map(|(idx, local)| {
-                (local.name.as_deref() == Some("x"))
-                    .then(|| crate::mir::LocalId::from_raw(idx as u32))
-            })
-            .expect("captured x local should be present in closure body");
-
-        let mut saw_env_unpack_to_x = false;
-        let mut saw_x_rebind = false;
-        let mut saw_env_write = false;
-        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
-            if let StatementKind::Assign { target, value } = &stmt.kind {
-                if *target == env_local {
-                    saw_env_write = true;
-                }
-                if *target == x_local {
-                    match value {
-                        Rvalue::TupleGet {
-                            tuple: Operand::Local(local),
-                            index: 0,
-                        } if *local == env_local => saw_env_unpack_to_x = true,
-                        Rvalue::TupleGet { .. } => {}
-                        _ => saw_x_rebind = true,
-                    }
-                }
-            }
-        }
-
-        assert!(
-            saw_env_unpack_to_x,
-            "captured var should be unpacked from env snapshot into a local each call: {dump}"
-        );
-        assert!(
-            saw_x_rebind,
-            "lambda assignment should rebind the per-call local, not the env: {dump}"
-        );
-        assert!(
-            !saw_env_write,
-            "closure body must not write back into immutable env snapshot: {dump}"
+            report.contains("closure_var_capture_not_allowed")
+                || report.contains("ClosureVarCaptureNotAllowed"),
+            "expected closure var capture diagnostic, got: {report}"
         );
     }
 
@@ -1909,7 +1828,6 @@ fun bad() {
         let mut saw_enum_nested = false;
         let mut saw_enum_wide = false;
         let mut saw_closure_env = false;
-        let mut saw_mutable_capture = false;
         let mut saw_array_build = false;
         let mut saw_array_get = false;
         let mut saw_array_set = false;
@@ -1972,8 +1890,10 @@ fun bad() {
                             if !env_contract.captures.is_empty() =>
                         {
                             saw_closure_env = true;
-                            saw_mutable_capture |=
-                                env_contract.captures.iter().any(|capture| capture.mutable);
+                            assert!(
+                                env_contract.captures.iter().all(|capture| !capture.mutable),
+                                "typecheck should reject mutable closure captures before MIR: {dump}"
+                            );
                             assert!(env_contract.captures.iter().any(|capture| {
                                 value_transport_has_boxing(
                                     &capture.transport,
@@ -2039,10 +1959,6 @@ fun bad() {
         );
         assert!(saw_enum_wide, "wide enum payload schema missing: {dump}");
         assert!(saw_closure_env, "closure env transport missing: {dump}");
-        assert!(
-            saw_mutable_capture,
-            "mutable closure capture metadata missing: {dump}"
-        );
         assert!(saw_array_build, "array build transport missing: {dump}");
         assert!(saw_array_get, "array get transport missing: {dump}");
         assert!(saw_array_set, "array set transport missing: {dump}");

@@ -17,6 +17,7 @@ use super::call::{
     substitute_single_type_param, try_infer_nominal_constructor_call_expr_type_with_expected,
     type_param_name,
 };
+use super::closure_capture::reject_lambda_var_captures;
 use super::member::{
     infer_elvis_expr_type, infer_member_access_expr_type,
     infer_member_access_ty_from_known_receiver, infer_not_null_assert_expr_type,
@@ -558,7 +559,10 @@ fn infer_block_value_type_with_expected(
     // 这里用“进入时克隆 + 本地更新”的方式实现最小作用域，不要求外层维护 stable/mutable 信息。
     let mut block_locals = inputs.locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
-    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    let mut mutable_bindings: HashSet<Span> = inputs
+        .mutable_bindings
+        .map(|bindings| bindings.iter().copied().collect())
+        .unwrap_or_default();
     let empty_member_mutabilities: HashMap<String, bool> = HashMap::new();
     let shared = StmtExprShared {
         source: inputs.source,
@@ -594,7 +598,9 @@ fn infer_block_value_type_with_expected(
                 check_local_val_decl_exprs(shared, v, lower, &mut state, flow)?;
             }
             ast::StmtKind::Expr(e) => {
-                let block_inputs = inputs.with_locals(&block_locals);
+                let block_inputs = inputs
+                    .with_locals(&block_locals)
+                    .with_mutable_bindings(&mutable_bindings);
                 // T3102：若最后一条表达式语句以 `;` 结尾，该表达式仅作为 expression
                 // statement 执行，不产生 block 的 tail value — block 值视为 Unit。
                 let is_tail = is_last && !stmt.has_trailing_semi;
@@ -2274,6 +2280,7 @@ fn infer_lambda_expr_type_from_signature(
         }
         None => inputs.lambda_this_decl_span,
     };
+    reject_lambda_var_captures(lam, inputs.mutable_bindings)?;
 
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。

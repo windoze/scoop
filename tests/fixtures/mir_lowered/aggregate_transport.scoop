@@ -35,10 +35,10 @@ fun arrays(box: Box): Box {
 }
 
 fun closureCapture(box: Box): Int {
-    var counter: Int = 1
+    val counter: RefCell<Int> = RefCell(1)
     val read: () -> Int = {
-        counter = counter + box.value
-        counter
+        counter.value = counter.value + box.value
+        counter.value
     }
     return read()
 }

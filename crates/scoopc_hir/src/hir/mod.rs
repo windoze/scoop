@@ -548,8 +548,7 @@ pub struct ClassLiteralExpr {
 /// 说明：
 /// - 这里的“外部”指相对于该 lambda 自身参数与内部局部声明而言；
 /// - 当前阶段仅记录 `SymbolId + name + decl_span`，供后续 env layout / codegen 使用；
-/// - 可变捕获（`var`）在 lowering 时会被标记为 `mutable: true`，让 closure body 从 env load
-///   后创建的 per-call local 仍可重新绑定；该重新绑定不写回外层局部，也不跨调用持久化。
+/// - typecheck 会拒绝捕获外层 `var`，因此正常 HIR 中 capture 应只来自稳定绑定。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Capture {
     pub id: SymbolId,

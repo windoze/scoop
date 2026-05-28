@@ -1,0 +1,15 @@
+// EXPECT: pass
+// EXPECT-EXIT: 42
+
+import scoop.core.*
+
+fun main(): Int {
+    var current: Int = 41
+    val snapshot: Int = current
+    val f: () -> Int = {
+        snapshot + 1
+    }
+
+    current = 0
+    return f()
+}

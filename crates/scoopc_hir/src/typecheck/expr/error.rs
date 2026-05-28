@@ -67,6 +67,21 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "closure 不能捕获外层 var binding `{name}`；请显式使用 RefCell<T> 共享可变状态、`val snapshot = ...` 获取只读快照，或用 fold / higher-order operators 表达累积"
+    )]
+    #[diagnostic(
+        code(scoop::typecheck::closure_var_capture_not_allowed),
+        help(
+            "需要共享可变状态时请显式使用 RefCell<T>；只需要只读快照时先写 `val snapshot = ...`；累积模式优先使用 fold 或其他 higher-order operators"
+        )
+    )]
+    ClosureVarCaptureNotAllowed {
+        name: String,
+        #[label("这里引用了外层 var")]
+        span: miette::SourceSpan,
+    },
+
     #[error("缺少效果声明：函数声明为 {declared}，但这里 perform 了 {required}")]
     #[diagnostic(code(scoop::typecheck::required_effect_not_declared))]
     RequiredEffectNotDeclared {

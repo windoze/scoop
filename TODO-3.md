@@ -276,7 +276,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（match/rest run-pass、mismatch panic、top-level runtime、payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、top-level annotated / inferred）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 review 要求：refutable `val` variant patterns 不再被旧 hard reject 阻断，runtime mismatch 是 panic，rest/nested binding 的 scope 与类型由 typecheck/lowering 贯通；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T05：禁止 closure 捕获外层 `var`
+### [DONE] P3-T05：禁止 closure 捕获外层 `var`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -306,10 +306,10 @@
   - Closure capture rules no longer expose non-persistent `var` snapshot semantics.
 - 依赖：P3-T04R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：新增 typecheck 侧 closure capture 检查器，在 lambda value inference 与 statement-position structural check 两条路径拒绝引用外层 `var` 的 closure；新增 `scoop::typecheck::closure_var_capture_not_allowed` 诊断并在错误文本 / help 中提示 `RefCell<T>`、显式 `val snapshot = ...`、fold / higher-order operators；同步 HIR capture 注释、旧 captured-`var` run-pass / HIR / MIR 正例、MIR/LLVM 单元测试样例与相关 MIR goldens。
+  - 核心决策：禁止规则只针对 closure 捕获的外层局部 `var`，不影响 closure 内部局部 `var` 使用、顶层 `var` 访问、`val` capture、显式 `RefCell` 共享可变状态或显式 snapshot；capture 检查遍历当前 lambda body 并跳过嵌套 lambda，由嵌套 lambda 自身检查其捕获；不改变 closure env layout/codegen，只让 captured-`var` cases 在前端不可达。
+  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted closure fixtures（`closure_capture_var_make_counter_is_error.scoop`、`closure_capture_val_snapshot_ok.scoop`、`closure_capture_refcell_make_counter.scoop`、HIR/MIR val capture、composite closure capture）；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 `assignment_places.mir` 与 `aggregate_transport.mir` golden 漂移，更新 golden 后 targeted fixture 通过，最终完整 fixture suite 通过（`fixtures: ok (1556)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 closure `var` capture 禁止要求：`makeCounter` 风格 snapshot surprise 在前端被拒绝，诊断给出显式替代方案，`val` capture 行为保持不变；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T05R：Review closure `var` capture 诊断
 

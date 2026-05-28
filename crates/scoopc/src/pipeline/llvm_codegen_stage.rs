@@ -1033,11 +1033,11 @@ fun main(): Int {
     val pair: (Point, Int) = (Point(2, "tuple"), 3)
     val item: Item = Pair((Point(4, "enum"), 5))
     val points: Array<Point> = [Point(6, "array")]
-    var mutablePoint: Point = Point(7, "box")
+    val mutablePoint: RefCell<Point> = RefCell(Point(7, "box"))
 
     val f: () -> Int = {
-        mutablePoint = Point(mutablePoint.x + 1, title)
-        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+        mutablePoint.value = Point(mutablePoint.value.x + 1, title)
+        point.x + pair.0.x + pair.1 + score(item) + points.get(0).x + mutablePoint.value.x + keepAny(title)
     }
     return callAfterGc(f)
 }
@@ -1045,9 +1045,9 @@ fun main(): Int {
         )
     }
 
-    fn closure_mutable_capture_per_call_source() -> SourceFile {
+    fn closure_refcell_capture_per_call_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/closure_mutable_capture_per_call.scoop",
+            "<mem>/closure_refcell_capture_per_call.scoop",
             r#"
 package sample
 
@@ -1060,12 +1060,12 @@ fun callTwice(f: () -> Int): Int {
 }
 
 fun main(): Int {
-    var x: Int = 0
+    val x: RefCell<Int> = RefCell(0)
     val f: () -> Int = {
-        x = x + 1
-        x
+        x.value = x.value + 1
+        x.value
     }
-    return callTwice(f) + x
+    return callTwice(f) + x.value
 }
 "#,
         )
@@ -1698,20 +1698,20 @@ fun main(): Int {
     }
 
     #[test]
-    fn llvm_closure_mutable_capture_reloads_env_into_per_call_local() {
+    fn llvm_closure_refcell_capture_loads_env_without_env_writeback() {
         let ir = emit_ir_for_source(
-            closure_mutable_capture_per_call_source(),
-            "closure_mutable_capture_per_call.ll",
+            closure_refcell_capture_per_call_source(),
+            "closure_refcell_capture_per_call.ll",
         );
 
         let closure_body =
-            ir_function_matching(&ir, "mutable capture closure body", |_header, function| {
+            ir_function_matching(&ir, "RefCell capture closure body", |_header, function| {
                 function.contains("pass_mir_closure_env_field_load")
                     && function.contains("intrinsic_iadd")
             });
         assert!(
             closure_body.contains("pass_mir_closure_env_field_load"),
-            "closure body should reload captured x from env at each invocation\n{closure_body}"
+            "closure body should load captured RefCell from env at each invocation\n{closure_body}"
         );
         assert!(
             closure_body.contains("pass_mir_tuple_extract")

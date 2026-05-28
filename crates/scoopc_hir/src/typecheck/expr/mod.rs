@@ -13,6 +13,7 @@
 //! - `error`：`ExprTypeError`
 
 mod call;
+mod closure_capture;
 mod collect;
 mod entry;
 mod error;
@@ -240,6 +241,25 @@ impl<'a> ExprInferInputs<'a> {
             locals: self.locals,
             mutable_bindings: self.mutable_bindings,
             lambda_this_decl_span,
+            top_level_types: self.top_level_types,
+            top_level_funs: self.top_level_funs,
+            member_mutabilities: self.member_mutabilities,
+            struct_field_types: self.struct_field_types,
+            loop_depth: self.loop_depth,
+            expected_return_ty: self.expected_return_ty,
+        }
+    }
+
+    fn with_mutable_bindings<'b>(self, mutable_bindings: &'b HashSet<Span>) -> ExprInferInputs<'b>
+    where
+        'a: 'b,
+    {
+        ExprInferInputs {
+            source: self.source,
+            builtins: self.builtins,
+            locals: self.locals,
+            mutable_bindings: Some(mutable_bindings),
+            lambda_this_decl_span: self.lambda_this_decl_span,
             top_level_types: self.top_level_types,
             top_level_funs: self.top_level_funs,
             member_mutabilities: self.member_mutabilities,
