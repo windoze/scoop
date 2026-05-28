@@ -74,6 +74,81 @@ struct CtorSigInfo {
     params: Vec<ParamInfo>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct EffectiveSignature<'a> {
+    receiver: Option<&'a EffectiveType>,
+    params: &'a [ParamInfo],
+}
+
+impl FunSigInfo {
+    fn effective_signature(&self) -> EffectiveSignature<'_> {
+        EffectiveSignature {
+            receiver: self.receiver.as_ref(),
+            params: &self.params,
+        }
+    }
+}
+
+impl CtorSigInfo {
+    fn effective_signature(&self) -> EffectiveSignature<'_> {
+        EffectiveSignature {
+            receiver: None,
+            params: &self.params,
+        }
+    }
+}
+
+impl<'a> EffectiveSignature<'a> {
+    /// Compare definition-time overload signature identity:
+    /// receiver and effective parameter types only.
+    fn is_equivalent_to(self, other: Self) -> bool {
+        if self.receiver != other.receiver {
+            return false;
+        }
+        if self.params.len() != other.params.len() {
+            return false;
+        }
+        self.params
+            .iter()
+            .zip(other.params)
+            .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
+    }
+
+    /// Return the first positional arity where trailing defaults
+    /// make two signatures indistinguishable.
+    fn first_ambiguous_positional_arity(self, other: Self) -> Option<usize> {
+        if self.receiver != other.receiver {
+            return None;
+        }
+
+        let min_self = min_positional_arity(self.params);
+        let min_other = min_positional_arity(other.params);
+        let max_k = self.params.len().min(other.params.len());
+
+        for k in 0..=max_k {
+            if k < min_self || k < min_other {
+                continue;
+            }
+            if self.prefix_effective_types_equal(other, k) {
+                // k == len == len is covered by full signature equivalence.
+                if k == self.params.len() && k == other.params.len() {
+                    continue;
+                }
+                return Some(k);
+            }
+        }
+        None
+    }
+
+    fn prefix_effective_types_equal(self, other: Self, k: usize) -> bool {
+        self.params
+            .iter()
+            .take(k)
+            .zip(other.params.iter().take(k))
+            .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TypeParamKey {
     name: String,
@@ -930,8 +1005,10 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
         for j in (i + 1)..decls.len() {
             let a = &decls[i];
             let b = &decls[j];
+            let a_sig = a.sig.effective_signature();
+            let b_sig = b.sig.effective_signature();
 
-            if call_sig_equal(&a.sig, &b.sig) {
+            if a_sig.is_equivalent_to(b_sig) {
                 let reason = match (a.sig.return_ty, b.sig.return_ty) {
                     (Some(ra), Some(rb)) if ra != rb => {
                         "仅返回类型不同（返回类型不参与重载决议）".to_string()
@@ -951,7 +1028,7 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
                 });
             }
 
-            if let Some(arity) = first_ambiguous_positional_arity(&a.sig, &b.sig) {
+            if let Some(arity) = a_sig.first_ambiguous_positional_arity(b_sig) {
                 let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
                     fqn: fqn.to_string().into_boxed_str(),
@@ -983,8 +1060,10 @@ fn check_ctor_overload_set(
         for j in (i + 1)..decls.len() {
             let a = &decls[i];
             let b = &decls[j];
+            let a_sig = a.sig.effective_signature();
+            let b_sig = b.sig.effective_signature();
 
-            if ctor_call_sig_equal(&a.sig, &b.sig) {
+            if a_sig.is_equivalent_to(b_sig) {
                 return Err(OverloadDeclError::Conflict {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
                     reason: "重复或不可区分的构造器签名".into(),
@@ -995,7 +1074,7 @@ fn check_ctor_overload_set(
                 });
             }
 
-            if let Some(arity) = first_ambiguous_positional_ctor_arity(&a.sig, &b.sig) {
+            if let Some(arity) = a_sig.first_ambiguous_positional_arity(b_sig) {
                 let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
@@ -1010,84 +1089,6 @@ fn check_ctor_overload_set(
     }
 
     Ok(())
-}
-
-fn call_sig_equal(a: &FunSigInfo, b: &FunSigInfo) -> bool {
-    if a.receiver != b.receiver {
-        return false;
-    }
-    if a.params.len() != b.params.len() {
-        return false;
-    }
-    a.params
-        .iter()
-        .zip(&b.params)
-        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
-}
-
-fn ctor_call_sig_equal(a: &CtorSigInfo, b: &CtorSigInfo) -> bool {
-    if a.params.len() != b.params.len() {
-        return false;
-    }
-    a.params
-        .iter()
-        .zip(&b.params)
-        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
-}
-
-/// 返回一组 overload 在“位置调用 + 尾部默认参数省略”规则下的“第一个”会产生歧义的实参数量。
-///
-/// 说明：
-/// - 这里的“歧义”指：存在某个 `k`，两者都接受 `k` 个位置实参，并且它们对这 `k` 个实参的期望类型完全一致；
-/// - 当前实现刻意不考虑 subtyping/most-specific：这属于 overload resolution 的后续细化。
-fn first_ambiguous_positional_arity(a: &FunSigInfo, b: &FunSigInfo) -> Option<usize> {
-    if a.receiver != b.receiver {
-        return None;
-    }
-
-    let min_a = min_positional_arity(&a.params);
-    let min_b = min_positional_arity(&b.params);
-    let max_k = a.params.len().min(b.params.len());
-
-    for k in 0..=max_k {
-        if k < min_a || k < min_b {
-            continue;
-        }
-        if prefix_effective_types_equal(&a.params, &b.params, k) {
-            // k == len == len 的情况已经由 `call_sig_equal` 覆盖；这里避免重复报错。
-            if k == a.params.len() && k == b.params.len() {
-                continue;
-            }
-            return Some(k);
-        }
-    }
-    None
-}
-
-fn first_ambiguous_positional_ctor_arity(a: &CtorSigInfo, b: &CtorSigInfo) -> Option<usize> {
-    let min_a = min_positional_arity(&a.params);
-    let min_b = min_positional_arity(&b.params);
-    let max_k = a.params.len().min(b.params.len());
-
-    for k in 0..=max_k {
-        if k < min_a || k < min_b {
-            continue;
-        }
-        if prefix_effective_types_equal(&a.params, &b.params, k) {
-            if k == a.params.len() && k == b.params.len() {
-                continue;
-            }
-            return Some(k);
-        }
-    }
-    None
-}
-
-fn prefix_effective_types_equal(a: &[ParamInfo], b: &[ParamInfo], k: usize) -> bool {
-    a.iter()
-        .take(k)
-        .zip(b.iter().take(k))
-        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
 }
 
 /// 位置调用下可省略的参数只来自“尾部默认参数”：

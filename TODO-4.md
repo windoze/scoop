@@ -41,7 +41,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build`；targeted overload conflict fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §3、§4.1、§6.4、§9.1 与 `PLAN.md` P4 对 effective signature / signature equivalence helper 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T01R：Review effective signature helper
+### [DONE] P4-T01R：Review effective signature helper
 
 - 参考：
   - P4-T01 完成记录
@@ -67,10 +67,10 @@
   - P4-T02/P4-T03/P4-T05 可复用该 helper。
 - 依赖：P4-T01
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 `P4-T01` 的 effective signature helper、`resolve::FunSig` / `ParamSig` 元数据注释、typealias 透明等价 fixture 与 overload conflict fixtures；在 `crates/scoopc_hir/src/typecheck/overloads.rs` 抽出统一的 `EffectiveSignature` 借用视图，让 fun / constructor 的 signature equivalence 与默认参数位置歧义检查都通过同一 helper 入口执行，移除并行的 fun-only / ctor-only 等价实现。
+  - 核心决策：definition-time signature identity 继续只包含 receiver 与 effective parameter types；callable 自身 return type / effect row 只用于诊断原因，不参与等价判断；`EffectiveType` 的结构化 equality 仍是唯一判等机制，pretty render 仅用于排序稳定性与诊断展示；P4 后续 generic shape、vararg overlap、constructor overload 规则应复用 `EffectiveSignature`，不得再新增平行 signature-equivalence 路径。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent、default param、constructor default ambiguity）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认并收紧 `OVERLOAD_RESOLUTION.md` §4.1、§6.4、§9.1 对 signature equivalence 的要求；`P4-T02` / `P4-T03` / `P4-T05` 可基于统一 `EffectiveSignature` 继续实现 definition-time overload 规则；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T02：实现 generic overload shape 规则
 
