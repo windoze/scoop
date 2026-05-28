@@ -390,6 +390,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("没有适用的重载：{callee}（候选：{candidates}）")]
+    #[diagnostic(code(scoop::typecheck::no_applicable_overload))]
+    NoApplicableOverload {
+        callee: String,
+        candidates: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 `@Extern` 函数需要 unsafe context：{callee}")]
     #[diagnostic(code(scoop::typecheck::extern_call_requires_unsafe))]
     ExternCallRequiresUnsafeContext {

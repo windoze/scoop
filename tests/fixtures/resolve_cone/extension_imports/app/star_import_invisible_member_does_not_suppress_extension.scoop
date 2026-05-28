@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：P5-T01 Phase B：不可见 member 不压制 star import 引入的可见 extension。
+
+package app
+
+import lib.*
+
+fun use_star_import_member_prefers_member(p: WithMember) {
+    p.ext()
+}

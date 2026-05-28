@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：P5-T01 Phase A：局部 callable value shadow 同名顶层 overload，不因顶层候选可适用而下沉。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun shadowed(x: String): Int {
+    return 100
+}
+
+fun useLocalShadow(): Int {
+    val shadowed: (Int) -> Int = { x -> x + 1 }
+    return shadowed(41)
+}

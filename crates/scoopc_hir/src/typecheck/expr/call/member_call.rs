@@ -1043,8 +1043,34 @@ pub(super) fn infer_member_call_expr_type(
 
             let chosen = match matched.len() {
                 0 => {
-                    return Err(ExprTypeError::NoMatchingOverload {
+                    let name = short_name_from_fqn(fqn).to_string();
+                    let candidates = join_overload_rejections(
+                        sigs.iter()
+                            .map(|cand| OverloadRejection {
+                                signature: fmt_overload_signature(&name, None, &cand.params, lower),
+                                location: format_candidate_location(
+                                    lower,
+                                    &cand.decl_file,
+                                    cand.decl_span,
+                                ),
+                                reason: describe_basic_applicability_rejection(
+                                    BasicApplicabilityRejection {
+                                        call_args: &call_args_with_receiver,
+                                        param_names: &cand.param_names,
+                                        param_has_defaults: &cand.param_has_defaults,
+                                        param_is_vararg: &cand.param_is_vararg,
+                                        param_tys: &cand.params,
+                                        source,
+                                        lower,
+                                        builtins,
+                                    },
+                                ),
+                            })
+                            .collect(),
+                    );
+                    return Err(ExprTypeError::NoApplicableOverload {
                         callee: fqn.to_string(),
+                        candidates,
                         span: call_expr.span.into(),
                     });
                 }
@@ -1459,8 +1485,12 @@ pub(super) fn infer_member_call_expr_type(
     let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
         Some(s) => s.as_slice(),
         None => {
-            sigs_from_index =
-                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+            sigs_from_index = collect_top_level_fun_signatures_from_index(
+                &callee_fqn,
+                inputs.source,
+                lower,
+                builtins,
+            )?;
             if sigs_from_index.is_empty() {
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_fqn,
@@ -2125,7 +2155,7 @@ pub(super) fn infer_member_call_expr_type(
     // 多候选：先按 receiver/参数匹配筛选，再用 receiver/参数 specificity 选出 most-specific（T0455）。
     let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
 
-    for cand in ext_candidates {
+    for cand in ext_candidates.iter().copied() {
         let Some((user_param_tys, param_has_defaults, param_is_vararg)) =
             user_visible_param_slices_after_receiver(
                 &cand.params,
@@ -2537,8 +2567,46 @@ pub(super) fn infer_member_call_expr_type(
 
     let chosen = match matched.len() {
         0 => {
-            return Err(ExprTypeError::NoMatchingOverload {
+            let name = short_name_from_fqn(&callee_fqn).to_string();
+            let candidates = join_overload_rejections(
+                ext_candidates
+                    .iter()
+                    .filter_map(|cand| {
+                        let param_names = cand.param_names.get(1..)?;
+                        let param_has_defaults = cand.param_has_defaults.get(1..)?;
+                        let param_is_vararg = cand.param_is_vararg.get(1..)?;
+                        let param_tys = cand.params.get(1..)?;
+                        Some(OverloadRejection {
+                            signature: fmt_overload_signature(
+                                &name,
+                                cand.params.first().copied(),
+                                param_tys,
+                                lower,
+                            ),
+                            location: format_candidate_location(
+                                lower,
+                                &cand.decl_file,
+                                cand.decl_span,
+                            ),
+                            reason: describe_basic_applicability_rejection(
+                                BasicApplicabilityRejection {
+                                    call_args: &call_args,
+                                    param_names,
+                                    param_has_defaults,
+                                    param_is_vararg,
+                                    param_tys,
+                                    source,
+                                    lower,
+                                    builtins,
+                                },
+                            ),
+                        })
+                    })
+                    .collect(),
+            );
+            return Err(ExprTypeError::NoApplicableOverload {
                 callee: callee_fqn,
+                candidates,
                 span: call_expr.span.into(),
             });
         }

@@ -7,7 +7,7 @@
 
 ## P5：Overload call-site resolution 与 callable identity 贯通
 
-### [TODO] P5-T01：实现 Phase A-C：候选收集、visibility、applicability
+### [DONE] P5-T01：实现 Phase A-C：候选收集、visibility、applicability
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -38,10 +38,10 @@
   - Call-site resolution has a deterministic applicable candidate set with actionable no-applicable diagnostics.
 - 依赖：P4-T05R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：更新 `resolve/scopes.rs` 的调用点候选收集层级与 invisible member fallback；更新 `typecheck/expr/call/{mod.rs,value_call.rs,dispatch.rs,member_call.rs,ctor.rs}` 的 Phase B/C 过滤与 no-applicable diagnostics；同步相关 overload fixtures。
+  - 核心决策：top-level call candidate collection 以同包/root、显式 import、star import 分层，同时合并函数与构造候选，命中可见候选后不继续下沉；跨文件函数签名在 typecheck 入口按调用源过滤 visibility；不可见 member 只保留为兜底诊断，不再压制可见 extension/inherited candidate；no-applicable overload 使用候选签名、位置和基础 applicability rejection reason 输出。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P5 Phase A-C 与 `OVERLOAD_RESOLUTION.md` §5.1-§5.3、§7.4、§8.1、§8.2；P5-T02 可基于已过滤的 applicable candidate set 继续实现 specificity。
 
 ### [TODO] P5-T01R：Review Phase A-C resolution
 

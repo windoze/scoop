@@ -1,32 +1,38 @@
-# Execution Plan
+# P5-T01 Execution Plan
 
 ## Objective
 Complete exactly the first incomplete task in `TODO.md`, then stop after committing the completed work.
 
-## Reasoning Summary
-`TODO.md` is the authoritative task list. I will identify the first heading that is not explicitly prefixed with `[DONE]`, treat that as the only execution unit for this invocation, and avoid unrelated issue triage unless a failure directly blocks that task or must be scheduled under the test/fixture failure policy.
+## Current task
 
-## Step-by-Step Plan
-1. Read `TODO.md` to identify the first incomplete task, including its dependencies, validation requirements, and completion record expectations.
-2. Check the latest commit only for directly relevant unfinished work tied to that selected task.
-3. Inspect the smallest necessary set of code, tests, fixtures, and documentation for the selected task.
-4. Implement the task as written, without workarounds or spec deviations. If a concrete prerequisite blocks correct implementation, add the minimum prerequisite task to `TODO.md`, commit that scheduling change, and stop.
-5. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then the relevant full Rust and fixture suites unless the task is documentation-only and no compiled behavior changed.
-6. Address any unscheduled failing test or fixture by fixing it or scheduling the minimum required prerequisite/follow-up before marking the task complete.
-7. Mark the completed task title with `[DONE]` in `TODO.md`, update its completion record, and update this plan file at major milestones.
-8. Commit all task-related changes with a descriptive message and the required co-author trailer.
-9. Stop without starting the next task.
+- First incomplete task: `P5-T01` in `TODO-5.md`.
+- Goal: implement overload call-site resolution Phase A-C: candidate collection, visibility filtering, applicability filtering, and no-applicable diagnostics.
+- Scope is limited to `P5-T01`; after completion, stop without starting `P5-T01R`.
 
-## Current Status
-First incomplete task identified: `P4-T05R`, "Review constructor overload definition-time 规则". The latest commit is `[P4-T05] Implement constructor overload definition checks`, which is the direct dependency and review target. Next step is to review that commit's constructor overload implementation against the P4-T05R requirements.
+## Step-by-step plan
 
-## P4-T05R Review Plan
-1. Inspect the P4-T05 diff and relevant implementation surfaces: AST/parser constructor generic metadata, resolver constructor overload metadata, type lowering/scope wiring, and `typecheck/overloads.rs` constructor collection/checking.
-2. Confirm constructor duplicate signature, ctor-level generic shape mismatch, and vararg/non-vararg overlap all use the same definition-time helpers as function overloads.
-3. Confirm ctor-level type parameters are distinguished from class-level type parameters in effective signatures and diagnostics.
-4. Confirm P4-T05 did not implement or change P5 call-site constructor specificity.
-5. Add or fix review findings if needed, then run required validation.
-6. Mark `P4-T05R` `[DONE]` in both `TODO.md` and `TODO-4.md`, update the completion record, commit, and stop.
+1. Check the latest commit only for directly relevant unfinished work tied to `P5-T01`.
+2. Read the relevant overload design sections and the existing call resolution/typecheck implementation.
+3. Identify the current candidate collection, visibility, argument mapping, generic instantiation, member call, and constructor overload paths.
+4. Implement Phase A-C behavior:
+   - candidate collection order: local, member, extension, top-level, imported;
+   - same-name shadowing by the first candidate-producing layer;
+   - visibility filtering before applicability;
+   - applicability filtering for arity, named/default/vararg mapping, argument subtyping, function type subtyping, composite variance, and `Nothing` subtyping;
+   - no-applicable diagnostics that include all same-name candidates and rejection reasons.
+5. Add or update targeted fixtures for local shadowing, visibility-before-applicability, and no-applicable diagnostics.
+6. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `python3 tools/run_fixtures.py`.
+7. Address any unscheduled failing test or fixture by fixing it or scheduling the minimum required task before marking `P5-T01` complete.
+8. Mark `P5-T01` as `[DONE]` in both `TODO.md` and `TODO-5.md`, and fill its completion record.
+9. Commit all task-related changes with a descriptive message and the required co-author trailer.
+10. Stop without starting the next task.
 
-## Milestone: Review Validation Passed
-The P4-T05R review found no blocking constructor overload defects. Formatting, clippy, targeted constructor overload fixtures, full Rust tests, spec fixture check, and the full fixture suite passed. `TODO.md` and `TODO-4.md` now mark `P4-T05R` complete. Next step is committing the task-related changes.
+## Progress log
+
+- Identified `P5-T01` as the first incomplete task.
+- Updated this progress plan before implementation work.
+- Checked the latest commit (`[P4-T05R] Review constructor overload definition checks`); it is the completed dependency/review task and does not mention unfinished work that changes `P5-T01` scope.
+- Reviewed the P5/overload design notes and the current resolver/typecheck call paths.
+- Implemented Phase A-C changes: top-level callable candidate layering now combines fun/constructor candidates per scope layer, invisible direct members no longer suppress visible extension/inherited candidates, cross-file function signatures are visibility-filtered before applicability, and no-applicable overload diagnostics now include candidate signatures, locations, and rejection reasons.
+- Added targeted fixtures for local shadowing, visibility-before-applicability, and no-applicable diagnostics; focused fixture runs pass.
+- Full validation passed: formatting, clippy, Rust tests, and the full fixture suite.

@@ -995,14 +995,7 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        let mut candidates: Vec<ast::CallCandidate> = Vec::new();
-
-        for fqn in self.top_level_fun_candidates(name, id.span)? {
-            candidates.push(ast::CallCandidate::Fun { fqn });
-        }
-        for ty_fqn in self.top_level_constructor_candidates(name, id.span)? {
-            candidates.push(ast::CallCandidate::Constructor { ty_fqn });
-        }
+        let mut candidates = self.top_level_call_candidates(name, id.span)?;
 
         if candidates.is_empty() {
             return Ok(());
@@ -1370,71 +1363,65 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(None)
     }
 
-    fn top_level_fun_candidates(
+    fn top_level_call_candidates(
         &self,
         name: &str,
         use_span: Span,
-    ) -> Result<Vec<String>, ResolveError> {
+    ) -> Result<Vec<ast::CallCandidate>, ResolveError> {
         let mut seen: HashSet<String> = HashSet::new();
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-        let mut matches: Vec<String> = Vec::new();
-
-        let mut probe_group = |cands: &[String]| {
-            matches.clear();
-            for fqn in cands {
-                if !seen.insert(fqn.clone()) {
-                    continue;
-                }
-
-                let Some(syms) = self.index.by_fqn.get(fqn) else {
-                    continue;
-                };
-
-                if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
-                    matches.push(fqn.clone());
-                } else if syms.has_fun()
-                    && not_visible.is_none()
-                    && let Some(first) = syms.first_fun()
-                {
-                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
-                }
-            }
-
-            !matches.is_empty()
-        };
-
-        // 1) 同包（含 root package）
-        let mut group_pkg: Vec<String> = Vec::new();
+        let mut pkg_funs: Vec<String> = Vec::new();
+        let mut pkg_ctors: Vec<String> = Vec::new();
         if !self.pkg_prefix.is_empty() {
-            group_pkg.push(format!("{}.{}", self.pkg_prefix, name));
+            pkg_funs.push(format!("{}.{}", self.pkg_prefix, name));
+            pkg_ctors.push(format!("{}.{}", self.pkg_prefix, name));
         }
-        group_pkg.push(name.to_string());
-        if probe_group(&group_pkg) {
-            matches.sort();
-            matches.dedup();
+        pkg_funs.push(name.to_string());
+        pkg_ctors.push(name.to_string());
+        let matches =
+            self.probe_top_level_call_group(pkg_funs, pkg_ctors, &mut seen, &mut not_visible);
+        if !matches.is_empty() {
             return Ok(matches);
         }
 
-        // 2) 显式 import（含 alias）
-        if let Some(fqns) = self.imports.value.explicit.get(name)
-            && probe_group(fqns)
-        {
-            matches.sort();
-            matches.dedup();
+        let explicit_funs = self
+            .imports
+            .value
+            .explicit
+            .get(name)
+            .cloned()
+            .unwrap_or_default();
+        let explicit_ctors = self
+            .imports
+            .ty
+            .explicit
+            .get(name)
+            .cloned()
+            .unwrap_or_default();
+        let matches = self.probe_top_level_call_group(
+            explicit_funs,
+            explicit_ctors,
+            &mut seen,
+            &mut not_visible,
+        );
+        if !matches.is_empty() {
             return Ok(matches);
         }
 
-        // 3) star import（`import pkg.*`）
-        let group_star = self
+        let star_cands = self
             .imports
             .star
             .iter()
             .map(|prefix| format!("{prefix}.{name}"))
             .collect::<Vec<_>>();
-        if probe_group(&group_star) {
-            matches.sort();
-            matches.dedup();
+        let matches = self.probe_top_level_call_group(
+            star_cands.clone(),
+            star_cands,
+            &mut seen,
+            &mut not_visible,
+        );
+        if !matches.is_empty() {
             return Ok(matches);
         }
 
@@ -1450,100 +1437,73 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(Vec::new())
     }
 
-    fn top_level_constructor_candidates(
+    fn probe_top_level_call_group(
         &self,
-        name: &str,
-        use_span: Span,
-    ) -> Result<Vec<String>, ResolveError> {
-        let mut seen: HashSet<String> = HashSet::new();
-        let mut matches: Vec<String> = Vec::new();
-        let mut not_visible: Option<(String, Visibility, Span)> = None;
+        fun_cands: Vec<String>,
+        ctor_cands: Vec<String>,
+        seen: &mut HashSet<String>,
+        not_visible: &mut Option<(String, Visibility, Span)>,
+    ) -> Vec<ast::CallCandidate> {
+        let mut matches: Vec<ast::CallCandidate> = Vec::new();
 
-        let mut probe_group = |cands: &[String]| {
-            matches.clear();
-            for ty_fqn in cands {
-                if !seen.insert(ty_fqn.clone()) {
-                    continue;
-                }
-
-                let Some(syms) = self.index.by_fqn.get(ty_fqn) else {
-                    continue;
-                };
-                let Some(sym) = syms.get(SymbolKind::Type) else {
-                    continue;
-                };
-                if !is_symbol_visible_from(self.use_cone, self.source, sym) {
-                    if not_visible.is_none() {
-                        not_visible = Some((ty_fqn.clone(), sym.visibility, sym.span));
-                    }
-                    continue;
-                }
-
-                let Some(ctors) = self.index.constructors.get(ty_fqn) else {
-                    // 当前阶段（T0319）只把"显式收集到 constructors overload set" 的类型纳入构造候选；
-                    // 隐式默认构造器规则留给后续 typecheck/语义任务补齐。
-                    continue;
-                };
-
-                if ctors
-                    .iter()
-                    .any(|c| is_ctor_visible_from(self.use_cone, self.source, c))
-                {
-                    matches.push(ty_fqn.clone());
-                } else if not_visible.is_none()
-                    && let Some(first) = ctors.first()
-                {
-                    not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
-                }
+        for fqn in fun_cands {
+            let key = format!("fun:{fqn}");
+            if !seen.insert(key) {
+                continue;
             }
 
-            !matches.is_empty()
-        };
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
 
-        // 1) 同包（含 root package）
-        let mut group_pkg: Vec<String> = Vec::new();
-        if !self.pkg_prefix.is_empty() {
-            group_pkg.push(format!("{}.{}", self.pkg_prefix, name));
-        }
-        group_pkg.push(name.to_string());
-        if probe_group(&group_pkg) {
-            matches.sort();
-            matches.dedup();
-            return Ok(matches);
-        }
-
-        // 2) 显式 import（含 alias）
-        if let Some(fqns) = self.imports.ty.explicit.get(name)
-            && probe_group(fqns)
-        {
-            matches.sort();
-            matches.dedup();
-            return Ok(matches);
+            if syms.any_visible_fun(self.use_cone, self.source).is_some() {
+                matches.push(ast::CallCandidate::Fun { fqn });
+            } else if syms.has_fun()
+                && not_visible.is_none()
+                && let Some(first) = syms.first_fun()
+            {
+                *not_visible = Some((fqn, first.symbol.visibility, first.symbol.span));
+            }
         }
 
-        // 3) star import（`import pkg.*`）
-        let group_star = self
-            .imports
-            .star
-            .iter()
-            .map(|prefix| format!("{prefix}.{name}"))
-            .collect::<Vec<_>>();
-        if probe_group(&group_star) {
-            matches.sort();
-            matches.dedup();
-            return Ok(matches);
+        for ty_fqn in ctor_cands {
+            let key = format!("ctor:{ty_fqn}");
+            if !seen.insert(key) {
+                continue;
+            }
+
+            let Some(syms) = self.index.by_fqn.get(&ty_fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                continue;
+            };
+            if !is_symbol_visible_from(self.use_cone, self.source, sym) {
+                if not_visible.is_none() {
+                    *not_visible = Some((ty_fqn, sym.visibility, sym.span));
+                }
+                continue;
+            }
+
+            let Some(ctors) = self.index.constructors.get(&ty_fqn) else {
+                continue;
+            };
+
+            if ctors
+                .iter()
+                .any(|c| is_ctor_visible_from(self.use_cone, self.source, c))
+            {
+                matches.push(ast::CallCandidate::Constructor { ty_fqn });
+            } else if not_visible.is_none()
+                && let Some(first) = ctors.first()
+            {
+                *not_visible = Some((ty_fqn, first.visibility, first.span));
+            }
         }
 
-        if let Some((name, visibility, def_span)) = not_visible {
-            return Err(ResolveError::NotVisible {
-                name,
-                visibility,
-                use_span: use_span.into(),
-                def_span: def_span.into(),
-            });
-        }
-
-        Ok(Vec::new())
+        matches.sort_by(|a, b| call_candidate_sort_key(a).cmp(&call_candidate_sort_key(b)));
+        matches.dedup();
+        matches
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -1702,11 +1662,10 @@ impl<'a> BlockScopeChecker<'a> {
             member_name
         );
 
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
         if let Some(syms) = self.index.by_fqn.get(&member_fqn) {
             // 与调用解析（T0311）解耦：这里只做存在性与最小"绑定写回"。
             // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
-            let mut not_visible: Option<(String, Visibility, Span)> = None;
-
             if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
                 return Ok(());
@@ -1742,15 +1701,8 @@ impl<'a> BlockScopeChecker<'a> {
                 }
             }
 
-            // 同名 member 与 extension 并存时：member 优先（即便 member 不可见，也不回退到 extension）。
-            if let Some((name, visibility, def_span)) = not_visible {
-                return Err(ResolveError::NotVisible {
-                    name,
-                    visibility,
-                    use_span: member.span.into(),
-                    def_span: def_span.into(),
-                });
-            }
+            // Invisible direct members are retained for diagnostics, but they do
+            // not suppress later visible extension/inherited candidates.
         }
 
         // T0147c: Float builtin API 需要保留为内建 member call，
@@ -1850,6 +1802,15 @@ impl<'a> BlockScopeChecker<'a> {
         if let Some(resolved) = self.resolve_inherited_member(receiver_ty_fqn, member_name) {
             member.resolved = Some(resolved);
             return Ok(());
+        }
+
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: member.span.into(),
+                def_span: def_span.into(),
+            });
         }
 
         Err(ResolveError::UnresolvedMember {

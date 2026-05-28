@@ -412,6 +412,7 @@ pub(super) fn is_funptr_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
 
 pub(super) fn collect_top_level_fun_signatures_from_index(
     callee_fqn: &str,
+    use_source: &SourceFile,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<Vec<FunSigOwned>, ExprTypeError> {
@@ -471,8 +472,14 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
         out
     }
 
+    let use_cone = lower.index().cone_of_source(use_source);
+    let visible_overloads = overloads
+        .iter()
+        .filter(|o| is_symbol_visible_from_source(use_cone, use_source, &o.symbol))
+        .collect::<Vec<_>>();
+
     let mut implemented_keys: HashSet<String> = HashSet::new();
-    for o in &overloads {
+    for o in &visible_overloads {
         if !o.has_body {
             continue;
         }
@@ -489,7 +496,7 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
     }
 
     let mut out: Vec<FunSigOwned> = Vec::new();
-    for o in &overloads {
+    for o in visible_overloads {
         let decl_source = lower
             .env()
             .source(&o.symbol.decl_file)
@@ -716,8 +723,12 @@ pub(super) fn is_top_level_fun_value_candidate_expr(
     let sigs: &[FunSigOwned] = match inputs.top_level_funs.get(&callee_fqn) {
         Some(sigs) => sigs.as_slice(),
         None => {
-            sigs_from_index =
-                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, inputs.builtins)?;
+            sigs_from_index = collect_top_level_fun_signatures_from_index(
+                &callee_fqn,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            )?;
             sigs_from_index.as_slice()
         }
     };
@@ -899,8 +910,12 @@ pub(in crate::typecheck::expr) fn infer_top_level_fun_value_expr_type(
     let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
         Some(sigs) => sigs.as_slice(),
         None => {
-            sigs_from_index =
-                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+            sigs_from_index = collect_top_level_fun_signatures_from_index(
+                &callee_fqn,
+                inputs.source,
+                lower,
+                builtins,
+            )?;
             sigs_from_index.as_slice()
         }
     };

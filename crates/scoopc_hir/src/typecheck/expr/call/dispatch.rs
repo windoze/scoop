@@ -121,8 +121,12 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
                 Some(s) => s.as_slice(),
                 None => {
-                    sigs_from_index =
-                        collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+                    sigs_from_index = collect_top_level_fun_signatures_from_index(
+                        &callee_fqn,
+                        inputs.source,
+                        lower,
+                        builtins,
+                    )?;
                     if sigs_from_index.is_empty() {
                         if explicit_type_args
                             .as_ref()
@@ -745,7 +749,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             }
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
-            for cand in direct_call_candidates {
+            for cand in direct_call_candidates.iter().copied() {
                 let exact_mapping = map_call_args_to_params_with_defaults_and_varargs(
                     &call_args,
                     &cand.param_names,
@@ -1085,8 +1089,35 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
             let chosen = match matched.len() {
                 0 => {
-                    return Err(ExprTypeError::NoMatchingOverload {
+                    let name = short_name_from_fqn(&callee_fqn).to_string();
+                    let candidates = join_overload_rejections(
+                        direct_call_candidates
+                            .iter()
+                            .map(|cand| OverloadRejection {
+                                signature: fmt_overload_signature(&name, None, &cand.params, lower),
+                                location: format_candidate_location(
+                                    lower,
+                                    &cand.decl_file,
+                                    cand.decl_span,
+                                ),
+                                reason: describe_basic_applicability_rejection(
+                                    BasicApplicabilityRejection {
+                                        call_args: &call_args,
+                                        param_names: &cand.param_names,
+                                        param_has_defaults: &cand.param_has_defaults,
+                                        param_is_vararg: &cand.param_is_vararg,
+                                        param_tys: &cand.params,
+                                        source,
+                                        lower,
+                                        builtins,
+                                    },
+                                ),
+                            })
+                            .collect(),
+                    );
+                    return Err(ExprTypeError::NoApplicableOverload {
                         callee: callee_fqn,
+                        candidates,
                         span: call_expr.span.into(),
                     });
                 }

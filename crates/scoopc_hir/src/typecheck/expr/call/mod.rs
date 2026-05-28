@@ -80,6 +80,159 @@ struct ExplicitTypeApplyArgs {
     eff_arg: Option<EffectRow>,
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct OverloadRejection {
+    pub(super) signature: String,
+    pub(super) location: String,
+    pub(super) reason: String,
+}
+
+pub(super) fn format_candidate_location(
+    lower: &TypeLowering<'_>,
+    decl_file: &Path,
+    decl_span: Span,
+) -> String {
+    let Some(source) = lower.env().source(decl_file) else {
+        return decl_file.display().to_string();
+    };
+    let Ok((line, col)) = source.offset_to_line_col(decl_span.start) else {
+        return decl_file.display().to_string();
+    };
+    format!("{}:{line}:{col}", decl_file.display())
+}
+
+pub(super) fn join_overload_rejections(rejections: Vec<OverloadRejection>) -> String {
+    let mut parts = rejections
+        .into_iter()
+        .map(|r| format!("{} @ {} - {}", r.signature, r.location, r.reason))
+        .collect::<Vec<_>>();
+    parts.sort();
+    parts.dedup();
+    parts.join("; ")
+}
+
+pub(super) struct BasicApplicabilityRejection<'a, 'expr, 'tcx> {
+    pub(super) call_args: &'a [CallArgInfo<'expr>],
+    pub(super) param_names: &'a [String],
+    pub(super) param_has_defaults: &'a [bool],
+    pub(super) param_is_vararg: &'a [bool],
+    pub(super) param_tys: &'a [TypeId],
+    pub(super) source: &'a SourceFile,
+    pub(super) lower: &'a TypeLowering<'tcx>,
+    pub(super) builtins: BuiltinTypes,
+}
+
+pub(super) fn describe_basic_applicability_rejection(
+    request: BasicApplicabilityRejection<'_, '_, '_>,
+) -> String {
+    let BasicApplicabilityRejection {
+        call_args,
+        param_names,
+        param_has_defaults,
+        param_is_vararg,
+        param_tys,
+        source,
+        lower,
+        builtins,
+    } = request;
+    let Some(mapping) = args::map_call_args_to_params_with_defaults_and_varargs(
+        call_args,
+        param_names,
+        param_has_defaults,
+        param_is_vararg,
+    ) else {
+        let required = args::required_param_count(param_has_defaults, param_is_vararg)
+            .unwrap_or_else(|| param_has_defaults.iter().filter(|d| !**d).count());
+        let vararg = args::vararg_param_index(param_is_vararg).is_some();
+        if call_args.len() < required {
+            return format!(
+                "arity mismatch: expected at least {required} argument(s), found {}",
+                call_args.len()
+            );
+        }
+        if !vararg && call_args.len() > param_names.len() {
+            return format!(
+                "arity mismatch: expected at most {} argument(s), found {}",
+                param_names.len(),
+                call_args.len()
+            );
+        }
+        return "argument names, defaults, or vararg mapping do not match".to_string();
+    };
+
+    for (param_idx, binding) in mapping.iter().enumerate() {
+        if let args::ParamArgBinding::Single(arg_idx) = binding
+            && call_args.get(*arg_idx).is_some_and(|a| a.is_spread)
+            && !param_is_vararg.get(param_idx).copied().unwrap_or(false)
+        {
+            return format!(
+                "argument {} uses spread but parameter `{}` is not vararg",
+                arg_idx + 1,
+                param_names
+                    .get(param_idx)
+                    .map(String::as_str)
+                    .unwrap_or("<unknown>")
+            );
+        }
+    }
+
+    for (param_idx, arg_idx) in args::expand_param_arg_pairs(&mapping) {
+        let Some(expected_ty) = param_tys.get(param_idx).copied() else {
+            return "candidate signature is malformed".to_string();
+        };
+        let Some(arg) = call_args.get(arg_idx) else {
+            return "argument mapping points outside the call".to_string();
+        };
+        if matches!(lower.type_kind(expected_ty), TypeKind::Param(_)) {
+            return "generic type arguments or where constraints could not be inferred/satisfied"
+                .to_string();
+        }
+
+        if arg.is_spread {
+            let Some(elem_tys) = args::spread_operand_element_types(arg.ty, lower) else {
+                return format!(
+                    "argument {} uses spread but its type {} is not Array or tuple",
+                    arg_idx + 1,
+                    lower.fmt_type(arg.ty)
+                );
+            };
+            for elem_ty in elem_tys {
+                if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                    continue;
+                }
+                return format!(
+                    "spread element type {} is not a subtype of parameter `{}` type {}",
+                    lower.fmt_type(elem_ty),
+                    param_names
+                        .get(param_idx)
+                        .map(String::as_str)
+                        .unwrap_or("<unknown>"),
+                    lower.fmt_type(expected_ty)
+                );
+            }
+            continue;
+        }
+
+        if is_type_assignable(arg.ty, expected_ty, lower, builtins)
+            || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+        {
+            continue;
+        }
+        return format!(
+            "argument {} type {} is not a subtype of parameter `{}` type {}",
+            arg_idx + 1,
+            lower.fmt_type(arg.ty),
+            param_names
+                .get(param_idx)
+                .map(String::as_str)
+                .unwrap_or("<unknown>"),
+            lower.fmt_type(expected_ty)
+        );
+    }
+
+    "generic, effect, or where constraints rejected this candidate".to_string()
+}
+
 mod args;
 mod ctor;
 mod dispatch;

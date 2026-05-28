@@ -6,10 +6,9 @@ public struct Point {}
 public fun Point.ext() {}
 
 public struct WithMember {
-    // member 优先于 extension（即便 member 不可见，也不回退）。
+    // 不可见 member 不会压制调用点可见的 extension。
     private fun ext() {}
 }
 
-// 同名 extension：用于验证“star import 引入 extension”时仍遵守 member 优先（T0322）。
+// 同名 extension：用于验证 star import 引入的 visible extension 不会被 invisible member 压制。
 public fun WithMember.ext() {}
-

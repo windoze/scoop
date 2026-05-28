@@ -1,0 +1,17 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.phase_ac_visibility
+
+import scoop.core.*
+
+private fun visibleFirst(x: Bool): Int {
+    return 1
+}
+
+public fun visibleFirst(x: Int): Int {
+    return x
+}
+
+public fun visibleFirst(x: String): Int {
+    return 2
+}

@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
+// EXPECT-ERROR-AT: 10:19
+// EXPECT-ERROR: visibleFirst(Int)
+
+package fixtures.typecheck_multi.phase_ac_visibility
+
+import scoop.core.*
+
+val result: Int = visibleFirst(true)

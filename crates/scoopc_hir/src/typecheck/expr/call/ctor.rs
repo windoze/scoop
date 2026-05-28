@@ -399,6 +399,86 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     Ok(matched)
 }
 
+fn collect_ctor_overload_rejections_for_owner(
+    inputs: ExprInferInputs<'_>,
+    owner_fqn: &str,
+    callee_for_diag: &str,
+    call_args: &[CallArgInfo<'_>],
+    exclude_ctor_span: Option<Span>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Vec<OverloadRejection>, ExprTypeError> {
+    let builtins = inputs.builtins;
+    let use_cone = lower.index().cone_of_source(inputs.source);
+    let Some(ctors) = lower.index().constructors.get(owner_fqn).cloned() else {
+        return Ok(Vec::new());
+    };
+    let type_param_names: Vec<String> = lower
+        .env()
+        .type_symbol(owner_fqn)
+        .map(|sym| sym.type_param_names.clone())
+        .unwrap_or_default();
+
+    let mut rejections = Vec::new();
+    for ctor in ctors
+        .iter()
+        .filter(|ctor| is_ctor_visible_from(use_cone, inputs.source, ctor))
+    {
+        if exclude_ctor_span.is_some_and(|exclude| ctor.span == exclude) {
+            continue;
+        }
+
+        let mut param_tys = Vec::with_capacity(ctor.params.len());
+        let mut param_ty_strs = Vec::with_capacity(ctor.params.len());
+        let mut malformed = false;
+        for p in &ctor.params {
+            let Some(ty_ref) = p.ty.as_ref() else {
+                malformed = true;
+                break;
+            };
+            let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+                &ctor.decl_file,
+                &type_param_names,
+                ty_ref,
+            )?;
+            param_ty_strs.push(lower.fmt_type(ty));
+            param_tys.push(ty);
+        }
+
+        let param_names = ctor
+            .params
+            .iter()
+            .map(|p| p.name.clone())
+            .collect::<Vec<_>>();
+        let param_has_defaults = ctor
+            .params
+            .iter()
+            .map(|p| p.has_default)
+            .collect::<Vec<_>>();
+        let param_is_vararg = ctor.params.iter().map(|p| p.is_vararg).collect::<Vec<_>>();
+        let reason = if malformed {
+            "candidate signature is malformed".to_string()
+        } else {
+            describe_basic_applicability_rejection(BasicApplicabilityRejection {
+                call_args,
+                param_names: &param_names,
+                param_has_defaults: &param_has_defaults,
+                param_is_vararg: &param_is_vararg,
+                param_tys: &param_tys,
+                source: inputs.source,
+                lower,
+                builtins,
+            })
+        };
+        rejections.push(OverloadRejection {
+            signature: format!("{callee_for_diag}({})", param_ty_strs.join(", ")),
+            location: format_candidate_location(lower, &ctor.decl_file, ctor.span),
+            reason,
+        });
+    }
+
+    Ok(rejections)
+}
+
 pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
     inputs: ExprInferInputs<'_>,
     owner_fqn: &str,
@@ -421,8 +501,17 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
     )?;
 
     if matched.is_empty() {
-        return Err(ExprTypeError::NoMatchingOverload {
+        let candidates = join_overload_rejections(collect_ctor_overload_rejections_for_owner(
+            inputs,
+            owner_fqn,
+            callee_for_diag,
+            call_args,
+            exclude_ctor_span,
+            lower,
+        )?);
+        return Err(ExprTypeError::NoApplicableOverload {
             callee: callee_for_diag.to_string(),
+            candidates,
             span: call_span.into(),
         });
     }
@@ -582,8 +671,17 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
     )?;
 
     if matched.is_empty() {
-        return Err(ExprTypeError::NoMatchingOverload {
+        let candidates = join_overload_rejections(collect_ctor_overload_rejections_for_owner(
+            inputs,
+            &owner_fqn,
+            &callee_name,
+            &call_args,
+            None,
+            lower,
+        )?);
+        return Err(ExprTypeError::NoApplicableOverload {
             callee: callee_name,
+            candidates,
             span: call_expr.span.into(),
         });
     }
@@ -729,8 +827,20 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
     }
 
     if matched.is_empty() {
-        return Err(ExprTypeError::NoMatchingOverload {
+        let mut rejections = Vec::new();
+        for (owner_fqn, _) in &ctor_owners {
+            rejections.extend(collect_ctor_overload_rejections_for_owner(
+                inputs,
+                owner_fqn,
+                &callee_name,
+                &call_args,
+                None,
+                lower,
+            )?);
+        }
+        return Err(ExprTypeError::NoApplicableOverload {
             callee: callee_name,
+            candidates: join_overload_rejections(rejections),
             span: call_expr.span.into(),
         });
     }

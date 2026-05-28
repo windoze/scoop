@@ -1,9 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::no_matching_overload
-// EXPECT-ERROR: 没有匹配的重载
+// EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
+// EXPECT-ERROR: generic type arguments
 
-// P4-T01h：显式 ctor type args 与 ctor arg 反推 T 冲突时仍报 `no_matching_overload`
-// （不引入新错误码；仅由现有重载选择路径走）。
+// P5-T01：显式 ctor type args 与 ctor arg 反推 T 冲突时走 no-applicable overload，并列出候选原因。
 
 import scoop.core.*
 
