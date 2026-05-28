@@ -16,10 +16,9 @@ use super::call::{
     collect_member_method_signature_groups_from_receiver_ty, combined_member_instance_type_args,
     default_eff_arg_for_fun_sig, format_ambiguous_specificity_candidates,
     format_candidate_location, instantiate_eff_row_var_in_sig_types, instantiate_fun_sig_for_call,
-    map_call_args_to_params_with_defaults, pick_most_exact_param_match,
-    pick_most_specific_overload, pick_most_specific_param_types, specificity_candidate_for_fun_sig,
-    substitute_type_args_in_effect_row, type_param_name, type_ref_fn_effect_eff_base,
-    type_ref_nominal_eff_eff_base,
+    map_call_args_to_params_with_defaults, pick_most_specific_overload,
+    specificity_candidate_for_fun_sig, substitute_type_args_in_effect_row, type_param_name,
+    type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base,
 };
 use super::infer::ExpectedTypeFrom;
 use super::util::{fmt_overload_signature, join_overload_signatures};
@@ -784,9 +783,6 @@ fn record_scalar_operator_method_binding(
             continue;
         }
 
-        check_unsafe_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
-        check_nogc_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
-
         let args_match = explicit_args
             .iter()
             .enumerate()
@@ -810,25 +806,43 @@ fn record_scalar_operator_method_binding(
         0 => return Ok(None),
         1 => matched.remove(0),
         _ => {
-            let candidates = matched
+            let specificity = matched
                 .iter()
                 .map(|sig| {
                     let receiver_ty = sig.params.first().copied();
-                    fmt_overload_signature(
-                        method,
-                        receiver_ty,
-                        sig.params.get(1..).unwrap_or_default(),
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(
+                            method,
+                            receiver_ty,
+                            sig.params.get(1..).unwrap_or_default(),
+                            lower,
+                        ),
+                        format_candidate_location(lower, &sig.decl_file, sig.decl_span),
+                        sig,
                         lower,
+                        inputs.builtins,
+                        call_site_span,
                     )
                 })
-                .collect::<Vec<_>>();
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                candidates: join_overload_signatures(candidates),
-                span: call_site_span.into(),
-            });
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(chosen_idx) =
+                pick_most_specific_overload(&specificity, lower, inputs.builtins)
+            {
+                matched.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    candidates,
+                    span: call_site_span.into(),
+                });
+            }
         }
     };
+
+    check_unsafe_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
+    check_nogc_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
 
     record_member_method_effects_as_performed(
         &receiver_fqn,
@@ -1485,25 +1499,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins)
-                .or_else(|| {
-                    matched
-                        .iter()
-                        .all(|m| m.sig.type_params.is_empty())
-                        .then(|| {
-                            let params = matched
-                                .iter()
-                                .map(|m| m.instantiated.params.as_slice())
-                                .collect::<Vec<_>>();
-                            pick_most_specific_param_types(&params, lower, inputs.builtins).or_else(
-                                || {
-                                    let actual =
-                                        call_args.iter().map(|arg| arg.ty).collect::<Vec<_>>();
-                                    pick_most_exact_param_match(&params, &actual)
-                                },
-                            )
-                        })?
-                });
+            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins);
             if let Some(chosen_idx) = chosen_idx {
                 matched.remove(chosen_idx)
             } else {
@@ -2021,25 +2017,7 @@ fn infer_compare_to_overload_binary_expr_type(
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins)
-                .or_else(|| {
-                    matched
-                        .iter()
-                        .all(|m| m.sig.type_params.is_empty())
-                        .then(|| {
-                            let params = matched
-                                .iter()
-                                .map(|m| m.instantiated.params.as_slice())
-                                .collect::<Vec<_>>();
-                            pick_most_specific_param_types(&params, lower, inputs.builtins).or_else(
-                                || {
-                                    let actual =
-                                        call_args.iter().map(|arg| arg.ty).collect::<Vec<_>>();
-                                    pick_most_exact_param_match(&params, &actual)
-                                },
-                            )
-                        })?
-                });
+            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins);
             if let Some(chosen_idx) = chosen_idx {
                 matched.remove(chosen_idx)
             } else {

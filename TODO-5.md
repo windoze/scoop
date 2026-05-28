@@ -214,7 +214,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7、§8、§9、§11.3 的 P5-T03 call-surface 整合要求；member/static receiver、constructor existing coverage、operator desugar、function-type/value overload 与 effect-after-selection 已纳入同一 selection 语义；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T03R：Review call surface 整合结果
+### [DONE] P5-T03R：Review call surface 整合结果
 
 - 参考：
   - P5-T03 完成记录
@@ -239,10 +239,10 @@
   - P5-T03 行为符合 §7-§9。
 - 依赖：P5-T03
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P5-T03 的 member / constructor / operator / lambda/function-value / effect-after-selection 路径；更新 `typecheck/expr/call/{effect_op.rs,mod.rs,value_call.rs}` 与 `typecheck/expr/ops.rs`，让 inherited member signature collection 使用当前 owner receiver type、移除 function-value / operator / compareTo 的非 spec exact-match 选择兜底，并让 scalar operator unsafe/NoGC gate 在唯一候选选中后执行；新增 member effect-after-selection no-fallback 与 operator-positioned plain-method ignore fixtures。
+  - 核心决策：P5-T03R 不接受 expected/actual 参数 exact-match 作为 Phase D/E 之外的 tie-break；call surface 继续以 declared effective parameter specificity 作为唯一选择来源，effect / unsafe / NoGC gate 只作用于选中候选；operator-positioned call 只在 `operator` 候选间 resolution，适用但未标记 `operator` 的同名方法不得影响选择。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7-§9 的 call surface review 要求；确认 member static receiver / child overload set、constructor existing coverage、operator gate、function-value specificity 和 effect-after-selection 均未引入 runtime class 或 effect compatibility 参与 overload choice；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T04：贯通 selected callable identity，修复 concrete / arity / generic-concrete codegen bug
 

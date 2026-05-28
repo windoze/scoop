@@ -81,7 +81,7 @@ pub(in crate::typecheck::expr) fn collect_member_method_signature_groups_from_re
         let candidate_fqn = format!("{owner_fqn}.{member_name}");
         let mut sigs = collect_member_method_signatures_from_index(
             inputs.source,
-            receiver_ty,
+            owner_ty,
             &owner_fqn,
             &owner_args,
             &candidate_fqn,

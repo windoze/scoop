@@ -1,37 +1,36 @@
 # 当前执行计划
 
-## 范围
+## 约束
 
-- 本次只处理 `TODO.md` 中第一个标题未以 `[DONE]` 开头的任务。
-- 不提前处理后续任务；若遇到阻塞当前任务的实现缺口或未排期失败，将按要求更新 `TODO.md` 并停止。
+- 以 `TODO.md` 为任务顺序和完成状态的唯一权威来源。
+- 本次只完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 若发现当前任务被具体缺陷或缺失特性阻塞，优先修复该阻塞项；若无法在本次直接修复，则在 `TODO.md` 中插入最小前置任务并提交后停止。
+- 不使用规避实现、弱化测试或变更任务范围来绕过规范不匹配。
+- 在提交前按要求运行格式化、lint、相关测试，以及需要时的完整测试/fixture 套件。
 
 ## 步骤
 
-1. 读取 `TODO.md`，确定第一个未完成任务及其验证要求。
-2. 检查最近提交和当前工作区状态，确认是否存在与该任务直接相关的未完成事项或未提交变更。
-3. 阅读当前任务涉及的代码、测试和文档，明确最小正确实现范围。
-4. 实现任务；如发现必须先修复的具体前置问题，则更新 `TODO.md` 记录前置任务并停止。
-5. 运行格式化、lint、相关测试；若代码变更影响全量验证，则按要求运行完整测试和 fixture 套件。
-6. 更新 `TODO.md`：给当前任务标题加 `[DONE]`，填写完成记录和验证结果。
-7. 更新本文件记录关键执行结果。
-8. 检查 diff，提交所有本次任务相关变更，然后停止。
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录其依赖、验证要求和完成记录格式。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只把直接阻塞当前任务的问题纳入范围。
+3. 根据任务内容检查相关源码、测试和文档，确认需要修改的最小范围。
+4. 实现当前任务；若发现规范级阻塞，更新 `TODO.md` 中的依赖/前置任务并停止。
+5. 运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，随后运行任务要求的相关测试；若代码变更影响全局行为，再运行完整 Rust 测试和 fixture 套件。
+6. 处理所有未明确排期的失败测试/fixture：能修则修，不能修则在 `TODO.md` 中加入最小必要前置任务。
+7. 将当前任务标题加上 `[DONE]`，更新完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+8. 检查 git 状态和 diff，提交本次任务相关的所有未提交变更。
+9. 停止，不继续下一个任务。
 
-## 当前状态
+## 进度
 
-- 已选定当前任务：`P5-T03：整合 member / constructor / operator / effect-after-selection 路径`。
-- 当前重点：审查 call dispatch、member call、constructor call、operator call、function value call 与 effect 校验顺序，确认哪些路径仍绕过统一 overload selection。
-- 工作区注意事项：已有未跟踪 `REFLECTION.md`，不是本次任务创建；除非后续确认相关，否则不修改、不提交。
-
-## 已确认改动点
-
-- `member_call` direct path 仍以单个 member FQN 收集签名；当子类新增同名 overload 时，会遮掉父类继承 overload，需要按静态 receiver 类型收集 child + inherited overload set，并用 child override replacement 过滤父类同签名候选。
-- `ops` operator / `compareTo` 路径仍在多个 applicable operator 候选时报 `ambiguous_overload`，且 `@Unsafe` / `@NoGC` gate 在候选循环内执行；需要改为先 Phase A-C，随后 Phase D-E specificity，最后只对选中候选执行 gate/effect 记录。
-- `value_call` 的 top-level function value 选择在多个可赋值 overload 时仍直接报歧义；需要复用 specificity helper。
-- 计划新增/更新 targeted fixtures：member child inherited set、operator specificity、effect mismatch after selected overload no fallback、function value specificity。
-
-## 完成记录
-
-- 已实现 P5-T03：direct member call 收集静态 receiver 的 child + inherited overload set，operator / compareTo 在 modifier gate 后进入 specificity，顶层函数值 overload 在 expected function type 下选择最具体候选，effect gate 保持 selection 后记录。
-- 已新增/更新 P5-T03 fixtures：member inherited/override/child-added overload、static receiver no runtime overload、operator specificity、effect mismatch after selected overload no fallback、top-level function value specificity。
-- 已通过验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-- 已更新 `TODO.md` 与 `TODO-5.md`，将 `P5-T03` 标记为 `[DONE]` 并填写完成记录。
+- 已定位首个未完成任务：`P5-T03R`，review `P5-T03` 的 call surface 整合结果。
+- 最近提交为 `[P5-T03] Integrate call surface overload resolution`，与当前 review 直接相关；本次将以该提交完成记录和 `OVERLOAD_RESOLUTION.md` §7-§9 为基准。
+- 已确认并修正 review 范围内的三个缺口：inherited member receiver effective type 不再被调用 receiver 抹平；删除 function-value / operator / compareTo 的 exact-match 兜底；scalar operator unsafe/NoGC gate 改为唯一候选选中后执行。
+- 已新增并保留 targeted fixtures 覆盖 member effect-after-selection no fallback，以及适用但非 `operator` 的同名方法不影响 operator-positioned selection。
+- 已校准两个不稳定负例（inherited receiver ambiguity、function-value exact-match ambiguity）并删除，避免把当前实现未承诺的诊断形态写成错误期望。
+- Targeted `tests/fixtures/typecheck` 已通过（536 个 fixture）。
+- `cargo clippy --all-targets -- -D warnings` 已通过。
+- `cargo test --all --all-targets` 已通过。
+- `python3 tools/spec_fixtures.py check` 已通过。
+- 完整 `python3 tools/run_fixtures.py` 已通过（1606 checks）。
+- 已将 `P5-T03R` 在 `TODO.md` 和 `TODO-5.md` 标记为 `[DONE]` 并填写完成记录。
+- 下一步检查 git diff / status，提交本任务变更后停止。

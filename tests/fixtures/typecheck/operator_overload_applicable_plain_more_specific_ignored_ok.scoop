@@ -1,0 +1,31 @@
+// EXPECT: pass
+// 目标：P5-T03R；operator-positioned call 只在 operator 候选间做 selection，适用但未标记 operator 的同名方法不能影响结果。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base()
+
+open class Derived() : Base()
+
+class MoreDerived() : Derived()
+
+struct Box {
+    operator fun plus(other: Base): Base {
+        return other
+    }
+
+    operator fun plus(other: Derived): Derived {
+        return other
+    }
+
+    fun plus(other: MoreDerived): MoreDerived {
+        return other
+    }
+}
+
+fun ok(box: Box, more: MoreDerived): Derived {
+    val picked: Derived = box + more
+    return picked
+}
