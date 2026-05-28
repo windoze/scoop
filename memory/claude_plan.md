@@ -33,4 +33,6 @@
 - `python3 tools/spec_fixtures.py check` 已通过。
 - 完整 `python3 tools/run_fixtures.py` 已通过（1606 checks）。
 - 已将 `P5-T03R` 在 `TODO.md` 和 `TODO-5.md` 标记为 `[DONE]` 并填写完成记录。
-- 下一步检查 git diff / status，提交本任务变更后停止。
+- 已提交本任务变更：`4114289b [P5-T03R] Review call surface overload resolution`。
+- 当前仅剩与本任务无关的未跟踪 `REFLECTION.md`；不纳入本次提交。
+- 本次任务已完成，应停止，不继续 `P5-T04`。
