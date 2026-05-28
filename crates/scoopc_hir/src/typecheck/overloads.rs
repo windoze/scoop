@@ -47,17 +47,38 @@ pub enum OverloadDeclError {
         #[label("第一次声明在这里")]
         previous: miette::SourceSpan,
     },
+
+    #[error(
+        "不支持的泛型重载 shape：{fqn}：{previous_signature} <-> {conflict_signature}；only differ-by-bound generic overloads are supported; rename the function or restructure"
+    )]
+    #[diagnostic(
+        code(scoop::typecheck::generic_overload_shape_mismatch),
+        help(
+            "only differ-by-bound generic overloads are supported; rename the function or restructure"
+        )
+    )]
+    GenericShapeMismatch {
+        fqn: Box<str>,
+        previous_signature: Box<str>,
+        conflict_signature: Box<str>,
+        #[label("泛型重载 shape 不兼容")]
+        conflict: miette::SourceSpan,
+        #[label("候选声明在这里")]
+        previous: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
 struct ParamInfo {
     effective_ty: EffectiveType,
+    shape: GenericShape,
     has_default: bool,
 }
 
 #[derive(Debug, Clone)]
 struct FunSigInfo {
     receiver: Option<EffectiveType>,
+    receiver_shape: Option<GenericShape>,
     params: Vec<ParamInfo>,
     return_ty: Option<TypeId>,
     effects: EffectRow,
@@ -77,6 +98,7 @@ struct CtorSigInfo {
 #[derive(Debug, Clone, Copy)]
 struct EffectiveSignature<'a> {
     receiver: Option<&'a EffectiveType>,
+    receiver_shape: Option<&'a GenericShape>,
     params: &'a [ParamInfo],
 }
 
@@ -84,6 +106,7 @@ impl FunSigInfo {
     fn effective_signature(&self) -> EffectiveSignature<'_> {
         EffectiveSignature {
             receiver: self.receiver.as_ref(),
+            receiver_shape: self.receiver_shape.as_ref(),
             params: &self.params,
         }
     }
@@ -93,6 +116,7 @@ impl CtorSigInfo {
     fn effective_signature(&self) -> EffectiveSignature<'_> {
         EffectiveSignature {
             receiver: None,
+            receiver_shape: None,
             params: &self.params,
         }
     }
@@ -146,6 +170,34 @@ impl<'a> EffectiveSignature<'a> {
             .take(k)
             .zip(other.params.iter().take(k))
             .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
+    }
+
+    fn has_method_type_param_shape(self) -> bool {
+        self.receiver_shape.is_some_and(GenericShape::contains_hole)
+            || self.params.iter().any(|param| param.shape.contains_hole())
+    }
+
+    fn has_generic_shape_mismatch(self, other: Self) -> bool {
+        if !self.has_method_type_param_shape() && !other.has_method_type_param_shape() {
+            return false;
+        }
+        // Shape mismatch is a refinement of signature-equivalence conflicts:
+        // candidates with distinct effective signatures remain call-site candidates.
+        if !self.is_equivalent_to(other) {
+            return false;
+        }
+
+        let mut matcher = GenericShapeMatcher::default();
+        match (self.receiver_shape, other.receiver_shape) {
+            (Some(left), Some(right)) if !matcher.matches(left, right) => return true,
+            (Some(_), None) | (None, Some(_)) => return false,
+            _ => {}
+        }
+
+        self.params
+            .iter()
+            .zip(other.params)
+            .any(|(left, right)| !matcher.matches(&left.shape, &right.shape))
     }
 }
 
@@ -218,6 +270,38 @@ enum EffectiveType {
     RefBound,
     ValueBound,
     Intersection(Vec<EffectiveType>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct GenericEffectShape {
+    terms: Vec<GenericShape>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum GenericShape {
+    Closed(EffectiveType),
+    Option(Box<GenericShape>),
+    Tuple(Vec<GenericShape>),
+    RefNominal {
+        fqn: String,
+        args: Vec<GenericShape>,
+        eff: Option<GenericEffectShape>,
+    },
+    ValueNominal {
+        fqn: String,
+        args: Vec<GenericShape>,
+        eff: Option<GenericEffectShape>,
+    },
+    Function {
+        receiver: Option<Box<GenericShape>>,
+        params: Vec<GenericShape>,
+        return_ty: Box<GenericShape>,
+        effects: GenericEffectShape,
+        effects_closed: bool,
+    },
+    Union(Vec<GenericShape>),
+    StarProjection(Box<GenericShape>),
+    Hole(TypeParamKey),
 }
 
 #[derive(Debug, Clone)]
@@ -531,16 +615,23 @@ fn collect_fun_decl(
     let effective_bounds =
         collect_method_type_param_effective_bounds(source, fun, lower, builtins)?;
 
-    let receiver = match &fun.receiver {
+    let (receiver, receiver_shape) = match &fun.receiver {
         Some(r) => {
             let ty = lower.lower_type_ref(r)?;
-            Some(effective_type_from_type_id(
-                ty,
-                lower.types(),
-                &effective_bounds,
-            ))
+            (
+                Some(effective_type_from_type_id(
+                    ty,
+                    lower.types(),
+                    &effective_bounds,
+                )),
+                Some(generic_shape_from_type_id(
+                    ty,
+                    lower.types(),
+                    &effective_bounds,
+                )),
+            )
         }
-        None => None,
+        None => (None, None),
     };
     let params = lower_params(source, &fun.params, lower, &effective_bounds)?;
     let return_ty = match &fun.return_ty {
@@ -564,6 +655,7 @@ fn collect_fun_decl(
             name_span: fun.name.span,
             sig: FunSigInfo {
                 receiver,
+                receiver_shape,
                 params,
                 return_ty,
                 effects,
@@ -588,6 +680,7 @@ fn lower_params(
 
         let id = lower.lower_type_ref(ty)?;
         let effective_ty = effective_type_from_type_id(id, lower.types(), effective_bounds);
+        let shape = generic_shape_from_type_id(id, lower.types(), effective_bounds);
         let has_default = p.default_value.is_some();
 
         // 这里保留 name 主要是为后续 named args 冲突分析做铺垫；
@@ -596,6 +689,7 @@ fn lower_params(
 
         out.push(ParamInfo {
             effective_ty,
+            shape,
             has_default,
         });
     }
@@ -838,6 +932,168 @@ fn effective_effect_row(
     }
 }
 
+fn generic_shape_from_type_id(
+    ty: TypeId,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> GenericShape {
+    match types.kind(ty) {
+        TypeKind::Ref(kind) => generic_ref_shape(kind, types, effective_bounds),
+        TypeKind::Value(kind) => generic_value_shape(kind, types, effective_bounds),
+        TypeKind::StarProjection(star) => GenericShape::StarProjection(Box::new(
+            generic_shape_from_type_id(star.read_ty, types, effective_bounds),
+        )),
+        TypeKind::Param(param) => {
+            let key = TypeParamKey::from_type_param(param);
+            if let Some(method_key) = method_type_param_key(&key, effective_bounds) {
+                GenericShape::Hole(method_key)
+            } else {
+                GenericShape::Closed(effective_type_from_type_id(ty, types, effective_bounds))
+            }
+        }
+    }
+}
+
+fn method_type_param_key(
+    key: &TypeParamKey,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> Option<TypeParamKey> {
+    effective_bounds
+        .keys()
+        .find(|method_key| *method_key == key)
+        .or_else(|| {
+            effective_bounds
+                .keys()
+                .find(|method_key| method_key.name == key.name)
+        })
+        .cloned()
+}
+
+fn generic_ref_shape(
+    kind: &RefTypeKind,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> GenericShape {
+    match kind {
+        RefTypeKind::Any => GenericShape::Closed(EffectiveType::Any),
+        RefTypeKind::String => GenericShape::Closed(EffectiveType::String),
+        RefTypeKind::Nominal(nominal) => {
+            let (args, eff) = generic_nominal_shape_parts(nominal, types, effective_bounds);
+            GenericShape::RefNominal {
+                fqn: nominal.fqn.clone(),
+                args,
+                eff,
+            }
+        }
+        RefTypeKind::Function(fun) => generic_function_shape(fun, types, effective_bounds),
+        RefTypeKind::Union(union) => GenericShape::Union(
+            union
+                .variants
+                .iter()
+                .copied()
+                .map(|ty| generic_shape_from_type_id(ty, types, effective_bounds))
+                .collect(),
+        ),
+    }
+}
+
+fn generic_value_shape(
+    kind: &ValueTypeKind,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> GenericShape {
+    match kind {
+        ValueTypeKind::Option(inner) => GenericShape::Option(Box::new(generic_shape_from_type_id(
+            *inner,
+            types,
+            effective_bounds,
+        ))),
+        ValueTypeKind::Tuple(elements) => GenericShape::Tuple(
+            elements
+                .iter()
+                .copied()
+                .map(|ty| generic_shape_from_type_id(ty, types, effective_bounds))
+                .collect(),
+        ),
+        ValueTypeKind::Nominal(nominal) => {
+            let (args, eff) = generic_nominal_shape_parts(nominal, types, effective_bounds);
+            GenericShape::ValueNominal {
+                fqn: nominal.fqn.clone(),
+                args,
+                eff,
+            }
+        }
+        ValueTypeKind::Unit => GenericShape::Closed(EffectiveType::Unit),
+        ValueTypeKind::Nothing => GenericShape::Closed(EffectiveType::Nothing),
+        ValueTypeKind::Bool => GenericShape::Closed(EffectiveType::Bool),
+        ValueTypeKind::Char => GenericShape::Closed(EffectiveType::Char),
+        ValueTypeKind::Float64 => GenericShape::Closed(EffectiveType::Float64),
+        ValueTypeKind::Float32 => GenericShape::Closed(EffectiveType::Float32),
+        ValueTypeKind::Int => GenericShape::Closed(EffectiveType::Int),
+        ValueTypeKind::UInt => GenericShape::Closed(EffectiveType::UInt),
+        ValueTypeKind::IntN(bits) => GenericShape::Closed(EffectiveType::IntN(*bits)),
+        ValueTypeKind::UIntN(bits) => GenericShape::Closed(EffectiveType::UIntN(*bits)),
+    }
+}
+
+fn generic_nominal_shape_parts(
+    nominal: &NominalType,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> (Vec<GenericShape>, Option<GenericEffectShape>) {
+    let args = nominal
+        .args
+        .iter()
+        .copied()
+        .map(|ty| generic_shape_from_type_id(ty, types, effective_bounds))
+        .collect();
+    let eff = nominal
+        .eff
+        .as_ref()
+        .map(|row| generic_effect_shape(row, types, effective_bounds));
+    (args, eff)
+}
+
+fn generic_function_shape(
+    fun: &FunctionType,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> GenericShape {
+    GenericShape::Function {
+        receiver: fun
+            .receiver
+            .map(|ty| Box::new(generic_shape_from_type_id(ty, types, effective_bounds))),
+        params: fun
+            .params
+            .iter()
+            .copied()
+            .map(|ty| generic_shape_from_type_id(ty, types, effective_bounds))
+            .collect(),
+        return_ty: Box::new(generic_shape_from_type_id(
+            fun.return_ty,
+            types,
+            effective_bounds,
+        )),
+        effects: generic_effect_shape(&fun.effects, types, effective_bounds),
+        effects_closed: fun.effects_closed,
+    }
+}
+
+fn generic_effect_shape(
+    row: &EffectRow,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> GenericEffectShape {
+    GenericEffectShape {
+        terms: row
+            .terms
+            .iter()
+            .copied()
+            .map(|ty| generic_shape_from_type_id(ty, types, effective_bounds))
+            .collect(),
+    }
+}
+
 fn canonical_effective_intersection(mut terms: Vec<EffectiveType>) -> EffectiveType {
     let mut flat = Vec::new();
     for term in terms.drain(..) {
@@ -865,6 +1121,214 @@ fn canonical_effective_intersection(mut terms: Vec<EffectiveType>) -> EffectiveT
             unique.sort_by_key(EffectiveType::sort_key);
             EffectiveType::Intersection(unique)
         }
+    }
+}
+
+impl GenericShape {
+    fn contains_hole(&self) -> bool {
+        match self {
+            GenericShape::Closed(_) => false,
+            GenericShape::Option(inner) | GenericShape::StarProjection(inner) => {
+                inner.contains_hole()
+            }
+            GenericShape::Tuple(elements) | GenericShape::Union(elements) => {
+                elements.iter().any(GenericShape::contains_hole)
+            }
+            GenericShape::RefNominal { args, eff, .. }
+            | GenericShape::ValueNominal { args, eff, .. } => {
+                args.iter().any(GenericShape::contains_hole)
+                    || eff.as_ref().is_some_and(GenericEffectShape::contains_hole)
+            }
+            GenericShape::Function {
+                receiver,
+                params,
+                return_ty,
+                effects,
+                ..
+            } => {
+                receiver
+                    .as_ref()
+                    .is_some_and(|receiver| receiver.contains_hole())
+                    || params.iter().any(GenericShape::contains_hole)
+                    || return_ty.contains_hole()
+                    || effects.contains_hole()
+            }
+            GenericShape::Hole(_) => true,
+        }
+    }
+}
+
+impl GenericEffectShape {
+    fn contains_hole(&self) -> bool {
+        self.terms.iter().any(GenericShape::contains_hole)
+    }
+}
+
+#[derive(Default)]
+struct GenericShapeMatcher {
+    left_to_right_holes: HashMap<TypeParamKey, TypeParamKey>,
+    right_to_left_holes: HashMap<TypeParamKey, TypeParamKey>,
+    left_to_closed: HashMap<TypeParamKey, GenericShape>,
+    right_to_closed: HashMap<TypeParamKey, GenericShape>,
+}
+
+impl GenericShapeMatcher {
+    fn matches(&mut self, left: &GenericShape, right: &GenericShape) -> bool {
+        match (left, right) {
+            (GenericShape::Hole(left_key), GenericShape::Hole(right_key)) => {
+                self.match_holes(left_key, right_key)
+            }
+            (GenericShape::Hole(left_key), right) if !right.contains_hole() => {
+                self.match_left_hole_to_closed(left_key, right)
+            }
+            (left, GenericShape::Hole(right_key)) if !left.contains_hole() => {
+                self.match_right_hole_to_closed(right_key, left)
+            }
+            (GenericShape::Closed(left), GenericShape::Closed(right)) => left == right,
+            (GenericShape::Option(left), GenericShape::Option(right))
+            | (GenericShape::StarProjection(left), GenericShape::StarProjection(right)) => {
+                self.matches(left, right)
+            }
+            (GenericShape::Tuple(left), GenericShape::Tuple(right))
+            | (GenericShape::Union(left), GenericShape::Union(right)) => {
+                self.match_shape_slices(left, right)
+            }
+            (
+                GenericShape::RefNominal {
+                    fqn: left_fqn,
+                    args: left_args,
+                    eff: left_eff,
+                },
+                GenericShape::RefNominal {
+                    fqn: right_fqn,
+                    args: right_args,
+                    eff: right_eff,
+                },
+            )
+            | (
+                GenericShape::ValueNominal {
+                    fqn: left_fqn,
+                    args: left_args,
+                    eff: left_eff,
+                },
+                GenericShape::ValueNominal {
+                    fqn: right_fqn,
+                    args: right_args,
+                    eff: right_eff,
+                },
+            ) => {
+                left_fqn == right_fqn
+                    && self.match_shape_slices(left_args, right_args)
+                    && self.match_effect_shapes(left_eff.as_ref(), right_eff.as_ref())
+            }
+            (
+                GenericShape::Function {
+                    receiver: left_receiver,
+                    params: left_params,
+                    return_ty: left_return,
+                    effects: left_effects,
+                    effects_closed: left_closed,
+                },
+                GenericShape::Function {
+                    receiver: right_receiver,
+                    params: right_params,
+                    return_ty: right_return,
+                    effects: right_effects,
+                    effects_closed: right_closed,
+                },
+            ) => {
+                left_closed == right_closed
+                    && self
+                        .match_optional_shape(left_receiver.as_deref(), right_receiver.as_deref())
+                    && self.match_shape_slices(left_params, right_params)
+                    && self.matches(left_return, right_return)
+                    && self.match_effect_rows(left_effects, right_effects)
+            }
+            _ => false,
+        }
+    }
+
+    fn match_holes(&mut self, left: &TypeParamKey, right: &TypeParamKey) -> bool {
+        if self.left_to_closed.contains_key(left) || self.right_to_closed.contains_key(right) {
+            return false;
+        }
+
+        match (
+            self.left_to_right_holes.get(left),
+            self.right_to_left_holes.get(right),
+        ) {
+            (Some(existing_right), Some(existing_left)) => {
+                existing_right == right && existing_left == left
+            }
+            (Some(_), None) | (None, Some(_)) => false,
+            (None, None) => {
+                self.left_to_right_holes.insert(left.clone(), right.clone());
+                self.right_to_left_holes.insert(right.clone(), left.clone());
+                true
+            }
+        }
+    }
+
+    fn match_left_hole_to_closed(&mut self, left: &TypeParamKey, closed: &GenericShape) -> bool {
+        if self.left_to_right_holes.contains_key(left) {
+            return false;
+        }
+        match self.left_to_closed.get(left) {
+            Some(existing) => existing == closed,
+            None => {
+                self.left_to_closed.insert(left.clone(), closed.clone());
+                true
+            }
+        }
+    }
+
+    fn match_right_hole_to_closed(&mut self, right: &TypeParamKey, closed: &GenericShape) -> bool {
+        if self.right_to_left_holes.contains_key(right) {
+            return false;
+        }
+        match self.right_to_closed.get(right) {
+            Some(existing) => existing == closed,
+            None => {
+                self.right_to_closed.insert(right.clone(), closed.clone());
+                true
+            }
+        }
+    }
+
+    fn match_shape_slices(&mut self, left: &[GenericShape], right: &[GenericShape]) -> bool {
+        left.len() == right.len()
+            && left
+                .iter()
+                .zip(right)
+                .all(|(left, right)| self.matches(left, right))
+    }
+
+    fn match_optional_shape(
+        &mut self,
+        left: Option<&GenericShape>,
+        right: Option<&GenericShape>,
+    ) -> bool {
+        match (left, right) {
+            (Some(left), Some(right)) => self.matches(left, right),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    fn match_effect_shapes(
+        &mut self,
+        left: Option<&GenericEffectShape>,
+        right: Option<&GenericEffectShape>,
+    ) -> bool {
+        match (left, right) {
+            (Some(left), Some(right)) => self.match_effect_rows(left, right),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    fn match_effect_rows(&mut self, left: &GenericEffectShape, right: &GenericEffectShape) -> bool {
+        self.match_shape_slices(&left.terms, &right.terms)
     }
 }
 
@@ -1008,6 +1472,16 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
 
+            if a_sig.has_generic_shape_mismatch(b_sig) {
+                return Err(OverloadDeclError::GenericShapeMismatch {
+                    fqn: fqn.to_string().into_boxed_str(),
+                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    conflict: b.name_span.into(),
+                    previous: a.name_span.into(),
+                });
+            }
+
             if a_sig.is_equivalent_to(b_sig) {
                 let reason = match (a.sig.return_ty, b.sig.return_ty) {
                     (Some(ra), Some(rb)) if ra != rb => {
@@ -1062,6 +1536,16 @@ fn check_ctor_overload_set(
             let b = &decls[j];
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
+
+            if a_sig.has_generic_shape_mismatch(b_sig) {
+                return Err(OverloadDeclError::GenericShapeMismatch {
+                    fqn: format!("{type_fqn}.<init>").into_boxed_str(),
+                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    conflict: b.span.into(),
+                    previous: a.span.into(),
+                });
+            }
 
             if a_sig.is_equivalent_to(b_sig) {
                 return Err(OverloadDeclError::Conflict {

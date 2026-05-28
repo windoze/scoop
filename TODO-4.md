@@ -72,7 +72,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent、default param、constructor default ambiguity）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：确认并收紧 `OVERLOAD_RESOLUTION.md` §4.1、§6.4、§9.1 对 signature equivalence 的要求；`P4-T02` / `P4-T03` / `P4-T05` 可基于统一 `EffectiveSignature` 继续实现 definition-time overload 规则；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T02：实现 generic overload shape 规则
+### [DONE] P4-T02：实现 generic overload shape 规则
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -100,10 +100,10 @@
   - Generic overload sets entering P5 match `OVERLOAD_RESOLUTION.md` §4.2.
 - 依赖：P4-T01R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 为 definition-time overload checks 增加 `GenericShape` / `GenericShapeMatcher`，让同 effective signature 但方法级 type parameter 拓扑不兼容的泛型重载报 `scoop::typecheck::generic_overload_shape_mismatch`；fun / constructor overload set 均复用该检查入口；新增 typecheck fixtures 覆盖 differ-by-bound 合法、concrete + generic 合法、incomparable bounds 合法，以及 `T,T` vs `T,U` consistency shape mismatch reject。
+  - 核心决策：generic shape mismatch 只在 effective signature 已经相同、否则会落入 `overload_conflict` 的 definition-time 冲突类中进一步区分；同 shape 仅 bound 不同的候选继续放行到 P5 call-site specificity，bound 不可比也不在定义点提前 reject；receiver / parameter effective shape 本身不同的既有合法 overload（例如 sysroot `FunPtr` receiver-function invoke variants）不被误判为 P4-T02 consistency constraint。
+  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted generic overload fixtures；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.2、§6.4 与 `PLAN.md` P4 对 generic overload shape definition-time reject / allowlist 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T02R：Review generic overload shape 规则
 

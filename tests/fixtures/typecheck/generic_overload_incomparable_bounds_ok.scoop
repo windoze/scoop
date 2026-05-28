@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+interface ComparableShape {}
+interface NumericShape {}
+
+fun <T: ComparableShape> incomparableBound(x: T): Unit {}
+
+fun <T: NumericShape> incomparableBound(x: T): Unit {}
+

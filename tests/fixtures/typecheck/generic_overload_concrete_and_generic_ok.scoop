@@ -1,0 +1,8 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+fun <T> concreteGeneric(x: T): Unit {}
+
+fun concreteGeneric(x: Int): Unit {}
+

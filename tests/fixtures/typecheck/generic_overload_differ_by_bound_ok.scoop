@@ -1,0 +1,10 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+interface DebugShape {}
+
+fun <T> shapeBound(x: T): Unit {}
+
+fun <T: DebugShape> shapeBound(x: T): Unit {}
+

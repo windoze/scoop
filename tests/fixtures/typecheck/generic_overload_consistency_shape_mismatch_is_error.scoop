@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_overload_shape_mismatch
+// EXPECT-ERROR-AT: 10:12
+// EXPECT-ERROR: only differ-by-bound generic overloads are supported
+
+package fixtures.typecheck
+
+fun <T> consistencyShape(x: T, y: T): Unit {}
+
+fun <T, U> consistencyShape(x: T, y: U): Unit {}
