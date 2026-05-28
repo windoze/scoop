@@ -311,7 +311,7 @@
   - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted closure fixtures（`closure_capture_var_make_counter_is_error.scoop`、`closure_capture_val_snapshot_ok.scoop`、`closure_capture_refcell_make_counter.scoop`、HIR/MIR val capture、composite closure capture）；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 `assignment_places.mir` 与 `aggregate_transport.mir` golden 漂移，更新 golden 后 targeted fixture 通过，最终完整 fixture suite 通过（`fixtures: ok (1556)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 closure `var` capture 禁止要求：`makeCounter` 风格 snapshot surprise 在前端被拒绝，诊断给出显式替代方案，`val` capture 行为保持不变；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T05R：Review closure `var` capture 诊断
+### [DONE] P3-T05R：Review closure `var` capture 诊断
 
 - 参考：
   - P3-T05 完成记录
@@ -335,10 +335,10 @@
   - B5 语义完整闭合。
 - 依赖：P3-T05
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T05 的 `closure_capture.rs` 检查器、lambda inference / statement-position structural check 接入、`closure_var_capture_not_allowed` diagnostic，以及 closure capture fixtures；新增嵌套 closure 捕获外层 closure 局部 `var` 的负例 `closure_capture_var_nested_lambda_is_error.scoop`，新增同 closure 内局部 `var` 使用正例 `closure_local_var_inside_lambda_ok.scoop`，并收紧 makeCounter 负例以检查 `RefCell<T>`、`val snapshot = ...`、fold / higher-order alternatives 都出现在诊断文本中。
+  - 核心决策：P3-T05 的实现路径符合 B5：检查基于 resolver 的 local decl span 区分外层 `var` 与同 closure 内局部 `var`，扫描当前 lambda body 并跳过嵌套 lambda，由嵌套 lambda 自身在带有外层 mutable binding set 的上下文中报错；不引入隐式 boxing，不改变 closure environment layout，`val` capture 与显式 `RefCell` state 继续作为正例。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted closure fixtures（makeCounter captured-`var` 负例、nested captured-`var` 负例、same-closure local `var` 正例、`val snapshot` 正例）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 review 要求：跨 closure 边界引用外层 `var` 在前端报错，同 closure 局部 `var` 不误报，`val` capture 不回归，诊断明确给出三类替代方案；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T06：用 `ref` / `value` bound constraint kind 替换 `AnyRef` / `AnyValue` sealed marker
 

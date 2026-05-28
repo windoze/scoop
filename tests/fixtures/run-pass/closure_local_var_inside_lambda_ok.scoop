@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-EXIT: 2
+
+fun main(): Int {
+    val f: () -> Int = {
+        var local: Int = 1
+        local = local + 1
+        local
+    }
+    return f()
+}

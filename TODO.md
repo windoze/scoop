@@ -62,7 +62,7 @@
 | P3-T04 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t04允许-refutable-val-pattern-并在-mismatch-时-panic) | [DONE] 允许 refutable `val` pattern 并在 mismatch 时 panic |
 | P3-T04R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t04rreview-refutable-val-pattern) | [DONE] Review P3-T04 refutable `val` pattern |
 | P3-T05 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t05禁止-closure-捕获外层-var) | [DONE] 禁止 closure 捕获外层 `var` |
-| P3-T05R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t05rreview-closure-var-capture-诊断) | Review P3-T05 closure `var` capture 诊断 |
+| P3-T05R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t05rreview-closure-var-capture-诊断) | [DONE] Review P3-T05 closure `var` capture 诊断 |
 | P3-T06 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t06用-ref--value-bound-constraint-kind-替换-anyref--anyvalue-sealed-marker) | 用 `ref` / `value` bound constraint kind 替换 `AnyRef` / `AnyValue` |
 | P3-T06R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t06rreview-ref--value-bound-kind-替换结果) | Review P3-T06 bound kind 替换结果 |
 | P3-T07 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t07默认-visibility-改为-internal-并同步-sysroot--cone-export) | 默认 visibility 改为 `internal` 并同步 sysroot / cone export |
