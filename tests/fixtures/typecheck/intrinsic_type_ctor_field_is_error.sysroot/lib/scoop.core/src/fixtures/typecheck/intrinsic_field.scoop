@@ -3,4 +3,4 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Intrinsic
-class NativeBox(val value: Int)
+public class NativeBox(val value: Int)

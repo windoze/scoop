@@ -1,0 +1,13 @@
+package fixtures.typecheck_cone.default_internal_export.lib
+
+fun hiddenDefault(): Int {
+    return 41
+}
+
+fun sameConeUse(): Int {
+    return hiddenDefault() + 1
+}
+
+public fun exported(): Int {
+    return sameConeUse()
+}

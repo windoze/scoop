@@ -18,13 +18,13 @@ import scoop.core.*
 /// - 当前阶段以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化；
 /// - `destroy()` 仍是“提前释放平台资源”的显式路径；
 /// - 若对象在未显式 `destroy()` 的情况下变为不可达，native release hook 会在 GC sweep 前做受限 cleanup。
-class Mutex
+public class Mutex
 
 /// 条件变量（与 `Mutex` 配对使用）。
-class CondVar
+public class CondVar
 
 /// 一次性初始化标记（thread-safe once）。
-class Once
+public class Once
 
 // --- Mutex ---
 
@@ -32,7 +32,7 @@ class Once
 @Extern(name = "scoop_sync_mutex_create", abi = "scoop")
 private fun __scoop_sync_mutex_create(): Mutex
 
-fun mutexCreate(): Mutex {
+public fun mutexCreate(): Mutex {
     return __scoop_sync_mutex_create()
 }
 
@@ -40,7 +40,7 @@ fun mutexCreate(): Mutex {
 @Extern(name = "scoop_sync_mutex_lock", abi = "scoop")
 private fun __scoop_sync_mutex_lock(mutex: Mutex): Unit
 
-fun Mutex.lock(): Unit {
+public fun Mutex.lock(): Unit {
     __scoop_sync_mutex_lock(this)
 }
 
@@ -48,7 +48,7 @@ fun Mutex.lock(): Unit {
 @Extern(name = "scoop_sync_mutex_unlock", abi = "scoop")
 private fun __scoop_sync_mutex_unlock(mutex: Mutex): Unit
 
-fun Mutex.unlock(): Unit {
+public fun Mutex.unlock(): Unit {
     __scoop_sync_mutex_unlock(this)
 }
 
@@ -56,7 +56,7 @@ fun Mutex.unlock(): Unit {
 @Extern(name = "scoop_sync_mutex_destroy", abi = "scoop")
 private fun __scoop_sync_mutex_destroy(mutex: Mutex): Unit
 
-fun Mutex.destroy(): Unit {
+public fun Mutex.destroy(): Unit {
     __scoop_sync_mutex_destroy(this)
 }
 
@@ -66,7 +66,7 @@ fun Mutex.destroy(): Unit {
 @Extern(name = "scoop_sync_condvar_create", abi = "scoop")
 private fun __scoop_sync_condvar_create(): CondVar
 
-fun condVarCreate(): CondVar {
+public fun condVarCreate(): CondVar {
     return __scoop_sync_condvar_create()
 }
 
@@ -76,7 +76,7 @@ fun condVarCreate(): CondVar {
 @Extern(name = "scoop_sync_condvar_wait", abi = "scoop")
 private fun __scoop_sync_condvar_wait(condVar: CondVar, mutex: Mutex): Unit
 
-fun CondVar.wait(mutex: Mutex): Unit {
+public fun CondVar.wait(mutex: Mutex): Unit {
     __scoop_sync_condvar_wait(this, mutex)
 }
 
@@ -84,7 +84,7 @@ fun CondVar.wait(mutex: Mutex): Unit {
 @Extern(name = "scoop_sync_condvar_notify_one", abi = "scoop")
 private fun __scoop_sync_condvar_notify_one(condVar: CondVar): Unit
 
-fun CondVar.notifyOne(): Unit {
+public fun CondVar.notifyOne(): Unit {
     __scoop_sync_condvar_notify_one(this)
 }
 
@@ -92,7 +92,7 @@ fun CondVar.notifyOne(): Unit {
 @Extern(name = "scoop_sync_condvar_notify_all", abi = "scoop")
 private fun __scoop_sync_condvar_notify_all(condVar: CondVar): Unit
 
-fun CondVar.notifyAll(): Unit {
+public fun CondVar.notifyAll(): Unit {
     __scoop_sync_condvar_notify_all(this)
 }
 
@@ -100,7 +100,7 @@ fun CondVar.notifyAll(): Unit {
 @Extern(name = "scoop_sync_condvar_destroy", abi = "scoop")
 private fun __scoop_sync_condvar_destroy(condVar: CondVar): Unit
 
-fun CondVar.destroy(): Unit {
+public fun CondVar.destroy(): Unit {
     __scoop_sync_condvar_destroy(this)
 }
 
@@ -110,7 +110,7 @@ fun CondVar.destroy(): Unit {
 @Extern(name = "scoop_sync_once_create", abi = "scoop")
 private fun __scoop_sync_once_create(): Once
 
-fun onceCreate(): Once {
+public fun onceCreate(): Once {
     return __scoop_sync_once_create()
 }
 
@@ -118,7 +118,7 @@ fun onceCreate(): Once {
 @Extern(name = "scoop_sync_once_is_done", abi = "scoop")
 private fun __scoop_sync_once_is_done(once: Once): Bool
 
-fun Once.isDone(): Bool {
+public fun Once.isDone(): Bool {
     return __scoop_sync_once_is_done(this)
 }
 
@@ -130,6 +130,6 @@ fun Once.isDone(): Bool {
 @Intrinsic
 private fun __scoop_sync_once_run(once: Once, block: () -> Unit): Unit
 
-fun Once.run(block: () -> Unit): Unit {
+public fun Once.run(block: () -> Unit): Unit {
     __scoop_sync_once_run(this, block)
 }

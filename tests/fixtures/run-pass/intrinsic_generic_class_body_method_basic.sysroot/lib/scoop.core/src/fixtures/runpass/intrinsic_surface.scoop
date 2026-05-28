@@ -2,17 +2,17 @@ package fixtures.runpass
 
 import scoop.core.*
 
-interface DummyIter {
-    fun token(): Int
+public interface DummyIter {
+    public fun token(): Int
 }
 
 @Intrinsic
-class Container<T>(seed: T) : DummyIter {
-    override fun token(): Int {
+public class Container<T>(seed: T) : DummyIter {
+    public override fun token(): Int {
         return 29
     }
 
-    fun echo(value: T): T {
+    public fun echo(value: T): T {
         return value
     }
 }

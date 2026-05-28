@@ -14,13 +14,13 @@ import scoop.core.*
 /// - 0.1 阶段 `for (x in xs)` 的 typecheck 直接按该协议做存在性检查与元素类型推导；
 /// - 当前阶段“普通成员函数调用”尚未全面打通，因此用户侧通常不会直接写
 ///   `xs.iterator().next()`；更多使用将通过 `for` 与标准库 helper（例如 `toArray()`）间接消费。
-interface Iterable<T> {
-    fun iterator(): Iterator<T>
+public interface Iterable<T> {
+    public fun iterator(): Iterator<T>
 }
 
 /// 迭代器协议（spec §16.2）：使用 `next(): Option<T>`，不再使用 `hasNext()`。
-interface Iterator<T> {
-    fun next(): Option<T>
+public interface Iterator<T> {
+    public fun next(): Option<T>
 }
 
 /// 迭代协议（Int 专用，early stage）。
@@ -29,12 +29,12 @@ interface Iterator<T> {
 /// - `Iterable<T>` / `Iterator<T>` 的参数化超类型关系已经由类型系统主线处理；
 /// - 这里仍保留 `IntIterable` / `IntIterator`，只是为了给当前 std helper（`toArray()`）维持一个
 ///   Int-only 的最小专用表面，而不是因为类型系统不支持 `Iterator<Int>` 上转。
-interface IntIterable {
-    fun iterator(): IntIterator
+public interface IntIterable {
+    public fun iterator(): IntIterator
 }
 
-interface IntIterator {
-    fun next(): Option<Int>
+public interface IntIterator {
+    public fun next(): Option<Int>
 }
 
 /// 迭代视图 → `Array` 的显式桥接。
@@ -43,13 +43,13 @@ interface IntIterator {
 /// - 用于 vararg spread 的显式转换：`f(*xs.toArray())`；
 /// - 语言层不会放开 `*iterable` 的隐式 spread（避免隐式分配）。
 @Intrinsic
-fun IntIterable.toArray(): Array<Int>
+public fun IntIterable.toArray(): Array<Int>
 
 /// 最小 `Map` 声明（spec §10.4 示例）。
 ///
 /// 说明：
 /// - Kotlin 的 map-backed delegate 通过扩展 `getValue` 实现；
 /// - 当前阶段为简化 delegated property 的签名检查，我们把 `getValue` 作为 `Map` 的成员声明表面。
-interface Map<K, V> {
-    fun <T> getValue(thisRef: Any, property: PropertyMeta): T
+public interface Map<K, V> {
+    public fun <T> getValue(thisRef: Any, property: PropertyMeta): T
 }

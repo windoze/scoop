@@ -2,17 +2,17 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-class NativeClass() {
+public class NativeClass() {
     @Intrinsic
-    fun seed(): Int
+    public fun seed(): Int
 }
 
-struct NativeStruct() {
+public struct NativeStruct() {
     @Intrinsic
-    fun seed(): Int
+    public fun seed(): Int
 }
 
-object NativeObject {
+public object NativeObject {
     @Intrinsic
-    fun seed(): Int
+    public fun seed(): Int
 }

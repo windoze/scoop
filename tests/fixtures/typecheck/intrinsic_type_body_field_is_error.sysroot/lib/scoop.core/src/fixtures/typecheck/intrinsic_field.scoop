@@ -3,6 +3,6 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Intrinsic
-class NativeBox() {
+public class NativeBox() {
     val value: Int = 1
 }

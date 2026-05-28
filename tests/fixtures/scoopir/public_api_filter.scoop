@@ -1,14 +1,17 @@
 package api
 
-struct PubType {}
+public struct PubType {}
+
+struct DefaultHiddenType {}
 
 internal struct HiddenType {}
 
 private struct PrivateType {}
 
-fun <T> id(x: T): T { x }
+public fun <T> id(x: T): T { x }
+
+fun defaultHidden(x: Int): Int { x }
 
 internal fun hidden(x: Int): Int { x }
 
 private fun privateFun(): Unit {}
-

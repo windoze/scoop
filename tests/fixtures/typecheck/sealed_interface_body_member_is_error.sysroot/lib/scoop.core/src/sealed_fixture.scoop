@@ -1,5 +1,5 @@
 package scoop.core
 
-sealed interface NotEmpty {
-    fun foo(): Unit
+public sealed interface NotEmpty {
+    public fun foo(): Unit
 }

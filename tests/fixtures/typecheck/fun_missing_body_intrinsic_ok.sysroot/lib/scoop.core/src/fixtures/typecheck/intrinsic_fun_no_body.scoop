@@ -3,4 +3,4 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Intrinsic
-fun compilerProvided(): Int
+public fun compilerProvided(): Int

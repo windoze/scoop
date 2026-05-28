@@ -350,7 +350,7 @@ source_site_contracts {
             span: 1048736..1048737,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.panic",
-            target_decl_span: Some(45529..45534),
+            target_decl_span: Some(48623..48628),
             target_type_args: [],
             target_eff_args: [],
         },

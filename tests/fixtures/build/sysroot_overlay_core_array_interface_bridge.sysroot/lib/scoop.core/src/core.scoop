@@ -27,7 +27,7 @@ fun __scoop_float64_to_string(value: Float64): String
 fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
 
 // Root types
-interface Any
+public interface Any
 sealed interface AnyRef
 sealed interface AnyValue
 
@@ -38,8 +38,8 @@ sealed interface AnyValue
 //   仍主要走"扩展函数调用"的最小子集；但 `where T: Hashable` 等约束已经会被验证；
 // - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
 //   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
-interface Hashable {
-    fun hash(): Int {
+public interface Hashable {
+    public fun hash(): Int {
         return 0
     }
 }
@@ -52,14 +52,14 @@ interface Hashable {
 // - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
 // - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
 //   后续可收紧为抽象方法。
-interface ToString {
-    fun toString(): String {
+public interface ToString {
+    public fun toString(): String {
         return ""
     }
 }
 
 // Fixture-only overlay marker used to prove `Array<T>` comes from this file.
-interface OverlayVisible
+public interface OverlayVisible
 
 // Built-in scalar types（声明层 + intrinsic body methods）。
 //
@@ -67,68 +67,68 @@ interface OverlayVisible
 // - 这些类型的布局/语义由编译器与运行时固定；
 // - `toString` 走普通 method body，使调用路径不再依赖 compiler 按名字拦截。
 @Intrinsic
-struct Bool : Hashable, ToString {
-    override fun toString(): String {
+public struct Bool : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_bool_to_string(this)
     }
 }
 
 @Intrinsic
-struct Char : Hashable, ToString {
-    override fun toString(): String {
+public struct Char : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_char_to_string(this)
     }
 }
 
 @Intrinsic
-struct Float64 : Hashable, ToString {
-    override fun toString(): String {
+public struct Float64 : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_float64_to_string(this)
     }
 }
 
 @Intrinsic
-struct Float32 : Hashable, ToString {
-    override fun toString(): String {
+public struct Float32 : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_float32_to_string(this)
     }
 }
 
 @Intrinsic
-class String : Hashable, ToString {
-    override fun toString(): String {
+public class String : Hashable, ToString {
+    public override fun toString(): String {
         return this
     }
 
-    fun length(): Int { return __scoop_string_length(this) }
-    fun toInt(): Int { return __scoop_string_to_int(this) }
-    fun concat(other: String): String { return __scoop_string_concat(this, other) }
-    fun hash(): Int { return __scoop_string_hash(this) }
-    fun isEmpty(): Bool { return __scoop_string_is_empty(this) }
-    fun replace(old: String, new: String): String { return __scoop_string_replace(this, old, new) }
-    fun charAt(index: Int): Int { return __scoop_string_char_at(this, index) }
-    fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
-    fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
-    fun trimIndent(): String { return __scoop_string_trim_indent(this) }
+    public fun length(): Int { return __scoop_string_length(this) }
+    public fun toInt(): Int { return __scoop_string_to_int(this) }
+    public fun concat(other: String): String { return __scoop_string_concat(this, other) }
+    public fun hash(): Int { return __scoop_string_hash(this) }
+    public fun isEmpty(): Bool { return __scoop_string_is_empty(this) }
+    public fun replace(old: String, new: String): String { return __scoop_string_replace(this, old, new) }
+    public fun charAt(index: Int): Int { return __scoop_string_char_at(this, index) }
+    public fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
+    public fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
+    public fun trimIndent(): String { return __scoop_string_trim_indent(this) }
 
     @Unsafe
-    fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
+    public fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
         return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
     }
 }
-typealias Double = Float64
+public typealias Double = Float64
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
 // - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
 // - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
-class Array<T> : OverlayVisible
+public class Array<T> : OverlayVisible
 // 可变泛型数组类型（runtime 表面）。
 //
 // 说明：
 // - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
 // - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
-class MutableArray<T>
+public class MutableArray<T>
 
 // Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。
 //
@@ -137,8 +137,8 @@ class MutableArray<T>
 //   以便在不引入新布局/新 intrinsic 的前提下，先把常用 API 表面固定下来；
 // - 后续若需要更强的语义区分（例如只读视图 vs 不可变值、或更丰富的接口层级），
 //   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
-typealias List<T> = Array<T>
-typealias MutableList<T> = MutableArray<T>
+public typealias List<T> = Array<T>
+public typealias MutableList<T> = MutableArray<T>
 
 // Array / MutableArray：最小公开 API 声明（T1317b）。
 //
@@ -147,16 +147,16 @@ typealias MutableList<T> = MutableArray<T>
 //   因此这里先用 extension fun 的形式提供统一的 API 表面，供 resolver/typecheck/lowering 落点；
 // - 后续若引入实例方法调用语义，可以保持这些声明不变（或在不破坏现有用例的前提下提供 member 形式别名）。
 @Intrinsic
-fun <T> Array<T>.size(): Int
+public fun <T> Array<T>.size(): Int
 @Intrinsic
-fun <T> Array<T>.get(index: Int): T
+public fun <T> Array<T>.get(index: Int): T
 
 @Intrinsic
-fun <T> MutableArray<T>.size(): Int
+public fun <T> MutableArray<T>.size(): Int
 @Intrinsic
-fun <T> MutableArray<T>.get(index: Int): T
+public fun <T> MutableArray<T>.get(index: Int): T
 @Intrinsic
-fun <T> MutableArray<T>.set(index: Int, value: T): Unit
+public fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 
 // `MutableArray` → `Array`：显式桥接（T1325a）。
 //
@@ -164,7 +164,7 @@ fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 // - 该 API 由 core helper 提供实现，sysroot 在此提供声明面用于名字解析与类型检查；
 // - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
 @Intrinsic
-fun MutableArray<Int>.toArray(): Array<Int>
+public fun MutableArray<Int>.toArray(): Array<Int>
 
 @Extern(name = "scoop_mutable_array_new", abi = "scoop")
 fun __scoop_mutable_array_new(
@@ -187,7 +187,7 @@ fun __scoop_mutable_array_push_composite(arr: MutableArray<Any>, slot: UIntPtr, 
 @Extern(name = "scoop_mutable_array_freeze", abi = "scoop")
 fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
 
-fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
+public fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
     val raw: MutableArray<Any> = __scoop_mutable_array_new(
         kindOf<T>(),
         sizeOf<T>(),
@@ -198,7 +198,7 @@ fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_W
     return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
 }
 
-fun <T> MutableArray<T>.push(value: T): Unit {
+public fun <T> MutableArray<T>.push(value: T): Unit {
     val kind: Int = kindOf<T>()
     val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
 
@@ -221,7 +221,7 @@ fun <T> MutableArray<T>.push(value: T): Unit {
     }
 }
 
-fun <T> MutableArray<T>.freeze(): Array<T> {
+public fun <T> MutableArray<T>.freeze(): Array<T> {
     val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
     return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
@@ -230,9 +230,9 @@ fun <T> MutableArray<T>.freeze(): Array<T> {
 // 说明：
 // - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的静态元数据集合；
 // - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续反射元数据 lowering 补齐。
-class MetaList<T>
-struct Unit
-enum Nothing
+public class MetaList<T>
+public struct Unit
+public enum Nothing
 
 // Built-in annotations（spec §15.5）。
 //
@@ -243,7 +243,7 @@ enum Nothing
 // - 当前阶段（T1013）先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
 //   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
 
-enum AnnotationTarget {
+public enum AnnotationTarget {
     Function,
     Property,
     Field,
@@ -300,29 +300,29 @@ annotation class Global
 //   `Char.toInt()` / `Float64/Float32.toInt()/hash()/abs()/isNaN()/isInfinite()` / `Char.hash()`；
 // - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
 @Intrinsic
-fun Char.toInt(): Int
+public fun Char.toInt(): Int
 @Intrinsic
-fun Float64.toInt(): Int
+public fun Float64.toInt(): Int
 @Intrinsic
-fun Float64.hash(): Int
+public fun Float64.hash(): Int
 @Intrinsic
-fun Float64.abs(): Float64
+public fun Float64.abs(): Float64
 @Intrinsic
-fun Float64.isNaN(): Bool
+public fun Float64.isNaN(): Bool
 @Intrinsic
-fun Float64.isInfinite(): Bool
+public fun Float64.isInfinite(): Bool
 @Intrinsic
-fun Float32.toInt(): Int
+public fun Float32.toInt(): Int
 @Intrinsic
-fun Float32.hash(): Int
+public fun Float32.hash(): Int
 @Intrinsic
-fun Float32.abs(): Float32
+public fun Float32.abs(): Float32
 @Intrinsic
-fun Float32.isNaN(): Bool
+public fun Float32.isNaN(): Bool
 @Intrinsic
-fun Float32.isInfinite(): Bool
+public fun Float32.isInfinite(): Bool
 @Intrinsic
-fun Char.hash(): Int
+public fun Char.hash(): Int
 
 // 泛型 print/println 的函数体在 sysroot/lib/scoop.core/src/print.scoop 中提供（compilable sysroot file）。
 
@@ -343,7 +343,7 @@ fun __scoop_println(value: String): Unit
 // - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
 // - `Pinned` 是 Scoop 侧 pin handle，不是 ordinary `@Extern` 的长期 token surface；丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
 @Intrinsic
-object GC {
+public object GC {
     // Stable GC handles（spec §15.10.1）。
     //
     // 说明：
@@ -355,27 +355,27 @@ object GC {
     //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
     @Intrinsic @Unsafe
-    fun handleNew(obj: Any): GcHandle
+    public fun handleNew(obj: Any): GcHandle
 
     @Intrinsic @NoGC @Unsafe
-    fun handleGet(h: GcHandle): Any
+    public fun handleGet(h: GcHandle): Any
 
     @Intrinsic @NoGC @Unsafe
-    fun handleDrop(h: GcHandle): Unit
+    public fun handleDrop(h: GcHandle): Unit
 
     @Intrinsic @NoGC @Unsafe
-    fun pin(obj: Any): Pinned
+    public fun pin(obj: Any): Pinned
 
     @Intrinsic @NoGC @Unsafe
-    fun unpin(pinned: Pinned): Unit
+    public fun unpin(pinned: Pinned): Unit
 }
 
 // Opaque token. Representation is toolchain-defined but must be stably passable to native code.
-struct GcHandle(val raw: UIntPtr)
+public struct GcHandle(val raw: UIntPtr)
 
 // Value type handle. Exact fields are implementation-defined (spec §15.10).
 // 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
-struct Pinned(val value: Any)
+public struct Pinned(val value: Any)
 
 // Compile-time metadata（spec §6.4 / §10.4）。
 //
@@ -390,7 +390,7 @@ struct Pinned(val value: Any)
 //   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
 //   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
 // - 说明：注解参数值仅保证"compile-time constant"可读；更复杂表达式与导出规则后续任务补齐。
-enum TypeKind {
+public enum TypeKind {
     Struct,
     Enum,
     Class,
@@ -400,34 +400,34 @@ enum TypeKind {
     Primitive,
 }
 
-struct TypeMeta {
+public struct TypeMeta {
     val name: String
     val kind: TypeKind
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct FieldMeta {
+public struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct VariantMeta {
+public struct VariantMeta {
     val name: String
     val fields: MetaList<FieldMeta>
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct ParamMeta {
+public struct ParamMeta {
     val name: String
     val type: TypeMeta
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct PropertyMeta {
+public struct PropertyMeta {
     val name: String
     val type: TypeMeta
     val owner: TypeMeta
@@ -439,7 +439,7 @@ struct PropertyMeta {
 // - v0 阶段先只暴露"函数名"作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
 // - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
 //   但应保持"可用 name 构造句柄"这一能力（避免影响工具链/fixtures）。
-struct FunctionMeta {
+public struct FunctionMeta {
     val name: String
 }
 
@@ -449,12 +449,12 @@ struct FunctionMeta {
 // - 用于读取注解名与参数（`annotationsOf<T>()` 等）；参数值为静态注解参数；
 // - v0 阶段先要求"注解名 + 静态参数"可回归：字面量/数组字面量/enum 常量/class literal；
 // - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
-struct AnnotationMeta {
+public struct AnnotationMeta {
     val name: String
     val args: MetaList<AnnotationArgMeta>
 }
 
-struct AnnotationArgMeta {
+public struct AnnotationArgMeta {
     val name: String
     val value: Any
 }
@@ -463,40 +463,40 @@ struct AnnotationArgMeta {
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
 @Intrinsic
-struct Int : Hashable, ToString {
-    override fun toString(): String {
+public struct Int : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_int_to_string(this)
     }
 
     @Intrinsic("int_hash")
-    fun hash(): Int
+    public fun hash(): Int
 }
-struct UInt : Hashable
+public struct UInt : Hashable
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
-struct Int8 : Hashable
-struct Int16 : Hashable
-struct Int32 : Hashable
-struct Int64 : Hashable
-struct UInt8 : Hashable
-struct UInt16 : Hashable
-struct UInt32 : Hashable
-struct UInt64 : Hashable
+public struct Int8 : Hashable
+public struct Int16 : Hashable
+public struct Int32 : Hashable
+public struct Int64 : Hashable
+public struct UInt8 : Hashable
+public struct UInt16 : Hashable
+public struct UInt32 : Hashable
+public struct UInt64 : Hashable
 
 // Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
 //
 // 说明：
 // - v0 阶段先只提供 `IntProgression`（由 core helper 提供纯 Scoop 可执行实现）；不引入更完整的 `IntRange` 等；
 // - 字段命名与 Kotlin range API 对齐：`first/last/step`，并用 `increasing` 区分升序/降序迭代路径。
-struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+public struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
 
 // 标准别名（Kotlin/Swift 风格）。
-typealias Byte = UInt8
-typealias Short = Int16
-typealias UShort = UInt16
-typealias Long = Int64
-typealias ULong = UInt64
-typealias UIntPtr = UInt
+public typealias Byte = UInt8
+public typealias Short = Int16
+public typealias UShort = UInt16
+public typealias Long = Int64
+public typealias ULong = UInt64
+public typealias UIntPtr = UInt
 
 // Compiler intrinsics（spec §15.7 / §6.4）。
 //
@@ -507,9 +507,9 @@ typealias UIntPtr = UInt
 //   - `sizeOf(1)` / `sizeOf("s")`
 // - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
 @Intrinsic
-fun sizeOf(value: Int): Int
+public fun sizeOf(value: Int): Int
 @Intrinsic
-fun sizeOf(value: String): Int
+public fun sizeOf(value: String): Int
 
 // Reflection intrinsics v0（spec §6.4 / TODO T1204/T1209）。
 //
@@ -517,29 +517,29 @@ fun sizeOf(value: String): Int
 // - 这些函数只保留运行期 intrinsic surface；旧 compile-time evaluator 已删除。
 // - 当前阶段（TODO T1208）`fieldsOf<T>()` 返回 `FieldMeta` 列表。
 @Intrinsic
-fun <T> nameOf(): String
+public fun <T> nameOf(): String
 @Intrinsic
-fun <T> sizeOf(): Int
+public fun <T> sizeOf(): Int
 @Intrinsic
-fun <T> alignOf(): Int
+public fun <T> alignOf(): Int
 @Intrinsic
-fun <T> kindOf(): Int
+public fun <T> kindOf(): Int
 @Intrinsic
-fun <T> descOf(): UIntPtr
+public fun <T> descOf(): UIntPtr
 @Intrinsic
-fun <T> fieldsOf(): MetaList<FieldMeta>
+public fun <T> fieldsOf(): MetaList<FieldMeta>
 @Intrinsic
-fun <T> variantsOf(): MetaList<VariantMeta>
+public fun <T> variantsOf(): MetaList<VariantMeta>
 @Intrinsic
-fun <T> superTypesOf(): MetaList<TypeMeta>
+public fun <T> superTypesOf(): MetaList<TypeMeta>
 @Intrinsic
-fun <T> annotationsOf(): MetaList<AnnotationMeta>
+public fun <T> annotationsOf(): MetaList<AnnotationMeta>
 @Intrinsic
-fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
+public fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 
-val ARRAY_ELEM_KIND_WORD: Int = 1
-val ARRAY_ELEM_KIND_REF: Int = 2
-val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+public val ARRAY_ELEM_KIND_WORD: Int = 1
+public val ARRAY_ELEM_KIND_REF: Int = 2
+public val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 // Platform Introspection（spec §6.4）。
 //
@@ -547,7 +547,7 @@ val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 // - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
 // - `getPlatform()` 在运行期查询当前执行环境；
 // - 当前阶段（TODO T1219）先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
-struct Platform {
+public struct Platform {
     val triple: String
     val arch: String
     val vendor: String
@@ -556,10 +556,10 @@ struct Platform {
 }
 
 @Intrinsic
-fun getPlatform(): Platform
+public fun getPlatform(): Platform
 
 // Option / nullable sugar
-enum Option<T> {
+public enum Option<T> {
     Some(val value: T),
     None
 }
@@ -581,12 +581,12 @@ enum Option<T> {
 //   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
 //   优化分类而不是独立 surface。
 // - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
-interface Continuation<Resume, Answer, eff E = Pure> {
-    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+public interface Continuation<Resume, Answer, eff E = Pure> {
+    public fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
-enum RuntimeError {
+public enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
     ContinuationAlreadyResumed,
@@ -600,9 +600,9 @@ enum RuntimeError {
 // - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
 //   core intrinsic / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
 @Intrinsic
-fun panic(message: String): Nothing
+public fun panic(message: String): Nothing
 
 // Built-in effect: Raise
-effect Raise<in E> {
-    fun raise(error: E): Nothing
+public effect Raise<in E> {
+    public fun raise(error: E): Nothing
 }

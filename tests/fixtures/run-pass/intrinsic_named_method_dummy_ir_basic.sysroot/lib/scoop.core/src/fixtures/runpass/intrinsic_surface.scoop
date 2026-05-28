@@ -3,7 +3,7 @@ package fixtures.runpass
 import scoop.core.*
 
 @Intrinsic
-class Vec<T>(seed: T) {
+public class Vec<T>(seed: T) {
     @Intrinsic("dummy_ir")
-    fun foo(): Int
+    public fun foo(): Int
 }

@@ -2,9 +2,9 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-class NativeClass() {
+public class NativeClass() {
     @Intrinsic
-    fun seed(): Int {
+    public fun seed(): Int {
         return 0
     }
 }

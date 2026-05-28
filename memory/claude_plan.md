@@ -1,46 +1,28 @@
 # Execution Plan
 
-I will follow TODO.md as the source of truth and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+I will follow `TODO.md` as the source of truth and complete exactly the first task whose heading is not prefixed with `[DONE]`.
 
-1. Inspect `TODO.md` to find the first incomplete task and read only the surrounding task details needed to execute it.
+1. Confirm the first incomplete task from `TODO.md` and read its detailed entry in the package TODO file.
 2. Check the latest commit message for any unfinished issue directly relevant to that selected task.
-3. Review the code, fixtures, and documentation directly related to the selected task.
-4. Implement the task as specified, without narrowing scope or introducing workarounds.
-5. Run formatting, linting, targeted validation, then the required full validation unless only documentation changed or a prior green result can be reused under the task rules.
-6. If validation reveals unscheduled failures, fix them if in scope or add the minimum prerequisite/follow-up task in `TODO.md` before marking anything complete.
-7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record. Update `PLAN.md` only if phase-level sequencing or criteria changed.
+3. Inspect only the compiler, cone exporter, sysroot, fixture, and documentation surfaces named by the task.
+4. Implement the task without weakening the visibility model or re-exporting `internal` declarations as a compatibility workaround.
+5. Run `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, targeted cone/export validation, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
+6. If validation reveals any unscheduled failures, fix them if in scope or add the minimum prerequisite task in `TODO.md` before marking this task complete.
+7. Update `TODO.md` and `TODO-3.md` by prefixing `P3-T07` with `[DONE]` and filling its completion record. Update `PLAN.md` only if phase-level sequencing or acceptance criteria change.
 8. Commit all changes for this invocation with a descriptive message and the required co-author trailer, then stop.
-
-Progress will be updated here at major milestones or if the plan changes.
 
 ## Milestone: Selected Task
 
-Selected first incomplete task: `P3-T06R`, the review task for replacing sealed `AnyRef` / `AnyValue` marker bounds with first-class `ref` / `value` constraint kinds. I will verify the prior implementation against the TODO requirements, fix any directly related gaps, run the required validation, update task records, and commit only this task's work plus the requested memory plan file.
+Selected first incomplete task: `P3-T07`, "默认 visibility 改为 `internal` 并同步 sysroot / cone export". The required outcome is that declarations without a visibility modifier become cone-internal, exported sysroot APIs opt into `public`, `.cone` API export only includes explicit public declarations, and fixtures prove same-cone internal visibility plus downstream non-export/non-visibility.
 
-## Milestone: Review Focus
+## Milestone: Existing Work Audited
 
-Initial review confirms the intended files contain `GenericBound::Ref` / `GenericBound::Value`, `LoweredGenericBound::{Ref,Value}`, sysroot atomic bounds using `<T: ref>` / `<T: value>`, and no active compiler/sysroot `AnyRef` / `AnyValue` marker declarations. I am now specifically checking call-site enforcement for generic forwarding cases, because direct concrete instantiation alone is not enough to prove the bound-kind replacement is complete.
+The worktree already contained in-scope `P3-T07` edits: `visibility_from_modifiers` now defaults to `Internal`, sysroot API declarations have explicit `public` modifiers while helper declarations remain unmodified/internal, and a default-internal cross-cone fixture exists. I tightened the new fixture expectations and added no-modifier declarations to the ScoopIR public API filter so exporter validation proves default-internal declarations are excluded from `api.scoopir`.
 
-## Milestone: Review Gap Found
+## Milestone: Fixture Gaps Fixed
 
-The review found a directly relevant enforcement gap: when a generic type parameter was passed to a function requiring `<T: ref>` / `<T: value>`, the call-site where-bound check skipped `TypeKind::Param` instead of verifying that the caller's type parameter carried a compatible bound. This would allow unconstrained generic forwarding around the new bound-kind constraints. I will fix bound-kind implication for type parameters and add negative fixtures covering unconstrained forwarding to both `ref` and `value` requirements, plus a positive constrained forwarding case.
+Targeted and full fixture validation exposed missing explicit `public` modifiers in active fixture sysroot overlays, low-level `scoop.unsafe` primitives consumed by `scoop.core`, and the public reflection kind constants. I made those APIs explicit, kept `__scoop_` helper functions internal where they remain same-cone implementation details, and regenerated HIR/MIR goldens whose only change was updated sysroot declaration spans.
 
-## Milestone: Fix Implemented
+## Milestone: Validation Complete
 
-Implemented bound-kind implication for type parameters: `ref` / `value` checks now inspect the caller's declared generic bounds instead of skipping `TypeKind::Param`. Added fixtures for unconstrained generic forwarding failures and constrained forwarding success. Next steps are formatting, targeted fixtures, linting, full tests, and full fixture validation.
-
-## Milestone: Constraint Scope Adjustment
-
-Targeted validation showed constrained generic nominal forwarding (`RefBox<U>` with `U: ref`) also needs bound-kind scopes during type-position lowering. I updated type-ref lowering to push generic bound scopes and made type-param bound lookup robust to existing scope identity differences while still preferring exact declaration identity.
-
-## Milestone: Targeted Validation Passed
-
-The targeted ref/value fixture set now passes with the rebuilt compiler, including direct concrete failures, unconstrained generic forwarding failures, and constrained generic forwarding through both functions and nominal type arguments. I am proceeding with clippy, full Rust tests, full fixture suite, spec fixture check, and active marker-name search.
-
-## Milestone: Worktree Isolation
-
-The worktree also contains unrelated default-internal visibility/sysroot changes and a separate untracked document, which are outside `P3-T06R` and would advance `P3-T07` early. I will preserve those unrelated changes out of the validation tree, complete and commit only the `P3-T06R` review fix plus task bookkeeping, then restore the unrelated changes afterward.
-
-## Milestone: Review Complete
-
-The P3-T06R review fix is complete: generic forwarding now enforces `ref` / `value` bound-kind implication for type parameters, including member function bodies and nominal type-argument lowering. Formatting, clippy, targeted ref/value fixtures, full Rust tests, spec fixture check, full fixture suite, and active marker-name search passed. I have marked `P3-T06R` done in `TODO.md` and `TODO-3.md`; next step is committing the P3-T06R files, then restoring the unrelated stashed P3-T07 worktree changes.
+Validation passed: formatting, clippy, targeted cone/export fixtures, generated API inspection, full Rust tests, spec fixture check, and full fixture suite. I marked `P3-T07` as `[DONE]` in `TODO.md` and `TODO-3.md`; next step is reviewing the final diff and committing this task's changes.

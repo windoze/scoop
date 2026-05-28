@@ -3,9 +3,9 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Intrinsic
-class NativeBox() {
+public class NativeBox() {
     @Intrinsic("dummy_ir")
-    fun nativeSeed(): Int
+    public fun nativeSeed(): Int
 
     val answer: Int
         get() = this.nativeSeed() + 1
@@ -16,8 +16,8 @@ class NativeBox() {
 }
 
 @Intrinsic
-struct NativePoint() {
-    fun base(): Int {
+public struct NativePoint() {
+    public fun base(): Int {
         return 3
     }
 
@@ -25,7 +25,7 @@ struct NativePoint() {
         get() = this.base() + 4
 }
 
-fun use(box: NativeBox, point: NativePoint) {
+public fun use(box: NativeBox, point: NativePoint) {
     val answer: Int = box.answer
     box.stored = answer
     val stored: Int = box.stored

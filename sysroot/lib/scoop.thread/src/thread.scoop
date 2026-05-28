@@ -10,7 +10,7 @@ package scoop.thread
 import scoop.core.*
 
 /// 线程句柄（opaque handle；语义由 std/runtime 约定）。
-class Thread
+public class Thread
 
 /// 创建一个新线程执行 `block`，并返回可用于 `join` 的句柄。
 ///
@@ -23,7 +23,7 @@ class Thread
 @Extern(name = "scoop_thread_spawn", abi = "scoop")
 private fun __scoop_thread_spawn(entryHandleRaw: UIntPtr): Thread
 
-fun threadSpawn(block: () -> Unit / Pure!): Thread {
+public fun threadSpawn(block: () -> Unit / Pure!): Thread {
     val entryHandle: GcHandle = @Unsafe do { GC.handleNew(block) }
     return __scoop_thread_spawn(entryHandle.raw)
 }
@@ -43,7 +43,7 @@ public fun __scoop_thread_entry_trampoline(entryHandleRaw: UIntPtr): Unit {
 @Extern(name = "scoop_thread_join", abi = "scoop")
 private fun __scoop_thread_join(thread: Thread): Unit
 
-fun Thread.join(): Unit {
+public fun Thread.join(): Unit {
     __scoop_thread_join(this)
 }
 
@@ -51,7 +51,7 @@ fun Thread.join(): Unit {
 @Extern(name = "scoop_thread_yield", abi = "scoop")
 private fun __scoop_thread_yield(): Unit
 
-fun yield(): Unit {
+public fun yield(): Unit {
     __scoop_thread_yield()
 }
 
@@ -59,7 +59,7 @@ fun yield(): Unit {
 @Extern(name = "scoop_thread_sleep_millis", abi = "scoop")
 private fun __scoop_thread_sleep_millis(ms: Int): Unit
 
-fun sleepMillis(ms: Int): Unit {
+public fun sleepMillis(ms: Int): Unit {
     __scoop_thread_sleep_millis(ms)
 }
 
@@ -71,6 +71,6 @@ fun sleepMillis(ms: Int): Unit {
 @Extern(name = "scoop_thread_current_id", abi = "scoop")
 private fun __scoop_thread_current_id(): Int
 
-fun currentId(): Int {
+public fun currentId(): Int {
     return __scoop_thread_current_id()
 }

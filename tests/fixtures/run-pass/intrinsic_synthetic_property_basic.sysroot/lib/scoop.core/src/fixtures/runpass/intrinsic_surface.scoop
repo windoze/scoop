@@ -3,17 +3,17 @@ package fixtures.runpass
 import scoop.core.*
 
 @Global
-var LastWritten: Int = 0
+public var LastWritten: Int = 0
 
 @Intrinsic
-class NativeCell() {
+public class NativeCell() {
     @Intrinsic("dummy_ir")
-    fun seed(): Int
+    public fun seed(): Int
 
-    val answer: Int
+    public val answer: Int
         get() = this.seed() + 1
 
-    var stored: Int
+    public var stored: Int
         get() = LastWritten
         set(value) {
             LastWritten = value + 2
@@ -21,11 +21,11 @@ class NativeCell() {
 }
 
 @Intrinsic
-struct NativeCounter() {
-    fun base(): Int {
+public struct NativeCounter() {
+    public fun base(): Int {
         return 20
     }
 
-    val doubled: Int
+    public val doubled: Int
         get() = this.base() + 2
 }

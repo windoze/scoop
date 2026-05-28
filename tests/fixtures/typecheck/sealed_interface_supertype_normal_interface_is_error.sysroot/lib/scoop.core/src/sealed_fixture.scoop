@@ -1,5 +1,5 @@
 package scoop.core
 
-interface NormalMarkerSuper
+public interface NormalMarkerSuper
 
-sealed interface BadMarker : NormalMarkerSuper
+public sealed interface BadMarker : NormalMarkerSuper

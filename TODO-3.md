@@ -410,7 +410,7 @@
   - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted ref/value fixtures（所有 `tests/fixtures/typecheck/*ref_value_bound*.scoop` 与 `anyref_anyvalue_marker_names_are_not_types.scoop`）；active marker search（`crates` / `sysroot` / `SCOOP_FULL_SPEC.md` / `tests/fixtures` 中剩余 `AnyRef` / `AnyValue` 仅在 negative fixture）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1549)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 review 要求：marker types 已从 active sysroot/compiler surface 删除，`ref` / `value` 只能作为 bound-kind constraint 使用，sysroot atomic bounds 已更新，generic call / type-argument instantiation 会检查 bound-kind satisfaction；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T07：默认 visibility 改为 `internal` 并同步 sysroot / cone export
+### [DONE] P3-T07：默认 visibility 改为 `internal` 并同步 sysroot / cone export
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -443,10 +443,10 @@
   - Default internal visibility and explicit public export contract are active.
 - 依赖：P3-T06R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：将 resolver 无显式 visibility modifier 的默认值从 `Visibility::Public` 改为 `Visibility::Internal`，并新增默认 internal 的单元覆盖；同步 production sysroot 的导出 API 为显式 `public`，保留 same-cone `__scoop_*` helper / string helper 等实现细节为默认 internal；补齐跨 sysroot cone 需要公开消费的 `scoop.unsafe` low-level ABI primitive 与 reflection kind constants；同步 fixture sysroot overlay 的用户可见声明、ScoopIR public API filter、default-internal cross-cone fixture，以及受 sysroot declaration span 影响的 HIR/MIR goldens。
+  - 核心决策：`.cone` exporter 继续只按 `Visibility::Public` 导出，default internal 通过 resolver source of truth 生效，不在 exporter 侧重导 internal 以兼容旧行为；sysroot 中被用户代码、其它 sysroot cone 或 fixture overlay 跨 cone 使用的声明必须显式 `public`，same-cone helper 保持 internal；新增 `public_api_filter` 的 no-modifier declarations 证明 default-internal declarations 不进入 `api.scoopir`。
+  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted cone/export fixtures（`tests/fixtures/typecheck_cone/default_internal_export`、`tests/fixtures/scoopir/public_api_filter.scoop`、`scoopc_cone::scoopir_fixture_public_api_filter_golden`）；generated `api.scoopir` / symbol visibility inspection for default-internal sample cone；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1551)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C5 与 `PLAN.md` P3 默认 visibility 要求：无 modifier declaration 现在为 cone-internal，`public` 是导出 API 的显式 opt-in，`.cone` API 只携带 explicit public declarations，internal declarations 保持 same-cone 可见并在下游得到不可见诊断；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T07R：Review default internal visibility
 

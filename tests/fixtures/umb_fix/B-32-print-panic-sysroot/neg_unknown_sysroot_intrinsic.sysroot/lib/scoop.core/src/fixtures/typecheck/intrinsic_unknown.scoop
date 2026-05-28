@@ -3,4 +3,4 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Intrinsic("not_in_table")
-fun foo(): Int
+public fun foo(): Int

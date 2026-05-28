@@ -27,7 +27,7 @@ fun __scoop_float64_to_string(value: Float64): String
 fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
 
 // Root types
-interface Any
+public interface Any
 
 // 基础接口：Hashable（spec §2.2.2 / std v1）。
 //
@@ -36,8 +36,8 @@ interface Any
 //   仍主要走"扩展函数调用"的最小子集；但 `where T: Hashable` 等约束已经会被验证；
 // - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
 //   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
-interface Hashable {
-    fun hash(): Int {
+public interface Hashable {
+    public fun hash(): Int {
         return 0
     }
 }
@@ -50,8 +50,8 @@ interface Hashable {
 // - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
 // - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
 //   后续可收紧为抽象方法。
-interface ToString {
-    fun toString(): String {
+public interface ToString {
+    public fun toString(): String {
         return ""
     }
 }
@@ -62,238 +62,238 @@ interface ToString {
 // - 这些类型的布局/语义由编译器与运行时固定；
 // - `toString` 走普通 method body；operator/helper surface 走 method-level intrinsic 声明。
 @Intrinsic
-struct Bool : Hashable, ToString {
-    override fun toString(): String {
+public struct Bool : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_bool_to_string(this)
     }
 
     @Intrinsic("bool_and")
-    operator fun and(other: Bool): Bool
+    public operator fun and(other: Bool): Bool
 
     @Intrinsic("bool_or")
-    operator fun or(other: Bool): Bool
+    public operator fun or(other: Bool): Bool
 
     @Intrinsic("bool_xor")
-    operator fun xor(other: Bool): Bool
+    public operator fun xor(other: Bool): Bool
 
     @Intrinsic("bool_eq")
-    operator fun equals(other: Bool): Bool
+    public operator fun equals(other: Bool): Bool
 
     @Intrinsic("bool_ne")
-    operator fun notEquals(other: Bool): Bool
+    public operator fun notEquals(other: Bool): Bool
 
     @Intrinsic("bool_not")
-    operator fun not(): Bool
+    public operator fun not(): Bool
 }
 
 @Intrinsic
-struct Char : Hashable, ToString {
-    override fun toString(): String {
+public struct Char : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_char_to_string(this)
     }
 
     @Intrinsic("char_to_int")
-    fun toInt(): Int
+    public fun toInt(): Int
 
     @Intrinsic("char_hash")
-    fun hash(): Int
+    public fun hash(): Int
 
     @Intrinsic("char_compare_to")
-    operator fun compareTo(other: Char): Int
+    public operator fun compareTo(other: Char): Int
 
     @Intrinsic("char_equals")
-    operator fun equals(other: Char): Bool
+    public operator fun equals(other: Char): Bool
 
     @Intrinsic("char_plus_int")
-    operator fun plus(offset: Int): Char
+    public operator fun plus(offset: Int): Char
 
     @Intrinsic("char_minus_int")
-    operator fun minus(offset: Int): Char
+    public operator fun minus(offset: Int): Char
 
     @Intrinsic("char_minus_char")
-    operator fun minus(other: Char): Int
+    public operator fun minus(other: Char): Int
 }
 
 @Intrinsic
-struct Float64 : Hashable, ToString {
-    override fun toString(): String {
+public struct Float64 : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_float64_to_string(this)
     }
 
     @Intrinsic
-    fun toInt(): Int
+    public fun toInt(): Int
 
     @Intrinsic("float_plus")
-    operator fun plus(other: Float64): Float64
+    public operator fun plus(other: Float64): Float64
 
     @Intrinsic("float_minus")
-    operator fun minus(other: Float64): Float64
+    public operator fun minus(other: Float64): Float64
 
     @Intrinsic("float_times")
-    operator fun times(other: Float64): Float64
+    public operator fun times(other: Float64): Float64
 
     @Intrinsic("float_div")
-    operator fun div(other: Float64): Float64
+    public operator fun div(other: Float64): Float64
 
     @Intrinsic("float_rem")
-    operator fun rem(other: Float64): Float64
+    public operator fun rem(other: Float64): Float64
 
     @Intrinsic("float_unary_minus")
-    operator fun unaryMinus(): Float64
+    public operator fun unaryMinus(): Float64
 
     @Intrinsic("float_unary_plus")
-    operator fun unaryPlus(): Float64
+    public operator fun unaryPlus(): Float64
 
     @Intrinsic("float_lt")
-    operator fun lt(other: Float64): Bool
+    public operator fun lt(other: Float64): Bool
 
     @Intrinsic("float_le")
-    operator fun le(other: Float64): Bool
+    public operator fun le(other: Float64): Bool
 
     @Intrinsic("float_gt")
-    operator fun gt(other: Float64): Bool
+    public operator fun gt(other: Float64): Bool
 
     @Intrinsic("float_ge")
-    operator fun ge(other: Float64): Bool
+    public operator fun ge(other: Float64): Bool
 
     @Intrinsic("float_eq")
-    operator fun equals(other: Float64): Bool
+    public operator fun equals(other: Float64): Bool
 
     @Intrinsic("float_ne")
-    operator fun notEquals(other: Float64): Bool
+    public operator fun notEquals(other: Float64): Bool
 
     @Intrinsic("float_compare_to")
-    operator fun compareTo(other: Float64): Int
+    public operator fun compareTo(other: Float64): Int
 
     @Intrinsic("float_abs")
-    fun abs(): Float64
+    public fun abs(): Float64
 
     @Intrinsic("float_is_nan")
-    fun isNaN(): Bool
+    public fun isNaN(): Bool
 
     @Intrinsic("float_is_infinite")
-    fun isInfinite(): Bool
+    public fun isInfinite(): Bool
 
     @Intrinsic("float_hash")
-    fun hash(): Int
+    public fun hash(): Int
 }
 
 @Intrinsic
-struct Float32 : Hashable, ToString {
-    override fun toString(): String {
+public struct Float32 : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_float32_to_string(this)
     }
 
     @Intrinsic
-    fun toInt(): Int
+    public fun toInt(): Int
 
     @Intrinsic("float_plus")
-    operator fun plus(other: Float32): Float32
+    public operator fun plus(other: Float32): Float32
 
     @Intrinsic("float_minus")
-    operator fun minus(other: Float32): Float32
+    public operator fun minus(other: Float32): Float32
 
     @Intrinsic("float_times")
-    operator fun times(other: Float32): Float32
+    public operator fun times(other: Float32): Float32
 
     @Intrinsic("float_div")
-    operator fun div(other: Float32): Float32
+    public operator fun div(other: Float32): Float32
 
     @Intrinsic("float_rem")
-    operator fun rem(other: Float32): Float32
+    public operator fun rem(other: Float32): Float32
 
     @Intrinsic("float_unary_minus")
-    operator fun unaryMinus(): Float32
+    public operator fun unaryMinus(): Float32
 
     @Intrinsic("float_unary_plus")
-    operator fun unaryPlus(): Float32
+    public operator fun unaryPlus(): Float32
 
     @Intrinsic("float_lt")
-    operator fun lt(other: Float32): Bool
+    public operator fun lt(other: Float32): Bool
 
     @Intrinsic("float_le")
-    operator fun le(other: Float32): Bool
+    public operator fun le(other: Float32): Bool
 
     @Intrinsic("float_gt")
-    operator fun gt(other: Float32): Bool
+    public operator fun gt(other: Float32): Bool
 
     @Intrinsic("float_ge")
-    operator fun ge(other: Float32): Bool
+    public operator fun ge(other: Float32): Bool
 
     @Intrinsic("float_eq")
-    operator fun equals(other: Float32): Bool
+    public operator fun equals(other: Float32): Bool
 
     @Intrinsic("float_ne")
-    operator fun notEquals(other: Float32): Bool
+    public operator fun notEquals(other: Float32): Bool
 
     @Intrinsic("float_compare_to")
-    operator fun compareTo(other: Float32): Int
+    public operator fun compareTo(other: Float32): Int
 
     @Intrinsic("float_abs")
-    fun abs(): Float32
+    public fun abs(): Float32
 
     @Intrinsic("float_is_nan")
-    fun isNaN(): Bool
+    public fun isNaN(): Bool
 
     @Intrinsic("float_is_infinite")
-    fun isInfinite(): Bool
+    public fun isInfinite(): Bool
 
     @Intrinsic("float_hash")
-    fun hash(): Int
+    public fun hash(): Int
 }
 
 @Intrinsic
-class String : Hashable, ToString {
-    override fun toString(): String {
+public class String : Hashable, ToString {
+    public override fun toString(): String {
         return this
     }
 
-    fun length(): Int {
+    public fun length(): Int {
         return __scoop_string_length(this)
     }
 
-    fun toInt(): Int {
+    public fun toInt(): Int {
         return __scoop_string_to_int(this)
     }
 
-    fun concat(other: String): String {
+    public fun concat(other: String): String {
         return __scoop_string_concat(this, other)
     }
 
-    fun hash(): Int {
+    public fun hash(): Int {
         return __scoop_string_hash(this)
     }
 
-    fun isEmpty(): Bool {
+    public fun isEmpty(): Bool {
         return __scoop_string_is_empty(this)
     }
 
-    fun replace(old: String, new: String): String {
+    public fun replace(old: String, new: String): String {
         return __scoop_string_replace(this, old, new)
     }
 
-    fun charAt(index: Int): Int {
+    public fun charAt(index: Int): Int {
         return __scoop_string_char_at(this, index)
     }
 
-    fun repeat(n: Int): String {
+    public fun repeat(n: Int): String {
         return __scoop_string_repeat(this, n)
     }
 
-    operator fun compareTo(other: String): Int {
+    public operator fun compareTo(other: String): Int {
         return __scoop_string_compare_to(this, other)
     }
 
-    fun trimIndent(): String {
+    public fun trimIndent(): String {
         return __scoop_string_trim_indent(this)
     }
 
     @Unsafe
-    fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
+    public fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
         return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
     }
 }
-typealias Double = Float64
+public typealias Double = Float64
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
@@ -301,15 +301,15 @@ typealias Double = Float64
 // - `size/get/set` 等基础访问通过 method-level named intrinsic lowering 接到编译器的
 //   array intrinsic 表，而不是再靠 `scoop.core.size/get/set` 的 extension + codegen 按名分流。
 @Intrinsic
-class Array<T> {
+public class Array<T> {
     @Intrinsic("array_size_inline")
-    fun size(): Int
+    public fun size(): Int
 
     @Intrinsic("array_get_inline")
-    operator fun get(index: Int): T
+    public operator fun get(index: Int): T
 
     @Intrinsic("array_data_ptr_inline")
-    fun __dataPtr(): UIntPtr
+    public fun __dataPtr(): UIntPtr
 }
 
 // 可变泛型数组类型（runtime 表面）。
@@ -319,18 +319,18 @@ class Array<T> {
 // - 基础读写与 `Array<T>` 一样走 named intrinsic 表；真正涉及分配/搬移/GC 协作的路径仍由
 //   stdlib helper + runtime substrate 承接。
 @Intrinsic
-class MutableArray<T> {
+public class MutableArray<T> {
     @Intrinsic("array_size_outofline")
-    fun size(): Int
+    public fun size(): Int
 
     @Intrinsic("array_get_outofline")
-    operator fun get(index: Int): T
+    public operator fun get(index: Int): T
 
     @Intrinsic("array_set_outofline")
-    operator fun set(index: Int, value: T): Unit
+    public operator fun set(index: Int, value: T): Unit
 
     @Intrinsic("array_data_ptr_outofline")
-    fun __dataPtr(): UIntPtr
+    public fun __dataPtr(): UIntPtr
 }
 
 @Extern(name = "scoop_mutable_array_new", abi = "scoop")
@@ -357,7 +357,7 @@ fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
 @Extern(name = "scoop_mutable_array_to_array_data", abi = "scoop")
 fun __scoop_mutable_array_to_array_data(arr: MutableArray<Any>): UIntPtr
 
-fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
+public fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
     val raw: MutableArray<Any> = __scoop_mutable_array_new(
         kindOf<T>(),
         sizeOf<T>(),
@@ -368,7 +368,7 @@ fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_W
     return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
 }
 
-fun <T> MutableArray<T>.push(value: T): Unit {
+public fun <T> MutableArray<T>.push(value: T): Unit {
     val kind: Int = kindOf<T>()
     val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
 
@@ -391,7 +391,7 @@ fun <T> MutableArray<T>.push(value: T): Unit {
     }
 }
 
-fun <T> MutableArray<T>.freeze(): Array<T> {
+public fun <T> MutableArray<T>.freeze(): Array<T> {
     val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
     return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
@@ -403,17 +403,17 @@ fun <T> MutableArray<T>.freeze(): Array<T> {
 //   以便在不引入新布局/新 intrinsic 的前提下，先把常用 API 表面固定下来；
 // - 后续若需要更强的语义区分（例如只读视图 vs 不可变值、或更丰富的接口层级），
 //   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
-typealias List<T> = Array<T>
-typealias MutableList<T> = MutableArray<T>
+public typealias List<T> = Array<T>
+public typealias MutableList<T> = MutableArray<T>
 
 // 静态元数据列表（spec §5）。
 //
 // 说明：
 // - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的静态元数据集合；
 // - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续反射元数据 lowering 补齐。
-class MetaList<T>
-struct Unit
-enum Nothing
+public class MetaList<T>
+public struct Unit
+public enum Nothing
 
 // Built-in annotations（spec §15.5）。
 //
@@ -424,7 +424,7 @@ enum Nothing
 // - 当前阶段先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
 //   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
 
-enum AnnotationTarget {
+public enum AnnotationTarget {
     Function,
     Property,
     Field,
@@ -438,36 +438,36 @@ enum AnnotationTarget {
     EnumVariant,
 }
 
-annotation class TailRec
+public annotation class TailRec
 // `@AllowIntrinsic`：文件 / 模块级 gate。
 //
 // 说明：
 // - `@Intrinsic` declaration surface 只允许 trusted `syslib` source 持有；
 // - 用户源码和普通 `lib` cone 不能通过文件级注解打开 intrinsic 权限。
-annotation class AllowIntrinsic
-annotation class Deprecated(val message: String = "", val replaceWith: String = "")
+public annotation class AllowIntrinsic
+public annotation class Deprecated(val message: String = "", val replaceWith: String = "")
 // `@Suppress`：warning suppression surface。
 //
 // 说明：
 // - 支持 expression / declaration / `@file:...` 三类 surface；
 // - 当前稳定 warning code：`deprecated` / `enum-size-disparity` / `redundant-when-else`。
-annotation class Suppress(vararg val warnings: String)
+public annotation class Suppress(vararg val warnings: String)
 // `@Experimental(feature = "...")`：保留的 feature-gate marker surface。
 //
 // 说明：
 // - 当前只保留 built-in marker 与参数校验，不接入任何具体 experimental feature；
 // - 规范 use-site 形状固定为 `@Experimental(feature = "...")`。
-annotation class Experimental(val feature: String)
+public annotation class Experimental(val feature: String)
 // `@CLayout(aligned?, packed?)`（spec §15.5.2）：
 // - `aligned`：可选的结构体整体对齐（0 表示未指定）
 // - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）
-annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
-annotation class Target(val targets: AnnotationTarget)
-annotation class Retention(val policy: String)
-annotation class ThreadLocal
-annotation class Global
+public annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
+public annotation class Target(val targets: AnnotationTarget)
+public annotation class Retention(val policy: String)
+public annotation class ThreadLocal
+public annotation class Global
 
-fun abs(x: Int): Int {
+public fun abs(x: Int): Int {
     if (x < 0) {
         return -x
     }
@@ -491,7 +491,7 @@ fun __scoop_println(value: String): Unit
 // - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
 // - `Pinned` 是 Scoop 侧 pin handle，不是 ordinary `@Extern` 的长期 token surface；丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
 @Intrinsic
-object GC {
+public object GC {
     // Stable GC handles（spec §15.10.1）。
     //
     // 说明：
@@ -503,27 +503,27 @@ object GC {
     //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
     @Intrinsic @Unsafe
-    fun handleNew(obj: Any): GcHandle
+    public fun handleNew(obj: Any): GcHandle
 
     @Intrinsic @NoGC @Unsafe
-    fun handleGet(h: GcHandle): Any
+    public fun handleGet(h: GcHandle): Any
 
     @Intrinsic @NoGC @Unsafe
-    fun handleDrop(h: GcHandle): Unit
+    public fun handleDrop(h: GcHandle): Unit
 
     @Intrinsic @NoGC @Unsafe
-    fun pin(obj: Any): Pinned
+    public fun pin(obj: Any): Pinned
 
     @Intrinsic @NoGC @Unsafe
-    fun unpin(pinned: Pinned): Unit
+    public fun unpin(pinned: Pinned): Unit
 }
 
 // Opaque token. Representation is toolchain-defined but must be stably passable to native code.
-struct GcHandle(val raw: UIntPtr)
+public struct GcHandle(val raw: UIntPtr)
 
 // Value type handle. Exact fields are implementation-defined (spec §15.10).
 // 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
-struct Pinned(val value: Any)
+public struct Pinned(val value: Any)
 
 // Static metadata（spec §5 / §10.4）。
 //
@@ -538,7 +538,7 @@ struct Pinned(val value: Any)
 //   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
 //   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
 // - 说明：注解参数值仅保证字面量、枚举值和 class literal 等静态参数可读；更复杂表达式与导出规则后续任务补齐。
-enum TypeKind {
+public enum TypeKind {
     Struct,
     Enum,
     Class,
@@ -548,37 +548,37 @@ enum TypeKind {
     Primitive,
 }
 
-struct TypeMeta {
-    val name: String
-    val kind: TypeKind
-    val annotations: MetaList<AnnotationMeta>
+public struct TypeMeta {
+    public val name: String
+    public val kind: TypeKind
+    public val annotations: MetaList<AnnotationMeta>
 }
 
-struct FieldMeta {
-    val name: String
-    val type: TypeMeta
-    val index: Int
-    val annotations: MetaList<AnnotationMeta>
+public struct FieldMeta {
+    public val name: String
+    public val type: TypeMeta
+    public val index: Int
+    public val annotations: MetaList<AnnotationMeta>
 }
 
-struct VariantMeta {
-    val name: String
-    val fields: MetaList<FieldMeta>
-    val index: Int
-    val annotations: MetaList<AnnotationMeta>
+public struct VariantMeta {
+    public val name: String
+    public val fields: MetaList<FieldMeta>
+    public val index: Int
+    public val annotations: MetaList<AnnotationMeta>
 }
 
-struct ParamMeta {
-    val name: String
-    val type: TypeMeta
-    val index: Int
-    val annotations: MetaList<AnnotationMeta>
+public struct ParamMeta {
+    public val name: String
+    public val type: TypeMeta
+    public val index: Int
+    public val annotations: MetaList<AnnotationMeta>
 }
 
-struct PropertyMeta {
-    val name: String
-    val type: TypeMeta
-    val owner: TypeMeta
+public struct PropertyMeta {
+    public val name: String
+    public val type: TypeMeta
+    public val owner: TypeMeta
 }
 
 // Function meta（spec §6.4）。
@@ -587,8 +587,8 @@ struct PropertyMeta {
 // - v0 阶段先只暴露"函数名"作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
 // - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
 //   但应保持"可用 name 构造句柄"这一能力（避免影响工具链/fixtures）。
-struct FunctionMeta {
-    val name: String
+public struct FunctionMeta {
+    public val name: String
 }
 
 // Static annotation metadata（spec §15.6）。
@@ -597,575 +597,575 @@ struct FunctionMeta {
 // - 用于读取注解名与参数（`annotationsOf<T>()` 等）；参数值为静态注解参数；
 // - v0 阶段先要求"注解名 + 静态参数"可回归：字面量/数组字面量/enum 常量/class literal；
 // - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
-struct AnnotationMeta {
-    val name: String
-    val args: MetaList<AnnotationArgMeta>
+public struct AnnotationMeta {
+    public val name: String
+    public val args: MetaList<AnnotationArgMeta>
 }
 
-struct AnnotationArgMeta {
-    val name: String
-    val value: Any
+public struct AnnotationArgMeta {
+    public val name: String
+    public val value: Any
 }
 
 // Integers（spec §2.3.4 / runtime §3）
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
 @Intrinsic
-struct Int : Hashable, ToString {
-    override fun toString(): String {
+public struct Int : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_int_to_string(this)
     }
 
     @Intrinsic("int_plus")
-    operator fun plus(other: Int): Int
+    public operator fun plus(other: Int): Int
 
     @Intrinsic("int_minus")
-    operator fun minus(other: Int): Int
+    public operator fun minus(other: Int): Int
 
     @Intrinsic("int_times")
-    operator fun times(other: Int): Int
+    public operator fun times(other: Int): Int
 
     @Intrinsic("int_div")
-    operator fun div(other: Int): Int
+    public operator fun div(other: Int): Int
 
     @Intrinsic("int_rem")
-    operator fun rem(other: Int): Int
+    public operator fun rem(other: Int): Int
 
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int
+    public operator fun unaryMinus(): Int
 
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int
+    public operator fun unaryPlus(): Int
 
     @Intrinsic("int_inc")
-    operator fun inc(): Int
+    public operator fun inc(): Int
 
     @Intrinsic("int_dec")
-    operator fun dec(): Int
+    public operator fun dec(): Int
 
     @Intrinsic("int_and")
-    operator fun and(other: Int): Int
+    public operator fun and(other: Int): Int
 
     @Intrinsic("int_or")
-    operator fun or(other: Int): Int
+    public operator fun or(other: Int): Int
 
     @Intrinsic("int_xor")
-    operator fun xor(other: Int): Int
+    public operator fun xor(other: Int): Int
 
     @Intrinsic("int_inv")
-    operator fun inv(): Int
+    public operator fun inv(): Int
 
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): Int
+    public operator fun shl(amount: Int): Int
 
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): Int
+    public operator fun shr(amount: Int): Int
 
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): Int
+    public operator fun ushr(amount: Int): Int
 
     @Intrinsic("int_lt")
-    operator fun lt(other: Int): Bool
+    public operator fun lt(other: Int): Bool
 
     @Intrinsic("int_le")
-    operator fun le(other: Int): Bool
+    public operator fun le(other: Int): Bool
 
     @Intrinsic("int_gt")
-    operator fun gt(other: Int): Bool
+    public operator fun gt(other: Int): Bool
 
     @Intrinsic("int_ge")
-    operator fun ge(other: Int): Bool
+    public operator fun ge(other: Int): Bool
 
     @Intrinsic("int_eq")
-    operator fun equals(other: Int): Bool
+    public operator fun equals(other: Int): Bool
 
     @Intrinsic("int_ne")
-    operator fun notEquals(other: Int): Bool
+    public operator fun notEquals(other: Int): Bool
 
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int): Int
+    public operator fun compareTo(other: Int): Int
 
     @Intrinsic("int_hash")
-    fun hash(): Int
+    public fun hash(): Int
 }
 
-struct UInt : Hashable {
+public struct UInt : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: UInt): UInt
+    public operator fun plus(other: UInt): UInt
 
     @Intrinsic("int_minus")
-    operator fun minus(other: UInt): UInt
+    public operator fun minus(other: UInt): UInt
 
     @Intrinsic("int_times")
-    operator fun times(other: UInt): UInt
+    public operator fun times(other: UInt): UInt
 
     @Intrinsic("int_div")
-    operator fun div(other: UInt): UInt
+    public operator fun div(other: UInt): UInt
 
     @Intrinsic("int_rem")
-    operator fun rem(other: UInt): UInt
+    public operator fun rem(other: UInt): UInt
 
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): UInt
+    public operator fun unaryMinus(): UInt
 
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): UInt
+    public operator fun unaryPlus(): UInt
 
     @Intrinsic("int_inc")
-    operator fun inc(): UInt
+    public operator fun inc(): UInt
 
     @Intrinsic("int_dec")
-    operator fun dec(): UInt
+    public operator fun dec(): UInt
 
     @Intrinsic("int_and")
-    operator fun and(other: UInt): UInt
+    public operator fun and(other: UInt): UInt
 
     @Intrinsic("int_or")
-    operator fun or(other: UInt): UInt
+    public operator fun or(other: UInt): UInt
 
     @Intrinsic("int_xor")
-    operator fun xor(other: UInt): UInt
+    public operator fun xor(other: UInt): UInt
 
     @Intrinsic("int_inv")
-    operator fun inv(): UInt
+    public operator fun inv(): UInt
 
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): UInt
+    public operator fun shl(amount: Int): UInt
 
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): UInt
+    public operator fun shr(amount: Int): UInt
 
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): UInt
+    public operator fun ushr(amount: Int): UInt
 
     @Intrinsic("int_lt")
-    operator fun lt(other: UInt): Bool
+    public operator fun lt(other: UInt): Bool
 
     @Intrinsic("int_le")
-    operator fun le(other: UInt): Bool
+    public operator fun le(other: UInt): Bool
 
     @Intrinsic("int_gt")
-    operator fun gt(other: UInt): Bool
+    public operator fun gt(other: UInt): Bool
 
     @Intrinsic("int_ge")
-    operator fun ge(other: UInt): Bool
+    public operator fun ge(other: UInt): Bool
 
     @Intrinsic("int_eq")
-    operator fun equals(other: UInt): Bool
+    public operator fun equals(other: UInt): Bool
 
     @Intrinsic("int_ne")
-    operator fun notEquals(other: UInt): Bool
+    public operator fun notEquals(other: UInt): Bool
 
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: UInt): Int
+    public operator fun compareTo(other: UInt): Int
 }
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
-struct Int8 : Hashable {
+public struct Int8 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: Int8): Int8
+    public operator fun plus(other: Int8): Int8
     @Intrinsic("int_minus")
-    operator fun minus(other: Int8): Int8
+    public operator fun minus(other: Int8): Int8
     @Intrinsic("int_times")
-    operator fun times(other: Int8): Int8
+    public operator fun times(other: Int8): Int8
     @Intrinsic("int_div")
-    operator fun div(other: Int8): Int8
+    public operator fun div(other: Int8): Int8
     @Intrinsic("int_rem")
-    operator fun rem(other: Int8): Int8
+    public operator fun rem(other: Int8): Int8
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int8
+    public operator fun unaryMinus(): Int8
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int8
+    public operator fun unaryPlus(): Int8
     @Intrinsic("int_inc")
-    operator fun inc(): Int8
+    public operator fun inc(): Int8
     @Intrinsic("int_dec")
-    operator fun dec(): Int8
+    public operator fun dec(): Int8
     @Intrinsic("int_and")
-    operator fun and(other: Int8): Int8
+    public operator fun and(other: Int8): Int8
     @Intrinsic("int_or")
-    operator fun or(other: Int8): Int8
+    public operator fun or(other: Int8): Int8
     @Intrinsic("int_xor")
-    operator fun xor(other: Int8): Int8
+    public operator fun xor(other: Int8): Int8
     @Intrinsic("int_inv")
-    operator fun inv(): Int8
+    public operator fun inv(): Int8
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): Int8
+    public operator fun shl(amount: Int): Int8
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): Int8
+    public operator fun shr(amount: Int): Int8
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): Int8
+    public operator fun ushr(amount: Int): Int8
     @Intrinsic("int_lt")
-    operator fun lt(other: Int8): Bool
+    public operator fun lt(other: Int8): Bool
     @Intrinsic("int_le")
-    operator fun le(other: Int8): Bool
+    public operator fun le(other: Int8): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: Int8): Bool
+    public operator fun gt(other: Int8): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: Int8): Bool
+    public operator fun ge(other: Int8): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: Int8): Bool
+    public operator fun equals(other: Int8): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: Int8): Bool
+    public operator fun notEquals(other: Int8): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int8): Int
+    public operator fun compareTo(other: Int8): Int
 }
 
-struct Int16 : Hashable {
+public struct Int16 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: Int16): Int16
+    public operator fun plus(other: Int16): Int16
     @Intrinsic("int_minus")
-    operator fun minus(other: Int16): Int16
+    public operator fun minus(other: Int16): Int16
     @Intrinsic("int_times")
-    operator fun times(other: Int16): Int16
+    public operator fun times(other: Int16): Int16
     @Intrinsic("int_div")
-    operator fun div(other: Int16): Int16
+    public operator fun div(other: Int16): Int16
     @Intrinsic("int_rem")
-    operator fun rem(other: Int16): Int16
+    public operator fun rem(other: Int16): Int16
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int16
+    public operator fun unaryMinus(): Int16
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int16
+    public operator fun unaryPlus(): Int16
     @Intrinsic("int_inc")
-    operator fun inc(): Int16
+    public operator fun inc(): Int16
     @Intrinsic("int_dec")
-    operator fun dec(): Int16
+    public operator fun dec(): Int16
     @Intrinsic("int_and")
-    operator fun and(other: Int16): Int16
+    public operator fun and(other: Int16): Int16
     @Intrinsic("int_or")
-    operator fun or(other: Int16): Int16
+    public operator fun or(other: Int16): Int16
     @Intrinsic("int_xor")
-    operator fun xor(other: Int16): Int16
+    public operator fun xor(other: Int16): Int16
     @Intrinsic("int_inv")
-    operator fun inv(): Int16
+    public operator fun inv(): Int16
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): Int16
+    public operator fun shl(amount: Int): Int16
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): Int16
+    public operator fun shr(amount: Int): Int16
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): Int16
+    public operator fun ushr(amount: Int): Int16
     @Intrinsic("int_lt")
-    operator fun lt(other: Int16): Bool
+    public operator fun lt(other: Int16): Bool
     @Intrinsic("int_le")
-    operator fun le(other: Int16): Bool
+    public operator fun le(other: Int16): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: Int16): Bool
+    public operator fun gt(other: Int16): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: Int16): Bool
+    public operator fun ge(other: Int16): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: Int16): Bool
+    public operator fun equals(other: Int16): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: Int16): Bool
+    public operator fun notEquals(other: Int16): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int16): Int
+    public operator fun compareTo(other: Int16): Int
 }
 
-struct Int32 : Hashable {
+public struct Int32 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: Int32): Int32
+    public operator fun plus(other: Int32): Int32
     @Intrinsic("int_minus")
-    operator fun minus(other: Int32): Int32
+    public operator fun minus(other: Int32): Int32
     @Intrinsic("int_times")
-    operator fun times(other: Int32): Int32
+    public operator fun times(other: Int32): Int32
     @Intrinsic("int_div")
-    operator fun div(other: Int32): Int32
+    public operator fun div(other: Int32): Int32
     @Intrinsic("int_rem")
-    operator fun rem(other: Int32): Int32
+    public operator fun rem(other: Int32): Int32
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int32
+    public operator fun unaryMinus(): Int32
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int32
+    public operator fun unaryPlus(): Int32
     @Intrinsic("int_inc")
-    operator fun inc(): Int32
+    public operator fun inc(): Int32
     @Intrinsic("int_dec")
-    operator fun dec(): Int32
+    public operator fun dec(): Int32
     @Intrinsic("int_and")
-    operator fun and(other: Int32): Int32
+    public operator fun and(other: Int32): Int32
     @Intrinsic("int_or")
-    operator fun or(other: Int32): Int32
+    public operator fun or(other: Int32): Int32
     @Intrinsic("int_xor")
-    operator fun xor(other: Int32): Int32
+    public operator fun xor(other: Int32): Int32
     @Intrinsic("int_inv")
-    operator fun inv(): Int32
+    public operator fun inv(): Int32
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): Int32
+    public operator fun shl(amount: Int): Int32
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): Int32
+    public operator fun shr(amount: Int): Int32
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): Int32
+    public operator fun ushr(amount: Int): Int32
     @Intrinsic("int_lt")
-    operator fun lt(other: Int32): Bool
+    public operator fun lt(other: Int32): Bool
     @Intrinsic("int_le")
-    operator fun le(other: Int32): Bool
+    public operator fun le(other: Int32): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: Int32): Bool
+    public operator fun gt(other: Int32): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: Int32): Bool
+    public operator fun ge(other: Int32): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: Int32): Bool
+    public operator fun equals(other: Int32): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: Int32): Bool
+    public operator fun notEquals(other: Int32): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int32): Int
+    public operator fun compareTo(other: Int32): Int
 }
 
-struct Int64 : Hashable {
+public struct Int64 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: Int64): Int64
+    public operator fun plus(other: Int64): Int64
     @Intrinsic("int_minus")
-    operator fun minus(other: Int64): Int64
+    public operator fun minus(other: Int64): Int64
     @Intrinsic("int_times")
-    operator fun times(other: Int64): Int64
+    public operator fun times(other: Int64): Int64
     @Intrinsic("int_div")
-    operator fun div(other: Int64): Int64
+    public operator fun div(other: Int64): Int64
     @Intrinsic("int_rem")
-    operator fun rem(other: Int64): Int64
+    public operator fun rem(other: Int64): Int64
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int64
+    public operator fun unaryMinus(): Int64
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int64
+    public operator fun unaryPlus(): Int64
     @Intrinsic("int_inc")
-    operator fun inc(): Int64
+    public operator fun inc(): Int64
     @Intrinsic("int_dec")
-    operator fun dec(): Int64
+    public operator fun dec(): Int64
     @Intrinsic("int_and")
-    operator fun and(other: Int64): Int64
+    public operator fun and(other: Int64): Int64
     @Intrinsic("int_or")
-    operator fun or(other: Int64): Int64
+    public operator fun or(other: Int64): Int64
     @Intrinsic("int_xor")
-    operator fun xor(other: Int64): Int64
+    public operator fun xor(other: Int64): Int64
     @Intrinsic("int_inv")
-    operator fun inv(): Int64
+    public operator fun inv(): Int64
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): Int64
+    public operator fun shl(amount: Int): Int64
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): Int64
+    public operator fun shr(amount: Int): Int64
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): Int64
+    public operator fun ushr(amount: Int): Int64
     @Intrinsic("int_lt")
-    operator fun lt(other: Int64): Bool
+    public operator fun lt(other: Int64): Bool
     @Intrinsic("int_le")
-    operator fun le(other: Int64): Bool
+    public operator fun le(other: Int64): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: Int64): Bool
+    public operator fun gt(other: Int64): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: Int64): Bool
+    public operator fun ge(other: Int64): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: Int64): Bool
+    public operator fun equals(other: Int64): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: Int64): Bool
+    public operator fun notEquals(other: Int64): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int64): Int
+    public operator fun compareTo(other: Int64): Int
 }
 
-struct UInt8 : Hashable {
+public struct UInt8 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: UInt8): UInt8
+    public operator fun plus(other: UInt8): UInt8
     @Intrinsic("int_minus")
-    operator fun minus(other: UInt8): UInt8
+    public operator fun minus(other: UInt8): UInt8
     @Intrinsic("int_times")
-    operator fun times(other: UInt8): UInt8
+    public operator fun times(other: UInt8): UInt8
     @Intrinsic("int_div")
-    operator fun div(other: UInt8): UInt8
+    public operator fun div(other: UInt8): UInt8
     @Intrinsic("int_rem")
-    operator fun rem(other: UInt8): UInt8
+    public operator fun rem(other: UInt8): UInt8
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): UInt8
+    public operator fun unaryMinus(): UInt8
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): UInt8
+    public operator fun unaryPlus(): UInt8
     @Intrinsic("int_inc")
-    operator fun inc(): UInt8
+    public operator fun inc(): UInt8
     @Intrinsic("int_dec")
-    operator fun dec(): UInt8
+    public operator fun dec(): UInt8
     @Intrinsic("int_and")
-    operator fun and(other: UInt8): UInt8
+    public operator fun and(other: UInt8): UInt8
     @Intrinsic("int_or")
-    operator fun or(other: UInt8): UInt8
+    public operator fun or(other: UInt8): UInt8
     @Intrinsic("int_xor")
-    operator fun xor(other: UInt8): UInt8
+    public operator fun xor(other: UInt8): UInt8
     @Intrinsic("int_inv")
-    operator fun inv(): UInt8
+    public operator fun inv(): UInt8
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): UInt8
+    public operator fun shl(amount: Int): UInt8
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): UInt8
+    public operator fun shr(amount: Int): UInt8
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): UInt8
+    public operator fun ushr(amount: Int): UInt8
     @Intrinsic("int_lt")
-    operator fun lt(other: UInt8): Bool
+    public operator fun lt(other: UInt8): Bool
     @Intrinsic("int_le")
-    operator fun le(other: UInt8): Bool
+    public operator fun le(other: UInt8): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: UInt8): Bool
+    public operator fun gt(other: UInt8): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: UInt8): Bool
+    public operator fun ge(other: UInt8): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: UInt8): Bool
+    public operator fun equals(other: UInt8): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: UInt8): Bool
+    public operator fun notEquals(other: UInt8): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: UInt8): Int
+    public operator fun compareTo(other: UInt8): Int
 }
 
-struct UInt16 : Hashable {
+public struct UInt16 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: UInt16): UInt16
+    public operator fun plus(other: UInt16): UInt16
     @Intrinsic("int_minus")
-    operator fun minus(other: UInt16): UInt16
+    public operator fun minus(other: UInt16): UInt16
     @Intrinsic("int_times")
-    operator fun times(other: UInt16): UInt16
+    public operator fun times(other: UInt16): UInt16
     @Intrinsic("int_div")
-    operator fun div(other: UInt16): UInt16
+    public operator fun div(other: UInt16): UInt16
     @Intrinsic("int_rem")
-    operator fun rem(other: UInt16): UInt16
+    public operator fun rem(other: UInt16): UInt16
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): UInt16
+    public operator fun unaryMinus(): UInt16
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): UInt16
+    public operator fun unaryPlus(): UInt16
     @Intrinsic("int_inc")
-    operator fun inc(): UInt16
+    public operator fun inc(): UInt16
     @Intrinsic("int_dec")
-    operator fun dec(): UInt16
+    public operator fun dec(): UInt16
     @Intrinsic("int_and")
-    operator fun and(other: UInt16): UInt16
+    public operator fun and(other: UInt16): UInt16
     @Intrinsic("int_or")
-    operator fun or(other: UInt16): UInt16
+    public operator fun or(other: UInt16): UInt16
     @Intrinsic("int_xor")
-    operator fun xor(other: UInt16): UInt16
+    public operator fun xor(other: UInt16): UInt16
     @Intrinsic("int_inv")
-    operator fun inv(): UInt16
+    public operator fun inv(): UInt16
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): UInt16
+    public operator fun shl(amount: Int): UInt16
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): UInt16
+    public operator fun shr(amount: Int): UInt16
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): UInt16
+    public operator fun ushr(amount: Int): UInt16
     @Intrinsic("int_lt")
-    operator fun lt(other: UInt16): Bool
+    public operator fun lt(other: UInt16): Bool
     @Intrinsic("int_le")
-    operator fun le(other: UInt16): Bool
+    public operator fun le(other: UInt16): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: UInt16): Bool
+    public operator fun gt(other: UInt16): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: UInt16): Bool
+    public operator fun ge(other: UInt16): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: UInt16): Bool
+    public operator fun equals(other: UInt16): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: UInt16): Bool
+    public operator fun notEquals(other: UInt16): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: UInt16): Int
+    public operator fun compareTo(other: UInt16): Int
 }
 
-struct UInt32 : Hashable {
+public struct UInt32 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: UInt32): UInt32
+    public operator fun plus(other: UInt32): UInt32
     @Intrinsic("int_minus")
-    operator fun minus(other: UInt32): UInt32
+    public operator fun minus(other: UInt32): UInt32
     @Intrinsic("int_times")
-    operator fun times(other: UInt32): UInt32
+    public operator fun times(other: UInt32): UInt32
     @Intrinsic("int_div")
-    operator fun div(other: UInt32): UInt32
+    public operator fun div(other: UInt32): UInt32
     @Intrinsic("int_rem")
-    operator fun rem(other: UInt32): UInt32
+    public operator fun rem(other: UInt32): UInt32
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): UInt32
+    public operator fun unaryMinus(): UInt32
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): UInt32
+    public operator fun unaryPlus(): UInt32
     @Intrinsic("int_inc")
-    operator fun inc(): UInt32
+    public operator fun inc(): UInt32
     @Intrinsic("int_dec")
-    operator fun dec(): UInt32
+    public operator fun dec(): UInt32
     @Intrinsic("int_and")
-    operator fun and(other: UInt32): UInt32
+    public operator fun and(other: UInt32): UInt32
     @Intrinsic("int_or")
-    operator fun or(other: UInt32): UInt32
+    public operator fun or(other: UInt32): UInt32
     @Intrinsic("int_xor")
-    operator fun xor(other: UInt32): UInt32
+    public operator fun xor(other: UInt32): UInt32
     @Intrinsic("int_inv")
-    operator fun inv(): UInt32
+    public operator fun inv(): UInt32
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): UInt32
+    public operator fun shl(amount: Int): UInt32
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): UInt32
+    public operator fun shr(amount: Int): UInt32
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): UInt32
+    public operator fun ushr(amount: Int): UInt32
     @Intrinsic("int_lt")
-    operator fun lt(other: UInt32): Bool
+    public operator fun lt(other: UInt32): Bool
     @Intrinsic("int_le")
-    operator fun le(other: UInt32): Bool
+    public operator fun le(other: UInt32): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: UInt32): Bool
+    public operator fun gt(other: UInt32): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: UInt32): Bool
+    public operator fun ge(other: UInt32): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: UInt32): Bool
+    public operator fun equals(other: UInt32): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: UInt32): Bool
+    public operator fun notEquals(other: UInt32): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: UInt32): Int
+    public operator fun compareTo(other: UInt32): Int
 }
 
-struct UInt64 : Hashable {
+public struct UInt64 : Hashable {
     @Intrinsic("int_plus")
-    operator fun plus(other: UInt64): UInt64
+    public operator fun plus(other: UInt64): UInt64
     @Intrinsic("int_minus")
-    operator fun minus(other: UInt64): UInt64
+    public operator fun minus(other: UInt64): UInt64
     @Intrinsic("int_times")
-    operator fun times(other: UInt64): UInt64
+    public operator fun times(other: UInt64): UInt64
     @Intrinsic("int_div")
-    operator fun div(other: UInt64): UInt64
+    public operator fun div(other: UInt64): UInt64
     @Intrinsic("int_rem")
-    operator fun rem(other: UInt64): UInt64
+    public operator fun rem(other: UInt64): UInt64
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): UInt64
+    public operator fun unaryMinus(): UInt64
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): UInt64
+    public operator fun unaryPlus(): UInt64
     @Intrinsic("int_inc")
-    operator fun inc(): UInt64
+    public operator fun inc(): UInt64
     @Intrinsic("int_dec")
-    operator fun dec(): UInt64
+    public operator fun dec(): UInt64
     @Intrinsic("int_and")
-    operator fun and(other: UInt64): UInt64
+    public operator fun and(other: UInt64): UInt64
     @Intrinsic("int_or")
-    operator fun or(other: UInt64): UInt64
+    public operator fun or(other: UInt64): UInt64
     @Intrinsic("int_xor")
-    operator fun xor(other: UInt64): UInt64
+    public operator fun xor(other: UInt64): UInt64
     @Intrinsic("int_inv")
-    operator fun inv(): UInt64
+    public operator fun inv(): UInt64
     @Intrinsic("int_shl")
-    operator fun shl(amount: Int): UInt64
+    public operator fun shl(amount: Int): UInt64
     @Intrinsic("int_shr")
-    operator fun shr(amount: Int): UInt64
+    public operator fun shr(amount: Int): UInt64
     @Intrinsic("int_ushr")
-    operator fun ushr(amount: Int): UInt64
+    public operator fun ushr(amount: Int): UInt64
     @Intrinsic("int_lt")
-    operator fun lt(other: UInt64): Bool
+    public operator fun lt(other: UInt64): Bool
     @Intrinsic("int_le")
-    operator fun le(other: UInt64): Bool
+    public operator fun le(other: UInt64): Bool
     @Intrinsic("int_gt")
-    operator fun gt(other: UInt64): Bool
+    public operator fun gt(other: UInt64): Bool
     @Intrinsic("int_ge")
-    operator fun ge(other: UInt64): Bool
+    public operator fun ge(other: UInt64): Bool
     @Intrinsic("int_eq")
-    operator fun equals(other: UInt64): Bool
+    public operator fun equals(other: UInt64): Bool
     @Intrinsic("int_ne")
-    operator fun notEquals(other: UInt64): Bool
+    public operator fun notEquals(other: UInt64): Bool
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: UInt64): Int
+    public operator fun compareTo(other: UInt64): Int
 }
 
 // Kotlin-like ranges/progressions（Appendix B.12）所需的核心类型表面。
-struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
-struct LongProgression(val first: Long, val last: Long, val step: Long, val increasing: Bool)
-struct UIntProgression(val first: UInt, val last: UInt, val step: UInt, val increasing: Bool)
-struct ULongProgression(val first: ULong, val last: ULong, val step: ULong, val increasing: Bool)
+public struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+public struct LongProgression(val first: Long, val last: Long, val step: Long, val increasing: Bool)
+public struct UIntProgression(val first: UInt, val last: UInt, val step: UInt, val increasing: Bool)
+public struct ULongProgression(val first: ULong, val last: ULong, val step: ULong, val increasing: Bool)
 
 // 标准别名（Kotlin/Swift 风格）。
-typealias Byte = UInt8
-typealias Short = Int16
-typealias UShort = UInt16
-typealias Long = Int64
-typealias ULong = UInt64
-typealias UIntPtr = UInt
+public typealias Byte = UInt8
+public typealias Short = Int16
+public typealias UShort = UInt16
+public typealias Long = Int64
+public typealias ULong = UInt64
+public typealias UIntPtr = UInt
 
 fun __scoop_range_default_step(sample: Int): Int {
     return 1
@@ -1183,7 +1183,7 @@ fun __scoop_range_default_step(sample: ULong): ULong {
     return 1UL
 }
 
-operator fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
+public operator fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
     return IntProgression {
         first: this,
         last: endInclusive,
@@ -1192,7 +1192,7 @@ operator fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
     }
 }
 
-fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
+public fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
     return IntProgression {
         first: this,
         last: endInclusive,
@@ -1201,12 +1201,12 @@ fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
     }
 }
 
-fun Int.until(endExclusive: Int): IntProgression {
+public fun Int.until(endExclusive: Int): IntProgression {
     val one: Int = __scoop_range_default_step(this)
     return this.rangeTo(endExclusive - one, one)
 }
 
-fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
+public fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
     var cur: Int = this.first
     when (this.increasing) {
         true -> {
@@ -1231,7 +1231,7 @@ fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
     return ()
 }
 
-operator fun Long.rangeTo(endInclusive: Long, step: Long): LongProgression {
+public operator fun Long.rangeTo(endInclusive: Long, step: Long): LongProgression {
     return LongProgression {
         first: this,
         last: endInclusive,
@@ -1240,7 +1240,7 @@ operator fun Long.rangeTo(endInclusive: Long, step: Long): LongProgression {
     }
 }
 
-fun Long.downTo(endInclusive: Long, step: Long): LongProgression {
+public fun Long.downTo(endInclusive: Long, step: Long): LongProgression {
     return LongProgression {
         first: this,
         last: endInclusive,
@@ -1249,12 +1249,12 @@ fun Long.downTo(endInclusive: Long, step: Long): LongProgression {
     }
 }
 
-fun Long.until(endExclusive: Long): LongProgression {
+public fun Long.until(endExclusive: Long): LongProgression {
     val one: Long = __scoop_range_default_step(this)
     return this.rangeTo(endExclusive - one, one)
 }
 
-fun <eff E = Pure> LongProgression.forEach(action: (Long) -> Unit / E): Unit / E {
+public fun <eff E = Pure> LongProgression.forEach(action: (Long) -> Unit / E): Unit / E {
     var cur: Long = this.first
     when (this.increasing) {
         true -> {
@@ -1279,7 +1279,7 @@ fun <eff E = Pure> LongProgression.forEach(action: (Long) -> Unit / E): Unit / E
     return ()
 }
 
-operator fun UInt.rangeTo(endInclusive: UInt, step: UInt): UIntProgression {
+public operator fun UInt.rangeTo(endInclusive: UInt, step: UInt): UIntProgression {
     return UIntProgression {
         first: this,
         last: endInclusive,
@@ -1288,7 +1288,7 @@ operator fun UInt.rangeTo(endInclusive: UInt, step: UInt): UIntProgression {
     }
 }
 
-fun UInt.downTo(endInclusive: UInt, step: UInt): UIntProgression {
+public fun UInt.downTo(endInclusive: UInt, step: UInt): UIntProgression {
     return UIntProgression {
         first: this,
         last: endInclusive,
@@ -1297,7 +1297,7 @@ fun UInt.downTo(endInclusive: UInt, step: UInt): UIntProgression {
     }
 }
 
-fun UInt.until(endExclusive: UInt): UIntProgression {
+public fun UInt.until(endExclusive: UInt): UIntProgression {
     val one: UInt = __scoop_range_default_step(this)
     if (endExclusive == 0u) {
         return UIntProgression {
@@ -1310,7 +1310,7 @@ fun UInt.until(endExclusive: UInt): UIntProgression {
     return this.rangeTo(endExclusive - one, one)
 }
 
-fun <eff E = Pure> UIntProgression.forEach(action: (UInt) -> Unit / E): Unit / E {
+public fun <eff E = Pure> UIntProgression.forEach(action: (UInt) -> Unit / E): Unit / E {
     var cur: UInt = this.first
     when (this.increasing) {
         true -> {
@@ -1335,7 +1335,7 @@ fun <eff E = Pure> UIntProgression.forEach(action: (UInt) -> Unit / E): Unit / E
     return ()
 }
 
-operator fun ULong.rangeTo(endInclusive: ULong, step: ULong): ULongProgression {
+public operator fun ULong.rangeTo(endInclusive: ULong, step: ULong): ULongProgression {
     return ULongProgression {
         first: this,
         last: endInclusive,
@@ -1344,7 +1344,7 @@ operator fun ULong.rangeTo(endInclusive: ULong, step: ULong): ULongProgression {
     }
 }
 
-fun ULong.downTo(endInclusive: ULong, step: ULong): ULongProgression {
+public fun ULong.downTo(endInclusive: ULong, step: ULong): ULongProgression {
     return ULongProgression {
         first: this,
         last: endInclusive,
@@ -1353,7 +1353,7 @@ fun ULong.downTo(endInclusive: ULong, step: ULong): ULongProgression {
     }
 }
 
-fun ULong.until(endExclusive: ULong): ULongProgression {
+public fun ULong.until(endExclusive: ULong): ULongProgression {
     val one: ULong = __scoop_range_default_step(this)
     if (endExclusive == 0UL) {
         return ULongProgression {
@@ -1366,7 +1366,7 @@ fun ULong.until(endExclusive: ULong): ULongProgression {
     return this.rangeTo(endExclusive - one, one)
 }
 
-fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit / E {
+public fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit / E {
     var cur: ULong = this.first
     when (this.increasing) {
         true -> {
@@ -1399,9 +1399,9 @@ fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit /
 //   - `sizeOf(1)` / `sizeOf("s")`
 // - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供。
 @Intrinsic
-fun sizeOf(value: Int): Int
+public fun sizeOf(value: Int): Int
 @Intrinsic
-fun sizeOf(value: String): Int
+public fun sizeOf(value: String): Int
 
 // Reflection intrinsics v0。
 //
@@ -1409,29 +1409,29 @@ fun sizeOf(value: String): Int
 // - 这些函数只保留运行期 intrinsic surface；旧 compile-time evaluator 已删除。
 // - 当前阶段 `fieldsOf<T>()` 返回 `FieldMeta` 列表。
 @Intrinsic
-fun <T> nameOf(): String
+public fun <T> nameOf(): String
 @Intrinsic
-fun <T> sizeOf(): Int
+public fun <T> sizeOf(): Int
 @Intrinsic
-fun <T> alignOf(): Int
+public fun <T> alignOf(): Int
 @Intrinsic
-fun <T> kindOf(): Int
+public fun <T> kindOf(): Int
 @Intrinsic
-fun <T> descOf(): UIntPtr
+public fun <T> descOf(): UIntPtr
 @Intrinsic
-fun <T> fieldsOf(): MetaList<FieldMeta>
+public fun <T> fieldsOf(): MetaList<FieldMeta>
 @Intrinsic
-fun <T> variantsOf(): MetaList<VariantMeta>
+public fun <T> variantsOf(): MetaList<VariantMeta>
 @Intrinsic
-fun <T> superTypesOf(): MetaList<TypeMeta>
+public fun <T> superTypesOf(): MetaList<TypeMeta>
 @Intrinsic
-fun <T> annotationsOf(): MetaList<AnnotationMeta>
+public fun <T> annotationsOf(): MetaList<AnnotationMeta>
 @Intrinsic
-fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
+public fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 
-val ARRAY_ELEM_KIND_WORD: Int = 1
-val ARRAY_ELEM_KIND_REF: Int = 2
-val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+public val ARRAY_ELEM_KIND_WORD: Int = 1
+public val ARRAY_ELEM_KIND_REF: Int = 2
+public val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 // Platform Introspection（spec §6.4）。
 //
@@ -1439,19 +1439,19 @@ val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 // - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
 // - `getPlatform()` 在运行期查询当前执行环境；
 // - 当前阶段先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
-struct Platform {
-    val triple: String
-    val arch: String
-    val vendor: String
-    val os: String
-    val env: String
+public struct Platform {
+    public val triple: String
+    public val arch: String
+    public val vendor: String
+    public val os: String
+    public val env: String
 }
 
 @Intrinsic
-fun getPlatform(): Platform
+public fun getPlatform(): Platform
 
 // Option / nullable sugar
-enum Option<T> {
+public enum Option<T> {
     Some(val value: T),
     None
 }
@@ -1473,13 +1473,13 @@ enum Option<T> {
 //   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
 //   优化分类而不是独立 surface。
 // - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
-interface Continuation<Resume, Answer, eff E = Pure> {
-    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+public interface Continuation<Resume, Answer, eff E = Pure> {
+    public fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
 // Runtime errors that remain explicitly expressible through `Raise<RuntimeError>`.
 // `!!` and `as` assertion failures use `panic(...)` directly and do not perform this effect.
-enum RuntimeError {
+public enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
     ContinuationAlreadyResumed,
@@ -1493,21 +1493,21 @@ enum RuntimeError {
 // - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
 //   core / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
 @Extern(name = "scoop_panic", abi = "scoop")
-fun panic(message: String): Nothing
+public fun panic(message: String): Nothing
 
 // Built-in effect: Raise
-effect Raise<in E> {
-    fun raise(error: E): Nothing
+public effect Raise<in E> {
+    public fun raise(error: E): Nothing
 }
 
 // Explicit heap cells for shared state. `RefCell` is single-threaded and
 // mutable; `Box` is an immutable wrapper used when an extra heap indirection is
 // required by library APIs such as atomic value snapshots.
-class RefCell<T>(initial: T) {
-    var value: T = initial
+public class RefCell<T>(initial: T) {
+    public var value: T = initial
 }
 
-class Box<T>(val value: T)
+public class Box<T>(val value: T)
 
 fun __atomicBoolToInt(value: Bool): Int {
     if (value) {
@@ -1520,22 +1520,22 @@ fun __atomicIntToBool(value: Int): Bool {
     return value != 0
 }
 
-class AtomicInt(initial: Int) {
+public class AtomicInt(initial: Int) {
     var raw: __AtomicInt = initial
 
-    fun load(): Int {
+    public fun load(): Int {
         return @Unsafe do { __atomicIntLoad(this.raw) }
     }
 
-    fun store(value: Int): Unit {
+    public fun store(value: Int): Unit {
         @Unsafe do { __atomicIntStore(this.raw, value) }
     }
 
-    fun cas(expected: Int, desired: Int): Bool {
+    public fun cas(expected: Int, desired: Int): Bool {
         return @Unsafe do { __atomicIntCompareExchange(this.raw, expected, desired) }
     }
 
-    fun exchange(value: Int): Int {
+    public fun exchange(value: Int): Int {
         var old: Int = this.load()
         while (!this.cas(old, value)) {
             old = this.load()
@@ -1544,22 +1544,22 @@ class AtomicInt(initial: Int) {
     }
 }
 
-class AtomicBool(initial: Bool) {
+public class AtomicBool(initial: Bool) {
     var raw: __AtomicInt = __atomicBoolToInt(initial)
 
-    fun load(): Bool {
+    public fun load(): Bool {
         return __atomicIntToBool(@Unsafe do { __atomicIntLoad(this.raw) })
     }
 
-    fun store(value: Bool): Unit {
+    public fun store(value: Bool): Unit {
         @Unsafe do { __atomicIntStore(this.raw, __atomicBoolToInt(value)) }
     }
 
-    fun cas(expected: Bool, desired: Bool): Bool {
+    public fun cas(expected: Bool, desired: Bool): Bool {
         return @Unsafe do { __atomicIntCompareExchange(this.raw, __atomicBoolToInt(expected), __atomicBoolToInt(desired)) }
     }
 
-    fun exchange(value: Bool): Bool {
+    public fun exchange(value: Bool): Bool {
         var old: Bool = this.load()
         while (!this.cas(old, value)) {
             old = this.load()
@@ -1568,22 +1568,22 @@ class AtomicBool(initial: Bool) {
     }
 }
 
-class Atomic<T: ref>(initial: T) {
+public class Atomic<T: ref>(initial: T) {
     var raw: T = initial
 
-    fun load(): T {
+    public fun load(): T {
         return @Unsafe do { __atomicRefLoad<T>(this.raw) }
     }
 
-    fun store(value: T): Unit {
+    public fun store(value: T): Unit {
         @Unsafe do { __atomicRefStore<T>(this.raw, value) }
     }
 
-    fun cas(expected: T, desired: T): Bool {
+    public fun cas(expected: T, desired: T): Bool {
         return @Unsafe do { __atomicRefCompareExchange<T>(this.raw, expected, desired) }
     }
 
-    fun exchange(value: T): T {
+    public fun exchange(value: T): T {
         var old: T = this.load()
         while (!this.cas(old, value)) {
             old = this.load()
@@ -1592,26 +1592,26 @@ class Atomic<T: ref>(initial: T) {
     }
 }
 
-class AtomicValue<T: value>(initial: T) {
+public class AtomicValue<T: value>(initial: T) {
     val raw: Atomic<scoop.core.Box<T>> = Atomic(scoop.core.Box(initial))
 
-    fun snapshot(): scoop.core.Box<T> {
+    public fun snapshot(): scoop.core.Box<T> {
         return this.raw.load()
     }
 
-    fun load(): T {
+    public fun load(): T {
         return this.snapshot().value
     }
 
-    fun store(value: T): Unit {
+    public fun store(value: T): Unit {
         this.raw.store(scoop.core.Box(value))
     }
 
-    fun cas(expected: scoop.core.Box<T>, desired: T): Bool {
+    public fun cas(expected: scoop.core.Box<T>, desired: T): Bool {
         return this.raw.cas(expected, scoop.core.Box(desired))
     }
 
-    fun exchange(value: T): T {
+    public fun exchange(value: T): T {
         return this.raw.exchange(scoop.core.Box(value)).value
     }
 }

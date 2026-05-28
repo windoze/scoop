@@ -11,7 +11,7 @@ import scoop.core.*
 
 /// 原始指针类型（intrinsic，编译器/后端固定语义）。
 @Intrinsic
-struct Ptr<T>
+public struct Ptr<T>
 
 /// 原生函数指针（intrinsic，编译器/后端固定语义）。
 ///
@@ -20,7 +20,7 @@ struct Ptr<T>
 /// - `F` 的 receiver / 参数 / 返回值必须属于当前 native ABI surface（标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple、`@CLayout` struct）；
 /// - 运行期表示为不透明的 native function address（GC-free，值语义）。
 @Intrinsic
-struct FunPtr<F>
+public struct FunPtr<F>
 
 // ---- Raw pointers（spec §15.9.4）----
 //
@@ -33,33 +33,33 @@ struct FunPtr<F>
 
 /// Unsafe pointer casts. The caller must uphold all invariants.
 @Intrinsic @NoGC @Unsafe
-fun <U, T> Ptr<T>.cast(): Ptr<U>
+public fun <U, T> Ptr<T>.cast(): Ptr<U>
 
 /// Unsafe memory load. The caller must ensure the pointer is valid.
 @Intrinsic @NoGC @Unsafe
-fun <T> Ptr<T>.load(): T
+public fun <T> Ptr<T>.load(): T
 
 /// Unsafe memory store. The caller must ensure the pointer is valid.
 @Intrinsic @NoGC @Unsafe
-fun <T> Ptr<T>.store(value: T): Unit
+public fun <T> Ptr<T>.store(value: T): Unit
 
 /// Pointer arithmetic in units of `T` (not bytes).
 @Intrinsic @NoGC @Unsafe
-operator fun <T> Ptr<T>.plus(offset: Int): Ptr<T>
+public operator fun <T> Ptr<T>.plus(offset: Int): Ptr<T>
 
 /// Pointer arithmetic in units of `T` (not bytes).
 @Intrinsic @NoGC @Unsafe
-operator fun <T> Ptr<T>.minus(offset: Int): Ptr<T>
+public operator fun <T> Ptr<T>.minus(offset: Int): Ptr<T>
 
 /// Address-of intrinsic: takes the address of a variable slot.
 ///
 /// 约定：参数名 `var` 表示调用点实参必须是可寻址变量（lvalue）。
 @Intrinsic @NoGC @Unsafe
-fun <T> addressOf(var: T): Ptr<T>
+public fun <T> addressOf(var: T): Ptr<T>
 
 /// Stack allocation intrinsic: allocates space for a GC-free `T` on the stack and returns its address.
 @Intrinsic @NoGC @Unsafe
-fun <T> stackAlloc(): Ptr<T>
+public fun <T> stackAlloc(): Ptr<T>
 
 // ---- Compat（迁移期旧名）----
 //
@@ -68,44 +68,44 @@ fun <T> stackAlloc(): Ptr<T>
 // - 新代码建议使用 `addressOf` 与 `Ptr<T>.load/store`。
 
 @Intrinsic @NoGC @Unsafe
-fun <T> addrOf(var: T): Ptr<T>
+public fun <T> addrOf(var: T): Ptr<T>
 
 @Intrinsic @NoGC @Unsafe
-fun <T> load(p: Ptr<T>): T
+public fun <T> load(p: Ptr<T>): T
 
 @Intrinsic @NoGC @Unsafe
-fun <T> store(p: Ptr<T>, value: T): Unit
+public fun <T> store(p: Ptr<T>, value: T): Unit
 
 /// 指针 → UIntPtr（只能在 unsafe context 使用；spec §15.9.4）。
 @Intrinsic @NoGC @Unsafe
-fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
+public fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
 
 /// UIntPtr → 指针（只能在 unsafe context 使用；spec §15.9.4）。
 @Intrinsic @NoGC @Unsafe
-fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
+public fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 
-// ---- Managed value representation casts（sysroot-internal）----
+// ---- Managed value representation casts（low-level unsafe ABI）----
 //
-// These are intentionally low-level unsafe intrinsics used by ordinary sysroot wrappers when
-// crossing from generic Scoop APIs to monomorphic runtime ABI entry points.
+// These are intentionally low-level unsafe intrinsics used by sysroot wrappers
+// when crossing from generic Scoop APIs to monomorphic runtime ABI entry points.
 
 @Intrinsic("unsafe_mutable_array_cast") @NoGC @Unsafe
-fun <T> __scoop_unsafe_mutable_array_cast(raw: MutableArray<Any>): MutableArray<T>
+public fun <T> __scoop_unsafe_mutable_array_cast(raw: MutableArray<Any>): MutableArray<T>
 
 @Intrinsic("unsafe_mutable_array_erase") @NoGC @Unsafe
-fun <T> __scoop_unsafe_mutable_array_erase(value: MutableArray<T>): MutableArray<Any>
+public fun <T> __scoop_unsafe_mutable_array_erase(value: MutableArray<T>): MutableArray<Any>
 
 @Intrinsic("unsafe_array_cast") @NoGC @Unsafe
-fun <T> __scoop_unsafe_array_cast(raw: Array<Any>): Array<T>
+public fun <T> __scoop_unsafe_array_cast(raw: Array<Any>): Array<T>
 
 @Intrinsic("unsafe_value_to_word") @NoGC @Unsafe
-fun <T> __scoop_unsafe_value_to_word(value: T): UIntPtr
+public fun <T> __scoop_unsafe_value_to_word(value: T): UIntPtr
 
 @Intrinsic("unsafe_value_to_any") @NoGC @Unsafe
-fun <T> __scoop_unsafe_value_to_any(value: T): Any
+public fun <T> __scoop_unsafe_value_to_any(value: T): Any
 
 @Intrinsic("unsafe_value_slot") @NoGC @Unsafe
-fun <T> __scoop_unsafe_value_slot(value: T): UIntPtr
+public fun <T> __scoop_unsafe_value_slot(value: T): UIntPtr
 
 // ---- Function pointers（spec §15.9.4）----
 //
@@ -118,35 +118,35 @@ fun <T> __scoop_unsafe_value_slot(value: T): UIntPtr
 
 /// `FunPtr` → `UIntPtr`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <F> funPtrToUIntPtr(ptr: FunPtr<F>): UIntPtr
+public fun <F> funPtrToUIntPtr(ptr: FunPtr<F>): UIntPtr
 
 /// `UIntPtr` → `FunPtr`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <F> uintPtrToFunPtr(addr: UIntPtr): FunPtr<F>
+public fun <F> uintPtrToFunPtr(addr: UIntPtr): FunPtr<F>
 
 /// `FunPtr<() -> R>.invoke()`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <R> FunPtr<() -> R>.invoke(): R
+public fun <R> FunPtr<() -> R>.invoke(): R
 
 /// `FunPtr<(A) -> R>.invoke(a0)`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <A, R> FunPtr<(A) -> R>.invoke(a0: A): R
+public fun <A, R> FunPtr<(A) -> R>.invoke(a0: A): R
 
 /// `FunPtr<(A, B) -> R>.invoke(a0, a1)`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <A, B, R> FunPtr<(A, B) -> R>.invoke(a0: A, a1: B): R
+public fun <A, B, R> FunPtr<(A, B) -> R>.invoke(a0: A, a1: B): R
 
 /// `FunPtr<T.() -> R>.invoke(receiver)`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <T, R> FunPtr<T.() -> R>.invoke(receiver: T): R
+public fun <T, R> FunPtr<T.() -> R>.invoke(receiver: T): R
 
 /// `FunPtr<T.(A) -> R>.invoke(receiver, a0)`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <T, A, R> FunPtr<T.(A) -> R>.invoke(receiver: T, a0: A): R
+public fun <T, A, R> FunPtr<T.(A) -> R>.invoke(receiver: T, a0: A): R
 
 /// `FunPtr<T.(A, B) -> R>.invoke(receiver, a0, a1)`（只能在 unsafe context 使用）。
 @Intrinsic @NoGC @Unsafe
-fun <T, A, B, R> FunPtr<T.(A, B) -> R>.invoke(receiver: T, a0: A, a1: B): R
+public fun <T, A, B, R> FunPtr<T.(A, B) -> R>.invoke(receiver: T, a0: A, a1: B): R
 
 // ---- Internal atomics（FFI/runtime oriented）----
 //
@@ -160,28 +160,28 @@ fun <T, A, B, R> FunPtr<T.(A, B) -> R>.invoke(receiver: T, a0: A, a1: B): R
 // - 这些 primitive 只提供底层原子读写语义；如何把 CAS 失败解释成 trap、重试、阻塞或其它策略，属于上层 contract。
 
 /// word-sized atomic integer. Same layout as `Int`.
-typealias __AtomicInt = Int
+public typealias __AtomicInt = Int
 
 /// atomic load (SeqCst). The first argument must be an lvalue slot.
 @Intrinsic @NoGC @Unsafe
-fun __atomicIntLoad(target: __AtomicInt): Int
+public fun __atomicIntLoad(target: __AtomicInt): Int
 
 /// atomic store (SeqCst). The first argument must be a mutable lvalue slot.
 @Intrinsic @NoGC @Unsafe
-fun __atomicIntStore(target: __AtomicInt, value: Int): Unit
+public fun __atomicIntStore(target: __AtomicInt, value: Int): Unit
 
 /// atomic compare-exchange (SeqCst). Returns `true` when swapped.
 @Intrinsic @NoGC @Unsafe
-fun __atomicIntCompareExchange(target: __AtomicInt, expected: Int, desired: Int): Bool
+public fun __atomicIntCompareExchange(target: __AtomicInt, expected: Int, desired: Int): Bool
 
 /// atomic ref load (SeqCst). The first argument must be a ref-typed lvalue slot.
 @Intrinsic @NoGC @Unsafe
-fun <T: ref> __atomicRefLoad(target: T): T
+public fun <T: ref> __atomicRefLoad(target: T): T
 
 /// atomic ref store (SeqCst). The first argument must be a mutable ref-typed lvalue slot.
 @Intrinsic @NoGC @Unsafe
-fun <T: ref> __atomicRefStore(target: T, value: T): Unit
+public fun <T: ref> __atomicRefStore(target: T, value: T): Unit
 
 /// atomic ref compare-exchange (SeqCst). Returns `true` when pointer identity matched and swapped.
 @Intrinsic @NoGC @Unsafe
-fun <T: ref> __atomicRefCompareExchange(target: T, expected: T, desired: T): Bool
+public fun <T: ref> __atomicRefCompareExchange(target: T, expected: T, desired: T): Bool

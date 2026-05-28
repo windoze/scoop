@@ -8,88 +8,88 @@ fun __scoop_int_to_string(value: Int): String
 @Extern(name = "scoop_string_unsafe_slice_bytes", abi = "scoop")
 fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
 
-interface Any
+public interface Any
 sealed interface AnyRef
 sealed interface AnyValue
 
-interface Hashable {
-    fun hash(): Int {
+public interface Hashable {
+    public fun hash(): Int {
         return 0
     }
 }
 
-interface ToString {
-    fun toString(): String {
+public interface ToString {
+    public fun toString(): String {
         return ""
     }
 }
 
-interface DummyIter {
-    fun token(): Int
+public interface DummyIter {
+    public fun token(): Int
 }
 
-struct Bool : Hashable, ToString
-struct Char : Hashable, ToString
-struct Float64 : Hashable, ToString
-struct Float32 : Hashable, ToString
-class String : Hashable, ToString {
-    fun length(): Int { return __scoop_string_length(this) }
-    fun toInt(): Int { return __scoop_string_to_int(this) }
-    fun concat(other: String): String { return __scoop_string_concat(this, other) }
-    fun hash(): Int { return __scoop_string_hash(this) }
-    fun isEmpty(): Bool { return __scoop_string_is_empty(this) }
-    fun replace(old: String, new: String): String { return __scoop_string_replace(this, old, new) }
-    fun charAt(index: Int): Int { return __scoop_string_char_at(this, index) }
-    fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
-    fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
-    fun trimIndent(): String { return __scoop_string_trim_indent(this) }
+public struct Bool : Hashable, ToString
+public struct Char : Hashable, ToString
+public struct Float64 : Hashable, ToString
+public struct Float32 : Hashable, ToString
+public class String : Hashable, ToString {
+    public fun length(): Int { return __scoop_string_length(this) }
+    public fun toInt(): Int { return __scoop_string_to_int(this) }
+    public fun concat(other: String): String { return __scoop_string_concat(this, other) }
+    public fun hash(): Int { return __scoop_string_hash(this) }
+    public fun isEmpty(): Bool { return __scoop_string_is_empty(this) }
+    public fun replace(old: String, new: String): String { return __scoop_string_replace(this, old, new) }
+    public fun charAt(index: Int): Int { return __scoop_string_char_at(this, index) }
+    public fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
+    public fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
+    public fun trimIndent(): String { return __scoop_string_trim_indent(this) }
 
     @Unsafe
-    fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
+    public fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
         return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
     }
 }
-typealias Double = Float64
+public typealias Double = Float64
 
 @Intrinsic
-class Array<T>(seed: T) : DummyIter {
-    override fun token(): Int {
+public class Array<T>(seed: T) : DummyIter {
+    public override fun token(): Int {
         return 40
     }
 
-    fun echo(value: T): T {
+    public fun echo(value: T): T {
         return value
     }
 }
 
 @Intrinsic
-class MutableArray<T>(seed: T) : DummyIter {
-    override fun token(): Int {
+public class MutableArray<T>(seed: T) : DummyIter {
+    public override fun token(): Int {
         return 50
     }
 
-    fun echo(value: T): T {
+    public fun echo(value: T): T {
         return value
     }
 }
 
-typealias List<T> = Array<T>
-typealias MutableList<T> = MutableArray<T>
+public typealias List<T> = Array<T>
+public typealias MutableList<T> = MutableArray<T>
 
 @Intrinsic
-fun <T> Array<T>.size(): Int
+public fun <T> Array<T>.size(): Int
 @Intrinsic
-fun <T> Array<T>.get(index: Int): T
+public fun <T> Array<T>.get(index: Int): T
 
 @Intrinsic
-fun <T> MutableArray<T>.size(): Int
+public fun <T> MutableArray<T>.size(): Int
 @Intrinsic
-fun <T> MutableArray<T>.get(index: Int): T
+public fun <T> MutableArray<T>.get(index: Int): T
 @Intrinsic
-fun <T> MutableArray<T>.set(index: Int, value: T): Unit
+public fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 
 @Intrinsic
-fun MutableArray<Int>.toArray(): Array<Int>
+public fun MutableArray<Int>.toArray(): Array<Int>
 
 @Extern(name = "scoop_mutable_array_new", abi = "scoop")
 fun __scoop_mutable_array_new(
@@ -112,7 +112,7 @@ fun __scoop_mutable_array_push_composite(arr: MutableArray<Any>, slot: UIntPtr, 
 @Extern(name = "scoop_mutable_array_freeze", abi = "scoop")
 fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
 
-fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
+public fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
     val raw: MutableArray<Any> = __scoop_mutable_array_new(
         kindOf<T>(),
         sizeOf<T>(),
@@ -123,7 +123,7 @@ fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_W
     return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
 }
 
-fun <T> MutableArray<T>.push(value: T): Unit {
+public fun <T> MutableArray<T>.push(value: T): Unit {
     val kind: Int = kindOf<T>()
     val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
 
@@ -146,16 +146,16 @@ fun <T> MutableArray<T>.push(value: T): Unit {
     }
 }
 
-fun <T> MutableArray<T>.freeze(): Array<T> {
+public fun <T> MutableArray<T>.freeze(): Array<T> {
     val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
     return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
 
-class MetaList<T>
-struct Unit
-enum Nothing
+public class MetaList<T>
+public struct Unit
+public enum Nothing
 
-enum AnnotationTarget {
+public enum AnnotationTarget {
     Function,
     Property,
     Field,
@@ -185,29 +185,29 @@ annotation class ThreadLocal
 annotation class Global
 
 @Intrinsic
-fun Char.toInt(): Int
+public fun Char.toInt(): Int
 @Intrinsic
-fun Float64.toInt(): Int
+public fun Float64.toInt(): Int
 @Intrinsic
-fun Float64.hash(): Int
+public fun Float64.hash(): Int
 @Intrinsic
-fun Float64.abs(): Float64
+public fun Float64.abs(): Float64
 @Intrinsic
-fun Float64.isNaN(): Bool
+public fun Float64.isNaN(): Bool
 @Intrinsic
-fun Float64.isInfinite(): Bool
+public fun Float64.isInfinite(): Bool
 @Intrinsic
-fun Float32.toInt(): Int
+public fun Float32.toInt(): Int
 @Intrinsic
-fun Float32.hash(): Int
+public fun Float32.hash(): Int
 @Intrinsic
-fun Float32.abs(): Float32
+public fun Float32.abs(): Float32
 @Intrinsic
-fun Float32.isNaN(): Bool
+public fun Float32.isNaN(): Bool
 @Intrinsic
-fun Float32.isInfinite(): Bool
+public fun Float32.isInfinite(): Bool
 @Intrinsic
-fun Char.hash(): Int
+public fun Char.hash(): Int
 
 @Extern(name = "scoop_print", abi = "scoop")
 fun __scoop_print(value: String): Unit
@@ -215,27 +215,27 @@ fun __scoop_print(value: String): Unit
 fun __scoop_println(value: String): Unit
 
 @Intrinsic
-object GC {
+public object GC {
     @Intrinsic @Unsafe
-    fun handleNew(obj: Any): GcHandle
+    public fun handleNew(obj: Any): GcHandle
 
     @Intrinsic @NoGC @Unsafe
-    fun handleGet(h: GcHandle): Any
+    public fun handleGet(h: GcHandle): Any
 
     @Intrinsic @NoGC @Unsafe
-    fun handleDrop(h: GcHandle): Unit
+    public fun handleDrop(h: GcHandle): Unit
 
     @Intrinsic @NoGC @Unsafe
-    fun pin(obj: Any): Pinned
+    public fun pin(obj: Any): Pinned
 
     @Intrinsic @NoGC @Unsafe
-    fun unpin(pinned: Pinned): Unit
+    public fun unpin(pinned: Pinned): Unit
 }
 
-struct GcHandle(val raw: UIntPtr)
-struct Pinned(val value: Any)
+public struct GcHandle(val raw: UIntPtr)
+public struct Pinned(val value: Any)
 
-enum TypeKind {
+public enum TypeKind {
     Struct,
     Enum,
     Class,
@@ -245,112 +245,112 @@ enum TypeKind {
     Primitive,
 }
 
-struct TypeMeta {
+public struct TypeMeta {
     val name: String
     val kind: TypeKind
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct FieldMeta {
+public struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct VariantMeta {
+public struct VariantMeta {
     val name: String
     val fields: MetaList<FieldMeta>
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct ParamMeta {
+public struct ParamMeta {
     val name: String
     val type: TypeMeta
     val index: Int
     val annotations: MetaList<AnnotationMeta>
 }
 
-struct PropertyMeta {
+public struct PropertyMeta {
     val name: String
     val type: TypeMeta
     val owner: TypeMeta
 }
 
-struct FunctionMeta {
+public struct FunctionMeta {
     val name: String
 }
 
-struct AnnotationMeta {
+public struct AnnotationMeta {
     val name: String
     val args: MetaList<AnnotationArgMeta>
 }
 
-struct AnnotationArgMeta {
+public struct AnnotationArgMeta {
     val name: String
     val value: Any
 }
 
 @Intrinsic
-struct Int : Hashable, ToString {
-    override fun toString(): String {
+public struct Int : Hashable, ToString {
+    public override fun toString(): String {
         return __scoop_int_to_string(this)
     }
 
     @Intrinsic("int_hash")
-    fun hash(): Int
+    public fun hash(): Int
 }
-struct UInt : Hashable
-struct Int8 : Hashable
-struct Int16 : Hashable
-struct Int32 : Hashable
-struct Int64 : Hashable
-struct UInt8 : Hashable
-struct UInt16 : Hashable
-struct UInt32 : Hashable
-struct UInt64 : Hashable
+public struct UInt : Hashable
+public struct Int8 : Hashable
+public struct Int16 : Hashable
+public struct Int32 : Hashable
+public struct Int64 : Hashable
+public struct UInt8 : Hashable
+public struct UInt16 : Hashable
+public struct UInt32 : Hashable
+public struct UInt64 : Hashable
 
-struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+public struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
 
-typealias Byte = UInt8
-typealias Short = Int16
-typealias UShort = UInt16
-typealias Long = Int64
-typealias ULong = UInt64
-typealias UIntPtr = UInt
-
-@Intrinsic
-fun sizeOf(value: Int): Int
-@Intrinsic
-fun sizeOf(value: String): Int
+public typealias Byte = UInt8
+public typealias Short = Int16
+public typealias UShort = UInt16
+public typealias Long = Int64
+public typealias ULong = UInt64
+public typealias UIntPtr = UInt
 
 @Intrinsic
-fun <T> nameOf(): String
+public fun sizeOf(value: Int): Int
 @Intrinsic
-fun <T> sizeOf(): Int
-@Intrinsic
-fun <T> alignOf(): Int
-@Intrinsic
-fun <T> kindOf(): Int
-@Intrinsic
-fun <T> descOf(): UIntPtr
-@Intrinsic
-fun <T> fieldsOf(): MetaList<FieldMeta>
-@Intrinsic
-fun <T> variantsOf(): MetaList<VariantMeta>
-@Intrinsic
-fun <T> superTypesOf(): MetaList<TypeMeta>
-@Intrinsic
-fun <T> annotationsOf(): MetaList<AnnotationMeta>
-@Intrinsic
-fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
+public fun sizeOf(value: String): Int
 
-val ARRAY_ELEM_KIND_WORD: Int = 1
-val ARRAY_ELEM_KIND_REF: Int = 2
-val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+@Intrinsic
+public fun <T> nameOf(): String
+@Intrinsic
+public fun <T> sizeOf(): Int
+@Intrinsic
+public fun <T> alignOf(): Int
+@Intrinsic
+public fun <T> kindOf(): Int
+@Intrinsic
+public fun <T> descOf(): UIntPtr
+@Intrinsic
+public fun <T> fieldsOf(): MetaList<FieldMeta>
+@Intrinsic
+public fun <T> variantsOf(): MetaList<VariantMeta>
+@Intrinsic
+public fun <T> superTypesOf(): MetaList<TypeMeta>
+@Intrinsic
+public fun <T> annotationsOf(): MetaList<AnnotationMeta>
+@Intrinsic
+public fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 
-struct Platform {
+public val ARRAY_ELEM_KIND_WORD: Int = 1
+public val ARRAY_ELEM_KIND_REF: Int = 2
+public val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+
+public struct Platform {
     val triple: String
     val arch: String
     val vendor: String
@@ -359,26 +359,26 @@ struct Platform {
 }
 
 @Intrinsic
-fun getPlatform(): Platform
+public fun getPlatform(): Platform
 
-enum Option<T> {
+public enum Option<T> {
     Some(val value: T),
     None
 }
 
-interface Continuation<Resume, Answer, eff E = Pure> {
-    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+public interface Continuation<Resume, Answer, eff E = Pure> {
+    public fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
-enum RuntimeError {
+public enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
     ContinuationAlreadyResumed,
 }
 
 @Intrinsic
-fun panic(message: String): Nothing
+public fun panic(message: String): Nothing
 
-effect Raise<in E> {
-    fun raise(error: E): Nothing
+public effect Raise<in E> {
+    public fun raise(error: E): Nothing
 }

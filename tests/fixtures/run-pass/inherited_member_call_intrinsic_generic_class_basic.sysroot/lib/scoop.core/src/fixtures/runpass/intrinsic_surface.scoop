@@ -2,17 +2,17 @@ package fixtures.runpass
 
 import scoop.core.*
 
-interface Tagged {
-    fun tag(): Int {
+public interface Tagged {
+    public fun tag(): Int {
         return 5
     }
 
-    fun describe(): Int
+    public fun describe(): Int
 }
 
 @Intrinsic
-class Container<T>(seed: T) : Tagged {
-    override fun describe(): Int {
+public class Container<T>(seed: T) : Tagged {
+    public override fun describe(): Int {
         return 9
     }
 }

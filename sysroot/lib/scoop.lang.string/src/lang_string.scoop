@@ -9,32 +9,32 @@ import scoop.core.*
 private fun __scoop_lang_string_from_byte_array_unchecked(bytes: MutableArray<Byte>): String
 
 @Unsafe
-fun __scoop_string_from_byte_array(bytes: MutableArray<Byte>): String {
+public fun __scoop_string_from_byte_array(bytes: MutableArray<Byte>): String {
     return __scoop_lang_string_from_byte_array_unchecked(bytes)
 }
 
 @Extern(name = "scoop_string_from_char_array", abi = "scoop")
-fun __scoop_string_from_char_array(chars: MutableArray<Char>): String
+public fun __scoop_string_from_char_array(chars: MutableArray<Char>): String
 
 @Extern(name = "scoop_string_from_string_array", abi = "scoop")
-fun __scoop_string_from_string_array(parts: MutableArray<String>): String
+public fun __scoop_string_from_string_array(parts: MutableArray<String>): String
 
-class StringBuilder() {
+public class StringBuilder() {
     private val parts: MutableArray<String> = mutableArrayNew<String>(capacity = 8)
 
-    fun add(s: String): StringBuilder {
+    public fun add(s: String): StringBuilder {
         this.parts.push(s)
         return this
     }
 
-    fun toString(): String {
+    public fun toString(): String {
         return __scoop_string_from_string_array(this.parts)
     }
 }
 
 // Advanced String helpers live in scoop.lang.string and are exposed by the
 // automatic prelude, while their byte-level substrate remains in scoop.core.
-fun String.substring(start: Int, end: Int): String {
+public fun String.substring(start: Int, end: Int): String {
     val len: Int = this.byteLength()
 
     var s: Int = start
@@ -49,7 +49,7 @@ fun String.substring(start: Int, end: Int): String {
     return @Unsafe do { this.unsafeSliceBytes(s, sliceLen) }
 }
 
-fun String.indexOf(substr: String): Int {
+public fun String.indexOf(substr: String): Int {
     val slen: Int = this.byteLength()
     val dlen: Int = substr.byteLength()
 
@@ -80,11 +80,11 @@ fun String.indexOf(substr: String): Int {
     return 0 - 1
 }
 
-fun String.contains(substr: String): Bool {
+public fun String.contains(substr: String): Bool {
     return this.indexOf(substr) >= 0
 }
 
-fun String.startsWith(prefix: String): Bool {
+public fun String.startsWith(prefix: String): Bool {
     val slen: Int = this.byteLength()
     val plen: Int = prefix.byteLength()
 
@@ -102,7 +102,7 @@ fun String.startsWith(prefix: String): Bool {
     return true
 }
 
-fun String.endsWith(suffix: String): Bool {
+public fun String.endsWith(suffix: String): Bool {
     val slen: Int = this.byteLength()
     val plen: Int = suffix.byteLength()
 
@@ -121,7 +121,7 @@ fun String.endsWith(suffix: String): Bool {
     return true
 }
 
-fun String.split(delimiter: String): Array<String> {
+public fun String.split(delimiter: String): Array<String> {
     val slen: Int = this.byteLength()
     val dlen: Int = delimiter.byteLength()
 
@@ -167,7 +167,7 @@ fun String.split(delimiter: String): Array<String> {
     return parts.freeze()
 }
 
-fun String.trimStart(): String {
+public fun String.trimStart(): String {
     val len: Int = this.byteLength()
     var start: Int = 0
     while (start < len) {
@@ -189,7 +189,7 @@ fun String.trimStart(): String {
     return @Unsafe do { this.unsafeSliceBytes(start, sliceLen) }
 }
 
-fun String.trimEnd(): String {
+public fun String.trimEnd(): String {
     val len: Int = this.byteLength()
     var end: Int = len
     while (end > 0) {
@@ -210,6 +210,6 @@ fun String.trimEnd(): String {
     return @Unsafe do { this.unsafeSliceBytes(0, end) }
 }
 
-fun String.trim(): String {
+public fun String.trim(): String {
     return this.trimStart().trimEnd()
 }

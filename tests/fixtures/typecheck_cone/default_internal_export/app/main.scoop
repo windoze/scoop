@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR: internal
+// EXPECT-ERROR-AT: 11:13
+
+package fixtures.typecheck_cone.default_internal_export.app
+
+import fixtures.typecheck_cone.default_internal_export.lib.*
+
+public fun main() / Pure! {
+    println(hiddenDefault())
+}

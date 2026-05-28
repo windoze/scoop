@@ -1,5 +1,5 @@
 package scoop.core
 
-class MarkerSuperClass
+public class MarkerSuperClass
 
-sealed interface BadMarker : MarkerSuperClass
+public sealed interface BadMarker : MarkerSuperClass

@@ -2,4 +2,4 @@ package scoop.bodycheck
 
 import scoop.core.*
 
-fun sysrootMissingBody(): Int
+public fun sysrootMissingBody(): Int

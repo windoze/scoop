@@ -1753,7 +1753,7 @@ fn visibility_from_modifiers(
         }
     }
 
-    Ok(found.unwrap_or(Visibility::Public))
+    Ok(found.unwrap_or(Visibility::Internal))
 }
 
 pub(crate) fn is_symbol_visible_from(
@@ -2613,6 +2613,26 @@ mod tests {
 
         let err = Index::build(&[(&src, &ast)]).unwrap_err();
         assert!(matches!(err, ResolveError::InvalidVisibility { .. }));
+    }
+
+    #[test]
+    fn missing_visibility_modifier_defaults_to_internal() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Token {}\nfun make(): Token { Token {} }",
+        );
+        let ast = parse_file(&src).unwrap();
+
+        let index = Index::build(&[(&src, &ast)]).unwrap();
+
+        assert_eq!(
+            index.by_fqn["a.Token"].ty.as_ref().unwrap().visibility,
+            Visibility::Internal
+        );
+        assert_eq!(
+            index.by_fqn["a.make"].fun[0].symbol.visibility,
+            Visibility::Internal
+        );
     }
 
     #[test]
