@@ -105,7 +105,7 @@
   - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted generic overload fixtures；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.2、§6.4 与 `PLAN.md` P4 对 generic overload shape definition-time reject / allowlist 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T02R：Review generic overload shape 规则
+### [DONE] P4-T02R：Review generic overload shape 规则
 
 - 参考：
   - P4-T02 完成记录
@@ -131,10 +131,10 @@
   - P4-T02 行为符合 §4.2。
 - 依赖：P4-T02
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 `crates/scoopc_hir/src/typecheck/overloads.rs` 中的 `GenericShape` / `GenericShapeMatcher`、fun / constructor overload set 接入点、`scoop::typecheck::generic_overload_shape_mismatch` 诊断定义，以及 P4-T02 新增的四个 generic overload typecheck fixtures；未发现需要修改实现的缺陷。
+  - 核心决策：确认 P4-T02 只在 effective signature 相同且方法级 TP shape 不可对齐时报告 `generic_overload_shape_mismatch`；differ-by-bound、concrete + generic same-shape、bound 不可比的 same-shape overload 均保留到 P5 call-site specificity，未把 call-site ambiguity 提前作为 definition-time reject。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted generic overload fixtures（differ-by-bound、concrete + generic、`T,T` vs `T,U` consistency mismatch、incomparable bounds）；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。`cargo test --all --all-targets` 未重跑：本 review 未修改编译产物，沿用 P4-T02 完成记录中的 green run。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T02 行为符合 `OVERLOAD_RESOLUTION.md` §4.2 / §6.4 与 `PLAN.md` P4 generic overload shape 目标；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T03：实现 vararg 与非 vararg overlap 的定义点 reject
 

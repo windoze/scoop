@@ -70,7 +70,7 @@
 | P4-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t01实现-overload-effective-signature-与-signature-equivalence-helper) | [DONE] 实现 overload effective signature 与 signature equivalence helper |
 | P4-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t01rreview-effective-signature-helper) | [DONE] Review P4-T01 effective signature helper |
 | P4-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t02实现-generic-overload-shape-规则) | [DONE] 实现 generic overload shape 规则 |
-| P4-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t02rreview-generic-overload-shape-规则) | Review P4-T02 generic overload shape 规则 |
+| P4-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t02rreview-generic-overload-shape-规则) | [DONE] Review P4-T02 generic overload shape 规则 |
 | P4-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t03实现-vararg-与非-vararg-overlap-的定义点-reject) | 实现 vararg 与非 vararg overlap 的定义点 reject |
 | P4-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t03rreview-vararg-overlap-reject) | Review P4-T03 vararg overlap reject |
 | P4-T04 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t04实现-override--overload-边界与虚方法-generic-禁止) | 实现 override / overload 边界与虚方法 generic 禁止 |
