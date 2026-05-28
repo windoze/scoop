@@ -23,7 +23,7 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeStore};
 
 use super::TypeEnv;
-use super::lower::{TypeLowerError, TypeLowering};
+use super::lower::{TypeLowerError, TypeLowering, build_where_bound_entries};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum OverloadDeclError {
@@ -156,6 +156,13 @@ fn collect_type_decl(
 
     // class/type 的 type params 进入作用域，供 ctor/member signatures lowering。
     lower.push_type_params(&ty.type_params);
+    let bounds = build_where_bound_entries(source, &ty.type_params, ty.where_clause.as_ref());
+    let ty_where_bounds_pushed = if bounds.is_empty() {
+        false
+    } else {
+        lower.push_where_bounds(bounds);
+        true
+    };
     let ty_eff_binding = if let Some(eff_param) = &ty.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
         let default = match eff_param.default.as_ref() {
@@ -216,6 +223,9 @@ fn collect_type_decl(
 
     if ty_eff_binding {
         lower.pop_effect_row_param_binding();
+    }
+    if ty_where_bounds_pushed {
+        lower.pop_where_bounds();
     }
     lower.pop_type_params(&ty.type_params);
 
@@ -302,6 +312,13 @@ fn collect_fun_decl(
     let fqn = join_prefix(prefix, &name);
 
     lower.push_type_params(&fun.type_params);
+    let bounds = build_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+    let where_bounds_pushed = if bounds.is_empty() {
+        false
+    } else {
+        lower.push_where_bounds(bounds);
+        true
+    };
     let fun_eff_binding = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
         let default = match eff_param.default.as_ref() {
@@ -326,6 +343,9 @@ fn collect_fun_decl(
 
     if fun_eff_binding {
         lower.pop_effect_row_param_binding();
+    }
+    if where_bounds_pushed {
+        lower.pop_where_bounds();
     }
     lower.pop_type_params(&fun.type_params);
 

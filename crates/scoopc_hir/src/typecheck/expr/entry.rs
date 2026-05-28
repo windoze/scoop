@@ -919,11 +919,22 @@ fn check_class_member_fun_body_exprs(
     let source = shared.file.source;
     let builtins = shared.file.builtins;
     lower.push_type_params(&fun.type_params);
+    let bounds =
+        build_type_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+    let where_bounds_pushed = if bounds.is_empty() {
+        false
+    } else {
+        lower.push_where_bounds(bounds);
+        true
+    };
     let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
         if let Some(expr) = eff_param.default.as_ref()
             && let Err(e) = lower.lower_effect_row_expr(Some(expr))
         {
+            if where_bounds_pushed {
+                lower.pop_where_bounds();
+            }
             lower.pop_type_params(&fun.type_params);
             return Err(e.into());
         }
@@ -1099,6 +1110,9 @@ fn check_class_member_fun_body_exprs(
     }
     if unsafe_ctx_pushed {
         lower.pop_unsafe_context();
+    }
+    if where_bounds_pushed {
+        lower.pop_where_bounds();
     }
     lower.pop_type_params(&fun.type_params);
     result
@@ -1774,23 +1788,21 @@ fn build_type_where_bound_entries(
     type_params: &[ast::TypeParam],
     where_clause: Option<&ast::WhereClause>,
 ) -> Vec<WhereBoundEntry> {
-    let param_names: Vec<String> = type_params
+    let param_decl_spans: HashMap<String, Span> = type_params
         .iter()
-        .map(|p| source.slice(p.name.span).to_string())
+        .map(|p| (source.slice(p.name.span).to_string(), p.name.span))
         .collect();
 
     let mut out = Vec::new();
     for c in ast::generic_constraints(type_params, where_clause) {
         let target_name = source.slice(c.ty_param.span).to_string();
-        if !param_names.contains(&target_name) {
-            continue;
-        }
-        let ast::GenericBound::Type(bound_ty) = c.bound else {
+        let Some(param_decl_span) = param_decl_spans.get(&target_name).copied() else {
             continue;
         };
         out.push(WhereBoundEntry {
             param_name: target_name,
-            bound: bound_ty.clone(),
+            param_decl_span,
+            bound: c.bound.clone(),
             decl_file: source.path().to_path_buf(),
         });
     }

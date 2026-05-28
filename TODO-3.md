@@ -378,7 +378,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted ref/value fixtures（`ref_value_bound_keywords_ok.scoop`、ref/value wrong-kind negatives、function wrong-kind negative、mutual exclusion negative、old `AnyRef` unresolved negative、sysroot `Atomic` / `AtomicValue` wrong-kind negatives）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1546)`）；`python3 tools/spec_fixtures.py check`；targeted search 确认 active sysroot / compiler / `SCOOP_FULL_SPEC.md` 不再声明或使用 sealed marker metadata / `AnyRef` / `AnyValue` marker logic，剩余 `AnyRef` 文本仅在 TODO/design baseline 与 negative fixture 中出现。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 对 sealed marker -> `ref` / `value` bound constraint kind 的实现要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T06R：Review `ref` / `value` bound kind 替换结果
+### [DONE] P3-T06R：Review `ref` / `value` bound kind 替换结果
 
 - 参考：
   - P3-T06 完成记录
@@ -405,10 +405,10 @@
   - C4 语义完整闭合。
 - 依赖：P3-T06
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T06 的 sysroot marker 删除、`LoweredGenericBound::{Ref,Value}`、where-clause / call-site / nominal type-arg satisfaction 路径与 ref/value fixtures；修复 review 发现的泛型转发缺口：当实参仍是 `TypeKind::Param` 时，`ref` / `value` kind bound 会检查调用方 type parameter 自身是否声明兼容 kind bound，而不是直接跳过；同时把 inline / where bounds 推入 type-position lowering、top-level/member signature collection、overload collection、函数体与 member 函数体检查，使 constrained forwarding 在函数、成员函数和名义类型实参中一致生效；新增 unconstrained forwarding negative fixtures 与 constrained forwarding positive fixture。
+  - 核心决策：普通 type upper-bound 的完整泛型传播仍保持既有延迟策略；本轮只对 `ref` / `value` 这种 kind constraint 做“type-param bound implication”检查，因为否则未约束 type parameter 可绕过新 bound-kind 语义；`ref` / `value` 仍不是普通类型，`AnyRef` / `AnyValue` 不作为 hidden alias 或 active marker metadata 保留。
+  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted ref/value fixtures（所有 `tests/fixtures/typecheck/*ref_value_bound*.scoop` 与 `anyref_anyvalue_marker_names_are_not_types.scoop`）；active marker search（`crates` / `sysroot` / `SCOOP_FULL_SPEC.md` / `tests/fixtures` 中剩余 `AnyRef` / `AnyValue` 仅在 negative fixture）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1549)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 review 要求：marker types 已从 active sysroot/compiler surface 删除，`ref` / `value` 只能作为 bound-kind constraint 使用，sysroot atomic bounds 已更新，generic call / type-argument instantiation 会检查 bound-kind satisfaction；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T07：默认 visibility 改为 `internal` 并同步 sysroot / cone export
 

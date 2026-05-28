@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR: 泛型约束不满足
+// 目标：未声明 `ref` bound 的 type param 不能转发给 `<T: ref>` 函数。
+
+package fixtures.typecheck
+
+fun <T: ref> needsRef(x: T): T {
+    return x
+}
+
+fun <U> forwardsUnconstrained(x: U): U {
+    return needsRef(x)
+}

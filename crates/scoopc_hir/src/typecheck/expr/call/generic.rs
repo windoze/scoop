@@ -900,8 +900,9 @@ pub(in crate::typecheck::expr) fn instantiate_fun_sig_for_call(
 ///
 /// 在 `instantiate_fun_sig_for_call*` 推断出具体 type args 后调用：
 /// 遍历 `sig.where_constraints`，在声明处文件上下文中 lower bound，
-/// 检查 `type_args[c.param_index]` 是否 assignable to bound_ty。
-/// 当 type arg 仍为 `TypeKind::Param` 时跳过（泛型传递调用）。
+/// 检查 `type_args[c.param_index]` 是否满足 bound。
+/// 当 type arg 仍为 `TypeKind::Param` 时，普通 type upper-bound 保持既有延迟检查；
+/// `ref` / `value` bound-kind 则要求该 type param 自身声明兼容的 kind bound。
 pub(super) fn check_fun_where_constraints_after_instantiation(
     callee: &str,
     call_span: Span,
@@ -940,17 +941,20 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
             continue;
         };
 
-        // 当 type arg 仍为 type param 时跳过（泛型传递调用，无法在此刻验证）。
-        if matches!(lower.type_kind(arg_ty), TypeKind::Param(_)) {
-            continue;
-        }
-
         // 在声明处文件上下文中 lower bound，应用 type arg 替换。
         let bound = lower.lower_generic_bound_in_decl_file_with_bindings(
             &sig.decl_file,
             bindings.iter().cloned(),
             &c.bound,
         )?;
+
+        if let TypeKind::Param(param) = lower.type_kind(arg_ty) {
+            match lower.type_param_satisfies_ref_value_bound(&param, bound)? {
+                Some(true) => continue,
+                Some(false) => {}
+                None => continue,
+            }
+        }
 
         if lower.generic_bound_satisfied(arg_ty, bound) {
             continue;
@@ -1012,7 +1016,10 @@ pub(super) fn try_infer_where_bound_method_call(
     // 对每个 bound，lower 其 type ref 得到 bound 接口类型，然后查找接口方法。
     let bound_entries: Vec<_> = bounds
         .into_iter()
-        .map(|b| (b.bound.clone(), b.decl_file.clone()))
+        .filter_map(|b| match &b.bound {
+            ast::GenericBound::Type(bound_ty) => Some((bound_ty.clone(), b.decl_file.clone())),
+            ast::GenericBound::Ref { .. } | ast::GenericBound::Value { .. } => None,
+        })
         .collect();
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;

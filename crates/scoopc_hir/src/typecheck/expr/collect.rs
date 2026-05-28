@@ -14,7 +14,7 @@ use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereCo
 
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
-use super::super::lower::TypeLowering;
+use super::super::lower::{TypeLowering, build_where_bound_entries};
 use super::super::{TypeEnv, val_pat};
 
 struct TopLevelValueCollectionFile<'a> {
@@ -341,6 +341,13 @@ pub(super) fn collect_top_level_fun_signatures(
 
         // fun 自身的 type params 在签名 lowering 语境内可见。
         lower.push_type_params(&fun.type_params);
+        let bounds = build_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+        let where_bounds_pushed = if bounds.is_empty() {
+            false
+        } else {
+            lower.push_where_bounds(bounds);
+            true
+        };
 
         // T0509：effect row 参数（`<eff E = Pure>`）。
         //
@@ -483,6 +490,9 @@ pub(super) fn collect_top_level_fun_signatures(
         if eff_param_sig.is_some() {
             lower.pop_effect_row_param_binding();
         }
+        if where_bounds_pushed {
+            lower.pop_where_bounds();
+        }
         lower.pop_type_params(&fun.type_params);
         result?;
     }
@@ -507,6 +517,13 @@ pub(super) fn collect_top_level_fun_signatures(
         let decl_span = prop.name.span;
 
         lower.push_type_params(&prop.type_params);
+        let bounds = build_where_bound_entries(source, &prop.type_params, None);
+        let where_bounds_pushed = if bounds.is_empty() {
+            false
+        } else {
+            lower.push_where_bounds(bounds);
+            true
+        };
         let result: Result<(), ExprTypeError> = (|| {
             let receiver_ty = lower.lower_type_ref(&prop.receiver)?;
             let return_ty = match &prop.ty {
@@ -540,6 +557,9 @@ pub(super) fn collect_top_level_fun_signatures(
             });
             Ok(())
         })();
+        if where_bounds_pushed {
+            lower.pop_where_bounds();
+        }
         lower.pop_type_params(&prop.type_params);
         result?;
     }
@@ -1221,6 +1241,14 @@ fn collect_struct_field_types_in_type_decl(
     if matches!(decl.kind, ast::TypeKind::Struct) {
         // T0124: push type params so generic field types (e.g. `A`, `B`) resolve correctly.
         lower.push_type_params(&decl.type_params);
+        let bounds =
+            build_where_bound_entries(source, &decl.type_params, decl.where_clause.as_ref());
+        let where_bounds_pushed = if bounds.is_empty() {
+            false
+        } else {
+            lower.push_where_bounds(bounds);
+            true
+        };
 
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
@@ -1246,12 +1274,23 @@ fn collect_struct_field_types_in_type_decl(
             }
         }
 
+        if where_bounds_pushed {
+            lower.pop_where_bounds();
+        }
         lower.pop_type_params(&decl.type_params);
     }
 
     if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class_decl(decl) {
         // T0125: push type params so generic field types (e.g. `T`) resolve correctly.
         lower.push_type_params(&decl.type_params);
+        let bounds =
+            build_where_bound_entries(source, &decl.type_params, decl.where_clause.as_ref());
+        let where_bounds_pushed = if bounds.is_empty() {
+            false
+        } else {
+            lower.push_where_bounds(bounds);
+            true
+        };
 
         // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 类型表。
         if let Some(primary_ctor) = &decl.primary_ctor {
@@ -1281,6 +1320,9 @@ fn collect_struct_field_types_in_type_decl(
             }
         }
 
+        if where_bounds_pushed {
+            lower.pop_where_bounds();
+        }
         lower.pop_type_params(&decl.type_params);
     }
 

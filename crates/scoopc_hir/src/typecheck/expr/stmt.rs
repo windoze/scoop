@@ -1782,24 +1782,22 @@ fn build_where_bound_entries(
     type_params: &[ast::TypeParam],
     where_clause: Option<&ast::WhereClause>,
 ) -> Vec<WhereBoundEntry> {
-    let param_names: Vec<String> = type_params
+    let param_decl_spans: HashMap<String, Span> = type_params
         .iter()
-        .map(|p| source.slice(p.name.span).to_string())
+        .map(|p| (source.slice(p.name.span).to_string(), p.name.span))
         .collect();
 
     let mut out = Vec::new();
     for c in ast::generic_constraints(type_params, where_clause) {
         let target_name = source.slice(c.ty_param.span).to_string();
         // 只收集当前声明的 type params 的约束。
-        if !param_names.contains(&target_name) {
-            continue;
-        }
-        let ast::GenericBound::Type(bound_ty) = c.bound else {
+        let Some(param_decl_span) = param_decl_spans.get(&target_name).copied() else {
             continue;
         };
         out.push(WhereBoundEntry {
             param_name: target_name,
-            bound: bound_ty.clone(),
+            param_decl_span,
+            bound: c.bound.clone(),
             decl_file: source.path().to_path_buf(),
         });
     }

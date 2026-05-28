@@ -1,0 +1,50 @@
+// EXPECT: pass
+// 目标：已声明 `ref` / `value` bound 的 type param 可以转发给相同 kind 的泛型函数。
+
+package fixtures.typecheck
+
+class RefThing()
+struct ValueThing(val n: Int)
+class RefBox<T: ref>(val value: T)
+class ValueBox<T: value>(val value: T)
+
+fun <T: ref> needsRef(x: T): T {
+    return x
+}
+
+fun <T: value> needsValue(x: T): T {
+    return x
+}
+
+fun <U: ref> forwardsRef(x: U): U {
+    return needsRef(x)
+}
+
+fun <V: value> forwardsValue(x: V): V {
+    return needsValue(x)
+}
+
+fun <U: ref> boxRef(x: U): RefBox<U> {
+    return RefBox(x)
+}
+
+fun <V: value> boxValue(x: V): ValueBox<V> {
+    return ValueBox(x)
+}
+
+class Forwarder() {
+    fun <U: ref> forwardRefMember(x: U): U {
+        return needsRef(x)
+    }
+
+    fun <V: value> forwardValueMember(x: V): V {
+        return needsValue(x)
+    }
+}
+
+val refOk: RefThing = forwardsRef(RefThing())
+val valueOk: ValueThing = forwardsValue(ValueThing(1))
+val refBoxOk: RefBox<RefThing> = boxRef(RefThing())
+val valueBoxOk: ValueBox<ValueThing> = boxValue(ValueThing(2))
+val memberRefOk: RefThing = Forwarder().forwardRefMember(RefThing())
+val memberValueOk: ValueThing = Forwarder().forwardValueMember(ValueThing(3))

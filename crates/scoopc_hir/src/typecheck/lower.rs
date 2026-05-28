@@ -271,14 +271,32 @@ pub fn check_file_type_refs(
             ast::Item::TypeAlias(ta) => {
                 // typealias 的 RHS 允许引用其自身的 type params（例如 `typealias Handler<T> = (T) -> Unit`）。
                 ctx.push_type_params(&ta.type_params);
+                let bounds = build_where_bound_entries(source, &ta.type_params, None);
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 for constraint in ast::generic_constraints(&ta.type_params, None) {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 let _ = ctx.lower_type_ref(&ta.ty)?;
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
+                }
                 ctx.pop_type_params(&ta.type_params);
             }
             ast::Item::Fun(fun) => {
                 ctx.push_type_params(&fun.type_params);
+                let bounds =
+                    build_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 let eff_binding = if let Some(eff_param) = &fun.eff_param {
                     let name = source.slice(eff_param.name.span).to_string();
                     let default = match eff_param.default.as_ref() {
@@ -307,6 +325,9 @@ pub fn check_file_type_refs(
                 {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
+                }
                 ctx.pop_type_params(&fun.type_params);
                 if eff_binding.is_some() {
                     ctx.pop_effect_row_param_binding();
@@ -314,12 +335,22 @@ pub fn check_file_type_refs(
             }
             ast::Item::ExtensionProperty(p) => {
                 ctx.push_type_params(&p.type_params);
+                let bounds = build_where_bound_entries(source, &p.type_params, None);
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 for constraint in ast::generic_constraints(&p.type_params, None) {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 let _ = ctx.lower_type_ref(&p.receiver)?;
                 if let Some(ty) = &p.ty {
                     let _ = ctx.lower_type_ref(ty)?;
+                }
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
                 }
                 ctx.pop_type_params(&p.type_params);
             }
@@ -357,14 +388,32 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
         match item {
             ast::Item::TypeAlias(ta) => {
                 ctx.push_type_params(&ta.type_params);
+                let bounds = build_where_bound_entries(source, &ta.type_params, None);
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 for constraint in ast::generic_constraints(&ta.type_params, None) {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 let _ = ctx.lower_type_ref(&ta.ty)?;
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
+                }
                 ctx.pop_type_params(&ta.type_params);
             }
             ast::Item::Fun(fun) => {
                 ctx.push_type_params(&fun.type_params);
+                let bounds =
+                    build_where_bound_entries(source, &fun.type_params, fun.where_clause.as_ref());
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 let eff_binding = if let Some(eff_param) = &fun.eff_param {
                     let name = source.slice(eff_param.name.span).to_string();
                     let default = match eff_param.default.as_ref() {
@@ -392,6 +441,9 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
                 {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
+                }
                 ctx.pop_type_params(&fun.type_params);
                 if eff_binding.is_some() {
                     ctx.pop_effect_row_param_binding();
@@ -399,12 +451,22 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
             }
             ast::Item::ExtensionProperty(p) => {
                 ctx.push_type_params(&p.type_params);
+                let bounds = build_where_bound_entries(source, &p.type_params, None);
+                let where_bounds_pushed = if bounds.is_empty() {
+                    false
+                } else {
+                    ctx.push_where_bounds(bounds);
+                    true
+                };
                 for constraint in ast::generic_constraints(&p.type_params, None) {
                     let _ = ctx.lower_generic_bound(constraint.bound)?;
                 }
                 let _ = ctx.lower_type_ref(&p.receiver)?;
                 if let Some(ty) = &p.ty {
                     let _ = ctx.lower_type_ref(ty)?;
+                }
+                if where_bounds_pushed {
+                    ctx.pop_where_bounds();
                 }
                 ctx.pop_type_params(&p.type_params);
             }
@@ -433,10 +495,38 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
 pub(super) struct WhereBoundEntry {
     /// 被约束的 type param 名称（如 `T`）。
     pub param_name: String,
-    /// bound 右侧的 type ref（如 `Show`）——在查找时再 lower，以便在正确的上下文中解析。
-    pub bound: ast::TypeRef,
+    /// 被约束 type param 的声明 span，用于区分嵌套作用域中的同名 type param。
+    pub param_decl_span: Span,
+    /// bound 右侧（如 `Show`、`ref`、`value`）——在查找时再 lower，以便在正确的上下文中解析。
+    pub bound: ast::GenericBound,
     /// 声明处文件（用于在正确的 source/package/import 上下文中 lower bound type ref）。
     pub decl_file: std::path::PathBuf,
+}
+
+pub(super) fn build_where_bound_entries(
+    source: &SourceFile,
+    type_params: &[ast::TypeParam],
+    where_clause: Option<&ast::WhereClause>,
+) -> Vec<WhereBoundEntry> {
+    let param_decl_spans: HashMap<String, Span> = type_params
+        .iter()
+        .map(|p| (source.slice(p.name.span).to_string(), p.name.span))
+        .collect();
+
+    let mut out = Vec::new();
+    for c in ast::generic_constraints(type_params, where_clause) {
+        let target_name = source.slice(c.ty_param.span).to_string();
+        let Some(param_decl_span) = param_decl_spans.get(&target_name).copied() else {
+            continue;
+        };
+        out.push(WhereBoundEntry {
+            param_name: target_name,
+            param_decl_span,
+            bound: c.bound.clone(),
+            decl_file: source.path().to_path_buf(),
+        });
+    }
+    out
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -628,12 +718,13 @@ pub struct TypeLowering<'a> {
     /// - 使用 depth 而不是 bool，便于未来扩展局部 `@NoGC { ... }` 或其它可嵌套语境。
     nogc_context_depth: usize,
 
-    /// `where` 约束 bound 作用域栈（T0130）。
+    /// `where` / inline bound 作用域栈（T0130）。
     ///
     /// 说明：
-    /// - 每一层表示一个作用域（函数或类型声明）中的 where 约束。
-    /// - 每个条目记录 `(type_param_name, bound_type_ref, decl_file)` ：
-    ///   当接收者类型为 `TypeKind::Param` 时，查找该 param 的 bound 接口方法集合。
+    /// - 每一层表示一个作用域（函数或类型声明）中的泛型约束。
+    /// - 每个条目记录 `(type_param_name, bound, decl_file)` ：
+    ///   当接收者类型为 `TypeKind::Param` 时，查找该 param 的 type bound 接口方法集合；
+    ///   当 type param 作为泛型实参转发时，检查 `ref` / `value` bound-kind implication。
     /// - 与 `type_param_scopes` 对齐地 push/pop。
     where_bound_scopes: Vec<Vec<WhereBoundEntry>>,
     /// annotation class 类型 lowering 许可深度。
@@ -911,6 +1002,35 @@ impl<'a> TypeLowering<'a> {
                     out.push(entry);
                 }
             }
+        }
+        out
+    }
+
+    fn generic_bounds_for_type_param(
+        &self,
+        param: &TypeParamType,
+    ) -> Vec<(ast::GenericBound, PathBuf)> {
+        let mut exact = Vec::new();
+        let mut by_name = Vec::new();
+        for scope in self.where_bound_scopes.iter().rev() {
+            for entry in scope {
+                if entry.param_name != param.name {
+                    continue;
+                }
+                let bound = (entry.bound.clone(), entry.decl_file.clone());
+                if entry.decl_file == param.decl_file && entry.param_decl_span == param.decl_span {
+                    exact.push(bound.clone());
+                }
+                by_name.push(bound);
+            }
+        }
+        if exact.is_empty() { by_name } else { exact }
+    }
+
+    fn current_type_param_bindings(&self) -> Vec<(String, TypeId)> {
+        let mut out = Vec::new();
+        for scope in &self.type_param_scopes {
+            out.extend(scope.iter().map(|(name, ty)| (name.clone(), *ty)));
         }
         out
     }
@@ -1495,6 +1615,105 @@ impl<'a> TypeLowering<'a> {
 
     pub(crate) fn type_satisfies_value_bound(&self, ty: TypeId) -> bool {
         ty == self.builtins.nothing || matches!(self.type_kind(ty), TypeKind::Value(_))
+    }
+
+    pub(crate) fn type_param_satisfies_ref_value_bound(
+        &mut self,
+        param: &TypeParamType,
+        required: LoweredGenericBound,
+    ) -> Result<Option<bool>, TypeLowerError> {
+        match required {
+            LoweredGenericBound::Ref | LoweredGenericBound::Value => {
+                let mut visiting = HashSet::new();
+                self.type_param_satisfies_ref_value_bound_inner(param, required, &mut visiting)
+                    .map(Some)
+            }
+            LoweredGenericBound::Type(_) => Ok(None),
+        }
+    }
+
+    fn type_param_satisfies_ref_value_bound_inner(
+        &mut self,
+        param: &TypeParamType,
+        required: LoweredGenericBound,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        if !visiting.insert(param.clone()) {
+            return Ok(false);
+        }
+
+        let bounds = self.generic_bounds_for_type_param(param);
+        let bindings = self.current_type_param_bindings();
+        for (bound, decl_file) in bounds {
+            let lowered = self.lower_generic_bound_in_decl_file_with_bindings(
+                &decl_file,
+                bindings.iter().cloned(),
+                &bound,
+            )?;
+            if self
+                .lowered_bound_definitely_satisfies_ref_value_bound(lowered, required, visiting)?
+            {
+                visiting.remove(param);
+                return Ok(true);
+            }
+        }
+
+        visiting.remove(param);
+        Ok(false)
+    }
+
+    fn lowered_bound_definitely_satisfies_ref_value_bound(
+        &mut self,
+        declared: LoweredGenericBound,
+        required: LoweredGenericBound,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        match (required, declared) {
+            (LoweredGenericBound::Ref, LoweredGenericBound::Ref)
+            | (LoweredGenericBound::Value, LoweredGenericBound::Value) => Ok(true),
+            (
+                LoweredGenericBound::Ref | LoweredGenericBound::Value,
+                LoweredGenericBound::Type(ty),
+            ) => self.type_definitely_satisfies_ref_value_bound(ty, required, visiting),
+            _ => Ok(false),
+        }
+    }
+
+    fn type_definitely_satisfies_ref_value_bound(
+        &mut self,
+        ty: TypeId,
+        required: LoweredGenericBound,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        if ty == self.builtins.nothing {
+            return Ok(true);
+        }
+
+        match (required, self.type_kind(ty)) {
+            (LoweredGenericBound::Value, TypeKind::Value(_)) => Ok(true),
+            (LoweredGenericBound::Ref, TypeKind::Ref(RefTypeKind::String))
+            | (LoweredGenericBound::Ref, TypeKind::Ref(RefTypeKind::Function(_))) => Ok(true),
+            (LoweredGenericBound::Ref, TypeKind::Ref(RefTypeKind::Nominal(nominal))) => {
+                Ok(matches!(
+                    self.nominal_decl_kind(&nominal.fqn),
+                    Some(ast::TypeKind::Class | ast::TypeKind::Effect)
+                ))
+            }
+            (LoweredGenericBound::Ref, TypeKind::Ref(RefTypeKind::Union(union))) => {
+                for variant in union.variants {
+                    if !self
+                        .type_definitely_satisfies_ref_value_bound(variant, required, visiting)?
+                    {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            (LoweredGenericBound::Ref | LoweredGenericBound::Value, TypeKind::Param(param)) => {
+                self.type_param_satisfies_ref_value_bound_inner(&param, required, visiting)
+            }
+            _ => Ok(false),
+        }
     }
 
     pub(super) fn lower_effect_row_expr(
@@ -2509,20 +2728,22 @@ impl<'a> TypeLowering<'a> {
                 continue;
             };
 
-            // 当实参本身仍是“未知 kind 的 type param”（例如在泛型声明内部出现 `Box<T>`）时，
-            // 我们把 where 约束视为 **假设** 而不是 **需要此刻验证的条件**。
-            //
-            // 更完整的“约束传播/求解”（例如要求 `T` 也声明 `where T: Bound`）留给后续推断阶段（T05）。
-            if matches!(self.type_kind(arg_ty), TypeKind::Param(_)) {
-                continue;
-            }
-
             // 在声明处文件上下文中 lowering bound，并用 use-site type args 对其中出现的 `T` 做 substitution。
             let bound = self.lower_generic_bound_in_decl_file_with_bindings(
                 &sym.decl_file,
                 bindings.iter().cloned(),
                 &c.bound,
             )?;
+
+            // 普通 type upper-bound 的完整约束传播仍沿用既有规则；但 `ref` / `value`
+            // 是 kind 约束，不能让未知 kind 的 type param 直接绕过。
+            if let TypeKind::Param(param) = self.type_kind(arg_ty) {
+                match self.type_param_satisfies_ref_value_bound(&param, bound)? {
+                    Some(true) => continue,
+                    Some(false) => {}
+                    None => continue,
+                }
+            }
 
             if self.generic_bound_satisfied(arg_ty, bound) {
                 continue;
@@ -3537,6 +3758,14 @@ impl<'a> TypeLowering<'a> {
     fn check_type_decl_headers(&mut self, ty: &ast::TypeDecl) -> Result<(), TypeLowerError> {
         // `TypeDecl` 的 type params 在其 header/body 的所有 type position 内可见。
         self.push_type_params(&ty.type_params);
+        let bounds =
+            build_where_bound_entries(self.source, &ty.type_params, ty.where_clause.as_ref());
+        let where_bounds_pushed = if bounds.is_empty() {
+            false
+        } else {
+            self.push_where_bounds(bounds);
+            true
+        };
         let ty_eff_binding = if let Some(eff_param) = &ty.eff_param {
             let name = self.source.slice(eff_param.name.span).to_string();
             let default = match eff_param.default.as_ref() {
@@ -3620,6 +3849,12 @@ impl<'a> TypeLowering<'a> {
 
         // 成员签名类型（property/fun/nested type）
         let Some(body) = &ty.body else {
+            if ty_eff_binding {
+                self.pop_effect_row_param_binding();
+            }
+            if where_bounds_pushed {
+                self.pop_where_bounds();
+            }
             self.pop_type_params(&ty.type_params);
             return Ok(());
         };
@@ -3677,6 +3912,17 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);
+                    let bounds = build_where_bound_entries(
+                        self.source,
+                        &f.type_params,
+                        f.where_clause.as_ref(),
+                    );
+                    let fun_where_bounds_pushed = if bounds.is_empty() {
+                        false
+                    } else {
+                        self.push_where_bounds(bounds);
+                        true
+                    };
                     let fun_eff_binding = if let Some(eff_param) = &f.eff_param {
                         let name = self.source.slice(eff_param.name.span).to_string();
                         let default = match eff_param.default.as_ref() {
@@ -3707,6 +3953,9 @@ impl<'a> TypeLowering<'a> {
                     if fun_eff_binding {
                         self.pop_effect_row_param_binding();
                     }
+                    if fun_where_bounds_pushed {
+                        self.pop_where_bounds();
+                    }
                     self.pop_type_params(&f.type_params);
                 }
                 ast::TypeMember::Type(nested) => {
@@ -3720,6 +3969,9 @@ impl<'a> TypeLowering<'a> {
 
         if ty_eff_binding {
             self.pop_effect_row_param_binding();
+        }
+        if where_bounds_pushed {
+            self.pop_where_bounds();
         }
         self.pop_type_params(&ty.type_params);
         Ok(())
@@ -3759,6 +4011,17 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);
+                    let bounds = build_where_bound_entries(
+                        self.source,
+                        &f.type_params,
+                        f.where_clause.as_ref(),
+                    );
+                    let fun_where_bounds_pushed = if bounds.is_empty() {
+                        false
+                    } else {
+                        self.push_where_bounds(bounds);
+                        true
+                    };
                     let fun_eff_binding = if let Some(eff_param) = &f.eff_param {
                         let name = self.source.slice(eff_param.name.span).to_string();
                         let default = match eff_param.default.as_ref() {
@@ -3783,6 +4046,9 @@ impl<'a> TypeLowering<'a> {
                     }
                     if fun_eff_binding {
                         self.pop_effect_row_param_binding();
+                    }
+                    if fun_where_bounds_pushed {
+                        self.pop_where_bounds();
                     }
                     self.pop_type_params(&f.type_params);
                 }

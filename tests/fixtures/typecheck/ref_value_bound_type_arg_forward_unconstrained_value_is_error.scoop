@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR: 泛型约束不满足
+// 目标：未声明 `value` bound 的 type param 不能转发给 `<T: value>` 名义类型实参。
+
+package fixtures.typecheck
+
+class ValueBox<T: value>(val value: T)
+
+fun <U> makeBox(x: U): ValueBox<U> {
+    return ValueBox(x)
+}
