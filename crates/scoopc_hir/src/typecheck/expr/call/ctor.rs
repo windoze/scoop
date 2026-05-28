@@ -33,6 +33,13 @@ pub(in crate::typecheck::expr) struct MatchedCtorOverload {
 
 type InstantiatedCtorParamTypes = (Vec<TypeId>, Vec<TypeId>);
 
+struct CtorTypeParamContext {
+    owner_type_param_count: usize,
+    type_params: Vec<TypeId>,
+    bindings: Vec<(String, TypeId)>,
+    where_constraints: Vec<FunWhereConstraintInfo>,
+}
+
 pub(in crate::typecheck::expr) fn collect_ctor_owner_fqns_from_call_candidates(
     call: Option<&ast::ResolvedCall>,
     lower: &TypeLowering<'_>,
@@ -57,9 +64,77 @@ pub(in crate::typecheck::expr) fn collect_ctor_owner_fqns_from_call_candidates(
     owners
 }
 
+fn ctor_type_param_context(
+    source: &SourceFile,
+    owner_fqn: &str,
+    ctor: &ConstructorOverload,
+    lower: &mut TypeLowering<'_>,
+) -> CtorTypeParamContext {
+    let owner_sym = lower.env().type_symbol(owner_fqn).cloned();
+    let owner_names = owner_sym
+        .as_ref()
+        .map(|sym| sym.type_param_names.clone())
+        .unwrap_or_default();
+    let owner_decl_file = owner_sym
+        .as_ref()
+        .map(|sym| sym.decl_file.clone())
+        .unwrap_or_else(|| ctor.decl_file.clone());
+
+    let mut type_params = Vec::with_capacity(owner_names.len() + ctor.type_params.len());
+    let mut bindings = Vec::with_capacity(owner_names.len() + ctor.type_params.len());
+    for name in &owner_names {
+        let ty = lower.ty_param_named(name.clone(), owner_decl_file.clone(), Span::new(0, 0));
+        type_params.push(ty);
+        bindings.push((name.clone(), ty));
+    }
+
+    for param in &ctor.type_params {
+        let ty = lower.ty_param_named(param.name.clone(), ctor.decl_file.clone(), param.name_span);
+        type_params.push(ty);
+        bindings.push((param.name.clone(), ty));
+    }
+
+    let mut where_constraints = Vec::new();
+    if let Some(sym) = owner_sym.as_ref() {
+        for constraint in &sym.where_constraints {
+            let param_name = sym
+                .type_param_names
+                .get(constraint.param_index)
+                .cloned()
+                .unwrap_or_else(|| format!("#{}", constraint.param_index + 1));
+            where_constraints.push(FunWhereConstraintInfo {
+                _span: constraint.span,
+                param_index: constraint.param_index,
+                param_name,
+                bound: constraint.bound.clone(),
+            });
+        }
+    }
+
+    let decl_source = lower.env().source(&ctor.decl_file).unwrap_or(source);
+    let mut ctor_constraints = build_fun_where_constraints_from_resolve_sig(
+        decl_source,
+        &ctor.type_params,
+        ctor.where_clause.as_ref(),
+    );
+    for constraint in &mut ctor_constraints {
+        constraint.param_index += owner_names.len();
+    }
+    where_constraints.extend(ctor_constraints);
+
+    CtorTypeParamContext {
+        owner_type_param_count: owner_names.len(),
+        type_params,
+        bindings,
+        where_constraints,
+    }
+}
+
 pub(super) struct CtorParamInstantiationRequest<'a> {
     param_tys: &'a [TypeId],
-    type_param_names: &'a [String],
+    type_params: &'a [TypeId],
+    owner_type_param_count: usize,
+    where_constraints: &'a [FunWhereConstraintInfo],
     decl_file: &'a std::path::Path,
     mapping: &'a [ParamArgBinding],
     call_args: &'a [CallArgInfo<'a>],
@@ -67,14 +142,14 @@ pub(super) struct CtorParamInstantiationRequest<'a> {
     call_span: Span,
     /// 显式构造器 type args（`Container<Int>(...)` 中的 `[Int]`）（P4-T01h）。
     ///
-    /// - 若提供，长度必须与 `type_param_names` 一致；
+    /// - 若提供，长度必须与 owner type params 一致；
     /// - 优先级：显式 > arg-driven 反推 > LHS expected > `Any`；
     /// - 与 arg-driven 反推冲突时返回 `Ok(None)`，由调用点退化为 "no match"。
     explicit_type_args: Option<&'a [TypeId]>,
     /// LHS expected type 的 owner-args（`val c: Container<Int> = Container()` 中的 `[Int]`）（P4-T01h）。
     ///
     /// - 仅当外层 expected 类型是同 FQN 的 nominal generic instantiation 时由调用点提供；
-    /// - 长度必须与 `type_param_names` 一致；
+    /// - 长度必须与 owner type params 一致；
     /// - 仅作为 arg-driven 反推未填充时的兜底候选，不主动覆盖 arg-driven 结果（与 explicit 不同）。
     expected_owner_args: Option<&'a [TypeId]>,
 }
@@ -85,7 +160,9 @@ pub(super) fn instantiate_ctor_param_tys(
 ) -> Result<Option<InstantiatedCtorParamTypes>, ExprTypeError> {
     let CtorParamInstantiationRequest {
         param_tys,
-        type_param_names,
+        type_params,
+        owner_type_param_count,
+        where_constraints,
         decl_file,
         mapping,
         call_args,
@@ -95,28 +172,23 @@ pub(super) fn instantiate_ctor_param_tys(
         expected_owner_args,
     } = request;
 
-    if type_param_names.is_empty() {
+    if type_params.is_empty() {
         return Ok(Some((Vec::new(), param_tys.to_vec())));
     }
 
-    // 显式 type-args / LHS expected owner-args 的长度必须严格匹配 `type_param_names`，
+    // 显式 type-args / LHS expected owner-args 只对应 class owner type params；
+    // constructor-level type params 只能从实参或默认 `Any` 获得。
     // 否则视为不匹配（让调用点退化到 NoMatchingOverload 路径，沿用现有诊断）。
     if let Some(explicit) = explicit_type_args
-        && explicit.len() != type_param_names.len()
+        && explicit.len() != owner_type_param_count
     {
         return Ok(None);
     }
     if let Some(expected) = expected_owner_args
-        && expected.len() != type_param_names.len()
+        && expected.len() != owner_type_param_count
     {
         return Ok(None);
     }
-
-    let fresh_type_params: Vec<TypeId> = type_param_names
-        .iter()
-        .cloned()
-        .map(|name| lower.ty_param_named(name, decl_file.to_path_buf(), Span::new(0, 0)))
-        .collect();
 
     let mut inferred: HashMap<TypeId, TypeId> = HashMap::new();
     for (param_idx, arg_idx) in expand_param_arg_pairs(mapping) {
@@ -136,7 +208,7 @@ pub(super) fn instantiate_ctor_param_tys(
             vec![arg.ty]
         };
 
-        for param_ty in fresh_type_params.iter().copied() {
+        for param_ty in type_params.iter().copied() {
             let mut candidates: Vec<TypeId> = Vec::new();
             for found_ty in &found_tys {
                 collect_type_arg_candidates_for_single_type_param(
@@ -167,11 +239,17 @@ pub(super) fn instantiate_ctor_param_tys(
     // 优先级：显式 > arg-driven 反推 > LHS expected > `Any`。
     // - 显式 type args 与 arg-driven 结果若不一致 → 视为不匹配，让调用点报 NoMatchingOverload；
     // - LHS expected 仅在 arg-driven 没填出来时生效，不主动覆盖 arg-driven。
-    let mut inferred_type_args: Vec<TypeId> = Vec::with_capacity(fresh_type_params.len());
-    for (idx, param_ty) in fresh_type_params.iter().copied().enumerate() {
+    let mut owner_type_args: Vec<TypeId> = Vec::with_capacity(owner_type_param_count);
+    let mut all_type_args: Vec<TypeId> = Vec::with_capacity(type_params.len());
+    for (idx, param_ty) in type_params.iter().copied().enumerate() {
         let arg_inferred = inferred.get(&param_ty).copied();
-        let explicit_at = explicit_type_args.and_then(|e| e.get(idx).copied());
-        let expected_at = expected_owner_args.and_then(|e| e.get(idx).copied());
+        let owner_param = idx < owner_type_param_count;
+        let explicit_at = owner_param
+            .then(|| explicit_type_args.and_then(|e| e.get(idx).copied()))
+            .flatten();
+        let expected_at = owner_param
+            .then(|| expected_owner_args.and_then(|e| e.get(idx).copied()))
+            .flatten();
 
         let chosen = if let Some(t) = explicit_at {
             if let Some(bound) = arg_inferred
@@ -187,14 +265,28 @@ pub(super) fn instantiate_ctor_param_tys(
         } else {
             builtins.any
         };
-        inferred_type_args.push(chosen);
+        if owner_param {
+            owner_type_args.push(chosen);
+        }
+        all_type_args.push(chosen);
     }
 
+    check_where_constraints_after_type_arg_instantiation(
+        "constructor",
+        call_span,
+        decl_file,
+        type_params,
+        where_constraints,
+        &all_type_args,
+        lower,
+        builtins,
+    )?;
+
     let mut instantiated_param_tys = param_tys.to_vec();
-    for (param_ty, arg_ty) in fresh_type_params
+    for (param_ty, arg_ty) in type_params
         .iter()
         .copied()
-        .zip(inferred_type_args.iter().copied())
+        .zip(all_type_args.iter().copied())
     {
         for expected_ty in &mut instantiated_param_tys {
             *expected_ty =
@@ -202,7 +294,7 @@ pub(super) fn instantiate_ctor_param_tys(
         }
     }
 
-    Ok(Some((inferred_type_args, instantiated_param_tys)))
+    Ok(Some((owner_type_args, instantiated_param_tys)))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -252,14 +344,9 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
         )?;
     }
 
-    let type_param_names: Vec<String> = lower
-        .env()
-        .type_symbol(owner_fqn)
-        .map(|sym| sym.type_param_names.clone())
-        .unwrap_or_default();
-
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
     for ctor in visible {
+        let type_param_context = ctor_type_param_context(source, owner_fqn, ctor, lower);
         let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
         let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
         let param_is_vararg: Vec<bool> = ctor.params.iter().map(|p| p.is_vararg).collect();
@@ -281,9 +368,9 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
                 ok = false;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
                 &ctor.decl_file,
-                &type_param_names,
+                type_param_context.bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_tys.push(ty);
@@ -296,7 +383,9 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
         let Some((inferred_type_args, instantiated_param_tys)) = instantiate_ctor_param_tys(
             CtorParamInstantiationRequest {
                 param_tys: &param_tys,
-                type_param_names: &type_param_names,
+                type_params: &type_param_context.type_params,
+                owner_type_param_count: type_param_context.owner_type_param_count,
+                where_constraints: &type_param_context.where_constraints,
                 decl_file: &ctor.decl_file,
                 mapping: &mapping,
                 call_args,
@@ -378,16 +467,23 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
 
         let signature = format!("{owner_fqn}({})", param_ty_strs.join(", "));
         let location = format_candidate_location(lower, &ctor.decl_file, ctor.span);
+        let specificity = specificity_candidate_for_declared_params(
+            signature.clone(),
+            location,
+            &param_tys,
+            &type_param_context.type_params,
+            &type_param_context.where_constraints,
+            &ctor.decl_file,
+            lower,
+            builtins,
+            call_span,
+        )?;
         matched.push(MatchedCtorOverload {
             owner_fqn: owner_fqn.to_string(),
             ctor_span: Some(ctor.span),
             arg_mapping: mapping,
             expected_arg_tys,
-            specificity: specificity_candidate_for_plain_params(
-                signature.clone(),
-                location,
-                &param_tys,
-            ),
+            specificity,
             signature,
             inferred_type_args,
         });
@@ -409,12 +505,6 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
     let Some(ctors) = lower.index().constructors.get(owner_fqn).cloned() else {
         return Ok(Vec::new());
     };
-    let type_param_names: Vec<String> = lower
-        .env()
-        .type_symbol(owner_fqn)
-        .map(|sym| sym.type_param_names.clone())
-        .unwrap_or_default();
-
     let mut rejections = Vec::new();
     for ctor in ctors
         .iter()
@@ -424,6 +514,7 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
             continue;
         }
 
+        let type_param_context = ctor_type_param_context(inputs.source, owner_fqn, ctor, lower);
         let mut param_tys = Vec::with_capacity(ctor.params.len());
         let mut param_ty_strs = Vec::with_capacity(ctor.params.len());
         let mut malformed = false;
@@ -432,9 +523,9 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
                 malformed = true;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
                 &ctor.decl_file,
-                &type_param_names,
+                type_param_context.bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_ty_strs.push(lower.fmt_type(ty));

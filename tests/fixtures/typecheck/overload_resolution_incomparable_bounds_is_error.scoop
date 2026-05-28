@@ -1,8 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
-// EXPECT-ERROR: ComparableShape
-// EXPECT-ERROR: NumericShape
-// EXPECT-ERROR: effective
+// EXPECT-ERROR: fixtures.typecheck.ComparableShape (from `T` declared bound) and fixtures.typecheck.NumericShape (from `T` declared bound) are incomparable
 
 package fixtures.typecheck
 

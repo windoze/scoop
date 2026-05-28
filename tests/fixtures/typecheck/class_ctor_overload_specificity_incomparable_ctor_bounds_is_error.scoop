@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: fixtures.typecheck.DebugShape (from `T` declared bound) and fixtures.typecheck.NumericShape (from `T` declared bound) are incomparable
+
+package fixtures.typecheck
+
+interface DebugShape {}
+interface NumericShape {}
+
+class BothShapes() : DebugShape, NumericShape {}
+
+class C() {
+    constructor<T: DebugShape>(x: T) : this() {}
+    constructor<T: NumericShape>(x: T) : this() {}
+}
+
+fun bad(x: BothShapes) {
+    C(x)
+}

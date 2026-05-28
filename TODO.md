@@ -81,7 +81,7 @@
 | P5-T01a | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t01a修复-phase-a-c-review-blockers) | [DONE] 修复 Phase A-C review blockers |
 | P5-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t01rreview-phase-a-c-resolution) | [DONE] Review P5-T01 Phase A-C resolution |
 | P5-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t02实现-phase-d-e-specificity-与-ambiguity-diagnostics) | [DONE] 实现 Phase D-E specificity 与 ambiguity diagnostics |
-| P5-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02rreview-specificity-与-ambiguity-diagnostics) | Review P5-T02 specificity 与 ambiguity diagnostics |
+| P5-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t02rreview-specificity-与-ambiguity-diagnostics) | [DONE] Review P5-T02 specificity 与 ambiguity diagnostics |
 | P5-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03整合-member--constructor--operator--effect-after-selection-路径) | 整合 member / constructor / operator / effect-after-selection 路径 |
 | P5-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03rreview-call-surface-整合结果) | Review P5-T03 call surface 整合结果 |
 | P5-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04贯通-selected-callable-identity修复-concrete--arity--generic-concrete-codegen-bug) | 贯通 selected callable identity，修复 overload codegen bug |

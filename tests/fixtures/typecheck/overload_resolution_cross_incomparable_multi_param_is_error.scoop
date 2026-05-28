@@ -1,7 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
-// EXPECT-ERROR: crossPick(Any, Int) | crossPick(Int, Any)
-// EXPECT-ERROR: cross-incomparable
+// EXPECT-ERROR: crossPick(Int, Any) vs crossPick(Any, Int): position 0
 
 package fixtures.typecheck
 

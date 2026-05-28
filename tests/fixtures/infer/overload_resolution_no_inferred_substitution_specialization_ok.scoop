@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：P5-T02R；generic caller 中未知 `U` 不能被当作满足 bounded overload 的上界。
+
+package fixtures.infer
+
+interface NumericShape {}
+
+fun pickDeferred(x: Any): String {
+    return "any"
+}
+
+fun <T: NumericShape> pickDeferred(x: T): Int {
+    return 1
+}
+
+fun <U> ok(u: U): String {
+    return pickDeferred(u)
+}

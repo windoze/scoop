@@ -148,7 +148,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；targeted `tests/fixtures/infer` 与 `tests/fixtures/typecheck`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.4-§6.4 与 §10 的 P5-T02 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T02R：Review specificity 与 ambiguity diagnostics
+### [DONE] P5-T02R：Review specificity 与 ambiguity diagnostics
 
 - 参考：
   - P5-T02 完成记录
@@ -172,10 +172,10 @@
   - P5-T02 行为符合 §6 / §10。
 - 依赖：P5-T02
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核并修正 P5-T02 specificity / ambiguity 实现；更新 `typecheck/expr/call/{mod.rs,generic.rs,ctor.rs}` 与 `typecheck/lower.rs`，让未知 type param 不再绕过普通 type bounds，让 constructor overload specificity 使用 owner + constructor type params / bounds，并保留 composite 多重 bound 的 effective alternatives；更新 monomorph 单元测试的 generic wrapper bound；新增/补强 concrete-vs-generic、deferred generic caller、constructor specificity、constructor bound ambiguity、receiver position 0 ambiguity 与 existing ambiguity diagnostics fixtures。
+  - 核心决策：P5-T02R 不接受 inferred-substitution specialization；`TypeKind::Param` 只有在其声明 bounds 可证明满足目标 bound 时才可通过 bounded callable applicability；constructor selection 的 specificity source 与函数路径一致，constructor-level inline/where bounds 参与 effective type；无 first-class intersection `TypeId` 时，composite bound substitution 保留 alternatives 而不是退化成 `Any`；ambiguity fixture 断言改为锁住候选/effective source/position reason 的单条可验证 substring。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/infer`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §6 / §10 的 P5-T02 review 要求；确认 specificity 偏序、effective type 来源、constructor/member receiver position handling 和 ambiguity diagnostics 符合当前阶段要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T03：整合 member / constructor / operator / effect-after-selection 路径
 

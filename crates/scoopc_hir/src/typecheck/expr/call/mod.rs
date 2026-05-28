@@ -162,25 +162,6 @@ pub(super) fn specificity_candidate_for_declared_params(
     })
 }
 
-pub(super) fn specificity_candidate_for_plain_params(
-    signature: String,
-    location: String,
-    declared_params: &[TypeId],
-) -> SpecificityCandidate {
-    SpecificityCandidate {
-        signature,
-        location,
-        params: declared_params
-            .iter()
-            .copied()
-            .map(|ty| SpecificityParam {
-                ty: EffectiveSpecificityType::Single(ty),
-                source: "declared concrete type".to_string(),
-            })
-            .collect(),
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn effective_param_from_declared_type(
     ty: TypeId,
@@ -205,7 +186,7 @@ fn effective_param_from_declared_type(
         );
     }
 
-    let mut cur = ty;
+    let mut alternatives = vec![ty];
     let mut substitutions = Vec::new();
     for type_param in type_params.iter().copied() {
         let bound = type_param_effective_bound(
@@ -218,24 +199,37 @@ fn effective_param_from_declared_type(
             use_span,
             visiting,
         )?;
-        let replacement = match &bound.ty {
-            EffectiveSpecificityType::Single(ty) => *ty,
-            // Scoop does not yet have a first-class intersection TypeId. For a
-            // type parameter embedded inside a composite type, use the top type
-            // as the representable upper bound and keep the precise source text
-            // in ambiguity diagnostics.
-            EffectiveSpecificityType::Intersection(_) => builtins.any,
+        let replacements = match &bound.ty {
+            EffectiveSpecificityType::Single(ty) => vec![*ty],
+            EffectiveSpecificityType::Intersection(items) => items.clone(),
         };
-        let next =
-            generic::substitute_single_type_param(cur, type_param, replacement, lower, use_span)?;
-        if next != cur {
+        let mut next_alternatives = Vec::with_capacity(alternatives.len() * replacements.len());
+        let mut changed = false;
+        for cur in alternatives.iter().copied() {
+            for replacement in replacements.iter().copied() {
+                let next = generic::substitute_single_type_param(
+                    cur,
+                    type_param,
+                    replacement,
+                    lower,
+                    use_span,
+                )?;
+                if next != cur {
+                    changed = true;
+                }
+                next_alternatives.push(next);
+            }
+        }
+        if changed {
             substitutions.push(format!(
                 "{} -> {} ({})",
                 fmt_type_param_name(type_param, lower),
                 fmt_effective_specificity_type(&bound.ty, lower),
                 bound.source
             ));
-            cur = next;
+            next_alternatives.sort();
+            next_alternatives.dedup();
+            alternatives = next_alternatives;
         }
     }
 
@@ -244,10 +238,14 @@ fn effective_param_from_declared_type(
     } else {
         format!("declared composite type with {}", substitutions.join(", "))
     };
-    Ok(SpecificityParam {
-        ty: EffectiveSpecificityType::Single(cur),
-        source,
-    })
+    alternatives.sort();
+    alternatives.dedup();
+    let ty = if alternatives.len() == 1 {
+        EffectiveSpecificityType::Single(alternatives[0])
+    } else {
+        EffectiveSpecificityType::Intersection(alternatives)
+    };
+    Ok(SpecificityParam { ty, source })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -552,6 +550,7 @@ fn format_specificity_pair_reason(
     let mut positions = Vec::new();
     let mut lhs_strict = false;
     let mut rhs_strict = false;
+    let mut any_incomparable = false;
     for (idx, (lhs_param, rhs_param)) in lhs.params.iter().zip(&rhs.params).enumerate() {
         let lhs_sub_rhs =
             effective_specificity_subtype(&lhs_param.ty, &rhs_param.ty, lower, builtins);
@@ -577,15 +576,21 @@ fn format_specificity_pair_reason(
                     rhs_param.source, lhs_param.source
                 ));
             }
-            (false, false) => positions.push(format!(
-                "position {idx}: {lhs_ty} ({}) and {rhs_ty} ({}) are incomparable",
-                lhs_param.source, rhs_param.source
-            )),
+            (false, false) => {
+                any_incomparable = true;
+                positions.push(format!(
+                    "position {idx}: {lhs_ty} ({}) and {rhs_ty} ({}) are incomparable",
+                    lhs_param.source, rhs_param.source
+                ));
+            }
         }
     }
 
     let conclusion = match (lhs_strict, rhs_strict) {
         (true, true) => "cross-incomparable; no candidate is strictly more specific",
+        (false, false) if any_incomparable => {
+            "effective parameter types are incomparable; no strict winner"
+        }
         (false, false) => "effective parameter types are equivalent; no strict winner",
         _ => "incomparable positions prevent a unique winner",
     };

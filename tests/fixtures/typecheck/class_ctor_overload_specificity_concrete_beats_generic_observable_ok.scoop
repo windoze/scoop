@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：P5-T02R；constructor specificity 选择 concrete `Int`，而不是 owner generic `T`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C<T>() {
+    constructor(x: T) : this() {}
+    constructor(x: Int) : this() {}
+}
+
+val c: C<Any> = C(1)

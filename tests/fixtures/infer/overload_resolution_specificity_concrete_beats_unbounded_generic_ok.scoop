@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：P5-T02 Phase D specificity；concrete `Int` 比无 bound 的 method-level TP 更具体。
+
+package fixtures.infer
+
+fun pickConcrete(x: Int): String {
+    return "int"
+}
+
+fun <T> pickConcrete(x: T): Int {
+    return 0
+}
+
+fun ok() {
+    val s: String = pickConcrete(1)
+}

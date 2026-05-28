@@ -901,24 +901,46 @@ pub(in crate::typecheck::expr) fn instantiate_fun_sig_for_call(
 /// 在 `instantiate_fun_sig_for_call*` 推断出具体 type args 后调用：
 /// 遍历 `sig.where_constraints`，在声明处文件上下文中 lower bound，
 /// 检查 `type_args[c.param_index]` 是否满足 bound。
-/// 当 type arg 仍为 `TypeKind::Param` 时，普通 type upper-bound 保持既有延迟检查；
-/// `ref` / `value` bound-kind 则要求该 type param 自身声明兼容的 kind bound。
+/// 当 type arg 仍为 `TypeKind::Param` 时，必须能从该 type param 的声明 bounds
+/// 证明其满足目标 bound；不能把未知 type param 当作满足任意上界。
 pub(super) fn check_fun_where_constraints_after_instantiation(
     callee: &str,
     call_span: Span,
     sig: &FunSigOwned,
     type_args: &[TypeId],
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    check_where_constraints_after_type_arg_instantiation(
+        callee,
+        call_span,
+        &sig.decl_file,
+        &sig.type_params,
+        &sig.where_constraints,
+        type_args,
+        lower,
+        builtins,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn check_where_constraints_after_type_arg_instantiation(
+    callee: &str,
+    call_span: Span,
+    decl_file: &std::path::Path,
+    type_params: &[TypeId],
+    where_constraints: &[FunWhereConstraintInfo],
+    type_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
     _builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    if sig.where_constraints.is_empty() {
+    if where_constraints.is_empty() {
         return Ok(());
     }
 
     // 构建 type param name → concrete type arg 的绑定表，
     // 用于在 lower bound TypeRef 时将 bound 中出现的 type param 替换为具体类型。
-    let bindings: Vec<(String, TypeId)> = sig
-        .type_params
+    let bindings: Vec<(String, TypeId)> = type_params
         .iter()
         .zip(type_args.iter().copied())
         .map(|(param_ty, arg_ty)| {
@@ -926,37 +948,30 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
                 TypeKind::Param(p) => p.name.clone(),
                 _ => format!(
                     "#{}",
-                    sig.type_params
-                        .iter()
-                        .position(|t| t == param_ty)
-                        .unwrap_or(0)
+                    type_params.iter().position(|t| t == param_ty).unwrap_or(0)
                 ),
             };
             (name, arg_ty)
         })
         .collect();
 
-    for c in &sig.where_constraints {
+    for c in where_constraints {
         let Some(arg_ty) = type_args.get(c.param_index).copied() else {
             continue;
         };
 
         // 在声明处文件上下文中 lower bound，应用 type arg 替换。
         let bound = lower.lower_generic_bound_in_decl_file_with_bindings(
-            &sig.decl_file,
+            decl_file,
             bindings.iter().cloned(),
             &c.bound,
         )?;
 
         if let TypeKind::Param(param) = lower.type_kind(arg_ty) {
-            match lower.type_param_satisfies_ref_value_bound(&param, bound)? {
-                Some(true) => continue,
-                Some(false) => {}
-                None => continue,
+            if lower.type_param_satisfies_generic_bound(&param, bound)? {
+                continue;
             }
-        }
-
-        if lower.generic_bound_satisfied(arg_ty, bound) {
+        } else if lower.generic_bound_satisfied(arg_ty, bound) {
             continue;
         }
 

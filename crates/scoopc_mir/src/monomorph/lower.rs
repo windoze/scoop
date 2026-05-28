@@ -555,7 +555,7 @@ package fixtures.monomorph
 
 import scoop.core.*
 
-fun wrap<T>(value: T): Unit {
+fun wrap<T: ToString>(value: T): Unit {
     print(value)
 }
 

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: Any.pickReceiver(Int) vs String.pickReceiver(Any): position 0
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun Any.pickReceiver(x: Int): Unit {}
+
+fun String.pickReceiver(x: Any): Unit {}
+
+fun bad(x: String) {
+    x.pickReceiver(1)
+}

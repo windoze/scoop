@@ -1607,6 +1607,9 @@ impl<'a> TypeLowering<'a> {
     ) -> bool {
         match bound {
             LoweredGenericBound::Type(bound_ty) => {
+                if arg_ty != bound_ty && matches!(self.type_kind(bound_ty), TypeKind::Param(_)) {
+                    return false;
+                }
                 is_type_assignable(arg_ty, bound_ty, self, self.builtins)
             }
             LoweredGenericBound::Ref => self.type_satisfies_ref_bound(arg_ty),
@@ -1630,18 +1633,23 @@ impl<'a> TypeLowering<'a> {
         ty == self.builtins.nothing || matches!(self.type_kind(ty), TypeKind::Value(_))
     }
 
-    pub(crate) fn type_param_satisfies_ref_value_bound(
+    pub(crate) fn type_param_satisfies_generic_bound(
         &mut self,
         param: &TypeParamType,
         required: LoweredGenericBound,
-    ) -> Result<Option<bool>, TypeLowerError> {
+    ) -> Result<bool, TypeLowerError> {
         match required {
             LoweredGenericBound::Ref | LoweredGenericBound::Value => {
                 let mut visiting = HashSet::new();
                 self.type_param_satisfies_ref_value_bound_inner(param, required, &mut visiting)
-                    .map(Some)
             }
-            LoweredGenericBound::Type(_) => Ok(None),
+            LoweredGenericBound::Type(required_ty) => {
+                if required_ty == self.builtins.any {
+                    return Ok(true);
+                }
+                let mut visiting = HashSet::new();
+                self.type_param_satisfies_type_bound_inner(param, required_ty, &mut visiting)
+            }
         }
     }
 
@@ -1726,6 +1734,74 @@ impl<'a> TypeLowering<'a> {
                 self.type_param_satisfies_ref_value_bound_inner(&param, required, visiting)
             }
             _ => Ok(false),
+        }
+    }
+
+    fn type_param_satisfies_type_bound_inner(
+        &mut self,
+        param: &TypeParamType,
+        required_ty: TypeId,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        if !visiting.insert(param.clone()) {
+            return Ok(false);
+        }
+
+        let bounds = self.generic_bounds_for_type_param(param);
+        let bindings = self.current_type_param_bindings();
+        for (bound, decl_file) in bounds {
+            let lowered = self.lower_generic_bound_in_decl_file_with_bindings(
+                &decl_file,
+                bindings.iter().cloned(),
+                &bound,
+            )?;
+            if self.lowered_bound_definitely_satisfies_type_bound(lowered, required_ty, visiting)? {
+                visiting.remove(param);
+                return Ok(true);
+            }
+        }
+
+        visiting.remove(param);
+        Ok(false)
+    }
+
+    fn lowered_bound_definitely_satisfies_type_bound(
+        &mut self,
+        declared: LoweredGenericBound,
+        required_ty: TypeId,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        match declared {
+            LoweredGenericBound::Type(ty) => {
+                self.type_definitely_satisfies_type_bound(ty, required_ty, visiting)
+            }
+            LoweredGenericBound::Ref | LoweredGenericBound::Value => {
+                Ok(required_ty == self.builtins.any)
+            }
+        }
+    }
+
+    fn type_definitely_satisfies_type_bound(
+        &mut self,
+        ty: TypeId,
+        required_ty: TypeId,
+        visiting: &mut HashSet<TypeParamType>,
+    ) -> Result<bool, TypeLowerError> {
+        if ty == required_ty || required_ty == self.builtins.any {
+            return Ok(true);
+        }
+        if matches!(self.type_kind(required_ty), TypeKind::Param(_)) {
+            return Ok(false);
+        }
+        match self.type_kind(ty) {
+            TypeKind::Param(param) => {
+                if ty == required_ty {
+                    Ok(true)
+                } else {
+                    self.type_param_satisfies_type_bound_inner(&param, required_ty, visiting)
+                }
+            }
+            _ => Ok(is_type_assignable(ty, required_ty, self, self.builtins)),
         }
     }
 
@@ -2748,17 +2824,11 @@ impl<'a> TypeLowering<'a> {
                 &c.bound,
             )?;
 
-            // 普通 type upper-bound 的完整约束传播仍沿用既有规则；但 `ref` / `value`
-            // 是 kind 约束，不能让未知 kind 的 type param 直接绕过。
             if let TypeKind::Param(param) = self.type_kind(arg_ty) {
-                match self.type_param_satisfies_ref_value_bound(&param, bound)? {
-                    Some(true) => continue,
-                    Some(false) => {}
-                    None => continue,
+                if self.type_param_satisfies_generic_bound(&param, bound)? {
+                    continue;
                 }
-            }
-
-            if self.generic_bound_satisfied(arg_ty, bound) {
+            } else if self.generic_bound_satisfied(arg_ty, bound) {
                 continue;
             }
 
