@@ -149,26 +149,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- fail ---
         self.builder.position_at_end(fail_bb);
-        self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
-        let fail_incoming = if self.ordinary_effect_propagation_enabled() {
-            self.emit_ordinary_non_resuming_effect_exit(span, "cast_raise_effect")?;
-            self.builder.build_unreachable()?;
-            None
-        } else {
-            let dead_bb = self.expect_insert_block("checked cast failure continuation");
-            let default_ptr = target_ptr_ty.const_null();
-            self.builder.build_unconditional_branch(merge_bb)?;
-            Some((default_ptr, dead_bb))
-        };
+        self.emit_panic_message(span, "class cast failed")?;
+        self.builder.build_unreachable()?;
 
         // --- merge ---
         self.builder.position_at_end(merge_bb);
         let phi = self.builder.build_phi(target_ptr_ty, "cast_value")?;
-        if let Some((default_ptr, dead_bb)) = fail_incoming {
-            phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
-        } else {
-            phi.add_incoming(&[(&casted_ptr, ok_bb)]);
-        }
+        phi.add_incoming(&[(&casted_ptr, ok_bb)]);
         let out_ptr = phi.as_basic_value().into_pointer_value();
 
         Ok(CgValue {

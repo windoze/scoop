@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// 目标：P3-T02：`x!!` 在 `None` 分支调用 panic，而不是可捕获的 `Raise<RuntimeError>`。
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Int? = None()
+    val y: Int = x!!
+    println(y)
+    return 0
+}

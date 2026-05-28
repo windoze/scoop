@@ -194,10 +194,10 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 108..174,
+                span: 108..159,
                 fqn: "a.g",
                 name: "g",
-                ty: (Option<String>) -> String / scoop.core.Raise<scoop.core.RuntimeError>,
+                ty: (Option<String>) -> String / Pure,
                 params: [
                     Param {
                         span: 114..115,
@@ -209,21 +209,21 @@ File {
                 return_ty: String,
                 body: Some(
                     Block {
-                        span: 156..174,
+                        span: 141..159,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 162..172,
+                                span: 147..157,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 169..172,
+                                            span: 154..157,
                                             ty: String,
                                             kind: When {
                                                 subject:
                                                     Expr {
-                                                        span: 169..170,
+                                                        span: 154..155,
                                                         ty: Option<String>,
                                                         kind: VarRef(
                                                             Local {
@@ -235,85 +235,68 @@ File {
                                                     }
                                                 arms: [
                                                     WhenArm {
-                                                        span: 170..172,
+                                                        span: 155..157,
                                                         pat:
                                                             Variant {
-                                                                span: 170..172,
-                                                                name_span: 170..172,
+                                                                span: 155..157,
+                                                                name_span: 155..157,
                                                                 name: "Some",
                                                                 args: [
                                                                     Bind {
-                                                                        span: 170..172,
-                                                                        label: sym#hf4d4df2a0a3721cc7953ef93e4e13322,
+                                                                        span: 155..157,
+                                                                        label: sym#h553cc9f6955073ffb2d9d92ce0792740,
                                                                         name: "__not_null_v",
                                                                     },
                                                                 ],
                                                             },
                                                         guard: None,
-                                                        arrow_span: 170..172,
+                                                        arrow_span: 155..157,
                                                         body:
                                                             Expr {
-                                                                span: 170..172,
+                                                                span: 155..157,
                                                                 ty: String,
                                                                 kind: VarRef(
                                                                     Local {
-                                                                        label: sym#hf4d4df2a0a3721cc7953ef93e4e13322,
+                                                                        label: sym#h553cc9f6955073ffb2d9d92ce0792740,
                                                                         name: "__not_null_v",
-                                                                        decl_span: 170..172,
+                                                                        decl_span: 155..157,
                                                                     }
                                                                 ),
                                                             }
                                                     },
                                                     WhenArm {
-                                                        span: 170..172,
+                                                        span: 155..157,
                                                         pat:
                                                             Variant {
-                                                                span: 170..172,
-                                                                name_span: 170..172,
+                                                                span: 155..157,
+                                                                name_span: 155..157,
                                                                 name: "None",
                                                                 args: [
                                                                 ],
                                                             },
                                                         guard: None,
-                                                        arrow_span: 170..172,
+                                                        arrow_span: 155..157,
                                                         body:
                                                             Expr {
-                                                                span: 170..170,
+                                                                span: 1048736..1048737,
                                                                 ty: Nothing,
-                                                                kind: Perform {
-                                                                    effect_ty: scoop.core.Raise<scoop.core.RuntimeError>,
-                                                                    op:
-                                                                        EffectOpRef {
-                                                                            span: 170..170,
-                                                                            fqn: "scoop.core.Raise.raise",
+                                                                kind: Call {
+                                                                    callee:
+                                                                        Expr {
+                                                                            span: 1048736..1048737,
+                                                                            ty: Any,
+                                                                            kind: VarRef(
+                                                                                TopLevel {
+                                                                                    fqn: "scoop.core.panic",
+                                                                                }
+                                                                            ),
                                                                         }
                                                                     args: [
                                                                         Positional(
                                                                             Expr {
-                                                                                span: 170..172,
-                                                                                ty: scoop.core.RuntimeError,
-                                                                                kind: MemberAccess {
-                                                                                    receiver:
-                                                                                        Expr {
-                                                                                            span: 170..172,
-                                                                                            ty: scoop.core.RuntimeError,
-                                                                                            kind: VarRef(
-                                                                                                TopLevel {
-                                                                                                    fqn: "scoop.core.RuntimeError",
-                                                                                                }
-                                                                                            ),
-                                                                                        }
-                                                                                    member:
-                                                                                        MemberAccess {
-                                                                                            span: 170..172,
-                                                                                            name: "NullAssertionFailed",
-                                                                                            resolved: Some(
-                                                                                                Value {
-                                                                                                    fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                                }
-                                                                                            ),
-                                                                                        }
-                                                                                },
+                                                                                span: 155..157,
+                                                                                ty: String,
+                                                                                kind: Literal(SynthString("null assertion failed")),
                                                                             }
                                                                         ),
                                                                     ],
@@ -337,7 +320,7 @@ File {
 
 hir_facts {
   declarations: nominals=74, callables=2, fields=45, enum_variants=24, vtables=54, itables=32
-  source_sites: function_effects=2, calls=1, args=0, assigns=0, updates=0, performs=1, handles=0, resumes=0, patterns=2, top_level_roots=0, extern_globals=0
+  source_sites: function_effects=2, calls=1, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=2, top_level_roots=0, extern_globals=0
   globals: roots=1, object_inits=1, class_inits=22
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
   type_context: universe=hir-stage-type-store, type_params=86, source_cones=8
@@ -353,10 +336,10 @@ source_site_contracts {
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 108..174,
+            span: 108..159,
             fqn: "a.g",
             return_ty: String,
-            allowed_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            allowed_effects: Pure,
             effects_closed: false,
         },
     ],
@@ -364,16 +347,12 @@ source_site_contracts {
     ],
     call_site_contracts: [
         CallSiteContract {
-            span: 170..170,
-            kind: EffectOperation,
-            effect_ty: scoop.core.Raise<scoop.core.RuntimeError>,
-            op_fqn: "scoop.core.Raise.raise",
-            result_ty: Nothing,
-            payload_ty: scoop.core.RuntimeError,
-            payload_components: [
-                scoop.core.RuntimeError,
-            ],
-            arg_mapping: [0],
+            span: 1048736..1048737,
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.panic",
+            target_decl_span: Some(45579..45584),
+            target_type_args: [],
+            target_eff_args: [],
         },
     ],
     with_update_contracts: [
@@ -383,17 +362,6 @@ source_site_contracts {
     continuation_resume_sites: [
     ],
     perform_sites: [
-        PerformSiteContract {
-            span: 170..170,
-            effect_ty: scoop.core.Raise<scoop.core.RuntimeError>,
-            op_fqn: "scoop.core.Raise.raise",
-            result_ty: Nothing,
-            payload_ty: scoop.core.RuntimeError,
-            payload_components: [
-                scoop.core.RuntimeError,
-            ],
-            arg_mapping: [0],
-        },
     ],
     handle_sites: [
     ],
@@ -404,7 +372,7 @@ source_site_contracts {
             binding_ty: a.Wrap,
         },
         PatternBindingContract {
-            span: 170..172,
+            span: 155..157,
             name: "__not_null_v",
             binding_ty: String,
         },

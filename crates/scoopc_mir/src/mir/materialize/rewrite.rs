@@ -1851,10 +1851,6 @@ impl MirInstanceMaterializer {
         substitution: &InstanceSubstitution,
     ) {
         self.rewrite_type_test_metadata(&mut metadata.test, substitution);
-        if let RuntimeCastFailure::Raise { effect_ty, .. } = &mut metadata.failure {
-            *effect_ty = effect_ty
-                .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
-        }
         match &mut metadata.result {
             RuntimeCastResult::Target { ty } => {
                 *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);

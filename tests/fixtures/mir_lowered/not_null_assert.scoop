@@ -1,10 +1,10 @@
 // EXPECT: pass
-// 目标：MIR-T09 `!!` 在 MIR 中展开为显式 nullable match 与失败 raise。
+// 目标：P3-T02：`!!` 在 MIR 中展开为显式 nullable match，失败分支调用 panic。
 
 package mir_lowered.not_null_assert
 
 import scoop.core.*
 
-fun unwrap(x: Int?): Int / Raise<RuntimeError> {
+fun unwrap(x: Int?): Int / Pure {
     return x!!
 }

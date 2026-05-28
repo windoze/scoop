@@ -2,60 +2,54 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 161..226,
+                span: 173..223,
                 fqn: "mir_lowered.not_null_assert.unwrap",
                 name: "unwrap",
-                ty: (Option<Int>) -> Int / scoop.core.Raise<scoop.core.RuntimeError>,
-                params: [Param { span: 172..173, name: "x", ty: Option<Int>, local: local#h8ca258e4e381c159b14ca4bbd916ac0b }],
+                ty: (Option<Int>) -> Int / Pure,
+                params: [Param { span: 184..185, name: "x", ty: Option<Int>, local: local#h9213b9317fea33a15845af12e45aa962 }],
                 return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#h8ca258e4e381c159b14ca4bbd916ac0b, span: 172..173, name: Some("x"), ty: Option<Int>, source: SourceLocal }, LocalDecl { label: local#hb8bc1b8ee4dc9587a91ec2eeb9790156, span: 221..224, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#ha136f537fd616329740f5d3139b452d2, span: 222..224, name: Some("tmp1"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h5ff067c2aecbd85039f73894565670d6, span: 222..224, name: Some("__not_null_v"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h6a7de31d3e8527227bee2a3e64c0ff57, span: 222..224, name: Some("tmp2"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h2e6ec4e3671677b100827bfda6092750, span: 222..224, name: Some("tmp3"), ty: scoop.core.RuntimeError, source: CompilerTemporary }, LocalDecl { label: local#h428e8244cc2dd066645070f652434e22, span: 222..224, name: Some("tmp4"), ty: scoop.core.RuntimeError, source: CompilerTemporary }, LocalDecl { label: local#h72f3c963a4e4207f4dd5cec04e5587e0, span: 222..222, name: Some("tmp5"), ty: Nothing, source: CompilerTemporary }, LocalDecl { label: local#h8b93da195f305c1e6e8d92caf74958b9, span: 208..226, name: Some("tmp6"), ty: Unit, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#h9213b9317fea33a15845af12e45aa962, span: 184..185, name: Some("x"), ty: Option<Int>, source: SourceLocal }, LocalDecl { label: local#he4edea838c39aa5532cf135c0845cc63, span: 218..221, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hbf03b447b99d4f7d6355c872b0fe1388, span: 219..221, name: Some("tmp1"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h4f24c58acf10bf19c4839e84c4223e13, span: 219..221, name: Some("__not_null_v"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hd5bd58f7896834e38ea1c8829192c51b, span: 219..221, name: Some("tmp2"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h99186bef6392f3b27577291dc25fd5da, span: 1048800..1048801, name: Some("tmp3"), ty: Nothing, source: CompilerTemporary }, LocalDecl { label: local#hc82a6a9ea61a42b2c18f4ba57611006a, span: 219..221, name: Some("tmp4"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#h20d686e519ccd267a46fbafe90984a44, span: 205..223, name: Some("tmp5"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
-                                label: bb#h78cda8f744593f25daea4680040a7101,
+                                label: bb#ha39214cfc24ab54e9f17741e736cfcf0,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 222..224, kind: Assign { target: local#ha136f537fd616329740f5d3139b452d2, value: PatternMatch { subject: Local(local#h8ca258e4e381c159b14ca4bbd916ac0b), pattern: Variant { name: "Some", args: [Bind { name: "__not_null_v", ty: Int }] } } } }],
-                                terminator: Terminator { span: 222..224, kind: CondBr { cond: Local(local#ha136f537fd616329740f5d3139b452d2), then_target: bb#hee112b5add37471e4226b679e1c6406c, else_target: bb#h2e639fe17f74f490b5657d986cc80509 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 219..221, kind: Assign { target: local#hbf03b447b99d4f7d6355c872b0fe1388, value: PatternMatch { subject: Local(local#h9213b9317fea33a15845af12e45aa962), pattern: Variant { name: "Some", args: [Bind { name: "__not_null_v", ty: Int }] } } } }],
+                                terminator: Terminator { span: 219..221, kind: CondBr { cond: Local(local#hbf03b447b99d4f7d6355c872b0fe1388), then_target: bb#h1b12ae5e5348ac6ca955d7d163b10834, else_target: bb#h8ff4f42fd46419d533d59c4719746879 }, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#hbecccefde4d7341c1e6ac8105970d944,
+                                label: bb#h0d2b8bc6837cf95ddb4812408c0b612c,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 214..224, kind: Return { value: Some(Local(local#hb8bc1b8ee4dc9587a91ec2eeb9790156)) }, unwind: NoUnwind },
+                                terminator: Terminator { span: 211..221, kind: Return { value: Some(Local(local#he4edea838c39aa5532cf135c0845cc63)) }, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#h2e639fe17f74f490b5657d986cc80509,
+                                label: bb#h8ff4f42fd46419d533d59c4719746879,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 222..224, kind: Assign { target: local#h6a7de31d3e8527227bee2a3e64c0ff57, value: PatternMatch { subject: Local(local#h8ca258e4e381c159b14ca4bbd916ac0b), pattern: Variant { name: "None", args: [] } } } }],
-                                terminator: Terminator { span: 222..224, kind: CondBr { cond: Local(local#h6a7de31d3e8527227bee2a3e64c0ff57), then_target: bb#ha3e2e5f6fb801125b8d05ebe4f700275, else_target: bb#h85ac7a65723e7f55c8133e096cd55ed1 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 219..221, kind: Assign { target: local#hd5bd58f7896834e38ea1c8829192c51b, value: PatternMatch { subject: Local(local#h9213b9317fea33a15845af12e45aa962), pattern: Variant { name: "None", args: [] } } } }],
+                                terminator: Terminator { span: 219..221, kind: CondBr { cond: Local(local#hd5bd58f7896834e38ea1c8829192c51b), then_target: bb#hda39eab3c59236eae6f291477eb581cf, else_target: bb#h3c8da68c1a9b44a338161f8e459c3cbb }, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#hee112b5add37471e4226b679e1c6406c,
+                                label: bb#h1b12ae5e5348ac6ca955d7d163b10834,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 222..224, kind: Assign { target: local#h5ff067c2aecbd85039f73894565670d6, value: PatternExtract { subject: Local(local#h8ca258e4e381c159b14ca4bbd916ac0b), path: [VariantField { variant: "Some", field_index: 0 }] } } }, Statement { span: 222..224, kind: Assign { target: local#hb8bc1b8ee4dc9587a91ec2eeb9790156, value: Use(Local(local#h5ff067c2aecbd85039f73894565670d6)) } }],
-                                terminator: Terminator { span: 222..224, kind: Goto { target: bb#hbecccefde4d7341c1e6ac8105970d944 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 219..221, kind: Assign { target: local#h4f24c58acf10bf19c4839e84c4223e13, value: PatternExtract { subject: Local(local#h9213b9317fea33a15845af12e45aa962), path: [VariantField { variant: "Some", field_index: 0 }] } } }, Statement { span: 219..221, kind: Assign { target: local#he4edea838c39aa5532cf135c0845cc63, value: Use(Local(local#h4f24c58acf10bf19c4839e84c4223e13)) } }],
+                                terminator: Terminator { span: 219..221, kind: Goto { target: bb#h0d2b8bc6837cf95ddb4812408c0b612c }, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#h85ac7a65723e7f55c8133e096cd55ed1,
+                                label: bb#h3c8da68c1a9b44a338161f8e459c3cbb,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 221..224, kind: Unreachable, unwind: NoUnwind },
+                                terminator: Terminator { span: 218..221, kind: Unreachable, unwind: NoUnwind },
                             },
                             BasicBlock {
-                                label: bb#ha3e2e5f6fb801125b8d05ebe4f700275,
+                                label: bb#hda39eab3c59236eae6f291477eb581cf,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 222..224, kind: Assign { target: local#h428e8244cc2dd066645070f652434e22, value: TopLevelRef { fqn: "scoop.core.RuntimeError", site_id: None, hidden_effects: Pure } } }, Statement { span: 222..224, kind: Assign { target: local#h2e6ec4e3671677b100827bfda6092750, value: MemberAccess { site_id: None, receiver: Local(local#h428e8244cc2dd066645070f652434e22), member: MemberAccessMetadata { name: "NullAssertionFailed", receiver_ty: scoop.core.RuntimeError, resolved: Some(Value { fqn: "scoop.core.RuntimeError.NullAssertionFailed" }), hidden_effects: Pure } } } }, Statement { span: 222..222, kind: Assign { target: local#h72f3c963a4e4207f4dd5cec04e5587e0, value: PerformResult { op_fqn: "scoop.core.Raise.raise", effect_ty: scoop.core.Raise<scoop.core.RuntimeError> } } }],
-                                terminator: Terminator { span: 222..222, kind: Perform { site_id: site#hea834df3cbbeb36da66b139aa2857e93, op_fqn: "scoop.core.Raise.raise", metadata: PerformMetadata { effect_ty: scoop.core.Raise<scoop.core.RuntimeError>, op_type_args: [], result_ty: Nothing, payload_tuple_ty: Some(scoop.core.RuntimeError), payload_component_tys: [scoop.core.RuntimeError], payload_transport: [ValueTransportMetadata { source_ty: scoop.core.RuntimeError, kind: EffectPayload, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: scoop.core.RuntimeError, target_ty: Some(scoop.core.RuntimeError), reason: EffectPayload }) }], arg_mapping: [0] }, args: [PerformArg { span: 222..224, source_arg_index: 0, name: None, value: Local(local#h2e6ec4e3671677b100827bfda6092750) }], resume_target: bb#hee112b5add37471e4226b679e1c6406c }, unwind: Propagate },
-                            },
-                            BasicBlock {
-                                label: bb#hee112b5add37471e4226b679e1c6406c,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 222..224, kind: Assign { target: local#hb8bc1b8ee4dc9587a91ec2eeb9790156, value: Use(Local(local#h72f3c963a4e4207f4dd5cec04e5587e0)) } }],
-                                terminator: Terminator { span: 222..224, kind: Goto { target: bb#hbecccefde4d7341c1e6ac8105970d944 }, unwind: NoUnwind },
+                                stmts: [Statement { span: 219..221, kind: Assign { target: local#hc82a6a9ea61a42b2c18f4ba57611006a, value: Use(Const(SynthString("null assertion failed"))) } }, Statement { span: 1048800..1048801, kind: Assign { target: local#h99186bef6392f3b27577291dc25fd5da, value: Call { site_id: site#h9078f66be7ff9c87cfa81e6fcc6ab153, kind: Direct { callee_fqn: "scoop.core.panic" }, args: [CallArg { span: 219..221, name: None, value: Local(local#hc82a6a9ea61a42b2c18f4ba57611006a) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Nothing, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 1048800..1048801, kind: Unreachable, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#h78cda8f744593f25daea4680040a7101,
+                        start: bb#ha39214cfc24ab54e9f17741e736cfcf0,
                     }
                 ),
             },
@@ -67,7 +61,7 @@ File {
 mir_facts {
   roots: callable_bodies=1, initializers=0, extern_globals=0, metadata_roots=0
   callable_bodies {
-    - item=0 fqn=mir_lowered.not_null_assert.unwrap kind=callable_body span=161..226
+    - item=0 fqn=mir_lowered.not_null_assert.unwrap kind=callable_body span=173..223
   }
   snapshots: canonical=<none>, snapshots=0
   families: instances=0, callable_families=0

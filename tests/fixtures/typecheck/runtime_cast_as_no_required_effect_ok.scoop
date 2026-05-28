@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：P3-T02：`x as T` 失败路径是 panic，不再要求 `Raise<RuntimeError>` effect。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun castString(x: Any): String / Pure {
+    return x as String
+}

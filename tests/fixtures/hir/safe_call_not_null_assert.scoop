@@ -8,6 +8,6 @@ fun f(w: Wrap?): Int? {
     return w?.value
 }
 
-fun g(x: String?): String / Raise<RuntimeError> {
+fun g(x: String?): String / Pure {
     return x!!
 }

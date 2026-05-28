@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P3-T02：`as` failure 已改为 panic，普通 `/ Pure` 函数不需要通过 try/catch 捕获 `Raise<RuntimeError>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Any): String / Pure {
+    val y = x as String
+    y
+}

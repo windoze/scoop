@@ -1369,7 +1369,8 @@ fn check_expr_stmt_with_mode(
             op_span,
         } => {
             // `!!` 的语义属于“立即执行的表达式”（会在运行期做 null assertion），
-            // 因此即使它出现在表达式语句位置，也必须参与 typecheck/required-effects 收集（T0421b）。
+            // 因此即使它出现在表达式语句位置，也必须参与 typecheck；失败路径现在是 panic，
+            // 不再记录 `Raise<RuntimeError>` required effect。
             let _ = infer_not_null_assert_expr_type(
                 expr_infer_inputs_with_flow(shared, state, flow),
                 inner.as_ref(),
@@ -1386,9 +1387,8 @@ fn check_expr_stmt_with_mode(
             Ok(())
         }
         ast::ExprKind::Cast { .. } => {
-            // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
-            // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与
-            // required-effects 收集；否则 `/ Pure` 函数体内的 `as` 会被错误放过。
+            // `x as T` 属于“立即执行的表达式”；即使出现在表达式语句位置也必须参与
+            // typecheck。失败路径现在是 panic，因此不会向 required-effects 写入 `Raise<RuntimeError>`。
             match expr_infer_inputs_with_flow(shared, state, flow).infer(lower, expr) {
                 Ok(_) => Ok(()),
                 Err(ExprTypeError::UnsupportedExpr { .. }) => Ok(()),

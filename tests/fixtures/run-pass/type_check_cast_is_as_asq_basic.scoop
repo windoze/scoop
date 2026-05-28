@@ -8,7 +8,7 @@
 // - `x is Base` / `x is Other`：class 走 type descriptor parent 链检查；
 // - `x as IFace`：成功转换后可进行 interface dispatch；
 // - `x as? T`：失败返回 `None`；
-// - `x as T`：失败触发 `Raise.raise(RuntimeError.ClassCastFailed)`，可被 try/catch 捕获。
+// - `x as T`：成功转换后保留目标类型；失败 panic 由单独 fixture 覆盖。
 
 import scoop.core.*
 
@@ -47,21 +47,12 @@ fun main(): Int {
     printBool("x !is Other", x !is Other)
     printBool("x is Base", x is Base)
 
-    // `as` 可能失败，因此必须在 try/catch 内使用（否则 main 不再是 Pure，typecheck 会拒绝）。
-    val _cast_iface_ok: Unit = try {
-        val i: IFace = x as IFace
-        val v: Int = i.ping()
-        println(v)
-    } catch (e: RuntimeError) {
-        println("unreachable: cast IFace")
-    }
+    val i: IFace = x as IFace
+    val v: Int = i.ping()
+    println(v)
 
-    val _cast_base_ok: Unit = try {
-        val b: Base = x as Base
-        println(b.baseTag())
-    } catch (e: RuntimeError) {
-        println("unreachable: cast Base")
-    }
+    val b: Base = x as Base
+    println(b.baseTag())
 
     val ok: IFace? = x as? IFace
     when (ok) {
@@ -75,28 +66,6 @@ fun main(): Int {
         None -> println("as?: Other ok")
     }
 
-    val caught: Int = try {
-        val _o: Other = x as Other
-        println("unreachable")
-        0
-    } catch (e: RuntimeError) {
-        when (e) {
-            NullAssertionFailed -> {
-                println("caught: null")
-                1
-            }
-            ClassCastFailed -> {
-                println("caught: cast")
-                2
-            }
-            ContinuationAlreadyResumed -> {
-                println("caught: resumed")
-                3
-            }
-        }
-    }
-
-    println(caught)
     println("done")
     return 0
 }

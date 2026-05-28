@@ -19,7 +19,7 @@ class Other() : Base()
 
 class Holder<T>(val value: T)
 
-fun inspect(x: Any): Int / Raise<RuntimeError> {
+fun inspect(x: Any): Int / Pure {
     val isIface: Bool = x is IFace
     val notOther: Bool = x !is Other
     val isHolder: Bool = x is Holder<Int>

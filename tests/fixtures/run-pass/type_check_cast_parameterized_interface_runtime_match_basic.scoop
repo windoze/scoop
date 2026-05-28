@@ -90,17 +90,5 @@ fun main(): Int {
         None -> println("as?: Disposable<eff Pure> ok")
     }
 
-    val caught: Int = try {
-        val _x: Disposable<eff Pure> = raiseAny as Disposable<eff Pure>
-        println("unreachable")
-        0
-    } catch (e: RuntimeError) {
-        when (e) {
-            NullAssertionFailed -> 1
-            ClassCastFailed -> 2
-            ContinuationAlreadyResumed -> 3
-        }
-    }
-    println(caught)
     return 0
 }

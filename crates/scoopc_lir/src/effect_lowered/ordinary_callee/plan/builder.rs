@@ -622,43 +622,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 state
             }
-            hir::ExprKind::Cast {
-                expr: inner, op, ..
-            } => {
+            hir::ExprKind::Cast { expr: inner, .. } => {
                 let state = self.build_expr_if_suspend_subtree(inner, current_state, env);
-                if matches!(op, hir::CastOp::As) {
-                    self.record_expr_reads(state, expr);
-                    let site_id = self.new_suspend_site(
-                        expr.span,
-                        SuspendSiteKind::RuntimeRaise {
-                            reason: "ClassCastFailed".to_string(),
-                        },
-                        env.available_ids(),
-                        state,
-                    );
-                    self.push_action(
-                        state,
-                        HandleStateOp::RuntimeRaiseBoundary {
-                            site_id,
-                            expr: Box::new(expr.clone()),
-                        },
-                    );
-                    self.set_terminator(state, StateTerminator::Suspend { site_id });
-                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
-                    self.record_resume_source_expr(site_id, expr);
-                    self.push_action(
-                        resume_state,
-                        HandleStateOp::ResumeAfterSite {
-                            site_id,
-                            reason: ResumeAfterSiteReason::RuntimeRaiseBoundary,
-                            source_span: expr.span,
-                            source_ty: expr.ty,
-                            resume_slot: None,
-                        },
-                    );
-                    self.set_suspend_resume_target(site_id, resume_state);
-                    return resume_state;
-                }
                 self.record_expr_reads(state, expr);
                 self.push_action(
                     state,

@@ -5,7 +5,7 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun castBoth(a: Any): String? / Raise<RuntimeError> {
+fun castBoth(a: Any): String? / Pure {
     // `as`：表达式类型为目标类型本身。
     val s: String = a as String
 

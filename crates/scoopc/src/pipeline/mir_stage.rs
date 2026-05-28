@@ -1680,7 +1680,7 @@ fun main(): Int {
         let mut saw_iface_is = false;
         let mut saw_other_not_is = false;
         let mut saw_parameterized_holder_is = false;
-        let mut saw_as_raise = false;
+        let mut saw_as_panic = false;
         let mut saw_asq_none = false;
 
         for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
@@ -1744,16 +1744,12 @@ fun main(): Int {
                     match (op, &metadata.failure, &metadata.result) {
                         (
                             ast::CastOp::As,
-                            RuntimeCastFailure::Raise {
-                                effect_ty,
-                                error_fqn,
-                            },
+                            RuntimeCastFailure::Panic { message },
                             RuntimeCastResult::Target { ty },
                         ) => {
                             assert_eq!(*ty, *target_ty);
-                            assert!(effect_ty.is_some());
-                            assert_eq!(error_fqn, "scoop.core.RuntimeError.ClassCastFailed");
-                            saw_as_raise = true;
+                            assert_eq!(message, "class cast failed");
+                            saw_as_panic = true;
                         }
                         (
                             ast::CastOp::AsQ,
@@ -1782,18 +1778,18 @@ fun main(): Int {
             saw_parameterized_holder_is,
             "missing parameterized typecheck metadata"
         );
-        assert!(saw_as_raise, "missing `as` failure raise metadata");
+        assert!(saw_as_panic, "missing `as` failure panic metadata");
         assert!(saw_asq_none, "missing `as?` none-result metadata");
     }
 
     #[test]
-    fn mir_value_primitives_not_null_assert_is_explicit_match_and_raise() {
+    fn mir_value_primitives_not_null_assert_is_explicit_match_and_panic() {
         let output = run_fixture("mir_lowered", "not_null_assert.scoop");
         let body = validated_callable_body(&output, "mir_lowered.not_null_assert.unwrap");
         let mut saw_some_match = false;
         let mut saw_none_match = false;
         let mut saw_extract = false;
-        let mut saw_raise = false;
+        let mut saw_panic = false;
 
         for block in &body.blocks {
             for stmt in &block.stmts {
@@ -1809,23 +1805,23 @@ fun main(): Int {
                         value: Rvalue::PatternExtract { .. },
                         ..
                     } => saw_extract = true,
+                    StatementKind::Assign {
+                        value:
+                            Rvalue::Call {
+                                kind: CallKind::Direct { callee_fqn },
+                                ..
+                            },
+                        ..
+                    } => saw_panic |= callee_fqn == "scoop.core.panic",
                     _ => {}
                 }
-            }
-            if let TerminatorKind::Perform { metadata, .. } = &block.terminator.kind {
-                saw_raise |= output.types().display(metadata.effect_ty).to_string()
-                    == "scoop.core.Raise<scoop.core.RuntimeError>"
-                    && output.types().display(metadata.result_ty).to_string() == "Nothing";
             }
         }
 
         assert!(saw_some_match, "`!!` success arm should test Some payload");
         assert!(saw_none_match, "`!!` failure arm should test None");
         assert!(saw_extract, "`!!` success arm should extract payload");
-        assert!(
-            saw_raise,
-            "`!!` failure arm should perform RuntimeError raise"
-        );
+        assert!(saw_panic, "`!!` failure arm should call panic");
     }
 
     #[test]

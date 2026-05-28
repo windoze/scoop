@@ -1479,7 +1479,8 @@ interface Continuation<Resume, Answer, eff E = Pure> {
     fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
-// Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
+// Runtime errors that remain explicitly expressible through `Raise<RuntimeError>`.
+// `!!` and `as` assertion failures use `panic(...)` directly and do not perform this effect.
 enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,

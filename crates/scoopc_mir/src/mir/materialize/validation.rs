@@ -3630,18 +3630,6 @@ pub(super) fn validate_materialized_cast_metadata(
         ctx.with_surface("cast type test"),
         &metadata.test,
     )?;
-    match &metadata.failure {
-        RuntimeCastFailure::Raise { effect_ty, .. } => {
-            if let Some(effect_ty) = effect_ty {
-                validate_materialized_type(
-                    materialized,
-                    ctx.with_surface("cast failure effect"),
-                    *effect_ty,
-                )?;
-            }
-        }
-        RuntimeCastFailure::ReturnNone => {}
-    }
     match &metadata.result {
         RuntimeCastResult::Target { ty } => {
             validate_materialized_type(materialized, ctx.with_surface("cast result type"), *ty)
@@ -3731,16 +3719,16 @@ pub(super) fn validate_materialized_cast_contract(
     match (op, &metadata.failure, &metadata.result) {
         (
             ast::CastOp::As,
-            RuntimeCastFailure::Raise { error_fqn, .. },
+            RuntimeCastFailure::Panic { message },
             RuntimeCastResult::Target { ty },
         ) => {
-            if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
+            if message != "class cast failed" {
                 return Err(materialized_runtime_contract_err(
                     fqn,
                     block,
                     span,
                     "cast",
-                    "`as` cast must raise ClassCastFailed on failure",
+                    "`as` cast must panic with the stable class-cast failure message",
                 ));
             }
             if *ty != expected_target_ty {

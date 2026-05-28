@@ -8,4 +8,3 @@ raise is Disposable<eff Pure>: false
 raise is Disposable<eff Raise<RuntimeError>>: true
 as?: Disposable<eff Raise<RuntimeError>> ok
 as?: Disposable<eff Pure> ok
-2

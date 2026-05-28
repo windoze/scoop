@@ -1094,9 +1094,10 @@ impl File {
         match (op, &metadata.failure, &metadata.result) {
             (
                 ast::CastOp::As,
-                RuntimeCastFailure::Raise { .. },
+                RuntimeCastFailure::Panic { message },
                 RuntimeCastResult::Target { ty },
-            ) if *ty == expected_target_ty
+            ) if message == "class cast failed"
+                && *ty == expected_target_ty
                 && expected_result_ty.is_none_or(|result_ty| result_ty == expected_target_ty) =>
             {
                 Ok(())
@@ -2765,10 +2766,7 @@ pub struct RuntimeTypeTestMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RuntimeCastFailure {
-    Raise {
-        effect_ty: Option<TypeId>,
-        error_fqn: String,
-    },
+    Panic { message: String },
     ReturnNone,
 }
 

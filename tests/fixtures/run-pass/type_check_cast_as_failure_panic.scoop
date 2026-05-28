@@ -1,0 +1,15 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// 目标：P3-T02：`x as T` 运行期 type-test 失败时调用 panic，而不是可捕获的 `Raise<RuntimeError>`。
+
+import scoop.core.*
+
+open class Base()
+class Impl() : Base()
+class Other() : Base()
+
+fun main(): Int {
+    val x: Any = Impl()
+    val _o: Other = x as Other
+    return 0
+}

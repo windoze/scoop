@@ -1,11 +1,11 @@
 // EXPECT: pass
-// 目标：T0421a `!!` not-null assertion 的类型规则（`Option<T>` → `T`）。
+// 目标：`!!` not-null assertion 的类型规则（`Option<T>` → `T`）且失败路径不要求 effect。
 
 package fixtures.typecheck
 
 import scoop.core.*
 
-fun unwrap(x: Int?): Int / Raise<RuntimeError> {
+fun unwrap(x: Int?): Int / Pure {
     val y: Int = x!!
     return y
 }

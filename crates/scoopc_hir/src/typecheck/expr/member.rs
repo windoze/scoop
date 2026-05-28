@@ -120,31 +120,17 @@ pub(super) fn infer_elvis_expr_type(
 pub(super) fn infer_not_null_assert_expr_type(
     inputs: ExprInferInputs<'_>,
     expr: &ast::Expr,
-    op_span: Span,
+    _op_span: Span,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
-    // T0421a：最小规则：
+    // `x!!` is an assertion: failure panics and does not participate in the effect system.
+    // The type rule remains `Option<T> -> T`.
     // - `x!!` 的操作数必须是 nullable（`T?` / `Option<T>`）
     // - 结果类型为去掉 nullable 后的 inner type：`Option<T>` → `T`
-    //
-    // T0421b：`x!!` 的失败语义要求 `Raise<RuntimeError>`（静态 required effects）。
     let ty = inputs.infer(lower, expr)?;
 
     match lower.type_kind(ty) {
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            let runtime_error = lower.lower_type_fqn_with_args(
-                "scoop.core.RuntimeError".to_string(),
-                Vec::new(),
-                op_span,
-            )?;
-            let raise_runtime_error = lower.lower_type_fqn_with_args(
-                "scoop.core.Raise".to_string(),
-                vec![runtime_error],
-                op_span,
-            )?;
-            lower.record_performed_effect(raise_runtime_error, op_span);
-            Ok(inner)
-        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(inner),
         _ => Err(ExprTypeError::NotNullAssertOperandNotNullable {
             found: lower.fmt_type(ty),
             span: expr.span.into(),

@@ -76,7 +76,7 @@
   - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`（fixture runner 会复用已有 `target/debug/scoopc`，因此显式重建）；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures（新增 most-specific fixture、modifier-required negative、modifier smoke、run-pass struct operator、plus/minus、bitwise/shift/inv）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑显式 `operator` 候选，same-name non-operator 会给清晰 modifier-required 诊断，普通 named call 不受影响，且 gate 后不再绕过现有 most-specific overload 选择语义。
 
-### [TODO] P3-T02：将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic`
+### [DONE] P3-T02：将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -111,10 +111,10 @@
   - `!!` and `as` failures panic and no longer poison effect rows.
 - 依赖：P3-T01R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：typecheck 不再为 `!!` 与 `as` 记录 `Raise<RuntimeError>` performed effect；HIR `!!` 的 `None` arm 改为合成 `scoop.core.panic("null assertion failed")` direct call；MIR `RuntimeCastFailure` 改为 `Panic { message }`，`as` failure block 直接调用 `scoop.core.panic("class cast failed")`；LLVM HIR/MIR cast failure codegen 改为 runtime panic；effect-lowered plan 不再把 HIR `as` 当作 runtime raise boundary；同步 sysroot `RuntimeError` 注释、targeted fixtures、HIR/MIR goldens 与相关 run-pass/typecheck 用例。
+  - 核心决策：`!!` 与 `as` failure 是 assertion panic，不进入 effect row，也不能被 `try/catch Raise<RuntimeError>` 捕获；`as?` 保持 `ReturnNone` / `Option<T>` 行为不变；`RuntimeError` 继续保留给显式 `Raise<RuntimeError>` 与 continuation one-shot 违规等现有路径，不再作为 `!!` / `as` 的 lowering 目标。
+  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；`cargo clippy --all-targets -- -D warnings`；targeted `!!` / cast typecheck、HIR、MIR、run-pass panic fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B3 与 `PLAN.md` P3 对 `!!` / `as` panic 语义的要求：两者失败路径不再执行 `Raise.raise(RuntimeError.*)`，成功 unwrap/cast 与 `as?` 行为保持不变，用户可见失败不再泄露旧 effect requirement。
 
 ### [TODO] P3-T02R：Review `!!` 与 `as` panic 语义
 

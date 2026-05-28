@@ -66,13 +66,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let crate::mir::RuntimeCastFailure::Raise { error_fqn, .. } = &metadata.failure else {
+        let crate::mir::RuntimeCastFailure::Panic { message } = &metadata.failure else {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract");
         };
-        if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
-            panic!(
-                "codegen_mir_cast_as: MIR verifier accepted non-ClassCastFailed runtime error contract"
-            );
+        if message != "class cast failed" {
+            panic!("codegen_mir_cast_as: MIR verifier accepted invalid class-cast panic contract");
         }
         let crate::mir::RuntimeCastResult::Target { ty } = &metadata.result else {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract");
@@ -279,25 +277,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(fail_bb);
-        self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
-        let fail_incoming = if self.ordinary_effect_propagation_enabled() {
-            self.emit_ordinary_non_resuming_effect_exit(span, "mir_cast_raise_effect")?;
-            self.builder.build_unreachable()?;
-            None
-        } else {
-            let dead_bb = self.expect_insert_block("MIR checked cast failure continuation");
-            let default_ptr = target_ptr_ty.const_null();
-            self.builder.build_unconditional_branch(merge_bb)?;
-            Some((default_ptr, dead_bb))
-        };
+        self.emit_panic_message(span, "class cast failed")?;
+        self.builder.build_unreachable()?;
 
         self.builder.position_at_end(merge_bb);
         let phi = self.builder.build_phi(target_ptr_ty, "mir_cast_value")?;
-        if let Some((default_ptr, dead_bb)) = fail_incoming {
-            phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
-        } else {
-            phi.add_incoming(&[(&casted_ptr, ok_bb)]);
-        }
+        phi.add_incoming(&[(&casted_ptr, ok_bb)]);
         Ok(CgValue {
             ty: target_cg,
             value: Some(phi.as_basic_value().into_pointer_value().into()),

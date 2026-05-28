@@ -1746,19 +1746,9 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn runtime_cast_failure_text(&self, failure: &RuntimeCastFailure) -> String {
         match failure {
-            RuntimeCastFailure::Raise {
-                effect_ty,
-                error_fqn,
-            } => self.inline_struct(
-                "Raise",
-                vec![
-                    (
-                        "effect_ty",
-                        self.option_text(effect_ty.map(|ty| self.type_text(ty))),
-                    ),
-                    ("error_fqn", format_debug(error_fqn)),
-                ],
-            ),
+            RuntimeCastFailure::Panic { message } => {
+                self.inline_struct("Panic", vec![("message", format_debug(message))])
+            }
             RuntimeCastFailure::ReturnNone => "ReturnNone".to_string(),
         }
     }

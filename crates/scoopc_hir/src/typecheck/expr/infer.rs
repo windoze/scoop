@@ -214,22 +214,7 @@ pub(super) fn infer_expr_type(
             }
 
             match op {
-                ast::CastOp::As => {
-                    // T0445：`x as T` 的失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，
-                    // 因此在静态 required effects 层面要求 `Raise<RuntimeError>`（除非被 handle/try 捕获）。
-                    let runtime_error = lower.lower_type_fqn_with_args(
-                        "scoop.core.RuntimeError".to_string(),
-                        Vec::new(),
-                        *op_span,
-                    )?;
-                    let raise_runtime_error = lower.lower_type_fqn_with_args(
-                        "scoop.core.Raise".to_string(),
-                        vec![runtime_error],
-                        *op_span,
-                    )?;
-                    lower.record_performed_effect(raise_runtime_error, *op_span);
-                    Ok(target_ty)
-                }
+                ast::CastOp::As => Ok(target_ty),
                 ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
             }
         }

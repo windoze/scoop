@@ -34,6 +34,7 @@ impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
     pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
     pub(in crate::hir::lower) const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
+    pub(in crate::hir::lower) const PANIC_FQN: &'static str = "scoop.core.panic";
     pub(in crate::hir::lower) const RAISE_RAISE_FQN: &'static str = "scoop.core.Raise.raise";
     pub(in crate::hir::lower) const RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN: &'static str =
         "scoop.core.RuntimeError.NullAssertionFailed";

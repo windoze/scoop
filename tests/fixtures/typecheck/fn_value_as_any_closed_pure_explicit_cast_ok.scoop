@@ -5,7 +5,7 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun ok(): Unit / Raise<RuntimeError> {
+fun ok(): Unit / Pure {
     val f: () -> Int / Pure! = { 1 }
     val a: Any = f as Any
     val _ = a

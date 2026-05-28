@@ -3,4 +3,3 @@ is Holder<UInt>: false
 as?: Holder<Int> ok
 as?: Holder<UInt> ok
 as Holder<Int> ok
-2

@@ -35,24 +35,8 @@ fun main(): Int {
         None -> println("as?: Holder<UInt> ok")
     }
 
-    val _cast_ok: Unit = try {
-        val _h: Holder<Int> = anyValue as Holder<Int>
-        println("as Holder<Int> ok")
-    } catch (e: RuntimeError) {
-        println("unreachable: cast Holder<Int>")
-    }
+    val _h: Holder<Int> = anyValue as Holder<Int>
+    println("as Holder<Int> ok")
 
-    val caught: Int = try {
-        val _h: Holder<UInt> = anyValue as Holder<UInt>
-        println("unreachable")
-        0
-    } catch (e: RuntimeError) {
-        when (e) {
-            NullAssertionFailed -> 1
-            ClassCastFailed -> 2
-            ContinuationAlreadyResumed -> 3
-        }
-    }
-    println(caught)
     return 0
 }

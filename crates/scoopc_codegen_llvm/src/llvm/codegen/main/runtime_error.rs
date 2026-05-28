@@ -247,4 +247,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_store(outcome_ptr, outcome)?;
         Ok(())
     }
+
+    pub(in crate::llvm::codegen) fn emit_panic_message(
+        &mut self,
+        span: crate::span::Span,
+        message: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let message = self.codegen_string_literal_from_text(span, message)?;
+        let message_ptr = self.expect_cg_pointer(message, "panic message value");
+        let runtime = self.declare_runtime_panic();
+        let _ = self.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[message_ptr.into()],
+            "rt_panic",
+        )?;
+        Ok(())
+    }
 }

@@ -4,6 +4,8 @@
 
 use super::*;
 
+const CLASS_CAST_FAILED_PANIC_MESSAGE: &str = "class cast failed";
+
 impl<'a> FnLowering<'a> {
     pub(in crate::mir::lower) fn lower_unresolved_ident(
         &mut self,
@@ -215,9 +217,8 @@ impl<'a> FnLowering<'a> {
         let test = self.runtime_type_test_metadata(source_ty, target_ty);
         let (failure, result) = match op {
             ast::CastOp::As => (
-                RuntimeCastFailure::Raise {
-                    effect_ty: find_raise_runtime_error_effect(self.types),
-                    error_fqn: "scoop.core.RuntimeError.ClassCastFailed".to_string(),
+                RuntimeCastFailure::Panic {
+                    message: CLASS_CAST_FAILED_PANIC_MESSAGE.to_string(),
                 },
                 RuntimeCastResult::Target { ty: target_ty },
             ),
@@ -485,7 +486,7 @@ impl<'a> FnLowering<'a> {
             return result;
         }
         if op == ast::CastOp::As {
-            self.lower_cast_as_expr_with_runtime_error_boundary(
+            self.lower_cast_as_expr_with_panic_boundary(
                 span,
                 result,
                 value,
@@ -507,7 +508,7 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    pub(in crate::mir::lower) fn lower_cast_as_expr_with_runtime_error_boundary(
+    pub(in crate::mir::lower) fn lower_cast_as_expr_with_panic_boundary(
         &mut self,
         span: Span,
         result: LocalId,
@@ -558,82 +559,25 @@ impl<'a> FnLowering<'a> {
         self.set_terminator(ok_bb, span, TerminatorKind::Goto { target: merge_bb });
 
         self.current_bb = fail_bb;
-        self.lower_cast_as_failure_raise(span, result, merge_bb);
+        self.lower_cast_as_failure_panic(span, result);
 
         self.current_bb = merge_bb;
     }
 
-    pub(in crate::mir::lower) fn lower_cast_as_failure_raise(
+    pub(in crate::mir::lower) fn lower_cast_as_failure_panic(
         &mut self,
         span: Span,
         result: LocalId,
-        merge_bb: BasicBlockId,
     ) {
-        let runtime_error_ty = find_runtime_error_type(self.types).unwrap_or(self.builtins.any);
-        let effect_ty = find_raise_runtime_error_effect(self.types).unwrap_or(self.builtins.any);
-        let error_local = self.push_temp_local(span, runtime_error_ty);
-        self.assign(
+        let message = hir::Expr {
             span,
-            error_local,
-            Rvalue::TopLevelRef(TopLevelRef {
-                fqn: "scoop.core.RuntimeError.ClassCastFailed".to_string(),
-                site_id: None,
-                hidden_effects: EffectRow::pure(),
-            }),
-        );
-
-        let perform_result = self.push_temp_local(span, self.builtins.nothing);
-        self.assign(
-            span,
-            perform_result,
-            Rvalue::PerformResult {
-                op_fqn: "scoop.core.Raise.raise".to_string(),
-                effect_ty,
-            },
-        );
-
-        let resume_target = self.push_block(span);
-        let site_id = self.fresh_site_id();
-        let unwind = self.build_perform_unwind_action(span);
-        let payload_transport = self.value_transport_with_boxing_reason(
-            runtime_error_ty,
-            MirTransportKind::EffectPayload,
-            MirBoxingReason::EffectPayload,
-            Some(runtime_error_ty),
-        );
-        self.set_terminator_with_unwind(
-            self.current_bb,
-            span,
-            TerminatorKind::Perform {
-                site_id,
-                op_fqn: "scoop.core.Raise.raise".to_string(),
-                metadata: PerformMetadata {
-                    effect_ty,
-                    op_type_args: Vec::new(),
-                    result_ty: self.builtins.nothing,
-                    payload_tuple_ty: Some(runtime_error_ty),
-                    payload_component_tys: vec![runtime_error_ty],
-                    payload_transport: vec![payload_transport],
-                    arg_mapping: vec![0],
-                },
-                args: vec![PerformArg {
-                    span,
-                    source_arg_index: 0,
-                    name: None,
-                    value: Operand::Local(error_local),
-                }],
-                resume_target,
-            },
-            unwind,
-        );
-
-        self.current_bb = resume_target;
-        self.assign_use_to_local(span, result, Operand::Local(perform_result));
-        self.set_terminator(
-            resume_target,
-            span,
-            TerminatorKind::Goto { target: merge_bb },
-        );
+            ty: self.builtins.string,
+            kind: hir::ExprKind::Literal(hir::LiteralKind::SynthString(
+                CLASS_CAST_FAILED_PANIC_MESSAGE.to_string(),
+            )),
+        };
+        let args = [hir::CallArg::Positional(message)];
+        self.lower_direct_call_expr(span, result, "scoop.core.panic", &args, None);
     }
 
     pub(in crate::mir::lower) fn lower_member_access_expr(

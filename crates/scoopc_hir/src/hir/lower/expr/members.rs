@@ -434,7 +434,7 @@ impl<'a> HirLowering<'a> {
 
     // ── T0108: nullable operators (`?.` and `!!`) desugar ──────────────────
 
-    /// `expr!!` → `when (expr) { Some(v) -> v; None -> Raise.raise(RuntimeError.NullAssertionFailed) }`
+    /// `expr!!` → `when (expr) { Some(v) -> v; None -> panic("null assertion failed") }`
     pub(in crate::hir::lower) fn lower_not_null_assert_expr(
         &mut self,
         pkg_prefix: &str,
@@ -483,7 +483,7 @@ impl<'a> HirLowering<'a> {
             },
             guard: None,
             arrow_span: op_span,
-            body: self.synth_raise_null_assertion_failed(op_span),
+            body: self.synth_panic_call_expr(op_span, "null assertion failed"),
         };
 
         (
@@ -817,6 +817,26 @@ impl<'a> HirLowering<'a> {
     }
 
     // ── Synthesized HIR helpers for nullable desugar ───────────────────────
+
+    /// Synthesize a bottom-typed `panic(message)` call and publish its direct-call contract.
+    pub(in crate::hir::lower) fn synth_panic_call_expr(
+        &mut self,
+        span: Span,
+        message: &str,
+    ) -> Expr {
+        let message = Expr {
+            span,
+            ty: self.builtins.string,
+            kind: ExprKind::Literal(LiteralKind::SynthString(message.to_string())),
+        };
+        self.call_top_level_fun_with_synthetic_binding(
+            span,
+            Self::PANIC_FQN,
+            vec![message],
+            self.builtins.nothing,
+            None,
+        )
+    }
 
     /// Synthesize `Raise.raise(RuntimeError.NullAssertionFailed)` as a `Perform` node.
     pub(in crate::hir::lower) fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {

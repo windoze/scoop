@@ -8,6 +8,4 @@ Impl.ping
 10
 as?: IFace ok
 as?: Other ok
-caught: cast
-2
 done

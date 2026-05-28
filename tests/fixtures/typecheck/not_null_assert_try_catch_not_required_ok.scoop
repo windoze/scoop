@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P3-T02：`x!!` 不再通过 `Raise<RuntimeError>` 表达失败，因此不需要 try/catch 包裹也可保持 `/ Pure`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int?): Int / Pure {
+    val y = x!!
+    y
+}

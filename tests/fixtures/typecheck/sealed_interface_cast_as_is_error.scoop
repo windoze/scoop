@@ -5,7 +5,7 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun castMarker(x: Any): Any / Raise<RuntimeError> {
+fun castMarker(x: Any): Any / Pure {
     val y = x as AnyRef
     return x
 }

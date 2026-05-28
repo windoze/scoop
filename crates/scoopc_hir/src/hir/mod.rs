@@ -472,7 +472,7 @@ pub enum ExprKind {
     /// 显式运行期转换：`expr as Type` / `expr as? Type`。
     ///
     /// 说明：
-    /// - `as` 失败语义：`Raise.raise(RuntimeError.ClassCastFailed)`；
+    /// - `as` 失败语义：`panic("class cast failed")`；
     /// - `as?` 失败语义：返回 `None`（即 `Option<T>`）。
     Cast {
         expr: Box<Expr>,
