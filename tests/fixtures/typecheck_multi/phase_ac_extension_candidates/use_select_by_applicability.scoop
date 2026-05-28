@@ -4,8 +4,8 @@
 package fixtures.typecheck_multi.phase_ac_extension_candidates
 
 import scoop.core.*
-import fixtures.typecheck_multi.phase_ac_extension_candidates.a.pick
 import fixtures.typecheck_multi.phase_ac_extension_candidates.b.pick
+import fixtures.typecheck_multi.phase_ac_extension_candidates.a.pick
 
 val receiver: Any
 val result: Int = receiver.pick(1)

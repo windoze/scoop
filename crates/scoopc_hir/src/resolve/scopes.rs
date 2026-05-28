@@ -1141,7 +1141,16 @@ impl<'a> BlockScopeChecker<'a> {
 
         let candidates: Vec<ast::CallCandidate> = match resolved {
             ast::ResolvedMemberRef::Fun { fqn } => {
-                vec![ast::CallCandidate::Fun { fqn: fqn.clone() }]
+                let candidates: Vec<ast::CallCandidate> = self
+                    .where_bound_member_fun_candidates(receiver, self.source.slice(member.span))
+                    .into_iter()
+                    .map(|fqn| ast::CallCandidate::Fun { fqn })
+                    .collect();
+                if candidates.is_empty() {
+                    vec![ast::CallCandidate::Fun { fqn: fqn.clone() }]
+                } else {
+                    candidates
+                }
             }
             ast::ResolvedMemberRef::ExtensionFun { fqn } => {
                 // T0322：跨包 extension 导入与候选收集。
@@ -2130,6 +2139,53 @@ impl<'a> BlockScopeChecker<'a> {
         candidates
     }
 
+    fn receiver_type_param_name(&self, receiver: &ast::Expr) -> Option<String> {
+        // 获取 receiver 变量的类型名。仅处理简单 Ident receiver 的情形。
+        match &receiver.kind {
+            ast::ExprKind::Ident(id) => {
+                let name = self.source.slice(id.span);
+                if name == "this" {
+                    return None;
+                }
+                if let Some(binding) = self.local_binding(name) {
+                    // 从 binding 的 TypeRef 中提取单段类型名。
+                    match binding.ty.as_ref() {
+                        Some(ast::TypeRef::Path(p)) if p.segments.len() == 1 => {
+                            Some(self.source.slice(p.segments[0].span).to_string())
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn where_bound_member_fun_candidates(
+        &self,
+        receiver: &ast::Expr,
+        member_name: &str,
+    ) -> Vec<String> {
+        let Some(type_param_name) = self.receiver_type_param_name(receiver) else {
+            return Vec::new();
+        };
+
+        let mut out = Vec::new();
+        for bound_fqn in self.lookup_where_bounds_for_param(&type_param_name) {
+            let candidate_fqn = format!("{bound_fqn}.{member_name}");
+            if let Some(syms) = self.index.by_fqn.get(&candidate_fqn)
+                && syms.any_visible_fun(self.use_cone, self.source).is_some()
+            {
+                out.push(candidate_fqn);
+            }
+        }
+        out.sort();
+        out.dedup();
+        out
+    }
+
     /// T0130：where bound 驱动的 member access 解析。
     ///
     /// 当 receiver 的类型为 type param（如 `x: T`）且 `infer_member_receiver_kind` 返回 None 时，
@@ -2142,40 +2198,15 @@ impl<'a> BlockScopeChecker<'a> {
         receiver: &ast::Expr,
         member: &mut ast::MemberIdent,
     ) -> Result<(), ResolveError> {
-        // 获取 receiver 变量的类型名。仅处理简单 Ident receiver 的情形。
-        let type_param_name = match &receiver.kind {
-            ast::ExprKind::Ident(id) => {
-                let name = self.source.slice(id.span);
-                if name == "this" {
-                    return Ok(());
-                }
-                if let Some(binding) = self.local_binding(name) {
-                    // 从 binding 的 TypeRef 中提取单段类型名。
-                    match binding.ty.as_ref() {
-                        Some(ast::TypeRef::Path(p)) if p.segments.len() == 1 => {
-                            self.source.slice(p.segments[0].span).to_string()
-                        }
-                        _ => return Ok(()),
-                    }
-                } else {
-                    return Ok(());
-                }
-            }
-            _ => return Ok(()),
-        };
-
         let member_name = self.source.slice(member.span);
 
-        // 遍历 where bounds：查找 type_param_name 的 bound interface 中是否包含 member_name。
-        let bounds = self.lookup_where_bounds_for_param(&type_param_name);
-        for bound_fqn in bounds {
-            let candidate_fqn = format!("{bound_fqn}.{member_name}");
-            if let Some(syms) = self.index.by_fqn.get(&candidate_fqn)
-                && syms.any_visible_fun(self.use_cone, self.source).is_some()
-            {
-                member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: candidate_fqn });
-                return Ok(());
-            }
+        // Member access 本身保留一个旧 resolved FQN；调用点会重新写回完整候选集合。
+        if let Some(candidate_fqn) = self
+            .where_bound_member_fun_candidates(receiver, member_name)
+            .into_iter()
+            .next()
+        {
+            member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: candidate_fqn });
         }
 
         Ok(())

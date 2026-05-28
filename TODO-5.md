@@ -80,7 +80,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc && python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 P5-T01R 记录的 Phase A-C review blockers；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T01R：Review Phase A-C resolution
+### [DONE] P5-T01R：Review Phase A-C resolution
 
 - 参考：
   - P5-T01 完成记录
@@ -107,10 +107,10 @@
 - 阻塞记录：
   - 2026-05-29 初次 review 发现 P5-T01 仍有 Phase A-C 前置缺口：`ResolvedCall.candidates` 在部分普通/extension/member typecheck 路径未被消费，member/inherited/extension 层级仍可能违反 member-before-extension，跨文件签名 vararg 元数据和 constructor vararg applicability 不完整，where-bound / late extension 路径仍可能提前按首个候选或 import 顺序选择，no-applicable fixtures 未充分断言候选签名与 rejection reason。已新增 P5-T01a 作为本 review 的前置修复任务。
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核并修正 P5-T01/P5-T01a Phase A-C 边界；更新 `resolve/scopes.rs` 的 where-bound member call candidates 写回；更新 `typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs}` 与 `typecheck/expr/ops.rs`，移除 Phase A-C 后的提前 specificity/default tie-break，并让普通调用统一消费同层 function/constructor candidates；补强 Phase A-C no-applicable、shadowing、extension、where-bound、constructor vararg 与 mixed function/constructor fixtures。
+  - 核心决策：P5-T01R 只关闭 candidate collection、visibility-before-applicability 与 applicability，不在 P5-T02 前选择 most-specific；多个 applicable candidates 统一保留为 `ambiguous_overload`，specificity/ambiguity 诊断增强留给 P5-T02；function 与 constructor 同名候选不再由 stale function path 丢弃 constructor；where-bound 调用点不再只写回首个 bound method candidate。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.1-§5.3 的 Phase A-C review 要求；P5-T02 可基于清晰 applicable candidate set 实现 specificity；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T02：实现 Phase D-E specificity 与 ambiguity diagnostics
 

@@ -71,8 +71,8 @@
   - A3 语义完整闭合。
 - 依赖：P3-T01
 - 完成记录：
-  - 改动范围：复核 P3-T01 的 resolver/typecheck/sysroot/fixture 改动，并补齐 review 发现的 operator overload selection 缺口：`ops.rs` 在二元与 comparison operator-positioned 路径中，`operator` 候选过滤后会选择唯一 most-specific overload，而不是多个匹配时直接报 ambiguous；新增 `operator_overload_most_specific_after_modifier_gate_ok.scoop` 覆盖该路径。
-  - 核心决策：`operator` modifier gate 仍发生在 applicability / specificity 前；普通 named call 路径不读取 `is_operator`，因此未标记的 `box.plus("hi")` 仍可作为普通成员调用；若过滤后的 operator 候选无唯一 most-specific，仍保留歧义诊断。
+  - 改动范围：复核 P3-T01 的 resolver/typecheck/sysroot/fixture 改动，并补齐 review 发现的 operator overload selection 缺口；P5-T01R 后 active fixture 已改为 `operator_overload_specificity_deferred_after_modifier_gate_is_error.scoop`，覆盖 `operator` 候选过滤后在 P5-T02 前不提前做 specificity。
+  - 核心决策：`operator` modifier gate 仍发生在 applicability / specificity 前；普通 named call 路径不读取 `is_operator`，因此未标记的 `box.plus("hi")` 仍可作为普通成员调用；P5-T01R 后过滤出的多个 applicable operator 候选在 P5-T02 前保留歧义诊断。
   - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`（fixture runner 会复用已有 `target/debug/scoopc`，因此显式重建）；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures（新增 most-specific fixture、modifier-required negative、modifier smoke、run-pass struct operator、plus/minus、bitwise/shift/inv）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑显式 `operator` 候选，same-name non-operator 会给清晰 modifier-required 诊断，普通 named call 不受影响，且 gate 后不再绕过现有 most-specific overload 选择语义。
 

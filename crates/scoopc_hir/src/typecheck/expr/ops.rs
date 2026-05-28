@@ -297,54 +297,6 @@ fn filter_operator_positioned_candidates(
     Ok(out)
 }
 
-fn is_strictly_more_specific_operator_overload(
-    a: &InstantiatedFunSig,
-    b: &InstantiatedFunSig,
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> bool {
-    if a.params.len() != b.params.len() {
-        return false;
-    }
-
-    let a_le_b = a
-        .params
-        .iter()
-        .zip(b.params.iter())
-        .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-    let b_le_a = b
-        .params
-        .iter()
-        .zip(a.params.iter())
-        .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-    a_le_b && !b_le_a
-}
-
-fn pick_most_specific_operator_overload(
-    candidates: &[(FunSigOwned, InstantiatedFunSig)],
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> Option<usize> {
-    for (idx, (_, cand)) in candidates.iter().enumerate() {
-        let mut ok = true;
-        for (other_idx, (_, other)) in candidates.iter().enumerate() {
-            if idx == other_idx {
-                continue;
-            }
-            if !is_strictly_more_specific_operator_overload(cand, other, lower, builtins) {
-                ok = false;
-                break;
-            }
-        }
-        if ok {
-            return Some(idx);
-        }
-    }
-
-    None
-}
-
 pub(super) fn is_symbol_visible_from_source(
     use_cone: ConeId,
     use_source: &SourceFile,
@@ -1471,29 +1423,23 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         }
         1 => matched.remove(0),
         _ => {
-            if let Some(idx) =
-                pick_most_specific_operator_overload(&matched, lower, inputs.builtins)
-            {
-                matched.swap_remove(idx)
-            } else {
-                let candidates = matched
-                    .iter()
-                    .map(|(sig, _)| {
-                        let receiver_ty = sig.params.first().copied();
-                        fmt_overload_signature(
-                            method,
-                            receiver_ty,
-                            sig.params.get(1..).unwrap_or_default(),
-                            lower,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                return Err(ExprTypeError::AmbiguousOverload {
-                    callee: callee_fqn,
-                    candidates: join_overload_signatures(candidates),
-                    span: op_span.into(),
-                });
-            }
+            let candidates = matched
+                .iter()
+                .map(|(sig, _)| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(
+                        method,
+                        receiver_ty,
+                        sig.params.get(1..).unwrap_or_default(),
+                        lower,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: op_span.into(),
+            });
         }
     };
 
@@ -1929,29 +1875,23 @@ fn infer_compare_to_overload_binary_expr_type(
         0 => return Ok(None),
         1 => matched.remove(0),
         _ => {
-            if let Some(idx) =
-                pick_most_specific_operator_overload(&matched, lower, inputs.builtins)
-            {
-                matched.swap_remove(idx)
-            } else {
-                let candidates = matched
-                    .iter()
-                    .map(|(sig, _)| {
-                        let receiver_ty = sig.params.first().copied();
-                        fmt_overload_signature(
-                            method,
-                            receiver_ty,
-                            sig.params.get(1..).unwrap_or_default(),
-                            lower,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                return Err(ExprTypeError::AmbiguousOverload {
-                    callee: callee_fqn,
-                    candidates: join_overload_signatures(candidates),
-                    span: op_span.into(),
-                });
-            }
+            let candidates = matched
+                .iter()
+                .map(|(sig, _)| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(
+                        method,
+                        receiver_ty,
+                        sig.params.get(1..).unwrap_or_default(),
+                        lower,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: op_span.into(),
+            });
         }
     };
 

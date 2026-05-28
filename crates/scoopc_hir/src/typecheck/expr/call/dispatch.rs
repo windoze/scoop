@@ -135,6 +135,8 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 })
                 .filter(|fqns| !fqns.is_empty())
                 .unwrap_or_else(|| vec![resolved_fqn.clone()]);
+            let ctor_owner_fqns =
+                collect_ctor_owner_fqns_from_call_candidates(id.call.as_ref(), lower);
             let candidate_storage = collect_fun_sig_candidates_for_fqns(
                 candidate_fqns,
                 inputs.source,
@@ -204,7 +206,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
             // 只有一个可用候选：沿用旧的"给出精确 arity/type mismatch 诊断"的路径，
             // 但补齐命名实参的形参映射（T0453）。
-            if direct_call_candidates.len() == 1 {
+            if direct_call_candidates.len() == 1 && ctor_owner_fqns.is_empty() {
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
@@ -676,13 +678,15 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 None
             };
             check_call_arg_named_rules(&callee_fqn, &call_args)?;
-            check_call_named_args_exist_in_any_candidate(
-                &callee_fqn,
-                &call_args,
-                direct_call_candidates
-                    .iter()
-                    .map(|c| c.sig.param_names.as_slice()),
-            )?;
+            if ctor_owner_fqns.is_empty() {
+                check_call_named_args_exist_in_any_candidate(
+                    &callee_fqn,
+                    &call_args,
+                    direct_call_candidates
+                        .iter()
+                        .map(|c| c.sig.param_names.as_slice()),
+                )?;
+            }
 
             #[derive(Debug, Clone)]
             struct MatchedFunOverload<'a> {
@@ -692,72 +696,10 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 eff_arg: EffectRow,
                 /// `call_args[arg_idx]` 对应的"期望类型"。
                 expected_arg_tys: Vec<TypeId>,
-                /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
-                defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
                 /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
                 used_unit_sugar: bool,
-            }
-
-            fn is_strictly_more_specific_fun_overload(
-                a: &MatchedFunOverload<'_>,
-                b: &MatchedFunOverload<'_>,
-                lower: &TypeLowering<'_>,
-                builtins: BuiltinTypes,
-            ) -> bool {
-                let a_le_b = a
-                    .expected_arg_tys
-                    .iter()
-                    .zip(b.expected_arg_tys.iter())
-                    .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-                let b_le_a = b
-                    .expected_arg_tys
-                    .iter()
-                    .zip(a.expected_arg_tys.iter())
-                    .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-                a_le_b && !b_le_a
-            }
-
-            fn pick_most_specific_fun_overload(
-                candidates: &[MatchedFunOverload<'_>],
-                lower: &TypeLowering<'_>,
-                builtins: BuiltinTypes,
-            ) -> Option<usize> {
-                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都"更具体"（可赋值到 B 的形参类型），
-                //    且至少有一个位置严格更具体，则认为 A 严格更具体。
-                for (idx, cand) in candidates.iter().enumerate() {
-                    let mut ok = true;
-                    for (other_idx, other) in candidates.iter().enumerate() {
-                        if idx == other_idx {
-                            continue;
-                        }
-                        if !is_strictly_more_specific_fun_overload(cand, other, lower, builtins) {
-                            ok = false;
-                            break;
-                        }
-                    }
-                    if ok {
-                        return Some(idx);
-                    }
-                }
-
-                // 2) tie-break：默认参数更少者优先（"非默认参数优先"）。
-                let min_defaults = candidates
-                    .iter()
-                    .map(|c| c.defaults_used)
-                    .min()
-                    .unwrap_or(0);
-                let mut it = candidates
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, c)| c.defaults_used == min_defaults);
-                let (idx, _) = it.next()?;
-                if it.next().is_some() {
-                    return None;
-                }
-                Some(idx)
             }
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
@@ -1075,10 +1017,6 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 }
 
                 if ok {
-                    let defaults_used = mapping
-                        .iter()
-                        .filter(|b| matches!(b, ParamArgBinding::Default))
-                        .count();
                     let mut expected_arg_tys =
                         vec![builtins.nothing; call_args_for_candidate.len()];
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
@@ -1091,7 +1029,6 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                         instantiated,
                         eff_arg,
                         expected_arg_tys,
-                        defaults_used,
                         mapping,
                         used_unit_sugar,
                     });
@@ -1102,75 +1039,107 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 matched.retain(|cand| !cand.used_unit_sugar);
             }
 
-            let chosen = match matched.len() {
-                0 => {
-                    let candidates = join_overload_rejections(
-                        direct_call_candidates
-                            .iter()
-                            .map(|candidate| {
-                                let name = short_name_from_fqn(&candidate.fqn).to_string();
-                                let cand = &candidate.sig;
-                                OverloadRejection {
-                                    signature: fmt_overload_signature(
-                                        &name,
-                                        None,
-                                        &cand.params,
-                                        lower,
-                                    ),
-                                    location: format_candidate_location(
-                                        lower,
-                                        &cand.decl_file,
-                                        cand.decl_span,
-                                    ),
-                                    reason: describe_basic_applicability_rejection(
-                                        BasicApplicabilityRejection {
-                                            call_args: &call_args,
-                                            param_names: &cand.param_names,
-                                            param_has_defaults: &cand.param_has_defaults,
-                                            param_is_vararg: &cand.param_is_vararg,
-                                            param_tys: &cand.params,
-                                            source,
-                                            lower,
-                                            builtins,
-                                        },
-                                    ),
-                                }
-                            })
-                            .collect(),
-                    );
-                    return Err(ExprTypeError::NoApplicableOverload {
-                        callee: callee_name.to_string(),
-                        candidates,
-                        span: call_expr.span.into(),
-                    });
+            let mut matched_ctors = Vec::new();
+            for owner_fqn in &ctor_owner_fqns {
+                matched_ctors.extend(collect_matched_ctor_overloads_for_owner(
+                    inputs,
+                    owner_fqn,
+                    call_expr.span,
+                    callee_name,
+                    &call_args,
+                    None,
+                    explicit_type_args.as_deref(),
+                    None,
+                    false,
+                    lower,
+                )?);
+            }
+
+            let total_matched = matched.len() + matched_ctors.len();
+            if total_matched == 0 {
+                let mut rejections: Vec<OverloadRejection> = direct_call_candidates
+                    .iter()
+                    .map(|candidate| {
+                        let name = short_name_from_fqn(&candidate.fqn).to_string();
+                        let cand = &candidate.sig;
+                        OverloadRejection {
+                            signature: fmt_overload_signature(&name, None, &cand.params, lower),
+                            location: format_candidate_location(
+                                lower,
+                                &cand.decl_file,
+                                cand.decl_span,
+                            ),
+                            reason: describe_basic_applicability_rejection(
+                                BasicApplicabilityRejection {
+                                    call_args: &call_args,
+                                    param_names: &cand.param_names,
+                                    param_has_defaults: &cand.param_has_defaults,
+                                    param_is_vararg: &cand.param_is_vararg,
+                                    param_tys: &cand.params,
+                                    source,
+                                    lower,
+                                    builtins,
+                                },
+                            ),
+                        }
+                    })
+                    .collect();
+                for owner_fqn in &ctor_owner_fqns {
+                    rejections.extend(collect_ctor_overload_rejections_for_owner(
+                        inputs,
+                        owner_fqn,
+                        callee_name,
+                        &call_args,
+                        None,
+                        lower,
+                    )?);
                 }
-                1 => matched.pop().expect("len == 1"),
-                _ => {
-                    let Some(idx) = pick_most_specific_fun_overload(&matched, lower, builtins)
-                    else {
-                        let candidates = join_overload_signatures(
-                            matched
-                                .iter()
-                                .map(|c| {
-                                    let name = short_name_from_fqn(c.fqn).to_string();
-                                    fmt_overload_signature(
-                                        &name,
-                                        None,
-                                        &c.instantiated.params,
-                                        lower,
-                                    )
-                                })
-                                .collect(),
-                        );
-                        return Err(ExprTypeError::AmbiguousOverload {
-                            callee: callee_name.to_string(),
-                            candidates,
-                            span: call_expr.span.into(),
-                        });
-                    };
-                    matched.swap_remove(idx)
+                return Err(ExprTypeError::NoApplicableOverload {
+                    callee: callee_name.to_string(),
+                    candidates: join_overload_rejections(rejections),
+                    span: call_expr.span.into(),
+                });
+            }
+            if total_matched > 1 {
+                let mut signatures: Vec<String> = matched
+                    .iter()
+                    .map(|c| {
+                        let name = short_name_from_fqn(c.fqn).to_string();
+                        fmt_overload_signature(&name, None, &c.instantiated.params, lower)
+                    })
+                    .collect();
+                signatures.extend(matched_ctors.iter().map(|c| c.signature.clone()));
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_name.to_string(),
+                    candidates: join_overload_signatures(signatures),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            if matched.is_empty() {
+                let chosen = matched_ctors
+                    .pop()
+                    .expect("single matched constructor candidate");
+                lower.record_typechecked_ctor_call_binding(
+                    call_expr.span,
+                    chosen.owner_fqn.clone(),
+                    chosen.ctor_span,
+                    legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
+                );
+                if let Some(binding) =
+                    call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args)
+                {
+                    lower.record_typechecked_call_arg_binding(call_expr.span, binding);
                 }
-            };
+                let ty = lower.lower_type_fqn_with_args(
+                    chosen.owner_fqn,
+                    chosen.inferred_type_args,
+                    id.span,
+                )?;
+                return Ok(ty);
+            }
+
+            let chosen = matched.pop().expect("single matched function candidate");
 
             let chosen_fqn = chosen.fqn;
             check_unsafe_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;

@@ -1,0 +1,7 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.phase_ac_ctor_vararg_index.defs
+
+import scoop.core.*
+
+public class IndexedVarargBox(vararg xs: Int) {}

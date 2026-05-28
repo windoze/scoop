@@ -1,5 +1,7 @@
-// EXPECT: pass
-// P3-T01R: operator syntax filters to `operator` candidates, then selects the most specific overload.
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: fixtures.typecheck.Box.plus(fixtures.typecheck.Base) | fixtures.typecheck.Box.plus(fixtures.typecheck.Derived)
+// P5-T01R: operator syntax filters to `operator` candidates, but Phase A-C does not select most-specific yet.
 
 package fixtures.typecheck
 
@@ -23,7 +25,7 @@ struct Box {
     }
 }
 
-fun positioned_call_uses_specific_operator(box: Box, derived: Derived): Derived {
+fun positioned_call_reports_ambiguity_before_specificity(box: Box, derived: Derived): Derived {
     val x: Derived = box + derived
     return x
 }

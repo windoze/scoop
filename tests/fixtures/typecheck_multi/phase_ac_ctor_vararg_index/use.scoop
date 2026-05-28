@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：P5-T01R cross-file constructor candidates 保留 vararg 元数据并使用统一 applicability 映射。
+
+package fixtures.typecheck_multi.phase_ac_ctor_vararg_index
+
+import scoop.core.*
+import fixtures.typecheck_multi.phase_ac_ctor_vararg_index.defs.IndexedVarargBox
+
+val empty: IndexedVarargBox = IndexedVarargBox()
+val many: IndexedVarargBox = IndexedVarargBox(1, 2, 3)

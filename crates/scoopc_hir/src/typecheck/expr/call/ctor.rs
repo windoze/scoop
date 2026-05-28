@@ -23,8 +23,6 @@ pub(in crate::typecheck::expr) struct MatchedCtorOverload {
     pub(in crate::typecheck::expr) arg_mapping: Vec<ParamArgBinding>,
     /// `call_args[arg_idx]` 对应的"期望类型"。
     pub(in crate::typecheck::expr) expected_arg_tys: Vec<TypeId>,
-    /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
-    pub(in crate::typecheck::expr) defaults_used: usize,
     /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
     pub(in crate::typecheck::expr) signature: String,
     /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
@@ -32,6 +30,30 @@ pub(in crate::typecheck::expr) struct MatchedCtorOverload {
 }
 
 type InstantiatedCtorParamTypes = (Vec<TypeId>, Vec<TypeId>);
+
+pub(in crate::typecheck::expr) fn collect_ctor_owner_fqns_from_call_candidates(
+    call: Option<&ast::ResolvedCall>,
+    lower: &TypeLowering<'_>,
+) -> Vec<String> {
+    let mut owners: Vec<String> = call
+        .into_iter()
+        .flat_map(|call| call.candidates.iter())
+        .filter_map(|candidate| {
+            let ast::CallCandidate::Constructor { ty_fqn } = candidate else {
+                return None;
+            };
+            match lower.env().type_symbol(ty_fqn).map(|sym| sym.kind) {
+                Some(TypeSymbolKind::Nominal(ast::TypeKind::Class | ast::TypeKind::Struct)) => {
+                    Some(ty_fqn.clone())
+                }
+                _ => None,
+            }
+        })
+        .collect();
+    owners.sort();
+    owners.dedup();
+    owners
+}
 
 pub(super) struct CtorParamInstantiationRequest<'a> {
     param_tys: &'a [TypeId],
@@ -53,63 +75,6 @@ pub(super) struct CtorParamInstantiationRequest<'a> {
     /// - 长度必须与 `type_param_names` 一致；
     /// - 仅作为 arg-driven 反推未填充时的兜底候选，不主动覆盖 arg-driven 结果（与 explicit 不同）。
     expected_owner_args: Option<&'a [TypeId]>,
-}
-
-pub(super) fn is_strictly_more_specific_ctor_overload(
-    a: &MatchedCtorOverload,
-    b: &MatchedCtorOverload,
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> bool {
-    let a_le_b = a
-        .expected_arg_tys
-        .iter()
-        .zip(b.expected_arg_tys.iter())
-        .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-    let b_le_a = b
-        .expected_arg_tys
-        .iter()
-        .zip(a.expected_arg_tys.iter())
-        .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-    a_le_b && !b_le_a
-}
-
-pub(in crate::typecheck::expr) fn pick_most_specific_ctor_overload(
-    candidates: &[MatchedCtorOverload],
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> Option<usize> {
-    for (idx, cand) in candidates.iter().enumerate() {
-        let mut ok = true;
-        for (other_idx, other) in candidates.iter().enumerate() {
-            if idx == other_idx {
-                continue;
-            }
-            if !is_strictly_more_specific_ctor_overload(cand, other, lower, builtins) {
-                ok = false;
-                break;
-            }
-        }
-        if ok {
-            return Some(idx);
-        }
-    }
-
-    let min_defaults = candidates
-        .iter()
-        .map(|c| c.defaults_used)
-        .min()
-        .unwrap_or(0);
-    let mut it = candidates
-        .iter()
-        .enumerate()
-        .filter(|(_, c)| c.defaults_used == min_defaults);
-    let (idx, _) = it.next()?;
-    if it.next().is_some() {
-        return None;
-    }
-    Some(idx)
 }
 
 pub(super) fn instantiate_ctor_param_tys(
@@ -248,6 +213,7 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     exclude_ctor_span: Option<Span>,
     explicit_type_args: Option<&[TypeId]>,
     expected_owner_args: Option<&[TypeId]>,
+    strict_named_args: bool,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Vec<MatchedCtorOverload>, ExprTypeError> {
     let builtins = inputs.builtins;
@@ -266,21 +232,23 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
         visible.retain(|ctor| ctor.span != exclude);
     }
 
-    check_call_named_args_exist_in_any_candidate(
-        callee_for_diag,
-        call_args,
-        visible
-            .iter()
-            .map(|ctor| {
-                ctor.params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-            .iter()
-            .map(|names| names.as_slice()),
-    )?;
+    if strict_named_args {
+        check_call_named_args_exist_in_any_candidate(
+            callee_for_diag,
+            call_args,
+            visible
+                .iter()
+                .map(|ctor| {
+                    ctor.params
+                        .iter()
+                        .map(|param| param.name.clone())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|names| names.as_slice()),
+        )?;
+    }
 
     let type_param_names: Vec<String> = lower
         .env()
@@ -406,16 +374,11 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
             continue;
         }
 
-        let defaults_used = mapping
-            .iter()
-            .filter(|binding| matches!(binding, ParamArgBinding::Default))
-            .count();
         matched.push(MatchedCtorOverload {
             owner_fqn: owner_fqn.to_string(),
             ctor_span: Some(ctor.span),
             arg_mapping: mapping,
             expected_arg_tys,
-            defaults_used,
             signature: format!("{owner_fqn}({})", param_ty_strs.join(", ")),
             inferred_type_args,
         });
@@ -424,7 +387,7 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     Ok(matched)
 }
 
-fn collect_ctor_overload_rejections_for_owner(
+pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
     inputs: ExprInferInputs<'_>,
     owner_fqn: &str,
     callee_for_diag: &str,
@@ -522,6 +485,7 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
         exclude_ctor_span,
         None,
         None,
+        true,
         lower,
     )?;
 
@@ -540,11 +504,7 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
             span: call_span.into(),
         });
     }
-    if matched.len() == 1 {
-        return Ok(matched.pop().expect("len == 1"));
-    }
-
-    let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, inputs.builtins) else {
+    if matched.len() > 1 {
         let candidates =
             join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
         return Err(ExprTypeError::AmbiguousOverload {
@@ -552,9 +512,9 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
             candidates,
             span: call_span.into(),
         });
-    };
+    }
 
-    Ok(matched.swap_remove(idx))
+    Ok(matched.pop().expect("non-empty matched constructor set"))
 }
 
 /// P4-T01h：在 LHS expected nominal type 已知时尝试 ctor 调用推导。
@@ -692,6 +652,7 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         None,
         explicit_type_args,
         None,
+        true,
         lower,
     )?;
 
@@ -710,20 +671,16 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-    let chosen = if matched.len() == 1 {
-        matched.pop().expect("len == 1")
-    } else {
-        let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, inputs.builtins) else {
-            let candidates =
-                join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_name,
-                candidates,
-                span: call_expr.span.into(),
-            });
-        };
-        matched.swap_remove(idx)
-    };
+    if matched.len() > 1 {
+        let candidates =
+            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+        return Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_name,
+            candidates,
+            span: call_expr.span.into(),
+        });
+    }
+    let chosen = matched.pop().expect("non-empty matched constructor set");
 
     lower.record_typechecked_ctor_call_binding(
         call_expr.span,
@@ -770,7 +727,6 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
-    let builtins = inputs.builtins;
 
     let Some(call) = callee.call.as_ref() else {
         return Ok(None);
@@ -847,6 +803,7 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
             None,
             explicit_type_args,
             owner_expected_args,
+            true,
             lower,
         )?);
     }
@@ -869,20 +826,16 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-    let chosen = if matched.len() == 1 {
-        matched.pop().expect("len == 1")
-    } else {
-        let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, builtins) else {
-            let candidates =
-                join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_name,
-                candidates,
-                span: call_expr.span.into(),
-            });
-        };
-        matched.swap_remove(idx)
-    };
+    if matched.len() > 1 {
+        let candidates =
+            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+        return Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_name,
+            candidates,
+            span: call_expr.span.into(),
+        });
+    }
+    let chosen = matched.pop().expect("non-empty matched constructor set");
 
     lower.record_typechecked_ctor_call_binding(
         call_expr.span,

@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：P5-T01R 普通调用同时含 function 与 constructor candidates 时，function 不适用不得丢弃适用 constructor。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class MixedTarget(x: Int) {}
+
+fun MixedTarget(x: String): MixedTarget {
+    return MixedTarget(0)
+}
+
+val chosenCtor: MixedTarget = MixedTarget(1)

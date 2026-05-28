@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T0455 扩展函数重载决议：按参数类型选择更具体 overload。
+// 目标：P5-T01 Phase A-C：参数类型使同名 extension overload 只剩一个 applicable candidate。
 
 package fixtures.typecheck
 
@@ -16,4 +16,3 @@ fun Any.pick(x: String): String {
 val a: Any
 val x: Int = a.pick(1)
 val y: String = a.pick("hi")
-

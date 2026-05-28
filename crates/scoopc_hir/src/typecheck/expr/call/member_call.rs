@@ -635,73 +635,10 @@ pub(super) fn infer_member_call_expr_type(
                 eff_arg: EffectRow,
                 /// `call_args_with_receiver[arg_idx]` 对应的"期望类型"。
                 expected_arg_tys: Vec<TypeId>,
-                /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
-                defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
                 /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
                 used_unit_sugar: bool,
-            }
-
-            fn is_strictly_more_specific_member_overload(
-                a: &MatchedMemberOverload<'_>,
-                b: &MatchedMemberOverload<'_>,
-                lower: &TypeLowering<'_>,
-                builtins: BuiltinTypes,
-            ) -> bool {
-                let a_le_b = a
-                    .expected_arg_tys
-                    .iter()
-                    .zip(b.expected_arg_tys.iter())
-                    .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-                let b_le_a = b
-                    .expected_arg_tys
-                    .iter()
-                    .zip(a.expected_arg_tys.iter())
-                    .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-                a_le_b && !b_le_a
-            }
-
-            fn pick_most_specific_member_overload(
-                candidates: &[MatchedMemberOverload<'_>],
-                lower: &TypeLowering<'_>,
-                builtins: BuiltinTypes,
-            ) -> Option<usize> {
-                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都"更具体"（可赋值到 B 的形参类型），
-                //    且至少有一个位置严格更具体，则认为 A 严格更具体。
-                for (idx, cand) in candidates.iter().enumerate() {
-                    let mut ok = true;
-                    for (other_idx, other) in candidates.iter().enumerate() {
-                        if idx == other_idx {
-                            continue;
-                        }
-                        if !is_strictly_more_specific_member_overload(cand, other, lower, builtins)
-                        {
-                            ok = false;
-                            break;
-                        }
-                    }
-                    if ok {
-                        return Some(idx);
-                    }
-                }
-
-                // 2) tie-break：默认参数更少者优先（"非默认参数优先"）。
-                let min_defaults = candidates
-                    .iter()
-                    .map(|c| c.defaults_used)
-                    .min()
-                    .unwrap_or(0);
-                let mut it = candidates
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, c)| c.defaults_used == min_defaults);
-                let (idx, _) = it.next()?;
-                if it.next().is_some() {
-                    return None;
-                }
-                Some(idx)
             }
 
             let mut matched: Vec<MatchedMemberOverload<'_>> = Vec::new();
@@ -1017,10 +954,6 @@ pub(super) fn infer_member_call_expr_type(
                     continue;
                 }
 
-                let defaults_used = mapping
-                    .iter()
-                    .filter(|b| matches!(b, ParamArgBinding::Default))
-                    .count();
                 let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     expected_arg_tys[arg_idx] = instantiated.params[param_idx];
@@ -1031,7 +964,6 @@ pub(super) fn infer_member_call_expr_type(
                     instantiated,
                     eff_arg,
                     expected_arg_tys,
-                    defaults_used,
                     mapping,
                     used_unit_sugar,
                 });
@@ -1076,29 +1008,20 @@ pub(super) fn infer_member_call_expr_type(
                 }
                 1 => matched.pop().expect("len == 1"),
                 _ => {
-                    let Some(idx) = pick_most_specific_member_overload(&matched, lower, builtins)
-                    else {
-                        let name = short_name_from_fqn(fqn).to_string();
-                        let candidates = join_overload_signatures(
-                            matched
-                                .iter()
-                                .map(|c| {
-                                    fmt_overload_signature(
-                                        &name,
-                                        None,
-                                        &c.instantiated.params,
-                                        lower,
-                                    )
-                                })
-                                .collect(),
-                        );
-                        return Err(ExprTypeError::AmbiguousOverload {
-                            callee: fqn.to_string(),
-                            candidates,
-                            span: call_expr.span.into(),
-                        });
-                    };
-                    matched.swap_remove(idx)
+                    let name = short_name_from_fqn(fqn).to_string();
+                    let candidates = join_overload_signatures(
+                        matched
+                            .iter()
+                            .map(|c| {
+                                fmt_overload_signature(&name, None, &c.instantiated.params, lower)
+                            })
+                            .collect(),
+                    );
+                    return Err(ExprTypeError::AmbiguousOverload {
+                        callee: fqn.to_string(),
+                        candidates,
+                        span: call_expr.span.into(),
+                    });
                 }
             };
 
@@ -2086,73 +2009,13 @@ pub(super) fn infer_member_call_expr_type(
         receiver_ty: TypeId,
         /// `call_args[arg_idx]` 对应的"期望类型"（排除了 receiver 参数）。
         expected_arg_tys: Vec<TypeId>,
-        /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
-        defaults_used: usize,
         /// 形参 -> 实参绑定（不含 receiver，receiver 由调用形状隐式提供）。
         mapping: Vec<ParamArgBinding>,
         /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
         used_unit_sugar: bool,
     }
 
-    fn is_strictly_more_specific_extension_overload(
-        a: &MatchedExtensionOverload<'_>,
-        b: &MatchedExtensionOverload<'_>,
-        lower: &TypeLowering<'_>,
-        builtins: BuiltinTypes,
-    ) -> bool {
-        let a_le_b = is_type_assignable(a.receiver_ty, b.receiver_ty, lower, builtins)
-            && a.expected_arg_tys
-                .iter()
-                .zip(b.expected_arg_tys.iter())
-                .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-        let b_le_a = is_type_assignable(b.receiver_ty, a.receiver_ty, lower, builtins)
-            && b.expected_arg_tys
-                .iter()
-                .zip(a.expected_arg_tys.iter())
-                .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-        a_le_b && !b_le_a
-    }
-
-    fn pick_most_specific_extension_overload(
-        candidates: &[MatchedExtensionOverload<'_>],
-        lower: &TypeLowering<'_>,
-        builtins: BuiltinTypes,
-    ) -> Option<usize> {
-        for (idx, cand) in candidates.iter().enumerate() {
-            let mut ok = true;
-            for (other_idx, other) in candidates.iter().enumerate() {
-                if idx == other_idx {
-                    continue;
-                }
-                if !is_strictly_more_specific_extension_overload(cand, other, lower, builtins) {
-                    ok = false;
-                    break;
-                }
-            }
-            if ok {
-                return Some(idx);
-            }
-        }
-
-        // tie-break：默认参数更少者优先（"非默认参数优先"）。
-        let min_defaults = candidates
-            .iter()
-            .map(|c| c.defaults_used)
-            .min()
-            .unwrap_or(0);
-        let mut it = candidates
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.defaults_used == min_defaults);
-        let (idx, _) = it.next()?;
-        if it.next().is_some() {
-            return None;
-        }
-        Some(idx)
-    }
-
-    // 多候选：先按 receiver/参数匹配筛选，再用 receiver/参数 specificity 选出 most-specific（T0455）。
+    // 多候选：Phase A-C 只产出 applicable set；specificity 留给 P5-T02。
     let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
 
     for candidate in ext_candidates.iter().copied() {
@@ -2541,10 +2404,6 @@ pub(super) fn infer_member_call_expr_type(
         }
 
         if ok {
-            let defaults_used = mapping
-                .iter()
-                .filter(|b| matches!(b, ParamArgBinding::Default))
-                .count();
             let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                 expected_arg_tys[arg_idx] = instantiated.params[param_idx + 1];
@@ -2557,7 +2416,6 @@ pub(super) fn infer_member_call_expr_type(
                 expected_arg_tys,
                 instantiated,
                 eff_arg,
-                defaults_used,
                 mapping,
                 used_unit_sugar,
             });
@@ -2616,28 +2474,25 @@ pub(super) fn infer_member_call_expr_type(
         }
         1 => matched.pop().expect("len == 1"),
         _ => {
-            let Some(idx) = pick_most_specific_extension_overload(&matched, lower, builtins) else {
-                let candidates = join_overload_signatures(
-                    matched
-                        .iter()
-                        .map(|c| {
-                            let name = short_name_from_fqn(c.fqn).to_string();
-                            fmt_overload_signature(
-                                &name,
-                                Some(c.receiver_ty),
-                                c.instantiated.params.get(1..).unwrap_or_default(),
-                                lower,
-                            )
-                        })
-                        .collect(),
-                );
-                return Err(ExprTypeError::AmbiguousOverload {
-                    callee: member_name.to_string(),
-                    candidates,
-                    span: call_expr.span.into(),
-                });
-            };
-            matched.swap_remove(idx)
+            let candidates = join_overload_signatures(
+                matched
+                    .iter()
+                    .map(|c| {
+                        let name = short_name_from_fqn(c.fqn).to_string();
+                        fmt_overload_signature(
+                            &name,
+                            Some(c.receiver_ty),
+                            c.instantiated.params.get(1..).unwrap_or_default(),
+                            lower,
+                        )
+                    })
+                    .collect(),
+            );
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: member_name.to_string(),
+                candidates,
+                span: call_expr.span.into(),
+            });
         }
     };
 

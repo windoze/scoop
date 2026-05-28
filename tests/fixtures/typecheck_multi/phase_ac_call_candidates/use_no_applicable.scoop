@@ -1,7 +1,10 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
-// EXPECT-ERROR-AT: 11:19
+// EXPECT-ERROR-AT: 14:19
+// EXPECT-ERROR: choose(Int)
+// EXPECT-ERROR: choose(String)
 // EXPECT-ERROR: argument 1 type Bool is not a subtype of parameter `x` type Int
+// EXPECT-ERROR: argument 1 type Bool is not a subtype of parameter `x` type String
 
 package fixtures.typecheck_multi.phase_ac_call_candidates
 

@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：P5-T01R where-bound member call 收集全部同名 bound candidates，再由 applicability 选择可用候选。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface BoundStringPick {
+    fun pick(x: String): Int
+}
+
+interface BoundIntPick {
+    fun pick(x: Int): Int
+}
+
+fun <T> pickInt(x: T): Int where T: BoundStringPick, T: BoundIntPick {
+    return x.pick(1)
+}
