@@ -43,10 +43,48 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P5 Phase A-C 与 `OVERLOAD_RESOLUTION.md` §5.1-§5.3、§7.4、§8.1、§8.2；P5-T02 可基于已过滤的 applicable candidate set 继续实现 specificity。
 
+### [TODO] P5-T01a：修复 Phase A-C review blockers
+
+- 参考：
+  - P5-T01 完成记录
+  - P5-T01R 初次 review blocker 记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.1-§5.3、§7.4、§8.1、§8.2
+- 目标：
+  - 修复 P5-T01R 审查中发现的 Phase A-C 前置缺口，使 review 能验证候选收集、visibility、applicability 与 no-applicable diagnostics 的边界。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/resolve/scopes.rs::{resolve_call_ident_callee,resolve_call_member_callee,resolve_member_access_on_value_receiver,extension_fun_candidates,try_resolve_where_bound_member_access}`
+  - `crates/scoopc_hir/src/typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,value_call.rs,generic.rs,args.rs}`
+  - no-applicable / visibility / shadowing / extension fixtures
+- 必须实现的内容：
+  1. Typecheck 普通调用、constructor 调用和 extension member 调用必须消费 resolver 写入的 `ResolvedCall.candidates`，不得继续只依赖 stale single `resolved` FQN。
+  2. Member 层必须整体优先于 extension 层；inherited visible member 不得被同名 visible extension 抢先，invisible direct member 不得压制后续 visible member/extension 诊断路径。
+  3. Cross-file/index 函数签名必须保留 `param_is_vararg`，constructor applicability 必须用与函数一致的 arity / named / default / vararg mapping 规则；如果 lowering 侧仍缺 vararg ctor 绑定能力，必须修复该能力而不是绕过。
+  4. Where-bound member call 和 late extension lookup 不得按首个候选或 import 排序提前选择；所有候选必须先经过 visibility 与 applicability，再进入后续 selection/ambiguity 路径。
+  5. no-applicable diagnostics fixtures 必须断言候选签名和 per-candidate rejection reason；shadowing fixtures 必须覆盖 local shadow top-level/import；visibility fixtures 必须确认不可见候选不会影响可见候选。
+- 必须遵从的约束：
+  - 不得把 Phase A-C 缺口留给 P5-T02 specificity 或 P5-T04 callable identity 作为 workaround；后续阶段只能建立在清晰 applicable candidate set 上。
+  - 不得让不可见候选影响后续选择。
+  - 不得通过 fixture 缩窄、改写测试形状或只报 `AmbiguousCall` 来避开 applicability 过滤。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. targeted Phase A-C fixtures
+  4. `python3 tools/run_fixtures.py`
+  5. `cargo test --all --all-targets`
+- 完成条件：
+  - P5-T01R 能复核并确认 Phase A-C 的候选集合、visibility-before-applicability 和 no-applicable diagnostics，无需再新增前置修复任务。
+- 依赖：P5-T01
+- 完成记录：
+  - 改动范围：
+  - 核心决策：
+  - 验证结果：
+  - 与 `PLAN.md` / 设计文档对应闭合：
+
 ### [TODO] P5-T01R：Review Phase A-C resolution
 
 - 参考：
   - P5-T01 完成记录
+  - P5-T01a 完成记录
   - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.1-§5.3
 - 目标：
   - 复核候选收集、visibility 和 applicability 的阶段边界。
@@ -65,7 +103,9 @@
   2. targeted Phase A-C fixtures。
 - 完成条件：
   - P5-T02 可基于清晰 applicable candidate set 实现 specificity。
-- 依赖：P5-T01
+- 依赖：P5-T01a
+- 阻塞记录：
+  - 2026-05-29 初次 review 发现 P5-T01 仍有 Phase A-C 前置缺口：`ResolvedCall.candidates` 在部分普通/extension/member typecheck 路径未被消费，member/inherited/extension 层级仍可能违反 member-before-extension，跨文件签名 vararg 元数据和 constructor vararg applicability 不完整，where-bound / late extension 路径仍可能提前按首个候选或 import 顺序选择，no-applicable fixtures 未充分断言候选签名与 rejection reason。已新增 P5-T01a 作为本 review 的前置修复任务。
 - 完成记录：
   - 改动范围：
   - 核心决策：
