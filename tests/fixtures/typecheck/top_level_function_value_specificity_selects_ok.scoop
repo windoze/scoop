@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：P5-T03；重载顶层函数作为函数值时，expected function type 下仍使用 subtype specificity。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun convert(x: Any): Int {
+    return 1
+}
+
+fun convert(x: Int): Int {
+    return x + 100
+}
+
+fun takesIntFn(f: (Int) -> Int): Int {
+    return f(5)
+}
+
+fun ok(): Int {
+    return takesIntFn(convert)
+}

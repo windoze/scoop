@@ -38,82 +38,91 @@ pub(super) fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     member_name: &str,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<String>, ExprTypeError> {
-    // P4-T01l：对 builtin scalar / `String` receiver 统一走 nominal FQN 提取，让
-    // `<scalar>.method()` 在 sysroot 提供 body method 时也能进入 direct-call 主线。
-    let Some((receiver_fqn, receiver_args)) =
-        try_extract_member_call_receiver_fqn_and_args(receiver_ty, lower)
-    else {
-        return Ok(None);
-    };
-
-    let direct_fqn = format!("{receiver_fqn}.{member_name}");
-    let sigs = collect_member_method_signatures_from_index(
-        inputs.source,
+    Ok(collect_member_method_signature_groups_from_receiver_ty(
+        inputs,
         receiver_ty,
-        &receiver_fqn,
-        &receiver_args,
-        &direct_fqn,
+        member_name,
         lower,
-        inputs.builtins,
-    )?;
-
-    if sigs.is_empty() {
-        late_resolve_inherited_member_fun_fqn_from_receiver_ty(
-            inputs,
-            receiver_ty,
-            &receiver_fqn,
-            member_name,
-            lower,
-        )
-    } else {
-        Ok(Some(direct_fqn))
-    }
+    )?
+    .into_iter()
+    .next()
+    .map(|(fqn, _)| fqn))
 }
 
-fn late_resolve_inherited_member_fun_fqn_from_receiver_ty(
+pub(in crate::typecheck::expr) fn collect_member_method_signature_groups_from_receiver_ty(
     inputs: ExprInferInputs<'_>,
     receiver_ty: TypeId,
-    receiver_fqn: &str,
     member_name: &str,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<String>, ExprTypeError> {
-    let mut visited: HashSet<String> = HashSet::new();
-    visited.insert(receiver_fqn.to_string());
-    let mut queue: VecDeque<String> = lower
-        .index()
-        .direct_supertypes
-        .get(receiver_fqn)
-        .cloned()
-        .unwrap_or_default()
-        .into();
+) -> Result<Vec<(String, Vec<FunSigOwned>)>, ExprTypeError> {
+    if try_extract_member_call_receiver_fqn_and_args(receiver_ty, lower).is_none() {
+        return Ok(Vec::new());
+    }
 
-    while let Some(super_fqn) = queue.pop_front() {
-        if !visited.insert(super_fqn.clone()) {
+    let mut visited: HashSet<TypeId> = HashSet::new();
+    let mut queue: VecDeque<TypeId> = VecDeque::new();
+    queue.push_back(receiver_ty);
+    let mut seen_signatures: HashSet<(Vec<TypeId>, Vec<bool>)> = HashSet::new();
+    let mut groups = Vec::new();
+
+    while let Some(owner_ty) = queue.pop_front() {
+        if !visited.insert(owner_ty) {
             continue;
         }
 
-        let candidate_fqn = format!("{super_fqn}.{member_name}");
-        let sigs = collect_member_method_signatures_from_index(
+        // P4-T01l：对 builtin scalar / `String` receiver 统一走 nominal FQN 提取，让
+        // `<scalar>.method()` 在 sysroot 提供 body method 时也能进入 direct-call 主线。
+        let Some((owner_fqn, owner_args)) =
+            try_extract_member_call_receiver_fqn_and_args(owner_ty, lower)
+        else {
+            continue;
+        };
+
+        let candidate_fqn = format!("{owner_fqn}.{member_name}");
+        let mut sigs = collect_member_method_signatures_from_index(
             inputs.source,
             receiver_ty,
-            &super_fqn,
-            &[],
+            &owner_fqn,
+            &owner_args,
             &candidate_fqn,
             lower,
             inputs.builtins,
         )?;
+        sigs.retain(|sig| {
+            let key = member_overload_signature_key(sig);
+            seen_signatures.insert(key)
+        });
         if !sigs.is_empty() {
-            return Ok(Some(candidate_fqn));
+            groups.push((candidate_fqn, sigs));
         }
 
-        if let Some(supers) = lower.index().direct_supertypes.get(&super_fqn) {
-            for next in supers {
-                queue.push_back(next.clone());
+        let mut super_tys = lower.instantiated_direct_supertypes(owner_ty)?;
+        if let Some(super_fqns) = lower
+            .env()
+            .direct_supertypes(&owner_fqn)
+            .map(|s| s.to_vec())
+        {
+            for super_fqn in super_fqns {
+                if let Ok(super_ty) =
+                    lower.lower_type_fqn_with_args(super_fqn, Vec::new(), Span::new(0, 0))
+                {
+                    super_tys.push(super_ty);
+                }
             }
+        }
+        for super_ty in super_tys {
+            queue.push_back(super_ty);
         }
     }
 
-    Ok(None)
+    Ok(groups)
+}
+
+fn member_overload_signature_key(sig: &FunSigOwned) -> (Vec<TypeId>, Vec<bool>) {
+    (
+        sig.params.iter().copied().skip(1).collect(),
+        sig.param_is_vararg.iter().copied().skip(1).collect(),
+    )
 }
 
 pub(in crate::typecheck::expr) fn combined_member_instance_type_args(

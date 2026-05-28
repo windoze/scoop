@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// 目标：P5-T03；先选中更具体 overload，再校验 effect row，不得回退到较宽的 Pure overload。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun choose(x: Any) / Pure {
+    return
+}
+
+fun choose(x: String) / (Raise<Int>) {
+    Raise.raise(1)
+}
+
+fun bad() / Pure {
+    choose("effectful")
+}

@@ -1,0 +1,38 @@
+// EXPECT: pass
+// 目标：P5-T03；子类 overload set 包含 inherited、override replacement 与 child-added overload。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun tag(): Int {
+        return 1
+    }
+
+    fun pick(x: Int): Int {
+        return x + 10
+    }
+}
+
+class Derived() : Base() {
+    override fun tag(): Int {
+        return 2
+    }
+
+    fun pick(x: String): String {
+        return x
+    }
+}
+
+fun inherited_overload(d: Derived): Int {
+    return d.pick(5)
+}
+
+fun child_added_overload(d: Derived): String {
+    return d.pick("ok")
+}
+
+fun override_replaces_parent(d: Derived): Int {
+    return d.tag()
+}

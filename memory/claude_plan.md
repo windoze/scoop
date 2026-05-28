@@ -2,32 +2,36 @@
 
 ## 范围
 
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 本次只完成第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
-- 不做开放式历史问题清扫；只处理当前任务所需或验证中发现的未排期失败。
+- 本次只处理 `TODO.md` 中第一个标题未以 `[DONE]` 开头的任务。
+- 不提前处理后续任务；若遇到阻塞当前任务的实现缺口或未排期失败，将按要求更新 `TODO.md` 并停止。
 
 ## 步骤
 
-1. 读取 `TODO.md`，定位第一个未完成任务，并检查该任务的依赖、验证要求和完成记录。
-2. 检查最近提交信息，判断是否有与该任务直接相关的未完成事项；若有，将其纳入当前任务或作为前置任务记录到 `TODO.md`。
-3. 按任务要求检查相关代码、规格、测试和夹具，确认需要修改的最小范围。
-4. 实现当前任务；如果发现阻塞性的规格缺口或缺失语言能力，不绕过，改为在 `TODO.md` 插入最小前置任务并停止。
-5. 运行格式化、lint、相关测试；若代码发生变化，再按要求运行完整测试套件与夹具套件，处理所有未排期失败。
-6. 更新 `TODO.md`：将完成的任务标题加 `[DONE]`，并补充完成记录和验证记录。仅在阶段计划变化时更新 `PLAN.md`。
-7. 检查 `git status`、`git diff`、最近提交，确认只提交本次相关变更。
-8. 使用清晰任务标签提交变更，然后停止，不继续下一个任务。
+1. 读取 `TODO.md`，确定第一个未完成任务及其验证要求。
+2. 检查最近提交和当前工作区状态，确认是否存在与该任务直接相关的未完成事项或未提交变更。
+3. 阅读当前任务涉及的代码、测试和文档，明确最小正确实现范围。
+4. 实现任务；如发现必须先修复的具体前置问题，则更新 `TODO.md` 记录前置任务并停止。
+5. 运行格式化、lint、相关测试；若代码变更影响全量验证，则按要求运行完整测试和 fixture 套件。
+6. 更新 `TODO.md`：给当前任务标题加 `[DONE]`，填写完成记录和验证结果。
+7. 更新本文件记录关键执行结果。
+8. 检查 diff，提交所有本次任务相关变更，然后停止。
 
 ## 当前状态
 
-- 已读取 `TODO.md` 和 `PLAN.md`。
-- 第一个未完成任务是 `P5-T02R`：Review P5-T02 specificity 与 ambiguity diagnostics，任务细节位于 `TODO-5.md`。
-- 已读取 `TODO-5.md` 中 `P5-T02R` 的完整要求。
-- 最近提交 `7ed11d42 [P5-T02] Implement overload specificity` 与当前 review 直接相关；未在提交标题中声明未完成事项。
-- 已审查 P5-T02 修改范围并发现 review blocker：泛型调用处的普通 type bound 会对 `TypeKind::Param` 延迟通过，可能用 inferred substitution 触发 specialization；constructor specificity 未使用构造器级 type params / bounds；composite 多重 bound 会退化为 `Any`；部分 ambiguity fixtures 的多条 `EXPECT-ERROR` 未真正锁住诊断细节。
-- 已修复上述 blocker：收紧 generic bound satisfaction；constructor overload specificity 改为使用 owner + constructor type params / bounds；composite 多重 bound 不再退化为 `Any`，而是保留 effective alternatives；补充 targeted fixtures 覆盖 concrete-vs-generic、generic caller deferred bound、constructor specificity 与 receiver position 0。
-- 已运行 targeted specificity / ambiguity fixtures、`tests/fixtures/infer` 和完整 `tests/fixtures/typecheck` 子集，均通过。
-- 第一次 `cargo test --all --all-targets` 暴露 `monomorph_rewrites_external_generic_calls_to_concrete_instances` 的测试源码依赖旧的“无约束 `T` 可传给 `print<T: ToString>`”行为；已把测试中的 `wrap<T>` 改为 `wrap<T: ToString>`。
-- 已在该修正后重跑 `cargo fmt` 和 `cargo clippy --all-targets -- -D warnings`，均通过。
-- 已完成完整验证：`cargo build -p scoop -p scoopc`、`cargo test --all --all-targets`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py` 均通过。
-- 已更新 `TODO.md` 与 `TODO-5.md`，将 `P5-T02R` 标记为 `[DONE]` 并写入完成记录。
-- 下一步：检查 git diff/status，确认只提交本次相关文件，然后提交并停止。
+- 已选定当前任务：`P5-T03：整合 member / constructor / operator / effect-after-selection 路径`。
+- 当前重点：审查 call dispatch、member call、constructor call、operator call、function value call 与 effect 校验顺序，确认哪些路径仍绕过统一 overload selection。
+- 工作区注意事项：已有未跟踪 `REFLECTION.md`，不是本次任务创建；除非后续确认相关，否则不修改、不提交。
+
+## 已确认改动点
+
+- `member_call` direct path 仍以单个 member FQN 收集签名；当子类新增同名 overload 时，会遮掉父类继承 overload，需要按静态 receiver 类型收集 child + inherited overload set，并用 child override replacement 过滤父类同签名候选。
+- `ops` operator / `compareTo` 路径仍在多个 applicable operator 候选时报 `ambiguous_overload`，且 `@Unsafe` / `@NoGC` gate 在候选循环内执行；需要改为先 Phase A-C，随后 Phase D-E specificity，最后只对选中候选执行 gate/effect 记录。
+- `value_call` 的 top-level function value 选择在多个可赋值 overload 时仍直接报歧义；需要复用 specificity helper。
+- 计划新增/更新 targeted fixtures：member child inherited set、operator specificity、effect mismatch after selected overload no fallback、function value specificity。
+
+## 完成记录
+
+- 已实现 P5-T03：direct member call 收集静态 receiver 的 child + inherited overload set，operator / compareTo 在 modifier gate 后进入 specificity，顶层函数值 overload 在 expected function type 下选择最具体候选，effect gate 保持 selection 后记录。
+- 已新增/更新 P5-T03 fixtures：member inherited/override/child-added overload、static receiver no runtime overload、operator specificity、effect mismatch after selected overload no fallback、top-level function value specificity。
+- 已通过验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+- 已更新 `TODO.md` 与 `TODO-5.md`，将 `P5-T03` 标记为 `[DONE]` 并填写完成记录。

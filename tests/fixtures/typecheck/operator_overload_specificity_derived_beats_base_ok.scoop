@@ -1,7 +1,5 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
-// EXPECT-ERROR: fixtures.typecheck.Box.plus(fixtures.typecheck.Base) | fixtures.typecheck.Box.plus(fixtures.typecheck.Derived)
-// P5-T01R: operator syntax filters to `operator` candidates, but Phase A-C does not select most-specific yet.
+// EXPECT: pass
+// 目标：P5-T03；operator-positioned call 在 modifier gate 后继续使用 Phase D specificity。
 
 package fixtures.typecheck
 
@@ -25,7 +23,7 @@ struct Box {
     }
 }
 
-fun positioned_call_reports_ambiguity_before_specificity(box: Box, derived: Derived): Derived {
+fun positioned_call_selects_most_specific(box: Box, derived: Derived): Derived {
     val x: Derived = box + derived
     return x
 }

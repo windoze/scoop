@@ -11,10 +11,15 @@ use crate::ty::{
 
 use super::call::{
     CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig,
-    check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, check_nogc_call_gate,
-    check_unsafe_call_gate, combined_member_instance_type_args, instantiate_fun_sig_for_call,
-    map_call_args_to_params_with_defaults, substitute_type_args_in_effect_row, type_param_name,
-    type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base,
+    check_fn_value_to_any_erasure_gate, check_fun_where_constraints_after_instantiation,
+    check_nogc_boxing_gate, check_nogc_call_gate, check_unsafe_call_gate,
+    collect_member_method_signature_groups_from_receiver_ty, combined_member_instance_type_args,
+    default_eff_arg_for_fun_sig, format_ambiguous_specificity_candidates,
+    format_candidate_location, instantiate_eff_row_var_in_sig_types, instantiate_fun_sig_for_call,
+    map_call_args_to_params_with_defaults, pick_most_exact_param_match,
+    pick_most_specific_overload, pick_most_specific_param_types, specificity_candidate_for_fun_sig,
+    substitute_type_args_in_effect_row, type_param_name, type_ref_fn_effect_eff_base,
+    type_ref_nominal_eff_eff_base,
 };
 use super::infer::ExpectedTypeFrom;
 use super::util::{fmt_overload_signature, join_overload_signatures};
@@ -1293,22 +1298,21 @@ pub(super) fn infer_operator_overload_binary_expr_type(
     }
 
     let callee_fqn = format!("{receiver_fqn}.{method}");
-    let sigs = collect_member_method_signatures_from_index(
-        inputs.source,
-        lhs_ty,
-        &receiver_fqn,
-        &receiver_args,
-        &callee_fqn,
-        lower,
-        inputs.builtins,
-    )?;
-    let sigs = filter_operator_positioned_candidates(
-        sigs,
-        binary_op_text(op),
-        lower.fmt_type(lhs_ty),
-        method,
-        op_span,
-    )?;
+    let mut sigs: Vec<(String, FunSigOwned)> =
+        collect_member_method_signature_groups_from_receiver_ty(inputs, lhs_ty, method, lower)?
+            .into_iter()
+            .flat_map(|(fqn, sigs)| sigs.into_iter().map(move |sig| (fqn.clone(), sig)))
+            .collect();
+    let had_same_named_candidates = !sigs.is_empty();
+    sigs.retain(|(_, sig)| sig.is_operator);
+    if had_same_named_candidates && sigs.is_empty() {
+        return Err(ExprTypeError::OperatorModifierRequired {
+            op: binary_op_text(op).to_string(),
+            receiver: lower.fmt_type(lhs_ty),
+            method: method.to_string(),
+            span: op_span.into(),
+        });
+    }
 
     if sigs.is_empty() {
         let rhs_ty = inputs.infer(lower, rhs)?;
@@ -1343,12 +1347,15 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         },
     ];
 
-    let mut matched: Vec<(FunSigOwned, InstantiatedFunSig)> = Vec::new();
-    for sig in sigs.iter() {
-        // operator method 调用：禁止 unsafe/nogc 门禁绕过，沿用普通调用的 gate。
-        check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
-        check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+    struct MatchedOperatorOverload {
+        fqn: String,
+        sig: FunSigOwned,
+        instantiated: InstantiatedFunSig,
+        eff_arg: EffectRow,
+    }
 
+    let mut matched: Vec<MatchedOperatorOverload> = Vec::new();
+    for (sig_fqn, sig) in sigs.iter() {
         let Some(mapping) = map_call_args_to_params_with_defaults(
             &call_args,
             &sig.param_names,
@@ -1357,8 +1364,8 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             continue;
         };
 
-        let instantiated = instantiate_fun_sig_for_call(
-            &callee_fqn,
+        let mut instantiated = match instantiate_fun_sig_for_call(
+            sig_fqn,
             binary_expr.span,
             sig,
             mapping
@@ -1378,7 +1385,37 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 }),
             lower,
             inputs.builtins,
-        )?;
+        ) {
+            Ok(instantiated) => instantiated,
+            Err(_) => continue,
+        };
+
+        if check_fun_where_constraints_after_instantiation(
+            sig_fqn,
+            binary_expr.span,
+            sig,
+            &instantiated.type_args,
+            lower,
+            inputs.builtins,
+        )
+        .is_err()
+        {
+            continue;
+        }
+
+        let eff_arg = default_eff_arg_for_fun_sig(sig);
+        if sig.eff_param.is_some()
+            && instantiate_eff_row_var_in_sig_types(
+                sig,
+                &mut instantiated,
+                &eff_arg,
+                lower,
+                binary_expr.span,
+            )
+            .is_err()
+        {
+            continue;
+        }
 
         let mut ok = true;
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
@@ -1406,11 +1443,16 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         }
 
         if ok {
-            matched.push((sig.clone(), instantiated));
+            matched.push(MatchedOperatorOverload {
+                fqn: sig_fqn.to_string(),
+                sig: sig.clone(),
+                instantiated,
+                eff_arg,
+            });
         }
     }
 
-    let (sig, instantiated) = match matched.len() {
+    let selected = match matched.len() {
         0 => {
             let rhs_ty = inputs.infer(lower, rhs)?;
             return Err(ExprTypeError::OperatorOverloadNotFound {
@@ -1423,25 +1465,65 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         }
         1 => matched.remove(0),
         _ => {
-            let candidates = matched
+            let specificity = matched
                 .iter()
-                .map(|(sig, _)| {
+                .map(|matched| {
+                    let sig = &matched.sig;
                     let receiver_ty = sig.params.first().copied();
-                    fmt_overload_signature(
-                        method,
-                        receiver_ty,
-                        sig.params.get(1..).unwrap_or_default(),
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(
+                            method,
+                            receiver_ty,
+                            sig.params.get(1..).unwrap_or_default(),
+                            lower,
+                        ),
+                        format_candidate_location(lower, &sig.decl_file, sig.decl_span),
+                        sig,
                         lower,
+                        inputs.builtins,
+                        binary_expr.span,
                     )
                 })
-                .collect::<Vec<_>>();
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                candidates: join_overload_signatures(candidates),
-                span: op_span.into(),
-            });
+                .collect::<Result<Vec<_>, _>>()?;
+            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins)
+                .or_else(|| {
+                    matched
+                        .iter()
+                        .all(|m| m.sig.type_params.is_empty())
+                        .then(|| {
+                            let params = matched
+                                .iter()
+                                .map(|m| m.instantiated.params.as_slice())
+                                .collect::<Vec<_>>();
+                            pick_most_specific_param_types(&params, lower, inputs.builtins).or_else(
+                                || {
+                                    let actual =
+                                        call_args.iter().map(|arg| arg.ty).collect::<Vec<_>>();
+                                    pick_most_exact_param_match(&params, &actual)
+                                },
+                            )
+                        })?
+                });
+            if let Some(chosen_idx) = chosen_idx {
+                matched.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    candidates,
+                    span: op_span.into(),
+                });
+            }
         }
     };
+    let chosen_fqn = selected.fqn.as_str();
+    let sig = &selected.sig;
+    let instantiated = &selected.instantiated;
+
+    // operator method 调用：禁止 unsafe/nogc 门禁绕过，沿用普通调用的 gate。
+    check_unsafe_call_gate(chosen_fqn, sig, binary_expr.span, lower)?;
+    check_nogc_call_gate(chosen_fqn, sig, binary_expr.span, lower)?;
 
     // rhs 最终类型检查：在期望类型语境下覆盖（lambda 下推推断等）。
     if let Some(expected_rhs_ty) = instantiated.params.get(1).copied() {
@@ -1451,7 +1533,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             expected_rhs_ty,
             ExpectedTypeFrom::new(format!(
                 "`{}` 的第 2 个形参 `{}`",
-                callee_fqn,
+                chosen_fqn,
                 sig.param_names
                     .get(1)
                     .cloned()
@@ -1499,9 +1581,15 @@ pub(super) fn infer_operator_overload_binary_expr_type(
     for p in sig.type_params.iter().copied() {
         type_param_bindings.push((type_param_name(p, lower), p));
     }
-    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_bindings(
+    let eff_bindings: Vec<(String, EffectRow)> = sig
+        .eff_param
+        .as_ref()
+        .map(|p| vec![(p.name.clone(), selected.eff_arg.clone())])
+        .unwrap_or_default();
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
         &sig.decl_file,
         type_param_bindings,
+        eff_bindings,
         sig.effects.as_ref(),
     );
     let call_effects = substitute_type_args_in_effect_row(
@@ -1517,13 +1605,13 @@ pub(super) fn infer_operator_overload_binary_expr_type(
     let eff_args = sig
         .eff_param
         .as_ref()
-        .map(|eff_param| vec![eff_param.default.clone()])
+        .map(|_| vec![selected.eff_arg.clone()])
         .unwrap_or_default();
     record_member_direct_call_binding(
         lower,
         binary_expr.span,
-        &callee_fqn,
-        &sig,
+        chosen_fqn,
+        sig,
         lhs_ty,
         &instantiated.type_args,
         &eff_args,
@@ -1758,22 +1846,21 @@ fn infer_compare_to_overload_binary_expr_type(
 
     let method = "compareTo";
     let callee_fqn = format!("{receiver_fqn}.{method}");
-    let sigs = collect_member_method_signatures_from_index(
-        inputs.source,
-        lhs_ty,
-        &receiver_fqn,
-        &receiver_args,
-        &callee_fqn,
-        lower,
-        inputs.builtins,
-    )?;
-    let sigs = filter_operator_positioned_candidates(
-        sigs,
-        binary_op_text(op),
-        lower.fmt_type(lhs_ty),
-        method,
-        op_span,
-    )?;
+    let mut sigs: Vec<(String, FunSigOwned)> =
+        collect_member_method_signature_groups_from_receiver_ty(inputs, lhs_ty, method, lower)?
+            .into_iter()
+            .flat_map(|(fqn, sigs)| sigs.into_iter().map(move |sig| (fqn.clone(), sig)))
+            .collect();
+    let had_same_named_candidates = !sigs.is_empty();
+    sigs.retain(|(_, sig)| sig.is_operator);
+    if had_same_named_candidates && sigs.is_empty() {
+        return Err(ExprTypeError::OperatorModifierRequired {
+            op: binary_op_text(op).to_string(),
+            receiver: lower.fmt_type(lhs_ty),
+            method: method.to_string(),
+            span: op_span.into(),
+        });
+    }
     if sigs.is_empty() {
         return Ok(None);
     }
@@ -1799,14 +1886,18 @@ fn infer_compare_to_overload_binary_expr_type(
         },
     ];
 
-    let mut matched: Vec<(FunSigOwned, InstantiatedFunSig)> = Vec::new();
-    for sig in &sigs {
+    struct MatchedCompareToOverload {
+        fqn: String,
+        sig: FunSigOwned,
+        instantiated: InstantiatedFunSig,
+        eff_arg: EffectRow,
+    }
+
+    let mut matched: Vec<MatchedCompareToOverload> = Vec::new();
+    for (sig_fqn, sig) in &sigs {
         if sig.params.len() != 2 {
             continue;
         }
-
-        check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
-        check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
 
         let Some(mapping) = map_call_args_to_params_with_defaults(
             &call_args,
@@ -1819,8 +1910,8 @@ fn infer_compare_to_overload_binary_expr_type(
             continue;
         }
 
-        let instantiated = instantiate_fun_sig_for_call(
-            &callee_fqn,
+        let mut instantiated = match instantiate_fun_sig_for_call(
+            sig_fqn,
             binary_expr.span,
             sig,
             mapping
@@ -1840,7 +1931,37 @@ fn infer_compare_to_overload_binary_expr_type(
                 }),
             lower,
             inputs.builtins,
-        )?;
+        ) {
+            Ok(instantiated) => instantiated,
+            Err(_) => continue,
+        };
+
+        if check_fun_where_constraints_after_instantiation(
+            sig_fqn,
+            binary_expr.span,
+            sig,
+            &instantiated.type_args,
+            lower,
+            inputs.builtins,
+        )
+        .is_err()
+        {
+            continue;
+        }
+
+        let eff_arg = default_eff_arg_for_fun_sig(sig);
+        if sig.eff_param.is_some()
+            && instantiate_eff_row_var_in_sig_types(
+                sig,
+                &mut instantiated,
+                &eff_arg,
+                lower,
+                binary_expr.span,
+            )
+            .is_err()
+        {
+            continue;
+        }
 
         let mut ok = instantiated.return_ty == inputs.builtins.int;
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
@@ -1867,33 +1988,77 @@ fn infer_compare_to_overload_binary_expr_type(
         }
 
         if ok {
-            matched.push((sig.clone(), instantiated));
+            matched.push(MatchedCompareToOverload {
+                fqn: sig_fqn.to_string(),
+                sig: sig.clone(),
+                instantiated,
+                eff_arg,
+            });
         }
     }
 
-    let (sig, instantiated) = match matched.len() {
+    let selected = match matched.len() {
         0 => return Ok(None),
         1 => matched.remove(0),
         _ => {
-            let candidates = matched
+            let specificity = matched
                 .iter()
-                .map(|(sig, _)| {
+                .map(|matched| {
+                    let sig = &matched.sig;
                     let receiver_ty = sig.params.first().copied();
-                    fmt_overload_signature(
-                        method,
-                        receiver_ty,
-                        sig.params.get(1..).unwrap_or_default(),
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(
+                            method,
+                            receiver_ty,
+                            sig.params.get(1..).unwrap_or_default(),
+                            lower,
+                        ),
+                        format_candidate_location(lower, &sig.decl_file, sig.decl_span),
+                        sig,
                         lower,
+                        inputs.builtins,
+                        binary_expr.span,
                     )
                 })
-                .collect::<Vec<_>>();
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                candidates: join_overload_signatures(candidates),
-                span: op_span.into(),
-            });
+                .collect::<Result<Vec<_>, _>>()?;
+            let chosen_idx = pick_most_specific_overload(&specificity, lower, inputs.builtins)
+                .or_else(|| {
+                    matched
+                        .iter()
+                        .all(|m| m.sig.type_params.is_empty())
+                        .then(|| {
+                            let params = matched
+                                .iter()
+                                .map(|m| m.instantiated.params.as_slice())
+                                .collect::<Vec<_>>();
+                            pick_most_specific_param_types(&params, lower, inputs.builtins).or_else(
+                                || {
+                                    let actual =
+                                        call_args.iter().map(|arg| arg.ty).collect::<Vec<_>>();
+                                    pick_most_exact_param_match(&params, &actual)
+                                },
+                            )
+                        })?
+                });
+            if let Some(chosen_idx) = chosen_idx {
+                matched.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    candidates,
+                    span: op_span.into(),
+                });
+            }
         }
     };
+    let chosen_fqn = selected.fqn.as_str();
+    let sig = &selected.sig;
+    let instantiated = &selected.instantiated;
+
+    check_unsafe_call_gate(chosen_fqn, sig, binary_expr.span, lower)?;
+    check_nogc_call_gate(chosen_fqn, sig, binary_expr.span, lower)?;
 
     let rhs_expected = instantiated.params.get(1).copied();
     if let Some(expected_rhs_ty) = rhs_expected {
@@ -1903,7 +2068,7 @@ fn infer_compare_to_overload_binary_expr_type(
             expected_rhs_ty,
             ExpectedTypeFrom::new(format!(
                 "`{}` 的第 2 个形参 `{}`",
-                callee_fqn,
+                chosen_fqn,
                 sig.param_names
                     .get(1)
                     .cloned()
@@ -1944,9 +2109,15 @@ fn infer_compare_to_overload_binary_expr_type(
     for p in sig.type_params.iter().copied() {
         type_param_bindings.push((type_param_name(p, lower), p));
     }
-    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_bindings(
+    let eff_bindings: Vec<(String, EffectRow)> = sig
+        .eff_param
+        .as_ref()
+        .map(|p| vec![(p.name.clone(), selected.eff_arg.clone())])
+        .unwrap_or_default();
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
         &sig.decl_file,
         type_param_bindings,
+        eff_bindings,
         sig.effects.as_ref(),
     );
     let call_effects = substitute_type_args_in_effect_row(
@@ -1963,13 +2134,13 @@ fn infer_compare_to_overload_binary_expr_type(
     let eff_args = sig
         .eff_param
         .as_ref()
-        .map(|eff_param| vec![eff_param.default.clone()])
+        .map(|_| vec![selected.eff_arg.clone()])
         .unwrap_or_default();
     record_member_direct_call_binding(
         lower,
         binary_expr.span,
-        &callee_fqn,
-        &sig,
+        chosen_fqn,
+        sig,
         lhs_ty,
         &instantiated.type_args,
         &eff_args,

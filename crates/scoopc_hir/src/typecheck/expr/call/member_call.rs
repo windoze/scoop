@@ -573,7 +573,7 @@ pub(super) fn infer_member_call_expr_type(
         {
             // P4-T01l：让 builtin scalar / `String` receiver 也能在 direct-call 主线里
             // 落入 nominal member-call FQN，从而把 receiver 作为第 0 个 arg 注入。
-            let Some((receiver_fqn, receiver_args)) =
+            let Some((_receiver_fqn, _receiver_args)) =
                 try_extract_member_call_receiver_fqn_and_args(actual_receiver_ty, lower)
             else {
                 return Err(ExprTypeError::CalleeNotCallable {
@@ -582,15 +582,16 @@ pub(super) fn infer_member_call_expr_type(
                 });
             };
 
-            let sigs = collect_member_method_signatures_from_index(
-                source,
+            let member_sig_groups = collect_member_method_signature_groups_from_receiver_ty(
+                inputs,
                 actual_receiver_ty,
-                &receiver_fqn,
-                &receiver_args,
-                fqn,
+                member_name,
                 lower,
-                builtins,
             )?;
+            let mut sigs: Vec<(String, FunSigOwned)> = Vec::new();
+            for (group_fqn, group_sigs) in member_sig_groups {
+                sigs.extend(group_sigs.into_iter().map(|sig| (group_fqn.clone(), sig)));
+            }
             if sigs.is_empty() {
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: fqn.to_string(),
@@ -613,7 +614,7 @@ pub(super) fn infer_member_call_expr_type(
             check_call_named_args_exist_in_any_candidate(
                 fqn,
                 &call_args,
-                sigs.iter().filter_map(|s| s.param_names.get(1..)),
+                sigs.iter().filter_map(|(_, s)| s.param_names.get(1..)),
             )?;
 
             let receiver_arg = CallArgInfo {
@@ -630,6 +631,7 @@ pub(super) fn infer_member_call_expr_type(
 
             #[derive(Debug, Clone)]
             struct MatchedMemberOverload<'a> {
+                fqn: &'a str,
                 sig: &'a FunSigOwned,
                 instantiated: InstantiatedFunSig,
                 eff_arg: EffectRow,
@@ -642,7 +644,7 @@ pub(super) fn infer_member_call_expr_type(
             }
 
             let mut matched: Vec<MatchedMemberOverload<'_>> = Vec::new();
-            for cand in sigs.iter() {
+            for (cand_fqn, cand) in sigs.iter() {
                 let Some((user_param_tys, param_has_defaults, param_is_vararg)) =
                     user_visible_param_slices_after_receiver(
                         &cand.params,
@@ -755,7 +757,7 @@ pub(super) fn infer_member_call_expr_type(
 
                 let mut instantiated =
                     match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                        fqn,
+                        cand_fqn,
                         call_expr.span,
                         cand,
                         explicit_type_args,
@@ -769,7 +771,7 @@ pub(super) fn infer_member_call_expr_type(
 
                 // T0129：检查 where 约束；不满足则跳过该候选。
                 if check_fun_where_constraints_after_instantiation(
-                    fqn,
+                    cand_fqn,
                     call_expr.span,
                     cand,
                     &instantiated.type_args,
@@ -801,7 +803,7 @@ pub(super) fn infer_member_call_expr_type(
                         expected_ty,
                         ExpectedTypeFrom::new(format!(
                             "`{}` 的第 {} 个形参 `{}`",
-                            fqn,
+                            cand_fqn,
                             param_idx + 1,
                             cand.param_names[param_idx]
                         )),
@@ -960,6 +962,7 @@ pub(super) fn infer_member_call_expr_type(
                 }
 
                 matched.push(MatchedMemberOverload {
+                    fqn: cand_fqn,
                     sig: cand,
                     instantiated,
                     eff_arg,
@@ -975,28 +978,35 @@ pub(super) fn infer_member_call_expr_type(
 
             let chosen = match matched.len() {
                 0 => {
-                    let name = short_name_from_fqn(fqn).to_string();
                     let candidates = join_overload_rejections(
                         sigs.iter()
-                            .map(|cand| OverloadRejection {
-                                signature: fmt_overload_signature(&name, None, &cand.params, lower),
-                                location: format_candidate_location(
-                                    lower,
-                                    &cand.decl_file,
-                                    cand.decl_span,
-                                ),
-                                reason: describe_basic_applicability_rejection(
-                                    BasicApplicabilityRejection {
-                                        call_args: &call_args_with_receiver,
-                                        param_names: &cand.param_names,
-                                        param_has_defaults: &cand.param_has_defaults,
-                                        param_is_vararg: &cand.param_is_vararg,
-                                        param_tys: &cand.params,
-                                        source,
+                            .map(|(cand_fqn, cand)| {
+                                let name = short_name_from_fqn(cand_fqn).to_string();
+                                OverloadRejection {
+                                    signature: fmt_overload_signature(
+                                        &name,
+                                        None,
+                                        &cand.params,
                                         lower,
-                                        builtins,
-                                    },
-                                ),
+                                    ),
+                                    location: format_candidate_location(
+                                        lower,
+                                        &cand.decl_file,
+                                        cand.decl_span,
+                                    ),
+                                    reason: describe_basic_applicability_rejection(
+                                        BasicApplicabilityRejection {
+                                            call_args: &call_args_with_receiver,
+                                            param_names: &cand.param_names,
+                                            param_has_defaults: &cand.param_has_defaults,
+                                            param_is_vararg: &cand.param_is_vararg,
+                                            param_tys: &cand.params,
+                                            source,
+                                            lower,
+                                            builtins,
+                                        },
+                                    ),
+                                }
                             })
                             .collect(),
                     );
@@ -1008,10 +1018,10 @@ pub(super) fn infer_member_call_expr_type(
                 }
                 1 => matched.pop().expect("len == 1"),
                 _ => {
-                    let name = short_name_from_fqn(fqn).to_string();
                     let specificity = matched
                         .iter()
                         .map(|c| {
+                            let name = short_name_from_fqn(c.fqn).to_string();
                             specificity_candidate_for_fun_sig(
                                 fmt_overload_signature(&name, None, &c.sig.params, lower),
                                 format_candidate_location(lower, &c.sig.decl_file, c.sig.decl_span),
@@ -1038,9 +1048,16 @@ pub(super) fn infer_member_call_expr_type(
                 }
             };
 
-            check_unsafe_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
-            check_nogc_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
-            emit_deprecated_call_warning(fqn, chosen.sig, call_expr.span, lower);
+            let chosen_fqn = chosen.fqn;
+            lower.record_typechecked_member_resolution(
+                member.span,
+                ast::ResolvedMemberRef::Fun {
+                    fqn: chosen_fqn.to_string(),
+                },
+            );
+            check_unsafe_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+            check_nogc_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+            emit_deprecated_call_warning(chosen_fqn, chosen.sig, call_expr.span, lower);
             let chosen_call_args = if chosen.used_unit_sugar {
                 let sugar_call_args = sugar_call_args
                     .as_ref()
@@ -1052,7 +1069,12 @@ pub(super) fn infer_member_call_expr_type(
             } else {
                 call_args_with_receiver.clone()
             };
-            check_var_param_lvalue_gate(fqn, chosen.sig, &chosen_call_args, &chosen.mapping)?;
+            check_var_param_lvalue_gate(
+                chosen_fqn,
+                chosen.sig,
+                &chosen_call_args,
+                &chosen.mapping,
+            )?;
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
@@ -1089,13 +1111,13 @@ pub(super) fn infer_member_call_expr_type(
                 .map(|_| vec![chosen.eff_arg.clone()])
                 .unwrap_or_default();
             let type_args = combined_member_instance_type_args(
-                fqn,
+                chosen_fqn,
                 actual_receiver_ty,
                 &chosen.instantiated.type_args,
                 lower,
             )?;
             lower.record_monomorph_call(
-                fqn.to_string(),
+                chosen_fqn.to_string(),
                 &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &type_args,
@@ -1105,7 +1127,7 @@ pub(super) fn infer_member_call_expr_type(
             lower.record_top_level_fun_call_binding(
                 call_expr.span,
                 ast::TopLevelFunCallBinding {
-                    fqn: fqn.to_string(),
+                    fqn: chosen_fqn.to_string(),
                     decl_file: chosen.sig.decl_file.clone(),
                     decl_span: chosen.sig.decl_span,
                     is_intrinsic: chosen.sig.is_intrinsic,

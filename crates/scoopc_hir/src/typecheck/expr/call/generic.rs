@@ -553,7 +553,7 @@ pub(in crate::typecheck::expr) fn substitute_single_type_param(
 ///   - function type effects 上的默认 `E` 结果（例如默认 `Pure`）
 ///   - nominal use-site `eff` 实参里的默认 `E` 结果
 /// - 该函数只负责把这些位置替换为调用点推断出的 `eff_arg`，并返回新的 `TypeId`。
-pub(super) fn instantiate_eff_row_var_in_sig_types(
+pub(in crate::typecheck::expr) fn instantiate_eff_row_var_in_sig_types(
     sig: &FunSigOwned,
     instantiated: &mut InstantiatedFunSig,
     eff_arg: &EffectRow,
@@ -903,7 +903,7 @@ pub(in crate::typecheck::expr) fn instantiate_fun_sig_for_call(
 /// 检查 `type_args[c.param_index]` 是否满足 bound。
 /// 当 type arg 仍为 `TypeKind::Param` 时，必须能从该 type param 的声明 bounds
 /// 证明其满足目标 bound；不能把未知 type param 当作满足任意上界。
-pub(super) fn check_fun_where_constraints_after_instantiation(
+pub(in crate::typecheck::expr) fn check_fun_where_constraints_after_instantiation(
     callee: &str,
     call_span: Span,
     sig: &FunSigOwned,

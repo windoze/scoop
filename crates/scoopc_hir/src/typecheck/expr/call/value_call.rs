@@ -777,7 +777,7 @@ pub(super) fn is_top_level_fun_value_candidate_expr(
     Ok(!sigs.is_empty())
 }
 
-pub(super) fn default_eff_arg_for_fun_sig(sig: &FunSigOwned) -> EffectRow {
+pub(in crate::typecheck::expr) fn default_eff_arg_for_fun_sig(sig: &FunSigOwned) -> EffectRow {
     sig.eff_param
         .as_ref()
         .map(|p| p.default.clone())
@@ -1068,20 +1068,60 @@ pub(in crate::typecheck::expr) fn infer_top_level_fun_value_expr_type(
         }
         1 => matches.pop().unwrap(),
         _ => {
-            let candidates = matches
+            let specificity = matches
                 .iter()
-                .map(|cand| match lower.type_kind(cand.fun_ty) {
-                    TypeKind::Ref(RefTypeKind::Function(fun)) => {
-                        fmt_overload_signature(&callee_name, fun.receiver, &fun.params, lower)
-                    }
-                    _ => callee_name.clone(),
+                .map(|cand| {
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(&callee_name, None, &cand.sig.params, lower),
+                        format_candidate_location(lower, &cand.sig.decl_file, cand.sig.decl_span),
+                        &cand.sig,
+                        lower,
+                        builtins,
+                        expr.span,
+                    )
                 })
-                .collect::<Vec<_>>();
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_name,
-                candidates: join_overload_signatures(candidates),
-                span: expr.span.into(),
-            });
+                .collect::<Result<Vec<_>, _>>()?;
+            let chosen_idx =
+                pick_most_specific_overload(&specificity, lower, builtins).or_else(|| {
+                    matches
+                        .iter()
+                        .all(|m| m.sig.type_params.is_empty())
+                        .then(|| {
+                            let params = matches
+                                .iter()
+                                .map(|m| m.instantiated.params.as_slice())
+                                .collect::<Vec<_>>();
+                            pick_most_specific_param_types(&params, lower, builtins).or_else(|| {
+                                let expected_params = expected_fun_ty.and_then(|ty| {
+                                    let TypeKind::Ref(RefTypeKind::Function(fun)) =
+                                        lower.type_kind(ty)
+                                    else {
+                                        return None;
+                                    };
+                                    let mut params = Vec::with_capacity(
+                                        fun.params.len() + usize::from(fun.receiver.is_some()),
+                                    );
+                                    if let Some(receiver) = fun.receiver {
+                                        params.push(receiver);
+                                    }
+                                    params.extend(fun.params.iter().copied());
+                                    Some(params)
+                                })?;
+                                pick_most_exact_param_match(&params, &expected_params)
+                            })
+                        })?
+                });
+            if let Some(chosen_idx) = chosen_idx {
+                matches.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_name,
+                    candidates,
+                    span: expr.span.into(),
+                });
+            }
         }
     };
 

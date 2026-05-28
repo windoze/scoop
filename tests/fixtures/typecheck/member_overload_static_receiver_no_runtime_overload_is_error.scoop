@@ -1,0 +1,26 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
+// EXPECT-ERROR: Base.pick(Int)
+// EXPECT-ERROR: argument 2 type String is not a subtype of parameter `x` type Int
+// 目标：P5-T03；member overload resolution 使用 receiver 静态类型，不按 runtime class 查找新增 overload。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    fun pick(x: Int): Int {
+        return x
+    }
+}
+
+class Derived() : Base() {
+    fun pick(x: String): String {
+        return x
+    }
+}
+
+fun bad() {
+    val b: Base = Derived()
+    b.pick("runtime-only")
+}

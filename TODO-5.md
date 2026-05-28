@@ -177,7 +177,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/infer`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §6 / §10 的 P5-T02 review 要求；确认 specificity 偏序、effective type 来源、constructor/member receiver position handling 和 ambiguity diagnostics 符合当前阶段要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T03：整合 member / constructor / operator / effect-after-selection 路径
+### [DONE] P5-T03：整合 member / constructor / operator / effect-after-selection 路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -209,10 +209,10 @@
   - All callable surfaces use a coherent overload selection model.
 - 依赖：P5-T02R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：更新 `typecheck/expr/call/{effect_op.rs,member_call.rs,value_call.rs,mod.rs,generic.rs}` 与 `typecheck/expr/ops.rs`；让 direct member call 按静态 receiver 收集 child + inherited overload set，并过滤 child override replacement；让 operator / compareTo 路径在 modifier gate 后继续执行 specificity，且 unsafe / NoGC / effect 记录只作用于选中候选；让 expected function type 下的顶层函数值 overload 使用同一 specificity 选择；更新 P5-T03 targeted fixtures。
+  - 核心决策：member overload set 从实际静态 receiver 类型出发遍历已实例化父类型，并以用户可见签名去重，避免子类 override 后父类同签名候选继续参与；operator path 不再在多个 applicable 候选上直接报歧义，也不再让未选中候选的 gate 影响结果；effect row 仍在 unique candidate selection 后记录，由现有 required-effect 检查统一报错，不参与候选选择；非 generic function-value / operator 场景补充 declared specificity 之外的精确参数匹配兜底，用于同一调用点中 concrete subtype 候选的确定选择。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7、§8、§9、§11.3 的 P5-T03 call-surface 整合要求；member/static receiver、constructor existing coverage、operator desugar、function-type/value overload 与 effect-after-selection 已纳入同一 selection 语义；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T03R：Review call surface 整合结果
 
