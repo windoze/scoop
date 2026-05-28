@@ -1009,19 +1009,32 @@ pub(super) fn infer_member_call_expr_type(
                 1 => matched.pop().expect("len == 1"),
                 _ => {
                     let name = short_name_from_fqn(fqn).to_string();
-                    let candidates = join_overload_signatures(
-                        matched
-                            .iter()
-                            .map(|c| {
-                                fmt_overload_signature(&name, None, &c.instantiated.params, lower)
-                            })
-                            .collect(),
-                    );
-                    return Err(ExprTypeError::AmbiguousOverload {
-                        callee: fqn.to_string(),
-                        candidates,
-                        span: call_expr.span.into(),
-                    });
+                    let specificity = matched
+                        .iter()
+                        .map(|c| {
+                            specificity_candidate_for_fun_sig(
+                                fmt_overload_signature(&name, None, &c.sig.params, lower),
+                                format_candidate_location(lower, &c.sig.decl_file, c.sig.decl_span),
+                                c.sig,
+                                lower,
+                                builtins,
+                                call_expr.span,
+                            )
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    if let Some(chosen_idx) =
+                        pick_most_specific_overload(&specificity, lower, builtins)
+                    {
+                        matched.remove(chosen_idx)
+                    } else {
+                        let candidates =
+                            format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                        return Err(ExprTypeError::AmbiguousOverload {
+                            callee: fqn.to_string(),
+                            candidates,
+                            span: call_expr.span.into(),
+                        });
+                    }
                 }
             };
 
@@ -2474,25 +2487,36 @@ pub(super) fn infer_member_call_expr_type(
         }
         1 => matched.pop().expect("len == 1"),
         _ => {
-            let candidates = join_overload_signatures(
-                matched
-                    .iter()
-                    .map(|c| {
-                        let name = short_name_from_fqn(c.fqn).to_string();
+            let specificity = matched
+                .iter()
+                .map(|c| {
+                    let name = short_name_from_fqn(c.fqn).to_string();
+                    specificity_candidate_for_fun_sig(
                         fmt_overload_signature(
                             &name,
-                            Some(c.receiver_ty),
-                            c.instantiated.params.get(1..).unwrap_or_default(),
+                            c.sig.params.first().copied(),
+                            c.sig.params.get(1..).unwrap_or_default(),
                             lower,
-                        )
-                    })
-                    .collect(),
-            );
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: member_name.to_string(),
-                candidates,
-                span: call_expr.span.into(),
-            });
+                        ),
+                        format_candidate_location(lower, &c.sig.decl_file, c.sig.decl_span),
+                        c.sig,
+                        lower,
+                        builtins,
+                        call_expr.span,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, builtins) {
+                matched.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: member_name.to_string(),
+                    candidates,
+                    span: call_expr.span.into(),
+                });
+            }
         }
     };
 

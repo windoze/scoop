@@ -1,0 +1,21 @@
+// EXPECT: pass
+// 目标：P5-T02 Phase D specificity 使用 declared bound，而不是 inferred substitution。
+
+package fixtures.infer
+
+interface AnimalShape {}
+interface DogShape : AnimalShape {}
+
+class Beagle() : DogShape {}
+
+fun <T: AnimalShape> pickBound(x: T): Any {
+    return x
+}
+
+fun <T: DogShape> pickBound(x: T): T {
+    return x
+}
+
+fun ok(b: Beagle) {
+    val d: DogShape = pickBound(b)
+}

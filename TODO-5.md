@@ -112,7 +112,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.1-§5.3 的 Phase A-C review 要求；P5-T02 可基于清晰 applicable candidate set 实现 specificity；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T02：实现 Phase D-E specificity 与 ambiguity diagnostics
+### [DONE] P5-T02：实现 Phase D-E specificity 与 ambiguity diagnostics
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -143,10 +143,10 @@
   - Overload selection follows `OVERLOAD_RESOLUTION.md` §6 and ambiguity diagnostics are user-actionable.
 - 依赖：P5-T01R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：新增 call-site specificity helper，按声明处 effective parameter type 选择唯一 most-specific candidate；接入普通函数/构造器、direct member、extension member 与 where-bound member 调用路径；增强 `ambiguous_overload` 候选诊断；更新 P5-T01R deferred specificity fixtures，并新增 concrete/generic、bound chain、incomparable bounds、function-type specificity 与 cross-incomparable multi-param fixtures。
+  - 核心决策：specificity 不使用 inferred substitution、return type 或候选 effect row；member/extension receiver 作为第 0 参数位；type parameter effective type 使用 declared type bound，未声明 type bound 时用 `Any`，多个 type bounds 以 intersection 参与裸 type parameter 比较；不可唯一选出 maximal candidate 时保留 `ambiguous_overload` 并列出候选位置、effective 来源和不可比位置。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；targeted `tests/fixtures/infer` 与 `tests/fixtures/typecheck`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.4-§6.4 与 §10 的 P5-T02 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T02R：Review specificity 与 ambiguity diagnostics
 

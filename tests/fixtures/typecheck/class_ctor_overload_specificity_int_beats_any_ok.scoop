@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：P5-T02 Phase D specificity；ctor `Int` / `Any` 同时 applicable 时选择更具体的 `Int` 版本。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C() {
+    constructor(x: Any) : this() {}
+    constructor(x: Int) : this() {}
+}
+
+val c: C = C(1)

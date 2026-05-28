@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: ComparableShape
+// EXPECT-ERROR: NumericShape
+// EXPECT-ERROR: effective
+
+package fixtures.typecheck
+
+interface ComparableShape {}
+interface NumericShape {}
+
+class BothShapes() : ComparableShape, NumericShape {}
+
+fun <T: ComparableShape> ambiguousBound(x: T): Unit {}
+
+fun <T: NumericShape> ambiguousBound(x: T): Unit {}
+
+fun bad(x: BothShapes) {
+    ambiguousBound(x)
+}

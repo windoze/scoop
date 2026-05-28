@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：P5-T02 Phase D specificity 对 function type 参数使用函数子类型关系。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun applyFn(f: () -> Any): Any {
+    return f()
+}
+
+fun applyFn(f: () -> Int): Int {
+    return f()
+}
+
+fun ok() {
+    val x: Int = applyFn({ 42 })
+}

@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：P5-T02 Phase D specificity；receiver 作为第 0 参数位，`String.tag` 比 `Any.tag` 更具体。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun Any.tag(): Any {
+    return this
+}
+
+fun String.tag(): String {
+    return this
+}
+
+val s: String
+val x: String = s.tag()

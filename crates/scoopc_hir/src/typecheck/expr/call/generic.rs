@@ -1267,24 +1267,39 @@ pub(super) fn try_infer_where_bound_method_call(
         }
         1 => matched.pop().expect("len == 1"),
         _ => {
-            let candidates = join_overload_signatures(
-                matched
-                    .iter()
-                    .map(|candidate| {
+            let specificity = matched
+                .iter()
+                .map(|candidate| {
+                    specificity_candidate_for_fun_sig(
                         fmt_overload_signature(
                             member_name,
-                            candidate.instantiated.params.first().copied(),
-                            candidate.instantiated.params.get(1..).unwrap_or_default(),
+                            candidate.sig.params.first().copied(),
+                            candidate.sig.params.get(1..).unwrap_or_default(),
                             lower,
-                        )
-                    })
-                    .collect(),
-            );
-            return Err(ExprTypeError::AmbiguousOverload {
-                callee: member_name.to_string(),
-                candidates,
-                span: call_expr.span.into(),
-            });
+                        ),
+                        format_candidate_location(
+                            lower,
+                            &candidate.sig.decl_file,
+                            candidate.sig.decl_span,
+                        ),
+                        &candidate.sig,
+                        lower,
+                        builtins,
+                        call_expr.span,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, builtins) {
+                matched.remove(chosen_idx)
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                return Err(ExprTypeError::AmbiguousOverload {
+                    callee: member_name.to_string(),
+                    candidates,
+                    span: call_expr.span.into(),
+                });
+            }
         }
     };
 

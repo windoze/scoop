@@ -25,6 +25,8 @@ pub(in crate::typecheck::expr) struct MatchedCtorOverload {
     pub(in crate::typecheck::expr) expected_arg_tys: Vec<TypeId>,
     /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
     pub(in crate::typecheck::expr) signature: String,
+    /// Phase D specificity 使用的声明处 effective 参数类型。
+    pub(in crate::typecheck::expr) specificity: SpecificityCandidate,
     /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
     pub(in crate::typecheck::expr) inferred_type_args: Vec<TypeId>,
 }
@@ -374,12 +376,19 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
             continue;
         }
 
+        let signature = format!("{owner_fqn}({})", param_ty_strs.join(", "));
+        let location = format_candidate_location(lower, &ctor.decl_file, ctor.span);
         matched.push(MatchedCtorOverload {
             owner_fqn: owner_fqn.to_string(),
             ctor_span: Some(ctor.span),
             arg_mapping: mapping,
             expected_arg_tys,
-            signature: format!("{owner_fqn}({})", param_ty_strs.join(", ")),
+            specificity: specificity_candidate_for_plain_params(
+                signature.clone(),
+                location,
+                &param_tys,
+            ),
+            signature,
             inferred_type_args,
         });
     }
@@ -505,8 +514,16 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
         });
     }
     if matched.len() > 1 {
+        let specificity = matched
+            .iter()
+            .map(|m| m.specificity.clone())
+            .collect::<Vec<_>>();
+        if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, inputs.builtins)
+        {
+            return Ok(matched.remove(chosen_idx));
+        }
         let candidates =
-            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+            format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
         return Err(ExprTypeError::AmbiguousOverload {
             callee: callee_for_diag.to_string(),
             candidates,
@@ -672,8 +689,31 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         });
     }
     if matched.len() > 1 {
+        let specificity = matched
+            .iter()
+            .map(|m| m.specificity.clone())
+            .collect::<Vec<_>>();
+        if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, inputs.builtins)
+        {
+            let chosen = matched.remove(chosen_idx);
+            lower.record_typechecked_ctor_call_binding(
+                call_expr.span,
+                chosen.owner_fqn.clone(),
+                chosen.ctor_span,
+                legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
+            );
+            if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
+            let ty = lower.lower_type_fqn_with_args(
+                chosen.owner_fqn,
+                chosen.inferred_type_args,
+                use_span,
+            )?;
+            return Ok(Some(ty));
+        }
         let candidates =
-            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+            format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
         return Err(ExprTypeError::AmbiguousOverload {
             callee: callee_name,
             candidates,
@@ -827,8 +867,31 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
         });
     }
     if matched.len() > 1 {
+        let specificity = matched
+            .iter()
+            .map(|m| m.specificity.clone())
+            .collect::<Vec<_>>();
+        if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, inputs.builtins)
+        {
+            let chosen = matched.remove(chosen_idx);
+            lower.record_typechecked_ctor_call_binding(
+                call_expr.span,
+                chosen.owner_fqn.clone(),
+                chosen.ctor_span,
+                legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
+            );
+            if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
+            let ty = lower.lower_type_fqn_with_args(
+                chosen.owner_fqn,
+                chosen.inferred_type_args,
+                callee.span,
+            )?;
+            return Ok(Some(ty));
+        }
         let candidates =
-            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+            format_ambiguous_specificity_candidates(&specificity, lower, inputs.builtins);
         return Err(ExprTypeError::AmbiguousOverload {
             callee: callee_name,
             candidates,
