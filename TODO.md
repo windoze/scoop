@@ -58,7 +58,7 @@
 | P3-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02将--与-as-failure-从-raiseruntimeerror-改为-panic) | [DONE] 将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic` |
 | P3-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02rreview--与-as-panic-语义) | [DONE] Review P3-T02 `!!` / `as` panic 语义 |
 | P3-T03 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t03enum-with-mismatched-variant-改为-panic) | [DONE] enum `with` mismatched variant 改为 panic |
-| P3-T03R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t03rreview-enum-with-mismatch-panic) | Review P3-T03 enum `with` mismatch panic |
+| P3-T03R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t03rreview-enum-with-mismatch-panic) | [DONE] Review P3-T03 enum `with` mismatch panic |
 | P3-T04 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t04允许-refutable-val-pattern-并在-mismatch-时-panic) | 允许 refutable `val` pattern 并在 mismatch 时 panic |
 | P3-T04R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t04rreview-refutable-val-pattern) | Review P3-T04 refutable `val` pattern |
 | P3-T05 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t05禁止-closure-捕获外层-var) | 禁止 closure 捕获外层 `var` |

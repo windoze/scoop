@@ -179,7 +179,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 对 enum `with` mismatch panic 的要求：mismatched runtime variant 不再 silent preserve，matching variant update 行为保持不变，其他 aggregate with-update 未回归；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T03R：Review enum `with` mismatch panic
+### [DONE] P3-T03R：Review enum `with` mismatch panic
 
 - 参考：
   - P3-T03 完成记录
@@ -204,10 +204,10 @@
   - C1 语义完整闭合。
 - 依赖：P3-T03
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T03 的 enum with-update typecheck contract、HIR lowering、panic helper 路径与 enum/tuple/struct with-update fixtures；本轮 review 未发现需要改动编译器代码的缺口，仅更新任务状态与完成记录。
+  - 核心决策：`build_with_enum_expr` 在当前 enum 层存在 variant update 时，对运行期未命中 update set 的 variant arm 合成 `scoop.core.panic("enum with variant mismatch")`，不再返回 original value；匹配 variant 仍按 payload 字段重建，空 `with {}` 保持 identity，struct / tuple copy-update 路径不读 enum mismatch gate。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`、`with_update_simple.scoop`、`with_update_preserves_unchanged.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 review 要求：enum `with` mismatched variant failure 是 panic 而非 silent preserve 或 `Raise<RuntimeError>`，matching enum update 与 struct/tuple with-update 行为未回归；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T04：允许 refutable `val` pattern 并在 mismatch 时 panic
 
