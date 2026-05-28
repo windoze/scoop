@@ -54,7 +54,7 @@
 | P2-T06 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t06解析-inline-generic-bounds-与-ref--value-bound-keywords) | [DONE] 解析 inline generic bounds 与 `ref` / `value` bound keywords |
 | P2-T06R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t06rreview-generic-bound-parser-surface) | [DONE] Review P2-T06 generic bound parser surface |
 | P3-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01operator-positioned-calls-必须要求-operator-modifier) | [DONE] operator-positioned calls 必须要求 `operator` modifier |
-| P3-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t01rreview-operator-gate-语义) | Review P3-T01 operator gate 语义 |
+| P3-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01rreview-operator-gate-语义) | [DONE] Review P3-T01 operator gate 语义 |
 | P3-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02将--与-as-failure-从-raiseruntimeerror-改为-panic) | 将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic` |
 | P3-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02rreview--与-as-panic-语义) | Review P3-T02 `!!` / `as` panic 语义 |
 | P3-T03 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t03enum-with-mismatched-variant-改为-panic) | enum `with` mismatched variant 改为 panic |

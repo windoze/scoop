@@ -1,0 +1,33 @@
+// EXPECT: pass
+// P3-T01R: operator syntax filters to `operator` candidates, then selects the most specific overload.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base()
+
+class Derived() : Base()
+
+struct Box {
+    operator fun plus(other: Base): Base {
+        return other
+    }
+
+    operator fun plus(other: Derived): Derived {
+        return other
+    }
+
+    fun plus(other: String): String {
+        return other
+    }
+}
+
+fun positioned_call_uses_specific_operator(box: Box, derived: Derived): Derived {
+    val x: Derived = box + derived
+    return x
+}
+
+fun named_call_still_allows_plain_method(box: Box): String {
+    return box.plus("hi")
+}

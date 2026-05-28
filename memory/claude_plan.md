@@ -1,37 +1,28 @@
-# Execution Plan
+# 当前执行计划
 
-This file records the operational plan and progress log for the current invocation. It contains an actionable plan, not private chain-of-thought.
+## 目标
 
-## Current Task
+- 以 `TODO.md` 为唯一任务顺序来源，完成第一个标题未标记 `[DONE]` 的任务，然后停止。
+- 不做开放式历史问题扫查；只处理当前任务直接要求、阻塞当前任务或验证过程中暴露且未被明确排期的失败。
 
-- First incomplete task from `TODO.md`: `P3-T01` — operator-positioned calls must require the `operator` modifier.
-- This invocation is resuming `P3-T01`; existing notes indicate implementation and targeted validation may already be partially complete, but the task is not complete until `TODO.md` and `TODO-3.md` titles are marked `[DONE]`, required validation is recorded, and all relevant changes are committed.
+## 步骤
 
-## Step-by-Step Plan
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录其要求、依赖、验证命令和完成记录格式。
+2. 检查最新提交信息是否明确提到与该任务直接相关的未完成问题；如相关，将其纳入当前任务或按要求更新 `TODO.md` 为前置任务。
+3. 阅读当前任务涉及的代码、测试、规范或文档，确认最小正确实现范围。
+4. 如任务可直接实现，进行最小必要代码或文档修改；如存在无法绕过的缺失特性或阻塞问题，仅更新 `TODO.md` 记录最小前置任务并停止。
+5. 按任务要求运行格式化、lint、测试和 fixture 验证；若发现未排期失败，修复或在 `TODO.md` 中插入必要前置任务。
+6. 更新 `TODO.md`：将完成任务标题加 `[DONE]`，补全完成记录和验证结果；仅当阶段级计划变化时才更新 `PLAN.md`。
+7. 检查 git 状态和差异，提交本次任务相关全部变更，提交信息使用任务编号和简短说明。
+8. 停止，不继续处理下一个任务。
 
-1. Confirm current repository state and latest commit for directly relevant unfinished `P3-T01` context only.
-2. Re-read `TODO-3.md` and inspect existing diffs to determine what remains for `P3-T01`.
-3. Verify the implementation enforces operator-positioned call gating through the selected callable/modifier path, without changing ordinary named calls such as `x.plus(y)`.
-4. Fix any remaining implementation, sysroot, or fixture gaps discovered during review.
-5. Run required validation in order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, relevant targeted fixtures, `cargo test --all --all-targets`, and `python3 tools/run_fixtures.py`, using long timeouts for full suites.
-6. If unscheduled validation failures appear, fix them or add the minimum required prerequisite/follow-up tasks before marking `P3-T01` done.
-7. Mark `P3-T01` as `[DONE]` in both `TODO.md` and `TODO-3.md`, and update the completion record with implementation and validation evidence.
-8. Commit all currently uncommitted files related to the resumed task in one commit, then stop.
+## 进度记录
 
-## Progress
-
-- Identified `P3-T01` as the first incomplete task.
-- Read the detailed `P3-T01` requirements and confirmed `PLAN.md` already expects this work in P3.
-- Implemented signature-level `operator` propagation and operator-positioned candidate filtering for scalar/operator overload paths.
-- Updated sysroot operator-surface methods and targeted operator fixtures, including an unmarked `plus` negative fixture proving named calls still work while `+` is rejected.
-- Formatting, clippy, and targeted operator fixtures passed; proceeding to full Rust tests and full fixture suite.
-- Current invocation started by re-identifying `P3-T01` as the first incomplete task and refreshing this execution plan before running commands.
-- Re-read `TODO-3.md`, confirmed latest commit is `[P2-T06R]`, and reviewed current diffs. The operator-gate implementation, sysroot operator annotations, and targeted fixtures are present in the working tree; `run_agent.sh` and `GC_IMMORTAL_FIX.md` appear unrelated and will not be modified for this task.
-- Completed `cargo fmt` successfully; next validation step is `cargo clippy --all-targets -- -D warnings`.
-- `cargo clippy --all-targets -- -D warnings` passed; next validation step is targeted operator fixtures.
-- Targeted operator fixtures passed: `operator_modifier_required_for_positioned_plus`, `operator_modifier_plus_smoke`, `operator_overload_plus_minus_ok`, `operator_overload_bitwise_shift_inv_ok`, and `operator_overload_struct_basic`. Next validation step is the full Rust test suite.
-- Full Rust test suite `cargo test --all --all-targets` passed. Next validation step is the full fixture suite.
-- Full fixture suite initially failed 4 HIR snapshot targets because `core.scoop` operator annotations shifted sysroot declaration spans. Updated the affected HIR goldens: `array_lit_lowering.hir`, `do_block_multiple_trailing_lambda_boundary.hir`, `handle_mixed_arm_kinds.hir`, and `lowered_call_args.hir`. Next step is to rerun fixture validation.
-- The four previously failing HIR fixtures now pass individually. Rerunning the full fixture suite.
-- Full fixture suite rerun passed: `python3 tools/run_fixtures.py` reported `fixtures: ok (1552)`. Next step is updating TODO completion records.
-- Marked `P3-T01` as `[DONE]` in both `TODO.md` and `TODO-3.md`, and recorded implementation/validation evidence in `TODO-3.md`.
+- 已写入初始执行计划，下一步读取 `TODO.md` 定位第一个未完成任务。
+- 已定位第一个未完成任务：`P3-T01R`（Review P3-T01 operator gate 语义）。最新提交为 `[P3-T01] Enforce operator modifier gate`，与当前 review 直接相关；下一步审阅该任务说明、提交差异和相关实现/fixture。
+- 初步审阅结果：`ModifierSet::operator` 已进入 resolver symbol，`FunSigOwned::is_operator` 已进入 top-level/member signature；`ops.rs` 的 unary/binary/comparison operator-positioned 路径会在匹配前调用 `filter_operator_positioned_candidates`，普通 member call 未依赖 `is_operator`。下一步确认是否有遗漏入口，并运行 targeted/full fixture 验证。
+- Review 发现需直接修正的缺口：二元/比较 operator 路径过滤 `operator` 后仍在本地把多个匹配候选直接判为 ambiguous，未保持现有 most-specific 选择语义。计划在 `ops.rs` 增加小型 most-specific helper，并添加 targeted typecheck fixture 覆盖 `operator` gate 后选择更具体 overload，同时确认普通 named call 仍不受 gate 影响。
+- 已修正该缺口：`ops.rs` 现在会在 operator-positioned 二元/比较 overload 多匹配时选择唯一 most-specific 候选；新增 `operator_overload_most_specific_after_modifier_gate_ok.scoop`。已显式重建 fixture 二进制并通过新增 fixture 与现有 operator targeted fixtures。下一步重新运行 clippy、完整 Rust 测试与完整 fixture suite。
+- 验证已完成：`cargo fmt`、`cargo build -p scoop -p scoopc`、`cargo clippy --all-targets -- -D warnings`、targeted operator fixtures、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）均通过。`TODO.md` 与 `TODO-3.md` 已将 `P3-T01R` 标记为 `[DONE]` 并补全完成记录。下一步检查 git diff/status 并提交本任务变更。
+- 清理排查过程中的多余分支：确认 earlier targeted failure 来自旧 fixture 二进制复用后，移除了 operator specificity helper 中不必要的“同一声明跳过”逻辑，使其与现有 member/ctor most-specific 规则保持一致。下一步重新运行格式化、构建、lint、targeted fixture，并视结果决定是否需要重跑完整验证。
+- 清理后已重新验证：`cargo fmt`、`cargo build -p scoop -p scoopc`、`cargo clippy --all-targets -- -D warnings`、targeted operator fixtures、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）均通过。下一步最终检查 intended diff、stage 仅当前任务相关文件并提交。

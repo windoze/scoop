@@ -45,7 +45,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 4 个 HIR golden span 漂移，更新 golden 后单独复跑 4 个失败项通过，最终完整 fixture suite 通过（`fixtures: ok (1552)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑 `operator` 候选，named calls 不受影响，并区分“候选存在但缺少 operator”和“没有候选”。
 
-### [TODO] P3-T01R：Review operator gate 语义
+### [DONE] P3-T01R：Review operator gate 语义
 
 - 参考：
   - P3-T01 完成记录
@@ -71,10 +71,10 @@
   - A3 语义完整闭合。
 - 依赖：P3-T01
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T01 的 resolver/typecheck/sysroot/fixture 改动，并补齐 review 发现的 operator overload selection 缺口：`ops.rs` 在二元与 comparison operator-positioned 路径中，`operator` 候选过滤后会选择唯一 most-specific overload，而不是多个匹配时直接报 ambiguous；新增 `operator_overload_most_specific_after_modifier_gate_ok.scoop` 覆盖该路径。
+  - 核心决策：`operator` modifier gate 仍发生在 applicability / specificity 前；普通 named call 路径不读取 `is_operator`，因此未标记的 `box.plus("hi")` 仍可作为普通成员调用；若过滤后的 operator 候选无唯一 most-specific，仍保留歧义诊断。
+  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`（fixture runner 会复用已有 `target/debug/scoopc`，因此显式重建）；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures（新增 most-specific fixture、modifier-required negative、modifier smoke、run-pass struct operator、plus/minus、bitwise/shift/inv）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑显式 `operator` 候选，same-name non-operator 会给清晰 modifier-required 诊断，普通 named call 不受影响，且 gate 后不再绕过现有 most-specific overload 选择语义。
 
 ### [TODO] P3-T02：将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic`
 
