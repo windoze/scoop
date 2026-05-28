@@ -74,7 +74,7 @@
 | P4-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t03实现-vararg-与非-vararg-overlap-的定义点-reject) | [DONE] 实现 vararg 与非 vararg overlap 的定义点 reject |
 | P4-T03R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t03rreview-vararg-overlap-reject) | [DONE] Review P4-T03 vararg overlap reject |
 | P4-T04 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t04实现-override--overload-边界与虚方法-generic-禁止) | [DONE] 实现 override / overload 边界与虚方法 generic 禁止 |
-| P4-T04R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t04rreview-override--overload-边界) | Review P4-T04 override / overload 边界 |
+| P4-T04R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t04rreview-override--overload-边界) | [DONE] Review P4-T04 override / overload 边界 |
 | P4-T05 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t05把-constructor-overload-纳入-definition-time-规则与-diagnostics) | 把 constructor overload 纳入 definition-time 规则与 diagnostics |
 | P4-T05R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t05rreview-constructor-overload-definition-time-规则) | Review P4-T05 constructor overload 规则 |
 | P5-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t01实现-phase-a-c候选收集visibilityapplicability) | 实现 Phase A-C：候选收集、visibility、applicability |

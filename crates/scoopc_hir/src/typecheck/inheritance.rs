@@ -117,20 +117,6 @@ pub enum InheritanceError {
         #[label("非 open 父类方法定义在这里")]
         base_span: miette::SourceSpan,
     },
-
-    #[error("virtual methods cannot have method-level type parameters: {type_fqn}.{member}")]
-    #[diagnostic(
-        code(scoop::typecheck::virtual_method_cannot_be_generic),
-        help(
-            "use a class-level type parameter, or convert this to a non-virtual / free-standing function"
-        )
-    )]
-    VirtualMethodCannotBeGeneric {
-        type_fqn: String,
-        member: String,
-        #[label("method-level type parameters are not allowed on virtual methods")]
-        span: miette::SourceSpan,
-    },
 }
 
 pub fn check_file_inheritance(
@@ -181,8 +167,6 @@ fn check_type_decl_inheritance(
     } else {
         false
     };
-
-    check_virtual_generic_methods(ctx.source, decl, &type_fqn)?;
 
     if matches!(decl.kind, ast::TypeKind::Class) {
         check_one_class(ctx, decl, &type_fqn)?;
@@ -486,45 +470,6 @@ fn check_fun_override(
         }
         _ => Ok(()),
     }
-}
-
-fn check_virtual_generic_methods(
-    source: &SourceFile,
-    decl: &ast::TypeDecl,
-    type_fqn: &str,
-) -> Result<(), InheritanceError> {
-    let Some(body) = &decl.body else {
-        return Ok(());
-    };
-
-    for member in &body.members {
-        let ast::TypeMember::Fun(fun) = member else {
-            continue;
-        };
-        if fun.type_params.is_empty() {
-            continue;
-        }
-        let is_virtual = matches!(decl.kind, ast::TypeKind::Interface)
-            || fun.modifiers.contains(&ast::Modifier::Open)
-            || fun.modifiers.contains(&ast::Modifier::Abstract)
-            || fun.modifiers.contains(&ast::Modifier::Override);
-        if !is_virtual {
-            continue;
-        }
-        let member = source.slice(fun.name.span).to_string();
-        let span = fun
-            .type_params
-            .first()
-            .map(|param| param.name.span)
-            .unwrap_or(fun.name.span);
-        return Err(InheritanceError::VirtualMethodCannotBeGeneric {
-            type_fqn: type_fqn.to_string(),
-            member,
-            span: span.into(),
-        });
-    }
-
-    Ok(())
 }
 
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {

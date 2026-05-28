@@ -1,31 +1,44 @@
-# Current task plan
+# Execution Plan
 
-Task: P4-T04, "实现 override / overload 边界与虚方法 generic 禁止".
+## Objective
+Complete exactly the first incomplete task listed in `TODO.md`, using `TODO.md` as the authoritative source for task order, dependencies, validation requirements, and completion records.
 
-First incomplete task source: `TODO.md` marks P4-T03R as `[DONE]` and P4-T04 as the first `[TODO]` entry. The latest commit is `[P4-T03R] Review vararg overload overlap reject`, which is a direct predecessor but does not identify a separate unfinished blocker.
+## Working Plan
+1. Read `TODO.md` to find the first task whose title is not explicitly prefixed with `[DONE]`.
+2. Inspect only the files and task context needed for that task, including recent git state if it is directly relevant.
+3. Implement the task as written, avoiding shortcuts, fixture-only hacks, or spec deviations.
+4. Run formatting, linting, tests, and fixtures required by the task and repository policy, fixing any unscheduled failures encountered.
+5. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record with validation details.
+6. Update this plan file at major milestones or if the plan changes.
+7. Commit all task-related changes with a descriptive message and the required co-author trailer.
+8. Stop after this one task.
 
-Execution plan:
+## Current Status
+Plan initialized. Next step is to read `TODO.md` and identify the first incomplete task.
 
-1. Read the P4-T04 requirements plus the referenced overload-resolution sections for override/overload boundaries and virtual generic methods.
-2. Inspect the current implementation in inheritance, interface conformance, override effect checks, overload helpers, modifier metadata, and existing fixtures.
-3. Implement definition-time rules:
-   - parent non-open same signature is rejected even if the child spells `override`;
-   - parent open same signature requires `override`;
-   - `override` with no matching parent signature is rejected;
-   - same-name different-signature child methods remain legal overloads;
-   - method-level type parameters are rejected on open, abstract, override, and interface methods while class/interface-level type parameters remain legal;
-   - override target lookup ignores effect rows, leaving effect compatibility to the existing override-effects pass.
-4. Add targeted typecheck fixtures covering the four override boundary cases, virtual generic rejection, class/interface-level type parameter allowance, and effect-row lookup behavior if not already covered.
-5. Run formatting, linting, targeted fixtures, full Rust tests, spec fixture check if relevant, and full fixture suite.
-6. Mark P4-T04 `[DONE]` in both `TODO.md` and `TODO-4.md`, fill its completion record, update this file with validation progress, and commit the task changes.
+## Milestone: First Incomplete Task Identified
+The first incomplete task is `P4-T04R`, the review task for override / overload boundary semantics. The latest commit is `[P4-T04] Implement override overload boundaries`, so it is directly relevant and will be reviewed as part of this task.
 
-Progress:
+## Review-Specific Plan
+1. Read the P4-T04 and P4-T04R task details and completion record.
+2. Inspect the P4-T04 commit diff and relevant implementation/tests.
+3. Validate behavior with the required formatting, linting, tests, and fixtures.
+4. Fix any review findings that are directly tied to P4-T04; otherwise record review completion.
+5. Mark P4-T04R `[DONE]` in both `TODO.md` and `TODO-4.md`, commit, and stop.
 
-- Identified P4-T04 as the first incomplete task.
-- Implemented signature-based override/interface matching using lowered parameter types with owner type-argument substitution, added virtual generic method rejection, and added targeted P4-T04 fixtures.
-- Ran `cargo fmt` and fixed clippy context-size findings by consolidating pass state into local context structs.
-- Added the virtual-generic diagnostic to the earlier annotation pass so missing-body checks cannot mask it for `abstract fun <T>`.
-- Migrated the sysroot `Map<K, V>.getValue` surface from a virtual method-level generic to the interface-level `V`, and fixed intrinsic interface override matching to keep method names part of interface member matching.
-- Validation passed: `cargo clippy --all-targets -- -D warnings`; `cargo build -p scoop -p scoopc`; targeted override/interface fixtures for P4-T04; rerun of `commands::run::tests::run_builds_and_executes_minimal_main`.
-- Full validation passed after synchronizing generated HIR/effect-lowered snapshots: `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
-- Marked P4-T04 as `[DONE]` in `TODO.md` and `TODO-4.md`; `PLAN.md` did not require changes.
+## Milestone: Review Finding Fixed
+The P4-T04 review found duplicate virtual method generic rejection logic in `inheritance.rs` and `annotations.rs`. The inheritance-side duplicate has been removed so `annotations.rs` remains the single source of truth for `virtual_method_cannot_be_generic` diagnostics.
+
+## Validation Plan
+1. Run `cargo fmt`.
+2. Run `cargo clippy --all-targets -- -D warnings`.
+3. Run targeted override / virtual generic fixtures.
+4. Run `cargo test --all --all-targets`.
+5. Run `python3 tools/spec_fixtures.py check` and `python3 tools/run_fixtures.py`.
+6. Update TODO records and commit if validation passes.
+
+## Milestone: Validation Passed
+Formatting, linting, targeted override/virtual generic fixtures, full Rust tests, spec fixture check, and full fixture suite passed after removing the duplicate inheritance-side virtual generic check.
+
+## Documentation Step
+Update `TODO-4.md` and the root `TODO.md` index to mark `P4-T04R` as `[DONE]`, record the review fix, validation results, and design-plan closure, then commit the task changes.

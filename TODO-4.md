@@ -237,7 +237,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted override/interface fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5、§7.1、§9.3 与 `PLAN.md` P4 对 override / overload 边界、virtual generic 禁止和 effect-row lookup 分层的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T04R：Review override / overload 边界
+### [DONE] P4-T04R：Review override / overload 边界
 
 - 参考：
   - P4-T04 完成记录
@@ -263,10 +263,10 @@
   - P4-T04 行为符合 §4.4-§4.5。
 - 依赖：P4-T04
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P4-T04 最新提交涉及的 `inheritance.rs`、`interfaces.rs`、`override_effects.rs`、`annotations.rs`、`signature_match.rs` 与 override / interface / virtual generic fixtures；移除 `inheritance.rs` 中 unreachable 的 duplicate `virtual_method_cannot_be_generic` 检查，保留 `annotations.rs` 作为 virtual method-level TP reject 的单一诊断来源。
+  - 核心决策：确认四类 override boundary fixture、same-name/different-signature overload fixture、class/interface-level owner TP signature fixture，以及 override/interface effect-row fixture 覆盖 P4-T04 要求；duplicate inheritance-side virtual generic check 会造成维护分叉且实际被 annotation pass 先行覆盖，因此删除而不改变用户可见行为。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted override / interface / virtual generic fixtures（15 个）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T04 行为闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5 对 override / overload 边界与 virtual generic reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T05：把 constructor overload 纳入 definition-time 规则与 diagnostics
 
