@@ -51,5 +51,5 @@ public fun IntIterable.toArray(): Array<Int>
 /// - Kotlin 的 map-backed delegate 通过扩展 `getValue` 实现；
 /// - 当前阶段为简化 delegated property 的签名检查，我们把 `getValue` 作为 `Map` 的成员声明表面。
 public interface Map<K, V> {
-    public fun <T> getValue(thisRef: Any, property: PropertyMeta): T
+    public fun getValue(thisRef: Any, property: PropertyMeta): V
 }

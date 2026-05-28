@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::virtual_method_cannot_be_generic
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(value: Int): Unit { return }
+}
+
+class Derived() : Base() {
+    override fun <T> ping(value: T): Unit { return }
+}
+

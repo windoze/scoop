@@ -21,6 +21,7 @@ mod lower;
 mod overloads;
 mod override_effects;
 mod properties;
+mod signature_match;
 mod structs;
 mod type_env;
 mod val_pat;

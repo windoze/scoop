@@ -199,7 +199,7 @@
   - 验证结果：`cargo fmt --check`；`cargo clippy --all-targets -- -D warnings`；targeted vararg fixtures（overlap reject、non-overlap ok、spread bypass reject）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1562)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T03 行为符合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T04：实现 override / overload 边界与虚方法 generic 禁止
+### [DONE] P4-T04：实现 override / overload 边界与虚方法 generic 禁止
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -232,10 +232,10 @@
   - Method overload/override sets satisfy `OVERLOAD_RESOLUTION.md` §4.4-§4.5.
 - 依赖：P4-T03R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：新增 `crates/scoopc_hir/src/typecheck/signature_match.rs`，让 inheritance / interface / override-effect 路径用 lowered parameter signature（不含 return type / effect row）和 owner type-arg substitution 匹配 override / interface targets；更新 `inheritance.rs`、`interfaces.rs`、`override_effects.rs`、`annotations.rs`、`lower.rs` 与 `resolve::ModifierSet`，实现 non-open same-signature reject、missing `override`、`override` target-not-found、same-name/different-signature legal overload，以及 virtual method-level TP reject；将 sysroot `Map<K, V>.getValue` 从 method-level generic 迁移为使用 interface-level `V`；新增 / 更新 override、virtual generic、interface matching fixtures，并同步 HIR / effect-lowered golden metadata。
+  - 核心决策：override target lookup 与 interface implementation matching 统一按参数 signature 判断，明确保留 method name 作为 interface member identity，return type 和 callable effect row 不参与 target lookup，effect row compatibility 继续留在 `override_effects` 的 target match 之后执行；`open` / `abstract` / `override` / interface methods 的 method-level type params 在 annotation/inheritance 侧诊断为 `scoop::typecheck::virtual_method_cannot_be_generic`，class/interface-level type params 通过 owner instantiation 保持合法；旧的 arity-only interface ambiguity fixture 改为 same-name/different-signature pass fixture。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted override/interface fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5、§7.1、§9.3 与 `PLAN.md` P4 对 override / overload 边界、virtual generic 禁止和 effect-row lookup 分层的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T04R：Review override / overload 边界
 

@@ -1,0 +1,22 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Box<T>() {
+    open fun set(value: T): Unit { return }
+}
+
+class StringBox() : Box<String>() {
+    override fun set(value: String): Unit { return }
+}
+
+interface Sink<T> {
+    fun put(value: T): Unit
+}
+
+class IntSink() : Sink<Int> {
+    fun put(value: Int): Unit { return }
+}
+

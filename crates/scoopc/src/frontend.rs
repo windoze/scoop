@@ -1014,10 +1014,14 @@ pub fn run_frontend_with_artifact_cache(
             .map_err(miette::Report::from)?;
             crate::typecheck::check_file_properties(source, ast, &index, &env)
                 .map_err(|err| miette::Report::from(*err))?;
-            crate::typecheck::check_file_inheritance(source, ast, &index)
-                .map_err(miette::Report::from)?;
-            crate::typecheck::check_file_interfaces(source, ast, &index, &env)
-                .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_inheritance(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+            crate::typecheck::check_file_interfaces(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
             crate::typecheck::check_file_override_effects(
                 source, ast, &index, &h.imports, &env, &mut types, builtins,
             )

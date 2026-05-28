@@ -465,8 +465,26 @@ fn lower_typed_single_source_file(sess: &Session, source: &SourceFile) -> Lowere
     )
     .unwrap();
     typecheck::check_file_properties(source, &ast, &index, &env).unwrap();
-    typecheck::check_file_inheritance(source, &ast, &index).unwrap();
-    typecheck::check_file_interfaces(source, &ast, &index, &env).unwrap();
+    typecheck::check_file_inheritance(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
+    typecheck::check_file_interfaces(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
     typecheck::check_file_override_effects(
         source,
         &ast,
@@ -1713,8 +1731,26 @@ fun main(): Int {
         )
         .unwrap();
         typecheck::check_file_properties(source, ast, &index, &env).unwrap();
-        typecheck::check_file_inheritance(source, ast, &index).unwrap();
-        typecheck::check_file_interfaces(source, ast, &index, &env).unwrap();
+        typecheck::check_file_inheritance(
+            source,
+            ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_interfaces(
+            source,
+            ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
         typecheck::check_file_override_effects(
             source,
             ast,
@@ -1901,8 +1937,26 @@ fn lower_for_compilation_unit_multi_files_preserves_safe_member_access_resolutio
     )
     .unwrap();
     typecheck::check_file_properties(&source, &ast, &index, &env).unwrap();
-    typecheck::check_file_inheritance(&source, &ast, &index).unwrap();
-    typecheck::check_file_interfaces(&source, &ast, &index, &env).unwrap();
+    typecheck::check_file_inheritance(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
+    typecheck::check_file_interfaces(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
     typecheck::check_file_override_effects(
         &source,
         &ast,
@@ -2611,8 +2665,26 @@ fun main(): Int {
     )
     .unwrap();
     typecheck::check_file_properties(&src_model, &ast_model, &index, &env).unwrap();
-    typecheck::check_file_inheritance(&src_model, &ast_model, &index).unwrap();
-    typecheck::check_file_interfaces(&src_model, &ast_model, &index, &env).unwrap();
+    typecheck::check_file_inheritance(
+        &src_model,
+        &ast_model,
+        &index,
+        &headers_model.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
+    typecheck::check_file_interfaces(
+        &src_model,
+        &ast_model,
+        &index,
+        &headers_model.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .unwrap();
     typecheck::check_file_override_effects(
         &src_model,
         &ast_model,

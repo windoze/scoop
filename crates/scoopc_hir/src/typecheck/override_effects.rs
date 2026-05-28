@@ -19,9 +19,13 @@ use crate::ast;
 use crate::resolve::{FunOverload, ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, EffectRow, TypeStore};
 
 use super::lower::{TypeLowerError, TypeLowering};
+use super::signature_match::{
+    OwnerInstantiation, fun_decl_matches_overload_signature, fun_overloads_have_same_signature,
+    nominal_from_type_id,
+};
 use super::{TypeEnv, TypeSymbolKind};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -329,19 +333,20 @@ fn check_class_member_override_effects(
             .map(|syms| syms.fun.as_slice())
             .unwrap_or(&[]);
 
-        let derived_param_len = fun.params.len();
-        let derived_has_receiver = fun.receiver.is_some();
-        let derived_type_params_len = fun.type_params.len();
-
-        let matching = base_overloads
-            .iter()
-            .filter(|o| {
-                o.sig.params.len() == derived_param_len
-                    && o.sig.receiver.is_some() == derived_has_receiver
-                    && o.sig.type_params.len() == derived_type_params_len
-                    && o.symbol.modifiers.is_overridable()
-            })
-            .collect::<Vec<_>>();
+        let base_owner = OwnerInstantiation {
+            fqn: &base_fqn,
+            nominal: &base_nominal,
+        };
+        let mut matching = Vec::new();
+        for overload in base_overloads {
+            if overload.symbol.modifiers.is_overridable()
+                && fun_decl_matches_overload_signature(
+                    source, fun, overload, base_owner, lower, env,
+                )?
+            {
+                matching.push(overload);
+            }
+        }
 
         if matching.is_empty() {
             continue;
@@ -443,19 +448,20 @@ fn check_object_member_override_effects(
             .map(|syms| syms.fun.as_slice())
             .unwrap_or(&[]);
 
-        let derived_param_len = fun.params.len();
-        let derived_has_receiver = fun.receiver.is_some();
-        let derived_type_params_len = fun.type_params.len();
-
-        let matching = base_overloads
-            .iter()
-            .filter(|o| {
-                o.sig.params.len() == derived_param_len
-                    && o.sig.receiver.is_some() == derived_has_receiver
-                    && o.sig.type_params.len() == derived_type_params_len
-                    && o.symbol.modifiers.is_overridable()
-            })
-            .collect::<Vec<_>>();
+        let base_owner = OwnerInstantiation {
+            fqn: &base_fqn,
+            nominal: &base_nominal,
+        };
+        let mut matching = Vec::new();
+        for overload in base_overloads {
+            if overload.symbol.modifiers.is_overridable()
+                && fun_decl_matches_overload_signature(
+                    source, fun, overload, base_owner, lower, env,
+                )?
+            {
+                matching.push(overload);
+            }
+        }
 
         if matching.is_empty() {
             continue;
@@ -569,13 +575,17 @@ fn check_type_interface_impl_effects(
                     if name != member_name {
                         continue;
                     }
-                    if fun.params.len() != required.sig.params.len() {
-                        continue;
-                    }
-                    if fun.receiver.is_some() != required.sig.receiver.is_some() {
-                        continue;
-                    }
-                    if fun.type_params.len() != required.sig.type_params.len() {
+                    if !fun_decl_matches_overload_signature(
+                        source,
+                        fun,
+                        required,
+                        OwnerInstantiation {
+                            fqn: &interface_fqn,
+                            nominal: &interface_nominal,
+                        },
+                        lower,
+                        env,
+                    )? {
                         continue;
                     }
 
@@ -605,11 +615,27 @@ fn check_type_interface_impl_effects(
                     .map(|syms| syms.fun.as_slice())
                     .unwrap_or(&[]);
 
-                let matching = base_overloads.iter().find(|cand| {
-                    cand.sig.params.len() == required.sig.params.len()
-                        && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
-                        && cand.sig.type_params.len() == required.sig.type_params.len()
-                });
+                let mut matching = None;
+                for cand in base_overloads {
+                    if fun_overloads_have_same_signature(
+                        source,
+                        cand,
+                        OwnerInstantiation {
+                            fqn: base_fqn,
+                            nominal: base_nominal,
+                        },
+                        required,
+                        OwnerInstantiation {
+                            fqn: &interface_fqn,
+                            nominal: &interface_nominal,
+                        },
+                        lower,
+                        env,
+                    )? {
+                        matching = Some(cand);
+                        break;
+                    }
+                }
 
                 let Some(cand) = matching else {
                     continue;
@@ -780,14 +806,6 @@ fn required_abstract_interface_funs<'a>(
     }
 
     out
-}
-
-fn nominal_from_type_id(ty: TypeId, lower: &TypeLowering<'_>) -> Option<crate::ty::NominalType> {
-    match lower.type_kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => Some(nominal),
-        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal),
-        _ => None,
-    }
 }
 
 fn fmt_effect_row(row: &EffectRow, lower: &TypeLowering<'_>) -> String {

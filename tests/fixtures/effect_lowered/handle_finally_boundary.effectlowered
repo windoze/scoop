@@ -169,12 +169,12 @@ lir_facts {
     - callable_symbol=lir_callable(209:instance(177:template(163:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;28:fixtures.mir_lowered.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#h6f2f41537f0afabbca2d5b28071e16a6) root=fixtures.mir_lowered.cleanup kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_cleanup__h999453d0b82f9f3548cab60b5561135d
     - callable_symbol=lir_callable(214:instance(182:template(168:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;34:fixtures.mir_lowered.handled_raise;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h00f6d810d76c07b833781a8aabdf4215) root=fixtures.mir_lowered.handled_raise kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_handled_raise__h4b1f8da7404f3b140b5fb94e382c65aa
     - callable_symbol=lir_callable(215:instance(183:template(169:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;35:fixtures.mir_lowered.body_completes;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h511353c1dcc0f52acb923e5d9323c6bc) root=fixtures.mir_lowered.body_completes kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_body_completes__hd72b0fa6cb489a0e9e1e0ba2a0a5e5cd
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=457 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=456 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=4
     - callable=fixtures.mir_lowered.main kind=Plain control_body=false key=lir_callable(205:instance(173:template(159:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h567b5aae41499c1009198c7bf6b2efb3)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=3
     - callable=fixtures.mir_lowered.cleanup kind=Plain control_body=false key=lir_callable(209:instance(177:template(163:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;28:fixtures.mir_lowered.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#h6f2f41537f0afabbca2d5b28071e16a6)
-      plain_abi: function_ty=t445 params=0 return=t2 body_slices=1 call_sites=0
+      plain_abi: function_ty=t444 params=0 return=t2 body_slices=1 call_sites=0
     - callable=fixtures.mir_lowered.handled_raise kind=Plain control_body=true key=lir_callable(214:instance(182:template(168:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;34:fixtures.mir_lowered.handled_raise;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h00f6d810d76c07b833781a8aabdf4215)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=8 call_sites=3
       plain_local_effect_control: step#2 states=10 boundaries=1 continuation_object=cont_obj#1
@@ -182,8 +182,8 @@ lir_facts {
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=5 call_sites=1
       plain_local_effect_control: step#0 states=7 boundaries=0 continuation_object=cont_obj#0
   step_types=2
-    - step#0 invoke_args=t2 complete=t5 continuation_obj=t448 cases=2
-    - step#2 invoke_args=t2 complete=t5 continuation_obj=t451 cases=2
+    - step#0 invoke_args=t2 complete=t5 continuation_obj=t447 cases=2
+    - step#2 invoke_args=t2 complete=t5 continuation_obj=t450 cases=2
   dynamic_invoke_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=0

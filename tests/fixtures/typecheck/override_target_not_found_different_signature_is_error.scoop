@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::override_target_not_found
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(value: Int): Unit { return }
+}
+
+class Derived() : Base() {
+    override fun ping(value: String): Unit { return }
+}
+

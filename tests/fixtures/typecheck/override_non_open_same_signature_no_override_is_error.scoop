@@ -1,15 +1,15 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::override_non_open_method
-// EXPECT-ERROR-AT: 14:18
 
 package fixtures.typecheck
 
 import scoop.core.*
 
 open class Base() {
-    fun ping(): Unit { return }
+    fun ping(value: Int): Unit { return }
 }
 
 class Derived() : Base() {
-    override fun ping(): Unit { return }
+    fun ping(value: Int): Unit { return }
 }
+

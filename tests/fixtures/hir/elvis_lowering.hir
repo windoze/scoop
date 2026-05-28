@@ -111,7 +111,7 @@ hir_facts {
   source_sites: function_effects=1, calls=0, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=1, top_level_roots=0, extern_globals=0
   globals: roots=1, object_inits=1, class_inits=22
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
-  type_context: universe=hir-stage-type-store, type_params=86, source_cones=8
+  type_context: universe=hir-stage-type-store, type_params=85, source_cones=8
 }
 
 source_site_contracts {

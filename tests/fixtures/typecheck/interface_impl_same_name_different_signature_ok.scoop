@@ -1,0 +1,18 @@
+// EXPECT: pass
+//
+// 目标：interface implementation matching uses full parameter signatures, so a
+// same-name overload with a different parameter type is a legal sibling and does
+// not make the implementation ambiguous.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface I {
+    fun ping(x: Int): Int
+}
+
+class C() : I {
+    fun ping(x: Int): Int { return 1 }
+    fun ping(x: String): Int { return 2 }
+}

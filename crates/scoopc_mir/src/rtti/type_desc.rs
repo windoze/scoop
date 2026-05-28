@@ -385,8 +385,24 @@ fn collect_precise_runtime_class_itables(
         builtins,
     )?;
     crate::typecheck::check_file_properties(source, &ast, &index, &env)?;
-    crate::typecheck::check_file_inheritance(source, &ast, &index)?;
-    crate::typecheck::check_file_interfaces(source, &ast, &index, &env)?;
+    crate::typecheck::check_file_inheritance(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_interfaces(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
     crate::typecheck::check_file_override_effects(
         source,
         &ast,

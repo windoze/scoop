@@ -284,6 +284,11 @@ impl ModifierSet {
     pub fn is_overridable(&self) -> bool {
         self.open || self.abstract_
     }
+
+    /// 该 method 是否进入 virtual dispatch 边界。
+    pub fn is_virtual_method(&self) -> bool {
+        self.open || self.abstract_ || self.override_
+    }
 }
 
 #[derive(Debug, Clone)]

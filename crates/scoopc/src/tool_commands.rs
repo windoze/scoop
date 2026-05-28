@@ -424,10 +424,26 @@ fn run_typecheck_passes(
     .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_properties(source, ast, index, env)
         .map_err(|err| located_report(source, *err))?;
-    crate::typecheck::check_file_inheritance(source, ast, index)
-        .map_err(|err| located_report(source, err))?;
-    crate::typecheck::check_file_interfaces(source, ast, index, env)
-        .map_err(|err| located_report(source, err))?;
+    crate::typecheck::check_file_inheritance(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(|err| located_report(source, err))?;
+    crate::typecheck::check_file_interfaces(
+        source,
+        ast,
+        index,
+        &headers.imports,
+        env,
+        types,
+        builtins,
+    )
+    .map_err(|err| located_report(source, err))?;
     crate::typecheck::check_file_override_effects(
         source,
         ast,

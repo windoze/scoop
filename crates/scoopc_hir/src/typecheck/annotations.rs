@@ -332,6 +332,19 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("virtual methods cannot have method-level type parameters: {fun_name}")]
+    #[diagnostic(
+        code(scoop::typecheck::virtual_method_cannot_be_generic),
+        help(
+            "use a class-level type parameter, or convert this to a non-virtual / free-standing function"
+        )
+    )]
+    VirtualMethodCannotBeGeneric {
+        fun_name: String,
+        #[label("method-level type parameters are not allowed on virtual methods")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`@Extern` 顶层变量声明必须省略 initializer：{var_name}")]
     #[diagnostic(code(scoop::typecheck::extern_var_initializer_not_allowed))]
     ExternVarInitializerNotAllowed {
@@ -979,6 +992,7 @@ fn check_type_decl_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
+                check_virtual_generic_fun_decl(ctx.source, decl.kind, fun)?;
                 check_builtin_annotations_on_fun_decl(
                     ctx.source,
                     file_allows_intrinsic,
@@ -1025,6 +1039,34 @@ fn missing_regular_body_policy_for_type(kind: ast::TypeKind) -> MissingRegularBo
             MissingRegularBodyPolicy::RequireBody
         }
     }
+}
+
+fn check_virtual_generic_fun_decl(
+    source: &SourceFile,
+    owner_kind: ast::TypeKind,
+    fun: &ast::FunDecl,
+) -> Result<(), AnnotationError> {
+    if fun.type_params.is_empty() {
+        return Ok(());
+    }
+
+    let is_virtual = matches!(owner_kind, ast::TypeKind::Interface)
+        || fun.modifiers.contains(&ast::Modifier::Open)
+        || fun.modifiers.contains(&ast::Modifier::Abstract)
+        || fun.modifiers.contains(&ast::Modifier::Override);
+    if !is_virtual {
+        return Ok(());
+    }
+
+    let span = fun
+        .type_params
+        .first()
+        .map(|param| param.name.span)
+        .unwrap_or(fun.name.span);
+    Err(AnnotationError::VirtualMethodCannotBeGeneric {
+        fun_name: source.slice(fun.name.span).to_string(),
+        span: span.into(),
+    })
 }
 
 /// 检查一组参数上的注解使用（`@Name(...)`）。

@@ -1520,6 +1520,19 @@ impl<'a> TypeLowering<'a> {
         let _ = self.type_param_scopes.pop();
     }
 
+    pub(super) fn intern_decl_type_param(
+        &mut self,
+        name: String,
+        decl_file: PathBuf,
+        decl_span: Span,
+    ) -> TypeId {
+        self.types.ty_param(TypeParamType {
+            name,
+            decl_file,
+            decl_span,
+        })
+    }
+
     pub fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),

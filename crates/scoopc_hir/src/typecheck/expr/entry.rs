@@ -1860,8 +1860,14 @@ mod tests {
         )
         .expect("annotations");
         typecheck::check_file_properties(&source, &ast, &index, &env).expect("properties");
-        typecheck::check_file_inheritance(&source, &ast, &index).expect("inheritance");
-        typecheck::check_file_interfaces(&source, &ast, &index, &env).expect("interfaces");
+        typecheck::check_file_inheritance(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("inheritance");
+        typecheck::check_file_interfaces(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("interfaces");
         typecheck::check_file_override_effects(
             &source, &ast, &index, &imports, &env, &mut types, builtins,
         )

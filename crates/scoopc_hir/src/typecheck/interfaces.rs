@@ -19,14 +19,38 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
-use crate::resolve::{FunOverload, Index};
+use crate::resolve::{FunOverload, ImportTable, Index};
 use crate::source::SourceFile;
+use crate::ty::{BuiltinTypes, TypeStore};
 
 use super::builtin_annotations::BuiltinAnnotationFlags;
+use super::lower::{TypeLowerError, TypeLowering};
+use super::signature_match::{
+    OwnerInstantiation, fun_decl_matches_overload_signature, fun_overloads_have_same_signature,
+    nominal_from_type_id,
+};
 use super::{TypeEnv, TypeSymbolKind};
+
+struct InterfaceCtx<'a, 'lower> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    index: &'a Index,
+    env: &'a TypeEnv,
+    lower: &'lower mut TypeLowering<'a>,
+}
+
+#[derive(Clone, Copy)]
+struct NominalTarget<'a> {
+    fqn: &'a str,
+    nominal: &'a crate::ty::NominalType,
+}
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum InterfaceError {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeLower(#[from] TypeLowerError),
+
     #[error("`Continuation` 是 compiler-owned interface，用户代码不能实现或继承它")]
     #[diagnostic(code(scoop::typecheck::continuation_impl_not_allowed))]
     ContinuationImplNotAllowed {
@@ -95,17 +119,24 @@ pub fn check_file_interfaces(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
 ) -> Result<(), InterfaceError> {
+    let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    let mut ctx = InterfaceCtx {
+        source,
+        file,
+        index,
+        env,
+        lower: &mut lower,
+    };
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
-            ast::Item::Type(ty) => {
-                check_type_decl_interfaces(source, file, ty, &pkg_prefix, index, env)?
-            }
-            ast::Item::Object(obj) => {
-                check_object_decl_interfaces(source, file, obj, &pkg_prefix, index, env)?
-            }
+            ast::Item::Type(ty) => check_type_decl_interfaces(&mut ctx, ty, &pkg_prefix)?,
+            ast::Item::Object(obj) => check_object_decl_interfaces(&mut ctx, obj, &pkg_prefix)?,
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
             | ast::Item::Val(_)
@@ -116,32 +147,45 @@ pub fn check_file_interfaces(
 }
 
 fn check_type_decl_interfaces(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     decl: &ast::TypeDecl,
     prefix: &str,
-    index: &Index,
-    env: &TypeEnv,
 ) -> Result<(), InterfaceError> {
-    let local_name = source.slice(decl.name.span);
+    let local_name = ctx.source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
         local_name.to_string()
     } else {
         format!("{prefix}.{local_name}")
     };
 
+    ctx.lower.push_type_params(&decl.type_params);
+    let ty_eff_binding_pushed = if let Some(eff_param) = &decl.eff_param {
+        let name = ctx.source.slice(eff_param.name.span).to_string();
+        ctx.lower
+            .push_effect_row_param_marker_binding(name, eff_param.name.span);
+        true
+    } else {
+        false
+    };
+
     match decl.kind {
         ast::TypeKind::Class => {
-            check_class_like_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
+            check_class_like_interfaces(ctx, &type_fqn, &decl.supertypes, decl.body.as_ref())?;
         }
         ast::TypeKind::Struct => {
-            check_value_type_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
+            check_value_type_interfaces(ctx, &type_fqn, &decl.supertypes, decl.body.as_ref())?;
         }
         ast::TypeKind::Enum => {
-            check_enum_decl_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
+            check_enum_decl_interfaces(ctx, &type_fqn, &decl.supertypes, decl.body.as_ref())?;
         }
         ast::TypeKind::Interface => {
-            check_interface_decl_supertypes(source, file, &decl.supertypes, index, env)?;
+            check_interface_decl_supertypes(
+                ctx.source,
+                ctx.file,
+                &decl.supertypes,
+                ctx.index,
+                ctx.env,
+            )?;
         }
         ast::TypeKind::Effect => {
             // 当前阶段不为 effect 引入额外 interface 语义（TODO T0602/T06xx）。
@@ -149,55 +193,53 @@ fn check_type_decl_interfaces(
     }
 
     if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct)
-        && BuiltinAnnotationFlags::from_annotations(source, &decl.annotations).is_intrinsic
+        && BuiltinAnnotationFlags::from_annotations(ctx.source, &decl.annotations).is_intrinsic
     {
         check_intrinsic_type_interface_impl_shape(
-            source,
-            file,
+            ctx,
             &type_fqn,
             &decl.supertypes,
             decl.body.as_ref(),
-            index,
-            env,
         )?;
     }
 
     // 递归检查 nested types / nested objects。
-    let Some(body) = &decl.body else {
-        return Ok(());
-    };
-    for member in &body.members {
-        match member {
-            ast::TypeMember::Type(nested) => {
-                check_type_decl_interfaces(source, file, nested, &type_fqn, index, env)?;
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    check_type_decl_interfaces(ctx, nested, &type_fqn)?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    check_object_decl_interfaces(ctx, obj, &type_fqn)?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
             }
-            ast::TypeMember::Object(obj) => {
-                check_object_decl_interfaces(source, file, obj, &type_fqn, index, env)?;
-            }
-            ast::TypeMember::EnumVariant(_)
-            | ast::TypeMember::Property(_)
-            | ast::TypeMember::InitBlock(_)
-            | ast::TypeMember::SecondaryCtor(_)
-            | ast::TypeMember::Fun(_) => {}
         }
     }
+
+    if ty_eff_binding_pushed {
+        ctx.lower.pop_effect_row_param_binding();
+    }
+    ctx.lower.pop_type_params(&decl.type_params);
 
     Ok(())
 }
 
 fn check_object_decl_interfaces(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     obj: &ast::ObjectDecl,
     prefix: &str,
-    index: &Index,
-    env: &TypeEnv,
 ) -> Result<(), InterfaceError> {
     // Kotlin-like：未命名 companion object 具有隐式名字 `Companion`（resolver/index 侧同样使用该名字）。
     let obj_name = obj
         .name
         .as_ref()
-        .map(|id| source.slice(id.span).to_string())
+        .map(|id| ctx.source.slice(id.span).to_string())
         .unwrap_or_else(|| "Companion".to_string());
 
     let obj_fqn = if prefix.is_empty() {
@@ -206,7 +248,7 @@ fn check_object_decl_interfaces(
         format!("{prefix}.{obj_name}")
     };
 
-    check_class_like_interfaces(source, file, &obj_fqn, &obj.supertypes, index, env)?;
+    check_class_like_interfaces(ctx, &obj_fqn, &obj.supertypes, obj.body.as_ref())?;
 
     let Some(body) = &obj.body else {
         return Ok(());
@@ -214,10 +256,10 @@ fn check_object_decl_interfaces(
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                check_type_decl_interfaces(source, file, nested, &obj_fqn, index, env)?;
+                check_type_decl_interfaces(ctx, nested, &obj_fqn)?;
             }
             ast::TypeMember::Object(nested) => {
-                check_object_decl_interfaces(source, file, nested, &obj_fqn, index, env)?;
+                check_object_decl_interfaces(ctx, nested, &obj_fqn)?;
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)
@@ -262,22 +304,31 @@ fn check_interface_decl_supertypes(
 }
 
 fn check_class_like_interfaces(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     type_fqn: &str,
     supertypes: &[ast::SuperType],
-    index: &Index,
-    env: &TypeEnv,
+    body: Option<&ast::TypeBody>,
 ) -> Result<(), InterfaceError> {
     // 解析 super class（若有）；只用于“继承的成员也可用于满足 interface”的最小 fallback。
     // 注：更完整的继承链查找留给后续任务。
-    let superclass_fqn = supertypes
-        .iter()
-        .find(|st| st.ctor_args_span.is_some())
-        .and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
+    let superclass = supertypes.iter().find(|st| st.ctor_args_span.is_some());
+    let superclass_fqn = superclass.and_then(|st| {
+        ctx.index
+            .type_ref_to_fqn_in_file(ctx.source, ctx.file, &st.ty)
+    });
+    let superclass_nominal = match superclass {
+        Some(st) => {
+            let ty = ctx.lower.lower_type_ref(&st.ty)?;
+            nominal_from_type_id(ty, ctx.lower)
+        }
+        None => None,
+    };
 
     for st in supertypes {
-        let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+        let Some(interface_fqn) = ctx
+            .index
+            .type_ref_to_fqn_in_file(ctx.source, ctx.file, &st.ty)
+        else {
             continue;
         };
 
@@ -286,7 +337,7 @@ fn check_class_like_interfaces(
         if st.ctor_args_span.is_some() {
             // ctor call 只允许 class。
             if !matches!(
-                nominal_kind(env, &interface_fqn),
+                nominal_kind(ctx.env, &interface_fqn),
                 Some(ast::TypeKind::Class)
             ) {
                 return Err(InterfaceError::SupertypeCtorCallNotClass {
@@ -297,19 +348,31 @@ fn check_class_like_interfaces(
             continue;
         }
 
-        if !is_interface(env, &interface_fqn) {
+        if !is_interface(ctx.env, &interface_fqn) {
             return Err(InterfaceError::SupertypeNotInterface {
                 found_fqn: interface_fqn,
                 span: st.ty.span().into(),
             });
         }
 
+        let interface_ty = ctx.lower.lower_type_ref(&st.ty)?;
+        let Some(interface_nominal) = nominal_from_type_id(interface_ty, ctx.lower) else {
+            continue;
+        };
+        let superclass = superclass_fqn
+            .as_deref()
+            .zip(superclass_nominal.as_ref())
+            .map(|(fqn, nominal)| NominalTarget { fqn, nominal });
         check_one_interface_impl(
+            ctx,
             type_fqn,
-            superclass_fqn.as_deref(),
-            &interface_fqn,
+            body,
+            superclass,
+            NominalTarget {
+                fqn: &interface_fqn,
+                nominal: &interface_nominal,
+            },
             st.ty.span(),
-            index,
         )?;
     }
 
@@ -317,15 +380,16 @@ fn check_class_like_interfaces(
 }
 
 fn check_value_type_interfaces(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     type_fqn: &str,
     supertypes: &[ast::SuperType],
-    index: &Index,
-    env: &TypeEnv,
+    body: Option<&ast::TypeBody>,
 ) -> Result<(), InterfaceError> {
     for st in supertypes {
-        let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+        let Some(interface_fqn) = ctx
+            .index
+            .type_ref_to_fqn_in_file(ctx.source, ctx.file, &st.ty)
+        else {
             continue;
         };
 
@@ -338,26 +402,38 @@ fn check_value_type_interfaces(
             });
         }
 
-        if !is_interface(env, &interface_fqn) {
+        if !is_interface(ctx.env, &interface_fqn) {
             return Err(InterfaceError::SupertypeNotInterface {
                 found_fqn: interface_fqn,
                 span: st.ty.span().into(),
             });
         }
 
-        check_one_interface_impl(type_fqn, None, &interface_fqn, st.ty.span(), index)?;
+        let interface_ty = ctx.lower.lower_type_ref(&st.ty)?;
+        let Some(interface_nominal) = nominal_from_type_id(interface_ty, ctx.lower) else {
+            continue;
+        };
+        check_one_interface_impl(
+            ctx,
+            type_fqn,
+            body,
+            None,
+            NominalTarget {
+                fqn: &interface_fqn,
+                nominal: &interface_nominal,
+            },
+            st.ty.span(),
+        )?;
     }
 
     Ok(())
 }
 
 fn check_enum_decl_interfaces(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     type_fqn: &str,
     supertypes: &[ast::SuperType],
-    index: &Index,
-    env: &TypeEnv,
+    body: Option<&ast::TypeBody>,
 ) -> Result<(), InterfaceError> {
     // spec §2.3.2.1：value-only enum 的 `:` 后第一个类型是“底层整型表示”，并非 interface。
     //
@@ -367,10 +443,13 @@ fn check_enum_decl_interfaces(
     //   - interface：视为普通 interface 实现列表 → 不跳过；
     // - 底层类型是否为整型标量由 `typecheck::check_file_type_refs`（TypeLowerError）负责门禁。
     let should_skip_first = supertypes.first().is_some_and(|st| {
-        let Some(first_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+        let Some(first_fqn) = ctx
+            .index
+            .type_ref_to_fqn_in_file(ctx.source, ctx.file, &st.ty)
+        else {
             return false;
         };
-        !is_interface(env, &first_fqn)
+        !is_interface(ctx.env, &first_fqn)
     });
 
     let interface_supertypes = if should_skip_first {
@@ -379,23 +458,34 @@ fn check_enum_decl_interfaces(
         supertypes
     };
 
-    check_value_type_interfaces(source, file, type_fqn, interface_supertypes, index, env)
+    check_value_type_interfaces(ctx, type_fqn, interface_supertypes, body)
 }
 
 fn check_one_interface_impl(
+    ctx: &mut InterfaceCtx<'_, '_>,
     type_fqn: &str,
-    superclass_fqn: Option<&str>,
-    interface_fqn: &str,
+    body: Option<&ast::TypeBody>,
+    superclass: Option<NominalTarget<'_>>,
+    interface: NominalTarget<'_>,
     interface_use_span: crate::span::Span,
-    index: &Index,
 ) -> Result<(), InterfaceError> {
-    for required in required_abstract_interface_funs(index, interface_fqn) {
-        match member_fun_match(index, type_fqn, required) {
+    for required in required_abstract_interface_funs(ctx.index, interface.fqn) {
+        match member_fun_match_in_body(
+            ctx.source,
+            body,
+            required,
+            OwnerInstantiation {
+                fqn: interface.fqn,
+                nominal: interface.nominal,
+            },
+            ctx.lower,
+            ctx.env,
+        )? {
             MemberFunMatch::Unique => continue,
             MemberFunMatch::Ambiguous => {
                 return Err(InterfaceError::AmbiguousInterfaceMemberImpl {
                     type_fqn: type_fqn.to_string(),
-                    interface_fqn: interface_fqn.to_string(),
+                    interface_fqn: interface.fqn.to_string(),
                     member: required.symbol.name.clone(),
                     span: interface_use_span.into(),
                     member_span: required.symbol.span.into(),
@@ -404,13 +494,21 @@ fn check_one_interface_impl(
             MemberFunMatch::None => {}
         }
 
-        if let Some(base_fqn) = superclass_fqn {
-            match member_fun_match(index, base_fqn, required) {
+        if let Some(base) = superclass {
+            match member_fun_match_in_overloads(
+                ctx,
+                base,
+                required,
+                OwnerInstantiation {
+                    fqn: interface.fqn,
+                    nominal: interface.nominal,
+                },
+            )? {
                 MemberFunMatch::Unique => continue,
                 MemberFunMatch::Ambiguous => {
                     return Err(InterfaceError::AmbiguousInterfaceMemberImpl {
                         type_fqn: type_fqn.to_string(),
-                        interface_fqn: interface_fqn.to_string(),
+                        interface_fqn: interface.fqn.to_string(),
                         member: required.symbol.name.clone(),
                         span: interface_use_span.into(),
                         member_span: required.symbol.span.into(),
@@ -422,7 +520,7 @@ fn check_one_interface_impl(
 
         return Err(InterfaceError::MissingInterfaceMember {
             type_fqn: type_fqn.to_string(),
-            interface_fqn: interface_fqn.to_string(),
+            interface_fqn: interface.fqn.to_string(),
             member: required.symbol.name.clone(),
             span: interface_use_span.into(),
             member_span: required.symbol.span.into(),
@@ -433,18 +531,15 @@ fn check_one_interface_impl(
 }
 
 fn check_intrinsic_type_interface_impl_shape(
-    source: &SourceFile,
-    file: &ast::File,
+    ctx: &mut InterfaceCtx<'_, '_>,
     type_fqn: &str,
     supertypes: &[ast::SuperType],
     body: Option<&ast::TypeBody>,
-    index: &Index,
-    env: &TypeEnv,
 ) -> Result<(), InterfaceError> {
     let Some(body) = body else {
         return Ok(());
     };
-    let interface_funs = direct_interface_fun_targets(source, file, supertypes, index, env);
+    let interface_funs = direct_interface_fun_targets(ctx, supertypes)?;
     if interface_funs.is_empty() {
         return Ok(());
     }
@@ -453,14 +548,31 @@ fn check_intrinsic_type_interface_impl_shape(
         let ast::TypeMember::Fun(fun) = member else {
             continue;
         };
-        let Some((interface_fqn, interface_fun)) = interface_funs
-            .iter()
-            .find(|(_, target)| fun_matches_interface_overload(source, fun, target))
-        else {
+        let mut matched = None;
+        for (interface_fqn, interface_nominal, interface_fun) in &interface_funs {
+            if ctx.source.slice(fun.name.span) != interface_fun.symbol.name {
+                continue;
+            }
+            if fun_decl_matches_overload_signature(
+                ctx.source,
+                fun,
+                interface_fun,
+                OwnerInstantiation {
+                    fqn: interface_fqn,
+                    nominal: interface_nominal,
+                },
+                ctx.lower,
+                ctx.env,
+            )? {
+                matched = Some((interface_fqn, interface_fun));
+                break;
+            }
+        }
+        let Some((interface_fqn, interface_fun)) = matched else {
             continue;
         };
 
-        let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+        let flags = BuiltinAnnotationFlags::from_annotations(ctx.source, &fun.annotations);
         if named_ir_intrinsic_override_is_allowed(&flags)
             || (!flags.is_intrinsic
                 && !flags.is_extern
@@ -473,7 +585,7 @@ fn check_intrinsic_type_interface_impl_shape(
             InterfaceError::IntrinsicTypeInterfaceOverrideMustBeBodiedRegularMethod {
                 type_fqn: type_fqn.to_string(),
                 interface_fqn: interface_fqn.clone(),
-                member: source.slice(fun.name.span).to_string(),
+                member: ctx.source.slice(fun.name.span).to_string(),
                 span: fun.name.span.into(),
                 interface_span: interface_fun.symbol.span.into(),
             },
@@ -491,26 +603,30 @@ fn named_ir_intrinsic_override_is_allowed(flags: &BuiltinAnnotationFlags) -> boo
         .is_some_and(|entry| entry.lowering_mode == NamedIntrinsicLoweringMode::IrEmission)
 }
 
-fn direct_interface_fun_targets<'a>(
-    source: &SourceFile,
-    file: &ast::File,
+fn direct_interface_fun_targets<'a, 'lower>(
+    ctx: &mut InterfaceCtx<'a, 'lower>,
     supertypes: &[ast::SuperType],
-    index: &'a Index,
-    env: &TypeEnv,
-) -> Vec<(String, &'a FunOverload)> {
+) -> Result<Vec<(String, crate::ty::NominalType, &'a FunOverload)>, InterfaceError> {
     let mut out = Vec::new();
     for st in supertypes.iter().filter(|st| st.ctor_args_span.is_none()) {
-        let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+        let Some(interface_fqn) = ctx
+            .index
+            .type_ref_to_fqn_in_file(ctx.source, ctx.file, &st.ty)
+        else {
             continue;
         };
-        if !is_interface(env, &interface_fqn) {
+        if !is_interface(ctx.env, &interface_fqn) {
             continue;
         }
-        for overload in direct_interface_funs(index, &interface_fqn) {
-            out.push((interface_fqn.clone(), overload));
+        let interface_ty = ctx.lower.lower_type_ref(&st.ty)?;
+        let Some(interface_nominal) = nominal_from_type_id(interface_ty, ctx.lower) else {
+            continue;
+        };
+        for overload in direct_interface_funs(ctx.index, &interface_fqn) {
+            out.push((interface_fqn.clone(), interface_nominal.clone(), overload));
         }
     }
-    out
+    Ok(out)
 }
 
 fn direct_interface_funs<'a>(index: &'a Index, interface_fqn: &str) -> Vec<&'a FunOverload> {
@@ -531,17 +647,6 @@ fn direct_interface_funs<'a>(index: &'a Index, interface_fqn: &str) -> Vec<&'a F
     }
 
     out
-}
-
-fn fun_matches_interface_overload(
-    source: &SourceFile,
-    fun: &ast::FunDecl,
-    target: &FunOverload,
-) -> bool {
-    source.slice(fun.name.span) == target.symbol.name
-        && fun.params.len() == target.sig.params.len()
-        && fun.receiver.is_some() == target.sig.receiver.is_some()
-        && fun.type_params.len() == target.sig.type_params.len()
 }
 
 fn required_abstract_interface_funs<'a>(
@@ -579,22 +684,68 @@ enum MemberFunMatch {
     Ambiguous,
 }
 
-fn member_fun_match(index: &Index, type_fqn: &str, required: &FunOverload) -> MemberFunMatch {
-    let member_fqn = format!("{type_fqn}.{}", required.symbol.name);
-    let Some(syms) = index.by_fqn.get(&member_fqn) else {
-        return MemberFunMatch::None;
+fn member_fun_match_in_body(
+    source: &SourceFile,
+    body: Option<&ast::TypeBody>,
+    required: &FunOverload,
+    required_owner: OwnerInstantiation<'_>,
+    lower: &mut TypeLowering<'_>,
+    env: &TypeEnv,
+) -> Result<MemberFunMatch, InterfaceError> {
+    let Some(body) = body else {
+        return Ok(MemberFunMatch::None);
     };
 
-    let matching = syms
-        .fun
-        .iter()
-        .filter(|cand| {
-            cand.sig.params.len() == required.sig.params.len()
-                && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
-                && cand.sig.type_params.len() == required.sig.type_params.len()
-        })
-        .count();
+    let mut matching = 0usize;
+    for member in &body.members {
+        let ast::TypeMember::Fun(fun) = member else {
+            continue;
+        };
+        if source.slice(fun.name.span) != required.symbol.name {
+            continue;
+        }
+        if fun_decl_matches_overload_signature(source, fun, required, required_owner, lower, env)? {
+            matching += 1;
+        }
+    }
 
+    Ok(member_fun_match_from_count(matching))
+}
+
+fn member_fun_match_in_overloads(
+    ctx: &mut InterfaceCtx<'_, '_>,
+    target: NominalTarget<'_>,
+    required: &FunOverload,
+    required_owner: OwnerInstantiation<'_>,
+) -> Result<MemberFunMatch, InterfaceError> {
+    let member_fqn = format!("{}.{}", target.fqn, required.symbol.name);
+    let Some(syms) = ctx.index.by_fqn.get(&member_fqn) else {
+        return Ok(MemberFunMatch::None);
+    };
+
+    let type_owner = OwnerInstantiation {
+        fqn: target.fqn,
+        nominal: target.nominal,
+    };
+    let mut matching = 0usize;
+    for cand in &syms.fun {
+        if fun_overloads_have_same_signature(
+            ctx.source,
+            cand,
+            type_owner,
+            required,
+            required_owner,
+            ctx.lower,
+            ctx.env,
+        )? {
+            matching += 1;
+        }
+    }
+
+    Ok(member_fun_match_from_count(matching))
+}
+
+fn member_fun_match_from_count(matching: usize) -> MemberFunMatch {
     match matching {
         0 => MemberFunMatch::None,
         1 => MemberFunMatch::Unique,
@@ -641,12 +792,14 @@ mod tests {
 
     use crate::ast;
     use crate::parser::parse_file;
-    use crate::resolve::{self, Index};
+    use crate::resolve::{self, FileHeaders, Index};
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::typecheck;
 
-    fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
+    fn setup_interface_check(
+        source_text: &str,
+    ) -> (SourceFile, ast::File, Index, FileHeaders, TypeEnv) {
         let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<continuation_interface>", source_text);
         let mut ast = parse_file(&source).expect("parse");
@@ -668,12 +821,12 @@ mod tests {
         let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).expect("type env");
         env.extend_from_file(&source, &ast, &index)
             .expect("extend type env");
-        (source, ast, index, env)
+        (source, ast, index, headers, env)
     }
 
     #[test]
     fn continuation_typecheck_rejects_user_impl_of_compiler_owned_continuation() {
-        let (source, ast, index, env) = setup_interface_check(
+        let (source, ast, index, headers, env) = setup_interface_check(
             r#"
 package fixtures.typecheck
 
@@ -687,8 +840,18 @@ class Fake() : Continuation<Int, Unit, eff Pure> {
 "#,
         );
 
-        let err = check_file_interfaces(&source, &ast, &index, &env)
-            .expect_err("用户代码不应允许实现 Continuation");
+        let mut types = crate::ty::TypeStore::new();
+        let builtins = types.intern_builtins();
+        let err = check_file_interfaces(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .expect_err("用户代码不应允许实现 Continuation");
 
         assert!(matches!(
             err,
