@@ -7,6 +7,11 @@ package fixtures.run_pass
 
 import scoop.core.*
 
+enum PairResult {
+    Pair(val left: Int, val right: Int),
+    Empty,
+}
+
 fun unwrap(opt: Int?): Int {
     val Some(x) = opt
     return x + 1
@@ -17,8 +22,14 @@ fun nested(pair: (Int?, Int)): Int {
     return x + y
 }
 
+fun firstPair(value: PairResult): Int {
+    val PairResult.Pair(first, ..) = value
+    return first
+}
+
 fun main(): Int {
     println(unwrap(Some(41)))
     println(nested((Some(5), 7)))
+    println(firstPair(Pair(8, 99)))
     return 0
 }

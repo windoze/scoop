@@ -246,7 +246,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（variant payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、match run-pass、mismatch panic、顶层 annotated / inferred / runtime pattern）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 对 refutable `val` pattern 的要求：`val Some(x) = e` 可用且 mismatch panic，failure path 不依赖 effect system；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T04R：Review refutable `val` pattern
+### [DONE] P3-T04R：Review refutable `val` pattern
 
 - 参考：
   - P3-T04 完成记录
@@ -271,10 +271,10 @@
   - C3 语义完整闭合。
 - 依赖：P3-T04
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T04 的 `val_pat` typecheck、pattern HIR lowering、mismatch panic fallback、top-level / local pattern fixture；review 发现并修正 variant pattern parser 对 `..` rest 参数未识别 `Symbol::DotDot` 的缺口，并扩展 `destructuring_val_variant_match_basic.scoop` 覆盖 `val PairResult.Pair(first, ..) = value`。
+  - 核心决策：variant rest pattern 属于 refutable `val` pattern 同一语义面，AST/typecheck/lowering 已有 rest contract，parser 必须与 tuple/struct pattern 一样同时接受 lexer 的 `DotDot` token；mismatch fallback 仍由 lowering 合成 `scoop.core.panic("pattern mismatch")`，不走 `Raise`，tuple/struct irrefutable 解构路径保持不变。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（match/rest run-pass、mismatch panic、top-level runtime、payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、top-level annotated / inferred）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 review 要求：refutable `val` variant patterns 不再被旧 hard reject 阻断，runtime mismatch 是 panic，rest/nested binding 的 scope 与类型由 typecheck/lowering 贯通；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T05：禁止 closure 捕获外层 `var`
 
