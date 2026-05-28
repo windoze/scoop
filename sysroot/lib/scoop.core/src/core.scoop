@@ -28,8 +28,6 @@ fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength
 
 // Root types
 interface Any
-sealed interface AnyRef
-sealed interface AnyValue
 
 // 基础接口：Hashable（spec §2.2.2 / std v1）。
 //
@@ -1570,7 +1568,7 @@ class AtomicBool(initial: Bool) {
     }
 }
 
-class Atomic<T>(initial: T) where T: AnyRef {
+class Atomic<T: ref>(initial: T) {
     var raw: T = initial
 
     fun load(): T {
@@ -1594,7 +1592,7 @@ class Atomic<T>(initial: T) where T: AnyRef {
     }
 }
 
-class AtomicValue<T>(initial: T) where T: AnyValue {
+class AtomicValue<T: value>(initial: T) {
     val raw: Atomic<scoop.core.Box<T>> = Atomic(scoop.core.Box(initial))
 
     fun snapshot(): scoop.core.Box<T> {

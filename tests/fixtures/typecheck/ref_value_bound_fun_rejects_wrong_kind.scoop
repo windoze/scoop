@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR: 泛型约束不满足
+
+package fixtures.typecheck
+
+fun <T: ref> needsRef(x: T): T {
+    return x
+}
+
+val bad: Int = needsRef(1)

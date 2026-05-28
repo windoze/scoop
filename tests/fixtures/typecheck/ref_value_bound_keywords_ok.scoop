@@ -1,13 +1,25 @@
 // EXPECT: pass
-// 目标：`ref` / `value` 只作为 generic bound keyword 被解析并传入 typecheck；P3-T06 再实现满足性。
+// 目标：`ref` / `value` bound kind 会在 type/typealias/function instantiation 时检查满足性。
 
 package fixtures.typecheck
 
-class RefBox<T: ref> {}
+class RefThing()
+struct ValueThing(val n: Int)
 
-class ValueBox<T: value> {}
+class RefBox<T: ref>(val value: T) {}
+
+class ValueBox<T: value>(val value: T) {}
 
 fun <T: ref, U: value> pairRefValue(x: T, y: U): T {
     return x
 }
 
+fun <T: value> idValue(x: T): T {
+    return x
+}
+
+val refOk: RefBox<RefThing> = RefBox(RefThing())
+val stringRefOk: RefBox<String> = RefBox("ok")
+val valueStructOk: ValueBox<ValueThing> = ValueBox(ValueThing(1))
+val valueIntOk: Int = idValue(41)
+val pairOk: RefThing = pairRefValue(RefThing(), ValueThing(2))

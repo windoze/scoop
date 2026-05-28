@@ -1,6 +1,0 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_must_be_empty
-
-package fixtures.typecheck
-
-import scoop.core.*

@@ -623,7 +623,7 @@ File {
 
 
 hir_facts {
-  declarations: nominals=76, callables=4, fields=44, enum_variants=24, vtables=53, itables=32
+  declarations: nominals=74, callables=4, fields=44, enum_variants=24, vtables=53, itables=32
   source_sites: function_effects=4, calls=8, args=0, assigns=0, updates=0, performs=3, handles=1, resumes=1, patterns=0, top_level_roots=0, extern_globals=0
   globals: roots=1, object_inits=1, class_inits=22
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
@@ -671,7 +671,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.equals",
-            target_decl_span: Some(20966..20972),
+            target_decl_span: Some(20916..20922),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -693,7 +693,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19681..19685),
+            target_decl_span: Some(19631..19635),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -704,7 +704,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.equals",
-            target_decl_span: Some(20966..20972),
+            target_decl_span: Some(20916..20922),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -726,7 +726,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19681..19685),
+            target_decl_span: Some(19631..19635),
             target_type_args: [],
             target_eff_args: [],
         },

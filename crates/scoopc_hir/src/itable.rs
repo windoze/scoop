@@ -501,7 +501,7 @@ fn collect_concrete_interface_targets(types: &TypeStore, env: &TypeEnv) -> Vec<T
                     if matches!(
                         env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
                         Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-                    ) && !env.is_sealed_interface(&nominal.fqn)
+                    )
             )
         })
         .collect();
@@ -538,8 +538,7 @@ fn collect_concrete_interface_closure(
             if matches!(
                 lower.env().type_symbol(&nominal.fqn).map(|sym| sym.kind),
                 Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-            ) && !lower.env().is_sealed_interface(&nominal.fqn)
-                && !out.contains(&super_ty)
+            ) && !out.contains(&super_ty)
             {
                 out.push(super_ty);
             }

@@ -340,7 +340,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted closure fixtures（makeCounter captured-`var` 负例、nested captured-`var` 负例、same-closure local `var` 正例、`val snapshot` 正例）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 review 要求：跨 closure 边界引用外层 `var` 在前端报错，同 closure 局部 `var` 不误报，`val` capture 不回归，诊断明确给出三类替代方案；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T06：用 `ref` / `value` bound constraint kind 替换 `AnyRef` / `AnyValue` sealed marker
+### [DONE] P3-T06：用 `ref` / `value` bound constraint kind 替换 `AnyRef` / `AnyValue` sealed marker
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -373,10 +373,10 @@
   - Bound-kind constraints replace sealed marker types end-to-end.
 - 依赖：P3-T05R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：删除 sysroot `AnyRef` / `AnyValue` marker 声明，将 `Atomic<T>` / `AtomicValue<T>` 与 unsafe atomic ref primitives 迁移为 `<T: ref>` / `<T: value>`；移除 `TypeEnv` sealed-marker metadata / rebuild / AnyRef-AnyValue 常量与对应 lowering/assignable/interface/itable 特判；在 `LoweredGenericBound` 上实现 `ref` / `value` bound-kind satisfaction，并接入 nominal type instantiation、function call instantiation 和 declaration-site where-clause duplicate / mutual-exclusion 检查；迁移 / 删除旧 sealed-interface marker fixtures，新增 `ref_value_bound_*` 与 old-marker-name unresolved fixtures，同步 HIR / MIR goldens 的 sysroot nominal count，并将 `SCOOP_FULL_SPEC.md` C4 surface 改为 active `ref` / `value` bound prose。
+  - 核心决策：`ref` / `value` 不是 runtime type、type argument、cast/is target 或 supertype，仍由 P2 parser 的 `bound_keyword_type_position` gate 拒绝非 bound 位置；`T: ref` 满足所有 `TypeKind::Ref(_)`（class/interface/String/array/function ref 等现有模型），`T: value` 满足所有 `TypeKind::Value(_)`（primitive/struct/enum/tuple/Option 等现有模型）；`Nothing` 按既有 bottom subtype 规则同时满足单独的 `ref` 或 `value` bound，因为其值不会在运行期产生，但同一 type parameter 同时声明 `ref` 与 `value` 仍作为互斥 bound set 拒绝；不保留 hidden alias 或 compile-time-only marker metadata。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted ref/value fixtures（`ref_value_bound_keywords_ok.scoop`、ref/value wrong-kind negatives、function wrong-kind negative、mutual exclusion negative、old `AnyRef` unresolved negative、sysroot `Atomic` / `AtomicValue` wrong-kind negatives）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1546)`）；`python3 tools/spec_fixtures.py check`；targeted search 确认 active sysroot / compiler / `SCOOP_FULL_SPEC.md` 不再声明或使用 sealed marker metadata / `AnyRef` / `AnyValue` marker logic，剩余 `AnyRef` 文本仅在 TODO/design baseline 与 negative fixture 中出现。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 对 sealed marker -> `ref` / `value` bound constraint kind 的实现要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T06R：Review `ref` / `value` bound kind 替换结果
 

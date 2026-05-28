@@ -1,6 +1,0 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_inheritance_cycle
-
-package fixtures.typecheck
-
-import scoop.core.*

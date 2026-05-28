@@ -353,7 +353,6 @@ fn build_cached_cone_import_from_payload(
             local_span,
             symbol: TypeSymbol {
                 kind: type_kind,
-                is_sealed_interface: false,
                 is_annotation_class,
                 annotation_targets,
                 annotation_retention,

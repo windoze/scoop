@@ -1,0 +1,7 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ref_value_bound_mutually_exclusive
+// EXPECT-ERROR: `ref` 与 `value`
+
+package fixtures.typecheck
+
+class Bad<T> where T: ref, T: value

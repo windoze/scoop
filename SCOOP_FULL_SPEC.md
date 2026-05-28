@@ -83,33 +83,27 @@ interface Printable {
 - Interfaces can declare abstract members and provide default implementations.
 - Both reference types and value types can implement interfaces.
 
-#### 2.2.3 Sealed Interface Markers
+#### 2.2.3 Reference/value generic bound keywords
 
-`sealed interface` declares a compile-time-only marker used as a generic bound. It is separate from ordinary `interface`: a sealed marker has no runtime dispatch surface, no members, and no user-written implementations.
-
-The initial sysroot markers are:
+`ref` and `value` are bound-only keywords used to constrain generic type parameters by representation kind.
 
 ```scoop
-sealed interface AnyRef
-sealed interface AnyValue
+class Atomic<T: ref>(initial: T)
+fun <T: value> hash(x: T): Int
 ```
 
 Rules:
 
-- A sealed interface body must be empty. Methods, properties, nested declarations, constructors, and other body members are rejected.
-- In Scoop 0.1, sealed interfaces may only be defined by the sysroot. User source cannot introduce new sealed markers.
-- A sealed interface name may appear only as a generic bound, for example `where T: AnyRef` or `where T: AnyRef, T: Hashable`.
-- A sealed interface name is rejected in runtime type positions: binding type, parameter type, return type, type argument, `is` / `!is`, `when is`, `as` / `as?`, and explicit class/struct/enum/interface supertype lists.
-- Sealed interfaces may inherit only other sealed interfaces. The compiler rejects cycles, non-sealed supertypes, and any marker whose transitive ancestors include both `AnyRef` and `AnyValue`.
-- `AnyRef` and `AnyValue` are mutually exclusive. A generic bound set that requires both is rejected because no concrete type can satisfy it.
+- `ref` and `value` may appear only in generic bound position, either inline (`<T: ref>`) or in a `where` clause (`where T: value`).
+- They are not types and are rejected in runtime type positions: binding type, parameter type, return type, type argument, `is` / `!is`, `when is`, `as` / `as?`, and explicit class/struct/enum/interface supertype lists.
+- `ref` and `value` are mutually exclusive for the same type parameter.
 
 Satisfaction is compiler-defined:
 
-- Every class type satisfies `AnyRef`.
-- Every struct, tuple, enum, and built-in scalar value type satisfies `AnyValue`.
-- A type also satisfies the transitive sealed-marker supertypes of its directly assigned marker.
+- Reference types satisfy `ref`: class/interface/effect instances, `String`, arrays, function values, and other GC-managed reference types.
+- Value types satisfy `value`: structs, tuples, enums, `Option<T>`, `Unit`, `Nothing`, and built-in scalar value types.
 
-This marker relation is stored only in compile-time type metadata. It is not emitted into object layout, vtables, itables, type descriptors, RTTI runtime-match names, or runtime cast/test machinery.
+These constraints have no runtime metadata footprint. They are not emitted into object layout, vtables, itables, type descriptors, RTTI runtime-match names, or runtime cast/test machinery.
 
 ### 2.3 Value Types
 
@@ -1451,14 +1445,14 @@ class AtomicBool(initial: Bool) {
     fun exchange(value: Bool): Bool
 }
 
-class Atomic<T>(initial: T) where T: AnyRef {
+class Atomic<T: ref>(initial: T) {
     fun load(): T
     fun store(value: T): Unit
     fun cas(expected: T, desired: T): Bool
     fun exchange(value: T): T
 }
 
-class AtomicValue<T>(initial: T) where T: AnyValue {
+class AtomicValue<T: value>(initial: T) {
     fun snapshot(): Box<T>
     fun load(): T
     fun store(value: T): Unit

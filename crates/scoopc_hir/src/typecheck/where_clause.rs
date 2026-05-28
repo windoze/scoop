@@ -17,7 +17,6 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::lower::{LoweredGenericBound, TypeLowerError, TypeLowering};
-use super::type_env::{ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum WhereClauseError {
@@ -56,13 +55,20 @@ pub enum WhereClauseError {
         second: miette::SourceSpan,
     },
 
-    #[error("where 约束不能同时要求 `{param}` 满足 AnyRef 与 AnyValue")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_mutually_exclusive_bound))]
-    SealedInterfaceMutuallyExclusiveBound {
+    #[error("where 约束不能同时要求 `{param}` 满足 `ref` 与 `value`")]
+    #[diagnostic(code(scoop::typecheck::ref_value_bound_mutually_exclusive))]
+    RefValueBoundMutuallyExclusive {
         param: String,
-        #[label("这里引入了互斥 sealed marker bound")]
+        #[label("这里引入了互斥 bound kind")]
         span: miette::SourceSpan,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum BoundKey {
+    Type(TypeId),
+    Ref,
+    Value,
 }
 
 pub fn check_file_where_clauses(
@@ -190,11 +196,11 @@ fn check_one_generic_constraints(
 ) -> Result<(), WhereClauseError> {
     let declared_set: HashSet<&str> = declared_type_params.iter().map(|s| s.as_str()).collect();
 
-    // (type_param_name, bound_type_id) -> first constraint span
-    let mut seen: HashMap<(String, TypeId), Span> = HashMap::new();
+    // (type_param_name, bound kind/type) -> first constraint span
+    let mut seen: HashMap<(String, BoundKey), Span> = HashMap::new();
     // type_param_name -> first class-like bound (type_id, span)
     let mut first_class_bound: HashMap<String, (TypeId, Span)> = HashMap::new();
-    let mut marker_bounds: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut ref_value_bounds: HashMap<String, (BoundKey, Span)> = HashMap::new();
 
     for c in constraints {
         let param = source.slice(c.ty_param.span).to_string();
@@ -205,35 +211,40 @@ fn check_one_generic_constraints(
             });
         }
 
-        let bound_ty = match lower.lower_generic_bound(c.bound)? {
-            LoweredGenericBound::Type(bound_ty) => bound_ty,
-            LoweredGenericBound::Ref | LoweredGenericBound::Value => continue,
+        let lowered = lower.lower_generic_bound(c.bound)?;
+        let key_kind = match lowered {
+            LoweredGenericBound::Type(bound_ty) => BoundKey::Type(bound_ty),
+            LoweredGenericBound::Ref => BoundKey::Ref,
+            LoweredGenericBound::Value => BoundKey::Value,
         };
 
-        if let Some(marker_fqn) = lower.sealed_marker_fqn(bound_ty) {
-            let markers = marker_bounds.entry(param.clone()).or_default();
-            markers.insert(marker_fqn.clone());
-            if let Some(supers) = lower.env().sealed_marker_transitive_supers(&marker_fqn) {
-                markers.extend(supers.iter().cloned());
-            }
-            if markers.contains(ANY_REF_MARKER_FQN) && markers.contains(ANY_VALUE_MARKER_FQN) {
-                return Err(WhereClauseError::SealedInterfaceMutuallyExclusiveBound {
-                    param,
-                    span: c.span.into(),
-                });
-            }
-        }
-
-        let key = (param.clone(), bound_ty);
+        let key = (param.clone(), key_kind);
         if let Some(prev_span) = seen.get(&key).copied() {
             return Err(WhereClauseError::DuplicateWhereConstraint {
                 param,
-                bound: lower.fmt_type(bound_ty),
+                bound: lower.fmt_generic_bound(lowered),
                 first: miette::SourceSpan::from(prev_span),
                 second: c.span.into(),
             });
         }
         seen.insert(key, c.span);
+
+        if matches!(key_kind, BoundKey::Ref | BoundKey::Value) {
+            if let Some((prev_kind, _prev_span)) = ref_value_bounds.get(&param).copied()
+                && prev_kind != key_kind
+            {
+                return Err(WhereClauseError::RefValueBoundMutuallyExclusive {
+                    param,
+                    span: c.span.into(),
+                });
+            }
+            ref_value_bounds.insert(param, (key_kind, c.span));
+            continue;
+        }
+
+        let LoweredGenericBound::Type(bound_ty) = lowered else {
+            continue;
+        };
 
         // Kotlin-like：允许多个 interface bounds，但只允许一个 class-like bound。
         if is_interface_like_bound(bound_ty, lower, builtins) {
@@ -295,34 +306,20 @@ mod tests {
     use crate::source::SourceFile;
 
     #[test]
-    fn sealed_interface_where_clause_rejects_anyref_anyvalue_mix() {
-        let marker_source = SourceFile::new_virtual_trusted_syslib(
-            "<sealed-marker-sysroot>",
-            r#"
-package scoop.core
-
-sealed interface AnyRef
-sealed interface AnyValue
-"#,
-        );
-        let marker_ast = parse_file(&marker_source).expect("parse markers");
+    fn where_clause_rejects_ref_value_bound_mix() {
         let source = SourceFile::new_virtual(
-            "<sealed-marker-user>",
+            "<ref-value-bound-user>",
             r#"
 package fixtures.typecheck
 
-import scoop.core.*
-
-class Bad<T> where T: AnyRef, T: AnyValue {}
+class Bad<T> where T: ref, T: value {}
 "#,
         );
         let ast = parse_file(&source).expect("parse user");
-        let pairs = vec![(&marker_source, &marker_ast), (&source, &ast)];
+        let pairs = vec![(&source, &ast)];
         let index = Index::build(&pairs).expect("index");
 
         let mut env = super::super::TypeEnv::default();
-        env.extend_from_file(&marker_source, &marker_ast, &index)
-            .expect("marker env");
         env.extend_from_file(&source, &ast, &index)
             .expect("user env");
         let imports = env
@@ -335,10 +332,10 @@ class Bad<T> where T: AnyRef, T: AnyValue {}
 
         let err =
             check_file_where_clauses(&source, &ast, &index, &imports, &env, &mut types, builtins)
-                .expect_err("AnyRef + AnyValue should be mutually exclusive");
+                .expect_err("ref + value should be mutually exclusive");
         assert!(matches!(
             err,
-            WhereClauseError::SealedInterfaceMutuallyExclusiveBound { .. }
+            WhereClauseError::RefValueBoundMutuallyExclusive { .. }
         ));
     }
 }

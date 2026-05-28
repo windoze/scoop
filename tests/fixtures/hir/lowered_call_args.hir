@@ -738,7 +738,7 @@ File {
 
 
 hir_facts {
-  declarations: nominals=73, callables=3, fields=44, enum_variants=24, vtables=53, itables=32
+  declarations: nominals=71, callables=3, fields=44, enum_variants=24, vtables=53, itables=32
   source_sites: function_effects=3, calls=9, args=2, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
   globals: roots=1, object_inits=1, class_inits=24
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
@@ -805,7 +805,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19681..19685),
+            target_decl_span: Some(19631..19635),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -813,7 +813,7 @@ source_site_contracts {
             span: 1048921..1048922,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.mutableArrayNew",
-            target_decl_span: Some(9865..9880),
+            target_decl_span: Some(9815..9830),
             target_type_args: [Int],
             target_eff_args: [],
         },
@@ -821,7 +821,7 @@ source_site_contracts {
             span: 1048923..1048924,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.push",
-            target_decl_span: Some(10225..10229),
+            target_decl_span: Some(10175..10179),
             target_type_args: [Int],
             target_eff_args: [],
         },
@@ -829,7 +829,7 @@ source_site_contracts {
             span: 1048925..1048926,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.push",
-            target_decl_span: Some(10225..10229),
+            target_decl_span: Some(10175..10179),
             target_type_args: [Int],
             target_eff_args: [],
         },
@@ -837,7 +837,7 @@ source_site_contracts {
             span: 1048927..1048928,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.freeze",
-            target_decl_span: Some(11005..11011),
+            target_decl_span: Some(10955..10961),
             target_type_args: [Int],
             target_eff_args: [],
         },
@@ -845,7 +845,7 @@ source_site_contracts {
             span: 1048929..1048930,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.mutableArrayNew",
-            target_decl_span: Some(9865..9880),
+            target_decl_span: Some(9815..9830),
             target_type_args: [Int],
             target_eff_args: [],
         },
@@ -853,7 +853,7 @@ source_site_contracts {
             span: 1048931..1048932,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.freeze",
-            target_decl_span: Some(11005..11011),
+            target_decl_span: Some(10955..10961),
             target_type_args: [Int],
             target_eff_args: [],
         },

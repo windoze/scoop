@@ -5,7 +5,7 @@
 //!
 //! T0425：扩展 type env 以收集 enum variants（tag + payload types），为 rich enum 的类型检查打底。
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -24,9 +24,6 @@ use super::builtin_annotations::{
     BuiltinAnnotationKind, DeprecatedAnnotationInfo, builtin_annotation_kind,
     parse_deprecated_annotation,
 };
-
-pub(crate) const ANY_REF_MARKER_FQN: &str = "scoop.core.AnyRef";
-pub(crate) const ANY_VALUE_MARKER_FQN: &str = "scoop.core.AnyValue";
 
 /// 类型符号的种类（type namespace）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,8 +130,6 @@ impl AnnotationRetentionPolicy {
 #[derive(Debug, Clone)]
 pub struct TypeSymbol {
     pub kind: TypeSymbolKind,
-    /// `sealed interface` marker construct; distinct from a runtime interface.
-    pub is_sealed_interface: bool,
     /// 是否为注解类（`annotation class ...`，spec §15.2）。
     ///
     /// 说明：
@@ -184,13 +179,6 @@ pub struct TypeSymbol {
     pub where_constraints: Vec<WhereConstraintInfo>,
     pub span: Span,
     pub decl_file: PathBuf,
-}
-
-/// Compile-time-only metadata for a `sealed interface` marker.
-#[derive(Debug, Clone, Default)]
-pub struct SealedMarkerInfo {
-    pub direct_supers: Vec<String>,
-    pub transitive_supers: Vec<String>,
 }
 
 /// 注解类主构造参数在 type env 中的最小表示（T1019）。
@@ -316,47 +304,6 @@ pub enum TypeEnvError {
         #[label("第一次定义在这里")]
         first: miette::SourceSpan,
     },
-
-    #[error("`sealed interface` 只能在 trusted `syslib` cone 中定义：{fqn}")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_user_definition_not_allowed))]
-    SealedInterfaceUserDefinitionNotAllowed {
-        fqn: String,
-        #[label("这里需要 trusted `syslib` 身份")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("`sealed interface` body 必须为空：{fqn}")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_must_be_empty))]
-    SealedInterfaceMustBeEmpty {
-        fqn: String,
-        #[label("这里是不允许的 sealed interface body member")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("`sealed interface` 只能继承其它 sealed interface：{fqn} -> {super_fqn}")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_supertype_must_be_sealed))]
-    SealedInterfaceSupertypeMustBeSealed {
-        fqn: String,
-        super_fqn: String,
-        #[label("这里的 supertype 不是 sealed interface")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("`sealed interface` 继承图存在循环：{cycle}")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_inheritance_cycle))]
-    SealedInterfaceInheritanceCycle {
-        cycle: String,
-        #[label("循环从这里回到自身")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("sealed marker bound 不能同时蕴涵 AnyRef 与 AnyValue：{fqn}")]
-    #[diagnostic(code(scoop::typecheck::sealed_interface_mutually_exclusive_bound))]
-    SealedInterfaceMutuallyExclusiveBound {
-        fqn: String,
-        #[label("这里同时包含互斥 marker")]
-        span: miette::SourceSpan,
-    },
 }
 
 /// 类型环境：通过 FQN 查询类型符号信息。
@@ -368,7 +315,6 @@ pub struct TypeEnv {
     files: HashMap<PathBuf, ast::File>,
     supertypes: HashMap<String, Vec<String>>,
     supertype_defs: HashMap<String, Vec<DirectSupertypeInfo>>,
-    sealed_markers: HashMap<String, SealedMarkerInfo>,
     file_ctx: HashMap<PathBuf, FileTypeContext>,
     type_aliases: HashMap<String, TypeAliasInfo>,
     deprecated_types: HashMap<String, DeprecatedAnnotationInfo>,
@@ -384,12 +330,6 @@ struct DeprecatedDeclKey {
     decl_span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SealedMarkerVisitState {
-    Visiting,
-    Done,
-}
-
 impl TypeEnv {
     /// 从 sysroot AST 构建类型环境。
     ///
@@ -401,7 +341,6 @@ impl TypeEnv {
         for f in sysroot.index_files() {
             env.collect_from_file(&f.source, &f.ast, index)?;
         }
-        env.rebuild_sealed_marker_metadata()?;
         Ok(env)
     }
 
@@ -418,8 +357,7 @@ impl TypeEnv {
         file: &ast::File,
         index: &Index,
     ) -> Result<(), TypeEnvError> {
-        self.collect_from_file(source, file, index)?;
-        self.rebuild_sealed_marker_metadata()
+        self.collect_from_file(source, file, index)
     }
 
     /// 按 FQN 查询类型符号。
@@ -578,35 +516,6 @@ impl TypeEnv {
         self.supertype_defs.get(fqn).map(|v| v.as_slice())
     }
 
-    /// 查询给定 FQN 是否为 compile-time-only sealed marker。
-    pub fn is_sealed_interface(&self, fqn: &str) -> bool {
-        self.by_fqn
-            .get(fqn)
-            .is_some_and(|sym| sym.is_sealed_interface)
-    }
-
-    /// 返回 sealed marker 的 direct sealed super markers。
-    pub fn sealed_marker_direct_supers(&self, fqn: &str) -> Option<&[String]> {
-        self.sealed_markers
-            .get(fqn)
-            .map(|info| info.direct_supers.as_slice())
-    }
-
-    /// 返回 sealed marker 的 transitive super marker closure。
-    pub fn sealed_marker_transitive_supers(&self, fqn: &str) -> Option<&[String]> {
-        self.sealed_markers
-            .get(fqn)
-            .map(|info| info.transitive_supers.as_slice())
-    }
-
-    /// `marker_fqn` 是否等于或传递蕴涵 `expected_fqn`。
-    pub fn sealed_marker_implies(&self, marker_fqn: &str, expected_fqn: &str) -> bool {
-        marker_fqn == expected_fqn
-            || self
-                .sealed_marker_transitive_supers(marker_fqn)
-                .is_some_and(|supers| supers.iter().any(|st| st == expected_fqn))
-    }
-
     /// 返回所有名字为 `variant_name` 的 enum variant 候选（跨所有已收集的 enum）。
     ///
     /// 说明（T0426）：
@@ -715,7 +624,6 @@ impl TypeEnv {
                         fqn.clone(),
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
-                            is_sealed_interface: false,
                             is_annotation_class: false,
                             annotation_targets: None,
                             annotation_retention: None,
@@ -825,12 +733,6 @@ impl TypeEnv {
             });
         }
 
-        let is_sealed_interface = decl.kind == ast::TypeKind::Interface
-            && decl.modifiers.contains(&ast::Modifier::Sealed);
-        if is_sealed_interface {
-            self.check_sealed_interface_decl_shape(source, &fqn, decl)?;
-        }
-
         let is_annotation_class = decl.kind == ast::TypeKind::Class
             && decl.modifiers.contains(&ast::Modifier::Annotation);
         let (annotation_targets, annotation_retention) = if is_annotation_class {
@@ -848,7 +750,6 @@ impl TypeEnv {
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
-                is_sealed_interface,
                 is_annotation_class,
                 annotation_targets,
                 annotation_retention,
@@ -1058,7 +959,6 @@ impl TypeEnv {
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
-                is_sealed_interface: false,
                 is_annotation_class: false,
                 annotation_targets: None,
                 annotation_retention: None,
@@ -1129,172 +1029,6 @@ impl TypeEnv {
                 | ast::TypeMember::InitBlock(_)
                 | ast::TypeMember::SecondaryCtor(_) => {}
             }
-        }
-
-        Ok(())
-    }
-
-    fn check_sealed_interface_decl_shape(
-        &self,
-        source: &SourceFile,
-        fqn: &str,
-        decl: &ast::TypeDecl,
-    ) -> Result<(), TypeEnvError> {
-        if !source.is_trusted_syslib() {
-            return Err(TypeEnvError::SealedInterfaceUserDefinitionNotAllowed {
-                fqn: fqn.to_string(),
-                span: decl.name.span.into(),
-            });
-        }
-
-        for st in &decl.supertypes {
-            if st.ctor_args_span.is_some() {
-                return Err(TypeEnvError::SealedInterfaceSupertypeMustBeSealed {
-                    fqn: fqn.to_string(),
-                    super_fqn: source.slice(st.ty.span()).to_string(),
-                    span: st.ty.span().into(),
-                });
-            }
-        }
-
-        if let Some(body) = &decl.body
-            && let Some(member) = body.members.first()
-        {
-            return Err(TypeEnvError::SealedInterfaceMustBeEmpty {
-                fqn: fqn.to_string(),
-                span: type_member_span(member).into(),
-            });
-        }
-
-        Ok(())
-    }
-
-    fn rebuild_sealed_marker_metadata(&mut self) -> Result<(), TypeEnvError> {
-        self.sealed_markers.clear();
-        let mut markers = self
-            .by_fqn
-            .iter()
-            .filter_map(|(fqn, sym)| sym.is_sealed_interface.then_some(fqn.clone()))
-            .collect::<Vec<_>>();
-        markers.sort();
-
-        let marker_set = markers.iter().cloned().collect::<HashSet<_>>();
-        let mut states: HashMap<String, SealedMarkerVisitState> = HashMap::new();
-        let mut stack: Vec<String> = Vec::new();
-
-        for marker in markers {
-            self.compute_sealed_marker_closure(&marker, &marker_set, &mut states, &mut stack)?;
-        }
-        Ok(())
-    }
-
-    fn compute_sealed_marker_closure(
-        &mut self,
-        marker: &str,
-        marker_set: &HashSet<String>,
-        states: &mut HashMap<String, SealedMarkerVisitState>,
-        stack: &mut Vec<String>,
-    ) -> Result<Vec<String>, TypeEnvError> {
-        match states.get(marker).copied() {
-            Some(SealedMarkerVisitState::Done) => {
-                return Ok(self
-                    .sealed_markers
-                    .get(marker)
-                    .map(|info| info.transitive_supers.clone())
-                    .unwrap_or_default());
-            }
-            Some(SealedMarkerVisitState::Visiting) => {
-                let mut cycle_parts = stack.clone();
-                cycle_parts.push(marker.to_string());
-                let cycle = cycle_parts.join(" -> ");
-                let span = self
-                    .type_symbol(marker)
-                    .map(|sym| sym.span)
-                    .unwrap_or_else(|| Span::new(0, 0));
-                return Err(TypeEnvError::SealedInterfaceInheritanceCycle {
-                    cycle,
-                    span: span.into(),
-                });
-            }
-            None => {}
-        }
-
-        states.insert(marker.to_string(), SealedMarkerVisitState::Visiting);
-        stack.push(marker.to_string());
-
-        let direct_infos = self
-            .direct_supertype_infos(marker)
-            .map(|infos| infos.to_vec())
-            .unwrap_or_default();
-        let mut direct_supers = Vec::new();
-        let mut transitive_supers = Vec::new();
-
-        for info in direct_infos {
-            if !marker_set.contains(&info.fqn) {
-                return Err(TypeEnvError::SealedInterfaceSupertypeMustBeSealed {
-                    fqn: marker.to_string(),
-                    super_fqn: info.fqn,
-                    span: info.ty.span().into(),
-                });
-            }
-
-            if let Some(pos) = stack.iter().position(|fqn| fqn == &info.fqn) {
-                let mut cycle = stack[pos..].to_vec();
-                cycle.push(info.fqn.clone());
-                return Err(TypeEnvError::SealedInterfaceInheritanceCycle {
-                    cycle: cycle.join(" -> "),
-                    span: info.ty.span().into(),
-                });
-            }
-
-            direct_supers.push(info.fqn.clone());
-            transitive_supers.push(info.fqn.clone());
-            transitive_supers
-                .extend(self.compute_sealed_marker_closure(&info.fqn, marker_set, states, stack)?);
-        }
-
-        direct_supers.sort();
-        direct_supers.dedup();
-        transitive_supers.sort();
-        transitive_supers.dedup();
-
-        self.check_sealed_marker_mutual_exclusion(marker, &transitive_supers)?;
-
-        self.sealed_markers.insert(
-            marker.to_string(),
-            SealedMarkerInfo {
-                direct_supers,
-                transitive_supers: transitive_supers.clone(),
-            },
-        );
-        states.insert(marker.to_string(), SealedMarkerVisitState::Done);
-        let _ = stack.pop();
-        Ok(transitive_supers)
-    }
-
-    fn check_sealed_marker_mutual_exclusion(
-        &self,
-        marker: &str,
-        transitive_supers: &[String],
-    ) -> Result<(), TypeEnvError> {
-        let has_any_ref = marker == ANY_REF_MARKER_FQN
-            || transitive_supers
-                .iter()
-                .any(|fqn| fqn == ANY_REF_MARKER_FQN);
-        let has_any_value = marker == ANY_VALUE_MARKER_FQN
-            || transitive_supers
-                .iter()
-                .any(|fqn| fqn == ANY_VALUE_MARKER_FQN);
-
-        if has_any_ref && has_any_value {
-            let span = self
-                .type_symbol(marker)
-                .map(|sym| sym.span)
-                .unwrap_or_else(|| Span::new(0, 0));
-            return Err(TypeEnvError::SealedInterfaceMutuallyExclusiveBound {
-                fqn: marker.to_string(),
-                span: span.into(),
-            });
         }
 
         Ok(())
@@ -1530,18 +1264,6 @@ fn effective_annotation_target(
     }
 }
 
-fn type_member_span(member: &ast::TypeMember) -> Span {
-    match member {
-        ast::TypeMember::EnumVariant(v) => v.span,
-        ast::TypeMember::Property(p) => p.span,
-        ast::TypeMember::InitBlock(i) => i.span,
-        ast::TypeMember::SecondaryCtor(c) => c.span,
-        ast::TypeMember::Fun(f) => f.span,
-        ast::TypeMember::Type(t) => t.span,
-        ast::TypeMember::Object(o) => o.span,
-    }
-}
-
 fn extract_string_literal_text(source: &SourceFile, expr: &ast::Expr) -> Option<String> {
     if !matches!(expr.kind, ast::ExprKind::StringLit) {
         return None;
@@ -1629,7 +1351,6 @@ mod tests {
     use super::*;
     use crate::ast;
     use crate::session::Session;
-    use crate::source::SourceOrigin;
     use crate::ty::TypeStore;
     use crate::typecheck;
 
@@ -1695,46 +1416,6 @@ mod tests {
     }
 
     #[test]
-    fn sysroot_type_env_contains_anyref_anyvalue_markers() {
-        let sess = Session::new().unwrap();
-        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in sess.sysroot().index_files() {
-            pairs.push((&f.source, &f.ast));
-        }
-        let index = Index::build(&pairs).unwrap();
-        let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
-
-        for fqn in [ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN] {
-            let sym = env
-                .type_symbol(fqn)
-                .expect("sysroot marker should be registered");
-            assert_eq!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Interface));
-            assert!(sym.is_sealed_interface);
-            assert_eq!(sym.type_param_count, 0);
-            assert!(
-                env.sealed_marker_direct_supers(fqn)
-                    .is_some_and(|supers| supers.is_empty())
-            );
-            assert!(
-                env.sealed_marker_transitive_supers(fqn)
-                    .is_some_and(|supers| supers.is_empty())
-            );
-            assert!(env.direct_supertypes(fqn).is_none());
-        }
-
-        assert!(!env.sealed_marker_implies(ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN));
-        assert!(!env.sealed_marker_implies(ANY_VALUE_MARKER_FQN, ANY_REF_MARKER_FQN));
-        for (fqn, supers) in &env.supertypes {
-            assert!(
-                !supers
-                    .iter()
-                    .any(|st| st == ANY_REF_MARKER_FQN || st == ANY_VALUE_MARKER_FQN),
-                "{fqn} should not record sealed markers as runtime supertypes"
-            );
-        }
-    }
-
-    #[test]
     fn sysroot_type_env_contains_refcell_box_classes() {
         let sess = Session::new().unwrap();
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
@@ -1749,23 +1430,22 @@ mod tests {
                 .type_symbol(fqn)
                 .expect("sysroot shared-state class should be registered");
             assert_eq!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Class));
-            assert!(!sym.is_sealed_interface);
             assert_eq!(sym.type_param_count, 1);
         }
     }
 
     #[test]
-    fn sysroot_type_env_allows_anyref_anyvalue_generic_bounds() {
+    fn sysroot_type_env_allows_ref_value_generic_bounds() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
-            "<sealed-marker-user>",
+            "<ref-value-bound-user>",
             r#"
 package fixtures.typecheck
 
 import scoop.core.*
 
-class RefBox<T> where T: AnyRef {}
-class ValueBox<T> where T: AnyValue {}
+class RefBox<T: ref> {}
+class ValueBox<T: value> {}
 class C()
 struct S(val value: Int)
 typealias RefOk = RefBox<C>
@@ -1783,6 +1463,23 @@ typealias ValueIntOk = ValueBox<Int>
 
         let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
         env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let ref_box = env
+            .type_symbol("fixtures.typecheck.RefBox")
+            .expect("RefBox should be collected");
+        assert_eq!(ref_box.where_constraints.len(), 1);
+        assert!(matches!(
+            ref_box.where_constraints[0].bound,
+            ast::GenericBound::Ref { .. }
+        ));
+        let value_box = env
+            .type_symbol("fixtures.typecheck.ValueBox")
+            .expect("ValueBox should be collected");
+        assert_eq!(value_box.where_constraints.len(), 1);
+        assert!(matches!(
+            value_box.where_constraints[0].bound,
+            ast::GenericBound::Value { .. }
+        ));
 
         let imports = env
             .file_type_context(source.path())
@@ -1878,300 +1575,5 @@ class Box<T> where T: Show {}
             }
             other => panic!("where bound: 期望 TypeRef::Path，但得到 {other:?}"),
         }
-    }
-
-    fn parse_virtual(
-        sess: &Session,
-        path: &str,
-        text: &str,
-        origin: SourceOrigin,
-    ) -> (SourceFile, ast::File) {
-        let source = if origin == SourceOrigin::Sysroot {
-            SourceFile::new_virtual_trusted_syslib(path, text)
-        } else {
-            SourceFile::new_virtual_with_origin(path, text, origin)
-        };
-        let ast = sess.parse(&source).unwrap();
-        (source, ast)
-    }
-
-    #[test]
-    fn sealed_marker_type_env_records_metadata_and_closure() {
-        let sess = Session::new().unwrap();
-        let (source, ast) = parse_virtual(
-            &sess,
-            "<sealed-sysroot>",
-            r#"
-package scoop.core
-
-sealed interface AnyRef
-sealed interface AnyValue
-sealed interface RefMarker : AnyRef
-sealed interface DeepRefMarker : RefMarker
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let pairs = vec![(&source, &ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        env.extend_from_file(&source, &ast, &index).unwrap();
-
-        assert!(env.is_sealed_interface("scoop.core.AnyRef"));
-        assert_eq!(
-            env.sealed_marker_direct_supers("scoop.core.DeepRefMarker"),
-            Some(["scoop.core.RefMarker".to_string()].as_slice())
-        );
-        assert_eq!(
-            env.sealed_marker_transitive_supers("scoop.core.DeepRefMarker"),
-            Some(
-                [
-                    "scoop.core.AnyRef".to_string(),
-                    "scoop.core.RefMarker".to_string(),
-                ]
-                .as_slice()
-            )
-        );
-    }
-
-    #[test]
-    fn sealed_marker_type_env_rejects_user_definition() {
-        let sess = Session::new().unwrap();
-        let (source, ast) = parse_virtual(
-            &sess,
-            "<sealed-user>",
-            r#"
-package fixtures.typecheck
-
-sealed interface UserMarker
-"#,
-            SourceOrigin::User,
-        );
-        let pairs = vec![(&source, &ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        let err = env.extend_from_file(&source, &ast, &index).unwrap_err();
-        assert!(matches!(
-            err,
-            TypeEnvError::SealedInterfaceUserDefinitionNotAllowed { .. }
-        ));
-    }
-
-    #[test]
-    fn sealed_marker_type_env_rejects_non_empty_body() {
-        let sess = Session::new().unwrap();
-        let (source, ast) = parse_virtual(
-            &sess,
-            "<sealed-sysroot>",
-            r#"
-package scoop.core
-
-sealed interface Bad {
-    fun f(): Unit
-}
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let pairs = vec![(&source, &ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        let err = env.extend_from_file(&source, &ast, &index).unwrap_err();
-        assert!(matches!(
-            err,
-            TypeEnvError::SealedInterfaceMustBeEmpty { .. }
-        ));
-    }
-
-    #[test]
-    fn sealed_marker_type_env_rejects_non_sealed_supertype_and_cycles() {
-        let sess = Session::new().unwrap();
-        let (bad_super_source, bad_super_ast) = parse_virtual(
-            &sess,
-            "<sealed-bad-super>",
-            r#"
-package scoop.core
-
-interface Normal
-sealed interface Bad : Normal
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let bad_pairs = vec![(&bad_super_source, &bad_super_ast)];
-        let bad_index = Index::build(&bad_pairs).unwrap();
-        let mut bad_env = TypeEnv::default();
-        let bad_err = bad_env
-            .extend_from_file(&bad_super_source, &bad_super_ast, &bad_index)
-            .unwrap_err();
-        assert!(matches!(
-            bad_err,
-            TypeEnvError::SealedInterfaceSupertypeMustBeSealed { .. }
-        ));
-
-        let (cycle_source, cycle_ast) = parse_virtual(
-            &sess,
-            "<sealed-cycle>",
-            r#"
-package scoop.core
-
-sealed interface A : B
-sealed interface B : A
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let cycle_pairs = vec![(&cycle_source, &cycle_ast)];
-        let cycle_index = Index::build(&cycle_pairs).unwrap();
-        let mut cycle_env = TypeEnv::default();
-        let cycle_err = cycle_env
-            .extend_from_file(&cycle_source, &cycle_ast, &cycle_index)
-            .unwrap_err();
-        assert!(matches!(
-            cycle_err,
-            TypeEnvError::SealedInterfaceInheritanceCycle { .. }
-        ));
-    }
-
-    #[test]
-    fn sealed_marker_type_env_rejects_anyref_anyvalue_marker_mix() {
-        let sess = Session::new().unwrap();
-        let (source, ast) = parse_virtual(
-            &sess,
-            "<sealed-mutual>",
-            r#"
-package scoop.core
-
-sealed interface AnyRef
-sealed interface AnyValue
-sealed interface Bad : AnyRef, AnyValue
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let pairs = vec![(&source, &ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        let err = env.extend_from_file(&source, &ast, &index).unwrap_err();
-        assert!(matches!(
-            err,
-            TypeEnvError::SealedInterfaceMutuallyExclusiveBound { .. }
-        ));
-    }
-
-    #[test]
-    fn sealed_marker_bounds_accept_automatic_ref_and_value_types() {
-        let sess = Session::new().unwrap();
-        let (marker_source, marker_ast) = parse_virtual(
-            &sess,
-            "<sealed-markers>",
-            r#"
-package scoop.core
-
-sealed interface AnyRef
-sealed interface AnyValue
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let (user_source, user_ast) = parse_virtual(
-            &sess,
-            "<sealed-user>",
-            r#"
-package fixtures.typecheck
-
-import scoop.core.*
-
-class RefBox<T> where T: AnyRef {}
-class ValueBox<T> where T: AnyValue {}
-class C()
-struct S(val value: Int)
-typealias RefOk = RefBox<C>
-typealias ValueOk = ValueBox<S>
-"#,
-            SourceOrigin::User,
-        );
-        let pairs = vec![(&marker_source, &marker_ast), (&user_source, &user_ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        env.extend_from_file(&marker_source, &marker_ast, &index)
-            .unwrap();
-        env.extend_from_file(&user_source, &user_ast, &index)
-            .unwrap();
-
-        let imports = env
-            .file_type_context(user_source.path())
-            .unwrap()
-            .imports
-            .clone();
-        let mut types = TypeStore::new();
-        let builtins = types.intern_builtins();
-        typecheck::check_file_type_refs(
-            &user_source,
-            &user_ast,
-            &index,
-            &imports,
-            &env,
-            &mut types,
-            builtins,
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn sealed_marker_non_bound_type_position_is_rejected() {
-        let sess = Session::new().unwrap();
-        let (marker_source, marker_ast) = parse_virtual(
-            &sess,
-            "<sealed-markers>",
-            r#"
-package scoop.core
-
-sealed interface AnyRef
-sealed interface AnyValue
-"#,
-            SourceOrigin::Sysroot,
-        );
-        let (user_source, user_ast) = parse_virtual(
-            &sess,
-            "<sealed-user>",
-            r#"
-package fixtures.typecheck
-
-import scoop.core.*
-
-typealias Bad = AnyRef
-"#,
-            SourceOrigin::User,
-        );
-        let pairs = vec![(&marker_source, &marker_ast), (&user_source, &user_ast)];
-        let index = Index::build(&pairs).unwrap();
-
-        let mut env = TypeEnv::default();
-        env.extend_from_file(&marker_source, &marker_ast, &index)
-            .unwrap();
-        env.extend_from_file(&user_source, &user_ast, &index)
-            .unwrap();
-
-        let imports = env
-            .file_type_context(user_source.path())
-            .unwrap()
-            .imports
-            .clone();
-        let mut types = TypeStore::new();
-        let builtins = types.intern_builtins();
-        let err = typecheck::check_file_type_refs(
-            &user_source,
-            &user_ast,
-            &index,
-            &imports,
-            &env,
-            &mut types,
-            builtins,
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            typecheck::TypeLowerError::SealedInterfaceBoundOnly { .. }
-        ));
     }
 }

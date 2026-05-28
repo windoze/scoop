@@ -908,7 +908,7 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
     sig: &FunSigOwned,
     type_args: &[TypeId],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
+    _builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
     if sig.where_constraints.is_empty() {
         return Ok(());
@@ -946,16 +946,13 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
         }
 
         // 在声明处文件上下文中 lower bound，应用 type arg 替换。
-        let bound_ty = match lower.lower_generic_bound_in_decl_file_with_bindings(
+        let bound = lower.lower_generic_bound_in_decl_file_with_bindings(
             &sig.decl_file,
             bindings.iter().cloned(),
             &c.bound,
-        )? {
-            LoweredGenericBound::Type(bound_ty) => bound_ty,
-            LoweredGenericBound::Ref | LoweredGenericBound::Value => continue,
-        };
+        )?;
 
-        if is_type_assignable(arg_ty, bound_ty, lower, builtins) {
+        if lower.generic_bound_satisfied(arg_ty, bound) {
             continue;
         }
 
@@ -963,7 +960,7 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
             callee: callee.to_string(),
             param: c.param_name.clone(),
             arg: lower.fmt_type(arg_ty),
-            bound: lower.fmt_type(bound_ty),
+            bound: lower.fmt_generic_bound(bound),
             span: call_span.into(),
         });
     }

@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR: 泛型约束不满足
+
+package fixtures.typecheck
+
+class RefBox<T: ref>(val value: T)
+
+val bad: RefBox<Int> = RefBox(1)

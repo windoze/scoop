@@ -384,7 +384,6 @@ mod tests {
             local_span: span,
             symbol: TypeSymbol {
                 kind: TypeSymbolKind::Nominal(kind),
-                is_sealed_interface: false,
                 is_annotation_class: false,
                 annotation_targets: None,
                 annotation_retention: None,

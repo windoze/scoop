@@ -1734,7 +1734,7 @@ fun main(): Int {
             ir.contains("load atomic ptr addrspace(1)")
                 && ir.contains("store atomic ptr addrspace(1)")
                 && ir.contains("cmpxchg ptr addrspace(1)"),
-            "Atomic<T: AnyRef> should lower load/store/cas to pointer atomic instructions\n{ir}"
+            "Atomic<T: ref> should lower load/store/cas to pointer atomic instructions\n{ir}"
         );
         let cas_function =
             ir_function_matching(&ir, "atomic ref cas function", |_header, function| {

@@ -1,3 +1,0 @@
-package scoop.core
-
-sealed interface ImpossibleMarker : AnyRef, AnyValue
