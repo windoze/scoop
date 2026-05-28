@@ -1597,6 +1597,7 @@ impl<'a> HirLowering<'a> {
             return self.missing_with_update_expr(expr_span);
         };
 
+        let has_variant_updates = !grouped.is_empty();
         let mut arms: Vec<WhenArm> = Vec::with_capacity(enum_info.variants.len());
         for variant in &enum_info.variants {
             let update_group = grouped.get(&variant.name);
@@ -1689,6 +1690,8 @@ impl<'a> HirLowering<'a> {
                         args,
                     },
                 }
+            } else if has_variant_updates {
+                self.synth_panic_call_expr(with_span, "enum with variant mismatch")
             } else {
                 base_access.clone()
             };

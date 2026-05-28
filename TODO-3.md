@@ -116,7 +116,7 @@
   - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；`cargo clippy --all-targets -- -D warnings`；targeted `!!` / cast typecheck、HIR、MIR、run-pass panic fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B3 与 `PLAN.md` P3 对 `!!` / `as` panic 语义的要求：两者失败路径不再执行 `Raise.raise(RuntimeError.*)`，成功 unwrap/cast 与 `as?` 行为保持不变，用户可见失败不再泄露旧 effect requirement。
 
-### [TODO] P3-T02R：Review `!!` 与 `as` panic 语义
+### [DONE] P3-T02R：Review `!!` 与 `as` panic 语义
 
 - 参考：
   - P3-T02 完成记录
@@ -141,12 +141,12 @@
   - B3 语义完整闭合。
 - 依赖：P3-T02
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T02 涉及的 typecheck、HIR lowering、MIR lowering/materialization、LLVM codegen、sysroot `panic` / `RuntimeError` surface 与 not-null / cast fixtures；本轮 review 未发现需要改动编译器代码的缺口，仅更新任务状态与完成记录。
+  - 核心决策：`!!` 与 `as` failure 均已走 `scoop.core.panic` / runtime `scoop_panic`，不再向 required-effects 写入 `Raise<RuntimeError>`，也不能被 `try/catch Raise<RuntimeError>` 捕获；`as?` 仍保持 `ReturnNone` / `Option<T>` 语义；`RuntimeError` 继续保留给显式 `Raise<RuntimeError>` 与 `Continuation.resume` runtime-error 边界，非本任务的 pattern mismatch 残留已由后续 P3-T04 覆盖。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `not_null_assert_no_required_effect_ok.scoop`、`runtime_cast_as_no_required_effect_ok.scoop`、`cast_as_and_asq_ok.scoop`、`not_null_assert_failure_panic.scoop`、`type_check_cast_as_failure_panic.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B3 与 `PLAN.md` P3 review 要求：failure path 是 assertion panic 而非 effect operation，成功 unwrap/cast 行为与 `as?` nullable cast 行为未回归，`RuntimeError` 的剩余用途有明确边界。
 
-### [TODO] P3-T03：enum `with` mismatched variant 改为 panic
+### [DONE] P3-T03：enum `with` mismatched variant 改为 panic
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -174,10 +174,10 @@
   - enum variant mismatch can no longer silently preserve original value.
 - 依赖：P3-T02R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：`build_with_enum_expr` 的 enum with-update lowering 将“有 variant update 但运行期落到未更新 variant”的分支从保留原值改为 `scoop.core.panic("enum with variant mismatch")`；typecheck enum contract 注释明确 lowering 需要完整 variant 形状；同步 `with_update_enum_variant_payload_basic`，并新增 `with_update_enum_variant_mismatch_panic.scoop` expected-exit fixture。
+  - 核心决策：空 `with {}` 仍保持 identity，避免把无目标 variant 的 no-op 表达式误判为 mismatch；只要当前 enum 层存在至少一个 variant update，未被该 update set 覆盖的 runtime variant 即视为 assertion mismatch 并 panic；struct / tuple with-update 路径不变，failure path 不经过 `Raise<RuntimeError>`。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 对 enum `with` mismatch panic 的要求：mismatched runtime variant 不再 silent preserve，matching variant update 行为保持不变，其他 aggregate with-update 未回归；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T03R：Review enum `with` mismatch panic
 

@@ -44,7 +44,6 @@ fun main(): Int {
     val pair: PairOrNone = Pair(3, 4)
 
     printResult(ok with { Ok.point.x: 7 })
-    printResult(err with { Ok.point.x: 7 })
     printResult(err with { Err.code: 42 })
     printPair(pair with { Pair.right: 9 })
     return 0

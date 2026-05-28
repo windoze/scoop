@@ -1,0 +1,24 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// 目标：P3-T03：enum `with` 指向的 variant 与运行期 variant 不匹配时 panic。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+fun main(): Int {
+    val err: Result = Err(5)
+    val updated: Result = err with { Ok.point.x: 7 }
+    when (updated) {
+        Ok(point) -> println(point.x)
+        Err(code) -> println(code)
+    }
+    return 0
+}

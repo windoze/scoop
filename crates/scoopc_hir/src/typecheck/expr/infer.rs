@@ -3107,6 +3107,8 @@ fn resolve_with_update_enum_info(
         .zip(enum_args.iter().copied())
         .collect();
 
+    // Lowering needs every runtime variant, not only updated paths, so it can
+    // synthesize a panic arm for variant-update mismatches.
     let variants = decl
         .variants
         .iter()
