@@ -448,7 +448,7 @@
   - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted cone/export fixtures（`tests/fixtures/typecheck_cone/default_internal_export`、`tests/fixtures/scoopir/public_api_filter.scoop`、`scoopc_cone::scoopir_fixture_public_api_filter_golden`）；generated `api.scoopir` / symbol visibility inspection for default-internal sample cone；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1551)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C5 与 `PLAN.md` P3 默认 visibility 要求：无 modifier declaration 现在为 cone-internal，`public` 是导出 API 的显式 opt-in，`.cone` API 只携带 explicit public declarations，internal declarations 保持 same-cone 可见并在下游得到不可见诊断；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T07R：Review default internal visibility
+### [DONE] P3-T07R：Review default internal visibility
 
 - 参考：
   - P3-T07 完成记录
@@ -476,7 +476,7 @@
   - C5 语义完整闭合；P4 可基于新 visibility 规则实现 overload definition-time checks。
 - 依赖：P3-T07
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P3-T07 的默认 visibility 实现、ScoopIR public API export filter、非 public 符号占位索引、production sysroot explicit `public` 标注与 cone/export fixtures；未发现需要修改代码的缺口，仅更新本 review 任务记录。
+  - 核心决策：继续以 resolver 的 `Visibility` 作为唯一 source of truth：无 modifier declaration 默认为 `internal`，`.cone` `api.scoopir` 只导出 `Visibility::Public`，`SYMBOL_VISIBILITY.json` 只为下游诊断记录非 public 占位符；不通过 exporter 重新导出 internal 来维持旧默认 public 行为。
+  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；targeted cone/export fixtures（`tests/fixtures/typecheck_cone/default_internal_export`、`tests/fixtures/scoopir/public_api_filter.scoop`、`scoopc_cone::scoopir_fixture_public_api_filter_golden`）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1551)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：P3-T07R 确认 `SPEC_FIX.md` C5 与 `PLAN.md` P3 默认 visibility contract 已闭合：same-cone internal 可见、downstream internal 不可见且诊断稳定、public API 必须显式 opt in，P4 可基于新 visibility 规则继续 overload definition-time checks；阶段计划无变化，未修改 `PLAN.md`。
