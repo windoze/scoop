@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:9
+// EXPECT-ERROR: Any
+
+package fixtures.typecheck
+
+fun <T: Any> defaultAny(x: T): T {
+    return x
+}
+
+fun <T> defaultAny(x: T): T {
+    return x
+}

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: effect row
+
+package fixtures.typecheck
+
+fun effOnly(x: Int): Int / Pure {
+    return 1
+}
+
+fun effOnly(x: Int): Int / Raise<RuntimeError> {
+    return 2
+}
+

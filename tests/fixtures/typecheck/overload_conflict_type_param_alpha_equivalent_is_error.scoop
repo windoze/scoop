@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:9
+// EXPECT-ERROR: Any
+
+package fixtures.typecheck
+
+fun <T> alphaEq(x: T): T {
+    return x
+}
+
+fun <U> alphaEq(x: U): U {
+    return x
+}
+

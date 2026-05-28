@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 14:5
+// EXPECT-ERROR: Int
+
+package fixtures.typecheck
+
+typealias I = Int
+
+fun aliasEq(x: Int): Int {
+    return x
+}
+
+fun aliasEq(x: I): Int {
+    return x
+}
+

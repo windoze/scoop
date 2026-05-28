@@ -320,6 +320,8 @@ pub struct ParamSig {
 pub struct TypeParamSig {
     pub name: String,
     pub name_span: Span,
+    /// Inline bounds retained for typecheck; overload definition-time checks use
+    /// these to alpha-normalize method-level type parameters by effective bound.
     pub bounds: Vec<ast::GenericBound>,
 }
 
@@ -378,6 +380,8 @@ pub struct FunSig {
     pub type_params: Vec<TypeParamSig>,
     pub eff_param: Option<ast::EffectRowParam>,
     pub params: Vec<ParamSig>,
+    /// Return type and effect row are retained for type/effect checking, but
+    /// they are intentionally excluded from overload signature equivalence.
     pub return_ty: Option<ast::TypeRef>,
     pub effects: Option<ast::EffectRowExpr>,
     pub builtin_flags: BuiltinFunFlags,

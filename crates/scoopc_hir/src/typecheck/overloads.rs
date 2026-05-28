@@ -12,6 +12,7 @@
 //!   更完整的 named args / 中间省略规则由后续任务补齐（与 T1305/T1306 联动）。
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -20,10 +21,13 @@ use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, TypeId, TypeStore};
+use crate::ty::{
+    BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, StarProjectionType, TypeId,
+    TypeKind, TypeParamType, TypeStore, ValueTypeKind,
+};
 
 use super::TypeEnv;
-use super::lower::{TypeLowerError, TypeLowering, build_where_bound_entries};
+use super::lower::{LoweredGenericBound, TypeLowerError, TypeLowering, build_where_bound_entries};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum OverloadDeclError {
@@ -31,11 +35,13 @@ pub enum OverloadDeclError {
     #[diagnostic(transparent)]
     TypeLower(#[from] TypeLowerError),
 
-    #[error("重载签名冲突：{fqn}（{reason}）")]
+    #[error("重载签名冲突：{fqn}（{reason}）：{previous_signature} <-> {conflict_signature}")]
     #[diagnostic(code(scoop::typecheck::overload_conflict))]
     Conflict {
-        fqn: String,
-        reason: String,
+        fqn: Box<str>,
+        reason: Box<str>,
+        previous_signature: Box<str>,
+        conflict_signature: Box<str>,
         #[label("冲突声明在这里")]
         conflict: miette::SourceSpan,
         #[label("第一次声明在这里")]
@@ -45,15 +51,16 @@ pub enum OverloadDeclError {
 
 #[derive(Debug, Clone)]
 struct ParamInfo {
-    ty: TypeId,
+    effective_ty: EffectiveType,
     has_default: bool,
 }
 
 #[derive(Debug, Clone)]
 struct FunSigInfo {
-    receiver: Option<TypeId>,
+    receiver: Option<EffectiveType>,
     params: Vec<ParamInfo>,
     return_ty: Option<TypeId>,
+    effects: EffectRow,
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +72,77 @@ struct FunDeclInfo {
 #[derive(Debug, Clone)]
 struct CtorSigInfo {
     params: Vec<ParamInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct TypeParamKey {
+    name: String,
+    decl_file: PathBuf,
+    decl_span: Span,
+}
+
+impl TypeParamKey {
+    fn from_ast(source: &SourceFile, param: &ast::TypeParam) -> Self {
+        Self {
+            name: source.slice(param.name.span).to_string(),
+            decl_file: source.path().to_path_buf(),
+            decl_span: param.name.span,
+        }
+    }
+
+    fn from_type_param(param: &TypeParamType) -> Self {
+        Self {
+            name: param.name.clone(),
+            decl_file: param.decl_file.clone(),
+            decl_span: param.decl_span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EffectiveEffectRow {
+    terms: Vec<EffectiveType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum EffectiveType {
+    Any,
+    String,
+    Unit,
+    Nothing,
+    Bool,
+    Char,
+    Float64,
+    Float32,
+    Int,
+    UInt,
+    IntN(u16),
+    UIntN(u16),
+    Option(Box<EffectiveType>),
+    Tuple(Vec<EffectiveType>),
+    RefNominal {
+        fqn: String,
+        args: Vec<EffectiveType>,
+        eff: Option<EffectiveEffectRow>,
+    },
+    ValueNominal {
+        fqn: String,
+        args: Vec<EffectiveType>,
+        eff: Option<EffectiveEffectRow>,
+    },
+    Function {
+        receiver: Option<Box<EffectiveType>>,
+        params: Vec<EffectiveType>,
+        return_ty: Box<EffectiveType>,
+        effects: EffectiveEffectRow,
+        effects_closed: bool,
+    },
+    Union(Vec<EffectiveType>),
+    StarProjection(Box<EffectiveType>),
+    Param(TypeParamKey),
+    RefBound,
+    ValueBound,
+    Intersection(Vec<EffectiveType>),
 }
 
 #[derive(Debug, Clone)]
@@ -99,6 +177,7 @@ pub fn check_file_overload_conflicts(
         &file.items,
         &pkg_prefix,
         &mut lower,
+        builtins,
         &mut funs_by_fqn,
         &mut ctors_by_type,
     )?;
@@ -121,21 +200,36 @@ fn collect_items(
     items: &[ast::Item],
     prefix: &str,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     funs_by_fqn: &mut HashMap<String, Vec<FunDeclInfo>>,
     ctors_by_type: &mut HashMap<String, Vec<CtorDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
     for item in items {
         match item {
             ast::Item::TypeAlias(_ta) => {}
-            ast::Item::Fun(fun) => collect_fun_decl(source, fun, prefix, lower, funs_by_fqn)?,
+            ast::Item::Fun(fun) => {
+                collect_fun_decl(source, fun, prefix, lower, builtins, funs_by_fqn)?
+            }
             ast::Item::ExtensionProperty(_p) => {}
             ast::Item::Val(_v) => {}
-            ast::Item::Type(ty) => {
-                collect_type_decl(source, ty, prefix, lower, funs_by_fqn, ctors_by_type)?
-            }
-            ast::Item::Object(obj) => {
-                collect_object_decl(source, obj, prefix, lower, funs_by_fqn, ctors_by_type)?
-            }
+            ast::Item::Type(ty) => collect_type_decl(
+                source,
+                ty,
+                prefix,
+                lower,
+                builtins,
+                funs_by_fqn,
+                ctors_by_type,
+            )?,
+            ast::Item::Object(obj) => collect_object_decl(
+                source,
+                obj,
+                prefix,
+                lower,
+                builtins,
+                funs_by_fqn,
+                ctors_by_type,
+            )?,
         }
     }
     Ok(())
@@ -146,6 +240,7 @@ fn collect_type_decl(
     ty: &ast::TypeDecl,
     prefix: &str,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     funs_by_fqn: &mut HashMap<String, Vec<FunDeclInfo>>,
     ctors_by_type: &mut HashMap<String, Vec<CtorDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
@@ -209,14 +304,26 @@ fn collect_type_decl(
                     if is_annotation_class {
                         continue;
                     }
-                    collect_fun_decl(source, fun, &type_fqn, lower, funs_by_fqn)?
+                    collect_fun_decl(source, fun, &type_fqn, lower, builtins, funs_by_fqn)?
                 }
-                ast::TypeMember::Type(nested) => {
-                    collect_type_decl(source, nested, &type_fqn, lower, funs_by_fqn, ctors_by_type)?
-                }
-                ast::TypeMember::Object(obj) => {
-                    collect_object_decl(source, obj, &type_fqn, lower, funs_by_fqn, ctors_by_type)?
-                }
+                ast::TypeMember::Type(nested) => collect_type_decl(
+                    source,
+                    nested,
+                    &type_fqn,
+                    lower,
+                    builtins,
+                    funs_by_fqn,
+                    ctors_by_type,
+                )?,
+                ast::TypeMember::Object(obj) => collect_object_decl(
+                    source,
+                    obj,
+                    &type_fqn,
+                    lower,
+                    builtins,
+                    funs_by_fqn,
+                    ctors_by_type,
+                )?,
             }
         }
     }
@@ -237,6 +344,7 @@ fn collect_object_decl(
     obj: &ast::ObjectDecl,
     prefix: &str,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     funs_by_fqn: &mut HashMap<String, Vec<FunDeclInfo>>,
     ctors_by_type: &mut HashMap<String, Vec<CtorDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
@@ -268,14 +376,26 @@ fn collect_object_decl(
                 let _ = ctor;
             }
             ast::TypeMember::Fun(fun) => {
-                collect_fun_decl(source, fun, &obj_fqn, lower, funs_by_fqn)?
+                collect_fun_decl(source, fun, &obj_fqn, lower, builtins, funs_by_fqn)?
             }
-            ast::TypeMember::Type(nested) => {
-                collect_type_decl(source, nested, &obj_fqn, lower, funs_by_fqn, ctors_by_type)?
-            }
-            ast::TypeMember::Object(nested) => {
-                collect_object_decl(source, nested, &obj_fqn, lower, funs_by_fqn, ctors_by_type)?
-            }
+            ast::TypeMember::Type(nested) => collect_type_decl(
+                source,
+                nested,
+                &obj_fqn,
+                lower,
+                builtins,
+                funs_by_fqn,
+                ctors_by_type,
+            )?,
+            ast::TypeMember::Object(nested) => collect_object_decl(
+                source,
+                nested,
+                &obj_fqn,
+                lower,
+                builtins,
+                funs_by_fqn,
+                ctors_by_type,
+            )?,
         }
     }
 
@@ -290,7 +410,8 @@ fn collect_ctor_decl(
     lower: &mut TypeLowering<'_>,
     ctors_by_type: &mut HashMap<String, Vec<CtorDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
-    let params = lower_params(source, params, lower)?;
+    let effective_bounds = HashMap::new();
+    let params = lower_params(source, params, lower, &effective_bounds)?;
     ctors_by_type
         .entry(type_fqn.to_string())
         .or_default()
@@ -306,6 +427,7 @@ fn collect_fun_decl(
     fun: &ast::FunDecl,
     prefix: &str,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     funs_by_fqn: &mut HashMap<String, Vec<FunDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
     let name = source.slice(fun.name.span).to_string();
@@ -331,15 +453,26 @@ fn collect_fun_decl(
         false
     };
 
+    let effective_bounds =
+        collect_method_type_param_effective_bounds(source, fun, lower, builtins)?;
+
     let receiver = match &fun.receiver {
-        Some(r) => Some(lower.lower_type_ref(r)?),
+        Some(r) => {
+            let ty = lower.lower_type_ref(r)?;
+            Some(effective_type_from_type_id(
+                ty,
+                lower.types(),
+                &effective_bounds,
+            ))
+        }
         None => None,
     };
-    let params = lower_params(source, &fun.params, lower)?;
+    let params = lower_params(source, &fun.params, lower, &effective_bounds)?;
     let return_ty = match &fun.return_ty {
         Some(ret) => Some(lower.lower_type_ref(ret)?),
         None => None,
     };
+    let effects = lower.lower_effect_row_expr(fun.effects.as_ref())?;
 
     if fun_eff_binding {
         lower.pop_effect_row_param_binding();
@@ -358,6 +491,7 @@ fn collect_fun_decl(
                 receiver,
                 params,
                 return_ty,
+                effects,
             },
         });
 
@@ -368,6 +502,7 @@ fn lower_params(
     source: &SourceFile,
     params: &[ast::Param],
     lower: &mut TypeLowering<'_>,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
 ) -> Result<Vec<ParamInfo>, OverloadDeclError> {
     let mut out = Vec::with_capacity(params.len());
     for p in params {
@@ -377,6 +512,7 @@ fn lower_params(
         };
 
         let id = lower.lower_type_ref(ty)?;
+        let effective_ty = effective_type_from_type_id(id, lower.types(), effective_bounds);
         let has_default = p.default_value.is_some();
 
         // 这里保留 name 主要是为后续 named args 冲突分析做铺垫；
@@ -384,11 +520,401 @@ fn lower_params(
         let _name = source.slice(p.name.span);
 
         out.push(ParamInfo {
-            ty: id,
+            effective_ty,
             has_default,
         });
     }
     Ok(out)
+}
+
+fn collect_method_type_param_effective_bounds(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<HashMap<TypeParamKey, EffectiveType>, OverloadDeclError> {
+    if fun.type_params.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut key_by_name: HashMap<String, TypeParamKey> = HashMap::new();
+    let mut raw_bounds: HashMap<TypeParamKey, Vec<LoweredGenericBound>> = HashMap::new();
+    for param in &fun.type_params {
+        let key = TypeParamKey::from_ast(source, param);
+        key_by_name.insert(key.name.clone(), key.clone());
+        raw_bounds.insert(key, Vec::new());
+    }
+
+    for constraint in ast::generic_constraints(&fun.type_params, fun.where_clause.as_ref()) {
+        let name = source.slice(constraint.ty_param.span);
+        let Some(key) = key_by_name.get(name) else {
+            continue;
+        };
+        let lowered = lower.lower_generic_bound(constraint.bound)?;
+        raw_bounds.entry(key.clone()).or_default().push(lowered);
+    }
+
+    let mut effective_bounds: HashMap<TypeParamKey, EffectiveType> = raw_bounds
+        .keys()
+        .cloned()
+        .map(|key| (key, EffectiveType::Any))
+        .collect();
+
+    // Bounds may refer to sibling method type parameters; iterate to a fixed
+    // point so `T: U, U: Debug` makes both parameters effective as `Debug`.
+    for _ in 0..=raw_bounds.len() {
+        let mut changed = false;
+        let mut next = effective_bounds.clone();
+        for (key, bounds) in &raw_bounds {
+            let effective = if bounds.is_empty() {
+                effective_type_from_type_id(builtins.any, lower.types(), &effective_bounds)
+            } else {
+                canonical_effective_intersection(
+                    bounds
+                        .iter()
+                        .copied()
+                        .map(|bound| {
+                            effective_type_from_lowered_bound(
+                                bound,
+                                lower.types(),
+                                &effective_bounds,
+                            )
+                        })
+                        .collect(),
+                )
+            };
+            if next.get(key) != Some(&effective) {
+                next.insert(key.clone(), effective);
+                changed = true;
+            }
+        }
+        effective_bounds = next;
+        if !changed {
+            break;
+        }
+    }
+
+    Ok(effective_bounds)
+}
+
+fn effective_type_from_lowered_bound(
+    bound: LoweredGenericBound,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    match bound {
+        LoweredGenericBound::Type(ty) => effective_type_from_type_id(ty, types, effective_bounds),
+        LoweredGenericBound::Ref => EffectiveType::RefBound,
+        LoweredGenericBound::Value => EffectiveType::ValueBound,
+    }
+}
+
+fn effective_type_from_type_id(
+    ty: TypeId,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    match types.kind(ty) {
+        TypeKind::Ref(kind) => effective_ref_type(kind, types, effective_bounds),
+        TypeKind::Value(kind) => effective_value_type(kind, types, effective_bounds),
+        TypeKind::StarProjection(star) => effective_star_projection(star, types, effective_bounds),
+        TypeKind::Param(param) => {
+            let key = TypeParamKey::from_type_param(param);
+            effective_bounds
+                .get(&key)
+                .cloned()
+                .unwrap_or(EffectiveType::Param(key))
+        }
+    }
+}
+
+fn effective_ref_type(
+    kind: &RefTypeKind,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    match kind {
+        RefTypeKind::Any => EffectiveType::Any,
+        RefTypeKind::String => EffectiveType::String,
+        RefTypeKind::Nominal(nominal) => {
+            let (args, eff) = effective_nominal_parts(nominal, types, effective_bounds);
+            EffectiveType::RefNominal {
+                fqn: nominal.fqn.clone(),
+                args,
+                eff,
+            }
+        }
+        RefTypeKind::Function(fun) => effective_function_type(fun, types, effective_bounds),
+        RefTypeKind::Union(union) => EffectiveType::Union(
+            union
+                .variants
+                .iter()
+                .copied()
+                .map(|ty| effective_type_from_type_id(ty, types, effective_bounds))
+                .collect(),
+        ),
+    }
+}
+
+fn effective_value_type(
+    kind: &ValueTypeKind,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    match kind {
+        ValueTypeKind::Unit => EffectiveType::Unit,
+        ValueTypeKind::Nothing => EffectiveType::Nothing,
+        ValueTypeKind::Bool => EffectiveType::Bool,
+        ValueTypeKind::Char => EffectiveType::Char,
+        ValueTypeKind::Float64 => EffectiveType::Float64,
+        ValueTypeKind::Float32 => EffectiveType::Float32,
+        ValueTypeKind::Int => EffectiveType::Int,
+        ValueTypeKind::UInt => EffectiveType::UInt,
+        ValueTypeKind::IntN(bits) => EffectiveType::IntN(*bits),
+        ValueTypeKind::UIntN(bits) => EffectiveType::UIntN(*bits),
+        ValueTypeKind::Option(inner) => EffectiveType::Option(Box::new(
+            effective_type_from_type_id(*inner, types, effective_bounds),
+        )),
+        ValueTypeKind::Tuple(elements) => EffectiveType::Tuple(
+            elements
+                .iter()
+                .copied()
+                .map(|ty| effective_type_from_type_id(ty, types, effective_bounds))
+                .collect(),
+        ),
+        ValueTypeKind::Nominal(nominal) => {
+            let (args, eff) = effective_nominal_parts(nominal, types, effective_bounds);
+            EffectiveType::ValueNominal {
+                fqn: nominal.fqn.clone(),
+                args,
+                eff,
+            }
+        }
+    }
+}
+
+fn effective_nominal_parts(
+    nominal: &NominalType,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> (Vec<EffectiveType>, Option<EffectiveEffectRow>) {
+    let args = nominal
+        .args
+        .iter()
+        .copied()
+        .map(|ty| effective_type_from_type_id(ty, types, effective_bounds))
+        .collect();
+    let eff = nominal
+        .eff
+        .as_ref()
+        .map(|row| effective_effect_row(row, types, effective_bounds));
+    (args, eff)
+}
+
+fn effective_function_type(
+    fun: &FunctionType,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    EffectiveType::Function {
+        receiver: fun
+            .receiver
+            .map(|ty| Box::new(effective_type_from_type_id(ty, types, effective_bounds))),
+        params: fun
+            .params
+            .iter()
+            .copied()
+            .map(|ty| effective_type_from_type_id(ty, types, effective_bounds))
+            .collect(),
+        return_ty: Box::new(effective_type_from_type_id(
+            fun.return_ty,
+            types,
+            effective_bounds,
+        )),
+        effects: effective_effect_row(&fun.effects, types, effective_bounds),
+        effects_closed: fun.effects_closed,
+    }
+}
+
+fn effective_star_projection(
+    star: &StarProjectionType,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveType {
+    EffectiveType::StarProjection(Box::new(effective_type_from_type_id(
+        star.read_ty,
+        types,
+        effective_bounds,
+    )))
+}
+
+fn effective_effect_row(
+    row: &EffectRow,
+    types: &TypeStore,
+    effective_bounds: &HashMap<TypeParamKey, EffectiveType>,
+) -> EffectiveEffectRow {
+    EffectiveEffectRow {
+        terms: row
+            .terms
+            .iter()
+            .copied()
+            .map(|ty| effective_type_from_type_id(ty, types, effective_bounds))
+            .collect(),
+    }
+}
+
+fn canonical_effective_intersection(mut terms: Vec<EffectiveType>) -> EffectiveType {
+    let mut flat = Vec::new();
+    for term in terms.drain(..) {
+        match term {
+            EffectiveType::Intersection(inner) => flat.extend(inner),
+            other => flat.push(other),
+        }
+    }
+
+    if flat.len() > 1 {
+        flat.retain(|term| !matches!(term, EffectiveType::Any));
+    }
+
+    let mut unique = Vec::new();
+    for term in flat {
+        if !unique.contains(&term) {
+            unique.push(term);
+        }
+    }
+
+    match unique.len() {
+        0 => EffectiveType::Any,
+        1 => unique.pop().expect("one term"),
+        _ => {
+            unique.sort_by_key(EffectiveType::sort_key);
+            EffectiveType::Intersection(unique)
+        }
+    }
+}
+
+impl EffectiveType {
+    fn render(&self) -> String {
+        match self {
+            EffectiveType::Any => "Any".to_string(),
+            EffectiveType::String => "String".to_string(),
+            EffectiveType::Unit => "Unit".to_string(),
+            EffectiveType::Nothing => "Nothing".to_string(),
+            EffectiveType::Bool => "Bool".to_string(),
+            EffectiveType::Char => "Char".to_string(),
+            EffectiveType::Float64 => "Float64".to_string(),
+            EffectiveType::Float32 => "Float32".to_string(),
+            EffectiveType::Int => "Int".to_string(),
+            EffectiveType::UInt => "UInt".to_string(),
+            EffectiveType::IntN(bits) => format!("Int{bits}"),
+            EffectiveType::UIntN(bits) => format!("UInt{bits}"),
+            EffectiveType::Option(inner) => format!("{}?", inner.render()),
+            EffectiveType::Tuple(elements) => {
+                format!("({})", render_effective_types(elements))
+            }
+            EffectiveType::RefNominal { fqn, args, eff }
+            | EffectiveType::ValueNominal { fqn, args, eff } => {
+                let mut rendered = if args.is_empty() {
+                    fqn.clone()
+                } else {
+                    format!("{fqn}<{}>", render_effective_types(args))
+                };
+                if let Some(row) = eff
+                    && !row.terms.is_empty()
+                {
+                    rendered.push_str(" / eff ");
+                    rendered.push_str(&row.render());
+                }
+                rendered
+            }
+            EffectiveType::Function {
+                receiver,
+                params,
+                return_ty,
+                effects,
+                effects_closed,
+            } => {
+                let receiver = receiver
+                    .as_ref()
+                    .map(|ty| format!("{}.", ty.render()))
+                    .unwrap_or_default();
+                let bang = if *effects_closed { "!" } else { "" };
+                format!(
+                    "{}({}) -> {} / {}{}",
+                    receiver,
+                    render_effective_types(params),
+                    return_ty.render(),
+                    effects.render(),
+                    bang
+                )
+            }
+            EffectiveType::Union(variants) => variants
+                .iter()
+                .map(EffectiveType::render)
+                .collect::<Vec<_>>()
+                .join(" | "),
+            EffectiveType::StarProjection(read_ty) => format!("*({})", read_ty.render()),
+            EffectiveType::Param(param) => param.name.clone(),
+            EffectiveType::RefBound => "ref".to_string(),
+            EffectiveType::ValueBound => "value".to_string(),
+            EffectiveType::Intersection(terms) => terms
+                .iter()
+                .map(EffectiveType::render)
+                .collect::<Vec<_>>()
+                .join(" & "),
+        }
+    }
+
+    fn sort_key(&self) -> String {
+        self.render()
+    }
+}
+
+impl EffectiveEffectRow {
+    fn render(&self) -> String {
+        if self.terms.is_empty() {
+            return "Pure".to_string();
+        }
+        self.terms
+            .iter()
+            .map(EffectiveType::render)
+            .collect::<Vec<_>>()
+            .join(" + ")
+    }
+}
+
+fn render_effective_types(types: &[EffectiveType]) -> String {
+    types
+        .iter()
+        .map(EffectiveType::render)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn render_fun_signature(fqn: &str, sig: &FunSigInfo) -> String {
+    let params = render_param_list(&sig.params);
+    match &sig.receiver {
+        Some(receiver) => format!("{}.{fqn}({params})", receiver.render()),
+        None => format!("{fqn}({params})"),
+    }
+}
+
+fn render_ctor_signature(type_fqn: &str, sig: &CtorSigInfo) -> String {
+    format!("{type_fqn}.<init>({})", render_param_list(&sig.params))
+}
+
+fn render_param_list(params: &[ParamInfo]) -> String {
+    params
+        .iter()
+        .map(|param| {
+            let mut rendered = param.effective_ty.render();
+            if param.has_default {
+                rendered.push_str(" = ...");
+            }
+            rendered
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), OverloadDeclError> {
@@ -410,11 +936,16 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
                     (Some(ra), Some(rb)) if ra != rb => {
                         "仅返回类型不同（返回类型不参与重载决议）".to_string()
                     }
+                    _ if a.sig.effects != b.sig.effects => {
+                        "仅 effect row 不同（effect row 不参与重载决议）".to_string()
+                    }
                     _ => "重复或不可区分的签名".to_string(),
                 };
                 return Err(OverloadDeclError::Conflict {
-                    fqn: fqn.to_string(),
-                    reason,
+                    fqn: fqn.to_string().into_boxed_str(),
+                    reason: reason.into_boxed_str(),
+                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -423,8 +954,10 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
             if let Some(arity) = first_ambiguous_positional_arity(&a.sig, &b.sig) {
                 let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
-                    fqn: fqn.to_string(),
-                    reason,
+                    fqn: fqn.to_string().into_boxed_str(),
+                    reason: reason.into_boxed_str(),
+                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -453,8 +986,10 @@ fn check_ctor_overload_set(
 
             if ctor_call_sig_equal(&a.sig, &b.sig) {
                 return Err(OverloadDeclError::Conflict {
-                    fqn: format!("{type_fqn}.<init>"),
-                    reason: "重复或不可区分的构造器签名".to_string(),
+                    fqn: format!("{type_fqn}.<init>").into_boxed_str(),
+                    reason: "重复或不可区分的构造器签名".into(),
+                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });
@@ -463,8 +998,10 @@ fn check_ctor_overload_set(
             if let Some(arity) = first_ambiguous_positional_ctor_arity(&a.sig, &b.sig) {
                 let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
-                    fqn: format!("{type_fqn}.<init>"),
-                    reason,
+                    fqn: format!("{type_fqn}.<init>").into_boxed_str(),
+                    reason: reason.into_boxed_str(),
+                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });
@@ -485,7 +1022,7 @@ fn call_sig_equal(a: &FunSigInfo, b: &FunSigInfo) -> bool {
     a.params
         .iter()
         .zip(&b.params)
-        .all(|(pa, pb)| pa.ty == pb.ty)
+        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
 }
 
 fn ctor_call_sig_equal(a: &CtorSigInfo, b: &CtorSigInfo) -> bool {
@@ -495,7 +1032,7 @@ fn ctor_call_sig_equal(a: &CtorSigInfo, b: &CtorSigInfo) -> bool {
     a.params
         .iter()
         .zip(&b.params)
-        .all(|(pa, pb)| pa.ty == pb.ty)
+        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
 }
 
 /// 返回一组 overload 在“位置调用 + 尾部默认参数省略”规则下的“第一个”会产生歧义的实参数量。
@@ -516,7 +1053,7 @@ fn first_ambiguous_positional_arity(a: &FunSigInfo, b: &FunSigInfo) -> Option<us
         if k < min_a || k < min_b {
             continue;
         }
-        if prefix_types_equal(&a.params, &b.params, k) {
+        if prefix_effective_types_equal(&a.params, &b.params, k) {
             // k == len == len 的情况已经由 `call_sig_equal` 覆盖；这里避免重复报错。
             if k == a.params.len() && k == b.params.len() {
                 continue;
@@ -536,7 +1073,7 @@ fn first_ambiguous_positional_ctor_arity(a: &CtorSigInfo, b: &CtorSigInfo) -> Op
         if k < min_a || k < min_b {
             continue;
         }
-        if prefix_types_equal(&a.params, &b.params, k) {
+        if prefix_effective_types_equal(&a.params, &b.params, k) {
             if k == a.params.len() && k == b.params.len() {
                 continue;
             }
@@ -546,11 +1083,11 @@ fn first_ambiguous_positional_ctor_arity(a: &CtorSigInfo, b: &CtorSigInfo) -> Op
     None
 }
 
-fn prefix_types_equal(a: &[ParamInfo], b: &[ParamInfo], k: usize) -> bool {
+fn prefix_effective_types_equal(a: &[ParamInfo], b: &[ParamInfo], k: usize) -> bool {
     a.iter()
         .take(k)
         .zip(b.iter().take(k))
-        .all(|(pa, pb)| pa.ty == pb.ty)
+        .all(|(pa, pb)| pa.effective_ty == pb.effective_ty)
 }
 
 /// 位置调用下可省略的参数只来自“尾部默认参数”：

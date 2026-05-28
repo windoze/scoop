@@ -7,7 +7,7 @@
 
 ## P4：Overload definition-time 规则落地
 
-### [TODO] P4-T01：实现 overload effective signature 与 signature equivalence helper
+### [DONE] P4-T01：实现 overload effective signature 与 signature equivalence helper
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -36,10 +36,10 @@
   - All later overload definition-time checks can reuse a single effective signature model.
 - 依赖：P3-T07R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 新增 definition-time effective type / effective signature model，并接入 fun / constructor overload set 检查、默认参数歧义检查和冲突诊断；在 `crates/scoopc_hir/src/resolve/mod.rs` 补充签名元数据注释，明确 type parameter bounds 用于 effective signature，return/effect row 不参与 overload signature；新增 typecheck fixtures 覆盖 effect-only conflict、TP alpha-equivalent conflict、`<T>` vs `<T: Any>` conflict、typealias 透明等价 conflict，并复用既有 return-only conflict fixture。
+  - 核心决策：effective type 以结构化 enum 比较，不依赖 pretty `TypeStore::display()` 文本；method-level TP 会替换为 declared bound，无 bound 默认为 `Any`，复合类型递归替换，`ref` / `value` bound-kind 作为 effective type atom 表达，多 bound 以 canonical intersection 表达；typealias 仍通过既有 `TypeLowering` 展开后进入 helper；callable return type 与 effect row 仅用于诊断原因，不参与 signature equivalence。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build`；targeted overload conflict fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §3、§4.1、§6.4、§9.1 与 `PLAN.md` P4 对 effective signature / signature equivalence helper 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T01R：Review effective signature helper
 
