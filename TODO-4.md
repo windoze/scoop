@@ -302,7 +302,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted constructor overload fixtures（duplicate signature、generic shape mismatch、vararg overlap、legal generic/class params、既有 default ambiguity/select fixtures）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1574)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §8.3 与 `PLAN.md` P4 对 constructor overload 共用 definition-time signature equivalence、generic shape、vararg overlap、诊断和 ctor-level/class-level TP 区分的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T05R：Review constructor overload definition-time 规则
+### [DONE] P4-T05R：Review constructor overload definition-time 规则
 
 - 参考：
   - P4-T05 完成记录
@@ -328,7 +328,7 @@
   - P4 包全部完成；P5 可以基于合法 overload set 做 call-site resolution。
 - 依赖：P4-T05
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P4-T05 最新提交涉及的 secondary constructor generic parser / AST metadata、`resolve::ConstructorOverload` metadata、type ref resolve / type lowering / constructor body typecheck scope，以及 `overloads.rs::collect_ctor_decl` / `check_ctor_overload_set` 和 constructor overload fixtures；未发现需要修改实现的阻塞缺陷。
+  - 核心决策：确认 constructor duplicate signature、ctor-level generic shape mismatch、vararg/non-vararg overlap 均复用 P4-T01/P4-T02/P4-T03 的 shared definition-time helpers 与 shared diagnostics；ctor-level TP 被纳入 effective bounds / generic shape hole，class-level TP 保持为 owner-level closed type，不作为 constructor-level specialization knob；P4-T05 未提前实现或改变 P5 call-site constructor specificity。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted constructor overload fixtures（duplicate signature、generic shape mismatch、vararg overlap、legal generic/class params）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1574)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T05 行为闭合 `OVERLOAD_RESOLUTION.md` §8.3 与 `PLAN.md` P4 对 constructor overload definition-time 规则统一性的要求；P4 包全部完成，P5 可基于合法 overload set 做 call-site resolution；阶段计划无变化，未修改 `PLAN.md`。
