@@ -50,4 +50,5 @@ First incomplete task: `P4-T01`, "Implement overload effective signature and sig
 - Checked repository state and latest commit. Latest commit is `[P3-T07R] Review default internal visibility`, which does not introduce an unfinished issue that preempts `P4-T01`. Unrelated untracked `GC_PACING.md` will be left untouched.
 - Implemented the effective-type model in the overload checker: method type parameters are substituted by declared/default bounds, structural parameter signatures drive equivalence, and diagnostics now include rendered conflicting signatures.
 - Added targeted typecheck fixtures for effect-only conflicts, alpha-equivalent type parameters, `<T>` vs `<T: Any>`, and transparent type alias equivalence. Formatting, clippy, workspace build, and targeted overload fixtures are passing.
-- Full Rust tests and full fixture suite passed. Marked `P4-T01` as `[DONE]` in `TODO.md` and `TODO-4.md` with completion record; next step is committing the task changes.
+- Full Rust tests and full fixture suite passed. Marked `P4-T01` as `[DONE]` in `TODO.md` and `TODO-4.md` with completion record.
+- Committed the P4-T01 implementation as `[P4-T01] Implement overload effective signatures`.
