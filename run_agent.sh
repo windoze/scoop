@@ -44,7 +44,7 @@ while true; do
     echo "Running $AGENT_CLI with PROMPT.md..."
     if ! run_agent_cli; then
         echo "Agent CLI '$AGENT_CLI' failed. Waiting 60s before retry..." >&2
-        sleep 60
+        sleep 600
         continue
     fi
     "$REPO_DIR/notification.sh"
