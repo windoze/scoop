@@ -9,7 +9,8 @@ use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 
 use super::call::{
     check_call_arg_named_rules, check_fn_value_to_any_erasure_gate,
-    collect_call_arg_infos_allow_expected_type_placeholders, select_ctor_overload_for_owner,
+    collect_call_arg_infos_allow_expected_type_placeholders,
+    legacy_optional_mapping_from_param_mapping, select_ctor_overload_for_owner,
 };
 use super::collect::{
     collect_member_mutabilities, collect_struct_field_types, collect_top_level_fun_signatures,
@@ -1460,7 +1461,7 @@ fn check_ctor_call_args_by_arity(
         call_span,
         chosen.owner_fqn,
         chosen.ctor_span,
-        chosen.arg_mapping,
+        legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
     );
 
     Ok(())

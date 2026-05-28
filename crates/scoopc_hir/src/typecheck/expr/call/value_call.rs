@@ -410,6 +410,47 @@ pub(super) fn is_funptr_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct CandidateFunSig {
+    pub(super) fqn: String,
+    pub(super) sig: FunSigOwned,
+}
+
+pub(super) fn collect_fun_sig_candidates_for_fqns(
+    fqns: impl IntoIterator<Item = String>,
+    use_source: &SourceFile,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<Vec<CandidateFunSig>, ExprTypeError> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+
+    for fqn in fqns {
+        if !seen.insert(fqn.clone()) {
+            continue;
+        }
+        if let Some(sigs) = top_level_funs.get(&fqn) {
+            out.extend(sigs.iter().cloned().map(|sig| CandidateFunSig {
+                fqn: fqn.clone(),
+                sig,
+            }));
+            continue;
+        }
+
+        out.extend(
+            collect_top_level_fun_signatures_from_index(&fqn, use_source, lower, builtins)?
+                .into_iter()
+                .map(|sig| CandidateFunSig {
+                    fqn: fqn.clone(),
+                    sig,
+                }),
+        );
+    }
+
+    Ok(out)
+}
+
 pub(super) fn collect_top_level_fun_signatures_from_index(
     callee_fqn: &str,
     use_source: &SourceFile,
@@ -588,7 +629,7 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
             };
             param_names.push(p.name.clone());
             param_has_defaults.push(p.has_default);
-            param_is_vararg.push(false);
+            param_is_vararg.push(p.is_vararg);
             let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),

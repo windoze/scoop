@@ -1721,6 +1721,13 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        // P5-T01a：member 层整体先于 extension；直接成员未命中后，继承成员仍必须先于
+        // 同名 extension 被考虑。
+        if let Some(resolved) = self.resolve_inherited_member(receiver_ty_fqn, member_name) {
+            member.resolved = Some(resolved);
+            return Ok(());
+        }
+
         // T0312：若不存在同名 member，则尝试在同包可见的 extension fun 中按 receiver 类型匹配。
         let ext_candidates =
             self.extension_fun_candidates(receiver_ty_fqn, member_name, member.span)?;
@@ -1782,25 +1789,6 @@ impl<'a> BlockScopeChecker<'a> {
         // 这里不抢先报 `unresolved_member`，把 member 保持为未绑定，交给 typecheck 的
         // late-resolution 路径在拿到收窄后的 receiver 类型后再决定。
         if receiver_ty_fqn == "scoop.core.Any" {
-            return Ok(());
-        }
-
-        // P4-T01g：subclass-typed receiver 沿继承链向上查找 inherited body member。
-        //
-        // 说明：
-        // - 直接查找 `<receiverFqn>.<memberName>` 已失败（自身声明面没有该 member）；
-        // - 既有 extension fun / extension property fallback 与所有内建 by-name 特判（Float / String /
-        //   Int / Bool / Char / Continuation / Any）也都没有命中，否则已经各自 short-circuit；
-        // - 在落入 `unresolved_member` 报错之前，按 BFS 顺序遍历 supertype 链
-        //   （class superclass 与 interfaces，含 default body / inherited interface chain），
-        //   命中后挂回 `member.resolved` 为 `<superFqn>.<memberName>`，让 typecheck 阶段视同自身 member 一样消费；
-        // - 命中可见且带 body 的 fun 立即返回（abstract 方法继续向上找，避免抢占已有 extension/by-name 路径，
-        //   也避免误把 `interface Hashable.hash` 抽象签名植回到 `member.resolved`）；
-        // - 命中可见 value（field / property）次之；
-        // - 多 supertype 同名时按 BFS 顺序取第一条命中——已 override 自身的成员在直接查找阶段就胜出，
-        //   现有 vtable / itable / interface impl 校验仍是 dispatch 唯一来源。
-        if let Some(resolved) = self.resolve_inherited_member(receiver_ty_fqn, member_name) {
-            member.resolved = Some(resolved);
             return Ok(());
         }
 

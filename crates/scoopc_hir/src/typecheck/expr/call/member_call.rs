@@ -1298,12 +1298,25 @@ pub(super) fn infer_member_call_expr_type(
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
     //   尝试在"当前包"内按同名顶层 fun 查找 receiver fun。
-    let callee_fqn = match if current_lambda_this {
+    let extension_fqns = match if current_lambda_this {
         None
     } else {
         member.resolved.as_ref()
     } {
-        Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
+        Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => member
+            .call
+            .as_ref()
+            .map(|call| {
+                call.candidates
+                    .iter()
+                    .filter_map(|candidate| match candidate {
+                        ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                        ast::CallCandidate::Constructor { .. } => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .filter(|fqns| !fqns.is_empty())
+            .unwrap_or_else(|| vec![fqn.clone()]),
         Some(ast::ResolvedMemberRef::Fun { fqn })
         | Some(ast::ResolvedMemberRef::Value { fqn })
         | Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
@@ -1455,60 +1468,44 @@ pub(super) fn infer_member_call_expr_type(
             candidates.dedup();
 
             match candidates.len() {
-                0 => {
-                    if lower.pkg_prefix().is_empty() {
-                        name.to_string()
-                    } else {
-                        format!("{}.{}", lower.pkg_prefix(), name)
-                    }
-                }
-                1 => candidates.pop().expect("len == 1"),
-                _ => {
-                    return Err(ExprTypeError::AmbiguousCall {
-                        callee: name.to_string(),
-                        span: member.span.into(),
-                    });
-                }
+                0 => vec![if lower.pkg_prefix().is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{}.{}", lower.pkg_prefix(), name)
+                }],
+                _ => candidates,
             }
         }
     };
+    let extension_candidate_storage = collect_fun_sig_candidates_for_fqns(
+        extension_fqns.clone(),
+        inputs.source,
+        top_level_funs,
+        lower,
+        builtins,
+    )?;
+    let ext_candidates: Vec<&CandidateFunSig> = extension_candidate_storage
+        .iter()
+        .filter(|candidate| candidate.sig.is_extension)
+        .collect();
+    let Some(first_ext_candidate) = ext_candidates.first().copied() else {
+        let callee = extension_fqns
+            .first()
+            .cloned()
+            .unwrap_or_else(|| member_name.to_string());
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee,
+            span: member.span.into(),
+        });
+    };
+    let callee_fqn = first_ext_candidate.fqn.clone();
+    let sig = &first_ext_candidate.sig;
     lower.record_typechecked_member_resolution(
         member.span,
         ast::ResolvedMemberRef::ExtensionFun {
             fqn: callee_fqn.clone(),
         },
     );
-
-    // 当前阶段：优先使用"当前文件内"的函数签名信息；缺失时回退到 `Index`
-    //（用于 sysroot / 跨文件扩展函数调用）。
-    let sigs_from_index: Vec<FunSigOwned>;
-    let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
-        Some(s) => s.as_slice(),
-        None => {
-            sigs_from_index = collect_top_level_fun_signatures_from_index(
-                &callee_fqn,
-                inputs.source,
-                lower,
-                builtins,
-            )?;
-            if sigs_from_index.is_empty() {
-                return Err(ExprTypeError::CalleeNotCallable {
-                    callee: callee_fqn,
-                    span: member.span.into(),
-                });
-            }
-            sigs_from_index.as_slice()
-        }
-    };
-
-    // 只选择扩展函数候选（同名顶层普通函数不参与 `receiver.member()`）。
-    let ext_candidates: Vec<&FunSigOwned> = sigs.iter().filter(|s| s.is_extension).collect();
-    let Some(sig) = ext_candidates.first().copied() else {
-        return Err(ExprTypeError::CalleeNotCallable {
-            callee: callee_fqn,
-            span: member.span.into(),
-        });
-    };
 
     // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
     // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
@@ -1533,7 +1530,9 @@ pub(super) fn infer_member_call_expr_type(
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
         &call_args,
-        ext_candidates.iter().filter_map(|c| c.param_names.get(1..)),
+        ext_candidates
+            .iter()
+            .filter_map(|c| c.sig.param_names.get(1..)),
     )?;
 
     let Some(expected_receiver_ty) = sig.params.first().copied() else {
@@ -2080,6 +2079,7 @@ pub(super) fn infer_member_call_expr_type(
 
     #[derive(Debug, Clone)]
     struct MatchedExtensionOverload<'a> {
+        fqn: &'a str,
         sig: &'a FunSigOwned,
         instantiated: InstantiatedFunSig,
         eff_arg: EffectRow,
@@ -2155,7 +2155,9 @@ pub(super) fn infer_member_call_expr_type(
     // 多候选：先按 receiver/参数匹配筛选，再用 receiver/参数 specificity 选出 most-specific（T0455）。
     let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
 
-    for cand in ext_candidates.iter().copied() {
+    for candidate in ext_candidates.iter().copied() {
+        let callee_fqn = candidate.fqn.as_str();
+        let cand = &candidate.sig;
         let Some((user_param_tys, param_has_defaults, param_is_vararg)) =
             user_visible_param_slices_after_receiver(
                 &cand.params,
@@ -2267,7 +2269,7 @@ pub(super) fn infer_member_call_expr_type(
         }
 
         let mut instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-            &callee_fqn,
+            callee_fqn,
             call_expr.span,
             cand,
             explicit_type_args,
@@ -2288,7 +2290,7 @@ pub(super) fn infer_member_call_expr_type(
 
         // T0129：检查 where 约束；不满足则跳过该候选。
         if check_fun_where_constraints_after_instantiation(
-            &callee_fqn,
+            callee_fqn,
             call_expr.span,
             cand,
             &instantiated.type_args,
@@ -2549,6 +2551,7 @@ pub(super) fn infer_member_call_expr_type(
             }
 
             matched.push(MatchedExtensionOverload {
+                fqn: callee_fqn,
                 sig: cand,
                 receiver_ty: cand_expected_receiver_ty,
                 expected_arg_tys,
@@ -2567,11 +2570,12 @@ pub(super) fn infer_member_call_expr_type(
 
     let chosen = match matched.len() {
         0 => {
-            let name = short_name_from_fqn(&callee_fqn).to_string();
             let candidates = join_overload_rejections(
                 ext_candidates
                     .iter()
-                    .filter_map(|cand| {
+                    .filter_map(|candidate| {
+                        let name = short_name_from_fqn(&candidate.fqn).to_string();
+                        let cand = &candidate.sig;
                         let param_names = cand.param_names.get(1..)?;
                         let param_has_defaults = cand.param_has_defaults.get(1..)?;
                         let param_is_vararg = cand.param_is_vararg.get(1..)?;
@@ -2605,7 +2609,7 @@ pub(super) fn infer_member_call_expr_type(
                     .collect(),
             );
             return Err(ExprTypeError::NoApplicableOverload {
-                callee: callee_fqn,
+                callee: member_name.to_string(),
                 candidates,
                 span: call_expr.span.into(),
             });
@@ -2613,11 +2617,11 @@ pub(super) fn infer_member_call_expr_type(
         1 => matched.pop().expect("len == 1"),
         _ => {
             let Some(idx) = pick_most_specific_extension_overload(&matched, lower, builtins) else {
-                let name = short_name_from_fqn(&callee_fqn).to_string();
                 let candidates = join_overload_signatures(
                     matched
                         .iter()
                         .map(|c| {
+                            let name = short_name_from_fqn(c.fqn).to_string();
                             fmt_overload_signature(
                                 &name,
                                 Some(c.receiver_ty),
@@ -2628,7 +2632,7 @@ pub(super) fn infer_member_call_expr_type(
                         .collect(),
                 );
                 return Err(ExprTypeError::AmbiguousOverload {
-                    callee: callee_fqn,
+                    callee: member_name.to_string(),
                     candidates,
                     span: call_expr.span.into(),
                 });
@@ -2637,9 +2641,16 @@ pub(super) fn infer_member_call_expr_type(
         }
     };
 
-    check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-    check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-    emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
+    let chosen_fqn = chosen.fqn;
+    lower.record_typechecked_member_resolution(
+        member.span,
+        ast::ResolvedMemberRef::ExtensionFun {
+            fqn: chosen_fqn.to_string(),
+        },
+    );
+    check_unsafe_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+    check_nogc_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+    emit_deprecated_call_warning(chosen_fqn, chosen.sig, call_expr.span, lower);
 
     // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。
     check_fn_value_to_any_erasure_gate(
@@ -2718,13 +2729,13 @@ pub(super) fn infer_member_call_expr_type(
         .map(|_| vec![chosen.eff_arg.clone()])
         .unwrap_or_default();
     let type_args = combined_member_instance_type_args(
-        &callee_fqn,
+        chosen_fqn,
         actual_receiver_ty,
         &chosen.instantiated.type_args,
         lower,
     )?;
     lower.record_monomorph_call(
-        callee_fqn.clone(),
+        chosen_fqn.to_string(),
         &chosen.sig.decl_file,
         chosen.sig.decl_span,
         &type_args,
@@ -2734,7 +2745,7 @@ pub(super) fn infer_member_call_expr_type(
     lower.record_top_level_fun_call_binding(
         call_expr.span,
         ast::TopLevelFunCallBinding {
-            fqn: callee_fqn.clone(),
+            fqn: chosen_fqn.to_string(),
             decl_file: chosen.sig.decl_file.clone(),
             decl_span: chosen.sig.decl_span,
             is_intrinsic: chosen.sig.is_intrinsic,

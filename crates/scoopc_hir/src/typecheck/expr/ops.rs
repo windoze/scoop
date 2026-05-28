@@ -458,11 +458,13 @@ pub(super) fn collect_member_method_signatures_from_index(
 
         let mut param_names: Vec<String> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut param_has_defaults: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
+        let mut param_is_vararg: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut params: Vec<TypeId> = Vec::with_capacity(o.sig.params.len() + 1);
 
         // 隐式 receiver：作为第一个参数注入。
         param_names.push("<receiver>".to_string());
         param_has_defaults.push(false);
+        param_is_vararg.push(false);
         params.push(receiver_ty);
 
         for p in &o.sig.params {
@@ -471,6 +473,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             };
             param_names.push(p.name.clone());
             param_has_defaults.push(p.has_default);
+            param_is_vararg.push(p.is_vararg);
             let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
@@ -553,7 +556,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             intrinsic_entry_name: o.sig.builtin_flags.intrinsic_entry_name.clone(),
             param_names,
             param_has_defaults,
-            param_is_vararg: vec![false; params.len()],
+            param_is_vararg,
             type_params,
             eff_param: eff_param_sig,
             param_fn_effect_eff_base,

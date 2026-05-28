@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
+// EXPECT-ERROR-AT: 11:19
+// EXPECT-ERROR: argument 1 type Bool is not a subtype of parameter `x` type Int
+
+package fixtures.typecheck_multi.phase_ac_call_candidates
+
+import fixtures.typecheck_multi.phase_ac_call_candidates.a.choose
+import fixtures.typecheck_multi.phase_ac_call_candidates.b.choose
+
+val result: Int = choose(true)

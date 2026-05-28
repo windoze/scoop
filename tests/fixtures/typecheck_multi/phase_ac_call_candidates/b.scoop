@@ -1,0 +1,9 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.phase_ac_call_candidates.b
+
+import scoop.core.*
+
+public fun choose(x: String): Int {
+    return 0
+}

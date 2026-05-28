@@ -1024,6 +1024,14 @@ pub(super) fn try_infer_where_bound_method_call(
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
 
+    #[derive(Debug, Clone)]
+    struct WhereBoundMethodCandidate {
+        method_fqn: String,
+        bound_args: Vec<TypeId>,
+        sig: FunSigOwned,
+    }
+
+    let mut candidates: Vec<WhereBoundMethodCandidate> = Vec::new();
     for (bound_ref, decl_file) in &bound_entries {
         // Lower bound type ref 在声明处文件上下文中。
         let bound_ty = match lower.lower_type_ref_in_decl_file(decl_file, bound_ref) {
@@ -1051,216 +1059,300 @@ pub(super) fn try_infer_where_bound_method_call(
             builtins,
         )?;
 
-        if sigs.is_empty() {
-            continue;
-        }
-
-        // 找到了匹配的 bound 方法——按照普通 member method call 的模式进行类型检查。
-        check_call_arg_named_rules(&method_fqn, &call_args)?;
-        check_call_named_args_exist_in_any_candidate(
-            &method_fqn,
-            &call_args,
-            sigs.iter().filter_map(|sig| sig.param_names.get(1..)),
-        )?;
-
-        // 用 receiver 作为隐式第 0 个参数（使用 TypeKind::Param 的原始类型）。
-        let receiver_arg = CallArgInfo {
-            kind: CallArgKind::Positional,
-            expr: receiver,
-            ty: receiver_ty,
-            is_spread: false,
-            needs_expected_type: false,
-        };
-
-        let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
-        call_args_with_receiver.push(receiver_arg);
-        call_args_with_receiver.extend(call_args.iter().cloned());
-
-        // 尝试对每个签名候选进行匹配。
-        'candidates: for cand in &sigs {
-            let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
-                &call_args_with_receiver,
-                &cand.param_names,
-                &cand.param_has_defaults,
-                &cand.param_is_vararg,
-            ) else {
-                continue;
-            };
-
-            let mapping_pairs = expand_param_arg_pairs(&mapping);
-            let mut generic_constraints: Vec<GenericArgConstraint> =
-                Vec::with_capacity(mapping_pairs.len());
-            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                let arg = &call_args_with_receiver[arg_idx];
-                generic_constraints.push(GenericArgConstraint {
-                    expected: cand.params[param_idx],
-                    found: arg.ty,
-                    found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
-                    from: if arg_idx == 0 {
-                        "接收者（receiver）".to_string()
-                    } else {
-                        format!("第 {} 个实参", arg_idx)
-                    },
-                    span: arg.expr.span,
-                });
-            }
-
-            let mut instantiated =
-                match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                    &method_fqn,
-                    call_expr.span,
-                    cand,
-                    explicit_type_args,
-                    generic_constraints,
-                    lower,
-                    builtins,
-                ) {
-                    Ok(s) => s,
-                    Err(_) => continue 'candidates,
-                };
-
-            if check_fun_where_constraints_after_instantiation(
-                &method_fqn,
-                call_expr.span,
-                cand,
-                &instantiated.type_args,
-                lower,
-                builtins,
-            )
-            .is_err()
-            {
-                continue 'candidates;
-            }
-
-            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                let expected_ty = instantiated.params[param_idx];
-                let arg = &call_args_with_receiver[arg_idx];
-                let found_ty = arg.ty;
-
-                if arg.is_spread {
-                    if !cand
-                        .param_is_vararg
-                        .get(param_idx)
-                        .copied()
-                        .unwrap_or(false)
-                    {
-                        continue 'candidates;
-                    }
-                    let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
-                        continue 'candidates;
-                    };
-                    if elem_tys
-                        .into_iter()
-                        .any(|elem_ty| !is_type_assignable(elem_ty, expected_ty, lower, builtins))
-                    {
-                        continue 'candidates;
-                    }
-                    continue;
-                }
-
-                if is_type_assignable(found_ty, expected_ty, lower, builtins)
-                    || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
-                {
-                    continue;
-                }
-                continue 'candidates;
-            }
-
-            let eff_arg = cand
-                .eff_param
-                .as_ref()
-                .map(|param| param.default.clone())
-                .unwrap_or_else(EffectRow::pure);
-            if instantiate_eff_row_var_in_sig_types(
-                cand,
-                &mut instantiated,
-                &eff_arg,
-                lower,
-                call_expr.span,
-            )
-            .is_err()
-            {
-                continue 'candidates;
-            }
-
-            check_unsafe_call_gate(&method_fqn, cand, call_expr.span, lower)?;
-            check_nogc_call_gate(&method_fqn, cand, call_expr.span, lower)?;
-            emit_deprecated_call_warning(&method_fqn, cand, call_expr.span, lower);
-
-            let type_param_bindings = type_param_bindings_from_sig(&cand.type_params, lower);
-            let eff_bindings: Vec<(String, EffectRow)> = cand
-                .eff_param
-                .as_ref()
-                .map(|param| vec![(param.name.clone(), eff_arg.clone())])
-                .unwrap_or_default();
-            let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
-                &cand.decl_file,
-                type_param_bindings,
-                eff_bindings,
-                cand.effects.as_ref(),
-            );
-            let call_effects = substitute_type_args_in_effect_row(
-                lowered_effects?,
-                &cand.type_params,
-                &instantiated.type_args,
-                lower,
-                call_expr.span,
-            )?;
-            for effect in call_effects.terms.iter().copied() {
-                lower.record_performed_effect(effect, call_expr.span);
-            }
-
-            // where-bound receiver 没有名义 owner 可从 `receiver_ty` 反推；实例身份应显式保留
-            // bound 接口实参，再拼接方法自身的泛型实参。
-            let mut type_args = bound_args.clone();
-            type_args.extend(instantiated.type_args.iter().copied());
-            let eff_args = cand
-                .eff_param
-                .as_ref()
-                .map(|_| vec![eff_arg.clone()])
-                .unwrap_or_default();
-
-            lower.record_typechecked_member_resolution(
-                member.span,
-                ast::ResolvedMemberRef::Fun {
-                    fqn: method_fqn.clone(),
-                },
-            );
-            lower.record_monomorph_call(
-                method_fqn.clone(),
-                &cand.decl_file,
-                cand.decl_span,
-                &type_args,
-                &eff_args,
-                call_expr.span,
-            );
-            lower.record_top_level_fun_call_binding(
-                call_expr.span,
-                ast::TopLevelFunCallBinding {
-                    fqn: method_fqn.clone(),
-                    decl_file: cand.decl_file.clone(),
-                    decl_span: cand.decl_span,
-                    is_intrinsic: cand.is_intrinsic,
-                    intrinsic_entry_name: cand.intrinsic_entry_name.clone(),
-                    type_args,
-                    eff_args,
-                },
-            );
-            if let Some(binding) =
-                call_arg_binding_from_mapping_with_receiver(&mapping, &call_args_with_receiver)
-            {
-                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
-            }
-
-            let ret = if safe {
-                lower.ty_option(instantiated.return_ty)
-            } else {
-                instantiated.return_ty
-            };
-
-            return Ok(Some(ret));
-        }
+        candidates.extend(sigs.into_iter().map(|sig| WhereBoundMethodCandidate {
+            method_fqn: method_fqn.clone(),
+            bound_args: bound_args.clone(),
+            sig,
+        }));
     }
 
-    Ok(None)
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+
+    check_call_arg_named_rules(member_name, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        member_name,
+        &call_args,
+        candidates
+            .iter()
+            .filter_map(|candidate| candidate.sig.param_names.get(1..)),
+    )?;
+
+    let receiver_arg = CallArgInfo {
+        kind: CallArgKind::Positional,
+        expr: receiver,
+        ty: receiver_ty,
+        is_spread: false,
+        needs_expected_type: false,
+    };
+    let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
+    call_args_with_receiver.push(receiver_arg);
+    call_args_with_receiver.extend(call_args.iter().cloned());
+
+    #[derive(Debug, Clone)]
+    struct MatchedWhereBoundMethod {
+        method_fqn: String,
+        sig: FunSigOwned,
+        instantiated: InstantiatedFunSig,
+        eff_arg: EffectRow,
+        type_args: Vec<TypeId>,
+        eff_args: Vec<EffectRow>,
+        mapping: Vec<ParamArgBinding>,
+    }
+
+    let mut matched = Vec::new();
+    'candidates: for candidate in &candidates {
+        let cand = &candidate.sig;
+        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+            &call_args_with_receiver,
+            &cand.param_names,
+            &cand.param_has_defaults,
+            &cand.param_is_vararg,
+        ) else {
+            continue;
+        };
+
+        let mapping_pairs = expand_param_arg_pairs(&mapping);
+        let mut generic_constraints: Vec<GenericArgConstraint> =
+            Vec::with_capacity(mapping_pairs.len());
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+            let arg = &call_args_with_receiver[arg_idx];
+            generic_constraints.push(GenericArgConstraint {
+                expected: cand.params[param_idx],
+                found: arg.ty,
+                found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                from: if arg_idx == 0 {
+                    "接收者（receiver）".to_string()
+                } else {
+                    format!("第 {} 个实参", arg_idx)
+                },
+                span: arg.expr.span,
+            });
+        }
+
+        let mut instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+            &candidate.method_fqn,
+            call_expr.span,
+            cand,
+            explicit_type_args,
+            generic_constraints,
+            lower,
+            builtins,
+        ) {
+            Ok(s) => s,
+            Err(_) => continue 'candidates,
+        };
+
+        if check_fun_where_constraints_after_instantiation(
+            &candidate.method_fqn,
+            call_expr.span,
+            cand,
+            &instantiated.type_args,
+            lower,
+            builtins,
+        )
+        .is_err()
+        {
+            continue 'candidates;
+        }
+
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+            let expected_ty = instantiated.params[param_idx];
+            let arg = &call_args_with_receiver[arg_idx];
+            let found_ty = arg.ty;
+
+            if arg.is_spread {
+                if !cand
+                    .param_is_vararg
+                    .get(param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    continue 'candidates;
+                }
+                let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                    continue 'candidates;
+                };
+                if elem_tys
+                    .into_iter()
+                    .any(|elem_ty| !is_type_assignable(elem_ty, expected_ty, lower, builtins))
+                {
+                    continue 'candidates;
+                }
+                continue;
+            }
+
+            if is_type_assignable(found_ty, expected_ty, lower, builtins)
+                || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+            {
+                continue;
+            }
+            continue 'candidates;
+        }
+
+        let eff_arg = cand
+            .eff_param
+            .as_ref()
+            .map(|param| param.default.clone())
+            .unwrap_or_else(EffectRow::pure);
+        if instantiate_eff_row_var_in_sig_types(
+            cand,
+            &mut instantiated,
+            &eff_arg,
+            lower,
+            call_expr.span,
+        )
+        .is_err()
+        {
+            continue 'candidates;
+        }
+
+        let mut type_args = candidate.bound_args.clone();
+        type_args.extend(instantiated.type_args.iter().copied());
+        let eff_args = cand
+            .eff_param
+            .as_ref()
+            .map(|_| vec![eff_arg.clone()])
+            .unwrap_or_default();
+
+        matched.push(MatchedWhereBoundMethod {
+            method_fqn: candidate.method_fqn.clone(),
+            sig: cand.clone(),
+            instantiated,
+            eff_arg,
+            type_args,
+            eff_args,
+            mapping,
+        });
+    }
+
+    let chosen = match matched.len() {
+        0 => {
+            let candidates = join_overload_rejections(
+                candidates
+                    .iter()
+                    .map(|candidate| OverloadRejection {
+                        signature: fmt_overload_signature(
+                            member_name,
+                            candidate.sig.params.first().copied(),
+                            candidate.sig.params.get(1..).unwrap_or_default(),
+                            lower,
+                        ),
+                        location: format_candidate_location(
+                            lower,
+                            &candidate.sig.decl_file,
+                            candidate.sig.decl_span,
+                        ),
+                        reason: describe_basic_applicability_rejection(
+                            BasicApplicabilityRejection {
+                                call_args: &call_args_with_receiver,
+                                param_names: &candidate.sig.param_names,
+                                param_has_defaults: &candidate.sig.param_has_defaults,
+                                param_is_vararg: &candidate.sig.param_is_vararg,
+                                param_tys: &candidate.sig.params,
+                                source,
+                                lower,
+                                builtins,
+                            },
+                        ),
+                    })
+                    .collect(),
+            );
+            return Err(ExprTypeError::NoApplicableOverload {
+                callee: member_name.to_string(),
+                candidates,
+                span: call_expr.span.into(),
+            });
+        }
+        1 => matched.pop().expect("len == 1"),
+        _ => {
+            let candidates = join_overload_signatures(
+                matched
+                    .iter()
+                    .map(|candidate| {
+                        fmt_overload_signature(
+                            member_name,
+                            candidate.instantiated.params.first().copied(),
+                            candidate.instantiated.params.get(1..).unwrap_or_default(),
+                            lower,
+                        )
+                    })
+                    .collect(),
+            );
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: member_name.to_string(),
+                candidates,
+                span: call_expr.span.into(),
+            });
+        }
+    };
+
+    check_unsafe_call_gate(&chosen.method_fqn, &chosen.sig, call_expr.span, lower)?;
+    check_nogc_call_gate(&chosen.method_fqn, &chosen.sig, call_expr.span, lower)?;
+    emit_deprecated_call_warning(&chosen.method_fqn, &chosen.sig, call_expr.span, lower);
+
+    let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
+    let eff_bindings: Vec<(String, EffectRow)> = chosen
+        .sig
+        .eff_param
+        .as_ref()
+        .map(|param| vec![(param.name.clone(), chosen.eff_arg.clone())])
+        .unwrap_or_default();
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+        &chosen.sig.decl_file,
+        type_param_bindings,
+        eff_bindings,
+        chosen.sig.effects.as_ref(),
+    );
+    let call_effects = substitute_type_args_in_effect_row(
+        lowered_effects?,
+        &chosen.sig.type_params,
+        &chosen.instantiated.type_args,
+        lower,
+        call_expr.span,
+    )?;
+    for effect in call_effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_expr.span);
+    }
+
+    lower.record_typechecked_member_resolution(
+        member.span,
+        ast::ResolvedMemberRef::Fun {
+            fqn: chosen.method_fqn.clone(),
+        },
+    );
+    lower.record_monomorph_call(
+        chosen.method_fqn.clone(),
+        &chosen.sig.decl_file,
+        chosen.sig.decl_span,
+        &chosen.type_args,
+        &chosen.eff_args,
+        call_expr.span,
+    );
+    lower.record_top_level_fun_call_binding(
+        call_expr.span,
+        ast::TopLevelFunCallBinding {
+            fqn: chosen.method_fqn.clone(),
+            decl_file: chosen.sig.decl_file.clone(),
+            decl_span: chosen.sig.decl_span,
+            is_intrinsic: chosen.sig.is_intrinsic,
+            intrinsic_entry_name: chosen.sig.intrinsic_entry_name.clone(),
+            type_args: chosen.type_args,
+            eff_args: chosen.eff_args,
+        },
+    );
+    if let Some(binding) =
+        call_arg_binding_from_mapping_with_receiver(&chosen.mapping, &call_args_with_receiver)
+    {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+    }
+
+    let ret = if safe {
+        lower.ty_option(chosen.instantiated.return_ty)
+    } else {
+        chosen.instantiated.return_ty
+    };
+
+    Ok(Some(ret))
 }

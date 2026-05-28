@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P5-T01a late extension lookup 收集全部同名候选，再由 applicability 过滤。
+
+package fixtures.typecheck_multi.phase_ac_extension_candidates
+
+import scoop.core.*
+import fixtures.typecheck_multi.phase_ac_extension_candidates.a.pick
+import fixtures.typecheck_multi.phase_ac_extension_candidates.b.pick
+
+val receiver: Any
+val result: Int = receiver.pick(1)

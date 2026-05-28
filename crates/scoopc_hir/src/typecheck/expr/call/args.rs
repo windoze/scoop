@@ -498,7 +498,7 @@ pub(super) fn callable_value_param_names(fun: &crate::ty::FunctionType) -> Vec<S
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum ParamArgBinding {
+pub(in crate::typecheck::expr) enum ParamArgBinding {
     /// 该形参由默认值补齐（调用点未提供实参）。
     Default,
     /// 单个实参绑定到该形参。
@@ -624,6 +624,18 @@ pub(super) fn call_arg_binding_from_optional_mapping(
         })
         .collect::<Option<Vec<_>>>()?;
     Some(ast::CallArgBinding { params })
+}
+
+pub(in crate::typecheck::expr) fn legacy_optional_mapping_from_param_mapping(
+    mapping: &[ParamArgBinding],
+) -> Vec<Option<usize>> {
+    mapping
+        .iter()
+        .map(|binding| match binding {
+            ParamArgBinding::Single(arg_idx) => Some(*arg_idx),
+            ParamArgBinding::Default | ParamArgBinding::Vararg(_) => None,
+        })
+        .collect()
 }
 
 pub(super) fn record_call_arg_binding_from_optional_mapping(

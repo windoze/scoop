@@ -1,0 +1,9 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.phase_ac_local_shadow_import.a
+
+import scoop.core.*
+
+public fun shadowed(x: String): Int {
+    return 100
+}

@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use std::collections::VecDeque;
+
 use super::*;
 
 pub(super) fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
@@ -56,10 +58,62 @@ pub(super) fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     )?;
 
     if sigs.is_empty() {
-        Ok(None)
+        late_resolve_inherited_member_fun_fqn_from_receiver_ty(
+            inputs,
+            receiver_ty,
+            &receiver_fqn,
+            member_name,
+            lower,
+        )
     } else {
         Ok(Some(direct_fqn))
     }
+}
+
+fn late_resolve_inherited_member_fun_fqn_from_receiver_ty(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: TypeId,
+    receiver_fqn: &str,
+    member_name: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<String>, ExprTypeError> {
+    let mut visited: HashSet<String> = HashSet::new();
+    visited.insert(receiver_fqn.to_string());
+    let mut queue: VecDeque<String> = lower
+        .index()
+        .direct_supertypes
+        .get(receiver_fqn)
+        .cloned()
+        .unwrap_or_default()
+        .into();
+
+    while let Some(super_fqn) = queue.pop_front() {
+        if !visited.insert(super_fqn.clone()) {
+            continue;
+        }
+
+        let candidate_fqn = format!("{super_fqn}.{member_name}");
+        let sigs = collect_member_method_signatures_from_index(
+            inputs.source,
+            receiver_ty,
+            &super_fqn,
+            &[],
+            &candidate_fqn,
+            lower,
+            inputs.builtins,
+        )?;
+        if !sigs.is_empty() {
+            return Ok(Some(candidate_fqn));
+        }
+
+        if let Some(supers) = lower.index().direct_supertypes.get(&super_fqn) {
+            for next in supers {
+                queue.push_back(next.clone());
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 pub(in crate::typecheck::expr) fn combined_member_instance_type_args(

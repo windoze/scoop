@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：P5-T01a local callable value shadow 显式 import，不下沉到 imported overload。
+
+package fixtures.typecheck_multi.phase_ac_local_shadow_import
+
+import scoop.core.*
+import fixtures.typecheck_multi.phase_ac_local_shadow_import.a.shadowed
+
+fun useLocalShadow(): Int {
+    val shadowed: (Int) -> Int = { x -> x + 1 }
+    return shadowed(41)
+}

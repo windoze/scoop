@@ -43,7 +43,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P5 Phase A-C 与 `OVERLOAD_RESOLUTION.md` §5.1-§5.3、§7.4、§8.1、§8.2；P5-T02 可基于已过滤的 applicable candidate set 继续实现 specificity。
 
-### [TODO] P5-T01a：修复 Phase A-C review blockers
+### [DONE] P5-T01a：修复 Phase A-C review blockers
 
 - 参考：
   - P5-T01 完成记录
@@ -75,10 +75,10 @@
   - P5-T01R 能复核并确认 Phase A-C 的候选集合、visibility-before-applicability 和 no-applicable diagnostics，无需再新增前置修复任务。
 - 依赖：P5-T01
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：更新 `resolve/scopes.rs` 的 inherited-member-before-extension 顺序；更新 `typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,value_call.rs,generic.rs,args.rs}` 与 `typecheck/expr/{ops.rs,entry.rs}` 的候选消费、vararg 签名、constructor 映射和 where-bound/extension applicability 路径；新增 Phase A-C targeted fixtures。
+  - 核心决策：普通调用和 extension member 调用按 resolver 写入的候选 FQN 收集签名，先做 visibility 后做 applicability，不再因 stale single FQN 或 import 顺序提前报 `AmbiguousCall`；constructor 复用统一 default/vararg 参数映射并记录 canonical call-arg binding；where-bound 方法先收集全部 bound 候选再过滤，成功后才记录 effects 与 call binding。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc && python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P5-T01R 记录的 Phase A-C review blockers；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T01R：Review Phase A-C resolution
 

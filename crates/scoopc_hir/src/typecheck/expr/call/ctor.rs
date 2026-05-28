@@ -20,7 +20,7 @@ pub(in crate::typecheck::expr) fn is_ctor_visible_from(
 pub(in crate::typecheck::expr) struct MatchedCtorOverload {
     pub(in crate::typecheck::expr) owner_fqn: String,
     pub(in crate::typecheck::expr) ctor_span: Option<Span>,
-    pub(in crate::typecheck::expr) arg_mapping: Vec<Option<usize>>,
+    pub(in crate::typecheck::expr) arg_mapping: Vec<ParamArgBinding>,
     /// `call_args[arg_idx]` 对应的"期望类型"。
     pub(in crate::typecheck::expr) expected_arg_tys: Vec<TypeId>,
     /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
@@ -37,7 +37,7 @@ pub(super) struct CtorParamInstantiationRequest<'a> {
     param_tys: &'a [TypeId],
     type_param_names: &'a [String],
     decl_file: &'a std::path::Path,
-    mapping: &'a [Option<usize>],
+    mapping: &'a [ParamArgBinding],
     call_args: &'a [CallArgInfo<'a>],
     builtins: BuiltinTypes,
     call_span: Span,
@@ -152,10 +152,7 @@ pub(super) fn instantiate_ctor_param_tys(
         .collect();
 
     let mut inferred: HashMap<TypeId, TypeId> = HashMap::new();
-    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-        let Some(arg_idx) = arg_idx else {
-            continue;
-        };
+    for (param_idx, arg_idx) in expand_param_arg_pairs(mapping) {
         let Some(expected_ty) = param_tys.get(param_idx).copied() else {
             return Ok(None);
         };
@@ -163,18 +160,28 @@ pub(super) fn instantiate_ctor_param_tys(
             return Ok(None);
         };
         let found_is_placeholder = matches!(arg.expr.kind, ast::ExprKind::Lambda(_));
+        let found_tys = if arg.is_spread {
+            let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                return Ok(None);
+            };
+            elem_tys
+        } else {
+            vec![arg.ty]
+        };
 
         for param_ty in fresh_type_params.iter().copied() {
             let mut candidates: Vec<TypeId> = Vec::new();
-            collect_type_arg_candidates_for_single_type_param(
-                expected_ty,
-                arg.ty,
-                param_ty,
-                &mut candidates,
-                lower,
-                builtins,
-                found_is_placeholder,
-            );
+            for found_ty in &found_tys {
+                collect_type_arg_candidates_for_single_type_param(
+                    expected_ty,
+                    *found_ty,
+                    param_ty,
+                    &mut candidates,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
 
             for candidate in candidates {
                 match inferred.get(&param_ty).copied() {
@@ -247,18 +254,6 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     let source = inputs.source;
     let use_cone = lower.index().cone_of_source(source);
 
-    if call_args.iter().any(|arg| arg.is_spread) {
-        let span = call_args
-            .iter()
-            .find(|arg| arg.is_spread)
-            .map(|arg| arg.expr.span)
-            .unwrap_or(call_span);
-        return Err(ExprTypeError::SpreadArgRequiresVararg {
-            callee: callee_for_diag.to_string(),
-            span: span.into(),
-        });
-    }
-
     let Some(ctors) = lower.index().constructors.get(owner_fqn).cloned() else {
         return Ok(Vec::new());
     };
@@ -297,10 +292,14 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     for ctor in visible {
         let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
         let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
+        let param_is_vararg: Vec<bool> = ctor.params.iter().map(|p| p.is_vararg).collect();
 
-        let Some(mapping) =
-            map_call_args_to_params_with_defaults(call_args, &param_names, &param_has_defaults)
-        else {
+        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+            call_args,
+            &param_names,
+            &param_has_defaults,
+            &param_is_vararg,
+        ) else {
             continue;
         };
 
@@ -342,11 +341,9 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
             continue;
         };
 
+        let mapping_pairs = expand_param_arg_pairs(&mapping);
         let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let Some(expected_ty) = instantiated_param_tys.get(param_idx).copied() else {
                 ok = false;
                 break;
@@ -370,6 +367,31 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
                 arg.ty
             };
 
+            if arg.is_spread {
+                if !param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                    ok = false;
+                    break;
+                }
+                let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                    ok = false;
+                    break;
+                };
+                if elem_tys.into_iter().all(|elem_ty| {
+                    is_type_assignable(elem_ty, expected_ty, lower, builtins)
+                        || literal_absorbs_to_expected(
+                            arg.expr,
+                            expected_ty,
+                            source,
+                            lower,
+                            builtins,
+                        )
+                }) {
+                    continue;
+                }
+                ok = false;
+                break;
+            }
+
             if is_type_assignable(found_ty, expected_ty, lower, builtins)
                 || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
             {
@@ -384,7 +406,10 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
             continue;
         }
 
-        let defaults_used = mapping.iter().filter(|arg_idx| arg_idx.is_none()).count();
+        let defaults_used = mapping
+            .iter()
+            .filter(|binding| matches!(binding, ParamArgBinding::Default))
+            .count();
         matched.push(MatchedCtorOverload {
             owner_fqn: owner_fqn.to_string(),
             ctor_span: Some(ctor.span),
@@ -704,9 +729,9 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         call_expr.span,
         chosen.owner_fqn.clone(),
         chosen.ctor_span,
-        chosen.arg_mapping.clone(),
+        legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
     );
-    if let Some(binding) = call_arg_binding_from_optional_mapping(&chosen.arg_mapping, &call_args) {
+    if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
     let ty =
@@ -863,9 +888,9 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
         call_expr.span,
         chosen.owner_fqn.clone(),
         chosen.ctor_span,
-        chosen.arg_mapping.clone(),
+        legacy_optional_mapping_from_param_mapping(&chosen.arg_mapping),
     );
-    if let Some(binding) = call_arg_binding_from_optional_mapping(&chosen.arg_mapping, &call_args) {
+    if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
     let ty =

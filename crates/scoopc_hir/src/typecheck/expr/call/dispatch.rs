@@ -40,55 +40,62 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
     match &callee_expr.kind {
         ast::ExprKind::Ident(id) => {
             let callee_name = source.slice(id.span);
-            let Some(resolved) = &id.resolved else {
-                // T1009：unsafe 指针原语（最小集合）。
-                if let Some(ty) = infer_unsafe_ptr_primitive_call_expr_type(
-                    inputs,
-                    call_expr,
-                    callee_name,
-                    args,
-                    lower,
-                )? {
-                    return Ok(ty);
-                }
+            if id.resolved.is_none() {
+                let has_fun_candidates = id.call.as_ref().is_some_and(|call| {
+                    call.candidates
+                        .iter()
+                        .any(|candidate| matches!(candidate, ast::CallCandidate::Fun { .. }))
+                });
+                if !has_fun_candidates {
+                    // T1009：unsafe 指针原语（最小集合）。
+                    if let Some(ty) = infer_unsafe_ptr_primitive_call_expr_type(
+                        inputs,
+                        call_expr,
+                        callee_name,
+                        args,
+                        lower,
+                    )? {
+                        return Ok(ty);
+                    }
 
-                // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
-                // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在"未 resolve 的 ident"
-                // 情况下尝试按 enum variant ctor 处理。
-                if let Some(ctor_ty) =
-                    infer_enum_variant_ctor_call_expr_type(inputs, call_expr, id, args, lower)?
-                {
-                    return Ok(ctor_ty);
-                }
+                    // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
+                    // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在"未 resolve 的 ident"
+                    // 情况下尝试按 enum variant ctor 处理。
+                    if let Some(ctor_ty) =
+                        infer_enum_variant_ctor_call_expr_type(inputs, call_expr, id, args, lower)?
+                    {
+                        return Ok(ctor_ty);
+                    }
 
-                // T0454/T4010b0：nominal 构造调用（class ctor / struct field constructor）重载决议。
-                if let Some(ctor_ty) = infer_nominal_constructor_call_expr_type(
-                    inputs,
-                    call_expr,
-                    id,
-                    args,
-                    explicit_type_args.as_deref(),
-                    None,
-                    lower,
-                )? {
-                    return Ok(ctor_ty);
-                }
+                    // T0454/T4010b0：nominal 构造调用（class ctor / struct field constructor）重载决议。
+                    if let Some(ctor_ty) = infer_nominal_constructor_call_expr_type(
+                        inputs,
+                        call_expr,
+                        id,
+                        args,
+                        explicit_type_args.as_deref(),
+                        None,
+                        lower,
+                    )? {
+                        return Ok(ctor_ty);
+                    }
 
-                if resolves_to_compiler_owned_continuation_type(callee_name, id.span, lower) {
-                    return Err(ExprTypeError::ContinuationNotConstructible {
-                        span: call_expr.span.into(),
+                    if resolves_to_compiler_owned_continuation_type(callee_name, id.span, lower) {
+                        return Err(ExprTypeError::ContinuationNotConstructible {
+                            span: call_expr.span.into(),
+                        });
+                    }
+
+                    return Err(ExprTypeError::CalleeNotCallable {
+                        callee: callee_name.to_string(),
+                        span: id.span.into(),
                     });
                 }
+            }
 
-                return Err(ExprTypeError::CalleeNotCallable {
-                    callee: callee_name.to_string(),
-                    span: id.span.into(),
-                });
-            };
-
-            let (callee_fqn, callee_span) = match resolved {
-                ast::ResolvedValueRef::TopLevel { fqn } => (fqn.clone(), id.span),
-                ast::ResolvedValueRef::Local { decl_span, .. } => {
+            let (resolved_fqn, callee_span) = match id.resolved.as_ref() {
+                Some(ast::ResolvedValueRef::TopLevel { fqn }) => (fqn.clone(), id.span),
+                Some(ast::ResolvedValueRef::Local { decl_span, .. }) => {
                     if locals
                         .get(decl_span)
                         .copied()
@@ -112,84 +119,88 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                         lower,
                     );
                 }
+                None => (callee_name.to_string(), id.span),
             };
-            let top_level_value_ty = top_level_types.get(&callee_fqn).copied();
-
-            // 当前阶段：优先使用"当前文件内"的函数签名信息（支持 return type 推断等回写），
-            // 并在缺失时回退到 `Index`（用于 sysroot / 跨文件顶层函数调用）。
-            let sigs_from_index: Vec<FunSigOwned>;
-            let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
-                Some(s) => s.as_slice(),
-                None => {
-                    sigs_from_index = collect_top_level_fun_signatures_from_index(
-                        &callee_fqn,
-                        inputs.source,
-                        lower,
-                        builtins,
-                    )?;
-                    if sigs_from_index.is_empty() {
-                        if explicit_type_args
-                            .as_ref()
-                            .is_some_and(|type_args| !type_args.is_empty())
-                            && top_level_value_ty.is_some()
-                        {
-                            return Err(ExprTypeError::CalleeNotCallable {
-                                callee: callee_fqn,
-                                span: callee_span.into(),
-                            });
-                        }
-
-                        if let Some(callee_ty) = top_level_value_ty
-                            && matches!(
-                                lower.type_kind(callee_ty),
-                                TypeKind::Ref(RefTypeKind::Function(_))
-                            )
-                        {
-                            return infer_function_type_call_expr_type(
-                                inputs,
-                                call_expr,
-                                callee_name,
-                                callee_ty,
-                                args,
-                                lower,
-                            );
-                        }
-
-                        // 顶层值为函数指针：允许 `fp(args...)` 形态调用（必须在 unsafe context）。
-                        if top_level_value_ty.is_some_and(|ty| is_funptr_type(ty, lower)) {
-                            return infer_funptr_type_call_expr_type(
-                                inputs,
-                                call_expr,
-                                callee_name,
-                                top_level_value_ty.unwrap_or(builtins.any),
-                                args,
-                                lower,
-                            );
-                        }
-                        if id.call.is_none() && lower.is_object_type(&callee_fqn) {
-                            return Err(ExprTypeError::ObjectNotConstructible {
-                                name: callee_fqn,
-                                span: callee_span.into(),
-                            });
-                        }
-                        return Err(ExprTypeError::CalleeNotCallable {
-                            callee: callee_fqn,
-                            span: callee_span.into(),
-                        });
-                    }
-                    sigs_from_index.as_slice()
-                }
-            };
+            let candidate_fqns = id
+                .call
+                .as_ref()
+                .map(|call| {
+                    call.candidates
+                        .iter()
+                        .filter_map(|candidate| match candidate {
+                            ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                            ast::CallCandidate::Constructor { .. } => None,
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .filter(|fqns| !fqns.is_empty())
+                .unwrap_or_else(|| vec![resolved_fqn.clone()]);
+            let candidate_storage = collect_fun_sig_candidates_for_fqns(
+                candidate_fqns,
+                inputs.source,
+                top_level_funs,
+                lower,
+                builtins,
+            )?;
 
             // 扩展函数不能以 `f(args...)` 的形式被直接调用，因此这里只选择普通顶层函数候选。
-            let direct_call_candidates: Vec<&FunSigOwned> =
-                sigs.iter().filter(|s| !s.is_extension).collect();
-            let Some(sig) = direct_call_candidates.first().copied() else {
+            let direct_call_candidates: Vec<&CandidateFunSig> = candidate_storage
+                .iter()
+                .filter(|candidate| !candidate.sig.is_extension)
+                .collect();
+            let Some(first_candidate) = direct_call_candidates.first().copied() else {
+                let top_level_value_ty = top_level_types.get(&resolved_fqn).copied();
+                if explicit_type_args
+                    .as_ref()
+                    .is_some_and(|type_args| !type_args.is_empty())
+                    && top_level_value_ty.is_some()
+                {
+                    return Err(ExprTypeError::CalleeNotCallable {
+                        callee: resolved_fqn,
+                        span: callee_span.into(),
+                    });
+                }
+
+                if let Some(callee_ty) = top_level_value_ty
+                    && matches!(
+                        lower.type_kind(callee_ty),
+                        TypeKind::Ref(RefTypeKind::Function(_))
+                    )
+                {
+                    return infer_function_type_call_expr_type(
+                        inputs,
+                        call_expr,
+                        callee_name,
+                        callee_ty,
+                        args,
+                        lower,
+                    );
+                }
+
+                // 顶层值为函数指针：允许 `fp(args...)` 形态调用（必须在 unsafe context）。
+                if top_level_value_ty.is_some_and(|ty| is_funptr_type(ty, lower)) {
+                    return infer_funptr_type_call_expr_type(
+                        inputs,
+                        call_expr,
+                        callee_name,
+                        top_level_value_ty.unwrap_or(builtins.any),
+                        args,
+                        lower,
+                    );
+                }
+                if id.call.is_none() && lower.is_object_type(&resolved_fqn) {
+                    return Err(ExprTypeError::ObjectNotConstructible {
+                        name: resolved_fqn,
+                        span: callee_span.into(),
+                    });
+                }
                 return Err(ExprTypeError::CalleeNotCallable {
-                    callee: callee_fqn,
+                    callee: resolved_fqn,
                     span: callee_span.into(),
                 });
             };
+            let callee_fqn = first_candidate.fqn.clone();
+            let sig = &first_candidate.sig;
 
             // 只有一个可用候选：沿用旧的"给出精确 arity/type mismatch 诊断"的路径，
             // 但补齐命名实参的形参映射（T0453）。
@@ -670,11 +681,12 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 &call_args,
                 direct_call_candidates
                     .iter()
-                    .map(|c| c.param_names.as_slice()),
+                    .map(|c| c.sig.param_names.as_slice()),
             )?;
 
             #[derive(Debug, Clone)]
             struct MatchedFunOverload<'a> {
+                fqn: &'a str,
                 sig: &'a FunSigOwned,
                 instantiated: InstantiatedFunSig,
                 eff_arg: EffectRow,
@@ -749,7 +761,9 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             }
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
-            for cand in direct_call_candidates.iter().copied() {
+            for candidate in direct_call_candidates.iter().copied() {
+                let callee_fqn = candidate.fqn.as_str();
+                let cand = &candidate.sig;
                 let exact_mapping = map_call_args_to_params_with_defaults_and_varargs(
                     &call_args,
                     &cand.param_names,
@@ -849,7 +863,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
                 let mut instantiated =
                     match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                        &callee_fqn,
+                        callee_fqn,
                         call_expr.span,
                         cand,
                         explicit_type_args.as_deref(),
@@ -863,7 +877,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
                 // T0129：检查 where 约束；不满足则跳过该候选。
                 if check_fun_where_constraints_after_instantiation(
-                    &callee_fqn,
+                    callee_fqn,
                     call_expr.span,
                     cand,
                     &instantiated.type_args,
@@ -1072,6 +1086,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                     }
 
                     matched.push(MatchedFunOverload {
+                        fqn: callee_fqn,
                         sig: cand,
                         instantiated,
                         eff_arg,
@@ -1089,34 +1104,42 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
             let chosen = match matched.len() {
                 0 => {
-                    let name = short_name_from_fqn(&callee_fqn).to_string();
                     let candidates = join_overload_rejections(
                         direct_call_candidates
                             .iter()
-                            .map(|cand| OverloadRejection {
-                                signature: fmt_overload_signature(&name, None, &cand.params, lower),
-                                location: format_candidate_location(
-                                    lower,
-                                    &cand.decl_file,
-                                    cand.decl_span,
-                                ),
-                                reason: describe_basic_applicability_rejection(
-                                    BasicApplicabilityRejection {
-                                        call_args: &call_args,
-                                        param_names: &cand.param_names,
-                                        param_has_defaults: &cand.param_has_defaults,
-                                        param_is_vararg: &cand.param_is_vararg,
-                                        param_tys: &cand.params,
-                                        source,
+                            .map(|candidate| {
+                                let name = short_name_from_fqn(&candidate.fqn).to_string();
+                                let cand = &candidate.sig;
+                                OverloadRejection {
+                                    signature: fmt_overload_signature(
+                                        &name,
+                                        None,
+                                        &cand.params,
                                         lower,
-                                        builtins,
-                                    },
-                                ),
+                                    ),
+                                    location: format_candidate_location(
+                                        lower,
+                                        &cand.decl_file,
+                                        cand.decl_span,
+                                    ),
+                                    reason: describe_basic_applicability_rejection(
+                                        BasicApplicabilityRejection {
+                                            call_args: &call_args,
+                                            param_names: &cand.param_names,
+                                            param_has_defaults: &cand.param_has_defaults,
+                                            param_is_vararg: &cand.param_is_vararg,
+                                            param_tys: &cand.params,
+                                            source,
+                                            lower,
+                                            builtins,
+                                        },
+                                    ),
+                                }
                             })
                             .collect(),
                     );
                     return Err(ExprTypeError::NoApplicableOverload {
-                        callee: callee_fqn,
+                        callee: callee_name.to_string(),
                         candidates,
                         span: call_expr.span.into(),
                     });
@@ -1125,11 +1148,11 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 _ => {
                     let Some(idx) = pick_most_specific_fun_overload(&matched, lower, builtins)
                     else {
-                        let name = short_name_from_fqn(&callee_fqn).to_string();
                         let candidates = join_overload_signatures(
                             matched
                                 .iter()
                                 .map(|c| {
+                                    let name = short_name_from_fqn(c.fqn).to_string();
                                     fmt_overload_signature(
                                         &name,
                                         None,
@@ -1140,7 +1163,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                                 .collect(),
                         );
                         return Err(ExprTypeError::AmbiguousOverload {
-                            callee: callee_fqn,
+                            callee: callee_name.to_string(),
                             candidates,
                             span: call_expr.span.into(),
                         });
@@ -1149,9 +1172,10 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 }
             };
 
-            check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-            check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-            emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
+            let chosen_fqn = chosen.fqn;
+            check_unsafe_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+            check_nogc_call_gate(chosen_fqn, chosen.sig, call_expr.span, lower)?;
+            emit_deprecated_call_warning(chosen_fqn, chosen.sig, call_expr.span, lower);
             let chosen_call_args = if chosen.used_unit_sugar {
                 sugar_call_args
                     .as_ref()
@@ -1159,12 +1183,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             } else {
                 &call_args
             };
-            check_var_param_lvalue_gate(
-                &callee_fqn,
-                chosen.sig,
-                chosen_call_args,
-                &chosen.mapping,
-            )?;
+            check_var_param_lvalue_gate(chosen_fqn, chosen.sig, chosen_call_args, &chosen.mapping)?;
 
             // `@NoGC`：已知分配点（boxing）门禁。
             //
@@ -1224,7 +1243,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 .map(|_| vec![chosen.eff_arg.clone()])
                 .unwrap_or_default();
             lower.record_monomorph_call(
-                callee_fqn.clone(),
+                chosen_fqn.to_string(),
                 &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
@@ -1234,7 +1253,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             lower.record_top_level_fun_call_binding(
                 call_expr.span,
                 ast::TopLevelFunCallBinding {
-                    fqn: callee_fqn.clone(),
+                    fqn: chosen_fqn.to_string(),
                     decl_file: chosen.sig.decl_file.clone(),
                     decl_span: chosen.sig.decl_span,
                     is_intrinsic: chosen.sig.is_intrinsic,

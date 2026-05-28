@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P5-T01a constructor applicability 使用与函数一致的 vararg 参数映射。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class VarargBox(vararg xs: Int) {}
+
+val empty: VarargBox = VarargBox()
+val many: VarargBox = VarargBox(1, 2, 3)
