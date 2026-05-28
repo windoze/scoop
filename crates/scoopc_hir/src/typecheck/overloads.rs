@@ -5,6 +5,7 @@
 //!   - 完全相同签名（重复定义）
 //!   - 仅返回类型不同（返回类型不参与重载决议）
 //!   - 默认参数导致的不可区分（例如 `f(x:Int)` 与 `f(x:Int, y:Int=0)`）
+//!   - vararg 与非 vararg 在相同调用 arity 下不可区分
 //! - 当前实现先覆盖：
 //!   - 顶层/成员 `fun`
 //!   - class 的 primary/secondary constructors
@@ -27,6 +28,7 @@ use crate::ty::{
 };
 
 use super::TypeEnv;
+use super::assignable::is_type_assignable;
 use super::lower::{LoweredGenericBound, TypeLowerError, TypeLowering, build_where_bound_entries};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -66,17 +68,40 @@ pub enum OverloadDeclError {
         #[label("候选声明在这里")]
         previous: miette::SourceSpan,
     },
+
+    #[error(
+        "vararg 与非 vararg 重载重叠：{fqn} 在 {arity} 个实参时不可区分：{previous_signature} <-> {conflict_signature}"
+    )]
+    #[diagnostic(
+        code(scoop::typecheck::vararg_overlaps_non_vararg),
+        help(
+            "rename one overload or change the fixed parameters so their accepted arities/types do not overlap"
+        )
+    )]
+    VarargOverlapsNonVararg {
+        fqn: Box<str>,
+        arity: usize,
+        previous_signature: Box<str>,
+        conflict_signature: Box<str>,
+        #[label("vararg/non-vararg 重叠声明在这里")]
+        conflict: miette::SourceSpan,
+        #[label("候选声明在这里")]
+        previous: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
 struct ParamInfo {
+    ty: TypeId,
     effective_ty: EffectiveType,
     shape: GenericShape,
     has_default: bool,
+    is_vararg: bool,
 }
 
 #[derive(Debug, Clone)]
 struct FunSigInfo {
+    receiver_ty: Option<TypeId>,
     receiver: Option<EffectiveType>,
     receiver_shape: Option<GenericShape>,
     params: Vec<ParamInfo>,
@@ -97,6 +122,7 @@ struct CtorSigInfo {
 
 #[derive(Debug, Clone, Copy)]
 struct EffectiveSignature<'a> {
+    receiver_ty: Option<TypeId>,
     receiver: Option<&'a EffectiveType>,
     receiver_shape: Option<&'a GenericShape>,
     params: &'a [ParamInfo],
@@ -105,6 +131,7 @@ struct EffectiveSignature<'a> {
 impl FunSigInfo {
     fn effective_signature(&self) -> EffectiveSignature<'_> {
         EffectiveSignature {
+            receiver_ty: self.receiver_ty,
             receiver: self.receiver.as_ref(),
             receiver_shape: self.receiver_shape.as_ref(),
             params: &self.params,
@@ -115,6 +142,7 @@ impl FunSigInfo {
 impl CtorSigInfo {
     fn effective_signature(&self) -> EffectiveSignature<'_> {
         EffectiveSignature {
+            receiver_ty: None,
             receiver: None,
             receiver_shape: None,
             params: &self.params,
@@ -162,6 +190,104 @@ impl<'a> EffectiveSignature<'a> {
             }
         }
         None
+    }
+
+    fn first_vararg_non_vararg_overlap_arity(
+        self,
+        other: Self,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> Option<usize> {
+        match (self.vararg_index(), other.vararg_index()) {
+            (Some(_), None) => self.first_overlap_arity_as_vararg(other, lower, builtins),
+            (None, Some(_)) => other.first_overlap_arity_as_vararg(self, lower, builtins),
+            _ => None,
+        }
+    }
+
+    fn first_overlap_arity_as_vararg(
+        self,
+        non_vararg: Self,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> Option<usize> {
+        if !self.receivers_overlap(non_vararg, lower, builtins) {
+            return None;
+        }
+
+        for arity in min_positional_arity(non_vararg.params)..=non_vararg.params.len() {
+            if !self.vararg_accepts_positional_arity(arity) {
+                continue;
+            }
+            if self.positional_types_overlap(non_vararg, arity, lower, builtins) {
+                return Some(arity);
+            }
+        }
+
+        None
+    }
+
+    fn vararg_index(self) -> Option<usize> {
+        self.params.iter().position(|param| param.is_vararg)
+    }
+
+    fn vararg_accepts_positional_arity(self, arity: usize) -> bool {
+        let Some(vararg_idx) = self.vararg_index() else {
+            return false;
+        };
+        if arity >= vararg_idx {
+            return true;
+        }
+        self.params[arity..vararg_idx]
+            .iter()
+            .all(|param| param.has_default)
+    }
+
+    fn positional_param_at(self, arg_idx: usize) -> Option<&'a ParamInfo> {
+        match self.vararg_index() {
+            Some(vararg_idx) if arg_idx >= vararg_idx => self.params.get(vararg_idx),
+            _ => self.params.get(arg_idx),
+        }
+    }
+
+    fn positional_types_overlap(
+        self,
+        other: Self,
+        arity: usize,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> bool {
+        (0..arity).all(|arg_idx| {
+            let Some(left) = self.positional_param_at(arg_idx) else {
+                return false;
+            };
+            let Some(right) = other.positional_param_at(arg_idx) else {
+                return false;
+            };
+            params_overlap(left, right, lower, builtins)
+        })
+    }
+
+    fn receivers_overlap(
+        self,
+        other: Self,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> bool {
+        match (
+            self.receiver_ty,
+            self.receiver,
+            other.receiver_ty,
+            other.receiver,
+        ) {
+            (None, None, None, None) => true,
+            (Some(left_ty), Some(left_eff), Some(right_ty), Some(right_eff)) => {
+                effective_types_overlap(left_eff, right_eff)
+                    || is_type_assignable(left_ty, right_ty, lower, builtins)
+                    || is_type_assignable(right_ty, left_ty, lower, builtins)
+            }
+            _ => false,
+        }
     }
 
     fn prefix_effective_types_equal(self, other: Self, k: usize) -> bool {
@@ -343,12 +469,12 @@ pub fn check_file_overload_conflicts(
 
     // 先检查函数 overload set。
     for (fqn, decls) in funs_by_fqn {
-        check_fun_overload_set(&fqn, &decls)?;
+        check_fun_overload_set(&fqn, &decls, &lower, builtins)?;
     }
 
     // 再检查构造器 overload set（按宿主 type FQN 分组）。
     for (type_fqn, decls) in ctors_by_type {
-        check_ctor_overload_set(&type_fqn, &decls)?;
+        check_ctor_overload_set(&type_fqn, &decls, &lower, builtins)?;
     }
 
     Ok(())
@@ -615,10 +741,11 @@ fn collect_fun_decl(
     let effective_bounds =
         collect_method_type_param_effective_bounds(source, fun, lower, builtins)?;
 
-    let (receiver, receiver_shape) = match &fun.receiver {
+    let (receiver_ty, receiver, receiver_shape) = match &fun.receiver {
         Some(r) => {
             let ty = lower.lower_type_ref(r)?;
             (
+                Some(ty),
                 Some(effective_type_from_type_id(
                     ty,
                     lower.types(),
@@ -631,7 +758,7 @@ fn collect_fun_decl(
                 )),
             )
         }
-        None => (None, None),
+        None => (None, None, None),
     };
     let params = lower_params(source, &fun.params, lower, &effective_bounds)?;
     let return_ty = match &fun.return_ty {
@@ -654,6 +781,7 @@ fn collect_fun_decl(
         .push(FunDeclInfo {
             name_span: fun.name.span,
             sig: FunSigInfo {
+                receiver_ty,
                 receiver,
                 receiver_shape,
                 params,
@@ -682,15 +810,18 @@ fn lower_params(
         let effective_ty = effective_type_from_type_id(id, lower.types(), effective_bounds);
         let shape = generic_shape_from_type_id(id, lower.types(), effective_bounds);
         let has_default = p.default_value.is_some();
+        let is_vararg = p.is_vararg;
 
         // 这里保留 name 主要是为后续 named args 冲突分析做铺垫；
         // 当前最小实现不将 name 纳入冲突判定。
         let _name = source.slice(p.name.span);
 
         out.push(ParamInfo {
+            ty: id,
             effective_ty,
             shape,
             has_default,
+            is_vararg,
         });
     }
     Ok(out)
@@ -1430,6 +1561,36 @@ fn render_effective_types(types: &[EffectiveType]) -> String {
         .join(", ")
 }
 
+fn effective_types_overlap(left: &EffectiveType, right: &EffectiveType) -> bool {
+    left == right
+        || matches!(left, EffectiveType::Any)
+        || matches!(right, EffectiveType::Any)
+        || effective_intersections_overlap(left, right)
+}
+
+fn effective_intersections_overlap(left: &EffectiveType, right: &EffectiveType) -> bool {
+    match (left, right) {
+        (EffectiveType::Intersection(left_terms), _) => left_terms
+            .iter()
+            .all(|term| effective_types_overlap(term, right)),
+        (_, EffectiveType::Intersection(right_terms)) => right_terms
+            .iter()
+            .all(|term| effective_types_overlap(left, term)),
+        _ => false,
+    }
+}
+
+fn params_overlap(
+    left: &ParamInfo,
+    right: &ParamInfo,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    effective_types_overlap(&left.effective_ty, &right.effective_ty)
+        || is_type_assignable(left.ty, right.ty, lower, builtins)
+        || is_type_assignable(right.ty, left.ty, lower, builtins)
+}
+
 fn render_fun_signature(fqn: &str, sig: &FunSigInfo) -> String {
     let params = render_param_list(&sig.params);
     match &sig.receiver {
@@ -1447,6 +1608,9 @@ fn render_param_list(params: &[ParamInfo]) -> String {
         .iter()
         .map(|param| {
             let mut rendered = param.effective_ty.render();
+            if param.is_vararg {
+                rendered.push('*');
+            }
             if param.has_default {
                 rendered.push_str(" = ...");
             }
@@ -1456,7 +1620,12 @@ fn render_param_list(params: &[ParamInfo]) -> String {
         .join(", ")
 }
 
-fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), OverloadDeclError> {
+fn check_fun_overload_set(
+    fqn: &str,
+    decls: &[FunDeclInfo],
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), OverloadDeclError> {
     if decls.len() <= 1 {
         return Ok(());
     }
@@ -1471,6 +1640,18 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
             let b = &decls[j];
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
+
+            if let Some(arity) = a_sig.first_vararg_non_vararg_overlap_arity(b_sig, lower, builtins)
+            {
+                return Err(OverloadDeclError::VarargOverlapsNonVararg {
+                    fqn: fqn.to_string().into_boxed_str(),
+                    arity,
+                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    conflict: b.name_span.into(),
+                    previous: a.name_span.into(),
+                });
+            }
 
             if a_sig.has_generic_shape_mismatch(b_sig) {
                 return Err(OverloadDeclError::GenericShapeMismatch {
@@ -1522,6 +1703,8 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
 fn check_ctor_overload_set(
     type_fqn: &str,
     decls: &[CtorDeclInfo],
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
 ) -> Result<(), OverloadDeclError> {
     if decls.len() <= 1 {
         return Ok(());
@@ -1536,6 +1719,18 @@ fn check_ctor_overload_set(
             let b = &decls[j];
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
+
+            if let Some(arity) = a_sig.first_vararg_non_vararg_overlap_arity(b_sig, lower, builtins)
+            {
+                return Err(OverloadDeclError::VarargOverlapsNonVararg {
+                    fqn: format!("{type_fqn}.<init>").into_boxed_str(),
+                    arity,
+                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
+                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    conflict: b.span.into(),
+                    previous: a.span.into(),
+                });
+            }
 
             if a_sig.has_generic_shape_mismatch(b_sig) {
                 return Err(OverloadDeclError::GenericShapeMismatch {

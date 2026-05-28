@@ -1,19 +1,21 @@
-Execution plan
-==============
+# Current task plan
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for an unfinished issue directly relevant to that selected task.
-3. Inspect only the files needed to understand and implement that task.
-4. Implement the task as written, without substituting narrower fixture shapes or other workarounds.
-5. Run formatting, linting, and relevant validation in the requested order; run the full suites when required by the kind of change.
-6. If a blocking prerequisite or unscheduled failing test/fixture is discovered, update `TODO.md` with the minimum required prerequisite task, commit that bookkeeping, and stop.
-7. If the task is completed, mark its TODO heading with `[DONE]`, update its completion record, commit all related changes with the required co-author trailer, and stop.
+Task: P4-T03, "实现 vararg 与非 vararg overlap 的定义点 reject".
 
-Progress
-========
+First incomplete task source: `TODO.md` points to `TODO-4.md`; the index shows P4-T03 as the first task not marked `[DONE]`. The latest commit is `[P4-T02R] Review generic overload shape rules`, which is directly adjacent but does not name an unfinished issue.
 
-- Plan initialized before task execution.
-- Selected first incomplete task: `P4-T02R` in `TODO-4.md`.
-- Reviewed the latest `P4-T02` implementation scope and found no immediate issue requiring a prerequisite task.
-- Validation passed for `P4-T02R`; task records updated to mark the review complete.
-- Removed the validation-created `a.out` artifact and prepared the completion commit.
+Execution plan:
+
+1. Read the full P4-T03 entry in `TODO-4.md`, plus the relevant overload design/spec sections.
+2. Inspect the current definition-time overload checks and tests/fixtures around varargs and duplicate overloads.
+3. Implement the vararg/non-vararg overlap reject at the declaration/typecheck definition point, reusing the existing effective-signature helpers and diagnostics style.
+4. Add or update the smallest relevant fixtures/tests required by P4-T03.
+5. Run formatting, clippy, Rust tests, spec fixture check, and fixture suite as required by the task and project instructions.
+6. Mark P4-T03 `[DONE]` in both `TODO.md` and `TODO-4.md`, update the completion record, and commit all task changes.
+
+Progress:
+
+- Identified P4-T03 as the first incomplete task.
+- Read the P4-T03 requirements and relevant overload implementation. Current signature metadata records defaults and effective types but not vararg-ness, so the implementation will extend `ParamInfo` and add a dedicated vararg/non-vararg overlap check before the existing duplicate/default conflict branches.
+- Implemented vararg-aware overload signature metadata, added `scoop::typecheck::vararg_overlaps_non_vararg`, and added targeted rejected/legal vararg overload fixtures. Targeted fixtures pass after rebuilding the compiler binaries.
+- Full validation passed (`cargo fmt`, clippy, build, targeted fixtures, full Rust tests, spec fixture check, full fixture suite). Marked P4-T03 done in `TODO.md` and `TODO-4.md`.

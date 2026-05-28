@@ -1,0 +1,15 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+fun b(): Int {
+    return 0
+}
+
+fun b(x: Int, vararg ys: Int): Int {
+    return x
+}
+
+val zero: Int = b()
+val one: Int = b(1)
+

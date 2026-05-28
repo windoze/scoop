@@ -736,6 +736,8 @@ pub(super) fn map_call_args_to_params_with_defaults_and_varargs(
     param_has_defaults: &[bool],
     param_is_vararg: &[bool],
 ) -> Option<Vec<ParamArgBinding>> {
+    // Definition-time overload checks reject vararg/non-vararg arity overlaps,
+    // so this mapper can treat a surviving vararg candidate as unambiguous.
     // 先尝试严格规则（保持既有行为）。
     if let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs_strict(
         call_args,

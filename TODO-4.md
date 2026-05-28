@@ -136,7 +136,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted generic overload fixtures（differ-by-bound、concrete + generic、`T,T` vs `T,U` consistency mismatch、incomparable bounds）；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。`cargo test --all --all-targets` 未重跑：本 review 未修改编译产物，沿用 P4-T02 完成记录中的 green run。
   - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T02 行为符合 `OVERLOAD_RESOLUTION.md` §4.2 / §6.4 与 `PLAN.md` P4 generic overload shape 目标；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T03：实现 vararg 与非 vararg overlap 的定义点 reject
+### [DONE] P4-T03：实现 vararg 与非 vararg overlap 的定义点 reject
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -164,10 +164,10 @@
   - Call-site resolution never sees vararg/non-vararg arity overlap ambiguity.
 - 依赖：P4-T02R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 为 definition-time signature metadata 记录原始 `TypeId` 与 `is_vararg`，新增 `scoop::typecheck::vararg_overlaps_non_vararg` 诊断，并在 fun / constructor overload set 检查中先于普通 signature conflict 执行 vararg/non-vararg overlap 判定；在 `headers.rs::check_vararg_params` 与 call arg mapper 注释中明确单个 trailing vararg / definition-time overlap invariant；新增 typecheck fixtures 覆盖 `fun a(x: Int)` + `fun a(vararg xs: Int)` reject，以及 `fun b()` + `fun b(x: Int, vararg ys: Int)` legal non-overlap。
+  - 核心决策：vararg overlap 使用现有 effective signature helper 作为基础，同时保留参数 `TypeId` 以复用 subtype/assignability 检查；只比较 vararg 与非 vararg 候选，若非 vararg 可接受 arity 落入 vararg 可接受 arity，且所有位置的 fixed/vararg element types 通过 effective equality / `Any` / subtype 任一方向兼容，则在定义点报错；该检查优先于普通 duplicate/default conflict，确保不会把 vararg overlap 推迟到 P5 call-site resolution，也不会让 spread 成为 disambiguation escape hatch。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted vararg overload fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1561)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T03R：Review vararg overlap reject
 

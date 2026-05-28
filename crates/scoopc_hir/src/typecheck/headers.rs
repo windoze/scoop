@@ -77,6 +77,7 @@ fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeH
 }
 
 fn check_vararg_params(params: &[ast::Param]) -> Result<(), TypeHeaderError> {
+    // Overload definition checks assume a single trailing vararg when computing accepted arities.
     let mut vararg_pos: Option<usize> = None;
     for (idx, p) in params.iter().enumerate() {
         if !p.is_vararg {

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::vararg_overlaps_non_vararg
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: vararg
+
+package fixtures.typecheck
+
+fun a(x: Int): Int {
+    return x
+}
+
+fun a(vararg xs: Int): Int {
+    return 0
+}
+
