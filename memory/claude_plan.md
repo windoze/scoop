@@ -14,7 +14,33 @@ Complete exactly the first incomplete task listed in `TODO.md`, using `TODO.md` 
 8. Stop after this one task.
 
 ## Current Status
-Plan initialized. Next step is to read `TODO.md` and identify the first incomplete task.
+New invocation started. Next step is to read `TODO.md` and identify the first incomplete task without performing broad triage first.
+
+## Current Invocation Plan
+1. Read `TODO.md` and identify the first task whose heading is not explicitly prefixed with `[DONE]`.
+2. Review the selected task body, dependencies, validation requirements, and any directly relevant latest-commit context.
+3. Inspect only the code, tests, fixtures, and documentation needed for that task.
+4. Implement the task completely, or if a concrete blocker prevents correct implementation, add the minimum prerequisite task to `TODO.md` and stop after committing.
+5. Run formatting first, then clippy with warnings denied, then the required Rust and fixture validation for the task.
+6. Update `TODO.md` completion state and record validation details; update this file at major milestones.
+7. Commit all task-related changes with a descriptive message and required co-author trailer, then stop.
+
+## Milestone: First Incomplete Task Identified (Current Invocation)
+The first incomplete task is `P4-T05`, "把 constructor overload 纳入 definition-time 规则与 diagnostics". The latest commit is `P4-T04R`, which is the direct dependency and does not describe an unfinished blocker. The current worktree already has this plan-file update and an unrelated untracked `GC_PACING.md`; the latter will be left untouched unless it becomes directly relevant.
+
+## P4-T05 Execution Plan
+1. Inspect existing constructor overload metadata and checks in `overloads.rs`, `resolve/mod.rs`, constructor call selection, and parser/header metadata.
+2. Determine which P4-T01/P4-T02/P4-T03 helpers already cover constructors and where constructor handling remains incomplete.
+3. Implement uniform definition-time constructor checks for duplicate effective signatures, ctor-level generic shape mismatch, vararg/non-vararg overlap, and diagnostics that distinguish ctor-level from class-level type parameters.
+4. Add targeted constructor overload fixtures for duplicate signature, generic shape mismatch, vararg overlap if missing, and legal overload/class-level-generic behavior.
+5. Run formatting, clippy, targeted fixtures, full Rust tests, spec fixture check, and full fixture suite.
+6. Mark `P4-T05` `[DONE]` in `TODO.md` and `TODO-4.md`, record validation, commit, and stop.
+
+## Milestone: Implementation Draft Complete
+Constructor declarations now carry secondary-constructor type parameters and where clauses through AST parsing, resolver metadata, type lowering, expression checking scopes, and overload definition-time collection. Targeted fixtures have been added for duplicate constructor signatures, ctor-level generic shape mismatch, vararg overlap, and legal class-level/ctor-level generic constructor overloads.
+
+## Milestone: Validation Passed
+Formatting, clippy with warnings denied, fixture driver build, targeted constructor overload fixtures, full Rust tests, spec fixture check, and the full fixture suite all passed. `P4-T05` has been marked `[DONE]` in `TODO.md` and `TODO-4.md` with completion details.
 
 ## Milestone: First Incomplete Task Identified
 The first incomplete task is `P4-T04R`, the review task for override / overload boundary semantics. The latest commit is `[P4-T04] Implement override overload boundaries`, so it is directly relevant and will be reviewed as part of this task.

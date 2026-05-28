@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: 重复或不可区分的构造器签名
+
+package fixtures.typecheck
+
+class DuplicateCtor {
+    constructor(x: Int) {}
+    constructor(y: Int) {}
+}

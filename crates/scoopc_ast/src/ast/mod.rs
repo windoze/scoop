@@ -1043,6 +1043,8 @@ pub struct SecondaryCtorDecl {
     pub span: Span,
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
+    pub type_params: Vec<TypeParam>,
+    pub where_clause: Option<WhereClause>,
     pub params_span: Span,
     pub params: Vec<Param>,
     pub delegation_call: Option<CtorDelegationCall>,
@@ -1058,6 +1060,12 @@ impl std::fmt::Debug for SecondaryCtorDecl {
         }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
+        }
+        if !self.type_params.is_empty() {
+            s.field("type_params", &self.type_params);
+        }
+        if self.where_clause.is_some() {
+            s.field("where_clause", &self.where_clause);
         }
         s.field("params_span", &self.params_span);
         s.field("params", &self.params);

@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_overload_shape_mismatch
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: only differ-by-bound generic overloads are supported
+
+package fixtures.typecheck
+
+class GenericShapeCtor {
+    constructor<T>(x: T, y: T) {}
+    constructor<T, U>(x: T, y: U) {}
+}

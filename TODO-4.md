@@ -268,7 +268,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted override / interface / virtual generic fixtures（15 个）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T04 行为闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5 对 override / overload 边界与 virtual generic reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T05：把 constructor overload 纳入 definition-time 规则与 diagnostics
+### [DONE] P4-T05：把 constructor overload 纳入 definition-time 规则与 diagnostics
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -297,10 +297,10 @@
   - Definition-time overload contract is uniform for fun, method where applicable, and constructor.
 - 依赖：P4-T04R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：为 `ast::SecondaryCtorDecl` 与 parser 增加 `constructor<T>(...) where ...` 的 ctor-level generic metadata；在 `resolve::ConstructorOverload` 中保留 ctor type params / where clause；更新 type ref resolve、type lowering、secondary ctor body typecheck scope 与 `overloads.rs::collect_ctor_decl`，让 constructor definition-time checks 复用 P4-T01 effective signature、P4-T02 generic shape 与 P4-T03 vararg overlap helper；新增 constructor overload fixtures 覆盖 duplicate signature、ctor-level generic shape mismatch、vararg overlap，以及 class-level / ctor-level generic legal overload。
+  - 核心决策：primary constructor 仍只使用 class-level type params；secondary constructor 可引入 ctor-level type params，definition-time effective signature 只把 ctor-level TP 替换为 bound/default `Any`，class-level TP 保持为声明参数，从而不被误当作 ctor-level specialization knob；P4-T05 只贯通 definition-time metadata 与 diagnostics，不实现或改变 P5 call-site constructor specificity。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted constructor overload fixtures（duplicate signature、generic shape mismatch、vararg overlap、legal generic/class params、既有 default ambiguity/select fixtures）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1574)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §8.3 与 `PLAN.md` P4 对 constructor overload 共用 definition-time signature equivalence、generic shape、vararg overlap、诊断和 ctor-level/class-level TP 区分的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T05R：Review constructor overload definition-time 规则
 

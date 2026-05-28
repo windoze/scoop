@@ -3917,11 +3917,36 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::SecondaryCtor(ctor) => {
                     // 次构造器参数类型同样属于成员签名类型（T0257）。
-                    for p in &ctor.params {
-                        if let Some(ty) = &p.ty {
-                            let _ = self.lower_type_ref(ty)?;
+                    self.push_type_params(&ctor.type_params);
+                    let bounds = build_where_bound_entries(
+                        self.source,
+                        &ctor.type_params,
+                        ctor.where_clause.as_ref(),
+                    );
+                    let ctor_where_bounds_pushed = if bounds.is_empty() {
+                        false
+                    } else {
+                        self.push_where_bounds(bounds);
+                        true
+                    };
+                    let result = (|| {
+                        for constraint in
+                            ast::generic_constraints(&ctor.type_params, ctor.where_clause.as_ref())
+                        {
+                            let _ = self.lower_generic_bound(constraint.bound)?;
                         }
+                        for p in &ctor.params {
+                            if let Some(ty) = &p.ty {
+                                let _ = self.lower_type_ref(ty)?;
+                            }
+                        }
+                        Ok(())
+                    })();
+                    if ctor_where_bounds_pushed {
+                        self.pop_where_bounds();
                     }
+                    self.pop_type_params(&ctor.type_params);
+                    result?;
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);
@@ -4016,11 +4041,36 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(ctor) => {
-                    for p in &ctor.params {
-                        if let Some(ty) = &p.ty {
-                            let _ = self.lower_type_ref(ty)?;
+                    self.push_type_params(&ctor.type_params);
+                    let bounds = build_where_bound_entries(
+                        self.source,
+                        &ctor.type_params,
+                        ctor.where_clause.as_ref(),
+                    );
+                    let ctor_where_bounds_pushed = if bounds.is_empty() {
+                        false
+                    } else {
+                        self.push_where_bounds(bounds);
+                        true
+                    };
+                    let result = (|| {
+                        for constraint in
+                            ast::generic_constraints(&ctor.type_params, ctor.where_clause.as_ref())
+                        {
+                            let _ = self.lower_generic_bound(constraint.bound)?;
                         }
+                        for p in &ctor.params {
+                            if let Some(ty) = &p.ty {
+                                let _ = self.lower_type_ref(ty)?;
+                            }
+                        }
+                        Ok(())
+                    })();
+                    if ctor_where_bounds_pushed {
+                        self.pop_where_bounds();
                     }
+                    self.pop_type_params(&ctor.type_params);
+                    result?;
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);

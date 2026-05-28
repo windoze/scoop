@@ -422,7 +422,27 @@ pub struct ConstructorOverload {
     pub decl_cone: ConeId,
     pub visibility: Visibility,
     pub span: Span,
+    pub type_params: Vec<TypeParamSig>,
+    pub where_clause: Option<ast::WhereClause>,
     pub params: Vec<ParamSig>,
+}
+
+struct ConstructorOverloadAst<'a> {
+    kind: ConstructorKind,
+    visibility: Visibility,
+    span: Span,
+    type_params: &'a [ast::TypeParam],
+    where_clause: Option<&'a ast::WhereClause>,
+    params: &'a [ast::Param],
+}
+
+struct ConstructorOverloadRecord {
+    kind: ConstructorKind,
+    visibility: Visibility,
+    span: Span,
+    type_params: Vec<TypeParamSig>,
+    where_clause: Option<ast::WhereClause>,
+    params: Vec<ParamSig>,
 }
 
 /// Index 侧记录的扩展函数信息（T0312）。
@@ -1209,10 +1229,14 @@ impl Index {
             self.insert_constructor_overload(
                 &type_prefix,
                 type_origin,
-                ConstructorKind::Primary,
-                visibility,
-                primary_ctor.params_span,
-                &primary_ctor.params,
+                ConstructorOverloadAst {
+                    kind: ConstructorKind::Primary,
+                    visibility,
+                    span: primary_ctor.params_span,
+                    type_params: &[],
+                    where_clause: None,
+                    params: &primary_ctor.params,
+                },
             );
         }
 
@@ -1316,10 +1340,14 @@ impl Index {
                         self.insert_constructor_overload(
                             &type_prefix,
                             type_origin,
-                            ConstructorKind::Secondary,
-                            ctor_visibility,
-                            ctor.span,
-                            &ctor.params,
+                            ConstructorOverloadAst {
+                                kind: ConstructorKind::Secondary,
+                                visibility: ctor_visibility,
+                                span: ctor.span,
+                                type_params: &ctor.type_params,
+                                where_clause: ctor.where_clause.as_ref(),
+                                params: &ctor.params,
+                            },
                         );
                     }
                 }
@@ -1513,12 +1541,19 @@ impl Index {
         &mut self,
         type_fqn: &str,
         decl_origin: DeclOrigin<'_>,
-        kind: ConstructorKind,
-        visibility: Visibility,
-        span: Span,
-        params: &[ast::Param],
+        ctor: ConstructorOverloadAst<'_>,
     ) {
-        let params = params
+        let type_params = ctor
+            .type_params
+            .iter()
+            .map(|p| TypeParamSig {
+                name: p.name.text(decl_origin.source).to_string(),
+                name_span: p.name.span,
+                bounds: p.bounds.clone(),
+            })
+            .collect::<Vec<_>>();
+        let params = ctor
+            .params
             .iter()
             .map(|p| ParamSig {
                 name: decl_origin.source.slice(p.name.span).to_string(),
@@ -1532,10 +1567,14 @@ impl Index {
         self.insert_constructor_overload_from_param_sigs(
             type_fqn,
             decl_origin,
-            kind,
-            visibility,
-            span,
-            params,
+            ConstructorOverloadRecord {
+                kind: ctor.kind,
+                visibility: ctor.visibility,
+                span: ctor.span,
+                type_params,
+                where_clause: ctor.where_clause.cloned(),
+                params,
+            },
         );
     }
 
@@ -1543,10 +1582,7 @@ impl Index {
         &mut self,
         type_fqn: &str,
         decl_origin: DeclOrigin<'_>,
-        kind: ConstructorKind,
-        visibility: Visibility,
-        span: Span,
-        params: Vec<ParamSig>,
+        ctor: ConstructorOverloadRecord,
     ) {
         let DeclOrigin { cone, source, .. } = decl_origin;
         let decl_file = source.path().to_path_buf();
@@ -1554,12 +1590,14 @@ impl Index {
             .entry(type_fqn.to_string())
             .or_default()
             .push(ConstructorOverload {
-                kind,
+                kind: ctor.kind,
                 decl_file,
                 decl_cone: cone,
-                visibility,
-                span,
-                params,
+                visibility: ctor.visibility,
+                span: ctor.span,
+                type_params: ctor.type_params,
+                where_clause: ctor.where_clause,
+                params: ctor.params,
             });
     }
 
@@ -1610,10 +1648,14 @@ impl Index {
         self.insert_constructor_overload_from_param_sigs(
             type_fqn,
             decl_origin,
-            ConstructorKind::Primary,
-            visibility,
-            span,
-            params,
+            ConstructorOverloadRecord {
+                kind: ConstructorKind::Primary,
+                visibility,
+                span,
+                type_params: Vec::new(),
+                where_clause: None,
+                params,
+            },
         );
     }
 
@@ -2116,28 +2158,55 @@ fn resolve_type_decl_headers(
                         imports,
                         &ctor.annotations,
                     )?;
-                    // 次构造器参数类型也属于“签名里的类型引用”范畴；
-                    // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
-                    for p in &ctor.params {
-                        resolve_namespaced_annotations(
+                    type_params.push_decl(source, &ctor.type_params)?;
+                    let result = (|| {
+                        resolve_type_param_bounds(
                             source,
                             file,
                             index,
                             imports,
-                            &p.annotations,
+                            type_params,
+                            ty_eff_param,
+                            &ctor.type_params,
                         )?;
-                        if let Some(ty) = &p.ty {
-                            resolve_type_ref(
+                        if let Some(w) = &ctor.where_clause {
+                            resolve_where_clause(
                                 source,
                                 file,
                                 index,
                                 imports,
                                 type_params,
                                 ty_eff_param,
-                                ty,
+                                w,
                             )?;
                         }
-                    }
+
+                        // 次构造器参数类型也属于“签名里的类型引用”范畴；
+                        // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
+                        for p in &ctor.params {
+                            resolve_namespaced_annotations(
+                                source,
+                                file,
+                                index,
+                                imports,
+                                &p.annotations,
+                            )?;
+                            if let Some(ty) = &p.ty {
+                                resolve_type_ref(
+                                    source,
+                                    file,
+                                    index,
+                                    imports,
+                                    type_params,
+                                    ty_eff_param,
+                                    ty,
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    })();
+                    type_params.pop_decl();
+                    result?;
                 }
                 ast::TypeMember::Fun(f) => {
                     type_params.push_decl(source, &f.type_params)?;

@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::vararg_overlaps_non_vararg
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: vararg 与非 vararg 重载重叠
+
+package fixtures.typecheck
+
+class VarargCtor {
+    constructor(x: Int) {}
+    constructor(vararg xs: Int) {}
+}

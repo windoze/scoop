@@ -1541,6 +1541,41 @@ fn check_class_secondary_ctor_exprs(
     ctor: &ast::SecondaryCtorDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
+    lower.push_type_params(&ctor.type_params);
+    let bounds = build_type_where_bound_entries(
+        shared.file.source,
+        &ctor.type_params,
+        ctor.where_clause.as_ref(),
+    );
+    let where_bounds_pushed = if bounds.is_empty() {
+        false
+    } else {
+        lower.push_where_bounds(bounds);
+        true
+    };
+    let result = check_class_secondary_ctor_exprs_inner(
+        shared,
+        class_fqn,
+        has_primary_ctor,
+        superclass_fqn,
+        ctor,
+        lower,
+    );
+    if where_bounds_pushed {
+        lower.pop_where_bounds();
+    }
+    lower.pop_type_params(&ctor.type_params);
+    result
+}
+
+fn check_class_secondary_ctor_exprs_inner(
+    shared: ClassExprShared<'_>,
+    class_fqn: &str,
+    has_primary_ctor: bool,
+    superclass_fqn: Option<&str>,
+    ctor: &ast::SecondaryCtorDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
     // Kotlin-like 语义：当 class 有主构造器时，secondary constructor 必须显式委托到 `this(...)`。
     if has_primary_ctor {
         match ctor.delegation_call.as_ref() {

@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：constructor definition-time checks distinguish ctor-level type params from class-level params.
+
+package fixtures.typecheck
+
+interface DebugShape {}
+interface NumericShape {}
+
+class LegalCtor<T> {
+    constructor(x: T) {}
+    constructor<U: DebugShape>(x: U) {}
+    constructor<U: NumericShape>(x: U) {}
+    constructor(x: Int, tag: Int) {}
+}

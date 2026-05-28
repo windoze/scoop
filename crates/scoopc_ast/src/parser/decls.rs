@@ -1586,7 +1586,7 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            // Appendix B.2.2：class 次构造器：`constructor(...) [: this(...)|super(...)] { ... }`（T0257）。
+            // Appendix B.2.2：class 次构造器：`constructor[<T>](...) [where ...] [: this(...)|super(...)] { ... }`（T0257）。
             //
             // 注意：`constructor` / `this` / `super` 当前都是上下文关键字（lexer 仍产出 Ident），
             // 仅在 class body 中被识别为次构造器语法。
@@ -1752,7 +1752,16 @@ impl<'a> Parser<'a> {
         }
 
         let ctor_kw = self.bump(); // ident("constructor")
+        let (_type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
+        if let Some(eff_param) = eff_param {
+            self.record_error(ParseError::Expected {
+                expected: "constructor type parameter（constructor 不支持 effect row parameter）",
+                found: TokenKind::Ident,
+                span: eff_param.span.into(),
+            });
+        }
         let (params_span, params) = self.parse_param_list()?;
+        let where_clause = self.parse_where_clause_opt()?;
 
         let delegation_call = if self.peek_symbol(Symbol::Colon) {
             Some(self.parse_ctor_delegation_call()?)
@@ -1767,6 +1776,8 @@ impl<'a> Parser<'a> {
             span: Span::new(start, body.span.end.max(ctor_kw.span.end)),
             annotations,
             modifiers,
+            type_params,
+            where_clause,
             params_span,
             params,
             delegation_call,

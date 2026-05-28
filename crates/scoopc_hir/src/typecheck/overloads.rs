@@ -436,6 +436,13 @@ struct CtorDeclInfo {
     sig: CtorSigInfo,
 }
 
+struct CtorDeclAst<'a> {
+    span: Span,
+    type_params: &'a [ast::TypeParam],
+    where_clause: Option<&'a ast::WhereClause>,
+    params: &'a [ast::Param],
+}
+
 /// 检查当前文件中的重载声明是否存在“必然冲突”的情况。
 ///
 /// 说明：
@@ -559,9 +566,14 @@ fn collect_type_decl(
         collect_ctor_decl(
             source,
             &type_fqn,
-            primary.params_span,
-            &primary.params,
+            CtorDeclAst {
+                span: primary.params_span,
+                type_params: &[],
+                where_clause: None,
+                params: &primary.params,
+            },
             lower,
+            builtins,
             ctors_by_type,
         )?;
     }
@@ -579,9 +591,14 @@ fn collect_type_decl(
                     collect_ctor_decl(
                         source,
                         &type_fqn,
-                        ctor.span,
-                        &ctor.params,
+                        CtorDeclAst {
+                            span: ctor.span,
+                            type_params: &ctor.type_params,
+                            where_clause: ctor.where_clause.as_ref(),
+                            params: &ctor.params,
+                        },
                         lower,
+                        builtins,
                         ctors_by_type,
                     )?;
                 }
@@ -690,18 +707,39 @@ fn collect_object_decl(
 fn collect_ctor_decl(
     source: &SourceFile,
     type_fqn: &str,
-    span: Span,
-    params: &[ast::Param],
+    ctor: CtorDeclAst<'_>,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     ctors_by_type: &mut HashMap<String, Vec<CtorDeclInfo>>,
 ) -> Result<(), OverloadDeclError> {
-    let effective_bounds = HashMap::new();
-    let params = lower_params(source, params, lower, &effective_bounds)?;
+    lower.push_type_params(ctor.type_params);
+    let bounds = build_where_bound_entries(source, ctor.type_params, ctor.where_clause);
+    let where_bounds_pushed = if bounds.is_empty() {
+        false
+    } else {
+        lower.push_where_bounds(bounds);
+        true
+    };
+    let result = (|| {
+        let effective_bounds = collect_callable_type_param_effective_bounds(
+            source,
+            ctor.type_params,
+            ctor.where_clause,
+            lower,
+            builtins,
+        )?;
+        lower_params(source, ctor.params, lower, &effective_bounds)
+    })();
+    if where_bounds_pushed {
+        lower.pop_where_bounds();
+    }
+    lower.pop_type_params(ctor.type_params);
+    let params = result?;
     ctors_by_type
         .entry(type_fqn.to_string())
         .or_default()
         .push(CtorDeclInfo {
-            span,
+            span: ctor.span,
             sig: CtorSigInfo { params },
         });
     Ok(())
@@ -738,8 +776,13 @@ fn collect_fun_decl(
         false
     };
 
-    let effective_bounds =
-        collect_method_type_param_effective_bounds(source, fun, lower, builtins)?;
+    let effective_bounds = collect_callable_type_param_effective_bounds(
+        source,
+        &fun.type_params,
+        fun.where_clause.as_ref(),
+        lower,
+        builtins,
+    )?;
 
     let (receiver_ty, receiver, receiver_shape) = match &fun.receiver {
         Some(r) => {
@@ -827,25 +870,26 @@ fn lower_params(
     Ok(out)
 }
 
-fn collect_method_type_param_effective_bounds(
+fn collect_callable_type_param_effective_bounds(
     source: &SourceFile,
-    fun: &ast::FunDecl,
+    type_params: &[ast::TypeParam],
+    where_clause: Option<&ast::WhereClause>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<HashMap<TypeParamKey, EffectiveType>, OverloadDeclError> {
-    if fun.type_params.is_empty() {
+    if type_params.is_empty() {
         return Ok(HashMap::new());
     }
 
     let mut key_by_name: HashMap<String, TypeParamKey> = HashMap::new();
     let mut raw_bounds: HashMap<TypeParamKey, Vec<LoweredGenericBound>> = HashMap::new();
-    for param in &fun.type_params {
+    for param in type_params {
         let key = TypeParamKey::from_ast(source, param);
         key_by_name.insert(key.name.clone(), key.clone());
         raw_bounds.insert(key, Vec::new());
     }
 
-    for constraint in ast::generic_constraints(&fun.type_params, fun.where_clause.as_ref()) {
+    for constraint in ast::generic_constraints(type_params, where_clause) {
         let name = source.slice(constraint.ty_param.span);
         let Some(key) = key_by_name.get(name) else {
             continue;
