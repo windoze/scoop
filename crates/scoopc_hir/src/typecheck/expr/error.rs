@@ -228,13 +228,6 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`val` 解构绑定只允许不可失败 pattern；variant pattern 请改用 `when`")]
-    #[diagnostic(code(scoop::typecheck::val_variant_pat_refutable_not_allowed))]
-    ValVariantPatRefutableNotAllowed {
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     #[error("`val` 解构的 variant pattern enum 前缀不匹配：期望 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::val_variant_pat_enum_mismatch))]
     ValVariantPatEnumMismatch {

@@ -1,8 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_refutable_not_allowed
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_enum_mismatch
 // EXPECT-ERROR-AT: 20:9
-// EXPECT-ERROR: `val` 解构绑定只允许不可失败 pattern
-// 目标：variant pattern 在 `val` 解构绑定中一律禁止，不再继续检查 enum 前缀细节。
+// EXPECT-ERROR: enum 前缀不匹配
+// 目标：variant pattern 在 `val` 解构绑定中允许后，显式 enum 前缀必须匹配 initializer 类型。
 
 package fixtures.typecheck
 

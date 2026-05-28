@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 
 use crate::ast;
+use crate::resolve::ConstructorKind;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{StableHashScope, stable_hash64};
@@ -278,8 +279,11 @@ impl<'a> HirLowering<'a> {
                         ast::PatternKind::Rest => None,
                         _ if !self.pattern_contains_variant(element) => None,
                         _ => {
-                            let projected =
-                                self.synth_tuple_member_access(subject.clone(), element.span, idx);
+                            let projected = self.synth_tuple_member_access_with_inferred_ty(
+                                subject.clone(),
+                                element.span,
+                                idx,
+                            );
                             Some(self.synth_pattern_runtime_check_expr(projected, element))
                         }
                     })
@@ -294,8 +298,11 @@ impl<'a> HirLowering<'a> {
                         if !self.pattern_contains_variant(nested) {
                             return None;
                         }
-                        let projected =
-                            self.synth_struct_field_access(subject.clone(), path, field);
+                        let projected = self.synth_struct_field_access_with_inferred_ty(
+                            subject.clone(),
+                            path,
+                            field,
+                        );
                         Some(self.synth_pattern_runtime_check_expr(projected, nested))
                     })
                     .collect();
@@ -373,7 +380,7 @@ impl<'a> HirLowering<'a> {
                         pat: WhenPat::Else { span },
                         guard: None,
                         arrow_span: span,
-                        body: self.synth_raise_null_assertion_failed(span),
+                        body: self.synth_panic_call_expr(span, "pattern mismatch"),
                     },
                 ],
             },
@@ -397,8 +404,15 @@ impl<'a> HirLowering<'a> {
                     {
                         continue;
                     }
-                    let projected =
-                        self.synth_tuple_member_access(subject.clone(), element.span, idx);
+                    let projected = if self.pattern_contains_variant(element) {
+                        self.synth_tuple_member_access_with_inferred_ty(
+                            subject.clone(),
+                            element.span,
+                            idx,
+                        )
+                    } else {
+                        self.synth_tuple_member_access(subject.clone(), element.span, idx)
+                    };
                     return self.synth_pattern_binding_init_expr(
                         projected,
                         element,
@@ -412,8 +426,15 @@ impl<'a> HirLowering<'a> {
                 for field in fields {
                     match field.value.as_deref() {
                         Some(nested) if pattern_contains_binding(nested, target_span) => {
-                            let projected =
-                                self.synth_struct_field_access(subject.clone(), path, field);
+                            let projected = if self.pattern_contains_variant(nested) {
+                                self.synth_struct_field_access_with_inferred_ty(
+                                    subject.clone(),
+                                    path,
+                                    field,
+                                )
+                            } else {
+                                self.synth_struct_field_access(subject.clone(), path, field)
+                            };
                             return self.synth_pattern_binding_init_expr(
                                 projected,
                                 nested,
@@ -504,7 +525,7 @@ impl<'a> HirLowering<'a> {
                                 pat: WhenPat::Else { span: pattern.span },
                                 guard: None,
                                 arrow_span: pattern.span,
-                                body: self.synth_raise_null_assertion_failed(pattern.span),
+                                body: self.synth_panic_call_expr(pattern.span, "pattern mismatch"),
                             },
                         ],
                     },
@@ -625,9 +646,29 @@ impl<'a> HirLowering<'a> {
     }
 
     fn synth_tuple_member_access(&mut self, receiver: Expr, span: Span, index: usize) -> Expr {
+        self.synth_tuple_member_access_with_ty(receiver, span, index, self.builtins.any)
+    }
+
+    fn synth_tuple_member_access_with_inferred_ty(
+        &mut self,
+        receiver: Expr,
+        span: Span,
+        index: usize,
+    ) -> Expr {
+        let ty = self.tuple_projection_ty(receiver.ty, index);
+        self.synth_tuple_member_access_with_ty(receiver, span, index, ty)
+    }
+
+    fn synth_tuple_member_access_with_ty(
+        &mut self,
+        receiver: Expr,
+        span: Span,
+        index: usize,
+        ty: TypeId,
+    ) -> Expr {
         Expr {
             span,
-            ty: self.builtins.any,
+            ty,
             kind: ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
                 member: MemberAccess {
@@ -639,16 +680,48 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn tuple_projection_ty(&self, tuple_ty: TypeId, index: usize) -> TypeId {
+        match self.types.kind(tuple_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                elements.get(index).copied().unwrap_or(self.builtins.any)
+            }
+            _ => self.builtins.any,
+        }
+    }
+
     fn synth_struct_field_access(
         &mut self,
         receiver: Expr,
         path: &ast::TypePath,
         field: &ast::StructPatternField,
     ) -> Expr {
+        self.synth_struct_field_access_with_ty(receiver, path, field, self.builtins.any)
+    }
+
+    fn synth_struct_field_access_with_inferred_ty(
+        &mut self,
+        receiver: Expr,
+        path: &ast::TypePath,
+        field: &ast::StructPatternField,
+    ) -> Expr {
+        let field_name = field.name.text(self.source).to_string();
+        let ty = self
+            .struct_pattern_field_ty(path, &field_name)
+            .unwrap_or(self.builtins.any);
+        self.synth_struct_field_access_with_ty(receiver, path, field, ty)
+    }
+
+    fn synth_struct_field_access_with_ty(
+        &mut self,
+        receiver: Expr,
+        path: &ast::TypePath,
+        field: &ast::StructPatternField,
+        ty: TypeId,
+    ) -> Expr {
         let field_name = field.name.text(self.source).to_string();
         Expr {
             span: field.span,
-            ty: self.builtins.any,
+            ty,
             kind: ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
                 member: MemberAccess {
@@ -662,6 +735,58 @@ impl<'a> HirLowering<'a> {
                 },
             },
         }
+    }
+
+    fn struct_pattern_field_ty(
+        &mut self,
+        path: &ast::TypePath,
+        field_name: &str,
+    ) -> Option<TypeId> {
+        let nominal_ty = self.lower_type_ref(&ast::TypeRef::Path(path.clone()));
+        let (struct_fqn, struct_args) = match self.types.kind(nominal_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                (nominal.fqn.clone(), nominal.args.clone())
+            }
+            _ => return None,
+        };
+
+        let type_param_names = self
+            .find_type_decl_in_compilation_unit(&struct_fqn)
+            .map(|(decl_source, _, decl)| {
+                decl.type_params
+                    .iter()
+                    .map(|param| param.name.text(decl_source).to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let param_map: HashMap<String, TypeId> =
+            type_param_names.into_iter().zip(struct_args).collect();
+
+        let (decl_file_path, ty_ref) = {
+            let ctor = self
+                .index
+                .constructors
+                .get(&struct_fqn)?
+                .iter()
+                .find(|ctor| ctor.kind == ConstructorKind::Primary)?;
+            let param = ctor.params.iter().find(|param| param.name == field_name)?;
+            (ctor.decl_file.clone(), param.ty.clone())
+        };
+        let (decl_source, decl_file) = self
+            .compilation_unit
+            .iter()
+            .find(|(source, _)| source.path() == decl_file_path.as_path())
+            .copied()?;
+
+        resolve_field_type_id(
+            decl_source,
+            decl_file,
+            self.index,
+            ty_ref.as_ref(),
+            &param_map,
+            self.types,
+        )
     }
 
     fn synth_struct_field_member_ref(

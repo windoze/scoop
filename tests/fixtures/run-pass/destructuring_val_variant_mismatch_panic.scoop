@@ -1,0 +1,14 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// 目标：P3-T04：refutable `val` variant pattern mismatch 时 panic，而不是 Raise 或 silent ignore。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+fun main(): Int {
+    val opt: Int? = None()
+    val Some(x) = opt
+    println(x)
+    return 0
+}

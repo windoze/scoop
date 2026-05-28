@@ -1,6 +1,5 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_refutable_not_allowed
-// 目标：`val` 解构绑定只允许不可失败 pattern；variant pattern 必须改用 `when`。
+// EXPECT: pass
+// 目标：`val` 解构绑定允许 refutable variant pattern，并正确注入 payload binder 类型。
 
 package fixtures.typecheck
 

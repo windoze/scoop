@@ -209,7 +209,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`、`with_update_simple.scoop`、`with_update_preserves_unchanged.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 review 要求：enum `with` mismatched variant failure 是 panic 而非 silent preserve 或 `Raise<RuntimeError>`，matching enum update 与 struct/tuple with-update 行为未回归；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P3-T04：允许 refutable `val` pattern 并在 mismatch 时 panic
+### [DONE] P3-T04：允许 refutable `val` pattern 并在 mismatch 时 panic
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -241,10 +241,10 @@
   - Refutable `val` patterns are useful and predictable, with panic-on-mismatch semantics.
 - 依赖：P3-T03R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：`val_pat` 放开 variant pattern hard reject，按 enum / variant / arity / payload type 规则注入 binder 类型；HIR pattern lowering 将 refutable mismatch fallback 改为 `scoop.core.panic("pattern mismatch")`，并为嵌套 refutable tuple / struct 投影补齐 subject 类型；移除旧 `ValVariantPatRefutableNotAllowed` 诊断；同步旧 negative fixtures、顶层 pattern fixtures，并新增匹配与 mismatch panic run-pass fixtures。
+  - 核心决策：parser 既有 `val Some(x)` surface 保持不变；typecheck 负责保证 variant pattern 只作用于 enum / `Option<T>` 且 payload binder 类型精确；运行期 mismatch 是 assertion panic，不进入 `Raise<RuntimeError>`，也不 silent ignore；tuple / struct irrefutable destructuring 的既有行为保持不变。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（variant payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、match run-pass、mismatch panic、顶层 annotated / inferred / runtime pattern）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 对 refutable `val` pattern 的要求：`val Some(x) = e` 可用且 mismatch panic，failure path 不依赖 effect system；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P3-T04R：Review refutable `val` pattern
 

@@ -37,6 +37,9 @@ val pointSum: Int = x + y
 val total: Int = buildExtra(pointSum)
 val finalTotal: Int = total + tupleSum
 
+val Some(optionalTotal) = Some(finalTotal)
+val optionalPlusOne: Int = optionalTotal + 1
+
 fun main(): Int {
     println(left)
     println(right)
@@ -44,6 +47,8 @@ fun main(): Int {
     println(y)
     println(total)
     println(finalTotal)
+    println(optionalTotal)
+    println(optionalPlusOne)
     println(finalTotal)
     return 0
 }

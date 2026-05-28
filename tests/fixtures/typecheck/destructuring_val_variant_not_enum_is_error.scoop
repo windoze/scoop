@@ -1,8 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_refutable_not_allowed
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_not_enum
 // EXPECT-ERROR-AT: 12:9
-// EXPECT-ERROR: `val` 解构绑定只允许不可失败 pattern
-// 目标：variant pattern 在 `val` 解构绑定中一律禁止，不再按 initializer 类型区分。
+// EXPECT-ERROR: variant pattern 只能用于 enum
+// 目标：variant pattern 在 `val` 解构绑定中允许，但 initializer 仍必须是 enum / Option。
 
 package fixtures.typecheck
 

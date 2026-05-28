@@ -19,6 +19,9 @@ val pointSum: Int = x + y
 val total: Int = pointSum
 val finalTotal: Int = total + tupleSum
 
+val Some(optionalTotal): Int? = Some(finalTotal)
+val optionalPlusOne: Int = optionalTotal + 1
+
 fun use(): Int {
-    return a + x + total + finalTotal
+    return a + x + total + finalTotal + optionalPlusOne
 }

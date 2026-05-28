@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: destructuring_val_variant_match_basic.stdout
+// EXPECT-EXIT: 0
+// 目标：P3-T04：refutable `val` variant pattern 在匹配路径绑定 payload，嵌套 tuple pattern 也可用。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+fun unwrap(opt: Int?): Int {
+    val Some(x) = opt
+    return x + 1
+}
+
+fun nested(pair: (Int?, Int)): Int {
+    val (Some(x), y) = pair
+    return x + y
+}
+
+fun main(): Int {
+    println(unwrap(Some(41)))
+    println(nested((Some(5), 7)))
+    return 0
+}
