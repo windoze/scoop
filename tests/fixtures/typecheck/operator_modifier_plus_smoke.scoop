@@ -1,5 +1,5 @@
 // EXPECT: pass
-// P2-T05 smoke: parser/resolver carry `operator` without changing operator resolution yet.
+// P3-T01 smoke: `operator fun plus` is callable through `+`.
 
 package fixtures.typecheck
 

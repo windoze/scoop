@@ -277,6 +277,26 @@ fn scalar_operator_method_name(op: ast::BinaryOp) -> Option<&'static str> {
     }
 }
 
+fn filter_operator_positioned_candidates(
+    sigs: Vec<FunSigOwned>,
+    op: &str,
+    receiver: String,
+    method: &str,
+    span: Span,
+) -> Result<Vec<FunSigOwned>, ExprTypeError> {
+    let had_same_named_candidates = !sigs.is_empty();
+    let out: Vec<FunSigOwned> = sigs.into_iter().filter(|sig| sig.is_operator).collect();
+    if had_same_named_candidates && out.is_empty() {
+        return Err(ExprTypeError::OperatorModifierRequired {
+            op: op.to_string(),
+            receiver,
+            method: method.to_string(),
+            span: span.into(),
+        });
+    }
+    Ok(out)
+}
+
 pub(super) fn is_symbol_visible_from_source(
     use_cone: ConeId,
     use_source: &SourceFile,
@@ -477,6 +497,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension: false,
+            is_operator: o.symbol.modifiers.operator,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
             is_extern: o.sig.builtin_flags.is_extern,
@@ -603,6 +624,58 @@ pub(super) fn collect_unique_zero_arg_member_method_sig(
     }
 }
 
+fn collect_unique_zero_arg_operator_member_method_sig(
+    source: &SourceFile,
+    receiver: NominalReceiverRef<'_>,
+    method: &str,
+    op_text: &str,
+    call_site_span: Span,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<Option<FunSigOwned>, ExprTypeError> {
+    let callee_fqn = format!("{}.{}", receiver.fqn, method);
+    let sigs = collect_member_method_signatures_from_index(
+        source,
+        receiver.ty,
+        receiver.fqn,
+        receiver.args,
+        &callee_fqn,
+        lower,
+        builtins,
+    )?;
+    let sigs = filter_operator_positioned_candidates(
+        sigs,
+        op_text,
+        lower.fmt_type(receiver.ty),
+        method,
+        call_site_span,
+    )?;
+
+    let mut filtered: Vec<FunSigOwned> = sigs
+        .into_iter()
+        .filter(|s| s.params.len() == 1 && s.type_params.is_empty() && s.eff_param.is_none())
+        .collect();
+
+    match filtered.len() {
+        0 => Ok(None),
+        1 => Ok(Some(filtered.remove(0))),
+        _ => {
+            let candidates = filtered
+                .iter()
+                .map(|sig| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(method, receiver_ty, &[], lower)
+                })
+                .collect::<Vec<_>>();
+            Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: call_site_span.into(),
+            })
+        }
+    }
+}
+
 pub(super) fn record_member_method_effects_as_performed(
     receiver_fqn: &str,
     receiver_args: &[TypeId],
@@ -664,6 +737,7 @@ fn record_scalar_operator_method_binding(
     call_site_span: Span,
     receiver_ty: TypeId,
     method: &str,
+    op_text: &str,
     explicit_args: &[(&ast::Expr, TypeId)],
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
@@ -685,6 +759,13 @@ fn record_scalar_operator_method_binding(
         &callee_fqn,
         lower,
         inputs.builtins,
+    )?;
+    let sigs = filter_operator_positioned_candidates(
+        sigs,
+        op_text,
+        lower.fmt_type(receiver_ty),
+        method,
+        call_site_span,
     )?;
     let mut matched = Vec::new();
     for sig in sigs {
@@ -786,6 +867,7 @@ pub(super) fn infer_unary_expr_type(
             unary_expr.span,
             operand_ty,
             "unaryMinus",
+            unary_op_text(op),
             &[],
             lower,
         )?;
@@ -802,6 +884,7 @@ pub(super) fn infer_unary_expr_type(
                     unary_expr.span,
                     operand_ty,
                     "not",
+                    unary_op_text(op),
                     &[],
                     lower,
                 )?;
@@ -824,6 +907,7 @@ pub(super) fn infer_unary_expr_type(
                     unary_expr.span,
                     operand_ty,
                     "unaryMinus",
+                    unary_op_text(op),
                     &[],
                     lower,
                 )?;
@@ -844,6 +928,7 @@ pub(super) fn infer_unary_expr_type(
                     unary_expr.span,
                     operand_ty,
                     "inv",
+                    unary_op_text(op),
                     &[],
                     lower,
                 )?;
@@ -876,7 +961,7 @@ pub(super) fn infer_unary_expr_type(
 
             let method = "inv";
             let callee_fqn = format!("{receiver_fqn}.{method}");
-            let Some(sig) = collect_unique_zero_arg_member_method_sig(
+            let Some(sig) = collect_unique_zero_arg_operator_member_method_sig(
                 inputs.source,
                 NominalReceiverRef {
                     ty: operand_ty,
@@ -884,6 +969,7 @@ pub(super) fn infer_unary_expr_type(
                     args: &receiver_args,
                 },
                 method,
+                unary_op_text(op),
                 op_span,
                 lower,
                 inputs.builtins,
@@ -988,6 +1074,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     binary_expr.span,
                     lhs_ty,
                     "plus",
+                    binary_op_text(op),
                     &[(rhs, rhs_ty)],
                     lower,
                 )?;
@@ -999,6 +1086,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     binary_expr.span,
                     lhs_ty,
                     "minus",
+                    binary_op_text(op),
                     &[(rhs, rhs_ty)],
                     lower,
                 )?;
@@ -1010,6 +1098,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     binary_expr.span,
                     lhs_ty,
                     "minus",
+                    binary_op_text(op),
                     &[(rhs, rhs_ty)],
                     lower,
                 )?
@@ -1041,6 +1130,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 binary_expr.span,
                 lhs_ty,
                 method,
+                binary_op_text(op),
                 &[(rhs, rhs_ty)],
                 lower,
             )?;
@@ -1086,6 +1176,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     binary_expr.span,
                     ty,
                     method,
+                    binary_op_text(op),
                     &[(rhs, rhs_ty)],
                     lower,
                 )?;
@@ -1099,6 +1190,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                         binary_expr.span,
                         lhs_ty,
                         method,
+                        binary_op_text(op),
                         &[(rhs, rhs_ty)],
                         lower,
                     )?;
@@ -1152,6 +1244,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 binary_expr.span,
                 ty,
                 method,
+                binary_op_text(op),
                 &[(rhs, rhs_ty)],
                 lower,
             )?;
@@ -1205,6 +1298,13 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         &callee_fqn,
         lower,
         inputs.builtins,
+    )?;
+    let sigs = filter_operator_positioned_candidates(
+        sigs,
+        binary_op_text(op),
+        lower.fmt_type(lhs_ty),
+        method,
+        op_span,
     )?;
 
     if sigs.is_empty() {
@@ -1519,6 +1619,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                     binary_expr,
                     lhs,
                     rhs,
+                    op,
                     lhs_ty,
                     rhs_ty,
                     op_span,
@@ -1620,6 +1721,7 @@ struct CompareToBinarySite<'a> {
     binary_expr: &'a ast::Expr,
     lhs: &'a ast::Expr,
     rhs: &'a ast::Expr,
+    op: ast::BinaryOp,
     lhs_ty: TypeId,
     rhs_ty: TypeId,
     op_span: Span,
@@ -1634,6 +1736,7 @@ fn infer_compare_to_overload_binary_expr_type(
         binary_expr,
         lhs,
         rhs,
+        op,
         lhs_ty,
         rhs_ty,
         op_span,
@@ -1660,6 +1763,13 @@ fn infer_compare_to_overload_binary_expr_type(
         &callee_fqn,
         lower,
         inputs.builtins,
+    )?;
+    let sigs = filter_operator_positioned_candidates(
+        sigs,
+        binary_op_text(op),
+        lower.fmt_type(lhs_ty),
+        method,
+        op_span,
     )?;
     if sigs.is_empty() {
         return Ok(None);

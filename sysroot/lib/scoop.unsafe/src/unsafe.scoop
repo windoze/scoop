@@ -45,11 +45,11 @@ fun <T> Ptr<T>.store(value: T): Unit
 
 /// Pointer arithmetic in units of `T` (not bytes).
 @Intrinsic @NoGC @Unsafe
-fun <T> Ptr<T>.plus(offset: Int): Ptr<T>
+operator fun <T> Ptr<T>.plus(offset: Int): Ptr<T>
 
 /// Pointer arithmetic in units of `T` (not bytes).
 @Intrinsic @NoGC @Unsafe
-fun <T> Ptr<T>.minus(offset: Int): Ptr<T>
+operator fun <T> Ptr<T>.minus(offset: Int): Ptr<T>
 
 /// Address-of intrinsic: takes the address of a variable slot.
 ///

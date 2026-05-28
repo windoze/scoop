@@ -222,7 +222,7 @@ fn dump_mir_lowers_user_defined_compare_to_as_direct_call_plus_int_compare_metho
 package fixtures.mirlower
 
 struct Num(val value: Int) {
-    fun compareTo(other: Num): Int {
+    operator fun compareTo(other: Num): Int {
         return this.value - other.value
     }
 }
@@ -323,7 +323,7 @@ fn dump_mir_lowers_compare_to_in_if_condition_as_direct_call() {
 package fixtures.mirlower
 
 struct Num(val value: Int) {
-    fun compareTo(other: Num): Int {
+    operator fun compareTo(other: Num): Int {
         return this.value - other.value
     }
 }

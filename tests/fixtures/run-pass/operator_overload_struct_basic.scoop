@@ -1,35 +1,35 @@
 // EXPECT: pass
 // RUN-STDOUT: operator_overload_struct_basic.stdout
 //
-// T0111: Operator overloading for user-defined struct types.
+// Operator overloading for user-defined struct types.
 // Tests plus (+), minus (-), times (*), div (/), rem (%), and compareTo (<, >, <=, >=).
 
 import scoop.core.*
 
 struct Vec2(val x: Int, val y: Int) {
-    fun plus(other: Vec2): Vec2 {
+    operator fun plus(other: Vec2): Vec2 {
         return Vec2 { x: this.x + other.x, y: this.y + other.y }
     }
 
-    fun minus(other: Vec2): Vec2 {
+    operator fun minus(other: Vec2): Vec2 {
         return Vec2 { x: this.x - other.x, y: this.y - other.y }
     }
 
-    fun times(other: Vec2): Vec2 {
+    operator fun times(other: Vec2): Vec2 {
         return Vec2 { x: this.x * other.x, y: this.y * other.y }
     }
 }
 
 struct Num(val v: Int) {
-    fun div(other: Num): Num {
+    operator fun div(other: Num): Num {
         return Num { v: this.v / other.v }
     }
 
-    fun rem(other: Num): Num {
+    operator fun rem(other: Num): Num {
         return Num { v: this.v % other.v }
     }
 
-    fun compareTo(other: Num): Int {
+    operator fun compareTo(other: Num): Int {
         return this.v - other.v
     }
 }

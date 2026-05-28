@@ -674,6 +674,7 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension,
+            is_operator: o.symbol.modifiers.operator,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
             is_extern: o.sig.builtin_flags.is_extern,

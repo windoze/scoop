@@ -1044,6 +1044,18 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "操作符 `{op}` 只能调用标记为 `operator` 的方法：`{receiver}.{method}` 缺少 `operator` modifier"
+    )]
+    #[diagnostic(code(scoop::typecheck::operator_modifier_required))]
+    OperatorModifierRequired {
+        op: String,
+        receiver: String,
+        method: String,
+        #[label("这里需要 `operator` 方法")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不可赋值：`{name}` 不是可变变量（必须声明为 `var`）")]
     #[diagnostic(code(scoop::typecheck::assignment_target_not_mutable))]
     AssignmentTargetNotMutable {

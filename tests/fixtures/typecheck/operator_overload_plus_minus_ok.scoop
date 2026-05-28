@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T1301 操作符重载：`a + b` / `a - b` 绑定到 `a.plus(b)` / `a.minus(b)`。
+// 目标：operator-positioned `a + b` / `a - b` 只绑定到显式 `operator` 方法。
 
 package fixtures.typecheck
 
@@ -9,11 +9,11 @@ struct Vec2 {
     val x: Int
     val y: Int
 
-    fun plus(other: Vec2): Vec2 {
+    operator fun plus(other: Vec2): Vec2 {
         return other
     }
 
-    fun minus(other: Vec2): Vec2 {
+    operator fun minus(other: Vec2): Vec2 {
         return other
     }
 }
@@ -23,4 +23,3 @@ fun add(a: Vec2, b: Vec2): Vec2 {
     val d: Vec2 = a - b
     return c
 }
-

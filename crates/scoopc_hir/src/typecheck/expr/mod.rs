@@ -89,6 +89,8 @@ struct FunSigOwned {
     /// - 该标记仅用于限制语法层的可调用性：扩展函数不能以 `f(args...)` 形式直接调用，
     ///   只能通过 `receiver.f(args...)` / `receiver?.f(args...)` 调用（当前阶段最小子集）。
     is_extension: bool,
+    /// 是否声明了 `operator` modifier。
+    is_operator: bool,
     /// 是否为 `@Unsafe` 函数（spec §15.9.1）。
     ///
     /// 说明：当前阶段（T1003）仅用于调用门禁：非 unsafe context 禁止调用 `@Unsafe`。

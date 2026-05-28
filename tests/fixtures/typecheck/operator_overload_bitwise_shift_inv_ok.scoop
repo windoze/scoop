@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T1309 操作符重载：`& | ^ << >> ~` 绑定到 `and/or/xor/shl/shr/inv`。
+// 目标：`& | ^ << >> ~` 只绑定到显式 `operator` 方法。
 
 package fixtures.typecheck
 
@@ -8,27 +8,27 @@ import scoop.core.*
 struct Bits {
     val v: Int
 
-    fun and(other: Bits): Bits {
+    operator fun and(other: Bits): Bits {
         return other
     }
 
-    fun or(other: Bits): Bits {
+    operator fun or(other: Bits): Bits {
         return other
     }
 
-    fun xor(other: Bits): Bits {
+    operator fun xor(other: Bits): Bits {
         return other
     }
 
-    fun shl(count: Int): Bits {
+    operator fun shl(count: Int): Bits {
         return this
     }
 
-    fun shr(count: Int): Bits {
+    operator fun shr(count: Int): Bits {
         return this
     }
 
-    fun inv(): Bits {
+    operator fun inv(): Bits {
         return this
     }
 }

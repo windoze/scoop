@@ -1,0 +1,26 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::operator_modifier_required
+// EXPECT-ERROR-AT: 24:21
+// EXPECT-ERROR: 缺少 `operator` modifier
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Vec2 {
+    val x: Int
+    val y: Int
+
+    fun plus(other: Vec2): Vec2 {
+        return other
+    }
+}
+
+fun named_call_still_works(a: Vec2, b: Vec2): Vec2 {
+    return a.plus(b)
+}
+
+fun positioned_call_requires_operator(a: Vec2, b: Vec2): Vec2 {
+    val c: Vec2 = a + b
+    return c
+}

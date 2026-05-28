@@ -7,7 +7,7 @@
 
 ## P3：SPEC_FIX type/effect/lowering 语义落地
 
-### [TODO] P3-T01：operator-positioned calls 必须要求 `operator` modifier
+### [DONE] P3-T01：operator-positioned calls 必须要求 `operator` modifier
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -40,10 +40,10 @@
   - Accidental operator capture by same-named utility functions is impossible.
 - 依赖：P2-T06R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：在 `FunSigOwned` 中贯通 resolver `ModifierSet::operator`，并在 operator-positioned unary/binary/comparison candidate collection 后、specificity/匹配前筛掉未标记 `operator` 的候选；同步 sysroot 中 intended operator methods 和相关 fixtures / HIR goldens。
+  - 核心决策：普通 named call 路径不读取 `is_operator`，因此 `x.plus(y)` 仍可调用普通同名方法；只有 operator-positioned path 在存在 same-name 候选但无 `operator` 时发出 `scoop::typecheck::operator_modifier_required`。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 4 个 HIR golden span 漂移，更新 golden 后单独复跑 4 个失败项通过，最终完整 fixture suite 通过（`fixtures: ok (1552)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑 `operator` 候选，named calls 不受影响，并区分“候选存在但缺少 operator”和“没有候选”。
 
 ### [TODO] P3-T01R：Review operator gate 语义
 

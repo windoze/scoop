@@ -163,6 +163,7 @@ pub(in crate::typecheck::expr) fn lower_effect_op_signature(
         decl_span: op.symbol.span,
         decl_file: op.symbol.decl_file.clone(),
         is_extension: false,
+        is_operator: false,
         is_unsafe: false,
         is_nogc: false,
         is_extern: false,

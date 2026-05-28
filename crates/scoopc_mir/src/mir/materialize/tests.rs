@@ -3524,7 +3524,7 @@ fun ping(): Unit
 }
 
 struct Box<T>(val value: Int) {
-fun <eff E = Boom> plus(other: Box<T>): Box<T> / Boom {
+operator fun <eff E = Boom> plus(other: Box<T>): Box<T> / Boom {
     Boom.ping()
     return Box { value: this.value + other.value }
 }
@@ -3597,7 +3597,7 @@ fun ping(): Unit
 }
 
 struct Box<T>(val value: Int) {
-fun <eff E = Boom> compareTo(other: Box<T>): Int / Boom {
+operator fun <eff E = Boom> compareTo(other: Box<T>): Int / Boom {
     Boom.ping()
     return this.value - other.value
 }
