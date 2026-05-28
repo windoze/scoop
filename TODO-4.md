@@ -169,7 +169,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted vararg overload fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1561)`）。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
-### [TODO] P4-T03R：Review vararg overlap reject
+### [DONE] P4-T03R：Review vararg overlap reject
 
 - 参考：
   - P4-T03 完成记录
@@ -194,10 +194,10 @@
   - P4-T03 行为符合 §4.3 / §8.2。
 - 依赖：P4-T03
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 `crates/scoopc_hir/src/typecheck/overloads.rs` 的 vararg/non-vararg overlap 判定、`headers.rs::check_vararg_params` 的单 trailing vararg invariant、call arg mapper 对 definition-time disambiguation 的假设，以及 P4-T03 的 rejected / legal vararg overload fixtures；新增 `tests/fixtures/typecheck/vararg_overload_overlap_spread_is_error.scoop`，显式覆盖 spread 调用不能绕过定义点 reject。
+  - 核心决策：确认 overlap reject 在 ordinary duplicate/default conflict 前执行，且同时覆盖 fun / constructor overload set；诊断 `scoop::typecheck::vararg_overlaps_non_vararg` 包含双方 source label 与 rendered signature；合法的 `b()` + `b(x, vararg ys)` non-overlap 保留到调用点，spread syntax 不作为 overload 区分逃生口。
+  - 验证结果：`cargo fmt --check`；`cargo clippy --all-targets -- -D warnings`；targeted vararg fixtures（overlap reject、non-overlap ok、spread bypass reject）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1562)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T03 行为符合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
 
 ### [TODO] P4-T04：实现 override / overload 边界与虚方法 generic 禁止
 

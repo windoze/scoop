@@ -1,21 +1,22 @@
 # Current task plan
 
-Task: P4-T03, "实现 vararg 与非 vararg overlap 的定义点 reject".
+Task: P4-T03R, "Review vararg overlap reject".
 
-First incomplete task source: `TODO.md` points to `TODO-4.md`; the index shows P4-T03 as the first task not marked `[DONE]`. The latest commit is `[P4-T02R] Review generic overload shape rules`, which is directly adjacent but does not name an unfinished issue.
+First incomplete task source: `TODO.md` lists P4-T03 as `[DONE]` and P4-T03R as the first task still marked `[TODO]`. The latest commit is `[P4-T03] Reject vararg overload overlaps`, which is directly relevant and is the implementation under review.
 
 Execution plan:
 
-1. Read the full P4-T03 entry in `TODO-4.md`, plus the relevant overload design/spec sections.
-2. Inspect the current definition-time overload checks and tests/fixtures around varargs and duplicate overloads.
-3. Implement the vararg/non-vararg overlap reject at the declaration/typecheck definition point, reusing the existing effective-signature helpers and diagnostics style.
-4. Add or update the smallest relevant fixtures/tests required by P4-T03.
-5. Run formatting, clippy, Rust tests, spec fixture check, and fixture suite as required by the task and project instructions.
-6. Mark P4-T03 `[DONE]` in both `TODO.md` and `TODO-4.md`, update the completion record, and commit all task changes.
+1. Read the P4-T03 completion record, P4-T03R requirements, and relevant overload-resolution design sections.
+2. Inspect the P4-T03 implementation in overload definition-time checks, vararg parameter validation, call-argument mapping assumptions, diagnostics, and targeted fixtures.
+3. Verify the required review points: overlap rejected at definition time, non-overlap legal cases pass, diagnostics include candidate locations/signatures, and spread syntax cannot bypass the definition-time reject.
+4. Make any required corrections discovered during review; if no implementation changes are needed, only update task documentation.
+5. Run formatting/linting and the targeted/full validation required for the review task, reusing prior green results only if no compiled-output-affecting files change.
+6. Mark P4-T03R `[DONE]` in `TODO.md` and `TODO-4.md`, fill in its completion record, and commit only the task-related changes.
 
 Progress:
 
-- Identified P4-T03 as the first incomplete task.
-- Read the P4-T03 requirements and relevant overload implementation. Current signature metadata records defaults and effective types but not vararg-ness, so the implementation will extend `ParamInfo` and add a dedicated vararg/non-vararg overlap check before the existing duplicate/default conflict branches.
-- Implemented vararg-aware overload signature metadata, added `scoop::typecheck::vararg_overlaps_non_vararg`, and added targeted rejected/legal vararg overload fixtures. Targeted fixtures pass after rebuilding the compiler binaries.
-- Full validation passed (`cargo fmt`, clippy, build, targeted fixtures, full Rust tests, spec fixture check, full fixture suite). Marked P4-T03 done in `TODO.md` and `TODO-4.md`.
+- Identified P4-T03R as the first incomplete task.
+- Reviewed the P4-T03 implementation against `OVERLOAD_RESOLUTION.md` §4.3 / §8.2. The definition-time check runs before ordinary conflict/default checks, includes candidate spans and rendered signatures, and the call mapper treats surviving vararg candidates as already disambiguated.
+- Adding one targeted negative fixture so the review requirement that spread syntax cannot bypass the definition-time reject is covered directly.
+- Validation passed: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, targeted vararg fixtures, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and full fixtures (`fixtures: ok (1562)`).
+- Marked P4-T03R as `[DONE]` in `TODO.md` and `TODO-4.md`; `PLAN.md` did not require changes.

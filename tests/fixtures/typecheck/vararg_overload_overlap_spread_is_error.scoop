@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::vararg_overlaps_non_vararg
+// EXPECT-ERROR-AT: 15:5
+// EXPECT-ERROR: vararg
+// EXPECT-ERROR: spreadBypass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun spreadBypass(x: Int): Int {
+    return x
+}
+
+fun spreadBypass(vararg xs: Int): Int {
+    return 0
+}
+
+val y: Int = spreadBypass(*(1, 2))

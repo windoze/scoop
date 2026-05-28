@@ -72,7 +72,7 @@
 | P4-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t02实现-generic-overload-shape-规则) | [DONE] 实现 generic overload shape 规则 |
 | P4-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t02rreview-generic-overload-shape-规则) | [DONE] Review P4-T02 generic overload shape 规则 |
 | P4-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t03实现-vararg-与非-vararg-overlap-的定义点-reject) | [DONE] 实现 vararg 与非 vararg overlap 的定义点 reject |
-| P4-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t03rreview-vararg-overlap-reject) | Review P4-T03 vararg overlap reject |
+| P4-T03R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p4-t03rreview-vararg-overlap-reject) | [DONE] Review P4-T03 vararg overlap reject |
 | P4-T04 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t04实现-override--overload-边界与虚方法-generic-禁止) | 实现 override / overload 边界与虚方法 generic 禁止 |
 | P4-T04R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t04rreview-override--overload-边界) | Review P4-T04 override / overload 边界 |
 | P4-T05 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p4-t05把-constructor-overload-纳入-definition-time-规则与-diagnostics) | 把 constructor overload 纳入 definition-time 规则与 diagnostics |
