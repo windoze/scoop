@@ -4,6 +4,36 @@
 - 本文件记录本次 invocation 的可审阅执行计划、关键步骤和进度更新。
 - 不记录私有推理链；只记录任务目标、执行步骤、验证方式和变更结果。
 
+## 当前任务：P0-T02R
+1. 读取 `TODO.md`，确认第一个未完成任务。
+2. 检查最新提交信息，仅处理与当前任务直接相关的未完成事项。
+3. 按 `P0-T02R` 要求复核 P0-T02 记录中的三类 immortal 分配点、marker 路径、membership 过滤与全部 `__AtomicInt` 擦除/映射点。
+4. 若发现记录漏项，直接补齐当前基线记录和后续任务要求；不修改运行期或编译期行为。
+5. 更新 `TODO.md` / `TODO-1.md`，将 `P0-T02R` 标为 `[DONE]` 并填写完成记录。
+6. 因本次仅修改 Markdown/任务记录，运行 `git diff --check`；完整 cargo/fixture suite 按规则复用最近绿色结果。
+7. 检查 git status/diff/log，提交本任务相关变更后停止。
+
+## 当前进度
+- 已确认第一个未完成任务是 `P0-T02R：Review immortal 行为基线`。
+- 最新提交为 `[P0-T02] Freeze immortal baseline`，与当前 review 直接相关，未声明未完成 blocker。
+- 已完成 `__AtomicInt` 反向 grep：未发现 P0-T02 记录以外的新擦除点；5 个擦除点与额外 ABI/type 映射点仍准确。
+- 已完成 String literal、TypeMetadataLiteral、Platform 分配路径复核，记录仍准确。
+- 已发现并补齐 marker 漏项：Immix parallel marker 与 baseline/minimal/hosted marker helper 也会写 `mark`；后续 P4 的 immortal flag 短路必须覆盖所有 marker helper，不能只改 Immix serial helper。
+- 已更新 `GC_IMMORTAL_FIX.md`、`PLAN.md`、`TODO-3.md`，同步修正 P4 runtime 短路范围。
+- 已更新 `TODO.md` 与 `TODO-1.md`，将 `P0-T02R` 标记为 `[DONE]` 并写入 completion record。
+- `git diff --check` 已通过；完整 cargo/fixture suite 跳过，原因是本次无代码、fixture 或编译输出变更。
+- 提交前检查发现原有 `memory/claude_plan.md` 含历史审计记录；已恢复并保留历史内容，仅在顶部追加本次当前任务记录。
+
+## 保留的既有记录
+
+以下内容为本次 invocation 开始前文件中已有记录，保留用于连续审计。
+
+# 当前执行计划
+
+## 说明
+- 本文件记录本次 invocation 的可审阅执行计划、关键步骤和进度更新。
+- 不记录私有推理链；只记录任务目标、执行步骤、验证方式和变更结果。
+
 ## 初始计划
 1. 读取 `TODO.md`，按文件顺序识别第一个标题未以 `[DONE]` 开头的任务。
 2. 检查最近提交信息；仅当它明确提到与当前任务直接相关的未完成问题时，将其纳入当前任务或在 `TODO.md` 中补为前置任务。

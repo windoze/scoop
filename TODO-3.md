@@ -123,15 +123,16 @@
   - 让运行期把带 immortal header 的对象视为透明（永不写、永不 trace）。
 - 必须修改的文件/位置：
   - `runtime/c/scoop_gc.h:210-244`
-  - `runtime/c/scoop_gc_backend_immix.c:2719-2737`（`scoop_gc_mark_object_if_needed`），参考 `:2739-2760`、`:5177/5185`
+  - `runtime/c/scoop_gc_backend_immix.c:2719-2737`（serial `scoop_gc_mark_object_if_needed`）、`:2950-2975`（parallel marker），参考 `:2739-2760`、`:5043-5060`、`:5169-5186`
+  - `runtime/c/scoop_gc.c:1313-1323`、`runtime/c/scoop_gc_backend_minimal.c:503-513`、`runtime/c/scoop_gc_backend_hosted.c:513-523`（其它 backend marker helper）
 - 必须实现的内容：
   1. `scoop_gc.h` 新增 `#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u` 与 `#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu`。
-  2. `scoop_gc_mark_object_if_needed` 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，覆盖 pinned 扫描等不经 membership 预检的入口。
-  3. slot visitor 不改（membership 已过滤堆外指针）；sweep 不改（immortal `next=null` 永不上链）。
+  2. 所有 backend marker helper 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`；Immix parallel marker 必须在 atomic load/CAS 前同样短路。
+  3. 短路必须覆盖 pinned/handle 扫描等不经 membership 预检的入口；Immix slot visitor 不改（membership 已过滤堆外指针）；sweep 不改（immortal `next=null` 永不上链）。
 - 必须遵从的约束：
   - 短路必须 flag-gated，不得 blanket 跳过普通堆对象。
 - 验证：
-  1. runtime C 单元测试：栈上构造带 `SCOOP_GC_FLAG_IMMORTAL` 的 header，推上 mark stack，断言 `mark`/`flags` 字节不变（ASan）；同测堆 header 断言 `mark` 被更新。
+  1. runtime C 单元测试：栈上构造带 `SCOOP_GC_FLAG_IMMORTAL` 的 header，推上 mark stack，断言 `mark`/`flags` 字节不变（ASan）；同测堆 header 断言 `mark` 被更新；覆盖 Immix serial/parallel 与 baseline/minimal/hosted marker helper 可达路径。
   2. `cargo test --all --all-targets`
 - 完成条件：
   - immortal flag 短路正确且 flag-gated。
@@ -147,7 +148,7 @@
 - 目标：
   - 复核短路是否 flag-gated、是否覆盖 pinned 路径、是否对普通对象无影响。
 - 必须检查的文件/位置：
-  - P4-T01 对 `scoop_gc.h` 与 marker 的改动
+  - P4-T01 对 `scoop_gc.h` 与所有 backend marker helper（含 Immix parallel marker）的改动
 - 必须实现的内容：
   1. 确认普通堆对象 marker 行为不变。
   2. 确认 pinned 扫描等入口被覆盖。

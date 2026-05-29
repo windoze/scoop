@@ -33,7 +33,7 @@
 - String literal 每次求值都 `scoop_alloc_typed` 一个 `ScoopString` wrapper（`scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`），字节负载已在 `.rodata`，但 wrapper 是堆对象。
 - `TypeMetadataLiteral::TypeNameString` 复用同一路径，继承 wrapper 分配（`.../mir_body/transport.rs:186-201`）。
 - `Platform` 每次读取分配 5 个 `ScoopString` 再 SSA insert 成结构体（`.../mir_body/transport.rs:203-292`）。
-- `ScoopGcObjectHeader` 的 `mark` 被 marker 无条件写（`runtime/c/scoop_gc_backend_immix.c:2719-2737`），所以朴素 `.rodata` 拷贝会在首次 trace 时打只读页 fault；但 slot 扫描已通过 heap-membership 过滤堆外指针（`:2739-2760`），这是 immortal 透明性的支点。
+- `ScoopGcObjectHeader` 的 `mark` 被 marker 无条件写（Immix 串行 `runtime/c/scoop_gc_backend_immix.c:2719-2737`、并行 `:2950-2975`，以及 baseline/minimal/hosted marker helper），所以朴素 `.rodata` 拷贝会在首次 trace 时打只读页 fault；Immix slot 扫描已通过 heap-membership 过滤堆外指针（`:2739-2760`），这是 immortal 透明性的支点。
 - `scoop.unsafe.__AtomicInt` 当前是 `typealias = Int`（`sysroot/lib/scoop.unsafe/src/unsafe.scoop:163`），在类型层被擦除成 `Int`。它是 interior-mutable（经 unsafe 原子 intrinsic 原地写）但在类型层不可见——这是常量化谓词的隐藏陷阱：藏在 `val` 字段后会被误判可变性、误常量化进 `.rodata`、原子写 fault。
 - Scoop 无任何 reference-identity 运算符（`docs/spec/language_spec-part3.md:66` 仅 `==`/`!=`），所以**对象身份对任何 ref 类型都不可观测**；这是“不可变即可常量化”和“dedup 仅 String 安全”的根。
 
@@ -50,7 +50,7 @@
 | backend parity（hosted/minimal） | 仅 immix 关注 | 阈值比较 backend 无关，hosted/minimal 也尊重旋钮 | P2 |
 | `__AtomicInt` typealias → marked struct | `typealias = Int`，类型层擦除 | 升为 `@InteriorMutable struct __AtomicInt { val raw: Int }`，5 处擦除点改“类型相异、布局=Int” | P3 |
 | `@InteriorMutable` 注解 | 无 | 新增注解，metadata-only，`is_immutable` 读它即否决 | P3 |
-| `SCOOP_GC_FLAG_IMMORTAL` + marker 短路 | header 无 immortal 概念 | 加两个 sentinel，`scoop_gc_mark_object_if_needed` 加 flag 短路 | P4 |
+| `SCOOP_GC_FLAG_IMMORTAL` + marker 短路 | header 无 immortal 概念 | 加两个 sentinel，所有 backend marker helper（含 Immix 并行 marker）加 flag 短路 | P4 |
 | byte 数组 content-hash 键 + `unnamed_addr` | span-key，无 dedup | 改 content-hash，加 `set_unnamed_addr(true)`，跨 TU 折叠 | P4 |
 | `is_immutable(T)` 谓词 | 无 | 传递不可变 + `@InteriorMutable` 否决，值/ref 双层 | P5 |
 | `try_emit_immortal` 通用折叠器 | 三个手写路径 | 标量/字符串/纯数据聚合统一折叠器，提升门=全 Const+boxing none+kind(+ref 加 is_immutable) | P5 |
@@ -66,7 +66,7 @@
 | alloc 快路径 / safepoint | `runtime/c/scoop_runtime.c::scoop_alloc`（`:498-499` poll，`:502-507` stress，`:563-567` nursery 回退，`:514` OOM⇒NULL） | 无 pacing 触发；nursery 满静默落 old | alloc 后阈值比较请求 collect；nursery 满先 minor GC 再重试 |
 | 堆状态 / 计数 | `runtime/c/scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`、`ScoopGcHeap` 结构 | `bytes_allocated` 只计数不比较 | 加 `next_gc`，cycle 末按 `live*factor` 更新，alloc 比较 |
 | block pool | `runtime/c/scoop_gc_immix_internal.h:548-575::scoop_gc_immix_state_take_block`、`:283-299` `block_alloc_new` | 两表空无条件 `posix_memalign` | 先 full GC 回收，取不到才增长，可选 hard cap |
-| marker 写 mark | `runtime/c/scoop_gc_backend_immix.c:2719-2737::scoop_gc_mark_object_if_needed`、`:2739-2760` visitor、`:5177/5185` pinned | 无条件写 `mark`，朴素 .rodata 会 fault | flag 短路 immortal；membership 已过滤堆外 |
+| marker 写 mark | `runtime/c/scoop_gc_backend_immix.c:2719-2737::scoop_gc_mark_object_if_needed`、`:2950-2975` 并行 marker、`:2739-2760` visitor、`:5043-5060` / `:5169-5186` pinned/handle；baseline/minimal/hosted marker helper | 无条件写 `mark`，朴素 .rodata 会 fault | 所有 marker helper flag 短路 immortal；Immix membership 已过滤堆外 |
 | GC header / sentinel | `runtime/c/scoop_gc.h:210-244`、`scoop_runtime_api.h:37-38` | header 无 immortal 概念 | 加 `SCOOP_GC_FLAG_IMMORTAL` / `SCOOP_GC_MARK_IMMORTAL` |
 | backend parity | `runtime/c/scoop_gc_backend_hosted.c`、`scoop_gc_backend_minimal.c` | 只 immix 有 pacing | 三 backend 均尊重 pacing 旋钮 |
 | `__AtomicInt` 声明 | `sysroot/lib/scoop.unsafe/src/unsafe.scoop:163` | `typealias = Int`，标记无处可挂 | `@InteriorMutable struct __AtomicInt { val raw: Int }` |
@@ -273,7 +273,7 @@
 
 参考：
 - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Runtime change”“Cache and dedup keys”、Phasing 2-3
-- `runtime/c/scoop_gc.h:210-244`、`scoop_gc_backend_immix.c:2719-2737,2739-2760,5177/5185`
+- `runtime/c/scoop_gc.h:210-244`；`scoop_gc_backend_immix.c:2719-2737,2950-2975,2739-2760,5043-5060,5169-5186`；baseline/minimal/hosted marker helpers
 - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72`
 
 目标：
@@ -283,7 +283,7 @@
 必须实现的内容：
 
 1. `scoop_gc.h` 新增 `#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u` 与 `#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu`。
-2. `scoop_gc_mark_object_if_needed` 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，覆盖 pinned 扫描等不经 membership 预检的入口。slot visitor 不改（membership 已过滤堆外）。
+2. 所有 backend marker helper 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，Immix 并行 marker 在 atomic load/CAS 前同样短路，覆盖 pinned 扫描等不经 membership 预检的入口。Immix slot visitor 不改（membership 已过滤堆外）。
 3. `get_or_create_global_bytes`（`alloca.rs:56-72`）键从 `__scoop_str_data_{span.start}_{span.end}` 改为 `base16(SHA-256(bytes)[..16])`，并 `set_unnamed_addr(true)`。
 
 必须遵从的约束：

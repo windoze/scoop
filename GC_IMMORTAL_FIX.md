@@ -304,9 +304,14 @@ The byte payload is already correctly placed in `.rodata`
 
 ### The `ScoopGcObjectHeader` write hazard
 
-`runtime/c/scoop_gc.h:210-244` — the header has mutable `flags` / `mark`, and the
-marker writes `mark` unconditionally
-(`runtime/c/scoop_gc_backend_immix.c:2719-2737`). A naive `.rodata` copy would
+`runtime/c/scoop_gc.h:210-244` — the header has mutable `flags` / `mark`, and
+the marker writes `mark` unconditionally. Immix has both a serial marker
+(`runtime/c/scoop_gc_backend_immix.c:2719-2737`) and a parallel marker
+(`:2950-2975`) that updates `obj->mark` with an atomic CAS. The baseline,
+minimal, and hosted backends have their own marker helpers
+(`runtime/c/scoop_gc.c:1313-1323`,
+`runtime/c/scoop_gc_backend_minimal.c:503-513`,
+`runtime/c/scoop_gc_backend_hosted.c:513-523`). A naive `.rodata` copy would
 fault on the first GC cycle that traces it, because the `mark` write hits a
 read-only page.
 
@@ -328,8 +333,11 @@ Add two sentinels to `runtime/c/scoop_gc.h`:
 #define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu
 ```
 
-and one defensive short-circuit in `scoop_gc_mark_object_if_needed` (also
-reachable from pinned-object scanning, lines 5177/5185):
+and one defensive short-circuit in each marker helper before any `mark` read or
+write. This includes Immix serial/parallel markers and the baseline,
+minimal, and hosted marker helpers. Immix pinned-object and stable-handle
+scanning can reach the marker without a visitor membership pre-check in both
+parallel (`:5043-5060`) and serial (`:5169-5186`) paths.
 
 ```c
 static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx,
@@ -342,13 +350,13 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx,
 }
 ```
 
-This is the only required runtime change. Slot scanning already filters
-immortals via membership; pinning APIs only accept previously heap-allocated
-objects (user code cannot pin an immortal), but the marker iterates pinned
-records directly, so the flag check covers any path that pushes an object onto
-the mark stack without a membership pre-check. Sweep iterates `heap->objects`;
-immortals are never threaded onto that list (`next = null`), so sweep cannot see
-them.
+This is the only required runtime behavior change. Immix slot scanning already
+filters immortals via membership; pinning APIs only accept previously
+heap-allocated objects (user code cannot pin an immortal), but the marker
+iterates pinned records directly, so the flag check covers any path that pushes
+an object onto the mark stack without a membership pre-check. Sweep iterates
+`heap->objects`; immortals are never threaded onto that list (`next = null`), so
+sweep cannot see them.
 
 This change is inert for the value-type tier — those objects never reach the
 marker at all.
