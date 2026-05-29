@@ -2191,16 +2191,23 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
 
   scoop_gc_immix_lock(state);
 
-  ScoopGcObjectHeader *slot_owner =
-      scoop_gc_heap_find_object_containing_unlocked(&scoop_gc_heap, slot_addr, sizeof(void *));
+  // slot_is_old 判定避免 O(heap_objects) 的对象链表扫描：slot 与其所属对象头位于同一个
+  // Immix block，所以直接用 slot_addr 定位 block（O(blocks)，block 数远小于对象数）即可。
+  // 仅当 slot_addr 不落在任何 block（large/fallback old-space 对象，或根本不是堆对象的槽位）
+  // 时，才退化为对象扫描以区分“large 对象（old）”与“非堆槽位（不触发 barrier）”，保持原语义。
   ScoopGcImmixBlock *slot_block =
-      scoop_gc_immix_state_find_block_containing_unlocked(state, slot_owner);
+      scoop_gc_immix_state_find_block_containing_unlocked(state, slot_addr);
   ScoopGcImmixBlock *value_block =
       scoop_gc_immix_state_find_block_containing_unlocked(state, value);
 
-  const uint32_t slot_is_old =
-      (slot_owner != 0 &&
-       (slot_block == 0 || slot_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD));
+  uint32_t slot_is_old;
+  if (slot_block != 0) {
+    slot_is_old = (slot_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD);
+  } else {
+    ScoopGcObjectHeader *slot_owner =
+        scoop_gc_heap_find_object_containing_unlocked(&scoop_gc_heap, slot_addr, sizeof(void *));
+    slot_is_old = (slot_owner != 0);
+  }
   if (slot_is_old && value_block != 0 &&
       value_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
     scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);

@@ -173,6 +173,7 @@
   - baseline 数值（Immix，默认无 pacing）：`allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；采样点显示 `allocated/live` 从 0 线性增长到 320000000，符合当前无界增长基线。
   - 字面量分配计数度量：新增 `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`，只包含 `String` literal 与 `getPlatform()` 读取的可达函数；新增 `tools/literal_alloc_metric.py`，运行方式为 `python3 tools/literal_alloc_metric.py --expect-min 1`，内部通过 `scoopc emit-artifact --kind llvm-ir` 生成 IR 并统计 `call/invoke @scoop_alloc_typed`。
   - baseline 字面量计数：`scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`；其中 call 计数覆盖 1 个 String literal wrapper 分配与 `Platform` 的 5 个字段 String wrapper 分配，符合当前 per-use 分配基线。
+  - 更新（P2-T03 之后）：OOM 硬上限引入内部 wrapper `@__scoop_alloc_typed_checked` 后，codegen 分配点改为调用 wrapper，`literal_alloc_metric.py` 已拆分两种符号拼写分别计数；新基线为 `scoop_alloc_typed_calls=7`（raw=1 wrapper 内部委托 + checked=6 codegen 分配点）、`scoop_alloc_typed_symbol_occurrences=9`（raw=2 + checked=7）。其中 `scoop_alloc_typed_checked_calls=6` 对应原 baseline 的 6 个 codegen 分配点。`--expect-calls` 现应使用 7。
   - fixture 表达能力检查：`tools/run_fixtures.py` 已支持 `ARGS: --emit-llvm`、`BUILD-LLVM-CONTAINS`、`BUILD-LLVM-REGEX`、`BUILD-LLVM-NOT-CONTAINS`；本任务使用 `BUILD-LLVM-CONTAINS: @scoop_alloc_typed` 作为全量 fixture suite 中的 baseline 存在性检查，精确计数由专用工具承担，未扩展 fixture runner 行为。
   - 验证：`cargo fmt`、`cargo test -p scoop_runtime --bin gc_microbench`、`python3 tools/literal_alloc_metric.py --expect-min 1`、`python3 tools/literal_alloc_metric.py --expect-calls 6`、`cargo run -p scoop_runtime --bin gc_microbench -- heap-growth --allocations 1000 --sample-every 500 --json`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
@@ -196,7 +197,7 @@
 - 依赖：P0-T03
 - 完成记录：
   - 2026-05-29：已独立复核 P0-T03 度量基线；未修改运行期或编译期行为。
-  - 字面量分配计数复核：`python3 tools/literal_alloc_metric.py --expect-calls 6` 通过，输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致，确认 String literal + Platform 读取仍能客观反映 per-use wrapper 分配。
+  - 字面量分配计数复核：`python3 tools/literal_alloc_metric.py --expect-calls 6` 通过，输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致，确认 String literal + Platform 读取仍能客观反映 per-use wrapper 分配。（注：P2-T03 引入 OOM wrapper 后基线更新为 calls=7/occ=9，详见 P0-T03 完成记录中的「更新」条目。）
   - 长程序堆增长复核：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，输出 `allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；1M 采样点从 0 线性增长到 320000000，确认 baseline 仍反映默认无 pacing 的无界增长。
   - 全量 suite 影响复核：新增 fixture `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop` 在完整 fixture suite 中通过，度量未破坏 baseline 全量回归。
   - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。

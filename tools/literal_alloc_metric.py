@@ -22,7 +22,20 @@ DEFAULT_FIXTURE = (
     / "P0-T03-gc-metrics"
     / "pos_literal_alloc_metric.scoop"
 )
-ALLOC_TYPED_CALL_RE = re.compile(r"\b(?:call|invoke)\b[^\n@]*@scoop_alloc_typed\b")
+# codegen 现在把 typed 分配统一路由到内部 wrapper `@__scoop_alloc_typed_checked`
+# （OOM 硬上限：分配失败时 fatal）。emit-artifact 默认 `--opt-level 0`，wrapper 不会被内联，
+# 因此每个 codegen 分配点是一次 `call/invoke @__scoop_alloc_typed_checked`，而 wrapper 内部
+# 再做一次 `call @scoop_alloc_typed`。两个符号要分别计数，否则会少计（只数 raw）或串味
+# （子串把 `__scoop_alloc_typed_checked` 也算进 `scoop_alloc_typed`）。
+#
+# `@scoop_alloc_typed\b` 不会误匹配 `@__scoop_alloc_typed_checked`：后者紧跟 `@` 的是 `__`，
+# 而正则在第一个 `@` 处要求紧跟 `scoop`。
+ALLOC_TYPED_RAW_CALL_RE = re.compile(r"\b(?:call|invoke)\b[^\n@]*@scoop_alloc_typed\b")
+ALLOC_TYPED_CHECKED_CALL_RE = re.compile(
+    r"\b(?:call|invoke)\b[^\n@]*@__scoop_alloc_typed_checked\b"
+)
+CHECKED_SYMBOL = "__scoop_alloc_typed_checked"
+RAW_SYMBOL = "scoop_alloc_typed"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -60,8 +73,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             return output.returncode
 
         ir = ir_path.read_text()
-        call_count = len(ALLOC_TYPED_CALL_RE.findall(ir))
-        symbol_occurrences = ir.count("scoop_alloc_typed")
+        raw_calls = len(ALLOC_TYPED_RAW_CALL_RE.findall(ir))
+        checked_calls = len(ALLOC_TYPED_CHECKED_CALL_RE.findall(ir))
+        # codegen 发出的 typed 分配点 = raw + checked 两种拼写的调用之和：O0 下为
+        # checked(codegen 点) + raw(wrapper 内部一次)；wrapper 被内联时则全部退化为 raw。
+        call_count = raw_calls + checked_calls
+
+        # 子串总数把 `__scoop_alloc_typed_checked` 的每次出现也计入 `scoop_alloc_typed`，
+        # 用 checked 计数回减即可得到 raw 符号自身的纯出现次数。
+        checked_occurrences = ir.count(CHECKED_SYMBOL)
+        raw_occurrences = ir.count(RAW_SYMBOL) - checked_occurrences
+        symbol_occurrences = raw_occurrences + checked_occurrences
 
         try:
             fixture_label = fixture.relative_to(REPO_ROOT)
@@ -69,7 +91,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             fixture_label = fixture
         print(f"fixture={fixture_label}")
         print(f"scoop_alloc_typed_calls={call_count}")
+        print(f"scoop_alloc_typed_raw_calls={raw_calls}")
+        print(f"scoop_alloc_typed_checked_calls={checked_calls}")
         print(f"scoop_alloc_typed_symbol_occurrences={symbol_occurrences}")
+        print(f"scoop_alloc_typed_raw_symbol_occurrences={raw_occurrences}")
+        print(f"scoop_alloc_typed_checked_symbol_occurrences={checked_occurrences}")
 
         if args.expect_calls is not None and call_count != args.expect_calls:
             print(
