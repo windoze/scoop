@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；全部待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -33,7 +33,7 @@
 
 | 任务 | 状态 | 文件 | 目标 |
 | --- | --- | --- | --- |
-| P0-T01 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t01核对并冻结-pacing-当前行为基线) | 核对并冻结 pacing 当前行为基线 |
+| P0-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01核对并冻结-pacing-当前行为基线) | 核对并冻结 pacing 当前行为基线 |
 | P0-T01R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t01rreview-pacing-行为基线) | Review P0-T01 pacing 行为基线 |
 | P0-T02 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02核对并冻结-immortal-当前行为基线) | 核对并冻结 immortal 当前行为基线（含 `__AtomicInt` 擦除点） |
 | P0-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02rreview-immortal-行为基线) | Review P0-T02 immortal 行为基线 |

@@ -34,7 +34,7 @@ nothing called `scoop_gc_collect()` between phases.
 Internal callers (excluding tests and `scoop_test_*` smoke functions):
 
 ```
-runtime/c/scoop_runtime.c:502-507    — SCOOP_GC_STRESS testing path only
+runtime/c/scoop_runtime.c:501-507    — SCOOP_GC_STRESS testing path only
 ```
 
 That is the entire production trigger surface. Everything else is the
@@ -98,28 +98,29 @@ allocation pattern degrades to single-generation.
 
 ### `bytes_allocated` is an accounting counter, not a trigger
 
-`runtime/c/scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`:
+`runtime/c/scoop_gc_backend_immix.c:78-79,2409-2417,2473-2527,5382-5389`:
 
 ```c
 static inline void scoop_gc_heap_bytes_allocated_add(uint64_t delta) {
     (void)__atomic_fetch_add(&scoop_gc_heap.bytes_allocated, delta, __ATOMIC_RELAXED);
 }
 // ...
-scoop_gc_heap_bytes_allocated_add(obj->size_bytes);    // line 2416, on alloc
+scoop_gc_heap_bytes_allocated_add(obj->size_bytes);    // line 2416, on alloc register
 // ...
-heap->bytes_allocated = 0;                              // line 2524, on cycle
+heap->bytes_allocated = 0;                              // line 2524, heap init
 // ...
 uint64_t scoop_gc_debug_heap_bytes_allocated(void) {    // line 5382
     return __atomic_load_n(&scoop_gc_heap.bytes_allocated, __ATOMIC_RELAXED);
 }
 ```
 
-Incremented on alloc, reset on cycle, read out via a debug helper. **Never
-compared against any threshold.**
+Incremented on allocation registration, initialized/reset by heap init, read
+out via a debug helper. **Never compared against any threshold.** There is no
+cycle-end `next_gc` update today.
 
 ### Env-variable surface
 
-The full set of GC env knobs (`grep getenv runtime/c/`):
+The fixed runtime env knobs visible from `grep getenv runtime/c/`:
 
 | Var | Purpose |
 |---|---|
@@ -128,9 +129,14 @@ The full set of GC env knobs (`grep getenv runtime/c/`):
 | `SCOOP_GC_IMMIX_PARALLEL_SWEEP` | parallel sweep on/off |
 | `SCOOP_GC_IMMIX_NURSERY_BYTES` | nursery cap (bytes) |
 | `SCOOP_GC_IMMIX_NURSERY_BLOCKS` | nursery cap (blocks) |
+| `SCOOP_GC_VERIFY_ROOTS` | GC roots verification diagnostic |
+| `SCOOP_GC_MOVE` | baseline backend moving-GC diagnostic |
+| `SCOOP_STACKMAP_STRICT` | stackmap parser strict-mode diagnostic |
 
-No `SCOOP_GC_HEAP_TARGET`, no `SCOOP_GC_TRIGGER_BYTES`, no growth-factor
-knob, no hard cap. Pacing is genuinely missing — not just untuned.
+`runtime/c/platform/platform_posix.c:30` is a generic platform getenv wrapper,
+not a fixed GC pacing knob. No `SCOOP_GC_PACING`, no heap target / trigger
+bytes, no growth-factor knob, no min-threshold knob, no hard cap. Pacing is
+genuinely missing — not just untuned.
 
 ## Proposed design
 

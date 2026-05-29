@@ -7,7 +7,7 @@
 
 ## P0：冻结当前行为与最小回归基线
 
-### [TODO] P0-T01：核对并冻结 pacing 当前行为基线
+### [DONE] P0-T01：核对并冻结 pacing 当前行为基线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -35,7 +35,16 @@
   - P1-P2 可直接从本条记录读取 pacing 触发挂载点与现状，无需重新核对。
 - 依赖：无
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已核对并冻结 pacing 当前行为基线；本任务只更新记录与当前行为文档，未修改运行期行为。
+  - 生产触发面：`runtime/c/scoop_runtime_api.h:37-38` 只把 `scoop_gc_collect` / `scoop_gc_collect_minor` 暴露为 public C API；排除 `scoop_test_*` smoke/test helper 后，唯一自动触发 collection 的生产分配路径是 `runtime/c/scoop_runtime.c:501-507` 的 `SCOOP_GC_STRESS` 测试开关，在分配前按计数调用 `scoop_gc_collect()`。
+  - safepoint poll 挂载点：`runtime/c/scoop_runtime.c:483-499` 中 `scoop_alloc` 先保证 runtime init 与线程注册，再在 `:493-499` 调用 `scoop_gc_safepoint_poll()`；该 poll 位于 stress 触发、size 规范化、底层分配和 heap 登记之前。P1 的 requested-collect 消费点应挂在 `scoop_gc_safepoint_poll` 语义上，使下一次 allocation 在分配新对象前收集；不得在对象尚未发布到 roots 的 alloc 内同步 collect。
+  - block pool 当前无回收回退：`runtime/c/scoop_runtime.c:224-240` 的 TLS cache refill 持 `state->lock` 调 `scoop_gc_immix_state_take_block`，分配路径在 `runtime/c/scoop_runtime.c:574-584` cache 空时直接 refill；`runtime/c/scoop_gc_immix_internal.h:548-575` 依次取 `reusable_blocks`、`free_blocks`，两者为空时在 `:565` 调 `scoop_gc_immix_block_alloc_new()`，而该函数在 `:283-299` 直接 `posix_memalign` 新 32KB block。当前没有 “pool 空先 full GC 再增长” 的路径。
+  - nursery 当前静默回退：`runtime/c/scoop_runtime.c:252-323` 的 nursery allocator 在 `state->nursery_blocks >= state->nursery_max_blocks` 时返回 NULL；调用方 `runtime/c/scoop_runtime.c:562-567` 只尝试 nursery alloc，若 `p == 0` 会继续走 `:569-603` 的 old-space block allocator。当前没有 nursery-full 触发 minor GC、retry，再决定回退 old 的路径。
+  - `bytes_allocated` 当前只是观测计数：Immix backend 在 `runtime/c/scoop_gc_backend_immix.c:78-79` 以 relaxed atomic add 递增，唯一分配登记调用点是 `:2409-2417` 的 `scoop_gc_heap_register_object`；`runtime/c/scoop_gc_backend_immix.c:2473-2527` heap init 时初始化为 0，debug 读取点是 `:5382-5389`。`grep bytes_allocated runtime/c/` 未发现任何阈值比较或 pacing 触发字段；当前也没有 cycle 末根据 live/allocated 更新 `next_gc` 的逻辑。
+  - `ScoopGcHeap` 当前字段：`runtime/c/scoop_gc.h:270-277` 只有 `objects`、`free_list`、`bytes_allocated`、`bytes_freed`、`gc_cycles`；没有 `next_gc`、target heap、growth factor 或 `request_collect` 字段。P1 应在该结构附近新增 pacing 目标与幂等 request 标志，并在 `scoop_gc_heap_init` 初始化默认值。
+  - 现有 env 旋钮集合（按 `grep getenv runtime/c/` 与调用点核对）：`SCOOP_GC_STRESS`（`runtime/c/scoop_runtime.c:135-159`）；Immix nursery `SCOOP_GC_IMMIX_NURSERY_BYTES` / `SCOOP_GC_IMMIX_NURSERY_BLOCKS`（`runtime/c/scoop_gc_backend_immix.c:2448-2470`）；Immix parallel mark/sweep `SCOOP_GC_IMMIX_PARALLEL_MARK`（`:3022-3050`）与 `SCOOP_GC_IMMIX_PARALLEL_SWEEP`（`:3053-3081`）；GC diagnostics `SCOOP_GC_VERIFY_ROOTS`（Immix `:3084-3113`，baseline `runtime/c/scoop_gc.c:1361-1394`）；baseline moving `SCOOP_GC_MOVE`（`runtime/c/scoop_gc.c:1388-1390`）；stackmap strict `SCOOP_STACKMAP_STRICT`（`runtime/c/scoop_stackmap.c:550-570`）。`runtime/c/platform/platform_posix.c:30` 是通用 platform env wrapper，不是固定 GC pacing knob。当前没有 `SCOOP_GC_PACING`、heap target、growth factor、min-threshold 或 max-heap hard cap 旋钮。
+  - 人工抽样复核：已读取并核对 `scoop_alloc` poll/stress/nursery fallback、`scoop_gc_immix_state_take_block`、`scoop_gc_immix_block_alloc_new`、`scoop_gc_heap_register_object`、`ScoopGcHeap` 定义、`scoop_gc_debug_heap_bytes_allocated` 与 `getenv` 命中。P1-P2 可直接引用上述挂载点与缺失点。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；fixture 汇总 `fixtures: ok (1607)`。
 
 ### [TODO] P0-T01R：Review pacing 行为基线
 
