@@ -302,7 +302,7 @@
   - P0-T03 10M heap-growth 度量（pacing off 对照）：`SCOOP_GC_PACING=off` 下 `allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，确认 off 保持旧无界行为并作为确定性堆计数测试出口。
   - 验证：`cargo fmt`、`cargo test -p scoop_runtime --test gc_pacing_env`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`、`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`、`cargo test -p scoop_runtime --no-default-features --features gc-minimal`、`cargo test -p scoop_runtime --no-default-features --features gc-hosted`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。验证期间曾发现内部 pacing getter 触发 runtime 导出符号审计，已改为 heap 内部配置字段并由后续完整测试确认修复。
 
-### [TODO] P1-T02R：Review pacing env 旋钮与有界回归
+### [DONE] P1-T02R：Review pacing env 旋钮与有界回归
 
 - 参考：
   - P1-T02 完成记录
@@ -323,4 +323,11 @@
   - pacing 线核心收口，长程序在默认配置下可持续运行。
 - 依赖：P1-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已复核 P1-T02 pacing env 旋钮与有界回归；未发现需要代码修正的阻塞问题，pacing 线核心收口可进入 TODO-2。
+  - env 默认与解析复核：`runtime/c/scoop_gc.h:267-294` 定义默认 min threshold 4MiB、growth factor 1.5，并以 `next_gc == 0` 表示 pacing disabled；`runtime/c/scoop_runtime.c:228-256` 在首次 `scoop_runtime_init()` 中解析并应用 `SCOOP_GC_PACING`、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`，默认 pacing on，`off`/`0`/`false`/`no` 会把 heap `next_gc` 设为 0。
+  - stress 旁路复核：`runtime/c/scoop_runtime.c:166-189` 保持既有 `SCOOP_GC_STRESS` 语义；`:228-236` 在 stress interval 非 0 时关闭 pacing，`:597-604` 仍只在分配前按 stress interval 手动 collect，未改变 `scoop_gc_collect()` 手动调用语义。
+  - Immix 阈值路径复核：`runtime/c/scoop_gc_backend_immix.c:193-245` 使用 heap 内的 min threshold 与 growth factor 计算 cycle 末 `next_gc`，并在 `next_gc == 0` 时清 request 且保持 disabled；`:258-264` alloc 后只置幂等 request，`:1962-1967` 在下一次 safepoint poll 消费 request 并调用 collect，`:5469-5471` 仍在 sweep/compaction/verify 后、STW end 前更新 `next_gc`。
+  - 回归覆盖复核：`crates/scoop_runtime/tests/gc_pacing_env.rs:52-118` 通过独立 `gc_microbench heap-growth` 子进程覆盖默认 on 有界、`SCOOP_GC_PACING=off` 旧无界对照、min threshold/growth factor 生效，以及高间隔 `SCOOP_GC_STRESS` 激活时 pacing 被旁路。
+  - 10M 长程序度量（默认 pacing）：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`，确认默认配置下 live/reserved heap 有界。
+  - 10M 长程序度量（pacing off 对照）：`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点线性增长，确认 off 恢复旧无界行为。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test gc_pacing_env`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。

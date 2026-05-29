@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -42,7 +42,7 @@
 | P1-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01实现-pacing-核心-next_gc--request_collect--safepoint--阈值) | 实现 pacing 核心：`next_gc` + `request_collect` + safepoint + 阈值 |
 | P1-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01rreview-pacing-核心) | Review P1-T01 pacing 核心 |
 | P1-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02接入-pacing-env-旋钮与默认-on并加长程序有界回归) | 接入 pacing env 旋钮与默认 on，并加长程序有界回归 |
-| P1-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t02rreview-pacing-env-旋钮与有界回归) | Review P1-T02 env 旋钮与有界回归 |
+| P1-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02rreview-pacing-env-旋钮与有界回归) | Review P1-T02 env 旋钮与有界回归 |
 | P2-T01 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t01nursery-满触发-minor-gc-再重试) | nursery 满触发 minor GC 再重试 |
 | P2-T01R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t01rreview-nursery-full-minor-gc) | Review P2-T01 nursery-full minor GC |
 | P2-T02 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t02block-pool-耗尽先-full-gc-再增长) | block pool 耗尽先 full GC 再增长 |
