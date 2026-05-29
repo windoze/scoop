@@ -20,3 +20,9 @@ fun select(x: Int, mode: Int = 0, block: () -> Int): Int {
 fun bad() {
     val a: Int = select(1) { 2 }
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_resolution_named_args_trailing_lambda_ambiguous_is_error.scoop:12:5
+// EXPECT-ERROR: overload_resolution_named_args_trailing_lambda_ambiguous_is_error.scoop:16:5
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

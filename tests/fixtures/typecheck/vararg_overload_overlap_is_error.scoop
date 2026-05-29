@@ -19,3 +19,7 @@ fun a(x: Int): Int {
 fun a(vararg xs: Int): Int {
     return 0
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: vararg_overload_overlap_is_error.scoop:15:5
+// EXPECT-ERROR: vararg_overload_overlap_is_error.scoop:19:5

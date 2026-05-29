@@ -347,7 +347,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted overload diagnostic fixtures；targeted stale assertion fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；`python3 tools/audit_user_visible_failure_policy.py`；`python3 tools/spec_fixtures.py check`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §10 的 candidate location、ambiguity/no-applicable reason 与 forbidden internal term 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T05R：Review overload diagnostics 审计
+### [DONE] P5-T05R：Review overload diagnostics 审计
 
 - 参考：
   - P5-T05 完成记录
@@ -372,10 +372,10 @@
   - P5 包完整闭合，可以进入 spec/fixture 收尾。
 - 依赖：P5-T05
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核并修正 P5-T05 overload diagnostics 审计结果；更新 `typecheck/expr/call/mod.rs` 与 `typecheck/overloads.rs` 的候选位置与 no-applicable rejection reason；扩展 `tools/run_fixtures.py` 支持全文件 fixture directives 与 `EXPECT-NOT-ERROR-TERMS`；扩展 `tools/audit_user_visible_failure_policy.py` 动态扫描所有 overload diagnostic fixtures；补强 overload / Phase A-C / umbrella negative fixtures 的候选 `file:line:col`、`reason:` 与 forbidden internal term 断言。
+  - 核心决策：P5-T05R 不接受只审计少数代表 fixture 的覆盖口径；所有带 overload diagnostic 错误码的 fixture 都必须显式锁住候选位置和 forbidden internal terms，ambiguity fixture 必须锁住 specificity `reason:`，no-applicable fixture 必须锁住具体 rejection reason；候选位置 helper 即使遇到缺失 source fallback 也不得退化成仅文件名。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck --exit-on-failure`；targeted `python3 tools/run_fixtures.py tests/fixtures/infer --exit-on-failure`；targeted `typecheck_multi` Phase A-C cases；targeted umbrella overload fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/audit_user_visible_failure_policy.py`；`python3 tools/run_fixtures.py`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §10 对候选位置、ambiguity/no-applicable reason 与 forbidden internal term 的 review 要求；确认 P5 overload diagnostics failure policy 已有动态 audit 与 fixture 回归保护；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ## P6：Spec / fixtures / docs 全量收尾与回归矩阵
 

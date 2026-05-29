@@ -13,3 +13,8 @@ class C(x: Int = 0) {
 }
 
 val a: C = C()
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: class_ctor_overload_ambiguous_default_is_error.scoop:11:8
+// EXPECT-ERROR: class_ctor_overload_ambiguous_default_is_error.scoop:12:5
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

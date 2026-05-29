@@ -16,3 +16,9 @@ fun <T: NumericShape> ambiguousBound(x: T): Unit {}
 fun bad(x: BothShapes) {
     ambiguousBound(x)
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_resolution_incomparable_bounds_is_error.scoop:12:26
+// EXPECT-ERROR: overload_resolution_incomparable_bounds_is_error.scoop:14:23
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

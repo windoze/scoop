@@ -17,3 +17,8 @@ fun spreadBypass(vararg xs: Int): Int {
 }
 
 val y: Int = spreadBypass(*(1, 2))
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: vararg_overload_overlap_spread_is_error.scoop:11:5
+// EXPECT-ERROR: vararg_overload_overlap_spread_is_error.scoop:15:5
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

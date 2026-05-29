@@ -17,3 +17,9 @@ class C() {
 fun bad(x: BothShapes) {
     C(x)
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: class_ctor_overload_specificity_incomparable_ctor_bounds_is_error.scoop:13:5
+// EXPECT-ERROR: class_ctor_overload_specificity_incomparable_ctor_bounds_is_error.scoop:14:5
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

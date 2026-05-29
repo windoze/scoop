@@ -1657,10 +1657,10 @@ fn render_candidate(signature: String, location: &str) -> Box<str> {
 
 fn format_decl_location(lower: &TypeLowering<'_>, decl_file: &Path, span: Span) -> String {
     let Some(source) = lower.env().source(decl_file) else {
-        return decl_file.display().to_string();
+        return format!("{}:<unknown>:<unknown>", decl_file.display());
     };
     let Ok((line, col)) = source.offset_to_line_col(span.start) else {
-        return decl_file.display().to_string();
+        return format!("{}:<unknown>:<unknown>", decl_file.display());
     };
     format!("{}:{line}:{col}", decl_file.display())
 }

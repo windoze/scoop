@@ -13,3 +13,9 @@ fun String.pickReceiver(x: Any): Unit {}
 fun bad(x: String) {
     x.pickReceiver(1)
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: extension_overload_receiver_specificity_incomparable_position0_is_error.scoop:9:9
+// EXPECT-ERROR: extension_overload_receiver_specificity_incomparable_position0_is_error.scoop:11:12
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

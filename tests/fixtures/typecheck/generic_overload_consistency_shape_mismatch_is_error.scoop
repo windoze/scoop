@@ -15,3 +15,7 @@ package fixtures.typecheck
 fun <T> consistencyShape(x: T, y: T): Unit {}
 
 fun <T, U> consistencyShape(x: T, y: U): Unit {}
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: generic_overload_consistency_shape_mismatch_is_error.scoop:15:9
+// EXPECT-ERROR: generic_overload_consistency_shape_mismatch_is_error.scoop:17:12

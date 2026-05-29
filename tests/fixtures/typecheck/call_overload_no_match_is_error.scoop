@@ -26,3 +26,7 @@ fun f(x: String): Int {
 }
 
 val a: Int = f(true)
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: call_overload_no_match_is_error.scoop:20:5
+// EXPECT-ERROR: call_overload_no_match_is_error.scoop:24:5

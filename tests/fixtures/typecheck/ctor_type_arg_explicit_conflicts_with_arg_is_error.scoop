@@ -12,3 +12,7 @@ fun main(): Int {
     val b: Box<Int> = Box<Int>("hi")
     return 0
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: ctor_type_arg_explicit_conflicts_with_arg_is_error.scoop:9:13
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

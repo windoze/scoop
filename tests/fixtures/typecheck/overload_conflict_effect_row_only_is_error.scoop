@@ -12,3 +12,8 @@ fun effOnly(x: Int): Int / Pure {
 fun effOnly(x: Int): Int / Raise<RuntimeError> {
     return 2
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_conflict_effect_row_only_is_error.scoop:8:5
+// EXPECT-ERROR: overload_conflict_effect_row_only_is_error.scoop:12:5
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

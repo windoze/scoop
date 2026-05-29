@@ -9,3 +9,8 @@ class DuplicateCtor {
     constructor(x: Int) {}
     constructor(y: Int) {}
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: constructor_overload_duplicate_signature_is_error.scoop:9:5
+// EXPECT-ERROR: constructor_overload_duplicate_signature_is_error.scoop:10:5
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

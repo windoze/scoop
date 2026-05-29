@@ -623,10 +623,10 @@ pub(super) fn format_candidate_location(
     decl_span: Span,
 ) -> String {
     let Some(source) = lower.env().source(decl_file) else {
-        return decl_file.display().to_string();
+        return format!("{}:<unknown>:<unknown>", decl_file.display());
     };
     let Ok((line, col)) = source.offset_to_line_col(decl_span.start) else {
-        return decl_file.display().to_string();
+        return format!("{}:<unknown>:<unknown>", decl_file.display());
     };
     format!("{}:{line}:{col}", decl_file.display())
 }
@@ -687,7 +687,12 @@ pub(super) fn describe_basic_applicability_rejection(
                 call_args.len()
             );
         }
-        return "argument names, defaults, or vararg mapping do not match".to_string();
+        return describe_call_arg_mapping_rejection(
+            call_args,
+            param_names,
+            param_has_defaults,
+            param_is_vararg,
+        );
     };
 
     for (param_idx, binding) in mapping.iter().enumerate() {
@@ -714,8 +719,14 @@ pub(super) fn describe_basic_applicability_rejection(
             return "argument mapping points outside the call".to_string();
         };
         if matches!(lower.type_kind(expected_ty), TypeKind::Param(_)) {
-            return "generic type arguments or where constraints could not be inferred/satisfied"
-                .to_string();
+            return format!(
+                "generic type arguments or where constraints could not be inferred/satisfied for argument {} bound to parameter `{}`",
+                arg_idx + 1,
+                param_names
+                    .get(param_idx)
+                    .map(String::as_str)
+                    .unwrap_or("<unknown>")
+            );
         }
 
         if arg.is_spread {
@@ -760,7 +771,111 @@ pub(super) fn describe_basic_applicability_rejection(
         );
     }
 
-    "generic, effect, or where constraints rejected this candidate".to_string()
+    "all arity and argument type checks passed, but generic, effect, or where constraints rejected this candidate".to_string()
+}
+
+fn describe_call_arg_mapping_rejection(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+    param_is_vararg: &[bool],
+) -> String {
+    if param_names.len() != param_has_defaults.len() || param_names.len() != param_is_vararg.len() {
+        return "candidate signature is malformed".to_string();
+    }
+
+    let vararg_idx = args::vararg_param_index(param_is_vararg);
+    if vararg_idx.is_none() && param_is_vararg.iter().any(|is_vararg| *is_vararg) {
+        return "candidate has more than one vararg parameter".to_string();
+    }
+    if let Some(idx) = vararg_idx
+        && idx + 1 != param_names.len()
+    {
+        return format!(
+            "vararg parameter `{}` must be the final parameter",
+            param_names
+                .get(idx)
+                .map(String::as_str)
+                .unwrap_or("<unknown>")
+        );
+    }
+
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        match &arg.kind {
+            CallArgKind::Positional => {
+                if seen_named {
+                    return format!(
+                        "argument {} is positional after a named argument",
+                        arg_idx + 1
+                    );
+                }
+                positional_count += 1;
+            }
+            CallArgKind::Named { .. } => seen_named = true,
+        }
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+    if vararg_idx.is_none() && positional_count > param_names.len() {
+        return format!(
+            "arity mismatch: expected at most {} argument(s), found {}",
+            param_names.len(),
+            call_args.len()
+        );
+    }
+    for (arg_idx, slot) in mapping.iter_mut().enumerate().take(positional_count) {
+        if let Some(v_idx) = vararg_idx
+            && arg_idx >= v_idx
+        {
+            continue;
+        }
+        *slot = Some(arg_idx);
+    }
+
+    for (arg_idx, arg) in call_args.iter().enumerate().skip(positional_count) {
+        let CallArgKind::Named { name, .. } = &arg.kind else {
+            continue;
+        };
+        let Some(slot_idx) = param_names.iter().position(|param| param == name) else {
+            return format!("unknown named argument `{name}` for this candidate");
+        };
+        if Some(slot_idx) == vararg_idx {
+            continue;
+        }
+        if mapping.get(slot_idx).and_then(|slot| *slot).is_some() {
+            return format!("argument `{name}` assigns parameter `{name}` more than once");
+        }
+        mapping[slot_idx] = Some(arg_idx);
+    }
+
+    let missing = mapping
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, arg_idx)| {
+            if Some(idx) == vararg_idx || arg_idx.is_some() || param_has_defaults[idx] {
+                None
+            } else {
+                Some(format!("`{}`", param_names[idx]))
+            }
+        })
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        return format!("missing required parameter(s): {}", missing.join(", "));
+    }
+
+    if let Some(v_idx) = vararg_idx {
+        return format!(
+            "arguments could not be mapped to vararg parameter `{}` with defaults/trailing lambdas",
+            param_names
+                .get(v_idx)
+                .map(String::as_str)
+                .unwrap_or("<unknown>")
+        );
+    }
+
+    "argument names and default parameters do not map to this candidate".to_string()
 }
 
 mod args;

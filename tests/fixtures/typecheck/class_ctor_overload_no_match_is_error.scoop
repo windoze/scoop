@@ -12,3 +12,7 @@ import scoop.core.*
 class Box(x: Int, y: Int = 0) {}
 
 val a: Box = Box(true)
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: class_ctor_overload_no_match_is_error.scoop:12:10
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

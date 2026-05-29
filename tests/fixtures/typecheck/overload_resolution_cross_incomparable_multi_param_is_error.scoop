@@ -13,3 +13,9 @@ fun crossPick(x: Any, y: Int): Unit {}
 fun bad() {
     crossPick(1, 1)
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_resolution_cross_incomparable_multi_param_is_error.scoop:9:5
+// EXPECT-ERROR: overload_resolution_cross_incomparable_multi_param_is_error.scoop:11:5
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

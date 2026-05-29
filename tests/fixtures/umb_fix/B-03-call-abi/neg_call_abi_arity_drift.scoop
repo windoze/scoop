@@ -23,3 +23,9 @@ fun select(x: Int, mode: Int = 0, block: () -> Int): Int {
 fun bad() {
     val a: Int = select(1) { 2 }
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: neg_call_abi_arity_drift.scoop:15:5
+// EXPECT-ERROR: neg_call_abi_arity_drift.scoop:19:5
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

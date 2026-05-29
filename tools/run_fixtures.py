@@ -1492,11 +1492,7 @@ def parse_expectations(path: Path) -> Expectation:
     timeout_ms = None
     ignore_until_fix = None
 
-    for raw_line in text.splitlines()[:32]:
-        trimmed = raw_line.lstrip()
-        if not trimmed.startswith("//"):
-            break
-        directive = trimmed[2:].strip()
+    for directive in fixture_directives(text):
         if directive.startswith("EXPECT:"):
             value = directive[len("EXPECT:") :].strip()
             if value in ("pass", "ok"):
@@ -1511,6 +1507,12 @@ def parse_expectations(path: Path) -> Expectation:
             value = directive[len("EXPECT-NOT-ERROR:") :].strip()
             if value:
                 error_not_contains.append(value)
+        elif directive.startswith("EXPECT-NOT-ERROR-TERMS:"):
+            error_not_contains.extend(
+                parse_comma_separated_terms(
+                    directive[len("EXPECT-NOT-ERROR-TERMS:") :].strip()
+                )
+            )
         elif directive.startswith("EXPECT-ERROR-CODE:"):
             error_code = directive[len("EXPECT-ERROR-CODE:") :].strip()
         elif directive.startswith("EXPECT-ERROR-AT:"):
@@ -1587,6 +1589,52 @@ def parse_expectations(path: Path) -> Expectation:
         timeout_ms=timeout_ms,
         ignore_until_fix=ignore_until_fix,
     )
+
+
+def fixture_directives(text: str) -> list[str]:
+    directives: list[str] = []
+    for raw_line in text.splitlines():
+        trimmed = raw_line.lstrip()
+        if not trimmed.startswith("//"):
+            continue
+        directive = trimmed[2:].strip()
+        if is_fixture_directive(directive):
+            directives.append(directive)
+    return directives
+
+
+def is_fixture_directive(directive: str) -> bool:
+    prefixes = (
+        "EXPECT:",
+        "EXPECT-ERROR:",
+        "EXPECT-NOT-ERROR:",
+        "EXPECT-NOT-ERROR-TERMS:",
+        "EXPECT-ERROR-CODE:",
+        "EXPECT-ERROR-AT:",
+        "ARGS:",
+        "ENV:",
+        "SYSROOT-DEPS:",
+        "EXPECT-AST:",
+        "BUILD-LLVM-CONTAINS:",
+        "BUILD-LLVM-REGEX:",
+        "BUILD-LLVM-NOT-CONTAINS:",
+        "RUN-STDOUT:",
+        "RUN-STDERR:",
+        "RUN-STDIN:",
+        "RUN-MODE:",
+        "RUN-STDOUT-CONTAINS:",
+        "RUN-STDERR-CONTAINS:",
+        "RUN-STACKMAPS-RECORDS-GT:",
+        "EXPECT-EXIT:",
+        "TIMEOUT:",
+        "IGNORE-UNTIL-FIX:",
+        "ignore-until-fix:",
+    )
+    return directive.startswith(prefixes)
+
+
+def parse_comma_separated_terms(value: str) -> list[str]:
+    return [part.strip() for part in value.split(",") if part.strip()]
 
 
 def parse_line_col(value: str) -> tuple[int, int] | None:

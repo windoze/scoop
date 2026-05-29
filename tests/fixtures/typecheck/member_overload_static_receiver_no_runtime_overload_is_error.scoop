@@ -24,3 +24,7 @@ fun bad() {
     val b: Base = Derived()
     b.pick("runtime-only")
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: member_overload_static_receiver_no_runtime_overload_is_error.scoop:12:9
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

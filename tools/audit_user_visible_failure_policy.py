@@ -121,32 +121,16 @@ OVERLOAD_DIAGNOSTIC_MARKERS: tuple[tuple[str, str], ...] = (
         'scoop::typecheck::vararg_overlaps_non_vararg',
     ),
 )
-OVERLOAD_DIAGNOSTIC_FIXTURE_DATA: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    (
-        'tests/fixtures/typecheck/call_overload_ambiguous_is_error.scoop',
-        'scoop::typecheck::ambiguous_overload',
-        (':18:5', ':22:5', 'reason:'),
-    ),
-    (
-        'tests/fixtures/typecheck/call_overload_no_match_is_error.scoop',
-        'scoop::typecheck::no_applicable_overload',
-        (':20:5', ':24:5', 'argument 1 type Bool'),
-    ),
-    (
-        'tests/fixtures/typecheck/overload_conflict_return_type_only_is_error.scoop',
-        'scoop::typecheck::conflicting_overloads',
-        (':15:5', ':19:5'),
-    ),
-    (
-        'tests/fixtures/typecheck/generic_overload_consistency_shape_mismatch_is_error.scoop',
-        'scoop::typecheck::generic_overload_shape_mismatch',
-        (':15:9', ':17:12'),
-    ),
-    (
-        'tests/fixtures/typecheck/vararg_overload_overlap_is_error.scoop',
-        'scoop::typecheck::vararg_overlaps_non_vararg',
-        (':15:5', ':19:5'),
-    ),
+OVERLOAD_LOCATION_DIRECTIVE_RE = re.compile(r"\.scoop:\d+:\d+")
+OVERLOAD_NO_APPLICABLE_REASON_TERMS: tuple[str, ...] = (
+    'argument',
+    'arity mismatch',
+    'generic type arguments',
+    'where constraints',
+    'spread',
+    'missing required parameter',
+    'unknown named argument',
+    'not visible',
 )
 POST_HIR_ALLOWED_FAILURE_CLASSIFICATIONS: tuple[str, ...] = (
     "internal bug sentinel",
@@ -1278,39 +1262,106 @@ def check_overload_diagnostic_policy(repo_root: Path) -> list[str]:
     for path, marker in OVERLOAD_DIAGNOSTIC_MARKERS:
         failures.extend(check_source_marker(repo_root, SourceMarker(path, marker)))
 
-    for fixture_path, diagnostic_code, required_substrings in OVERLOAD_DIAGNOSTIC_FIXTURE_DATA:
-        content = read_repo_file(repo_root, fixture_path)
+    fixtures_root = repo_root / 'tests' / 'fixtures'
+    for fixture_path in sorted(fixtures_root.rglob('*.scoop')):
+        rel = fixture_path.relative_to(repo_root).as_posix()
+        content = read_repo_file(repo_root, rel)
         directives = tuple(fixture_directives(content))
-        expected_code = f"EXPECT-ERROR-CODE: {diagnostic_code}"
-        if expected_code not in directives:
+        diagnostic_code = overload_diagnostic_code_from_directives(directives)
+        if diagnostic_code is None:
+            continue
+
+        if not overload_fixture_asserts_candidate_location(directives):
             failures.append(
-                f"overload diagnostic fixture {fixture_path} should assert `{expected_code}`"
+                f"overload diagnostic fixture {rel} should assert a candidate `file.scoop:line:col` location"
             )
-        for substring in required_substrings:
+
+        if diagnostic_code == 'scoop::typecheck::ambiguous_overload':
             if not any(
-                directive.startswith("EXPECT-ERROR:") and substring in directive
+                directive.startswith('EXPECT-ERROR:') and 'reason:' in directive
                 for directive in directives
             ):
                 failures.append(
-                    f"overload diagnostic fixture {fixture_path} should assert `EXPECT-ERROR` containing `{substring}`"
+                    f"ambiguous overload fixture {rel} should assert the specificity `reason:` section"
                 )
-        for forbidden in FRONTEND_REJECT_FORBIDDEN_TERMS:
-            expected_forbidden = f"EXPECT-NOT-ERROR: {forbidden}"
-            if expected_forbidden not in directives:
+        elif diagnostic_code == 'scoop::typecheck::no_applicable_overload':
+            if not any(
+                directive.startswith('EXPECT-ERROR:')
+                and any(term in directive for term in OVERLOAD_NO_APPLICABLE_REASON_TERMS)
+                for directive in directives
+            ):
                 failures.append(
-                    f"overload diagnostic fixture {fixture_path} should assert `{expected_forbidden}`"
+                    f"no-applicable overload fixture {rel} should assert a concrete rejection reason"
                 )
+
+        missing_forbidden = tuple(
+            forbidden
+            for forbidden in FRONTEND_REJECT_FORBIDDEN_TERMS
+            if not overload_fixture_asserts_forbidden_term(directives, forbidden)
+        )
+        if missing_forbidden:
+            failures.append(
+                f"overload diagnostic fixture {rel} should assert forbidden terms are absent: "
+                + ', '.join(missing_forbidden)
+            )
     return failures
 
 
 def fixture_directives(content: str) -> list[str]:
     directives: list[str] = []
-    for raw_line in content.splitlines()[:32]:
+    for raw_line in content.splitlines():
         trimmed = raw_line.lstrip()
-        if not trimmed.startswith("//"):
-            break
-        directives.append(trimmed[2:].strip())
+        if trimmed.startswith("//"):
+            directive = trimmed[2:].strip()
+            if is_fixture_directive(directive):
+                directives.append(directive)
     return directives
+
+
+def is_fixture_directive(directive: str) -> bool:
+    return directive.startswith(
+        (
+            'EXPECT:',
+            'EXPECT-ERROR:',
+            'EXPECT-NOT-ERROR:',
+            'EXPECT-NOT-ERROR-TERMS:',
+            'EXPECT-ERROR-CODE:',
+            'EXPECT-ERROR-AT:',
+        )
+    )
+
+
+def overload_diagnostic_code_from_directives(directives: Sequence[str]) -> str | None:
+    for directive in directives:
+        if not directive.startswith('EXPECT-ERROR-CODE:'):
+            continue
+        code = directive[len('EXPECT-ERROR-CODE:') :].strip()
+        if code in OVERLOAD_DIAGNOSTIC_CODES:
+            return code
+    return None
+
+
+def overload_fixture_asserts_candidate_location(directives: Sequence[str]) -> bool:
+    return any(
+        directive.startswith('EXPECT-ERROR:') and OVERLOAD_LOCATION_DIRECTIVE_RE.search(directive)
+        for directive in directives
+    )
+
+
+def overload_fixture_asserts_forbidden_term(
+    directives: Sequence[str], forbidden: str
+) -> bool:
+    exact = f'EXPECT-NOT-ERROR: {forbidden}'
+    if exact in directives:
+        return True
+    prefix = 'EXPECT-NOT-ERROR-TERMS:'
+    for directive in directives:
+        if not directive.startswith(prefix):
+            continue
+        terms = [term.strip() for term in directive[len(prefix) :].split(',')]
+        if forbidden in terms:
+            return True
+    return False
 
 
 def check_stale_unsupported_markers(repo_root: Path) -> list[str]:

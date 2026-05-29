@@ -12,3 +12,8 @@ import fixtures.typecheck_multi.phase_ac_call_candidates.a.choose
 import fixtures.typecheck_multi.phase_ac_call_candidates.b.choose
 
 val result: Int = choose(true)
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: a.scoop:7:12
+// EXPECT-ERROR: b.scoop:7:12
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

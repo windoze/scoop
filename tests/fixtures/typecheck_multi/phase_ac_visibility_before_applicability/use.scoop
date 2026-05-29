@@ -11,3 +11,8 @@ package fixtures.typecheck_multi.phase_ac_visibility
 import scoop.core.*
 
 val result: Int = visibleFirst(true)
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: defs.scoop:11:12
+// EXPECT-ERROR: defs.scoop:15:12
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

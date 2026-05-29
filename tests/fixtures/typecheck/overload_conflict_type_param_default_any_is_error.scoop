@@ -12,3 +12,8 @@ fun <T: Any> defaultAny(x: T): T {
 fun <T> defaultAny(x: T): T {
     return x
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_conflict_type_param_default_any_is_error.scoop:8:14
+// EXPECT-ERROR: overload_conflict_type_param_default_any_is_error.scoop:12:9
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

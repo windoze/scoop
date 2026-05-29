@@ -24,3 +24,7 @@ fun f(x: UInt): Int {
 }
 
 val a: Int = f(1)
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: call_overload_ambiguous_is_error.scoop:18:5
+// EXPECT-ERROR: call_overload_ambiguous_is_error.scoop:22:5

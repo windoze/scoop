@@ -24,3 +24,9 @@ fun Any.mix(x: String): Int {
 
 val s: String
 val x: Int = s.mix("x")
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: neg_scalar_extension_method_contract.scoop:16:12
+// EXPECT-ERROR: neg_scalar_extension_method_contract.scoop:21:9
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

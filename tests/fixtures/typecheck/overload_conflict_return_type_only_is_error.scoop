@@ -19,3 +19,7 @@ fun f(x: Int): Int {
 fun f(x: Int): String {
     return "s"
 }
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: overload_conflict_return_type_only_is_error.scoop:15:5
+// EXPECT-ERROR: overload_conflict_return_type_only_is_error.scoop:19:5

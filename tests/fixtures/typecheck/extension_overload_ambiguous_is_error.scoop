@@ -19,3 +19,9 @@ fun Any.mix(x: String): Int {
 
 val s: String
 val x: Int = s.mix("x")
+
+// P5-T05R diagnostic policy assertions.
+// EXPECT-ERROR: extension_overload_ambiguous_is_error.scoop:11:12
+// EXPECT-ERROR: extension_overload_ambiguous_is_error.scoop:16:9
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported
