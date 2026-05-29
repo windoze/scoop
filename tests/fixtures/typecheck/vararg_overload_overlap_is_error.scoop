@@ -1,7 +1,14 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::vararg_overlaps_non_vararg
-// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR-AT: 19:5
 // EXPECT-ERROR: vararg
+// EXPECT-ERROR: :15:5
+// EXPECT-ERROR: :19:5
+// EXPECT-NOT-ERROR: 后端
+// EXPECT-NOT-ERROR: backend
+// EXPECT-NOT-ERROR: LLVM
+// EXPECT-NOT-ERROR: codegen
+// EXPECT-NOT-ERROR: Unsupported
 
 package fixtures.typecheck
 
@@ -12,4 +19,3 @@ fun a(x: Int): Int {
 fun a(vararg xs: Int): Int {
     return 0
 }
-

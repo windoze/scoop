@@ -1142,17 +1142,24 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             }
 
             if matched.len() + matched_ctors.len() > 1 {
-                let mut signatures: Vec<String> = matched
-                    .iter()
-                    .map(|c| {
-                        let name = short_name_from_fqn(c.fqn).to_string();
-                        fmt_overload_signature(&name, None, &c.sig.params, lower)
-                    })
-                    .collect();
-                signatures.extend(matched_ctors.iter().map(|c| c.signature.clone()));
+                let mut specificity = Vec::with_capacity(matched.len() + matched_ctors.len());
+                for cand in &matched {
+                    let name = short_name_from_fqn(cand.fqn).to_string();
+                    specificity.push(specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(&name, None, &cand.sig.params, lower),
+                        format_candidate_location(lower, &cand.sig.decl_file, cand.sig.decl_span),
+                        cand.sig,
+                        lower,
+                        builtins,
+                        call_expr.span,
+                    )?);
+                }
+                specificity.extend(matched_ctors.iter().map(|c| c.specificity.clone()));
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
                 return Err(ExprTypeError::AmbiguousOverload {
                     callee: callee_name.to_string(),
-                    candidates: join_overload_signatures(signatures),
+                    candidates,
                     span: call_expr.span.into(),
                 });
             }

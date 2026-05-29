@@ -1,7 +1,15 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
-// EXPECT-ERROR-AT: 18:14
+// EXPECT-ERROR-AT: 26:14
 // EXPECT-ERROR: 重载决议歧义
+// EXPECT-ERROR: :18:5
+// EXPECT-ERROR: :22:5
+// EXPECT-ERROR: reason:
+// EXPECT-NOT-ERROR: 后端
+// EXPECT-NOT-ERROR: backend
+// EXPECT-NOT-ERROR: LLVM
+// EXPECT-NOT-ERROR: codegen
+// EXPECT-NOT-ERROR: Unsupported
 
 package fixtures.typecheck
 

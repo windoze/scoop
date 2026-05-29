@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-CODE: scoop::typecheck::conflicting_overloads
 // EXPECT-ERROR-AT: 12:5
 // EXPECT-ERROR: 默认参数
 // 目标：T0457 重载冲突诊断：默认参数导致调用点永远歧义时，应在声明处报错。

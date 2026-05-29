@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,6 +92,62 @@ FAILURE_POLICY_AUDIT_FILES: tuple[str, ...] = ('crates/scoopc_codegen_llvm/src/l
 
 FAILURE_KEYWORDS: tuple[str, ...] = ('Unsupported', 'todo!', 'panic!', 'unreachable!')
 FRONTEND_REJECT_FORBIDDEN_TERMS: tuple[str, ...] = ('后端', 'backend', 'LLVM', 'codegen', 'Unsupported')
+OVERLOAD_DIAGNOSTIC_CODES: tuple[str, ...] = (
+    'scoop::typecheck::ambiguous_overload',
+    'scoop::typecheck::no_applicable_overload',
+    'scoop::typecheck::conflicting_overloads',
+    'scoop::typecheck::generic_overload_shape_mismatch',
+    'scoop::typecheck::vararg_overlaps_non_vararg',
+)
+OVERLOAD_DIAGNOSTIC_MARKERS: tuple[tuple[str, str], ...] = (
+    (
+        'crates/scoopc_hir/src/typecheck/expr/error.rs',
+        'scoop::typecheck::ambiguous_overload',
+    ),
+    (
+        'crates/scoopc_hir/src/typecheck/expr/error.rs',
+        'scoop::typecheck::no_applicable_overload',
+    ),
+    (
+        'crates/scoopc_hir/src/typecheck/overloads.rs',
+        'scoop::typecheck::conflicting_overloads',
+    ),
+    (
+        'crates/scoopc_hir/src/typecheck/overloads.rs',
+        'scoop::typecheck::generic_overload_shape_mismatch',
+    ),
+    (
+        'crates/scoopc_hir/src/typecheck/overloads.rs',
+        'scoop::typecheck::vararg_overlaps_non_vararg',
+    ),
+)
+OVERLOAD_DIAGNOSTIC_FIXTURE_DATA: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    (
+        'tests/fixtures/typecheck/call_overload_ambiguous_is_error.scoop',
+        'scoop::typecheck::ambiguous_overload',
+        (':18:5', ':22:5', 'reason:'),
+    ),
+    (
+        'tests/fixtures/typecheck/call_overload_no_match_is_error.scoop',
+        'scoop::typecheck::no_applicable_overload',
+        (':20:5', ':24:5', 'argument 1 type Bool'),
+    ),
+    (
+        'tests/fixtures/typecheck/overload_conflict_return_type_only_is_error.scoop',
+        'scoop::typecheck::conflicting_overloads',
+        (':15:5', ':19:5'),
+    ),
+    (
+        'tests/fixtures/typecheck/generic_overload_consistency_shape_mismatch_is_error.scoop',
+        'scoop::typecheck::generic_overload_shape_mismatch',
+        (':15:9', ':17:12'),
+    ),
+    (
+        'tests/fixtures/typecheck/vararg_overload_overlap_is_error.scoop',
+        'scoop::typecheck::vararg_overlaps_non_vararg',
+        (':15:5', ':19:5'),
+    ),
+)
 POST_HIR_ALLOWED_FAILURE_CLASSIFICATIONS: tuple[str, ...] = (
     "internal bug sentinel",
     "output drift",
@@ -192,87 +249,7 @@ FRONTEND_REJECT_SURFACE_DATA: tuple[
    ('tests/fixtures/typecheck/top_level_var_requires_threadlocal_or_global_is_error.scoop',
     '// EXPECT-ERROR-CODE: '
     'scoop::typecheck::top_level_var_requires_threadlocal_or_global'))),
- ('CLOSURE_FIX §2 sealed interface sysroot-only definition',
-  'crates/scoopc_hir/src/typecheck/type_env.rs',
-  'scoop::typecheck::sealed_interface_user_definition_not_allowed',
-  '`sealed interface` 只能在 trusted `syslib` cone 中定义：{fqn}',
-  (('crates/scoopc_hir/src/typecheck/type_env.rs',
-    'SealedInterfaceUserDefinitionNotAllowed {'),
-   ('tests/fixtures/typecheck/sealed_interface_user_definition_is_error.scoop',
-    '// EXPECT-ERROR-CODE: '
-    'scoop::typecheck::sealed_interface_user_definition_not_allowed'))),
- ('CLOSURE_FIX §2 sealed interface empty body',
-  'crates/scoopc_hir/src/typecheck/type_env.rs',
-  'scoop::typecheck::sealed_interface_must_be_empty',
-  '`sealed interface` body 必须为空：{fqn}',
-  (('crates/scoopc_hir/src/typecheck/type_env.rs', 'SealedInterfaceMustBeEmpty {'),
-   ('tests/fixtures/typecheck/sealed_interface_body_member_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_must_be_empty'))),
- ('CLOSURE_FIX §2 sealed interface supertype restriction',
-  'crates/scoopc_hir/src/typecheck/type_env.rs',
-  'scoop::typecheck::sealed_interface_supertype_must_be_sealed',
-  '`sealed interface` 只能继承其它 sealed interface：{fqn} -> {super_fqn}',
-  (('crates/scoopc_hir/src/typecheck/type_env.rs',
-    'SealedInterfaceSupertypeMustBeSealed {'),
-   ('tests/fixtures/typecheck/sealed_interface_supertype_normal_interface_is_error.scoop',
-    '// EXPECT-ERROR-CODE: '
-    'scoop::typecheck::sealed_interface_supertype_must_be_sealed'),
-   ('tests/fixtures/typecheck/sealed_interface_supertype_class_is_error.scoop',
-    '// EXPECT-ERROR-CODE: '
-    'scoop::typecheck::sealed_interface_supertype_must_be_sealed'))),
- ('CLOSURE_FIX §2 sealed interface inheritance cycle',
-  'crates/scoopc_hir/src/typecheck/type_env.rs',
-  'scoop::typecheck::sealed_interface_inheritance_cycle',
-  '`sealed interface` 继承图存在循环：{cycle}',
-  (('crates/scoopc_hir/src/typecheck/type_env.rs', 'SealedInterfaceInheritanceCycle {'),
-   ('tests/fixtures/typecheck/sealed_interface_self_cycle_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_inheritance_cycle'),
-   ('tests/fixtures/typecheck/sealed_interface_two_node_cycle_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_inheritance_cycle'))),
- ('CLOSURE_FIX §2 sealed interface declaration mutual exclusion',
-  'crates/scoopc_hir/src/typecheck/type_env.rs',
-  'scoop::typecheck::sealed_interface_mutually_exclusive_bound',
-  'sealed marker bound 不能同时蕴涵 AnyRef 与 AnyValue：{fqn}',
-  (('crates/scoopc_hir/src/typecheck/type_env.rs',
-    'SealedInterfaceMutuallyExclusiveBound {'),
-   ('tests/fixtures/typecheck/sealed_interface_mutually_exclusive_sysroot_marker_is_error.scoop',
-    '// EXPECT-ERROR-CODE: '
-    'scoop::typecheck::sealed_interface_mutually_exclusive_bound'))),
- ('CLOSURE_FIX §2 sealed interface where-bound mutual exclusion',
-  'crates/scoopc_hir/src/typecheck/where_clause.rs',
-  'scoop::typecheck::sealed_interface_mutually_exclusive_bound',
-  'where 约束不能同时要求 `{param}` 满足 AnyRef 与 AnyValue',
-  (('crates/scoopc_hir/src/typecheck/where_clause.rs',
-    'SealedInterfaceMutuallyExclusiveBound {'),
-   ('tests/fixtures/typecheck/sealed_interface_mutually_exclusive_where_bound_is_error.scoop',
-    '// EXPECT-ERROR-CODE: '
-    'scoop::typecheck::sealed_interface_mutually_exclusive_bound'))),
- ('CLOSURE_FIX §2 sealed interface runtime type position rejection',
-  'crates/scoopc_hir/src/typecheck/lower.rs',
-  'scoop::typecheck::sealed_interface_bound_only',
-  'sealed marker `{name}` 只能作为 generic/where bound 使用，不能作为运行期类型位置',
-  (('crates/scoopc_hir/src/typecheck/lower.rs', 'SealedInterfaceBoundOnly {'),
-   ('tests/fixtures/typecheck/sealed_interface_binding_type_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_param_type_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_return_type_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_type_argument_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_when_is_pattern_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_cast_as_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'))),
- ('CLOSURE_FIX §2 sealed interface explicit implementation rejection',
-  'crates/scoopc_hir/src/typecheck/interfaces.rs',
-  'scoop::typecheck::sealed_interface_bound_only',
-  'sealed marker `{name}` 只能作为 generic/where bound 使用，不能显式实现或继承',
-  (('crates/scoopc_hir/src/typecheck/interfaces.rs', 'SealedInterfaceBoundOnly {'),
-   ('tests/fixtures/typecheck/sealed_interface_class_supertype_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'),
-   ('tests/fixtures/typecheck/sealed_interface_struct_supertype_is_error.scoop',
-    '// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only'))))
+  )
 STALE_USER_VISIBLE_UNSUPPORTED_MARKERS: tuple[tuple[str, str], ...] = ()
 POST_UPSTREAM_VALIDATION_GUARDS: tuple[tuple[str, str], ...] = (('crates/scoopc_hir/src/typecheck/lower.rs::lower_struct_direct_field_infos',
   'typecheck::check_file_headers rejects struct/class primary-ctor params without a '
@@ -490,9 +467,10 @@ INTERNAL_BUG_SENTINEL_HITS: tuple[str, ...] = ('crates/scoopc_codegen_llvm/src/l
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:20:            panic!(',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:46:            '
  'panic!("codegen_mir_cast: MIR verifier accepted runtime cast metadata drift");',
+ 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:73:            '
+ 'panic!("codegen_mir_cast_as: MIR verifier accepted invalid class-cast panic contract");',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:70:            '
  'panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract");',
- 'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:73:            panic!(',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:78:            '
  'panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract");',
  'crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/cast.rs:81:            '
@@ -1099,7 +1077,7 @@ INTERNAL_BUG_SENTINEL_HITS: tuple[str, ...] = ('crates/scoopc_codegen_llvm/src/l
  'unreachable!("is_value_only_enum implies first_super exists");',
  'crates/scoopc_hir/src/typecheck/when_pat.rs:211:                    unreachable!(',
  'crates/scoopc_hir/src/typecheck/when_pat.rs:260:                unreachable!(')
-CHECK_COUNT = 6
+CHECK_COUNT = 7
 
 
 class AuditError(Exception):
@@ -1207,6 +1185,7 @@ def run() -> AuditReport:
 
     failures.extend(check_scope_keywords_and_rules(repo_root))
     failures.extend(check_frontend_reject_surfaces(repo_root))
+    failures.extend(check_overload_diagnostic_policy(repo_root))
     failures.extend(check_stale_unsupported_markers(repo_root))
     failures.extend(check_upstream_guards())
     failures.extend(check_no_production_todo_macros(repo_root))
@@ -1216,9 +1195,9 @@ def run() -> AuditReport:
     )
     failures.extend(
         compare_lines(
-            "internal bug sentinel hits",
-            internal_bug_hits,
-            INTERNAL_BUG_SENTINEL_HITS,
+            "internal bug sentinel markers",
+            sorted(normalize_line_hit_marker(hit) for hit in internal_bug_hits),
+            sorted(normalize_line_hit_marker(hit) for hit in INTERNAL_BUG_SENTINEL_HITS),
         )
     )
 
@@ -1294,6 +1273,46 @@ def check_frontend_reject_surfaces(repo_root: Path) -> list[str]:
     return failures
 
 
+def check_overload_diagnostic_policy(repo_root: Path) -> list[str]:
+    failures: list[str] = []
+    for path, marker in OVERLOAD_DIAGNOSTIC_MARKERS:
+        failures.extend(check_source_marker(repo_root, SourceMarker(path, marker)))
+
+    for fixture_path, diagnostic_code, required_substrings in OVERLOAD_DIAGNOSTIC_FIXTURE_DATA:
+        content = read_repo_file(repo_root, fixture_path)
+        directives = tuple(fixture_directives(content))
+        expected_code = f"EXPECT-ERROR-CODE: {diagnostic_code}"
+        if expected_code not in directives:
+            failures.append(
+                f"overload diagnostic fixture {fixture_path} should assert `{expected_code}`"
+            )
+        for substring in required_substrings:
+            if not any(
+                directive.startswith("EXPECT-ERROR:") and substring in directive
+                for directive in directives
+            ):
+                failures.append(
+                    f"overload diagnostic fixture {fixture_path} should assert `EXPECT-ERROR` containing `{substring}`"
+                )
+        for forbidden in FRONTEND_REJECT_FORBIDDEN_TERMS:
+            expected_forbidden = f"EXPECT-NOT-ERROR: {forbidden}"
+            if expected_forbidden not in directives:
+                failures.append(
+                    f"overload diagnostic fixture {fixture_path} should assert `{expected_forbidden}`"
+                )
+    return failures
+
+
+def fixture_directives(content: str) -> list[str]:
+    directives: list[str] = []
+    for raw_line in content.splitlines()[:32]:
+        trimmed = raw_line.lstrip()
+        if not trimmed.startswith("//"):
+            break
+        directives.append(trimmed[2:].strip())
+    return directives
+
+
 def check_stale_unsupported_markers(repo_root: Path) -> list[str]:
     failures: list[str] = []
     if STALE_USER_VISIBLE_UNSUPPORTED_MARKERS:
@@ -1364,6 +1383,10 @@ def compare_lines(
     return [
         f"{label} drifted: expected {format_lines(expected)}, got {format_lines(observed)}"
     ]
+
+
+def normalize_line_hit_marker(line: str) -> str:
+    return re.sub(r":\d+:", ":<line>:", line, count=1)
 
 
 def format_lines(lines: Sequence[str]) -> str:

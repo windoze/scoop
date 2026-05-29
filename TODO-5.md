@@ -311,7 +311,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_arity_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_gvc_ok.scoop`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。验证过程中一次多路径 `run_fixtures.py` 调用因脚本只接受单个 positional fixture path 而失败，随后按单文件命令重新运行并通过；一次完整 Rust 测试暴露过严 ABI fallback，修复后完整重跑通过。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 作为 source of truth 的 review 要求；确认三个 P0-T02 overload codegen baseline 已启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T05：审计 overload diagnostics 与 user-visible failure policy
+### [DONE] P5-T05：审计 overload diagnostics 与 user-visible failure policy
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -342,10 +342,10 @@
   - Overload diagnostics satisfy design requirements and failure policy.
 - 依赖：P5-T04R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：更新 `typecheck/overloads.rs` 的 definition-time overload diagnostics，使用 `conflicting_overloads` 错误码并在 conflicting / generic shape / vararg overlap 消息中列出候选 signature 与 `file:line:col`；更新 `expr/call/dispatch.rs` 与 `expr/ops.rs` 的剩余 ambiguity 路径，确保候选位置和 specificity reason 贯通；扩展 `tools/run_fixtures.py` 支持多条 `EXPECT-ERROR` 与 `EXPECT-NOT-ERROR`；扩展并修复 `tools/audit_user_visible_failure_policy.py` 的 overload policy 覆盖；补强 overload 诊断 fixtures，并修正启用多断言后暴露的 stale fixture 期望。
+  - 核心决策：definition-time 候选以 `signature @ location` 单字段渲染，避免扩大错误枚举同时满足候选位置必填；operator / for-protocol 零参 member 歧义复用 Phase D/E specificity helper，能唯一选中时按同一 overload 规则选择，无法唯一选中时输出 effective type source 与不可比 reason；fixture 侧用 `EXPECT-NOT-ERROR` 锁住 forbidden internal terms；audit 侧只把 internal bug sentinel marker 与源码文本绑定，忽略纯 line-number drift，并清理已随 sealed marker surface 移除而失效的旧 frontend reject markers。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted overload diagnostic fixtures；targeted stale assertion fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；`python3 tools/audit_user_visible_failure_policy.py`；`python3 tools/spec_fixtures.py check`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §10 的 candidate location、ambiguity/no-applicable reason 与 forbidden internal term 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T05R：Review overload diagnostics 审计
 

@@ -21,7 +21,7 @@ use super::call::{
     type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base,
 };
 use super::infer::ExpectedTypeFrom;
-use super::util::{fmt_overload_signature, join_overload_signatures};
+use super::util::fmt_overload_signature;
 
 use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned};
 
@@ -615,18 +615,31 @@ pub(super) fn collect_unique_zero_arg_member_method_sig(
         0 => Ok(None),
         1 => Ok(Some(filtered.remove(0))),
         _ => {
-            let candidates = filtered
+            let specificity = filtered
                 .iter()
                 .map(|sig| {
                     let receiver_ty = sig.params.first().copied();
-                    fmt_overload_signature(method, receiver_ty, &[], lower)
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(method, receiver_ty, &[], lower),
+                        format_candidate_location(lower, &sig.decl_file, sig.decl_span),
+                        sig,
+                        lower,
+                        builtins,
+                        call_site_span,
+                    )
                 })
-                .collect::<Vec<_>>();
-            Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                candidates: join_overload_signatures(candidates),
-                span: call_site_span.into(),
-            })
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, builtins) {
+                Ok(Some(filtered.remove(chosen_idx)))
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    candidates,
+                    span: call_site_span.into(),
+                })
+            }
         }
     }
 }
@@ -667,18 +680,31 @@ fn collect_unique_zero_arg_operator_member_method_sig(
         0 => Ok(None),
         1 => Ok(Some(filtered.remove(0))),
         _ => {
-            let candidates = filtered
+            let specificity = filtered
                 .iter()
                 .map(|sig| {
                     let receiver_ty = sig.params.first().copied();
-                    fmt_overload_signature(method, receiver_ty, &[], lower)
+                    specificity_candidate_for_fun_sig(
+                        fmt_overload_signature(method, receiver_ty, &[], lower),
+                        format_candidate_location(lower, &sig.decl_file, sig.decl_span),
+                        sig,
+                        lower,
+                        builtins,
+                        call_site_span,
+                    )
                 })
-                .collect::<Vec<_>>();
-            Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                candidates: join_overload_signatures(candidates),
-                span: call_site_span.into(),
-            })
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(chosen_idx) = pick_most_specific_overload(&specificity, lower, builtins) {
+                Ok(Some(filtered.remove(chosen_idx)))
+            } else {
+                let candidates =
+                    format_ambiguous_specificity_candidates(&specificity, lower, builtins);
+                Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    candidates,
+                    span: call_site_span.into(),
+                })
+            }
         }
     }
 }

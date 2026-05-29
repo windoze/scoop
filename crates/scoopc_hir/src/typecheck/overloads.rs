@@ -13,7 +13,7 @@
 //!   更完整的 named args / 中间省略规则由后续任务补齐（与 T1305/T1306 联动）。
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -37,13 +37,13 @@ pub enum OverloadDeclError {
     #[diagnostic(transparent)]
     TypeLower(#[from] TypeLowerError),
 
-    #[error("重载签名冲突：{fqn}（{reason}）：{previous_signature} <-> {conflict_signature}")]
-    #[diagnostic(code(scoop::typecheck::overload_conflict))]
+    #[error("重载签名冲突：{fqn}（{reason}）：{previous_candidate} <-> {conflict_candidate}")]
+    #[diagnostic(code(scoop::typecheck::conflicting_overloads))]
     Conflict {
         fqn: Box<str>,
         reason: Box<str>,
-        previous_signature: Box<str>,
-        conflict_signature: Box<str>,
+        previous_candidate: Box<str>,
+        conflict_candidate: Box<str>,
         #[label("冲突声明在这里")]
         conflict: miette::SourceSpan,
         #[label("第一次声明在这里")]
@@ -51,7 +51,7 @@ pub enum OverloadDeclError {
     },
 
     #[error(
-        "不支持的泛型重载 shape：{fqn}：{previous_signature} <-> {conflict_signature}；only differ-by-bound generic overloads are supported; rename the function or restructure"
+        "不支持的泛型重载 shape：{fqn}：{previous_candidate} <-> {conflict_candidate}；only differ-by-bound generic overloads are supported; rename the function or restructure"
     )]
     #[diagnostic(
         code(scoop::typecheck::generic_overload_shape_mismatch),
@@ -61,8 +61,8 @@ pub enum OverloadDeclError {
     )]
     GenericShapeMismatch {
         fqn: Box<str>,
-        previous_signature: Box<str>,
-        conflict_signature: Box<str>,
+        previous_candidate: Box<str>,
+        conflict_candidate: Box<str>,
         #[label("泛型重载 shape 不兼容")]
         conflict: miette::SourceSpan,
         #[label("候选声明在这里")]
@@ -70,7 +70,7 @@ pub enum OverloadDeclError {
     },
 
     #[error(
-        "vararg 与非 vararg 重载重叠：{fqn} 在 {arity} 个实参时不可区分：{previous_signature} <-> {conflict_signature}"
+        "vararg 与非 vararg 重载重叠：{fqn} 在 {arity} 个实参时不可区分：{previous_candidate} <-> {conflict_candidate}"
     )]
     #[diagnostic(
         code(scoop::typecheck::vararg_overlaps_non_vararg),
@@ -81,8 +81,8 @@ pub enum OverloadDeclError {
     VarargOverlapsNonVararg {
         fqn: Box<str>,
         arity: usize,
-        previous_signature: Box<str>,
-        conflict_signature: Box<str>,
+        previous_candidate: Box<str>,
+        conflict_candidate: Box<str>,
         #[label("vararg/non-vararg 重叠声明在这里")]
         conflict: miette::SourceSpan,
         #[label("候选声明在这里")]
@@ -111,6 +111,7 @@ struct FunSigInfo {
 
 #[derive(Debug, Clone)]
 struct FunDeclInfo {
+    decl_file: PathBuf,
     name_span: Span,
     sig: FunSigInfo,
 }
@@ -432,6 +433,7 @@ enum GenericShape {
 
 #[derive(Debug, Clone)]
 struct CtorDeclInfo {
+    decl_file: PathBuf,
     span: Span,
     sig: CtorSigInfo,
 }
@@ -739,6 +741,7 @@ fn collect_ctor_decl(
         .entry(type_fqn.to_string())
         .or_default()
         .push(CtorDeclInfo {
+            decl_file: source.path().to_path_buf(),
             span: ctor.span,
             sig: CtorSigInfo { params },
         });
@@ -822,6 +825,7 @@ fn collect_fun_decl(
         .entry(fqn.clone())
         .or_default()
         .push(FunDeclInfo {
+            decl_file: source.path().to_path_buf(),
             name_span: fun.name.span,
             sig: FunSigInfo {
                 receiver_ty,
@@ -1647,6 +1651,20 @@ fn render_ctor_signature(type_fqn: &str, sig: &CtorSigInfo) -> String {
     format!("{type_fqn}.<init>({})", render_param_list(&sig.params))
 }
 
+fn render_candidate(signature: String, location: &str) -> Box<str> {
+    format!("{signature} @ {location}").into_boxed_str()
+}
+
+fn format_decl_location(lower: &TypeLowering<'_>, decl_file: &Path, span: Span) -> String {
+    let Some(source) = lower.env().source(decl_file) else {
+        return decl_file.display().to_string();
+    };
+    let Ok((line, col)) = source.offset_to_line_col(span.start) else {
+        return decl_file.display().to_string();
+    };
+    format!("{}:{line}:{col}", decl_file.display())
+}
+
 fn render_param_list(params: &[ParamInfo]) -> String {
     params
         .iter()
@@ -1684,14 +1702,22 @@ fn check_fun_overload_set(
             let b = &decls[j];
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
+            let a_location = format_decl_location(lower, &a.decl_file, a.name_span);
+            let b_location = format_decl_location(lower, &b.decl_file, b.name_span);
 
             if let Some(arity) = a_sig.first_vararg_non_vararg_overlap_arity(b_sig, lower, builtins)
             {
                 return Err(OverloadDeclError::VarargOverlapsNonVararg {
                     fqn: fqn.to_string().into_boxed_str(),
                     arity,
-                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_fun_signature(fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_fun_signature(fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -1700,8 +1726,14 @@ fn check_fun_overload_set(
             if a_sig.has_generic_shape_mismatch(b_sig) {
                 return Err(OverloadDeclError::GenericShapeMismatch {
                     fqn: fqn.to_string().into_boxed_str(),
-                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_fun_signature(fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_fun_signature(fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -1720,8 +1752,14 @@ fn check_fun_overload_set(
                 return Err(OverloadDeclError::Conflict {
                     fqn: fqn.to_string().into_boxed_str(),
                     reason: reason.into_boxed_str(),
-                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_fun_signature(fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_fun_signature(fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -1732,8 +1770,14 @@ fn check_fun_overload_set(
                 return Err(OverloadDeclError::Conflict {
                     fqn: fqn.to_string().into_boxed_str(),
                     reason: reason.into_boxed_str(),
-                    previous_signature: render_fun_signature(fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_fun_signature(fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_fun_signature(fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_fun_signature(fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.name_span.into(),
                     previous: a.name_span.into(),
                 });
@@ -1763,14 +1807,22 @@ fn check_ctor_overload_set(
             let b = &decls[j];
             let a_sig = a.sig.effective_signature();
             let b_sig = b.sig.effective_signature();
+            let a_location = format_decl_location(lower, &a.decl_file, a.span);
+            let b_location = format_decl_location(lower, &b.decl_file, b.span);
 
             if let Some(arity) = a_sig.first_vararg_non_vararg_overlap_arity(b_sig, lower, builtins)
             {
                 return Err(OverloadDeclError::VarargOverlapsNonVararg {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
                     arity,
-                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });
@@ -1779,8 +1831,14 @@ fn check_ctor_overload_set(
             if a_sig.has_generic_shape_mismatch(b_sig) {
                 return Err(OverloadDeclError::GenericShapeMismatch {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
-                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });
@@ -1790,8 +1848,14 @@ fn check_ctor_overload_set(
                 return Err(OverloadDeclError::Conflict {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
                     reason: "重复或不可区分的构造器签名".into(),
-                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });
@@ -1802,8 +1866,14 @@ fn check_ctor_overload_set(
                 return Err(OverloadDeclError::Conflict {
                     fqn: format!("{type_fqn}.<init>").into_boxed_str(),
                     reason: reason.into_boxed_str(),
-                    previous_signature: render_ctor_signature(type_fqn, &a.sig).into_boxed_str(),
-                    conflict_signature: render_ctor_signature(type_fqn, &b.sig).into_boxed_str(),
+                    previous_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &a.sig),
+                        &a_location,
+                    ),
+                    conflict_candidate: render_candidate(
+                        render_ctor_signature(type_fqn, &b.sig),
+                        &b_location,
+                    ),
                     conflict: b.span.into(),
                     previous: a.span.into(),
                 });

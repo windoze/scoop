@@ -1,7 +1,14 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::generic_overload_shape_mismatch
-// EXPECT-ERROR-AT: 10:12
+// EXPECT-ERROR-AT: 17:12
 // EXPECT-ERROR: only differ-by-bound generic overloads are supported
+// EXPECT-ERROR: :15:9
+// EXPECT-ERROR: :17:12
+// EXPECT-NOT-ERROR: 后端
+// EXPECT-NOT-ERROR: backend
+// EXPECT-NOT-ERROR: LLVM
+// EXPECT-NOT-ERROR: codegen
+// EXPECT-NOT-ERROR: Unsupported
 
 package fixtures.typecheck
 

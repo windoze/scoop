@@ -86,7 +86,7 @@
 | P5-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t03rreview-call-surface-整合结果) | [DONE] Review P5-T03 call surface 整合结果 |
 | P5-T04 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t04贯通-selected-callable-identity修复-concrete--arity--generic-concrete-codegen-bug) | [DONE] 贯通 selected callable identity，修复 overload codegen bug |
 | P5-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t04rreview-selected-callable-identity-贯通) | [DONE] Review P5-T04 callable identity 贯通 |
-| P5-T05 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05审计-overload-diagnostics-与-user-visible-failure-policy) | 审计 overload diagnostics 与 user-visible failure policy |
+| P5-T05 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05审计-overload-diagnostics-与-user-visible-failure-policy) | [DONE] 审计 overload diagnostics 与 user-visible failure policy |
 | P5-T05R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05rreview-overload-diagnostics-审计) | Review P5-T05 overload diagnostics 审计 |
 | P6-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t01回写-scoop_full_specmd-与-split-spec-的全部语言变更) | 回写 `SCOOP_FULL_SPEC.md` 与 split spec 的全部语言变更 |
 | P6-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t01rreview-spec-回写完整性) | Review P6-T01 spec 回写完整性 |

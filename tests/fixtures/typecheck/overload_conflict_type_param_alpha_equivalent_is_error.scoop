@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-CODE: scoop::typecheck::conflicting_overloads
 // EXPECT-ERROR-AT: 12:9
 // EXPECT-ERROR: Any
 
@@ -12,4 +12,3 @@ fun <T> alphaEq(x: T): T {
 fun <U> alphaEq(x: U): U {
     return x
 }
-

@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-CODE: scoop::typecheck::conflicting_overloads
 // EXPECT-ERROR-AT: 14:5
 // EXPECT-ERROR: Int
 
@@ -14,4 +14,3 @@ fun aliasEq(x: Int): Int {
 fun aliasEq(x: I): Int {
     return x
 }
-

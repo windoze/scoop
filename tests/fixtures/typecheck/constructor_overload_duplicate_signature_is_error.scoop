@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-CODE: scoop::typecheck::conflicting_overloads
 // EXPECT-ERROR-AT: 10:5
 // EXPECT-ERROR: 重复或不可区分的构造器签名
 

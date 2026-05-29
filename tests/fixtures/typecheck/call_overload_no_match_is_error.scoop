@@ -1,10 +1,17 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::no_applicable_overload
-// EXPECT-ERROR-AT: 21:14
+// EXPECT-ERROR-AT: 28:14
 // EXPECT-ERROR: f(Int)
 // EXPECT-ERROR: f(String)
+// EXPECT-ERROR: :20:5
+// EXPECT-ERROR: :24:5
 // EXPECT-ERROR: argument 1 type Bool is not a subtype of parameter `x` type Int
 // EXPECT-ERROR: argument 1 type Bool is not a subtype of parameter `x` type String
+// EXPECT-NOT-ERROR: 后端
+// EXPECT-NOT-ERROR: backend
+// EXPECT-NOT-ERROR: LLVM
+// EXPECT-NOT-ERROR: codegen
+// EXPECT-NOT-ERROR: Unsupported
 
 package fixtures.typecheck
 

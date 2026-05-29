@@ -49,7 +49,8 @@ class FixtureError(Exception):
 @dataclasses.dataclass(frozen=True)
 class Expectation:
     expect: str = "pass"
-    error_contains: str | None = None
+    error_contains: tuple[str, ...] = ()
+    error_not_contains: tuple[str, ...] = ()
     error_code: str | None = None
     error_at: tuple[int, int] | None = None
     args: tuple[str, ...] = ()
@@ -1372,12 +1373,19 @@ def assert_diagnostic_matches(path: Path, exp: Expectation, err: FixtureError) -
                 stdout=err.stdout,
                 stderr=err.stderr,
             )
-    if exp.error_contains is not None and exp.error_contains not in diagnostic_text:
-        if normalize_diagnostic_text(exp.error_contains) not in normalize_diagnostic_text(
-            diagnostic_text
-        ):
+    for expected in exp.error_contains:
+        if expected not in diagnostic_text and normalize_diagnostic_text(
+            expected
+        ) not in normalize_diagnostic_text(diagnostic_text):
             raise FixtureError(
-                f"error message mismatch: expected to contain {exp.error_contains!r}",
+                f"error message mismatch: expected to contain {expected!r}",
+                stdout=err.stdout,
+                stderr=err.stderr,
+            )
+    for forbidden in exp.error_not_contains:
+        if forbidden in diagnostic_text:
+            raise FixtureError(
+                f"error message mismatch: expected not to contain {forbidden!r}",
                 stdout=err.stdout,
                 stderr=err.stderr,
             )
@@ -1462,7 +1470,8 @@ def raise_fixture_error(message: str, *, code: str | None = None) -> None:
 def parse_expectations(path: Path) -> Expectation:
     text = path.read_text()
     expect = "pass"
-    error_contains = None
+    error_contains: list[str] = []
+    error_not_contains: list[str] = []
     error_code = None
     error_at = None
     args: list[str] = []
@@ -1495,7 +1504,13 @@ def parse_expectations(path: Path) -> Expectation:
             elif value == "fail":
                 expect = "fail"
         elif directive.startswith("EXPECT-ERROR:"):
-            error_contains = directive[len("EXPECT-ERROR:") :].strip()
+            value = directive[len("EXPECT-ERROR:") :].strip()
+            if value:
+                error_contains.append(value)
+        elif directive.startswith("EXPECT-NOT-ERROR:"):
+            value = directive[len("EXPECT-NOT-ERROR:") :].strip()
+            if value:
+                error_not_contains.append(value)
         elif directive.startswith("EXPECT-ERROR-CODE:"):
             error_code = directive[len("EXPECT-ERROR-CODE:") :].strip()
         elif directive.startswith("EXPECT-ERROR-AT:"):
@@ -1550,7 +1565,8 @@ def parse_expectations(path: Path) -> Expectation:
 
     return Expectation(
         expect=expect,
-        error_contains=error_contains,
+        error_contains=tuple(error_contains),
+        error_not_contains=tuple(error_not_contains),
         error_code=error_code,
         error_at=error_at,
         args=tuple(args),
