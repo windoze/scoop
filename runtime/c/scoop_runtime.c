@@ -132,15 +132,20 @@ static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t scoop_rt_gc_stress_interval = 0;
 static _Atomic(uint64_t) scoop_rt_gc_stress_alloc_counter = 0;
 
-static uint64_t scoop_rt_parse_gc_stress_interval(void) {
-  const char *raw = getenv("SCOOP_GC_STRESS");
+static const char *scoop_rt_env_skip_space(const char *raw) {
   if (raw == 0) {
     return 0;
   }
-
-  // 跳过前导空白（允许 `SCOOP_GC_STRESS=" 1"`）。
   while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
     raw++;
+  }
+  return raw;
+}
+
+static uint64_t scoop_rt_parse_gc_stress_interval(void) {
+  const char *raw = scoop_rt_env_skip_space(getenv("SCOOP_GC_STRESS"));
+  if (raw == 0) {
+    return 0;
   }
 
   if (raw[0] == 0) {

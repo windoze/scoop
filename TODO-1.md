@@ -240,7 +240,7 @@
   - P0-T03 10M heap-growth 度量：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、累计 `bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`。`peak_allocated=320000000` 仍为累计分配计数，heap 有界性以后看 `live/reserved`。
   - 验证：`cargo fmt`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
-### [TODO] P1-T01R：Review pacing 核心
+### [DONE] P1-T01R：Review pacing 核心
 
 - 参考：
   - P1-T01 完成记录
@@ -261,7 +261,13 @@
   - pacing 核心正确且默认堆有界。
 - 依赖：P1-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已复核 P1-T01 pacing 核心，并修正 review 中发现的 pacing-off 对照路径缺失；默认堆有界，`SCOOP_GC_PACING=off` 恢复旧的无界增长对照。
+  - root publication / reentrancy 复核：`runtime/c/scoop_runtime.c:504-505` 仍在 `scoop_alloc` 分配前执行 `scoop_gc_safepoint_poll()`；pacing 触发不在 alloc 内同步 collect，alloc 侧只在对象初始化并登记后由 `runtime/c/scoop_gc_backend_immix.c:2489-2497` 做计数与 request。`runtime/c/scoop_gc_backend_immix.c:1945-1949` 只在下一次 safepoint poll 消费 request 并调用 `scoop_gc_collect()`，保持“先 poll 后 alloc”的 root publication 纪律；既有 `SCOOP_GC_STRESS` 分配前 collect 路径仍在 `runtime/c/scoop_runtime.c:502-512`。
+  - 并发与阈值复核：`runtime/c/scoop_gc_backend_immix.c:241-247` 用 relaxed load 读取 `next_gc`，超过累计水位线时只幂等置 `request_collect`；`runtime/c/scoop_gc_backend_immix.c:249-257` 用 CAS 消费 request，且 STW 已请求时 no-op；`runtime/c/scoop_gc_backend_immix.c:214-228` 的 `next_gc` 更新只在 GC cycle 末调用，实际调用点为 sweep/compaction/verify 之后、STW end 之前的 `runtime/c/scoop_gc_backend_immix.c:5450`。
+  - review 修正：为满足本 review 的 pacing-off 对照要求，`runtime/c/scoop_gc.h:265-293` 新增内部 `SCOOP_GC_PACING=off` 初始化路径，默认返回 4MiB 初始 `next_gc`，`off`/`0`/`false`/`no` 返回 0；`runtime/c/scoop_gc_backend_immix.c:214-221` 在 `next_gc == 0` 时保持 pacing disabled 并清 request。该 helper 为 `static inline`，未扩大 `runtime/c/scoop_runtime_api.h` 公共导出面；baseline/minimal/hosted heap init 也统一使用该初始值以保持字段语义一致。
+  - 长程序度量（默认 pacing）：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`，确认默认配置下 live/reserved heap 有界。
+  - 长程序度量（pacing off 对照）：`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点线性增长，确认 off 路径恢复旧的无界行为并证明 pacing 生效。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。验证期间曾发现新增 helper 被 runtime ABI allowlist 视为未登记导出，已改为 header 内部 `static inline` 并由后续全量测试确认修复。
 
 ### [TODO] P1-T02：接入 pacing env 旋钮与默认 on，并加长程序有界回归
 

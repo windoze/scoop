@@ -9,8 +9,10 @@
 #ifndef SCOOP_GC_H
 #define SCOOP_GC_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 // --- Type descriptor / Object Model ABI（T0907/T0920/T1501） ---
 //
@@ -262,8 +264,31 @@ typedef struct ScoopGcFreeBlock {
   uint64_t size;
 } ScoopGcFreeBlock;
 
-// Pacing defaults（P1）：env 旋钮在后续任务接入；当前核心路径使用硬编码默认值。
+// Pacing defaults（P1）：`next_gc == 0` 表示 pacing 被 `SCOOP_GC_PACING=off` 关闭。
 #define SCOOP_GC_PACING_MIN_THRESHOLD_BYTES (4ull * 1024ull * 1024ull)
+
+static inline const char *scoop_gc_env_skip_space(const char *raw) {
+  if (raw == 0) {
+    return 0;
+  }
+  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
+    raw++;
+  }
+  return raw;
+}
+
+// 返回 heap 初始化时的 pacing 水位线；默认开启，`SCOOP_GC_PACING=off` 时返回 0。
+static inline uint64_t scoop_gc_pacing_initial_next_gc(void) {
+  const char *raw = scoop_gc_env_skip_space(getenv("SCOOP_GC_PACING"));
+  if (raw == 0 || raw[0] == 0) {
+    return (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  }
+  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0 ||
+      strcmp(raw, "off") == 0) {
+    return 0;
+  }
+  return (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+}
 
 // GC heap（v0：骨架）。
 //

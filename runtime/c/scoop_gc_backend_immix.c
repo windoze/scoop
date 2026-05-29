@@ -215,6 +215,10 @@ static void scoop_gc_pacing_update_next_gc_unlocked(ScoopGcHeap *heap) {
   if (heap == 0) {
     return;
   }
+  if (__atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED) == 0) {
+    __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
+    return;
+  }
 
   uint64_t allocated = __atomic_load_n(&heap->bytes_allocated, __ATOMIC_RELAXED);
   uint64_t freed = heap->bytes_freed;
@@ -2601,7 +2605,7 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
-  heap->next_gc = (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  heap->next_gc = scoop_gc_pacing_initial_next_gc();
   heap->request_collect = 0;
   heap->_pacing_reserved_u32 = 0;
 }
