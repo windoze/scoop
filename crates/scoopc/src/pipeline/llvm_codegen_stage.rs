@@ -339,6 +339,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         lowered_hir.continuation_resume_call_sites,
         lowered_hir.when_pat_binding_tys,
         lowered_hir.nominal_kinds,
+        lowered_hir.interior_mutable_nominals,
         lowered_hir.direct_supertypes,
         lowered_hir.builtins,
         callable_sources,
@@ -2088,6 +2089,44 @@ fun main() {
         )
         .unwrap();
         assert!(ir.contains("define i32 @main("));
+    }
+
+    #[test]
+    fn llvm_codegen_base_context_exposes_interior_mutable_nominals() {
+        let _guard = test_lock();
+        let source = SourceFile::new_virtual(
+            "<mem>/llvm_interior_mutable_fixture.scoop",
+            r#"
+package sample
+
+@InteriorMutable
+struct AtomicCell(val raw: Int)
+
+typealias AtomicAlias = AtomicCell
+
+struct PlainCell(val raw: Int)
+
+fun main(): Int {
+    return 0
+}
+"#,
+        );
+        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
+        let input = LlvmCodegenStageInput::new(
+            lowered,
+            None,
+            source_map,
+            entry_source_id,
+            None,
+            OptLevel::O0,
+        );
+
+        let stage_output = super::run(&session, input).unwrap();
+        let base = stage_output.base_context();
+
+        assert!(base.nominal_is_interior_mutable("sample.AtomicCell"));
+        assert!(!base.nominal_is_interior_mutable("sample.PlainCell"));
+        assert!(!base.nominal_is_interior_mutable("sample.AtomicAlias"));
     }
 
     #[test]

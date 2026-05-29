@@ -38,7 +38,7 @@
   - 测试：新增 TypeEnv 单元测试覆盖标记查询与 alias lowering 回到标记 nominal；新增 typecheck fixtures 覆盖 struct/class 合法使用与 typealias 非法 target。
   - 验证：`cargo fmt`；`cargo test -p scoopc_hir type_env_tracks_interior_mutable_nominal_marker_through_alias_lowering --all-targets`；`cargo test -p scoopc_cone artifact_frontend_import_injects_public_and_visibility_payload --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/interior_mutable_struct_and_class_ok.scoop --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/interior_mutable_typealias_is_error.scoop --exit-on-failure`；`cargo build -p scoopc`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P3-T01R：Review `@InteriorMutable` 注解
+### [DONE] P3-T01R：Review `@InteriorMutable` 注解
 
 - 参考：
   - P3-T01 完成记录
@@ -58,7 +58,12 @@
   - 标记机制可靠。
 - 依赖：P3-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：`@InteriorMutable` 仍是 compiler-recognized metadata-only 注解；合法 target 限定为 struct/class，非法 typealias target 继续报错，无 codegen/runtime 表项或运行期副作用。
+  - 抗 aliasing：TypeEnv 查询保持 key 在解析后的 nominal 上；alias lowering 回到被标记 nominal，且 alias 自身不被误记录为 interior-mutable nominal。
+  - MIR/codegen 查询：复核并补齐 `LoweredHir::interior_mutable_nominals` 与 `LlvmStageBaseContext::nominal_is_interior_mutable`，从 TypeEnv（含 cached cone import）或 AST fallback 收集标记 nominal，确保后续 LLVM codegen 可按 nominal FQN 查询。
+  - 测试：新增/扩展 MIR stage 与 LLVM codegen stage 单元测试，覆盖 MIR `NominalMetadata.is_interior_mutable` 与 LLVM base context 查询面，确认 plain nominal 与 typealias 不被误标。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P3-T02：`__AtomicInt` 升为 `@InteriorMutable struct`
 

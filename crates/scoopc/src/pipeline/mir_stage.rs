@@ -1079,6 +1079,8 @@ import scoop.core.*
 
 typealias Alias = Int
 interface Named
+@InteriorMutable
+struct AtomicCell(val raw: Int)
 struct Point(val x: Int) : Named
 
 val Base: Int = 1
@@ -1194,6 +1196,10 @@ fun main() {}
         assert!(matches!(
             output.metadata_root("sample.Point"),
             Some(MetadataRoot::Nominal(nominal)) if nominal.name == "Point"
+        ));
+        assert!(matches!(
+            output.metadata_root("sample.AtomicCell"),
+            Some(MetadataRoot::Nominal(nominal)) if nominal.is_interior_mutable
         ));
         assert_eq!(
             output

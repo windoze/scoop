@@ -26,10 +26,10 @@ use crate::typecheck::{
 use super::super::{
     AssignPlaceSiteIndex, CallArgBindingSiteIndex, ClassInitIndex, ContinuationResumeCallSiteIndex,
     CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, ExternGlobalIndex,
-    File, FunDecl, GenericClassDeclIndex, NativeCallableFunIndex, NominalKindIndex,
-    NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
-    StructLayoutIndex, SymbolId, TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex,
-    TopLevelVarIndex, WhenPatBindingTypeIndex, WithUpdateSiteIndex,
+    File, FunDecl, GenericClassDeclIndex, InteriorMutableIndex, NativeCallableFunIndex,
+    NominalKindIndex, NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex,
+    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelFunCallSiteIndex,
+    TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex, WithUpdateSiteIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -406,6 +406,8 @@ pub struct LoweredHir {
     pub when_pat_binding_tys: WhenPatBindingTypeIndex,
     /// nominal 类型种类索引（effect/class/interface/...）。
     pub nominal_kinds: NominalKindIndex,
+    /// nominal 声明上的 `@InteriorMutable` metadata 索引，供 MIR/codegen 后续谓词查询。
+    pub interior_mutable_nominals: InteriorMutableIndex,
     /// nominal 声明处 variance 索引。
     pub nominal_variances: NominalVarianceIndex,
     /// nominal 直接超类型索引。

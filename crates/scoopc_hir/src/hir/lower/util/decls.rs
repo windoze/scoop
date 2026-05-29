@@ -44,6 +44,39 @@ pub(in crate::hir::lower) fn collect_type_decl_kinds(
     out
 }
 
+pub(in crate::hir::lower) fn collect_interior_mutable_nominals(
+    pairs: &[(&SourceFile, &ast::File)],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+) -> HashSet<String> {
+    if let Some(type_env) = type_env {
+        return type_env
+            .interior_mutable_nominal_fqns()
+            .map(|fqn| fqn.to_string())
+            .collect();
+    }
+
+    let mut out: HashSet<String> = HashSet::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            if !matches!(ty.kind, ast::TypeKind::Struct | ast::TypeKind::Class) {
+                continue;
+            }
+            if !ty.annotations.iter().any(|ann| {
+                crate::typecheck::builtin_annotation_kind(source, ann)
+                    == Some(crate::typecheck::BuiltinAnnotationKind::InteriorMutable)
+            }) {
+                continue;
+            }
+            out.insert(join_prefix(&pkg_prefix, ty.name.text(source)));
+        }
+    }
+    out
+}
+
 pub(in crate::hir::lower) fn collect_nominal_variances(
     pairs: &[(&SourceFile, &ast::File)],
 ) -> HashMap<String, Vec<Option<ast::TypeParamVariance>>> {

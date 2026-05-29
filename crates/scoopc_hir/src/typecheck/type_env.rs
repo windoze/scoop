@@ -376,6 +376,14 @@ impl TypeEnv {
             .is_some_and(|sym| sym.is_interior_mutable)
     }
 
+    /// Enumerates nominal FQNs that carry compiler-recognized `@InteriorMutable` metadata.
+    pub fn interior_mutable_nominal_fqns(&self) -> impl Iterator<Item = &str> {
+        self.by_fqn.iter().filter_map(|(fqn, sym)| {
+            (sym.is_interior_mutable && matches!(sym.kind, TypeSymbolKind::Nominal(_)))
+                .then_some(fqn.as_str())
+        })
+    }
+
     /// 返回给定 FQN 的 type params 数量（arity）。
     pub fn type_param_count(&self, fqn: &str) -> Option<usize> {
         self.type_symbol(fqn).map(|s| s.type_param_count)

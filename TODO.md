@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -52,7 +52,7 @@
 | P2-T04 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04hostedminimal-backend-pacing-parity) | hosted/minimal backend pacing parity |
 | P2-T04R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04rreview-backend-parity) | Review P2-T04 backend parity |
 | P3-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01新增-interiormutable-注解) | 新增 `@InteriorMutable` 注解 |
-| P3-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t01rreview-interiormutable-注解) | Review P3-T01 `@InteriorMutable` 注解 |
+| P3-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01rreview-interiormutable-注解) | Review P3-T01 `@InteriorMutable` 注解 |
 | P3-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02__atomicint-升为-interiormutable-struct) | `__AtomicInt` 升为 `@InteriorMutable struct` |
 | P3-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02rreview-__atomicint-struct-化) | Review P3-T02 `__AtomicInt` struct 化 |
 | P4-T01 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t01运行期-immortal-flag-与-marker-短路) | 运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路 |

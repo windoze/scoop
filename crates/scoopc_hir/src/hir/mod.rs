@@ -1240,6 +1240,9 @@ pub type HandlePayloadTupleSiteIndex = HashMap<CallSite, TypeId>;
 /// `nominal FQN -> ast::TypeKind` 的索引（由 HIR lowering 构建，供后端识别 effect/class/interface/...）。
 pub type NominalKindIndex = HashMap<String, ast::TypeKind>;
 
+/// 带 compiler-recognized `@InteriorMutable` 标记的 nominal FQN 集合。
+pub type InteriorMutableIndex = HashSet<String>;
+
 /// `nominal FQN -> declaration-site variances` 的索引。
 pub type NominalVarianceIndex = HashMap<String, Vec<Option<ast::TypeParamVariance>>>;
 
