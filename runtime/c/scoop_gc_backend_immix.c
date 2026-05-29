@@ -3885,6 +3885,8 @@ typedef struct ScoopGcImmixToSpace {
   ScoopGcImmixBlock *reused_blocks;
   // 新分配但尚未挂到 `state->all_blocks` 的 block（abort 时 free；commit 时挂入 all_blocks）。
   ScoopGcImmixBlock *new_blocks;
+  // `new_blocks` 尚未计入 heap reserved 统计；hard cap 检查必须把这部分 pending reserve 计入。
+  uint64_t pending_new_block_bytes;
 } ScoopGcImmixToSpace;
 
 static ScoopGcImmixBlock *scoop_gc_immix_tospace_take_block(ScoopGcImmixToSpace *tospace,
@@ -3903,6 +3905,13 @@ static ScoopGcImmixBlock *scoop_gc_immix_tospace_take_block(ScoopGcImmixToSpace 
     block->next_free = tospace->reused_blocks;
     tospace->reused_blocks = block;
   } else {
+    if (!scoop_gc_immix_heap_can_reserve_with_pending_locked(
+            state,
+            &scoop_gc_heap,
+            (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE,
+            tospace->pending_new_block_bytes)) {
+      return 0;
+    }
     block = scoop_gc_immix_block_alloc_new();
     if (block == 0) {
       return 0;
@@ -3910,6 +3919,9 @@ static ScoopGcImmixBlock *scoop_gc_immix_tospace_take_block(ScoopGcImmixToSpace 
 
     block->next_all = tospace->new_blocks;
     tospace->new_blocks = block;
+    tospace->pending_new_block_bytes = scoop_gc_immix_u64_saturating_add(
+        tospace->pending_new_block_bytes,
+        (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE);
   }
 
   tospace->current = block;
@@ -3974,6 +3986,7 @@ static void scoop_gc_immix_tospace_abort(ScoopGcImmixToSpace *tospace, ScoopGcIm
   tospace->current = 0;
   tospace->reused_blocks = 0;
   tospace->new_blocks = 0;
+  tospace->pending_new_block_bytes = 0;
 }
 
 static void scoop_gc_immix_state_rebuild_block_lists(ScoopGcImmixState *state) {
@@ -4589,6 +4602,7 @@ static void scoop_gc_immix_minor_tospace_commit_blocks(ScoopGcImmixToSpace *tosp
   tospace->current = 0;
   tospace->reused_blocks = 0;
   tospace->new_blocks = 0;
+  tospace->pending_new_block_bytes = 0;
 }
 
 static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state) {

@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// ENV: SCOOP_GC_PACING=off
+// ENV: SCOOP_GC_MAX_HEAP_BYTES=1
+// ENV: SCOOP_GC_IMMIX_NURSERY_BLOCKS=0
+// 目标：generated `scoop_alloc_typed` OOM 必须走 fatal trap，而不是继续 GEP/store 触发 UB。
+
+import scoop.core.*
+
+fun main() {
+    println("oom")
+}

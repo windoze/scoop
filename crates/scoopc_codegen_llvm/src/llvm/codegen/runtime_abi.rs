@@ -3,6 +3,7 @@
 //! 目标：把 runtime 的 C ABI 声明集中管理，避免在 expr/stmt codegen 中散落 `declare_*`。
 
 use inkwell::AddressSpace;
+use inkwell::module::Linkage;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::StructType;
 use inkwell::values::FunctionValue;
@@ -282,18 +283,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn declare_runtime_alloc_typed(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_ALLOC_TYPED;
-        if let Some(existing) = self.module.get_function(NAME) {
+        const CHECKED_NAME: &str = "__scoop_alloc_typed_checked";
+        if let Some(existing) = self.module.get_function(CHECKED_NAME) {
             return existing;
         }
 
+        const NAME: &str = runtime_symbols::SCOOP_ALLOC_TYPED;
         // `void *scoop_alloc_typed(void* type_desc, uint64_t size_bytes)`
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = ret_ptr_ty.fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
+        let raw_alloc = self.declare_runtime_or_native_import_function(NAME, fn_ty);
+        let checked =
+            self.declare_compiler_private_helper_function(CHECKED_NAME, fn_ty, Linkage::Internal);
+
+        let entry = self.context.append_basic_block(checked, "entry");
+        let oom_bb = self.context.append_basic_block(checked, "oom");
+        let ok_bb = self.context.append_basic_block(checked, "ok");
+        let builder = self.context.create_builder();
+        builder.position_at_end(entry);
+
+        let type_desc = checked
+            .get_nth_param(0)
+            .expect("checked scoop_alloc_typed wrapper must have type_desc parameter");
+        let size_bytes = checked
+            .get_nth_param(1)
+            .expect("checked scoop_alloc_typed wrapper must have size_bytes parameter");
+        let call = builder
+            .build_call(
+                raw_alloc,
+                &[type_desc.into(), size_bytes.into()],
+                "rt_alloc_raw",
+            )
+            .expect("checked scoop_alloc_typed wrapper raw call must build");
+        let raw_ptr = call
+            .try_as_basic_value()
+            .basic()
+            .expect("scoop_alloc_typed must return a pointer value")
+            .into_pointer_value();
+        let is_null = builder
+            .build_is_null(raw_ptr, "rt_alloc_is_null")
+            .expect("checked scoop_alloc_typed wrapper null check must build");
+        builder
+            .build_conditional_branch(is_null, oom_bb, ok_bb)
+            .expect("checked scoop_alloc_typed wrapper branch must build");
+
+        builder.position_at_end(oom_bb);
+        let fatal = self.declare_runtime_error_fatal();
+        builder
+            .build_call(
+                fatal,
+                &[ret_ptr_ty.const_null().into()],
+                "rt_alloc_oom_fatal",
+            )
+            .expect("checked scoop_alloc_typed wrapper fatal call must build");
+        builder
+            .build_unreachable()
+            .expect("checked scoop_alloc_typed wrapper unreachable must build");
+
+        builder.position_at_end(ok_bb);
+        builder
+            .build_return(Some(&raw_ptr))
+            .expect("checked scoop_alloc_typed wrapper return must build");
+
+        checked
     }
 
     pub(super) fn declare_runtime_once_begin(&self) -> FunctionValue<'ctx> {

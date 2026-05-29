@@ -1,29 +1,43 @@
-# Claude Execution Plan
+# Execution Plan
 
 ## Scope
 
-- Work on exactly the first incomplete task in `TODO.md`: `P2-T03`, "接入 hard cap 与 OOM 返回".
-- Treat `TODO.md` and `TODO-2.md` as the source of truth for ordering, validation, and completion records.
-- Stop after committing `P2-T03`; do not start `P2-T03R`.
+- Follow `TODO.md` as the authoritative task list.
+- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Stop after completing and committing that one task, or after committing any required prerequisite/task-list update if the task is blocked.
 
-## Step-By-Step Plan
+## Steps
 
-1. Confirm the latest commit and current worktree state for directly relevant unfinished work.
-2. Read the `P2-T03` task body plus the related `GC_PACING.md` and `PLAN.md` hard-cap requirements.
-3. Inspect the Immix block-pool growth path, `scoop_alloc`, env parsing, and existing block-pool tests.
-4. Implement `SCOOP_GC_MAX_HEAP_BYTES` as an env-backed heap cap with default `0` meaning no cap.
-5. Apply the cap only after the required GC retry has had a chance to reclaim memory, so reusable blocks still allow allocation near the cap.
-6. Ensure `scoop_alloc` returns `NULL` cleanly when the cap prevents further growth, including direct large-object growth.
-7. Add focused Immix regression coverage for near-cap reuse success and true over-cap `NULL` return.
-8. Run formatting, linting, focused runtime tests, the full Rust test suite, spec fixture check, and fixture suite.
-9. Mark `P2-T03` as `[DONE]` in both `TODO.md` and `TODO-2.md` with the validation record.
-10. Commit all task-related changes with the required co-author trailer, then stop.
+1. Read `TODO.md` first and identify the first incomplete task.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Inspect the task's referenced code, tests, fixtures, and specifications.
+4. Implement the task without narrowing scope or using workaround behavior.
+5. Update or add the smallest relevant tests/fixtures for the task.
+6. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixtures as needed.
+7. If any unscheduled test or fixture failure is observed, fix it or add the minimum prerequisite/follow-up task in `TODO.md` before marking the current task complete.
+8. Mark the task title `[DONE]` in `TODO.md` and update its completion record after implementation and validation pass.
+9. Commit all task-related changes with a descriptive message.
+10. Stop without starting the next task.
 
-## Progress Log
+## Progress
 
-- 2026-05-29 22:43 +08: Identified `P2-T03` as the first incomplete task.
-- 2026-05-29 22:55 +08: Reviewed the P2-T03 requirements and the existing Immix allocation/block-pool implementation.
-- 2026-05-29 23:05 +08: Implemented env parsing, heap cap storage, Immix growth checks, large-object cap handling, and focused hard-cap regression coverage.
-- 2026-05-29 23:20 +08: Validation passed: `cargo fmt`, focused hard-cap and block-pool tests, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
-- 2026-05-29 23:35 +08: Refactored reserved-byte debug accounting to reuse the hard-cap helper and re-ran the same validation successfully.
-- 2026-05-29 23:43 +08: Confirmed alternate runtime backends compile and pass their tests with `gc-baseline`, `gc-minimal`, and `gc-hosted` feature selections.
+- Plan initialized before repository inspection.
+- First incomplete task identified: `P2-T03R` in `TODO-2.md`, review of the hard-cap/OOM work from `P2-T03`.
+- Latest commit `af1cbbde [P2-T03] Add GC hard cap OOM path` is directly relevant and will be reviewed as the task target.
+- Review findings to fix before completion:
+  - Immix minor-GC to-space block allocation can allocate new blocks without checking `SCOOP_GC_MAX_HEAP_BYTES`.
+  - LLVM generated allocations can dereference the result of `scoop_alloc_typed` without guarding the NULL OOM path.
+- Implemented fixes in progress:
+  - Added pending to-space reserve accounting to Immix hard-cap checks.
+  - Routed generated `scoop_alloc_typed` calls through an internal checked wrapper that traps via `scoop_runtime_error_fatal(NULL)` on OOM.
+  - Added regressions for nursery to-space hard-cap enforcement and generated-code OOM trap behavior.
+- Validation progress:
+  - `cargo fmt` passed.
+  - `cargo clippy --all-targets -- -D warnings` passed.
+  - Targeted hard-cap runtime regressions passed.
+  - Rebuilt workspace tools and the generated-code OOM fixture passed.
+- Full validation passed:
+  - `cargo test --all --all-targets`
+  - `python3 tools/spec_fixtures.py check`
+  - `python3 tools/run_fixtures.py`
+- `P2-T03R` marked `[DONE]` in `TODO.md` and `TODO-2.md` with completion record.

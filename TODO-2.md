@@ -147,7 +147,7 @@
   - 测试：新增 `gc_immix_hard_cap`，覆盖 tight cap 下 unrooted block 经 full GC 回收后分配成功、live/pinned block 超 cap 时干净返回 `NULL`，以及 large-object fallback 遵守 hard cap。
   - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`。
 
-### [TODO] P2-T03R：Review hard cap
+### [DONE] P2-T03R：Review hard cap
 
 - 参考：
   - P2-T03 完成记录
@@ -166,7 +166,12 @@
   - hard cap 行为正确。
 - 依赖：P2-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P2-T03 的 old-space block-pool 与 large-object hard-cap 路径均保持“先 full GC retry，仍需增长且超过 `SCOOP_GC_MAX_HEAP_BYTES` 才返回 NULL”的时序；底层 `scoop_alloc` / `scoop_alloc_typed` 的 NULL 返回语义保持可达。
+  - 修正：Immix to-space 分配新增 pending new-block 预留统计，minor GC / compaction 在新 block 尚未挂入 `all_blocks` 时也会把它们计入 hard-cap 判断，避免 live nursery evacuation 绕过 cap 暂时增长到 cap 之外。
+  - 修正：LLVM codegen 的 `scoop_alloc_typed` 调用改经内部 `__scoop_alloc_typed_checked` wrapper；runtime 返回 NULL 时统一调用 `scoop_runtime_error_fatal(NULL)` 并 `unreachable`，避免后续 GEP/store 对 NULL 产生 UB。`scoop_entry_argv_array` 在构造 argv Array/String OOM 时也改为 fatal trap，不向非空 Array/String 入口传播 NULL。
+  - 测试：新增 `gc_immix_hard_cap_nursery` 覆盖 cap=1 block、nursery live object 下 minor to-space 不得越过 cap；新增 `gc_hard_cap_codegen_oom_trap.scoop` 覆盖 generated allocation OOM 以 exit 3 trap 而非崩溃；同步更新 LLVM build fixture 对 checked allocation wrapper 的断言。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_hard_cap_nursery --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo build`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/gc_hard_cap_codegen_oom_trap.scoop`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T04：hosted/minimal backend pacing parity
 

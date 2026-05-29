@@ -1027,6 +1027,7 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
       0,
       capacity);
   if (parts == 0) {
+    scoop_panic(0);
     return 0;
   }
 
@@ -1036,17 +1037,30 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
   if (argc <= 0 || argv == 0) {
     void *arr = scoop_mutable_array_freeze(parts);
     scoop_unpin(parts);
+    if (arr == 0) {
+      scoop_panic(0);
+      return 0;
+    }
     return arr;
   }
 
   for (int32_t i = 0; i < argc; i++) {
     const char *s = argv[i];
     const ScoopString *str = scoop_string_from_cstr(s);
+    if (str == 0) {
+      scoop_unpin(parts);
+      scoop_panic(0);
+      return 0;
+    }
     scoop_mutable_array_push_ref(parts, (void *)str);
   }
 
   void *arr = scoop_mutable_array_freeze(parts);
   scoop_unpin(parts);
+  if (arr == 0) {
+    scoop_panic(0);
+    return 0;
+  }
   return arr;
 }
 

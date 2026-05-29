@@ -183,9 +183,11 @@ static inline uint64_t scoop_gc_immix_heap_reserved_bytes_locked(ScoopGcImmixSta
   return total;
 }
 
-static inline uint32_t scoop_gc_immix_heap_can_reserve_locked(ScoopGcImmixState *state,
-                                                              ScoopGcHeap *heap,
-                                                              uint64_t bytes) {
+static inline uint32_t scoop_gc_immix_heap_can_reserve_with_pending_locked(
+    ScoopGcImmixState *state,
+    ScoopGcHeap *heap,
+    uint64_t bytes,
+    uint64_t pending_bytes) {
   if (heap == 0 || bytes == 0) {
     return 1;
   }
@@ -196,10 +198,17 @@ static inline uint32_t scoop_gc_immix_heap_can_reserve_locked(ScoopGcImmixState 
   }
 
   uint64_t reserved = scoop_gc_immix_heap_reserved_bytes_locked(state, heap);
+  reserved = scoop_gc_immix_u64_saturating_add(reserved, pending_bytes);
   if (reserved > max_heap_bytes) {
     return 0;
   }
   return bytes <= (max_heap_bytes - reserved);
+}
+
+static inline uint32_t scoop_gc_immix_heap_can_reserve_locked(ScoopGcImmixState *state,
+                                                              ScoopGcHeap *heap,
+                                                              uint64_t bytes) {
+  return scoop_gc_immix_heap_can_reserve_with_pending_locked(state, heap, bytes, 0);
 }
 
 static inline size_t scoop_gc_immix_align_up_size(size_t value, size_t alignment) {
