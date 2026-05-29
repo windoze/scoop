@@ -104,7 +104,7 @@
   - Fixtures/golden：更新 raw atomic、top-level atomic storage、field-lvalue、runtime GC cross-thread roots、B-26 atomic gate fixtures，以及 HIR / effect-lowered golden 中因 sysroot 新增 nominal/field/vtable 引起的稳定计数变化。
   - 验证：`cargo fmt`；`cargo build -p scoopc -p scoop`；`cargo test -p scoopc_hir sysroot_atomic_int_lowers_to_marked_nominal_not_int --all-targets`；相关 atomic/build/effect_lowered targeted fixtures；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P3-T02R：Review `__AtomicInt` struct 化
+### [DONE] P3-T02R：Review `__AtomicInt` struct 化
 
 - 参考：
   - P3-T02 完成记录
@@ -125,7 +125,11 @@
   - `__AtomicInt` 类型化收口。
 - 依赖：P3-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：`__AtomicInt` 已类型化收口。反向 grep 确认原 P0/P3 记录的 5 个类型层/HIR/MIR erasure 点不再把 `scoop.unsafe.__AtomicInt` 等同为 `Int`；sysroot 声明保持 `@InteriorMutable public struct __AtomicInt { val raw: Int }`，TypeEnv 单元测试确认 alias lowering 回到 marked nominal 且 `atomic_ty != builtins.int`。
+  - 布局/ABI：剩余 Rust 侧 `__AtomicInt` 命中集中在 LLVM layout/ABI 映射与测试；`ty.rs` / `effect_lowered/layout/abi.rs` 只保留 word-sized signed integer 的 codegen representation，原子 intrinsic lowering 继续要求 addressable lvalue slot 并校验 `Int` word 宽度，不改变 source-level 类型身份。
+  - 显式构造：`AtomicInt` / `AtomicBool` 与 atomic fixtures 均使用 `__AtomicInt(...)` 构造；`atomic_int_not_int_initializer_is_error.scoop` 覆盖隐式 `Int -> __AtomicInt` 初始化拒绝路径。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_hir sysroot_atomic_int_lowers_to_marked_nominal_not_int --all-targets`；targeted fixtures：`tests/fixtures/typecheck/atomic_int_not_int_initializer_is_error.scoop`、`tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`、`tests/fixtures/run-pass/unsafe_atomic_int_field_lvalue_basic.scoop`、`tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`tests/fixtures/build/unsafe_atomic_int_field_lvalue_llvm.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ## P4：Immortal 运行期支持与 content-hash 键
 
