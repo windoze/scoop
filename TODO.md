@@ -89,7 +89,7 @@
 | P5-T05 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05审计-overload-diagnostics-与-user-visible-failure-policy) | [DONE] 审计 overload diagnostics 与 user-visible failure policy |
 | P5-T05R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05rreview-overload-diagnostics-审计) | [DONE] Review P5-T05 overload diagnostics 审计 |
 | P6-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t01回写-scoop_full_specmd-与-split-spec-的全部语言变更) | [DONE] 回写 `SCOOP_FULL_SPEC.md` 与 split spec 的全部语言变更 |
-| P6-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t01rreview-spec-回写完整性) | Review P6-T01 spec 回写完整性 |
+| P6-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t01rreview-spec-回写完整性) | [DONE] Review P6-T01 spec 回写完整性 |
 | P6-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t02同步-spec-doctests-与-handwritten-fixtures-到新-surface) | 同步 spec doctests 与 handwritten fixtures 到新 surface |
 | P6-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t02rreview-fixture-同步结果) | Review P6-T02 fixture 同步结果 |
 | P6-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t03执行旧-surface-与-overloadcodegen-回归审计) | 执行旧 surface 与 overload/codegen 回归审计 |

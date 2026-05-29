@@ -409,7 +409,7 @@
   - 验证结果：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`git diff --check`；人工对照 `SPEC_FIX.md` summary table 与 `OVERLOAD_RESOLUTION.md` §12 复核 changed spec sections。未运行 `cargo fmt` / `cargo clippy` / `cargo test` / full fixture suite，因为本任务只修改 Markdown 文档、`TODO` 记录和执行记忆，不影响编译输出；沿用 P5-T05R 完成记录中的最近完整绿色矩阵。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` 13 项与 `OVERLOAD_RESOLUTION.md` §12 在 active full/split spec 的回写要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P6-T01R：Review spec 回写完整性
+### [DONE] P6-T01R：Review spec 回写完整性
 
 - 参考：
   - P6-T01 完成记录
@@ -433,10 +433,10 @@
   - P6-T01 spec 回写完整且一致。
 - 依赖：P6-T01
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P6-T01 对 `SCOOP_FULL_SPEC.md` 与 split spec 的回写；修正 full spec 中 tuple `var` 解构矛盾、closure `var` capture 替代建议、overload effective type / constructor / override / diagnostics 细节；同步 `docs/spec/language_spec-part2.md` 的 `ref` / `value` bound 细则与 `part3.md` 的 overload / closure capture 规则。
+  - 核心决策：active spec 继续以默认 `internal`、effect op 普通 qualified call、handler `on`、tuple `.0` / `.1`、f-string `${...}`、`operator` modifier required、`ref` / `value` bound-only keyword 和 `!!` / `as` / refutable pattern / enum `with` mismatch panic 为当前 contract；overload shadowing 以 visibility 过滤后的可见同名候选建立边界，不让不可见声明压制低优先级可见候选；旧 surface 未作为正例保留。
+  - 验证结果：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`git diff --check`。未运行 `cargo fmt` / `cargo clippy` / `cargo test` / full fixture suite，因为本任务只修改 Markdown 文档、`TODO` 记录和执行记忆，不影响编译输出；沿用 P6-T01 / P5-T05R 完成记录中的最近完整绿色矩阵。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` summary table 与 `OVERLOAD_RESOLUTION.md` §12 的 P6-T01 review 要求；`SCOOP_FULL_SPEC.md` 与 split spec 已同步为 active contract；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P6-T02：同步 spec doctests 与 handwritten fixtures 到新 surface
 

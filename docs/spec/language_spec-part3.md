@@ -151,14 +151,14 @@ consume(do { computeValue() }) { x -> x + 1 }
 
 - effective parameter signature 等价的声明是 `conflicting_overloads`。仅返回类型、effect row、type parameter 名称或默认值不同也算冲突。
 - Generic overload 只支持“同 shape、仅 type parameter bound 不同”的有限形式；其它 generic shape 或 TP 一致性约束差异是 `generic_overload_shape_mismatch`。
-- type parameter 的 effective overload type 是其声明 bound；无 type bound 时为 `Any`。多 bound 按 intersection 或等价 alternatives 参与 specificity。
+- concrete 参数类型的 effective overload type 是该 concrete 类型本身。type parameter 的 effective overload type 是其声明 bound；无 type bound 时为 `Any`。多 bound 按 intersection 或等价 alternatives 参与 specificity。复合参数类型中出现的方法级 type parameter 会先递归替换为对应 effective overload type，再参与等价性或 specificity 比较。
 - vararg 与非 vararg 的可接受 arity 范围重叠时定义点 reject：`vararg_overlaps_non_vararg`。
-- 构造器在所属 class 内使用同一套 overload 规则。
-- 虚方法把 override 与 overload 分开：同签名必须显式 `override` 且父方法必须 `open`；同名不同签名是新增 overload。虚方法不得引入 method-level type parameter。
+- 构造器在所属 class 内使用同一套 overload 规则。构造器级 type parameter 参与 generic overload 规则；class 级 type parameter 已由 class 实例化固定，不算构造器级 generic。`Foo(...)` 在 `Foo` 的构造器集合内走同一套调用点阶段；当 `Foo` 命名类型时，构造器决议不与同名 top-level function overload set 混合。
+- 虚方法把 override 与 overload 分开：子声明与继承方法同签名但父方法非 `open` 时是 `override_non_open_method`；父方法为 `open` 但子声明缺少 `override` 时是 `missing_override`；写了 `override` 但没有继承方法匹配该签名时是 `override_target_not_found`。同名不同签名是新增 overload。虚方法不得引入 method-level type parameter。
 
 调用点 resolution 分阶段进行，不回溯：
 
-1. 候选收集顺序为 local → member → extension → top-level → imported。每一层先过滤不可见声明；一旦某层存在可见同名候选，就不继续查找低优先级层。
+1. 候选收集顺序为 local → member → extension → top-level → imported。一层只有在 visibility 过滤后仍有可见同名候选时才建立 shadow 边界；此后即使这些候选在 applicability 阶段失败，也不继续查找低优先级层。不可见声明可保留用于诊断，但不得压制低优先级的可见候选。
 2. Visibility 在 applicability 前过滤；不可见候选不参与 specificity。
 3. Applicability 检查 arity、命名参数、默认参数、vararg/spread 与实参子类型关系。没有隐式 widening 或隐式 cast；`Nothing` 是所有类型的 bottom subtype。
 4. Specificity 选择唯一 most-specific 候选：`A` 比 `B` 更具体当且仅当每个 effective 参数位 `A_i <: B_i`，且至少一位严格更具体。成员/extension receiver 是第 0 参数位。调用点 inferred substitution、返回类型和 effect row 不参与 specificity。
@@ -170,7 +170,7 @@ consume(do { computeValue() }) { x -> x + 1 }
 - Operator 表达式先把 token 映射到函数名，再走同一 overload 规则。只有带 `operator` 修饰符的声明参与 operator-positioned call；普通 `a.plus(b)` 不要求 `operator`。
 - Lambda / function-type overload 走普通函数类型子类型和 specificity，不加额外保守 reject。
 - Effect compatibility 在唯一候选选定后检查；effect mismatch 不会回退到其它 overload。
-- overload 诊断必须列出相关候选的文件、行、列、signature 和具体原因，并且不得暴露 backend、LLVM、codegen、lowering 等内部术语。
+- overload 诊断必须列出相关候选的文件、行、列、signature 和具体原因。`no_applicable_overload` 必须报告实参类型和每个候选的不适用原因；`ambiguous_overload` 必须在不可比位置说明 effective type 来源，区分 concrete 参数类型和 type-parameter bound。用户可见错误不得暴露 backend、LLVM、codegen、lowering 等内部术语。
 
 示例：
 
@@ -224,7 +224,7 @@ val h = { println("hello") }
 - 当期望类型明确且只有一个参数时，可使用隐式 `it`。
 - Closure body 使用尾表达式规则。
 - Closure 可捕获外层 `val` 局部变量。
-- Closure body 引用外层 `var` 是编译错误；需要共享可变状态时应显式使用 `RefCell`、atomic 类或其它库级 mutable cell。只需要只读快照时，应在创建 closure 前显式写 `val snapshot = currentValue`。
+- Closure body 引用外层 `var` 是编译错误；需要共享可变状态时应显式使用 `RefCell`、atomic 类或其它库级 mutable cell。累积模式应优先使用 `fold` 或其它 higher-order operator。只需要只读快照时，应在创建 closure 前显式写 `val snapshot = currentValue`。
 
 Receiver lambda：
 

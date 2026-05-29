@@ -660,6 +660,10 @@ class Box<T>(val value: T) where T: Show
 - 约束目标必须是当前声明的类型参数。
 - Bound 可以是普通名义类型，也可以带类型实参：`T: Producer<String>`。
 - Bound 也可以是 `ref` 或 `value` bound keyword：`T: ref` 要求类型实参为引用类型，`T: value` 要求类型实参为值类型。它们不是类型，不能出现在参数类型、返回类型、type argument、`is` / `as`、supertype list 等位置。
+- 同一类型参数上 `ref` 与 `value` 互斥。
+- `ref` 由引用类型满足：class/interface/effect 实例、`String`、array、function value 以及其它 GC-managed reference type。
+- `value` 由值类型满足：struct、tuple、enum、`Option<T>`、`Unit` 和内建标量值类型。
+- `ref` / `value` 只是编译期约束，不进入 object layout、vtable、itable、type descriptor、RTTI runtime-match name 或 runtime cast/test 机制。
 - 重复的完全相同约束是编译错误。
 - 冲突 class bound 是编译错误；例如同一 `T` 同时要求两个不相关 class 上界。
 - 使用泛型声明时，实际类型实参必须满足所有 bound。

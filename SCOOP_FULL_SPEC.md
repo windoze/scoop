@@ -296,7 +296,7 @@ val y = p.1    // "hi"
 
 - Tuples are structurally typed: `(Int, String)` is the same type everywhere.
 - Tuples are value types (immutable, copy semantics).
-- Tuples support destructuring in `val`/`var` bindings and `when` expressions.
+- Tuples support destructuring in `val` bindings and `when` expressions. `var` bindings do not support destructuring patterns.
 - `Unit` / `()` is the 0-arity tuple and the implicit return type of functions with no declared return type.
 
 #### 2.3.4 Built-in Integer Types
@@ -1285,15 +1285,15 @@ Definition-time rules:
 
 - Two declarations with equivalent effective parameter signatures are a `conflicting_overloads` error. This includes declarations that differ only by return type, effect row, type parameter names, or default values.
 - Generic overloads are supported only for the same parameter shape where the distinction is the declared type-parameter bounds. Generic overloads with different type-parameter consistency constraints, incompatible shapes, or different type-parameter arity are rejected with `generic_overload_shape_mismatch`.
-- A type parameter's effective overload type is its declared type bound; an unbounded type parameter uses `Any`. Multiple type bounds are treated as their intersection for comparison when the implementation has intersection support, or as an equivalent set of alternatives for specificity.
+- A concrete parameter type's effective overload type is itself. A type parameter's effective overload type is its declared type bound; an unbounded type parameter uses `Any`. Multiple type bounds are treated as their intersection for comparison when the implementation has intersection support, or as an equivalent set of alternatives for specificity. In composite parameter types, such as `List<T>` or function types, method-level type parameters are recursively replaced by their effective overload types before equivalence or specificity comparison.
 - Vararg and non-vararg overloads whose accepted arity ranges overlap are rejected with `vararg_overlaps_non_vararg`.
-- Constructors use the same overload rules as functions within their owning class.
+- Constructors use the same overload rules as functions within their owning class. Constructor-level type parameters participate in the generic overload rules, while class-level type parameters are already fixed by the class instantiation. A `Foo(...)` expression resolves through the same call-site phases within `Foo`'s constructor set; when `Foo` names a type, constructor resolution is not mixed with a same-named top-level function overload set.
 - Effect row differences alone do not form distinct overloads; such declarations conflict.
-- Virtual method families separate override from overload. A child declaration with the same signature as an inherited method must use `override`, and the inherited method must be `open`; a child declaration with the same name but a different signature adds a new overload. Virtual methods (`open`, `abstract`, `override`, and interface methods) may not introduce method-level type parameters.
+- Virtual method families separate override from overload. A child declaration with the same signature as an inherited method is rejected if the inherited method is not `open` (`override_non_open_method`), if the inherited method is `open` but the child omits `override` (`missing_override`), or if the child writes `override` but no inherited method has a matching signature (`override_target_not_found`). A child declaration with the same name but a different signature adds a new overload. Virtual methods (`open`, `abstract`, `override`, and interface methods) may not introduce method-level type parameters.
 
 Call-site overload resolution runs in phases and does not backtrack:
 
-1. Candidate collection searches local declarations, then members, then extensions, then top-level declarations, then imports. For a layer, invisible declarations are discarded before shadowing; once a layer contains visible same-name candidates, lower-priority layers are not considered.
+1. Candidate collection searches local declarations, then members, then extensions, then top-level declarations, then imports. A layer establishes the shadowing boundary only when visibility filtering leaves one or more visible same-name candidates; lower-priority layers are then not considered even if those candidates later fail applicability. Invisible declarations may be retained for diagnostics, but they never suppress lower-priority visible candidates.
 2. Visibility filtering happens before applicability. Invisible candidates do not affect specificity.
 3. Applicability checks arity, named arguments, defaults, varargs/spread, and argument subtyping. There is no implicit numeric widening or implicit cast; `Nothing` is the bottom subtype of every type.
 4. Specificity chooses a unique most-specific applicable candidate. `A` is more specific than `B` iff every effective parameter type of `A` is a subtype of the corresponding effective parameter type of `B`, and at least one position is strictly more specific. The member receiver is parameter position 0 for member and extension method specificity. Inferred substitutions at the call site, return types, and effect rows are not used for specificity.
@@ -1305,7 +1305,7 @@ Additional surface rules:
 - Operator expressions first map the operator token to its function name, then use the same overload resolution rules. Only declarations marked with the `operator` modifier participate in operator-positioned calls; ordinary `a.plus(b)` calls do not require `operator`.
 - Lambda and function-type overloads use ordinary function-type subtyping for applicability and specificity; there is no special lambda-only rejection rule.
 - Effect compatibility is checked after a unique candidate is selected. An effect mismatch never causes fallback to a less-specific overload.
-- Overload diagnostics must list all relevant candidates with file, line, column, signature, and a reason such as non-applicability or incomparable effective parameter positions. User-visible overload errors must not expose backend, lowering, LLVM, codegen, or other internal implementation terms.
+- Overload diagnostics must list all relevant candidates with file, line, column, signature, and a reason such as non-applicability or incomparable effective parameter positions. `no_applicable_overload` reports the argument types and a per-candidate rejection reason. `ambiguous_overload` reports the effective type source for each incomparable position, distinguishing concrete parameter types from type-parameter bounds. User-visible overload errors must not expose backend, lowering, LLVM, codegen, or other internal implementation terms.
 
 ### 7.5 Function Types and Effects
 
@@ -1448,7 +1448,7 @@ val b = bump()      // 2
 val outer = cell.value  // 2
 ```
 
-If a closure must share mutable state with its creator, or if a closure instance must hold state across calls, use an explicit library type such as `RefCell<T>`, `AtomicInt`, `AtomicBool`, `Atomic<T>` for reference types, or `AtomicValue<T>` for value types. If the intended behavior is a read-only snapshot, bind it explicitly before creating the closure: `val snapshot = currentValue`.
+If a closure must share mutable state with its creator, or if a closure instance must hold state across calls, use an explicit library type such as `RefCell<T>`, `AtomicInt`, `AtomicBool`, `Atomic<T>` for reference types, or `AtomicValue<T>` for value types. For accumulation patterns, prefer `fold` or another higher-order operator. If the intended behavior is a read-only snapshot, bind it explicitly before creating the closure: `val snapshot = currentValue`.
 
 The initial shared-state sysroot surface is:
 
