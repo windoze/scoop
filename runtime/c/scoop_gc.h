@@ -264,30 +264,13 @@ typedef struct ScoopGcFreeBlock {
   uint64_t size;
 } ScoopGcFreeBlock;
 
-// Pacing defaults（P1）：`next_gc == 0` 表示 pacing 被 `SCOOP_GC_PACING=off` 关闭。
-#define SCOOP_GC_PACING_MIN_THRESHOLD_BYTES (4ull * 1024ull * 1024ull)
+// Pacing defaults（P1）：`next_gc == 0` 表示 pacing 被关闭。
+#define SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES (4ull * 1024ull * 1024ull)
+#define SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR 1.5
 
-static inline const char *scoop_gc_env_skip_space(const char *raw) {
-  if (raw == 0) {
-    return 0;
-  }
-  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
-    raw++;
-  }
-  return raw;
-}
-
-// 返回 heap 初始化时的 pacing 水位线；默认开启，`SCOOP_GC_PACING=off` 时返回 0。
+// 返回 heap 初始化时的默认 pacing 水位线；runtime init 随后会应用 env 配置。
 static inline uint64_t scoop_gc_pacing_initial_next_gc(void) {
-  const char *raw = scoop_gc_env_skip_space(getenv("SCOOP_GC_PACING"));
-  if (raw == 0 || raw[0] == 0) {
-    return (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
-  }
-  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0 ||
-      strcmp(raw, "off") == 0) {
-    return 0;
-  }
-  return (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  return (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
 }
 
 // GC heap（v0：骨架）。
@@ -305,6 +288,8 @@ typedef struct ScoopGcHeap {
 
   // Pacing state：next_gc 是累计 bytes_allocated 水位线，request_collect 由 safepoint 消费。
   uint64_t next_gc;
+  uint64_t pacing_min_threshold_bytes;
+  double pacing_target_growth_factor;
   uint32_t request_collect;
   uint32_t _pacing_reserved_u32;
 } ScoopGcHeap;

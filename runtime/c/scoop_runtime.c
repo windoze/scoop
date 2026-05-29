@@ -4,6 +4,7 @@
 // - GC / 线程注册 / 显式 root frame / 分配与字符串底层 substrate
 // - 不再承载 continuation / effect policy source of truth
 
+#include <errno.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdatomic.h>
@@ -131,6 +132,11 @@ static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
 // - GC 触发点选择为“分配前”：避免在对象尚未被 caller 放入 roots 之前被 GC 误回收。
 static uint64_t scoop_rt_gc_stress_interval = 0;
 static _Atomic(uint64_t) scoop_rt_gc_stress_alloc_counter = 0;
+static uint32_t scoop_rt_gc_pacing_enabled = 1;
+static uint64_t scoop_rt_gc_pacing_min_threshold_bytes =
+    (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+static double scoop_rt_gc_pacing_target_growth_factor =
+    SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
 
 static const char *scoop_rt_env_skip_space(const char *raw) {
   if (raw == 0) {
@@ -140,6 +146,21 @@ static const char *scoop_rt_env_skip_space(const char *raw) {
     raw++;
   }
   return raw;
+}
+
+static uint32_t scoop_rt_env_at_end_after_space(const char *raw) {
+  raw = scoop_rt_env_skip_space(raw);
+  return raw == 0 || raw[0] == 0;
+}
+
+static uint32_t scoop_rt_env_matches_token(const char *raw, const char *token) {
+  size_t len = strlen(token);
+  return strncmp(raw, token, len) == 0 && scoop_rt_env_at_end_after_space(raw + len);
+}
+
+static uint32_t scoop_rt_env_is_false_or_off(const char *raw) {
+  return scoop_rt_env_matches_token(raw, "0") || scoop_rt_env_matches_token(raw, "false") ||
+         scoop_rt_env_matches_token(raw, "no") || scoop_rt_env_matches_token(raw, "off");
 }
 
 static uint64_t scoop_rt_parse_gc_stress_interval(void) {
@@ -166,6 +187,73 @@ static uint64_t scoop_rt_parse_gc_stress_interval(void) {
 
   // 非数字：只要不是显式 false/0/no，就视为“开启（每次分配触发）”。
   return 1;
+}
+
+static uint64_t scoop_rt_parse_env_u64_or_default(const char *name,
+                                                  uint64_t default_value,
+                                                  uint64_t min_value) {
+  const char *raw = scoop_rt_env_skip_space(getenv(name));
+  if (raw == 0 || raw[0] == 0) {
+    return default_value;
+  }
+
+  errno = 0;
+  char *end = 0;
+  unsigned long long v = strtoull(raw, &end, 10);
+  if (end == raw || errno != 0 || !scoop_rt_env_at_end_after_space(end)) {
+    return default_value;
+  }
+  if ((uint64_t)v < min_value) {
+    return default_value;
+  }
+  return (uint64_t)v;
+}
+
+static double scoop_rt_parse_env_double_or_default(const char *name, double default_value) {
+  const char *raw = scoop_rt_env_skip_space(getenv(name));
+  if (raw == 0 || raw[0] == 0) {
+    return default_value;
+  }
+
+  errno = 0;
+  char *end = 0;
+  double v = strtod(raw, &end);
+  if (end == raw || errno != 0 || !scoop_rt_env_at_end_after_space(end) || !isfinite(v) ||
+      v <= 0.0) {
+    return default_value;
+  }
+  return v;
+}
+
+static void scoop_rt_parse_gc_pacing_config(void) {
+  const char *raw_pacing = scoop_rt_env_skip_space(getenv("SCOOP_GC_PACING"));
+  uint32_t pacing_enabled = 1;
+  if (raw_pacing != 0 && raw_pacing[0] != 0 && scoop_rt_env_is_false_or_off(raw_pacing)) {
+    pacing_enabled = 0;
+  }
+  if (scoop_rt_gc_stress_interval != 0) {
+    pacing_enabled = 0;
+  }
+
+  scoop_rt_gc_pacing_enabled = pacing_enabled;
+  scoop_rt_gc_pacing_min_threshold_bytes = scoop_rt_parse_env_u64_or_default(
+      "SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES",
+      (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES,
+      1u);
+  scoop_rt_gc_pacing_target_growth_factor = scoop_rt_parse_env_double_or_default(
+      "SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR",
+      SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR);
+}
+
+static void scoop_rt_apply_gc_pacing_config(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+
+  heap->pacing_min_threshold_bytes = scoop_rt_gc_pacing_min_threshold_bytes;
+  heap->pacing_target_growth_factor = scoop_rt_gc_pacing_target_growth_factor;
+  heap->next_gc = scoop_rt_gc_pacing_enabled ? scoop_rt_gc_pacing_min_threshold_bytes : 0;
+  heap->request_collect = 0;
 }
 
 // GC heap（v0：数据结构骨架）。
@@ -463,10 +551,12 @@ void scoop_runtime_init(void) {
   scoop_rt_initialized = 1;
   scoop_rt_init_calls = 1;
 
-  // 解析一次 GC stress 开关（仅首次 init 生效）。
+  // 解析一次 GC stress / pacing 开关（仅首次 init 生效）。
   scoop_rt_gc_stress_interval = scoop_rt_parse_gc_stress_interval();
+  scoop_rt_parse_gc_pacing_config();
 
   scoop_gc_heap_init(&scoop_gc_heap);
+  scoop_rt_apply_gc_pacing_config(&scoop_gc_heap);
 
   SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
                sizeof(ScoopString),

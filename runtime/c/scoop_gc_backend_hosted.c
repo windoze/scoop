@@ -440,6 +440,8 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
   heap->next_gc = scoop_gc_pacing_initial_next_gc();
+  heap->pacing_min_threshold_bytes = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+  heap->pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
   heap->request_collect = 0;
   heap->_pacing_reserved_u32 = 0;
 }

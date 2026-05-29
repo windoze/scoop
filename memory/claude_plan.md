@@ -1,27 +1,29 @@
-# 执行计划
+# Claude Execution Plan
 
-## 范围
+## Scope
 
-- 以 `TODO.md` 作为权威任务列表。
-- 只处理第一个标题未带 `[DONE]` 的任务。
-- 完成该任务并提交后停止，不进入下一个任务。
+- Follow `TODO.md` as the authoritative task list.
+- Select and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Do not proceed to later tasks after completing or blocking the selected task.
 
-## 步骤
+## Steps
 
-1. 读取 `TODO.md`，定位第一个未完成任务及其验证要求。
-2. 只检查该任务需要的代码、文档和最近提交上下文。
-3. 完成所需实现或 review 修复；若出现具体阻塞前置项，则更新 `TODO.md` 并提交后停止。
-4. 按要求依次运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，再运行相关度量、完整测试和 fixture suite。
-5. 在标记任务完成前处理所有已观察且未安排的失败。
-6. 更新 `TODO.md` / `TODO-1.md`，为完成任务标题加 `[DONE]` 并填写完成记录。
-7. 提交本任务相关全部改动。
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent git context only as needed for direct relevance to that task.
+3. Inspect the implementation areas and tests related to the selected task.
+4. Make the smallest spec-correct changes needed to complete the task, without workarounds.
+5. Run formatting and linting first, then task-relevant tests, then the required full suites if code changed.
+6. If a concrete blocker or unscheduled failing test is found, update `TODO.md` with the minimum prerequisite task and stop after committing that bookkeeping.
+7. If the task is completed, mark its heading `[DONE]`, update its completion record, and commit all relevant changes.
 
-## 进度
+## Progress Log
 
-- 已在执行前初始化本计划文件。
-- 已识别第一个未完成任务：`TODO-1.md` 中的 `P1-T01R`。
-- 最近提交是 `[P1-T01] Implement GC pacing core`，与当前 review 直接相关；提交标题未显示需要另立前置任务的未完成事项。
-- review 聚焦 `ScoopGcHeap` pacing 字段、alloc 侧 request 设置、safepoint 消费、cycle 末 `next_gc` 更新、长程序有界性，以及 pacing-off 对照要求。
-- review 发现 pacing-off 对照路径缺失；已补齐真实的 `SCOOP_GC_PACING=off` 初始化路径，避免用命令或文档绕过验证。
-- 已完成验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、默认 heap-growth 度量、`SCOOP_GC_PACING=off` heap-growth 度量、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均通过。
-- 已更新 `TODO.md` 与 `TODO-1.md`，将 `P1-T01R` 标记为 `[DONE]` 并记录 review 发现、修复和验证结果。
+- Started by recording this execution plan before implementation work.
+- Identified first incomplete task: `P1-T02` in `TODO-1.md`.
+- Latest commit is `[P1-T01R] Review GC pacing core`; it is the direct predecessor and does not add an unfinished blocker for `P1-T02`.
+- Confirmed current pacing core still hardcodes growth factor/min threshold and only has a partial `SCOOP_GC_PACING=off` helper.
+- Implementation direction: parse pacing config once in `scoop_runtime_init`, bypass pacing when GC stress is enabled, and let GC backends read the initialized config.
+- Implemented initial code/test changes: runtime env parsing, configurable Immix target calculation, and subprocess-based heap-growth regressions for on/off/env/stress behavior.
+- Full Rust tests initially failed because internal pacing getters became exported runtime symbols. Adjusted design to store parsed pacing config in `ScoopGcHeap` fields instead, avoiding public ABI expansion.
+- Validation completed successfully: targeted pacing env test, clippy, full Rust test suite, 10M heap-growth on/off metrics, hosted/minimal backend runtime tests, and full fixture suite.
+- Updated `TODO.md` and `TODO-1.md` to mark `P1-T02` as `[DONE]` with completion details. `PLAN.md` was not changed because phase-level sequencing did not change.
