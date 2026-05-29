@@ -244,6 +244,12 @@ static void scoop_rt_parse_gc_pacing_config(void) {
   scoop_rt_gc_pacing_target_growth_factor = scoop_rt_parse_env_double_or_default(
       "SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR",
       SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR);
+  // growth factor 必须 > 1.0：`next_gc = freed + max(min_threshold, live*factor)`，factor <= 1.0
+  // 会让大堆（live*factor 超过 min_threshold 下限）的 next_gc 落到当前 bytes_allocated 之前，
+  // 之后每次分配都会触发 request→collect（GC storm）。非法值回退到默认。
+  if (!(scoop_rt_gc_pacing_target_growth_factor > 1.0)) {
+    scoop_rt_gc_pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  }
   scoop_rt_gc_max_heap_bytes =
       scoop_rt_parse_env_u64_or_default("SCOOP_GC_MAX_HEAP_BYTES", 0, 0);
 }

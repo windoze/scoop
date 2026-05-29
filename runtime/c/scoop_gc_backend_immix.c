@@ -2175,6 +2175,17 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
     return value;
   }
 
+  // 写入 NULL 不可能形成 old→nursery 边，无需加锁扫描 block 或做晋升；直接写入 slot 并 poll。
+  // （与下方一般路径在 state 未就绪时的回退同构：memcpy + safepoint，不依赖 GC 锁。）
+  if (value == 0) {
+    void scoop_thread_register(void);
+    void scoop_gc_safepoint_poll(void);
+    scoop_thread_register();
+    (void)memcpy(slot_addr, &value, sizeof(void *));
+    scoop_gc_safepoint_poll();
+    return value;
+  }
+
   // 与 `scoop_alloc` 一致：写屏障也作为 safepoint（poll）边界，避免 GC 请求 STW 时卡住。
   // 但 `value` 只是当前调用帧里的普通 C 实参，不会像 explicit-frame slots 那样在 poll 时被
   // moving GC 重定位；因此必须先把它写入真实 traced slot，再 poll，让 slot 自身成为权威 root。
