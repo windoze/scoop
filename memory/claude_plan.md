@@ -1,34 +1,33 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 范围
+## Scope
 
-- 目标：严格按照 `TODO.md` 完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 约束：`TODO.md` 是任务顺序和完成状态的唯一权威来源；`PLAN.md` 只在阶段级计划变化时更新。
-- 说明：本文件记录可公开的执行计划、进度和关键决策，不记录隐藏推理细节。
+- Work on exactly the first incomplete task in `TODO.md`: `P2-T02`, "block pool 耗尽先 full GC 再增长".
+- Treat `TODO.md` as the source of truth for task order, dependencies, validation, and completion records.
+- Do not proceed to later tasks after completing or blocking the selected task.
 
-## 步骤
+## Step-By-Step Plan
 
-1. 读取 `TODO.md`，识别第一个未完成任务，并确认其依赖、验证要求和完成记录格式。
-2. 检查最近提交和当前工作区状态，确认是否有与当前任务直接相关的未完成问题或已有未提交修改。
-3. 根据当前任务读取相关代码、测试和文档，只做必要范围内的上下文构建。
-4. 如果任务可直接完成，实施最小正确改动；如果发现阻塞当前任务的缺失特性或规格不匹配，在 `TODO.md` 中加入最小 prerequisite 任务并停止。
-5. 按要求运行格式化、lint 和相关测试；若代码变更影响面较大，依次运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 和 `python3 tools/run_fixtures.py`。
-6. 若发现未被明确排期的测试或 fixture 失败，修复它，或在 `TODO.md` 中把最小修复任务排到完成当前任务之前。
-7. 完成后在 `TODO.md` 中给任务标题加 `[DONE]` 并更新完成记录；仅当阶段级计划变化时更新 `PLAN.md`。
-8. 提交所有与本次任务相关的修改，提交信息包含任务编号和简短说明。
-9. 停止，不继续处理下一个任务。
+1. Confirm the latest commit has no directly relevant unfinished prerequisite for `P2-T02`.
+2. Read the P2 pacing design and current Immix block-pool implementation around `scoop_gc_immix_state_take_block`.
+3. Inspect runtime tests that exercise Immix allocation, collection, block reuse, and pacing to identify the smallest correct regression coverage for full-GC-before-grow.
+4. Implement the block-pool fallback so that when both `reusable_blocks` and `free_blocks` are empty, allocation requests first attempt a full collection and retry reusable/free blocks before growing with `posix_memalign`.
+5. Preserve collection reentrancy safety so collection-internal helper allocation cannot recursively trigger full collection and fail or loop.
+6. Add or update a tight-heap runtime regression proving reclaimable blocks are reused before growth while real exhaustion can still grow.
+7. Run `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then the required Rust test suite and fixture suite because runtime code changes affect compiled behavior.
+8. Address any observed unscheduled failures before marking the task complete; if a concrete prerequisite blocks correct implementation, update `TODO.md` instead and stop.
+9. Mark `P2-T02` as `[DONE]` in both `TODO.md` and `TODO-2.md`, including a completion record with implementation and validation details.
+10. Commit the completed task and stop.
 
-## 当前状态
+## Progress Log
 
-- 已读取 `TODO.md` 与 `TODO-2.md`。
-- `TODO.md` 当前工作区版本中第一个未完成任务显示为 `P2-T02`，但该状态来自未提交改动。
-- `TODO-2.md` 中 `P2-T01R` 仍是 `[TODO]`，且 `P2-T02` 声明依赖 `P2-T01R`。
-- 最近提交为 `[P2-T01] Trigger minor GC on nursery full`，没有 `P2-T01R` 提交；工作区已有未提交 runtime/test/TODO 改动，疑似上一轮 review 未完成。
-- 决策：先完成 `P2-T01R` 这个直接 prerequisite/review 任务并提交，然后停止，不进入 `P2-T02`。
-- 已复核 `P2-T01` 的 nursery-full minor GC 行为、现有未提交修正和相关测试。
-- 已运行并通过：`cargo test -p scoop_runtime --test gc_immix_minor_old_edges -- --test-threads=1 --nocapture`、`cargo test -p scoop_runtime --test gc_immix_nursery -- --test-threads=1 --nocapture`、`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --test-threads=1 --nocapture`、`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --test-threads=1 --nocapture`。
-- 发现并确认的 review 风险：P2-T01 后 minor GC 依赖“无 old→nursery 边”不变式；large/fallback 对象与 nursery 引用闭包需要更保守处理。
-- 已清理 promote 上下文中的未使用字段。
-- 已完成正式验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-- 已更新 `TODO-2.md`，将 `P2-T01R` 标为 `[DONE]` 并补充完成记录；`TODO.md` 索引已显示 `P2-T01R` 完成。
-- 下一步检查 diff/status，提交 P2-T01R 相关修改，然后停止。
+- 2026-05-29 19:25 +08: Read `TODO.md` and `TODO-2.md`; selected first incomplete task `P2-T02`.
+- 2026-05-29 19:25 +08: Recorded the task-specific execution plan before running repository commands.
+- 2026-05-29 19:26 +08: Checked the latest commit (`P2-T01R`) and found uncommitted changes already in the `P2-T02` runtime/test area, so this invocation is auditing and completing that resumed work.
+- 2026-05-29 19:27 +08: Reviewed the current block-pool fallback implementation and related runtime tests; next step is formatting, linting, and targeted validation before any additional edits.
+- 2026-05-29 19:43 +08: Full validation exposed an STW hang in multithreaded Immix tests: registered Rust test threads blocked on barriers/joins without entering `InNative` while worker allocation can now trigger full GC. Updated the affected synchronization points to enter `InNative` with no roots while blocked.
+- 2026-05-29 19:48 +08: Full validation then exposed stale P1 pacing assertions that treated `SCOOP_GC_PACING=off` or high stress as disabling all automatic collection. Updated them to the P2 contract: soft pacing can be disabled/bypassed, but block-pool exhaustion remains a hard full-GC trigger.
+- 2026-05-29 20:00 +08: Full validation exposed the same native-blocking issue in the C multiframe stackmap keepalive helper while waiting for a worker to publish poll state; updated that wait/join path to enter `InNative` with no roots.
+- 2026-05-29 20:10 +08: Full validation exposed the same pattern in `gc_stop_the_world`: the main registered test thread blocked on a channel/join while a worker allocation could trigger hard GC. Updated those waits to enter `InNative` with no roots.
+- 2026-05-29 20:31 +08: Full validation exposed a same-process runtime-global race in `mutable_array_runtime` when its tests ran in parallel under harder auto-collection; serialized that test file with a mutex.
+- 2026-05-29 20:42 +08: Final validation completed successfully: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`. `P2-T02` remains marked `[DONE]` in `TODO.md` and `TODO-2.md`.

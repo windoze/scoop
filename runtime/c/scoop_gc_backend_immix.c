@@ -59,6 +59,20 @@ static void scoop_gc_immix_unlock(ScoopGcImmixState *state) {
   (void)pthread_mutex_unlock(&state->lock);
 }
 
+static void scoop_gc_immix_collection_enter(ScoopGcImmixState *state) {
+  if (state == 0 || state->collection_depth == UINT32_MAX) {
+    return;
+  }
+  state->collection_depth += 1;
+}
+
+static void scoop_gc_immix_collection_leave(ScoopGcImmixState *state) {
+  if (state == 0 || state->collection_depth == 0) {
+    return;
+  }
+  state->collection_depth -= 1;
+}
+
 // `scoop_gc_safepoint_poll` 定义在本 backend 内；这里前置声明以避免 C99 的隐式声明错误。
 void scoop_gc_safepoint_poll(void);
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
@@ -1520,6 +1534,8 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
   // `scoop_gc_collect` / debug helper 定义在本 backend 内；这里声明以避免隐式声明。
   void scoop_gc_collect(void);
   uint64_t scoop_gc_debug_heap_object_count(void);
+  void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+  void scoop_leave_native(void);
 
 #if !defined(__clang__) && !defined(__GNUC__)
   return 0;
@@ -1547,6 +1563,7 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
   };
 
   pthread_t worker = 0;
+  uint32_t worker_joined = 0;
   if (pthread_create(&worker, 0, scoop_test_gc_stackmap_multiframe_worker_entry, (void *)&shared) != 0) {
     scoop_thread_unregister();
     return -10;
@@ -1560,6 +1577,7 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
   (void)timespec_get(&start, TIME_UTC);
 #endif
 
+  scoop_enter_native(0, 0);
   while (__atomic_load_n(&shared.poll_count, __ATOMIC_SEQ_CST) < 128 ||
          __atomic_load_n(&shared.root_slot, __ATOMIC_SEQ_CST) == 0 ||
          __atomic_load_n(&shared.inner_poll_return_address, __ATOMIC_SEQ_CST) == 0 ||
@@ -1579,11 +1597,14 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
     if (elapsed_ms > 2000) {
       __atomic_store_n(&shared.stop, 1, __ATOMIC_SEQ_CST);
       (void)pthread_join(worker, 0);
+      worker_joined = 1;
+      scoop_leave_native();
       scoop_thread_unregister();
       return -11;
     }
     sched_yield();
   }
+  scoop_leave_native();
 
   intptr_t rc = 1;
   uint8_t *section = 0;
@@ -1782,7 +1803,10 @@ done:
 
   // 3) 让 worker 退出 inner loop，并在 outer frame 校验对象 payload（moving GC 下要求 slot 已被更新）。
   __atomic_store_n(&shared.stop, 1, __ATOMIC_SEQ_CST);
+  scoop_enter_native(0, 0);
   (void)pthread_join(worker, 0);
+  worker_joined = 1;
+  scoop_leave_native();
 
   const intptr_t worker_rc = __atomic_load_n(&shared.worker_rc, __ATOMIC_SEQ_CST);
   if (worker_rc != 0) {
@@ -1811,9 +1835,11 @@ cleanup:
   }
 
 done_unlock:
-  if (rc != 1) {
+  if (rc != 1 && !worker_joined) {
     __atomic_store_n(&shared.stop, 1, __ATOMIC_SEQ_CST);
+    scoop_enter_native(0, 0);
     (void)pthread_join(worker, 0);
+    scoop_leave_native();
   }
 
   scoop_thread_unregister();
@@ -4660,8 +4686,10 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
+  scoop_gc_immix_collection_enter(state);
   if (use_deadline) {
     if (!scoop_gc_stop_the_world_try_begin_unlocked(self, deadline_ms)) {
+      scoop_gc_immix_collection_leave(state);
       scoop_gc_immix_unlock(state);
       return 0;
     }
@@ -4680,6 +4708,7 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
   ScoopGcHeapMembershipIndex membership = {0};
   if (!scoop_gc_heap_membership_index_build_unlocked(&membership, heap)) {
     scoop_gc_stop_the_world_end_unlocked();
+    scoop_gc_immix_collection_leave(state);
     scoop_gc_immix_unlock(state);
     return 0;
   }
@@ -5046,6 +5075,7 @@ cleanup_and_return:
   scoop_platform_unwind_ctx_destroy(initiator_stack_walking_ctx);
 
   scoop_gc_stop_the_world_end_unlocked();
+  scoop_gc_immix_collection_leave(state);
   scoop_gc_immix_unlock(state);
   return did_commit;
 }
@@ -5217,6 +5247,7 @@ void scoop_gc_collect(void) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
+  scoop_gc_immix_collection_enter(state);
   scoop_gc_pacing_clear_request();
 
   scoop_gc_stop_the_world_begin_unlocked(self);
@@ -5667,6 +5698,7 @@ void scoop_gc_collect(void) {
   scoop_gc_pacing_update_next_gc_unlocked(heap);
 
   scoop_gc_stop_the_world_end_unlocked();
+  scoop_gc_immix_collection_leave(state);
   scoop_gc_immix_unlock(state);
 }
 

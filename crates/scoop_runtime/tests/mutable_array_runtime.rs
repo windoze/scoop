@@ -4,6 +4,7 @@ use scoop_runtime as _;
 use core::ffi::c_void;
 use core::mem;
 use core::ptr;
+use std::sync::{Mutex, MutexGuard};
 
 type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
 type ScoopCompositeTraceFn = Option<
@@ -28,6 +29,8 @@ type ScoopCompositeDropFn = Option<
 const ARRAY_ELEM_KIND_WORD: u32 = 1;
 const ARRAY_ELEM_KIND_REF: u32 = 2;
 const ARRAY_ELEM_KIND_COMPOSITE: u32 = 3;
+
+static RUNTIME_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[repr(C)]
 struct ScoopGcObjectHeader {
@@ -108,15 +111,18 @@ unsafe extern "C" {
 
 }
 
-struct RuntimeThread;
+struct RuntimeThread {
+    _lock: MutexGuard<'static, ()>,
+}
 
 impl RuntimeThread {
     fn enter() -> Self {
+        let lock = RUNTIME_TEST_LOCK.lock().unwrap();
         unsafe {
             scoop_runtime_init();
             scoop_thread_register();
         }
-        Self
+        Self { _lock: lock }
     }
 }
 

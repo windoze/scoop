@@ -315,7 +315,8 @@ static inline void scoop_gc_immix_tls_cache_push(ScoopGcImmixBlock *block) {
 }
 
 // 注意：调用方必须持有 `state->lock`。
-static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state) {
+static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state,
+                                                          uint32_t *did_block_pool_collect) {
   if (state == 0) {
     return;
   }
@@ -324,7 +325,7 @@ static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *sta
   }
 
   for (uint32_t i = 0; i < (uint32_t)SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH; i++) {
-    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state);
+    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state, did_block_pool_collect);
     if (b == 0) {
       break;
     }
@@ -674,6 +675,7 @@ void *scoop_alloc(uint64_t size) {
     // - 线程优先在自己的 current block 内分配（无锁快路径）；
     // - 当 block 放不下时，才进入全局锁从 block pool 取一个新 block（refill）。
     ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
+    uint32_t did_block_pool_collect = 0;
 
     for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
       if (block == 0) {
@@ -683,7 +685,7 @@ void *scoop_alloc(uint64_t size) {
         // 2) cache 空：持锁批量 refill，然后再 pop 一个。
         if (block == 0) {
           (void)pthread_mutex_lock(&state->lock);
-          scoop_gc_immix_tls_cache_refill_locked(state);
+          scoop_gc_immix_tls_cache_refill_locked(state, &did_block_pool_collect);
           (void)pthread_mutex_unlock(&state->lock);
           block = scoop_gc_immix_tls_cache_pop();
         }

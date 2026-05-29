@@ -73,9 +73,16 @@ fn gc_enter_native_treats_innative_thread_as_ready_and_preserves_roots() {
         scoop_thread_unregister();
     });
 
-    // 等待 worker 完成分配并进入 InNative。
-    let after_alloc = ready_rx
-        .recv_timeout(Duration::from_secs(2))
+    // 等待 worker 完成分配并进入 InNative。主测试线程此时会阻塞在 host channel 上，
+    // 因此也必须标记为 InNative，避免 worker 首次分配触发 GC 时等待本线程 safepoint。
+    unsafe {
+        scoop_enter_native(std::ptr::null_mut(), 0);
+    }
+    let after_alloc_result = ready_rx.recv_timeout(Duration::from_secs(2));
+    unsafe {
+        scoop_leave_native();
+    }
+    let after_alloc = after_alloc_result
         .unwrap_or_else(|_| panic!("worker 未能在超时内进入 InNative：backend={GC_BACKEND:?}"));
 
     assert_eq!(

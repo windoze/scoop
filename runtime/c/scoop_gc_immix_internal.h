@@ -104,6 +104,10 @@ typedef struct ScoopGcImmixState {
   ScoopGcImmixBlock *nursery_current_block;
   uint32_t nursery_max_blocks;
   uint32_t nursery_blocks;
+
+  // Non-zero while a collector owns the heap. Block-pool exhaustion must not
+  // recursively trigger another full GC from collector allocation paths.
+  uint32_t collection_depth;
 } ScoopGcImmixState;
 
 static inline ScoopGcImmixState *scoop_gc_immix_state_from_heap(ScoopGcHeap *heap) {
@@ -545,7 +549,8 @@ static inline void *scoop_gc_immix_block_alloc_bump(ScoopGcImmixBlock *block,
   return (void *)aligned;
 }
 
-static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(ScoopGcImmixState *state) {
+static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_available_block(
+    ScoopGcImmixState *state) {
   if (state == 0) {
     return 0;
   }
@@ -555,13 +560,38 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(ScoopGcImmixSta
     block = state->reusable_blocks;
     state->reusable_blocks = block->next_free;
     block->next_free = 0;
-  } else
-  if (state->free_blocks != 0) {
+  } else if (state->free_blocks != 0) {
     block = state->free_blocks;
     state->free_blocks = block->next_free;
     block->next_free = 0;
     // 空闲 block 在进入 free list 时已 reset；这里无需再 reset。
-  } else {
+  }
+
+  return block;
+}
+
+static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(
+    ScoopGcImmixState *state,
+    uint32_t *did_block_pool_collect) {
+  if (state == 0) {
+    return 0;
+  }
+
+  ScoopGcImmixBlock *block = scoop_gc_immix_state_take_available_block(state);
+  uint32_t already_collected =
+      did_block_pool_collect != 0 && *did_block_pool_collect != 0;
+  if (block == 0 && state->lock_inited && state->collection_depth == 0 && !already_collected) {
+    if (did_block_pool_collect != 0) {
+      *did_block_pool_collect = 1;
+    }
+    (void)pthread_mutex_unlock(&state->lock);
+    scoop_gc_collect();
+    (void)pthread_mutex_lock(&state->lock);
+
+    block = scoop_gc_immix_state_take_available_block(state);
+  }
+
+  if (block == 0) {
     block = scoop_gc_immix_block_alloc_new();
     if (block == 0) {
       return 0;

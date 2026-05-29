@@ -66,7 +66,7 @@
   - 测试：新增 `gc_immix_minor_old_edges` 覆盖 large/fallback old object store、跨 nursery block 引用闭包晋升以及后续 minor 不回收被 old object 引用的对象；保留并运行 fixed small nursery 回归。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_minor_old_edges -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --test-threads=1 --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02：block pool 耗尽先 full GC 再增长
+### [DONE] P2-T02：block pool 耗尽先 full GC 再增长
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -88,7 +88,11 @@
   - block pool 耗尽有 full-GC 回退，不再无条件增长。
 - 依赖：P2-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：`scoop_gc_immix_state_take_block` 拆出 reusable/free 取块重试逻辑；当 block pool 两表均空时，持锁路径会先释放 Immix lock、运行一次 full GC、重新加锁并重试 reusable/free blocks，仍无可用块时才 `scoop_gc_immix_block_alloc_new` 增长。
+  - Reentrancy：新增 `collection_depth` 标记 major/minor collector 持有 heap 的阶段，collector 内部分配路径不会递归触发 full GC；`scoop_alloc` 的 TLS cache refill 通过 `did_block_pool_collect` 保证单次分配最多触发一次 block-pool full GC。
+  - 测试：新增 `gc_immix_block_pool` 覆盖紧堆 old-space workload，断言 block-pool exhaustion 会增加 `gc_cycles` 且不增加 reserved bytes；同步修正受 hard trigger 影响的 STW/native-blocking 测试、pacing-env 断言与同进程 runtime-global 测试隔离，使其遵守 P2 hard-trigger contract。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_block_pool -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_enter_native -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_mark_region -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark_sweep_stress -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_allocator -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stackmap_multiframe_keepalive -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stop_the_world -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T02R：Review block pool 回退
 

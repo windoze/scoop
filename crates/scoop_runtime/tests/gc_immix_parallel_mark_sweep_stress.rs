@@ -64,6 +64,34 @@ mod immix {
 
         fn scoop_pin(obj: *mut c_void) -> u32;
         fn scoop_unpin(obj: *mut c_void) -> u32;
+
+        fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+        fn scoop_leave_native();
+    }
+
+    struct NativeNoRoots;
+
+    impl NativeNoRoots {
+        fn enter() -> Self {
+            unsafe {
+                scoop_enter_native(ptr::null_mut(), 0);
+            }
+            Self
+        }
+    }
+
+    impl Drop for NativeNoRoots {
+        fn drop(&mut self) {
+            unsafe {
+                scoop_leave_native();
+            }
+        }
+    }
+
+    fn wait_at_barrier_in_native(start: &Barrier) {
+        // Registered Rust test threads have no stackmaps while blocked in host synchronization.
+        let _native = NativeNoRoots::enter();
+        start.wait();
     }
 
     unsafe fn alloc_node(
@@ -207,7 +235,7 @@ mod immix {
                 assert_ne!(root_handle, 0, "handle_new must succeed for root");
 
                 published[tid].store(root_handle as usize, Ordering::Release);
-                start.wait();
+                wait_at_barrier_in_native(&start);
 
                 // 建立跨线程引用环：root.ptr0 -> next_thread.root
                 let next_handle = published[(tid + 1) % threads].load(Ordering::Acquire) as u64;
@@ -306,7 +334,7 @@ mod immix {
             }));
         }
 
-        start.wait();
+        wait_at_barrier_in_native(&start);
         eprintln!("[gc_immix_parallel_mark_sweep_stress] all threads started; begin gc rounds");
 
         // mutator 运行期间触发多轮 GC：并行开关的各种组合都应稳定通过。
@@ -317,8 +345,11 @@ mod immix {
 
         eprintln!("[gc_immix_parallel_mark_sweep_stress] gc rounds done; stopping mutators");
         stop.store(true, Ordering::Relaxed);
-        for h in handles {
-            h.join().unwrap();
+        {
+            let _native = NativeNoRoots::enter();
+            for h in handles {
+                h.join().unwrap();
+            }
         }
 
         eprintln!("[gc_immix_parallel_mark_sweep_stress] mutators joined; final collect");

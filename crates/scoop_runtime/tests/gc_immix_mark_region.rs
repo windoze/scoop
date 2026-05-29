@@ -6,7 +6,7 @@ use scoop_runtime as _;
 mod immix {
     use core::ffi::c_void;
     use core::ptr;
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     #[repr(C)]
     struct ScoopGcObjectHeader {
@@ -56,25 +56,17 @@ mod immix {
             let object_size = header_size + 4096;
 
             let total_objects: usize = 200;
-            let mut pinned_objects: Vec<*mut c_void> = Vec::new();
+            let mut allocated_objects: Vec<(*mut c_void, usize)> = Vec::new();
             let mut initial_blocks: BTreeSet<usize> = BTreeSet::new();
 
             for _ in 0..total_objects {
                 let obj = scoop_alloc(object_size);
                 assert!(!obj.is_null(), "scoop_alloc must return non-null");
+                assert_eq!(scoop_pin(obj), 1, "pin must succeed for heap object");
 
                 let base = immix_block_base(obj);
-                if initial_blocks.insert(base) {
-                    // 每个 block pin 住 1 个对象：确保 block 不会被整块 reset，
-                    // 从而逼迫 allocator 必须复用 partial blocks 的 holes 才能避免分配新 block。
-                    assert_eq!(scoop_pin(obj), 1, "pin must succeed for heap object");
-
-                    // 写入哨兵到 payload（避开对象头），用于检测“holes 复用”是否发生越界覆盖。
-                    let payload = (obj as *mut u8).add(header_size as usize);
-                    ptr::write_bytes(payload, 0xCD, 64);
-
-                    pinned_objects.push(obj);
-                }
+                initial_blocks.insert(base);
+                allocated_objects.push((obj, base));
             }
 
             assert!(
@@ -82,6 +74,24 @@ mod immix {
                 "test must span multiple blocks; blocks={}",
                 initial_blocks.len()
             );
+
+            let mut keep_by_block: BTreeMap<usize, *mut c_void> = BTreeMap::new();
+            for &(obj, base) in &allocated_objects {
+                keep_by_block.entry(base).or_insert(obj);
+            }
+
+            let mut pinned_objects: Vec<*mut c_void> = Vec::new();
+            for &(obj, base) in &allocated_objects {
+                if keep_by_block.get(&base).copied() == Some(obj) {
+                    // 每个 block 保留 1 个 pinned 对象：确保 block 不会被整块 reset，
+                    // 从而逼迫 allocator 必须复用 partial blocks 的 holes 才能避免分配新 block。
+                    let payload = (obj as *mut u8).add(header_size as usize);
+                    ptr::write_bytes(payload, 0xCD, 64);
+                    pinned_objects.push(obj);
+                } else {
+                    assert_eq!(scoop_unpin(obj), 1, "unpin must succeed for garbage object");
+                }
+            }
 
             // 1) 回收未 pin 的对象：此时 heap 上应仅剩下每个 block 的 pinned 对象。
             scoop_gc_collect();
