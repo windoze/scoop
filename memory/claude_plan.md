@@ -1,6 +1,6 @@
 # Current Invocation Plan
 
-Status: task review completed; preparing commit.
+Status: task review completed and committed.
 
 Note: This file records the actionable plan, progress, validation results, and decisions for this invocation. It intentionally avoids private reasoning details while preserving the information needed to audit progress.
 
@@ -26,6 +26,7 @@ Note: This file records the actionable plan, progress, validation results, and d
 - Updated `TODO-1.md` and `GC_PACING.md` to record the cycle-end update point in `scoop_gc_collect`, and marked `P0-T01R` done in `TODO-1.md` / `TODO.md` with a completion record.
 - Validation decision: `git diff --check` passed; no code changed in this invocation, so reused the previous green full validation recorded by `P0-T01` and skipped rerunning expensive suites per the task instructions.
 - Preserved the file's pre-existing historical notes after the current invocation section.
+- Committed task changes as `46a5f0d4 [P0-T01R] Review GC pacing baseline`; post-commit status was clean before this final memory update.
 
 ## Preserved Previous Notes
 
