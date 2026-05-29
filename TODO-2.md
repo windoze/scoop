@@ -173,7 +173,7 @@
   - 测试：新增 `gc_immix_hard_cap_nursery` 覆盖 cap=1 block、nursery live object 下 minor to-space 不得越过 cap；新增 `gc_hard_cap_codegen_oom_trap.scoop` 覆盖 generated allocation OOM 以 exit 3 trap 而非崩溃；同步更新 LLVM build fixture 对 checked allocation wrapper 的断言。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_hard_cap_nursery --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo build`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/gc_hard_cap_codegen_oom_trap.scoop`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T04：hosted/minimal backend pacing parity
+### [DONE] P2-T04：hosted/minimal backend pacing parity
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -194,7 +194,12 @@
   - pacing 在三 backend 一致生效，pacing 线收口。
 - 依赖：P2-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 实现：将 pacing live/target/next_gc、request/take/update 逻辑抽成 `scoop_gc.h` 的 backend-independent helper；Immix 改为复用同一套 helper，避免阈值公式在 backend 间漂移。
+  - 实现：`gc-hosted` / `gc-minimal` 在对象登记后按累计 `bytes_allocated` 比较 `next_gc` 并设置 `request_collect`；各自的 `scoop_gc_safepoint_poll` 在下一次 allocation safepoint 消费请求并触发 `scoop_gc_collect()`。
+  - 实现：hosted/minimal 的正常 collection 与受限 no-op collection 路径都会更新 `next_gc` 并清除请求；hosted 多线程 no-op 不会因 pacing 请求陷入每次分配重复 collect。
+  - 测试：扩展 `gc_pacing_env`，在 `gc-minimal` / `gc-hosted` 下覆盖默认 pacing 有界、`SCOOP_GC_PACING=off` 保留旧 soft-trigger-off 行为、min-threshold/growth-factor env 生效，以及 `SCOOP_GC_STRESS` 继续绕过 pacing。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T04R：Review backend parity
 

@@ -296,6 +296,109 @@ typedef struct ScoopGcHeap {
   uint32_t _pacing_reserved_u32;
 } ScoopGcHeap;
 
+// Backend-independent pacing helpers. Backends call these while holding their
+// own heap lock, except for the request flag which is intentionally atomic.
+static inline uint64_t scoop_gc_pacing_heap_live_bytes(uint64_t allocated, uint64_t freed) {
+  if (allocated < freed) {
+    return 0;
+  }
+  return allocated - freed;
+}
+
+static inline uint64_t scoop_gc_pacing_heap_target_live_bytes(ScoopGcHeap *heap, uint64_t live) {
+  uint64_t min_threshold = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+  double growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  if (heap != 0) {
+    if (heap->pacing_min_threshold_bytes != 0) {
+      min_threshold = heap->pacing_min_threshold_bytes;
+    }
+    if (heap->pacing_target_growth_factor > 0.0) {
+      growth_factor = heap->pacing_target_growth_factor;
+    }
+  }
+
+  const long double factor = (long double)growth_factor;
+  const long double scaled = (long double)live * factor;
+  uint64_t target = 0;
+  if (scaled >= (long double)UINT64_MAX) {
+    target = UINT64_MAX;
+  } else if (scaled > 0.0L) {
+    target = (uint64_t)scaled;
+    if ((long double)target < scaled) {
+      target += 1u;
+    }
+  }
+  if (target < min_threshold) {
+    return min_threshold;
+  }
+  return target;
+}
+
+static inline uint64_t scoop_gc_pacing_heap_next_gc(ScoopGcHeap *heap,
+                                                    uint64_t allocated,
+                                                    uint64_t freed) {
+  uint64_t live = scoop_gc_pacing_heap_live_bytes(allocated, freed);
+  uint64_t target_live = scoop_gc_pacing_heap_target_live_bytes(heap, live);
+  if (UINT64_MAX - freed < target_live) {
+    return UINT64_MAX;
+  }
+  return freed + target_live;
+}
+
+static inline void scoop_gc_pacing_heap_clear_request(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
+}
+
+static inline void scoop_gc_pacing_heap_update_next_gc_unlocked(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  if (__atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED) == 0) {
+    scoop_gc_pacing_heap_clear_request(heap);
+    return;
+  }
+
+  uint64_t allocated = __atomic_load_n(&heap->bytes_allocated, __ATOMIC_RELAXED);
+  uint64_t freed = __atomic_load_n(&heap->bytes_freed, __ATOMIC_RELAXED);
+  uint64_t next_gc = scoop_gc_pacing_heap_next_gc(heap, allocated, freed);
+  __atomic_store_n(&heap->next_gc, next_gc, __ATOMIC_RELAXED);
+  scoop_gc_pacing_heap_clear_request(heap);
+}
+
+static inline void scoop_gc_pacing_heap_request_collect(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  __atomic_store_n(&heap->request_collect, 1u, __ATOMIC_RELAXED);
+}
+
+static inline void scoop_gc_pacing_heap_after_alloc(ScoopGcHeap *heap, uint64_t allocated_after) {
+  if (heap == 0) {
+    return;
+  }
+  uint64_t next_gc = __atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED);
+  if (next_gc == 0 || allocated_after < next_gc) {
+    return;
+  }
+  scoop_gc_pacing_heap_request_collect(heap);
+}
+
+static inline uint32_t scoop_gc_pacing_heap_take_request(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return 0;
+  }
+  uint32_t expected = 1u;
+  return __atomic_compare_exchange_n(&heap->request_collect,
+                                     &expected,
+                                     0u,
+                                     0,
+                                     __ATOMIC_ACQ_REL,
+                                     __ATOMIC_RELAXED);
+}
+
 // 初始化 heap 结构（不分配任何内存）。
 void scoop_gc_heap_init(ScoopGcHeap *heap);
 

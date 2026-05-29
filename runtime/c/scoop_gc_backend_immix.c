@@ -252,84 +252,19 @@ static uint32_t scoop_gc_thread_count = 0;
 
 static ScoopGcStwState scoop_gc_stw = {0};
 
-static uint64_t scoop_gc_pacing_live_bytes(uint64_t allocated, uint64_t freed) {
-  if (allocated < freed) {
-    return 0;
-  }
-  return allocated - freed;
-}
-
-static uint64_t scoop_gc_pacing_target_live_bytes(ScoopGcHeap *heap, uint64_t live) {
-  uint64_t min_threshold = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
-  double growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
-  if (heap != 0) {
-    if (heap->pacing_min_threshold_bytes != 0) {
-      min_threshold = heap->pacing_min_threshold_bytes;
-    }
-    if (heap->pacing_target_growth_factor > 0.0) {
-      growth_factor = heap->pacing_target_growth_factor;
-    }
-  }
-
-  const long double factor = (long double)growth_factor;
-  const long double scaled = (long double)live * factor;
-  uint64_t target = 0;
-  if (scaled >= (long double)UINT64_MAX) {
-    target = UINT64_MAX;
-  } else if (scaled > 0.0L) {
-    target = (uint64_t)scaled;
-    if ((long double)target < scaled) {
-      target += 1u;
-    }
-  }
-  if (target < min_threshold) {
-    return min_threshold;
-  }
-  return target;
-}
-
-static uint64_t scoop_gc_pacing_next_gc(ScoopGcHeap *heap, uint64_t allocated, uint64_t freed) {
-  uint64_t live = scoop_gc_pacing_live_bytes(allocated, freed);
-  uint64_t target_live = scoop_gc_pacing_target_live_bytes(heap, live);
-  if (UINT64_MAX - freed < target_live) {
-    return UINT64_MAX;
-  }
-  return freed + target_live;
-}
-
 static void scoop_gc_pacing_update_next_gc_unlocked(ScoopGcHeap *heap) {
-  if (heap == 0) {
-    return;
-  }
-  if (__atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED) == 0) {
-    __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
-    return;
-  }
-
-  uint64_t allocated = __atomic_load_n(&heap->bytes_allocated, __ATOMIC_RELAXED);
-  uint64_t freed = heap->bytes_freed;
-  uint64_t next_gc = scoop_gc_pacing_next_gc(heap, allocated, freed);
-  __atomic_store_n(&heap->next_gc, next_gc, __ATOMIC_RELAXED);
-  __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
+  scoop_gc_pacing_heap_update_next_gc_unlocked(heap);
 }
 
 static void scoop_gc_pacing_clear_request(void) {
-  __atomic_store_n(&scoop_gc_heap.request_collect, 0u, __ATOMIC_RELAXED);
-}
-
-static void scoop_gc_pacing_request_collect(void) {
-  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
-    return;
-  }
-  __atomic_store_n(&scoop_gc_heap.request_collect, 1u, __ATOMIC_RELAXED);
+  scoop_gc_pacing_heap_clear_request(&scoop_gc_heap);
 }
 
 static void scoop_gc_pacing_after_alloc(uint64_t allocated_after) {
-  uint64_t next_gc = __atomic_load_n(&scoop_gc_heap.next_gc, __ATOMIC_RELAXED);
-  if (next_gc == 0 || allocated_after < next_gc) {
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     return;
   }
-  scoop_gc_pacing_request_collect();
+  scoop_gc_pacing_heap_after_alloc(&scoop_gc_heap, allocated_after);
 }
 
 static uint32_t scoop_gc_pacing_take_request(void) {
@@ -337,13 +272,7 @@ static uint32_t scoop_gc_pacing_take_request(void) {
     return 0;
   }
 
-  uint32_t expected = 1u;
-  return __atomic_compare_exchange_n(&scoop_gc_heap.request_collect,
-                                     &expected,
-                                     0u,
-                                     0,
-                                     __ATOMIC_ACQ_REL,
-                                     __ATOMIC_RELAXED);
+  return scoop_gc_pacing_heap_take_request(&scoop_gc_heap);
 }
 
 static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {

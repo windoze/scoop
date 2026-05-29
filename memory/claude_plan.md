@@ -1,43 +1,26 @@
-# Execution Plan
+# Claude Execution Plan
 
 ## Scope
-
 - Follow `TODO.md` as the authoritative task list.
 - Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after completing and committing that one task, or after committing any required prerequisite/task-list update if the task is blocked.
+- Stop after committing that one task.
 
-## Steps
-
-1. Read `TODO.md` first and identify the first incomplete task.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Inspect the task's referenced code, tests, fixtures, and specifications.
-4. Implement the task without narrowing scope or using workaround behavior.
-5. Update or add the smallest relevant tests/fixtures for the task.
-6. Run validation in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixtures as needed.
-7. If any unscheduled test or fixture failure is observed, fix it or add the minimum prerequisite/follow-up task in `TODO.md` before marking the current task complete.
-8. Mark the task title `[DONE]` in `TODO.md` and update its completion record after implementation and validation pass.
-9. Commit all task-related changes with a descriptive message.
-10. Stop without starting the next task.
+## Plan
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent git context only as needed for that task, especially the latest commit if it mentions an unfinished issue relevant to the selected task.
+3. Inspect the relevant code, tests, fixtures, and documentation for the selected task.
+4. Implement the smallest spec-correct change needed for the task, without introducing workarounds.
+5. Run formatting, linting, targeted tests, and required full validation in the requested order.
+6. If validation reveals an unscheduled failure, fix it or add the minimum prerequisite/follow-up task before marking completion.
+7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
+8. Update this file with key progress changes.
+9. Commit all intended changes with a task-scoped commit message, then stop.
 
 ## Progress
-
-- Plan initialized before repository inspection.
-- First incomplete task identified: `P2-T03R` in `TODO-2.md`, review of the hard-cap/OOM work from `P2-T03`.
-- Latest commit `af1cbbde [P2-T03] Add GC hard cap OOM path` is directly relevant and will be reviewed as the task target.
-- Review findings to fix before completion:
-  - Immix minor-GC to-space block allocation can allocate new blocks without checking `SCOOP_GC_MAX_HEAP_BYTES`.
-  - LLVM generated allocations can dereference the result of `scoop_alloc_typed` without guarding the NULL OOM path.
-- Implemented fixes in progress:
-  - Added pending to-space reserve accounting to Immix hard-cap checks.
-  - Routed generated `scoop_alloc_typed` calls through an internal checked wrapper that traps via `scoop_runtime_error_fatal(NULL)` on OOM.
-  - Added regressions for nursery to-space hard-cap enforcement and generated-code OOM trap behavior.
-- Validation progress:
-  - `cargo fmt` passed.
-  - `cargo clippy --all-targets -- -D warnings` passed.
-  - Targeted hard-cap runtime regressions passed.
-  - Rebuilt workspace tools and the generated-code OOM fixture passed.
-- Full validation passed:
-  - `cargo test --all --all-targets`
-  - `python3 tools/spec_fixtures.py check`
-  - `python3 tools/run_fixtures.py`
-- `P2-T03R` marked `[DONE]` in `TODO.md` and `TODO-2.md` with completion record.
+- Initial execution plan recorded before running project commands.
+- Selected first incomplete task: `P2-T04` from `TODO-2.md`, requiring hosted/minimal backend pacing parity.
+- Latest commit is `73aa4ed5 [P2-T03R] Review GC hard cap OOM paths`; it directly precedes and unblocks this task.
+- Implemented shared pacing helper hooks in `scoop_gc.h` and wired hosted/minimal allocation registration plus safepoint polling to request and consume pacing collections.
+- Added hosted/minimal coverage in `gc_pacing_env.rs` for default-on pacing, `PACING=off`, env threshold tuning, and stress bypass semantics.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, hosted/minimal/default pacing tests, hosted/minimal runtime tests, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
+- Marked `P2-T04` as `[DONE]` in `TODO.md` and `TODO-2.md` with completion notes.

@@ -127,8 +127,11 @@ void scoop_gc_safepoint(void) {
 }
 
 void scoop_gc_safepoint_poll(void) {
-  // T1505a：minimal backend 无 STW；poll 与 safepoint 一致为 no-op。
+  // minimal backend 无 STW，但仍在 poll 处消费 backend-independent pacing 请求。
   scoop_gc_safepoint();
+  if (scoop_gc_pacing_heap_take_request(&scoop_gc_heap)) {
+    scoop_gc_collect();
+  }
 }
 
 void *scoop_gc_write_barrier(void *slot_addr, void *value) {
@@ -415,6 +418,8 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   obj->next = scoop_gc_heap.objects;
   scoop_gc_heap.objects = obj;
   scoop_gc_heap.bytes_allocated += obj->size_bytes;
+  uint64_t allocated_after = scoop_gc_heap.bytes_allocated;
+  scoop_gc_pacing_heap_after_alloc(&scoop_gc_heap, allocated_after);
 
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
@@ -543,6 +548,7 @@ void scoop_gc_collect(void) {
 
   // minimal backend 不支持多线程 roots 枚举；检测到多线程时退化为 no-op。
   if (scoop_gc_multi_thread_seen) {
+    scoop_gc_pacing_heap_update_next_gc_unlocked(&scoop_gc_heap);
     (void)pthread_mutex_unlock(&scoop_gc_lock);
     return;
   }
@@ -616,6 +622,7 @@ void scoop_gc_collect(void) {
     free(obj);
   }
 
+  scoop_gc_pacing_heap_update_next_gc_unlocked(heap);
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
