@@ -7,6 +7,54 @@
 
 ## P7：Spec / 文档 / fixtures 收尾与回归矩阵
 
+### [TODO] P7-T00：增强 STW 健壮性避免僵尸线程卡死
+
+- 参考：
+  - `runtime/c/scoop_gc_backend_immix.c`：`scoop_gc_stop_the_world_begin_prepare_unlocked` / `scoop_gc_stop_the_world_begin_unlocked` / `scoop_gc_thread_unregister` / `scoop_gc_safepoint_common`
+  - 现象记录（`gc-fix` 分支调查；复现该现象的 `gc_immix_parallel_mark_sweep_stress` 测试因属于 native 调用方无法安全保活 fresh 分配的不可修场景，已在本分支删除，仅保留以下文字记录）：某 worker 断言 panic 后未调用 `scoop_thread_unregister` 即退出，其线程记录仍以 `Running` 留在 `scoop_gc_threads`，导致后续 STW 永久等待该“僵尸线程” park（STW 诊断 dump：`waiting for park: ... state=Running last_epoch=旧 parked_epoch=0`）。
+- 目标：
+  - 已注册线程异常终止（panic / 未 `scoop_thread_unregister` 就退出）后，stop-the-world 不得被这个不会再到达 safepoint 的线程永久卡住。
+- 必须修改的文件/位置：
+  - `runtime/c/scoop_gc_backend_immix.c`（STW 等待循环与线程状态机；如需可配合 TLS/线程退出 hook）
+- 必须实现的内容：
+  1. STW 等待 `parked_count >= need_to_park` 时，需对“记录仍在表中、状态 Running、但线程实际已退出”的情形给出确定性兜底，保证 STW 一定能在有界时间内推进。
+  2. 优先方案：提供线程退出时可靠注销的 hook（例如 TLS 析构 / 注册退出回调），从根因上保证线程消失即从 `scoop_gc_threads` 移除；若无法完全覆盖异常退出，再补 STW 侧的僵尸检测/回收兜底。
+  3. 不得削弱正常路径正确性：仍在运行的 mutator 必须真正 park 后才允许 GC 扫描其 roots。
+- 必须遵从的约束：
+  - 兜底不得把“仍存活的线程”误判为僵尸而提前扫描/回收其 roots（否则会引入 use-after-free / 漏标）。
+  - 可移植性优先：避免依赖平台特定的“线程存活探测”，除非作为可降级的增强（参考 portability-first 取向）。
+- 验证：
+  1. 新增一个聚焦的回归用例：构造“已注册线程未 `scoop_thread_unregister` 即退出”的场景，断言后续 STW 能在有界时间内完成（不依赖已删除的旧 stress 测试）。
+  2. `cargo test --all --all-targets` 多次连续运行不挂死。
+- 完成条件：
+  - 即使存在异常终止/未注销的线程，STW 也能在有界时间内完成，不再死锁。
+- 依赖：P6-T02R
+- 完成记录：
+  - （待执行）
+
+### [TODO] P7-T00b：补 Scoop 语言级并发/GC 应用测试
+
+- 参考：
+  - P7-T00 完成记录（STW 健壮性修复）
+  - 已删除的 `gc_immix_parallel_mark_sweep_stress.rs`（手写 C-API mutator 无法安全保活 fresh 分配，属于不可修场景，故删除）
+- 目标：
+  - 用 **Scoop 语言级**的实际程序覆盖“多线程并发分配 + 跨线程引用 + 触发 GC”这类场景，替代被删除的手写 C-API stress 测试。Scoop codegen 会为活跃局部产出 explicit root frame，因此不存在 native 调用方的 alloc→root 窗口，能写出确定性、不 flaky 的并发 GC 测试。
+- 必须修改/新增的文件/位置：
+  - `tests/fixtures/**`（新增 Scoop fixture）或 `crates/**` 下对应的端到端测试入口。
+- 必须实现的内容：
+  1. 至少新增几个 Scoop 程序：覆盖并发分配、对象图跨“线程/作用域”引用、循环中制造垃圾以驱动 mark/sweep 与（如适用）minor/晋升路径。
+  2. 断言可观察的正确性（结果值、存活/回收计数等），保证在默认 pacing on 下稳定通过、单用例 < 1 分钟。
+- 必须遵从的约束：
+  - 不得回退到手写 C-API mutator 去模拟“无 root 兜底”的不可修场景。
+- 验证：
+  1. `python3 tools/run_fixtures.py`（新增 fixture 通过）
+  2. `cargo test --all --all-targets`
+- 完成条件：
+  - 并发/GC 行为由 Scoop 语言级测试覆盖，且稳定不 flaky。
+- 依赖：P7-T00
+- 完成记录：
+  - （待执行）
+
 ### [TODO] P7-T01：回写 runtime/spec 文档（pacing + immortal）
 
 - 参考：

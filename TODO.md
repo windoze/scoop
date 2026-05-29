@@ -69,6 +69,8 @@
 | P6-T01R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t01rreview-platform-折叠) | Review P6-T01 Platform 折叠 |
 | P6-T02 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t02typemetadataliteral-审计与指针相等断言) | `TypeMetadataLiteral` 审计与指针相等断言 |
 | P6-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
+| P7-T00 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t00增强-stw-健壮性避免僵尸线程卡死) | 增强 STW 健壮性，避免僵尸线程卡死 stop-the-world |
+| P7-T00b | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t00b补-scoop-语言级并发gc-应用测试) | 补 Scoop 语言级并发/GC 应用测试（替代已删除的 C-API stress） |
 | P7-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |
 | P7-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
 | P7-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t02审计需要-pacingoff-的测试并注明原因) | 审计需要 `PACING=off` 的测试并注明原因 |
