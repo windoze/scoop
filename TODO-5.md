@@ -580,7 +580,7 @@
   - 验证结果：targeted old-surface Grep audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T03R 对旧 surface audit 可信度、overload/codegen regression 实跑与 cone export audit 可复现性的独立 review gate；未发现需新增 prerequisite 或调整阶段级 sequencing 的问题，无需更新 `PLAN.md`。
 
-### [TODO] P6-T04：全量格式化、测试矩阵与最终收口记录
+### [DONE] P6-T04：全量格式化、测试矩阵与最终收口记录
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6、§6
@@ -607,10 +607,10 @@
   - Old surface only remains in archive/history/design baseline or explicit negative fixtures.
 - 依赖：P6-T03R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：执行最终格式化、lint、Rust 全量测试、spec fixture 校验、完整 fixture suite、user-visible failure policy audit 与 whitespace diff check；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。本任务未修改 compiler、sysroot、spec 或 fixture 内容。
+  - 核心决策：本轮无剩余 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 范围内 intentionally deferred issue；LLVM/backend 相关路径由完整 Rust 测试中的 LLVM/codegen 单测与完整 fixture suite 中的 run-pass / run-pass-cone 覆盖，本任务无代码路径变更，因此无需额外 targeted backend 命令替代全量矩阵。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6/P6 final validation gate；确认 `SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` 目标行为已通过前序 P6 spec / fixture / old-surface / overload-codegen audit 任务和本次完整绿色矩阵成为 active spec/compiler contract；旧 surface 仅保留在 archive/history/design baseline 或显式 negative fixture，不需要更新 `PLAN.md`。
 
 ### [TODO] P6-T04R：Review 最终收口质量
 

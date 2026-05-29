@@ -2,24 +2,7 @@
 
 本文件记录可共享的执行计划、关键进度和决策，不记录私有推理过程。
 
-## 范围
-
-- 目标：依据 `TODO.md` 的顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 当前任务：`P6-T03R：Review 旧 surface 与回归审计`。
-- 约束：不跳过 review 任务；不拆分任务；不把 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 设计基线当作 active old-surface violation。
-
-## 步骤
-
-1. 读取 `TODO.md`，识别第一个未完成任务及其验证要求。
-2. 检查最近提交是否提到与当前任务直接相关的未完成事项。
-3. 阅读 `TODO-5.md` 中 `P6-T03` / `P6-T03R` 的任务体，并对照 P0-T01 inventory。
-4. 抽样复查旧 surface 命中分类，确认剩余命中属于 negative fixture、diagnostic 文本、内部术语、注释、active 非 handler `with` 语法或允许的 spec removal 说明。
-5. 验证 overload/codegen baseline fixtures、overload diagnostics policy 和 `.cone` / `scoopir` public export 行为实际可运行。
-6. 按要求运行格式化、clippy、targeted fixtures、完整 Rust 测试、spec check、完整 fixture suite 和 diff whitespace check。
-7. 更新 `TODO.md` 与 `TODO-5.md`，将 `P6-T03R` 标记为 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-8. 检查 git 状态和差异，只提交本任务相关文件，然后停止。
-
-## 当前进度
+## 历史记录：P6-T03R
 
 - 已读取 `TODO.md`；第一个未完成任务是 `P6-T03R`。
 - 已检查最近提交：`fdcdc47e [P6-T03] Audit old surface regressions`，它正是本 review 的输入，未发现额外未完成前置事项。
@@ -30,4 +13,31 @@
 - 已验证 `.cone` / `scoopir` export：`public_api_filter.scoop` 确认 `.scoopir` 只导出显式 `public`；`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden` 确认 public 可见且 private/internal 保持隐藏。
 - 已通过完整验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload / cone fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
 - 已更新 `TODO.md` 和 `TODO-5.md`，将 `P6-T03R` 标记为 `[DONE]` 并填写完成记录；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
+- 提交前检查发现未跟踪文件 `REFLECTION.md`，该文件不是本任务产生的改动，不纳入本次提交。
+
+## 当前任务：P6-T04
+
+## 范围
+
+- 目标：依据 `TODO.md` 的顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 当前任务：`P6-T04：全量格式化、测试矩阵与最终收口记录`。
+- 约束：执行完整验证矩阵；不把 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 范围内事项静默延期；完成后只留下 `P6-T04R` 作为下一个 review 任务。
+
+## 步骤
+
+1. 读取 `TODO.md`，识别第一个未完成任务及其验证要求。
+2. 检查最近提交是否提到与当前任务直接相关的未完成事项。
+3. 阅读 `TODO-5.md` 中 `P6-T04` 的任务体和依赖。
+4. 按要求运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+5. 额外运行 user-visible failure policy audit 和 `git diff --check`，用于最终诊断和 whitespace 收口记录。
+6. 如果出现未调度失败，修复或在 `TODO.md` 中插入最小必要前置任务后停止。
+7. 验证通过后，将 `P6-T04` 在 `TODO.md` 和 `TODO-5.md` 标记为 `[DONE]` 并填写完成记录。
+8. 检查 git 状态、差异和最近提交，只提交本任务相关文件，然后停止。
+
+## 当前进度
+
+- 已读取 `TODO.md`；第一个未完成任务是 `P6-T04`。
+- 已检查最近提交：`2a8410d4 [P6-T03R] Review old surface audit`，未发现与当前任务直接相关的未完成 blocker。
+- 已通过最终验证矩阵：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`。
+- 已更新 `TODO.md` 和 `TODO-5.md`，将 `P6-T04` 标记为 `[DONE]` 并填写完成记录；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 - 提交前检查发现未跟踪文件 `REFLECTION.md`，该文件不是本任务产生的改动，不纳入本次提交。
