@@ -170,23 +170,23 @@ static uint64_t scoop_rt_parse_gc_stress_interval(void) {
     return 0;
   }
 
-  if (raw[0] == 0) {
+  // 空串（或仅空白）：视为“开启（每次分配触发）”。
+  if (scoop_rt_env_at_end_after_space(raw)) {
     return 1;
   }
-  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0) {
+  // 显式关闭：0/false/no/off（与其它 env 解析一致地容忍尾部空白）。
+  if (scoop_rt_env_is_false_or_off(raw)) {
     return 0;
   }
 
+  errno = 0;
   char *end = 0;
   unsigned long long v = strtoull(raw, &end, 10);
-  if (end != 0 && end != raw && end[0] == 0) {
-    if (v == 0) {
-      return 0;
-    }
-    return (uint64_t)v;
+  if (end != raw && errno == 0 && scoop_rt_env_at_end_after_space(end)) {
+    return v == 0 ? 0 : (uint64_t)v;
   }
 
-  // 非数字：只要不是显式 false/0/no，就视为“开启（每次分配触发）”。
+  // 非数字且非显式关闭：视为“开启（每次分配触发）”。
   return 1;
 }
 

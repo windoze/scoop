@@ -696,18 +696,4 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(
   return block;
 }
 
-static inline ScoopGcImmixBlock *scoop_gc_immix_block_from_object(void *object) {
-  if (object == 0) {
-    return 0;
-  }
-
-  uintptr_t base =
-      ((uintptr_t)object) & ~((uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE - 1u);
-  ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)base;
-  if (block->magic != SCOOP_GC_IMMIX_BLOCK_MAGIC) {
-    return 0;
-  }
-  return block;
-}
-
 #endif // SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
