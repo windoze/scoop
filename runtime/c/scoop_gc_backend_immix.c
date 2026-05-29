@@ -2162,26 +2162,19 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
       return value;
     }
 
-    scoop_gc_immix_lock(state);
-    ScoopGcImmixBlock *value_block =
-        scoop_gc_immix_state_find_block_containing_unlocked(state, value);
-    if (value_block != 0 &&
-        value_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
-      scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);
+    // O(1) 快路径：value 不在 nursery block 时不可能需要晋升，不抢锁。
+    const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+    ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
+    if (value_block != 0 && value_block->generation == nursery) {
+      scoop_gc_immix_lock(state);
+      // re-check under lock：避免与并发晋升竞争。
+      value_block = scoop_gc_immix_block_from_object(value);
+      if (value_block != 0 && value_block->generation == nursery) {
+        scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);
+      }
+      scoop_gc_immix_unlock(state);
     }
-    scoop_gc_immix_unlock(state);
 
-    scoop_gc_safepoint_poll();
-    return value;
-  }
-
-  // 写入 NULL 不可能形成 old→nursery 边，无需加锁扫描 block 或做晋升；直接写入 slot 并 poll。
-  // （与下方一般路径在 state 未就绪时的回退同构：memcpy + safepoint，不依赖 GC 锁。）
-  if (value == 0) {
-    void scoop_thread_register(void);
-    void scoop_gc_safepoint_poll(void);
-    scoop_thread_register();
-    (void)memcpy(slot_addr, &value, sizeof(void *));
     scoop_gc_safepoint_poll();
     return value;
   }
@@ -2200,27 +2193,42 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
     return value;
   }
 
+  // fast path：绝大多数 store 不形成 old→nursery 指针。用 O(1) 的 block header 探测
+  // （block 按 BLOCK_SIZE 对齐，可从指针掩码反推 base），加锁前排除无需晋升的常见情况。
+  // 这里对 generation 的无锁读取只是启发式：真正晋升前会在锁内 re-check。
+  const uint8_t old = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD;
+  const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+
+  ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
+  // value 不在 nursery block（含 value==NULL、large/fallback、已晋升）→ 不可能 old→nursery；
+  // value 在 nursery 但 slot 在 nursery block（young←young）→ 也不需要 barrier。
+  // 这两类直接写入并 poll，不抢全局锁。
+  if (value_block == 0 || value_block->generation != nursery) {
+    (void)memcpy(slot_addr, &value, sizeof(void *));
+    scoop_gc_safepoint_poll();
+    return value;
+  }
+  ScoopGcImmixBlock *slot_block = scoop_gc_immix_block_from_object(slot_addr);
+  if (slot_block != 0 && slot_block->generation != old) {
+    (void)memcpy(slot_addr, &value, sizeof(void *));
+    scoop_gc_safepoint_poll();
+    return value;
+  }
+
+  // 可能需要晋升：value 在 nursery，且 slot 在 old block，或 slot 不落在任何 block
+  // （large/fallback old-space 对象，或根本不是堆对象的槽位）。加锁后重新核验；slot_block==0
+  // 时用对象扫描区分“large 对象（old）”与“非堆槽位（不触发 barrier）”，保持原语义。
   scoop_gc_immix_lock(state);
-
-  // slot_is_old 判定避免 O(heap_objects) 的对象链表扫描：slot 与其所属对象头位于同一个
-  // Immix block，所以直接用 slot_addr 定位 block（O(blocks)，block 数远小于对象数）即可。
-  // 仅当 slot_addr 不落在任何 block（large/fallback old-space 对象，或根本不是堆对象的槽位）
-  // 时，才退化为对象扫描以区分“large 对象（old）”与“非堆槽位（不触发 barrier）”，保持原语义。
-  ScoopGcImmixBlock *slot_block =
-      scoop_gc_immix_state_find_block_containing_unlocked(state, slot_addr);
-  ScoopGcImmixBlock *value_block =
-      scoop_gc_immix_state_find_block_containing_unlocked(state, value);
-
+  slot_block = scoop_gc_immix_block_from_object(slot_addr);
+  value_block = scoop_gc_immix_block_from_object(value);
   uint32_t slot_is_old;
   if (slot_block != 0) {
-    slot_is_old = (slot_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD);
+    slot_is_old = (slot_block->generation == old);
   } else {
-    ScoopGcObjectHeader *slot_owner =
-        scoop_gc_heap_find_object_containing_unlocked(&scoop_gc_heap, slot_addr, sizeof(void *));
-    slot_is_old = (slot_owner != 0);
+    slot_is_old = (scoop_gc_heap_find_object_containing_unlocked(
+                       &scoop_gc_heap, slot_addr, sizeof(void *)) != 0);
   }
-  if (slot_is_old && value_block != 0 &&
-      value_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+  if (slot_is_old && value_block != 0 && value_block->generation == nursery) {
     scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);
   }
 

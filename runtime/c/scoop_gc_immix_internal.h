@@ -696,4 +696,21 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(
   return block;
 }
 
+// O(1) 从对象/字段指针反推所属 Immix block：block 由 posix_memalign 对齐到 BLOCK_SIZE，
+// 因此 base = ptr & ~(BLOCK_SIZE-1)。magic 校验用于排除 large/fallback malloc 对象与非堆指针
+// （对这些指针返回 0）。写屏障用它做加锁前的 O(1) 快路径判定。
+static inline ScoopGcImmixBlock *scoop_gc_immix_block_from_object(void *object) {
+  if (object == 0) {
+    return 0;
+  }
+
+  uintptr_t base =
+      ((uintptr_t)object) & ~((uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE - 1u);
+  ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)base;
+  if (block->magic != SCOOP_GC_IMMIX_BLOCK_MAGIC) {
+    return 0;
+  }
+  return block;
+}
+
 #endif // SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
