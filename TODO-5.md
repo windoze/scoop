@@ -612,7 +612,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6/P6 final validation gate；确认 `SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` 目标行为已通过前序 P6 spec / fixture / old-surface / overload-codegen audit 任务和本次完整绿色矩阵成为 active spec/compiler contract；旧 surface 仅保留在 archive/history/design baseline 或显式 negative fixture，不需要更新 `PLAN.md`。
 
-### [TODO] P6-T04R：Review 最终收口质量
+### [DONE] P6-T04R：Review 最终收口质量
 
 - 参考：
   - P6-T04 完成记录
@@ -646,7 +646,7 @@
   - 本轮 Spec Fix + Overload Resolution 执行计划完成，剩余 backlog 只包含明确超出本轮范围的 v2+ 项。
 - 依赖：P6-T04
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：最终复核 P6-T04 的收口记录、`SPEC_FIX.md` summary table、`OVERLOAD_RESOLUTION.md` §12、`PLAN.md` P6 gate、root/package TODO 状态、active spec/sysroot/compiler/fixture evidence 与完整验证矩阵；本 review 未修改 compiler、sysroot、spec 或 fixture 内容，只更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
+  - 核心决策：未发现静默延期或需新增 prerequisite 的本轮范围 blocker。`SPEC_FIX.md` A1-D1 均已有 active spec/implementation/negative-fixture evidence：`Nothing`、cone/package、tuple `.0`、`${...}` f-string、handler `on`、panic-based assertion failures、refutable `val`、`ref` / `value` bounds、default `internal` visibility、operator gate、old `perform` / `@Inline` / `AnyRef` / `AnyValue` removal and explicit negative fixtures are closed. `OVERLOAD_RESOLUTION.md` §12 rules are represented by definition-time diagnostics (`conflicting_overloads`、`generic_overload_shape_mismatch`、`vararg_overlaps_non_vararg`、override/virtual-generic rejects), call-site diagnostics (`no_applicable_overload`、`ambiguous_overload`), selected-callable identity/codegen coverage, constructor/member/operator/effect paths, and regression fixtures that run in the full fixture suite.
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`；TODO consistency script confirmed 63 root tasks and 63 package tasks with no missing entries or status mismatches before marking this review done.
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6 / final validation gate；`SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` target behavior is now the active spec/compiler contract, old surface remains only as archive/history/design baseline or explicit negative fixtures, and no phase-level sequencing or completion criteria changed, so `PLAN.md` was not updated.

@@ -4,7 +4,7 @@
 > 设计基线：[`SPEC_FIX.md`](./SPEC_FIX.md)、[`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-pipeline-refactor.md`](./docs/archive/plans/TODO-pipeline-refactor.md)  
-> 当前状态：任务已拆分为 5 个任务包；所有任务均为 `[TODO]`。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；所有任务均已完成。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -95,7 +95,7 @@
 | P6-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t03执行旧-surface-与-overloadcodegen-回归审计) | [DONE] 执行旧 surface 与 overload/codegen 回归审计 |
 | P6-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t03rreview-旧-surface-与回归审计) | [DONE] Review P6-T03 audit 结果 |
 | P6-T04 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t04全量格式化测试矩阵与最终收口记录) | [DONE] 全量格式化、测试矩阵与最终收口记录 |
-| P6-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t04rreview-最终收口质量) | Review P6-T04 最终收口质量 |
+| P6-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t04rreview-最终收口质量) | [DONE] Review P6-T04 最终收口质量 |
 
 ## 包间验收门禁
 
