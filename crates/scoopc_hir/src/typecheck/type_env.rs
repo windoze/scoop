@@ -152,6 +152,11 @@ pub struct TypeSymbol {
     /// - 当前阶段仅用于在注解使用点做“参数类型 + 编译期常量”检查；
     /// - 更完整的默认值计算/可选参数规则会在后续任务中完善（spec §15.2 / §15.3）。
     pub annotation_params: Vec<AnnotationParamInfo>,
+    /// 是否标记为 `@InteriorMutable`。
+    ///
+    /// 说明：该标记描述类型的内部可变性，必须绑定在解析后的 nominal type symbol 上，
+    /// 而不是绑定到某个别名或按名称特判，供后续 MIR/codegen 与常量化谓词查询。
+    pub is_interior_mutable: bool,
     pub type_param_count: usize,
     /// 是否包含 `eff` effect row 参数（spec §3.4 / §5.8）。
     ///
@@ -363,6 +368,12 @@ impl TypeEnv {
     /// 按 FQN 查询类型符号。
     pub fn type_symbol(&self, fqn: &str) -> Option<&TypeSymbol> {
         self.by_fqn.get(fqn)
+    }
+
+    /// Returns whether the resolved nominal type symbol carries `@InteriorMutable`.
+    pub fn nominal_is_interior_mutable(&self, fqn: &str) -> bool {
+        self.type_symbol(fqn)
+            .is_some_and(|sym| sym.is_interior_mutable)
     }
 
     /// 返回给定 FQN 的 type params 数量（arity）。
@@ -628,6 +639,7 @@ impl TypeEnv {
                             annotation_targets: None,
                             annotation_retention: None,
                             annotation_params: Vec::new(),
+                            is_interior_mutable: false,
                             type_param_count: type_param_names.len(),
                             eff_param: None,
                             type_param_names,
@@ -754,6 +766,7 @@ impl TypeEnv {
                 annotation_targets,
                 annotation_retention,
                 annotation_params,
+                is_interior_mutable: type_decl_has_interior_mutable(source, decl),
                 type_param_count: decl.type_params.len(),
                 eff_param: decl.eff_param.as_ref().map(|p| EffParamInfo {
                     span: p.span,
@@ -963,6 +976,7 @@ impl TypeEnv {
                 annotation_targets: None,
                 annotation_retention: None,
                 annotation_params: Vec::new(),
+                is_interior_mutable: false,
                 type_param_count: 0,
                 eff_param: None,
                 type_param_names: Vec::new(),
@@ -1172,6 +1186,12 @@ fn collect_annotation_params(
     out
 }
 
+fn type_decl_has_interior_mutable(source: &SourceFile, decl: &ast::TypeDecl) -> bool {
+    decl.annotations.iter().any(|ann| {
+        builtin_annotation_kind(source, ann) == Some(BuiltinAnnotationKind::InteriorMutable)
+    })
+}
+
 fn annotation_use_to_fqn(
     source: &SourceFile,
     file: &ast::File,
@@ -1351,7 +1371,7 @@ mod tests {
     use super::*;
     use crate::ast;
     use crate::session::Session;
-    use crate::ty::TypeStore;
+    use crate::ty::{TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
 
     #[test]
@@ -1432,6 +1452,67 @@ mod tests {
             assert_eq!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Class));
             assert_eq!(sym.type_param_count, 1);
         }
+    }
+
+    #[test]
+    fn type_env_tracks_interior_mutable_nominal_marker_through_alias_lowering() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<interior-mutable-type-env>",
+            r#"
+package fixtures.typecheck
+
+@InteriorMutable
+struct AtomicCell(val raw: Int)
+
+typealias AtomicAlias = AtomicCell
+
+struct PlainCell(val raw: Int)
+"#,
+        );
+        let ast = sess.parse(&source).unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in sess.sysroot().index_files() {
+            pairs.push((&f.source, &f.ast));
+        }
+        pairs.push((&source, &ast));
+        let index = Index::build(&pairs).unwrap();
+
+        let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        assert!(env.nominal_is_interior_mutable("fixtures.typecheck.AtomicCell"));
+        assert!(!env.nominal_is_interior_mutable("fixtures.typecheck.PlainCell"));
+        assert!(!env.nominal_is_interior_mutable("fixtures.typecheck.AtomicAlias"));
+
+        let alias_ty = ast
+            .items
+            .iter()
+            .find_map(|item| match item {
+                ast::Item::TypeAlias(alias) if source.slice(alias.name.span) == "AtomicAlias" => {
+                    Some(&alias.ty)
+                }
+                _ => None,
+            })
+            .expect("test alias should be present");
+        let imports = env
+            .file_type_context(source.path())
+            .expect("source file type context should be recorded")
+            .imports
+            .clone();
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut lower = crate::typecheck::TypeLowering::new(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        );
+        let alias_ty_id = lower
+            .lower_type_ref(alias_ty)
+            .expect("alias RHS should lower to the marked nominal");
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(alias_ty_id) else {
+            panic!("alias RHS should lower to a value nominal");
+        };
+        assert_eq!(nominal.fqn, "fixtures.typecheck.AtomicCell");
+        assert!(env.nominal_is_interior_mutable(&nominal.fqn));
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
 //! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic`
-//!   / `@Deprecated` / `@Suppress` / `@Experimental` 的最小语义；
+//!   / `@Deprecated` / `@Suppress` / `@Experimental` / `@InteriorMutable` 的最小语义；
 //! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
 //!   会在编译器中附带额外语义；
 //! - feature gating framework 仍未接入；`@Experimental` 当前只保留 surface 与参数校验。
@@ -27,6 +27,7 @@ pub(crate) enum BuiltinAnnotationKind {
     Suppress,
     Experimental,
     CallingConvention,
+    InteriorMutable,
 }
 
 impl BuiltinAnnotationKind {
@@ -42,6 +43,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Suppress => "Suppress",
             BuiltinAnnotationKind::Experimental => "Experimental",
             BuiltinAnnotationKind::CallingConvention => "CallingConvention",
+            BuiltinAnnotationKind::InteriorMutable => "InteriorMutable",
         }
     }
 
@@ -57,6 +59,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Suppress => "表达式 / 声明 / 文件",
             BuiltinAnnotationKind::Experimental => "函数 / 类型 / 属性 / 文件",
             BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
+            BuiltinAnnotationKind::InteriorMutable => "struct / class 类型声明",
         }
     }
 }
@@ -124,6 +127,9 @@ pub(crate) fn builtin_annotation_kind(
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
             Some(BuiltinAnnotationKind::CallingConvention)
         }
+        ["InteriorMutable"] | ["scoop", "core", "InteriorMutable"] => {
+            Some(BuiltinAnnotationKind::InteriorMutable)
+        }
         _ => None,
     }
 }
@@ -176,6 +182,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::Suppress) => {}
                 Some(BuiltinAnnotationKind::Experimental) => {}
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
+                Some(BuiltinAnnotationKind::InteriorMutable) => {}
                 None => {}
             }
         }

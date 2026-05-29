@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_invalid_target
+// EXPECT-ERROR: 内建注解 `@InteriorMutable` 只能用于 struct / class 类型声明
+
+package fixtures.typecheck
+
+@InteriorMutable
+typealias InteriorMutableAlias = Int

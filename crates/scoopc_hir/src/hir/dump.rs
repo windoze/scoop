@@ -116,6 +116,9 @@ impl<'a> HirDumpRenderer<'a> {
         self.field_debug("fqn", &nominal.fqn);
         self.field_debug("name", &nominal.name);
         self.field_debug("kind", &nominal.kind);
+        if nominal.is_interior_mutable {
+            self.field_debug("is_interior_mutable", &nominal.is_interior_mutable);
+        }
         self.render_decl_type_params("type_params", &nominal.type_params);
         self.open_list_field("supertypes");
         for supertype in &nominal.supertypes {

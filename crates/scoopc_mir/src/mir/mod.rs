@@ -1859,6 +1859,7 @@ pub struct NominalMetadata {
     pub fqn: String,
     pub name: String,
     pub kind: ast::TypeKind,
+    pub is_interior_mutable: bool,
     pub type_params: Vec<DeclTypeParamMetadata>,
     pub supertypes: Vec<SupertypeMetadata>,
     pub interfaces: Vec<String>,

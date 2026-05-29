@@ -7,7 +7,7 @@
 
 ## P3：`__AtomicInt` 升为 `@InteriorMutable struct`
 
-### [TODO] P3-T01：新增 `@InteriorMutable` 注解
+### [DONE] P3-T01：新增 `@InteriorMutable` 注解
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -31,7 +31,12 @@
   - 谓词可凭 nominal 上的标记判定，无需名字匹配。
 - 依赖：P0-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 实现：新增 compiler-recognized `@InteriorMutable` builtin annotation，允许标注 `struct` / `class` 类型声明，拒绝 typealias、函数等非法 target，并保持 metadata-only（不生成 codegen/runtime 表项）。
+  - 元数据：`TypeSymbol` 持有 `is_interior_mutable`，提供 `TypeEnv::nominal_is_interior_mutable` 查询；HIR `NominalDecl` 与 MIR `NominalMetadata` 继续承载该标记，供后续 MIR/codegen 阶段按 nominal 查询。
+  - Cone：ScoopIR public type declaration 导出/导入 `is_interior_mutable`，cached cone 注入后标记不会丢失。
+  - 测试：新增 TypeEnv 单元测试覆盖标记查询与 alias lowering 回到标记 nominal；新增 typecheck fixtures 覆盖 struct/class 合法使用与 typealias 非法 target。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_hir type_env_tracks_interior_mutable_nominal_marker_through_alias_lowering --all-targets`；`cargo test -p scoopc_cone artifact_frontend_import_injects_public_and_visibility_payload --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/interior_mutable_struct_and_class_ok.scoop --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/interior_mutable_typealias_is_error.scoop --exit-on-failure`；`cargo build -p scoopc`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P3-T01R：Review `@InteriorMutable` 注解
 

@@ -195,6 +195,7 @@ pub(in crate::mir::lower) fn lower_decl_metadata(decl: &hir::Decl) -> MetadataRo
             fqn: nominal.fqn.clone(),
             name: nominal.name.clone(),
             kind: nominal.kind,
+            is_interior_mutable: nominal.is_interior_mutable,
             type_params: nominal
                 .type_params
                 .iter()

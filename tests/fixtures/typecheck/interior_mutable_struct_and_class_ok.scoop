@@ -1,0 +1,11 @@
+// P3-T01: `@InteriorMutable` is legal on nominal struct/class declarations.
+
+package fixtures.typecheck
+
+@InteriorMutable
+struct InteriorMutableCell(val raw: Int)
+
+@InteriorMutable
+class InteriorMutableBox(val raw: Int)
+
+fun main() {}

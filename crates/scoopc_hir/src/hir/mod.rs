@@ -147,6 +147,7 @@ pub struct NominalDecl {
     pub fqn: String,
     pub name: String,
     pub kind: ast::TypeKind,
+    pub is_interior_mutable: bool,
     pub type_params: Vec<DeclTypeParam>,
     pub supertypes: Vec<SupertypeDecl>,
     pub interfaces: Vec<String>,

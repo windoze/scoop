@@ -81,6 +81,9 @@ pub struct IrTypeDecl {
     pub fqn: String,
     pub kind: IrTypeDeclKind,
     pub type_params: Vec<IrTypeParam>,
+    /// Whether the nominal type carries compiler-recognized `@InteriorMutable` metadata.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_interior_mutable: bool,
     /// 若为 `typealias`，额外携带其 RHS（已在导出侧解析到 FQN，且按策略可能已展开）。
     ///
     /// 说明：
@@ -89,6 +92,10 @@ pub struct IrTypeDecl {
     /// - 该字段是可选的：老版本 `.cone`（或测试构造的最小文件）缺省为 None。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alias_of: Option<IrType>,
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// effect row（v0：仅保留 term 集合，空表示 `Pure`）。
@@ -193,6 +200,7 @@ mod tests {
                     name: "T".to_string(),
                     variance: Some(IrVariance::Out),
                 }],
+                is_interior_mutable: false,
                 alias_of: None,
             }],
             vec![IrFunDecl {
