@@ -548,7 +548,7 @@
   - 验证结果：targeted old-surface `rg` audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6 对旧 surface 清理回归审计、overload/codegen baseline 和 public export visibility 的收尾要求；遵守不把 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 设计基线当作 active violation 的约束；阶段级 sequencing 未变化，无需更新 `PLAN.md`。
 
-### [TODO] P6-T03R：Review 旧 surface 与回归审计
+### [DONE] P6-T03R：Review 旧 surface 与回归审计
 
 - 参考：
   - P6-T03 完成记录
@@ -575,10 +575,10 @@
   - P6-T03 audit 可以作为最终收口依据。
 - 依赖：P6-T03
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P6-T03 旧 surface 与 overload/codegen 回归审计结果；抽样检查 active spec / split spec、parser removal diagnostics、sysroot、fixtures 与 compiler 旧 surface 命中分类；复核 old-surface negative fixtures、overload run-pass baseline、overload diagnostic fixtures、failure-policy audit 与 `.cone` / `scoopir` public export 样例。本 review 未改 compiler、sysroot、spec 或 fixture 内容，只更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
+  - 核心决策：P6-T03 的分类可作为最终收口依据；剩余 `perform` 命中属于 parser removal diagnostic、negative fixture、注释或内部 effect-lowering 术语，handler `with` 只作为 removal negative，tuple `._0` / with-path `_0` 只作为旧语法 negative，f-string `{...}` 命中为 literal-brace 覆盖或 `${...}` 内部表达式，`@Inline` / `AnyRef` / `AnyValue` 不存在 active sysroot/compiler positive surface，sysroot operator-like declarations 未发现缺少 `operator` 的正向 API；`.cone` export 样例确认只有显式 `public` 声明进入 `api.scoopir` 或跨 cone 可见。
+  - 验证结果：targeted old-surface Grep audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T03R 对旧 surface audit 可信度、overload/codegen regression 实跑与 cone export audit 可复现性的独立 review gate；未发现需新增 prerequisite 或调整阶段级 sequencing 的问题，无需更新 `PLAN.md`。
 
 ### [TODO] P6-T04：全量格式化、测试矩阵与最终收口记录
 

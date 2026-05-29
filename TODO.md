@@ -93,7 +93,7 @@
 | P6-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t02同步-spec-doctests-与-handwritten-fixtures-到新-surface) | [DONE] 同步 spec doctests 与 handwritten fixtures 到新 surface |
 | P6-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t02rreview-fixture-同步结果) | [DONE] Review P6-T02 fixture 同步结果 |
 | P6-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t03执行旧-surface-与-overloadcodegen-回归审计) | [DONE] 执行旧 surface 与 overload/codegen 回归审计 |
-| P6-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t03rreview-旧-surface-与回归审计) | Review P6-T03 audit 结果 |
+| P6-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p6-t03rreview-旧-surface-与回归审计) | [DONE] Review P6-T03 audit 结果 |
 | P6-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t04全量格式化测试矩阵与最终收口记录) | 全量格式化、测试矩阵与最终收口记录 |
 | P6-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p6-t04rreview-最终收口质量) | Review P6-T04 最终收口质量 |
 
