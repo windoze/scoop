@@ -509,7 +509,7 @@
   - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）。未重跑 `cargo test --all --all-targets`，因为本 review 只修改 `TODO` / 执行记忆且未改编译输出；沿用 P6-T02 最近完整 Rust 测试绿色结果。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02R 对 fixture 同步质量的 review 要求，确认 fixture suite 与当前 spec/compiler surface 一致；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P6-T03：执行旧 surface 与 overload/codegen 回归审计
+### [DONE] P6-T03：执行旧 surface 与 overload/codegen 回归审计
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -543,10 +543,10 @@
   - Audit has no unexplained active old-surface hits.
 - 依赖：P6-T02R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：按 P0-T01 inventory 复核 active spec / split spec、sysroot、fixtures、AST/HIR/MIR/LLVM codegen 的旧 surface 命中；复核 overload/codegen baseline fixture、overload diagnostic fixture 与 failure-policy audit；复核 `.cone` / `scoopir` public API export fixture；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。本任务未改 compiler、sysroot、spec 或 fixture 内容。
+  - 核心决策：剩余 `perform` 用户语法实际代码只在 `perform_keyword_removed.scoop` negative fixture 中出现，compiler 内部 `Perform` / `perform` 仍是 effect lowering 术语而非旧 surface；handler `with` 只在 `handle_with_keyword_removed.scoop` negative fixture 中出现，value / enum `with` update 保持 active；tuple `._0` / with-path `_0` 只保留为旧语法 negative fixture；f-string `{...}` 命中为 literal-brace 覆盖或 `${...}` 表达式内部 brace，不再表示旧插值；`@Inline`、`AnyRef` / `AnyValue` 在 active sysroot/compiler 中无 positive 定义或 alias，剩余 active fixture 命中为 negative coverage；sysroot operator-like declarations 均带 `operator`，无未标注的 operator-positioned 正向 API。
+  - 验证结果：targeted old-surface `rg` audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6 对旧 surface 清理回归审计、overload/codegen baseline 和 public export visibility 的收尾要求；遵守不把 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 设计基线当作 active violation 的约束；阶段级 sequencing 未变化，无需更新 `PLAN.md`。
 
 ### [TODO] P6-T03R：Review 旧 surface 与回归审计
 
