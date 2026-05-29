@@ -202,12 +202,15 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ci
     };
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
-    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
-        index,
-        &types,
-        &file_hir,
-        &member_funs,
-    ));
+    extend_top_level_fun_call_sites_without_overwriting(
+        &mut top_level_fun_call_sites,
+        collect_synthetic_named_intrinsic_call_sites_for_file(
+            index,
+            &types,
+            &file_hir,
+            &member_funs,
+        ),
+    );
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
     let no_source_cone_overrides = HashMap::new();
@@ -882,12 +885,15 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
     );
     let file_hir = File { decls, items };
-    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
-        index,
-        &types,
-        &file_hir,
-        &member_funs,
-    ));
+    extend_top_level_fun_call_sites_without_overwriting(
+        &mut top_level_fun_call_sites,
+        collect_synthetic_named_intrinsic_call_sites_for_file(
+            index,
+            &types,
+            &file_hir,
+            &member_funs,
+        ),
+    );
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
     let stable_type_param_keys = collect_stable_type_param_keys_with_source_cones(
         compilation_unit,
@@ -933,4 +939,13 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         direct_supertypes,
         builtins,
     })
+}
+
+fn extend_top_level_fun_call_sites_without_overwriting(
+    sites: &mut crate::hir::TopLevelFunCallSiteIndex,
+    synthetic_sites: crate::hir::TopLevelFunCallSiteIndex,
+) {
+    for (site, binding) in synthetic_sites {
+        sites.entry(site).or_insert(binding);
+    }
 }

@@ -83,18 +83,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         require_plain_surface: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let mut concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
-        if self.lir_source_callable(&concrete_fqn).is_none()
-            && let Some(inferred_fqn) = self.inferred_lir_source_direct_call_fqn(
-                &concrete_fqn,
-                args,
-                transport.result.source_ty,
-                body,
-                mir_types,
-            )
-        {
-            concrete_fqn = inferred_fqn;
-        }
+        let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
         let binding_entry_name = self
             .current_top_level_fun_call_binding(span)?
             .filter(|binding| {
@@ -118,7 +107,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let callable_abi = self.direct_call_abi_identity(&concrete_fqn);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
-        let dispatch_fqn = mir_direct_call_base_fqn(&concrete_fqn);
         if require_plain_surface && uses_effect_step_surface {
             return Err(frontend_error(format!(
                 "plain direct call `{}` 仍要求 effect-step callable surface；应走 published boundary/dynamic adapter，而不是 ordinary direct call",
@@ -126,36 +114,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         let uses_explicit_effect_hidden_abi = !require_plain_surface && uses_effect_step_surface;
-        let (signature_owner_fqn, source_types, param_names, source_param_tys, source_return_ty) =
-            self.published_callable_signature_with_names(&concrete_fqn)
-                .map(|(source_types, param_names, param_tys, return_ty)| {
-                    (
-                        concrete_fqn.as_str(),
-                        source_types,
-                        param_names,
-                        param_tys,
-                        return_ty,
-                    )
-                })
-                .or_else(|| {
-                    (dispatch_fqn != concrete_fqn)
-                        .then(|| self.published_callable_signature_with_names(dispatch_fqn))
-                        .flatten()
-                        .map(|(source_types, param_names, param_tys, return_ty)| {
-                            (
-                                dispatch_fqn,
-                                source_types,
-                                param_names,
-                                param_tys,
-                                return_ty,
-                            )
-                        })
-                })
-                .ok_or_else(|| LlvmEmitError::Frontend {
-                    message: format!(
-                        "direct call `{concrete_fqn}` 缺少 LIR callable signature facts"
-                    ),
-                })?;
+        let (source_types, param_names, source_param_tys, source_return_ty) = self
+            .published_callable_signature_with_names(&concrete_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("direct call `{concrete_fqn}` 缺少 LIR callable signature facts"),
+            })?;
         let (param_tys, return_ty_for_codegen) = self
             .published_signature_tys_as_codegen_tys(
                 source_types,
@@ -257,7 +220,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.declare_lir_plain_fun_with_symbol(
                     llvm_name,
                     declaration_surface,
-                    signature_owner_fqn,
+                    &concrete_fqn,
                     &source_param_tys,
                     source_return_ty,
                     source_types,

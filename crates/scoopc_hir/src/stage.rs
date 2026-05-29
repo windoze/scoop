@@ -3858,6 +3858,85 @@ impl<'a> ContractCollector<'a> {
             })
     }
 
+    fn hir_fun_decl_at(&self, fqn: &str, decl_file: &Path, decl_span: Span) -> Option<&FunDecl> {
+        fn span_contains(outer: Span, inner: Span) -> bool {
+            outer.start <= inner.start && inner.end <= outer.end
+        }
+
+        self.lowered_hir
+            .file
+            .items
+            .iter()
+            .find_map(|item| {
+                let Item::Fun(fun) = item else {
+                    return None;
+                };
+                (fun.fqn == fqn
+                    && fun.source_path.as_path() == decl_file
+                    && (fun.span == decl_span || span_contains(fun.span, decl_span)))
+                .then_some(fun)
+            })
+            .or_else(|| {
+                self.lowered_hir.member_funs.iter().find(|fun| {
+                    fun.fqn == fqn
+                        && fun.source_path.as_path() == decl_file
+                        && (fun.span == decl_span || span_contains(fun.span, decl_span))
+                })
+            })
+    }
+
+    fn unique_hir_fun_decl(&self, fqn: &str) -> Option<&FunDecl> {
+        let mut found = None;
+        for item in &self.lowered_hir.file.items {
+            let Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.fqn != fqn {
+                continue;
+            }
+            if found.is_some() {
+                return None;
+            }
+            found = Some(fun);
+        }
+        for fun in &self.lowered_hir.member_funs {
+            if fun.fqn != fqn {
+                continue;
+            }
+            if found.is_some() {
+                return None;
+            }
+            found = Some(fun);
+        }
+        found
+    }
+
+    fn has_multiple_hir_fun_decls(&self, fqn: &str) -> bool {
+        let mut found_one = false;
+        for item in &self.lowered_hir.file.items {
+            let Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.fqn != fqn {
+                continue;
+            }
+            if found_one {
+                return true;
+            }
+            found_one = true;
+        }
+        for fun in &self.lowered_hir.member_funs {
+            if fun.fqn != fqn {
+                continue;
+            }
+            if found_one {
+                return true;
+            }
+            found_one = true;
+        }
+        false
+    }
+
     fn callable_abi_identity_for_fqn(&self, fqn: &str) -> CallableAbiIdentity {
         if let Some(extern_fun) = self.lowered_hir.extern_funs.get(fqn) {
             return extern_fun.callable_abi_identity();
@@ -3867,6 +3946,40 @@ impl<'a> ContractCollector<'a> {
             .hir_fun_decl(fqn)
             .is_some_and(|fun| callable_declared_effectful(&self.lowered_hir.types, fun.ty));
         CallableAbiIdentity::managed_callable(call_may_suspend)
+    }
+
+    fn callable_abi_identity_for_binding(
+        &self,
+        binding: &ast::TopLevelFunCallBinding,
+        source_path: &Path,
+        span: Span,
+    ) -> Result<CallableAbiIdentity, HirStageError> {
+        if let Some(extern_fun) = self.lowered_hir.extern_funs.get(&binding.fqn) {
+            return Ok(extern_fun.callable_abi_identity());
+        }
+
+        let selected_fun = self
+            .hir_fun_decl_at(&binding.fqn, &binding.decl_file, binding.decl_span)
+            .or_else(|| self.unique_hir_fun_decl(&binding.fqn));
+        if let Some(selected_fun) = selected_fun {
+            return Ok(CallableAbiIdentity::managed_callable(
+                callable_declared_effectful(&self.lowered_hir.types, selected_fun.ty),
+            ));
+        }
+
+        if self.has_multiple_hir_fun_decls(&binding.fqn) {
+            return Err(HirStageError::new(
+                source_path.to_path_buf(),
+                span,
+                format!(
+                    "call binding for `{}` is missing its selected declaration identity",
+                    binding.fqn
+                ),
+                "typed HIR call contract",
+            ));
+        }
+
+        Ok(self.callable_abi_identity_for_fqn(&binding.fqn))
     }
 
     fn managed_callable_abi_identity_for_ty(&self, ty: TypeId) -> CallableAbiIdentity {
@@ -4077,7 +4190,8 @@ impl<'a> ContractCollector<'a> {
 
         if let Some(binding) = self.lowered_hir.top_level_fun_call_sites.get(&call_site) {
             let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
-            let abi_identity = self.callable_abi_identity_for_fqn(&binding.fqn);
+            let abi_identity =
+                self.callable_abi_identity_for_binding(binding, source_path, expr.span)?;
             let function = FunctionTargetContract::from_binding(
                 &self.lowered_hir.types,
                 binding,

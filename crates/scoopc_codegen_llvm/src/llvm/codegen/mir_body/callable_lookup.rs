@@ -45,68 +45,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ))
     }
 
-    pub(in crate::llvm::codegen) fn inferred_lir_source_direct_call_fqn(
-        &self,
-        template_fqn: &str,
-        args: &[crate::mir::CallArg],
-        result_source_ty: TypeId,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
-    ) -> Option<String> {
-        let program = self.published_late_lowered_program()?;
-        let source_types = self.published_late_lowered_types()?;
-        let arg_cg_tys = args
-            .iter()
-            .map(|arg| {
-                let source_ty = self.mir_operand_type_id(body, &arg.value)?;
-                self.equivalent_codegen_type_id(mir_types, source_ty)
-                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
-                    .or_else(|| self.cg_ty_of_mir_type(mir_types, source_ty))
-                    .or_else(|| self.try_cg_ty_of_type_id(source_ty))
-            })
-            .collect::<Option<Vec<_>>>()?;
-        let result_cg = self
-            .equivalent_codegen_type_id(mir_types, result_source_ty)
-            .and_then(|ty| self.try_cg_ty_of_type_id(ty))
-            .or_else(|| self.cg_ty_of_mir_type(mir_types, result_source_ty))
-            .or_else(|| self.try_cg_ty_of_type_id(result_source_ty))?;
-        let mut matched: Option<String> = None;
-        for callable in program.callables() {
-            if mir_direct_call_base_fqn(callable.root_fqn()) != template_fqn {
-                continue;
-            }
-            let Some(fun) = callable.source_callable() else {
-                continue;
-            };
-            if fun.params.len() != arg_cg_tys.len() {
-                continue;
-            }
-            let params_match =
-                fun.params
-                    .iter()
-                    .zip(arg_cg_tys.iter().copied())
-                    .all(|(param, arg_cg)| {
-                        self.cg_ty_of_mir_type(source_types, param.ty)
-                            .is_some_and(|param_cg| param_cg == arg_cg)
-                    });
-            if !params_match {
-                continue;
-            }
-            if self.cg_ty_of_mir_type(source_types, fun.return_ty) != Some(result_cg) {
-                continue;
-            }
-            let candidate = callable.root_fqn().to_string();
-            if let Some(found) = matched.as_ref() {
-                if found != &candidate {
-                    return None;
-                }
-                continue;
-            }
-            matched = Some(candidate);
-        }
-        matched
-    }
-
     pub(in crate::llvm::codegen) fn ensure_lir_source_closure_callable_defined(
         &mut self,
         span: crate::span::Span,

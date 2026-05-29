@@ -144,14 +144,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: true,
                     }));
                 }
-                let signature = self
-                    .published_codegen_callable_signature(callee_fqn)
-                    .or_else(|| {
-                        let base = mir_direct_call_base_fqn(callee_fqn);
-                        (base != callee_fqn)
-                            .then(|| self.published_codegen_callable_signature(base))
-                            .flatten()
-                    })?;
+                let signature = self.published_codegen_callable_signature(callee_fqn)?;
                 self.try_cg_ty_of_type_id(signature.return_ty)
             }
             crate::mir::CallKind::Closure { callee, .. }

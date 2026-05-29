@@ -281,7 +281,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 贯通的要求；三个 P0-T02 overload codegen baseline 已从 `IGNORE-UNTIL-FIX` 启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T04R：Review selected callable identity 贯通
+### [DONE] P5-T04R：Review selected callable identity 贯通
 
 - 参考：
   - P5-T04 完成记录
@@ -306,10 +306,10 @@
   - P5-T04 修复完整且有 regression 保护。
 - 依赖：P5-T04
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核并修正 P5-T04 selected callable identity 贯通；更新 HIR compilation-unit lowering，确保 synthetic named intrinsic / array helper call-site binding 只补缺不覆盖 typecheck selected binding；更新 HIR stage ABI contract 构建，按 selected `decl_file` + `decl_span` 查找本地 selected declaration，并只在当前 HIR 无同名多候选时允许 sysroot/imported fallback；更新 MIR LLVM direct-call codegen 与 result type 查询，移除 exact callable/signature miss 后按 bare/base FQN 或 ABI signature 推断的 fallback。
+  - 核心决策：P5-T04R 不接受 codegen 侧再按 same-name FQN 猜 overload；MIR direct call 必须使用 materialized exact `concrete_fqn` 的 callable signature facts；typecheck binding 的 semantic identity 继续以 `decl_file` + selected name span 为准，HIR whole-decl span 仅作为包含关系匹配口径；sysroot/intrinsic binding 不一定由当前 lowered HIR 承载，因此只在当前 HIR 内存在同名多候选且 selected decl 仍无法定位时拒绝 fallback。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_arity_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_gvc_ok.scoop`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。验证过程中一次多路径 `run_fixtures.py` 调用因脚本只接受单个 positional fixture path 而失败，随后按单文件命令重新运行并通过；一次完整 Rust 测试暴露过严 ABI fallback，修复后完整重跑通过。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 作为 source of truth 的 review 要求；确认三个 P0-T02 overload codegen baseline 已启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T05：审计 overload diagnostics 与 user-visible failure policy
 
