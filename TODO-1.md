@@ -203,7 +203,7 @@
 
 ## P1：Pacing 核心：堆增长阈值触发
 
-### [TODO] P1-T01：实现 pacing 核心 next_gc + request_collect + safepoint + 阈值
+### [DONE] P1-T01：实现 pacing 核心 next_gc + request_collect + safepoint + 阈值
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -231,7 +231,14 @@
   - 默认运行不再无界增长（env 旋钮在 P1-T02 接入，本任务可临时硬编码默认值）。
 - 依赖：P0-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已实现 Immix pacing 核心；默认配置下长程序不再无界保留 heap。
+  - heap 状态：`runtime/c/scoop_gc.h` 新增 `SCOOP_GC_PACING_MIN_THRESHOLD_BYTES`、`ScoopGcHeap.next_gc`、`request_collect` 与保留 padding；`runtime/c/scoop_gc.c`、`runtime/c/scoop_gc_backend_minimal.c`、`runtime/c/scoop_gc_backend_hosted.c`、`runtime/c/scoop_gc_backend_immix.c` 的 heap init 均初始化 pacing 字段，保持三个 backend 可编译。
+  - Immix alloc 触发：`scoop_gc_heap_register_object` 在对象登记后对累计 `bytes_allocated` 做 relaxed add，并用 `allocated_after >= next_gc` 设置幂等 `request_collect`；不在 alloc 内同步 collect。
+  - safepoint 消费：`runtime/c/scoop_runtime.c::scoop_alloc` 仍先执行 alloc 前 poll；`scoop_gc_safepoint_poll` 先保持既有 STW poll 语义，再 CAS 消费 `request_collect` 并调用 `scoop_gc_collect()`，因此请求在下一次 alloc/write-barrier safepoint 处、分配前落地。
+  - cycle 末更新：`scoop_gc_collect` 在持 Immix lock 且 sweep/compaction/verify 完成后、`scoop_gc_stop_the_world_end_unlocked()` 前更新 `next_gc` 并清 request。由于现有 debug `bytes_allocated` / `bytes_freed` 是累计计数，`next_gc` 存为累计分配水位线 `bytes_freed + max(4MiB, live * 1.5)`，等价于目标 live heap 模型且不改变累计统计 ABI。
+  - 回归：`crates/scoop_runtime/tests/gc_immix_allocator.rs` 新增 `immix_pacing_default_collects_after_threshold`，验证默认 pacing 超过 4MiB 后无需显式 GC 也会释放无根对象，并让 live heap 保持接近默认 floor；既有多线程分配/GC smoke 也覆盖 request/collect 不死锁。
+  - P0-T03 10M heap-growth 度量：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、累计 `bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`。`peak_allocated=320000000` 仍为累计分配计数，heap 有界性以后看 `live/reserved`。
+  - 验证：`cargo fmt`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
 ### [TODO] P1-T01R：Review pacing 核心
 

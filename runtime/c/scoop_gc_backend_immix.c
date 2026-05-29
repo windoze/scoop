@@ -75,8 +75,8 @@ static inline ScoopGcObjectHeader *scoop_gc_heap_objects_load_acquire(void) {
   return __atomic_load_n(&scoop_gc_heap.objects, __ATOMIC_ACQUIRE);
 }
 
-static inline void scoop_gc_heap_bytes_allocated_add(uint64_t delta) {
-  (void)__atomic_fetch_add(&scoop_gc_heap.bytes_allocated, delta, __ATOMIC_RELAXED);
+static inline uint64_t scoop_gc_heap_bytes_allocated_add(uint64_t delta) {
+  return __atomic_fetch_add(&scoop_gc_heap.bytes_allocated, delta, __ATOMIC_RELAXED) + delta;
 }
 
 static inline void scoop_gc_heap_push_object_atomic(ScoopGcObjectHeader *obj) {
@@ -182,6 +182,79 @@ static ScoopGcThreadRecord *scoop_gc_threads = 0;
 static uint32_t scoop_gc_thread_count = 0;
 
 static ScoopGcStwState scoop_gc_stw = {0};
+
+static uint64_t scoop_gc_pacing_live_bytes(uint64_t allocated, uint64_t freed) {
+  if (allocated < freed) {
+    return 0;
+  }
+  return allocated - freed;
+}
+
+static uint64_t scoop_gc_pacing_target_live_bytes(uint64_t live) {
+  uint64_t half = (live / 2u) + (live % 2u);
+  uint64_t target = UINT64_MAX;
+  if (UINT64_MAX - live >= half) {
+    target = live + half;
+  }
+  if (target < (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES) {
+    return (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  }
+  return target;
+}
+
+static uint64_t scoop_gc_pacing_next_gc(uint64_t allocated, uint64_t freed) {
+  uint64_t live = scoop_gc_pacing_live_bytes(allocated, freed);
+  uint64_t target_live = scoop_gc_pacing_target_live_bytes(live);
+  if (UINT64_MAX - freed < target_live) {
+    return UINT64_MAX;
+  }
+  return freed + target_live;
+}
+
+static void scoop_gc_pacing_update_next_gc_unlocked(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+
+  uint64_t allocated = __atomic_load_n(&heap->bytes_allocated, __ATOMIC_RELAXED);
+  uint64_t freed = heap->bytes_freed;
+  uint64_t next_gc = scoop_gc_pacing_next_gc(allocated, freed);
+  __atomic_store_n(&heap->next_gc, next_gc, __ATOMIC_RELAXED);
+  __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
+}
+
+static void scoop_gc_pacing_clear_request(void) {
+  __atomic_store_n(&scoop_gc_heap.request_collect, 0u, __ATOMIC_RELAXED);
+}
+
+static void scoop_gc_pacing_request_collect(void) {
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    return;
+  }
+  __atomic_store_n(&scoop_gc_heap.request_collect, 1u, __ATOMIC_RELAXED);
+}
+
+static void scoop_gc_pacing_after_alloc(uint64_t allocated_after) {
+  uint64_t next_gc = __atomic_load_n(&scoop_gc_heap.next_gc, __ATOMIC_RELAXED);
+  if (next_gc == 0 || allocated_after < next_gc) {
+    return;
+  }
+  scoop_gc_pacing_request_collect();
+}
+
+static uint32_t scoop_gc_pacing_take_request(void) {
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    return 0;
+  }
+
+  uint32_t expected = 1u;
+  return __atomic_compare_exchange_n(&scoop_gc_heap.request_collect,
+                                     &expected,
+                                     0u,
+                                     0,
+                                     __ATOMIC_ACQ_REL,
+                                     __ATOMIC_RELAXED);
+}
 
 static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
@@ -1868,6 +1941,9 @@ void scoop_gc_safepoint(void) { scoop_gc_safepoint_common(/*capture_stack_walkin
 void scoop_gc_safepoint_poll(void) {
   // T1505b：把“park 前捕获 stack walking ctx”的新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
   scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/1);
+  if (scoop_gc_pacing_take_request()) {
+    scoop_gc_collect();
+  }
 }
 
 static void scoop_gc_immix_nursery_remove_free_block_unlocked(ScoopGcImmixState *state,
@@ -2413,7 +2489,8 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
 
   // T1409a：并发 push（分配路径不持锁）。
   scoop_gc_heap_push_object_atomic(obj);
-  scoop_gc_heap_bytes_allocated_add(obj->size_bytes);
+  uint64_t allocated_after = scoop_gc_heap_bytes_allocated_add(obj->size_bytes);
+  scoop_gc_pacing_after_alloc(allocated_after);
 }
 
 static uint32_t scoop_gc_immix_env_read_u64(const char *name, uint64_t *out) {
@@ -2524,6 +2601,9 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
+  heap->next_gc = (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  heap->request_collect = 0;
+  heap->_pacing_reserved_u32 = 0;
 }
 
 typedef struct ScoopGcMarkStack {
@@ -4916,6 +4996,8 @@ void scoop_gc_collect(void) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
+  scoop_gc_pacing_clear_request();
+
   scoop_gc_stop_the_world_begin_unlocked(self);
 
   // T1409a：在 stop-the-world 达成后，清空所有线程的 thread-local current block 指针，
@@ -5360,6 +5442,8 @@ void scoop_gc_collect(void) {
     scoop_platform_unwind_ctx_destroy(initiator_stack_walking_ctx);
     initiator_stack_walking_ctx = 0;
   }
+
+  scoop_gc_pacing_update_next_gc_unlocked(heap);
 
   scoop_gc_stop_the_world_end_unlocked();
   scoop_gc_immix_unlock(state);

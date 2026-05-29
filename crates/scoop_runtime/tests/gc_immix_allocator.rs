@@ -101,6 +101,42 @@ mod immix {
     }
 
     #[test]
+    fn immix_pacing_default_collects_after_threshold() {
+        let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
+        unsafe {
+            scoop_runtime_init();
+            scoop_thread_register();
+            scoop_gc_collect();
+
+            let base_allocated = scoop_gc_debug_heap_bytes_allocated();
+            let base_freed = scoop_gc_debug_heap_bytes_freed();
+            let object_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64;
+            let allocations = ((4 * 1024 * 1024) / object_size) + 2048;
+
+            for i in 0..allocations {
+                let p = scoop_alloc(object_size);
+                assert!(!p.is_null(), "scoop_alloc must return non-null (i={i})");
+            }
+
+            let allocated = scoop_gc_debug_heap_bytes_allocated();
+            let freed = scoop_gc_debug_heap_bytes_freed();
+            assert!(allocated > base_allocated);
+            assert!(
+                freed > base_freed,
+                "default pacing should run a collection after crossing the 4MiB threshold"
+            );
+            assert!(allocated >= freed);
+            assert!(
+                allocated - freed <= 5 * 1024 * 1024,
+                "live heap should stay close to the default pacing floor"
+            );
+
+            scoop_gc_collect();
+            scoop_thread_unregister();
+        }
+    }
+
+    #[test]
     fn immix_allocator_multithread_alloc_and_collect_smoke() {
         let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
         unsafe {

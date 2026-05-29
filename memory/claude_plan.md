@@ -1,77 +1,39 @@
-# 执行计划
+# 当前执行计划
 
-## 当前约束
+## 约束
 
-- `TODO.md` 是任务顺序、需求、依赖、验证和完成记录的唯一权威来源。
-- 本次只完成 `TODO.md` 中第一个标题未以 `[DONE]` 开头的任务，然后停止。
-- 不做开放式历史问题排查；只处理当前任务直接相关或验证中暴露且未被明确排期的失败。
-- 若遇到阻塞当前任务的缺失特性、规格偏差或测试失败，优先修复；若不能在本次任务中完成，则在 `TODO.md` 中插入最小必要前置任务并提交后停止。
-- `PLAN.md` 只在阶段级计划、依赖或完成标准发生变化时更新。
-- 完成任务后必须更新 `TODO.md` 标题为 `[DONE]`，填写完成记录，运行要求的格式化、lint、测试/fixture 验证，并提交 Git commit。
+- 只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后停止。
+- `TODO.md` 是任务顺序、依赖、验证要求和完成记录的权威来源。
+- 不做开放式历史问题清扫；只处理当前任务及其直接阻塞问题。
+- 若遇到阻塞当前任务的缺失特性、规格不符或未安排的测试失败，先修复；若无法在本次完成，则在 `TODO.md` 中加入最小前置任务并提交后停止。
+- 完成任务后必须更新 `TODO.md` 标题为 `[DONE]` 并补充完成记录，然后提交 Git。
 
-## 初始执行步骤
+## 步骤
 
-1. 读取 `TODO.md`，严格按标题查找第一个未标记 `[DONE]` 的任务。
-2. 查看最近提交信息，仅判断是否有与该任务直接相关的未完成事项。
-3. 阅读当前任务正文、依赖、验收标准和完成记录，确定是否可以直接执行。
-4. 如任务可执行，检查相关代码和测试，做最小正确实现。
-5. 按要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，再运行相关测试；需要全量验证时使用不少于 30 分钟超时。
-6. 若发现未被明确排期的测试/fixture 失败，修复或在 `TODO.md` 中加入最小前置/后续任务，且不把当前任务标为完成。
-7. 完成后更新 `TODO.md`：任务标题加 `[DONE]`，补充完成记录和验证结果。
-8. 仅当阶段级计划改变时更新 `PLAN.md`。
-9. 检查 Git 状态和 diff，提交本次任务相关全部变更。
-10. 提交后停止，不继续下一个任务。
+1. 读取 `TODO.md`，识别第一个未完成任务及其验证要求。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成事项。
+3. 阅读当前任务涉及的代码、测试、规格或夹具，确认实现边界。
+4. 按任务要求做最小正确实现；如发现直接阻塞问题，更新本计划并按规则处理。
+5. 运行格式化、lint、相关测试；需要时运行完整测试和 fixture 套件。
+6. 修复验证中暴露的与当前任务相关的问题；未安排的失败按规则修复或排入 `TODO.md`。
+7. 更新 `TODO.md` 完成记录并为任务标题加 `[DONE]`。
+8. 检查 Git diff/status，提交本次任务相关全部改动。
+9. 停止，不处理下一个任务。
 
-## 进度记录
+## 当前进度
 
-- 已创建初始执行计划；尚未读取 `TODO.md` 或运行任何项目命令。
-- 已读取 `TODO.md`：第一个未完成任务是 `P0-T03：建立堆增长与字面量分配计数度量`。
-- 已检查最近提交：`031191d6 [P0-T02R] Review immortal baseline`，未发现直接指向 `P0-T03` 的未完成事项。
-- 已读取 `TODO-1.md`、`PLAN.md`、`GC_PACING.md`、`GC_IMMORTAL_FIX.md` 中与 `P0-T03` 相关的要求。
-
-## P0-T03 具体执行计划
-
-1. 定位现有 `scoop_gc_debug_*` helper、runtime C/Rust 测试组织、fixture/codegen IR 输出能力。
-2. 为长程序堆增长建立诊断度量，优先作为不影响 pass/fail 的可复用测试或工具；baseline 下记录无界增长数值。
-3. 为 String literal / `Platform` 读取建立 IR 中 `scoop_alloc_typed` 计数度量；baseline 下记录计数大于 0。
-4. 保持运行期和编译期行为不变，仅新增度量/测试/fixture/脚本和文档记录。
-5. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、相关 targeted 度量，再按任务要求运行 `cargo test --all --all-targets`；若 fixture 受影响或新增 fixture，则运行 fixture suite。
-6. 更新 `TODO.md` 与 `TODO-1.md` 的 `P0-T03` 状态和完成记录；仅在阶段计划改变时才更新 `PLAN.md`。
-7. 检查 diff/status 后提交 `[P0-T03] Establish GC allocation metrics`。
-
-## P0-T03 落点决议
-
-- 长程序堆增长度量落在现有 `crates/scoop_runtime/src/bin/gc_microbench.rs`，新增 `heap-growth` 场景；默认执行 10M 个小对象分配并按间隔记录 `allocated/freed/live/reserved` 曲线与峰值，不在循环中主动 GC，因此 baseline 能暴露无界增长。
-- 字面量分配计数使用新增 `umb_fix` build fixture 加新增工具脚本：fixture 只覆盖一个 String literal 函数和一个 `getPlatform()` 函数；工具通过 `scoopc emit-artifact --kind llvm-ir` 生成 IR，并统计 `call/invoke @scoop_alloc_typed` 次数。
-- `tools/run_fixtures.py` 已具备 `--emit-llvm` 与 IR substring/regex 断言能力，但没有通用“计数”语义；本任务不扩展 fixture runner，以免引入与当前度量无关的 runner 行为变化。
-
-## P0-T03 当前执行结果
-
-- 已新增 `gc_microbench heap-growth` 诊断场景，默认 10M 次 32-byte 小对象分配、每 1M 次采样。
-- 已新增 `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop` 与 `tools/literal_alloc_metric.py`，用于生成 LLVM IR 并统计 `call/invoke @scoop_alloc_typed`。
-- targeted 验证通过：`cargo test -p scoop_runtime --bin gc_microbench` 通过；`python3 tools/literal_alloc_metric.py --expect-min 1` 与 `python3 tools/literal_alloc_metric.py --expect-calls 6` 输出 `scoop_alloc_typed_calls=6`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop` 通过。
-- 10M baseline heap-growth 度量已运行：`allocations=10000000`、`object_size=32`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`，采样点显示 allocated/live 从 0 线性增长到 320000000，`freed=0`。
-- 完整验证已通过：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`（`fixtures: ok (1608)`）。随后只更新了任务记录和 Rust 顶部说明注释，并重新运行了 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`；fixture 移到可提交路径后也重新运行了 targeted 计数、单 fixture 与完整 fixture suite。
-- 已将 `P0-T03` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，并写入运行方式、baseline 数值与验证记录；`PLAN.md` 未变，因为阶段级计划未改变。
-
-## P0-T03R 执行计划
-
-1. 读取 `TODO.md` 并确认第一个未完成任务。
-2. 只检查最新提交是否声明了与该任务直接相关的未完事项。
-3. 读取 `TODO-1.md` 中 `P0-T03R` 的目标、约束和验证要求。
-4. 复核 `P0-T03` 新增的两个度量代码与运行方式。
-5. 运行 `cargo fmt`，实际复跑字面量分配计数和 10M heap-growth 度量，确认 baseline 数值可复现。
-6. 运行 `cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 和完整 fixture suite，确认度量不破坏 baseline 全量回归。
-7. 将 `P0-T03R` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，补充复核数值与验证记录。
-8. 检查 diff/status/log 后提交 `[P0-T03R] Review GC metrics baseline`，然后停止。
-
-## P0-T03R 当前执行结果
-
-- 已读取 `TODO.md`：第一个未完成任务是 `P0-T03R：Review 度量基线`。
-- 已检查最近提交：`1c8378c7 [P0-T03] Establish GC allocation metrics`，提交信息未声明与 `P0-T03R` 直接相关的未完事项。
-- 已读取 `TODO-1.md` 中 `P0-T03R` 任务正文，并复核 `crates/scoop_runtime/src/bin/gc_microbench.rs`、`tools/literal_alloc_metric.py`、`tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`。
-- `cargo fmt` 已通过。
-- 字面量分配计数度量已复跑：`python3 tools/literal_alloc_metric.py --expect-calls 6` 输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致。
-- 10M heap-growth 度量已复跑：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 输出 `allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点从 0 线性增长到 320000000。
-- 完整验证已通过：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`；fixture 汇总 `fixtures: ok (1608)`。
-- 已将 `P0-T03R` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，并补充复核数值与验证记录；`PLAN.md` 未变，因为阶段级计划未改变。
+- 已读取 `TODO.md` 和 `TODO-1.md`，第一个未完成任务是 `P1-T01：实现 pacing 核心 next_gc + request_collect + safepoint + 阈值`。
+- 最近提交为 `P0-T03R` review，不包含与 `P1-T01` 直接相关的未完成事项。
+- 下一步聚焦 `runtime/c/scoop_gc.h`、`runtime/c/scoop_runtime.c`、`runtime/c/scoop_gc_backend_immix.c` 的 pacing 字段、alloc 计数点、safepoint 消费点和 GC cycle 末更新点。
+- 已确认现有 `bytes_allocated` / `bytes_freed` 是累计调试计数；为保持该 ABI/测试语义，`next_gc` 将保存累计分配水位线：`bytes_freed + max(4MB, live * 1.5)`。这等价于目标 live heap 模型，同时让 alloc hot path 只做 relaxed `bytes_allocated >= next_gc` 比较。
+- 下一步执行小 patch：先扩展 `ScoopGcHeap` 字段并初始化，再接入 Immix pacing helper、safepoint 消费与 GC cycle 末更新。
+- 已扩展 `ScoopGcHeap`，所有 backend init 均初始化 `next_gc/request_collect`；Immix 已在分配登记后做 relaxed 阈值比较并置 request flag，`scoop_gc_safepoint_poll` 已消费 request 并在分配前 collect，full GC cycle 末已更新下一次水位线。
+- 已在 Immix allocator 集成测试中新增默认 pacing 阈值回归，验证超过 4MiB 后无需显式 GC 也会释放无根对象且 live heap 保持接近默认 floor。
+- 下一步运行 `cargo fmt`，随后执行定向测试；若通过再进入 clippy、完整 Rust 测试和 fixture 验证。
+- `cargo fmt`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo clippy --all-targets -- -D warnings` 均已通过。
+- P0-T03 10M heap-growth 度量已通过：默认 Immix pacing 下 `peak_live=3725312`、`peak_reserved=4456448`，不再随 320MB 累计分配无界增长。
+- 完整 `cargo test --all --all-targets` 已通过。
+- 完整 `python3 tools/run_fixtures.py` 已通过，汇总 `fixtures: ok (1608)`。
+- 已更新 `TODO.md` 与 `TODO-1.md`，将 `P1-T01` 标记为 `[DONE]` 并写入实现、度量和验证记录。
+- 在 `runtime/c/scoop_runtime.c::scoop_alloc` 的 alloc 前 safepoint 注释中补充了 pacing request 消费语义；这是注释/记录更新，不改变编译输出，复用此前完整绿色验证结果。
+- 下一步重新检查 `git status`、`git diff`、最近提交，并提交本任务全部改动。

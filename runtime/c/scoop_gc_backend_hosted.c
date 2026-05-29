@@ -439,6 +439,9 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
+  heap->next_gc = (uint64_t)SCOOP_GC_PACING_MIN_THRESHOLD_BYTES;
+  heap->request_collect = 0;
+  heap->_pacing_reserved_u32 = 0;
 }
 
 typedef struct ScoopGcMarkStack {

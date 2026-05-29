@@ -262,6 +262,9 @@ typedef struct ScoopGcFreeBlock {
   uint64_t size;
 } ScoopGcFreeBlock;
 
+// Pacing defaults（P1）：env 旋钮在后续任务接入；当前核心路径使用硬编码默认值。
+#define SCOOP_GC_PACING_MIN_THRESHOLD_BYTES (4ull * 1024ull * 1024ull)
+
 // GC heap（v0：骨架）。
 //
 // 说明：
@@ -274,6 +277,11 @@ typedef struct ScoopGcHeap {
   uint64_t bytes_allocated;
   uint64_t bytes_freed;
   uint64_t gc_cycles;
+
+  // Pacing state：next_gc 是累计 bytes_allocated 水位线，request_collect 由 safepoint 消费。
+  uint64_t next_gc;
+  uint32_t request_collect;
+  uint32_t _pacing_reserved_u32;
 } ScoopGcHeap;
 
 // 初始化 heap 结构（不分配任何内存）。

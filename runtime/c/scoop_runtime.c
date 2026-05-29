@@ -495,6 +495,7 @@ void *scoop_alloc(uint64_t size) {
   // 说明：
   // - moving GC 需要在 stop-the-world 时定位并更新该线程 stackmap spill slots；
   // - 该 ctx 由 `scoop_gc_safepoint_poll` 在 park 前捕获（T1505b/T1506）。
+  // - pacing 的 request_collect 也在这里消费，保证 collect 发生在下一次分配前。
   void scoop_gc_safepoint_poll(void);
   scoop_gc_safepoint_poll();
 
