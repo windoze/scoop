@@ -154,6 +154,61 @@ static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj)
   return 0;
 }
 
+static ScoopGcObjectHeader *scoop_gc_heap_find_object_containing_unlocked(ScoopGcHeap *heap,
+                                                                          const void *ptr,
+                                                                          size_t width) {
+  if (heap == 0 || ptr == 0) {
+    return 0;
+  }
+
+  const uintptr_t addr = (uintptr_t)ptr;
+  if (width > 0 && addr > (UINTPTR_MAX - (uintptr_t)width)) {
+    return 0;
+  }
+  const uintptr_t needed_end = addr + (uintptr_t)width;
+
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+    const uint64_t raw_size = it->size_bytes;
+    if (raw_size == 0 || raw_size > (uint64_t)UINTPTR_MAX) {
+      continue;
+    }
+
+    const uintptr_t start = (uintptr_t)it;
+    const uintptr_t size = (uintptr_t)raw_size;
+    if (start > (UINTPTR_MAX - size)) {
+      continue;
+    }
+    const uintptr_t end = start + size;
+    if (addr >= start && needed_end <= end) {
+      return it;
+    }
+  }
+
+  return 0;
+}
+
+static ScoopGcImmixBlock *scoop_gc_immix_state_find_block_containing_unlocked(
+    ScoopGcImmixState *state,
+    const void *ptr) {
+  if (state == 0 || ptr == 0) {
+    return 0;
+  }
+
+  const uintptr_t addr = (uintptr_t)ptr;
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    const uintptr_t start = (uintptr_t)it;
+    if (start > (UINTPTR_MAX - (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
+      continue;
+    }
+    const uintptr_t end = start + (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE;
+    if (addr >= start && addr < end) {
+      return it;
+    }
+  }
+
+  return 0;
+}
+
 static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -1998,7 +2053,7 @@ static void scoop_gc_immix_nursery_promote_block_to_old_unlocked(ScoopGcImmixSta
 
   // v0：promote-on-store 采用“整块 block 晋升”的策略：
   // - 不搬迁对象（避免引入 read barrier / forwarding pointer 语义）；
-  // - minor GC 只需要 reset 仍为 nursery 的 blocks，从而无需 old→nursery remembered set。
+  // - 晋升入口会继续扫描该 block 的 nursery 引用闭包，避免留下 old→nursery 边。
   block->generation = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD;
 
   if (state->nursery_blocks > 0) {
@@ -2012,6 +2067,129 @@ static void scoop_gc_immix_nursery_promote_block_to_old_unlocked(ScoopGcImmixSta
 
   // 若该 block 已在 nursery free list 中，则移除，避免后续被当作 nursery 重用。
   scoop_gc_immix_nursery_remove_free_block_unlocked(state, block);
+}
+
+typedef struct ScoopGcImmixPromoteCtx {
+  ScoopGcImmixState *state;
+  ScoopGcImmixBlock **stack;
+  size_t len;
+  size_t cap;
+  uint32_t oom;
+} ScoopGcImmixPromoteCtx;
+
+static void scoop_gc_immix_promote_all_nursery_blocks_unlocked(ScoopGcImmixState *state) {
+  if (state == 0) {
+    return;
+  }
+
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, it);
+  }
+}
+
+static uint32_t scoop_gc_immix_promote_ctx_push(ScoopGcImmixPromoteCtx *ctx,
+                                                ScoopGcImmixBlock *block) {
+  if (ctx == 0 || block == 0) {
+    return 0;
+  }
+
+  if (ctx->len == ctx->cap) {
+    size_t new_cap = (ctx->cap == 0) ? 16u : (ctx->cap * 2u);
+    if (new_cap < ctx->cap || new_cap > (SIZE_MAX / sizeof(ScoopGcImmixBlock *))) {
+      ctx->oom = 1;
+      return 0;
+    }
+    void *p = realloc(ctx->stack, new_cap * sizeof(ScoopGcImmixBlock *));
+    if (p == 0) {
+      ctx->oom = 1;
+      return 0;
+    }
+    ctx->stack = (ScoopGcImmixBlock **)p;
+    ctx->cap = new_cap;
+  }
+
+  ctx->stack[ctx->len++] = block;
+  return 1;
+}
+
+static void scoop_gc_immix_promote_nursery_block_with_closure_unlocked(
+    ScoopGcImmixPromoteCtx *ctx,
+    ScoopGcImmixBlock *block) {
+  if (ctx == 0 || block == 0 || ctx->oom) {
+    return;
+  }
+  if (block->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+    return;
+  }
+
+  scoop_gc_immix_nursery_promote_block_to_old_unlocked(ctx->state, block);
+  (void)scoop_gc_immix_promote_ctx_push(ctx, block);
+}
+
+static void scoop_gc_immix_promote_slot_visitor(void **slot, void *raw_ctx) {
+  if (slot == 0 || raw_ctx == 0) {
+    return;
+  }
+  ScoopGcImmixPromoteCtx *ctx = (ScoopGcImmixPromoteCtx *)raw_ctx;
+  if (ctx->oom) {
+    return;
+  }
+
+  void *raw = *slot;
+  if (raw == 0) {
+    return;
+  }
+
+  ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(ctx->state, raw);
+  scoop_gc_immix_promote_nursery_block_with_closure_unlocked(ctx, block);
+}
+
+static void scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(ScoopGcImmixState *state,
+                                                                     ScoopGcHeap *heap,
+                                                                     ScoopGcImmixBlock *root_block) {
+  if (state == 0 || heap == 0 || root_block == 0) {
+    return;
+  }
+
+  ScoopGcImmixPromoteCtx ctx = {
+      .state = state,
+      .stack = 0,
+      .len = 0,
+      .cap = 0,
+      .oom = 0,
+  };
+
+  scoop_gc_immix_promote_nursery_block_with_closure_unlocked(&ctx, root_block);
+  while (!ctx.oom && ctx.len > 0) {
+    ctx.len -= 1;
+    ScoopGcImmixBlock *block = ctx.stack[ctx.len];
+    if (block == 0) {
+      continue;
+    }
+
+    for (ScoopGcObjectHeader *obj = heap->objects; obj != 0; obj = obj->next) {
+      if (obj == 0 || obj->type_desc == 0) {
+        continue;
+      }
+      if (scoop_gc_immix_state_find_block_containing_unlocked(state, obj) != block) {
+        continue;
+      }
+
+      (void)scoop_gc_type_descriptor_trace(obj->type_desc,
+                                           (void *)obj,
+                                           scoop_gc_immix_promote_slot_visitor,
+                                           &ctx);
+      if (ctx.oom) {
+        break;
+      }
+    }
+  }
+
+  if (ctx.oom) {
+    scoop_gc_immix_promote_all_nursery_blocks_unlocked(state);
+  }
+
+  free(ctx.stack);
 }
 
 void *scoop_gc_write_barrier(void *slot_addr, void *value) {
@@ -2029,16 +2207,14 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
       return value;
     }
 
-    ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
-    const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
-    if (value_block != 0 && value_block->generation == nursery) {
-      scoop_gc_immix_lock(state);
-      value_block = scoop_gc_immix_block_from_object(value);
-      if (value_block != 0 && value_block->generation == nursery) {
-        scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, value_block);
-      }
-      scoop_gc_immix_unlock(state);
+    scoop_gc_immix_lock(state);
+    ScoopGcImmixBlock *value_block =
+        scoop_gc_immix_state_find_block_containing_unlocked(state, value);
+    if (value_block != 0 &&
+        value_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+      scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);
     }
+    scoop_gc_immix_unlock(state);
 
     scoop_gc_safepoint_poll();
     return value;
@@ -2058,31 +2234,21 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
     return value;
   }
 
-  // fast path：绝大多数 store 不会形成 old→nursery 指针，尽量不抢全局锁。
-  ScoopGcImmixBlock *slot_block = scoop_gc_immix_block_from_object(slot_addr);
-  ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
-
-  const uint8_t old = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD;
-  const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
-
-  const uint32_t needs_promote =
-      (slot_block != 0 && value_block != 0 && slot_block->generation == old &&
-       value_block->generation == nursery);
-
-  if (!needs_promote) {
-    (void)memcpy(slot_addr, &value, sizeof(void *));
-    scoop_gc_safepoint_poll();
-    return value;
-  }
-
   scoop_gc_immix_lock(state);
 
-  // re-check under lock：避免并发 store 重复扣减 nursery_blocks 或重复改写 free list。
-  slot_block = scoop_gc_immix_block_from_object(slot_addr);
-  value_block = scoop_gc_immix_block_from_object(value);
-  if (slot_block != 0 && value_block != 0 && slot_block->generation == old &&
-      value_block->generation == nursery) {
-    scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, value_block);
+  ScoopGcObjectHeader *slot_owner =
+      scoop_gc_heap_find_object_containing_unlocked(&scoop_gc_heap, slot_addr, sizeof(void *));
+  ScoopGcImmixBlock *slot_block =
+      scoop_gc_immix_state_find_block_containing_unlocked(state, slot_owner);
+  ScoopGcImmixBlock *value_block =
+      scoop_gc_immix_state_find_block_containing_unlocked(state, value);
+
+  const uint32_t slot_is_old =
+      (slot_owner != 0 &&
+       (slot_block == 0 || slot_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD));
+  if (slot_is_old && value_block != 0 &&
+      value_block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+    scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, &scoop_gc_heap, value_block);
   }
 
   (void)memcpy(slot_addr, &value, sizeof(void *));
@@ -2830,7 +2996,8 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
 
   obj->mark = ctx->mark_value;
   // mark-region：额外把对象覆盖到的 lines 记录到 block 的 mark bitmap（用于 region sweep 回收 holes）。
-  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  ScoopGcImmixBlock *block =
+      scoop_gc_immix_state_find_block_containing_unlocked(scoop_gc_immix_state_from_heap(ctx->heap), obj);
   if (block != 0) {
     uint64_t raw_size = obj->size_bytes;
     size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
@@ -3064,7 +3231,8 @@ static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
                                     0,
                                     __ATOMIC_RELAXED,
                                     __ATOMIC_RELAXED)) {
-      ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+      ScoopGcImmixBlock *block =
+          scoop_gc_immix_state_find_block_containing_unlocked(scoop_gc_immix_state_from_heap(ctx->heap), obj);
       if (block != 0) {
         uint64_t raw_size = obj->size_bytes;
         size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
@@ -3649,6 +3817,8 @@ static uint32_t scoop_gc_immix_block_contains_pinned_unlocked(ScoopGcImmixBlock 
     return 0;
   }
 
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+
   for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
     if (it->object == 0) {
       continue;
@@ -3656,7 +3826,8 @@ static uint32_t scoop_gc_immix_block_contains_pinned_unlocked(ScoopGcImmixBlock 
     if (it->pin_count == 0) {
       continue;
     }
-    ScoopGcImmixBlock *pinned_block = scoop_gc_immix_block_from_object((void *)it->object);
+    ScoopGcImmixBlock *pinned_block =
+        scoop_gc_immix_state_find_block_containing_unlocked(state, it->object);
     if (pinned_block == block) {
       return 1;
     }
@@ -3887,7 +4058,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
   size_t move_len = 0;
   for (size_t i = 0; i < live_len; i++) {
     ScoopGcObjectHeader *obj = live[i];
-    ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+    ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
     if (block == 0) {
       continue;
     }
@@ -3922,7 +4093,8 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
 
   for (size_t i = 0; i < live_len; i++) {
     ScoopGcObjectHeader *from = live[i];
-    ScoopGcImmixBlock *from_block = scoop_gc_immix_block_from_object((void *)from);
+    ScoopGcImmixBlock *from_block =
+        scoop_gc_immix_state_find_block_containing_unlocked(state, from);
     if (from_block == 0) {
       continue;
     }
@@ -4230,6 +4402,7 @@ static ScoopGcObjectHeader *scoop_gc_immix_minor_work_stack_pop(ScoopGcImmixMino
 }
 
 typedef struct ScoopGcImmixMinorMarkCtx {
+  ScoopGcImmixState *state;
   ScoopGcHeap *heap;
   uint32_t mark_value;
   ScoopGcImmixMinorWorkStack *stack;
@@ -4289,7 +4462,7 @@ static void scoop_gc_immix_minor_mark_slot_visitor(void **slot, void *raw_ctx) {
     return;
   }
 
-  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(ctx->state, obj);
   if (block == 0) {
     return;
   }
@@ -4330,7 +4503,7 @@ static void scoop_gc_immix_minor_promote_pinned_nursery_blocks_unlocked(
       continue;
     }
 
-    ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+    ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
     if (block == 0) {
       continue;
     }
@@ -4338,8 +4511,8 @@ static void scoop_gc_immix_minor_promote_pinned_nursery_blocks_unlocked(
       continue;
     }
 
-    // pinned 对象不得移动：把所在 nursery block 晋升为 old，避免 minor reset。
-    scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, block);
+    // pinned 对象不得移动：把所在 nursery block 及其 nursery 引用闭包晋升为 old，避免 minor reset。
+    scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(state, heap, block);
   }
 }
 
@@ -4401,12 +4574,11 @@ static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state
 
   uint32_t blocks = 0;
   for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
-    it->next_free = 0;
-
     if (it->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
       continue;
     }
 
+    it->next_free = 0;
     scoop_gc_immix_block_reset(it);
     it->next_free = state->nursery_free_blocks;
     state->nursery_free_blocks = it;
@@ -4420,9 +4592,10 @@ static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state
   state->nursery_blocks = blocks;
 }
 
-static uint32_t scoop_gc_immix_minor_object_is_nursery(ScoopGcObjectHeader *obj,
+static uint32_t scoop_gc_immix_minor_object_is_nursery(ScoopGcImmixState *state,
+                                                       ScoopGcObjectHeader *obj,
                                                        size_t small_object_cap) {
-  if (obj == 0) {
+  if (state == 0 || obj == 0) {
     return 0;
   }
 
@@ -4434,7 +4607,7 @@ static uint32_t scoop_gc_immix_minor_object_is_nursery(ScoopGcObjectHeader *obj,
     return 0;
   }
 
-  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
   return block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
 }
 
@@ -4533,6 +4706,7 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
   ScoopGcImmixMinorWorkStack stack = {0};
   ScoopGcImmixMinorLiveSet live = {0};
   ScoopGcImmixMinorMarkCtx mark_ctx = {
+      .state = state,
       .heap = heap,
       .mark_value = mark_value,
       .stack = &stack,
@@ -4813,7 +4987,7 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
       }
 
       // nursery objects 一律移除：live 已搬迁；dead 将在 reset 中回收。
-      if (scoop_gc_immix_minor_object_is_nursery(obj, small_object_cap)) {
+      if (scoop_gc_immix_minor_object_is_nursery(state, obj, small_object_cap)) {
         scoop_gc_immix_minor_reclaim_dead_nursery_object(heap, obj);
         continue;
       }
@@ -4842,7 +5016,7 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
         continue;
       }
 
-      if (scoop_gc_immix_minor_object_is_nursery(obj, small_object_cap)) {
+      if (scoop_gc_immix_minor_object_is_nursery(state, obj, small_object_cap)) {
         scoop_gc_immix_minor_reclaim_dead_nursery_object(heap, obj);
         continue;
       }
@@ -5356,7 +5530,7 @@ void scoop_gc_collect(void) {
 
     heap->bytes_freed += obj->size_bytes;
 
-    ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+    ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
     if (block == 0) {
       // large object / fallback malloc：可以直接 free。
       free(obj);
@@ -5565,7 +5739,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
   // 2) large objects / fallback malloc：它们不在任何 block 内，需要单独计入。
   if (total != UINT64_MAX) {
     for (ScoopGcObjectHeader *obj = scoop_gc_heap_objects_load_acquire(); obj != 0; obj = obj->next) {
-      ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+      ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
       if (block != 0) {
         continue;
       }

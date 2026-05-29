@@ -37,7 +37,7 @@
   - 测试：更新 `gc_immix_nursery` 覆盖 `SCOOP_GC_IMMIX_NURSERY_BLOCKS=4` 的 mixed live/dead workload，断言 `gc_cycles` 递增、`bytes_freed` 增长、nursery 自动 minor 后仍可继续分配；调整 `gc_immix_write_barrier` 以适配 nursery-full 不再静默 fallback 的行为。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T01R：Review nursery-full minor GC
+### [DONE] P2-T01R：Review nursery-full minor GC
 
 - 参考：
   - P2-T01 完成记录
@@ -58,7 +58,13 @@
   - 分代触发正确。
 - 依赖：P2-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - Review 结论：P2-T01 的 nursery-full minor-GC-then-retry 路径不死循环；单对象大于 Immix block payload 时走 large/fallback old-space 分配；minor GC 不再破坏 old-space block free/reusable 链表。
+  - 修正：write barrier 的 old→nursery 判定改为基于 heap membership 与 Immix `all_blocks` containment，避免对 large/fallback malloc 对象使用地址掩码反推 block；old/fallback 对象写入 nursery 引用时会晋升 nursery block。
+  - 修正：promote-on-store 与 pinned nursery promotion 会递归晋升 nursery 引用闭包，维持 minor GC “不扫描 old-space 字段”所依赖的无 old→nursery 边不变式。
+  - 修正：minor reset 仅清理 nursery blocks 的 `next_free`，不再清空 old-space block lists；major mark/sweep/compaction 与 reserved-bytes 统计改用 Immix state containment，避免 large/fallback 对象误判或崩溃。
+  - 测试：新增 `gc_immix_minor_old_edges` 覆盖 large/fallback old object store、跨 nursery block 引用闭包晋升以及后续 minor 不回收被 old object 引用的对象；保留并运行 fixed small nursery 回归。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_minor_old_edges -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --test-threads=1 --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T02：block pool 耗尽先 full GC 再增长
 
