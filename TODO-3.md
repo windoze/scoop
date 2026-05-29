@@ -1,482 +1,208 @@
-# TODO-3：P3 SPEC_FIX 语义落地
+# TODO-3：P3-P4 `@InteriorMutable` + `__AtomicInt` 与 immortal 运行期
 
-> 索引：[`TODO.md`](./TODO.md)  
-> 计划基线：[`PLAN.md`](./PLAN.md)  
-> 覆盖阶段：P3  
-> 包目标：落地 SPEC_FIX 的 type/effect/lowering/sysroot/cone 语义变化，为 overload call-site resolution 提供稳定前提。
+> 索引：[`TODO.md`](./TODO.md)
+> 计划基线：[`PLAN.md`](./PLAN.md)
+> 覆盖阶段：P3-P4
+> 包目标：把 interior mutability 表达成抗 aliasing 的类型特征（`@InteriorMutable` + `__AtomicInt` struct），并让运行期能透明承载 immortal ref 对象、byte 数组按内容去重。
 
-## P3：SPEC_FIX type/effect/lowering 语义落地
+## P3：`__AtomicInt` 升为 `@InteriorMutable struct`
 
-### [DONE] P3-T01：operator-positioned calls 必须要求 `operator` modifier
+### [TODO] P3-T01：新增 `@InteriorMutable` 注解
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) A3
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §11.3
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Interior mutability — the `@InteriorMutable` marker”
 - 目标：
-  - `a + b`、`a[i]`、comparison 等 operator-positioned calls 只解析到带 `operator` modifier 的函数/方法。
-  - 普通 named call `a.plus(b)` 不受影响。
+  - 引入一个 metadata-only 注解，标记“经 unsafe 原地改、`val`/`var` 字段无法体现”的内部可变类型，供 P5 谓词读取。
 - 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/ops.rs::{operator_overload_method_name,scalar_operator_method_name,infer_operator_overload_binary_expr_type,collect_member_method_signatures_from_index}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/member_call.rs::{pick_most_specific_member_overload,is_strictly_more_specific_member_overload}` if operator reuses member selection
-  - `crates/scoopc_hir/src/resolve/mod.rs::ModifierSet`
-  - `sysroot/lib/scoop.core/src/core.scoop`
-  - `sysroot/lib/scoop.unsafe/src/unsafe.scoop`
-  - fixtures containing operator overload methods such as `plus`, `minus`, `compareTo`, `get`, `set`
+  - `crates/scoopc_hir/src/typecheck/{annotations.rs,builtin_annotations.rs}`
+  - 注解在 nominal 元数据上的承载点（供 MIR/codegen 阶段可查）
 - 必须实现的内容：
-  1. Filter operator-positioned candidates by `operator` flag before overload specificity.
-  2. If same-named candidates exist but none has `operator`, emit diagnostic explaining modifier is required.
-  3. Update sysroot methods intended for operator syntax with explicit `operator`.
-  4. Add negative fixture: method named `plus` without `operator` is callable as `x.plus(y)` but not via `x + y`.
-  5. Add positive fixture: `operator fun plus` works through operator syntax.
+  1. 新增 `@InteriorMutable` builtin annotation，typecheck 识别并校验合法 target（至少允许 struct/class 声明）。
+  2. 把该标记挂在 nominal 元数据上，确保它**不随 typealias / 类型擦除丢失**，且 MIR/codegen 阶段可查询。
+  3. 注解 metadata-only：不生成任何 codegen / runtime 表项。
 - 必须遵从的约束：
-  - Do not make all methods named `plus` / `compareTo` operators by convention.
-  - Do not bypass overload resolution; after modifier filtering, P5 rules still select most specific candidate.
+  - 标记必须 key 在“可变”这个特征上，不得用名字匹配 `__AtomicInt` 代替。
+  - 不得复用 `@Intrinsic` 表达可变性（多数 intrinsic 类型不可变）。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted operator fixtures.
-  3. `cargo test --all --all-targets`
+  1. `cargo test --all --all-targets`
+  2. 新增 typecheck 单元/fixture：带 `@InteriorMutable` 的类型其标记可被查询；非法 target 报错。
 - 完成条件：
-  - Accidental operator capture by same-named utility functions is impossible.
-- 依赖：P2-T06R
+  - 谓词可凭 nominal 上的标记判定，无需名字匹配。
+- 依赖：P0-T02R
 - 完成记录：
-  - 改动范围：在 `FunSigOwned` 中贯通 resolver `ModifierSet::operator`，并在 operator-positioned unary/binary/comparison candidate collection 后、specificity/匹配前筛掉未标记 `operator` 的候选；同步 sysroot 中 intended operator methods 和相关 fixtures / HIR goldens。
-  - 核心决策：普通 named call 路径不读取 `is_operator`，因此 `x.plus(y)` 仍可调用普通同名方法；只有 operator-positioned path 在存在 same-name 候选但无 `operator` 时发出 `scoop::typecheck::operator_modifier_required`。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 4 个 HIR golden span 漂移，更新 golden 后单独复跑 4 个失败项通过，最终完整 fixture suite 通过（`fixtures: ok (1552)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑 `operator` 候选，named calls 不受影响，并区分“候选存在但缺少 operator”和“没有候选”。
+  - （待执行）
 
-### [DONE] P3-T01R：Review operator gate 语义
+### [TODO] P3-T01R：Review `@InteriorMutable` 注解
 
 - 参考：
   - P3-T01 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) A3
 - 目标：
-  - 复核 operator-positioned call 只接受 `operator` 候选，且普通 named call 不受影响。
+  - 复核标记是否抗 aliasing、是否 metadata-only、是否可被后续阶段查询。
 - 必须检查的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/ops.rs`
-  - `crates/scoopc_hir/src/resolve/mod.rs`
-  - sysroot operator declarations
-  - operator positive/negative fixtures
+  - P3-T01 的注解定义与承载点
 - 必须实现的内容：
-  1. 确认 operator syntax 对未标记 `operator` 的 same-name method 报清晰错误。
-  2. 确认 `x.plus(y)` 仍可调用未标记普通 method。
-  3. 确认 sysroot 中 intended operator methods 已显式标注。
-  4. 确认没有绕过 P5 overload selection 的 ad-hoc path。
+  1. 确认 alias 到带标记类型时标记不丢。
+  2. 确认无 codegen/runtime 副作用。
+  3. 确认 MIR/codegen 可查询该标记。
 - 必须遵从的约束：
-  - 不得用方法名约定替代 modifier gate。
+  - 若标记可被 aliasing 抹掉或有副作用，必须修正后才进入 P3-T02。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted operator fixtures。
+  1. `cargo test --all --all-targets`
 - 完成条件：
-  - A3 语义完整闭合。
+  - 标记机制可靠。
 - 依赖：P3-T01
 - 完成记录：
-  - 改动范围：复核 P3-T01 的 resolver/typecheck/sysroot/fixture 改动，并补齐 review 发现的 operator overload selection 缺口；P5-T01R 后 active fixture 已改为 `operator_overload_specificity_deferred_after_modifier_gate_is_error.scoop`，覆盖 `operator` 候选过滤后在 P5-T02 前不提前做 specificity。
-  - 核心决策：`operator` modifier gate 仍发生在 applicability / specificity 前；普通 named call 路径不读取 `is_operator`，因此未标记的 `box.plus("hi")` 仍可作为普通成员调用；P5-T01R 后过滤出的多个 applicable operator 候选在 P5-T02 前保留歧义诊断。
-  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`（fixture runner 会复用已有 `target/debug/scoopc`，因此显式重建）；`cargo clippy --all-targets -- -D warnings`；targeted operator fixtures（新增 most-specific fixture、modifier-required negative、modifier smoke、run-pass struct operator、plus/minus、bitwise/shift/inv）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1553)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` A3 与 `PLAN.md` P3 operator modifier gate：operator-positioned calls 只考虑显式 `operator` 候选，same-name non-operator 会给清晰 modifier-required 诊断，普通 named call 不受影响，且 gate 后不再绕过现有 most-specific overload 选择语义。
+  - （待执行）
 
-### [DONE] P3-T02：将 `!!` 与 `as` failure 从 `Raise<RuntimeError>` 改为 `panic`
+### [TODO] P3-T02：`__AtomicInt` 升为 `@InteriorMutable struct`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) B3
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “`scoop.unsafe.__AtomicInt`: typealias → marked struct”
 - 目标：
-  - `x!!` 和 `x as T` 的 failure path 是 assertion panic，不参与 effect system。
+  - 把 `__AtomicInt` 从 `typealias = Int` 升为与 Int 同布局、类型相异、带 `@InteriorMutable` 的 struct，原子访问纪律落进类型。
 - 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/member.rs::infer_not_null_assert_expr_type`
-  - `crates/scoopc_hir/src/typecheck/expr/infer.rs` `Cast` branch
-  - `crates/scoopc_hir/src/hir/lower/expr/members.rs::{lower_not_null_assert_expr,synth_raise_null_assertion_failed,synth_raise_runtime_error_effect_ty}`
-  - `crates/scoopc_mir/src/mir/lower/fn_lowering_expr.rs::{lower_cast_expr,lower_cast_as_expr_with_runtime_error_boundary,lower_cast_as_failure_raise}`
-  - `crates/scoopc_mir/src/mir/lower/fn_lowering_call.rs::lower_direct_call_expr` for `scoop.core.panic` unreachable behavior
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/runtime_error.rs::emit_raise_runtime_error_variant`
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body/runtime_error.rs::lower_runtime_error_boundary`
-  - `sysroot/lib/scoop.core/src/core.scoop::{RuntimeError,panic,Raise}`
-  - fixtures `not_null_assert*`, `runtime_typecheck_cast*`, `*as*.scoop`
+  - `sysroot/lib/scoop.unsafe/src/unsafe.scoop:163`
+  - `sysroot/lib/scoop.core/src/core.scoop`（`AtomicInt`/`AtomicBool` 构造）
+  - 擦除点：`crates/scoopc_hir/src/typecheck/lower.rs:2662,3522`、`scoopc_codegen_llvm/.../mir_body/types.rs:436`、`scoopc_hir/src/hir/lower/util/generic_layouts.rs:89`、`.../hir/lower/main/impl_lowering.rs:1724`
 - 必须实现的内容：
-  1. Stop recording `Raise<RuntimeError>` effect edges for `!!` and `as` in typecheck.
-  2. Change HIR lowering for not-null assertion failure to call `scoop.core.panic` with a stable message.
-  3. Change MIR/runtime cast failure lowering from `Raise.raise(RuntimeError.ClassCastFailed)` to panic.
-  4. Keep `as?` unchanged and returning `Option<T>`.
-  5. Audit `RuntimeError`: if it remains used elsewhere, keep it; if only used by removed paths, delete or document remaining purpose.
-  6. Add fixtures proving a function using `!!` or `as` no longer requires `Raise<RuntimeError>` in its effect row.
+  1. `unsafe.scoop`：
+     ```scoop
+     @InteriorMutable
+     public struct __AtomicInt { val raw: Int }
+     ```
+     依赖普通单字段 struct 的派生 word 布局与派生构造器 `__AtomicInt(initial)`，不写专用 codegen。
+  2. 5 处擦除点从“类型 = `Int`”改为“类型 = `__AtomicInt` nominal、布局/ABI = `Int` word”；`__atomicIntLoad/Store/CompareExchange` 签名不变（按 lvalue 取存储当 i64 操作）。
+  3. `core.scoop` atomics 构造改显式：`var raw: __AtomicInt = __AtomicInt(initial)`、`= __AtomicInt(__atomicBoolToInt(initial))`；无隐式 Int↔__AtomicInt coerce。
 - 必须遵从的约束：
-  - Do not implement panic by raising `RuntimeError` under the hood.
-  - Preserve successful unwrap/cast behavior.
+  - `__AtomicInt` 必须与 `Int` 类型相异、布局相同；aliases 解析回它时标记不丢。
+  - struct 只能 `val` 字段（语言刻意不放开 `var` struct 字段）；`@InteriorMutable` 因此 load-bearing。
+  - 不引入隐式 coerce；构造/load/store 三个面都显式。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted fixtures for not-null assertion and runtime cast.
-  3. `cargo test --all --all-targets`
+  1. `cargo test --all --all-targets`
+  2. 现有 atomics fixtures / 单元测试（`AtomicInt`/`AtomicBool`/`Atomic`）回归通过。
+  3. 类型层不再把 `__AtomicInt` 等同 `Int`（加断言/测试）。
 - 完成条件：
-  - `!!` and `as` failures panic and no longer poison effect rows.
+  - `__AtomicInt` 是带标记的相异 struct，P5 谓词可安全否决它，且不会被误当 Int 常量化。
 - 依赖：P3-T01R
 - 完成记录：
-  - 改动范围：typecheck 不再为 `!!` 与 `as` 记录 `Raise<RuntimeError>` performed effect；HIR `!!` 的 `None` arm 改为合成 `scoop.core.panic("null assertion failed")` direct call；MIR `RuntimeCastFailure` 改为 `Panic { message }`，`as` failure block 直接调用 `scoop.core.panic("class cast failed")`；LLVM HIR/MIR cast failure codegen 改为 runtime panic；effect-lowered plan 不再把 HIR `as` 当作 runtime raise boundary；同步 sysroot `RuntimeError` 注释、targeted fixtures、HIR/MIR goldens 与相关 run-pass/typecheck 用例。
-  - 核心决策：`!!` 与 `as` failure 是 assertion panic，不进入 effect row，也不能被 `try/catch Raise<RuntimeError>` 捕获；`as?` 保持 `ReturnNone` / `Option<T>` 行为不变；`RuntimeError` 继续保留给显式 `Raise<RuntimeError>` 与 continuation one-shot 违规等现有路径，不再作为 `!!` / `as` 的 lowering 目标。
-  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；`cargo clippy --all-targets -- -D warnings`；targeted `!!` / cast typecheck、HIR、MIR、run-pass panic fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B3 与 `PLAN.md` P3 对 `!!` / `as` panic 语义的要求：两者失败路径不再执行 `Raise.raise(RuntimeError.*)`，成功 unwrap/cast 与 `as?` 行为保持不变，用户可见失败不再泄露旧 effect requirement。
+  - （待执行）
 
-### [DONE] P3-T02R：Review `!!` 与 `as` panic 语义
+### [TODO] P3-T02R：Review `__AtomicInt` struct 化
 
 - 参考：
   - P3-T02 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) B3
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Interior mutability”
 - 目标：
-  - 复核 `!!` / `as` failure 不再通过 effect system，并且成功路径不回归。
+  - 复核类型相异性、布局一致性、擦除点完整性与显式构造。
 - 必须检查的文件/位置：
-  - P3-T02 修改的 typecheck/HIR/MIR/codegen files
-  - `sysroot/lib/scoop.core/src/core.scoop`
-  - not-null / cast fixtures
+  - P3-T02 对 `unsafe.scoop`、`core.scoop`、5 处擦除点的改动
 - 必须实现的内容：
-  1. 确认 typecheck 不再为 `!!` / `as` 记录 `Raise<RuntimeError>`。
-  2. 确认 lowering failure arm 调用 `panic`，不是 `Raise.raise`。
-  3. 确认 `as?` 行为不变。
-  4. 确认 `RuntimeError` 处理有明确结论。
+  1. 反向 grep 确认无遗漏的 `__AtomicInt`→Int 等同点。
+  2. 确认布局/ABI 仍是 Int word，原子 intrinsic 仍正确操作其存储。
+  3. 确认无隐式 coerce，构造点已显式。
 - 必须遵从的约束：
-  - 不得接受“panic helper 内部再 raise RuntimeError”的实现。
+  - 若仍有擦除点把它当 Int、或布局/ABI 偏移，必须修正后才进入 P4-T01。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted not-null/cast fixtures。
+  1. `cargo test --all --all-targets`
 - 完成条件：
-  - B3 语义完整闭合。
+  - `__AtomicInt` 类型化收口。
 - 依赖：P3-T02
 - 完成记录：
-  - 改动范围：复核 P3-T02 涉及的 typecheck、HIR lowering、MIR lowering/materialization、LLVM codegen、sysroot `panic` / `RuntimeError` surface 与 not-null / cast fixtures；本轮 review 未发现需要改动编译器代码的缺口，仅更新任务状态与完成记录。
-  - 核心决策：`!!` 与 `as` failure 均已走 `scoop.core.panic` / runtime `scoop_panic`，不再向 required-effects 写入 `Raise<RuntimeError>`，也不能被 `try/catch Raise<RuntimeError>` 捕获；`as?` 仍保持 `ReturnNone` / `Option<T>` 语义；`RuntimeError` 继续保留给显式 `Raise<RuntimeError>` 与 `Continuation.resume` runtime-error 边界，非本任务的 pattern mismatch 残留已由后续 P3-T04 覆盖。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `not_null_assert_no_required_effect_ok.scoop`、`runtime_cast_as_no_required_effect_ok.scoop`、`cast_as_and_asq_ok.scoop`、`not_null_assert_failure_panic.scoop`、`type_check_cast_as_failure_panic.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B3 与 `PLAN.md` P3 review 要求：failure path 是 assertion panic 而非 effect operation，成功 unwrap/cast 行为与 `as?` nullable cast 行为未回归，`RuntimeError` 的剩余用途有明确边界。
+  - （待执行）
 
-### [DONE] P3-T03：enum `with` mismatched variant 改为 panic
+## P4：Immortal 运行期支持与 content-hash 键
+
+### [TODO] P4-T01：运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C1
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Runtime change — recognize immortal headers”
 - 目标：
-  - enum `with` update 指向的 variant 与 runtime variant 不匹配时 panic，而不是 silent no-op。
+  - 让运行期把带 immortal header 的对象视为透明（永不写、永不 trace）。
 - 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/infer.rs::{infer_with_update_expr_type,resolve_with_update_enum_info}`
-  - `crates/scoopc_hir/src/hir/lower/expr/canonical_call.rs::{lower_with_update_expr,build_with_enum_expr,build_with_copy_expr}`
-  - any MIR lowering generated from HIR with-update branches
-  - fixtures `*with_update*`, enum with update tests
+  - `runtime/c/scoop_gc.h:210-244`
+  - `runtime/c/scoop_gc_backend_immix.c:2719-2737`（`scoop_gc_mark_object_if_needed`），参考 `:2739-2760`、`:5177/5185`
 - 必须实现的内容：
-  1. Locate mismatch branch in enum `with` lowering that currently preserves original value.
-  2. Replace mismatch branch with `panic("enum with variant mismatch")` or a stable equivalent message.
-  3. Keep matching variant update behavior unchanged.
-  4. Add run-pass/negative runtime fixture if runner supports expected panic; otherwise add IR/typecheck fixture proving panic call exists.
+  1. `scoop_gc.h` 新增 `#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u` 与 `#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu`。
+  2. `scoop_gc_mark_object_if_needed` 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，覆盖 pinned 扫描等不经 membership 预检的入口。
+  3. slot visitor 不改（membership 已过滤堆外指针）；sweep 不改（immortal `next=null` 永不上链）。
 - 必须遵从的约束：
-  - Do not change struct/tuple `with` semantics.
-  - Do not route through `Raise<RuntimeError>`.
+  - 短路必须 flag-gated，不得 blanket 跳过普通堆对象。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted with-update fixtures.
-  3. `cargo test --all --all-targets`
+  1. runtime C 单元测试：栈上构造带 `SCOOP_GC_FLAG_IMMORTAL` 的 header，推上 mark stack，断言 `mark`/`flags` 字节不变（ASan）；同测堆 header 断言 `mark` 被更新。
+  2. `cargo test --all --all-targets`
 - 完成条件：
-  - enum variant mismatch can no longer silently preserve original value.
-- 依赖：P3-T02R
+  - immortal flag 短路正确且 flag-gated。
+- 依赖：P2-T04R
 - 完成记录：
-  - 改动范围：`build_with_enum_expr` 的 enum with-update lowering 将“有 variant update 但运行期落到未更新 variant”的分支从保留原值改为 `scoop.core.panic("enum with variant mismatch")`；typecheck enum contract 注释明确 lowering 需要完整 variant 形状；同步 `with_update_enum_variant_payload_basic`，并新增 `with_update_enum_variant_mismatch_panic.scoop` expected-exit fixture。
-  - 核心决策：空 `with {}` 仍保持 identity，避免把无目标 variant 的 no-op 表达式误判为 mismatch；只要当前 enum 层存在至少一个 variant update，未被该 update set 覆盖的 runtime variant 即视为 assertion mismatch 并 panic；struct / tuple with-update 路径不变，failure path 不经过 `Raise<RuntimeError>`。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 对 enum `with` mismatch panic 的要求：mismatched runtime variant 不再 silent preserve，matching variant update 行为保持不变，其他 aggregate with-update 未回归；阶段计划无变化，未修改 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P3-T03R：Review enum `with` mismatch panic
+### [TODO] P4-T01R：Review immortal 运行期短路
 
 - 参考：
-  - P3-T03 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C1
+  - P4-T01 完成记录
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Runtime change”
 - 目标：
-  - 复核 enum with mismatch 从 silent preserve 改为 panic，且其他 with update 不回归。
+  - 复核短路是否 flag-gated、是否覆盖 pinned 路径、是否对普通对象无影响。
 - 必须检查的文件/位置：
-  - `crates/scoopc_hir/src/hir/lower/expr/canonical_call.rs`
-  - `crates/scoopc_hir/src/typecheck/expr/infer.rs`
-  - enum/tuple/struct with-update fixtures
+  - P4-T01 对 `scoop_gc.h` 与 marker 的改动
 - 必须实现的内容：
-  1. 确认 mismatch branch 不再保留 original value。
-  2. 确认 matching variant update 行为不变。
-  3. 确认 struct/tuple `with` 不受影响。
-  4. 确认 failure path 不走 `Raise`。
+  1. 确认普通堆对象 marker 行为不变。
+  2. 确认 pinned 扫描等入口被覆盖。
+  3. ASan 下确认 immortal header 不被写。
 - 必须遵从的约束：
-  - 不得接受只改 spec 未改 lowering 的结果。
+  - 若短路非 flag-gated 或漏 pinned 路径，必须修正后才进入 P4-T02。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted with-update fixtures。
+  1. `cargo test --all --all-targets`
 - 完成条件：
-  - C1 语义完整闭合。
-- 依赖：P3-T03
+  - 运行期可安全承载 immortal 对象。
+- 依赖：P4-T01
 - 完成记录：
-  - 改动范围：复核 P3-T03 的 enum with-update typecheck contract、HIR lowering、panic helper 路径与 enum/tuple/struct with-update fixtures；本轮 review 未发现需要改动编译器代码的缺口，仅更新任务状态与完成记录。
-  - 核心决策：`build_with_enum_expr` 在当前 enum 层存在 variant update 时，对运行期未命中 update set 的 variant arm 合成 `scoop.core.panic("enum with variant mismatch")`，不再返回 original value；匹配 variant 仍按 payload 字段重建，空 `with {}` 保持 identity，struct / tuple copy-update 路径不读 enum mismatch gate。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `with_update_enum_variant_mismatch_panic.scoop`、`with_update_enum_variant_payload_basic.scoop`、`with_update_enum_variant_payload_ok.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`、`with_update_simple.scoop`、`with_update_preserves_unchanged.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1556)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C1 与 `PLAN.md` P3 review 要求：enum `with` mismatched variant failure 是 panic 而非 silent preserve 或 `Raise<RuntimeError>`，matching enum update 与 struct/tuple with-update 行为未回归；阶段计划无变化，未修改 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P3-T04：允许 refutable `val` pattern 并在 mismatch 时 panic
+### [TODO] P4-T02：byte 数组 content-hash 键与 `unnamed_addr`
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C3
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Cache and dedup keys”、Phasing 3
 - 目标：
-  - `val Some(x) = e` 等 refutable binding pattern 通过 typecheck；runtime mismatch panic。
+  - 把字符串 byte 数组从 span-key 改成 content-hash 键并加 `unnamed_addr`，为 dedup 与跨 TU 折叠铺路（无行为变化）。
 - 必须修改的文件/位置：
-  - `crates/scoopc_ast/src/parser/pattern.rs::{parse_pattern,parse_variant_pattern,parse_tuple_pattern,parse_struct_pattern}`
-  - `crates/scoopc_ast/src/parser/decls.rs::parse_val_decl`
-  - `crates/scoopc_ast/src/parser/stmt.rs::parse_local_val_decl`
-  - `crates/scoopc_hir/src/typecheck/val_pat.rs::infer_val_pat_bindings`
-  - HIR lowering for val pattern bindings, likely `crates/scoopc_hir/src/hir/lower/patterns.rs` or adjacent pattern lowering module
-  - MIR lowering for pattern destructure if separate
-  - fixtures `*val_pattern*`, `*pattern*`
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72`（`get_or_create_global_bytes`）
 - 必须实现的内容：
-  1. Remove `ValVariantPatRefutableNotAllowed` as a hard reject for val bindings.
-  2. Mark refutable val pattern sites so lowering can synthesize mismatch fallback.
-  3. Lower `val Some(x) = e` to equivalent `when`/branch shape with `panic("pattern mismatch")` fallback.
-  4. Keep existing irrefutable tuple/struct destructuring behavior unchanged.
-  5. Add fixtures for matching variant, mismatch panic path, and nested refutable patterns if supported by parser.
+  1. 键从 `__scoop_str_data_{span.start}_{span.end}` 改为 `base16(SHA-256(bytes)[..16])`。
+  2. 对 byte 数组全局 `set_unnamed_addr(true)`。
+  3. 相同字面量在多处只产生一个 `__scoop_str_data_<hash>`。
 - 必须遵从的约束：
-  - Do not use `Raise` or silent ignore for mismatch.
-  - Do not accidentally allow refutable patterns where grammar still forbids patterns entirely.
+  - 不得改变字符串语义；只影响全局名与去重。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted val pattern fixtures.
-  3. `cargo test --all --all-targets`
+  1. golden-file：相同字面量多处只产生一个 byte 数组。
+  2. `cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
 - 完成条件：
-  - Refutable `val` patterns are useful and predictable, with panic-on-mismatch semantics.
-- 依赖：P3-T03R
+  - byte 数组按内容去重、可被 linker 折叠。
+- 依赖：P4-T01R
 - 完成记录：
-  - 改动范围：`val_pat` 放开 variant pattern hard reject，按 enum / variant / arity / payload type 规则注入 binder 类型；HIR pattern lowering 将 refutable mismatch fallback 改为 `scoop.core.panic("pattern mismatch")`，并为嵌套 refutable tuple / struct 投影补齐 subject 类型；移除旧 `ValVariantPatRefutableNotAllowed` 诊断；同步旧 negative fixtures、顶层 pattern fixtures，并新增匹配与 mismatch panic run-pass fixtures。
-  - 核心决策：parser 既有 `val Some(x)` surface 保持不变；typecheck 负责保证 variant pattern 只作用于 enum / `Option<T>` 且 payload binder 类型精确；运行期 mismatch 是 assertion panic，不进入 `Raise<RuntimeError>`，也不 silent ignore；tuple / struct irrefutable destructuring 的既有行为保持不变。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（variant payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、match run-pass、mismatch panic、顶层 annotated / inferred / runtime pattern）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 对 refutable `val` pattern 的要求：`val Some(x) = e` 可用且 mismatch panic，failure path 不依赖 effect system；阶段计划无变化，未修改 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P3-T04R：Review refutable `val` pattern
+### [TODO] P4-T02R：Review content-hash 键
 
 - 参考：
-  - P3-T04 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C3
+  - P4-T02 完成记录
 - 目标：
-  - 复核 refutable val pattern 允许和 mismatch panic fallback 的完整性。
+  - 复核 content-hash 键无碰撞风险、无语义变化、golden 已更新。
 - 必须检查的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/val_pat.rs`
-  - pattern HIR/MIR lowering files changed by P3-T04
-  - val pattern fixtures
+  - P4-T02 对 `alloca.rs` 与受影响 golden 的改动
 - 必须实现的内容：
-  1. 确认 variant pattern 不再被 `ValVariantPatRefutableNotAllowed` 拒绝。
-  2. 确认 mismatch fallback 是 panic。
-  3. 确认 tuple/struct irrefutable destructuring 不回归。
-  4. 确认 pattern binding scopes / variable types 正确。
+  1. 确认 hash 截断长度足够避免实际碰撞，或有碰撞兜底。
+  2. 确认字符串语义不变、golden 已同步。
 - 必须遵从的约束：
-  - 不得接受只放开 typecheck 但 lowering mismatch 未处理的实现。
+  - 若键有碰撞风险或语义偏移，必须修正后才进入 TODO-4。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted val pattern fixtures。
+  1. `cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
 - 完成条件：
-  - C3 语义完整闭合。
-- 依赖：P3-T04
+  - content-hash 键稳定，immortal codegen 前置就绪。
+- 依赖：P4-T02
 - 完成记录：
-  - 改动范围：复核 P3-T04 的 `val_pat` typecheck、pattern HIR lowering、mismatch panic fallback、top-level / local pattern fixture；review 发现并修正 variant pattern parser 对 `..` rest 参数未识别 `Symbol::DotDot` 的缺口，并扩展 `destructuring_val_variant_match_basic.scoop` 覆盖 `val PairResult.Pair(first, ..) = value`。
-  - 核心决策：variant rest pattern 属于 refutable `val` pattern 同一语义面，AST/typecheck/lowering 已有 rest contract，parser 必须与 tuple/struct pattern 一样同时接受 lexer 的 `DotDot` token；mismatch fallback 仍由 lowering 合成 `scoop.core.panic("pattern mismatch")`，不走 `Raise`，tuple/struct irrefutable 解构路径保持不变。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted P3-T04 fixtures（match/rest run-pass、mismatch panic、top-level runtime、payload ok、not-enum / unknown-variant / enum-mismatch diagnostics、top-level annotated / inferred）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C3 与 `PLAN.md` P3 review 要求：refutable `val` variant patterns 不再被旧 hard reject 阻断，runtime mismatch 是 panic，rest/nested binding 的 scope 与类型由 typecheck/lowering 贯通；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T05：禁止 closure 捕获外层 `var`
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) B5
-- 目标：
-  - 捕获 `var` binding 的 closure 在前端报错，避免 snapshot semantics 造成 `makeCounter` 类 surprise。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/hir/lower/util/closures.rs::{compute_closure_captures,collect_declared_locals_in_expr,collect_used_locals_in_expr}`
-  - typecheck local binding metadata for `val` vs `var`
-  - closure inference in `crates/scoopc_hir/src/typecheck/expr/infer.rs::{infer_lambda_expr_type_without_expected,infer_lambda_expr_type_from_signature,try_infer_lambda_expr_type_by_expected}`
-  - diagnostics definitions for closure capture errors
-  - fixtures `*closure*capture*`, `*make_counter*` if present
-- 必须实现的内容：
-  1. Detect when a closure body references a binding declared outside the closure whose binding kind is `var`.
-  2. Emit one clear diagnostic at the capture use or closure expression span.
-  3. Diagnostic hint must mention explicit alternatives: `RefCell<T>` for shared mutable state, `val snapshot = ...` for read-only snapshot, fold/higher-order operators for accumulation patterns.
-  4. Keep `val` capture behavior unchanged.
-  5. Add negative fixture for `makeCounter`-style pattern and positive fixture for explicit `val snapshot`.
-- 必须遵从的约束：
-  - Do not implicitly box captured vars.
-  - Do not change codegen closure environment layout except removing impossible captured-var cases.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted closure capture fixtures.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - Closure capture rules no longer expose non-persistent `var` snapshot semantics.
-- 依赖：P3-T04R
-- 完成记录：
-  - 改动范围：新增 typecheck 侧 closure capture 检查器，在 lambda value inference 与 statement-position structural check 两条路径拒绝引用外层 `var` 的 closure；新增 `scoop::typecheck::closure_var_capture_not_allowed` 诊断并在错误文本 / help 中提示 `RefCell<T>`、显式 `val snapshot = ...`、fold / higher-order operators；同步 HIR capture 注释、旧 captured-`var` run-pass / HIR / MIR 正例、MIR/LLVM 单元测试样例与相关 MIR goldens。
-  - 核心决策：禁止规则只针对 closure 捕获的外层局部 `var`，不影响 closure 内部局部 `var` 使用、顶层 `var` 访问、`val` capture、显式 `RefCell` 共享可变状态或显式 snapshot；capture 检查遍历当前 lambda body 并跳过嵌套 lambda，由嵌套 lambda 自身检查其捕获；不改变 closure env layout/codegen，只让 captured-`var` cases 在前端不可达。
-  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted closure fixtures（`closure_capture_var_make_counter_is_error.scoop`、`closure_capture_val_snapshot_ok.scoop`、`closure_capture_refcell_make_counter.scoop`、HIR/MIR val capture、composite closure capture）；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首次发现 `assignment_places.mir` 与 `aggregate_transport.mir` golden 漂移，更新 golden 后 targeted fixture 通过，最终完整 fixture suite 通过（`fixtures: ok (1556)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 closure `var` capture 禁止要求：`makeCounter` 风格 snapshot surprise 在前端被拒绝，诊断给出显式替代方案，`val` capture 行为保持不变；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T05R：Review closure `var` capture 诊断
-
-- 参考：
-  - P3-T05 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) B5
-- 目标：
-  - 复核 closure 捕获外层 `var` 的诊断完整性和 `val` capture 不回归。
-- 必须检查的文件/位置：
-  - closure capture analysis/typecheck files changed by P3-T05
-  - closure capture fixtures
-- 必须实现的内容：
-  1. 确认跨 closure 边界引用外层 `var` 报错。
-  2. 确认同 closure 内局部 `var` 使用不误报。
-  3. 确认 `val` capture 仍可用。
-  4. 确认 diagnostic hint 包含 explicit alternatives。
-- 必须遵从的约束：
-  - 不得通过隐式 boxing 修复旧语义。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted closure capture fixtures。
-- 完成条件：
-  - B5 语义完整闭合。
-- 依赖：P3-T05
-- 完成记录：
-  - 改动范围：复核 P3-T05 的 `closure_capture.rs` 检查器、lambda inference / statement-position structural check 接入、`closure_var_capture_not_allowed` diagnostic，以及 closure capture fixtures；新增嵌套 closure 捕获外层 closure 局部 `var` 的负例 `closure_capture_var_nested_lambda_is_error.scoop`，新增同 closure 内局部 `var` 使用正例 `closure_local_var_inside_lambda_ok.scoop`，并收紧 makeCounter 负例以检查 `RefCell<T>`、`val snapshot = ...`、fold / higher-order alternatives 都出现在诊断文本中。
-  - 核心决策：P3-T05 的实现路径符合 B5：检查基于 resolver 的 local decl span 区分外层 `var` 与同 closure 内局部 `var`，扫描当前 lambda body 并跳过嵌套 lambda，由嵌套 lambda 自身在带有外层 mutable binding set 的上下文中报错；不引入隐式 boxing，不改变 closure environment layout，`val` capture 与显式 `RefCell` state 继续作为正例。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted closure fixtures（makeCounter captured-`var` 负例、nested captured-`var` 负例、same-closure local `var` 正例、`val snapshot` 正例）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1558)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` B5 与 `PLAN.md` P3 review 要求：跨 closure 边界引用外层 `var` 在前端报错，同 closure 局部 `var` 不误报，`val` capture 不回归，诊断明确给出三类替代方案；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T06：用 `ref` / `value` bound constraint kind 替换 `AnyRef` / `AnyValue` sealed marker
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C4
-- 目标：
-  - 删除 compile-time-only marker type 概念，把 reference/value restriction 表达为 generic bound constraint kind。
-- 必须修改的文件/位置：
-  - `sysroot/lib/scoop.core/src/core.scoop`，删除 `sealed interface AnyRef` / `AnyValue`，更新 `Atomic<T>` / `AtomicValue<T>` bounds
-  - `crates/scoopc_hir/src/typecheck/type_env.rs::{SealedMarkerInfo,ANY_REF_MARKER_FQN,ANY_VALUE_MARKER_FQN,rebuild_sealed_marker_metadata}`
-  - `crates/scoopc_hir/src/typecheck/lower.rs::{lower_bound_type_ref,sealed_marker_fqn,type_satisfies_sealed_marker,automatic_sealed_marker_for_type}`
-  - `crates/scoopc_hir/src/typecheck/where_clause.rs::{check_file_where_clauses,check_one_where_clause}`
-  - generic constraint satisfaction helpers used by call instantiation: `crates/scoopc_hir/src/typecheck/expr/call/generic.rs`
-  - fixtures containing `AnyRef`, `AnyValue`, `Atomic<T>`, `AtomicValue<T>`
-- 必须实现的内容：
-  1. Introduce internal constraint kind for `T: ref` and `T: value`.
-  2. Implement satisfaction check for reference class/interface/String/array/function refs and primitive/struct/enum value types according to existing type model.
-  3. Handle `Nothing` consistently with subtype rules; document chosen behavior in completion record if non-obvious.
-  4. Remove sysroot marker declarations and marker metadata rebuild if no longer needed.
-  5. Reject uses of `ref` / `value` outside bound position if P2-T06 did not already enforce all contexts.
-  6. Update sysroot and fixtures from `where T: AnyRef` / `AnyValue` to `<T: ref>` / `<T: value>` or equivalent where-clause form if chosen.
-- 必须遵从的约束：
-  - `ref` / `value` must not be expressible as runtime types, type arguments, casts, or supertypes.
-  - Do not leave `AnyRef` / `AnyValue` as hidden aliases unless a documented compatibility requirement appears and design docs are updated first.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted `ref_value_bound` fixtures.
-  3. targeted search: active sysroot/spec/compiler no longer treat `AnyRef` / `AnyValue` as declared types.
-  4. `cargo test --all --all-targets`
-- 完成条件：
-  - Bound-kind constraints replace sealed marker types end-to-end.
-- 依赖：P3-T05R
-- 完成记录：
-  - 改动范围：删除 sysroot `AnyRef` / `AnyValue` marker 声明，将 `Atomic<T>` / `AtomicValue<T>` 与 unsafe atomic ref primitives 迁移为 `<T: ref>` / `<T: value>`；移除 `TypeEnv` sealed-marker metadata / rebuild / AnyRef-AnyValue 常量与对应 lowering/assignable/interface/itable 特判；在 `LoweredGenericBound` 上实现 `ref` / `value` bound-kind satisfaction，并接入 nominal type instantiation、function call instantiation 和 declaration-site where-clause duplicate / mutual-exclusion 检查；迁移 / 删除旧 sealed-interface marker fixtures，新增 `ref_value_bound_*` 与 old-marker-name unresolved fixtures，同步 HIR / MIR goldens 的 sysroot nominal count，并将 `SCOOP_FULL_SPEC.md` C4 surface 改为 active `ref` / `value` bound prose。
-  - 核心决策：`ref` / `value` 不是 runtime type、type argument、cast/is target 或 supertype，仍由 P2 parser 的 `bound_keyword_type_position` gate 拒绝非 bound 位置；`T: ref` 满足所有 `TypeKind::Ref(_)`（class/interface/String/array/function ref 等现有模型），`T: value` 满足所有 `TypeKind::Value(_)`（primitive/struct/enum/tuple/Option 等现有模型）；`Nothing` 按既有 bottom subtype 规则同时满足单独的 `ref` 或 `value` bound，因为其值不会在运行期产生，但同一 type parameter 同时声明 `ref` 与 `value` 仍作为互斥 bound set 拒绝；不保留 hidden alias 或 compile-time-only marker metadata。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted ref/value fixtures（`ref_value_bound_keywords_ok.scoop`、ref/value wrong-kind negatives、function wrong-kind negative、mutual exclusion negative、old `AnyRef` unresolved negative、sysroot `Atomic` / `AtomicValue` wrong-kind negatives）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1546)`）；`python3 tools/spec_fixtures.py check`；targeted search 确认 active sysroot / compiler / `SCOOP_FULL_SPEC.md` 不再声明或使用 sealed marker metadata / `AnyRef` / `AnyValue` marker logic，剩余 `AnyRef` 文本仅在 TODO/design baseline 与 negative fixture 中出现。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 对 sealed marker -> `ref` / `value` bound constraint kind 的实现要求；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T06R：Review `ref` / `value` bound kind 替换结果
-
-- 参考：
-  - P3-T06 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C4
-- 目标：
-  - 复核 marker type 删除和 bound-kind constraint 的完整性。
-- 必须检查的文件/位置：
-  - `sysroot/lib/scoop.core/src/core.scoop`
-  - `crates/scoopc_hir/src/typecheck/type_env.rs`
-  - `crates/scoopc_hir/src/typecheck/lower.rs`
-  - `crates/scoopc_hir/src/typecheck/where_clause.rs`
-  - generic constraint fixtures
-- 必须实现的内容：
-  1. 确认 `AnyRef` / `AnyValue` 不再是 active declared types。
-  2. 确认 `ref` / `value` 不可作为普通类型使用。
-  3. 确认 `Atomic<T>` / `AtomicValue<T>` 等 sysroot bounds 已更新。
-  4. 确认 generic call instantiation 会检查 bound-kind satisfaction。
-- 必须遵从的约束：
-  - 不得接受 hidden marker aliases 或 runtime metadata footprint。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted `ref_value_bound` fixtures。
-- 完成条件：
-  - C4 语义完整闭合。
-- 依赖：P3-T06
-- 完成记录：
-  - 改动范围：复核 P3-T06 的 sysroot marker 删除、`LoweredGenericBound::{Ref,Value}`、where-clause / call-site / nominal type-arg satisfaction 路径与 ref/value fixtures；修复 review 发现的泛型转发缺口：当实参仍是 `TypeKind::Param` 时，`ref` / `value` kind bound 会检查调用方 type parameter 自身是否声明兼容 kind bound，而不是直接跳过；同时把 inline / where bounds 推入 type-position lowering、top-level/member signature collection、overload collection、函数体与 member 函数体检查，使 constrained forwarding 在函数、成员函数和名义类型实参中一致生效；新增 unconstrained forwarding negative fixtures 与 constrained forwarding positive fixture。
-  - 核心决策：普通 type upper-bound 的完整泛型传播仍保持既有延迟策略；本轮只对 `ref` / `value` 这种 kind constraint 做“type-param bound implication”检查，因为否则未约束 type parameter 可绕过新 bound-kind 语义；`ref` / `value` 仍不是普通类型，`AnyRef` / `AnyValue` 不作为 hidden alias 或 active marker metadata 保留。
-  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted ref/value fixtures（所有 `tests/fixtures/typecheck/*ref_value_bound*.scoop` 与 `anyref_anyvalue_marker_names_are_not_types.scoop`）；active marker search（`crates` / `sysroot` / `SCOOP_FULL_SPEC.md` / `tests/fixtures` 中剩余 `AnyRef` / `AnyValue` 仅在 negative fixture）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1549)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C4 与 `PLAN.md` P3 review 要求：marker types 已从 active sysroot/compiler surface 删除，`ref` / `value` 只能作为 bound-kind constraint 使用，sysroot atomic bounds 已更新，generic call / type-argument instantiation 会检查 bound-kind satisfaction；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T07：默认 visibility 改为 `internal` 并同步 sysroot / cone export
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P3
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C5
-- 目标：
-  - 无 visibility modifier 的 declaration 默认为 cone-internal；`public` 成为导出 API 的显式 opt-in。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/resolve/mod.rs::{Visibility,visibility_from_modifiers,ModifierSet::from_modifiers}`
-  - `crates/scoopc_cone/src/scoopir/export.rs::{export_public_api_for_source,export_public_types_for_source,export_public_funs_for_source}`
-  - `crates/scoopc_cone/src/visibility.rs::collect_non_public_symbols_for_cone_sources`
-  - `sysroot/lib/scoop.core/src/core.scoop`
-  - `sysroot/lib/scoop.collections/src/collections.scoop`
-  - `sysroot/lib/scoop.unsafe/src/unsafe.scoop`
-  - cross-package / cone fixtures under `tests/fixtures/**`
-- 必须实现的内容：
-  1. Change no-modifier default from `Visibility::Public` to `Visibility::Internal`.
-  2. Add explicit `public` to sysroot declarations that are part of exported API.
-  3. Ensure `.cone` exporter only emits explicit public declarations into `api.scoopir`.
-  4. Update symbol visibility JSON expectations / tests if they exist.
-  5. Add fixtures proving internal declarations are visible within same cone but not exported / not visible downstream.
-- 必须遵从的约束：
-  - Do not change `private` file-scope meaning.
-  - Do not export internal declarations just to preserve old behavior.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. cone/export targeted tests.
-  3. `cargo test --all --all-targets`
-  4. Inspect generated `api.scoopir` for a sample cone to confirm only public declarations participate.
-- 完成条件：
-  - Default internal visibility and explicit public export contract are active.
-- 依赖：P3-T06R
-- 完成记录：
-  - 改动范围：将 resolver 无显式 visibility modifier 的默认值从 `Visibility::Public` 改为 `Visibility::Internal`，并新增默认 internal 的单元覆盖；同步 production sysroot 的导出 API 为显式 `public`，保留 same-cone `__scoop_*` helper / string helper 等实现细节为默认 internal；补齐跨 sysroot cone 需要公开消费的 `scoop.unsafe` low-level ABI primitive 与 reflection kind constants；同步 fixture sysroot overlay 的用户可见声明、ScoopIR public API filter、default-internal cross-cone fixture，以及受 sysroot declaration span 影响的 HIR/MIR goldens。
-  - 核心决策：`.cone` exporter 继续只按 `Visibility::Public` 导出，default internal 通过 resolver source of truth 生效，不在 exporter 侧重导 internal 以兼容旧行为；sysroot 中被用户代码、其它 sysroot cone 或 fixture overlay 跨 cone 使用的声明必须显式 `public`，same-cone helper 保持 internal；新增 `public_api_filter` 的 no-modifier declarations 证明 default-internal declarations 不进入 `api.scoopir`。
-  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted cone/export fixtures（`tests/fixtures/typecheck_cone/default_internal_export`、`tests/fixtures/scoopir/public_api_filter.scoop`、`scoopc_cone::scoopir_fixture_public_api_filter_golden`）；generated `api.scoopir` / symbol visibility inspection for default-internal sample cone；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1551)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` C5 与 `PLAN.md` P3 默认 visibility 要求：无 modifier declaration 现在为 cone-internal，`public` 是导出 API 的显式 opt-in，`.cone` API 只携带 explicit public declarations，internal declarations 保持 same-cone 可见并在下游得到不可见诊断；阶段计划无变化，未修改 `PLAN.md`。
-
-### [DONE] P3-T07R：Review default internal visibility
-
-- 参考：
-  - P3-T07 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) C5
-- 目标：
-  - 复核默认 visibility、sysroot explicit public 和 cone export 行为。
-- 必须检查的文件/位置：
-  - `crates/scoopc_hir/src/resolve/mod.rs`
-  - `crates/scoopc_cone/src/scoopir/export.rs`
-  - `crates/scoopc_cone/src/visibility.rs`
-  - `sysroot/lib/**/src/*.scoop`
-  - cone/export fixtures
-- 必须实现的内容：
-  1. 确认无 modifier declaration 默认为 `internal`。
-  2. 确认 sysroot public API 已显式 `public`。
-  3. 确认 `.cone` `api.scoopir` 只导出 public declarations。
-  4. 确认 same-cone internal 可见，downstream 不可见。
-- 必须遵从的约束：
-  - 不得通过 exporter 重新导出 internal 来维持旧默认 public 行为。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted cone/export fixtures。
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - C5 语义完整闭合；P4 可基于新 visibility 规则实现 overload definition-time checks。
-- 依赖：P3-T07
-- 完成记录：
-  - 改动范围：复核 P3-T07 的默认 visibility 实现、ScoopIR public API export filter、非 public 符号占位索引、production sysroot explicit `public` 标注与 cone/export fixtures；未发现需要修改代码的缺口，仅更新本 review 任务记录。
-  - 核心决策：继续以 resolver 的 `Visibility` 作为唯一 source of truth：无 modifier declaration 默认为 `internal`，`.cone` `api.scoopir` 只导出 `Visibility::Public`，`SYMBOL_VISIBILITY.json` 只为下游诊断记录非 public 占位符；不通过 exporter 重新导出 internal 来维持旧默认 public 行为。
-  - 验证结果：`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`；targeted cone/export fixtures（`tests/fixtures/typecheck_cone/default_internal_export`、`tests/fixtures/scoopir/public_api_filter.scoop`、`scoopc_cone::scoopir_fixture_public_api_filter_golden`）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1551)`）。
-  - 与 `PLAN.md` / 设计文档对应闭合：P3-T07R 确认 `SPEC_FIX.md` C5 与 `PLAN.md` P3 默认 visibility contract 已闭合：same-cone internal 可见、downstream internal 不可见且诊断稳定、public API 必须显式 opt in，P4 可基于新 visibility 规则继续 overload definition-time checks；阶段计划无变化，未修改 `PLAN.md`。
+  - （待执行）

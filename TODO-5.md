@@ -1,652 +1,151 @@
-# TODO-5：P5-P6 Call-site resolution、callable identity 与最终收尾
+# TODO-5：P7 文档、fixtures 收尾与全量回归矩阵
 
-> 索引：[`TODO.md`](./TODO.md)  
-> 计划基线：[`PLAN.md`](./PLAN.md)  
-> 覆盖阶段：P5-P6  
-> 包目标：实现 overload call-site 五阶段 resolution，贯通 selected callable identity，并完成 spec / fixtures / docs / regression matrix 收尾。
+> 索引：[`TODO.md`](./TODO.md)
+> 计划基线：[`PLAN.md`](./PLAN.md)
+> 覆盖阶段：P7
+> 包目标：把 P1-P6 的运行期与编译期行为反映到 runtime 文档、env 旋钮说明、fixtures 与回归矩阵，明确归位 out-of-scope，确保后续不需重新判读新行为。
 
-## P5：Overload call-site resolution 与 callable identity 贯通
+## P7：Spec / 文档 / fixtures 收尾与回归矩阵
 
-### [DONE] P5-T01：实现 Phase A-C：候选收集、visibility、applicability
+### [TODO] P7-T01：回写 runtime/spec 文档（pacing + immortal）
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.1-§5.3、§7.3、§7.4、§8.1、§8.2
+  - [`PLAN.md`](./PLAN.md) §5 / P7
+  - [`GC_PACING.md`](./GC_PACING.md) “Proposed design”“Env knobs”、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Proposed design”
 - 目标：
-  - 建立 call-site overload pipeline 的前三阶段，形成后续 specificity 的输入集合。
+  - 把 pacing 模型与 immortal 概念写进 runtime 文档/相关 spec，作为长期 contract。
 - 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/resolve/scopes.rs::{BlockScopeChecker::resolve_call_site,resolve_call_ident_callee,resolve_call_member_callee,resolve_member_access_on_type_receiver,try_resolve_where_bound_member_access}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/dispatch.rs::infer_call_expr_type`
-  - `crates/scoopc_hir/src/typecheck/expr/call/args.rs::{collect_call_arg_infos,check_call_arg_named_rules,map_call_args_to_params_with_defaults,map_call_args_to_params_with_defaults_and_varargs}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/generic.rs::{instantiate_fun_sig_for_call,check_fun_where_constraints_after_instantiation}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/member_call.rs::infer_member_call_expr_type`
-  - `crates/scoopc_hir/src/typecheck/expr/call/ctor.rs::collect_matched_ctor_overloads_for_owner`
+  - `SCOOP_RUNTIME.md`（及相关 `docs/spec/**` 段，如涉及）
 - 必须实现的内容：
-  1. Candidate collection order: local -> member -> extension -> top-level -> imported.
-  2. Implement “outer scope fully shadows inner/later scopes”: once a layer yields same-name candidates, do not continue to lower-priority layers even if candidates later fail applicability.
-  3. Visibility filter before applicability; invisible candidates must not affect specificity.
-  4. Applicability checks: arity / named / default / vararg mapping; argument type subtype relation; no implicit widening; function type subtype checks by existing variance/effect rules; tuple/struct variance according to existing type system; `Nothing` as subtype of every type.
-  5. For no applicable overload, diagnostics list all same-name candidates and per-candidate rejection reason.
+  1. 记录 pacing：`target = max(min_threshold, live*factor)`、三层触发（软/分代/硬）、env 旋钮（`SCOOP_GC_PACING`/`GROWTH_FACTOR`/`MIN_THRESHOLD_BYTES`/`MAX_HEAP_BYTES`）、默认 on 姿态、stress 旁路。
+  2. 记录 immortal：值/ref 双层、`is_immutable` 谓词、`@InteriorMutable`、dedup 仅 String、immortal 不变式“永不写、永不 trace”。
+  3. 同步任何引用旧 GC 行为（无界增长 / per-use wrapper）的文档表述。
 - 必须遵从的约束：
-  - Do not perform specificity tie-breaking in Phase A-C except filtering impossible candidates.
-  - Do not let invisible candidates suppress visible candidates.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. fixtures for local shadowing top-level/import, visibility before applicability, no applicable overload diagnostics.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - Call-site resolution has a deterministic applicable candidate set with actionable no-applicable diagnostics.
-- 依赖：P4-T05R
-- 完成记录：
-  - 改动范围：更新 `resolve/scopes.rs` 的调用点候选收集层级与 invisible member fallback；更新 `typecheck/expr/call/{mod.rs,value_call.rs,dispatch.rs,member_call.rs,ctor.rs}` 的 Phase B/C 过滤与 no-applicable diagnostics；同步相关 overload fixtures。
-  - 核心决策：top-level call candidate collection 以同包/root、显式 import、star import 分层，同时合并函数与构造候选，命中可见候选后不继续下沉；跨文件函数签名在 typecheck 入口按调用源过滤 visibility；不可见 member 只保留为兜底诊断，不再压制可见 extension/inherited candidate；no-applicable overload 使用候选签名、位置和基础 applicability rejection reason 输出。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P5 Phase A-C 与 `OVERLOAD_RESOLUTION.md` §5.1-§5.3、§7.4、§8.1、§8.2；P5-T02 可基于已过滤的 applicable candidate set 继续实现 specificity。
-
-### [DONE] P5-T01a：修复 Phase A-C review blockers
-
-- 参考：
-  - P5-T01 完成记录
-  - P5-T01R 初次 review blocker 记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.1-§5.3、§7.4、§8.1、§8.2
-- 目标：
-  - 修复 P5-T01R 审查中发现的 Phase A-C 前置缺口，使 review 能验证候选收集、visibility、applicability 与 no-applicable diagnostics 的边界。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/resolve/scopes.rs::{resolve_call_ident_callee,resolve_call_member_callee,resolve_member_access_on_value_receiver,extension_fun_candidates,try_resolve_where_bound_member_access}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,value_call.rs,generic.rs,args.rs}`
-  - no-applicable / visibility / shadowing / extension fixtures
-- 必须实现的内容：
-  1. Typecheck 普通调用、constructor 调用和 extension member 调用必须消费 resolver 写入的 `ResolvedCall.candidates`，不得继续只依赖 stale single `resolved` FQN。
-  2. Member 层必须整体优先于 extension 层；inherited visible member 不得被同名 visible extension 抢先，invisible direct member 不得压制后续 visible member/extension 诊断路径。
-  3. Cross-file/index 函数签名必须保留 `param_is_vararg`，constructor applicability 必须用与函数一致的 arity / named / default / vararg mapping 规则；如果 lowering 侧仍缺 vararg ctor 绑定能力，必须修复该能力而不是绕过。
-  4. Where-bound member call 和 late extension lookup 不得按首个候选或 import 排序提前选择；所有候选必须先经过 visibility 与 applicability，再进入后续 selection/ambiguity 路径。
-  5. no-applicable diagnostics fixtures 必须断言候选签名和 per-candidate rejection reason；shadowing fixtures 必须覆盖 local shadow top-level/import；visibility fixtures 必须确认不可见候选不会影响可见候选。
-- 必须遵从的约束：
-  - 不得把 Phase A-C 缺口留给 P5-T02 specificity 或 P5-T04 callable identity 作为 workaround；后续阶段只能建立在清晰 applicable candidate set 上。
-  - 不得让不可见候选影响后续选择。
-  - 不得通过 fixture 缩窄、改写测试形状或只报 `AmbiguousCall` 来避开 applicability 过滤。
-- 验证：
-  1. `cargo fmt`
-  2. `cargo clippy --all-targets -- -D warnings`
-  3. targeted Phase A-C fixtures
-  4. `python3 tools/run_fixtures.py`
-  5. `cargo test --all --all-targets`
-- 完成条件：
-  - P5-T01R 能复核并确认 Phase A-C 的候选集合、visibility-before-applicability 和 no-applicable diagnostics，无需再新增前置修复任务。
-- 依赖：P5-T01
-- 完成记录：
-  - 改动范围：更新 `resolve/scopes.rs` 的 inherited-member-before-extension 顺序；更新 `typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,value_call.rs,generic.rs,args.rs}` 与 `typecheck/expr/{ops.rs,entry.rs}` 的候选消费、vararg 签名、constructor 映射和 where-bound/extension applicability 路径；新增 Phase A-C targeted fixtures。
-  - 核心决策：普通调用和 extension member 调用按 resolver 写入的候选 FQN 收集签名，先做 visibility 后做 applicability，不再因 stale single FQN 或 import 顺序提前报 `AmbiguousCall`；constructor 复用统一 default/vararg 参数映射并记录 canonical call-arg binding；where-bound 方法先收集全部 bound 候选再过滤，成功后才记录 effects 与 call binding。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc && python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P5-T01R 记录的 Phase A-C review blockers；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T01R：Review Phase A-C resolution
-
-- 参考：
-  - P5-T01 完成记录
-  - P5-T01a 完成记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.1-§5.3
-- 目标：
-  - 复核候选收集、visibility 和 applicability 的阶段边界。
-- 必须检查的文件/位置：
-  - P5-T01 修改的 resolve/typecheck call files
-  - no-applicable / visibility / shadowing fixtures
-- 必须实现的内容：
-  1. 确认 scope 层叠顺序和 shadow 语义。
-  2. 确认 visibility 在 applicability 前过滤。
-  3. 确认 no applicable diagnostics 列出候选和原因。
-  4. 确认没有提前做 specificity 或 effect fallback。
-- 必须遵从的约束：
-  - 不得让不可见候选影响后续选择。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted Phase A-C fixtures。
-- 完成条件：
-  - P5-T02 可基于清晰 applicable candidate set 实现 specificity。
-- 依赖：P5-T01a
-- 阻塞记录：
-  - 2026-05-29 初次 review 发现 P5-T01 仍有 Phase A-C 前置缺口：`ResolvedCall.candidates` 在部分普通/extension/member typecheck 路径未被消费，member/inherited/extension 层级仍可能违反 member-before-extension，跨文件签名 vararg 元数据和 constructor vararg applicability 不完整，where-bound / late extension 路径仍可能提前按首个候选或 import 顺序选择，no-applicable fixtures 未充分断言候选签名与 rejection reason。已新增 P5-T01a 作为本 review 的前置修复任务。
-- 完成记录：
-  - 改动范围：复核并修正 P5-T01/P5-T01a Phase A-C 边界；更新 `resolve/scopes.rs` 的 where-bound member call candidates 写回；更新 `typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs}` 与 `typecheck/expr/ops.rs`，移除 Phase A-C 后的提前 specificity/default tie-break，并让普通调用统一消费同层 function/constructor candidates；补强 Phase A-C no-applicable、shadowing、extension、where-bound、constructor vararg 与 mixed function/constructor fixtures。
-  - 核心决策：P5-T01R 只关闭 candidate collection、visibility-before-applicability 与 applicability，不在 P5-T02 前选择 most-specific；多个 applicable candidates 统一保留为 `ambiguous_overload`，specificity/ambiguity 诊断增强留给 P5-T02；function 与 constructor 同名候选不再由 stale function path 丢弃 constructor；where-bound 调用点不再只写回首个 bound method candidate。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted Phase A-C fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.1-§5.3 的 Phase A-C review 要求；P5-T02 可基于清晰 applicable candidate set 实现 specificity；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T02：实现 Phase D-E specificity 与 ambiguity diagnostics
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5.4-§6.4、§10
-- 目标：
-  - 从 applicable candidates 中选出唯一最具体候选；若不可唯一确定，输出高质量歧义错误。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/call/member_call.rs::{is_strictly_more_specific_member_overload,pick_most_specific_member_overload}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/ctor.rs::{pick_most_specific_ctor_overload,select_ctor_overload_for_owner}`
-  - shared overload selection helper introduced in P5-T01 if created
-  - subtype / type comparison helpers used by typecheck
-  - diagnostics for `ambiguous_overload`
-- 必须实现的内容：
-  1. Implement specificity rule: A more specific than B iff for every parameter position `A.eff_i <: B.eff_i` and at least one position is strict.
-  2. Include member receiver as parameter position 0 for member method specificity.
-  3. Effective type source: concrete param -> concrete type; method-level TP -> declared bound, default `Any`; multiple bounds -> intersection if supported; composite type -> recursively substitute TP bounds.
-  4. Do not use inferred substitution for specialization.
-  5. Function type specificity must follow function subtype relation.
-  6. Ambiguity diagnostic must list all applicable candidates, file/line/col, signature, effective type source, and incomparable positions.
-- 必须遵从的约束：
-  - Do not choose “first candidate” on incomparable ties.
-  - Do not use return type or effect row for specificity.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. fixtures for concrete vs generic, bound chain, incomparable bounds, lambda function-type specificity, cross-incomparable multi-param overload.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - Overload selection follows `OVERLOAD_RESOLUTION.md` §6 and ambiguity diagnostics are user-actionable.
-- 依赖：P5-T01R
-- 完成记录：
-  - 改动范围：新增 call-site specificity helper，按声明处 effective parameter type 选择唯一 most-specific candidate；接入普通函数/构造器、direct member、extension member 与 where-bound member 调用路径；增强 `ambiguous_overload` 候选诊断；更新 P5-T01R deferred specificity fixtures，并新增 concrete/generic、bound chain、incomparable bounds、function-type specificity 与 cross-incomparable multi-param fixtures。
-  - 核心决策：specificity 不使用 inferred substitution、return type 或候选 effect row；member/extension receiver 作为第 0 参数位；type parameter effective type 使用 declared type bound，未声明 type bound 时用 `Any`，多个 type bounds 以 intersection 参与裸 type parameter 比较；不可唯一选出 maximal candidate 时保留 `ambiguous_overload` 并列出候选位置、effective 来源和不可比位置。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；targeted `tests/fixtures/infer` 与 `tests/fixtures/typecheck`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §5.4-§6.4 与 §10 的 P5-T02 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T02R：Review specificity 与 ambiguity diagnostics
-
-- 参考：
-  - P5-T02 完成记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §6、§10
-- 目标：
-  - 复核 specificity 偏序、effective type 来源和 ambiguity diagnostics。
-- 必须检查的文件/位置：
-  - P5-T02 修改的 overload selection helpers
-  - ambiguity fixtures
-- 必须实现的内容：
-  1. 确认 concrete/generic/bound-chain specificity 正确。
-  2. 确认 incomparable bounds 不会被任意选中。
-  3. 确认 member receiver 被当作第 0 参数位。
-  4. 确认 diagnostics 包含候选位置、effective type 来源和不可比原因。
-- 必须遵从的约束：
-  - 不得使用 inferred substitution 触发 specialization。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted specificity / ambiguity fixtures。
-- 完成条件：
-  - P5-T02 行为符合 §6 / §10。
-- 依赖：P5-T02
-- 完成记录：
-  - 改动范围：复核并修正 P5-T02 specificity / ambiguity 实现；更新 `typecheck/expr/call/{mod.rs,generic.rs,ctor.rs}` 与 `typecheck/lower.rs`，让未知 type param 不再绕过普通 type bounds，让 constructor overload specificity 使用 owner + constructor type params / bounds，并保留 composite 多重 bound 的 effective alternatives；更新 monomorph 单元测试的 generic wrapper bound；新增/补强 concrete-vs-generic、deferred generic caller、constructor specificity、constructor bound ambiguity、receiver position 0 ambiguity 与 existing ambiguity diagnostics fixtures。
-  - 核心决策：P5-T02R 不接受 inferred-substitution specialization；`TypeKind::Param` 只有在其声明 bounds 可证明满足目标 bound 时才可通过 bounded callable applicability；constructor selection 的 specificity source 与函数路径一致，constructor-level inline/where bounds 参与 effective type；无 first-class intersection `TypeId` 时，composite bound substitution 保留 alternatives 而不是退化成 `Any`；ambiguity fixture 断言改为锁住候选/effective source/position reason 的单条可验证 substring。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/infer`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §6 / §10 的 P5-T02 review 要求；确认 specificity 偏序、effective type 来源、constructor/member receiver position handling 和 ambiguity diagnostics 符合当前阶段要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T03：整合 member / constructor / operator / effect-after-selection 路径
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §7、§8、§9、§11.3
-- 目标：
-  - 让 member methods、constructors、operators、function/lambda overloads 使用同一 resolution 语义，并确保 effect row 在 selection 后校验。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/typecheck/expr/call/dispatch.rs::infer_call_expr_type`
-  - `crates/scoopc_hir/src/typecheck/expr/call/member_call.rs::infer_member_call_expr_type`
-  - `crates/scoopc_hir/src/typecheck/expr/call/ctor.rs::{try_infer_nominal_constructor_call_expr_type_with_expected,select_ctor_overload_for_owner}`
-  - `crates/scoopc_hir/src/typecheck/expr/call/value_call.rs::{infer_function_type_call_expr_type,infer_function_value_call_expr_type,infer_top_level_fun_value_expr_type}`
-  - `crates/scoopc_hir/src/typecheck/expr/ops.rs::infer_operator_overload_binary_expr_type`
-  - effect checking logic used after call selection
-- 必须实现的内容：
-  1. Member method resolution uses static receiver type for overload selection; virtual dispatch happens only after selected signature is known.
-  2. Child overload set includes inherited visible methods, overridden replacements, and child-added overloads.
-  3. Constructor calls use same Phase A-E model inside class constructor set.
-  4. Operator expressions first desugar/find operator method name, then use same overload resolution after P3-T01 modifier gate.
-  5. Lambda/function type overloads use normal subtype specificity; do not add special reject.
-  6. Effect row check happens after unique candidate selection and must not cause fallback to a less-specific overload.
-- 必须遵从的约束：
-  - Do not make overload resolution dynamic based on runtime class.
-  - Do not let effect compatibility influence candidate choice.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. fixtures for static resolution + dynamic dispatch, constructor overload, operator overload, lambda overload, effect mismatch after selection.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - All callable surfaces use a coherent overload selection model.
-- 依赖：P5-T02R
-- 完成记录：
-  - 改动范围：更新 `typecheck/expr/call/{effect_op.rs,member_call.rs,value_call.rs,mod.rs,generic.rs}` 与 `typecheck/expr/ops.rs`；让 direct member call 按静态 receiver 收集 child + inherited overload set，并过滤 child override replacement；让 operator / compareTo 路径在 modifier gate 后继续执行 specificity，且 unsafe / NoGC / effect 记录只作用于选中候选；让 expected function type 下的顶层函数值 overload 使用同一 specificity 选择；更新 P5-T03 targeted fixtures。
-  - 核心决策：member overload set 从实际静态 receiver 类型出发遍历已实例化父类型，并以用户可见签名去重，避免子类 override 后父类同签名候选继续参与；operator path 不再在多个 applicable 候选上直接报歧义，也不再让未选中候选的 gate 影响结果；effect row 仍在 unique candidate selection 后记录，由现有 required-effect 检查统一报错，不参与候选选择；非 generic function-value / operator 场景补充 declared specificity 之外的精确参数匹配兜底，用于同一调用点中 concrete subtype 候选的确定选择。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7、§8、§9、§11.3 的 P5-T03 call-surface 整合要求；member/static receiver、constructor existing coverage、operator desugar、function-type/value overload 与 effect-after-selection 已纳入同一 selection 语义；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T03R：Review call surface 整合结果
-
-- 参考：
-  - P5-T03 完成记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §7、§8、§9
-- 目标：
-  - 复核 member/constructor/operator/lambda/effect 路径都使用同一 resolution 模型。
-- 必须检查的文件/位置：
-  - P5-T03 修改的 call dispatch files
-  - member / constructor / operator / lambda overload fixtures
-  - effect mismatch after selection fixtures
-- 必须实现的内容：
-  1. 确认 static receiver type 决定 overload signature。
-  2. 确认 virtual dispatch 只发生在 selected signature 之后。
-  3. 确认 constructor/operator/lambda 路径没有自定义旁路。
-  4. 确认 effect row mismatch 不回退到其它 overload。
-- 必须遵从的约束：
-  - 不得让 runtime class 或 effect compatibility 影响 overload choice。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted call surface fixtures。
-- 完成条件：
-  - P5-T03 行为符合 §7-§9。
-- 依赖：P5-T03
-- 完成记录：
-  - 改动范围：复核 P5-T03 的 member / constructor / operator / lambda/function-value / effect-after-selection 路径；更新 `typecheck/expr/call/{effect_op.rs,mod.rs,value_call.rs}` 与 `typecheck/expr/ops.rs`，让 inherited member signature collection 使用当前 owner receiver type、移除 function-value / operator / compareTo 的非 spec exact-match 选择兜底，并让 scalar operator unsafe/NoGC gate 在唯一候选选中后执行；新增 member effect-after-selection no-fallback 与 operator-positioned plain-method ignore fixtures。
-  - 核心决策：P5-T03R 不接受 expected/actual 参数 exact-match 作为 Phase D/E 之外的 tie-break；call surface 继续以 declared effective parameter specificity 作为唯一选择来源，effect / unsafe / NoGC gate 只作用于选中候选；operator-positioned call 只在 `operator` 候选间 resolution，适用但未标记 `operator` 的同名方法不得影响选择。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7-§9 的 call surface review 要求；确认 member static receiver / child overload set、constructor existing coverage、operator gate、function-value specificity 和 effect-after-selection 均未引入 runtime class 或 effect compatibility 参与 overload choice；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T04：贯通 selected callable identity，修复 concrete / arity / generic-concrete codegen bug
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §1、§5
-- 目标：
-  - Typecheck 选出的 overload identity 必须贯穿 HIR/MIR/materialization/codegen；lowering 不再按 bare FQN 混淆同名函数。
-- 必须修改的文件/位置：
-  - `crates/scoopc_hir/src/hir/mod.rs::{TopLevelFunCallSiteIndex,EffectOpCallSiteIndex,CallableAbiIdentity}` and call binding structs
-  - `crates/scoopc_hir/src/hir/lower/expr/typechecked.rs::{materialized_direct_call_target_fqn_for_binding,typechecked_direct_call_expr,try_lower_typechecked_operator_overload_binary_expr,try_lower_typechecked_compare_to_binary_expr}`
-  - `crates/scoopc_hir/src/hir/lower/expr/canonical_call.rs::lower_canonical_call_expr`
-  - `crates/scoopc_mir/src/mir/materialize/hir_calls.rs::{collect_hir_direct_call_instance_requests,choose_hir_direct_call_template_for_binding}`
-  - `crates/scoopc_mir/src/mir/callables.rs::{MaterializedCallableFamilies,MaterializedCallableView}`
-  - `crates/scoopc_mir/src/mir/lower/fn_lowering_call.rs::{lower_typed_call_expr,lower_direct_call_expr,lower_dispatch_call_expr_from_contract}`
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs::{codegen_mir_call,codegen_mir_direct_call_with_policy}`
-- 必须实现的内容：
-  1. Extend call binding metadata to include selected overload identity, not just callee FQN.
-  2. Preserve selected type args, owner, parameter signature, and callable ABI identity through HIR lowering.
-  3. MIR materialization must choose template/callable version from binding identity.
-  4. LLVM declarations/calls must use the materialized callable version corresponding to the selected overload.
-  5. Enable the three P0-T02 run-pass baseline fixtures by removing their `IGNORE-UNTIL-FIX` directives once implementation is ready: `tests/fixtures/run-pass/overload_concrete_bug.scoop`, `tests/fixtures/run-pass/overload_arity_bug.scoop`, and `tests/fixtures/run-pass/overload_gvc_ok.scoop`.
-- 必须遵从的约束：
-  - Do not fix by changing symbol names only; the selected semantic identity must drive materialization.
-  - Do not leave fallback codegen lookup by same-name FQN in overload-sensitive paths.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted run-pass fixtures for concrete, arity, generic+concrete overload bugs.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - Known overload bugs no longer fail in codegen/materialization.
-- 依赖：P5-T03R
-- 完成记录：
-  - 改动范围：扩展 `TopLevelFunCallBinding` / HIR facts / MIR lowering contract，携带 selected overload 的声明身份、实例化参数、参数签名与返回类型；更新 HIR type remap、MIR call result lowering、non-generic materialization、direct binding lookup 和 overload/generic callable family 判定；启用 P0-T02 的三个 run-pass baseline fixtures；更新受影响 MIR golden。
-  - 核心决策：call-site typecheck 选出的 `decl_file` + `decl_span` 继续作为 semantic selected overload identity，`param_tys` / `return_ty` 只作为下游签名/transport 辅助且必须跨 TypeStore remap；materializer 对 selected non-generic binding 的精确 span 匹配优先于 generic instance inference，避免 generic/concrete 同名时按 bare FQN 猜目标；non-generic callable 是否属于 generic family 以模板/类型参数身份判断，不再用 bare FQN 一刀切；MIR call result local 保留 HIR 表达式类型，materialized non-generic direct call 另行记录 callee return type 供 transport repair。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 贯通的要求；三个 P0-T02 overload codegen baseline 已从 `IGNORE-UNTIL-FIX` 启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T04R：Review selected callable identity 贯通
-
-- 参考：
-  - P5-T04 完成记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §1、§5
-- 目标：
-  - 复核 selected overload identity 是否真正贯穿 HIR/MIR/materialization/codegen。
-- 必须检查的文件/位置：
-  - P5-T04 修改的 HIR/MIR/materialization/codegen files
-  - concrete / arity / generic-concrete overload bug fixtures
-- 必须实现的内容：
-  1. 确认 call binding 不只保存 bare FQN。
-  2. 确认 MIR materialization 使用 selected overload identity 选择 callable version。
-  3. 确认 LLVM declaration/call 不再混淆同名 overload。
-  4. 确认三个已知 bug fixture 全部通过。
-- 必须遵从的约束：
-  - 不得接受仅靠 symbol spelling 避免冲突但 semantic identity 仍缺失的实现。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. targeted overload run-pass fixtures。
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - P5-T04 修复完整且有 regression 保护。
-- 依赖：P5-T04
-- 完成记录：
-  - 改动范围：复核并修正 P5-T04 selected callable identity 贯通；更新 HIR compilation-unit lowering，确保 synthetic named intrinsic / array helper call-site binding 只补缺不覆盖 typecheck selected binding；更新 HIR stage ABI contract 构建，按 selected `decl_file` + `decl_span` 查找本地 selected declaration，并只在当前 HIR 无同名多候选时允许 sysroot/imported fallback；更新 MIR LLVM direct-call codegen 与 result type 查询，移除 exact callable/signature miss 后按 bare/base FQN 或 ABI signature 推断的 fallback。
-  - 核心决策：P5-T04R 不接受 codegen 侧再按 same-name FQN 猜 overload；MIR direct call 必须使用 materialized exact `concrete_fqn` 的 callable signature facts；typecheck binding 的 semantic identity 继续以 `decl_file` + selected name span 为准，HIR whole-decl span 仅作为包含关系匹配口径；sysroot/intrinsic binding 不一定由当前 lowered HIR 承载，因此只在当前 HIR 内存在同名多候选且 selected decl 仍无法定位时拒绝 fallback。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_arity_bug.scoop`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_gvc_ok.scoop`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。验证过程中一次多路径 `run_fixtures.py` 调用因脚本只接受单个 positional fixture path 而失败，随后按单文件命令重新运行并通过；一次完整 Rust 测试暴露过严 ABI fallback，修复后完整重跑通过。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 作为 source of truth 的 review 要求；确认三个 P0-T02 overload codegen baseline 已启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T05：审计 overload diagnostics 与 user-visible failure policy
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §10
-  - `tools/audit_user_visible_failure_policy.py::FRONTEND_REJECT_FORBIDDEN_TERMS`
-- 目标：
-  - overload 相关错误全部可定位、可解释、无 backend/internal term 泄漏。
-- 必须检查的文件/位置：
-  - diagnostics emitted from `crates/scoopc_hir/src/typecheck/overloads.rs`
-  - diagnostics emitted from `crates/scoopc_hir/src/typecheck/expr/call/**`
-  - diagnostics emitted from `crates/scoopc_hir/src/typecheck/expr/ops.rs`
-  - `tests/fixtures/typecheck/**/**/*overload*.scoop`
-  - `tools/audit_user_visible_failure_policy.py`
-- 必须实现的内容：
-  1. Ensure `ambiguous_overload`, `no_applicable_overload`, `conflicting_overloads`, `generic_overload_shape_mismatch`, `vararg_overlaps_non_vararg` all list candidate file/line/col.
-  2. For ambiguity, include reason section describing incomparable effective parameter types and source of generic bounds.
-  3. For no-applicable, include per-candidate arity/type/visibility rejection reason.
-  4. Add fixture assertions that diagnostics do not contain forbidden internal terms.
-  5. If audit script needs overload-specific coverage, extend it rather than relying on manual review.
-- 必须遵从的约束：
-  - Do not hide candidate details to make tests easier.
-  - Do not introduce backend/codegen errors for frontend-resolvable overload failures.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. `python3 tools/audit_user_visible_failure_policy.py` if script is executable for this repo state.
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - Overload diagnostics satisfy design requirements and failure policy.
-- 依赖：P5-T04R
-- 完成记录：
-  - 改动范围：更新 `typecheck/overloads.rs` 的 definition-time overload diagnostics，使用 `conflicting_overloads` 错误码并在 conflicting / generic shape / vararg overlap 消息中列出候选 signature 与 `file:line:col`；更新 `expr/call/dispatch.rs` 与 `expr/ops.rs` 的剩余 ambiguity 路径，确保候选位置和 specificity reason 贯通；扩展 `tools/run_fixtures.py` 支持多条 `EXPECT-ERROR` 与 `EXPECT-NOT-ERROR`；扩展并修复 `tools/audit_user_visible_failure_policy.py` 的 overload policy 覆盖；补强 overload 诊断 fixtures，并修正启用多断言后暴露的 stale fixture 期望。
-  - 核心决策：definition-time 候选以 `signature @ location` 单字段渲染，避免扩大错误枚举同时满足候选位置必填；operator / for-protocol 零参 member 歧义复用 Phase D/E specificity helper，能唯一选中时按同一 overload 规则选择，无法唯一选中时输出 effective type source 与不可比 reason；fixture 侧用 `EXPECT-NOT-ERROR` 锁住 forbidden internal terms；audit 侧只把 internal bug sentinel marker 与源码文本绑定，忽略纯 line-number drift，并清理已随 sealed marker surface 移除而失效的旧 frontend reject markers。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted overload diagnostic fixtures；targeted stale assertion fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；`python3 tools/audit_user_visible_failure_policy.py`；`python3 tools/spec_fixtures.py check`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §10 的 candidate location、ambiguity/no-applicable reason 与 forbidden internal term 要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P5-T05R：Review overload diagnostics 审计
-
-- 参考：
-  - P5-T05 完成记录
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §10
-- 目标：
-  - 复核 overload diagnostics 已满足 user-visible failure policy。
-- 必须检查的文件/位置：
-  - overload diagnostics code paths
-  - overload typecheck fixtures
-  - `tools/audit_user_visible_failure_policy.py`
-- 必须实现的内容：
-  1. 确认所有 overload errors 列候选位置。
-  2. 确认 ambiguity/no-applicable reasons 足够具体。
-  3. 确认 forbidden internal terms 没有出现在用户可见错误。
-  4. 确认 frontend-resolvable overload failures 不会落到 backend/codegen。
-- 必须遵从的约束：
-  - 不得用弱化错误测试覆盖真实诊断缺口。
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. `python3 tools/audit_user_visible_failure_policy.py` if available。
-- 完成条件：
-  - P5 包完整闭合，可以进入 spec/fixture 收尾。
-- 依赖：P5-T05
-- 完成记录：
-  - 改动范围：复核并修正 P5-T05 overload diagnostics 审计结果；更新 `typecheck/expr/call/mod.rs` 与 `typecheck/overloads.rs` 的候选位置与 no-applicable rejection reason；扩展 `tools/run_fixtures.py` 支持全文件 fixture directives 与 `EXPECT-NOT-ERROR-TERMS`；扩展 `tools/audit_user_visible_failure_policy.py` 动态扫描所有 overload diagnostic fixtures；补强 overload / Phase A-C / umbrella negative fixtures 的候选 `file:line:col`、`reason:` 与 forbidden internal term 断言。
-  - 核心决策：P5-T05R 不接受只审计少数代表 fixture 的覆盖口径；所有带 overload diagnostic 错误码的 fixture 都必须显式锁住候选位置和 forbidden internal terms，ambiguity fixture 必须锁住 specificity `reason:`，no-applicable fixture 必须锁住具体 rejection reason；候选位置 helper 即使遇到缺失 source fallback 也不得退化成仅文件名。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck --exit-on-failure`；targeted `python3 tools/run_fixtures.py tests/fixtures/infer --exit-on-failure`；targeted `typecheck_multi` Phase A-C cases；targeted umbrella overload fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/audit_user_visible_failure_policy.py`；`python3 tools/run_fixtures.py`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §10 对候选位置、ambiguity/no-applicable reason 与 forbidden internal term 的 review 要求；确认 P5 overload diagnostics failure policy 已有动态 audit 与 fixture 回归保护；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-## P6：Spec / fixtures / docs 全量收尾与回归矩阵
-
-### [DONE] P6-T01：回写 `SCOOP_FULL_SPEC.md` 与 split spec 的全部语言变更
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P6
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) summary table
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §12
-- 目标：
-  - 活跃 spec 与 P1-P5 实现后的语言行为一致。
-- 必须修改的文件/位置：
-  - `SCOOP_FULL_SPEC.md`
-  - `docs/spec/language_spec-part*.md`
-- 必须实现的内容：
-  1. Update all relevant spec sections: `Nothing` bottom type; tuple `.0` / `.1`; refutable `val` panic fallback; `!!` / `as` panic and `as?` unchanged; effect op plain qualified call; handler `on`; closure `var` capture forbidden; f-string `${...}` and literal braces; `ref` / `value` bound keywords; default `internal` visibility; `operator` modifier required; overload definition-time and call-site rules; delete `@Inline` old prose.
-  2. Ensure examples compile under new syntax or are explicitly marked as negative examples.
-  3. If split spec has a generator, use it and record command; otherwise hand-sync edited sections.
-- 必须遵从的约束：
-  - Do not leave contradictory old examples in spec.
-  - Do not document unimplemented compatibility aliases.
+  - 文档必须与 P1-P6 实际行为一致，不得描述未实现的旋钮或语义。
 - 验证：
   1. `python3 tools/spec_fixtures.py check`
-  2. Manual review of changed spec sections against `SPEC_FIX.md` and `OVERLOAD_RESOLUTION.md`.
+  2. 人工复核文档与实现一致。
 - 完成条件：
-  - Active spec no longer describes old language surface as valid.
-- 依赖：P5-T05R
-- 完成记录：
-  - 改动范围：更新 `SCOOP_FULL_SPEC.md` 的 type hierarchy / `with` / refutable `val` / cast / runtime failure / overload resolution / closure capture / f-string example / visibility / effect inference / operator / appendix destructuring 等活跃章节；同步 `docs/spec/language_spec-part1.md` 到 `part4.md` 中的 default internal visibility、`ref` / `value` bound keyword、`!!` / `as` panic、enum `with` mismatch panic、refutable `val` panic、closure `var` capture 禁止、overload resolution 与 operator modifier required 规则。
-  - 核心决策：split spec 未发现生成器，按 P6-T01 要求手工同步；`!!`、失败 `as`、refutable `val` mismatch 与 enum `with` variant mismatch 统一记录为 panic 且不污染 effect row；active spec 不再正向描述 sealed marker、handler `with`、tuple `._0`、旧 f-string interpolation、`@Inline` 或 implementation-defined operator gate；overload rules 以 definition-time reject + call-site Phase A-E + diagnostics policy 写入 active spec。
-  - 验证结果：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`git diff --check`；人工对照 `SPEC_FIX.md` summary table 与 `OVERLOAD_RESOLUTION.md` §12 复核 changed spec sections。未运行 `cargo fmt` / `cargo clippy` / `cargo test` / full fixture suite，因为本任务只修改 Markdown 文档、`TODO` 记录和执行记忆，不影响编译输出；沿用 P5-T05R 完成记录中的最近完整绿色矩阵。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` 13 项与 `OVERLOAD_RESOLUTION.md` §12 在 active full/split spec 的回写要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P6-T01R：Review spec 回写完整性
-
-- 参考：
-  - P6-T01 完成记录
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) summary table
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §12
-- 目标：
-  - 复核 active spec 是否完整反映 P1-P5 目标行为。
-- 必须检查的文件/位置：
-  - `SCOOP_FULL_SPEC.md`
-  - `docs/spec/language_spec-part*.md`
-- 必须实现的内容：
-  1. 对照 `SPEC_FIX.md` 13 项逐条确认 spec 已更新。
-  2. 对照 `OVERLOAD_RESOLUTION.md` §12 确认 overload rules 已写入。
-  3. 确认旧 surface 不再作为正例出现。
-  4. 确认 spec examples 与实现语法一致。
-- 必须遵从的约束：
-  - 不得留下 split spec 与 full spec 矛盾。
-- 验证：
-  1. `python3 tools/spec_fixtures.py check`
-- 完成条件：
-  - P6-T01 spec 回写完整且一致。
-- 依赖：P6-T01
-- 完成记录：
-  - 改动范围：复核 P6-T01 对 `SCOOP_FULL_SPEC.md` 与 split spec 的回写；修正 full spec 中 tuple `var` 解构矛盾、closure `var` capture 替代建议、overload effective type / constructor / override / diagnostics 细节；同步 `docs/spec/language_spec-part2.md` 的 `ref` / `value` bound 细则与 `part3.md` 的 overload / closure capture 规则。
-  - 核心决策：active spec 继续以默认 `internal`、effect op 普通 qualified call、handler `on`、tuple `.0` / `.1`、f-string `${...}`、`operator` modifier required、`ref` / `value` bound-only keyword 和 `!!` / `as` / refutable pattern / enum `with` mismatch panic 为当前 contract；overload shadowing 以 visibility 过滤后的可见同名候选建立边界，不让不可见声明压制低优先级可见候选；旧 surface 未作为正例保留。
-  - 验证结果：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`git diff --check`。未运行 `cargo fmt` / `cargo clippy` / `cargo test` / full fixture suite，因为本任务只修改 Markdown 文档、`TODO` 记录和执行记忆，不影响编译输出；沿用 P6-T01 / P5-T05R 完成记录中的最近完整绿色矩阵。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` summary table 与 `OVERLOAD_RESOLUTION.md` §12 的 P6-T01 review 要求；`SCOOP_FULL_SPEC.md` 与 split spec 已同步为 active contract；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P6-T02：同步 spec doctests 与 handwritten fixtures 到新 surface
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P6
-  - `tools/spec_fixtures.py`
-  - `tools/run_fixtures.py`
-- 目标：
-  - 所有 active fixtures 使用目标语法与目标 semantics；旧语法只保留为明确 negative fixture。
-- 必须修改的文件/位置：
-  - `tests/fixtures/spec_doctest/**`
-  - `tests/fixtures/parse/**`
-  - `tests/fixtures/typecheck/**`
-  - `tests/fixtures/infer/**`
-  - `tests/fixtures/hir/**`
-  - `tests/fixtures/mir/**`
-  - `tests/fixtures/effect_facts/**`
-  - `tests/fixtures/effect_lowered/**`
-  - `tests/fixtures/run-pass/**`
-  - `tests/fixtures/build/**`
-- 必须实现的内容：
-  1. Run `python3 tools/spec_fixtures.py sync` after P6-T01 spec edits.
-  2. Mechanically update handwritten fixtures: `perform` -> plain effect op call; handler `with` -> `on`; `._0` -> `.0`; f-string `{expr}` -> `${expr}`; `AnyRef` / `AnyValue` -> `ref` / `value`; add explicit `public` where fixture models exported API; add `operator` modifier where operator syntax is intended.
-  3. Keep or add negative fixtures for old syntax with file names and expected diagnostics clearly indicating rejection.
-  4. Refresh expected dumps for HIR/MIR/effect facts only where textual changes are semantically expected.
-- 必须遵从的约束：
-  - Do not delete coverage just because syntax changed.
-  - Do not update expected dumps blindly; confirm semantic reason for each churn.
-- 验证：
-  1. `python3 tools/spec_fixtures.py check`
-  2. `python3 tools/run_fixtures.py`
-  3. targeted run for every fixture path changed in this task.
-- 完成条件：
-  - Fixture suite is synchronized with new language surface.
-- 依赖：P6-T01R
-- 完成记录：
-  - 改动范围：运行 `python3 tools/spec_fixtures.py sync` 同步 generated spec doctests（无 generated fixture 差异）；审计 active fixtures 中旧 surface 命中；新增 `tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`，补齐 `AnyValue` marker 名称移除的 negative 覆盖；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
-  - 核心决策：现有 `perform`、handler `with`、tuple `._0`、`@Inline`、`AnyRef` 命中均保留在明确 negative fixture 或注释中；f-string `{...}` 命中为新语义下 literal braces 覆盖，`${...}` 仍是唯一 interpolation surface；本任务没有 HIR/MIR/effect dump 语义变化，因此不刷新 dump expect。
-  - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`cargo test --all --all-targets`；`git diff --check`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02 对 generated doctests、handwritten fixtures 新 surface 同步和旧 marker negative coverage 的要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P6-T02R：Review fixture 同步结果
-
-- 参考：
-  - P6-T02 完成记录
-  - P0-T01 inventory
-- 目标：
-  - 复核 generated doctests 和 handwritten fixtures 已与新 surface 同步。
-- 必须检查的文件/位置：
-  - `tests/fixtures/spec_doctest/**`
-  - all fixture paths changed by P6-T02
-  - `tools/spec_fixtures.py`
-  - `tools/run_fixtures.py`
-- 必须实现的内容：
-  1. 确认 `spec_fixtures.py sync` 后无 stale generated fixture。
-  2. 抽样复核每类语法迁移。
-  3. 确认 negative fixtures 明确表达 old surface rejection。
-  4. 确认 dump expect churn 有语义理由。
-- 必须遵从的约束：
-  - 不得通过删除 fixture coverage 通过 review。
-- 验证：
-  1. `python3 tools/spec_fixtures.py check`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：
-  - Fixture suite 与 spec/compiler surface 一致。
-- 依赖：P6-T02
-- 完成记录：
-  - 改动范围：复核 P6-T02 的 generated spec doctest 与 handwritten fixture 同步结果；检查 `tests/fixtures/spec_doctest/overview_minimal_main.scoop`、P6-T02 新增 `tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`，并按 P0-T01 inventory 抽样复核 `perform`、handler `with`/`on`、tuple `.0`/`._0`、f-string `${...}`/literal braces、`@Inline`、`AnyRef`/`AnyValue`、`operator` modifier fixture 覆盖；本 review 未发现需修改 fixture 或 dump expect 的缺口。
-  - 核心决策：`python3 tools/spec_fixtures.py sync` 后 generated doctest 仍为最新；旧 surface 的实际代码命中集中在明确 negative fixture，正向 fixture 使用目标 surface 或新语义 literal braces；P6-T02 未改 HIR/MIR/effect dump expect，因此不存在无语义理由的 dump churn；`P6-T03` 仍负责后续全仓旧 surface / overload-codegen 回归审计。
-  - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）。未重跑 `cargo test --all --all-targets`，因为本 review 只修改 `TODO` / 执行记忆且未改编译输出；沿用 P6-T02 最近完整 Rust 测试绿色结果。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02R 对 fixture 同步质量的 review 要求，确认 fixture suite 与当前 spec/compiler surface 一致；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
-
-### [DONE] P6-T03：执行旧 surface 与 overload/codegen 回归审计
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P6
-  - P0-T01 完成记录中的旧 surface inventory
-- 目标：
-  - 确认旧 surface 已从 active positive path 中清除，overload/codegen bug 已有回归保护。
-- 必须检查的文件/位置：
-  - `SCOOP_FULL_SPEC.md`
-  - `docs/spec/language_spec-part*.md`
-  - `sysroot/**`
-  - `tests/fixtures/**`
-  - `crates/scoopc_ast/src/**`
-  - `crates/scoopc_hir/src/**`
-  - `crates/scoopc_mir/src/**`
-  - `crates/scoopc_codegen_llvm/src/**`
-- 必须实现的内容：
-  1. Audit old surface occurrences and classify any remaining hit as archive/history/design doc、negative fixture、diagnostic text explaining removal、or active bug requiring fix before P6 completion.
-  2. Confirm no active positive fixture uses old `perform`, handler `with`, tuple `._0`, old f-string interpolation, `@Inline`, `AnyRef` / `AnyValue`.
-  3. Confirm overload bug fixtures exist and pass for concrete overload, arity overload, generic+concrete specificity.
-  4. Confirm `.cone` API export tests or manual sample show only explicit public declarations in `api.scoopir`.
-  5. Confirm diagnostics for overload errors still include candidate locations and no forbidden internal terms.
-- 必须遵从的约束：
-  - Do not treat design docs `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` as active old-surface violations.
-  - Do not accept active compiler code paths that support old positive syntax unless design docs were updated first.
-- 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. `python3 tools/spec_fixtures.py check`
-  3. targeted overload run-pass/typecheck fixtures.
-  4. targeted cone export test or documented manual command in completion record.
-- 完成条件：
-  - Audit has no unexplained active old-surface hits.
+  - runtime/spec 文档反映 pacing + immortal 实际行为。
 - 依赖：P6-T02R
 - 完成记录：
-  - 改动范围：按 P0-T01 inventory 复核 active spec / split spec、sysroot、fixtures、AST/HIR/MIR/LLVM codegen 的旧 surface 命中；复核 overload/codegen baseline fixture、overload diagnostic fixture 与 failure-policy audit；复核 `.cone` / `scoopir` public API export fixture；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。本任务未改 compiler、sysroot、spec 或 fixture 内容。
-  - 核心决策：剩余 `perform` 用户语法实际代码只在 `perform_keyword_removed.scoop` negative fixture 中出现，compiler 内部 `Perform` / `perform` 仍是 effect lowering 术语而非旧 surface；handler `with` 只在 `handle_with_keyword_removed.scoop` negative fixture 中出现，value / enum `with` update 保持 active；tuple `._0` / with-path `_0` 只保留为旧语法 negative fixture；f-string `{...}` 命中为 literal-brace 覆盖或 `${...}` 表达式内部 brace，不再表示旧插值；`@Inline`、`AnyRef` / `AnyValue` 在 active sysroot/compiler 中无 positive 定义或 alias，剩余 active fixture 命中为 negative coverage；sysroot operator-like declarations 均带 `operator`，无未标注的 operator-positioned 正向 API。
-  - 验证结果：targeted old-surface `rg` audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6 对旧 surface 清理回归审计、overload/codegen baseline 和 public export visibility 的收尾要求；遵守不把 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 设计基线当作 active violation 的约束；阶段级 sequencing 未变化，无需更新 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P6-T03R：Review 旧 surface 与回归审计
+### [TODO] P7-T01R：Review 文档回写
 
 - 参考：
-  - P6-T03 完成记录
-  - P0-T01 inventory
+  - P7-T01 完成记录
 - 目标：
-  - 复核旧 surface audit 和 overload/codegen regression audit 的可信度。
+  - 复核文档与实现一致、无遗漏旋钮或概念。
 - 必须检查的文件/位置：
-  - P6-T03 audit 命中清单
-  - old-surface negative fixtures
-  - overload bug regression fixtures
-  - cone export sample/test
+  - P7-T01 文档改动
 - 必须实现的内容：
-  1. 抽样复查 P6-T03 的 old surface classification。
-  2. 确认 remaining hits 都是允许类别。
-  3. 确认 overload regression 不只存在文件，还实际运行通过。
-  4. 确认 cone export audit 可复现。
+  1. 逐条核对旋钮默认值、触发层次、immortal 概念与实现一致。
+  2. 确认无残留的旧 GC 行为描述。
 - 必须遵从的约束：
-  - 不得把 active support for old syntax 标记为“历史命中”。
+  - 若文档与实现不一致，必须修正后才进入 P7-T02。
 - 验证：
-  1. `python3 tools/run_fixtures.py`
-  2. `python3 tools/spec_fixtures.py check`
-  3. targeted overload/cone tests。
+  1. `python3 tools/spec_fixtures.py check`
 - 完成条件：
-  - P6-T03 audit 可以作为最终收口依据。
-- 依赖：P6-T03
+  - 文档准确。
+- 依赖：P7-T01
 - 完成记录：
-  - 改动范围：复核 P6-T03 旧 surface 与 overload/codegen 回归审计结果；抽样检查 active spec / split spec、parser removal diagnostics、sysroot、fixtures 与 compiler 旧 surface 命中分类；复核 old-surface negative fixtures、overload run-pass baseline、overload diagnostic fixtures、failure-policy audit 与 `.cone` / `scoopir` public export 样例。本 review 未改 compiler、sysroot、spec 或 fixture 内容，只更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
-  - 核心决策：P6-T03 的分类可作为最终收口依据；剩余 `perform` 命中属于 parser removal diagnostic、negative fixture、注释或内部 effect-lowering 术语，handler `with` 只作为 removal negative，tuple `._0` / with-path `_0` 只作为旧语法 negative，f-string `{...}` 命中为 literal-brace 覆盖或 `${...}` 内部表达式，`@Inline` / `AnyRef` / `AnyValue` 不存在 active sysroot/compiler positive surface，sysroot operator-like declarations 未发现缺少 `operator` 的正向 API；`.cone` export 样例确认只有显式 `public` 声明进入 `api.scoopir` 或跨 cone 可见。
-  - 验证结果：targeted old-surface Grep audit；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload run-pass fixtures（`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`）；targeted overload diagnostic fixtures（no-applicable、ambiguity、conflicting overload、generic shape mismatch、vararg overlap、infer ambiguity）；`python3 tools/audit_user_visible_failure_policy.py`；targeted `.cone` / `scoopir` export fixtures（`public_api_filter.scoop`、`source_path_dependency_public_call`、`source_path_dependency_private_hidden`、`source_path_dependency_internal_hidden`）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`git diff --check`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T03R 对旧 surface audit 可信度、overload/codegen regression 实跑与 cone export audit 可复现性的独立 review gate；未发现需新增 prerequisite 或调整阶段级 sequencing 的问题，无需更新 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P6-T04：全量格式化、测试矩阵与最终收口记录
+### [TODO] P7-T02：审计需要 `PACING=off` 的测试并注明原因
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P6、§6
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) summary table
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §12
+  - [`PLAN.md`](./PLAN.md) §5 / P7
+  - [`GC_PACING.md`](./GC_PACING.md) “Test plan — Integration”
 - 目标：
-  - 关闭本轮执行计划，确保 spec、compiler、sysroot、fixtures、diagnostics、codegen 全部一致。
+  - 找出所有断言精确堆计数的测试，给它们显式 `SCOOP_GC_PACING=off` 并注明 why；确认 immortal 测试不需 off。
+- 必须检查的文件/位置：
+  - `tests/`、`runtime/c/` 中断言堆对象数/分配数的测试
+  - GC smoke 测试（如 `runtime/c/scoop_gc.c` 中精确计数断言）
 - 必须实现的内容：
-  1. Run formatting and full test matrix.
-  2. Record full verification commands and results in this task completion record.
-  3. If any remaining issue is intentionally deferred, it must be outside `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` scope and must be written as explicit v2+ backlog with rationale.
-  4. Confirm `TODO.md` statuses for completed tasks are updated consistently if the team uses `[DONE]` markers.
+  1. 审计所有依赖确定性堆计数的测试，逐个加 `SCOOP_GC_PACING=off` 并在注释/记录写明原因（这同时是 pacing 的影响面审计）。
+  2. 确认 immortal-fix 相关测试**不**需要 `PACING=off`（immortal 不进堆）。
 - 必须遵从的约束：
-  - P6-T04 cannot pass with unimplemented items from `SPEC_FIX.md` or `OVERLOAD_RESOLUTION.md` silently deferred.
-  - Do not use partial targeted test pass as replacement for full regression unless environment lacks required dependency; if so, record blocker precisely.
+  - 每个用到 `PACING=off` 的测试必须注明 why；不得无理由关闭 pacing 掩盖问题。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：
+  - 需要确定性计数的测试已显式 opt-out 并注明原因。
+- 依赖：P7-T01R
+- 完成记录：
+  - （待执行）
+
+### [TODO] P7-T02R：Review `PACING=off` 审计
+
+- 参考：
+  - P7-T02 完成记录
+- 目标：
+  - 复核每个 `PACING=off` 都有正当理由，immortal 测试未误关。
+- 必须检查的文件/位置：
+  - P7-T02 标注的所有 `PACING=off` 用例
+- 必须实现的内容：
+  1. 逐个确认 why 成立（确实需要确定性计数）。
+  2. 确认 immortal 测试在 pacing on 下也通过。
+- 必须遵从的约束：
+  - 若有无理由的 `PACING=off`，必须改回 on 或补理由后才进入 P7-T03。
+- 验证：
+  1. `cargo test --all --all-targets`
+- 完成条件：
+  - pacing opt-out 面清晰可审计。
+- 依赖：P7-T02
+- 完成记录：
+  - （待执行）
+
+### [TODO] P7-T03：全量测试矩阵、out-of-scope 归位与收口
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P7、§6
+  - [`GC_PACING.md`](./GC_PACING.md) “Out of scope”、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Out of scope”
+- 目标：
+  - 跑通全量回归矩阵，明确归位 out-of-scope，并写最终收口记录。
+- 必须检查的文件/位置：
+  - `tests/fixtures/**`、`runtime/c/` 单元测试、长程序回归
+  - `PLAN.md` §6 预期收口状态
+- 必须实现的内容：
+  1. 全量验证：`cargo fmt`、`cargo test --all --all-targets`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`、runtime C 单元测试与长程序回归。
+  2. 明确归位 out-of-scope（不做且为何不做）：incremental/concurrent GC、time-budget pacing、`.data` 单实例静态初始化与 static rooting、嵌套聚合 / `EnumVariant` 常量、跨类型 dedup、跨 `.cone` 字面量 dedup、嵌入式 tier 提示、allocation-rate 自适应、pause-time tuning。
+  3. 写最终收口记录，逐项对照 `PLAN.md` §6 预期收口状态。
+- 必须遵从的约束：
+  - 不得把未完成行为简单记成 future work；剩余项必须是明确超出两份设计文档的 v2+ 扩展。
 - 验证：
   1. `cargo fmt`
   2. `cargo test --all --all-targets`
   3. `python3 tools/spec_fixtures.py check`
   4. `python3 tools/run_fixtures.py`
-  5. LLVM/backend targeted tests required by changed code paths if not already covered by full suite.
 - 完成条件：
-  - `SPEC_FIX.md` and `OVERLOAD_RESOLUTION.md` target behavior is the active contract in spec and compiler.
-  - Old surface only remains in archive/history/design baseline or explicit negative fixtures.
-- 依赖：P6-T03R
+  - `GC_PACING.md` 与 `GC_IMMORTAL_FIX.md` 的目标行为成为运行期与编译期实际 contract；旧行为只存在于 `PACING=off` 对照与 design history。
+- 依赖：P7-T02R
 - 完成记录：
-  - 改动范围：执行最终格式化、lint、Rust 全量测试、spec fixture 校验、完整 fixture suite、user-visible failure policy audit 与 whitespace diff check；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。本任务未修改 compiler、sysroot、spec 或 fixture 内容。
-  - 核心决策：本轮无剩余 `SPEC_FIX.md` / `OVERLOAD_RESOLUTION.md` 范围内 intentionally deferred issue；LLVM/backend 相关路径由完整 Rust 测试中的 LLVM/codegen 单测与完整 fixture suite 中的 run-pass / run-pass-cone 覆盖，本任务无代码路径变更，因此无需额外 targeted backend 命令替代全量矩阵。
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`。
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6/P6 final validation gate；确认 `SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` 目标行为已通过前序 P6 spec / fixture / old-surface / overload-codegen audit 任务和本次完整绿色矩阵成为 active spec/compiler contract；旧 surface 仅保留在 archive/history/design baseline 或显式 negative fixture，不需要更新 `PLAN.md`。
+  - （待执行）
 
-### [DONE] P6-T04R：Review 最终收口质量
+### [TODO] P7-T03R：Review 最终收口质量
 
 - 参考：
-  - P6-T04 完成记录
+  - P7-T03 完成记录
   - [`PLAN.md`](./PLAN.md) §6
-  - [`SPEC_FIX.md`](./SPEC_FIX.md) summary table
-  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §12
 - 目标：
-  - 最终复核本轮计划是否完整闭合，防止未完成项被静默延期。
+  - 复核全量矩阵通过、out-of-scope 归位合理、收口记录逐项对应 §6。
 - 必须检查的文件/位置：
-  - `PLAN.md`
-  - `TODO.md`
-  - `TODO-1.md` 到 `TODO-5.md`
-  - `SCOOP_FULL_SPEC.md`
-  - `sysroot/**`
-  - compiler paths changed by P1-P6
-  - fixture changes from P1-P6
+  - P7-T03 收口记录与全量验证输出
 - 必须实现的内容：
-  1. 对照 `SPEC_FIX.md` summary table 确认每项都有实现、spec 更新或明确回写决议。
-  2. 对照 `OVERLOAD_RESOLUTION.md` §12 确认 overload rules 和 diagnostics 已落地。
-  3. 复核 full test matrix 结果是否真实、完整、可复现。
-  4. 确认所有 TODO package 状态和完成记录一致。
-  5. 若发现阻塞问题，直接修复或把任务退回 `[TODO]`，不得标记全包完成。
+  1. 复跑关键验证命令确认通过。
+  2. 逐项核对 §6 预期收口状态是否达成。
+  3. 确认 out-of-scope 项都是明确的 v2+ 扩展，而非未完成的本轮工作。
 - 必须遵从的约束：
-  - Review 不是签字；必须能指出具体 evidence。
+  - 若任一 §6 项未达成或被错误记为 future work，阻塞收口并补做。
 - 验证：
   1. `cargo fmt`
   2. `cargo test --all --all-targets`
   3. `python3 tools/spec_fixtures.py check`
   4. `python3 tools/run_fixtures.py`
 - 完成条件：
-  - 本轮 Spec Fix + Overload Resolution 执行计划完成，剩余 backlog 只包含明确超出本轮范围的 v2+ 项。
-- 依赖：P6-T04
+  - 两份设计文档的目标行为完整闭环。
+- 依赖：P7-T03
 - 完成记录：
-  - 改动范围：最终复核 P6-T04 的收口记录、`SPEC_FIX.md` summary table、`OVERLOAD_RESOLUTION.md` §12、`PLAN.md` P6 gate、root/package TODO 状态、active spec/sysroot/compiler/fixture evidence 与完整验证矩阵；本 review 未修改 compiler、sysroot、spec 或 fixture 内容，只更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
-  - 核心决策：未发现静默延期或需新增 prerequisite 的本轮范围 blocker。`SPEC_FIX.md` A1-D1 均已有 active spec/implementation/negative-fixture evidence：`Nothing`、cone/package、tuple `.0`、`${...}` f-string、handler `on`、panic-based assertion failures、refutable `val`、`ref` / `value` bounds、default `internal` visibility、operator gate、old `perform` / `@Inline` / `AnyRef` / `AnyValue` removal and explicit negative fixtures are closed. `OVERLOAD_RESOLUTION.md` §12 rules are represented by definition-time diagnostics (`conflicting_overloads`、`generic_overload_shape_mismatch`、`vararg_overlaps_non_vararg`、override/virtual-generic rejects), call-site diagnostics (`no_applicable_overload`、`ambiguous_overload`), selected-callable identity/codegen coverage, constructor/member/operator/effect paths, and regression fixtures that run in the full fixture suite.
-  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`python3 tools/audit_user_visible_failure_policy.py`（`user-visible failure policy audit: ok`）；`git diff --check`；TODO consistency script confirmed 63 root tasks and 63 package tasks with no missing entries or status mismatches before marking this review done.
-  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `PLAN.md` P6 / final validation gate；`SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` target behavior is now the active spec/compiler contract, old surface remains only as archive/history/design baseline or explicit negative fixtures, and no phase-level sequencing or completion criteria changed, so `PLAN.md` was not updated.
+  - （待执行）

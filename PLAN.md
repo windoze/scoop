@@ -1,557 +1,430 @@
-# Scoop：Spec Fix + Overload Resolution 落地计划
+# Scoop：GC Pacing + Immortal Objects 落地计划
 
-> 生成时间：2026-05-27  
-> 设计基线：[`SPEC_FIX.md`](./SPEC_FIX.md)、[`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md)  
-> 格式参考：[`docs/archive/plans/PLAN-managed-abi.md`](./docs/archive/plans/PLAN-managed-abi.md)  
-> 当前状态：两份设计文档仍是 pending / design-only；`SCOOP_FULL_SPEC.md`、sysroot、compiler 与 fixtures 仍混有旧 surface，例如 `perform`、`handle ... with`、tuple `._0`、f-string `{...}`、`AnyRef` / `AnyValue` sealed marker、默认 public visibility，以及不完整 overload resolution。  
-> 行号说明：下文以当前文件路径和符号名为准；后续若行号漂移，优先按文件路径、符号名和 fixture 名定位。
+> 生成时间：2026-05-29
+> 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
+> 格式参考：[`docs/archive/plans/PLAN-spec-fix-overload.md`](./docs/archive/plans/PLAN-spec-fix-overload.md)、[`docs/archive/plans/PLAN-managed-abi.md`](./docs/archive/plans/PLAN-managed-abi.md)
+> 当前状态：两份设计文档均为 P0 design / design-only。运行期今天没有任何按压力触发的 collect（堆单调增长直到 OOM），编译期常量值（String literal / `__type_name` / `Platform`）每次求值都在 GC 堆上分配 wrapper。
+> 行号说明：下文以当前文件路径和符号名为准；后续若行号漂移，优先按文件路径、符号名和 fixture / 测试名定位。
 
 ## 0. 工作原则
 
-- [`SPEC_FIX.md`](./SPEC_FIX.md) 与 [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) 是本轮设计基线。若实现中发现必须改变其中任何语言决议，必须先回写对应设计文档，再继续改代码。
+- [`GC_PACING.md`](./GC_PACING.md) 与 [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) 是本轮设计基线。若实现中发现必须改变其中任何运行期或语言决议，必须先回写对应设计文档，再继续改代码。
 - 当前活跃计划文档是根目录 [`PLAN.md`](./PLAN.md)；`docs/archive/plans/**` 仅作历史和格式参考，不再回写。
-- 本轮不是“补几个特判让当前样例过”，而是把语法、spec、typecheck、lowering、call binding、codegen materialization 和 fixtures 收口到同一套可审计 contract。
-- 不做无根据的兼容层。旧 `perform`、旧 handler `with`、tuple `._0`、旧 f-string `{...}` 插值等 surface 在切换阶段完成后应成为前端错误，而不是长期 soft alias。
-- 所有用户可见 reject 必须发生在 parser/typecheck 侧；overload 相关错误不得泄露 `backend`、`LLVM`、`UnsupportedMainBody` 等内部术语。
-- overload resolution 的 source of truth 必须是 typecheck 选出的唯一 callable binding / overload identity；lowering 与 codegen 不得再用 bare FQN 或同名函数 map 猜测目标。
-- `!!`、`as`、refutable `val` pattern、enum `with` variant mismatch 这类“断言失败”统一走 `panic(...)`，不得给公开函数签名注入 `Raise<RuntimeError>`。
-- spec 与实现必须一起闭环：`SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part*.md`、sysroot、fixtures、`tools/spec_fixtures.py check` 和 `tools/run_fixtures.py` 都是验收面。
+- **两条线的优先级是明确的**：Pacing 决定“长程序能不能跑起来”（correctness / 防 OOM），Immortal 只是“减少 GC 压力”（优化）。Pacing 先行，Immortal 其后。
+- 两条线在运行期之外几乎正交：Pacing 全部落在 `runtime/c/`；Immortal 跨 sysroot / typecheck / HIR→MIR lowering / codegen，且只在运行期加一个 `SCOOP_GC_FLAG_IMMORTAL` 标志位。可并行推进，但本计划按“Pacing 优先”排序。
+- Immortal 的核心不变式必须守干净：**immortal 对象永不被写、永不被 trace**。任何“可写或可能需要 trace”的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道，留作独立后续工作。
+- “是否常量化”是由**类型的传递不可变性**决定的通用决策，不是为 String / Platform 开的特判；“是否 dedup”是正交的、且仅对 String 开的内容池行为。实现不得退回“逐类型特判”。
+- Pacing 必须 **on-by-default**。现状是无条件无界增长，这不是“在 ergonomics 与正确性之间权衡”，默认开启是底线；只保留 `SCOOP_GC_PACING=off` 给需要确定性堆计数的测试。
+- 所有 runtime 改动必须保持现有 backend 分层（`immix` / `hosted` / `minimal`）可编译可回归；阈值比较本身 backend 无关。
+- 验收面：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`、`python3 tools/spec_fixtures.py check`，以及 runtime C 单元测试与长程序回归。
 
 ## 1. 当前判断
 
-- `SPEC_FIX.md` 的 13 项调整尚未应用到 `SCOOP_FULL_SPEC.md` 或 compiler；其中 A1/A2/D1 是纯 spec，A3/B/C 项需要 parser、typecheck、lowering、sysroot、cone exporter 或 fixtures 配套。
-- `OVERLOAD_RESOLUTION.md` 已定义目标规则，但当前 overload 仍存在 concrete overload lowering 串扰、arity overload callable version 缺失、generic + concrete 同名报歧义等偏离。
-- parser/lexer 当前已识别 `perform`、`handle`、`with`、`inline` 等旧 token；还没有 `on` handler keyword、`operator` modifier、tuple `.0` member access、`${...}` f-string 插值、`<T: ref>` / `<T: value>` bound surface。
-- typecheck 当前默认 visibility 是 `public`；sysroot API 大量依赖隐式 public。改成默认 `internal` 前，必须先给导出 surface 补显式 `public`。
-- `AnyRef` / `AnyValue` 目前通过 sysroot sealed marker 和 typecheck sealed-marker side table 表达；目标是替换成 bound constraint kind，不再作为类型出现。
-- `!!` 和 runtime `as` failure 当前仍会记录 / lower 到 `Raise<RuntimeError>`；目标是 panic 路径，且 effect graph 不再记录这条边。
-- `@Inline` 已在 parser 层对 `inline` modifier 有移除诊断，但 sysroot annotation 与 builtin annotation 识别仍存在，需要彻底删除。
-- operator expression 当前按方法名如 `plus` / `compareTo` 参与 resolution，尚未检查 `operator` modifier。
-- overload definition-time 检查已有一部分重复签名、返回类型冲突、默认参数歧义逻辑，但还缺 generic bound shape、vararg overlap、virtual generic method、完整 override 边界与高质量候选诊断。
+### Pacing（来自 `GC_PACING.md`，已核对）
+
+- 生产路径唯一的 collect 触发点是 `SCOOP_GC_STRESS` 测试钩子（`runtime/c/scoop_runtime.c:502-507`）；其余都是 public API 或测试代码。没有“堆增长到 X 就收集”的机制。
+- block pool 耗尽时无条件 `posix_memalign` 新块（`runtime/c/scoop_gc_immix_internal.h:548-575`），没有“先尝试回收再增长”的回退。
+- nursery 满时静默回退到 old space（`runtime/c/scoop_runtime.c:563-567`），**不触发 minor GC**；分代退化成单代。
+- `bytes_allocated` 只是一个计数器（`scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`），从不与任何阈值比较。
+- 没有 `SCOOP_GC_HEAP_TARGET` / `TRIGGER_BYTES` / growth-factor / hard cap 任何 env 旋钮。pacing 是真缺失，不是没调好。
+
+### Immortal（来自 `GC_IMMORTAL_FIX.md`，已核对）
+
+- String literal 每次求值都 `scoop_alloc_typed` 一个 `ScoopString` wrapper（`scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`），字节负载已在 `.rodata`，但 wrapper 是堆对象。
+- `TypeMetadataLiteral::TypeNameString` 复用同一路径，继承 wrapper 分配（`.../mir_body/transport.rs:186-201`）。
+- `Platform` 每次读取分配 5 个 `ScoopString` 再 SSA insert 成结构体（`.../mir_body/transport.rs:203-292`）。
+- `ScoopGcObjectHeader` 的 `mark` 被 marker 无条件写（`runtime/c/scoop_gc_backend_immix.c:2719-2737`），所以朴素 `.rodata` 拷贝会在首次 trace 时打只读页 fault；但 slot 扫描已通过 heap-membership 过滤堆外指针（`:2739-2760`），这是 immortal 透明性的支点。
+- `scoop.unsafe.__AtomicInt` 当前是 `typealias = Int`（`sysroot/lib/scoop.unsafe/src/unsafe.scoop:163`），在类型层被擦除成 `Int`。它是 interior-mutable（经 unsafe 原子 intrinsic 原地写）但在类型层不可见——这是常量化谓词的隐藏陷阱：藏在 `val` 字段后会被误判可变性、误常量化进 `.rodata`、原子写 fault。
+- Scoop 无任何 reference-identity 运算符（`docs/spec/language_spec-part3.md:66` 仅 `==`/`!=`），所以**对象身份对任何 ref 类型都不可观测**；这是“不可变即可常量化”和“dedup 仅 String 安全”的根。
 
 ## 2. Gap 覆盖矩阵
 
 | Gap | 当前状态 | 本轮动作 | 归属阶段 |
 |---|---|---|---|
-| A1 `Nothing` type hierarchy | spec 使用但 lattice 未列 | 写入 spec，明确 bottom type / no inhabitants / outside ref-value split | P1 |
-| A2 Cone vs package wording | spec 两个名字混用 | 重写 §13 开头，明确 cone=distribution/build unit，package=source namespace | P1 |
-| D1 value type `with` 路线 | 仅设计记录 | 写入 spec，确认 value type immutable + `with` 保留 | P1 |
-| B1 删除 `@Inline` | sysroot/typecheck 仍识别 annotation | 删除 sysroot annotation、builtin annotation 识别、fixtures 与 spec 表述 | P1 |
-| B4 删除 `perform` | parser 仍接受 prefix keyword | 机械改写 effect op 调用为普通 qualified call，旧 keyword 变 parse/typecheck error | P2 |
-| C2 handler `with` -> `on` | parser 固定 `handle ... with` | 新增 handler `on` surface，旧 handler `with` 报清晰错误 | P2 |
-| B2 tuple field `._0` -> `.0` | parser/typecheck 按 ident `_0` | lexer/parser/typecheck/lowering 改为 numeric member segment | P2 |
-| B6 f-string `{...}` -> `${...}` | split 逻辑按单 `{` 插值 | `${` 才开启插值，`{` / `}` 变 literal，无 `$x` shorthand | P2 |
-| A3 `operator` required | AST 无 modifier，operator 按名字捕获 | 新增 modifier 并在 operator-positioned calls 筛选 | P2-P3 |
-| B3 `!!` / `as` failure panic | typecheck/lowering 记录 `Raise<RuntimeError>` | failure arm 改为 `panic(...)`，effect graph 不再记录 Raise edge | P3 |
-| C1 enum `with` mismatch panic | mismatch arm 保留原值 | SLIR/HIR/MIR lowering mismatch arm 改为 panic | P3 |
-| C3 refutable `val` pattern | typecheck reject variant pattern | 允许 refutable pattern，mismatch fallback panic | P3 |
-| B5 closure `var` capture forbidden | closure capture 可记录 mutable capture | typecheck 捕获外层 `var` 时诊断并提示 `RefCell` / snapshot | P3 |
-| C4 sealed marker -> `ref` / `value` bound | `AnyRef` / `AnyValue` 是 sysroot sealed marker | parser/typecheck 引入 bound constraint kind，移除 marker 类型 | P2-P3 |
-| C5 default visibility internal | `visibility_from_modifiers` 默认 public | 默认改 internal，sysroot/exported API 显式 public，cone API 只导出 public | P3 |
-| overload definition-time rules | 仅部分重复签名检查 | effective signature、generic shape、vararg overlap、virtual generic、override 边界 | P4 |
-| overload call-site rules | specificity / binding 不完整 | 五阶段 resolution、effective type specificity、diagnostics、effect-after-resolution | P5 |
-| overloaded callable codegen | bare FQN / symbol disambiguation 不稳 | materialization/codegen 使用 typechecked overload identity，修复 concrete/arity bug | P5 |
+| Pacing 软触发（堆增长阈值） | `bytes_allocated` 从不比较 | alloc 后比较 `next_gc`，超过则 safepoint 处请求 collect | P1 |
+| `next_gc` / `request_collect` / safepoint 集成 | 无 | `ScoopGcHeap` 加 `next_gc`，请求标志由 `scoop_gc_safepoint_poll` 消费，cycle 末 `next_gc = max(min, live*factor)` | P1 |
+| `SCOOP_GC_PACING` 等 env 旋钮 | 无 | 加 `PACING` / `GROWTH_FACTOR` / `MIN_THRESHOLD_BYTES` / `MAX_HEAP_BYTES`，默认 on | P1 |
+| nursery 满 ⇒ minor GC | 静默回退 old space | 满则 minor GC 再重试，仍满才落 old | P2 |
+| block pool 耗尽 ⇒ full GC | 无条件 `posix_memalign` | 两表空时先 full GC，取到块再用，取不到才增长 | P2 |
+| hard cap OOM 防御 | 无 cap | `MAX_HEAP_BYTES`，post-GC 重试仍超则 `scoop_alloc` 返回 NULL | P2 |
+| backend parity（hosted/minimal） | 仅 immix 关注 | 阈值比较 backend 无关，hosted/minimal 也尊重旋钮 | P2 |
+| `__AtomicInt` typealias → marked struct | `typealias = Int`，类型层擦除 | 升为 `@InteriorMutable struct __AtomicInt { val raw: Int }`，5 处擦除点改“类型相异、布局=Int” | P3 |
+| `@InteriorMutable` 注解 | 无 | 新增注解，metadata-only，`is_immutable` 读它即否决 | P3 |
+| `SCOOP_GC_FLAG_IMMORTAL` + marker 短路 | header 无 immortal 概念 | 加两个 sentinel，`scoop_gc_mark_object_if_needed` 加 flag 短路 | P4 |
+| byte 数组 content-hash 键 + `unnamed_addr` | span-key，无 dedup | 改 content-hash，加 `set_unnamed_addr(true)`，跨 TU 折叠 | P4 |
+| `is_immutable(T)` 谓词 | 无 | 传递不可变 + `@InteriorMutable` 否决，值/ref 双层 | P5 |
+| `try_emit_immortal` 通用折叠器 | 三个手写路径 | 标量/字符串/纯数据聚合统一折叠器，提升门=全 Const+boxing none+kind(+ref 加 is_immutable) | P5 |
+| String literal 走 immortal | 每次 `scoop_alloc_typed` | `codegen_string_literal_from_bytes` 经折叠器，零分配 | P5 |
+| dedup（仅 String 内容池） | 无 | String content-pool；其它可常量化 ref 类型 per-site 一份 | P5 |
+| `Platform` → MIR StructLit | codegen 动态拼 5 alloc | lowering 成 5 字段 `SynthString` StructLit，折叠器自动吃；删 `codegen_platform_literal` | P6 |
+| `TypeMetadataLiteral` 审计 | 走 string 路径 | 确认消费者不 mutate，断言两次 `__type_name(T)` 指针相等 | P6 |
 
 ## 3. 代码入口总表
 
 | 主题 | 入口文件 / 符号 | 当前问题 | 目标状态 |
 |---|---|---|---|
-| lexer / token | `crates/scoopc_ast/src/syntax/token.rs`、`lexer.rs::lex_ident_or_keyword`、`lexer.rs::lex_number_literal`、`string_literal.rs` | 仍识别旧 keyword / f-string；`.` 后 number 可能吞成 float | 支持 handler `on`、`operator`、numeric member segment、`${...}` f-string；旧 surface 明确拒绝 |
-| expression parser | `crates/scoopc_ast/src/parser/expr.rs::{try_parse_expr_prefix,parse_handle_expr,parse_member_access_expr,parse_field_path,split_interpolated_string_parts}` | `perform` prefix、handler `with`、member ident `_0`、单 `{` 插值 | 目标语法唯一入口，旧语法给定位诊断 |
-| decl / generic parser | `crates/scoopc_ast/src/parser/decls.rs::{parse_decl_prefix,parse_type_param_list,parse_where_clause_opt}`、`ast/mod.rs::Modifier` | 无 `operator` modifier；inline bounds / `ref` / `value` bound 不完整 | modifier 与 bound surface 进入 AST，`ref`/`value` 仅可在 bound position |
-| resolve / visibility | `crates/scoopc_hir/src/resolve/mod.rs::{ModifierSet,Visibility,visibility_from_modifiers,FunSig,FunOverload,ConstructorOverload}` | 默认 public；overload identity 与 visibility 规则未完整承载 | 默认 internal；callable signature / overload identity 可被 typecheck/lowering 复用 |
-| overload definition check | `crates/scoopc_hir/src/typecheck/overloads.rs`、`headers.rs`、`inheritance.rs`、`interfaces.rs` | 重复签名检查有限，generic/vararg/virtual method 规则缺失 | definition-time reject 全部前端化，并输出候选位置 |
-| call resolution | `crates/scoopc_hir/src/typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,args.rs,generic.rs,value_call.rs}` | specificity 与 binding 不符合目标规则 | 实现 local/member/extension/top-level/imported 层叠、visibility、applicability、specificity、ambiguity |
-| operator / effect op | `typecheck/expr/ops.rs`、`typecheck/expr/call/effect_op.rs` | operator 按名字捕获；effect op 仍可从 `perform` 语法进入 | operator 需 modifier；effect op 是普通 qualified call 的 resolution 结果 |
-| pattern / closure capture | `typecheck/val_pat.rs`、`hir/lower/util/closures.rs::compute_closure_captures` | refutable val reject；captured var 未诊断 | refutable val mismatch panic；captured var 前端错误 |
-| cast / not-null / with lowering | `hir/lower/expr/{main_lower.rs,members.rs,canonical_call.rs}`、`scoopc_mir/src/mir/lower/fn_lowering_expr.rs` | `!!` / `as` / enum `with` failure 仍走 Raise 或 preserve original | failure arm 统一生成 panic，不污染 effect row |
-| MIR / materialization / codegen | `scoopc_mir/src/mir/materialize/hir_calls.rs`、`scoopc_mir/src/mir/callables.rs`、`scoopc_codegen_llvm/src/llvm/codegen/mir_body/{call.rs,cast.rs}` | overloaded callable 可能按同名 FQN 混淆 | selected overload identity 贯穿 materialization 和 LLVM declaration/call |
-| sysroot / cone | `sysroot/lib/scoop.core/src/core.scoop`、`sysroot/lib/scoop.unsafe/src/unsafe.scoop`、`crates/scoopc_cone/src/scoopir/export.rs`、`crates/scoopc_cone/src/visibility.rs` | `AnyRef` / `AnyValue` / `Inline` 仍存在；默认 public 假设多 | public API 显式 public；sealed marker 删除；cone 只导出 public |
-| spec / fixtures | `SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part*.md`、`tools/spec_fixtures.py`、`tools/run_fixtures.py`、`tests/fixtures/**` | spec 与 fixtures 使用旧 surface | spec / generated fixtures / handwritten fixtures 与实现同步 |
+| alloc 快路径 / safepoint | `runtime/c/scoop_runtime.c::scoop_alloc`（`:498-499` poll，`:502-507` stress，`:563-567` nursery 回退，`:514` OOM⇒NULL） | 无 pacing 触发；nursery 满静默落 old | alloc 后阈值比较请求 collect；nursery 满先 minor GC 再重试 |
+| 堆状态 / 计数 | `runtime/c/scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`、`ScoopGcHeap` 结构 | `bytes_allocated` 只计数不比较 | 加 `next_gc`，cycle 末按 `live*factor` 更新，alloc 比较 |
+| block pool | `runtime/c/scoop_gc_immix_internal.h:548-575::scoop_gc_immix_state_take_block`、`:283-299` `block_alloc_new` | 两表空无条件 `posix_memalign` | 先 full GC 回收，取不到才增长，可选 hard cap |
+| marker 写 mark | `runtime/c/scoop_gc_backend_immix.c:2719-2737::scoop_gc_mark_object_if_needed`、`:2739-2760` visitor、`:5177/5185` pinned | 无条件写 `mark`，朴素 .rodata 会 fault | flag 短路 immortal；membership 已过滤堆外 |
+| GC header / sentinel | `runtime/c/scoop_gc.h:210-244`、`scoop_runtime_api.h:37-38` | header 无 immortal 概念 | 加 `SCOOP_GC_FLAG_IMMORTAL` / `SCOOP_GC_MARK_IMMORTAL` |
+| backend parity | `runtime/c/scoop_gc_backend_hosted.c`、`scoop_gc_backend_minimal.c` | 只 immix 有 pacing | 三 backend 均尊重 pacing 旋钮 |
+| `__AtomicInt` 声明 | `sysroot/lib/scoop.unsafe/src/unsafe.scoop:163` | `typealias = Int`，标记无处可挂 | `@InteriorMutable struct __AtomicInt { val raw: Int }` |
+| `__AtomicInt` 擦除点 | `crates/scoopc_hir/src/typecheck/lower.rs:2662,3522`、`scoopc_codegen_llvm/.../mir_body/types.rs:436`、`scoopc_hir/src/hir/lower/util/generic_layouts.rs:89`、`scoopc_hir/src/hir/lower/main/impl_lowering.rs:1724` | 类型=Int，原子性消失 | 类型=`__AtomicInt` nominal，布局/ABI=Int word |
+| atomics 构造 | `sysroot/lib/scoop.core/src/core.scoop`（`AtomicInt`/`AtomicBool` 的 `var raw`） | 直接 `= initial`（Int→__AtomicInt 隐式） | `= __AtomicInt(initial)` 显式构造；无隐式 coerce |
+| `@InteriorMutable` 注解 | `crates/scoopc_hir/src/typecheck/{annotations.rs,builtin_annotations.rs}` | 无该注解 | 新增 metadata-only 注解，供谓词读取 |
+| 不可变性谓词 / 折叠器 | `scoopc_codegen_llvm/src/llvm/codegen/mir_body/{const_pat.rs,terminator.rs}`（`codegen_mir_const`、`codegen_mir_rvalue` 的 StructLit/MakeTuple arm）；新增 `is_immutable`/`try_emit_immortal` | 三个手写 immortal 路径 | 一个谓词 + 一个折叠器，按类型特征决策 |
+| String literal lowering | `scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`、`alloca.rs:56-72`（`get_or_create_global_bytes`） | 每次 `scoop_alloc_typed`；byte 数组 span-key | 经折叠器零分配；byte 数组 content-hash + `unnamed_addr` |
+| TypeMetadata / Platform | `scoopc_codegen_llvm/src/llvm/codegen/mir_body/transport.rs:186-201,203-292`；HIR→MIR `TypedIntrinsicKind::Platform` lowering | Platform 在 codegen 动态拼 | Platform lower 成 StructLit；删 `codegen_platform_literal` |
+| 运行期 / fixtures 验收 | `tests/`、`runtime/c/` C 单元测试、`tools/run_fixtures.py`、`tools/spec_fixtures.py` | 无 pacing / immortal 回归 | 长程序堆有界、零分配断言、immortal header 不被写 |
 
 ## 4. 顺序总览
 
-1. P0：冻结当前偏离、建立迁移清单与最小回归矩阵。
-2. P1：先落纯 spec / low-risk cleanup，删除 `@Inline` 并建立 spec 同步基线。
-3. P2：收敛 parser / AST 语法 surface，完成旧语法到新语法的机械迁移。
-4. P3：落地 SPEC_FIX 的 type/effect/lowering 语义变化，修正 sysroot、visibility 与 cone export。
-5. P4：实现 overload definition-time 规则，先把“无论如何调用都不合法”的声明前端拒绝。
-6. P5：实现 overload call-site 五阶段 resolution，并让 selected callable identity 贯穿 MIR/codegen。
-7. P6：全量 spec / fixtures / docs 收尾与 regression matrix。
+1. P0：核对并冻结当前运行期/编译期行为，建立长程序与分配计数的最小回归基线。
+2. P1：Pacing 核心——`next_gc` + 软触发 + safepoint 集成 + `SCOOP_GC_PACING` 旋钮。最紧急，单独可用。
+3. P2：Pacing 分代与 OOM 防御——nursery-full minor GC、block-pool 回退、hard cap、backend parity。
+4. P3：`__AtomicInt` 升为 `@InteriorMutable struct`，引入 `@InteriorMutable` 注解。Immortal 的 sysroot/类型前置。
+5. P4：Immortal 运行期——`SCOOP_GC_FLAG_IMMORTAL` + marker 短路；codegen byte 数组 content-hash 键 + `unnamed_addr`。
+6. P5：通用 `is_immutable` 谓词 + `try_emit_immortal` 折叠器，String literal 走 immortal，String 内容池 dedup。
+7. P6：`Platform` lower 成 StructLit、删除专用 codegen、`TypeMetadataLiteral` 审计。
+8. P7：spec / 文档 / fixtures 收尾与全量回归矩阵。
 
 依赖说明：
 
-- P0 必须先于所有实现阶段，因为当前仓库同时存在旧 surface 与已部分迁移逻辑；不先冻结清单，后续容易漏改 fixture 或误判 design drift。
-- P1 可先做，因为 A1/A2/D1 是文档收口，`@Inline` 删除是孤立低风险项；但若任何 spec code block 改动导致 generated fixtures 失败，必须把对应 compiler change 提前到同一 PR/任务中完成。
-- P2 必须先于 P3，因为 refutable pattern、operator modifier、`ref`/`value` bound、tuple `.0` 与 f-string `${...}` 都需要 AST 表达稳定后才能做语义。
-- P3 必须先于 P5，因为 overload call-site phase 依赖新的 visibility 默认、bound constraint kind、operator gate 与 `Nothing` subtype 规则。
-- P4 必须先于 P5，因为 call-site resolution 假设同一 overload set 已经过 definition-time pruning。
-- P6 之前不算完成；只让少量 fixtures 通过但 spec / sysroot / docs 仍使用旧 surface，不代表本轮闭环。
+- P0 先于所有实现阶段：两份设计的“current behavior”都需要一个可复用的 baseline（长程序增长曲线、分配计数、immortal header 写检测），否则后续 agent 重复核对。
+- P1 必须先于 P2：分代触发与 OOM 回退都建立在 pacing 核心的 `next_gc` / `request_collect` / safepoint 之上。
+- Pacing 线（P1-P2）与 Immortal 线（P3-P6）正交，可并行；但 Pacing 更紧急，故排在前。若并行，唯一交点是 `runtime/c/` 同文件编辑冲突，需协调 P2 与 P4 的 runtime PR 顺序。
+- P3 必须先于 P5：`is_immutable` 谓词读 `@InteriorMutable`，且 String/聚合常量化依赖类型层不再把 `__AtomicInt` 当 Int。
+- P4 必须先于 P5：codegen 发射 ref-tier immortal `ScoopString` 时引用 `SCOOP_GC_FLAG_IMMORTAL`，运行期常量必须先存在；content-hash 键也是 dedup 的前提。
+- P5 必须先于 P6：Platform 折叠依赖通用折叠器与 String immortal 已就位。
+- P7 之前不算完成：只让少量测试通过但 spec / 文档仍描述旧行为，不代表闭环。
 
 ## 5. 分阶段计划
 
-### P0. 冻结当前偏离、建立迁移清单与最小回归矩阵
+### P0. 冻结当前行为与最小回归基线
 
 参考：
-- [`SPEC_FIX.md`](./SPEC_FIX.md) 全文
-- [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §1、§2、§10
-- `tests/fixtures/**`
-- `tools/spec_fixtures.py`
-- `tools/run_fixtures.py`
+- [`GC_PACING.md`](./GC_PACING.md) “Current behavior (verified)”
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Current behavior (verified)”
+- `runtime/c/scoop_runtime.c`、`scoop_gc_backend_immix.c`、`scoop_gc_immix_internal.h`、`scoop_gc.h`
+- `tools/run_fixtures.py`、`tests/fixtures/**`
 
 目标：
 
-- 把旧 surface、已知 overload bug、sysroot 默认 public 假设、spec doctest 生成面先列清楚。
-- 建立后续阶段可复用的最小 targeted regression，避免每个 agent 重新搜索。
+- 把 pacing 缺失点与 immortal 分配点的当前行为核实成可复用基线，避免每个阶段重新核对行号与路径。
+- 建立两个最小度量：长程序的 `bytes_allocated` 增长曲线，以及 String/Platform literal 的 `scoop_alloc_typed` 计数。
 
 必须实现的内容：
 
-1. 对活跃源码、sysroot、spec 与 fixture 做迁移清单，至少覆盖：
-   - `perform`；
-   - `handle { ... } with { ... }`；
-   - tuple `._0` / `._1`；
-   - f-string `{...}` / `{{` / `}}`；
-   - `@Inline` / `annotation class Inline`；
-   - `AnyRef` / `AnyValue`；
-   - 依赖默认 public 的 sysroot 与 cross-package fixtures；
-   - `*overload*.scoop`、`*vararg*.scoop`、`*operator*.scoop`。
-2. 新增或确认最小 overload bug fixtures：
-   - concrete overload `f(Int)` / `f(Bool)` 互不串扰；
-   - arity overload `g(Int)` / `g(Int, Int)` 均可 materialize；
-   - generic + concrete 同名时 concrete 按 specificity 胜出；
-   - ambiguous / no-applicable diagnostics 列候选位置且不含 backend 术语。
-3. 明确哪些旧 syntax fixture 是“要机械迁移”，哪些应改成 negative fixture。
-4. 记录 P0 期间仍允许的 design drift，后续阶段必须逐项关闭而不是长期跳过。
+1. 核对并记录 pacing 侧关键行号：stress 触发、block pool 增长、nursery 回退、`bytes_allocated` 计数点、env 旋钮集合。
+2. 核对并记录 immortal 侧关键行号：String literal lowering、TypeMetadataLiteral、Platform、marker 写、membership 过滤、`__AtomicInt` typealias 与 5 处擦除点。
+3. 新增最小度量工具/测试（可先用 `scoop_gc_debug_*` 与现有 fixtures）：
+   - 一个 10M 小对象分配循环，记录峰值堆（baseline 下应无界增长）；
+   - 一个只含 String literal / `Platform` 读取的函数，断言其 IR 中 `scoop_alloc_typed` 出现次数（baseline 下 >0）。
+4. 记录 P0 期间允许保留的偏离，后续阶段逐项关闭。
 
 必须遵从的约束：
 
-- P0 不改变语言行为；只做 inventory、targeted fixtures 和记录。
-- 不得删除旧 fixture 来掩盖当前 bug；需要迁移的 fixture 必须有新 surface 等价版本或明确 negative 版本。
+- P0 不改变运行期或语言行为；只做核对、度量与记录。
+- 不得删除任何现有 GC 测试来掩盖当前无界增长。
 
 阶段输出：
 
-- 一份旧 surface / sysroot / fixture 迁移清单。
-- 一组最小 overload regression fixtures。
-- 后续 P1-P6 可引用的 bug baseline。
+- pacing / immortal 双侧的 verified 行号与路径基线。
+- 长程序增长与分配计数两个最小度量，供后续阶段做前后对比。
 
 验证：
 
-1. `python3 tools/spec_fixtures.py check`
+1. `cargo test --all --all-targets`
 2. `python3 tools/run_fixtures.py`
-3. targeted fixture：`tests/fixtures/**/**/*overload*.scoop`
+3. 新增度量测试在 baseline 下表现符合预期（增长无界、分配计数 >0）。
 
 完成条件：
 
-- 后续实现阶段不需要重新判读哪些旧行为是待删除 surface，哪些是当前必须保持的 baseline。
+- 后续阶段不需要重新判读当前 GC 行为，可直接引用基线。
 
-### P1. 纯 spec / low-risk cleanup 与 `@Inline` 删除
+### P1. Pacing 核心：堆增长阈值触发
 
 参考：
-- [`SPEC_FIX.md`](./SPEC_FIX.md) A1、A2、B1、D1
-- `SCOOP_FULL_SPEC.md`
-- `docs/spec/language_spec-part*.md`
-- `sysroot/lib/scoop.core/src/core.scoop`
-- `crates/scoopc_hir/src/typecheck/{builtin_annotations.rs,annotations.rs}`
+- [`GC_PACING.md`](./GC_PACING.md) “Pacing model”“Three trigger points”(1)、“Why a flag”、“Concurrency”、“Env knobs”、Phasing 1
+- `runtime/c/scoop_runtime.c::scoop_alloc`、`scoop_gc_safepoint_poll`
+- `runtime/c/scoop_gc_backend_immix.c`（`bytes_allocated` 计数与 cycle 末）
+- `ScoopGcHeap` 结构定义
 
 目标：
 
-- 先处理不依赖深层 lowering 的 spec 完整性和 annotation cleanup。
-- 删除 `@Inline` 这个无语义保证的 surface，避免后续 spec/fixtures 继续引用。
+- 把无条件无界增长改成 `target = max(min_threshold, live * growth_factor)` 的按压力触发，默认开启。
 
 必须实现的内容：
 
-1. 更新 `SCOOP_FULL_SPEC.md` 与 split spec：
-   - §2.1 增加 `Nothing`：bottom type、无 inhabitant、非 ref/value；
-   - §13 开头明确 cone 与 package 的层级关系；
-   - §2.6 decision record：保留 value type immutability + `with`，无 struct `var` 字段；
-   - 删除 `@Inline` 章节与 built-in annotation 表项。
-2. 删除 sysroot 中 `annotation class Inline`。
-3. 删除 typecheck 对 `@Inline` 的 builtin annotation recognition 和专用 diagnostic 路径。
-4. 更新或删除所有引用 `@Inline` 的 fixtures / doctest blocks。
+1. `ScoopGcHeap` 新增 `next_gc`（初值 = `min_threshold`，默认 4 MB）与 `request_collect` 标志/计数。
+2. 每个 GC cycle 末（sweep 后，持 GC 锁）设置 `next_gc = max(min_threshold, live * growth_factor)`，`growth_factor` 默认 1.5。
+3. alloc 快路径：`bytes_allocated_add` 后用 relaxed load 比较 `next_gc`，超过则 `request_collect`（幂等，置标志）。
+4. `scoop_gc_safepoint_poll` 消费标志：在下一次 alloc 的 poll 处运行 collect，再分配——遵循“先 poll 后 alloc”的 root publication 纪律，不在 alloc 内同步 collect。
+5. 新增 env 旋钮：`SCOOP_GC_PACING`（默认 on）、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`（1.5）、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`（4 MB）。`SCOOP_GC_STRESS` 激活时旁路 pacing。
 
 必须遵从的约束：
 
-- 不得把 `inline` keyword 改成新的优化 hint；compiler 是否 inlining 仍由自身 heuristic 决定。
-- 如果 `SCOOP_FULL_SPEC.md` 中的 fixture code block 变更，必须同步运行 `tools/spec_fixtures.py sync` 并检查生成结果。
+- 默认 on；`off` 仅供需要确定性堆计数的测试。
+- 触发只能经 safepoint，不在 `scoop_alloc` 内同步 collect（root publication / reentrancy）。
+- `next_gc` 仅在 cycle 末更新；hot path 用 relaxed 原子，允许轻微 overshoot。
 
 阶段输出：
 
-- spec 中 `Nothing` / cone-package / value-type decision 已明确。
-- `@Inline` 从 sysroot、typecheck、fixtures、spec 中消失。
+- 长程序在默认配置下堆有界（约 `growth_factor * peak_live` + 一块 slop）。
+- `SCOOP_GC_PACING=off` 保持旧的无界行为以供对照。
 
 验证：
 
-1. `python3 tools/spec_fixtures.py sync`
-2. `python3 tools/spec_fixtures.py check`
-3. `python3 tools/run_fixtures.py`
-4. targeted search：活跃代码与 spec 不再出现 `@Inline` / `annotation class Inline`。
-
-完成条件：
-
-- `@Inline` 不再是语言 surface，且 spec-only 决议不会继续漂移。
-
-### P2. Parser / AST 语法 surface 收敛
-
-参考：
-- [`SPEC_FIX.md`](./SPEC_FIX.md) A3、B2、B4、B6、C2、C4
-- `crates/scoopc_ast/src/syntax/{token.rs,lexer.rs,string_literal.rs}`
-- `crates/scoopc_ast/src/parser/{expr.rs,decls.rs,pattern.rs,stmt.rs}`
-- `crates/scoopc_ast/src/ast/mod.rs`
-
-目标：
-
-- 让 parser/AST 只表达目标语言 surface，为 P3 typecheck/lowering 与 P5 overload resolution 提供稳定输入。
-
-必须实现的内容：
-
-1. `perform` 删除：
-   - 从 expression prefix parser 移除 `perform expr`；
-   - effect operation 继续通过普通 qualified call `Effect.op(args)` 解析；
-   - 旧 `perform` fixture 改成 negative parse/typecheck fixture。
-2. handler keyword 改为 `on`：
-   - `handle { body } on { ... } finally { ... }` 成为唯一正例；
-   - `handle ... with ...` 报清晰 diagnostic；
-   - `try/catch` desugaring 文档目标改成 `handle ... on ...`。
-3. tuple/member numeric segment：
-   - lexer 在 `.` 后的 numeric run 不把 `1.2` 贪成 float；
-   - parser member access / with path 接受 `.0` / `.1` numeric segment；
-   - 旧 `._0` / `._1` fixtures 迁移或变 negative。
-4. f-string `${...}`：
-   - f-string 内仅 `${` 开启插值；
-   - `{` / `}` 是 literal，无需 `{{` / `}}`；
-   - 不支持 `$x` shorthand，并添加 negative fixture。
-5. `operator` modifier：
-   - lexer/parser/AST 增加 `operator` modifier；
-   - 先只进入 AST，不在 P2 改 resolution 行为。
-6. inline generic bounds 与 `ref` / `value` bound surface：
-   - `parse_type_param_list` 支持 `<T: Bound>` 形式，与现有 `where T: Bound` 收敛为同一 internal constraint 表达；
-   - `ref` / `value` 仅在 bound position 合法，不能作为普通类型、type argument、`is` / `as` target 或 supertype；
-   - 如实现选择 context keyword，不得污染普通 identifier 解析。
-
-必须遵从的约束：
-
-- 旧语法只允许作为 negative fixture 留存，不得作为长期 alias。
-- `operator` modifier 的 parser 接入不得让普通函数自动获得 operator 能力；真正语义 gate 在 P3。
-- `.0` 解析必须覆盖 chained case：`x.1.2` 应按 member segment 解析，而不是 float literal。
-
-阶段输出：
-
-- AST 能表达本轮所有新 surface。
-- 旧 surface 在 parser/typecheck 层有清晰 reject。
-- fixture 语法已机械迁移到目标写法。
-
-验证：
-
-1. `python3 tools/run_fixtures.py`
-2. targeted parse fixtures：`tests/fixtures/parse/*handle*`、`*f_string*`、`*with*`、`*tuple*`、`*operator*`
-3. targeted typecheck fixtures：`perform` 旧语法 negative、`ref` / `value` 非 bound position negative
-
-完成条件：
-
-- parser 不再阻塞 P3 的语义改动，且旧语法不会静默通过。
-
-### P3. SPEC_FIX type/effect/lowering 语义落地
-
-参考：
-- [`SPEC_FIX.md`](./SPEC_FIX.md) A3、B3、B5、C1、C3、C4、C5
-- `crates/scoopc_hir/src/typecheck/expr/{ops.rs,member.rs,infer.rs}`
-- `crates/scoopc_hir/src/typecheck/{val_pat.rs,type_env.rs,lower.rs,where_clause.rs}`
-- `crates/scoopc_hir/src/hir/lower/expr/{members.rs,canonical_call.rs,main_lower.rs}`
-- `crates/scoopc_mir/src/mir/lower/{fn_lowering_expr.rs,fn_lowering_call.rs}`
-- `crates/scoopc_cone/src/{scoopir/export.rs,visibility.rs}`
-- `sysroot/lib/scoop.core/src/core.scoop`
-
-目标：
-
-- 把 SPEC_FIX 中会改变类型、effect、lowering、sysroot、visibility 的语言语义一次性收口。
-
-必须实现的内容：
-
-1. operator modifier gate：
-   - operator-positioned call 只考虑带 `operator` modifier 的候选；
-   - 普通 named call `x.plus(y)` 不要求 `operator`；
-   - diagnostics 指出“候选存在但未声明 operator”与“没有候选”的区别。
-2. `!!` 和 `as` failure 改为 panic：
-   - typecheck 不再记录 `Raise<RuntimeError>` edge；
-   - HIR/MIR lowering failure arm 生成 `scoop.core.panic(...)` 或等价 panic primitive；
-   - `as?` 不变，仍返回 `Option<T>`；
-   - `RuntimeError` 若仍被其它 surface 使用，保留；若仅剩旧路径使用，删除或降级为 panic message tag。
-3. enum `with` mismatch panic：
-   - lowering 已有 variant check 的 mismatch arm 改为 panic；
-   - 不再 silent preserve original value。
-4. refutable `val` pattern：
-   - `val Some(x) = e` 允许通过 typecheck；
-   - mismatch fallback lower 到 panic；
-   - 保持 tuple / struct irrefutable pattern 现有行为。
-5. closure 捕获 `var` 禁止：
-   - 在 closure capture analysis 或 typecheck 阶段检测引用外层 mutable binding；
-   - 报错提示 `RefCell<T>`、显式 `val snapshot = ...` 或 higher-order accumulation；
-   - `val` capture 不变。
-6. `AnyRef` / `AnyValue` sealed marker 替换为 `ref` / `value` bound constraint kind：
-   - 删除 sysroot marker declarations；
-   - type lowering 中把 `T: ref` / `T: value` 表示为内部 kind constraint；
-   - 拒绝把 `ref` / `value` 当类型使用；
-   - 更新 `Atomic<T>`、`AtomicValue<T>` 等 sysroot bounds；
-   - 移除或收缩 `SealedMarkerInfo`、`ANY_REF_MARKER_FQN`、`ANY_VALUE_MARKER_FQN` 相关逻辑。
-7. 默认 visibility 改为 `internal`：
-   - `visibility_from_modifiers` 无 modifier 返回 `Internal`；
-   - sysroot 与需要导出的 fixture/API 显式加 `public`；
-   - `.cone` exporter 继续只导出 `public` declarations；
-   - `internal` 语义明确为同一 cone 可见。
-
-必须遵从的约束：
-
-- panic 路径不得通过 `Raise.raise` 间接表达；否则 effect row 仍会被污染。
-- `ref` / `value` 是 bound keyword，不是新类型；不得在 runtime metadata 或 supertype list 中生成它们。
-- 默认 visibility 改动必须和 sysroot public annotation 同步提交，否则会造成大量 downstream / fixture 误报。
-
-阶段输出：
-
-- SPEC_FIX 的非 overload 语义改动已在 compiler/sysroot/cone 中落地。
-- 断言失败统一 panic，不再影响 effect row。
-- 默认 internal visibility 与 public export contract 生效。
-
-验证：
-
-1. `python3 tools/run_fixtures.py`
+1. P0 的 10M 分配循环：默认配置下峰值堆有界；`PACING=off` 仍无界（证明 pacing 生效）。
 2. `cargo test --all --all-targets`
-3. targeted fixtures：`not_null_assert*`、`runtime_typecheck_cast*`、`*with_update*`、`*val_pattern*`、`*closure*capture*`、`*visibility*`、`*anyref*` / `*ref_value_bound*`
-4. `python3 tools/spec_fixtures.py check`
+3. 多线程并发分配：`request_collect` 不死锁，over-allocation 有界。
 
 完成条件：
 
-- SPEC_FIX 中除 overload 相关后续验证外，compiler-visible 语义都已关闭，不再留下旧 Raise / sealed marker / public default 路径。
+- 无 env 旋钮的默认运行不再无界增长。
 
-### P4. Overload definition-time 规则落地
+### P2. Pacing 分代触发、OOM 防御与 backend parity
 
 参考：
-- [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §3、§4、§7、§8、§9、§10、§12
-- `crates/scoopc_hir/src/typecheck/overloads.rs`
-- `crates/scoopc_hir/src/typecheck/{headers.rs,inheritance.rs,interfaces.rs,override_effects.rs}`
-- `crates/scoopc_hir/src/resolve/mod.rs::{FunSig,FunOverload,ConstructorOverload,ParamSig}`
+- [`GC_PACING.md`](./GC_PACING.md) “Three trigger points”(2)(3)、Phasing 2-5
+- `runtime/c/scoop_runtime.c:563-567`（nursery 回退）
+- `runtime/c/scoop_gc_immix_internal.h:548-575`（`scoop_gc_immix_state_take_block`）
+- `runtime/c/scoop_gc_backend_hosted.c`、`scoop_gc_backend_minimal.c`
 
 目标：
 
-- 在声明处理阶段拒绝“无论怎么调用都不可能合法”的 overload set，给 P5 call-site resolution 一个干净输入。
+- 恢复分代实际收益，加上 block-pool 耗尽与 hard cap 的兜底，并让三个 backend 一致尊重 pacing。
 
 必须实现的内容：
 
-1. effective signature / signature equivalence：
-   - signature 只含参数类型与 arity，不含 return type 与 effect row；
-   - type alias 透明；
-   - type parameter alpha-equivalence 等价；
-   - 参数位 effective type 完全相同视为 conflicting overloads。
-2. generic overload shape 规则：
-   - 允许同 shape、仅 bound 不同的 generic overload；
-   - 允许 concrete 与 generic 同 shape 混合，concrete 视为更紧 bound；
-   - reject 参数 shape 不同、TP 一致性约束等当前不支持形式，错误码 `generic_overload_shape_mismatch`；
-   - bound 不可比的同 shape overload 不在定义点 reject，留给 call-site ambiguity。
-3. vararg 与非 vararg 重叠：
-   - 若 vararg 可 cover 非 vararg arity 且对应类型兼容，定义点 reject，错误码 `vararg_overlaps_non_vararg`；
-   - 不允许依赖 spread operator 在 call-site 手动消歧。
-4. override / overload 边界：
-   - 父类 method 非 `open`，子类同 signature reject；
-   - 父类 method `open`，子类同 signature 缺 `override` reject；
-   - `override` 但父类无匹配 signature reject；
-   - 子类同名但 signature 不同是新增 overload；
-   - effect row 不参与 override target 匹配。
-5. 虚方法不可方法级 generic：
-   - `open fun`、`abstract fun`、`override fun`、interface method 引入方法级 TP 时 reject；
-   - 类级/interface 级 TP 出现在 method signature 中仍合法。
-6. constructor overload：
-   - constructor 与 fun 共用 signature equivalence、generic shape、vararg overlap 与 diagnostics；
-   - ctor 级 TP 与 class 级 TP 区分清楚。
-7. diagnostics：
-   - `conflicting_overloads`、`generic_overload_shape_mismatch`、`vararg_overlaps_non_vararg`、override 错误必须列出相关候选位置与 signature；
-   - 错误文本不含 backend/LLVM 术语。
+1. nursery 满 ⇒ minor GC：把 `scoop_runtime.c:563-567` 的静默回退改成“先 minor GC 再重试 nursery alloc；仍满才落 old space”（避免单对象大于 nursery 时死循环）。
+2. block pool 耗尽 ⇒ full GC：`scoop_gc_immix_state_take_block` 两表空时先 full GC，取到 reusable/free 块则用，取不到才 `posix_memalign`。
+3. hard cap：`SCOOP_GC_MAX_HEAP_BYTES`（默认 0=无 cap）。post-GC 重试仍超 cap，则 `scoop_alloc` 返回 NULL（上游已文档化 OOM⇒NULL，仅让其可达）。
+4. backend parity：`hosted` / `minimal` 也读取并尊重 pacing 旋钮；阈值比较 backend 无关，即使其 collect 更受限。
 
 必须遵从的约束：
 
-- 不得在 P4 实现 call-site “猜一个能用的” workaround；P4 只负责定义点集合合法性。
-- 返回类型和 effect row 绝不能参与 overload signature。
-- 虚 generic method 不允许通过 monomorphization 后动态 vtable slot 逃逸。
+- minor-GC-then-retry 不得在 nursery 真比单对象小的情况下死循环。
+- hard cap 只在 post-GC 重试后才 OOM，不得在尚可回收时提前失败。
+- 不改变 `scoop_gc_collect()` 手动调用与 `SCOOP_GC_STRESS` 语义。
 
 阶段输出：
 
-- 合法 overload set 的 definition-time contract 固定。
-- 不合法 overload set 在 typecheck 前端稳定报错。
+- 固定小 nursery 时不再永久卡满；分代分配模式恢复。
+- 接近 hard cap 的程序仍能靠回收推进；真 OOM 干净返回 NULL。
 
 验证：
 
-1. `python3 tools/run_fixtures.py`
-2. 新增/更新 typecheck fixtures：
-   - return/effect-only overload conflict；
-   - TP alpha-equivalent conflict；
-   - generic shape mismatch；
-   - bound-incomparable overload 定义点通过；
-   - vararg overlap reject；
-   - virtual method generic reject；
-   - override boundary 四类样例。
+1. 固定 `SCOOP_GC_IMMIX_NURSERY_BLOCKS=4` 的混合 live/dead workload：`gc_cycles` 递增、nursery 不永久满、`bytes_freed` 增长。
+2. 紧 `SCOOP_GC_MAX_HEAP_BYTES`：贴 cap 分配仍成功（回收生效），超出干净返回 NULL。
+3. `cargo test --all --all-targets`；三 backend 均编译可回归。
+
+完成条件：
+
+- pacing 的三层触发（软/分代/硬）与 hard cap 全部生效，长程序在受限堆下可持续运行。
+
+### P3. `__AtomicInt` 升为 `@InteriorMutable struct`
+
+参考：
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Interior mutability”“`scoop.unsafe.__AtomicInt`: typealias → marked struct”
+- `sysroot/lib/scoop.unsafe/src/unsafe.scoop:163`、`sysroot/lib/scoop.core/src/core.scoop`（atomics）
+- `crates/scoopc_hir/src/typecheck/lower.rs:2662,3522`、`.../typecheck/{annotations.rs,builtin_annotations.rs}`
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/types.rs:436`、`crates/scoopc_hir/src/hir/lower/util/generic_layouts.rs:89`、`.../hir/lower/main/impl_lowering.rs:1724`
+
+目标：
+
+- 把 interior mutability 表达成一个**抗 aliasing、可被谓词读取的类型特征**，为 P5 的常量化谓词扫清隐藏陷阱。
+
+必须实现的内容：
+
+1. 新增 `@InteriorMutable` 注解（metadata-only，无 codegen），typecheck 识别并挂在 nominal 上。
+2. `sysroot/lib/scoop.unsafe/src/unsafe.scoop`：`typealias __AtomicInt = Int` 改为
+   ```scoop
+   @InteriorMutable
+   public struct __AtomicInt { val raw: Int }
+   ```
+   依赖普通单字段 struct 的派生布局（word）与派生构造器 `__AtomicInt(initial)`，不写专用 codegen。
+3. 5 处擦除点从“类型 = `Int`”改为“类型 = `__AtomicInt` nominal、布局/ABI = `Int` word”；`__atomicIntLoad/Store/CompareExchange` 签名不变（按 lvalue 取存储当 i64 操作）。
+4. `core.scoop` atomics 构造改显式：`var raw: __AtomicInt = __AtomicInt(initial)`、`= __AtomicInt(__atomicBoolToInt(initial))`；无隐式 Int↔__AtomicInt coerce。
+
+必须遵从的约束：
+
+- `__AtomicInt` 必须是与 `Int` 类型相异、布局相同的 nominal；aliases 解析回它时标记不丢。
+- struct 只能 `val` 字段（语言刻意不放开 `var` struct 字段），`@InteriorMutable` 因此是 load-bearing。
+- 不引入隐式 coerce；构造/load/store 三个面都显式。
+
+阶段输出：
+
+- `__AtomicInt` 是带 `@InteriorMutable` 的相异 struct，原子操作纪律落进类型。
+- 现有 atomic 测试在显式构造下不变通过。
+
+验证：
+
+1. `cargo test --all --all-targets`
+2. targeted：现有 atomics fixtures / 单元测试（`AtomicInt`/`AtomicBool`/`Atomic`）回归。
+3. 类型层不再把 `__AtomicInt` 等同 `Int`（可加断言/测试）。
+
+完成条件：
+
+- P5 谓词可凭 `@InteriorMutable` 安全否决，无需名字匹配，且 `__AtomicInt` 不会被误当 Int 常量化。
+
+### P4. Immortal 运行期支持与 content-hash 键
+
+参考：
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Runtime change”“Cache and dedup keys”、Phasing 2-3
+- `runtime/c/scoop_gc.h:210-244`、`scoop_gc_backend_immix.c:2719-2737,2739-2760,5177/5185`
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72`
+
+目标：
+
+- 让运行期能把带 immortal header 的对象视为透明（永不写、永不 trace），并把 byte 数组改成可跨 TU 折叠的 content-hash 键。这两步独立、无行为变化风险，先行落地。
+
+必须实现的内容：
+
+1. `scoop_gc.h` 新增 `#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u` 与 `#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu`。
+2. `scoop_gc_mark_object_if_needed` 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，覆盖 pinned 扫描等不经 membership 预检的入口。slot visitor 不改（membership 已过滤堆外）。
+3. `get_or_create_global_bytes`（`alloca.rs:56-72`）键从 `__scoop_str_data_{span.start}_{span.end}` 改为 `base16(SHA-256(bytes)[..16])`，并 `set_unnamed_addr(true)`。
+
+必须遵从的约束：
+
+- 运行期改动仅作用于带 flag 的对象；普通堆对象 marker 行为不变（flag-gated，非 blanket）。
+- content-hash 改键不得改变现有字符串语义；只影响全局名与去重。
+
+阶段输出：
+
+- 运行期可安全承载 immortal ref 对象。
+- byte 数组按内容去重、可被 linker 折叠。
+
+验证：
+
+1. runtime C 单元测试：构造一个带 `SCOOP_GC_FLAG_IMMORTAL` 的栈上 header，推上 mark stack，断言 `mark`/`flags` 字节不变（ASan 下）；同测一个堆 header 断言 `mark` 被更新。
+2. golden-file：相同字面量在多处只产生一个 `__scoop_str_data_<hash>`。
 3. `cargo test --all --all-targets`
 
 完成条件：
 
-- P5 看到的 overload set 都满足 design 文档的定义点前提。
+- immortal flag 短路正确且 flag-gated；byte 数组 content-hash 键稳定。
 
-### P5. Overload call-site resolution 与 callable identity 贯通
+### P5. 通用 `is_immutable` 谓词、`try_emit_immortal` 折叠器与 String immortal
 
 参考：
-- [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §5、§6、§7、§8、§9、§10、§11
-- `crates/scoopc_hir/src/typecheck/expr/call/{dispatch.rs,member_call.rs,ctor.rs,args.rs,generic.rs,value_call.rs}`
-- `crates/scoopc_hir/src/typecheck/expr/ops.rs`
-- `crates/scoopc_hir/src/hir/lower/expr/{typechecked.rs,canonical_call.rs}`
-- `crates/scoopc_mir/src/mir/materialize/hir_calls.rs`
-- `crates/scoopc_mir/src/mir/callables.rs`
-- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs`
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “The constantization predicate”“The generic immortal folder”“Emission shapes”“Deduplication”、Phasing 4
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/{const_pat.rs,terminator.rs}`
+- `crates/scoopc_mir/src/mir/transport.rs`（`AggregateTransportMetadata` / `MirBoxingIntent`）
+- `crates/scoopc_hir/src/hir/mod.rs:205`（`FieldDecl.mutable`）
 
 目标：
 
-- 实现 call-site 五阶段 overload resolution，并让 typecheck 选出的唯一 callable identity 贯穿 HIR/MIR/materialization/codegen，修复当前 concrete / arity / generic-concrete overload bug。
+- 用一个由类型特征驱动的通用决策替换三个手写 immortal 路径，让 String literal 零分配，并对 String 开内容池 dedup。
 
 必须实现的内容：
 
-1. Phase A 候选收集：
-   - local → member → extension → top-level → imported；
-   - 外层找到任何同名候选即停止下沉；
-   - member overload set 包含继承、override 替换和子类新增 overload。
-2. Phase B visibility：
-   - visibility 在 applicability 前筛选；
-   - `private` / `protected` / `internal` / `public` 按当前 spec 语义判断；
-   - 不可见候选不得影响 specificity。
-3. Phase C applicability：
-   - arity、named/default/vararg mapping 使用统一 args mapper；
-   - 实参类型必须是形参类型 subtype；
-   - 不引入隐式 widening；
-   - `Nothing` 是所有类型 subtype；
-   - function type 按参数逆变、返回协变、effect row 子集处理；
-   - tuple/struct variance 按 spec 处理。
-4. Phase D specificity：
-   - A 更具体 iff 每个参数位 `A.eff_i <: B.eff_i` 且至少一处 strict；
-   - member receiver 算第 0 参数位；
-   - concrete param effective type 是自身；
-   - method-level TP effective type 是 declared bound，无 bound 为 `Any`；
-   - 多重 bound 用 intersection effective type；
-   - 复合类型中 TP 替换为 declared bound；
-   - 不使用 inferred substitution 做 specialization。
-5. Phase E ambiguity：
-   - 无唯一最具体时报 `ambiguous_overload`；
-   - 列出所有适用候选、位置、effective type 来源和不可比原因。
-6. effect row / return type 校验顺序：
-   - overload resolution 先选唯一候选；
-   - effect row 校验在选定之后进行；
-   - effect 不匹配不得回退选择其它 overload。
-7. lambda / function type overload：
-   - 不加额外 reject；
-   - 按普通 subtype specificity 处理。
-8. operator desugar 与 overload：
-   - `a + b` 等先 desugar 到 operator call，再走同一 overload algorithm；
-   - P3 的 `operator` modifier gate 继续生效。
-9. callable identity 贯通：
-   - `TopLevelFunCallBinding` / member binding / ctor binding 中保留选中的 overload id、signature、type args、owner；
-   - HIR lowering 不再用 bare FQN 重新查同名函数；
-   - MIR materialization 以 binding identity 选择 template / callable version；
-   - LLVM declaration/call 不再因同名 overload 混淆参数类型或 arity。
-10. diagnostics：
-   - `no_applicable_overload` 列出所有同名候选与每个不适用原因；
-   - `ambiguous_overload` 列出所有适用候选与 cross-incomparable 位置；
-   - candidate location 必填。
+1. `is_immutable(T)`（结构、递归、可 memo）：
+   - 带 `@InteriorMutable` → false；
+   - 值标量 → true；
+   - 值 struct / tuple → 所有字段类型 `is_immutable`（struct 字段必 `val`，无需查可变性）；
+   - ref class → 所有字段 `val` 且 所有字段类型 `is_immutable`。
+2. `try_emit_immortal(value) -> Option<GlobalValue>`（content-hash 缓存）：
+   - 标量 `ConstValue::*` → LLVM 标量常量；
+   - `ConstValue::String/SynthString` 与 `TypeMetadataLiteral::TypeNameString` → immortal `ScoopString` 全局（带 header + `SCOOP_GC_FLAG_IMMORTAL` + `SCOOP_GC_MARK_IMMORTAL`，`next=null`）；
+   - `Rvalue::StructLit/MakeTuple` 过提升门则发射常量聚合全局（值类型层无 header；ref 类型层带 header），否则 `None` 回退动态路径。
+3. 提升门：① 字段全 `Operand::Const`；② 每字段 `transport.boxing.is_none()`；③ `transport.kind` 为 `Tuple`/`Struct`；④ ref 类型聚合再加 `is_immutable(aggregate_ty)`。
+4. `codegen_string_literal_from_bytes` 与 `const_pat.rs` 的 String/SynthString 分支改走折叠器；`terminator.rs` 的 `StructLit`/`MakeTuple` arm 先试折叠器再回退。
+5. dedup：String 走 content-pool（`__scoop_str_lit_<hash>`）；其它可常量化 ref 类型每个 literal site 一份全局，不跨站合并。
 
 必须遵从的约束：
 
-- 不得让 backend/codegen 继续承担 overload disambiguation。
-- 不得为了修复 generic + concrete case 而引入 inferred-substitution specialization；specialization 只看 declared bound。
-- 不得把 effect row 或 return type 纳入 signature 或 specificity。
+- 决策由类型特征驱动，不得退回逐类型特判或维护类型白名单。
+- 折叠器遇到非平凡 transport（boxing / value-erasure）或非 `Const` 字段必须安全回退 `None`。
+- 本版不追 `Local` → 定义它的 StructLit（嵌套聚合回退）；不含 `EnumVariant`。
+- dedup 仅对 String；其它 ref 类型 per-site，保持身份观测不变。
 
 阶段输出：
 
-- 完整 call-site overload resolution。
-- selected callable identity 贯穿 typecheck → HIR → MIR → LLVM。
-- 当前三类 overload bug 变成 run-pass / typecheck regression。
+- String literal / `__type_name` 零 `scoop_alloc_typed`。
+- `is_immutable` 正确区分 String / 全-val class（可常量化）与 atomics / `RefCell` / `__AtomicInt`（否决）。
 
 验证：
 
-1. `python3 tools/run_fixtures.py`
-2. targeted fixtures：
-   - concrete overload `f(Int)` / `f(Bool)`；
-   - arity overload；
-   - generic + concrete specificity；
-   - bound-based specialization；
-   - incomparable bound ambiguity；
-   - member receiver specificity；
-   - static resolution + dynamic dispatch；
-   - constructor overload；
-   - lambda/function type overload；
-   - effect row mismatch after selection。
-3. `cargo test --all --all-targets`
-4. audit：overload diagnostics 中不出现 `backend`、`LLVM`、`UnsupportedMainBody`。
+1. codegen 单元：`codegen_string_literal_from_bytes("hello")` 零 `scoop_alloc_typed`；同函数两个 `"hello"` 引用同一全局。
+2. `is_immutable` 单元：String 与合成全-val class 为 true；`RefCell`/`AtomicInt`（var）与 `__AtomicInt`（`@InteriorMutable`）为 false。
+3. 集成：literal 在 10M 循环里打印，首个 cycle 后 `bytes_allocated` 零增长（除 print 自身）。
+4. `cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
 
 完成条件：
 
-- overload 行为符合 design 文档，且 codegen 不再因同名 callable 混淆失败。
+- String 走通用 immortal 折叠器、零堆分配、按内容 dedup；谓词由类型特征驱动。
 
-### P6. Spec / fixtures / docs 全量收尾与回归矩阵
+### P6. `Platform` 折叠与 `TypeMetadataLiteral` 审计
 
 参考：
-- [`SPEC_FIX.md`](./SPEC_FIX.md) summary table
-- [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §12
-- `SCOOP_FULL_SPEC.md`
-- `docs/spec/language_spec-part*.md`
-- `tools/spec_fixtures.py`
-- `tools/run_fixtures.py`
-- `tests/fixtures/**`
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Consumers (recast)”、Phasing 5-6
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/transport.rs:186-201,203-292`
+- HIR→MIR `TypedIntrinsicKind::Platform` lowering
+- `sysroot/lib/scoop.core/src/core.scoop`（`Platform` struct）
 
 目标：
 
-- 把 P1-P5 的实现结果完整反映到 spec、fixtures、sysroot 注释和 regression matrix 中。
-- 确保后续 agent 不需要重新解释旧 surface 是否仍被支持。
+- 让 `Platform` 作为通用机制的消费者自动落入折叠器，删除一切 Platform 专用 codegen；确认 `TypeMetadataLiteral` 消费者不 mutate。
 
 必须实现的内容：
 
-1. 更新 `SCOOP_FULL_SPEC.md` 所有相关章节：
-   - type hierarchy / `Nothing`；
-   - tuple field `.0`；
-   - `val` refutable pattern；
-   - `!!` / `as` panic；
-   - effect op plain qualified call；
-   - handler `on`；
-   - closure capture；
-   - f-string `${...}`；
-   - `ref` / `value` bound；
-   - default `internal` visibility；
-   - overload resolution rules；
-   - `operator` modifier requirement；
-   - delete `@Inline` / `AnyRef` / `AnyValue` old prose。
-2. 同步 split spec `docs/spec/language_spec-part*.md` 或明确其生成/同步流程。
-3. 运行 `tools/spec_fixtures.py sync` 并检查生成的 `tests/fixtures/spec_doctest/**`。
-4. 机械更新 handwritten fixtures：
-   - `perform` → plain effect op call；
-   - handler `with` → `on`；
-   - `._0` → `.0`；
-   - f-string `{expr}` → `${expr}`；
-   - sysroot/API export 加显式 `public`；
-   - `AnyRef` / `AnyValue` bounds 改为 `ref` / `value`；
-   - operator functions 加 `operator` 或改成普通 named call。
-5. 增加 final audit：
-   - 活跃 spec / sysroot / fixtures 不再出现旧 surface，除 negative fixtures 或历史文档外；
-   - overload 错误诊断满足候选位置与原因要求；
-   - `.cone` API export 只包含 public declarations。
-6. 全量验证：
-   - `cargo fmt`；
-   - `cargo test --all --all-targets`；
-   - `python3 tools/spec_fixtures.py check`；
-   - `python3 tools/run_fixtures.py`；
-   - LLVM/backend targeted tests 如当前环境启用默认 LLVM feature。
+1. 在 HIR→MIR 把 `TypedIntrinsicKind::Platform` lower 成 `Rvalue::StructLit`，5 个字段为 `Operand::Const(ConstValue::SynthString(...))`，transport kind = `Struct`、各字段 `boxing: None`。
+2. 删除 `codegen_platform_literal`（`transport.rs:203-292`）及任何 `get_or_create_immortal_platform_global` 专用 helper——不留 Platform 专用代码。
+3. `Platform` 是值类型 struct，折叠器走值类型层（无 header），5 个字段引用 ref 层 immortal `ScoopString`。
+4. `TypeMetadataLiteral` 审计：确认无消费者 mutate 其结果；新增断言两次 `__type_name(T)` 读返回指针相等的 `ScoopString`（dedup 后成立）。
 
 必须遵从的约束：
 
-- P6 不能把未完成行为简单记成 future work；剩余项必须是明确超出本轮两份设计文档的 v2+ 扩展。
-- negative fixtures 中保留旧语法时，文件名和 expected diagnostic 必须明确这是旧 surface 被拒绝。
+- 不得保留 Platform 专用常量化路径；它必须与普通值 struct 常量化同路。
+- Platform 聚合本身无 GC header（值类型），不进 ref-tier。
 
 阶段输出：
 
-- spec、sysroot、fixtures、compiler 行为一致。
-- 本轮设计文档中的 pending 项全部有实现或明确的回写决议。
-- 完整 regression matrix 通过。
+- `Platform` 读取零 `scoop_alloc_typed`，由通用折叠器处理。
+- `TypeMetadataLiteral` 不可变性经审计确认。
+
+验证：
+
+1. codegen 单元：`Platform` 访问零 `scoop_alloc_typed`。
+2. `__type_name(T)` 两次读指针相等。
+3. 集成：`Platform.os` 读 10M 次不触发 GC（与 P5 的零增长一致）。
+4. `cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+
+完成条件：
+
+- Platform / TypeMetadata 完全收敛到通用机制，无任何专用常量化代码。
+
+### P7. Spec / 文档 / fixtures 收尾与全量回归矩阵
+
+参考：
+- [`GC_PACING.md`](./GC_PACING.md) “Test plan”“Out of scope”
+- [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Test plan”“Out of scope”
+- `SCOOP_RUNTIME.md`、`docs/spec/**`、`tools/run_fixtures.py`、`tools/spec_fixtures.py`
+
+目标：
+
+- 把 P1-P6 的运行期与编译期行为反映到 runtime 文档、env 旋钮说明、fixtures 与回归矩阵，确保后续不需重新判读新行为。
+
+必须实现的内容：
+
+1. 更新 `SCOOP_RUNTIME.md`（及相关 spec 段）描述 pacing 模型、三层触发、env 旋钮（`SCOOP_GC_PACING` / `GROWTH_FACTOR` / `MIN_THRESHOLD_BYTES` / `MAX_HEAP_BYTES`）与默认 on 的姿态。
+2. 记录 immortal 概念：值/ref 双层、`is_immutable` 谓词、`@InteriorMutable`、dedup 仅 String。
+3. 审计哪些既有测试断言精确堆计数，给它们显式 `SCOOP_GC_PACING=off` 并注明原因（这同时是 pacing 的审计面）；确认 immortal 测试**不**需要 pacing off（immortal 不进堆）。
+4. 全量验证：`cargo fmt`、`cargo test --all --all-targets`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`、runtime C 单元测试与长程序回归。
+5. 明确归位 out-of-scope（不做、且为何不做）：incremental/concurrent GC、time-budget pacing、`.data` 单实例静态初始化与 static rooting、嵌套聚合 / `EnumVariant` 常量、跨类型 dedup、跨 `.cone` 字面量 dedup、嵌入式 tier 提示。
+
+必须遵从的约束：
+
+- 不得把未完成行为简单记成 future work；剩余项必须是明确超出两份设计文档的 v2+ 扩展。
+- 需要 `PACING=off` 的测试必须注明 why。
+
+阶段输出：
+
+- runtime 文档、env 说明、fixtures 与 compiler/runtime 行为一致。
+- 完整回归矩阵通过。
 
 验证：
 
@@ -562,16 +435,15 @@
 
 完成条件：
 
-- `SPEC_FIX.md` 与 `OVERLOAD_RESOLUTION.md` 的目标行为成为活跃 spec 和 compiler 的实际 contract。
-- 旧 surface 只存在于 archive、design history 或明确 negative fixture 中。
+- `GC_PACING.md` 与 `GC_IMMORTAL_FIX.md` 的目标行为成为运行期与编译期的实际 contract；旧的无界增长与 per-use wrapper 分配只存在于 `PACING=off` 对照与 design history 中。
 
 ## 6. 预期收口状态
 
-- `SCOOP_FULL_SPEC.md` 与 compiler 对 `Nothing`、cone/package、value immutability、tuple `.0`、f-string `${...}`、handler `on`、plain effect op call、`operator` modifier、`ref` / `value` bound、default internal visibility 的描述一致。
-- `@Inline`、`AnyRef`、`AnyValue`、`perform`、handler `with`、tuple `._0`、旧 f-string `{...}` 插值不再是正向语言 surface。
-- `!!`、`as` failure、refutable `val` mismatch、enum `with` variant mismatch 都 panic，不再通过 `Raise<RuntimeError>` 污染 effect rows。
-- closure 捕获外层 `var` 在前端报错，用户必须显式选择 `RefCell`、snapshot 或 higher-order accumulation。
-- overload definition-time 与 call-site resolution 按 `OVERLOAD_RESOLUTION.md` 的五阶段模型工作，diagnostics 列出候选位置和不可比原因。
-- selected overload identity 从 typecheck 贯穿到 HIR/MIR/materialization/codegen，同名函数不再在 lowering/codegen 阶段互相串扰。
-- `.cone` API export 只包含显式 `public` declarations；未标注 declarations 默认为 cone-internal。
-- fixtures 与 spec doctests 覆盖语法迁移、SPEC_FIX 语义变更、overload 正例/负例和关键 codegen bug。
+- 默认配置下，长程序堆有界（`target = max(min_threshold, live * growth_factor)`），不再单调增长到 OOM；nursery 满触发 minor GC，block pool 耗尽先 full GC 再增长，`SCOOP_GC_MAX_HEAP_BYTES` 提供 hard cap。
+- pacing 在 `immix` / `hosted` / `minimal` 三 backend 一致生效，默认 on，`SCOOP_GC_STRESS` 与手动 `scoop_gc_collect()` 语义不变。
+- String literal、`__type_name(T)`、`Platform` 读取均不再在 GC 堆上分配 wrapper；它们走由 `is_immutable(T)` 驱动的通用常量化路径。
+- “是否常量化”由类型传递不可变性决定，String / `Platform` / 用户全-val 不可变类型一视同仁；atomics / `RefCell` / `__AtomicInt` 由 `var` 字段或 `@InteriorMutable` 自动排除。
+- dedup 仅作用于 String（内容池），其它可常量化 ref 类型 per-site 一份，身份观测不变；运行期 immortal 不变式为“永不写、永不 trace”。
+- `scoop.unsafe.__AtomicInt` 是带 `@InteriorMutable` 的相异 struct（布局=Int），interior mutability 成为抗 aliasing 的类型特征，原子访问纪律落进类型系统。
+- 不存在任何 Platform / String 专用常量化代码；新可常量化类型无需额外 compiler 改动即可获得提升。
+- 测试矩阵覆盖：长程序堆有界、nursery/blockpool/hardcap 触发、immortal header 不被写、String/Platform 零分配与 dedup 指针相等。

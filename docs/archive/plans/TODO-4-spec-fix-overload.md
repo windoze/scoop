@@ -1,0 +1,334 @@
+# TODO-4：P4 Overload definition-time 规则落地
+
+> 索引：[`TODO.md`](./TODO.md)  
+> 计划基线：[`PLAN.md`](./PLAN.md)  
+> 覆盖阶段：P4  
+> 包目标：在声明处理阶段拒绝“无论怎么调用都不可能合法”的 overload set，给 P5 call-site resolution 一个干净输入。
+
+## P4：Overload definition-time 规则落地
+
+### [DONE] P4-T01：实现 overload effective signature 与 signature equivalence helper
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §3、§4.1、§6.4、§9.1
+- 目标：
+  - 建立 definition-time overload checks 共用的 signature/effective-type helper。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs::{check_file_overload_conflicts,collect_fun_decl,collect_ctor_decl,check_fun_overload_set,check_ctor_overload_set}`
+  - `crates/scoopc_hir/src/resolve/mod.rs::{FunSig,FunOverload,ConstructorOverload,ParamSig}`
+  - type alias expansion / type equality helpers in type store or type lowering modules
+  - generic bound metadata from `crates/scoopc_hir/src/typecheck/type_env.rs`
+- 必须实现的内容：
+  1. Define internal representation for overload parameter effective type: concrete parameter -> itself; method-level TP -> declared bound, default `Any`; composite type containing TP -> recursively substitute declared bound; `ref` / `value` bound constraints from P3-T06 must be representable or rejected if they cannot appear as callable param effective type.
+  2. Implement signature equivalence: arity + effective parameter types, with transparent type alias expansion.
+  3. Ensure return type and effect row are excluded from signature equivalence.
+  4. Detect TP alpha-equivalent signatures as conflicts.
+  5. Add diagnostics listing both conflicting declarations with file/line/col and rendered signature.
+- 必须遵从的约束：
+  - Do not use pretty `TypeStore::display()` text as the only equality mechanism.
+  - Do not include return type/effect row in conflict checks.
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. typecheck fixtures for return-only conflict, effect-only conflict, TP alpha-equivalent conflict, `<T>` vs `<T: Any>` conflict.
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - All later overload definition-time checks can reuse a single effective signature model.
+- 依赖：P3-T07R
+- 完成记录：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 新增 definition-time effective type / effective signature model，并接入 fun / constructor overload set 检查、默认参数歧义检查和冲突诊断；在 `crates/scoopc_hir/src/resolve/mod.rs` 补充签名元数据注释，明确 type parameter bounds 用于 effective signature，return/effect row 不参与 overload signature；新增 typecheck fixtures 覆盖 effect-only conflict、TP alpha-equivalent conflict、`<T>` vs `<T: Any>` conflict、typealias 透明等价 conflict，并复用既有 return-only conflict fixture。
+  - 核心决策：effective type 以结构化 enum 比较，不依赖 pretty `TypeStore::display()` 文本；method-level TP 会替换为 declared bound，无 bound 默认为 `Any`，复合类型递归替换，`ref` / `value` bound-kind 作为 effective type atom 表达，多 bound 以 canonical intersection 表达；typealias 仍通过既有 `TypeLowering` 展开后进入 helper；callable return type 与 effect row 仅用于诊断原因，不参与 signature equivalence。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build`；targeted overload conflict fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §3、§4.1、§6.4、§9.1 与 `PLAN.md` P4 对 effective signature / signature equivalence helper 的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T01R：Review effective signature helper
+
+- 参考：
+  - P4-T01 完成记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.1、§6.4、§9.1
+- 目标：
+  - 复核 effective signature helper 是否可作为 P4 后续规则的单一基础。
+- 必须检查的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs`
+  - `crates/scoopc_hir/src/resolve/mod.rs`
+  - type alias / type equality helper callsites touched by P4-T01
+  - conflict fixtures
+- 必须实现的内容：
+  1. 确认 signature 不含 return type/effect row。
+  2. 确认 TP alpha-equivalence 和 `<T>` vs `<T: Any>` conflict 被覆盖。
+  3. 确认 helper 不依赖 pretty text 做唯一相等判断。
+  4. 确认 diagnostics 有双方位置和 signature。
+- 必须遵从的约束：
+  - 不得接受多个并行 signature equivalence 实现。
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted overload conflict fixtures。
+- 完成条件：
+  - P4-T02/P4-T03/P4-T05 可复用该 helper。
+- 依赖：P4-T01
+- 完成记录：
+  - 改动范围：复核 `P4-T01` 的 effective signature helper、`resolve::FunSig` / `ParamSig` 元数据注释、typealias 透明等价 fixture 与 overload conflict fixtures；在 `crates/scoopc_hir/src/typecheck/overloads.rs` 抽出统一的 `EffectiveSignature` 借用视图，让 fun / constructor 的 signature equivalence 与默认参数位置歧义检查都通过同一 helper 入口执行，移除并行的 fun-only / ctor-only 等价实现。
+  - 核心决策：definition-time signature identity 继续只包含 receiver 与 effective parameter types；callable 自身 return type / effect row 只用于诊断原因，不参与等价判断；`EffectiveType` 的结构化 equality 仍是唯一判等机制，pretty render 仅用于排序稳定性与诊断展示；P4 后续 generic shape、vararg overlap、constructor overload 规则应复用 `EffectiveSignature`，不得再新增平行 signature-equivalence 路径。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted overload fixtures（return-only、effect-only、TP alpha-equivalent、`<T>` vs `<T: Any>`、typealias equivalent、default param、constructor default ambiguity）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1555)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认并收紧 `OVERLOAD_RESOLUTION.md` §4.1、§6.4、§9.1 对 signature equivalence 的要求；`P4-T02` / `P4-T03` / `P4-T05` 可基于统一 `EffectiveSignature` 继续实现 definition-time overload 规则；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T02：实现 generic overload shape 规则
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.2、§6.4
+- 目标：
+  - 允许“同 shape、仅 bound 不同”的 generic overload；拒绝当前不支持的 generic overload 形态。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs::{check_fun_overload_set,check_ctor_overload_set}`
+  - helper from P4-T01 for effective type / shape comparison
+  - `crates/scoopc_hir/src/typecheck/expr/call/generic.rs` only if shared bound-shape utilities belong there
+  - diagnostics definitions for `generic_overload_shape_mismatch`
+- 必须实现的内容：
+  1. Allow legal cases: `fun debugPrint<T>(x: T)` with `fun debugPrint<T: Debug>(x: T)`; `fun h<T>(x: T)` with `fun h(x: Int)`; bound chain such as `<T: Animal>` vs `<T: Dog>` when shape matches.
+  2. Reject unsupported shape mismatch: `fun f<T>(x: T, y: T)` vs `fun f<T, U>(x: T, y: U)`; TP appearing in different nested positions when not purely differ-by-bound; TP count differences that create consistency constraints.
+  3. Do not reject incomparable same-shape bounds at definition time; leave `Comparable` vs `Numeric` ambiguity to call site.
+  4. Diagnostic `scoop::typecheck::generic_overload_shape_mismatch` must include both candidates and hint to rename or restructure.
+- 必须遵从的约束：
+  - Do not implement inferred-substitution specialization.
+  - Do not reject bound-incomparable same-shape overloads at definition time.
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. typecheck fixtures for legal differ-by-bound, legal concrete+generic, rejected TP consistency constraint, legal incomparable bounds.
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - Generic overload sets entering P5 match `OVERLOAD_RESOLUTION.md` §4.2.
+- 依赖：P4-T01R
+- 完成记录：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 为 definition-time overload checks 增加 `GenericShape` / `GenericShapeMatcher`，让同 effective signature 但方法级 type parameter 拓扑不兼容的泛型重载报 `scoop::typecheck::generic_overload_shape_mismatch`；fun / constructor overload set 均复用该检查入口；新增 typecheck fixtures 覆盖 differ-by-bound 合法、concrete + generic 合法、incomparable bounds 合法，以及 `T,T` vs `T,U` consistency shape mismatch reject。
+  - 核心决策：generic shape mismatch 只在 effective signature 已经相同、否则会落入 `overload_conflict` 的 definition-time 冲突类中进一步区分；同 shape 仅 bound 不同的候选继续放行到 P5 call-site specificity，bound 不可比也不在定义点提前 reject；receiver / parameter effective shape 本身不同的既有合法 overload（例如 sysroot `FunPtr` receiver-function invoke variants）不被误判为 P4-T02 consistency constraint。
+  - 验证结果：`cargo fmt`；`cargo build -p scoop -p scoopc`；targeted generic overload fixtures；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.2、§6.4 与 `PLAN.md` P4 对 generic overload shape definition-time reject / allowlist 的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T02R：Review generic overload shape 规则
+
+- 参考：
+  - P4-T02 完成记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.2、§6.4
+- 目标：
+  - 复核 generic overload shape 判断准确，未过度 reject 或放行 unsupported 形态。
+- 必须检查的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs`
+  - generic overload fixtures
+  - diagnostics definitions touched by P4-T02
+- 必须实现的内容：
+  1. 确认 differ-by-bound 合法。
+  2. 确认 concrete + generic same-shape 合法。
+  3. 确认 TP consistency constraint 被 reject。
+  4. 确认 incomparable same-shape bounds 定义点通过。
+  5. 确认错误码和 hint 符合设计。
+- 必须遵从的约束：
+  - 不得把 call-site ambiguity 提前错误地作为 definition-time reject。
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted generic overload fixtures。
+- 完成条件：
+  - P4-T02 行为符合 §4.2。
+- 依赖：P4-T02
+- 完成记录：
+  - 改动范围：复核 `crates/scoopc_hir/src/typecheck/overloads.rs` 中的 `GenericShape` / `GenericShapeMatcher`、fun / constructor overload set 接入点、`scoop::typecheck::generic_overload_shape_mismatch` 诊断定义，以及 P4-T02 新增的四个 generic overload typecheck fixtures；未发现需要修改实现的缺陷。
+  - 核心决策：确认 P4-T02 只在 effective signature 相同且方法级 TP shape 不可对齐时报告 `generic_overload_shape_mismatch`；differ-by-bound、concrete + generic same-shape、bound 不可比的 same-shape overload 均保留到 P5 call-site specificity，未把 call-site ambiguity 提前作为 definition-time reject。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted generic overload fixtures（differ-by-bound、concrete + generic、`T,T` vs `T,U` consistency mismatch、incomparable bounds）；`python3 tools/run_fixtures.py`（`fixtures: ok (1559)`）。`cargo test --all --all-targets` 未重跑：本 review 未修改编译产物，沿用 P4-T02 完成记录中的 green run。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T02 行为符合 `OVERLOAD_RESOLUTION.md` §4.2 / §6.4 与 `PLAN.md` P4 generic overload shape 目标；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T03：实现 vararg 与非 vararg overlap 的定义点 reject
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.3、§8.2
+- 目标：
+  - 同名 vararg 与非 vararg 候选只要存在可共同适用的 arity/type overlap，就在定义点拒绝。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/headers.rs::check_vararg_params`
+  - `crates/scoopc_hir/src/typecheck/overloads.rs::{check_fun_overload_set,check_ctor_overload_set}`
+  - `crates/scoopc_hir/src/typecheck/expr/call/args.rs::{map_call_args_to_params_with_defaults,map_call_args_to_params_with_defaults_and_varargs}` for compatibility with call-site mapper assumptions
+  - diagnostics for `vararg_overlaps_non_vararg`
+- 必须实现的内容：
+  1. For each same-name overload set, compare vararg candidates with non-vararg candidates.
+  2. Reject if non-vararg arity is in vararg acceptable range and corresponding fixed/vararg element types are compatible by subtype/effective type check.
+  3. Include candidate locations and signatures in diagnostic.
+  4. Add fixtures for rejected `fun a(x: Int)` + `fun a(xs: Int*)`, and legal non-overlap `fun b()` + `fun b(x: Int, ys: Int*)`.
+- 必须遵从的约束：
+  - Do not defer vararg overlap ambiguity to call site.
+  - Do not use spread operator as disambiguation escape hatch.
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted vararg overload fixtures.
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - Call-site resolution never sees vararg/non-vararg arity overlap ambiguity.
+- 依赖：P4-T02R
+- 完成记录：
+  - 改动范围：在 `crates/scoopc_hir/src/typecheck/overloads.rs` 为 definition-time signature metadata 记录原始 `TypeId` 与 `is_vararg`，新增 `scoop::typecheck::vararg_overlaps_non_vararg` 诊断，并在 fun / constructor overload set 检查中先于普通 signature conflict 执行 vararg/non-vararg overlap 判定；在 `headers.rs::check_vararg_params` 与 call arg mapper 注释中明确单个 trailing vararg / definition-time overlap invariant；新增 typecheck fixtures 覆盖 `fun a(x: Int)` + `fun a(vararg xs: Int)` reject，以及 `fun b()` + `fun b(x: Int, vararg ys: Int)` legal non-overlap。
+  - 核心决策：vararg overlap 使用现有 effective signature helper 作为基础，同时保留参数 `TypeId` 以复用 subtype/assignability 检查；只比较 vararg 与非 vararg 候选，若非 vararg 可接受 arity 落入 vararg 可接受 arity，且所有位置的 fixed/vararg element types 通过 effective equality / `Any` / subtype 任一方向兼容，则在定义点报错；该检查优先于普通 duplicate/default conflict，确保不会把 vararg overlap 推迟到 P5 call-site resolution，也不会让 spread 成为 disambiguation escape hatch。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted vararg overload fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1561)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T03R：Review vararg overlap reject
+
+- 参考：
+  - P4-T03 完成记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.3、§8.2
+- 目标：
+  - 复核 vararg overlap reject 的覆盖和诊断质量。
+- 必须检查的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs`
+  - `crates/scoopc_hir/src/typecheck/headers.rs`
+  - vararg overload fixtures
+- 必须实现的内容：
+  1. 确认 overlap cases 在定义点 reject。
+  2. 确认 non-overlap legal cases 通过。
+  3. 确认 diagnostics 包含候选位置。
+  4. 确认 spread operator 没有成为规避定义点 reject 的旁路。
+- 必须遵从的约束：
+  - 不得把 overlap reject 推迟到 P5 call-site。
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted vararg fixtures。
+- 完成条件：
+  - P4-T03 行为符合 §4.3 / §8.2。
+- 依赖：P4-T03
+- 完成记录：
+  - 改动范围：复核 `crates/scoopc_hir/src/typecheck/overloads.rs` 的 vararg/non-vararg overlap 判定、`headers.rs::check_vararg_params` 的单 trailing vararg invariant、call arg mapper 对 definition-time disambiguation 的假设，以及 P4-T03 的 rejected / legal vararg overload fixtures；新增 `tests/fixtures/typecheck/vararg_overload_overlap_spread_is_error.scoop`，显式覆盖 spread 调用不能绕过定义点 reject。
+  - 核心决策：确认 overlap reject 在 ordinary duplicate/default conflict 前执行，且同时覆盖 fun / constructor overload set；诊断 `scoop::typecheck::vararg_overlaps_non_vararg` 包含双方 source label 与 rendered signature；合法的 `b()` + `b(x, vararg ys)` non-overlap 保留到调用点，spread syntax 不作为 overload 区分逃生口。
+  - 验证结果：`cargo fmt --check`；`cargo clippy --all-targets -- -D warnings`；targeted vararg fixtures（overlap reject、non-overlap ok、spread bypass reject）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1562)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T03 行为符合 `OVERLOAD_RESOLUTION.md` §4.3 / §8.2 与 `PLAN.md` P4 对 vararg/non-vararg overlap definition-time reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T04：实现 override / overload 边界与虚方法 generic 禁止
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.4、§4.5、§7.1、§9.3
+- 目标：
+  - 明确 method override 与 overload 的定义点边界，并禁止 virtual method 引入方法级 TP。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/inheritance.rs::{check_file_inheritance,check_fun_override,check_property_override}`
+  - `crates/scoopc_hir/src/typecheck/interfaces.rs::{check_file_interfaces,check_one_interface_impl,member_fun_match}`
+  - `crates/scoopc_hir/src/typecheck/override_effects.rs::check_file_override_effects`
+  - `crates/scoopc_hir/src/typecheck/overloads.rs` if method overload set checks live there
+  - `crates/scoopc_hir/src/resolve/mod.rs::ModifierSet`
+  - diagnostics for `override_non_open_method`, `missing_override`, `override_target_not_found`, `virtual_method_cannot_be_generic`
+- 必须实现的内容：
+  1. Parent non-open + child same signature -> reject, regardless of child `override` spelling.
+  2. Parent open + child same signature without `override` -> reject.
+  3. Child `override` with no matching parent signature -> reject.
+  4. Child same name but different signature -> legal new overload.
+  5. Reject method-level type params on `open fun`, `abstract fun`, `override fun`, and interface body methods.
+  6. Allow class-level/interface-level TP in virtual method signatures.
+  7. Ensure effect row is not used to find override target; effect variance/compat stays in `override_effects` after target match.
+- 必须遵从的约束：
+  - Do not treat same-name/different-signature child method as overriding non-open parent.
+  - Do not allow virtual generic method through vtable/interface path.
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. typecheck fixtures for four override boundary cases and virtual generic rejection.
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - Method overload/override sets satisfy `OVERLOAD_RESOLUTION.md` §4.4-§4.5.
+- 依赖：P4-T03R
+- 完成记录：
+  - 改动范围：新增 `crates/scoopc_hir/src/typecheck/signature_match.rs`，让 inheritance / interface / override-effect 路径用 lowered parameter signature（不含 return type / effect row）和 owner type-arg substitution 匹配 override / interface targets；更新 `inheritance.rs`、`interfaces.rs`、`override_effects.rs`、`annotations.rs`、`lower.rs` 与 `resolve::ModifierSet`，实现 non-open same-signature reject、missing `override`、`override` target-not-found、same-name/different-signature legal overload，以及 virtual method-level TP reject；将 sysroot `Map<K, V>.getValue` 从 method-level generic 迁移为使用 interface-level `V`；新增 / 更新 override、virtual generic、interface matching fixtures，并同步 HIR / effect-lowered golden metadata。
+  - 核心决策：override target lookup 与 interface implementation matching 统一按参数 signature 判断，明确保留 method name 作为 interface member identity，return type 和 callable effect row 不参与 target lookup，effect row compatibility 继续留在 `override_effects` 的 target match 之后执行；`open` / `abstract` / `override` / interface methods 的 method-level type params 在 annotation/inheritance 侧诊断为 `scoop::typecheck::virtual_method_cannot_be_generic`，class/interface-level type params 通过 owner instantiation 保持合法；旧的 arity-only interface ambiguity fixture 改为 same-name/different-signature pass fixture。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted override/interface fixtures；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5、§7.1、§9.3 与 `PLAN.md` P4 对 override / overload 边界、virtual generic 禁止和 effect-row lookup 分层的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T04R：Review override / overload 边界
+
+- 参考：
+  - P4-T04 完成记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §4.4、§4.5
+- 目标：
+  - 复核 override boundary 和 virtual generic reject 是否完整。
+- 必须检查的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/inheritance.rs`
+  - `crates/scoopc_hir/src/typecheck/interfaces.rs`
+  - `crates/scoopc_hir/src/typecheck/override_effects.rs`
+  - override/generic method fixtures
+- 必须实现的内容：
+  1. 确认四类 override boundary 行为覆盖。
+  2. 确认 method-level TP 在 virtual method positions 被 reject。
+  3. 确认 class-level/interface-level TP 仍可用于 virtual method signature。
+  4. 确认 effect row 不参与 override target lookup。
+- 必须遵从的约束：
+  - 不得让 virtual generic method 混入 vtable/interface path。
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted override/generic method fixtures。
+- 完成条件：
+  - P4-T04 行为符合 §4.4-§4.5。
+- 依赖：P4-T04
+- 完成记录：
+  - 改动范围：复核 P4-T04 最新提交涉及的 `inheritance.rs`、`interfaces.rs`、`override_effects.rs`、`annotations.rs`、`signature_match.rs` 与 override / interface / virtual generic fixtures；移除 `inheritance.rs` 中 unreachable 的 duplicate `virtual_method_cannot_be_generic` 检查，保留 `annotations.rs` 作为 virtual method-level TP reject 的单一诊断来源。
+  - 核心决策：确认四类 override boundary fixture、same-name/different-signature overload fixture、class/interface-level owner TP signature fixture，以及 override/interface effect-row fixture 覆盖 P4-T04 要求；duplicate inheritance-side virtual generic check 会造成维护分叉且实际被 annotation pass 先行覆盖，因此删除而不改变用户可见行为。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted override / interface / virtual generic fixtures（15 个）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1570)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T04 行为闭合 `OVERLOAD_RESOLUTION.md` §4.4、§4.5 对 override / overload 边界与 virtual generic reject 的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T05：把 constructor overload 纳入 definition-time 规则与 diagnostics
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §8.3
+- 目标：
+  - Constructor overload 与 fun overload 共用 signature equivalence、generic shape、vararg overlap 和 diagnostics。
+- 必须修改的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs::{collect_ctor_decl,check_ctor_overload_set}`
+  - `crates/scoopc_hir/src/resolve/mod.rs::ConstructorOverload`
+  - `crates/scoopc_hir/src/typecheck/expr/call/ctor.rs::{collect_matched_ctor_overloads_for_owner,pick_most_specific_ctor_overload,select_ctor_overload_for_owner}` for later P5 compatibility
+  - constructor parser/header metadata in `crates/scoopc_ast/src/parser/decls.rs`
+- 必须实现的内容：
+  1. Apply P4-T01 signature equivalence to constructors.
+  2. Apply P4-T02 generic shape rules to ctor-level type parameters.
+  3. Apply P4-T03 vararg overlap checks to constructors.
+  4. Distinguish ctor-level TP from class-level TP in diagnostics and effective signature.
+  5. Add fixtures for constructor duplicate signature, generic shape mismatch, and legal overload.
+- 必须遵从的约束：
+  - Do not treat class-level generic parameters as method/ctor-level specialization knobs.
+  - Do not implement call-site constructor specificity in this task; P5 owns selection.
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted constructor overload typecheck fixtures.
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - Definition-time overload contract is uniform for fun, method where applicable, and constructor.
+- 依赖：P4-T04R
+- 完成记录：
+  - 改动范围：为 `ast::SecondaryCtorDecl` 与 parser 增加 `constructor<T>(...) where ...` 的 ctor-level generic metadata；在 `resolve::ConstructorOverload` 中保留 ctor type params / where clause；更新 type ref resolve、type lowering、secondary ctor body typecheck scope 与 `overloads.rs::collect_ctor_decl`，让 constructor definition-time checks 复用 P4-T01 effective signature、P4-T02 generic shape 与 P4-T03 vararg overlap helper；新增 constructor overload fixtures 覆盖 duplicate signature、ctor-level generic shape mismatch、vararg overlap，以及 class-level / ctor-level generic legal overload。
+  - 核心决策：primary constructor 仍只使用 class-level type params；secondary constructor 可引入 ctor-level type params，definition-time effective signature 只把 ctor-level TP 替换为 bound/default `Any`，class-level TP 保持为声明参数，从而不被误当作 ctor-level specialization knob；P4-T05 只贯通 definition-time metadata 与 diagnostics，不实现或改变 P5 call-site constructor specificity。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；targeted constructor overload fixtures（duplicate signature、generic shape mismatch、vararg overlap、legal generic/class params、既有 default ambiguity/select fixtures）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1574)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §8.3 与 `PLAN.md` P4 对 constructor overload 共用 definition-time signature equivalence、generic shape、vararg overlap、诊断和 ctor-level/class-level TP 区分的要求；阶段计划无变化，未修改 `PLAN.md`。
+
+### [DONE] P4-T05R：Review constructor overload definition-time 规则
+
+- 参考：
+  - P4-T05 完成记录
+  - [`OVERLOAD_RESOLUTION.md`](./OVERLOAD_RESOLUTION.md) §8.3
+- 目标：
+  - 复核 constructor overload 已纳入 P4 definition-time 规则。
+- 必须检查的文件/位置：
+  - `crates/scoopc_hir/src/typecheck/overloads.rs`
+  - `crates/scoopc_hir/src/resolve/mod.rs`
+  - constructor overload fixtures
+- 必须实现的内容：
+  1. 确认 constructor duplicate signature、generic shape、vararg overlap 均复用 fun overload 规则。
+  2. 确认 ctor-level TP 与 class-level TP 区分正确。
+  3. 确认 diagnostics 有候选位置和 signature。
+  4. 确认未提前实现/改变 P5 call-site constructor specificity。
+- 必须遵从的约束：
+  - 不得让 constructor 成为 overload definition-time 规则的旁路。
+- 验证：
+  1. `python3 tools/run_fixtures.py`
+  2. targeted constructor overload fixtures。
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - P4 包全部完成；P5 可以基于合法 overload set 做 call-site resolution。
+- 依赖：P4-T05
+- 完成记录：
+  - 改动范围：复核 P4-T05 最新提交涉及的 secondary constructor generic parser / AST metadata、`resolve::ConstructorOverload` metadata、type ref resolve / type lowering / constructor body typecheck scope，以及 `overloads.rs::collect_ctor_decl` / `check_ctor_overload_set` 和 constructor overload fixtures；未发现需要修改实现的阻塞缺陷。
+  - 核心决策：确认 constructor duplicate signature、ctor-level generic shape mismatch、vararg/non-vararg overlap 均复用 P4-T01/P4-T02/P4-T03 的 shared definition-time helpers 与 shared diagnostics；ctor-level TP 被纳入 effective bounds / generic shape hole，class-level TP 保持为 owner-level closed type，不作为 constructor-level specialization knob；P4-T05 未提前实现或改变 P5 call-site constructor specificity。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted constructor overload fixtures（duplicate signature、generic shape mismatch、vararg overlap、legal generic/class params）；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（`fixtures: ok (1574)`）。
+  - 与 `PLAN.md` / 设计文档对应闭合：确认 P4-T05 行为闭合 `OVERLOAD_RESOLUTION.md` §8.3 与 `PLAN.md` P4 对 constructor overload definition-time 规则统一性的要求；P4 包全部完成，P5 可基于合法 overload set 做 call-site resolution；阶段计划无变化，未修改 `PLAN.md`。
