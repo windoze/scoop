@@ -63,7 +63,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         call_count = len(ALLOC_TYPED_CALL_RE.findall(ir))
         symbol_occurrences = ir.count("scoop_alloc_typed")
 
-        print(f"fixture={fixture.relative_to(REPO_ROOT)}")
+        try:
+            fixture_label = fixture.relative_to(REPO_ROOT)
+        except ValueError:
+            fixture_label = fixture
+        print(f"fixture={fixture_label}")
         print(f"scoop_alloc_typed_calls={call_count}")
         print(f"scoop_alloc_typed_symbol_occurrences={symbol_occurrences}")
 

@@ -181,7 +181,7 @@ static ScoopGcObjectHeader *scoop_gc_heap_find_object_containing_unlocked(ScoopG
   }
   const uintptr_t needed_end = addr + (uintptr_t)width;
 
-  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+  for (ScoopGcObjectHeader *it = scoop_gc_heap_objects_load_acquire(); it != 0; it = it->next) {
     const uint64_t raw_size = it->size_bytes;
     if (raw_size == 0 || raw_size > (uint64_t)UINTPTR_MAX) {
       continue;
@@ -2122,7 +2122,7 @@ static void scoop_gc_immix_promote_reachable_nursery_blocks_unlocked(ScoopGcImmi
       continue;
     }
 
-    for (ScoopGcObjectHeader *obj = heap->objects; obj != 0; obj = obj->next) {
+    for (ScoopGcObjectHeader *obj = scoop_gc_heap_objects_load_acquire(); obj != 0; obj = obj->next) {
       if (obj == 0 || obj->type_desc == 0) {
         continue;
       }
