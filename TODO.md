@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -47,7 +47,7 @@
 | P2-T01R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01rreview-nursery-full-minor-gc) | Review P2-T01 nursery-full minor GC |
 | P2-T02 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02block-pool-耗尽先-full-gc-再增长) | block pool 耗尽先 full GC 再增长 |
 | P2-T02R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02rreview-block-pool-回退) | Review P2-T02 block pool 回退 |
-| P2-T03 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03接入-hard-cap-与-oom-返回) | 接入 `SCOOP_GC_MAX_HEAP_BYTES` hard cap 与 OOM 返回 |
+| P2-T03 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03接入-hard-cap-与-oom-返回) | 接入 `SCOOP_GC_MAX_HEAP_BYTES` hard cap 与 OOM 返回 |
 | P2-T03R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03rreview-hard-cap) | Review P2-T03 hard cap |
 | P2-T04 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04hostedminimal-backend-pacing-parity) | hosted/minimal backend pacing parity |
 | P2-T04R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04rreview-backend-parity) | Review P2-T04 backend parity |

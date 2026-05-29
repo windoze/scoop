@@ -2817,6 +2817,7 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->next_gc = scoop_gc_pacing_initial_next_gc();
   heap->pacing_min_threshold_bytes = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
   heap->pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  heap->max_heap_bytes = 0;
   heap->request_collect = 0;
   heap->_pacing_reserved_u32 = 0;
 }
@@ -5755,36 +5756,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
     return 0;
   }
   scoop_gc_immix_lock(state);
-
-  uint64_t total = 0;
-
-  // 1) Immix blocks：以固定 block size 计入“已保留的 heap 空间”。
-  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
-    uint64_t block_bytes = (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE;
-    if (UINT64_MAX - total < block_bytes) {
-      total = UINT64_MAX;
-      break;
-    }
-    total += block_bytes;
-  }
-
-  // 2) large objects / fallback malloc：它们不在任何 block 内，需要单独计入。
-  if (total != UINT64_MAX) {
-    for (ScoopGcObjectHeader *obj = scoop_gc_heap_objects_load_acquire(); obj != 0; obj = obj->next) {
-      ScoopGcImmixBlock *block = scoop_gc_immix_state_find_block_containing_unlocked(state, obj);
-      if (block != 0) {
-        continue;
-      }
-
-      uint64_t size = obj->size_bytes;
-      if (UINT64_MAX - total < size) {
-        total = UINT64_MAX;
-        break;
-      }
-      total += size;
-    }
-  }
-
+  uint64_t total = scoop_gc_immix_heap_reserved_bytes_locked(state, &scoop_gc_heap);
   scoop_gc_immix_unlock(state);
   return total;
 }

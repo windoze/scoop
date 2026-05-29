@@ -118,7 +118,7 @@
   - 覆盖补强：新增 `immix_block_pool_exhaustion_grows_when_collection_cannot_reclaim`，用 pinned live old-space blocks 证明 full GC 无法回收时 allocation 仍会在一次 GC 后增长，而不是误报 OOM 或递归崩溃；保留原紧堆 reclaim workload 证明可回收时不提前增长。
   - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T03：接入 hard cap 与 OOM 返回
+### [DONE] P2-T03：接入 hard cap 与 OOM 返回
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -141,7 +141,11 @@
   - hard cap 生效，真 OOM 干净返回 NULL。
 - 依赖：P2-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：新增 `SCOOP_GC_MAX_HEAP_BYTES` runtime env 解析并写入 heap 配置，默认 `0` 表示无 cap；Immix block-pool 在 P2-T02 的 full-GC retry 后若仍需增长且会超过 cap，则拒绝 `posix_memalign` 新 block，让 `scoop_alloc` 走既有 `NULL` OOM 返回路径。
+  - 完整性：reserved heap 统计同时计入 Immix blocks 与 large/fallback malloc 对象；large-object malloc fallback 也会先 full GC 再判定 hard cap，避免绕过 `SCOOP_GC_MAX_HEAP_BYTES`。
+  - 测试：新增 `gc_immix_hard_cap`，覆盖 tight cap 下 unrooted block 经 full GC 回收后分配成功、live/pinned block 超 cap 时干净返回 `NULL`，以及 large-object fallback 遵守 hard cap。
+  - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`。
 
 ### [TODO] P2-T03R：Review hard cap
 

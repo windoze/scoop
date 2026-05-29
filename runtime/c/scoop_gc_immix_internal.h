@@ -124,6 +124,84 @@ static inline void scoop_gc_immix_heap_set_state(ScoopGcHeap *heap, ScoopGcImmix
   heap->free_list = (ScoopGcFreeBlock *)state;
 }
 
+extern ScoopGcHeap scoop_gc_heap;
+
+static inline uint64_t scoop_gc_immix_u64_saturating_add(uint64_t lhs, uint64_t rhs) {
+  if (UINT64_MAX - lhs < rhs) {
+    return UINT64_MAX;
+  }
+  return lhs + rhs;
+}
+
+static inline uint32_t scoop_gc_immix_state_contains_pointer_locked(
+    ScoopGcImmixState *state,
+    const void *ptr) {
+  if (state == 0 || ptr == 0) {
+    return 0;
+  }
+
+  const uintptr_t addr = (uintptr_t)ptr;
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    const uintptr_t start = (uintptr_t)it;
+    if (start > (UINTPTR_MAX - (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
+      continue;
+    }
+    const uintptr_t end = start + (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE;
+    if (addr >= start && addr < end) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+static inline uint64_t scoop_gc_immix_heap_reserved_bytes_locked(ScoopGcImmixState *state,
+                                                                 ScoopGcHeap *heap) {
+  uint64_t total = 0;
+  if (state != 0) {
+    for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+      total = scoop_gc_immix_u64_saturating_add(total,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE);
+    }
+  }
+
+  if (heap != 0 && total != UINT64_MAX) {
+    for (ScoopGcObjectHeader *obj =
+             __atomic_load_n(&heap->objects, __ATOMIC_ACQUIRE);
+         obj != 0;
+         obj = obj->next) {
+      if (scoop_gc_immix_state_contains_pointer_locked(state, obj)) {
+        continue;
+      }
+      total = scoop_gc_immix_u64_saturating_add(total, obj->size_bytes);
+      if (total == UINT64_MAX) {
+        break;
+      }
+    }
+  }
+
+  return total;
+}
+
+static inline uint32_t scoop_gc_immix_heap_can_reserve_locked(ScoopGcImmixState *state,
+                                                              ScoopGcHeap *heap,
+                                                              uint64_t bytes) {
+  if (heap == 0 || bytes == 0) {
+    return 1;
+  }
+
+  uint64_t max_heap_bytes = __atomic_load_n(&heap->max_heap_bytes, __ATOMIC_RELAXED);
+  if (max_heap_bytes == 0) {
+    return 1;
+  }
+
+  uint64_t reserved = scoop_gc_immix_heap_reserved_bytes_locked(state, heap);
+  if (reserved > max_heap_bytes) {
+    return 0;
+  }
+  return bytes <= (max_heap_bytes - reserved);
+}
+
 static inline size_t scoop_gc_immix_align_up_size(size_t value, size_t alignment) {
   if (alignment == 0) {
     return value;
@@ -592,6 +670,11 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(
   }
 
   if (block == 0) {
+    if (!scoop_gc_immix_heap_can_reserve_locked(state,
+                                                &scoop_gc_heap,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
+      return 0;
+    }
     block = scoop_gc_immix_block_alloc_new();
     if (block == 0) {
       return 0;

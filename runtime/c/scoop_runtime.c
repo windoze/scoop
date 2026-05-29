@@ -137,6 +137,7 @@ static uint64_t scoop_rt_gc_pacing_min_threshold_bytes =
     (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
 static double scoop_rt_gc_pacing_target_growth_factor =
     SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+static uint64_t scoop_rt_gc_max_heap_bytes = 0;
 
 static const char *scoop_rt_env_skip_space(const char *raw) {
   if (raw == 0) {
@@ -243,6 +244,8 @@ static void scoop_rt_parse_gc_pacing_config(void) {
   scoop_rt_gc_pacing_target_growth_factor = scoop_rt_parse_env_double_or_default(
       "SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR",
       SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR);
+  scoop_rt_gc_max_heap_bytes =
+      scoop_rt_parse_env_u64_or_default("SCOOP_GC_MAX_HEAP_BYTES", 0, 0);
 }
 
 static void scoop_rt_apply_gc_pacing_config(ScoopGcHeap *heap) {
@@ -252,6 +255,7 @@ static void scoop_rt_apply_gc_pacing_config(ScoopGcHeap *heap) {
 
   heap->pacing_min_threshold_bytes = scoop_rt_gc_pacing_min_threshold_bytes;
   heap->pacing_target_growth_factor = scoop_rt_gc_pacing_target_growth_factor;
+  heap->max_heap_bytes = scoop_rt_gc_max_heap_bytes;
   heap->next_gc = scoop_rt_gc_pacing_enabled ? scoop_rt_gc_pacing_min_threshold_bytes : 0;
   heap->request_collect = 0;
 }
@@ -263,6 +267,34 @@ static void scoop_rt_apply_gc_pacing_config(ScoopGcHeap *heap) {
 // - `scoop_runtime_init()` 会初始化 heap；`scoop_alloc` 会把对象登记到 heap 链表；
 // - 手动触发 GC：`scoop_gc_collect()`（TODO T0910）。
 extern ScoopGcHeap scoop_gc_heap;
+
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+static uint32_t scoop_rt_gc_immix_can_reserve_after_full_gc(ScoopGcImmixState *state,
+                                                            uint64_t bytes) {
+  if (state == 0 || !state->lock_inited) {
+    return 1;
+  }
+  if (__atomic_load_n(&scoop_gc_heap.max_heap_bytes, __ATOMIC_RELAXED) == 0) {
+    return 1;
+  }
+
+  (void)pthread_mutex_lock(&state->lock);
+  uint32_t can_reserve =
+      scoop_gc_immix_heap_can_reserve_locked(state, &scoop_gc_heap, bytes);
+  uint32_t in_collection = state->collection_depth != 0;
+  (void)pthread_mutex_unlock(&state->lock);
+  if (can_reserve || in_collection) {
+    return can_reserve;
+  }
+
+  scoop_gc_collect();
+
+  (void)pthread_mutex_lock(&state->lock);
+  can_reserve = scoop_gc_immix_heap_can_reserve_locked(state, &scoop_gc_heap, bytes);
+  (void)pthread_mutex_unlock(&state->lock);
+  return can_reserve;
+}
+#endif
 
 uint32_t scoop_runtime_is_initialized(void) {
   return scoop_rt_initialized;
@@ -359,6 +391,11 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(
     block->next_free = 0;
   } else {
     if (state->nursery_blocks >= state->nursery_max_blocks) {
+      return 0;
+    }
+    if (!scoop_gc_immix_heap_can_reserve_locked(state,
+                                                &scoop_gc_heap,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
       return 0;
     }
 
@@ -654,7 +691,9 @@ void *scoop_alloc(uint64_t size) {
 
   size_t cap = scoop_gc_immix_block_payload_capacity();
   if ((size_t)object_size > cap) {
-    p = malloc((size_t)object_size);
+    if (scoop_rt_gc_immix_can_reserve_after_full_gc(state, object_size)) {
+      p = malloc((size_t)object_size);
+    }
   } else {
     // nursery 优先（bump-only + 上限）。nursery 用尽时先做一次 minor GC，再重试一次。
     if (state->nursery_max_blocks != 0) {

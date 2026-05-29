@@ -290,6 +290,8 @@ typedef struct ScoopGcHeap {
   uint64_t next_gc;
   uint64_t pacing_min_threshold_bytes;
   double pacing_target_growth_factor;
+  // Hard cap（P2）：0 表示不限制 reserved heap growth。
+  uint64_t max_heap_bytes;
   uint32_t request_collect;
   uint32_t _pacing_reserved_u32;
 } ScoopGcHeap;
