@@ -144,7 +144,7 @@
   - 任务/设计修正：已同步更新 `GC_IMMORTAL_FIX.md`、`PLAN.md` 与 `TODO-3.md`，明确 P4 的 `SCOOP_GC_FLAG_IMMORTAL` 短路必须覆盖 Immix serial/parallel marker 以及 baseline/minimal/hosted marker helper，不能只改 Immix serial helper。
   - 验证：本 review 只修改 Markdown/任务记录/计划记录；`git diff --check` 通过。未重新运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 或 `python3 tools/run_fixtures.py`，复用 P0-T01/P0-T01R 最近绿色全量结果（fixtures ok 1607），原因是本次无代码或 fixture 行为变更。
 
-### [TODO] P0-T03：建立堆增长与字面量分配计数度量
+### [DONE] P0-T03：建立堆增长与字面量分配计数度量
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -168,7 +168,13 @@
   - 后续 P1（堆有界）与 P5/P6（零分配）可直接复用这两个度量做前后对比。
 - 依赖：P0-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已建立两个可复用度量，未改变运行期或编译期行为。
+  - 长程序堆增长度量：`crates/scoop_runtime/src/bin/gc_microbench.rs` 新增 `heap-growth` 场景，运行方式为 `cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`。默认执行 10M 个 32-byte 小对象分配、每 1M 次采样，不在循环中主动 GC，用于 P1 前后对比 pacing 是否让 live/reserved 变有界。
+  - baseline 数值（Immix，默认无 pacing）：`allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；采样点显示 `allocated/live` 从 0 线性增长到 320000000，符合当前无界增长基线。
+  - 字面量分配计数度量：新增 `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`，只包含 `String` literal 与 `getPlatform()` 读取的可达函数；新增 `tools/literal_alloc_metric.py`，运行方式为 `python3 tools/literal_alloc_metric.py --expect-min 1`，内部通过 `scoopc emit-artifact --kind llvm-ir` 生成 IR 并统计 `call/invoke @scoop_alloc_typed`。
+  - baseline 字面量计数：`scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`；其中 call 计数覆盖 1 个 String literal wrapper 分配与 `Platform` 的 5 个字段 String wrapper 分配，符合当前 per-use 分配基线。
+  - fixture 表达能力检查：`tools/run_fixtures.py` 已支持 `ARGS: --emit-llvm`、`BUILD-LLVM-CONTAINS`、`BUILD-LLVM-REGEX`、`BUILD-LLVM-NOT-CONTAINS`；本任务使用 `BUILD-LLVM-CONTAINS: @scoop_alloc_typed` 作为全量 fixture suite 中的 baseline 存在性检查，精确计数由专用工具承担，未扩展 fixture runner 行为。
+  - 验证：`cargo fmt`、`cargo test -p scoop_runtime --bin gc_microbench`、`python3 tools/literal_alloc_metric.py --expect-min 1`、`python3 tools/literal_alloc_metric.py --expect-calls 6`、`cargo run -p scoop_runtime --bin gc_microbench -- heap-growth --allocations 1000 --sample-every 500 --json`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
 ### [TODO] P0-T03R：Review 度量基线
 
