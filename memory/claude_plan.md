@@ -53,3 +53,25 @@
 - 10M baseline heap-growth 度量已运行：`allocations=10000000`、`object_size=32`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`，采样点显示 allocated/live 从 0 线性增长到 320000000，`freed=0`。
 - 完整验证已通过：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`（`fixtures: ok (1608)`）。随后只更新了任务记录和 Rust 顶部说明注释，并重新运行了 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`；fixture 移到可提交路径后也重新运行了 targeted 计数、单 fixture 与完整 fixture suite。
 - 已将 `P0-T03` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，并写入运行方式、baseline 数值与验证记录；`PLAN.md` 未变，因为阶段级计划未改变。
+
+## P0-T03R 执行计划
+
+1. 读取 `TODO.md` 并确认第一个未完成任务。
+2. 只检查最新提交是否声明了与该任务直接相关的未完事项。
+3. 读取 `TODO-1.md` 中 `P0-T03R` 的目标、约束和验证要求。
+4. 复核 `P0-T03` 新增的两个度量代码与运行方式。
+5. 运行 `cargo fmt`，实际复跑字面量分配计数和 10M heap-growth 度量，确认 baseline 数值可复现。
+6. 运行 `cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 和完整 fixture suite，确认度量不破坏 baseline 全量回归。
+7. 将 `P0-T03R` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，补充复核数值与验证记录。
+8. 检查 diff/status/log 后提交 `[P0-T03R] Review GC metrics baseline`，然后停止。
+
+## P0-T03R 当前执行结果
+
+- 已读取 `TODO.md`：第一个未完成任务是 `P0-T03R：Review 度量基线`。
+- 已检查最近提交：`1c8378c7 [P0-T03] Establish GC allocation metrics`，提交信息未声明与 `P0-T03R` 直接相关的未完事项。
+- 已读取 `TODO-1.md` 中 `P0-T03R` 任务正文，并复核 `crates/scoop_runtime/src/bin/gc_microbench.rs`、`tools/literal_alloc_metric.py`、`tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`。
+- `cargo fmt` 已通过。
+- 字面量分配计数度量已复跑：`python3 tools/literal_alloc_metric.py --expect-calls 6` 输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致。
+- 10M heap-growth 度量已复跑：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 输出 `allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点从 0 线性增长到 320000000。
+- 完整验证已通过：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`；fixture 汇总 `fixtures: ok (1608)`。
+- 已将 `P0-T03R` 在 `TODO.md` 与 `TODO-1.md` 中标为 `[DONE]`，并补充复核数值与验证记录；`PLAN.md` 未变，因为阶段级计划未改变。

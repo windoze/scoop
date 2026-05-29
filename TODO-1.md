@@ -176,7 +176,7 @@
   - fixture 表达能力检查：`tools/run_fixtures.py` 已支持 `ARGS: --emit-llvm`、`BUILD-LLVM-CONTAINS`、`BUILD-LLVM-REGEX`、`BUILD-LLVM-NOT-CONTAINS`；本任务使用 `BUILD-LLVM-CONTAINS: @scoop_alloc_typed` 作为全量 fixture suite 中的 baseline 存在性检查，精确计数由专用工具承担，未扩展 fixture runner 行为。
   - 验证：`cargo fmt`、`cargo test -p scoop_runtime --bin gc_microbench`、`python3 tools/literal_alloc_metric.py --expect-min 1`、`python3 tools/literal_alloc_metric.py --expect-calls 6`、`cargo run -p scoop_runtime --bin gc_microbench -- heap-growth --allocations 1000 --sample-every 500 --json`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
-### [TODO] P0-T03R：Review 度量基线
+### [DONE] P0-T03R：Review 度量基线
 
 - 参考：
   - P0-T03 完成记录
@@ -195,7 +195,11 @@
   - 度量可复现、可作为前后对比基线。
 - 依赖：P0-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已独立复核 P0-T03 度量基线；未修改运行期或编译期行为。
+  - 字面量分配计数复核：`python3 tools/literal_alloc_metric.py --expect-calls 6` 通过，输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致，确认 String literal + Platform 读取仍能客观反映 per-use wrapper 分配。
+  - 长程序堆增长复核：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，输出 `allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；1M 采样点从 0 线性增长到 320000000，确认 baseline 仍反映默认无 pacing 的无界增长。
+  - 全量 suite 影响复核：新增 fixture `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop` 在完整 fixture suite 中通过，度量未破坏 baseline 全量回归。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
 ## P1：Pacing 核心：堆增长阈值触发
 
