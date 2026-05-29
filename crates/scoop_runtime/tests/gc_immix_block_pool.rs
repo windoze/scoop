@@ -24,6 +24,8 @@ mod immix {
 
         fn scoop_alloc(size: u64) -> *mut c_void;
         fn scoop_gc_collect();
+        fn scoop_pin(obj: *mut c_void) -> u32;
+        fn scoop_unpin(obj: *mut c_void) -> u32;
 
         fn scoop_gc_debug_heap_bytes_reserved() -> u64;
         fn scoop_gc_debug_heap_gc_cycles() -> u64;
@@ -81,5 +83,72 @@ mod immix {
             scoop_gc_collect();
             scoop_thread_unregister();
         }
+    }
+
+    #[test]
+    fn immix_block_pool_exhaustion_grows_when_collection_cannot_reclaim() {
+        // Keep all old-space blocks live so the block-pool hard trigger must fall through to growth
+        // after its full-GC retry instead of treating an ineffective collection as OOM.
+        unsafe {
+            std::env::set_var("SCOOP_GC_PACING", "off");
+            std::env::remove_var("SCOOP_GC_STRESS");
+            std::env::remove_var("SCOOP_GC_IMMIX_NURSERY_BYTES");
+            std::env::remove_var("SCOOP_GC_IMMIX_NURSERY_BLOCKS");
+        }
+
+        unsafe {
+            scoop_runtime_init();
+            scoop_thread_register();
+            scoop_gc_collect();
+        }
+
+        let object_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64 + 24 * 1024;
+        let mut pinned = Vec::new();
+        let mut allocation_failed_at = None;
+        let mut previous_reserved = unsafe { scoop_gc_debug_heap_bytes_reserved() };
+        let mut previous_cycles = unsafe { scoop_gc_debug_heap_gc_cycles() };
+        let mut saw_collect_then_grow = false;
+
+        for i in 0..256usize {
+            let obj = unsafe { scoop_alloc(object_size) };
+            if obj.is_null() {
+                allocation_failed_at = Some(i);
+                break;
+            }
+            assert_eq!(
+                unsafe { scoop_pin(obj) },
+                1,
+                "pin must succeed for heap object"
+            );
+            pinned.push(obj);
+
+            let reserved = unsafe { scoop_gc_debug_heap_bytes_reserved() };
+            let cycles = unsafe { scoop_gc_debug_heap_gc_cycles() };
+            if cycles > previous_cycles && reserved > previous_reserved {
+                saw_collect_then_grow = true;
+                break;
+            }
+
+            previous_reserved = reserved;
+            previous_cycles = cycles;
+        }
+
+        for obj in pinned {
+            assert_eq!(unsafe { scoop_unpin(obj) }, 1, "unpin must succeed");
+        }
+        unsafe {
+            scoop_gc_collect();
+            scoop_thread_unregister();
+        }
+
+        assert!(
+            allocation_failed_at.is_none(),
+            "allocation must not fail before growth after ineffective full GC (failed at {:?})",
+            allocation_failed_at
+        );
+        assert!(
+            saw_collect_then_grow,
+            "exhausting live old-space blocks should collect once and then grow when nothing is reclaimable"
+        );
     }
 }

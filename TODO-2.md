@@ -94,7 +94,7 @@
   - 测试：新增 `gc_immix_block_pool` 覆盖紧堆 old-space workload，断言 block-pool exhaustion 会增加 `gc_cycles` 且不增加 reserved bytes；同步修正受 hard trigger 影响的 STW/native-blocking 测试、pacing-env 断言与同进程 runtime-global 测试隔离，使其遵守 P2 hard-trigger contract。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_block_pool -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_enter_native -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_mark_region -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark_sweep_stress -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_allocator -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stackmap_multiframe_keepalive -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stop_the_world -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02R：Review block pool 回退
+### [DONE] P2-T02R：Review block pool 回退
 
 - 参考：
   - P2-T02 完成记录
@@ -113,7 +113,10 @@
   - block pool 回退正确。
 - 依赖：P2-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - Review 结论：P2-T02 的 block-pool fallback 在 reusable/free 两表耗尽时先释放 Immix lock 并触发一次 full GC，collector 持有 heap 时通过 `collection_depth` 跳过递归触发，单次 mutator 分配通过 `did_block_pool_collect` 避免重复 full GC。
+  - 覆盖补强：新增 `immix_block_pool_exhaustion_grows_when_collection_cannot_reclaim`，用 pinned live old-space blocks 证明 full GC 无法回收时 allocation 仍会在一次 GC 后增长，而不是误报 OOM 或递归崩溃；保留原紧堆 reclaim workload 证明可回收时不提前增长。
+  - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T03：接入 hard cap 与 OOM 返回
 
