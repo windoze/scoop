@@ -1,38 +1,31 @@
 # 当前执行计划
 
-## 约束
+## 目标
+- 按照 `TODO.md` 的权威顺序，只完成第一个未以 `[DONE]` 标记的任务。
+- 完成实现、验证、任务记录更新和 Git 提交后停止，不进入下一项任务。
 
-- 以 `TODO.md` 为任务顺序和完成状态的唯一权威来源。
-- 本次只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 若发现当前任务被具体缺陷或缺失特性阻塞，优先修复该阻塞项；若无法在本次直接修复，则在 `TODO.md` 中插入最小前置任务并提交后停止。
-- 不使用规避实现、弱化测试或变更任务范围来绕过规范不匹配。
-- 在提交前按要求运行格式化、lint、相关测试，以及需要时的完整测试/fixture 套件。
+## 执行步骤
+1. 读取 `TODO.md`，确认第一个未完成任务的编号、范围、依赖和验证要求。
+2. 检查最新提交摘要，仅在它明确提到与当前任务直接相关的未完成问题时纳入当前任务或作为前置任务处理。
+3. 阅读当前任务涉及的代码、测试、规格或夹具，确定最小正确实现路径。
+4. 如发现阻塞当前任务的缺失特性、规格不匹配或未安排的测试失败，优先修复；若无法在当前任务内正确修复，则把最小前置任务插入 `TODO.md`、保持当前任务未完成、提交并停止。
+5. 实施当前任务所需代码或文档改动，避免绕过规格或夹具特判。
+6. 按要求运行格式化、lint、测试和夹具验证：先 `cargo fmt`，再 `cargo clippy --all-targets -- -D warnings`，再按任务需要运行完整 Rust 测试和夹具套件。
+7. 若发现未安排的失败测试或夹具，修复或在 `TODO.md` 中安排到当前任务完成前。
+8. 将当前任务标题加上 `[DONE]`，更新完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+9. 检查工作区差异，提交本次任务相关全部改动，提交信息使用任务编号和简要说明。
+10. 停止，不处理下一个任务。
 
-## 步骤
-
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录其依赖、验证要求和完成记录格式。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只把直接阻塞当前任务的问题纳入范围。
-3. 根据任务内容检查相关源码、测试和文档，确认需要修改的最小范围。
-4. 实现当前任务；若发现规范级阻塞，更新 `TODO.md` 中的依赖/前置任务并停止。
-5. 运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，随后运行任务要求的相关测试；若代码变更影响全局行为，再运行完整 Rust 测试和 fixture 套件。
-6. 处理所有未明确排期的失败测试/fixture：能修则修，不能修则在 `TODO.md` 中加入最小必要前置任务。
-7. 将当前任务标题加上 `[DONE]`，更新完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
-8. 检查 git 状态和 diff，提交本次任务相关的所有未提交变更。
-9. 停止，不继续下一个任务。
-
-## 进度
-
-- 已定位首个未完成任务：`P5-T03R`，review `P5-T03` 的 call surface 整合结果。
-- 最近提交为 `[P5-T03] Integrate call surface overload resolution`，与当前 review 直接相关；本次将以该提交完成记录和 `OVERLOAD_RESOLUTION.md` §7-§9 为基准。
-- 已确认并修正 review 范围内的三个缺口：inherited member receiver effective type 不再被调用 receiver 抹平；删除 function-value / operator / compareTo 的 exact-match 兜底；scalar operator unsafe/NoGC gate 改为唯一候选选中后执行。
-- 已新增并保留 targeted fixtures 覆盖 member effect-after-selection no fallback，以及适用但非 `operator` 的同名方法不影响 operator-positioned selection。
-- 已校准两个不稳定负例（inherited receiver ambiguity、function-value exact-match ambiguity）并删除，避免把当前实现未承诺的诊断形态写成错误期望。
-- Targeted `tests/fixtures/typecheck` 已通过（536 个 fixture）。
-- `cargo clippy --all-targets -- -D warnings` 已通过。
-- `cargo test --all --all-targets` 已通过。
-- `python3 tools/spec_fixtures.py check` 已通过。
-- 完整 `python3 tools/run_fixtures.py` 已通过（1606 checks）。
-- 已将 `P5-T03R` 在 `TODO.md` 和 `TODO-5.md` 标记为 `[DONE]` 并填写完成记录。
-- 已提交本任务变更：`4114289b [P5-T03R] Review call surface overload resolution`。
-- 当前仅剩与本任务无关的未跟踪 `REFLECTION.md`；不纳入本次提交。
-- 本次任务已完成，应停止，不继续 `P5-T04`。
+## 当前状态
+- 已读取 `TODO.md` / `TODO-5.md`，第一个未完成任务是 `P5-T04：贯通 selected callable identity，修复 concrete / arity / generic-concrete codegen bug`。
+- 已检查最新提交摘要，未发现直接声明 P5-T04 前置阻塞的未完成问题。
+- 已开始实现：`TopLevelFunCallBinding` 将携带选中 overload 的 `param_tys` / `return_ty`，并通过 HIR facts 传到 MIR lowering；MIR lowering 将优先使用该选中签名，而不是按 bare FQN 查询参数表。
+- 已修复 materializer：direct binding 精确 span 优先于重叠兜底；selected non-generic binding 优先于 generic instance 推断；generic-family 判断改为基于模板身份而不是 bare FQN。
+- 已启用并通过三个 P5-T04 targeted run-pass fixtures：`overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`。
+- 已处理验证中暴露的 TypeId remap 回归：`TopLevelFunCallBinding.param_tys` / `return_ty` 在 HIR compilation-unit lowering 中也会从 typecheck store remap 到 HIR store。
+- 完整 fixture 首轮暴露 4 个直接相关问题：两个 MIR golden 因 selected call signature 更精确而变化，两个 run-pass 因非泛型 direct call 结果 transport 未按选中 callee 返回类型修复而失败。
+- 已修复：非泛型 materialized direct call 也记录 result type 供 rewrite repair；MIR call result local 默认使用 HIR 表达式类型，仅 `Any` 时才回退 callee contract；已重新生成相关 MIR golden。
+- 已通过最终验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+- 已更新 `TODO.md` 与 `TODO-5.md`，将 `P5-T04` 标记为 `[DONE]` 并填写完成记录。
+- 已检查工作区差异；`REFLECTION.md` 是既有未跟踪无关文件，不纳入提交。
+- 下一步：提交本任务相关改动并停止。

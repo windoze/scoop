@@ -425,6 +425,8 @@ fn named_intrinsic_binding_for_callee(
         decl_span: overload.symbol.span,
         is_intrinsic: true,
         intrinsic_entry_name: overload.sig.builtin_flags.intrinsic_entry_name.clone(),
+        param_tys: Vec::new(),
+        return_ty: None,
         type_args: Vec::new(),
         eff_args: Vec::new(),
     })
@@ -457,6 +459,8 @@ fn synthetic_array_helper_binding_for_call(
         decl_span: overload.symbol.span,
         is_intrinsic: false,
         intrinsic_entry_name: None,
+        param_tys: Vec::new(),
+        return_ty: None,
         type_args,
         eff_args: Vec::new(),
     })
@@ -513,6 +517,14 @@ fn collect_top_level_fun_call_sites_with_type_remap(
         return sites;
     };
     for binding in sites.values_mut() {
+        binding.param_tys = binding
+            .param_tys
+            .iter()
+            .map(|&ty| types.re_intern_from(typecheck_types, ty))
+            .collect();
+        binding.return_ty = binding
+            .return_ty
+            .map(|ty| types.re_intern_from(typecheck_types, ty));
         binding.type_args = binding
             .type_args
             .iter()

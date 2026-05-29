@@ -657,6 +657,8 @@ pub struct FunctionTargetContract {
     pub(crate) decl_file: Option<PathBuf>,
     pub(crate) decl_span: Option<Span>,
     pub(crate) abi_identity: CallableAbiIdentity,
+    pub(crate) param_tys: Vec<TypeId>,
+    pub(crate) return_ty: Option<TypeId>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -674,6 +676,13 @@ impl FunctionTargetContract {
             decl_file: Some(binding.decl_file.clone()),
             decl_span: Some(binding.decl_span),
             abi_identity,
+            param_tys: binding
+                .param_tys
+                .iter()
+                .copied()
+                .filter(|ty| type_id_in_store(types, *ty))
+                .collect(),
+            return_ty: binding.return_ty.filter(|ty| type_id_in_store(types, *ty)),
             type_args: binding
                 .type_args
                 .iter()
@@ -707,6 +716,8 @@ impl FunctionTargetContract {
             decl_file: None,
             decl_span: None,
             abi_identity,
+            param_tys: Vec::new(),
+            return_ty: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
             arg_binding,
@@ -729,6 +740,14 @@ impl FunctionTargetContract {
     #[allow(dead_code)]
     pub fn abi_identity(&self) -> CallableAbiIdentity {
         self.abi_identity
+    }
+
+    pub fn param_tys(&self) -> &[TypeId] {
+        &self.param_tys
+    }
+
+    pub fn return_ty(&self) -> Option<TypeId> {
+        self.return_ty
     }
 
     pub fn type_args(&self) -> &[TypeId] {
@@ -2319,6 +2338,8 @@ fn function_target_fact(function: &FunctionTargetContract) -> hir_site_facts::Fu
         decl_file: function.decl_file.clone(),
         decl_span: function.decl_span,
         abi: callable_abi_fact(function.abi_identity),
+        param_tys: function.param_tys.clone(),
+        return_ty: function.return_ty,
         type_args: function.type_args.clone(),
         eff_args: function.eff_args.clone(),
         arg_binding: function.arg_binding.as_ref().map(call_arg_binding_fact),

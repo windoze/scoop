@@ -348,6 +348,11 @@ pub(super) fn lookup_overlapping_direct_call_binding<'a>(
     template_source_path: &Path,
     enclosing_span: Span,
 ) -> Option<&'a ast::TopLevelFunCallBinding> {
+    let exact_key = (template_source_path.to_path_buf(), enclosing_span);
+    if let Some(binding) = bindings.get(&exact_key) {
+        return Some(binding);
+    }
+
     let mut found: Option<(Span, &ast::TopLevelFunCallBinding)> = None;
     for ((source_path, span), binding) in bindings {
         if source_path != template_source_path

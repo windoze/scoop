@@ -48,7 +48,7 @@ impl MirInstanceMaterializer {
         reachable_fun: &ReachableMirFun,
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
-        if self.generic_family_fqns.contains(&reachable_fun.fun.fqn) {
+        if self.reachable_fun_is_generic_family(reachable_fun) {
             return Ok(());
         }
         let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);

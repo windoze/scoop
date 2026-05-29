@@ -2222,6 +2222,8 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                     decl_span: test_span(),
                     is_intrinsic: false,
                     intrinsic_entry_name: None,
+                    param_tys: Vec::new(),
+                    return_ty: None,
                     type_args: vec![typecheck_builtins.int],
                     eff_args: Vec::new(),
                 },

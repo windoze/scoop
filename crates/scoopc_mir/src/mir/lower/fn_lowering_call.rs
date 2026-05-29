@@ -5,6 +5,17 @@
 use super::*;
 
 impl<'a> FnLowering<'a> {
+    fn selected_or_indexed_param_tys(
+        &self,
+        function: &FunctionTargetContract,
+    ) -> Option<Vec<TypeId>> {
+        if !function.param_tys().is_empty() {
+            Some(function.param_tys().to_vec())
+        } else {
+            self.top_level_fun_param_tys.get(function.fqn()).cloned()
+        }
+    }
+
     pub(in crate::mir::lower) fn source_arg_expected_tys_for_callee_ty(
         &self,
         callee_ty: TypeId,
@@ -159,10 +170,10 @@ impl<'a> FnLowering<'a> {
             .filter(|binding| !call_arg_binding_has_receiver(binding));
         let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let expected_tys = function
-            .and_then(|function| self.top_level_fun_param_tys.get(function.fqn()))
+            .and_then(|function| self.selected_or_indexed_param_tys(function))
             .map(|param_tys| {
                 self.source_arg_expected_tys_from_param_tys(
-                    param_tys,
+                    &param_tys,
                     args.len(),
                     true,
                     arg_binding,
@@ -425,13 +436,12 @@ impl<'a> FnLowering<'a> {
             .arg_binding()
             .is_some_and(call_arg_binding_has_receiver);
         let expected_tys = self
-            .top_level_fun_param_tys
-            .get(member.function().fqn())
+            .selected_or_indexed_param_tys(member.function())
             .map(|param_tys| {
                 let param_tys = if function_has_receiver {
                     param_tys.get(1..).unwrap_or(&[])
                 } else {
-                    param_tys.as_slice()
+                    &param_tys
                 };
                 self.source_arg_expected_tys_from_param_tys(
                     param_tys,
@@ -887,7 +897,11 @@ impl<'a> FnLowering<'a> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> LocalId {
-        let result_ty = self.call_result_ty_from_callee(span, callee).unwrap_or(ty);
+        let result_ty = if matches!(self.types.kind(ty), TypeKind::Ref(RefTypeKind::Any)) {
+            self.call_result_ty_from_callee(span, callee).unwrap_or(ty)
+        } else {
+            ty
+        };
         let result = self.push_temp_local(span, result_ty);
 
         if let Some(resume_info) = self

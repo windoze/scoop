@@ -3,6 +3,24 @@
 use super::*;
 
 impl MirInstanceMaterializer {
+    pub(super) fn fun_decl_is_generic_family(&self, source_path: &Path, fun: &FunDecl) -> bool {
+        if type_contains_param(&self.types, fun.ty)
+            || function_type_has_effect_param(&self.types, fun.ty)
+        {
+            return true;
+        }
+
+        self.template_signatures.contains_key(&TemplateKey {
+            fqn: fun.fqn.clone(),
+            source_path: source_path.to_path_buf(),
+            decl_span: fun.span,
+        })
+    }
+
+    pub(super) fn reachable_fun_is_generic_family(&self, fun: &ReachableMirFun) -> bool {
+        self.fun_decl_is_generic_family(fun.source_path.as_path(), &fun.fun)
+    }
+
     pub(super) fn resolve_non_generic_fun_body_by_fqn(
         &self,
         default_source_path: &Path,
@@ -13,35 +31,39 @@ impl MirInstanceMaterializer {
                 return None;
             }
             let candidate = candidates[0].clone();
-            return (!self.generic_family_fqns.contains(&candidate.fun.fqn)).then_some(candidate);
+            return (!self.reachable_fun_is_generic_family(&candidate)).then_some(candidate);
         }
         let candidates = self.all_fun_bodies_by_fqn.get(fqn)?;
         if candidates.len() != 1 {
             return None;
         }
         let fun = candidates[0].clone();
-        (!self.generic_family_fqns.contains(&fun.fqn)).then_some(ReachableMirFun {
+        let reachable = ReachableMirFun {
             source_path: default_source_path.to_path_buf(),
             fun,
-        })
+        };
+        (!self.reachable_fun_is_generic_family(&reachable)).then_some(reachable)
     }
 
     pub(super) fn pass_visible_non_generic_callable_fqn(
         &self,
-        _source_path: &Path,
+        source_path: &Path,
         fun: &FunDecl,
     ) -> String {
-        let overloaded = self
-            .all_fun_bodies_by_fqn
-            .get(&fun.fqn)
-            .map(|candidates| {
-                candidates
-                    .iter()
-                    .filter(|candidate| !self.generic_family_fqns.contains(&candidate.fqn))
-                    .count()
-                    > 1
-            })
-            .unwrap_or(false);
+        let overloaded = self.generic_family_fqns.contains(&fun.fqn)
+            || self
+                .all_fun_bodies_by_fqn
+                .get(&fun.fqn)
+                .map(|candidates| {
+                    candidates
+                        .iter()
+                        .filter(|candidate| {
+                            !self.fun_decl_is_generic_family(source_path, candidate)
+                        })
+                        .count()
+                        > 1
+                })
+                .unwrap_or(false);
         if !overloaded {
             return fun.fqn.clone();
         }
@@ -104,7 +126,7 @@ impl MirInstanceMaterializer {
             let matching = candidates
                 .iter()
                 .filter(|candidate| {
-                    !self.generic_family_fqns.contains(&candidate.fun.fqn)
+                    !self.reachable_fun_is_generic_family(candidate)
                         && self
                             .non_generic_direct_callee_receiver_matches(&candidate.fun, receiver_ty)
                 })
@@ -116,7 +138,7 @@ impl MirInstanceMaterializer {
         let matching = candidates
             .iter()
             .filter(|candidate| {
-                !self.generic_family_fqns.contains(&candidate.fqn)
+                !self.fun_decl_is_generic_family(default_source_path, candidate)
                     && self.non_generic_direct_callee_receiver_matches(candidate, receiver_ty)
             })
             .cloned()
@@ -152,7 +174,7 @@ impl MirInstanceMaterializer {
                 binding.decl_span,
             ))
             .cloned()
-            .filter(|fun| !self.generic_family_fqns.contains(&fun.fun.fqn))
+            .filter(|fun| !self.reachable_fun_is_generic_family(fun))
     }
 
     pub(super) fn resolve_non_generic_direct_callee(

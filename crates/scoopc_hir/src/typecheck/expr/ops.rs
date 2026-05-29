@@ -705,23 +705,29 @@ pub(super) fn record_member_method_effects_as_performed(
     Ok(())
 }
 
+struct MemberDirectCallInstance<'a> {
+    type_args: &'a [TypeId],
+    eff_args: &'a [EffectRow],
+    param_tys: &'a [TypeId],
+    return_ty: TypeId,
+}
+
 fn record_member_direct_call_binding(
     lower: &mut TypeLowering<'_>,
     call_site_span: Span,
     callee_fqn: &str,
     sig: &FunSigOwned,
     receiver_ty: TypeId,
-    fun_type_args: &[TypeId],
-    eff_args: &[EffectRow],
+    instance: MemberDirectCallInstance<'_>,
 ) -> Result<(), ExprTypeError> {
     let type_args =
-        combined_member_instance_type_args(callee_fqn, receiver_ty, fun_type_args, lower)?;
+        combined_member_instance_type_args(callee_fqn, receiver_ty, instance.type_args, lower)?;
     lower.record_monomorph_call(
         callee_fqn.to_string(),
         &sig.decl_file,
         sig.decl_span,
         &type_args,
-        eff_args,
+        instance.eff_args,
         call_site_span,
     );
     lower.record_top_level_fun_call_binding(
@@ -732,8 +738,10 @@ fn record_member_direct_call_binding(
             decl_span: sig.decl_span,
             is_intrinsic: sig.is_intrinsic,
             intrinsic_entry_name: sig.intrinsic_entry_name.clone(),
+            param_tys: instance.param_tys.to_vec(),
+            return_ty: Some(instance.return_ty),
             type_args,
-            eff_args: eff_args.to_vec(),
+            eff_args: instance.eff_args.to_vec(),
         },
     );
     Ok(())
@@ -857,8 +865,12 @@ fn record_scalar_operator_method_binding(
         &callee_fqn,
         &sig,
         receiver_ty,
-        &[],
-        &[],
+        MemberDirectCallInstance {
+            type_args: &[],
+            eff_args: &[],
+            param_tys: &sig.params,
+            return_ty: sig.return_ty,
+        },
     )?;
 
     Ok(Some(sig.return_ty))
@@ -1023,8 +1035,12 @@ pub(super) fn infer_unary_expr_type(
                 &callee_fqn,
                 &sig,
                 operand_ty,
-                &[],
-                &[],
+                MemberDirectCallInstance {
+                    type_args: &[],
+                    eff_args: &[],
+                    param_tys: &sig.params,
+                    return_ty: sig.return_ty,
+                },
             )?;
 
             Ok(sig.return_ty)
@@ -1609,8 +1625,12 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         chosen_fqn,
         sig,
         lhs_ty,
-        &instantiated.type_args,
-        &eff_args,
+        MemberDirectCallInstance {
+            type_args: &instantiated.type_args,
+            eff_args: &eff_args,
+            param_tys: &instantiated.params,
+            return_ty: instantiated.return_ty,
+        },
     )?;
 
     Ok(instantiated.return_ty)
@@ -2120,8 +2140,12 @@ fn infer_compare_to_overload_binary_expr_type(
         chosen_fqn,
         sig,
         lhs_ty,
-        &instantiated.type_args,
-        &eff_args,
+        MemberDirectCallInstance {
+            type_args: &instantiated.type_args,
+            eff_args: &eff_args,
+            param_tys: &instantiated.params,
+            return_ty: instantiated.return_ty,
+        },
     )?;
 
     Ok(Some(()))

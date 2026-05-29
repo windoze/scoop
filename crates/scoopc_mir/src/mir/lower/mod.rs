@@ -232,6 +232,8 @@ pub struct FunctionTargetContract {
     pub(crate) decl_file: Option<PathBuf>,
     pub(crate) decl_span: Option<Span>,
     pub(crate) abi_identity: hir::CallableAbiIdentity,
+    pub(crate) param_tys: Vec<TypeId>,
+    pub(crate) return_ty: Option<TypeId>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -248,6 +250,14 @@ impl FunctionTargetContract {
 
     pub fn type_args(&self) -> &[TypeId] {
         &self.type_args
+    }
+
+    pub fn param_tys(&self) -> &[TypeId] {
+        &self.param_tys
+    }
+
+    pub fn return_ty(&self) -> Option<TypeId> {
+        self.return_ty
     }
 
     pub fn arg_binding(&self) -> Option<&CallArgBindingContract> {

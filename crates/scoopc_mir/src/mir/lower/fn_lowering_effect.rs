@@ -10,6 +10,29 @@ impl<'a> FnLowering<'a> {
         span: Span,
         callee: &hir::Expr,
     ) -> Option<TypeId> {
+        if let Some(contract) = self
+            .facts
+            .call_site_contract(self.source_path.as_path(), span)
+            && self.typed_call_contract_matches_callee(contract, callee)
+        {
+            let selected_return_ty = match contract {
+                TypedCallSiteContract::DirectTopLevel(function)
+                | TypedCallSiteContract::Extension { function, .. }
+                | TypedCallSiteContract::Intrinsic { function, .. } => function.return_ty(),
+                TypedCallSiteContract::MemberDirect(member)
+                | TypedCallSiteContract::Virtual(member)
+                | TypedCallSiteContract::Interface(member) => member.function().return_ty(),
+                TypedCallSiteContract::Constructor(_)
+                | TypedCallSiteContract::Closure { .. }
+                | TypedCallSiteContract::FunValue { .. }
+                | TypedCallSiteContract::FunPtr { .. }
+                | TypedCallSiteContract::EffectOp(_)
+                | TypedCallSiteContract::ContinuationResume(_) => None,
+            };
+            if selected_return_ty.is_some() {
+                return selected_return_ty;
+            }
+        }
         if let Some(binding) = self
             .facts
             .top_level_fun_call_fqn(self.source_path.as_path(), span)

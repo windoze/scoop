@@ -2106,6 +2106,19 @@ impl<'a> HirLowering<'a> {
     ) -> Option<crate::ast::TopLevelFunCallBinding> {
         let typecheck_types = self.typecheck_types?;
         let binding = self.file.top_level_fun_call_binding(span)?;
+        let param_tys = binding
+            .param_tys
+            .iter()
+            .copied()
+            .map(|ty| {
+                let ty = self.types.re_intern_from(typecheck_types, ty);
+                self.apply_active_type_param_bindings(ty)
+            })
+            .collect();
+        let return_ty = binding.return_ty.map(|ty| {
+            let ty = self.types.re_intern_from(typecheck_types, ty);
+            self.apply_active_type_param_bindings(ty)
+        });
         let type_args = binding
             .type_args
             .iter()
@@ -2134,6 +2147,8 @@ impl<'a> HirLowering<'a> {
             decl_span: binding.decl_span,
             is_intrinsic: binding.is_intrinsic,
             intrinsic_entry_name: binding.intrinsic_entry_name,
+            param_tys,
+            return_ty,
             type_args,
             eff_args,
         })

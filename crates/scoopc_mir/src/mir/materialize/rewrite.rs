@@ -1224,6 +1224,28 @@ impl MirInstanceMaterializer {
         args: &[CallArg],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        if let Some(reachable_callee) = self.resolve_bound_non_generic_fun_call(
+            ctx.template_source_path,
+            ctx.call_span,
+            callee_fqn,
+        ) {
+            let pass_fqn = self.pass_visible_non_generic_callable_fqn(
+                reachable_callee.source_path.as_path(),
+                &reachable_callee.fun,
+            );
+            if !type_contains_param(&self.types, reachable_callee.fun.return_ty) {
+                self.materialized_direct_call_result_tys
+                    .insert(pass_fqn.clone(), reachable_callee.fun.return_ty);
+            }
+            *callee_fqn = pass_fqn;
+            let mut discovered = Vec::new();
+            self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
+            for instance in discovered {
+                self.enqueue(instance);
+            }
+            return Ok(());
+        }
+
         if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
             template_source_path: ctx.template_source_path,
             call_span: ctx.call_span,
@@ -1264,10 +1286,15 @@ impl MirInstanceMaterializer {
             args,
             ctx.locals,
         ) {
-            *callee_fqn = self.pass_visible_non_generic_callable_fqn(
+            let pass_fqn = self.pass_visible_non_generic_callable_fqn(
                 reachable_callee.source_path.as_path(),
                 &reachable_callee.fun,
             );
+            if !type_contains_param(&self.types, reachable_callee.fun.return_ty) {
+                self.materialized_direct_call_result_tys
+                    .insert(pass_fqn.clone(), reachable_callee.fun.return_ty);
+            }
+            *callee_fqn = pass_fqn;
             let mut discovered = Vec::new();
             self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
             for instance in discovered {

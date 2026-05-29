@@ -1368,6 +1368,8 @@ pub(super) fn try_infer_where_bound_method_call(
             decl_span: chosen.sig.decl_span,
             is_intrinsic: chosen.sig.is_intrinsic,
             intrinsic_entry_name: chosen.sig.intrinsic_entry_name.clone(),
+            param_tys: chosen.instantiated.params,
+            return_ty: Some(chosen.instantiated.return_ty),
             type_args: chosen.type_args,
             eff_args: chosen.eff_args,
         },

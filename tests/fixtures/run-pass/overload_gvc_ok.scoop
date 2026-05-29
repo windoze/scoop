@@ -1,5 +1,4 @@
 // EXPECT: pass
-// IGNORE-UNTIL-FIX: P5-T04 selected callable identity should let this run.
 // EXPECT-EXIT: 110
 // P0-T02 baseline from OVERLOAD_RESOLUTION.md 1.3.
 // Current bug: typecheck reports ambiguous_overload.

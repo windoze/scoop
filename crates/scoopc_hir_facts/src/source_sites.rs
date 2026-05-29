@@ -233,6 +233,8 @@ pub struct FunctionTarget {
     pub decl_file: Option<PathBuf>,
     pub decl_span: Option<Span>,
     pub abi: CallableAbi,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
     pub arg_binding: Option<CallArgBindingContract>,

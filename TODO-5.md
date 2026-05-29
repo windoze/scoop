@@ -244,7 +244,7 @@
   - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §7-§9 的 call surface review 要求；确认 member static receiver / child overload set、constructor existing coverage、operator gate、function-value specificity 和 effect-after-selection 均未引入 runtime class 或 effect compatibility 参与 overload choice；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P5-T04：贯通 selected callable identity，修复 concrete / arity / generic-concrete codegen bug
+### [DONE] P5-T04：贯通 selected callable identity，修复 concrete / arity / generic-concrete codegen bug
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -276,10 +276,10 @@
   - Known overload bugs no longer fail in codegen/materialization.
 - 依赖：P5-T03R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：扩展 `TopLevelFunCallBinding` / HIR facts / MIR lowering contract，携带 selected overload 的声明身份、实例化参数、参数签名与返回类型；更新 HIR type remap、MIR call result lowering、non-generic materialization、direct binding lookup 和 overload/generic callable family 判定；启用 P0-T02 的三个 run-pass baseline fixtures；更新受影响 MIR golden。
+  - 核心决策：call-site typecheck 选出的 `decl_file` + `decl_span` 继续作为 semantic selected overload identity，`param_tys` / `return_ty` 只作为下游签名/transport 辅助且必须跨 TypeStore remap；materializer 对 selected non-generic binding 的精确 span 匹配优先于 generic instance inference，避免 generic/concrete 同名时按 bare FQN 猜目标；non-generic callable 是否属于 generic family 以模板/类型参数身份判断，不再用 bare FQN 一刀切；MIR call result local 保留 HIR 表达式类型，materialized non-generic direct call 另行记录 callee return type 供 transport repair。
+  - 验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；targeted `python3 tools/run_fixtures.py tests/fixtures/run-pass/overload_concrete_bug.scoop`、`overload_arity_bug.scoop`、`overload_gvc_ok.scoop`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 `OVERLOAD_RESOLUTION.md` §1 / §5 对 selected callable identity 贯通的要求；三个 P0-T02 overload codegen baseline 已从 `IGNORE-UNTIL-FIX` 启用并通过；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P5-T04R：Review selected callable identity 贯通
 
