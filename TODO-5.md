@@ -478,7 +478,7 @@
   - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`cargo test --all --all-targets`；`git diff --check`。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02 对 generated doctests、handwritten fixtures 新 surface 同步和旧 marker negative coverage 的要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P6-T02R：Review fixture 同步结果
+### [DONE] P6-T02R：Review fixture 同步结果
 
 - 参考：
   - P6-T02 完成记录
@@ -504,10 +504,10 @@
   - Fixture suite 与 spec/compiler surface 一致。
 - 依赖：P6-T02
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：复核 P6-T02 的 generated spec doctest 与 handwritten fixture 同步结果；检查 `tests/fixtures/spec_doctest/overview_minimal_main.scoop`、P6-T02 新增 `tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`，并按 P0-T01 inventory 抽样复核 `perform`、handler `with`/`on`、tuple `.0`/`._0`、f-string `${...}`/literal braces、`@Inline`、`AnyRef`/`AnyValue`、`operator` modifier fixture 覆盖；本 review 未发现需修改 fixture 或 dump expect 的缺口。
+  - 核心决策：`python3 tools/spec_fixtures.py sync` 后 generated doctest 仍为最新；旧 surface 的实际代码命中集中在明确 negative fixture，正向 fixture 使用目标 surface 或新语义 literal braces；P6-T02 未改 HIR/MIR/effect dump expect，因此不存在无语义理由的 dump churn；`P6-T03` 仍负责后续全仓旧 surface / overload-codegen 回归审计。
+  - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）。未重跑 `cargo test --all --all-targets`，因为本 review 只修改 `TODO` / 执行记忆且未改编译输出；沿用 P6-T02 最近完整 Rust 测试绿色结果。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02R 对 fixture 同步质量的 review 要求，确认 fixture suite 与当前 spec/compiler surface 一致；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P6-T03：执行旧 surface 与 overload/codegen 回归审计
 
