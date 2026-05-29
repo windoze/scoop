@@ -123,9 +123,9 @@ private
 
 规则：
 
-- 未显式标注时默认 `public`，除非后续章节对特定声明另有规定。
+- 未显式标注时默认 `internal`，除非后续章节对特定声明另有规定。
 - 三个可见性修饰符互斥；同时出现多个是编译错误。
-- `public`：跨 Cone 可见。
+- `public`：跨 Cone 可见，并作为 `.cone` 公共 API 的显式导出 opt-in。
 - `internal`：同一 Cone 内可见。
 - `private`：文件内或声明体局部可见；顶层 `private` 至少按 file-private 处理。
 
@@ -147,6 +147,7 @@ val next: Int = base + 1
 - initializer 可以执行普通运行期计算；它不会自动内联成编译器常量。
 - 简单顶层 `val name = expr` 需要显式类型注解：`val name: T = expr`。
 - 顶层解构 `val pattern = expr` 可以从 initializer 推断整体类型；也可以写整体类型注解：`val (a, b): (Int, Int) = expr`。
+- 若顶层 `val` 使用 refutable pattern 且 initializer 运行期不匹配，求值会 panic；它不产生 `Raise` effect。
 
 顶层解构会把解构产生的 binder 加入顶层值命名空间：
 
@@ -185,6 +186,8 @@ var threadCounter: Int = 0
 
 `eff` 是上下文关键字：只在泛型参数/实参列表中引入 effect row 参数或实参时作为关键字。其它位置可以作为普通标识符。
 
+`ref` 和 `value` 是 bound-only 上下文关键字：只可出现在泛型 bound 位置，例如 `<T: ref>` 或 `where T: value`。它们不是类型名。
+
 `init` 和 `constructor` 在类型体的特定位置作为上下文结构使用，用于 class 初始化块和次构造器。
 
 ### 5.2 关键字
@@ -192,16 +195,18 @@ var threadCounter: Int = 0
 语言关键字包括：
 
 ```text
-public internal private open abstract sealed inline override vararg annotation
+public internal private open abstract sealed inline override operator vararg annotation
 package import typealias fun val var class interface struct enum effect object companion
-handle on with try catch finally
+handle on with try catch finally ref value
 do return if else when for in out where while break continue is as as?
 ```
 
 说明：
 
 - `inline` 关键字已废弃；保留为解析期错误以提示删除该修饰符。
+- `operator` 修饰符是 operator-positioned call 的参与条件；未标注 `operator` 的同名函数只可普通调用。
 - `perform` 前缀已移除；实现可保留为解析期错误以提示改写为普通 qualified effect operation call。
+- `ref` / `value` 只在泛型 bound 位置有效；在参数类型、返回类型、type argument、`is` / `as`、supertype list 等类型位置使用时是编译错误。
 - `on` 用于 `handle { ... } on { ... }` 的 handler arm 列表。
 - `with` 保留给值类型 copy-update 表达式；不提供 Kotlin 的 `with(obj) { ... }` scope function 语法。
 - `as?` 词法上作为安全 cast 关键字处理。

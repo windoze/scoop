@@ -307,26 +307,30 @@ handle {
 - `finally` 可选。
 - `try` 表达式类型由 try body 和 catch body 的 LUB 决定，再考虑 `finally` 的控制流。
 
-## 9. RuntimeError
+## 9. Assertion failure 与 RuntimeError
 
-部分语言结构可在运行期失败，统一用 `Raise<RuntimeError>` 表达：
+断言式语言失败通过 `panic(message: String): Nothing` 表达，而不是进入 effect system：
 
 ```kotlin
-enum RuntimeError {
-    NullAssertionFailed,
-    ClassCastFailed,
-    ContinuationAlreadyResumed,
-}
+fun panic(message: String): Nothing
 ```
 
 规则：
 
-- `x!!` 在 `None` 时执行 `Raise.raise(RuntimeError.NullAssertionFailed)`。
-- `x as T` cast 失败时执行 `Raise.raise(RuntimeError.ClassCastFailed)`。
-- 重复 resume continuation 执行 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`。
-- 这些结构需要 `Raise<RuntimeError>`，除非被 `try/catch` 或 `handle` 处理。
+- `x!!` 在 `None` 时 panic。
+- `x as T` cast 失败时 panic；`as?` 保持失败返回 `None`。
+- Refutable `val` pattern mismatch 和 enum `with` variant mismatch panic。
+- 这些失败不贡献 `Raise<RuntimeError>` 或其它 effect。
 
-`panic(message: String): Nothing` 可作为不可恢复 trap；它不替代上述可表达为 effect 的运行期错误。
+部分高级库操作仍可在其声明 effect contract 中使用 `Raise<RuntimeError>` 表达可恢复运行期错误，例如重复 resume one-shot continuation：
+
+```kotlin
+enum RuntimeError {
+    ContinuationAlreadyResumed,
+}
+```
+
+重复 resume continuation 执行 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`，因此需要 `Raise<RuntimeError>`，除非被 `try/catch` 或 `handle` 处理。
 
 ## 10. Async / structured concurrency surface（当前未定义）
 
@@ -336,7 +340,7 @@ enum RuntimeError {
 
 - 一般 effect 系统；
 - continuation 的可恢复语义；
-- `Raise<RuntimeError>`、程序边界与 `panic(...)` 等基础运行期边界。
+- `panic(...)`、程序边界与 continuation `RuntimeError` 等基础运行期边界。
 
 若未来重新引入相应库或语法，应在独立设计文档中给出新的 surface 与 lowering contract；不得把历史 task/executor 叙事视为现行规范。
 
@@ -384,7 +388,7 @@ handle {
 - 调用函数需要该函数声明的 effect row，替换类型/effect 实参后计算。
 - 调用函数值需要该函数类型上的 effect row。
 - 调用函数值时是否 may-suspend 由 callee 表达式的静态函数类型决定，即使运行期值恰好是 pure closure。
-- `!!`、`as`、`Continuation.resume` 等语言结构会贡献 `Raise<RuntimeError>`。
+- 指定为 effectful 的结构会贡献对应 effect；`Continuation.resume` 重复 resume 会贡献 `Raise<RuntimeError>`。`!!`、失败 `as`、refutable `val` mismatch 和 enum `with` variant mismatch panic，不贡献 effect。
 - Handler arm body 中执行的效果贡献到外层上下文，因为 arm body 不在该 handler 自己的 dispatch scope 内。
 - `finally` 中执行的效果贡献到外层上下文。
 
@@ -426,7 +430,7 @@ fun <T, eff E> run(block: () -> T / E): T / E
 示例：
 
 ```kotlin
-fun noEffect(): Unit {
+public fun noEffect(): Unit {
     someObj.run {
         Raise.raise("Error")
     }
@@ -436,7 +440,7 @@ fun noEffect(): Unit {
 如果 `run` 是 effect-polymorphic，则 `noEffect` 需要 `Raise<String>`；由于省略 row 的 public 函数默认 `Pure`，这是编译错误。可改为：
 
 ```kotlin
-fun noEffect(): Unit {
+public fun noEffect(): Unit {
     try {
         someObj.run { Raise.raise("Error") }
     } catch (e: String) {
@@ -448,7 +452,7 @@ fun noEffect(): Unit {
 或：
 
 ```kotlin
-fun noEffect(): Unit / Raise<String> {
+public fun noEffect(): Unit / Raise<String> {
     someObj.run { Raise.raise("Error") }
 }
 ```

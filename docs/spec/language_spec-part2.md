@@ -58,7 +58,7 @@ effect Raise<E> {
 }
 
 fun fail(): Nothing {
-    Raise.raise("failed")
+    panic("failed")
 }
 ```
 
@@ -506,7 +506,7 @@ Null-safe 运算符：
 - `x?.call(args...)`：只有 `x` 是 `Some(v)` 时才求值 `args...` 并调用。
 - safe-call 结果总是 nullable。
 - `x ?: y`：若 `x` 是 `Some(v)`，结果为 `v`；否则求值并返回 `y`。右侧按需求值。
-- `x!!`：若 `Some(v)` 返回 `v`；若 `None`，执行 `Raise.raise(RuntimeError.NullAssertionFailed)`，因此需要 `Raise<RuntimeError>`，除非被处理。
+- `x!!`：若 `Some(v)` 返回 `v`；若 `None`，panic。该失败不贡献 `Raise<RuntimeError>` 或其它 effect。
 
 ## 7. 装箱
 
@@ -537,7 +537,6 @@ val line2 = line with {
 
 val result2 = result with {
     Ok.point.x: 5,
-    Err.code: 42,
 }
 ```
 
@@ -547,7 +546,7 @@ val result2 = result with {
 - 所有右侧表达式都相对于原始值求值；更新之间没有顺序依赖。
 - path 可任意深：`a.b.c`。
 - 对 enum payload 更新时，path 第一段必须是 variant 名。
-- Enum `with` 保留当前运行期 variant。当前 variant 对应的更新会重建该 variant 的 payload；其它 variant 的更新被忽略。
+- Enum `with` 保留当前运行期 variant。当前 variant 对应的更新会重建该 variant 的 payload；如果 path 指向的 variant 与运行期 variant 不匹配，求值会 panic。
 - 返回新值，原值不变。
 
 `with` 关键字不再用于 Kotlin 的 scope function；库可提供其它名字或 extension 函数，但不属于语言语法。
@@ -660,6 +659,7 @@ class Box<T>(val value: T) where T: Show
 - `where` 子句由一个或多个 `T: Bound` 约束组成，以逗号分隔。
 - 约束目标必须是当前声明的类型参数。
 - Bound 可以是普通名义类型，也可以带类型实参：`T: Producer<String>`。
+- Bound 也可以是 `ref` 或 `value` bound keyword：`T: ref` 要求类型实参为引用类型，`T: value` 要求类型实参为值类型。它们不是类型，不能出现在参数类型、返回类型、type argument、`is` / `as`、supertype list 等位置。
 - 重复的完全相同约束是编译错误。
 - 冲突 class bound 是编译错误；例如同一 `T` 同时要求两个不相关 class 上界。
 - 使用泛型声明时，实际类型实参必须满足所有 bound。

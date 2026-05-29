@@ -48,7 +48,6 @@ Ordinary runtime values fall into one of two categories: **reference types** and
 - **Reference types** are allocated on the GC-managed heap and accessed by reference. Assignment copies the reference, not the value.
 - **Value types** are stored inline (on the stack or embedded in containing types). Assignment copies the entire value. All value types are **immutable** — their fields cannot be modified after construction.
 - **`Nothing`** is the uninhabited bottom type. It is a subtype of every type, has no values or runtime representation, and is used only for expressions or functions that never return normally (for example `raise(...)`, `panic(...)`, `return`, `break`, or `continue`). It is neither a reference type nor a value type and does not participate in reference/value classification.
-- **Sealed interface markers** are compile-time-only generic bounds. They classify types for type checking, but they are not runtime types and cannot hold values.
 
 ### 2.2 Reference Types
 
@@ -101,7 +100,7 @@ Rules:
 Satisfaction is compiler-defined:
 
 - Reference types satisfy `ref`: class/interface/effect instances, `String`, arrays, function values, and other GC-managed reference types.
-- Value types satisfy `value`: structs, tuples, enums, `Option<T>`, `Unit`, `Nothing`, and built-in scalar value types.
+- Value types satisfy `value`: structs, tuples, enums, `Option<T>`, `Unit`, and built-in scalar value types.
 
 These constraints have no runtime metadata footprint. They are not emitted into object layout, vtables, itables, type descriptors, RTTI runtime-match names, or runtime cast/test machinery.
 
@@ -427,7 +426,6 @@ val line3 = line with {
 
 val result2 = result with {
     Ok.point.x: 5
-    Err.code: 42
 }
 ```
 
@@ -437,7 +435,8 @@ val result2 = result with {
 - For enum payload updates, the path must start with a variant name. For example,
   `result with { Ok.point.x: 5 }`.
 - Enum `with` preserves the runtime variant. Updates for the current variant rebuild that
-  variant’s payload; updates targeting other variants are ignored and the original value is kept.
+  variant’s payload. If an enum payload update path names a variant that is not the
+  value's runtime variant, evaluation panics.
 - `with` returns a new value; the original is unchanged.
 
 ## 3. Generics
@@ -537,7 +536,7 @@ when (animal) {
 when (pair) {
     (0, _) -> "starts with zero"
     (x, y) if x == y -> "equal"
-    (x, y) -> "different: $x, $y"
+    (x, y) -> f"different: ${x}, ${y}"
 }
 ```
 
@@ -571,15 +570,16 @@ Destructuring is also supported in `val` bindings:
 ```kotlin
 val (a, b) = get_pair()
 val Point { x, y } = make_point()
+val Some(value) = maybe_value()
 ```
 
-Only **irrefutable** patterns are allowed in `val` destructuring declarations. In particular:
+Both irrefutable and refutable patterns are allowed in `val` destructuring declarations:
 
 - tuple patterns are allowed when the initializer has tuple type,
 - struct patterns are allowed when the initializer has the matching struct type,
-- enum/variant patterns such as `val Some(x) = value` are **not** allowed in `val` declarations, because they are refutable and would introduce hidden match-failure control flow.
+- enum/variant patterns such as `val Some(x) = value` are allowed. If the initializer does not match the pattern, evaluation panics with a pattern-mismatch failure.
 
-Use `when` for refutable matching/destructuring.
+Refutable `val` mismatch is an assertion failure, not a recoverable `Raise` effect. Use `when` when the non-matching case is part of normal control flow.
 
 Note: `var` does not support destructuring patterns (only simple bindings).
 
@@ -645,7 +645,7 @@ if (y is String) {
 When smart cast is not applicable, explicit casts are available:
 
 ```kotlin
-// Unsafe cast — raises if the type doesn't match
+// Unsafe cast — panics if the type doesn't match
 val dog = animal as Dog
 dog.bark()
 
@@ -654,7 +654,7 @@ val maybeDog = animal as? Dog    // type: Dog?
 maybeDog?.bark()
 ```
 
-- `as`: If the runtime type doesn't match, performs `Raise.raise(RuntimeError.ClassCastFailed)` and therefore requires `Raise<RuntimeError>` unless handled by `try`/`catch` (see §5.7 and §14.7).
+- `as`: If the runtime type doesn't match, panics. It does not add `Raise<RuntimeError>` or any other effect to the required effect row.
 - `as?`: Returns `None` if the cast fails. Equivalent to `if (x is T) Some(x) else None`. Preferred for defensive code.
 - Neither `as` nor `as?` perform value type conversions. Use explicit conversion functions for that (e.g., `intValue.toLong()`).
 
@@ -845,34 +845,33 @@ handle {
 
 The `->` (non-resuming) form means the computation is abandoned on error.
 
-#### Runtime errors (`RuntimeError`)
+#### Assertion failures and runtime errors
 
-Some language constructs may fail at runtime (e.g., `!!`, `as`). These failures are expressed uniformly via the `Raise` effect using a built-in value type `RuntimeError`:
+Assertion-like language constructs may fail at runtime. These failures panic rather than entering the effect system:
 
 ```kotlin
-enum RuntimeError {
-    NullAssertionFailed,
-    ClassCastFailed,
-    ContinuationAlreadyResumed,
-}
+fun panic(message: String): Nothing
 ```
 
 Rules:
 
 - `x!!` (not-null assertion) is sugar for:
   - if `x` is `Some(v)`, evaluate to `v`
-  - if `x` is `None`, call `Raise.raise(RuntimeError.NullAssertionFailed)`
-- `x as T` (unchecked cast) performs `Raise.raise(RuntimeError.ClassCastFailed)` if the runtime type check fails.
+  - if `x` is `None`, call `panic("not-null assertion failed")`
+- `x as T` (unchecked cast) calls `panic("class cast failed")` if the runtime type check fails.
+- Refutable `val` pattern mismatch and enum `with` variant mismatch also panic.
 
-As a consequence, these constructs require `Raise<RuntimeError>` unless the failure is handled by `try`/`catch` (or `handle`).
+These constructs do not require `Raise<RuntimeError>` and do not contribute effects to the required effect row.
 
-Separate from `Raise<RuntimeError>`, the core library may expose a fatal trap primitive:
+Some advanced library operations may still expose recoverable runtime failures through `Raise<RuntimeError>` when that is part of the operation's declared effect contract. For example, resuming a one-shot continuation twice performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`.
 
 ```kotlin
-fun panic(message: String): Nothing
+enum RuntimeError {
+    ContinuationAlreadyResumed,
+}
 ```
 
-`panic(...)` is bottom-typed and is reserved for unrecoverable runtime misuse / implementation-defined abort paths. It does **not** replace effect-based runtime errors such as `!!`, `as`, or `Continuation.resume(...)`; those continue to use `Raise.raise(RuntimeError.…)`.
+`panic(...)` is bottom-typed and is reserved for assertion failures, unrecoverable runtime misuse, and implementation-defined abort paths. Recoverable failures should be modeled with explicit effects such as `Raise<E>`.
 
 #### Async Runtime Surface
 
@@ -1221,7 +1220,7 @@ Full runtime reflection (dynamic field access, dynamic method invocation, dynami
 fun add(a: Int, b: Int): Int = a + b
 
 fun greet(name: String): String {
-    return "Hello, $name!"
+    return f"Hello, ${name}!"
 }
 ```
 
@@ -1277,6 +1276,36 @@ fun String.readAsFile(): String / (Async + Raise<IOError>) {
 ```
 
 **Compilation:** Extension functions are compiled as regular static functions with the receiver as the first parameter. `fun String.wordCount(): Int` becomes `fun wordCount(receiver: String): Int` in the generated code.
+
+### 7.4 Overload Resolution
+
+Scoop permits functions, methods, constructors, extension functions, and operator functions to share a source name when their overload set satisfies the definition-time rules below. Return type and effect row are outputs of a callable and never participate in overload identity, equivalence, or specificity.
+
+Definition-time rules:
+
+- Two declarations with equivalent effective parameter signatures are a `conflicting_overloads` error. This includes declarations that differ only by return type, effect row, type parameter names, or default values.
+- Generic overloads are supported only for the same parameter shape where the distinction is the declared type-parameter bounds. Generic overloads with different type-parameter consistency constraints, incompatible shapes, or different type-parameter arity are rejected with `generic_overload_shape_mismatch`.
+- A type parameter's effective overload type is its declared type bound; an unbounded type parameter uses `Any`. Multiple type bounds are treated as their intersection for comparison when the implementation has intersection support, or as an equivalent set of alternatives for specificity.
+- Vararg and non-vararg overloads whose accepted arity ranges overlap are rejected with `vararg_overlaps_non_vararg`.
+- Constructors use the same overload rules as functions within their owning class.
+- Effect row differences alone do not form distinct overloads; such declarations conflict.
+- Virtual method families separate override from overload. A child declaration with the same signature as an inherited method must use `override`, and the inherited method must be `open`; a child declaration with the same name but a different signature adds a new overload. Virtual methods (`open`, `abstract`, `override`, and interface methods) may not introduce method-level type parameters.
+
+Call-site overload resolution runs in phases and does not backtrack:
+
+1. Candidate collection searches local declarations, then members, then extensions, then top-level declarations, then imports. For a layer, invisible declarations are discarded before shadowing; once a layer contains visible same-name candidates, lower-priority layers are not considered.
+2. Visibility filtering happens before applicability. Invisible candidates do not affect specificity.
+3. Applicability checks arity, named arguments, defaults, varargs/spread, and argument subtyping. There is no implicit numeric widening or implicit cast; `Nothing` is the bottom subtype of every type.
+4. Specificity chooses a unique most-specific applicable candidate. `A` is more specific than `B` iff every effective parameter type of `A` is a subtype of the corresponding effective parameter type of `B`, and at least one position is strictly more specific. The member receiver is parameter position 0 for member and extension method specificity. Inferred substitutions at the call site, return types, and effect rows are not used for specificity.
+5. If no candidate is applicable, report `no_applicable_overload`. If there is no unique most-specific candidate, report `ambiguous_overload`.
+
+Additional surface rules:
+
+- Member overload selection uses the receiver's static type to select the signature. Runtime virtual dispatch happens only after a unique signature has been selected.
+- Operator expressions first map the operator token to its function name, then use the same overload resolution rules. Only declarations marked with the `operator` modifier participate in operator-positioned calls; ordinary `a.plus(b)` calls do not require `operator`.
+- Lambda and function-type overloads use ordinary function-type subtyping for applicability and specificity; there is no special lambda-only rejection rule.
+- Effect compatibility is checked after a unique candidate is selected. An effect mismatch never causes fallback to a less-specific overload.
+- Overload diagnostics must list all relevant candidates with file, line, column, signature, and a reason such as non-applicability or incomparable effective parameter positions. User-visible overload errors must not expose backend, lowering, LLVM, codegen, or other internal implementation terms.
 
 ### 7.5 Function Types and Effects
 
@@ -1346,8 +1375,8 @@ Example:
 val ok: (Int) -> String / Pure! = { x -> x.toString() }
 val a: Any = ok                  // ✅ ok
 
-val bad: () -> Unit / Raise<RuntimeError> = {
-    Raise.raise(RuntimeError.NullAssertionFailed)
+val bad: () -> Unit / Raise<IOError> = {
+    Raise.raise(IOError("read failed"))
 }
 val b: Any = bad                  // ❌ compile error: cannot erase effects into Any
 ```
@@ -1388,23 +1417,22 @@ Calls may consume one or more trailing lambdas. Only bare brace-delimited closur
 
 #### 7.6.1 Capture Semantics
 
-Closure capture is a construction-point by-value snapshot:
+Closure capture is a construction-point by-value snapshot for immutable bindings:
 
 - Capturing a value type copies the value into the closure environment.
 - Capturing a reference type copies the managed pointer into the closure environment. The closure and the outer scope can still observe mutations to the same heap object through that pointer.
 - Closure environment fields are immutable after the closure value is constructed.
-- Inside the closure body, each captured name behaves like a local binding in the current call frame. A captured outer `val` is immutable inside the closure. A captured outer `var` is mutable inside the closure, but assignment only rebinds the closure call's local slot.
-- Rebinding a captured `var` does not write back to the outer binding and does not persist across multiple calls to the same closure value. Each call reloads the original environment snapshot into fresh call-frame locals.
+- A closure may capture outer `val` bindings.
+- A closure body may not reference an outer `var` binding. Such a reference is a compile-time error, because Scoop does not implicitly box mutable captures.
 
 Example:
 
 ```scoop
-var x = 10
-val f = { x = x + 1; x }
+val x = 10
+val f = { x + 1 }
 
 val a = f()  // 11
-val b = f()  // 11, not 12
-val c = x    // 10, outer x was not rebound by f
+val b = f()  // 11
 ```
 
 Reference capture copies the reference, not the object:
@@ -1420,7 +1448,7 @@ val b = bump()      // 2
 val outer = cell.value  // 2
 ```
 
-Scoop does not perform implicit boxing for captured `var` bindings. If a closure must share mutable state with its creator, or if a closure instance must hold state across calls, use an explicit library type such as `RefCell<T>`, `AtomicInt`, `AtomicBool`, `Atomic<T>` for reference types, or `AtomicValue<T>` for value types.
+If a closure must share mutable state with its creator, or if a closure instance must hold state across calls, use an explicit library type such as `RefCell<T>`, `AtomicInt`, `AtomicBool`, `Atomic<T>` for reference types, or `AtomicValue<T>` for value types. If the intended behavior is a read-only snapshot, bind it explicitly before creating the closure: `val snapshot = currentValue`.
 
 The initial shared-state sysroot surface is:
 
@@ -1463,18 +1491,18 @@ class AtomicValue<T: value>(initial: T) {
 
 `RefCell<T>` is single-threaded. `Box<T>` is immutable. `Atomic<T>` compares reference identity. `AtomicValue<T>` stores value snapshots through `Box<T>`; its `cas` operation takes `expected: Box<T>`, not `expected: T`, so callers compare the previously observed snapshot identity rather than value equality. The initial atomic API does not include `AtomicFloat*` or fixed-width integer atomic classes.
 
-#### 7.6.2 Migration Note: Kotlin-Style `makeCounter`
+#### 7.6.2 Shared Mutable State
 
-Kotlin boxes captured `var` bindings implicitly, so this common pattern accumulates state in Kotlin:
+The following pattern is rejected because the closure references the outer `var n`:
 
 ```scoop
 fun makeCounter(): () -> Int {
     var n = 0
-    return { n = n + 1; n }
+    return { n = n + 1; n }  // compile error: closure captures outer var `n`
 }
 ```
 
-In Scoop, that closure returns `1` on every call because `n` is reloaded from the closure environment snapshot into a fresh per-call local. Write the shared state explicitly instead:
+Write the shared state explicitly instead:
 
 ```scoop
 fun makeCounter(): () -> Int {
@@ -1878,6 +1906,8 @@ internal fun <T> partition(list: List<T>): ... { ... }    // visible within cone
 private fun helper() { ... }                               // visible within file
 ```
 
+Declarations without an explicit visibility modifier are `internal` by default. `public` is an explicit API-export opt-in for declarations that should be visible outside the cone and included in the cone's published API surface. `internal` declarations are visible within the same cone, and `private` declarations are visible only within their file or declaration-local scope.
+
 ### 13.7 Cone Manifest
 
 ```toml
@@ -2105,7 +2135,7 @@ internal fun greet(name: String) {      // ← non-recursive, can omit
 }
 
 // Public functions always require return type
-fun process(data: Data): Result { ... } // ← public, must annotate
+public fun process(data: Data): Result { ... } // ← public, must annotate
 ```
 
 ### 14.7 Effect Inference
@@ -2121,7 +2151,7 @@ private fun readConfig(path: String) {
 }
 
 // Public functions must declare effects explicitly
-fun loadSettings(path: String): Settings / (Async + Raise<IOError>) {
+public fun loadSettings(path: String): Settings / (Async + Raise<IOError>) {
     val config = readConfig(path)
     Settings.from(config)
 }
@@ -2138,7 +2168,7 @@ Rules:
 - Invoking a function value (e.g., `block()`) requires the effect row declared on that function type (see §7.5).
 - This call-site rule is determined by the **static function type** of the callee expression, even when the function value is obtained through an opaque path such as a field/property access, a `when`/`if` branch merge, or a higher-order function return. If that static function type is non-`Pure`, lowering must treat the call as may-suspend even when a particular runtime value happens to be a pure closure.
 - Named arguments are **not** supported when invoking a raw function value, closure, or `FunPtr<F>`. Named arguments are reserved for call targets that have declaration-level parameter names (ordinary functions, methods, constructors, and effect operations).
-- Language constructs that are specified to perform effects (e.g., `!!` and `as` performing `Raise.raise(RuntimeError.…)`) contribute those effects to the required effect row (see §5.7).
+- Language constructs that are specified to perform effects contribute those effects to the required effect row. Assertion-like constructs such as `!!`, failed `as`, refutable `val` mismatch, and enum `with` variant mismatch panic instead and do not contribute effects (see §5.7).
 - Effects performed in handler arms contribute normally to the enclosing context (handler arms execute outside the handler instance’s dispatch scope; see Appendix A).
 
 These rules implement **unhandled effect detection**: if an effect is not handled locally, it must be accounted for by the surrounding declared/inferred effect row.
@@ -2171,7 +2201,7 @@ For an **entry point** (see §5.10), the declared effect row is required to be `
 Example:
 
 ```kotlin
-fun noEffect(): Unit {
+public fun noEffect(): Unit {
     // The inner closure performs Raise<String>.
     // If `run` is effect-polymorphic (as in §11), then the call to `run` also requires Raise<String>.
     someObj.run {
@@ -2183,7 +2213,7 @@ fun noEffect(): Unit {
 Since `noEffect` omits an effect annotation, it is treated as `/ Pure` and this is a compile error unless the effect is handled:
 
 ```kotlin
-fun noEffect(): Unit {
+public fun noEffect(): Unit {
     try {
         someObj.run { Raise.raise("Error") }
     } catch (e: String) {
@@ -2195,7 +2225,7 @@ fun noEffect(): Unit {
 Or unless the function declares the required effect:
 
 ```kotlin
-fun noEffect(): Unit / Raise<String> {
+public fun noEffect(): Unit / Raise<String> {
     someObj.run { Raise.raise("Error") }
 }
 ```
@@ -2783,7 +2813,7 @@ fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
 fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 ```
 
-Note: these conversions are **not** expressed via `as` / `as?` (those are runtime type casts expressed via `Raise`). Pointer/integer conversions must be provided via sysroot intrinsics and must require an unsafe context.
+Note: these conversions are **not** expressed via `as` / `as?` (those are runtime type casts; failed `as` panics and `as?` returns `None`). Pointer/integer conversions must be provided via sysroot intrinsics and must require an unsafe context.
 
 Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) if the pointed-to object may move.
 
@@ -3185,7 +3215,7 @@ For `x: T?`:
 For `x: T?`:
 
 - `x!!` evaluates to `v` if `x` is `Some(v)`.
-- If `x` is `None`, it performs `Raise.raise(RuntimeError.NullAssertionFailed)` and therefore requires `Raise<RuntimeError>` unless handled by `try`/`catch` (see §5.7 and §14.7).
+- If `x` is `None`, it panics and does not contribute any effect to the required effect row (see §5.7 and §14.7).
 
 ### B.4 Declaration-site Variance (`in` / `out`) (Expanded)
 
@@ -3277,7 +3307,7 @@ Scoop supports Kotlin-style operator overloading via specially-named functions.
 - Indexing uses `get` / `set` (`a[i]`, `a[i] = v`).
 - Comparison uses `compareTo` for ordering operators.
 
-Whether an explicit `operator` modifier is required is implementation-defined unless specified elsewhere.
+Only declarations marked with the `operator` modifier participate in operator-positioned resolution. A same-named function without `operator` remains callable by its ordinary name (for example `a.plus(b)`) but is ignored for operator syntax such as `a + b`.
 
 ### B.9 Object Declarations and Companion Objects (Expanded)
 
@@ -3307,7 +3337,7 @@ Scoop adopts Kotlin-style destructuring declarations for tuples and for types th
 val (a, b) = (1, 2)
 ```
 
-- `val` destructuring declarations are restricted to **irrefutable** patterns. Tuple destructuring and struct destructuring are allowed; refutable enum/variant patterns are reserved for `when` and are not allowed in declarations.
+- `val` destructuring declarations allow both irrefutable and refutable patterns. Tuple and struct patterns are irrefutable when their initializer has the matching type. Enum/variant patterns such as `val Some(x) = value` are refutable; if the initializer does not match, evaluation panics with a pattern-mismatch failure.
 
 ### B.12 Ranges and Progressions (Expanded)
 
