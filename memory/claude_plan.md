@@ -1,3 +1,36 @@
+# Current Invocation Plan
+
+Status: task review completed; preparing commit.
+
+Note: This file records the actionable plan, progress, validation results, and decisions for this invocation. It intentionally avoids private reasoning details while preserving the information needed to audit progress.
+
+## Execution Plan
+
+1. Read `TODO.md` first and identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Read the selected task body, dependencies, completion record, and any directly referenced files/specs.
+4. Implement the selected task exactly as written, unless a concrete prerequisite or blocker makes that impossible.
+5. If blocked by an unscheduled prerequisite, update `TODO.md` with the minimum required prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
+6. Run required formatting, linting, tests, and fixtures in the required order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixtures as applicable.
+7. Address any unscheduled failing test or fixture before marking the task done.
+8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record.
+9. Update this plan file with key progress and validation results.
+10. Inspect git status/diff/log, commit all intended changes with a task-specific message, and stop without starting the next task.
+
+## Progress Log
+
+- Created initial invocation plan before running repository commands.
+- Identified first incomplete task: `P0-T01R` in `TODO-1.md`, review of the completed pacing behavior baseline.
+- Latest commit is `[P0-T01] Freeze GC pacing baseline`; it is directly relevant but does not mention a separate unfinished issue in its subject.
+- Reviewed the cited pacing baseline code locations. Main line references still match; the review found that the cycle-end `next_gc` update point needed to be made explicit.
+- Updated `TODO-1.md` and `GC_PACING.md` to record the cycle-end update point in `scoop_gc_collect`, and marked `P0-T01R` done in `TODO-1.md` / `TODO.md` with a completion record.
+- Validation decision: `git diff --check` passed; no code changed in this invocation, so reused the previous green full validation recorded by `P0-T01` and skipped rerunning expensive suites per the task instructions.
+- Preserved the file's pre-existing historical notes after the current invocation section.
+
+## Preserved Previous Notes
+
+The following content was already present before this invocation and is retained for continuity.
+
 # 当前执行计划
 
 ## 约束与依据

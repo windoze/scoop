@@ -118,6 +118,14 @@ Incremented on allocation registration, initialized/reset by heap init, read
 out via a debug helper. **Never compared against any threshold.** There is no
 cycle-end `next_gc` update today.
 
+The P1 cycle-end update point is `scoop_gc_collect` in
+`runtime/c/scoop_gc_backend_immix.c:4892-5366`: while `state->lock` is held
+and STW is active, object sweep runs at `:5213-5240`, region sweep at
+`:5242-5348`, and optional compaction / verification at `:5350-5357`.
+`next_gc = max(min_threshold, live * growth_factor)` should be updated after
+those steps and before `scoop_gc_stop_the_world_end_unlocked()` / unlock at
+`:5364-5365`.
+
 ### Env-variable surface
 
 The fixed runtime env knobs visible from `grep getenv runtime/c/`:
