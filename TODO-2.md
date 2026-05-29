@@ -201,7 +201,7 @@
   - 测试：扩展 `gc_pacing_env`，在 `gc-minimal` / `gc-hosted` 下覆盖默认 pacing 有界、`SCOOP_GC_PACING=off` 保留旧 soft-trigger-off 行为、min-threshold/growth-factor env 生效，以及 `SCOOP_GC_STRESS` 继续绕过 pacing。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T04R：Review backend parity
+### [DONE] P2-T04R：Review backend parity
 
 - 参考：
   - P2-T04 完成记录
@@ -220,4 +220,8 @@
   - pacing 全线收口（P1-P2 完成）。
 - 依赖：P2-T04
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P2-T04 的 backend-independent pacing helper 保持了 Immix 既有阈值公式；`gc-hosted` / `gc-minimal` 在对象登记后按累计 `bytes_allocated` 设置 request，并在下一次 allocation safepoint 触发 `scoop_gc_collect()`，`SCOOP_GC_PACING=off` 与 `SCOOP_GC_STRESS` 语义与 Immix soft-trigger 路径保持一致。
+  - Review 结论：hosted 多线程 no-op collect 与 minimal 多线程降级路径都会调用 pacing update/clear，不会因 request 未清理导致每次分配重复 collect；三 backend 的 pacing 专项与 runtime 回归均通过。
+  - 验证注意：不同 Cargo feature 组合会共享同名 `gc_microbench` binary 路径，因此 backend feature 验证按 backend 顺序运行，避免并行 feature build 互相覆盖测试子进程。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
