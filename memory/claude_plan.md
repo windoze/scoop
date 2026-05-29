@@ -25,4 +25,5 @@
 - Implemented review fixes: dynamic overload fixture audit, `EXPECT-NOT-ERROR-TERMS`, all-line fixture directive parsing, candidate location fallback with explicit unknown markers, more specific no-applicable mapping/generic rejection reasons, and expanded overload diagnostic fixture assertions.
 - Targeted validation passed so far: `python3 tools/audit_user_visible_failure_policy.py`; `python3 tools/run_fixtures.py tests/fixtures/typecheck --exit-on-failure`; `python3 tools/run_fixtures.py tests/fixtures/infer --exit-on-failure`; targeted `typecheck_multi` Phase A-C cases; targeted umbrella overload fixtures.
 - Full validation passed: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo test --all --all-targets`; `python3 tools/spec_fixtures.py check`; `python3 tools/audit_user_visible_failure_policy.py`; `python3 tools/run_fixtures.py`.
-- Updated `TODO.md` and `TODO-5.md`: `P5-T05R` is marked `[DONE]` with completion record. Next step: inspect diff/status and commit.
+- Updated `TODO.md` and `TODO-5.md`: `P5-T05R` is marked `[DONE]` with completion record.
+- Committed primary task changes as `9a4f0586 [P5-T05R] Review overload diagnostics audit`. Only unrelated untracked `REFLECTION.md` remains outside this task.
