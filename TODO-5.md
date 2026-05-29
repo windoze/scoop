@@ -438,7 +438,7 @@
   - 验证结果：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`git diff --check`。未运行 `cargo fmt` / `cargo clippy` / `cargo test` / full fixture suite，因为本任务只修改 Markdown 文档、`TODO` 记录和执行记忆，不影响编译输出；沿用 P6-T01 / P5-T05R 完成记录中的最近完整绿色矩阵。
   - 与 `PLAN.md` / 设计文档对应闭合：闭合 `SPEC_FIX.md` summary table 与 `OVERLOAD_RESOLUTION.md` §12 的 P6-T01 review 要求；`SCOOP_FULL_SPEC.md` 与 split spec 已同步为 active contract；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
-### [TODO] P6-T02：同步 spec doctests 与 handwritten fixtures 到新 surface
+### [DONE] P6-T02：同步 spec doctests 与 handwritten fixtures 到新 surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -473,10 +473,10 @@
   - Fixture suite is synchronized with new language surface.
 - 依赖：P6-T01R
 - 完成记录：
-  - 改动范围：
-  - 核心决策：
-  - 验证结果：
-  - 与 `PLAN.md` / 设计文档对应闭合：
+  - 改动范围：运行 `python3 tools/spec_fixtures.py sync` 同步 generated spec doctests（无 generated fixture 差异）；审计 active fixtures 中旧 surface 命中；新增 `tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`，补齐 `AnyValue` marker 名称移除的 negative 覆盖；更新 `TODO.md` / `TODO-5.md` 完成状态与执行记忆。
+  - 核心决策：现有 `perform`、handler `with`、tuple `._0`、`@Inline`、`AnyRef` 命中均保留在明确 negative fixture 或注释中；f-string `{...}` 命中为新语义下 literal braces 覆盖，`${...}` 仍是唯一 interpolation surface；本任务没有 HIR/MIR/effect dump 语义变化，因此不刷新 dump expect。
+  - 验证结果：`python3 tools/spec_fixtures.py sync`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/spec_fixtures.py check`；targeted `python3 tools/run_fixtures.py tests/fixtures/typecheck/anyvalue_marker_name_is_not_type.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1607)`）；`cargo test --all --all-targets`；`git diff --check`。
+  - 与 `PLAN.md` / 设计文档对应闭合：闭合 P6-T02 对 generated doctests、handwritten fixtures 新 surface 同步和旧 marker negative coverage 的要求；`PLAN.md` 阶段级 sequencing 未变化，无需更新。
 
 ### [TODO] P6-T02R：Review fixture 同步结果
 

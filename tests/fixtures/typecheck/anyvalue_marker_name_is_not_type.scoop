@@ -1,0 +1,7 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR: AnyValue
+
+package fixtures.typecheck
+
+class Bad<T> where T: AnyValue
