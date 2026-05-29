@@ -15,7 +15,7 @@ class Holder(var direct: Counter, var nested: ClaimBox)
 
 fun main() {
     @Unsafe do {
-        val counter: Counter = Counter(0)
+        val counter: Counter = Counter(__AtomicInt(0))
         println(__atomicIntLoad(counter.claim))
         __atomicIntStore(counter.claim, 1)
 
@@ -26,7 +26,7 @@ fun main() {
         }
         println(__atomicIntLoad(counter.claim))
 
-        val holder: Holder = Holder(counter, ClaimBox(7))
+        val holder: Holder = Holder(counter, ClaimBox(__AtomicInt(7)))
         println(__atomicIntLoad(holder.direct.claim))
 
         val nestedOk: Bool = __atomicIntCompareExchange(holder.nested.claim, 7, 8)

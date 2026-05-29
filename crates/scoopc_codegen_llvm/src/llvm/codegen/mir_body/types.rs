@@ -433,7 +433,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.Char" => Some(self.builtins.char_),
             "scoop.core.Float64" | "scoop.core.Double" => Some(self.builtins.float64),
             "scoop.core.Float32" => Some(self.builtins.float32),
-            "scoop.core.Int" | "scoop.unsafe.__AtomicInt" => Some(self.builtins.int),
+            "scoop.core.Int" => Some(self.builtins.int),
             "scoop.core.UInt" | "scoop.core.UIntPtr" | "scoop.unsafe.FunPtr" => {
                 Some(self.builtins.uint)
             }

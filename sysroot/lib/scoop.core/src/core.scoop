@@ -1521,7 +1521,7 @@ fun __atomicIntToBool(value: Int): Bool {
 }
 
 public class AtomicInt(initial: Int) {
-    var raw: __AtomicInt = initial
+    var raw: __AtomicInt = __AtomicInt(initial)
 
     public fun load(): Int {
         return @Unsafe do { __atomicIntLoad(this.raw) }
@@ -1545,7 +1545,7 @@ public class AtomicInt(initial: Int) {
 }
 
 public class AtomicBool(initial: Bool) {
-    var raw: __AtomicInt = __atomicBoolToInt(initial)
+    var raw: __AtomicInt = __AtomicInt(__atomicBoolToInt(initial))
 
     public fun load(): Bool {
         return __atomicIntToBool(@Unsafe do { __atomicIntLoad(this.raw) })

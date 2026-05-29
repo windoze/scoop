@@ -232,10 +232,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_make_struct(
         &mut self,
         span: crate::span::Span,
+        mir_types: &TypeStore,
         fields: &[crate::mir::StructLitField],
+        transport: &crate::mir::AggregateTransportMetadata,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let aggregate_ty = self
+            .equivalent_codegen_type_id(mir_types, transport.aggregate_ty)
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_make_struct: MIR verifier accepted aggregate TypeStore drift")
+            });
+        if let Some((layout_field, field_cg)) =
+            self.scalar_layout_struct_field(aggregate_ty, target_cg)?
+        {
+            let Some(init) = fields.iter().find(|field| field.name == layout_field.name) else {
+                unreachable!(
+                    "typecheck must reject MIR scalar-layout struct literals missing required fields"
+                );
+            };
+            let value =
+                self.codegen_mir_operand_expected(init.span, &init.value, slots, Some(field_cg))?;
+            let coerced = self.coerce_value(init.span, value, field_cg)?;
+            return self.coerce_value(span, coerced, target_cg);
+        }
+
         let CgTy::Struct(struct_ty) = target_cg else {
             panic!(
                 "codegen_mir_make_struct: MIR verifier accepted non-struct aggregate target type"

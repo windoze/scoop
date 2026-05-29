@@ -65,7 +65,7 @@
   - 测试：新增/扩展 MIR stage 与 LLVM codegen stage 单元测试，覆盖 MIR `NominalMetadata.is_interior_mutable` 与 LLVM base context 查询面，确认 plain nominal 与 typealias 不被误标。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P3-T02：`__AtomicInt` 升为 `@InteriorMutable struct`
+### [DONE] P3-T02：`__AtomicInt` 升为 `@InteriorMutable struct`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -97,7 +97,12 @@
   - `__AtomicInt` 是带标记的相异 struct，P5 谓词可安全否决它，且不会被误当 Int 常量化。
 - 依赖：P3-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Sysroot：`scoop.unsafe.__AtomicInt` 已从 `typealias Int` 改为 `@InteriorMutable public struct __AtomicInt { val raw: Int }`；`AtomicInt` / `AtomicBool` 与所有原子 fixtures 改为显式 `__AtomicInt(...)` 构造，不再依赖隐式 `Int` 初始化。
+  - 类型层：移除 typecheck、typed HIR 与 layout collection 中把 `__AtomicInt` 直接擦成 `Int` 的路径；新增 TypeEnv 单元测试与 typecheck 负例，确认 `__AtomicInt` 是 marked nominal struct、alias lowering 不丢标记且不等同于 `Int`。
+  - Codegen：保留 LLVM/MIR 后端将 `__AtomicInt` nominal 存储按 word `Int` ABI 处理；补充通用单字段 scalar-layout struct literal lowering，让 `__AtomicInt(...)` 构造产生 word 值而不引入专用构造器 codegen。
+  - Fixtures/golden：更新 raw atomic、top-level atomic storage、field-lvalue、runtime GC cross-thread roots、B-26 atomic gate fixtures，以及 HIR / effect-lowered golden 中因 sysroot 新增 nominal/field/vtable 引起的稳定计数变化。
+  - 验证：`cargo fmt`；`cargo build -p scoopc -p scoop`；`cargo test -p scoopc_hir sysroot_atomic_int_lowers_to_marked_nominal_not_int --all-targets`；相关 atomic/build/effect_lowered targeted fixtures；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc --lib`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P3-T02R：Review `__AtomicInt` struct 化
 

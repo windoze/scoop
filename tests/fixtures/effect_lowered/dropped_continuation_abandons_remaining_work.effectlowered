@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=53 layout_callable_symbols=3
+  summary: opt_revision=1 callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=3
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=28 enums=7 vtables=53 interfaces=11 class_itables=53 callable_symbols=3
+  physical_layout: classes=28 enums=7 vtables=54 interfaces=11 class_itables=54 callable_symbols=3
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -101,6 +101,7 @@ lir_facts {
     - class_vtable=scoop.lang.string.StringBuilder slots=0
     - class_vtable=scoop.unsafe.FunPtr slots=0
     - class_vtable=scoop.unsafe.Ptr slots=0
+    - class_vtable=scoop.unsafe.__AtomicInt slots=0
     - interface=scoop.collections.IntIterable id=15901905228223837312 methods=1 supers=0
     - interface=scoop.collections.IntIterator id=9964296089158589802 methods=1 supers=0
     - interface=scoop.collections.Iterable id=12253944723955285356 methods=1 supers=0
@@ -165,19 +166,20 @@ lir_facts {
     - class_itable=scoop.lang.string.StringBuilder entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
+    - class_itable=scoop.unsafe.__AtomicInt entries=0
     - callable_symbol=lir_callable(212:instance(180:template(166:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;11:sample.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hb208dc32d82461a4cf627050a9691f66) root=sample.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_main__h47e3fb5151158df0b1026a20c919cbe8
     - callable_symbol=lir_callable(216:instance(184:template(170:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;14:sample.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#haa9c94d15f0970179a6bc4cedcf025ce) root=sample.cleanup kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_cleanup__h181ccb9fdd191e22f410826a4c719e40
     - callable_symbol=lir_callable(234:instance(202:template(188:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;13:sample.helper;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[V(Int)]->V(Int)/E(N(sample.Step))))));6:list();6:list());38:body#h164865ed8e3e35df1c619b8fd98158fd) root=sample.helper kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_helper__h13d3e22e6e8549cd1afcd83e1e8e828d
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=457 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=459 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=3
     - callable=sample.main kind=Plain control_body=false key=lir_callable(212:instance(180:template(166:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;11:sample.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hb208dc32d82461a4cf627050a9691f66)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=0
     - callable=sample.cleanup kind=Plain control_body=false key=lir_callable(216:instance(184:template(170:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;14:sample.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#haa9c94d15f0970179a6bc4cedcf025ce)
-      plain_abi: function_ty=t444 params=0 return=t2 body_slices=1 call_sites=0
+      plain_abi: function_ty=t446 params=0 return=t2 body_slices=1 call_sites=0
     - callable=sample.helper kind=EffectStep control_body=true key=lir_callable(234:instance(202:template(188:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;13:sample.helper;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[V(Int)]->V(Int)/E(N(sample.Step))))));6:list();6:list());38:body#h164865ed8e3e35df1c619b8fd98158fd)
       effect_step_abi: step#1 invoke_args=t5 entry=st0 complete=st1 states=10 boundaries=1 continuation_object=cont_obj#0
   step_types=1
-    - step#1 invoke_args=t5 complete=t5 continuation_obj=t451 cases=3
+    - step#1 invoke_args=t5 complete=t5 continuation_obj=t453 cases=3
   dynamic_invoke_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=1

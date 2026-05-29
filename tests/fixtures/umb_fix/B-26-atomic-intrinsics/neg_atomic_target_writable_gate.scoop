@@ -12,7 +12,7 @@ import scoop.unsafe.*
 
 fun main() {
     @Unsafe do {
-        val cell: __AtomicInt = 0
+        val cell: __AtomicInt = __AtomicInt(0)
         __atomicIntStore(cell, 1)
     }
 }

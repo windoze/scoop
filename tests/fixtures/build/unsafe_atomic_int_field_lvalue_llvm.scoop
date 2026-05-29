@@ -21,11 +21,11 @@ class Holder(var counter: Counter, var nested: ClaimBox)
 
 fun main() {
     @Unsafe do {
-        val counter: Counter = Counter(0)
+        val counter: Counter = Counter(__AtomicInt(0))
         __atomicIntStore(counter.claim, 1)
         val _directOk: Bool = __atomicIntCompareExchange(counter.claim, 1, 2)
 
-        val holder: Holder = Holder(counter, ClaimBox(3))
+        val holder: Holder = Holder(counter, ClaimBox(__AtomicInt(3)))
         __atomicIntStore(holder.nested.claim, 4)
         println(__atomicIntLoad(holder.counter.claim))
         println(__atomicIntLoad(holder.nested.claim))

@@ -21,10 +21,10 @@ import scoop.thread.*
 import scoop.unsafe.*
 
 @Global
-var ready: __AtomicInt = 0
+var ready: __AtomicInt = __AtomicInt(0)
 
 @Global
-var proceed: __AtomicInt = 0
+var proceed: __AtomicInt = __AtomicInt(0)
 
 fun waitWorkerReady(): Unit {
     while (@Unsafe do { __atomicIntLoad(ready) } == 0) {

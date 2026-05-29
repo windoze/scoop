@@ -17,10 +17,10 @@ import scoop.core.*
 import scoop.unsafe.*
 
 @Global
-var ready: __AtomicInt = 0
+var ready: __AtomicInt = __AtomicInt(0)
 
 @ThreadLocal
-var tlsReady: __AtomicInt = 0
+var tlsReady: __AtomicInt = __AtomicInt(0)
 
 fun main() {
     @Unsafe do {

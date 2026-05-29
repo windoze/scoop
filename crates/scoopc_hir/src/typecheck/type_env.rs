@@ -1524,6 +1524,68 @@ struct PlainCell(val raw: Int)
     }
 
     #[test]
+    fn sysroot_atomic_int_lowers_to_marked_nominal_not_int() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<atomic-int-type-env>",
+            r#"
+package fixtures.typecheck
+
+import scoop.unsafe.*
+
+typealias AtomicAlias = __AtomicInt
+"#,
+        );
+        let ast = sess.parse(&source).unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in sess.sysroot().index_files() {
+            pairs.push((&f.source, &f.ast));
+        }
+        pairs.push((&source, &ast));
+        let index = Index::build(&pairs).unwrap();
+
+        let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+        let atomic_sym = env
+            .type_symbol("scoop.unsafe.__AtomicInt")
+            .expect("sysroot __AtomicInt should be registered");
+        assert_eq!(
+            atomic_sym.kind,
+            TypeSymbolKind::Nominal(ast::TypeKind::Struct)
+        );
+        assert!(env.nominal_is_interior_mutable("scoop.unsafe.__AtomicInt"));
+
+        let alias_ty = ast
+            .items
+            .iter()
+            .find_map(|item| match item {
+                ast::Item::TypeAlias(alias) if source.slice(alias.name.span) == "AtomicAlias" => {
+                    Some(&alias.ty)
+                }
+                _ => None,
+            })
+            .expect("test alias should be present");
+        let imports = env
+            .file_type_context(source.path())
+            .expect("source file type context should be recorded")
+            .imports
+            .clone();
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut lower = crate::typecheck::TypeLowering::new(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        );
+        let atomic_ty = lower
+            .lower_type_ref(alias_ty)
+            .expect("alias RHS should lower to __AtomicInt nominal");
+        assert_ne!(atomic_ty, builtins.int);
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(atomic_ty) else {
+            panic!("__AtomicInt should lower to a value nominal");
+        };
+        assert_eq!(nominal.fqn, "scoop.unsafe.__AtomicInt");
+    }
+
+    #[test]
     fn sysroot_type_env_allows_ref_value_generic_bounds() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(

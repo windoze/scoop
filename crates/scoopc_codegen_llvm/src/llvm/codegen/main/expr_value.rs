@@ -126,7 +126,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
         fields: &[hir::StructLitField],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let Some(CgTy::Struct(struct_ty)) = self.try_cg_ty_of_type_id(ty) else {
+        let Some(target_cg) = self.try_cg_ty_of_type_id(ty) else {
+            panic!("codegen_struct_lit: typecheck accepted non-struct struct literal type");
+        };
+
+        if let Some((layout_field, field_cg)) = self.scalar_layout_struct_field(ty, target_cg)? {
+            let Some(init) = fields.iter().find(|f| f.name == layout_field.name) else {
+                unreachable!(
+                    "typecheck must reject scalar-layout struct literals missing required fields"
+                );
+            };
+            let init_v = self.codegen_expr_in_expected_context(&init.value, Some(field_cg))?;
+            let coerced = self.coerce_value(init.value.span, init_v, field_cg)?;
+            return self.coerce_value(span, coerced, target_cg);
+        }
+
+        let CgTy::Struct(struct_ty) = target_cg else {
             panic!("codegen_struct_lit: typecheck accepted non-struct struct literal type");
         };
 

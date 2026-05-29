@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=5 step_types=4 dynamic_invokes=0 dispatches=1 resume_packings=3 continuation_objects=2 surface_resume_dispatches=7 layout_classes=29 layout_enums=7 layout_interfaces=12 layout_class_itables=54 layout_callable_symbols=5
+  summary: opt_revision=1 callables=5 step_types=4 dynamic_invokes=0 dispatches=1 resume_packings=3 continuation_objects=2 surface_resume_dispatches=7 layout_classes=29 layout_enums=7 layout_interfaces=12 layout_class_itables=55 layout_callable_symbols=5
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=29 enums=7 vtables=54 interfaces=12 class_itables=54 callable_symbols=5
+  physical_layout: classes=29 enums=7 vtables=55 interfaces=12 class_itables=55 callable_symbols=5
     - class=fixtures.mir.Base layout_key=fixtures.mir.Base super=<none> fields=0
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
@@ -103,6 +103,7 @@ lir_facts {
     - class_vtable=scoop.lang.string.StringBuilder slots=0
     - class_vtable=scoop.unsafe.FunPtr slots=0
     - class_vtable=scoop.unsafe.Ptr slots=0
+    - class_vtable=scoop.unsafe.__AtomicInt slots=0
     - interface=fixtures.mir.IFace id=6556192965737064677 methods=1 supers=0
     - interface=scoop.collections.IntIterable id=15901905228223837312 methods=1 supers=0
     - interface=scoop.collections.IntIterator id=9964296089158589802 methods=1 supers=0
@@ -169,28 +170,29 @@ lir_facts {
     - class_itable=scoop.lang.string.StringBuilder entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
+    - class_itable=scoop.unsafe.__AtomicInt entries=0
     - callable_symbol=lir_callable(223:instance(191:template(177:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;22:fixtures.mir.Base.ping;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[N(fixtures.mir.Base)]->V(Int)/E()))));6:list();6:list());38:body#h0366bf5ab603bc73308608e69e7ec4cc) root=fixtures.mir.Base.ping kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_Base_ping__hfafd525a1c6ee34b188d6d3c88342265
     - callable_symbol=lir_callable(225:instance(193:template(179:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;24:fixtures.mir.callVirtual;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[N(fixtures.mir.Base)]->V(Int)/E()))));6:list();6:list());38:body#h81d2db15fa363e9ee20e50a3d6419877) root=fixtures.mir.callVirtual kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callVirtual__hc3618baf79275633d4540cd8e71c5e05
     - callable_symbol=lir_callable(228:instance(196:template(182:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;26:fixtures.mir.callInterface;20:non_generic_callable;69:callable_sig(1:0;1:0;1:0;40:F(-;[N(fixtures.mir.IFace)]->V(Int)/E()))));6:list();6:list());38:body#h2553c3cd53238cc9a4a8823d630da786) root=fixtures.mir.callInterface kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callInterface__h5cb3e3cb640fcee24335d5c8d2169cfe
     - callable_symbol=lir_callable(304:instance(272:template(258:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;23:fixtures.mir.resumeOnce;20:non_generic_callable;147:callable_sig(1:0;1:0;1:0;117:F(-;[N(scoop.core.Continuation<V(Int),V(Unit);eff=E()>)]->V(Unit)/E(N(scoop.core.Raise<N(scoop.core.RuntimeError)>))))));6:list();6:list());38:body#h13f98d97a580874c995345a42816909b) root=fixtures.mir.resumeOnce kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeOnce__h3ea8f124032446225b505f13a2fae81b
     - callable_symbol=lir_callable(345:instance(313:template(299:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;23:fixtures.mir.resumeBoom;20:non_generic_callable;188:callable_sig(1:0;1:0;1:0;158:F(-;[N(scoop.core.Continuation<V(Int),V(Unit);eff=E(N(fixtures.mir.Boom))>)]->V(Unit)/E(N(fixtures.mir.Boom),N(scoop.core.Raise<N(scoop.core.RuntimeError)>))))));6:list();6:list());38:body#h03061284830494c3143cb4fe94db1b14) root=fixtures.mir.resumeBoom kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeBoom__h23e235fbd311376219b63fd0aed24afd
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=470 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=472 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=5
     - callable=fixtures.mir.Base.ping kind=Plain control_body=false key=lir_callable(223:instance(191:template(177:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;22:fixtures.mir.Base.ping;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[N(fixtures.mir.Base)]->V(Int)/E()))));6:list();6:list());38:body#h0366bf5ab603bc73308608e69e7ec4cc)
-      plain_abi: function_ty=t445 params=1 return=t5 body_slices=1 call_sites=0
+      plain_abi: function_ty=t447 params=1 return=t5 body_slices=1 call_sites=0
     - callable=fixtures.mir.callVirtual kind=Plain control_body=false key=lir_callable(225:instance(193:template(179:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;24:fixtures.mir.callVirtual;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[N(fixtures.mir.Base)]->V(Int)/E()))));6:list();6:list());38:body#h81d2db15fa363e9ee20e50a3d6419877)
-      plain_abi: function_ty=t445 params=1 return=t5 body_slices=1 call_sites=0
+      plain_abi: function_ty=t447 params=1 return=t5 body_slices=1 call_sites=0
     - callable=fixtures.mir.callInterface kind=Plain control_body=false key=lir_callable(228:instance(196:template(182:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;26:fixtures.mir.callInterface;20:non_generic_callable;69:callable_sig(1:0;1:0;1:0;40:F(-;[N(fixtures.mir.IFace)]->V(Int)/E()))));6:list();6:list());38:body#h2553c3cd53238cc9a4a8823d630da786)
-      plain_abi: function_ty=t447 params=1 return=t5 body_slices=1 call_sites=1
+      plain_abi: function_ty=t449 params=1 return=t5 body_slices=1 call_sites=1
     - callable=fixtures.mir.resumeOnce kind=EffectStep control_body=true key=lir_callable(304:instance(272:template(258:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;23:fixtures.mir.resumeOnce;20:non_generic_callable;147:callable_sig(1:0;1:0;1:0;117:F(-;[N(scoop.core.Continuation<V(Int),V(Unit);eff=E()>)]->V(Unit)/E(N(scoop.core.Raise<N(scoop.core.RuntimeError)>))))));6:list();6:list());38:body#h13f98d97a580874c995345a42816909b)
-      effect_step_abi: step#4 invoke_args=t448 entry=st0 complete=st1 states=4 boundaries=2 continuation_object=cont_obj#1
+      effect_step_abi: step#4 invoke_args=t450 entry=st0 complete=st1 states=4 boundaries=2 continuation_object=cont_obj#1
     - callable=fixtures.mir.resumeBoom kind=EffectStep control_body=true key=lir_callable(345:instance(313:template(299:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;23:fixtures.mir.resumeBoom;20:non_generic_callable;188:callable_sig(1:0;1:0;1:0;158:F(-;[N(scoop.core.Continuation<V(Int),V(Unit);eff=E(N(fixtures.mir.Boom))>)]->V(Unit)/E(N(fixtures.mir.Boom),N(scoop.core.Raise<N(scoop.core.RuntimeError)>))))));6:list();6:list());38:body#h03061284830494c3143cb4fe94db1b14)
-      effect_step_abi: step#3 invoke_args=t451 entry=st0 complete=st1 states=4 boundaries=2 continuation_object=cont_obj#0
+      effect_step_abi: step#3 invoke_args=t453 entry=st0 complete=st1 states=4 boundaries=2 continuation_object=cont_obj#0
   step_types=4
-    - step#3 invoke_args=t451 complete=t2 continuation_obj=t459 cases=2
-    - step#4 invoke_args=t448 complete=t2 continuation_obj=t464 cases=1
-    - step#5 invoke_args=t5 complete=t2 continuation_obj=t466 cases=2
-    - step#6 invoke_args=t5 complete=t2 continuation_obj=t468 cases=1
+    - step#3 invoke_args=t453 complete=t2 continuation_obj=t461 cases=2
+    - step#4 invoke_args=t450 complete=t2 continuation_obj=t466 cases=1
+    - step#5 invoke_args=t5 complete=t2 continuation_obj=t468 cases=2
+    - step#6 invoke_args=t5 complete=t2 continuation_obj=t470 cases=1
   dynamic_invoke_contracts=0
   dispatch_contracts=1
     - owner=fixtures.mir.callInterface site=0 kind=Interface dispatch_owner=fixtures.mir.IFace member=foo slot=0 interface_id=Some(6556192965737064677) candidates=1

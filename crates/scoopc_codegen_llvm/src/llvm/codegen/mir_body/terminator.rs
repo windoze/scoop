@@ -407,8 +407,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields, .. } => {
-                self.codegen_mir_make_struct(span, fields, target_cg, slots)
+            crate::mir::Rvalue::StructLit { fields, transport } => {
+                self.codegen_mir_make_struct(span, mir_types, fields, transport, target_cg, slots)
             }
             crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_mir_rvalue: MIR verifier accepted residual interpolated string",
@@ -556,8 +556,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields, .. } => {
-                self.codegen_mir_make_struct(span, fields, target_cg, slots)
+            crate::mir::Rvalue::StructLit { fields, transport } => {
+                self.codegen_mir_make_struct(span, mir_types, fields, transport, target_cg, slots)
             }
             crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: MIR verifier accepted residual interpolated string",
