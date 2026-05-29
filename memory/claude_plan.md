@@ -1,3 +1,43 @@
+# 当前执行计划
+
+## 说明
+- 本文件记录本次 invocation 的可审阅执行计划、关键步骤和进度更新。
+- 不记录私有推理链；只记录任务目标、执行步骤、验证方式和变更结果。
+
+## 初始计划
+1. 读取 `TODO.md`，按文件顺序识别第一个标题未以 `[DONE]` 开头的任务。
+2. 检查最近提交信息；仅当它明确提到与当前任务直接相关的未完成问题时，将其纳入当前任务或在 `TODO.md` 中补为前置任务。
+3. 阅读当前任务要求、依赖和验证要求，并按需查看相关代码、测试和文档。
+4. 若任务可直接完成，进行最小且完整的实现；若遇到阻塞当前任务的缺失特性、规格不匹配或测试失败，先修复，或在 `TODO.md` 中插入最小前置任务并停止。
+5. 按要求运行格式化、lint、相关测试，并在需要时运行完整测试和 fixture 套件。
+6. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；若只做任务拆分或阻塞记录，则保持当前任务未完成。
+7. 仅当阶段级计划发生变化时更新 `PLAN.md`。
+8. 检查 git 状态和差异，提交本次 invocation 的所有相关变更，然后停止，不继续下一个任务。
+
+## 进度
+- 已创建初始计划，下一步读取 `TODO.md` 确认当前任务。
+- 已确认第一个未完成任务为 `P0-T02：核对并冻结 immortal 当前行为基线`，对应 `TODO-1.md`。
+- 最近提交为 `338f5bc0 [P0-T01R] Record review progress`，未明确提到与 `P0-T02` 直接相关的未完成问题。
+
+## P0-T02 执行步骤
+1. 核对 String literal、TypeMetadataLiteral、Platform literal 当前分配路径和 `scoop_alloc_typed` 调用点。
+2. 核对 runtime marker 的 `mark` 写入、heap membership 过滤和当前 immortal 透明性支点。
+3. 核对 `__AtomicInt` 的 typealias 定义、sysroot atomic 构造点，以及 5 个擦除点。
+4. 只更新任务/文档记录，不改运行期或编译期行为。
+5. 先运行格式化和 lint，再按任务要求运行 Rust 测试；若只有 Markdown 变更且已有可复用绿色完整结果，则按规则复用并记录原因。
+6. 更新 `TODO.md` 与 `TODO-1.md`，提交本次变更后停止。
+
+## P0-T02 核对进度
+- 已核对 String literal、TypeMetadataLiteral、Platform literal 的当前动态分配路径。
+- 已核对 runtime header、serial/parallel marker 写 `mark` 路径、heap-membership 过滤和 pinned/handle 直接 mark 入口。
+- 已核对 `__AtomicInt` sysroot typealias、`core.scoop` atomic raw 构造点，以及任务列出的 5 个擦除点；另外发现 codegen ABI/type 映射处也有直接把 `__AtomicInt` 映射为 word `Int` 的现状，完成记录将一并写明。
+- 已更新 `TODO-1.md` 的 P0-T02 完成记录，并在 `TODO.md` / `TODO-1.md` 将 P0-T02 标记为 `[DONE]`。
+- 最终 `git diff --check` 已通过；本任务仅修改 Markdown/任务记录，完整代码 suite 按项目规则复用最近绿色结果。
+
+## 保留的既有记录
+
+以下内容为本次 invocation 开始前文件中已有记录，保留用于连续审计。
+
 # Current Invocation Plan
 
 Status: task review completed and committed.
