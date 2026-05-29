@@ -4420,6 +4420,36 @@ static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state
   state->nursery_blocks = blocks;
 }
 
+static uint32_t scoop_gc_immix_minor_object_is_nursery(ScoopGcObjectHeader *obj,
+                                                       size_t small_object_cap) {
+  if (obj == 0) {
+    return 0;
+  }
+
+  uint64_t raw_size = obj->size_bytes;
+  if (raw_size == 0 || raw_size > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+  if ((size_t)raw_size > small_object_cap) {
+    return 0;
+  }
+
+  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  return block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+}
+
+static void scoop_gc_immix_minor_reclaim_dead_nursery_object(ScoopGcHeap *heap,
+                                                             ScoopGcObjectHeader *obj) {
+  if (heap == 0 || obj == 0) {
+    return;
+  }
+
+  if (obj->type_desc != 0 && obj->type_desc->release_fn != 0) {
+    obj->type_desc->release_fn((void *)obj);
+  }
+  heap->bytes_freed += obj->size_bytes;
+}
+
 static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t deadline_ms) {
   void scoop_runtime_init(void);
   void scoop_thread_register(void);
@@ -4783,12 +4813,9 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
       }
 
       // nursery objects 一律移除：live 已搬迁；dead 将在 reset 中回收。
-      uint64_t raw_size = obj->size_bytes;
-      if (raw_size != 0 && raw_size <= (uint64_t)SIZE_MAX && (size_t)raw_size <= small_object_cap) {
-        ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
-        if (block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
-          continue;
-        }
+      if (scoop_gc_immix_minor_object_is_nursery(obj, small_object_cap)) {
+        scoop_gc_immix_minor_reclaim_dead_nursery_object(heap, obj);
+        continue;
       }
 
       obj->next = new_list;
@@ -4815,12 +4842,9 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
         continue;
       }
 
-      uint64_t raw_size = obj->size_bytes;
-      if (raw_size != 0 && raw_size <= (uint64_t)SIZE_MAX && (size_t)raw_size <= small_object_cap) {
-        ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
-        if (block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
-          continue;
-        }
+      if (scoop_gc_immix_minor_object_is_nursery(obj, small_object_cap)) {
+        scoop_gc_immix_minor_reclaim_dead_nursery_object(heap, obj);
+        continue;
       }
 
       obj->next = new_list;
@@ -5504,6 +5528,17 @@ uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   }
   scoop_gc_immix_lock(state);
   uint64_t v = scoop_gc_heap.bytes_freed;
+  scoop_gc_immix_unlock(state);
+  return v;
+}
+
+uint64_t scoop_gc_debug_heap_gc_cycles(void) {
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
+  uint64_t v = scoop_gc_heap.gc_cycles;
   scoop_gc_immix_unlock(state);
   return v;
 }

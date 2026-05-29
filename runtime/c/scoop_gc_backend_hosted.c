@@ -664,6 +664,13 @@ uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   return v;
 }
 
+uint64_t scoop_gc_debug_heap_gc_cycles(void) {
+  scoop_gc_lock_acquire();
+  uint64_t v = scoop_gc_heap.gc_cycles;
+  scoop_gc_lock_release();
+  return v;
+}
+
 uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
   scoop_gc_lock_acquire();
   uint64_t total = 0;

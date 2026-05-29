@@ -5,7 +5,6 @@ use scoop_runtime as _;
 #[cfg(feature = "gc-immix")]
 mod immix {
     use core::ffi::c_void;
-    use std::collections::HashSet;
 
     #[repr(C)]
     struct ScoopGcObjectHeader {
@@ -18,7 +17,7 @@ mod immix {
 
     // 仅用于测试读取 block 头部字段：
     // - `magic`：用于确认该对象确实位于 Immix block 内；
-    // - `generation`：用于确认 nursery 上限生效（超限后回退到 old blocks）。
+    // - `generation`：用于确认 nursery 满后会触发 minor 并恢复可分配状态。
     #[repr(C)]
     struct ScoopGcImmixBlockHeader {
         magic: u64,
@@ -37,9 +36,13 @@ mod immix {
         fn scoop_thread_unregister();
 
         fn scoop_alloc(size: u64) -> *mut c_void;
+        fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+        fn scoop_leave_native();
 
         fn scoop_gc_collect();
         fn scoop_gc_debug_heap_object_count() -> u64;
+        fn scoop_gc_debug_heap_bytes_freed() -> u64;
+        fn scoop_gc_debug_heap_gc_cycles() -> u64;
     }
 
     fn immix_block_base(ptr: *const c_void) -> *const ScoopGcImmixBlockHeader {
@@ -49,12 +52,12 @@ mod immix {
     }
 
     #[test]
-    fn immix_nursery_blocks_are_capped_and_fallback_to_old() {
+    fn immix_nursery_full_runs_minor_and_reuses_nursery() {
         // 必须在第一次 runtime init 前设置（runtime 当前为进程级全局 init）。
         // Rust 2024：修改进程环境变量在并发场景下可能产生 UB，因此 `set_var/remove_var` 为 unsafe。
         // 该测试使用 `--test-threads=1` 串行执行，且在 runtime init 前完成设置。
         unsafe {
-            std::env::set_var("SCOOP_GC_IMMIX_NURSERY_BLOCKS", "1");
+            std::env::set_var("SCOOP_GC_IMMIX_NURSERY_BLOCKS", "4");
         }
 
         unsafe {
@@ -67,15 +70,29 @@ mod immix {
         }
 
         let header_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64;
-        let obj_size = header_size + 256;
+        let live_size = header_size + 64;
+        let garbage_size = header_size + 512;
 
-        let mut nursery_blocks: HashSet<usize> = HashSet::new();
-        let mut saw_nursery = false;
-        let mut saw_old = false;
+        let cycles_before = unsafe { scoop_gc_debug_heap_gc_cycles() };
+        let freed_before = unsafe { scoop_gc_debug_heap_bytes_freed() };
 
-        // 分配足够多的对象，确保超过 1 个 block 的容量（从而必须回退到 old）。
-        for _ in 0..500 {
-            let p = unsafe { scoop_alloc(obj_size) };
+        let mut live = unsafe { scoop_alloc(live_size) };
+        assert!(!live.is_null());
+        assert_eq!(
+            unsafe { (*immix_block_base(live)).generation },
+            GEN_NURSERY,
+            "expected initial live object in nursery"
+        );
+
+        let root0: *mut *mut c_void = &mut live;
+        let mut roots: [*mut *mut c_void; 1] = [root0];
+        unsafe {
+            scoop_enter_native(roots.as_mut_ptr(), roots.len() as u32);
+        }
+
+        // 混合 live/dead workload：`live` 通过 native root 保活，其余对象应由自动 minor 回收。
+        for _ in 0..2000 {
+            let p = unsafe { scoop_alloc(garbage_size) };
             assert!(!p.is_null());
 
             let block = immix_block_base(p);
@@ -86,29 +103,35 @@ mod immix {
             );
 
             let generation = unsafe { (*block).generation };
-            match generation {
-                GEN_NURSERY => {
-                    saw_nursery = true;
-                    nursery_blocks.insert(block as usize);
-                }
-                GEN_OLD => {
-                    saw_old = true;
-                }
-                other => panic!("unknown immix block generation: {other}"),
-            }
+            assert!(
+                generation == GEN_NURSERY || generation == GEN_OLD,
+                "unknown immix block generation: {generation}"
+            );
         }
 
-        // 上限为 1 block：nursery block 集合不得超过 1；且必须出现 old fallback。
-        assert!(saw_nursery, "expected at least one nursery allocation");
-        assert!(saw_old, "expected fallback to old after nursery fills");
+        let cycles_after = unsafe { scoop_gc_debug_heap_gc_cycles() };
+        let freed_after = unsafe { scoop_gc_debug_heap_bytes_freed() };
         assert!(
-            nursery_blocks.len() <= 1,
-            "nursery blocks must be capped (got {})",
-            nursery_blocks.len()
+            cycles_after > cycles_before,
+            "expected nursery-full allocation to trigger minor GC"
+        );
+        assert!(
+            freed_after > freed_before,
+            "expected automatic minor GC to reclaim dead nursery bytes"
+        );
+
+        let fresh = unsafe { scoop_alloc(live_size) };
+        assert!(!fresh.is_null());
+        assert_eq!(
+            unsafe { (*immix_block_base(fresh)).generation },
+            GEN_NURSERY,
+            "expected nursery allocation to remain usable after automatic minor GC"
         );
 
         unsafe {
-            // major collect（当前仅有 major）应能回收所有无 roots 的对象。
+            scoop_leave_native();
+
+            // major collect 应能回收所有无 roots 的对象。
             scoop_gc_collect();
             assert_eq!(scoop_gc_debug_heap_object_count(), 0);
 

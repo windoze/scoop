@@ -7,7 +7,7 @@
 
 ## P2：分代触发、OOM 防御与 backend parity
 
-### [TODO] P2-T01：nursery 满触发 minor GC 再重试
+### [DONE] P2-T01：nursery 满触发 minor GC 再重试
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -31,7 +31,11 @@
   - 分代分配模式恢复，nursery 不再一次满后永久满。
 - 依赖：P1-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：`scoop_alloc` 在 Immix nursery 分配失败后触发一次 `scoop_gc_collect_minor()`，随后重试 nursery 分配；若仍失败，才沿用 old-space fallback，避免大对象或无法恢复场景死循环。
+  - 修正：minor GC 在移除 dead nursery 对象时调用 release callback 并累计 `bytes_freed`，保证回收统计与 pacing live-bytes 观测一致。
+  - 测试：更新 `gc_immix_nursery` 覆盖 `SCOOP_GC_IMMIX_NURSERY_BLOCKS=4` 的 mixed live/dead workload，断言 `gc_cycles` 递增、`bytes_freed` 增长、nursery 自动 minor 后仍可继续分配；调整 `gc_immix_write_barrier` 以适配 nursery-full 不再静默 fallback 的行为。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T01R：Review nursery-full minor GC
 

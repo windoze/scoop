@@ -337,10 +337,10 @@ static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *sta
 // 设计目标（v0）：
 // - nursery 的分配必须“成本可上界”：只做 bump，不做 holes 搜索/复用；
 // - nursery 的工作量边界由 `nursery_max_blocks` 控制（通过 env 配置；见 immix heap init）；
-// - 当 nursery 用尽时，分配路径回退到 old allocator（现有 hole-bump + reusable blocks 复用）。
+// - 当 nursery 用尽时，分配路径先触发 minor GC 并重试，仍失败才回退到 old allocator。
 //
 // 注意：
-// - 该实现仅提供分配区与上限；minor evacuation 语义在 TODO T1412c 落地。
+// - minor evacuation 由 `scoop_gc_collect_minor` 提供；这里仅负责满 nursery 时的触发点。
 // - 调用方必须持有 `state->lock`（便于与 GC 周期/blocks 列表维护保持一致）。
 static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(
     ScoopGcImmixState *state) {
@@ -655,11 +655,19 @@ void *scoop_alloc(uint64_t size) {
   if ((size_t)object_size > cap) {
     p = malloc((size_t)object_size);
   } else {
-    // T1412b：nursery 优先（bump-only + 上限）。nursery 用尽后回退到 old allocator。
+    // nursery 优先（bump-only + 上限）。nursery 用尽时先做一次 minor GC，再重试一次。
     if (state->nursery_max_blocks != 0) {
       (void)pthread_mutex_lock(&state->lock);
       p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
       (void)pthread_mutex_unlock(&state->lock);
+
+      if (p == 0) {
+        scoop_gc_collect_minor();
+
+        (void)pthread_mutex_lock(&state->lock);
+        p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
+        (void)pthread_mutex_unlock(&state->lock);
+      }
     }
 
     // bump-in-hole（Immix v0 / T1409a）：

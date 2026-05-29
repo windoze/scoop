@@ -408,6 +408,7 @@ uint64_t scoop_gc_debug_heap_object_count(void);
 // 返回 heap 统计字段（累计值）。
 uint64_t scoop_gc_debug_heap_bytes_allocated(void);
 uint64_t scoop_gc_debug_heap_bytes_freed(void);
+uint64_t scoop_gc_debug_heap_gc_cycles(void);
 
 // 返回“当前 heap 保留的内存”估算值（字节）。
 //

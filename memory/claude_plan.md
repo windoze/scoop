@@ -1,22 +1,32 @@
 # Claude Execution Plan
 
 ## Scope
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after implementing, validating, documenting, and committing that one task.
 
-## Current Plan
-1. Selected first incomplete task: `P1-T02R` in `TODO-1.md`.
-2. Review the latest `P1-T02` env-knob implementation and tests for default-on semantics, configured defaults, `SCOOP_GC_PACING=off`, and `SCOOP_GC_STRESS` bypass behavior.
-3. If review finds a behavioral defect directly in scope, fix it before marking the review task complete.
-4. Run required validation in order: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `python3 tools/run_fixtures.py`; also run focused pacing checks as needed.
-5. Update `TODO.md` and `TODO-1.md` with `[DONE] P1-T02R` and a completion record.
-6. Commit all task-related changes with a descriptive `P1-T02R` message, then stop.
+- Follow `TODO.md` as the authoritative task list.
+- Identify and complete exactly the first incomplete task whose heading is not prefixed with `[DONE]`.
+- Stop after completing that one task, recording completion and committing changes.
+
+## Execution Plan
+
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Inspect the latest commit message only for directly relevant unfinished work tied to that task.
+3. Read the relevant project files for the selected task, limiting investigation to the current task and blocking prerequisites.
+4. Implement the selected task as written, without narrowing scope or using workarounds.
+5. Add or update focused tests/fixtures required by the task.
+6. Run formatting first with `cargo fmt`.
+7. Run linting with `cargo clippy --all-targets -- -D warnings`.
+8. Run the relevant tests first, then full validation required by the task; use long timeouts for full suites.
+9. If unscheduled failures are observed, fix them if in scope or add the minimum prerequisite/follow-up task in `TODO.md` before marking anything complete.
+10. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and adding a completion record.
+11. Update this file when key steps complete or if the plan changes.
+12. Inspect git status and diffs, then commit all intended changes with a task-specific message.
+13. Stop without starting the next task.
 
 ## Progress Log
-- Created initial execution plan before implementation work.
-- Read `TODO.md`; first incomplete task is `P1-T02R`.
-- Latest commit is `[P1-T02] Add GC pacing env knobs`, directly relevant to the review scope.
-- Reviewed the P1-T02 env parsing, heap pacing fields, Immix threshold update path, safepoint request consumption, and `gc_pacing_env` tests. No blocking implementation defect found before validation.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test -p scoop_runtime --test gc_pacing_env`, `cargo test --all --all-targets`, `python3 tools/run_fixtures.py`, and 10M `gc_microbench heap-growth` on/off runs.
-- Updated `TODO.md` and `TODO-1.md` to mark `P1-T02R` as `[DONE]` with the review and validation record.
+
+- Created initial execution plan before reading task files or running commands.
+- Identified first incomplete task: `P2-T01` in `TODO-2.md`, covering nursery-full minor GC retry. Latest commit is `[P1-T02R] Review GC pacing env knobs`, with no explicit unfinished issue found in its subject.
+- Inspected the Immix allocation path and minor GC implementation. The required code change is to trigger one minor collection after nursery allocation fails, retry nursery once, then fall back to old space. Minor GC also needs to count reclaimed dead nursery bytes so the required `bytes_freed` validation is meaningful.
+- Implemented the nursery-full minor retry path and updated Immix runtime tests. Targeted tests passed: `gc_immix_nursery`, `gc_immix_write_barrier`, and `gc_immix_minor_collect`.
+- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
+- Updated `TODO.md` and `TODO-2.md` to mark `P2-T01` as `[DONE]` with implementation and validation notes. Only documentation changed after the successful full validation runs.
