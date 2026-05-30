@@ -218,7 +218,7 @@
   - 测试：新增 codegen 单元测试覆盖 SHA-256 前 16 字节 hex 命名与内容相同/不同的 key 行为；新增 build fixture `tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop`，断言重复 `"shared"` 字面量只产生一个 content-hash byte-array global 且带 `unnamed_addr`。
   - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm string_byte_data --all-targets`；`cargo build -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P4-T02R：Review content-hash 键
+### [DONE] P4-T02R：Review content-hash 键
 
 - 参考：
   - P4-T02 完成记录
@@ -237,4 +237,9 @@
   - content-hash 键稳定，immortal codegen 前置就绪。
 - 依赖：P4-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：byte-array global 的普通路径继续使用 `base16(SHA-256(bytes)[..16])` 生成 `__scoop_str_data_<hash>`，并保持 `unnamed_addr constant`；重复相同 payload 在同一编译单元内复用同一个 global，字符串 wrapper 分配语义未改变。
+  - 碰撞兜底：补充编译单元级 `StringByteDataGlobalRegistry`，同一截断 hash 下若出现不同 byte payload，则生成稳定后缀名 `__scoop_str_data_<hash>_<n>`，避免理论 hash-prefix 碰撞导致不同字符串数据别名；相同 byte payload 的重复请求仍复用原名。
+  - Golden 同步：复核并保留 `tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop`，断言重复 `"shared"` 只生成一个 content-hash byte-array global 且带 `unnamed_addr`。
+  - 测试：新增 `string_byte_data_registry_disambiguates_hash_collisions` 单元测试覆盖同一 hash 前缀下不同 payload 的兜底命名和相同 payload 的复用。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm string_byte_data --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。

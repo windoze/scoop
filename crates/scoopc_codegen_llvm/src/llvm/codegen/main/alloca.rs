@@ -9,6 +9,15 @@ fn string_byte_data_global_name(bytes: &[u8]) -> String {
     format!("__scoop_str_data_{}", string_byte_data_hash(bytes))
 }
 
+fn string_byte_data_global_name_for_hash(hash: &str, collision_index: usize) -> String {
+    let base = format!("__scoop_str_data_{hash}");
+    if collision_index == 0 {
+        base
+    } else {
+        format!("{base}_{collision_index}")
+    }
+}
+
 fn string_byte_data_hash(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
 
@@ -19,6 +28,27 @@ fn string_byte_data_hash(bytes: &[u8]) -> String {
         out.push(HEX[(byte & 0x0f) as usize] as char);
     }
     out
+}
+
+impl StringByteDataGlobalRegistry {
+    fn reserve(&mut self, bytes: &[u8]) -> String {
+        self.reserve_for_hash(&string_byte_data_hash(bytes), bytes)
+    }
+
+    fn reserve_for_hash(&mut self, hash: &str, bytes: &[u8]) -> String {
+        if let Some(name) = self.names_by_bytes.get(bytes) {
+            return name.clone();
+        }
+
+        let next_collision_index = self
+            .next_collision_index_by_hash
+            .entry(hash.to_string())
+            .or_insert(0);
+        let name = string_byte_data_global_name_for_hash(hash, *next_collision_index);
+        *next_collision_index += 1;
+        self.names_by_bytes.insert(bytes.to_vec(), name.clone());
+        name
+    }
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -74,7 +104,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         bytes: &[u8],
     ) -> GlobalValue<'ctx> {
-        let name = string_byte_data_global_name(bytes);
+        let name = self
+            .shared
+            .shared_caches
+            .string_byte_data_globals
+            .borrow_mut()
+            .reserve(bytes);
         if let Some(existing) = self.module.get_global(&name) {
             existing.set_unnamed_addr(true);
             return existing;
@@ -164,7 +199,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
 #[cfg(test)]
 mod tests {
-    use super::{string_byte_data_global_name, string_byte_data_hash};
+    use super::{
+        StringByteDataGlobalRegistry, string_byte_data_global_name, string_byte_data_hash,
+    };
 
     #[test]
     fn string_byte_data_hash_is_sha256_prefix_hex() {
@@ -185,5 +222,18 @@ mod tests {
             string_byte_data_global_name(b"hello"),
             string_byte_data_global_name(b"hello!")
         );
+    }
+
+    #[test]
+    fn string_byte_data_registry_disambiguates_hash_collisions() {
+        let mut registry = StringByteDataGlobalRegistry::default();
+
+        let first = registry.reserve_for_hash("same_hash", b"first");
+        let second = registry.reserve_for_hash("same_hash", b"second");
+        let second_again = registry.reserve_for_hash("same_hash", b"second");
+
+        assert_eq!(first, "__scoop_str_data_same_hash");
+        assert_eq!(second, "__scoop_str_data_same_hash_1");
+        assert_eq!(second_again, second);
     }
 }

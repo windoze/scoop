@@ -380,6 +380,14 @@ pub(super) const CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX: u32 = 4;
 pub(super) const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 =
     CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX + 1;
 
+/// String byte-array globals keyed by truncated content hash.
+#[derive(Default)]
+struct StringByteDataGlobalRegistry {
+    /// Keeps truncated SHA-256 name collisions from aliasing different byte payloads.
+    names_by_bytes: HashMap<Vec<u8>, String>,
+    next_collision_index_by_hash: HashMap<String, usize>,
+}
+
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的共享 cache。
 ///
 /// 当前先收口两类内容：
@@ -400,6 +408,7 @@ struct SharedCodegenCaches {
     callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
     plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
     exported_abi_symbols: RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
+    string_byte_data_globals: RefCell<StringByteDataGlobalRegistry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
