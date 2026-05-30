@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: release_hook_e2e_immix_minor.stdout.txt
-// ENV: SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
+// ENV: SCOOP_RUNTIME_GC_BACKEND=immix SCOOP_GC_IMMIX_NURSERY_BYTES=0 SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
 // SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runtime_gc

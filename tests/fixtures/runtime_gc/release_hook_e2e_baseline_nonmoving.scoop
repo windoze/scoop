@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: release_hook_e2e.stdout.txt
-// ENV: SCOOP_RUNTIME_GC_BACKEND=baseline
+// ENV: SCOOP_RUNTIME_GC_BACKEND=baseline SCOOP_GC_MOVE=0
 // SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runtime_gc

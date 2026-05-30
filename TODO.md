@@ -48,7 +48,7 @@
 | P2-T02 | [DONE] | 在 type descriptor 填 `release_fn` + IR fixtures |
 | P2-T02R | [DONE] | Review P2-T02 descriptor 接线 |
 | P3-T01 | [DONE] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
-| P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
+| P3-T01R | [DONE] | Review P3-T01 验证矩阵 |
 | P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
 | P3-T02R | [TODO] | Review P3-T02 用例与文档 |
 | P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
@@ -367,13 +367,14 @@
   - 跨平台矩阵：macos/aarch64 本地全绿；linux/amd64 在 nuc12（`/home/chenxu/repos/scoop-1`，LLVM 21.1.8 via linuxbrew）经未提交变更 patch 后构建并运行六个后端 fixture，全部 PASS（baseline moving / baseline non-moving / hosted / immix major / immix minor / minimal）。
   - 验证：`cargo build -p scoop -p scoopc`；本地 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/release_hook_e2e_*.scoop`（macos/aarch64）；nuc12 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/release_hook_e2e_{baseline_moving,baseline_nonmoving,hosted,immix_major,immix_minor,minimal}.scoop`（linux/amd64，全 PASS）。
 
-### [TODO] P3-T01R：Review P3-T01 验证矩阵
+### [DONE] P3-T01R：Review P3-T01 验证矩阵
 
 - 必须实现的内容：复核端到端断言有效（确实观测到释放且字段正确）、退出不回收语义被验证、四后端与跨平台覆盖完整、无重复释放。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P3-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P3-T01 端到端验证矩阵：`ReleaseHookProbe` 为 final non-generic class，持 `Ptr<Int>` raw handle，释放 trampoline 仅把中间字段 `raw` 传给 `@Extern(abi="c")` 探针；stdout 断言释放次数、last id、live、duplicate、invalid 计数，能观测字段值正确传入、不可达对象被释放一次、重复 collect 不重复释放。`scoop_test_release_hook_probe_expect_at_exit` 的 atexit 检查锁定进程退出时仍存活对象不触发 release，符合 best-effort 边界。复核四后端/模式 fixture 覆盖 baseline moving、baseline non-moving、hosted、immix major、immix minor、minimal；本次修正 review 中发现的环境隔离缺口：baseline non-moving 显式 `SCOOP_GC_MOVE=0`，immix major/minor 显式 `SCOOP_RUNTIME_GC_BACKEND=immix` 并固定 nursery env，避免矩阵受外部环境污染。跨平台记录已在 P3-T01 完成记录中覆盖 macos/aarch64 与 linux/amd64。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1652)`）。
 
 ### [TODO] P3-T02：真实用例 + spec/runtime 文档回写
 
