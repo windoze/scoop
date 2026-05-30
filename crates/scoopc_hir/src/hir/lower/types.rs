@@ -377,6 +377,8 @@ pub struct LoweredHir {
     /// 包含**所有** class 的源声明（非泛型与泛型同等存在）；codegen 不直接读它（codegen 走
     /// `class_inits`，其内容是已 substituted 并 `as_mono` 校验过的 `MonoClassInit`）。
     pub generic_class_decls: GenericClassDeclIndex,
+    /// 已校验的 `@ReleaseHook` metadata，供后端接线 release trampoline 与 descriptor。
+    pub release_hooks: crate::hir::ReleaseHookIndex,
     /// class vtable slots（TODO T1507c2 / T1508b）。
     ///
     /// 说明：

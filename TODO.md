@@ -224,7 +224,7 @@
   - 2026-05-31：复核 P1-T02 宿主校验实现：`@ReleaseHook` type 声明路径先校验注解参数 surface，再强制普通 `class`、non-generic、final（拒绝 `open` / `abstract` / `sealed`）和 `@Experimental(feature = "releaseHook")`；诊断分别指出非 class 宿主、类型参数、非 final modifier 与缺少实验开关。补齐 review 中发现的非 class 测试缺口：`release_hook_host_rejects_non_class_type` 现在同时锁定 `struct` / `enum` / `interface`，既有 `annotation class`、generic、open/abstract/sealed 与缺少 releaseHook 实验开关测试继续覆盖其余条件。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。`python3 tools/run_fixtures.py` 未重跑，因为本次仅修改 `#[cfg(test)]` 单元测试与 TODO 记录，不改变编译器产物或 fixture 行为。
 
-### [TODO] P1-T03：释放函数签名校验 + `args` 字段校验 + HIR side table
+### [DONE] P1-T03：释放函数签名校验 + `args` 字段校验 + HIR side table
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1-T03、P1-T04、P1-T05、§2（安全论证）
@@ -241,7 +241,8 @@
 - 完成条件：签名/字段全部校验通过的合法用例产出可供 codegen 消费的 side table 记录。
 - 依赖：P1-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增 `@ReleaseHook` 语义校验：释放函数 FQN 必须解析为唯一可见的无 receiver 非泛型函数，且必须是 `@NoGC` 或 `@Extern(abi="c")`；返回类型必须为 Unit，参数数量/顺序/类型必须与 `args` 字段精确匹配。`args` 现在必须引用宿主 class 的真实字段，字段类型必须通过 `is_gc_free_value_type` 判定为 GC-free，禁止传入 GC ref / self / member receiver 路径。新增 AST `ReleaseHookBinding` side table，并在 HIR lowering 中发布 `ReleaseHookIndex`（class FQN -> 目标函数 FQN + 有序字段名列表）供 P2 codegen 消费；补充单元测试覆盖正例记录、非 leaf 释放函数、非 GC-free 字段、字段/参数类型不匹配和 HIR side table handoff。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P1-T03R：Review P1-T03 函数/字段校验
 

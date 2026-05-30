@@ -710,6 +710,24 @@ pub(in crate::hir::lower) fn collect_extern_libs(
     out
 }
 
+pub(in crate::hir::lower) fn collect_release_hooks(
+    pairs: &[(&SourceFile, &ast::File)],
+) -> crate::hir::ReleaseHookIndex {
+    let mut out = crate::hir::ReleaseHookIndex::new();
+    for (_source, file) in pairs {
+        for (class_fqn, binding) in file.release_hook_bindings() {
+            out.insert(
+                class_fqn,
+                crate::hir::ReleaseHook {
+                    target_fqn: binding.target_fqn,
+                    arg_fields: binding.arg_fields,
+                },
+            );
+        }
+    }
+    out
+}
+
 pub(in crate::hir::lower) fn collect_extern_libs_in_file(
     source: &SourceFile,
     file: &ast::File,

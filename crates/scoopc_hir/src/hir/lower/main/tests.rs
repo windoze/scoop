@@ -551,6 +551,31 @@ fn session() -> Session {
     Session::with_options(SessionOptions::new()).unwrap()
 }
 
+#[test]
+fn lower_typed_single_source_file_preserves_release_hook_side_table() {
+    let sess = session();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"package a
+@Extern(abi = "c")
+fun release(raw: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "a.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &source);
+    let hook = lowered
+        .release_hooks
+        .get("a.NativeBox")
+        .expect("release hook side table should contain class");
+
+    assert_eq!(hook.target_fqn, "a.release");
+    assert_eq!(hook.arg_fields, vec!["raw"]);
+}
+
 fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {
     lowered
         .file

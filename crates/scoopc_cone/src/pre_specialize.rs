@@ -377,6 +377,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             object_inits: HashMap::new(),
             generic_class_decls: HashMap::new(),
             class_inits: HashMap::new(),
+            release_hooks: HashMap::new(),
             class_vtables: HashMap::new(),
             interfaces: HashMap::new(),
             class_itables: HashMap::new(),

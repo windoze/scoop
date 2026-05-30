@@ -24,8 +24,8 @@ use crate::ast;
 use crate::intrinsics::{
     IntrinsicAnnotationParseError, named_intrinsic_audit_entry, parse_intrinsic_annotation_args,
 };
-use crate::resolve::ImportTable;
 use crate::resolve::Index;
+use crate::resolve::{ImportTable, Visibility, is_symbol_visible_from};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
@@ -776,6 +776,151 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@ReleaseHook` 在 `{type_fqn}` 上重复声明")]
+    #[diagnostic(code(scoop::typecheck::release_hook_duplicate))]
+    ReleaseHookDuplicate {
+        type_fqn: String,
+        #[label("这里是重复的 `@ReleaseHook`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 宿主 `{type_fqn}` 的释放函数 `{function_fqn}` 不存在")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_not_found))]
+    ReleaseHookFunctionNotFound {
+        type_fqn: String,
+        function_fqn: String,
+        #[label("这里引用的释放函数 FQN 无法解析")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 宿主 `{type_fqn}` 不能访问释放函数 `{function_fqn}`（{visibility}）")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_not_visible))]
+    ReleaseHookFunctionNotVisible {
+        type_fqn: String,
+        function_fqn: String,
+        visibility: Visibility,
+        #[label("这里引用了不可见的释放函数")]
+        use_span: miette::SourceSpan,
+        #[label("释放函数定义在这里")]
+        decl_span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 释放函数 `{function_fqn}` 存在多个可见 overload（{count} 个），无法唯一绑定"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_ambiguous))]
+    ReleaseHookFunctionAmbiguous {
+        function_fqn: String,
+        count: usize,
+        #[label("这里需要引用唯一的释放函数 FQN")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 不能是 member 或 extension 函数")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_receiver_not_allowed))]
+    ReleaseHookFunctionReceiverNotAllowed {
+        function_fqn: String,
+        #[label("这里的释放函数有隐式 receiver，无法从 release hook 传入")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 不能是泛型函数")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_generics_not_supported))]
+    ReleaseHookFunctionGenericsNotSupported {
+        function_fqn: String,
+        #[label("这里的类型参数无法由 `@ReleaseHook` 实例化")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 必须是 `@NoGC` 或 `@Extern(abi = \"c\")`")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_must_be_nogc_or_c_extern))]
+    ReleaseHookFunctionMustBeNoGcOrCExtern {
+        function_fqn: String,
+        #[label("这里的函数不满足释放上下文安全边界")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 的返回类型必须是 Unit，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_return_must_be_unit))]
+    ReleaseHookFunctionReturnMustBeUnit {
+        function_fqn: String,
+        found: String,
+        #[label("这里的返回类型必须是 Unit 或省略")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 不能声明 vararg 参数")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_vararg_not_supported))]
+    ReleaseHookFunctionVarargNotSupported {
+        function_fqn: String,
+        #[label("这里的 vararg 无法由 release hook 构造")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 释放函数 `{function_fqn}` 的类型无法校验：{message}")]
+    #[diagnostic(code(scoop::typecheck::release_hook_function_type_invalid))]
+    ReleaseHookFunctionTypeInvalid {
+        function_fqn: String,
+        message: String,
+        #[label("这里的类型无法作为 release hook 签名使用")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 宿主 `{type_fqn}` 的 args 数量与释放函数 `{function_fqn}` 参数数量不匹配：args 有 {field_count} 个，参数有 {param_count} 个"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_arg_count_mismatch))]
+    ReleaseHookArgCountMismatch {
+        type_fqn: String,
+        function_fqn: String,
+        field_count: usize,
+        param_count: usize,
+        #[label("这里的 args 必须与释放函数参数一一对应")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 宿主 `{type_fqn}` 没有名为 `{field_name}` 的字段")]
+    #[diagnostic(code(scoop::typecheck::release_hook_arg_field_not_found))]
+    ReleaseHookArgFieldNotFound {
+        type_fqn: String,
+        field_name: String,
+        #[label("这里引用了不存在的字段")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 的类型无法校验：{message}")]
+    #[diagnostic(code(scoop::typecheck::release_hook_arg_field_type_invalid))]
+    ReleaseHookArgFieldTypeInvalid {
+        type_fqn: String,
+        field_name: String,
+        message: String,
+        #[label("这里的字段类型无法作为 release hook 参数使用")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 必须是 GC-free 值类型，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::release_hook_arg_field_must_be_gc_free))]
+    ReleaseHookArgFieldMustBeGcFree {
+        type_fqn: String,
+        field_name: String,
+        found: String,
+        #[label("这里的字段类型不能传入 GC release hook")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 类型与释放函数参数不匹配：字段是 {field_ty}，参数是 {param_ty}"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_arg_type_mismatch))]
+    ReleaseHookArgTypeMismatch {
+        type_fqn: String,
+        field_name: String,
+        field_ty: String,
+        param_ty: String,
+        #[label("这里的字段类型必须与对应参数精确一致")]
+        span: miette::SourceSpan,
+    },
+
     #[error("注解 `{annotation}` 的参数 `{param}` 必须是编译期常量表达式")]
     #[diagnostic(code(scoop::typecheck::annotation_arg_not_const))]
     AnnotationArgNotConst {
@@ -811,6 +956,8 @@ pub fn check_file_annotations(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), AnnotationError> {
+    file.replace_release_hook_bindings(HashMap::new());
+
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     let ctx = AnnotationCheckContext {
         source,
@@ -990,6 +1137,7 @@ fn check_type_decl_annotations(
     };
     check_annotation_uses(ctx, lower, builtins, &decl.annotations, site)?;
     check_builtin_annotations_on_type_decl(ctx.source, file_allows_intrinsic, decl, &type_fqn)?;
+    check_release_hook_decl_contract(ctx, lower, builtins, decl, &type_fqn)?;
 
     // 1.5) `@CLayout(aligned, packed)`：GC-free struct 的 ABI 布局控制（spec §15.5.2）。
     //
@@ -3741,6 +3889,470 @@ fn check_release_hook_host_decl(
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct ReleaseHookFieldInfo {
+    name: String,
+    span: Span,
+    ty: TypeId,
+}
+
+fn check_release_hook_decl_contract(
+    ctx: AnnotationCheckContext<'_>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    decl: &ast::TypeDecl,
+    type_fqn: &str,
+) -> Result<(), AnnotationError> {
+    let mut release_hook_ann = None;
+    for ann in &decl.annotations {
+        if builtin_annotation_kind(ctx.source, ann) != Some(BuiltinAnnotationKind::ReleaseHook) {
+            continue;
+        }
+        if release_hook_ann.replace(ann).is_some() {
+            let (_, name_span) = annotation_name_and_span(ctx.source, ann);
+            return Err(AnnotationError::ReleaseHookDuplicate {
+                type_fqn: type_fqn.to_string(),
+                span: name_span.into(),
+            });
+        }
+    }
+
+    let Some(ann) = release_hook_ann else {
+        return Ok(());
+    };
+
+    let info = parse_release_hook_annotation(ctx.source, ann).map_err(|err| match err {
+        ReleaseHookAnnotationParseError::MissingParam { param, span } => {
+            AnnotationError::AnnotationArgMissingRequired {
+                annotation: "@ReleaseHook".to_string(),
+                param: param.to_string(),
+                span: span.into(),
+            }
+        }
+        ReleaseHookAnnotationParseError::PositionalArgNotSupported { span } => {
+            AnnotationError::ReleaseHookAnnotationInvalidArgShape { span: span.into() }
+        }
+        ReleaseHookAnnotationParseError::UnknownParam { name, span } => {
+            AnnotationError::UnknownAnnotationParam {
+                annotation: "@ReleaseHook".to_string(),
+                name,
+                span: span.into(),
+            }
+        }
+        ReleaseHookAnnotationParseError::DuplicateParam { param, span } => {
+            AnnotationError::AnnotationArgDuplicate {
+                annotation: "@ReleaseHook".to_string(),
+                param: param.to_string(),
+                span: span.into(),
+            }
+        }
+        ReleaseHookAnnotationParseError::NameMustBeString { span } => {
+            AnnotationError::ReleaseHookAnnotationNameMustBeString { span: span.into() }
+        }
+        ReleaseHookAnnotationParseError::ArgsMustBeStringArray { span } => {
+            AnnotationError::ReleaseHookAnnotationArgsMustBeStringArray { span: span.into() }
+        }
+        ReleaseHookAnnotationParseError::ArgsElementMustBeString { span } => {
+            AnnotationError::ReleaseHookAnnotationArgsElementMustBeString { span: span.into() }
+        }
+    })?;
+
+    let ann_span = ann.span;
+    let target =
+        resolve_release_hook_target_fun(ctx, lower, builtins, type_fqn, &info.name, ann_span)?;
+    let fields = collect_release_hook_fields(ctx.source, decl, type_fqn, lower)?;
+    validate_release_hook_args(ctx, lower, type_fqn, &info.args, &target, &fields, ann_span)?;
+
+    ctx.file.record_release_hook_binding(
+        type_fqn.to_string(),
+        ast::ReleaseHookBinding {
+            target_fqn: info.name,
+            arg_fields: info.args,
+        },
+    );
+
+    Ok(())
+}
+
+struct ReleaseHookTargetFun {
+    function_fqn: String,
+    param_tys: Vec<TypeId>,
+}
+
+fn resolve_release_hook_target_fun(
+    ctx: AnnotationCheckContext<'_>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    type_fqn: &str,
+    function_fqn: &str,
+    use_span: Span,
+) -> Result<ReleaseHookTargetFun, AnnotationError> {
+    let Some(syms) = ctx.index.by_fqn.get(function_fqn) else {
+        return Err(AnnotationError::ReleaseHookFunctionNotFound {
+            type_fqn: type_fqn.to_string(),
+            function_fqn: function_fqn.to_string(),
+            span: use_span.into(),
+        });
+    };
+    if syms.fun.is_empty() {
+        return Err(AnnotationError::ReleaseHookFunctionNotFound {
+            type_fqn: type_fqn.to_string(),
+            function_fqn: function_fqn.to_string(),
+            span: use_span.into(),
+        });
+    }
+
+    let use_cone = ctx.index.cone_of_source(ctx.source);
+    let visible = syms
+        .fun
+        .iter()
+        .filter(|overload| is_symbol_visible_from(use_cone, ctx.source, &overload.symbol))
+        .collect::<Vec<_>>();
+    if visible.is_empty() {
+        let first = syms
+            .fun
+            .first()
+            .expect("checked non-empty fun overload set");
+        return Err(AnnotationError::ReleaseHookFunctionNotVisible {
+            type_fqn: type_fqn.to_string(),
+            function_fqn: function_fqn.to_string(),
+            visibility: first.symbol.visibility,
+            use_span: use_span.into(),
+            decl_span: first.symbol.span.into(),
+        });
+    }
+    if visible.len() != 1 {
+        return Err(AnnotationError::ReleaseHookFunctionAmbiguous {
+            function_fqn: function_fqn.to_string(),
+            count: visible.len(),
+            span: use_span.into(),
+        });
+    }
+
+    let overload = visible[0];
+    let Some((fun, is_member)) = find_fun_decl_by_name_span(
+        ctx.env.file_ast(&overload.symbol.decl_file),
+        overload.symbol.span,
+    ) else {
+        return Err(AnnotationError::ReleaseHookFunctionNotFound {
+            type_fqn: type_fqn.to_string(),
+            function_fqn: function_fqn.to_string(),
+            span: use_span.into(),
+        });
+    };
+
+    if is_member || fun.receiver.is_some() {
+        return Err(AnnotationError::ReleaseHookFunctionReceiverNotAllowed {
+            function_fqn: function_fqn.to_string(),
+            span: fun.name.span.into(),
+        });
+    }
+    if let Some(type_param) = fun.type_params.first() {
+        return Err(AnnotationError::ReleaseHookFunctionGenericsNotSupported {
+            function_fqn: function_fqn.to_string(),
+            span: type_param.span.into(),
+        });
+    }
+    if !release_hook_fun_is_allowed_leaf(ctx, fun, &overload.symbol.decl_file)? {
+        return Err(AnnotationError::ReleaseHookFunctionMustBeNoGcOrCExtern {
+            function_fqn: function_fqn.to_string(),
+            span: fun.name.span.into(),
+        });
+    }
+
+    let return_ty = match fun.return_ty.as_ref() {
+        Some(ret) => lower
+            .lower_type_ref_in_decl_file(&overload.symbol.decl_file, ret)
+            .map_err(|err| AnnotationError::ReleaseHookFunctionTypeInvalid {
+                function_fqn: function_fqn.to_string(),
+                message: err.to_string(),
+                span: ret.span().into(),
+            })?,
+        None => builtins.unit,
+    };
+    if return_ty != builtins.unit {
+        return Err(AnnotationError::ReleaseHookFunctionReturnMustBeUnit {
+            function_fqn: function_fqn.to_string(),
+            found: lower.fmt_type(return_ty),
+            span: fun
+                .return_ty
+                .as_ref()
+                .map(|ret| ret.span())
+                .unwrap_or(fun.name.span)
+                .into(),
+        });
+    }
+
+    let mut param_tys = Vec::with_capacity(fun.params.len());
+    for param in &fun.params {
+        if param.is_vararg {
+            return Err(AnnotationError::ReleaseHookFunctionVarargNotSupported {
+                function_fqn: function_fqn.to_string(),
+                span: param.name.span.into(),
+            });
+        }
+        let Some(ty_ref) = param.ty.as_ref() else {
+            return Err(AnnotationError::ReleaseHookFunctionTypeInvalid {
+                function_fqn: function_fqn.to_string(),
+                message: "参数缺少显式类型".to_string(),
+                span: param.name.span.into(),
+            });
+        };
+        let ty = lower
+            .lower_type_ref_in_decl_file(&overload.symbol.decl_file, ty_ref)
+            .map_err(|err| AnnotationError::ReleaseHookFunctionTypeInvalid {
+                function_fqn: function_fqn.to_string(),
+                message: err.to_string(),
+                span: ty_ref.span().into(),
+            })?;
+        param_tys.push(ty);
+    }
+
+    Ok(ReleaseHookTargetFun {
+        function_fqn: function_fqn.to_string(),
+        param_tys,
+    })
+}
+
+fn release_hook_fun_is_allowed_leaf(
+    ctx: AnnotationCheckContext<'_>,
+    fun: &ast::FunDecl,
+    decl_file: &std::path::Path,
+) -> Result<bool, AnnotationError> {
+    let source = ctx.env.source(decl_file).unwrap_or(ctx.source);
+    let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+    if flags.is_nogc && !flags.is_extern {
+        return Ok(true);
+    }
+    if !flags.is_extern {
+        return Ok(false);
+    }
+
+    for ann in &fun.annotations {
+        if builtin_annotation_kind(source, ann) != Some(BuiltinAnnotationKind::Extern) {
+            continue;
+        }
+        let args =
+            check_extern_builtin_annotation_args(source, ann, ExternAnnotationTarget::Function)?;
+        return Ok(args.abi == ExternAbi::C);
+    }
+
+    Ok(false)
+}
+
+fn find_fun_decl_by_name_span(
+    file: Option<&ast::File>,
+    name_span: Span,
+) -> Option<(&ast::FunDecl, bool)> {
+    let file = file?;
+    for item in &file.items {
+        match item {
+            ast::Item::Fun(fun) if fun.name.span == name_span => return Some((fun, false)),
+            ast::Item::Type(decl) => {
+                if let Some(found) = find_fun_decl_in_type_decl_by_name_span(decl, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(found) = find_fun_decl_in_object_decl_by_name_span(obj, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::Item::Fun(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::Val(_) => {}
+        }
+    }
+    None
+}
+
+fn find_fun_decl_in_type_decl_by_name_span(
+    decl: &ast::TypeDecl,
+    name_span: Span,
+) -> Option<(&ast::FunDecl, bool)> {
+    let body = decl.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) if fun.name.span == name_span => return Some((fun, true)),
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) = find_fun_decl_in_type_decl_by_name_span(nested, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(found) = find_fun_decl_in_object_decl_by_name_span(obj, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+    None
+}
+
+fn find_fun_decl_in_object_decl_by_name_span(
+    obj: &ast::ObjectDecl,
+    name_span: Span,
+) -> Option<(&ast::FunDecl, bool)> {
+    let body = obj.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) if fun.name.span == name_span => return Some((fun, true)),
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) = find_fun_decl_in_type_decl_by_name_span(nested, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(nested) => {
+                if let Some(found) = find_fun_decl_in_object_decl_by_name_span(nested, name_span) {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+    None
+}
+
+fn collect_release_hook_fields(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    type_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<HashMap<String, ReleaseHookFieldInfo>, AnnotationError> {
+    let mut fields = HashMap::new();
+
+    if let Some(primary) = decl.primary_ctor.as_ref() {
+        for param in &primary.params {
+            if param.kind.is_none() {
+                continue;
+            }
+            let name = param.name.text(source).to_string();
+            let Some(ty_ref) = param.ty.as_ref() else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref).map_err(|err| {
+                AnnotationError::ReleaseHookArgFieldTypeInvalid {
+                    type_fqn: type_fqn.to_string(),
+                    field_name: name.clone(),
+                    message: err.to_string(),
+                    span: ty_ref.span().into(),
+                }
+            })?;
+            fields.insert(
+                name.clone(),
+                ReleaseHookFieldInfo {
+                    name,
+                    span: param.name.span,
+                    ty,
+                },
+            );
+        }
+    }
+
+    if let Some(body) = decl.body.as_ref() {
+        for member in &body.members {
+            let ast::TypeMember::Property(prop) = member else {
+                continue;
+            };
+            if !prop.is_direct_field() {
+                continue;
+            }
+            let name = prop.name.text(source).to_string();
+            let Some(ty_ref) = prop.ty.as_ref() else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref).map_err(|err| {
+                AnnotationError::ReleaseHookArgFieldTypeInvalid {
+                    type_fqn: type_fqn.to_string(),
+                    field_name: name.clone(),
+                    message: err.to_string(),
+                    span: ty_ref.span().into(),
+                }
+            })?;
+            fields.insert(
+                name.clone(),
+                ReleaseHookFieldInfo {
+                    name,
+                    span: prop.name.span,
+                    ty,
+                },
+            );
+        }
+    }
+
+    Ok(fields)
+}
+
+fn validate_release_hook_args(
+    _ctx: AnnotationCheckContext<'_>,
+    lower: &mut TypeLowering<'_>,
+    type_fqn: &str,
+    arg_fields: &[String],
+    target: &ReleaseHookTargetFun,
+    fields: &HashMap<String, ReleaseHookFieldInfo>,
+    ann_span: Span,
+) -> Result<(), AnnotationError> {
+    if arg_fields.len() != target.param_tys.len() {
+        return Err(AnnotationError::ReleaseHookArgCountMismatch {
+            type_fqn: type_fqn.to_string(),
+            function_fqn: target.function_fqn.clone(),
+            field_count: arg_fields.len(),
+            param_count: target.param_tys.len(),
+            span: ann_span.into(),
+        });
+    }
+
+    for (idx, field_name) in arg_fields.iter().enumerate() {
+        let Some(field) = fields.get(field_name) else {
+            return Err(AnnotationError::ReleaseHookArgFieldNotFound {
+                type_fqn: type_fqn.to_string(),
+                field_name: field_name.clone(),
+                span: ann_span.into(),
+            });
+        };
+
+        let is_gc_free = lower.is_gc_free_value_type(field.ty).map_err(|err| {
+            AnnotationError::ReleaseHookArgFieldTypeInvalid {
+                type_fqn: type_fqn.to_string(),
+                field_name: field.name.clone(),
+                message: err.to_string(),
+                span: field.span.into(),
+            }
+        })?;
+        if !is_gc_free {
+            return Err(AnnotationError::ReleaseHookArgFieldMustBeGcFree {
+                type_fqn: type_fqn.to_string(),
+                field_name: field.name.clone(),
+                found: lower.fmt_type(field.ty),
+                span: field.span.into(),
+            });
+        }
+
+        let param_ty = target.param_tys[idx];
+        if field.ty != param_ty {
+            return Err(AnnotationError::ReleaseHookArgTypeMismatch {
+                type_fqn: type_fqn.to_string(),
+                field_name: field.name.clone(),
+                field_ty: lower.fmt_type(field.ty),
+                param_ty: lower.fmt_type(param_ty),
+                span: field.span.into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 fn release_hook_host_kind_name(decl: &ast::TypeDecl) -> &'static str {
     if decl.modifiers.contains(&ast::Modifier::Annotation) {
         return "annotation class";
@@ -3898,6 +4510,31 @@ mod tests {
         check_builtin_annotations_on_type_decl(&source, false, &decl, &type_fqn)
     }
 
+    fn check_annotations(text: &str) -> Result<ast::File, AnnotationError> {
+        let source = SourceFile::new_virtual("<test>", text);
+        let mut file = parse_file(&source).expect("test source should parse");
+        let index = Index::build(&[(&source, &file)]).expect("test index should build");
+        let headers = crate::resolve::check_file_headers(&source, &file, &index)
+            .expect("test headers should resolve");
+        crate::resolve::check_file_bodies(&source, &mut file, &index, &headers)
+            .expect("test bodies should resolve");
+        let mut env = TypeEnv::default();
+        env.extend_from_file(&source, &file, &index)
+            .expect("test type env should build");
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        check_file_annotations(
+            &source,
+            &file,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )?;
+        Ok(file)
+    }
+
     #[test]
     fn release_hook_host_accepts_final_non_generic_class_with_experimental_gate() {
         check_first_type(
@@ -4006,6 +4643,91 @@ class Handle
         assert!(matches!(
             err,
             AnnotationError::ReleaseHookHostRequiresExperimental { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_records_valid_binding() {
+        let file = check_annotations(
+            r#"package test
+@Extern(abi = "c")
+fun release(raw: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap();
+
+        let bindings = file.release_hook_bindings();
+        let binding = bindings
+            .get("test.NativeBox")
+            .expect("release hook binding should be recorded");
+        assert_eq!(binding.target_fqn, "test.release");
+        assert_eq!(binding.arg_fields, vec!["raw"]);
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_non_leaf_release_function() {
+        let err = check_annotations(
+            r#"package test
+fun release(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookFunctionMustBeNoGcOrCExtern { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_non_gc_free_field() {
+        let err = check_annotations(
+            r#"package test
+class Box
+
+@NoGC
+fun release(box: Box): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["box"])
+class Handle(val box: Box)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookArgFieldMustBeGcFree { field_name, .. }
+                if field_name == "box"
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_field_param_type_mismatch() {
+        let err = check_annotations(
+            r#"package test
+@NoGC
+fun release(raw: Int): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookArgTypeMismatch { field_name, .. }
+                if field_name == "raw"
         ));
     }
 }

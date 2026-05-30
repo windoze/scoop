@@ -202,6 +202,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ));
         ci
     };
+    let release_hooks = collect_release_hooks(compilation_unit);
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
     extend_top_level_fun_call_sites_without_overwriting(
         &mut top_level_fun_call_sites,
@@ -247,6 +248,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,
@@ -732,6 +734,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
         &generic_class_decls,
     ));
+    let release_hooks = collect_release_hooks(compilation_unit);
 
     match instance_mode {
         CompilationUnitInstanceMode::DirectLoweredHir => {
@@ -927,6 +930,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,

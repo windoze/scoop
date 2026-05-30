@@ -838,6 +838,17 @@ pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 /// - key 使用 [`ClassInstanceKey`]，避免 codegen 以裸 `String` / `&str` 静默退回 base FQN。
 pub type ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>;
 
+/// 已校验的 `@ReleaseHook` metadata（class FQN -> 释放函数与字段列表）。
+///
+/// 该 side table 来自 typecheck 写回的 AST 合同，供后端在生成 type descriptor / trampoline 时消费。
+pub type ReleaseHookIndex = HashMap<String, ReleaseHook>;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReleaseHook {
+    pub target_fqn: String,
+    pub arg_fields: Vec<String>,
+}
+
 /// 单态化 class instance 的后端 layout key。
 ///
 /// 该 key 的字符串表示仍与既有 dump/wire format 兼容（非泛型为 FQN，泛型为 mangled FQN），

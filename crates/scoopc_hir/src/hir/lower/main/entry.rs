@@ -292,6 +292,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ));
         ci
     };
+    let release_hooks = collect_release_hooks(&pairs);
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
     let monomorphized_member_funs = collect_generic_member_fun_instantiations(
         &pairs,
@@ -366,6 +367,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,
