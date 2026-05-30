@@ -408,6 +408,15 @@ impl<'a> FnLowering<'a> {
                 self.assign(span, result, Rvalue::DescOf { value_ty });
                 true
             }
+            (TypedIntrinsicKind::Platform { name }, "scoop.core.getPlatform")
+                if name == "getPlatform" =>
+            {
+                if !args.is_empty() {
+                    panic!("typed getPlatform intrinsic must not publish arguments");
+                }
+                self.lower_platform_literal_expr(span, result);
+                true
+            }
             _ => {
                 self.lower_direct_call_expr(span, result, callee_fqn, args, None);
                 true
@@ -529,6 +538,39 @@ impl<'a> FnLowering<'a> {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("typed {name} intrinsic must publish a type argument"))
+    }
+
+    fn lower_platform_literal_expr(&mut self, span: Span, result: LocalId) {
+        let result_ty = self.body.locals[result.as_u32() as usize].ty;
+        if self.nominal_fqn_for_ty(result_ty).as_deref() != Some("scoop.core.Platform") {
+            panic!("typed getPlatform intrinsic must return scoop.core.Platform");
+        }
+
+        let values = host_platform_literal_fields();
+        let transport_fields = values
+            .iter()
+            .map(|(name, _)| (Some(name.clone()), self.builtins.string))
+            .collect::<Vec<_>>();
+        let fields = values
+            .into_iter()
+            .map(|(name, value)| crate::mir::StructLitField {
+                span,
+                name,
+                value: Operand::Const(ConstValue::SynthString(value)),
+            })
+            .collect();
+        self.assign(
+            span,
+            result,
+            Rvalue::StructLit {
+                fields,
+                transport: self.aggregate_transport(
+                    result_ty,
+                    AggregateTransportKind::Struct,
+                    transport_fields,
+                ),
+            },
+        );
     }
 
     pub(in crate::mir::lower) fn operand_ty(&self, operand: &Operand) -> TypeId {
@@ -963,5 +1005,60 @@ impl<'a> FnLowering<'a> {
             self.source_path.display(),
             callee.kind
         )
+    }
+}
+
+fn host_platform_literal_fields() -> Vec<(String, String)> {
+    let arch = host_llvm_target_arch();
+    let vendor = host_llvm_target_vendor();
+    let os = host_llvm_target_os();
+    let env = host_llvm_target_env();
+    let triple = if env.is_empty() {
+        format!("{arch}-{vendor}-{os}")
+    } else {
+        format!("{arch}-{vendor}-{os}-{env}")
+    };
+    vec![
+        ("triple".to_string(), triple),
+        ("arch".to_string(), arch),
+        ("vendor".to_string(), vendor),
+        ("os".to_string(), os),
+        ("env".to_string(), env),
+    ]
+}
+
+fn host_llvm_target_arch() -> String {
+    match std::env::consts::ARCH {
+        "x86" => "i686".to_string(),
+        arch => arch.to_string(),
+    }
+}
+
+fn host_llvm_target_vendor() -> String {
+    match std::env::consts::OS {
+        "macos" | "ios" | "tvos" | "watchos" => "apple".to_string(),
+        "windows" => "pc".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn host_llvm_target_os() -> String {
+    match std::env::consts::OS {
+        "macos" | "ios" | "tvos" | "watchos" => "darwin".to_string(),
+        os => os.to_string(),
+    }
+}
+
+fn host_llvm_target_env() -> String {
+    if cfg!(target_env = "gnu") {
+        "gnu".to_string()
+    } else if cfg!(target_env = "musl") {
+        "musl".to_string()
+    } else if cfg!(target_env = "msvc") {
+        "msvc".to_string()
+    } else if cfg!(target_env = "sgx") {
+        "sgx".to_string()
+    } else {
+        String::new()
     }
 }

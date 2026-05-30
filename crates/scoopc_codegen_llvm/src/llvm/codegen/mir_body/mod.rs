@@ -220,15 +220,6 @@ fn mir_direct_call_base_fqn(fqn: &str) -> &str {
         .unwrap_or(base)
 }
 
-fn decompose_target_triple(triple: &str) -> (String, String, String, String) {
-    let mut parts = triple.split('-');
-    let arch = parts.next().unwrap_or("").to_string();
-    let vendor = parts.next().unwrap_or("").to_string();
-    let os = parts.next().unwrap_or("").to_string();
-    let env = parts.next().unwrap_or("").to_string();
-    (arch, vendor, os, env)
-}
-
 #[derive(Clone, Copy)]
 pub(in crate::llvm::codegen) struct MirMemberPlace<'ctx> {
     ptr: PointerValue<'ctx>,

@@ -1366,7 +1366,6 @@ fun main(): Int {
         let main = validated_callable_body(&output, "mir_lowered.call_contracts.main");
         let apply = validated_callable_body(&output, "mir_lowered.call_contracts.callFn");
         let mut direct_fqns = Vec::new();
-        let mut saw_get_platform = false;
         let mut saw_class_ctor = false;
         let mut saw_size_of = false;
         let mut saw_name_of_metadata = false;
@@ -1389,9 +1388,6 @@ fun main(): Int {
                         args.iter().all(|arg| arg.name.is_none()),
                         "named/default args should be canonical positional MIR args: {stmt:#?}"
                     );
-                    if callee_fqn == "scoop.core.getPlatform" {
-                        saw_get_platform = true;
-                    }
                     if callee_fqn == "mir_lowered.call_contracts.namedDefault" {
                         assert_eq!(
                             args.len(),
@@ -1466,10 +1462,6 @@ fun main(): Int {
             );
         }
 
-        assert!(
-            saw_get_platform,
-            "getPlatform intrinsic call missing: {dump}"
-        );
         assert!(saw_class_ctor, "class ctor contract missing: {dump}");
         assert!(
             saw_named_default_call,
@@ -1500,6 +1492,90 @@ fun main(): Int {
                         ..
                     }
                 ))
+        );
+    }
+
+    #[test]
+    fn mir_platform_intrinsic_lowers_to_structlit() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_platform_structlit.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+fun main(): Int {
+    val platform: Platform = getPlatform()
+    return platform.os.length()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = super::run(typed_hir_output).expect("Platform source should lower to MIR");
+        let body = validated_callable_body(&output, "sample.main");
+        let dump = output.stable_dump();
+
+        let mut saw_platform_struct_lit = false;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::StructLit { fields, transport },
+                    ..
+                } if output.types().display(transport.aggregate_ty).to_string()
+                    == "scoop.core.Platform" =>
+                {
+                    assert_eq!(transport.kind, AggregateTransportKind::Struct);
+                    assert!(
+                        transport
+                            .fields
+                            .iter()
+                            .all(|field| field.transport.boxing.is_none()),
+                        "Platform StructLit fields must not require boxing: {stmt:#?}"
+                    );
+                    assert_eq!(
+                        fields
+                            .iter()
+                            .map(|field| field.name.as_str())
+                            .collect::<Vec<_>>(),
+                        ["triple", "arch", "vendor", "os", "env"]
+                    );
+                    for field in fields {
+                        let Operand::Const(crate::mir::ConstValue::SynthString(value)) =
+                            &field.value
+                        else {
+                            panic!(
+                                "Platform StructLit fields must be synthesized String constants: {stmt:#?}"
+                            );
+                        };
+                        if field.name != "env" {
+                            assert!(
+                                !value.is_empty(),
+                                "Platform `{}` field should not be empty",
+                                field.name
+                            );
+                        }
+                    }
+                    saw_platform_struct_lit = true;
+                }
+                StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            ..
+                        },
+                    ..
+                } if callee_fqn == "scoop.core.getPlatform" => {
+                    panic!("getPlatform must not remain a direct MIR call: {dump}");
+                }
+                _ => {}
+            }
+        }
+
+        assert!(
+            saw_platform_struct_lit,
+            "getPlatform should lower to a Platform StructLit: {dump}"
         );
     }
 

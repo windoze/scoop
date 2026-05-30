@@ -190,7 +190,7 @@
 
 ## P6：Platform 折叠与 TypeMetadataLiteral 审计
 
-### [TODO] P6-T01：Platform lower 成 StructLit 并删除专用 codegen
+### [DONE] P6-T01：Platform lower 成 StructLit 并删除专用 codegen
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -216,7 +216,12 @@
   - Platform 由通用机制处理，无专用代码。
 - 依赖：P5-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - MIR lowering：`TypedIntrinsicKind::Platform` / `getPlatform()` 现在直接生成 `Rvalue::StructLit`，字段为 `triple` / `arch` / `vendor` / `os` / `env` 五个 `Operand::Const(ConstValue::SynthString(...))`，aggregate transport kind 为 `Struct`，各字段 transport 保持 `boxing: None`。
+  - Codegen 收敛：删除 LLVM 侧 `codegen_platform_literal` 专用 helper、effect-lowered `getPlatform` 分支和只服务该 helper 的 target-triple 拆分逻辑；Platform 不再有专用常量化 codegen。
+  - Folding 结果：Platform 作为普通值类型 struct 进入通用 `try_emit_immortal_struct`，Platform 聚合全局是 `%scoop.core.Platform` constant，无 GC header；五个字段分别指向 immortal `ScoopString` wrapper。
+  - 测试/fixture：新增 MIR stage 单元 `mir_platform_intrinsic_lowers_to_structlit` 覆盖 Platform StructLit lowering，新增 LLVM stage 单元 `platform_literal_stage_ir_uses_immortal_structlit_without_alloc`；更新 `call_contracts` MIR golden 以保持平台无关；新增 `tests/fixtures/umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop` 锁定 `@__scoop_immortal_agg_`、Platform value global、字段 immortal String 和零 `scoop_alloc_typed`；新增 `tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop` 覆盖 10M 次 `Platform.os` 读取不增长 heap bytes。
+  - 验证：`cargo fmt`；`cargo test -p scoopc mir_call_contract_lowers_typed_call_sites --all-targets`；`cargo test -p scoopc mir_platform_intrinsic_lowers_to_structlit --all-targets`；`cargo test -p scoopc platform_literal_stage_ir_uses_immortal_structlit_without_alloc --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/mir_lowered/call_contracts.scoop --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T01-platform --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P6-T01R：Review Platform 折叠
 

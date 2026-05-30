@@ -2287,6 +2287,44 @@ fun main(): Int {
     }
 
     #[test]
+    fn platform_literal_stage_ir_uses_immortal_structlit_without_alloc() {
+        let _guard = test_lock();
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/p6_t01_platform_structlit.scoop",
+            r#"
+package fixtures.p6t01
+
+import scoop.core.*
+
+fun main(): Int {
+    val platform: Platform = getPlatform()
+    return platform.os.length() + platform.triple.length()
+}
+"#,
+        );
+
+        let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
+            .expect("Platform StructLit IR should lower through the LLVM stage");
+        assert!(
+            ir.contains("@__scoop_immortal_agg_"),
+            "Platform should be loaded from the generic immortal aggregate path:\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_str_lit_"),
+            "Platform fields should reference immortal String wrappers:\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop.core.getPlatform"),
+            "getPlatform must not survive to LLVM as a direct call:\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop_alloc_typed"),
+            "Platform access should not allocate:\n{ir}"
+        );
+    }
+
+    #[test]
     fn single_pipeline_single_file_artifact_entry_uses_stage_for_all_artifacts() {
         let _guard = test_lock();
         let _stage_run_guard = enable_test_stage_run_counting();

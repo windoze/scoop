@@ -1,0 +1,26 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+// SYSROOT-DEPS: scoop.runtime.test
+// P6-T01: repeated Platform field reads must not allocate after lowering through StructLit folding.
+
+import scoop.core.*
+import scoop.runtime.test.*
+
+fun main(): Int {
+    val before: Int = @Unsafe do { __scoop_gc_debug_heap_bytes_allocated() }
+    var i: Int = 0
+    var checksum: Int = 0
+    while (i < 10000000) {
+        val platform: Platform = getPlatform()
+        checksum = checksum + platform.os.length()
+        i = i + 1
+    }
+    val after: Int = @Unsafe do { __scoop_gc_debug_heap_bytes_allocated() }
+    if (after != before) {
+        return 1
+    }
+    if (checksum == 0) {
+        return 2
+    }
+    return 0
+}
