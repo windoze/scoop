@@ -35,7 +35,7 @@
 | P0-T01R | [DONE] | Review P0-T01 `@NoGC` Pure 契约 |
 | P0-T02 | [DONE] | `@NoGC` Pure typecheck fixtures + spec 回写 |
 | P0-T02R | [DONE] | Review P0-T02 fixtures 与 spec |
-| P1-T01 | [TODO] | `@ReleaseHook` 注解种类、识别与参数解析 |
+| P1-T01 | [DONE] | `@ReleaseHook` 注解种类、识别与参数解析 |
 | P1-T01R | [TODO] | Review P1-T01 注解 surface |
 | P1-T02 | [TODO] | 宿主校验：class / non-generic / final / `@Experimental` |
 | P1-T02R | [TODO] | Review P1-T02 宿主校验 |
@@ -165,7 +165,7 @@
 
 ## P1：`@ReleaseHook` 注解 surface 与校验
 
-### [TODO] P1-T01：`@ReleaseHook` 注解种类、识别与参数解析
+### [DONE] P1-T01：`@ReleaseHook` 注解种类、识别与参数解析
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1-T01
@@ -183,7 +183,8 @@
 - 完成条件：注解被识别，`name`/`args` 能被正确解析出结构化值。
 - 依赖：P0 完成
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增 `BuiltinAnnotationKind::ReleaseHook`，识别 `@ReleaseHook` 与 `@scoop.core.ReleaseHook`；新增 `ReleaseHookAnnotationInfo` 与 `parse_release_hook_annotation`，解析 `name` 字符串 FQN 与 `args` 字符串数组，并对缺少参数、位置参数、未知 key、重复 key、`name` 非字符串、`args` 非字符串数组、`args` 元素非字符串给出结构化诊断；type 声明路径现在会校验 `@ReleaseHook` 参数 surface，宿主/函数/字段语义仍留给 P1-T02/P1-T03。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
 ### [TODO] P1-T01R：Review P1-T01 注解 surface
 

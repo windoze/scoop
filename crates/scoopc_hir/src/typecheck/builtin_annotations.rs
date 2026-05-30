@@ -3,7 +3,8 @@
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
 //! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic`
-//!   / `@Deprecated` / `@Suppress` / `@Experimental` / `@InteriorMutable` 的最小语义；
+//!   / `@Deprecated` / `@Suppress` / `@Experimental` / `@ReleaseHook`
+//!   / `@InteriorMutable` 的最小语义；
 //! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
 //!   会在编译器中附带额外语义；
 //! - feature gating framework 仍未接入；`@Experimental` 当前只保留 surface 与参数校验。
@@ -26,6 +27,7 @@ pub(crate) enum BuiltinAnnotationKind {
     Deprecated,
     Suppress,
     Experimental,
+    ReleaseHook,
     CallingConvention,
     InteriorMutable,
 }
@@ -42,6 +44,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Deprecated => "Deprecated",
             BuiltinAnnotationKind::Suppress => "Suppress",
             BuiltinAnnotationKind::Experimental => "Experimental",
+            BuiltinAnnotationKind::ReleaseHook => "ReleaseHook",
             BuiltinAnnotationKind::CallingConvention => "CallingConvention",
             BuiltinAnnotationKind::InteriorMutable => "InteriorMutable",
         }
@@ -58,6 +61,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Deprecated => "函数 / 类型 / 属性",
             BuiltinAnnotationKind::Suppress => "表达式 / 声明 / 文件",
             BuiltinAnnotationKind::Experimental => "函数 / 类型 / 属性 / 文件",
+            BuiltinAnnotationKind::ReleaseHook => "类型声明",
             BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
             BuiltinAnnotationKind::InteriorMutable => "struct / class 类型声明",
         }
@@ -96,6 +100,23 @@ pub(crate) enum ExperimentalAnnotationParseError {
     ArgMustBeString { span: Span },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReleaseHookAnnotationInfo {
+    pub(crate) name: String,
+    pub(crate) args: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ReleaseHookAnnotationParseError {
+    MissingParam { param: &'static str, span: Span },
+    PositionalArgNotSupported { span: Span },
+    UnknownParam { name: String, span: Span },
+    DuplicateParam { param: &'static str, span: Span },
+    NameMustBeString { span: Span },
+    ArgsMustBeStringArray { span: Span },
+    ArgsElementMustBeString { span: Span },
+}
+
 /// 判断一个 `@Name(...)` 是否为内建注解。
 ///
 /// 当前阶段的识别规则（尽量保守）：
@@ -123,6 +144,9 @@ pub(crate) fn builtin_annotation_kind(
         ["Suppress"] | ["scoop", "core", "Suppress"] => Some(BuiltinAnnotationKind::Suppress),
         ["Experimental"] | ["scoop", "core", "Experimental"] => {
             Some(BuiltinAnnotationKind::Experimental)
+        }
+        ["ReleaseHook"] | ["scoop", "core", "ReleaseHook"] => {
+            Some(BuiltinAnnotationKind::ReleaseHook)
         }
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
             Some(BuiltinAnnotationKind::CallingConvention)
@@ -181,6 +205,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::Deprecated) => {}
                 Some(BuiltinAnnotationKind::Suppress) => {}
                 Some(BuiltinAnnotationKind::Experimental) => {}
+                Some(BuiltinAnnotationKind::ReleaseHook) => {}
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
                 Some(BuiltinAnnotationKind::InteriorMutable) => {}
                 None => {}
@@ -236,6 +261,102 @@ fn extract_experimental_string_arg(
             }
         }
         _ => Err(ExperimentalAnnotationParseError::ArgMustBeString { span: expr.span }),
+    }
+}
+
+pub(crate) fn parse_release_hook_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<ReleaseHookAnnotationInfo, ReleaseHookAnnotationParseError> {
+    let mut name: Option<String> = None;
+    let mut args: Option<Vec<String>> = None;
+
+    for arg in &ann.args {
+        let Some(key) = &arg.name else {
+            return Err(ReleaseHookAnnotationParseError::PositionalArgNotSupported {
+                span: arg.span,
+            });
+        };
+
+        match key.text(source) {
+            "name" => {
+                if name.is_some() {
+                    return Err(ReleaseHookAnnotationParseError::DuplicateParam {
+                        param: "name",
+                        span: key.span,
+                    });
+                }
+                name = Some(extract_release_hook_name_arg(source, &arg.value)?);
+            }
+            "args" => {
+                if args.is_some() {
+                    return Err(ReleaseHookAnnotationParseError::DuplicateParam {
+                        param: "args",
+                        span: key.span,
+                    });
+                }
+                args = Some(extract_release_hook_args_arg(source, &arg.value)?);
+            }
+            other => {
+                return Err(ReleaseHookAnnotationParseError::UnknownParam {
+                    name: other.to_string(),
+                    span: key.span,
+                });
+            }
+        }
+    }
+
+    let name = name.ok_or(ReleaseHookAnnotationParseError::MissingParam {
+        param: "name",
+        span: ann.span,
+    })?;
+    let args = args.ok_or(ReleaseHookAnnotationParseError::MissingParam {
+        param: "args",
+        span: ann.span,
+    })?;
+
+    Ok(ReleaseHookAnnotationInfo { name, args })
+}
+
+fn extract_release_hook_name_arg(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Result<String, ReleaseHookAnnotationParseError> {
+    parse_release_hook_string_literal(source, expr)
+        .map_err(|span| ReleaseHookAnnotationParseError::NameMustBeString { span })
+}
+
+fn extract_release_hook_args_arg(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Result<Vec<String>, ReleaseHookAnnotationParseError> {
+    let ast::ExprKind::ArrayLit { elements } = &expr.kind else {
+        return Err(ReleaseHookAnnotationParseError::ArgsMustBeStringArray { span: expr.span });
+    };
+
+    elements
+        .iter()
+        .map(|element| {
+            parse_release_hook_string_literal(source, element)
+                .map_err(|span| ReleaseHookAnnotationParseError::ArgsElementMustBeString { span })
+        })
+        .collect()
+}
+
+fn parse_release_hook_string_literal(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Result<String, Span> {
+    if !matches!(&expr.kind, ast::ExprKind::StringLit) {
+        return Err(expr.span);
+    }
+
+    let raw = source.slice(expr.span);
+    match parse_string_literal_utf8(raw) {
+        Ok(text) => Ok(text),
+        Err(StringLiteralParseError::Invalid)
+        | Err(StringLiteralParseError::InvalidUtf8)
+        | Err(StringLiteralParseError::Interpolated) => Err(expr.span),
     }
 }
 
@@ -840,5 +961,117 @@ fn collect_warning_suppressions_from_annotations(
             Some(span) => WarningSuppression::for_span(file, span, codes),
             None => WarningSuppression::for_file(file, codes),
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse_file;
+
+    fn first_type_annotation(text: &str) -> (SourceFile, ast::AnnotationUse) {
+        let source = SourceFile::new_virtual("<test>", text);
+        let file = parse_file(&source).expect("test source should parse");
+        let ast::Item::Type(decl) = &file.items[0] else {
+            panic!("expected first item to be a type declaration");
+        };
+        (source, decl.annotations[0].clone())
+    }
+
+    #[test]
+    fn release_hook_short_name_is_builtin_and_parses_args() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release", args = ["raw", "len"])
+class Handle
+"#,
+        );
+
+        assert_eq!(
+            builtin_annotation_kind(&source, &ann),
+            Some(BuiltinAnnotationKind::ReleaseHook)
+        );
+        let info = parse_release_hook_annotation(&source, &ann).unwrap();
+        assert_eq!(info.name, "native.release");
+        assert_eq!(info.args, vec!["raw".to_string(), "len".to_string()]);
+    }
+
+    #[test]
+    fn release_hook_fqn_is_builtin() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@scoop.core.ReleaseHook(name = "native.release", args = [])
+class Handle
+"#,
+        );
+
+        assert_eq!(
+            builtin_annotation_kind(&source, &ann),
+            Some(BuiltinAnnotationKind::ReleaseHook)
+        );
+    }
+
+    #[test]
+    fn release_hook_reports_missing_required_param() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(args = [])
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::MissingParam { param: "name", .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_reports_unknown_param() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release", args = [], extra = "nope")
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::UnknownParam { name, .. } if name == "extra"
+        ));
+    }
+
+    #[test]
+    fn release_hook_requires_args_to_be_string_array() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release", args = "raw")
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::ArgsMustBeStringArray { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_requires_args_elements_to_be_strings() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release", args = ["raw", 1])
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::ArgsElementMustBeString { .. }
+        ));
     }
 }

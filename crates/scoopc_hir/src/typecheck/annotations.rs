@@ -33,8 +33,9 @@ use crate::ty::{BuiltinTypes, ExternAbi, RefTypeKind, TypeId, TypeKind, TypeStor
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{
-    BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind, file_allows_intrinsic,
-    parse_experimental_annotation, parse_suppress_annotation,
+    BuiltinAnnotationFlags, BuiltinAnnotationKind, ReleaseHookAnnotationParseError,
+    builtin_annotation_kind, file_allows_intrinsic, parse_experimental_annotation,
+    parse_release_hook_annotation, parse_suppress_annotation,
 };
 use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
@@ -703,6 +704,36 @@ pub enum AnnotationError {
     #[error("`@Experimental` 的 `feature` 参数必须是字符串字面量")]
     #[diagnostic(code(scoop::typecheck::experimental_annotation_arg_must_be_string))]
     ExperimentalAnnotationArgMustBeString {
+        #[label("这里需要字符串字面量")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 只支持命名参数 `name = \"releaseFunctionFQN\"` 与 `args = [\"field\", ...]`"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_annotation_invalid_arg_shape))]
+    ReleaseHookAnnotationInvalidArgShape {
+        #[label("这里需要使用 `name = ...` 或 `args = ...` 命名参数")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 的 `name` 参数必须是字符串字面量 FQN")]
+    #[diagnostic(code(scoop::typecheck::release_hook_annotation_name_must_be_string))]
+    ReleaseHookAnnotationNameMustBeString {
+        #[label("这里需要字符串字面量")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 的 `args` 参数必须是字符串字面量数组")]
+    #[diagnostic(code(scoop::typecheck::release_hook_annotation_args_must_be_string_array))]
+    ReleaseHookAnnotationArgsMustBeStringArray {
+        #[label("这里需要写成 `[\"field\", ...]`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 的 `args` 数组元素必须是字符串字面量")]
+    #[diagnostic(code(scoop::typecheck::release_hook_annotation_args_element_must_be_string))]
+    ReleaseHookAnnotationArgsElementMustBeString {
         #[label("这里需要字符串字面量")]
         span: miette::SourceSpan,
     },
@@ -1673,6 +1704,49 @@ fn check_builtin_experimental_annotation(
         })
 }
 
+fn check_builtin_release_hook_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    parse_release_hook_annotation(source, ann)
+        .map(|_| ())
+        .map_err(|err| match err {
+            ReleaseHookAnnotationParseError::MissingParam { param, span } => {
+                AnnotationError::AnnotationArgMissingRequired {
+                    annotation: "@ReleaseHook".to_string(),
+                    param: param.to_string(),
+                    span: span.into(),
+                }
+            }
+            ReleaseHookAnnotationParseError::PositionalArgNotSupported { span } => {
+                AnnotationError::ReleaseHookAnnotationInvalidArgShape { span: span.into() }
+            }
+            ReleaseHookAnnotationParseError::UnknownParam { name, span } => {
+                AnnotationError::UnknownAnnotationParam {
+                    annotation: "@ReleaseHook".to_string(),
+                    name,
+                    span: span.into(),
+                }
+            }
+            ReleaseHookAnnotationParseError::DuplicateParam { param, span } => {
+                AnnotationError::AnnotationArgDuplicate {
+                    annotation: "@ReleaseHook".to_string(),
+                    param: param.to_string(),
+                    span: span.into(),
+                }
+            }
+            ReleaseHookAnnotationParseError::NameMustBeString { span } => {
+                AnnotationError::ReleaseHookAnnotationNameMustBeString { span: span.into() }
+            }
+            ReleaseHookAnnotationParseError::ArgsMustBeStringArray { span } => {
+                AnnotationError::ReleaseHookAnnotationArgsMustBeStringArray { span: span.into() }
+            }
+            ReleaseHookAnnotationParseError::ArgsElementMustBeString { span } => {
+                AnnotationError::ReleaseHookAnnotationArgsElementMustBeString { span: span.into() }
+            }
+        })
+}
+
 fn check_target_annotation_args(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
@@ -2346,16 +2420,9 @@ fn check_builtin_annotations_on_fun_decl(
                 calling_convention_args = Some(args);
                 calling_convention_annotation_span = Some(name_span);
             }
-            BuiltinAnnotationKind::AllowIntrinsic => {
-                let (_, name_span) = annotation_name_and_span(source, ann);
-                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
-                    annotation: format!("@{}", kind.name()),
-                    allowed: kind.allowed_targets_hint(),
-                    found: "function",
-                    span: name_span.into(),
-                });
-            }
-            BuiltinAnnotationKind::InteriorMutable => {
+            BuiltinAnnotationKind::AllowIntrinsic
+            | BuiltinAnnotationKind::ReleaseHook
+            | BuiltinAnnotationKind::InteriorMutable => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
                     annotation: format!("@{}", kind.name()),
@@ -3516,6 +3583,9 @@ fn check_builtin_annotations_on_type_decl(
                         span: name_span.into(),
                     });
                 }
+            }
+            BuiltinAnnotationKind::ReleaseHook => {
+                check_builtin_release_hook_annotation_args(source, ann)?;
             }
             BuiltinAnnotationKind::Deprecated
             | BuiltinAnnotationKind::Suppress
