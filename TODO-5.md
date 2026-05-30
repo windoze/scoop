@@ -37,7 +37,7 @@
   - 回归：新增 `scoop_test_gc_registered_thread_exit_without_unregister` 和 `crates/scoop_runtime/tests/gc_stw_thread_exit.rs`，构造 worker 注册后不显式 unregister 即退出，再用 500ms 有界 STW probe 断言后续 STW 不会被 stale Running 记录卡住，并在成功后执行一次正常 `scoop_gc_collect()`。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_stw_thread_exit`；`cargo test --all --all-targets` 连续运行两次，均通过且未挂死。
 
-### [TODO] P7-T00b：补 Scoop 语言级并发/GC 应用测试
+### [DONE] P7-T00b：补 Scoop 语言级并发/GC 应用测试
 
 - 参考：
   - P7-T00 完成记录（STW 健壮性修复）
@@ -58,7 +58,12 @@
   - 并发/GC 行为由 Scoop 语言级测试覆盖，且稳定不 flaky。
 - 依赖：P7-T00
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 新增 `tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`：两个 Scoop worker 在 main 触发 STW GC 时持续语言级分配，并通过 worker 局部 roots 保活跨线程发布的对象；stdout 断言最终对象仍可读取。
+  - 新增 `tests/fixtures/runtime_gc/gc_language_cross_thread_ref_handoff.scoop`：producer 线程发布含跨对象引用的 `Payload` 图，main 在线程交接前触发 GC，consumer 线程在 GC 后读取并计算确定性结果。
+  - 新增 `tests/fixtures/runtime_gc/gc_language_repeated_collect_shared_chain.scoop`：两个 worker 分阶段构造共享链表，每阶段 main 触发 GC，最终跨线程发布链头并在 join 后再次 GC 验证可追踪；阶段等待使用 `sleepMillis(1)` 进入 native wait，避免 NoGC 自旋阻塞 STW。
+  - 约束：全部用 Scoop 语言级 `scoop.thread` / `scoop.sync` / `scoop.runtime.test` 覆盖，不恢复手写 C-API mutator，不设置 `SCOOP_GC_PACING=off`。
+  - 验证：三个新增 fixture 单独运行均通过；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1625 checks）全部通过。
 
 ### [TODO] P7-T01：回写 runtime/spec 文档（pacing + immortal）
 

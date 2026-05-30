@@ -1,0 +1,117 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_language_cross_thread_ref_handoff.stdout.txt
+// TIMEOUT: 30000
+//
+// 目标：用 Scoop producer/consumer 线程覆盖跨线程发布的对象图在 GC 后仍可读取。
+// SYSROOT-DEPS: scoop.runtime.test scoop.thread scoop.sync
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+import scoop.runtime.test.*
+import scoop.sync.*
+import scoop.thread.*
+
+class Payload(val label: String, val value: Int) {
+    var next: Payload? = None()
+}
+
+class HandoffState(
+    val lock: Mutex,
+    val cv: CondVar,
+    var phase: Int,
+    var item: Payload?,
+    var result: Int,
+)
+
+object HandoffShared {
+    val state: HandoffState = HandoffState(mutexCreate(), condVarCreate(), 0, None(), 0)
+}
+
+fun expectPayload(value: Payload?): Payload {
+    return when (value) {
+        Some(payload) -> payload
+        None -> Payload("missing", -1000)
+    }
+}
+
+fun producerThread(): Unit {
+    val first: Payload = Payload(f"producer-${40}", 40)
+    val second: Payload = Payload(f"producer-${41}", 41)
+    first.next = Some(second)
+    __scoop_gc_debug_alloc_garbage(48)
+
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    st.item = Some(first)
+    st.phase = 1
+    st.cv.notifyAll()
+    while (st.phase < 2) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
+}
+
+fun consumerThread(): Unit {
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    while (st.phase < 2) {
+        st.cv.wait(st.lock)
+    }
+    val item: Payload? = st.item
+    st.lock.unlock()
+
+    val first: Payload = expectPayload(item)
+    val second: Payload = expectPayload(first.next)
+    __scoop_gc_debug_alloc_garbage(48)
+    __scoop_gc_collect()
+
+    st.lock.lock()
+    st.result = first.value + second.value
+    st.phase = 3
+    st.cv.notifyAll()
+    st.lock.unlock()
+}
+
+fun waitHandoffPhaseAtLeast(phase: Int): Unit {
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    while (st.phase < phase) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
+}
+
+fun allowConsumer(): Unit {
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    st.phase = 2
+    st.cv.notifyAll()
+    st.lock.unlock()
+}
+
+fun readHandoffResult(): Int {
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    val result: Int = st.result
+    st.lock.unlock()
+    return result
+}
+
+fun main() {
+    val producer: Thread = threadSpawn { producerThread() }
+    val consumer: Thread = threadSpawn { consumerThread() }
+
+    waitHandoffPhaseAtLeast(1)
+    __scoop_gc_debug_alloc_garbage(96)
+    __scoop_gc_collect()
+    allowConsumer()
+    waitHandoffPhaseAtLeast(3)
+
+    producer.join()
+    consumer.join()
+    __scoop_gc_collect()
+
+    println(f"handoff=${readHandoffResult()}")
+    println("ok")
+}
