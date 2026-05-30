@@ -31,7 +31,7 @@
 
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
-| P0-T01 | [TODO] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
+| P0-T01 | [DONE] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
 | P0-T01R | [TODO] | Review P0-T01 `@NoGC` Pure 契约 |
 | P0-T02 | [TODO] | `@NoGC` Pure typecheck fixtures + spec 回写 |
 | P0-T02R | [TODO] | Review P0-T02 fixtures 与 spec |
@@ -83,7 +83,7 @@
 
 ## P0：`@NoGC` 强制 Pure
 
-### [TODO] P0-T01：新增 `@NoGC` effect 契约校验并接入 fun decl 检查
+### [DONE] P0-T01：新增 `@NoGC` effect 契约校验并接入 fun decl 检查
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0、§1（`@NoGC` 缺陷）、§2（安全论证）
@@ -109,7 +109,8 @@
   - 带 effect 的 `@NoGC` 函数编译期被拒绝；既有 Pure 的 `@NoGC` 用例不受影响。
 - 依赖：无
 - 完成记录：
-  - （待填）
+  - 2026-05-30：新增 `NoGcFunEffParamNotAllowed` / `NoGcFunEffectsNotAllowed` 诊断与 `check_nogc_fun_effect_contract`；显式 `@NoGC` 且非 `@Extern` 的函数现在禁止 `eff_param` 与非空 effect row，`@Extern` 仍沿用既有 effect 契约路径以避免重复诊断。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
 ### [TODO] P0-T01R：Review P0-T01 `@NoGC` Pure 契约
 

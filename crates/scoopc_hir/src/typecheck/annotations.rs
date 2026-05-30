@@ -385,6 +385,20 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@NoGC` 函数不允许声明非 Pure 的 effect row")]
+    #[diagnostic(code(scoop::typecheck::nogc_fun_effects_not_allowed))]
+    NoGcFunEffectsNotAllowed {
+        #[label("`@NoGC` 函数必须是 Pure（或省略 effect row）")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@NoGC` 函数不允许声明 effect row 参数")]
+    #[diagnostic(code(scoop::typecheck::nogc_fun_eff_param_not_allowed))]
+    NoGcFunEffParamNotAllowed {
+        #[label("`@NoGC` 函数不能依赖 effect 多态")]
+        span: miette::SourceSpan,
+    },
+
     #[error(
         "`abi = \"scoop\"` 当前不支持 `callingConvention`；Managed ABI 不是 machine calling convention 扩展点"
     )]
@@ -2450,8 +2464,14 @@ fn check_builtin_annotations_on_fun_decl(
                 check_extern_fun_signature_matches_scoop_abi_v1(source, fun, lower)?;
             }
         }
-    } else if let Some(args) = calling_convention_args {
-        check_calling_convention_fun_contract(source, fun, lower, args)?;
+    } else {
+        if flags.is_nogc {
+            check_nogc_fun_effect_contract(fun)?;
+        }
+
+        if let Some(args) = calling_convention_args {
+            check_calling_convention_fun_contract(source, fun, lower, args)?;
+        }
     }
 
     Ok(())
@@ -2517,6 +2537,24 @@ fn check_extern_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), Annotation
         && !effects.terms.is_empty()
     {
         return Err(AnnotationError::ExternFunEffectsNotAllowed {
+            span: effects.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_nogc_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), AnnotationError> {
+    if let Some(eff_param) = &fun.eff_param {
+        return Err(AnnotationError::NoGcFunEffParamNotAllowed {
+            span: eff_param.span.into(),
+        });
+    }
+
+    if let Some(effects) = &fun.effects
+        && !effects.terms.is_empty()
+    {
+        return Err(AnnotationError::NoGcFunEffectsNotAllowed {
             span: effects.span.into(),
         });
     }
