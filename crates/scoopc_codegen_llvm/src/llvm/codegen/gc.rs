@@ -16,6 +16,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             })?;
         let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
+        let extern_fun = self.extern_funs.get(callable_fqn);
         let llvm_name = symbol_facts
             .and_then(|facts| {
                 facts
@@ -29,12 +30,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .map(|extern_| extern_.symbol.as_str())
                     })
             })
+            .or_else(|| extern_fun.map(|extern_fun| extern_fun.symbol.as_str()))
             .unwrap_or(callable_fqn);
         if let Some(existing) = self.module.get_function(llvm_name) {
             return Ok(existing);
         }
         let surface = if symbol_facts
             .is_some_and(|facts| facts.native.is_some() || facts.extern_.is_some())
+            || extern_fun.is_some()
         {
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
         } else {
