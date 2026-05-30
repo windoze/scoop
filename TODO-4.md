@@ -223,7 +223,7 @@
   - 测试/fixture：新增 MIR stage 单元 `mir_platform_intrinsic_lowers_to_structlit` 覆盖 Platform StructLit lowering，新增 LLVM stage 单元 `platform_literal_stage_ir_uses_immortal_structlit_without_alloc`；更新 `call_contracts` MIR golden 以保持平台无关；新增 `tests/fixtures/umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop` 锁定 `@__scoop_immortal_agg_`、Platform value global、字段 immortal String 和零 `scoop_alloc_typed`；新增 `tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop` 覆盖 10M 次 `Platform.os` 读取不增长 heap bytes。
   - 验证：`cargo fmt`；`cargo test -p scoopc mir_call_contract_lowers_typed_call_sites --all-targets`；`cargo test -p scoopc mir_platform_intrinsic_lowers_to_structlit --all-targets`；`cargo test -p scoopc platform_literal_stage_ir_uses_immortal_structlit_without_alloc --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/mir_lowered/call_contracts.scoop --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T01-platform --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T01R：Review Platform 折叠
+### [DONE] P6-T01R：Review Platform 折叠
 
 - 参考：
   - P6-T01 完成记录
@@ -243,7 +243,11 @@
   - Platform 收敛正确。
 - 依赖：P6-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P6-T01 Platform 收敛正确；`TypedIntrinsicKind::Platform` / `scoop.core.getPlatform` 在 MIR lowering 阶段直接生成普通 `Rvalue::StructLit`，五个字段为 `Operand::Const(ConstValue::SynthString(...))`，aggregate transport kind 为 `Struct`，字段 transport 均无 boxing。
+  - 反向 grep 结论：源码中已无 `codegen_platform_literal`、`get_or_create_immortal_platform` 或 `immortal_platform` 专用 LLVM 常量化路径；`getPlatform` 的源码残留限于 MIR intrinsic lowering、前端/测试引用和历史文档记录。
+  - IR 复核：Platform 聚合通过通用 `try_emit_immortal_struct` 产生 `%scoop.core.Platform` value constant global，不带 GC header；五个字段指向 ref 层 immortal `ScoopString` wrapper（`@__scoop_str_lit_...`），fixture 锁定零 `scoop_alloc_typed`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P6-T02：`TypeMetadataLiteral` 审计与指针相等断言
 
