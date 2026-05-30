@@ -149,7 +149,7 @@
   - Immortal 审计：`string_literal_immortal_no_alloc_loop.scoop` 与 `platform_immortal_no_alloc_loop.scoop` 保持默认 pacing on，并补注释说明 immortal / Platform folding 路径不应进堆，零 allocation 断言不需要 `SCOOP_GC_PACING=off`。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。
 
-### [TODO] P7-T02R：Review `PACING=off` 审计
+### [DONE] P7-T02R：Review `PACING=off` 审计
 
 - 参考：
   - P7-T02 完成记录
@@ -168,7 +168,11 @@
   - pacing opt-out 面清晰可审计。
 - 依赖：P7-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 审计范围：复核全部 `SCOOP_GC_PACING=off` 使用点（9 个 fixture directive、7 个 runtime integration-test opt-out），并确认每处都有相邻 `P7-T02 why` 说明；未发现无理由关闭 pacing 的测试。
+  - why 复核：fixture opt-out 均依赖 stdout / source fixture 中的精确 heap object-count 或 cleanup delta；runtime opt-out 分别用于隔离 block-pool / hard-cap / nursery hard-cap 路径、保持 native stackmap helper 的手动 GC 精确计数、或显式回归 `PACING=off` 语义本身。
+  - Immortal 复核：`string_literal_immortal_no_alloc_loop.scoop`、`platform_immortal_no_alloc_loop.scoop`、`pos_string_literal_immortal_ir.scoop`、`pos_platform_structlit_immortal_ir.scoop` 均未设置 `SCOOP_GC_PACING=off`；runtime zero-allocation fixtures 在默认 pacing on 下通过。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；聚焦运行 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/string_literal_immortal_no_alloc_loop.scoop`、`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T02-immortal/pos_string_literal_immortal_ir.scoop`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。
 
 ### [TODO] P7-T03：全量测试矩阵、out-of-scope 归位与收口
 
