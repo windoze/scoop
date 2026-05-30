@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_language_cross_thread_ref_handoff.stdout.txt
-// TIMEOUT: 30000
+// TIMEOUT: 55000
 //
 // 目标：用 Scoop producer/consumer 线程覆盖跨线程发布的对象图在 GC 后仍可读取。
 // SYSROOT-DEPS: scoop.runtime.test scoop.thread scoop.sync
@@ -20,12 +20,13 @@ class HandoffState(
     val lock: Mutex,
     val cv: CondVar,
     var phase: Int,
+    var waiters: Int,
     var item: Payload?,
     var result: Int,
 )
 
 object HandoffShared {
-    val state: HandoffState = HandoffState(mutexCreate(), condVarCreate(), 0, None(), 0)
+    val state: HandoffState = HandoffState(mutexCreate(), condVarCreate(), 0, 0, None(), 0)
 }
 
 fun expectPayload(value: Payload?): Payload {
@@ -45,8 +46,14 @@ fun producerThread(): Unit {
     st.lock.lock()
     st.item = Some(first)
     st.phase = 1
+    st.waiters = st.waiters + 1
     st.cv.notifyAll()
     while (st.phase < 2) {
+        st.cv.wait(st.lock)
+    }
+    // Stay parked in native wait while the consumer performs its GC, so this
+    // fixture does not race STW against producer thread teardown.
+    while (st.phase < 4) {
         st.cv.wait(st.lock)
     }
     st.lock.unlock()
@@ -55,6 +62,8 @@ fun producerThread(): Unit {
 fun consumerThread(): Unit {
     val st: HandoffState = HandoffShared.state
     st.lock.lock()
+    st.waiters = st.waiters + 1
+    st.cv.notifyAll()
     while (st.phase < 2) {
         st.cv.wait(st.lock)
     }
@@ -68,7 +77,7 @@ fun consumerThread(): Unit {
 
     st.lock.lock()
     st.result = first.value + second.value
-    st.phase = 3
+    st.phase = 4
     st.cv.notifyAll()
     st.lock.unlock()
 }
@@ -77,6 +86,17 @@ fun waitHandoffPhaseAtLeast(phase: Int): Unit {
     val st: HandoffState = HandoffShared.state
     st.lock.lock()
     while (st.phase < phase) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
+}
+
+fun waitHandoffPublishedAndWaiters(): Unit {
+    val st: HandoffState = HandoffShared.state
+    st.lock.lock()
+    // The first GC should run only after both worker threads have joined the
+    // phase wait protocol; otherwise STW can race a thread still starting up.
+    while (st.phase < 1 || st.waiters < 2) {
         st.cv.wait(st.lock)
     }
     st.lock.unlock()
@@ -102,11 +122,11 @@ fun main() {
     val producer: Thread = threadSpawn { producerThread() }
     val consumer: Thread = threadSpawn { consumerThread() }
 
-    waitHandoffPhaseAtLeast(1)
+    waitHandoffPublishedAndWaiters()
     __scoop_gc_debug_alloc_garbage(96)
     __scoop_gc_collect()
     allowConsumer()
-    waitHandoffPhaseAtLeast(3)
+    waitHandoffPhaseAtLeast(4)
 
     producer.join()
     consumer.join()

@@ -51,8 +51,8 @@
 | P3-T01R | [DONE] | Review P3-T01 验证矩阵 |
 | P3-T02 | [DONE] | 最小 demo 用例 + spec/runtime 文档回写 |
 | P3-T02R | [DONE] | Review P3-T02 用例与文档 |
-| P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
-| P4-T01R | [TODO] | Review P4-T01 sync 源改造 |
+| P4-T01 | [DONE] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
+| P4-T01R | [DONE] | Review P4-T01 sync 源改造 |
 | P4-T02 | [TODO] | 收缩 `scoop_sync.c` 为只管 raw native handle |
 | P4-T02R | [TODO] | Review P4-T02 runtime 收缩 |
 | P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
@@ -432,13 +432,15 @@
   - Native 侧新增 `scoop_sync_*_native_*` raw-handle helper 供 P4-T01 使用，并保留 legacy GC-object path 等待 P4-T02 删除，避免本任务越界清理 C descriptor。同步更新 sync GC release stdout（`Once` 现在由 Scoop 层组合内部 `Mutex`/`CondVar`，销毁计数包含这两个内部资源）与 LLVM ABI 单元测试的 native create symbol 断言。
   - 验证：`cargo build -p scoop -p scoopc`；targeted sync/typecheck/runtime/delegate concurrency fixtures；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首轮发现 `runtime_gc/gc_language_repeated_collect_shared_chain.scoop` 与 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` timeout，两个 fixture 单独复跑均通过；修正 stale sync 负例期望后完整 fixture suite 重跑通过（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T01R：Review P4-T01 sync 源改造
+### [DONE] P4-T01R：Review P4-T01 sync 源改造
 
 - 必须实现的内容：复核三类型 class 形态、`@ReleaseHook`/`@Experimental` 正确、op 走 `@Extern(abi="c")`、`Once.run` 纯 Scoop 且语义不变。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P4-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P4-T01 当前实现与最新提交：`Mutex` / `CondVar` / `Once` 已是普通 non-generic class（默认 final），均带 `@Experimental(feature = "releaseHook")` 与 `@ReleaseHook(..., args = ["rawHandle"])`；`lock` / `unlock`、`wait` / `notifyOne` / `notifyAll`、`isDone` 等 op 均通过 `@Extern(abi = "c")` raw native helper；`sync.scoop` 中已无 `@Extern(abi="scoop")` sync 包装、无 `@Intrinsic`、无 `__scoop_sync_once_run` 声明，`Once.run` 为普通 Scoop 函数体。编译器/runtime 中残留的 `scoop_sync_once_run` 专用路径已由后续 P4-T03 明确调度，本 review 不越界删除。
+  - 验证过程中发现并修复两个未调度 runtime_gc fixture 超时：`gc_language_repeated_collect_shared_chain.scoop` 改为 worker 在 stop flag 置位前持续扩展本地链并显式 `yield()` safepoint，main 在 worker 活跃期间重复触发 GC；`gc_language_cross_thread_ref_handoff.scoop` 增加 `waiters` barrier，确保首次 GC 前 producer/consumer 都进入 phase wait 协议，并保持 producer 在 consumer GC 完成前不退出。两个多线程语言级 STW fixture 的 timeout 调整为 55s，仍低于单 fixture 1 分钟上限。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_repeated_collect_shared_chain.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_cross_thread_ref_handoff.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。Rust 验证后仅修改 fixture / TODO / memory，未重复运行 Rust 测试。
 
 ### [TODO] P4-T02：收缩 `scoop_sync.c` 为只管 raw native handle
 
