@@ -174,12 +174,19 @@ mod immix {
                 .collect::<Vec<AtomicUsize>>(),
         );
         let start = Arc::new(Barrier::new(threads + 1));
+        // 第二道 barrier：保证所有线程都完成“读取邻居 handle / 补齐跨线程环”后，
+        // 主线程才开始 GC 轮次，且任何线程才可能进入热路径并最终 drop handle。
+        // 否则某个线程可能在 barrier 后被长时间挂起，等它读邻居 handle 时，
+        // 邻居线程早已结束热路径并 drop 掉自己的 root handle（见 line 257），
+        // 导致 handle_get 返回 null（正确行为）而误判为失败。
+        let linked = Arc::new(Barrier::new(threads + 1));
         let stop = Arc::new(AtomicBool::new(false));
 
         let mut handles = Vec::new();
         for tid in 0..threads {
             let published = published.clone();
             let start = start.clone();
+            let linked = linked.clone();
             let stop = stop.clone();
 
             handles.push(std::thread::spawn(move || unsafe {
@@ -212,6 +219,10 @@ mod immix {
                 assert!(!root_now.is_null(), "handle_get(root) must succeed");
                 let payload = (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
                 payload.add(0).write(next);
+
+                // 跨线程环已补齐：再同步一次，确保没有任何线程仍停在“读邻居 handle”阶段时，
+                // 主线程就开始 GC 轮次 / 别的线程进入热路径并 drop handle。
+                wait_at_barrier_in_native(&linked);
 
                 // 热路径：持续分配并更新 root.ptr1 作为本线程链表头，逼迫 GC tracing 走大量边。
                 let mut i: usize = 0;
@@ -264,6 +275,8 @@ mod immix {
         }
 
         wait_at_barrier_in_native(&start);
+        // 等待所有线程补齐跨线程环后，再开始 GC 轮次（与 worker 侧的 `linked` 对齐）。
+        wait_at_barrier_in_native(&linked);
         eprintln!("[gc_immix_parallel_mark] all threads started; begin gc rounds");
 
         // 在 mutator 运行期间触发多轮 GC：并行开关打开/关闭两种模式都应稳定通过。
