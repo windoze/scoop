@@ -51,6 +51,160 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    pub(super) fn release_trampoline_fn_name(&self, class_fqn: &str) -> String {
+        let stable_key = self.stable_nominal_type_key(class_fqn, "release_trampoline");
+        let readable = sanitize_llvm_ident(class_fqn);
+        let hash = PrivateSymbolMangler.hash_suffix("release_trampoline", &stable_key);
+        format!("__scoop_release_{readable}__h{hash}")
+    }
+
+    pub(super) fn codegen_release_trampolines(&mut self) -> Result<(), LlvmEmitError> {
+        let mut class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
+        class_keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+
+        let at = crate::span::Span::new(0, 0);
+        for class_key in class_keys {
+            if !self.release_hooks.contains_key(class_key.as_str()) {
+                continue;
+            }
+            let _ = self.get_or_create_release_trampoline(at, &class_key)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn get_or_create_release_trampoline(
+        &mut self,
+        at: crate::span::Span,
+        class_key: &hir::ClassInstanceKey,
+    ) -> Result<Option<FunctionValue<'ctx>>, LlvmEmitError> {
+        let class = self.class_init_layout(at, class_key)?;
+        let Some(hook) = self.release_hooks.get(&class.fqn).cloned() else {
+            return Ok(None);
+        };
+
+        self.codegen_release_trampoline_for_hook(at, &class, &hook)
+            .map(Some)
+    }
+
+    fn codegen_release_trampoline_for_hook(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::MonoClassInit,
+        hook: &hir::ReleaseHook,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let name = self.release_trampoline_fn_name(&class.fqn);
+        let object_param_ty = self.llvm_i8_ptr_type();
+        let fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[object_param_ty.into()], false);
+        let trampoline =
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
+        trampoline.set_call_conventions(0);
+        self.mark_gc_leaf_function(trampoline);
+        if trampoline.count_basic_blocks() > 0 {
+            return Ok(trampoline);
+        }
+
+        let signature = self
+            .published_codegen_callable_signature(&hook.target_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook target `{}` 缺少 LIR callable signature contract",
+                    hook.target_fqn
+                ),
+            })?;
+        if signature.param_tys.len() != hook.arg_fields.len() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook `{}` 参数数量漂移：target params={} args={}",
+                    class.fqn,
+                    signature.param_tys.len(),
+                    hook.arg_fields.len()
+                ),
+            });
+        }
+
+        let saved_block = self.builder.get_insert_block();
+        let entry = self.context.append_basic_block(trampoline, "entry");
+        self.builder.position_at_end(entry);
+
+        let object = trampoline
+            .get_nth_param(0)
+            .unwrap_or_else(|| panic!("release trampoline declaration must have object parameter"))
+            .into_pointer_value();
+        object.set_name("object");
+
+        let mut args = Vec::<inkwell::values::BasicMetadataValueEnum<'ctx>>::with_capacity(
+            hook.arg_fields.len(),
+        );
+        for (idx, field_name) in hook.arg_fields.iter().enumerate() {
+            let param_ty = signature.param_tys[idx];
+            let param_cg = self.cg_ty_of_type_id(param_ty, "release hook target param");
+            let field_value = self.codegen_release_hook_field_arg(at, class, object, field_name)?;
+            let coerced = self.coerce_value(at, field_value, param_cg)?;
+            args.push(self.as_llvm_arg_value(at, param_cg, coerced)?);
+        }
+
+        let target = self.declare_dispatch_target_fun(at, &hook.target_fqn)?;
+        let call = self
+            .builder
+            .build_call(target, &args, "release_hook_call")?;
+        call.set_call_convention(self.llvm_call_convention_for_fqn(&hook.target_fqn));
+        self.builder.build_return(None)?;
+
+        if let Some(block) = saved_block {
+            self.builder.position_at_end(block);
+        }
+        Ok(trampoline)
+    }
+
+    fn codegen_release_hook_field_arg(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::MonoClassInit,
+        object: PointerValue<'ctx>,
+        field_name: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let field_idx = self.release_hook_field_index(class, field_name)?;
+        let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+            panic!("release hook verifier accepted field index outside class layout")
+        });
+        let field_cg = self.cg_ty_of(field.ty);
+        let field_ptr = self.codegen_class_field_ptr(at, class, object, field_idx)?;
+        let llvm_ty = self.llvm_basic_type_of(at, field_cg)?;
+        let load_name = format!("release_hook_arg_{}", sanitize_llvm_ident(field_name));
+        let loaded = self.builder.build_load(llvm_ty, field_ptr, &load_name)?;
+        self.cg_value_from_loaded(at, field_cg, loaded)
+    }
+
+    fn release_hook_field_index(
+        &self,
+        class: &hir::MonoClassInit,
+        field_name: &str,
+    ) -> Result<u32, LlvmEmitError> {
+        let field_fqn = if field_name.contains('.') {
+            field_name.to_string()
+        } else {
+            format!("{}.{}", class.fqn, field_name)
+        };
+        if let Some(idx) = class.field_indices.get(&field_fqn).copied() {
+            return Ok(idx);
+        }
+
+        class
+            .fields
+            .iter()
+            .position(|field| field.name == field_name && field.fqn == field_fqn)
+            .map(|idx| idx as u32)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook `{}` references field `{}` missing from class layout",
+                    class.fqn, field_name
+                ),
+            })
+    }
+
     pub(super) fn try_codegen_sysroot_gc_debug_intrinsics(
         &mut self,
         span: crate::span::Span,

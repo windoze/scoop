@@ -479,6 +479,54 @@ pub(super) fn native_callable_direct_and_indirect_aggregate_return_share_target_
 }
 
 #[test]
+pub(super) fn release_hook_trampoline_loads_payload_fields_and_calls_target() {
+    let source = SourceFile::new_virtual(
+        "<mem>/release_hook_trampoline.scoop",
+        r#"
+package fixtures.releasehook
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_release_ptr_uint")
+fun releaseNative(raw: Ptr<Int>, tag: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.releasehook.releaseNative", args = ["raw", "tag"])
+class NativeResource(val raw: Ptr<Int>, val tag: UInt)
+
+fun main() {}
+"#,
+    );
+
+    let session = session_for_source(&source);
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let trampoline = function_ir_matching(&ir, "release hook trampoline", |header, function| {
+        header.contains("define internal void @__scoop_release_")
+            && function.contains("@scoop_test_release_ptr_uint")
+    });
+
+    assert!(
+        trampoline.contains("ptr %object"),
+        "release trampoline must receive the runtime object header pointer:\n{trampoline}"
+    );
+    assert!(
+        trampoline.contains("class_payload_gep") && trampoline.contains("class_field_gep"),
+        "release trampoline must GEP through full class object layout before loading fields:\n{trampoline}"
+    );
+    assert!(
+        trampoline.contains("release_hook_arg_raw")
+            && trampoline.contains("release_hook_arg_tag")
+            && trampoline.contains("call void @scoop_test_release_ptr_uint"),
+        "release trampoline must load args in annotation order and call the release target:\n{trampoline}"
+    );
+    assert!(
+        !trampoline.contains("@scoop_enter_native") && !trampoline.contains("@scoop_leave_native"),
+        "release trampoline runs in GC release context and must not insert ordinary native boundary calls:\n{trampoline}"
+    );
+}
+
+#[test]
 pub(super) fn managed_extern_direct_call_uses_ordinary_managed_contract() {
     assert_managed_extern_direct_call_uses_ordinary_managed_contract();
 }

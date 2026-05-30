@@ -285,7 +285,7 @@
 
 ## P2：trampoline codegen + 填 `release_fn`
 
-### [TODO] P2-T01：生成 release trampoline
+### [DONE] P2-T01：生成 release trampoline
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2-T01、§1（对象指针布局）
@@ -304,7 +304,8 @@
 - 完成条件：trampoline 读取正确字段并以正确顺序/类型调用目标函数。
 - 依赖：P1 完成
 - 完成记录：
-  - （待填）
+  - 2026-05-31：LLVM stage 现在接收 HIR `ReleaseHookIndex`，并为带 `@ReleaseHook` 的 non-generic class 生成 `void __scoop_release_<TypeMangled>(void *object)` 形态的 internal release trampoline；trampoline 从 runtime 传入的对象 header 指针出发，按完整 class object 布局（header + payload）GEP 到 `args` 字段，按注解顺序 load 字段值并直接调用已校验的释放函数。释放函数声明复用 LIR callable symbol facts，`@Extern(abi="c")` 目标在 release trampoline 内不插入普通 managed-call 的 `scoop_enter_native` / `scoop_leave_native` boundary；trampoline 内的 call 作为目标释放函数保活引用。同步补齐 `Ptr<T>` / `FunPtr<F>` token 到 pointer-sized unsigned codegen 表示的类型映射，使 `Ptr<T>` release args 可进入 LLVM class layout 与 call ABI。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T01R：Review P2-T01 trampoline
 

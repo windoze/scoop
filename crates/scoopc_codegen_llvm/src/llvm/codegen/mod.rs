@@ -490,6 +490,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
+    release_hooks: &'a hir::ReleaseHookIndex,
     class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -827,6 +828,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
+    pub(super) release_hooks: &'a hir::ReleaseHookIndex,
     pub(super) class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -886,6 +888,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             native_callable_funs,
             object_inits,
             class_inits,
+            release_hooks,
             class_ctor_init_bodies,
             class_vtables,
             interfaces,
@@ -930,6 +933,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             native_callable_funs,
             object_inits,
             class_inits,
+            release_hooks,
             class_ctor_init_bodies,
             class_vtables,
             interfaces,

@@ -421,7 +421,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn builtin_nominal_codegen_type_id(&self, nominal: &NominalType) -> Option<TypeId> {
-        if !nominal.args.is_empty() || nominal.eff.is_some() {
+        if nominal.eff.is_some() {
+            return None;
+        }
+        if matches!(
+            nominal.fqn.as_str(),
+            "scoop.unsafe.Ptr" | "scoop.unsafe.FunPtr"
+        ) && nominal.args.len() == 1
+        {
+            return Some(self.builtins.uint);
+        }
+        if !nominal.args.is_empty() {
             return None;
         }
         match nominal.fqn.as_str() {
@@ -434,9 +444,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.Float64" | "scoop.core.Double" => Some(self.builtins.float64),
             "scoop.core.Float32" => Some(self.builtins.float32),
             "scoop.core.Int" => Some(self.builtins.int),
-            "scoop.core.UInt" | "scoop.core.UIntPtr" | "scoop.unsafe.FunPtr" => {
-                Some(self.builtins.uint)
-            }
+            "scoop.core.UInt" | "scoop.core.UIntPtr" => Some(self.builtins.uint),
             "scoop.core.Byte" | "scoop.core.UInt8" => {
                 self.find_codegen_value_type(ValueTypeKind::UIntN(8))
             }

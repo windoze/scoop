@@ -178,6 +178,7 @@ fn with_inputs_query_result(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
     let empty_interfaces = crate::itable::InterfaceIndex::default();
     let empty_class_itables = crate::itable::ClassItableIndex::default();
@@ -200,6 +201,7 @@ fn with_inputs_query_result(
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
+        release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
         class_vtables: &empty_class_vtables,
         interfaces: &empty_interfaces,
@@ -252,6 +254,7 @@ fn with_inputs_query_result_and_cached_deps(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
     let empty_interfaces = crate::itable::InterfaceIndex::default();
     let empty_class_itables = crate::itable::ClassItableIndex::default();
@@ -274,6 +277,7 @@ fn with_inputs_query_result_and_cached_deps(
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
+        release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
         class_vtables: &empty_class_vtables,
         interfaces: &empty_interfaces,
@@ -327,6 +331,7 @@ fn with_inputs_query_result_for_source_types(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
     let empty_interfaces = crate::itable::InterfaceIndex::default();
     let empty_class_itables = crate::itable::ClassItableIndex::default();
@@ -349,6 +354,7 @@ fn with_inputs_query_result_for_source_types(
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
+        release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
         class_vtables: &empty_class_vtables,
         interfaces: &empty_interfaces,
@@ -401,6 +407,7 @@ fn with_inputs_query_result_and_codegen(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
     let empty_interfaces = crate::itable::InterfaceIndex::default();
     let empty_class_itables = crate::itable::ClassItableIndex::default();
@@ -423,6 +430,7 @@ fn with_inputs_query_result_and_codegen(
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
+        release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
         class_vtables: &empty_class_vtables,
         interfaces: &empty_interfaces,

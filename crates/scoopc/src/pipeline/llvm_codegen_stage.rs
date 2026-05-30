@@ -283,6 +283,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
     for (key, value) in lowered_hir.class_inits {
         class_inits.entry(key).or_insert(value);
     }
+    let release_hooks = lowered_hir.release_hooks;
     let class_init_payloads = class_inits
         .values()
         .map(crate::mir::MonoClassInit::from_hir)
@@ -329,6 +330,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         lowered_hir.top_level_fun_call_sites,
         object_inits,
         class_inits,
+        release_hooks,
         class_ctor_init_bodies,
         class_vtables,
         interfaces,

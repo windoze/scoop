@@ -194,6 +194,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+        self.codegen_release_trampolines()?;
         Ok(())
     }
 

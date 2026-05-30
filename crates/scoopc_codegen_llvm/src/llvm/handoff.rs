@@ -97,6 +97,7 @@ pub struct LlvmStageBaseContext {
     top_level_fun_call_sites: source_payload::TopLevelFunCallSiteIndex,
     object_inits: source_payload::ObjectInitIndex,
     class_inits: source_payload::ClassInitIndex,
+    release_hooks: source_payload::ReleaseHookIndex,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     class_vtables: source_payload::ClassVtableIndex,
     interfaces: source_payload::InterfaceIndex,
@@ -154,6 +155,7 @@ impl LlvmStageBaseContext {
         top_level_fun_call_sites: source_payload::TopLevelFunCallSiteIndex,
         object_inits: source_payload::ObjectInitIndex,
         class_inits: source_payload::ClassInitIndex,
+        release_hooks: source_payload::ReleaseHookIndex,
         class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
         class_vtables: source_payload::ClassVtableIndex,
         interfaces: source_payload::InterfaceIndex,
@@ -188,6 +190,7 @@ impl LlvmStageBaseContext {
             top_level_fun_call_sites,
             object_inits,
             class_inits,
+            release_hooks,
             class_ctor_init_bodies,
             class_vtables,
             interfaces,
@@ -254,6 +257,10 @@ impl LlvmStageBaseContext {
 
     pub fn class_inits(&self) -> &source_payload::ClassInitIndex {
         &self.class_inits
+    }
+
+    pub fn release_hooks(&self) -> &source_payload::ReleaseHookIndex {
+        &self.release_hooks
     }
 
     pub fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
