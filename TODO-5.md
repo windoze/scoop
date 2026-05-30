@@ -95,7 +95,7 @@
   - 一致性复核：文档中的 env 名称、默认值和 false/off 解析对照 `runtime/c/scoop_runtime.c` / `runtime/c/scoop_gc.h`；immortal flag/mark、String wrapper 全局、dedup/site-key 策略对照 `runtime/c/scoop_gc.h` 与 `crates/scoopc_codegen_llvm/src/llvm/codegen/main/immortal.rs`；`is_immutable(T)` 规则对照 `immutability.rs`。
   - 验证：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）。`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 未运行，因为本任务只修改 Markdown 文档和一处 C 注释，不改变编译输出；沿用 P7-T00b 完成记录中的最近全量绿灯。
 
-### [TODO] P7-T01R：Review 文档回写
+### [DONE] P7-T01R：Review 文档回写
 
 - 参考：
   - P7-T01 完成记录
@@ -114,7 +114,11 @@
   - 文档准确。
 - 依赖：P7-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 复核范围：逐条对照 P7-T01 文档回写与实现，覆盖 pacing 默认 on、`SCOOP_GC_PACING` false/off 解析、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR` / `SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES` 默认与非法值回退、`SCOOP_GC_MAX_HEAP_BYTES` Immix hard-cap、`SCOOP_GC_STRESS` 分配前触发/旁路 pacing、soft request 在 allocation/write-barrier safepoint 消费、hosted/minimal soft pacing parity，以及 immortal header flag/mark、`is_immutable(T)`、`@InteriorMutable`、String 内容池 dedup、Platform value-tier 常量与 ref-tier site-keyed 策略。
+  - 修正：`SCOOP_RUNTIME.md` 明确 soft trigger 在 allocation 或 write-barrier safepoint 消费，且只在 allocation path 上发生“下一次分配前”collect；补全 `SCOOP_GC_STRESS` 的 unset/off/0/false/no、数字间隔与其它非空值语义。
+  - 旧行为归位：`GC_PACING.md` / `GC_IMMORTAL_FIX.md` 将 “Today/currently” 旧行为语句改为 P0/P5 baseline/design-history 表述；`PLAN.md` / `TODO.md` 不再把旧无界增长描述成当前状态；`PLAN.md` 同步累计 `next_gc = bytes_freed + target_live` 公式。
+  - 验证：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）。`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 未运行，因为本 review 只修改 Markdown 文档、任务记录和 `memory/claude_plan.md`，不改变编译输出；沿用 P7-T00b / P7-T01 记录中的最近完整绿灯。
 
 ### [TODO] P7-T02：审计需要 `PACING=off` 的测试并注明原因
 

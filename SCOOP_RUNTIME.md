@@ -411,7 +411,7 @@ next_gc     = bytes_freed + target_live
 
 Trigger layers:
 
-- Soft trigger: after an allocation is registered, the runtime compares cumulative `bytes_allocated` with `next_gc`. If the waterline is reached, it sets an idempotent `request_collect` flag. The next allocation/write-barrier safepoint consumes the flag and runs collection before allocating; collection is not run synchronously inside the allocation that just produced an unrooted object.
+- Soft trigger: after an allocation is registered, the runtime compares cumulative `bytes_allocated` with `next_gc`. If the waterline is reached, it sets an idempotent `request_collect` flag. The next allocation or write-barrier safepoint consumes the flag and runs collection; on the allocation path this happens before allocating the next object. Collection is not run synchronously inside the allocation that just produced an unrooted object.
 - Generational trigger: when the Immix nursery is full, the runtime attempts a minor GC and retries the nursery allocation. If the nursery is still unsuitable, the allocation falls back to old space rather than looping.
 - Hard trigger: when the Immix block pool is exhausted, the runtime attempts a full GC before reserving/growing more heap memory. `SCOOP_GC_MAX_HEAP_BYTES` applies at the post-GC retry; if the allocation still requires growth beyond the cap, allocation returns `NULL` through the existing OOM path.
 
@@ -423,7 +423,7 @@ Environment knobs:
 | `SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR` | `1.5` | Multiplier in `live * growth_factor`; invalid, non-finite, or `<= 1.0` values fall back to the default. |
 | `SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES` | `4 * 1024 * 1024` | Minimum target-live threshold; invalid or zero values fall back to the default. |
 | `SCOOP_GC_MAX_HEAP_BYTES` | `0` | Immix hard cap on reserved heap bytes; `0` means no cap. |
-| `SCOOP_GC_STRESS` | off | Test-only pre-allocation collection trigger. When active, stress bypasses pacing because it collects more aggressively than pacing. |
+| `SCOOP_GC_STRESS` | off | Test-only pre-allocation collection trigger. Unset, `0`, `false`, `no`, or `off` disables it; numeric `N >= 1` collects before every Nth allocation; any other non-empty value collects before every allocation. When active, stress bypasses pacing because it collects more aggressively than pacing. |
 
 Manual `scoop_gc_collect()` and `scoop_gc_collect_minor()` calls keep their explicit API semantics. The soft pacing state and `SCOOP_GC_PACING` / min-threshold / growth-factor behavior are backend-independent and are honored by the `immix`, `hosted`, and `minimal` backends; backend-specific collection effectiveness may still differ. The hard cap is enforced by the Immix reserved-growth paths.
 

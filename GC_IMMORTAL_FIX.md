@@ -9,8 +9,8 @@ deferred.
 
 ## Motivation
 
-Several values that are **fully known at compile time** are currently allocated
-on the GC heap on every use:
+At the pre-P5 baseline, several values that are **fully known at compile time**
+were allocated on the GC heap on every use:
 
 1. **String literals** — every `"hello"` in source emits a fresh
    `scoop_alloc_typed` call that materializes a `ScoopString { hdr, len, data }`.
@@ -22,7 +22,7 @@ on the GC heap on every use:
    **five** `ScoopString` allocations (one per field) plus an SSA struct insert
    sequence. The struct value is constant for the life of the binary.
 
-Concrete cost on a representative sample:
+Historical cost on representative samples:
 
 - `print("hello world")` inside a hot loop allocates a `ScoopString` on every
   iteration. The mark-region GC tolerates this (pinned/scoped allocators help)
@@ -31,9 +31,9 @@ Concrete cost on a representative sample:
 - A program that prints `__type_name(T)` once per element of a list pays the
   full alloc per element.
 
-Beyond pressure, this also breaks the user's mental model: `"hello"` is
-indistinguishable from `String("hello")` at the IR level, even though the former
-is a textbook immortal compile-time constant.
+Beyond pressure, that baseline also broke the user's mental model: `"hello"`
+was indistinguishable from `String("hello")` at the IR level, even though the
+former is a textbook immortal compile-time constant.
 
 ## Design principle: a general decision, not three special cases
 

@@ -14,13 +14,13 @@
 - 两条线在运行期之外几乎正交：Pacing 全部落在 `runtime/c/`；Immortal 跨 sysroot / typecheck / HIR→MIR lowering / codegen，且只在运行期加一个 `SCOOP_GC_FLAG_IMMORTAL` 标志位。可并行推进，但本计划按“Pacing 优先”排序。
 - Immortal 的核心不变式必须守干净：**immortal 对象永不被写、永不被 trace**。任何“可写或可能需要 trace”的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道，留作独立后续工作。
 - “是否常量化”是由**类型的传递不可变性**决定的通用决策，不是为 String / Platform 开的特判；“是否 dedup”是正交的、且仅对 String 开的内容池行为。实现不得退回“逐类型特判”。
-- Pacing 必须 **on-by-default**。现状是无条件无界增长，这不是“在 ergonomics 与正确性之间权衡”，默认开启是底线；只保留 `SCOOP_GC_PACING=off` 给需要确定性堆计数的测试。
+- Pacing 必须 **on-by-default**。P0 baseline 是无条件无界增长，这不是“在 ergonomics 与正确性之间权衡”的目标状态；默认开启是底线，只保留 `SCOOP_GC_PACING=off` 给需要确定性堆计数的测试。
 - 所有 runtime 改动必须保持现有 backend 分层（`immix` / `hosted` / `minimal`）可编译可回归；阈值比较本身 backend 无关。
 - 验收面：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`、`python3 tools/spec_fixtures.py check`，以及 runtime C 单元测试与长程序回归。
 
-## 1. 当前判断
+## 1. P0 基线判断（design history）
 
-### Pacing（来自 `GC_PACING.md`，已核对）
+### Pacing（来自 `GC_PACING.md` 的 P0 baseline，已核对）
 
 - 生产路径唯一的 collect 触发点是 `SCOOP_GC_STRESS` 测试钩子（`runtime/c/scoop_runtime.c:502-507`）；其余都是 public API 或测试代码。没有“堆增长到 X 就收集”的机制。
 - block pool 耗尽时无条件 `posix_memalign` 新块（`runtime/c/scoop_gc_immix_internal.h:548-575`），没有“先尝试回收再增长”的回退。
@@ -28,7 +28,7 @@
 - `bytes_allocated` 只是一个计数器（`scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`），从不与任何阈值比较。
 - 没有 `SCOOP_GC_HEAP_TARGET` / `TRIGGER_BYTES` / growth-factor / hard cap 任何 env 旋钮。pacing 是真缺失，不是没调好。
 
-### Immortal（来自 `GC_IMMORTAL_FIX.md`，已核对）
+### Immortal（来自 `GC_IMMORTAL_FIX.md` 的 P0/P5 baseline，已核对）
 
 - String literal 每次求值都 `scoop_alloc_typed` 一个 `ScoopString` wrapper（`scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`），字节负载已在 `.rodata`，但 wrapper 是堆对象。
 - `TypeMetadataLiteral::TypeNameString` 复用同一路径，继承 wrapper 分配（`.../mir_body/transport.rs:186-201`）。
@@ -42,7 +42,7 @@
 | Gap | 当前状态 | 本轮动作 | 归属阶段 |
 |---|---|---|---|
 | Pacing 软触发（堆增长阈值） | `bytes_allocated` 从不比较 | alloc 后比较 `next_gc`，超过则 safepoint 处请求 collect | P1 |
-| `next_gc` / `request_collect` / safepoint 集成 | 无 | `ScoopGcHeap` 加 `next_gc`，请求标志由 `scoop_gc_safepoint_poll` 消费，cycle 末 `next_gc = max(min, live*factor)` | P1 |
+| `next_gc` / `request_collect` / safepoint 集成 | 无 | `ScoopGcHeap` 加 `next_gc`，请求标志由 `scoop_gc_safepoint_poll` 消费，cycle 末按 `target_live = max(min, live*factor)` 更新累计水位线 `next_gc = bytes_freed + target_live` | P1 |
 | `SCOOP_GC_PACING` 等 env 旋钮 | 无 | 加 `PACING` / `GROWTH_FACTOR` / `MIN_THRESHOLD_BYTES` / `MAX_HEAP_BYTES`，默认 on | P1 |
 | nursery 满 ⇒ minor GC | 静默回退 old space | 满则 minor GC 再重试，仍满才落 old | P2 |
 | block pool 耗尽 ⇒ full GC | 无条件 `posix_memalign` | 两表空时先 full GC，取到块再用，取不到才增长 | P2 |
@@ -126,7 +126,7 @@
 必须遵从的约束：
 
 - P0 不改变运行期或语言行为；只做核对、度量与记录。
-- 不得删除任何现有 GC 测试来掩盖当前无界增长。
+- 不得删除任何现有 GC 测试来掩盖 P0 baseline 的无界增长。
 
 阶段输出：
 
@@ -158,7 +158,7 @@
 必须实现的内容：
 
 1. `ScoopGcHeap` 新增 `next_gc`（初值 = `min_threshold`，默认 4 MB）与 `request_collect` 标志/计数。
-2. 每个 GC cycle 末（sweep 后，持 GC 锁）设置 `next_gc = max(min_threshold, live * growth_factor)`，`growth_factor` 默认 1.5。
+2. 每个 GC cycle 末（sweep 后，持 GC 锁）计算 `target_live = max(min_threshold, live * growth_factor)`，并设置累计水位线 `next_gc = bytes_freed + target_live`；`growth_factor` 默认 1.5。
 3. alloc 快路径：`bytes_allocated_add` 后用 relaxed load 比较 `next_gc`，超过则 `request_collect`（幂等，置标志）。
 4. `scoop_gc_safepoint_poll` 消费标志：在下一次 alloc 的 poll 处运行 collect，再分配——遵循“先 poll 后 alloc”的 root publication 纪律，不在 alloc 内同步 collect。
 5. 新增 env 旋钮：`SCOOP_GC_PACING`（默认 on）、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`（1.5）、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`（4 MB）。`SCOOP_GC_STRESS` 激活时旁路 pacing。

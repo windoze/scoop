@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` / `P6-T02R` / `P7-T00` / `P7-T00b` / `P7-T01` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` / `P6-T02R` / `P7-T00` / `P7-T00b` / `P7-T01` / `P7-T01R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -13,11 +13,11 @@
 - 每个实现任务后必须紧跟一个独立 review 任务，复审该任务的完整变更、阶段目标和约束遵守情况。
 - review 任务不是形式检查；如果发现前一任务没有真正完成目标，review 任务必须直接修正或阻塞下一任务。
 - 任务完成后必须同时更新本索引和对应 `TODO-[1-5].md` 中的任务状态与完成记录；不得只更新其中一边。
-- **Pacing 必须 on-by-default**。现状是无条件无界增长；`SCOOP_GC_PACING=off` 只保留给需要确定性堆计数的测试，且每个用到它的测试必须注明 why。
+- **Pacing 必须 on-by-default**。P0 baseline 是无条件无界增长；当前默认必须保持有界，`SCOOP_GC_PACING=off` 只保留给需要确定性堆计数的测试，且每个用到它的测试必须注明 why。
 - **Immortal 不变式必须守干净**：immortal 对象永不被写、永不被 trace。任何可写或可能需要 trace 的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道。
 - “是否常量化”是由类型**传递不可变性**决定的通用决策，不得退回逐类型特判或类型白名单；“是否 dedup”是正交的、仅对 String 开的内容池。
 - 所有 runtime 改动必须保持 `immix` / `hosted` / `minimal` 三 backend 可编译可回归。
-- 不接受把当前无界增长或 per-use wrapper 分配记成最终期望；目标行为由两份设计文档定义。
+- 不接受把旧的无界增长或 per-use wrapper 分配记成最终期望；目标行为由两份设计文档定义。
 
 ## 任务包划分
 
@@ -72,7 +72,7 @@
 | P7-T00 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00增强-stw-健壮性避免僵尸线程卡死) | 增强 STW 健壮性，避免僵尸线程卡死 stop-the-world |
 | P7-T00b | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00b补-scoop-语言级并发gc-应用测试) | 补 Scoop 语言级并发/GC 应用测试（替代已删除的 C-API stress） |
 | P7-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |
-| P7-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
+| P7-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
 | P7-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t02审计需要-pacingoff-的测试并注明原因) | 审计需要 `PACING=off` 的测试并注明原因 |
 | P7-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t02rreview-pacingoff-审计) | Review P7-T02 `PACING=off` 审计 |
 | P7-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t03全量测试矩阵out-of-scope-归位与收口) | 全量测试矩阵、out-of-scope 归位与收口 |
