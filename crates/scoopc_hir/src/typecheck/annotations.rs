@@ -33,9 +33,9 @@ use crate::ty::{BuiltinTypes, ExternAbi, RefTypeKind, TypeId, TypeKind, TypeStor
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{
-    BuiltinAnnotationFlags, BuiltinAnnotationKind, ReleaseHookAnnotationParseError,
-    builtin_annotation_kind, file_allows_intrinsic, parse_experimental_annotation,
-    parse_release_hook_annotation, parse_suppress_annotation,
+    BuiltinAnnotationFlags, BuiltinAnnotationKind, ExperimentalAnnotationParseError,
+    ReleaseHookAnnotationParseError, builtin_annotation_kind, file_allows_intrinsic,
+    parse_experimental_annotation, parse_release_hook_annotation, parse_suppress_annotation,
 };
 use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
@@ -735,6 +735,44 @@ pub enum AnnotationError {
     #[diagnostic(code(scoop::typecheck::release_hook_annotation_args_element_must_be_string))]
     ReleaseHookAnnotationArgsElementMustBeString {
         #[label("这里需要字符串字面量")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 只能用于普通 `class` 宿主（不支持 struct / enum / interface / annotation class）：{type_fqn} 是 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_host_must_be_class))]
+    ReleaseHookHostMustBeClass {
+        type_fqn: String,
+        found: &'static str,
+        #[label("这里必须声明为普通 `class`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 宿主必须是 non-generic class：{type_fqn} 声明了类型参数")]
+    #[diagnostic(code(scoop::typecheck::release_hook_host_must_be_non_generic))]
+    ReleaseHookHostMustBeNonGeneric {
+        type_fqn: String,
+        #[label("这里的类型参数不允许出现在 `@ReleaseHook` 宿主上")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@ReleaseHook` 宿主必须是 final class：{type_fqn} 带有 `{modifier}` 修饰符")]
+    #[diagnostic(code(scoop::typecheck::release_hook_host_must_be_final))]
+    ReleaseHookHostMustBeFinal {
+        type_fqn: String,
+        modifier: &'static str,
+        #[label("这里的宿主不能是 open / abstract / sealed")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@ReleaseHook` 宿主 `{type_fqn}` 必须同时标注 `@Experimental(feature = \"releaseHook\")`"
+    )]
+    #[diagnostic(code(scoop::typecheck::release_hook_host_requires_experimental))]
+    ReleaseHookHostRequiresExperimental {
+        type_fqn: String,
+        #[label("这里缺少 releaseHook 实验开关")]
         span: miette::SourceSpan,
     },
 
@@ -1680,28 +1718,34 @@ fn check_builtin_experimental_annotation(
 
     parse_experimental_annotation(source, ann)
         .map(|_| ())
-        .map_err(|err| match err {
-            super::builtin_annotations::ExperimentalAnnotationParseError::MissingFeature {
-                span,
-            } => AnnotationError::AnnotationArgMissingRequired {
+        .map_err(map_experimental_annotation_parse_error)
+}
+
+fn map_experimental_annotation_parse_error(
+    err: ExperimentalAnnotationParseError,
+) -> AnnotationError {
+    match err {
+        ExperimentalAnnotationParseError::MissingFeature { span } => {
+            AnnotationError::AnnotationArgMissingRequired {
                 annotation: "@Experimental".to_string(),
                 param: "feature".to_string(),
                 span: span.into(),
-            },
-            super::builtin_annotations::ExperimentalAnnotationParseError::InvalidArgShape {
-                span,
-            } => AnnotationError::ExperimentalAnnotationInvalidArgShape { span: span.into() },
-            super::builtin_annotations::ExperimentalAnnotationParseError::DuplicateFeature {
-                span,
-            } => AnnotationError::AnnotationArgDuplicate {
+            }
+        }
+        ExperimentalAnnotationParseError::InvalidArgShape { span } => {
+            AnnotationError::ExperimentalAnnotationInvalidArgShape { span: span.into() }
+        }
+        ExperimentalAnnotationParseError::DuplicateFeature { span } => {
+            AnnotationError::AnnotationArgDuplicate {
                 annotation: "@Experimental".to_string(),
                 param: "feature".to_string(),
                 span: span.into(),
-            },
-            super::builtin_annotations::ExperimentalAnnotationParseError::ArgMustBeString {
-                span,
-            } => AnnotationError::ExperimentalAnnotationArgMustBeString { span: span.into() },
-        })
+            }
+        }
+        ExperimentalAnnotationParseError::ArgMustBeString { span } => {
+            AnnotationError::ExperimentalAnnotationArgMustBeString { span: span.into() }
+        }
+    }
 }
 
 fn check_builtin_release_hook_annotation_args(
@@ -3585,7 +3629,19 @@ fn check_builtin_annotations_on_type_decl(
                 }
             }
             BuiltinAnnotationKind::ReleaseHook => {
+                let effective_target =
+                    effective_annotation_target(source, ann, AnnotationTargetKind::Type);
+                if effective_target != AnnotationTargetKind::Type {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                        annotation: format!("@{}", kind.name()),
+                        allowed: kind.allowed_targets_hint(),
+                        found: effective_target.as_str(),
+                        span: name_span.into(),
+                    });
+                }
                 check_builtin_release_hook_annotation_args(source, ann)?;
+                check_release_hook_host_decl(source, decl, type_fqn, ann)?;
             }
             BuiltinAnnotationKind::Deprecated
             | BuiltinAnnotationKind::Suppress
@@ -3636,6 +3692,85 @@ fn check_builtin_annotations_on_type_decl(
     }
 
     Ok(())
+}
+
+fn check_release_hook_host_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    type_fqn: &str,
+    release_hook_ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    if decl.kind != ast::TypeKind::Class || decl.modifiers.contains(&ast::Modifier::Annotation) {
+        return Err(AnnotationError::ReleaseHookHostMustBeClass {
+            type_fqn: type_fqn.to_string(),
+            found: release_hook_host_kind_name(decl),
+            span: decl.name.span.into(),
+        });
+    }
+
+    if let Some(first) = decl.type_params.first() {
+        let last = decl.type_params.last().unwrap_or(first);
+        return Err(AnnotationError::ReleaseHookHostMustBeNonGeneric {
+            type_fqn: type_fqn.to_string(),
+            span: Span::new(first.span.start, last.span.end).into(),
+        });
+    }
+
+    for modifier in [
+        ast::Modifier::Open,
+        ast::Modifier::Abstract,
+        ast::Modifier::Sealed,
+    ] {
+        if decl.modifiers.contains(&modifier) {
+            return Err(AnnotationError::ReleaseHookHostMustBeFinal {
+                type_fqn: type_fqn.to_string(),
+                modifier: modifier_name(modifier),
+                span: decl.name.span.into(),
+            });
+        }
+    }
+
+    if !has_required_release_hook_experimental_feature(source, &decl.annotations)? {
+        let (_, name_span) = annotation_name_and_span(source, release_hook_ann);
+        return Err(AnnotationError::ReleaseHookHostRequiresExperimental {
+            type_fqn: type_fqn.to_string(),
+            span: name_span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn release_hook_host_kind_name(decl: &ast::TypeDecl) -> &'static str {
+    if decl.modifiers.contains(&ast::Modifier::Annotation) {
+        return "annotation class";
+    }
+
+    match decl.kind {
+        ast::TypeKind::Class => "class",
+        ast::TypeKind::Struct => "struct",
+        ast::TypeKind::Interface => "interface",
+        ast::TypeKind::Enum => "enum",
+        ast::TypeKind::Effect => "effect",
+    }
+}
+
+fn has_required_release_hook_experimental_feature(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+) -> Result<bool, AnnotationError> {
+    for ann in annotations {
+        if builtin_annotation_kind(source, ann) != Some(BuiltinAnnotationKind::Experimental) {
+            continue;
+        }
+        let feature = parse_experimental_annotation(source, ann)
+            .map_err(map_experimental_annotation_parse_error)?;
+        if feature == "releaseHook" {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 fn check_intrinsic_builtin_annotation_gate(
@@ -3739,5 +3874,135 @@ fn join_prefix(prefix: &str, name: &str) -> String {
         name.to_string()
     } else {
         format!("{prefix}.{name}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::parse_file;
+
+    use super::*;
+
+    fn first_type_decl(text: &str) -> (SourceFile, ast::TypeDecl) {
+        let source = SourceFile::new_virtual("<test>", text);
+        let file = parse_file(&source).expect("test source should parse");
+        let ast::Item::Type(decl) = &file.items[0] else {
+            panic!("expected first item to be a type declaration");
+        };
+        (source, decl.as_ref().clone())
+    }
+
+    fn check_first_type(text: &str) -> Result<(), AnnotationError> {
+        let (source, decl) = first_type_decl(text);
+        let type_fqn = format!("test.{}", decl.name.text(&source));
+        check_builtin_annotations_on_type_decl(&source, false, &decl, &type_fqn)
+    }
+
+    #[test]
+    fn release_hook_host_accepts_final_non_generic_class_with_experimental_gate() {
+        check_first_type(
+            r#"package test
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "native.release", args = [])
+class Handle
+"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn release_hook_host_rejects_non_class_type() {
+        let err = check_first_type(
+            r#"package test
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "native.release", args = [])
+struct Handle
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookHostMustBeClass {
+                found: "struct",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn release_hook_host_rejects_annotation_class() {
+        let err = check_first_type(
+            r#"package test
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "native.release", args = [])
+annotation class Handle(val id: Int)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookHostMustBeClass {
+                found: "annotation class",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn release_hook_host_rejects_generic_class() {
+        let err = check_first_type(
+            r#"package test
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "native.release", args = [])
+class Handle<T>
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookHostMustBeNonGeneric { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_host_rejects_non_final_class() {
+        for modifier in ["open", "abstract", "sealed"] {
+            let err = check_first_type(&format!(
+                r#"package test
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "native.release", args = [])
+{modifier} class Handle
+"#,
+            ))
+            .unwrap_err();
+
+            assert!(matches!(
+                err,
+                AnnotationError::ReleaseHookHostMustBeFinal {
+                    modifier: found,
+                    ..
+                } if found == modifier
+            ));
+        }
+    }
+
+    #[test]
+    fn release_hook_host_requires_release_hook_experimental_gate() {
+        let err = check_first_type(
+            r#"package test
+@Experimental(feature = "other")
+@ReleaseHook(name = "native.release", args = [])
+class Handle
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookHostRequiresExperimental { .. }
+        ));
     }
 }

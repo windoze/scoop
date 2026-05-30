@@ -195,7 +195,7 @@
   - 2026-05-31：复核 P1-T01 注解 surface：`BuiltinAnnotationKind::ReleaseHook` 覆盖短名 `@ReleaseHook` 与 FQN `@scoop.core.ReleaseHook`，两条路径均可解析出 `name` 与 `args`；`parse_release_hook_annotation` 对缺少 `name`/`args`、位置参数、未知 key、重复 key、`name` 非字符串、`args` 非字符串数组、`args` 元素非字符串均有结构化错误。补齐 review 中发现的单元测试覆盖缺口：FQN 路径同时断言解析结果，并新增缺 `args`、位置参数、重复参数、`name` 非字符串测试。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
-### [TODO] P1-T02：宿主校验（class / non-generic / final / `@Experimental`）
+### [DONE] P1-T02：宿主校验（class / non-generic / final / `@Experimental`）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1-T02
@@ -212,7 +212,8 @@
 - 完成条件：四类宿主约束均被强制。
 - 依赖：P1-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：在 type 声明内建注解检查路径中为 `@ReleaseHook` 增加宿主校验：仅接受普通 `class`（拒绝 struct / enum / interface / annotation class）、拒绝泛型宿主、拒绝 `open` / `abstract` / `sealed` 非 final 宿主，并要求同一声明带 `@Experimental(feature = "releaseHook")`；每类违例都有独立诊断。补充 Rust 单元测试覆盖合法宿主、非 class、annotation class、generic、open/abstract/sealed 与缺少 releaseHook 实验开关。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。fixture 套件通过后仅收紧了 `#[cfg(test)]` 断言覆盖，编译器产物未变，因此未重复运行 fixture 套件。
 
 ### [TODO] P1-T02R：Review P1-T02 宿主校验
 
