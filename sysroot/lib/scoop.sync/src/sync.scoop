@@ -1,135 +1,182 @@
-// Scoop sysroot: sync surface（std v3，early stage）
+// Scoop sysroot: sync surface.
 //
-// 说明：
-// - public API 尽量保留为 Scoop wrapper；
-// - 底层 native primitive 归 `scoop.sync` cone-local native-build 所有；
-// - create/destroy/lock/wait 等 primitive 使用 managed Scoop ABI，因为 native
-//   helper 需要创建 GC-managed wrapper object 并安装 release hook 来覆盖 GC cleanup；
-// - `Once.run` 暂时保留一个 private intrinsic adapter，用于把 closure object 拆成
-//   native env/function pointer，等通用 callable ABI 可表达该形状后再退场。
+// The public types are ordinary Scoop classes. Native resources are stored as
+// raw `Ptr<T>` handles and released through `@ReleaseHook` as a best-effort GC
+// fallback; explicit `destroy()` remains the deterministic early-release path.
 
 package scoop.sync
 
 import scoop.core.*
+import scoop.unsafe.*
 
-/// 互斥锁（opaque handle；语义由 std/runtime 约定）。
-///
-/// 说明：
-/// - 当前阶段以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化；
-/// - `destroy()` 仍是“提前释放平台资源”的显式路径；
-/// - 若对象在未显式 `destroy()` 的情况下变为不可达，native release hook 会在 GC sweep 前做受限 cleanup。
-public class Mutex
+private struct __ScoopSyncMutexNative {}
+private struct __ScoopSyncCondVarNative {}
+private struct __ScoopSyncOnceNative {}
 
-/// 条件变量（与 `Mutex` 配对使用）。
-public class CondVar
+@Extern(name = "scoop_sync_mutex_native_create", abi = "c")
+private fun __scoop_sync_mutex_create_native(): Ptr<__ScoopSyncMutexNative>
 
-/// 一次性初始化标记（thread-safe once）。
-public class Once
+@Extern(name = "scoop_sync_mutex_native_lock", abi = "c")
+private fun __scoop_sync_mutex_lock_native(raw: Ptr<__ScoopSyncMutexNative>): Unit
 
-// --- Mutex ---
+@Extern(name = "scoop_sync_mutex_native_unlock", abi = "c")
+private fun __scoop_sync_mutex_unlock_native(raw: Ptr<__ScoopSyncMutexNative>): Unit
+
+@Extern(name = "scoop_sync_mutex_native_destroy", abi = "c")
+private fun __scoop_sync_mutex_destroy_native(raw: Ptr<__ScoopSyncMutexNative>): Unit
+
+@Extern(name = "scoop_sync_mutex_native_null", abi = "c")
+private fun __scoop_sync_mutex_null(): Ptr<__ScoopSyncMutexNative>
+
+/// 互斥锁。底层平台资源由 raw native handle 承载。
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "scoop.sync.__scoop_sync_mutex_destroy_native", args = ["rawHandle"])
+public class Mutex(raw: Ptr<__ScoopSyncMutexNative>) {
+    private var rawHandle: Ptr<__ScoopSyncMutexNative> = raw
+}
 
 /// 创建一个新的互斥锁。
-@Extern(name = "scoop_sync_mutex_create", abi = "scoop")
-private fun __scoop_sync_mutex_create(): Mutex
-
 public fun mutexCreate(): Mutex {
-    return __scoop_sync_mutex_create()
+    val raw: Ptr<__ScoopSyncMutexNative> = @Unsafe do { __scoop_sync_mutex_create_native() }
+    return Mutex(raw)
 }
 
 /// 加锁（可能阻塞）。
-@Extern(name = "scoop_sync_mutex_lock", abi = "scoop")
-private fun __scoop_sync_mutex_lock(mutex: Mutex): Unit
-
 public fun Mutex.lock(): Unit {
-    __scoop_sync_mutex_lock(this)
+    @Unsafe do { __scoop_sync_mutex_lock_native(this.rawHandle) }
 }
 
 /// 解锁。
-@Extern(name = "scoop_sync_mutex_unlock", abi = "scoop")
-private fun __scoop_sync_mutex_unlock(mutex: Mutex): Unit
-
 public fun Mutex.unlock(): Unit {
-    __scoop_sync_mutex_unlock(this)
+    @Unsafe do { __scoop_sync_mutex_unlock_native(this.rawHandle) }
 }
 
-/// 销毁互斥锁（early stage：显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
-@Extern(name = "scoop_sync_mutex_destroy", abi = "scoop")
-private fun __scoop_sync_mutex_destroy(mutex: Mutex): Unit
-
+/// 显式提前释放平台资源；GC release hook 会看到空 handle 而成为 no-op。
 public fun Mutex.destroy(): Unit {
-    __scoop_sync_mutex_destroy(this)
+    val raw: Ptr<__ScoopSyncMutexNative> = this.rawHandle
+    @Unsafe do { __scoop_sync_mutex_destroy_native(raw) }
+    this.rawHandle = @Unsafe do { __scoop_sync_mutex_null() }
 }
 
-// --- CondVar ---
+@Extern(name = "scoop_sync_condvar_native_create", abi = "c")
+private fun __scoop_sync_condvar_create_native(): Ptr<__ScoopSyncCondVarNative>
+
+@Extern(name = "scoop_sync_condvar_native_wait", abi = "c")
+private fun __scoop_sync_condvar_wait_native(
+    condVar: Ptr<__ScoopSyncCondVarNative>,
+    mutex: Ptr<__ScoopSyncMutexNative>
+): Unit
+
+@Extern(name = "scoop_sync_condvar_native_notify_one", abi = "c")
+private fun __scoop_sync_condvar_notify_one_native(raw: Ptr<__ScoopSyncCondVarNative>): Unit
+
+@Extern(name = "scoop_sync_condvar_native_notify_all", abi = "c")
+private fun __scoop_sync_condvar_notify_all_native(raw: Ptr<__ScoopSyncCondVarNative>): Unit
+
+@Extern(name = "scoop_sync_condvar_native_destroy", abi = "c")
+private fun __scoop_sync_condvar_destroy_native(raw: Ptr<__ScoopSyncCondVarNative>): Unit
+
+@Extern(name = "scoop_sync_condvar_native_null", abi = "c")
+private fun __scoop_sync_condvar_null(): Ptr<__ScoopSyncCondVarNative>
+
+/// 条件变量（与 `Mutex` 配对使用）。
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "scoop.sync.__scoop_sync_condvar_destroy_native", args = ["rawHandle"])
+public class CondVar(raw: Ptr<__ScoopSyncCondVarNative>) {
+    private var rawHandle: Ptr<__ScoopSyncCondVarNative> = raw
+}
 
 /// 创建一个新的条件变量。
-@Extern(name = "scoop_sync_condvar_create", abi = "scoop")
-private fun __scoop_sync_condvar_create(): CondVar
-
 public fun condVarCreate(): CondVar {
-    return __scoop_sync_condvar_create()
+    val raw: Ptr<__ScoopSyncCondVarNative> = @Unsafe do { __scoop_sync_condvar_create_native() }
+    return CondVar(raw)
 }
 
-/// 在条件变量上等待：
-/// - 会原子地解锁 `mutex` 并阻塞；
-/// - 被唤醒后在返回前重新加锁 `mutex`（语义由平台 backend 决定）。
-@Extern(name = "scoop_sync_condvar_wait", abi = "scoop")
-private fun __scoop_sync_condvar_wait(condVar: CondVar, mutex: Mutex): Unit
-
+/// 在条件变量上等待；native 层保证原子 unlock-wait-relock。
 public fun CondVar.wait(mutex: Mutex): Unit {
-    __scoop_sync_condvar_wait(this, mutex)
+    @Unsafe do { __scoop_sync_condvar_wait_native(this.rawHandle, mutex.rawHandle) }
 }
 
 /// 唤醒一个等待者（若存在）。
-@Extern(name = "scoop_sync_condvar_notify_one", abi = "scoop")
-private fun __scoop_sync_condvar_notify_one(condVar: CondVar): Unit
-
 public fun CondVar.notifyOne(): Unit {
-    __scoop_sync_condvar_notify_one(this)
+    @Unsafe do { __scoop_sync_condvar_notify_one_native(this.rawHandle) }
 }
 
 /// 唤醒所有等待者（若存在）。
-@Extern(name = "scoop_sync_condvar_notify_all", abi = "scoop")
-private fun __scoop_sync_condvar_notify_all(condVar: CondVar): Unit
-
 public fun CondVar.notifyAll(): Unit {
-    __scoop_sync_condvar_notify_all(this)
+    @Unsafe do { __scoop_sync_condvar_notify_all_native(this.rawHandle) }
 }
 
-/// 销毁条件变量（显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
-@Extern(name = "scoop_sync_condvar_destroy", abi = "scoop")
-private fun __scoop_sync_condvar_destroy(condVar: CondVar): Unit
-
+/// 显式提前释放平台资源；GC release hook 会看到空 handle 而成为 no-op。
 public fun CondVar.destroy(): Unit {
-    __scoop_sync_condvar_destroy(this)
+    val raw: Ptr<__ScoopSyncCondVarNative> = this.rawHandle
+    @Unsafe do { __scoop_sync_condvar_destroy_native(raw) }
+    this.rawHandle = @Unsafe do { __scoop_sync_condvar_null() }
 }
 
-// --- Once ---
+@Extern(name = "scoop_sync_once_native_create", abi = "c")
+private fun __scoop_sync_once_create_native(): Ptr<__ScoopSyncOnceNative>
+
+@Extern(name = "scoop_sync_once_native_is_done", abi = "c")
+private fun __scoop_sync_once_is_done_native(raw: Ptr<__ScoopSyncOnceNative>): Int
+
+@Extern(name = "scoop_sync_once_native_begin", abi = "c")
+private fun __scoop_sync_once_begin_native(raw: Ptr<__ScoopSyncOnceNative>): Int
+
+@Extern(name = "scoop_sync_once_native_complete", abi = "c")
+private fun __scoop_sync_once_complete_native(raw: Ptr<__ScoopSyncOnceNative>): Unit
+
+@Extern(name = "scoop_sync_once_native_destroy", abi = "c")
+private fun __scoop_sync_once_destroy_native(raw: Ptr<__ScoopSyncOnceNative>): Unit
+
+private fun __scoop_sync_once_done(raw: Ptr<__ScoopSyncOnceNative>): Bool {
+    return @Unsafe do { __scoop_sync_once_is_done_native(raw) } != 0
+}
+
+/// 一次性初始化标记（thread-safe once）。
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "scoop.sync.__scoop_sync_once_destroy_native", args = ["rawHandle"])
+public class Once(raw: Ptr<__ScoopSyncOnceNative>, lock: Mutex, ready: CondVar) {
+    private var rawHandle: Ptr<__ScoopSyncOnceNative> = raw
+    private val mutex: Mutex = lock
+    private val condVar: CondVar = ready
+}
 
 /// 创建一个新的 once 标记。
-@Extern(name = "scoop_sync_once_create", abi = "scoop")
-private fun __scoop_sync_once_create(): Once
-
 public fun onceCreate(): Once {
-    return __scoop_sync_once_create()
+    val raw: Ptr<__ScoopSyncOnceNative> = @Unsafe do { __scoop_sync_once_create_native() }
+    return Once(raw, mutexCreate(), condVarCreate())
 }
 
 /// 返回该 once 是否已完成。
-@Extern(name = "scoop_sync_once_is_done", abi = "scoop")
-private fun __scoop_sync_once_is_done(once: Once): Bool
-
 public fun Once.isDone(): Bool {
-    return __scoop_sync_once_is_done(this)
+    this.mutex.lock()
+    val done: Bool = __scoop_sync_once_done(this.rawHandle)
+    this.mutex.unlock()
+    return done
 }
 
 /// 执行一次：若尚未完成，则运行 `block` 并把 once 标记为完成；否则直接返回。
-///
-/// 说明：
-/// - 该 API 的具体内存序与并发语义由 std/runtime 逐步固化；当前仅提供声明面；
-/// - `Once` 自身没有显式 `destroy()` API，但其内部平台资源会在对象不可达后由 runtime sweep cleanup。
-@Intrinsic
-private fun __scoop_sync_once_run(once: Once, block: () -> Unit): Unit
-
 public fun Once.run(block: () -> Unit): Unit {
-    __scoop_sync_once_run(this, block)
+    this.mutex.lock()
+    val action: Int = @Unsafe do { __scoop_sync_once_begin_native(this.rawHandle) }
+    if (action == 0) {
+        this.mutex.unlock()
+        return ()
+    }
+    if (action == 1) {
+        while (!__scoop_sync_once_done(this.rawHandle)) {
+            this.condVar.wait(this.mutex)
+        }
+        this.mutex.unlock()
+        return ()
+    }
+    this.mutex.unlock()
+
+    block()
+
+    this.mutex.lock()
+    @Unsafe do { __scoop_sync_once_complete_native(this.rawHandle) }
+    this.condVar.notifyAll()
+    this.mutex.unlock()
 }

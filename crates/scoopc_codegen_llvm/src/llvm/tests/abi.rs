@@ -1075,7 +1075,7 @@ fun main(): Int {
 }
 
 #[test]
-pub(super) fn sync_mutex_runtime_calls_use_addrspace_1_object_pointers() {
+pub(super) fn sync_mutex_runtime_calls_use_raw_native_handle() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1098,8 +1098,8 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@scoop_sync_mutex_create"),
-        "IR 应包含对 scoop_sync_mutex_create 的引用"
+        ir.contains("@scoop_sync_mutex_native_create"),
+        "IR 应包含对 scoop_sync_mutex_native_create 的引用"
     );
     assert!(
         ir.contains("addrspace(1)"),

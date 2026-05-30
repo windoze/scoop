@@ -411,7 +411,7 @@
 
 > 现状（已核实）：`Mutex`/`CondVar`/`Once` 当前是 opaque `public class`，op 为 `@Extern(abi="scoop")`，对象由 C 侧 `scoop_sync_*_create` + C 写死的 type descriptor（已带 `release_fn`）分配；只有 `__scoop_sync_once_run` 是 `@Intrinsic`。本阶段把它们收敛为「普通 final class + `Ptr<T>` handle + `@ReleaseHook` + `@Extern(abi="c")`」，并删光编译器硬编码。
 
-### [TODO] P4-T01：重写 `sync.scoop` 三类型为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化
+### [DONE] P4-T01：重写 `sync.scoop` 三类型为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4-T01、§3.1
@@ -428,7 +428,9 @@
 - 完成条件：三类型为纯 Scoop class，`Once.run` 无 `@Intrinsic`。
 - 依赖：P3 完成
 - 完成记录：
-  - （待填）
+  - 2026-05-31：`sysroot/lib/scoop.sync/src/sync.scoop` 已将 `Mutex` / `CondVar` / `Once` 改为 final non-generic 普通 Scoop class，内部持 GC-free raw native handle 字段，并为三者加上 `@Experimental(feature = "releaseHook")` 与 `@ReleaseHook(..., args = ["rawHandle"])`。`mutexCreate` / `condVarCreate` / `onceCreate` 现在经 `@Extern(abi="c")` raw-handle create helper 构造；lock/unlock、condvar wait/notify/destroy、once isDone 均通过 Scoop extension 方法解出 raw handle 调 C ABI helper，旧 `@Extern(abi="scoop")` 包装已从 `sync.scoop` 删除。`Once.run` 已改为普通 Scoop 状态机，组合 class 化后的 `Mutex`/`CondVar` 与 raw once state helper；`sync.scoop` 中不再声明 `@Intrinsic` / `__scoop_sync_once_run`。为避免显式 `destroy()` 后 GC release hook 双重释放，`Mutex`/`CondVar` 的 raw handle 字段为可变字段，显式销毁后写为空 handle。
+  - Native 侧新增 `scoop_sync_*_native_*` raw-handle helper 供 P4-T01 使用，并保留 legacy GC-object path 等待 P4-T02 删除，避免本任务越界清理 C descriptor。同步更新 sync GC release stdout（`Once` 现在由 Scoop 层组合内部 `Mutex`/`CondVar`，销毁计数包含这两个内部资源）与 LLVM ABI 单元测试的 native create symbol 断言。
+  - 验证：`cargo build -p scoop -p scoopc`；targeted sync/typecheck/runtime/delegate concurrency fixtures；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首轮发现 `runtime_gc/gc_language_repeated_collect_shared_chain.scoop` 与 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` timeout，两个 fixture 单独复跑均通过；修正 stale sync 负例期望后完整 fixture suite 重跑通过（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T01R：Review P4-T01 sync 源改造
 

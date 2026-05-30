@@ -1,9 +1,9 @@
 // Native implementation for the `scoop.sync` sysroot cone.
 //
-// The public Scoop API is mostly Scoop wrapper code. This file owns the
+// The public Scoop API is ordinary Scoop wrapper code. This file owns the
 // platform resources behind `Mutex`, `CondVar`, and the user-visible `Once`.
-// These helpers still allocate GC-managed wrapper objects so unreachable sync
-// resources can be cleaned up by the runtime release callback.
+// New entry points operate on raw native handles; the legacy GC-object helpers
+// remain until the follow-up runtime cleanup removes their descriptors.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -181,6 +181,65 @@ typedef struct ScoopSyncMutexNative {
   uint32_t initialized;
 } ScoopSyncMutexNative;
 
+static ScoopSyncMutexNative *scoop_sync_mutex_native_from_handle(void *handle) {
+  if (handle == 0) {
+    return 0;
+  }
+  return (ScoopSyncMutexNative *)handle;
+}
+
+static void scoop_sync_mutex_native_destroy_impl(ScoopSyncMutexNative *native) {
+  if (native == 0 || native->destroyed || !native->initialized) {
+    return;
+  }
+
+  native->destroyed = 1;
+  scoop_sync_native_mutex_destroy(&native->mutex);
+  native->initialized = 0;
+  scoop_sync_test_mutex_destroyed();
+  free(native);
+}
+
+void *scoop_sync_mutex_native_create(void) {
+  ScoopSyncMutexNative *native =
+      (ScoopSyncMutexNative *)malloc(sizeof(ScoopSyncMutexNative));
+  if (native == 0) {
+    return 0;
+  }
+
+  native->destroyed = 1;
+  native->initialized = 0;
+  if (!scoop_sync_native_mutex_init(&native->mutex)) {
+    free(native);
+    return 0;
+  }
+  native->destroyed = 0;
+  native->initialized = 1;
+  return (void *)native;
+}
+
+void scoop_sync_mutex_native_lock(void *handle) {
+  ScoopSyncMutexNative *native = scoop_sync_mutex_native_from_handle(handle);
+  if (native == 0 || native->destroyed || !native->initialized) {
+    return;
+  }
+  scoop_sync_native_mutex_lock(&native->mutex);
+}
+
+void scoop_sync_mutex_native_unlock(void *handle) {
+  ScoopSyncMutexNative *native = scoop_sync_mutex_native_from_handle(handle);
+  if (native == 0 || native->destroyed || !native->initialized) {
+    return;
+  }
+  scoop_sync_native_mutex_unlock(&native->mutex);
+}
+
+void scoop_sync_mutex_native_destroy(void *handle) {
+  scoop_sync_mutex_native_destroy_impl(scoop_sync_mutex_native_from_handle(handle));
+}
+
+void *scoop_sync_mutex_native_null(void) { return 0; }
+
 static ScoopSyncMutexNative *scoop_sync_mutex_native(ScoopSyncMutex *m) {
   if (m == 0 || m->native == 0) {
     return 0;
@@ -190,16 +249,10 @@ static ScoopSyncMutexNative *scoop_sync_mutex_native(ScoopSyncMutex *m) {
 
 static void scoop_sync_mutex_destroy_impl(ScoopSyncMutex *m) {
   ScoopSyncMutexNative *native = scoop_sync_mutex_native(m);
-  if (native == 0 || native->destroyed || !native->initialized) {
-    return;
+  scoop_sync_mutex_native_destroy_impl(native);
+  if (m != 0) {
+    m->native = 0;
   }
-
-  native->destroyed = 1;
-  scoop_sync_native_mutex_destroy(&native->mutex);
-  native->initialized = 0;
-  free(native);
-  m->native = 0;
-  scoop_sync_test_mutex_destroyed();
 }
 
 static void scoop_sync_mutex_release(void *object) {
@@ -306,6 +359,74 @@ typedef struct ScoopSyncCondVarNative {
   uint32_t initialized;
 } ScoopSyncCondVarNative;
 
+static ScoopSyncCondVarNative *scoop_sync_condvar_native_from_handle(void *handle) {
+  if (handle == 0) {
+    return 0;
+  }
+  return (ScoopSyncCondVarNative *)handle;
+}
+
+static void scoop_sync_condvar_native_destroy_impl(ScoopSyncCondVarNative *native) {
+  if (native == 0 || native->destroyed || !native->initialized) {
+    return;
+  }
+
+  native->destroyed = 1;
+  scoop_sync_native_condvar_destroy(&native->cond);
+  native->initialized = 0;
+  scoop_sync_test_condvar_destroyed();
+  free(native);
+}
+
+void *scoop_sync_condvar_native_create(void) {
+  ScoopSyncCondVarNative *native =
+      (ScoopSyncCondVarNative *)malloc(sizeof(ScoopSyncCondVarNative));
+  if (native == 0) {
+    return 0;
+  }
+
+  native->destroyed = 1;
+  native->initialized = 0;
+  if (!scoop_sync_native_condvar_init(&native->cond)) {
+    free(native);
+    return 0;
+  }
+  native->destroyed = 0;
+  native->initialized = 1;
+  return (void *)native;
+}
+
+void scoop_sync_condvar_native_wait(void *condvar_handle, void *mutex_handle) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native_from_handle(condvar_handle);
+  ScoopSyncMutexNative *m = scoop_sync_mutex_native_from_handle(mutex_handle);
+  if (cv == 0 || m == 0 || cv->destroyed || !cv->initialized || m->destroyed || !m->initialized) {
+    return;
+  }
+  scoop_sync_native_condvar_wait(&cv->cond, &m->mutex);
+}
+
+void scoop_sync_condvar_native_notify_one(void *handle) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native_from_handle(handle);
+  if (cv == 0 || cv->destroyed || !cv->initialized) {
+    return;
+  }
+  scoop_sync_native_condvar_signal(&cv->cond);
+}
+
+void scoop_sync_condvar_native_notify_all(void *handle) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native_from_handle(handle);
+  if (cv == 0 || cv->destroyed || !cv->initialized) {
+    return;
+  }
+  scoop_sync_native_condvar_broadcast(&cv->cond);
+}
+
+void scoop_sync_condvar_native_destroy(void *handle) {
+  scoop_sync_condvar_native_destroy_impl(scoop_sync_condvar_native_from_handle(handle));
+}
+
+void *scoop_sync_condvar_native_null(void) { return 0; }
+
 static ScoopSyncCondVarNative *scoop_sync_condvar_native(ScoopSyncCondVar *cv) {
   if (cv == 0 || cv->native == 0) {
     return 0;
@@ -315,16 +436,10 @@ static ScoopSyncCondVarNative *scoop_sync_condvar_native(ScoopSyncCondVar *cv) {
 
 static void scoop_sync_condvar_destroy_impl(ScoopSyncCondVar *cv) {
   ScoopSyncCondVarNative *native = scoop_sync_condvar_native(cv);
-  if (native == 0 || native->destroyed || !native->initialized) {
-    return;
+  scoop_sync_condvar_native_destroy_impl(native);
+  if (cv != 0) {
+    cv->native = 0;
   }
-
-  native->destroyed = 1;
-  scoop_sync_native_condvar_destroy(&native->cond);
-  native->initialized = 0;
-  free(native);
-  cv->native = 0;
-  scoop_sync_test_condvar_destroyed();
 }
 
 static void scoop_sync_condvar_release(void *object) {
@@ -455,6 +570,83 @@ typedef struct ScoopSyncOnceNative {
   uint32_t init_flags;
   ScoopSyncNativeThread owner;
 } ScoopSyncOnceNative;
+
+enum {
+  SCOOP_SYNC_ONCE_BEGIN_SKIP = 0,
+  SCOOP_SYNC_ONCE_BEGIN_WAIT = 1,
+  SCOOP_SYNC_ONCE_BEGIN_RUN = 2,
+};
+
+static ScoopSyncOnceNative *scoop_sync_once_native_from_handle(void *handle) {
+  if (handle == 0) {
+    return 0;
+  }
+  return (ScoopSyncOnceNative *)handle;
+}
+
+void *scoop_sync_once_native_create(void) {
+  ScoopSyncOnceNative *native =
+      (ScoopSyncOnceNative *)malloc(sizeof(ScoopSyncOnceNative));
+  if (native == 0) {
+    return 0;
+  }
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  native->init_flags = 0u;
+  (void)memset(&native->owner, 0, sizeof(native->owner));
+  return (void *)native;
+}
+
+intptr_t scoop_sync_once_native_is_done(void *handle) {
+  ScoopSyncOnceNative *native = scoop_sync_once_native_from_handle(handle);
+  if (native == 0) {
+    return 0;
+  }
+  return native->state == (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZED ? 1 : 0;
+}
+
+intptr_t scoop_sync_once_native_begin(void *handle) {
+  ScoopSyncOnceNative *native = scoop_sync_once_native_from_handle(handle);
+  if (native == 0) {
+    return SCOOP_SYNC_ONCE_BEGIN_SKIP;
+  }
+
+  uint32_t state = native->state;
+  if (state == (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZED) {
+    return SCOOP_SYNC_ONCE_BEGIN_SKIP;
+  }
+
+  ScoopSyncNativeThread self = scoop_sync_native_thread_self();
+  if (state == (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZING) {
+    if (scoop_sync_native_thread_equal(native->owner, self)) {
+      return SCOOP_SYNC_ONCE_BEGIN_SKIP;
+    }
+    return SCOOP_SYNC_ONCE_BEGIN_WAIT;
+  }
+
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZING;
+  native->owner = self;
+  return SCOOP_SYNC_ONCE_BEGIN_RUN;
+}
+
+void scoop_sync_once_native_complete(void *handle) {
+  ScoopSyncOnceNative *native = scoop_sync_once_native_from_handle(handle);
+  if (native == 0) {
+    return;
+  }
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZED;
+  (void)memset(&native->owner, 0, sizeof(native->owner));
+}
+
+void scoop_sync_once_native_destroy(void *handle) {
+  ScoopSyncOnceNative *native = scoop_sync_once_native_from_handle(handle);
+  if (native == 0) {
+    return;
+  }
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  (void)memset(&native->owner, 0, sizeof(native->owner));
+  scoop_sync_test_once_destroyed();
+  free(native);
+}
 
 static ScoopSyncOnceNative *scoop_sync_once_native(ScoopSyncOnce *o) {
   if (o == 0 || o->native == 0) {

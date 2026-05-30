@@ -1,4 +1,4 @@
 drop-task-like true
-after-drop 1 1 1
-after-explicit 2 2 1
-after-explicit-gc 2 2 1
+after-drop 2 2 1
+after-explicit 3 3 1
+after-explicit-gc 3 3 1
