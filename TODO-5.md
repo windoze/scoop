@@ -174,7 +174,7 @@
   - Immortal 复核：`string_literal_immortal_no_alloc_loop.scoop`、`platform_immortal_no_alloc_loop.scoop`、`pos_string_literal_immortal_ir.scoop`、`pos_platform_structlit_immortal_ir.scoop` 均未设置 `SCOOP_GC_PACING=off`；runtime zero-allocation fixtures 在默认 pacing on 下通过。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；聚焦运行 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/string_literal_immortal_no_alloc_loop.scoop`、`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T02-immortal/pos_string_literal_immortal_ir.scoop`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。
 
-### [TODO] P7-T03：全量测试矩阵、out-of-scope 归位与收口
+### [DONE] P7-T03：全量测试矩阵、out-of-scope 归位与收口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P7、§6
@@ -199,7 +199,12 @@
   - `GC_PACING.md` 与 `GC_IMMORTAL_FIX.md` 的目标行为成为运行期与编译期实际 contract；旧行为只存在于 `PACING=off` 对照与 design history。
 - 依赖：P7-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 全量验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。`scoop_runtime` runtime C backend 矩阵另以 `cargo test -p scoop_runtime --no-default-features --features gc-minimal`、`cargo test -p scoop_runtime --no-default-features --features gc-hosted`、`cargo test -p scoop_runtime --no-default-features --features gc-baseline` 复跑；`gc_pacing_env` 的 `gc_microbench heap-growth --allocations 200000` 覆盖长程序堆有界回归。
+  - 收口修正：backend feature 矩阵复跑时发现 `gc_stw_thread_exit` 在非 Immix feature 下只编译 `common` helper 而无测试体，产生 unused warnings；已将该文件的 `mod common` 与测试体同样 gate 到 `gc-immix`，重新验证后无 warnings。
+  - Out-of-scope 归位（pacing）：incremental/concurrent GC、time-budget pacing、allocation-rate 自适应、pause-time tuning 与 tracing/profiling hooks 均改变“如何/何时并发或限时执行 GC”的策略层，超出本轮 byte-threshold STW pacing contract；per-tier / heterogeneous memory targets 属于嵌入式端口设计，不影响当前 `immix` / `hosted` / `minimal` 统一 pacing 语义。
+  - Out-of-scope 归位（immortal）：`.data` 单实例静态初始化与 static rooting 仍涉及可写/可 trace 全局，不能并入“永不写、永不 trace”的 immortal 轨道；嵌套聚合经 `Local`、`EnumVariant` 常量、boxing / value-erasure transport 与 general const-eval lifting 需要额外 MIR/前端能力，当前直接 `Operand::Const` 纯数据路径已闭环；跨类型 dedup 需身份敏感 API 评审，跨 `.cone` 字面量 dedup 需弱链接或跨归档 content-hash mangling，嵌入式 section hint 属目标专用布局策略。
+  - `PLAN.md` §6 对照：默认配置下 heap-growth 长程序有界，nursery full、block pool full-GC retry 与 hard cap 路径由 runtime tests 覆盖；pacing 默认 on 且 `SCOOP_GC_STRESS` / manual collect 语义保持，三 backend feature tests 通过；String literal、`__type_name(T)` 与 `Platform` 已走通用常量化且无 GC heap wrapper 分配；`is_immutable(T)` 为传递结构谓词，`var` / `@InteriorMutable` / `__AtomicInt` 自动排除；dedup 仅 String，其他可常量化 ref 类型 per-site，immortal header 保持“永不写、永不 trace”；`scoop.unsafe.__AtomicInt` 是带 `@InteriorMutable` 的相异 struct；Platform / String 专用常量化路径已归入折叠器；测试矩阵覆盖长程序有界、nursery/blockpool/hardcap 触发、immortal marker/header、String/Platform 零分配与 dedup 指针相等。
 
 ### [TODO] P7-T03R：Review 最终收口质量
 

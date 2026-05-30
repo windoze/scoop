@@ -1,3 +1,4 @@
+#[cfg(feature = "gc-immix")]
 mod common;
 
 #[cfg(feature = "gc-immix")]
