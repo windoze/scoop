@@ -502,6 +502,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
+    interior_mutable_nominals: &'a hir::InteriorMutableIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
@@ -838,6 +839,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
+    pub(super) interior_mutable_nominals: &'a hir::InteriorMutableIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
     pub(super) callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
@@ -894,6 +896,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
+            interior_mutable_nominals,
             direct_supertypes,
             builtins,
             callable_sources,
@@ -937,6 +940,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
+            interior_mutable_nominals,
             direct_supertypes,
             builtins,
             callable_sources,
@@ -1035,6 +1039,19 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
 
     pub(super) fn published_late_lowered_types(&self) -> Option<&'a TypeStore> {
         self.published_late_lowered_types
+    }
+
+    #[allow(dead_code)]
+    pub(in crate::llvm::codegen) fn type_immutability(
+        &self,
+    ) -> mir_body::immutability::TypeImmutability<'_> {
+        mir_body::immutability::TypeImmutability::new(
+            self.types,
+            self.struct_layouts,
+            self.class_inits,
+            self.nominal_kinds,
+            self.interior_mutable_nominals,
+        )
     }
 
     pub(super) fn stable_type_param_resolver(&self) -> &HashMap<TypeParamType, StableTypeParamKey> {

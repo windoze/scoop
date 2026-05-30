@@ -13,6 +13,8 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::*;
 
+pub(in crate::llvm::codegen) mod immutability;
+
 #[derive(Clone, Copy)]
 pub(super) struct MirLocalSlot<'ctx> {
     pub(super) cg_ty: CgTy,

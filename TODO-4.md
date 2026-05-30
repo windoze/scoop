@@ -7,7 +7,7 @@
 
 ## P5：通用谓词、折叠器与 String immortal
 
-### [TODO] P5-T01：实现 `is_immutable(T)` 谓词
+### [DONE] P5-T01：实现 `is_immutable(T)` 谓词
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -34,7 +34,11 @@
   - 谓词正确区分可常量化与不可常量化类型。
 - 依赖：P3-T02R、P4-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：新增 `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/immutability.rs`，实现结构化、递归、带 memo 的 `TypeImmutability::is_immutable(T)`。
+  - 谓词按类型特征判定：`@InteriorMutable` nominal 直接 false；标量、`String`、tuple、`Option`、value struct 递归字段；ref class 要求全部字段为 `val` 且字段类型递归不可变；未知/接口/函数/union/缺元数据保守 false。
+  - 通过 `CompilationUnitCodegenCx` 接入 `InteriorMutableIndex`，后续折叠器可直接消费该谓词，不需要名字匹配或类型白名单。
+  - 单元覆盖：`String`、tuple、合成 all-val struct/class 为 true；`RefCell`/`AtomicInt` var 字段、`__AtomicInt` / marked class `@InteriorMutable`、含 `RefCell` 字段的 class 为 false；自引用 all-val class 可终止且为 true。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P5-T01R：Review `is_immutable` 谓词
 

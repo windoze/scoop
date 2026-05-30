@@ -298,6 +298,10 @@ impl LlvmStageBaseContext {
         &self.nominal_kinds
     }
 
+    pub fn interior_mutable_nominals(&self) -> &source_payload::InteriorMutableIndex {
+        &self.interior_mutable_nominals
+    }
+
     pub fn nominal_is_interior_mutable(&self, fqn: &str) -> bool {
         self.interior_mutable_nominals.contains(fqn)
     }
