@@ -56,7 +56,7 @@
 | P4-T02 | [DONE] | 收缩 `scoop_sync.c` 为只管 raw native handle |
 | P4-T02R | [DONE] | Review P4-T02 runtime 收缩 |
 | P4-T03 | [DONE] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
-| P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
+| P4-T03R | [DONE] | Review P4-T03 intrinsic 删除 |
 | P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
 | P4-T04R | [TODO] | Review P4-T04 特判清理 |
 | P4-T05 | [TODO] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
@@ -487,13 +487,14 @@
   - 2026-05-31：删除 `Once.run` intrinsic codegen/runtime 残留：移除 `SCOOP_SYNC_ONCE_RUN` runtime symbol、`declare_runtime_sync_once_run` ABI 声明、HIR direct-call lowering 中对 `scoop.sync.__scoop_sync_once_run` 的 FQN dispatch、effect-lowered lowering 中的 `lower_sync_intrinsic` / `sync_once_run` handler，以及仅服务该路径的 `intrinsics/sync.rs` 模块与 `lookup_pure_unit_closure_type` closure expected-type 特例。`Once.run` 现在只通过 `sysroot/lib/scoop.sync/src/sync.scoop` 的普通 Scoop method 进入常规 method/closure codegen；编译器 crate 内 grep 已无 `scoop_sync_once_run`、`__scoop_sync_once_run`、`codegen_sysroot_sync_once_run`、`declare_runtime_sync_once_run`、`lower_sync_intrinsic` 或 `lookup_pure_unit_closure_type` 残留。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T03R：Review P4-T03 intrinsic 删除
+### [DONE] P4-T03R：Review P4-T03 intrinsic 删除
 
 - 必须实现的内容：复核所有列出的硬编码点已删除、`Once.run` 走常规路径、无回归。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P4-T03
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P4-T03 最新提交与当前源码：`SCOOP_SYNC_ONCE_RUN` runtime symbol、`declare_runtime_sync_once_run` ABI 声明、HIR direct-call lowering 中的 `scoop.sync.__scoop_sync_once_run` 分派、effect-lowered lowering 中的 `lower_sync_intrinsic` / sync once handler、`intrinsics/sync.rs` 模块以及 `lookup_pure_unit_closure_type` closure expected-type 特例均已删除；精确 grep 确认旧 `scoop_sync_once_run` / `__scoop_sync_once_run` / `codegen_sysroot_sync_once_run` / `declare_runtime_sync_once_run` / `lower_sync_intrinsic` / `lookup_pure_unit_closure_type` 名称只剩 TODO/PLAN/归档文档引用，不在编译器、runtime、sysroot 或测试源中残留。`sysroot/lib/scoop.sync/src/sync.scoop` 中 `Once.run` 为普通 Scoop method，组合 `Mutex` / `CondVar` 与 `@Extern(abi="c")` raw helper，并通过普通 closure call `block()` 运行初始化逻辑；`std_sync_basic` / `std_sync_api_surface_ok` / UMB sync fixtures 覆盖该常规路径，完整 fixture 回归无退化。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T04：删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判
 
