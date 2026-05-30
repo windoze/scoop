@@ -630,6 +630,102 @@ done_unlock:
   return rc;
 }
 
+typedef struct ScoopTestGcThreadExitHookArgs {
+  uint32_t registered;
+} ScoopTestGcThreadExitHookArgs;
+
+static void *scoop_test_gc_thread_exit_hook_worker_entry(void *raw_args) {
+  void scoop_thread_register(void);
+
+  ScoopTestGcThreadExitHookArgs *args = (ScoopTestGcThreadExitHookArgs *)raw_args;
+  scoop_thread_register();
+  if (args != 0) {
+    __atomic_store_n(&args->registered, 1, __ATOMIC_SEQ_CST);
+  }
+  // Intentionally omit scoop_thread_unregister(): the pthread TLS exit hook must do it.
+  return 0;
+}
+
+static uint32_t scoop_test_gc_remove_thread_record_unlocked(pthread_t target) {
+  ScoopGcThreadRecord **link = &scoop_gc_threads;
+  while (*link != 0) {
+    ScoopGcThreadRecord *it = *link;
+    if (!pthread_equal(it->thread, target)) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    if (scoop_gc_thread_count > 0) {
+      scoop_gc_thread_count -= 1;
+    }
+    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+    it->stack_walking_ctx = 0;
+    free(it);
+    return 1;
+  }
+  return 0;
+}
+
+intptr_t scoop_test_gc_registered_thread_exit_without_unregister(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopTestGcThreadExitHookArgs args = {0};
+  pthread_t worker = 0;
+  if (pthread_create(&worker, 0, scoop_test_gc_thread_exit_hook_worker_entry, (void *)&args) != 0) {
+    scoop_thread_unregister();
+    return -10;
+  }
+
+  (void)pthread_join(worker, 0);
+  if (!__atomic_load_n(&args.registered, __ATOMIC_SEQ_CST)) {
+    scoop_thread_unregister();
+    return -11;
+  }
+
+  intptr_t rc = 1;
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    rc = -12;
+    goto done_unregister;
+  }
+
+  pthread_t self = pthread_self();
+  scoop_gc_immix_lock(state);
+
+  // Bounded STW probe: before the exit hook this timed out on the stale Running record.
+  if (!scoop_gc_stop_the_world_try_begin_unlocked(self, 500)) {
+    rc = -20;
+  } else {
+    scoop_gc_stop_the_world_end_unlocked();
+  }
+
+  if (scoop_gc_find_thread_unlocked(worker) != 0) {
+    (void)scoop_test_gc_remove_thread_record_unlocked(worker);
+    if (rc == 1) {
+      rc = -21;
+    }
+  }
+
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    scoop_gc_stop_the_world_end_unlocked();
+  }
+  scoop_gc_immix_unlock(state);
+
+  if (rc == 1) {
+    scoop_gc_collect();
+  }
+
+done_unregister:
+  scoop_thread_unregister();
+  return rc;
+}
+
 typedef struct ScoopTestExplicitEnterNativeFrame {
   ScoopRootFrameHeader hdr;
   void *slot0;
@@ -1906,6 +2002,8 @@ void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
     if (scoop_gc_thread_count > 0) {
       scoop_gc_thread_count -= 1;
     }
+    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+    it->stack_walking_ctx = 0;
     free(it);
     break;
   }

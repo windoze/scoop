@@ -7,7 +7,7 @@
 
 ## P7：Spec / 文档 / fixtures 收尾与回归矩阵
 
-### [TODO] P7-T00：增强 STW 健壮性避免僵尸线程卡死
+### [DONE] P7-T00：增强 STW 健壮性避免僵尸线程卡死
 
 - 参考：
   - `runtime/c/scoop_gc_backend_immix.c`：`scoop_gc_stop_the_world_begin_prepare_unlocked` / `scoop_gc_stop_the_world_begin_unlocked` / `scoop_gc_thread_unregister` / `scoop_gc_safepoint_common`
@@ -30,7 +30,12 @@
   - 即使存在异常终止/未注销的线程，STW 也能在有界时间内完成，不再死锁。
 - 依赖：P6-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 实现：`scoop_thread_register` 现在安装 pthread TLS 退出析构 hook；线程异常返回、panic unwind 或其它漏掉显式 `scoop_thread_unregister` 的正常线程退出路径，会在 pthread TSD teardown 中强制移除当前线程的 GC 记录，避免 STW 后续等待已退出线程 park。
+  - 正确性约束：没有加入“存活探测”或把 Running 线程猜成僵尸的 STW 侧捷径；仍在运行的 mutator 必须通过 safepoint/`InNative` 协议就绪后才允许扫描 roots。hook 初始化失败时 fail-fast，避免静默进入可能卡死的注册状态。
+  - 清理：显式 unregister 与退出 hook 共用 TLS 指针注销 helper；Immix 线程记录释放前销毁保存的 `stack_walking_ctx`，避免异常/正常注销路径泄漏 unwind ctx。
+  - 回归：新增 `scoop_test_gc_registered_thread_exit_without_unregister` 和 `crates/scoop_runtime/tests/gc_stw_thread_exit.rs`，构造 worker 注册后不显式 unregister 即退出，再用 500ms 有界 STW probe 断言后续 STW 不会被 stale Running 记录卡住，并在成功后执行一次正常 `scoop_gc_collect()`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_stw_thread_exit`；`cargo test --all --all-targets` 连续运行两次，均通过且未挂死。
 
 ### [TODO] P7-T00b：补 Scoop 语言级并发/GC 应用测试
 

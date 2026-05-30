@@ -468,6 +468,50 @@ uint32_t scoop_thread_is_registered(void) {
 
 // `scoop_runtime_init` 定义在文件后部；这里给出前置声明以避免隐式声明警告。
 void scoop_runtime_init(void);
+void scoop_thread_unregister(void);
+static void scoop_thread_unregister_tls(ScoopThreadTls *tls, uint32_t force_gc_unregister);
+
+static pthread_key_t scoop_thread_exit_key;
+static pthread_once_t scoop_thread_exit_key_once = PTHREAD_ONCE_INIT;
+static uint32_t scoop_thread_exit_key_ready = 0;
+static int scoop_thread_exit_key_init_rc = 0;
+
+static void scoop_thread_exit_key_destructor(void *value) {
+  // Some platforms may make C TLS state unreliable during pthread TSD teardown;
+  // the key value itself means this thread armed the hook, so remove any GC record.
+  scoop_thread_unregister_tls((ScoopThreadTls *)value, /*force_gc_unregister=*/1);
+}
+
+static void scoop_thread_exit_key_init(void) {
+  scoop_thread_exit_key_init_rc =
+      pthread_key_create(&scoop_thread_exit_key, scoop_thread_exit_key_destructor);
+  if (scoop_thread_exit_key_init_rc == 0) {
+    scoop_thread_exit_key_ready = 1;
+  }
+}
+
+static void scoop_thread_exit_hook_arm(void) {
+  int rc = pthread_once(&scoop_thread_exit_key_once, scoop_thread_exit_key_init);
+  if (rc != 0 || !scoop_thread_exit_key_ready) {
+    (void)fprintf(stderr,
+                  "[scooprt][thread] failed to initialize thread-exit hook: rc=%d key_rc=%d\n",
+                  rc,
+                  scoop_thread_exit_key_init_rc);
+    abort();
+  }
+
+  rc = pthread_setspecific(scoop_thread_exit_key, (void *)&scoop_tls);
+  if (rc != 0) {
+    (void)fprintf(stderr, "[scooprt][thread] failed to arm thread-exit hook: rc=%d\n", rc);
+    abort();
+  }
+}
+
+static void scoop_thread_exit_hook_disarm(void) {
+  if (scoop_thread_exit_key_ready) {
+    (void)pthread_setspecific(scoop_thread_exit_key, 0);
+  }
+}
 
 // GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
 // before blocking system calls, allowing STW GC to skip this thread.
@@ -475,11 +519,11 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
 void scoop_gc_thread_clear_managed_root_snapshot_current(void);
 
-// 线程注册接口（占位）。
+// 线程注册接口。
 //
 // 说明：
-// - 未来在引入 stop-the-world GC 后，新线程必须注册/注销，以便被枚举并扫描 roots；
-// - 当前阶段只做“TLS 标记 + 可重复调用”，不维护全局线程列表。
+// - 新线程必须注册/注销，以便 STW GC 枚举并扫描 roots；
+// - 注册时安装线程退出 hook，覆盖 panic/异常返回导致调用方漏掉显式注销的路径。
 void scoop_thread_register(void) {
   // 若 runtime 尚未 init，则允许先 init（保持接口易用性；init 目前是幂等的）。
   if (!scoop_rt_initialized) {
@@ -490,6 +534,8 @@ void scoop_thread_register(void) {
     return;
   }
 
+  // 异常返回/panic 路径可能跳过显式 unregister；先安装退出 hook，再纳入 GC 线程表。
+  scoop_thread_exit_hook_arm();
   scoop_tls.registered = 1;
 
   // 把当前线程纳入 GC stop-the-world 线程表（TODO T0911）。
@@ -497,14 +543,14 @@ void scoop_thread_register(void) {
   scoop_gc_thread_register(&scoop_tls);
 }
 
-void scoop_thread_unregister(void) {
-  if (!scoop_tls.registered) {
+static void scoop_thread_unregister_tls(ScoopThreadTls *tls, uint32_t force_gc_unregister) {
+  if (tls == 0 || (!tls->registered && !force_gc_unregister)) {
     return;
   }
 
   // 从 GC stop-the-world 线程表注销（TODO T0911）。
   void scoop_gc_thread_unregister(ScoopThreadTls *tls);
-  scoop_gc_thread_unregister(&scoop_tls);
+  scoop_gc_thread_unregister(tls);
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
   // T1409a/T1409b：线程退出前归还 thread-local blocks（current block + cache），避免：
@@ -515,9 +561,9 @@ void scoop_thread_unregister(void) {
     (void)pthread_mutex_lock(&state->lock);
 
     // 1) current block
-    if (scoop_tls.gc_immix_current_block != 0) {
-      ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
-      scoop_tls.gc_immix_current_block = 0;
+    if (tls->gc_immix_current_block != 0) {
+      ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)tls->gc_immix_current_block;
+      tls->gc_immix_current_block = 0;
       if (block != 0) {
         if (block->live_objects == 0) {
           block->next_free = state->free_blocks;
@@ -530,9 +576,9 @@ void scoop_thread_unregister(void) {
     }
 
     // 2) cached blocks（以 next_free 串起来）
-    ScoopGcImmixBlock *b = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
-    scoop_tls.gc_immix_block_cache = 0;
-    scoop_tls.gc_immix_block_cache_len = 0;
+    ScoopGcImmixBlock *b = (ScoopGcImmixBlock *)tls->gc_immix_block_cache;
+    tls->gc_immix_block_cache = 0;
+    tls->gc_immix_block_cache_len = 0;
 
     while (b != 0) {
       ScoopGcImmixBlock *next = b->next_free;
@@ -552,22 +598,27 @@ void scoop_thread_unregister(void) {
     (void)pthread_mutex_unlock(&state->lock);
   } else {
     // 保守：无法拿到 state lock 时仍应清空 TLS，避免泄漏悬挂指针。
-    scoop_tls.gc_immix_current_block = 0;
-    scoop_tls.gc_immix_block_cache = 0;
-    scoop_tls.gc_immix_block_cache_len = 0;
+    tls->gc_immix_current_block = 0;
+    tls->gc_immix_block_cache = 0;
+    tls->gc_immix_block_cache_len = 0;
   }
 #endif
 
   __scoop_explicit_root_frame_top = 0;
 
-  scoop_tls.registered = 0;
-  scoop_tls.gc_immix_current_block = 0;
-  scoop_tls.gc_immix_block_cache = 0;
-  scoop_tls.gc_immix_block_cache_len = 0;
-  scoop_tls._reserved_u32_1 = 0;
-  scoop_tls.gc_native_roots = 0;
-  scoop_tls.gc_native_roots_len = 0;
-  scoop_tls._reserved_u32_2 = 0;
+  tls->registered = 0;
+  tls->gc_immix_current_block = 0;
+  tls->gc_immix_block_cache = 0;
+  tls->gc_immix_block_cache_len = 0;
+  tls->_reserved_u32_1 = 0;
+  tls->gc_native_roots = 0;
+  tls->gc_native_roots_len = 0;
+  tls->_reserved_u32_2 = 0;
+  scoop_thread_exit_hook_disarm();
+}
+
+void scoop_thread_unregister(void) {
+  scoop_thread_unregister_tls(&scoop_tls, /*force_gc_unregister=*/0);
 }
 
 void scoop_gc_thread_attach_current(void) {
