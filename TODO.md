@@ -515,13 +515,15 @@
   - 决策：选择 P4-T04(a)，暂保留 lazy / observable / vetoable 属性合成中的 `Mutex` 消费侧引用，精确定界为 `HirLowering::SYNC_MUTEX_*` 四个 FQN 常量及其 lazy/delegate lowering 使用点；理由是 P5 已明确负责把三者降为普通库 class 并删除该注入点，本任务若提前下放 sysroot helper 会与 P5 的委托库化重叠且扩大变更面。该保留点只生成普通 HIR top-level call / nominal field，不走 sync intrinsic、runtime descriptor 或 codegen 专用分支。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T04R：Review P4-T04 特判清理
+### [DONE] P4-T04R：Review P4-T04 特判清理
 
 - 必须实现的内容：复核白名单删除后 effect 推导正确、属性同步未被破坏、消费侧决策合理且被精确界定。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P4-T04
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P4-T04 最新提交与当前源码：`crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs` 中 11 个 `scoop.sync` public API 的 plain intrinsic / no-effect 白名单已删除，effect-facts builder 内不再有 sync FQN 特判；`Mutex` / `CondVar` / `Once` 的 public API 现在通过 `sysroot/lib/scoop.sync/src/sync.scoop` 普通函数声明与函数体参与常规 effect 推导，完整回归确认可见行为未退化。精确 grep `crates` 后，`scoop.sync` 残留仅有 LLVM ABI 单测里的显式 sysroot 依赖，以及 P4-T04 决策保留的 `HirLowering::SYNC_MUTEX_*` 四个 lazy / observable / vetoable 委托消费侧 FQN 常量；未发现 session / project_model / pipeline 中的 sync 实现性特判残留。
+  - 复核消费侧决策：保留 `SYNC_MUTEX_*` 属于 P4-T04(a) 的普通 stdlib 引用边界，只用于标准委托 lowering 注入 per-property `Mutex` 与普通 `lock` / `unlock` top-level call，不走 sync intrinsic、runtime descriptor 或 codegen 专用分支；`delegated_property_*` 并发 fixtures 与完整 fixture suite 覆盖属性同步语义，P5 已排期删除该允许点。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T05：sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫
 
