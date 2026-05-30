@@ -1,0 +1,10 @@
+mutex: lock/unlock
+condvar: ready
+condvar: notify_one
+condvar: notify_all
+once: ready
+once_calls=1
+once_done=true
+after-explicit 1 1 0
+after-explicit-gc 1 1 0
+ok

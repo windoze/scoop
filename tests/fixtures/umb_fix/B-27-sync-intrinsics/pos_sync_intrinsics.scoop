@@ -2,7 +2,7 @@
 // SPEC: docs/spec/language_spec-part6.md#1-低层边界总览;docs/spec/language_spec-part6.md#18-与标准库的关系
 // COVERS: NONE
 // BUCKETS: B-27
-// REASON: P7-B3.2 retired B-27 rows; coverage is now tracked by the retired ledger.
+// REASON: P7-B3.2 retired B-27 rows; this historical sync-intrinsics bucket now mirrors the ordinary sync library smoke fixture.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/std_sync_basic.scoop
 // SYSROOT-DEPS: scoop.sync
 

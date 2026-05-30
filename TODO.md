@@ -58,8 +58,8 @@
 | P4-T03 | [DONE] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
 | P4-T03R | [DONE] | Review P4-T03 intrinsic 删除 |
 | P4-T04 | [DONE] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
-| P4-T04R | [TODO] | Review P4-T04 特判清理 |
-| P4-T05 | [TODO] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
+| P4-T04R | [DONE] | Review P4-T04 特判清理 |
+| P4-T05 | [DONE] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
 | P4-T05R | [TODO] | Review P4-T05 回归与守卫 |
 | P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [TODO] | Review P5-T01 委托库实现 |
@@ -525,7 +525,7 @@
   - 复核消费侧决策：保留 `SYNC_MUTEX_*` 属于 P4-T04(a) 的普通 stdlib 引用边界，只用于标准委托 lowering 注入 per-property `Mutex` 与普通 `lock` / `unlock` top-level call，不走 sync intrinsic、runtime descriptor 或 codegen 专用分支；`delegated_property_*` 并发 fixtures 与完整 fixture suite 覆盖属性同步语义，P5 已排期删除该允许点。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T05：sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫
+### [DONE] P4-T05：sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫
 
 - 参考：[`PLAN.md`](./PLAN.md) §5 / P4-T05、§6（sync 双重释放 / 行为基线）
 - 必须实现的内容：
@@ -538,7 +538,10 @@
 - 完成条件：sync 全量回归与四后端/跨平台绿；守卫测试锁定零硬编码（除允许点）。
 - 依赖：P4-T02、P4-T03、P4-T04
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增 sync backend parity 回归矩阵 `tests/fixtures/runtime_gc/std_sync_backend_parity_{baseline_moving,baseline_nonmoving,hosted,immix_major,immix_minor,minimal}.scoop` 与共享 stdout golden，覆盖 `Mutex` lock/unlock、`CondVar.wait` + `notifyOne` / `notifyAll`、两个线程并发竞争 `Once.run` 且 block 只执行一次，以及显式 `destroy()` 后对象丢弃 + 显式 GC 不 double-destroy（sync destroy count 保持 `1 1 0`）。矩阵覆盖 baseline moving / baseline non-moving / hosted / immix major / immix minor / minimal；immix parity fixture 固定 backend/mode，但不再用 `SCOOP_GC_IMMIX_NURSERY_BYTES=0` 注入无关线程启动期 STW stress，release/double-destroy 仍在 worker join 后通过显式 GC 验证。同步迁移旧 `std_sync_basic` 与 retired UMB sync-intrinsics fixtures 的说明文字，使其定位为普通 sync library smoke/arity gate。
+  - 新增 `crates/scoop/tests/p4_sync_hardcoding_guard.rs`，扫描生产编译器 crate 源码中的 `scoop.sync` / `scoop_sync_` / 旧 Once intrinsic 名称 / `SYNC_MUTEX_*` 命中；除 P4-T04(a) 决策保留的委托属性 `Mutex` 消费侧边界（`HirLowering::SYNC_MUTEX_*` 四个 FQN 常量及 `decls.rs` / `sugar.rs` 使用点）外全部禁止。守卫跳过 `tests` 源目录，避免把 LLVM ABI 单测中的显式 sysroot 依赖误判为生产硬编码。
+  - 跨平台矩阵：macos/aarch64 本地完整回归全绿；linux/amd64 在 `nuc12` 的独立 worktree `/tmp/scoop-p4t05-aadaa9da`（LLVM 21 via `/home/linuxbrew/.linuxbrew/opt/llvm@21`）运行六个 `std_sync_backend_parity_*` fixtures，全部 PASS。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --test p4_sync_hardcoding_guard`；逐项运行六个 `tests/fixtures/runtime_gc/std_sync_backend_parity_*.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1659)`）；nuc12/linux/amd64 逐项运行六个 `std_sync_backend_parity_*` fixtures。
 
 ### [TODO] P4-T05R：Review P4-T05 回归与守卫
 
