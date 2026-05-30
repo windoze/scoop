@@ -113,9 +113,9 @@ File {
 
 
 hir_facts {
-  declarations: nominals=72, callables=1, fields=45, enum_variants=24, vtables=54, itables=32
+  declarations: nominals=73, callables=1, fields=47, enum_variants=24, vtables=55, itables=32
   source_sites: function_effects=1, calls=1, args=0, assigns=0, updates=0, performs=1, handles=1, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
-  globals: roots=1, object_inits=1, class_inits=22
+  globals: roots=1, object_inits=1, class_inits=24
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
   type_context: universe=hir-stage-type-store, type_params=85, source_cones=8
 }

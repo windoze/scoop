@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_function_return_must_be_unit
+// EXPECT-ERROR: nonUnitRelease
+// EXPECT-ERROR: Unit
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun nonUnitRelease(raw: UInt): Int { return 1 }
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.nonUnitRelease", args = ["raw"])
+class NonUnitReleaseFunctionHost(val raw: UInt)

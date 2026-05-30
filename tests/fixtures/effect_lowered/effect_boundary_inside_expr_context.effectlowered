@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=1 surface_resume_dispatches=3 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=3
+  summary: opt_revision=1 callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=1 surface_resume_dispatches=3 layout_classes=29 layout_enums=7 layout_interfaces=11 layout_class_itables=55 layout_callable_symbols=3
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=28 enums=7 vtables=54 interfaces=11 class_itables=54 callable_symbols=3
+  physical_layout: classes=29 enums=7 vtables=55 interfaces=11 class_itables=55 callable_symbols=3
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -34,6 +34,7 @@ lir_facts {
     - class=scoop.core.MutableArray<String> layout_key=scoop.core.MutableArray<String> super=<none> fields=0
     - class=scoop.core.MutableArray<UInt8> layout_key=scoop.core.MutableArray<UInt8> super=<none> fields=0
     - class=scoop.core.MutableArray<scoop.core.UInt8> layout_key=scoop.core.MutableArray<scoop.core.UInt8> super=<none> fields=0
+    - class=scoop.core.ReleaseHook layout_key=scoop.core.ReleaseHook super=<none> fields=2
     - class=scoop.core.Retention layout_key=scoop.core.Retention super=<none> fields=1
     - class=scoop.core.String layout_key=scoop.core.String super=<none> fields=0
     - class=scoop.core.Suppress layout_key=scoop.core.Suppress super=<none> fields=1
@@ -82,6 +83,7 @@ lir_facts {
     - class_vtable=scoop.core.Platform slots=0
     - class_vtable=scoop.core.PropertyMeta slots=0
     - class_vtable=scoop.core.RefCell slots=0
+    - class_vtable=scoop.core.ReleaseHook slots=0
     - class_vtable=scoop.core.Retention slots=0
     - class_vtable=scoop.core.String slots=1
     - class_vtable=scoop.core.Suppress slots=0
@@ -147,6 +149,7 @@ lir_facts {
     - class_itable=scoop.core.Platform entries=0
     - class_itable=scoop.core.PropertyMeta entries=0
     - class_itable=scoop.core.RefCell entries=0
+    - class_itable=scoop.core.ReleaseHook entries=0
     - class_itable=scoop.core.Retention entries=0
     - class_itable=scoop.core.String entries=2
     - class_itable=scoop.core.Suppress entries=0
@@ -173,12 +176,12 @@ lir_facts {
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=460 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=3
     - callable=fixtures.mir_lowered.main kind=Plain control_body=true key=lir_callable(217:instance(185:template(171:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h11a94280309ed20b69f5e721abb33bd8)
-      plain_abi: function_ty=t97 params=0 return=t5 body_slices=32 call_sites=8
+      plain_abi: function_ty=t98 params=0 return=t5 body_slices=32 call_sites=8
       plain_local_effect_control: step#2 states=34 boundaries=4 continuation_object=cont_obj#0
     - callable=fixtures.mir_lowered.cleanup kind=Plain control_body=false key=lir_callable(221:instance(189:template(175:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;28:fixtures.mir_lowered.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#h9afddd4c337ef3db874a0dcb7fbe3cc8)
       plain_abi: function_ty=t446 params=0 return=t2 body_slices=1 call_sites=0
     - callable=fixtures.mir_lowered.box_int kind=Plain control_body=false key=lir_callable(226:instance(194:template(180:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;28:fixtures.mir_lowered.box_int;20:non_generic_callable;54:callable_sig(1:0;1:0;1:0;25:F(-;[V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h4a6223cf0279cecc7c379bc48c847b9f)
-      plain_abi: function_ty=t44 params=1 return=t5 body_slices=1 call_sites=0
+      plain_abi: function_ty=t45 params=1 return=t5 body_slices=1 call_sites=0
   step_types=1
     - step#2 invoke_args=t2 complete=t5 continuation_obj=t454 cases=3
   dynamic_invoke_contracts=0

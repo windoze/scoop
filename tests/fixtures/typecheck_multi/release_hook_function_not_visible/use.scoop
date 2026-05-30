@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_function_not_visible
+// EXPECT-ERROR: hiddenRelease
+// EXPECT-ERROR: private
+
+package fixtures.typecheck_multi.release_hook_function_not_visible
+
+import scoop.core.*
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck_multi.release_hook_function_not_visible.hiddenRelease", args = ["raw"])
+class HiddenReleaseFunctionHost(val raw: UInt)

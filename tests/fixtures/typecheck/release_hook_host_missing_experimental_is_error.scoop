@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_host_requires_experimental
+// EXPECT-ERROR: releaseHook
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun releaseMissingExperimental(raw: UInt): Unit {}
+
+@ReleaseHook(name = "fixtures.typecheck.releaseMissingExperimental", args = ["raw"])
+class MissingExperimentalReleaseHost(val raw: UInt)

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_host_must_be_non_generic
+// EXPECT-ERROR: non-generic class
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun releaseGenericHost(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.releaseGenericHost", args = ["raw"])
+class GenericReleaseHost<T>(val raw: UInt)

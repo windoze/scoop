@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_arg_count_mismatch
+// EXPECT-ERROR: countMismatchRelease
+// EXPECT-ERROR: args
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun countMismatchRelease(raw: UInt, flags: Int): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.countMismatchRelease", args = ["raw"])
+class ArgCountMismatchReleaseHost(val raw: UInt)

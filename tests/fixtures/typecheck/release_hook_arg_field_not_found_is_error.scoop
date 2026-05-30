@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_arg_field_not_found
+// EXPECT-ERROR: missing
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun missingFieldRelease(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.missingFieldRelease", args = ["missing"])
+class MissingReleaseArgFieldHost(val raw: UInt)

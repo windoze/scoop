@@ -13,6 +13,6 @@ fun main() {
 }
 
 // P5-T05R diagnostic policy assertions.
-// EXPECT-ERROR: core.scoop:1610:16
+// EXPECT-ERROR: core.scoop:1613:16
 // EXPECT-ERROR: argument 2 type Pair is not a subtype of parameter `expected` type scoop.core.Box<Pair>
 // EXPECT-NOT-ERROR-TERMS: 后端, backend, LLVM, codegen, Unsupported

@@ -1,0 +1,13 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern(abi = "c")
+fun releaseNativePtr(raw: Ptr<Int>): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.releaseNativePtr", args = ["raw"])
+class NativePtrReleaseHost(val raw: Ptr<Int>)

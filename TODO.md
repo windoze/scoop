@@ -41,7 +41,7 @@
 | P1-T02R | [DONE] | Review P1-T02 宿主校验 |
 | P1-T03 | [DONE] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
 | P1-T03R | [DONE] | Review P1-T03 函数/字段校验 |
-| P1-T04 | [TODO] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
+| P1-T04 | [DONE] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
 | P1-T04R | [TODO] | Review P1-T04 fixtures |
 | P2-T01 | [TODO] | 生成 release trampoline（按字段读值并调用释放函数） |
 | P2-T01R | [TODO] | Review P2-T01 trampoline |
@@ -253,7 +253,7 @@
   - 2026-05-31：复核 P1-T03 实现：释放函数解析为唯一可见的无 receiver 非泛型 FQN；只接受显式 `@NoGC` 或 `@Extern(abi = "c")`，拒绝普通函数与 `@Extern(abi = "scoop")`；返回类型必须为 Unit；参数个数、顺序与类型按 `args` 字段精确匹配；字段必须存在且经 `is_gc_free_value_type` 判定为 GC-free；typecheck 成功后写入 AST `ReleaseHookBinding`，HIR lowering 汇总为 `ReleaseHookIndex` 供后端消费。补齐 review 覆盖缺口：新增单元测试锁定显式 `@NoGC` 正例、`@Extern(abi = "scoop")` 拒绝、非 Unit 返回拒绝、参数个数不匹配、按 `args` 顺序匹配与 side table 字段顺序。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。`python3 tools/run_fixtures.py` 未重跑，因为本次仅新增 `#[cfg(test)]` 单元测试与 TODO 记录，不改变编译器产物或 fixture 行为。
 
-### [TODO] P1-T04：`@ReleaseHook` typecheck fixtures（错误面 + 正例）
+### [DONE] P1-T04：`@ReleaseHook` typecheck fixtures（错误面 + 正例）
 
 - 参考：[`PLAN.md`](./PLAN.md) §5 / P1-T06
 - 必须实现的内容（每个错误面各一个 fixture，正例一个）：
@@ -268,7 +268,8 @@
 - 完成条件：全部错误面被拒绝、正例通过。
 - 依赖：P1-T03
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增 `@ReleaseHook` typecheck fixtures，覆盖宿主错误（generic、open、abstract、sealed、缺 `@Experimental(feature = "releaseHook")`、非 class）、释放函数错误（不存在、跨文件 private 不可见、非 `@NoGC`/`@Extern(abi="c")`、返回非 Unit、参数数量不匹配）、字段错误（字段不存在、非 GC-free、字段/参数类型不匹配）以及正例（final non-generic class + `Ptr<Int>` raw handle 字段 + `@Extern(abi="c")` 释放函数 + `@Experimental(feature="releaseHook")`）。补齐 `sysroot/lib/scoop.core/src/core.scoop` 的 `ReleaseHook` annotation class surface，避免用户源码在内建语义校验前报未解析注解；同步因该 sysroot nominal/field/span 漂移影响的 HIR、effect-lowered 与 MIR golden。
+  - 验证：`cargo build -p scoop -p scoopc`；targeted 新增 release hook fixtures；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。完整 fixture 首轮发现 `runtime_gc/gc_language_cross_thread_ref_handoff.scoop` 一次 30s timeout，单独复跑该 fixture 与整个 `tests/fixtures/runtime_gc` 均通过；同步 golden/行号后完整 fixture suite 重跑通过（`fixtures: ok (1644)`）。
 
 ### [TODO] P1-T04R：Review P1-T04 fixtures
 
