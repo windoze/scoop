@@ -1,0 +1,18 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: c"fixtures.umb_fix.p5_t03_dedup.Point"
+// BUILD-LLVM-REGEX: (?s)(@__scoop_str_lit_[0-9a-f_]+) = internal unnamed_addr addrspace\(1\) constant %scoop\.runtime\.ScoopString.*store ptr addrspace\(1\) \1.*store ptr addrspace\(1\) \1
+// BUILD-LLVM-NOT-CONTAINS: scoop_alloc_typed
+// P5-T03: repeated TypeNameString metadata routes through the same String content pool.
+
+package fixtures.umb_fix.p5_t03_dedup
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun main(): Int {
+    val first: String = Point::class
+    val second: String = Point::class
+    return first.length() + second.length()
+}

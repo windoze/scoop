@@ -12,6 +12,39 @@ struct ImmortalConstValue<'ctx> {
     key: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ImmortalAggregateGlobalMode<'a> {
+    Content,
+    Site(&'a str),
+}
+
+impl ImmortalAggregateGlobalMode<'_> {
+    fn permits_unnamed_addr(self) -> bool {
+        matches!(self, Self::Content)
+    }
+}
+
+fn immortal_string_wrapper_global_name(data_name: &str) -> String {
+    let suffix = data_name
+        .strip_prefix("__scoop_str_data_")
+        .unwrap_or(data_name);
+    format!("__scoop_str_lit_{suffix}")
+}
+
+fn immortal_aggregate_global_name(
+    aggregate_ty: &str,
+    key_parts: &[String],
+    mode: ImmortalAggregateGlobalMode<'_>,
+) -> String {
+    let key_prefix = match mode {
+        ImmortalAggregateGlobalMode::Content => "content".to_string(),
+        ImmortalAggregateGlobalMode::Site(site) => format!("site:{site}"),
+    };
+    let key = format!("{key_prefix}|{aggregate_ty}|{}", key_parts.join("|"));
+    let hash = super::alloca::string_byte_data_hash(key.as_bytes());
+    format!("__scoop_immortal_agg_{hash}")
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn get_or_create_immortal_string_global(
         &mut self,
@@ -20,10 +53,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
         let data_gv = self.get_or_create_global_bytes(bytes);
         let data_name = llvm_global_name(data_gv);
-        let suffix = data_name
-            .strip_prefix("__scoop_str_data_")
-            .unwrap_or(data_name.as_str());
-        let global_name = format!("__scoop_str_lit_{suffix}");
+        let global_name = immortal_string_wrapper_global_name(&data_name);
 
         if let Some(existing) = self.module.get_global(&global_name) {
             existing.set_constant(true);
@@ -82,12 +112,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if elements
             .iter()
             .any(|element| !matches!(element, crate::mir::Operand::Const(_)))
-            || self
-                .immortal_aggregate_codegen_ty(mir_types, transport)?
-                .is_none()
         {
             return Ok(None);
         }
+        let Some(aggregate_ty) = self.immortal_aggregate_codegen_ty(mir_types, transport)? else {
+            return Ok(None);
+        };
 
         let CgTy::Tuple(tuple_ty) = target_cg else {
             return Ok(None);
@@ -120,10 +150,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
         let init = llvm_tuple_ty.const_named_struct(&init_values);
         self.load_immortal_aggregate_global(
+            span,
             target_cg,
             llvm_tuple_ty.into(),
             init.into(),
-            transport.aggregate_ty,
+            aggregate_ty,
             key_parts.as_slice(),
         )
         .map(Some)
@@ -140,18 +171,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if fields
             .iter()
             .any(|field| !matches!(field.value, crate::mir::Operand::Const(_)))
-            || self
-                .immortal_aggregate_codegen_ty(mir_types, transport)?
-                .is_none()
         {
             return Ok(None);
         }
-
-        let aggregate_ty = self
-            .equivalent_codegen_type_id(mir_types, transport.aggregate_ty)
-            .unwrap_or_else(|| {
-                panic!("try_emit_immortal_struct: MIR verifier accepted aggregate TypeStore drift")
-            });
+        let Some(aggregate_ty) = self.immortal_aggregate_codegen_ty(mir_types, transport)? else {
+            return Ok(None);
+        };
         if self
             .scalar_layout_struct_field(aggregate_ty, target_cg)?
             .is_some()
@@ -214,10 +239,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let init = llvm_struct_ty.const_named_struct(&init_values);
         self.load_immortal_aggregate_global(
+            span,
             target_cg,
             llvm_struct_ty.into(),
             init.into(),
-            transport.aggregate_ty,
+            aggregate_ty,
             key_parts.as_slice(),
         )
         .map(Some)
@@ -342,28 +368,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn load_immortal_aggregate_global(
         &mut self,
+        span: crate::span::Span,
         target_cg: CgTy,
         llvm_ty: BasicTypeEnum<'ctx>,
         init: BasicValueEnum<'ctx>,
         aggregate_ty: TypeId,
         key_parts: &[String],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let key = format!(
-            "{}|{}",
-            self.types.display(aggregate_ty),
-            key_parts.join("|")
-        );
-        let hash = super::alloca::string_byte_data_hash(key.as_bytes());
-        let name = format!("__scoop_immortal_agg_{hash}");
+        let is_ref_aggregate = matches!(self.types.kind(aggregate_ty), TypeKind::Ref(_));
+        let site_key;
+        let mode = if is_ref_aggregate {
+            site_key = self.immortal_aggregate_site_key(span);
+            ImmortalAggregateGlobalMode::Site(site_key.as_str())
+        } else {
+            ImmortalAggregateGlobalMode::Content
+        };
+        let aggregate_ty_name = self.types.display(aggregate_ty).to_string();
+        let name = immortal_aggregate_global_name(&aggregate_ty_name, key_parts, mode);
         let gv = if let Some(existing) = self.module.get_global(&name) {
             existing.set_constant(true);
-            existing.set_unnamed_addr(true);
+            if mode.permits_unnamed_addr() {
+                existing.set_unnamed_addr(true);
+            }
             existing
         } else {
             let gv = self.module.add_global(llvm_ty, None, &name);
             gv.set_initializer(&init);
             gv.set_constant(true);
-            gv.set_unnamed_addr(true);
+            if mode.permits_unnamed_addr() {
+                gv.set_unnamed_addr(true);
+            }
             gv.set_linkage(Linkage::Internal);
             if let CgTy::Struct(struct_ty) = target_cg
                 && let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned)
@@ -380,8 +414,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             value: Some(loaded),
         })
     }
+
+    fn immortal_aggregate_site_key(&self, span: crate::span::Span) -> String {
+        format!(
+            "{}:{}..{}",
+            self.current_codegen_body_fqn(),
+            span.start,
+            span.end
+        )
+    }
 }
 
 fn llvm_global_name(global: GlobalValue<'_>) -> String {
     global.get_name().to_string_lossy().into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parts(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    #[test]
+    fn string_wrapper_global_name_uses_byte_data_content_key() {
+        assert_eq!(
+            immortal_string_wrapper_global_name("__scoop_str_data_abc123"),
+            "__scoop_str_lit_abc123"
+        );
+        assert_eq!(
+            immortal_string_wrapper_global_name("custom_data_name"),
+            "__scoop_str_lit_custom_data_name"
+        );
+    }
+
+    #[test]
+    fn aggregate_content_mode_reuses_equal_value_constants() {
+        let fields = parts(&["x:int64:true:1", "y:string:@__scoop_str_lit_a"]);
+
+        assert_eq!(
+            immortal_aggregate_global_name(
+                "fixture.Pair",
+                &fields,
+                ImmortalAggregateGlobalMode::Content
+            ),
+            immortal_aggregate_global_name(
+                "fixture.Pair",
+                &fields,
+                ImmortalAggregateGlobalMode::Content
+            )
+        );
+    }
+
+    #[test]
+    fn aggregate_site_mode_keeps_ref_constants_per_literal_site() {
+        let fields = parts(&["value:string:@__scoop_str_lit_a"]);
+
+        let first = immortal_aggregate_global_name(
+            "fixture.ImmutableBox",
+            &fields,
+            ImmortalAggregateGlobalMode::Site("fixture.make:10..20"),
+        );
+        let second = immortal_aggregate_global_name(
+            "fixture.ImmutableBox",
+            &fields,
+            ImmortalAggregateGlobalMode::Site("fixture.make:30..40"),
+        );
+        let first_again = immortal_aggregate_global_name(
+            "fixture.ImmutableBox",
+            &fields,
+            ImmortalAggregateGlobalMode::Site("fixture.make:10..20"),
+        );
+
+        assert_ne!(first, second);
+        assert_eq!(first, first_again);
+    }
 }

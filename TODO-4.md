@@ -132,7 +132,7 @@
   - 测试/fixture：补强 `pos_string_literal_immortal_ir.scoop`，锁定 addrspace(1) constant 与 header 字段形状；新增 `pos_aggregate_fallback_shapes_ir.scoop`，覆盖非 Const 字段、嵌套聚合和 EnumVariant 不生成 `@__scoop_immortal_agg_`。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T03：String 内容池 dedup 与其它 ref 类型 per-site
+### [DONE] P5-T03：String 内容池 dedup 与其它 ref 类型 per-site
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -154,7 +154,13 @@
   - String 内容池生效，其它 ref 类型 per-site。
 - 依赖：P5-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - String wrapper 命名继续由 byte data content key 派生，`__scoop_str_data_<hash>` 与 `__scoop_str_lit_<hash>` 按字节内容跨 site 合并，并保持 `unnamed_addr`。
+  - 折叠器的 aggregate 全局命名改为显式 key mode：值类型聚合仍按内容 key 复用；ref 类型聚合会把当前 codegen body + literal span 纳入 key，并且不设置 `unnamed_addr`，避免非 String ref 类型跨站点合并。
+  - 新增单元测试覆盖 String wrapper 命名、值聚合 content mode 复用、ref 聚合 site mode 区分 literal site。
+  - 新增 `tests/fixtures/umb_fix/P5-T03-dedup/pos_string_content_pool_ir.scoop` 与 `pos_type_name_content_pool_ir.scoop`，锁定同函数重复 `"hello"` 与重复 `Point::class` 均引用同一个 content-keyed String wrapper，且零 `scoop_alloc_typed`。
+  - Dedup 边界：当前仅 String 走内容池；这是安全的，因为 String 不可变且 Scoop 无身份运算符，值语义下合并不可观测。其它 ref 类型即使将来进入 immortal 折叠，也保持 per-site 身份，不跨站合并。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immortal --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T03-dedup --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P5-T03R：Review dedup 策略
 
