@@ -65,7 +65,7 @@
   - 约束：全部用 Scoop 语言级 `scoop.thread` / `scoop.sync` / `scoop.runtime.test` 覆盖，不恢复手写 C-API mutator，不设置 `SCOOP_GC_PACING=off`。
   - 验证：三个新增 fixture 单独运行均通过；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1625 checks）全部通过。
 
-### [TODO] P7-T01：回写 runtime/spec 文档（pacing + immortal）
+### [DONE] P7-T01：回写 runtime/spec 文档（pacing + immortal）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P7
@@ -87,7 +87,13 @@
   - runtime/spec 文档反映 pacing + immortal 实际行为。
 - 依赖：P6-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Runtime 文档：`SCOOP_RUNTIME.md` 新增 pacing contract，记录 `live` / `target_live` / 累计 `next_gc` 公式、软触发（alloc 后 request、下一 safepoint collect）、nursery full minor-GC retry、Immix block-pool/full-GC/hard-cap 路径、`SCOOP_GC_PACING` / `SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR` / `SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES` / `SCOOP_GC_MAX_HEAP_BYTES` / `SCOOP_GC_STRESS` 的默认值与语义，以及 soft pacing 在 `immix` / `hosted` / `minimal` 的 backend parity。
+  - Immortal 文档：`SCOOP_RUNTIME.md` 新增 immortal ref header contract（`SCOOP_GC_FLAG_IMMORTAL`、`SCOOP_GC_MARK_IMMORTAL`、`next=null`、永不写/永不 trace），记录 value/ref 双层、`is_immutable(T)` 结构谓词、metadata-only `@InteriorMutable`、`__AtomicInt` nominal struct 化、String 内容池 dedup 与其它 ref-tier 常量 site-keyed 策略。
+  - Spec 同步：`SCOOP_FULL_SPEC.md` 与 `docs/spec/language_spec-part1.md` / `part2.md` / `part5.md` / `part6.md` 记录未插值 String literal 可池化为 immortal、`Platform` 是值类型编译期常量、`@InteriorMutable` 内建注解语义、internal atomic value types 必须用 marker 表达背后可变性。
+  - 旧行为归位：`GC_PACING.md` / `GC_IMMORTAL_FIX.md` 状态改为 implemented design history，`PLAN.md` 顶部“当前状态”改为 P0 baseline 说明；旧无界增长与 per-use wrapper 分配不再被描述为当前 runtime/spec contract。同步更新 `runtime/c/scoop_gc.h` 的手动 GC API 注释，避免仍声称无自动触发策略。
+  - 一致性复核：文档中的 env 名称、默认值和 false/off 解析对照 `runtime/c/scoop_runtime.c` / `runtime/c/scoop_gc.h`；immortal flag/mark、String wrapper 全局、dedup/site-key 策略对照 `runtime/c/scoop_gc.h` 与 `crates/scoopc_codegen_llvm/src/llvm/codegen/main/immortal.rs`；`is_immutable(T)` 规则对照 `immutability.rs`。
+  - 验证：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）。`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 未运行，因为本任务只修改 Markdown 文档和一处 C 注释，不改变编译输出；沿用 P7-T00b 完成记录中的最近全量绿灯。
 
 ### [TODO] P7-T01R：Review 文档回写
 

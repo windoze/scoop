@@ -1139,6 +1139,8 @@ fun getPlatform(): Platform
 
 `Platform.triple` follows LLVM target triple conventions. Validation details are implementation-defined.
 
+`Platform` is a value-type compile-time constant. Implementations should materialize it as an immutable struct value rather than allocating a per-read heap wrapper; its `String` fields may point at immortal string constants.
+
 ### 6.4 Static Metadata Types
 
 ```kotlin
@@ -1515,6 +1517,8 @@ Use atomic library types instead of `RefCell<T>` when the shared state is intend
 
 ## 8. String Literals
 
+Non-interpolated string literals have type `String` and are immutable compile-time-known values; implementations may materialize equal literal content as a shared read-only/immortal `String` rather than allocating a fresh object at every evaluation. Low-level identity-sensitive APIs may observe this pooling result, but `String` `==` / `!=` remain content comparisons.
+
 ### 8.1 Regular Strings
 
 Regular strings have no interpolation. `$`, `{`, and `}` are literal characters.
@@ -1570,7 +1574,7 @@ val sql = """
 // Result: "SELECT *\nFROM users\nWHERE id = 1"
 ```
 
-- Implementations may fold raw string literals as an optimization, but the language semantics are the ordinary runtime `String` call.
+- Non-interpolated raw string literals follow the same immutable literal pooling contract as regular string literals. Calls such as `trimIndent()` are ordinary `String` operations and may allocate according to the library implementation.
 
 ## 9. Variable Binding
 
@@ -2385,6 +2389,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@NoGC` | Functions | Requires the function to be allocation-free (no GC-managed heap allocations) and restricts calls to other `@NoGC` / `@Extern(abi = "c")` functions (see §15.8) |
 | `@Unsafe` | Functions, expressions | Enables unsafe raw memory operations (pointer arithmetic, unchecked loads/stores) within an unsafe context (see §15.9) |
 | `@Safe` | Functions, expressions | Marks a region as safe (unsafe primitives forbidden) even inside an enclosing unsafe context (see §15.9.5) |
+| `@InteriorMutable` | Struct/class type declarations | Metadata-only marker for types that may mutate storage behind `val` fields through unsafe/compiler intrinsics |
 | `@Target(targets...)` | Annotation classes | Restricts which declaration kinds an annotation can appear on |
 | `@Retention(policy)` | Annotation classes | Controls whether annotation metadata remains local or is preserved in `.cone` |
 
@@ -2418,6 +2423,8 @@ annotation class Column(val name: String)
 - Allowed targets are functions, types, properties, and modules/files (`@file:Experimental(feature = "...")`).
 - The use-site shape is fixed to `@Experimental(feature = "...")`; `feature` must be a string literal.
 - Current compilers only recognize and validate this marker surface. No experimental language feature is enabled or disabled by it yet.
+
+`@InteriorMutable` is a compiler-recognized metadata-only marker on nominal `struct` / `class` declarations. It has no arguments, emits no runtime code, and marks types that may mutate storage behind `val` fields through unsafe/compiler intrinsics. The compiler's `is_immutable(T)` constantization predicate must reject any nominal carrying this marker; the marker describes a type property and must not be treated as a type-name whitelist.
 
 #### 15.5.1 `@Extern` (External Symbols and Libraries)
 
@@ -2843,9 +2850,11 @@ typealias MyFuncPtr = FunPtr<(Int, Int) -> Int>
 
 Internal atomic value types (FFI-oriented):
 
-- The sysroot/runtime may define internal atomic value types such as `__AtomicInt`, `__AtomicLong`, `__AtomicBoolean`, ...
+- The sysroot/runtime may define internal atomic value types such as `@InteriorMutable struct __AtomicInt`, `@InteriorMutable struct __AtomicLong`, `@InteriorMutable struct __AtomicBoolean`, ...
 - These types are GC-free and have the same memory layout as their underlying scalar types.
 - Atomic operations (load/store/CAS/etc.) are compiler intrinsics that generate LLVM IR directly.
+- Any atomic value type that is written in place behind `val` fields must carry `@InteriorMutable`, which excludes it from `is_immutable(T)` constantization.
+- The current sysroot `__AtomicInt` is a distinct nominal struct with word-sized `Int` layout; atomic storage semantics must not be modeled by erasing it to a plain typealias.
 
 #### 15.9.5 `@Safe` (Safe Regions Inside Unsafe Context)
 

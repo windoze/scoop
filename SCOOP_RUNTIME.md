@@ -9,6 +9,8 @@ This document complements `SCOOP_FULL_SPEC.md` and records runtime/toolchain con
 - Integer model as it relates to ABI and unsafe code
 - Raw pointers (`Ptr<T>`) and their interaction with GC
 - Sysroot layout and responsibilities
+- GC pacing, heap growth limits, and stress/pacing test knobs
+- Immortal compile-time constants and their GC invariants
 
 ## 1. Scope
 
@@ -283,14 +285,26 @@ Let:
 | `next` | `ScoopGcObjectHeader*` | `0` | Heap object list link (runtime internal). |
 | `type_desc` | `const ScoopTypeDescriptor*` | `PTR_SIZE` | Type descriptor pointer; MAY be NULL in early-stage allocations. |
 | `size_bytes` | `uint64_t` | `2*PTR_SIZE` | Total object size in bytes (**header + payload**). |
-| `flags` | `uint32_t` | `2*PTR_SIZE + 8` | Reserved flags (runtime/GC). |
-| `mark` | `uint32_t` | `2*PTR_SIZE + 8 + 4` | Mark bits / forwarding state (backend-defined). |
+| `flags` | `uint32_t` | `2*PTR_SIZE + 8` | Runtime/GC flags, including `SCOOP_GC_FLAG_IMMORTAL`. |
+| `mark` | `uint32_t` | `2*PTR_SIZE + 8 + 4` | Mark bits / forwarding state; immortals use `SCOOP_GC_MARK_IMMORTAL`. |
 
 Additional invariants:
 
 - `size_bytes >= sizeof(ScoopGcObjectHeader)`
 - `size_bytes` SHOULD be aligned to `PTR_SIZE` (current runtime enforces pointer-aligned header size; allocators should round up).
 - The runtime MUST keep these offsets stable via C `_Static_assert`, and Rust tests MUST assert the same layout.
+
+#### 9.2.1 Immortal ref-object headers
+
+Compile-time constants that are reference objects, such as immortal `String` literals, are not allocated by `scoop_alloc(...)` and are not threaded onto the runtime heap object list.
+
+Their header contract is:
+
+- `next == NULL`; the object is never part of sweep traversal.
+- `flags` contains `SCOOP_GC_FLAG_IMMORTAL` (`0x80000000`).
+- `mark == SCOOP_GC_MARK_IMMORTAL` (`0xFFFFFFFF`).
+- The storage is read-only global data; marker helpers MUST return before reading or writing `mark` or tracing payload fields.
+- The invariant is: immortal objects are never written and never traced. Any object that is writable or may require tracing must remain a normal heap object or a registered global root, not an immortal.
 
 ### 9.3 Type descriptor: `ScoopTypeDescriptor`
 
@@ -380,6 +394,66 @@ Runtime type tests (`is/as/as?`) are expected to follow these rules once impleme
 - Interface test: check whether `itable` contains an entry for the interface id.
 - `as` failure path: raise `RuntimeError.ClassCastFailed`.
 - `as?` failure path: return `None` (NULL niche).
+
+### 9.4 GC Pacing And Heap Growth Contract
+
+GC pacing is enabled by default. The old behavior of unbounded heap growth is retained only behind `SCOOP_GC_PACING=off` for tests that require deterministic heap counters.
+
+The pacing model is a live-heap target:
+
+```text
+live        = max(bytes_allocated - bytes_freed, 0)
+target_live = max(min_threshold, ceil(live * growth_factor))
+next_gc     = bytes_freed + target_live
+```
+
+`next_gc` is stored as a cumulative `bytes_allocated` waterline because the debug counters are cumulative. This is equivalent to the target heap model above and preserves the existing counter ABI.
+
+Trigger layers:
+
+- Soft trigger: after an allocation is registered, the runtime compares cumulative `bytes_allocated` with `next_gc`. If the waterline is reached, it sets an idempotent `request_collect` flag. The next allocation/write-barrier safepoint consumes the flag and runs collection before allocating; collection is not run synchronously inside the allocation that just produced an unrooted object.
+- Generational trigger: when the Immix nursery is full, the runtime attempts a minor GC and retries the nursery allocation. If the nursery is still unsuitable, the allocation falls back to old space rather than looping.
+- Hard trigger: when the Immix block pool is exhausted, the runtime attempts a full GC before reserving/growing more heap memory. `SCOOP_GC_MAX_HEAP_BYTES` applies at the post-GC retry; if the allocation still requires growth beyond the cap, allocation returns `NULL` through the existing OOM path.
+
+Environment knobs:
+
+| Variable | Default | Contract |
+|---|---:|---|
+| `SCOOP_GC_PACING` | `on` | Set to `off`, `0`, `false`, or `no` to disable pacing. Any other non-empty value keeps pacing enabled. |
+| `SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR` | `1.5` | Multiplier in `live * growth_factor`; invalid, non-finite, or `<= 1.0` values fall back to the default. |
+| `SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES` | `4 * 1024 * 1024` | Minimum target-live threshold; invalid or zero values fall back to the default. |
+| `SCOOP_GC_MAX_HEAP_BYTES` | `0` | Immix hard cap on reserved heap bytes; `0` means no cap. |
+| `SCOOP_GC_STRESS` | off | Test-only pre-allocation collection trigger. When active, stress bypasses pacing because it collects more aggressively than pacing. |
+
+Manual `scoop_gc_collect()` and `scoop_gc_collect_minor()` calls keep their explicit API semantics. The soft pacing state and `SCOOP_GC_PACING` / min-threshold / growth-factor behavior are backend-independent and are honored by the `immix`, `hosted`, and `minimal` backends; backend-specific collection effectiveness may still differ. The hard cap is enforced by the Immix reserved-growth paths.
+
+### 9.5 Immortal Compile-Time Constants
+
+The compiler may lift values that are fully known at compile time into immutable global data. This is a code generation contract, not a new surface-language allocation guarantee.
+
+There are two tiers:
+
+- Value tier: scalars, tuples, and value `struct`s such as `Platform` are emitted as plain constant data without a GC header. Uses load or copy the value; the GC never receives a pointer to the aggregate itself.
+- Ref tier: immutable reference objects such as `String` are emitted as off-heap globals with the immortal header contract from §9.2.1. They are transparent to the collector and must remain read-only.
+
+The compiler computes a structural `is_immutable(T)` predicate for ref-tier lifting and related safety checks:
+
+- Any nominal type carrying compiler-recognized `@InteriorMutable` is not immutable.
+- Built-in scalar value types are immutable.
+- Value structs, tuples, and `Option<T>` are immutable when their field/element types are immutable.
+- `String` is immutable.
+- Ref classes are immutable only when the class and its superclasses expose no `var` fields and every field type is immutable.
+- Interfaces, function values, unions, type parameters, star projections, unknown layouts, or missing metadata are conservative `false`.
+
+`@InteriorMutable` is metadata-only and has no codegen payload. It exists for types that mutate storage behind `val` fields through unsafe/compiler intrinsics. The sysroot `scoop.unsafe.__AtomicInt` is a distinct `@InteriorMutable` one-word struct with `Int` layout; aliases resolve back to the marked nominal so the marker is not erased.
+
+Deduplication is separate from constantization:
+
+- `String` and type-name strings use a content pool keyed by the UTF-8 bytes. Equal content reuses the same `__scoop_str_data_<hash>` byte global and `__scoop_str_lit_<hash>` wrapper global.
+- `Platform` is a value-tier `struct` constant whose five fields point at immortal `String` globals.
+- Other liftable ref-tier constants are site-keyed rather than content-pooled. This keeps cross-site identity-sensitive behavior conservative while still avoiding per-use heap allocation at that literal site.
+
+Code must not rely on string literal allocation freshness. Identity-sensitive low-level APIs may observe the content-pool result for strings; `String` equality remains content equality.
 
 ## 10. Effect / Continuation Lowering Contract
 

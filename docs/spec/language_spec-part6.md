@@ -432,8 +432,11 @@ struct GcHandle(val raw: UIntPtr)
 实现可在 sysroot/runtime 定义内部 atomic value types：
 
 ```kotlin
+@InteriorMutable
 struct __AtomicInt
+@InteriorMutable
 struct __AtomicLong
+@InteriorMutable
 struct __AtomicBoolean
 ```
 
@@ -442,6 +445,8 @@ struct __AtomicBoolean
 - 这些类型必须是 GC-free。
 - 布局等同其底层标量类型。
 - 原子 load/store/CAS 等操作是 compiler intrinsic 或 runtime intrinsic。
+- 若类型可通过 intrinsic 在 `val` 字段背后原地写入，它必须带 `@InteriorMutable`，从而被 `is_immutable(T)` 常量化谓词排除。
+- 当前 sysroot 中 `__AtomicInt` 是与 `Int` 相异的 nominal struct，但布局/ABI 等同一个 word-sized `Int`；不得依赖 typealias 擦除来表达原子性。
 - 具体 API 属于 sysroot/runtime 表面，不是普通标准库语言要求。
 
 ## 16. FFI-managed resource release callback

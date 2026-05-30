@@ -1,8 +1,11 @@
 # GC Pacing: Collect on Pressure
 
-Status: P0 design. Platform-agnostic. Strictly more urgent than the
-immortal-objects work in `GC_IMMORTAL_FIX.md`: that one reduces pressure,
-this one decides whether long-running programs run at all.
+Status: implemented in the current runtime. This file is retained as the design
+history and rationale; `SCOOP_RUNTIME.md` records the active runtime contract.
+The "Current behavior" section below is the pre-P1 baseline, not the current
+default behavior. Platform-agnostic. Strictly more urgent than the
+immortal-objects work in `GC_IMMORTAL_FIX.md`: that one reduces pressure, this
+one decides whether long-running programs run at all.
 
 ## Motivation
 

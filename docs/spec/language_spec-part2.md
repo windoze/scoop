@@ -158,6 +158,7 @@ typealias UIntPtr = UInt
 - 字符串字面量类型为 `String`。
 - `String` 可参与 `==` / `!=` 内容比较。
 - `f"..."` 插值字符串按表达式求值后构造 `String`。
+- 普通字符串字面量与未插值 raw 字符串字面量是编译期可知的不可变值；实现可以把相同内容池化为只读 immortal `String`，不要求每次求值分配新对象。低层 identity-sensitive API 可能观察到这种池化结果；`==` / `!=` 仍按内容比较。
 
 ## 4. 引用类型
 

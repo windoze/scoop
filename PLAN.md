@@ -3,7 +3,7 @@
 > 生成时间：2026-05-29
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 格式参考：[`docs/archive/plans/PLAN-spec-fix-overload.md`](./docs/archive/plans/PLAN-spec-fix-overload.md)、[`docs/archive/plans/PLAN-managed-abi.md`](./docs/archive/plans/PLAN-managed-abi.md)
-> 当前状态：两份设计文档均为 P0 design / design-only。运行期今天没有任何按压力触发的 collect（堆单调增长直到 OOM），编译期常量值（String literal / `__type_name` / `Platform`）每次求值都在 GC 堆上分配 wrapper。
+> 初始状态（P0 baseline）：两份设计文档从 design-only 起步；当时运行期没有任何按压力触发的 collect（堆单调增长直到 OOM），编译期常量值（String literal / `__type_name` / `Platform`）每次求值都在 GC 堆上分配 wrapper。当前 runtime/spec contract 见 [`SCOOP_RUNTIME.md`](./SCOOP_RUNTIME.md)；旧行为仅保留为 design history 与 `SCOOP_GC_PACING=off` 对照。
 > 行号说明：下文以当前文件路径和符号名为准；后续若行号漂移，优先按文件路径、符号名和 fixture / 测试名定位。
 
 ## 0. 工作原则

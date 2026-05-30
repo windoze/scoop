@@ -1,7 +1,11 @@
 # Lift Compile-Time-Constant Values into `.rodata` (Immortal Objects)
 
-Status: P0 design. Platform-agnostic — applies to every codegen target. Embedded
-tier hints (PSRAM placement, sectioning) are deliberately deferred.
+Status: implemented in the current compiler/runtime. This file is retained as
+the design history and rationale; `SCOOP_RUNTIME.md` and the language spec record
+the active contract. The "current" allocation descriptions below are the pre-P5
+baseline, not the current default behavior. Platform-agnostic — applies to every
+codegen target. Embedded tier hints (PSRAM placement, sectioning) are deliberately
+deferred.
 
 ## Motivation
 
@@ -60,14 +64,15 @@ indistinguishable from a fresh allocation on every evaluation.
 
 Scoop makes this property unusually clean:
 
-- **There is no reference-identity operator.** The language exposes only `==` /
-  `!=` (`docs/spec/language_spec-part3.md:66`); there is no `===`,
-  `identityEquals`, or pointer comparison. So *object identity is never
-  observable* for any ref type. The only channel through which sharing could
-  leak — identity — does not exist in the surface language.
-- Therefore, for an immutable type, collapsing many evaluations (or many equal
-  literals) onto one instance is observationally invisible. Immutability alone
-  is sufficient.
+- The surface language exposes only `==` / `!=`
+  (`docs/spec/language_spec-part3.md:66`); there is no general `===`,
+  `identityEquals`, or pointer-comparison expression. Low-level library
+  primitives may still compare reference bits as part of atomic protocols, so the
+  final contract makes String content pooling explicit and keeps non-String
+  ref-type dedup conservative.
+- Therefore, for immutable values, lifting a literal site into read-only storage
+  is the implementation contract. Cross-site deduplication remains a separate,
+  narrower decision, currently enabled only for String.
 
 This is why dedup can be decoupled: even when we do *not* dedup, constantizing a
 literal already collapses repeated evaluations of one site onto one instance —
@@ -287,9 +292,10 @@ Dedup is the **only** identity-sensitive behaviour and is kept separate:
 
 - **String**: content-pool. Key `__scoop_str_lit_<hash>` and
   `__scoop_str_data_<hash>` by `base16(SHA-256(bytes)[..16])` instead of source
-  span, so equal literals across all sites collapse to one global. Sound because
-  String is immutable and Scoop exposes no identity. Independently valuable:
-  shrinks `.rodata` for any repeated-literal program.
+  span, so equal literals across all sites collapse to one global. This is now an
+  explicit runtime/spec contract: code must not rely on string literal allocation
+  freshness, and low-level identity-sensitive APIs may observe the pooled object.
+  Independently valuable: shrinks `.rodata` for any repeated-literal program.
 - **Other constantizable ref types**: emit **one global per literal site** (no
   cross-site pooling). This keeps per-site behaviour identical to today even if
   some future identity channel (e.g. an identity-based default `hash()`) were
@@ -455,9 +461,8 @@ pointers from distinct spans — none should exist.
   *same* mechanism with an extra front-end entry (feed a const-evaluated module
   value into `try_emit_immortal`); only the const-evaluator is missing, not the
   lifting machinery.
-- **Cross-type dedup beyond String.** Pooling other immutable ref types is sound
-  under "no identity operator", but is held back pending a review of whether any
-  identity-based default `hash()` exists; see the dedup section.
+- **Cross-type dedup beyond String.** Pooling other immutable ref types is held
+  back pending a full identity-sensitive API review; see the dedup section.
 - **Embedded tier hints** (`.rodata.fast` / `.rodata.psram` section splits) —
   target-specific, left to the embedded-port design doc.
 - **Cross-archive (`.cone`) literal dedup** — `unnamed_addr` folds within a final
