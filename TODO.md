@@ -46,7 +46,7 @@
 | P2-T01 | [DONE] | 生成 release trampoline（按字段读值并调用释放函数） |
 | P2-T01R | [DONE] | Review P2-T01 trampoline |
 | P2-T02 | [DONE] | 在 type descriptor 填 `release_fn` + IR fixtures |
-| P2-T02R | [TODO] | Review P2-T02 descriptor 接线 |
+| P2-T02R | [DONE] | Review P2-T02 descriptor 接线 |
 | P3-T01 | [TODO] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
 | P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
 | P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
@@ -334,14 +334,15 @@
   - 2026-05-31：`get_or_create_type_descriptor_global` 现在按 HIR `ReleaseHookIndex` 为带 `@ReleaseHook` 的 class descriptor 填入 release trampoline 函数指针，`release_fn` 槽位保持在 `trace_fn` 之后；无注解类型继续写入 null。补充 LLVM 单元断言与 build fixtures：`release_hook_trampoline_emit_llvm.scoop` 锁定 descriptor 指向 trampoline、trampoline 字段读取/调用顺序与无 native boundary；新增 `release_hook_descriptor_absent_without_annotation_llvm.scoop` 锁定无注解 class 不生成 trampoline 且 descriptor `release_fn` 保持 null。
   - 验证：`cargo fmt`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_trampoline_emit_llvm.scoop`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_descriptor_absent_without_annotation_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02R：Review P2-T02 descriptor 接线
+### [DONE] P2-T02R：Review P2-T02 descriptor 接线
 
 - 必须实现的内容：复核 release_fn 填充条件正确、无注解类型无回归、IR fixture 断言充分。
 - 验证：`python3 tools/run_fixtures.py`
 - 完成条件：P2 收口，可进入 P3。
 - 依赖：P2-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P2-T02 descriptor 接线：`get_or_create_type_descriptor_global` 仅在 HIR `ReleaseHookIndex` 命中 class FQN 时通过 `type_descriptor_release_fn_ptr` 填入 release trampoline，未命中时保持 `release_fn` 为 null；descriptor field order 仍为 `trace_fn` 后紧跟 `release_fn`，与 runtime `ScoopTypeDescriptor` ABI 对齐。检查生成 IR 后确认 annotated class descriptor 为 `ptr null, ptr @__scoop_release_...`，无注解 class descriptor 为 `ptr null, ptr null`；现有 LLVM 单元断言与 build fixtures 覆盖了 trampoline 指向、槽位顺序、无 native boundary、无注解类型不生成 trampoline 且 `release_fn` 保持 null。未发现需要修正的实现或 fixture 缺口，P2 可收口进入 P3。
+  - 验证：`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_trampoline_emit_llvm.scoop`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_descriptor_absent_without_annotation_llvm.scoop`；生成 IR 人工检查；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1646)`）。
 
 ---
 
