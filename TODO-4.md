@@ -40,7 +40,7 @@
   - 单元覆盖：`String`、tuple、合成 all-val struct/class 为 true；`RefCell`/`AtomicInt` var 字段、`__AtomicInt` / marked class `@InteriorMutable`、含 `RefCell` 字段的 class 为 false；自引用 all-val class 可终止且为 true。
   - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T01R：Review `is_immutable` 谓词
+### [DONE] P5-T01R：Review `is_immutable` 谓词
 
 - 参考：
   - P5-T01 完成记录
@@ -61,7 +61,11 @@
   - 谓词可靠。
 - 依赖：P5-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T01 谓词保持结构化类型特征判定，未退回 `__AtomicInt` 等名字匹配；value struct 分支只递归字段类型、不检查 `var`；ref class 分支同时要求字段非 `var` 且字段类型递归不可变；`@InteriorMutable` 按 nominal metadata 查询并优先否决。
+  - 修正：发现并修复递归 memo 的 stale optimistic true 问题。`Visiting -> true` 现在会携带 optimistic 标志，只用于打断当前递归边；依赖 optimistic cycle 的 positive 结果不会写入永久 `Done(true)` 缓存，避免互递归类型中祖先后续判 false 时留下过期 true。
+  - 测试：新增 `recursive_class_cycle_with_mutable_member_does_not_cache_optimistic_true`，覆盖 `A -> B -> A` 且 `A` 含 `var` 字段时同一 analyzer 先查 `A` 再查 `B` 仍均为 false；保留 all-val 自引用 class 可终止且为 true 的覆盖。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P5-T02：实现 `try_emit_immortal` 折叠器并路由 String literal
 
