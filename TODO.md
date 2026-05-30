@@ -32,7 +32,7 @@
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
 | P0-T01 | [DONE] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
-| P0-T01R | [TODO] | Review P0-T01 `@NoGC` Pure 契约 |
+| P0-T01R | [DONE] | Review P0-T01 `@NoGC` Pure 契约 |
 | P0-T02 | [TODO] | `@NoGC` Pure typecheck fixtures + spec 回写 |
 | P0-T02R | [TODO] | Review P0-T02 fixtures 与 spec |
 | P1-T01 | [TODO] | `@ReleaseHook` 注解种类、识别与参数解析 |
@@ -112,7 +112,7 @@
   - 2026-05-30：新增 `NoGcFunEffParamNotAllowed` / `NoGcFunEffectsNotAllowed` 诊断与 `check_nogc_fun_effect_contract`；显式 `@NoGC` 且非 `@Extern` 的函数现在禁止 `eff_param` 与非空 effect row，`@Extern` 仍沿用既有 effect 契约路径以避免重复诊断。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
-### [TODO] P0-T01R：Review P0-T01 `@NoGC` Pure 契约
+### [DONE] P0-T01R：Review P0-T01 `@NoGC` Pure 契约
 
 - 参考：P0-T01 完成记录、`check_extern_fun_effect_contract`
 - 目标：独立复核 `@NoGC` Pure 契约的正确性与无误伤。
@@ -125,7 +125,8 @@
 - 完成条件：契约准确、无误伤。
 - 依赖：P0-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-30：复核 P0-T01 实现：`check_nogc_fun_effect_contract` 同时拒绝 `eff_param` 与非空 `effects.terms`；该检查只在非 `@Extern` 的显式 `@NoGC` 函数上执行，`@Extern(abi="c")` 仍由 extern 契约与重复修饰符诊断覆盖，未发现重复/冲突诊断；抽样既有 Pure `@NoGC` 正例无误伤。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/unsafe_nogc/nogc_call_nogc_function_ok.scoop`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/extern_fun_c_abi_nogc_redundant_is_error.scoop`。
 
 ### [TODO] P0-T02：`@NoGC` Pure typecheck fixtures + spec 回写
 
