@@ -191,6 +191,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match metadata.kind {
             crate::mir::TypeMetadataLiteralKind::TypeNameString => {
+                // Type metadata strings are immutable metadata values, so they can share the
+                // ordinary immortal String pool and remain pointer-stable across repeated reads.
                 let type_name = metadata
                     .source_fqn
                     .clone()

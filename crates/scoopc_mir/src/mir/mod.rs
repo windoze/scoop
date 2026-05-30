@@ -2532,6 +2532,8 @@ pub struct StructLitField {
 ///
 /// Scoop 0.1 keeps runtime `T::class` as a stable type-name string value while retaining the
 /// source type identity needed by later stages to upgrade this to richer metadata.
+/// Consumers must treat the materialized value as read-only; `TypeNameString` may be pooled as an
+/// immortal `ScoopString` and reused across metadata reads.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeMetadataLiteral {
     pub source_ty: TypeId,

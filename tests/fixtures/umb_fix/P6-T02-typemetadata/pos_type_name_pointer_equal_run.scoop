@@ -1,0 +1,25 @@
+// EXPECT: pass
+// RUN-STDOUT-CONTAINS: ok
+// P6-T02: repeated TypeMetadataLiteral reads must return the same immortal ScoopString pointer.
+
+package fixtures.umb_fix.p6_t02_typemetadata
+
+import scoop.core.*
+import scoop.unsafe.*
+
+struct Point(val x: Int)
+
+fun ptrOf(value: String): UIntPtr {
+    return @Unsafe do { __scoop_unsafe_value_to_word<String>(value) }
+}
+
+fun main(): Unit {
+    val first: String = Point::class
+    val second: String = Point::class
+
+    if (!(ptrOf(first) == ptrOf(second))) {
+        panic("type metadata string pointers differ")
+    }
+
+    println("ok")
+}

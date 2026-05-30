@@ -249,7 +249,7 @@
   - IR 复核：Platform 聚合通过通用 `try_emit_immortal_struct` 产生 `%scoop.core.Platform` value constant global，不带 GC header；五个字段指向 ref 层 immortal `ScoopString` wrapper（`@__scoop_str_lit_...`），fixture 锁定零 `scoop_alloc_typed`。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T02：`TypeMetadataLiteral` 审计与指针相等断言
+### [DONE] P6-T02：`TypeMetadataLiteral` 审计与指针相等断言
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -270,7 +270,11 @@
   - TypeMetadataLiteral 不可变性确认，指针相等成立。
 - 依赖：P6-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 审计范围：`nameOf<T>()` / `T::class` lowering 只生成 `TypeMetadataLiteralKind::TypeNameString`；MIR materialize 只重写 `source_ty`，validation 只验证源类型，dump/summary/inline/escape/effect-facts/effect-lowered 处理点只做展示、分类或依赖分析，不写入 materialized `ScoopString`；LLVM codegen 通过 `codegen_string_literal_from_text` 复用 immortal String 池。
+  - 不可变性记录：在 `TypeMetadataLiteral` MIR 定义和 LLVM `codegen_mir_type_metadata_literal` 发射点补充注释，明确 TypeNameString 消费者必须把结果视为只读，且允许复用 pointer-stable immortal `ScoopString`。
+  - 测试/fixture：新增 `tests/fixtures/umb_fix/P6-T02-typemetadata/pos_type_name_pointer_equal_run.scoop`，使用 `__scoop_unsafe_value_to_word<String>` 直接断言两次 `Point::class` 返回同一个 `ScoopString` 指针。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T02-typemetadata --exit-on-failure`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P6-T02R：Review TypeMetadata 审计
 
