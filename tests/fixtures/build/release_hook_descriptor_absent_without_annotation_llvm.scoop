@@ -1,0 +1,15 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: = internal constant %scoop.runtime.ScoopTypeDescriptor
+// BUILD-LLVM-CONTAINS: ptr null, ptr null
+// BUILD-LLVM-NOT-CONTAINS: __scoop_release_
+
+package fixtures.build.releasehook
+
+import scoop.core.*
+
+class PlainResource(val raw: UInt, val tag: UInt)
+
+fun main() {
+    val _plain: PlainResource = PlainResource(11u, 13u)
+}

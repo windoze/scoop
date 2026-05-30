@@ -45,7 +45,7 @@
 | P1-T04R | [DONE] | Review P1-T04 fixtures |
 | P2-T01 | [DONE] | 生成 release trampoline（按字段读值并调用释放函数） |
 | P2-T01R | [DONE] | Review P2-T01 trampoline |
-| P2-T02 | [TODO] | 在 type descriptor 填 `release_fn` + IR fixtures |
+| P2-T02 | [DONE] | 在 type descriptor 填 `release_fn` + IR fixtures |
 | P2-T02R | [TODO] | Review P2-T02 descriptor 接线 |
 | P3-T01 | [TODO] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
 | P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
@@ -316,7 +316,7 @@
   - 2026-05-31：复核 P2-T01 trampoline：字段读取路径从 runtime 传入的 object header 指针进入完整 class object layout，再经 payload GEP 读取 `args` 字段；调用参数按注解字段顺序传入，类型经既有 codegen ABI coercion 对齐；trampoline 对 `@Extern(abi="c")` 目标不插入普通 `scoop_enter_native` / `scoop_leave_native` boundary。review 发现未被普通调用引用的 `@Extern(abi="c")` release target 缺少 LIR callable symbol facts 时会被误声明为 exported Scoop callable，已修复为从 HIR `extern_funs` 回退取得 native symbol/import surface。新增 `tests/fixtures/build/release_hook_trampoline_emit_llvm.scoop`，锁定 trampoline internal 函数、header→payload 字段 GEP、参数顺序、native target 调用与无 native boundary。
   - 验证：`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_trampoline_emit_llvm.scoop`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02：在 type descriptor 填 `release_fn` + IR fixtures
+### [DONE] P2-T02：在 type descriptor 填 `release_fn` + IR fixtures
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2-T02、P2-T03
@@ -331,7 +331,8 @@
 - 完成条件：descriptor 正确接线，IR fixture 锁定。
 - 依赖：P2-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：`get_or_create_type_descriptor_global` 现在按 HIR `ReleaseHookIndex` 为带 `@ReleaseHook` 的 class descriptor 填入 release trampoline 函数指针，`release_fn` 槽位保持在 `trace_fn` 之后；无注解类型继续写入 null。补充 LLVM 单元断言与 build fixtures：`release_hook_trampoline_emit_llvm.scoop` 锁定 descriptor 指向 trampoline、trampoline 字段读取/调用顺序与无 native boundary；新增 `release_hook_descriptor_absent_without_annotation_llvm.scoop` 锁定无注解 class 不生成 trampoline 且 descriptor `release_fn` 保持 null。
+  - 验证：`cargo fmt`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_trampoline_emit_llvm.scoop`；`python3 tools/run_fixtures.py tests/fixtures/build/release_hook_descriptor_absent_without_annotation_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P2-T02R：Review P2-T02 descriptor 接线
 

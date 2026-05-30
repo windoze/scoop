@@ -495,6 +495,16 @@ fun releaseNative(raw: Ptr<Int>, tag: UInt): Unit
 @ReleaseHook(name = "fixtures.releasehook.releaseNative", args = ["raw", "tag"])
 class NativeResource(val raw: Ptr<Int>, val tag: UInt)
 
+class PlainResource(val raw: UInt, val tag: UInt)
+
+fun keepNative(raw: Ptr<Int>) {
+    val _native: NativeResource = NativeResource(raw, 7u)
+}
+
+fun keepPlain(raw: UInt) {
+    val _plain: PlainResource = PlainResource(11u, 13u)
+}
+
 fun main() {}
 "#,
     );
@@ -523,6 +533,24 @@ fun main() {}
     assert!(
         !trampoline.contains("@scoop_enter_native") && !trampoline.contains("@scoop_leave_native"),
         "release trampoline runs in GC release context and must not insert ordinary native boundary calls:\n{trampoline}"
+    );
+
+    let release_descriptor_lines = ir
+        .lines()
+        .filter(|line| {
+            line.contains("%scoop.runtime.ScoopTypeDescriptor")
+                && line.contains("ptr @__scoop_release_")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        release_descriptor_lines.len(),
+        1,
+        "exactly the annotated class descriptor should point at a release trampoline:\n{ir}"
+    );
+    assert!(
+        release_descriptor_lines[0].contains("ptr null, ptr @__scoop_release_"),
+        "release_fn slot must be the descriptor field after trace_fn:\n{}",
+        release_descriptor_lines[0]
     );
 }
 

@@ -1177,6 +1177,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv
     }
 
+    fn type_descriptor_release_fn_ptr(
+        &mut self,
+        at: crate::span::Span,
+        type_id_key: &str,
+        i8_ptr_ty: PointerType<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if !self.release_hooks.contains_key(type_id_key) {
+            return Ok(i8_ptr_ty.const_null());
+        }
+
+        let class_key = self.registered_class_instance_key(type_id_key).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "type descriptor `{type_id_key}` has a release hook but no class layout metadata"
+                ),
+            }
+        })?;
+        let trampoline = self
+            .get_or_create_release_trampoline(at, &class_key)?
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "type descriptor `{type_id_key}` has a release hook but no release trampoline"
+                ),
+            })?;
+        Ok(trampoline
+            .as_global_value()
+            .as_pointer_value()
+            .const_cast(i8_ptr_ty))
+    }
+
     pub(super) fn get_or_create_type_descriptor_global(
         &mut self,
         spec: TypeDescriptorSpec<'ctx, '_>,
@@ -1223,6 +1253,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let itable_ptr = itable.unwrap_or_else(|| i8_ptr_ty.const_null());
         let vtable_ptr = vtable.unwrap_or_else(|| i8_ptr_ty.const_null());
+        let release_fn_ptr = self.type_descriptor_release_fn_ptr(at, type_id_key, i8_ptr_ty)?;
 
         let values: [BasicValueEnum<'ctx>; 14] = [
             i32_ty.const_zero().into(), // abi_version
@@ -1234,7 +1265,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i32_ty.const_zero().into(), // _reserved_u32
             bitmap_ptr.into(),
             i8_ptr_ty.const_null().into(), // trace_fn
-            i8_ptr_ty.const_null().into(), // release_fn
+            release_fn_ptr.into(),         // release_fn
             i64_ty
                 .const_int(stable_rtti_type_id(type_id_key), false)
                 .into(),
