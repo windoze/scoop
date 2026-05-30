@@ -2854,17 +2854,6 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.getByte"
             | "scoop.core.toInt"
             | "scoop.core.panic"
-            | "scoop.sync.mutexCreate"
-            | "scoop.sync.lock"
-            | "scoop.sync.unlock"
-            | "scoop.sync.condVarCreate"
-            | "scoop.sync.wait"
-            | "scoop.sync.notifyOne"
-            | "scoop.sync.notifyAll"
-            | "scoop.sync.onceCreate"
-            | "scoop.sync.isDone"
-            | "scoop.sync.run"
-            | "scoop.sync.destroy"
     )
 }
 

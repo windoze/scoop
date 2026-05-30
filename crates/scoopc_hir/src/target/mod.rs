@@ -46,7 +46,7 @@ impl TargetPlatform {
         id.starts_with("linux-") || id.starts_with("macos-") || id.starts_with("windows-")
     }
 
-    /// 是否支持 `scoop.sync.Mutex` 这类同步原语的 runtime 落点。
+    /// 是否支持库级互斥锁这类同步原语的 runtime 落点。
     ///
     /// 备注：当前阶段 mutex 仅作为“线程能力”的一部分进行 gate。
     pub fn supports_sync_mutex(&self) -> bool {

@@ -665,7 +665,6 @@ mod tests {
         let delegates = sysroot.join("lib").join("scoop.delegates");
         let string = sysroot.join("lib").join("scoop.lang.string");
         let thread = sysroot.join("lib").join("scoop.thread");
-        let sync = sysroot.join("lib").join("scoop.sync");
         let runtime_test = sysroot.join("lib").join("scoop.runtime.test");
 
         write_manifest(
@@ -679,7 +678,6 @@ mod tests {
         write_manifest(&delegates, "scoop.delegates", ConeKind::Syslib, "");
         write_manifest(&string, "scoop.lang.string", ConeKind::Lib, "");
         write_manifest(&thread, "scoop.thread", ConeKind::Syslib, "");
-        write_manifest(&sync, "scoop.sync", ConeKind::Syslib, "");
         write_manifest(&runtime_test, "scoop.runtime.test", ConeKind::Syslib, "");
         write_file(
             &core.join("src").join("core.scoop"),
@@ -704,10 +702,6 @@ mod tests {
         write_file(
             &thread.join("src").join("thread.scoop"),
             "package scoop.thread\npublic fun currentId(): Int = 0\n",
-        );
-        write_file(
-            &sync.join("src").join("sync.scoop"),
-            "package scoop.sync\npublic class Mutex\n",
         );
         write_file(
             &runtime_test.join("src").join("runtime_test.scoop"),
@@ -764,7 +758,6 @@ mod tests {
             ]
         );
         assert!(!names.contains(&"scoop.thread"));
-        assert!(!names.contains(&"scoop.sync"));
         assert!(!names.contains(&"scoop.runtime.test"));
 
         let core_node = graph

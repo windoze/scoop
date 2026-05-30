@@ -615,9 +615,6 @@ mod tests {
         if source.text().contains("import scoop.runtime.test.*") {
             deps.push("scoop.runtime.test");
         }
-        if source.text().contains("import scoop.sync.*") {
-            deps.push("scoop.sync");
-        }
         if source.text().contains("import scoop.thread.*") {
             deps.push("scoop.thread");
         }

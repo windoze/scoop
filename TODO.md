@@ -57,7 +57,7 @@
 | P4-T02R | [DONE] | Review P4-T02 runtime 收缩 |
 | P4-T03 | [DONE] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
 | P4-T03R | [DONE] | Review P4-T03 intrinsic 删除 |
-| P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
+| P4-T04 | [DONE] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
 | P4-T04R | [TODO] | Review P4-T04 特判清理 |
 | P4-T05 | [TODO] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
 | P4-T05R | [TODO] | Review P4-T05 回归与守卫 |
@@ -496,7 +496,7 @@
   - 2026-05-31：复核 P4-T03 最新提交与当前源码：`SCOOP_SYNC_ONCE_RUN` runtime symbol、`declare_runtime_sync_once_run` ABI 声明、HIR direct-call lowering 中的 `scoop.sync.__scoop_sync_once_run` 分派、effect-lowered lowering 中的 `lower_sync_intrinsic` / sync once handler、`intrinsics/sync.rs` 模块以及 `lookup_pure_unit_closure_type` closure expected-type 特例均已删除；精确 grep 确认旧 `scoop_sync_once_run` / `__scoop_sync_once_run` / `codegen_sysroot_sync_once_run` / `declare_runtime_sync_once_run` / `lower_sync_intrinsic` / `lookup_pure_unit_closure_type` 名称只剩 TODO/PLAN/归档文档引用，不在编译器、runtime、sysroot 或测试源中残留。`sysroot/lib/scoop.sync/src/sync.scoop` 中 `Once.run` 为普通 Scoop method，组合 `Mutex` / `CondVar` 与 `@Extern(abi="c")` raw helper，并通过普通 closure call `block()` 运行初始化逻辑；`std_sync_basic` / `std_sync_api_surface_ok` / UMB sync fixtures 覆盖该常规路径，完整 fixture 回归无退化。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T04：删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判
+### [DONE] P4-T04：删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4-T04、§3.1、§6（lazy 属性同步风险）
@@ -511,7 +511,9 @@
 - 完成条件：除 P4-T04 决策保留的唯一消费侧引用外，编译器无 `scoop.sync` 实现性特判。
 - 依赖：P4-T01、P4-T03
 - 完成记录：
-  - （待填）
+  - 2026-05-31：删除 `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs` 中 11 个 `scoop.sync` public API 的 plain intrinsic / no-effect 白名单；class 化后的 `Mutex` / `CondVar` / `Once` 调用现在依赖 `sync.scoop` 普通函数声明与函数体 effect facts，完整回归确认可见 Pure 行为未变。收敛其余特判：`session` / `project_model` 中点名 `scoop.sync` 的命中点仅为旧测试夹具，已移除这些测试对 sync 名称的固化；LLVM 测试通用 `session_for_source` helper 不再根据源码文本自动注入 `scoop.sync`，唯一 sync ABI 单测改为显式声明自身需要该 sysroot cone。
+  - 决策：选择 P4-T04(a)，暂保留 lazy / observable / vetoable 属性合成中的 `Mutex` 消费侧引用，精确定界为 `HirLowering::SYNC_MUTEX_*` 四个 FQN 常量及其 lazy/delegate lowering 使用点；理由是 P5 已明确负责把三者降为普通库 class 并删除该注入点，本任务若提前下放 sysroot helper 会与 P5 的委托库化重叠且扩大变更面。该保留点只生成普通 HIR top-level call / nominal field，不走 sync intrinsic、runtime descriptor 或 codegen 专用分支。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T04R：Review P4-T04 特判清理
 

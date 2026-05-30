@@ -239,7 +239,6 @@ mod tests {
         assert!(packages.contains("scoop.delegates"));
         assert!(packages.contains("scoop.unsafe"));
         assert!(!packages.contains("scoop.thread"));
-        assert!(!packages.contains("scoop.sync"));
         assert!(!packages.contains("scoop.runtime.test"));
     }
 
@@ -266,6 +265,5 @@ mod tests {
             .collect::<std::collections::BTreeSet<_>>();
 
         assert!(packages.contains("scoop.thread"));
-        assert!(!packages.contains("scoop.sync"));
     }
 }

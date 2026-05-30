@@ -211,7 +211,7 @@ impl<'a> HirLowering<'a> {
         let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
 
         // `LazyThreadSafetyMode.None`：沿用早期阶段的“无锁 + bool 标记”实现；
-        // 其它模式：通过 `scoop.sync.Mutex` 保障并发可见性（lock/unlock 作为 acquire/release）。
+        // 其它模式：通过库级 Mutex 保障并发可见性（lock/unlock 作为 acquire/release）。
         if info.mode == StdLazyThreadSafetyMode::None {
             let subject = self.member_access_to_class_field(
                 span,

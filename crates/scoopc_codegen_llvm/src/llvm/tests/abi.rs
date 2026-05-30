@@ -1094,7 +1094,10 @@ fun main(): Int {
 "#,
     );
 
-    let session = session_for_source(&source);
+    let session = Session::with_options(
+        SessionOptions::new().with_extra_sysroot_dependencies(["scoop.sync"]),
+    )
+    .unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
