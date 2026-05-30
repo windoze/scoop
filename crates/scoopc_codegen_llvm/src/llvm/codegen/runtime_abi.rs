@@ -261,27 +261,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
-    // --- std v3：sync private adapter ---
-
-    pub(super) fn declare_runtime_sync_once_run(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_SYNC_ONCE_RUN;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_sync_once_run(void* once_obj, void* env_ptr, void (*fn)(void* env_ptr))`
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let env_ptr_ty = self.llvm_i8_ptr_type();
-        let init_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] = [
-            gc_i8_ptr_ty.into(),
-            env_ptr_ty.into(),
-            init_fn_ptr_ty.into(),
-        ];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     pub(super) fn declare_runtime_alloc_typed(&self) -> FunctionValue<'ctx> {
         const CHECKED_NAME: &str = "__scoop_alloc_typed_checked";
         if let Some(existing) = self.module.get_function(CHECKED_NAME) {

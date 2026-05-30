@@ -55,7 +55,7 @@
 | P4-T01R | [DONE] | Review P4-T01 sync 源改造 |
 | P4-T02 | [DONE] | 收缩 `scoop_sync.c` 为只管 raw native handle |
 | P4-T02R | [DONE] | Review P4-T02 runtime 收缩 |
-| P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
+| P4-T03 | [DONE] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
 | P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
 | P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
 | P4-T04R | [TODO] | Review P4-T04 特判清理 |
@@ -470,7 +470,7 @@
   - 同步复核 `sysroot/lib/scoop.sync/src/sync.scoop`：三类型仍为普通 `@ReleaseHook` class，op 走 `@Extern(abi="c")` raw helper，未发现 sync 相关 `@Intrinsic` 或 `@Extern(abi="scoop")` 包装残留；`Once.run` intrinsic 的 compiler 侧旧硬编码仍由后续 P4-T03 明确处理，本 review 不越界删除。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T03：删除 `Once.run` intrinsic 全套硬编码
+### [DONE] P4-T03：删除 `Once.run` intrinsic 全套硬编码
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4-T03、§3.1
@@ -484,7 +484,8 @@
 - 完成条件：编译器 codegen/runtime 层无 `Once.run` 专用路径。
 - 依赖：P4-T01（纯 Scoop `Once.run` 必须先就位）
 - 完成记录：
-  - （待填）
+  - 2026-05-31：删除 `Once.run` intrinsic codegen/runtime 残留：移除 `SCOOP_SYNC_ONCE_RUN` runtime symbol、`declare_runtime_sync_once_run` ABI 声明、HIR direct-call lowering 中对 `scoop.sync.__scoop_sync_once_run` 的 FQN dispatch、effect-lowered lowering 中的 `lower_sync_intrinsic` / `sync_once_run` handler，以及仅服务该路径的 `intrinsics/sync.rs` 模块与 `lookup_pure_unit_closure_type` closure expected-type 特例。`Once.run` 现在只通过 `sysroot/lib/scoop.sync/src/sync.scoop` 的普通 Scoop method 进入常规 method/closure codegen；编译器 crate 内 grep 已无 `scoop_sync_once_run`、`__scoop_sync_once_run`、`codegen_sysroot_sync_once_run`、`declare_runtime_sync_once_run`、`lower_sync_intrinsic` 或 `lookup_pure_unit_closure_type` 残留。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T03R：Review P4-T03 intrinsic 删除
 

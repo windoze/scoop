@@ -684,35 +684,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         env_ty.set_body(&fields, false);
         Ok(env_ty)
     }
-
-    /// 在当前 compilation unit 的 `TypeStore` 中查找 `() -> Unit / Pure` 的函数类型。
-    ///
-    /// 用途：
-    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 source callable contracts 中只有声明，
-    ///   但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
-    pub(in crate::llvm::codegen) fn lookup_pure_unit_closure_type(&self) -> Option<TypeId> {
-        let unit = self
-            .types
-            .iter_ids()
-            .find(|id| matches!(self.types.kind(*id), TypeKind::Value(ValueTypeKind::Unit)))?;
-
-        let mut fallback = None;
-        for id in self.types.iter_ids() {
-            let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(id) else {
-                continue;
-            };
-            if fun_ty.receiver.is_some()
-                || !fun_ty.params.is_empty()
-                || fun_ty.return_ty != unit
-                || !fun_ty.effects.is_pure()
-            {
-                continue;
-            }
-            if fun_ty.effects_closed {
-                return Some(id);
-            }
-            fallback.get_or_insert(id);
-        }
-        fallback
-    }
 }

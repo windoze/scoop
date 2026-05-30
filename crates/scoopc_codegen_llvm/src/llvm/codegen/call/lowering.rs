@@ -1555,9 +1555,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
-            if dispatch_fqn == "scoop.sync.__scoop_sync_once_run" {
-                return self.codegen_sysroot_sync_once_run(span, callee.span, args);
-            }
             if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
                 return self.codegen_sysroot_atomic_int_intrinsics(
                     span,

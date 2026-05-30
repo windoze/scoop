@@ -1791,9 +1791,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return self.lower_panic_call(span, args);
         }
         let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
-        if let Some(value) = self.lower_sync_intrinsic(span, dispatch_fqn, args)? {
-            return Ok(value);
-        }
         if dispatch_fqn == "scoop.unsafe.invoke" {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
@@ -1920,117 +1917,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             ))
         })?;
         self.extract_pure_call_complete(span, layout, step, target_cg)
-    }
-
-    fn lower_sync_intrinsic(
-        &mut self,
-        span: Span,
-        dispatch_fqn: &str,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        match dispatch_fqn {
-            "scoop.sync.__scoop_sync_once_run" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
-                let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let deferred_once = self.codegen.defer_gc_ref_pointer(
-                    args[0].span,
-                    "sync_once_run_receiver",
-                    once,
-                )?;
-                let block = self.lower_sync_ref_arg(dispatch_fqn, &args[1])?;
-                let closure_ty = self.codegen.llvm_closure_object_type();
-                let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
-                let closure_ptr = self.codegen.builder.build_pointer_cast(
-                    block,
-                    closure_ptr_ty,
-                    "once_block_ptr",
-                )?;
-                let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
-                let env_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    1,
-                    "once_env_gep",
-                )?;
-                let fn_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    2,
-                    "once_fn_gep",
-                )?;
-                let env_ptr = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, env_gep, "once_env")?
-                    .into_pointer_value();
-                let fn_ptr_raw = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, fn_gep, "once_fn_raw")?
-                    .into_pointer_value();
-                let init_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
-                let init_fn_ptr = self.codegen.builder.build_pointer_cast(
-                    fn_ptr_raw,
-                    init_fn_ptr_ty,
-                    "once_fn_typed",
-                )?;
-                let once = self.codegen.reload_deferred_gc_ref_without_clearing(
-                    args[0].span,
-                    "sync_once_run_receiver_reload",
-                    &deferred_once,
-                )?;
-                let rt = self.codegen.declare_runtime_sync_once_run();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[once.into(), env_ptr.into(), init_fn_ptr.into()],
-                    "sync_once_run",
-                )?;
-                self.codegen.clear_deferred_cg_value_root_homes(
-                    args[0].span,
-                    "sync_once_run_receiver_drop",
-                    &deferred_once,
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            _ => Ok(None),
-        }
-    }
-
-    fn expect_sync_arity(
-        &self,
-        span: Span,
-        dispatch_fqn: &str,
-        args: &[mir::CallArg],
-        expected: usize,
-    ) -> Result<(), LlvmEmitError> {
-        if args.len() != expected || args.iter().any(|arg| arg.name.is_some()) {
-            self.codegen.panic_verified_intrinsic_contract(
-                "effect-lowered sync intrinsic",
-                "argument count or named argument drift",
-            );
-        }
-        let _ = (span, dispatch_fqn);
-        Ok(())
-    }
-
-    fn lower_sync_ref_arg(
-        &mut self,
-        dispatch_fqn: &str,
-        arg: &mir::CallArg,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let value = self.codegen.codegen_mir_operand_expected(
-            arg.span,
-            &arg.value,
-            self.slots,
-            Some(CgTy::Ref),
-        )?;
-        let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
-        let ptr = self
-            .codegen
-            .expect_cg_pointer(value, "effect-lowered sync intrinsic ref arg");
-        let _ = dispatch_fqn;
-        Ok(ptr)
     }
 
     fn lower_atomic_int_intrinsic(
