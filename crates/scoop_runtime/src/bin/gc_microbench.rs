@@ -2,9 +2,10 @@
 //!
 //! 目标（TODO T1406d）：
 //! - 提供一个“可重复运行、可比较”的最小基准工具；
-//! - 覆盖两类指标：
+//! - 覆盖三类指标：
 //!   1) 分配吞吐（alloc throughput）
 //!   2) 碎片化（reserved bytes vs live bytes）
+//!   3) pacing baseline（long-running heap growth curve）
 //! - 结果用于本地对比 baseline vs Immix；不做跨机器阈值 gating（避免不稳定）。
 //!
 //! 用法示例：
@@ -44,6 +45,7 @@ unsafe extern "C" {
 enum Scenario {
     Throughput,
     Fragmentation,
+    HeapGrowth,
 }
 
 impl Scenario {
@@ -51,6 +53,7 @@ impl Scenario {
         match self {
             Scenario::Throughput => "throughput",
             Scenario::Fragmentation => "fragmentation",
+            Scenario::HeapGrowth => "heap-growth",
         }
     }
 }
@@ -61,6 +64,7 @@ struct Args {
 
     // 通用参数
     object_size: u64,
+    object_size_explicit: bool,
     json: bool,
     output: Option<PathBuf>,
 
@@ -72,6 +76,10 @@ struct Args {
     // fragmentation 参数
     initial: u32,
     pin_stride: u32,
+
+    // heap-growth 参数
+    growth_allocations: u64,
+    sample_every: u64,
 }
 
 impl Default for Args {
@@ -79,6 +87,7 @@ impl Default for Args {
         Self {
             scenario: Scenario::Throughput,
             object_size: 256,
+            object_size_explicit: false,
             json: false,
             output: None,
             threads: 1,
@@ -86,6 +95,8 @@ impl Default for Args {
             batch: 50_000,
             initial: 200_000,
             pin_stride: 100,
+            growth_allocations: 10_000_000,
+            sample_every: 1_000_000,
         }
     }
 }
@@ -95,7 +106,7 @@ fn print_help() {
         r#"gc_microbench（TODO T1406d）
 
 用法：
-  gc_microbench <throughput|fragmentation> [options]
+  gc_microbench <throughput|fragmentation|heap-growth> [options]
 
 通用 options：
   --object-size <bytes>      单次分配 size（包含对象头）
@@ -111,6 +122,11 @@ fragmentation options：
   --initial <n>              初始总分配对象数
   --pin-stride <n>           每 N 个对象 pin 1 个（形成“稀疏存活”）
 
+heap-growth options：
+  --allocations <n>          分配对象数（默认 10000000）
+  --sample-every <n>         每 N 次分配记录一次 GC bytes 曲线（默认 1000000）
+                             未显式指定 --object-size 时，该场景默认使用 32 bytes 小对象
+
 示例：
   # 吞吐：baseline vs immix（建议用 tools/gc_microbench.sh 一键跑）
   cargo run -p scoop_runtime --release --bin gc_microbench --no-default-features --features gc-baseline -- throughput
@@ -118,6 +134,9 @@ fragmentation options：
 
   # 碎片化：稀疏存活（pinned）导致 reserved bytes 升高（non-moving Immix 的典型现象）
   cargo run -p scoop_runtime --release --bin gc_microbench --no-default-features --features gc-immix -- fragmentation --initial 200000 --pin-stride 100
+
+  # P0/P1 pacing 度量：baseline 下不主动 GC，10M 小对象会显示 heap 单调增长
+  cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json
 "#
     );
 }
@@ -152,6 +171,7 @@ fn parse_args() -> Args {
         }
         "throughput" => args.scenario = Scenario::Throughput,
         "fragmentation" => args.scenario = Scenario::Fragmentation,
+        "heap-growth" => args.scenario = Scenario::HeapGrowth,
         other => {
             eprintln!("未知场景：{other}");
             print_help();
@@ -167,6 +187,7 @@ fn parse_args() -> Args {
                     std::process::exit(2);
                 };
                 args.object_size = parse_u64("object_size", &v);
+                args.object_size_explicit = true;
             }
             "--json" => args.json = true,
             "--output" => {
@@ -211,6 +232,20 @@ fn parse_args() -> Args {
                 };
                 args.pin_stride = parse_u32("pin_stride", &v);
             }
+            "--allocations" => {
+                let Some(v) = it.next() else {
+                    eprintln!("缺少参数：--allocations <n>");
+                    std::process::exit(2);
+                };
+                args.growth_allocations = parse_u64("allocations", &v);
+            }
+            "--sample-every" => {
+                let Some(v) = it.next() else {
+                    eprintln!("缺少参数：--sample-every <n>");
+                    std::process::exit(2);
+                };
+                args.sample_every = parse_u64("sample_every", &v);
+            }
             "-h" | "--help" => {
                 print_help();
                 std::process::exit(0);
@@ -221,6 +256,10 @@ fn parse_args() -> Args {
                 std::process::exit(2);
             }
         }
+    }
+
+    if matches!(args.scenario, Scenario::HeapGrowth) && !args.object_size_explicit {
+        args.object_size = 32;
     }
 
     args
@@ -254,6 +293,29 @@ struct ThroughputRound {
     bytes: u64,
     alloc_elapsed: Duration,
     stw_elapsed: Duration,
+}
+
+/// heap-growth 场景下的一次采样点。
+#[derive(Debug, Clone, Copy)]
+struct HeapGrowthSample {
+    allocation: u64,
+    allocated: u64,
+    freed: u64,
+    live: u64,
+    reserved: u64,
+}
+
+impl HeapGrowthSample {
+    fn from_gc_bytes(allocation: u64, gc: (u64, u64, u64, u64)) -> Self {
+        let (allocated, freed, live, reserved) = gc;
+        Self {
+            allocation,
+            allocated,
+            freed,
+            live,
+            reserved,
+        }
+    }
 }
 
 impl ThroughputRound {
@@ -437,6 +499,7 @@ fn run_throughput(args: &Args) -> BenchResult {
         start_gc,
         end_gc,
         rounds: throughput_rounds,
+        heap_growth_samples: Vec::new(),
         params: BenchParams::Throughput {
             threads,
             rounds,
@@ -501,9 +564,66 @@ fn run_fragmentation(args: &Args) -> BenchResult {
         start_gc,
         end_gc,
         rounds: Vec::new(),
+        heap_growth_samples: Vec::new(),
         params: BenchParams::Fragmentation {
             initial,
             pin_stride,
+        },
+    }
+}
+
+fn run_heap_growth(args: &Args) -> BenchResult {
+    let requested = args.growth_allocations.max(1);
+    let sample_every = args.sample_every.max(1);
+    let start_gc = read_gc_bytes();
+
+    let mut samples = Vec::new();
+    samples.push(HeapGrowthSample::from_gc_bytes(0, start_gc));
+
+    let mut allocations: u64 = 0;
+    let t0 = Instant::now();
+
+    for i in 1..=requested {
+        let p = unsafe { scoop_alloc(args.object_size) };
+        if p.is_null() {
+            eprintln!(
+                "OOM：scoop_alloc(size={}) 返回 NULL（allocation={i}）",
+                args.object_size
+            );
+            break;
+        }
+        allocations = i;
+
+        if i.is_multiple_of(sample_every) || i == requested {
+            samples.push(HeapGrowthSample::from_gc_bytes(i, read_gc_bytes()));
+        }
+    }
+
+    let elapsed = t0.elapsed();
+    let end_gc = read_gc_bytes();
+    if samples.last().map(|sample| sample.allocation) != Some(allocations) {
+        samples.push(HeapGrowthSample::from_gc_bytes(allocations, end_gc));
+    }
+
+    BenchResult {
+        backend: format!("{:?}", GC_BACKEND),
+        scenario: Scenario::HeapGrowth,
+        object_size: args.object_size,
+        elapsed_ms: fmt_duration_ms(elapsed),
+        allocations: Some(allocations),
+        bytes: Some(args.object_size.saturating_mul(allocations)),
+        allocs_per_sec: Some((allocations as f64) / elapsed.as_secs_f64().max(1e-9)),
+        bytes_per_sec: Some(
+            (args.object_size.saturating_mul(allocations) as f64) / elapsed.as_secs_f64().max(1e-9),
+        ),
+        pinned: None,
+        start_gc,
+        end_gc,
+        rounds: Vec::new(),
+        heap_growth_samples: samples,
+        params: BenchParams::HeapGrowth {
+            requested_allocations: requested,
+            sample_every,
         },
     }
 }
@@ -518,6 +638,10 @@ enum BenchParams {
     Fragmentation {
         initial: u32,
         pin_stride: u32,
+    },
+    HeapGrowth {
+        requested_allocations: u64,
+        sample_every: u64,
     },
 }
 
@@ -542,6 +666,9 @@ struct BenchResult {
     //
     // 说明：fragmentation 场景下为空。
     rounds: Vec<ThroughputRound>,
+
+    // heap-growth 额外观测：不主动 GC 的长分配循环中，GC bytes 随分配次数变化的曲线。
+    heap_growth_samples: Vec<HeapGrowthSample>,
 
     params: BenchParams,
 }
@@ -604,6 +731,15 @@ impl BenchResult {
                     initial, pin_stride, pin_stride
                 ));
             }
+            BenchParams::HeapGrowth {
+                requested_allocations,
+                sample_every,
+            } => {
+                out.push_str(&format!(
+                    "params: allocations={} sample_every={}\n",
+                    requested_allocations, sample_every
+                ));
+            }
         }
 
         if let Some(pinned) = self.pinned {
@@ -630,6 +766,42 @@ impl BenchResult {
                 out.push_str(&format!(
                     "stw_summary: total_ms={} avg_ms={} min_ms={} max_ms={}\n",
                     s.total_ms, s.avg_ms, s.min_ms, s.max_ms
+                ));
+            }
+        }
+
+        if matches!(&self.params, BenchParams::HeapGrowth { .. })
+            && !self.heap_growth_samples.is_empty()
+        {
+            let peak_allocated = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.allocated)
+                .max()
+                .unwrap_or(0);
+            let peak_live = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.live)
+                .max()
+                .unwrap_or(0);
+            let peak_reserved = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.reserved)
+                .max()
+                .unwrap_or(0);
+            out.push_str(&format!(
+                "heap_growth: samples={} peak_allocated={} peak_live={} peak_reserved={}\n",
+                self.heap_growth_samples.len(),
+                peak_allocated,
+                peak_live,
+                peak_reserved
+            ));
+            for sample in &self.heap_growth_samples {
+                out.push_str(&format!(
+                    "heap_sample: allocation={} allocated={} freed={} live={} reserved={}\n",
+                    sample.allocation, sample.allocated, sample.freed, sample.live, sample.reserved
                 ));
             }
         }
@@ -686,6 +858,13 @@ impl BenchResult {
             } => {
                 format!("{{\"initial\":{},\"pin_stride\":{}}}", initial, pin_stride)
             }
+            BenchParams::HeapGrowth {
+                requested_allocations,
+                sample_every,
+            } => format!(
+                "{{\"allocations\":{},\"sample_every\":{}}}",
+                requested_allocations, sample_every
+            ),
         };
 
         let mut kv: Vec<String> = Vec::new();
@@ -756,6 +935,51 @@ impl BenchResult {
             }
         }
 
+        if matches!(&self.params, BenchParams::HeapGrowth { .. })
+            && !self.heap_growth_samples.is_empty()
+        {
+            let peak_allocated = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.allocated)
+                .max()
+                .unwrap_or(0);
+            let peak_live = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.live)
+                .max()
+                .unwrap_or(0);
+            let peak_reserved = self
+                .heap_growth_samples
+                .iter()
+                .map(|sample| sample.reserved)
+                .max()
+                .unwrap_or(0);
+
+            kv.push(format!("\"peak_allocated\":{}", peak_allocated));
+            kv.push(format!("\"peak_live\":{}", peak_live));
+            kv.push(format!("\"peak_reserved\":{}", peak_reserved));
+
+            let mut samples_json = String::new();
+            samples_json.push('[');
+            for (i, sample) in self.heap_growth_samples.iter().enumerate() {
+                if i != 0 {
+                    samples_json.push(',');
+                }
+                samples_json.push_str(&format!(
+                    "{{\"allocation\":{},\"allocated\":{},\"freed\":{},\"live\":{},\"reserved\":{}}}",
+                    sample.allocation,
+                    sample.allocated,
+                    sample.freed,
+                    sample.live,
+                    sample.reserved
+                ));
+            }
+            samples_json.push(']');
+            kv.push(format!("\"heap_growth_samples\":{}", samples_json));
+        }
+
         format!("{{{}}}\n", kv.join(","))
     }
 }
@@ -797,6 +1021,7 @@ fn main() {
     let result = match args.scenario {
         Scenario::Throughput => run_throughput(&args),
         Scenario::Fragmentation => run_fragmentation(&args),
+        Scenario::HeapGrowth => run_heap_growth(&args),
     };
 
     emit_output(&args, &result);
@@ -842,6 +1067,7 @@ mod tests {
             start_gc: (0, 0, 0, 0),
             end_gc: (0, 0, 0, 0),
             rounds: vec![r0, r1],
+            heap_growth_samples: Vec::new(),
             params: BenchParams::Throughput {
                 threads: 2,
                 rounds: 2,
@@ -881,6 +1107,7 @@ mod tests {
                 alloc_elapsed: Duration::from_secs(1),
                 stw_elapsed: Duration::from_millis(2),
             }],
+            heap_growth_samples: Vec::new(),
             params: BenchParams::Throughput {
                 threads: 2,
                 rounds: 1,
@@ -909,6 +1136,7 @@ mod tests {
             start_gc: (0, 0, 0, 0),
             end_gc: (0, 0, 0, 0),
             rounds: Vec::new(),
+            heap_growth_samples: Vec::new(),
             params: BenchParams::Fragmentation {
                 initial: 10,
                 pin_stride: 2,
@@ -918,5 +1146,40 @@ mod tests {
         let json = result.to_json_line();
         assert!(!json.contains("\"rounds\""));
         assert!(!json.contains("\"stw_summary\""));
+    }
+
+    #[test]
+    fn heap_growth_output_includes_peak_and_samples() {
+        let result = BenchResult {
+            backend: "dummy".to_string(),
+            scenario: Scenario::HeapGrowth,
+            object_size: 32,
+            elapsed_ms: 123,
+            allocations: Some(2),
+            bytes: Some(64),
+            allocs_per_sec: Some(10.0),
+            bytes_per_sec: Some(320.0),
+            pinned: None,
+            start_gc: (0, 0, 0, 0),
+            end_gc: (64, 0, 64, 32768),
+            rounds: Vec::new(),
+            heap_growth_samples: vec![
+                HeapGrowthSample::from_gc_bytes(0, (0, 0, 0, 0)),
+                HeapGrowthSample::from_gc_bytes(2, (64, 0, 64, 32768)),
+            ],
+            params: BenchParams::HeapGrowth {
+                requested_allocations: 2,
+                sample_every: 1,
+            },
+        };
+
+        let out = result.to_human_text();
+        assert!(out.contains("params: allocations=2 sample_every=1\n"));
+        assert!(out.contains("heap_growth: samples=2 peak_allocated=64 peak_live=64 "));
+        assert!(out.contains("heap_sample: allocation=2 allocated=64 freed=0 live=64 "));
+
+        let json = result.to_json_line();
+        assert!(json.contains("\"peak_live\":64"));
+        assert!(json.contains("\"heap_growth_samples\":"));
     }
 }

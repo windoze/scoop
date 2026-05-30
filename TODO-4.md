@@ -7,7 +7,7 @@
 
 ## P5：通用谓词、折叠器与 String immortal
 
-### [TODO] P5-T01：实现 `is_immutable(T)` 谓词
+### [DONE] P5-T01：实现 `is_immutable(T)` 谓词
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -34,9 +34,13 @@
   - 谓词正确区分可常量化与不可常量化类型。
 - 依赖：P3-T02R、P4-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：新增 `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/immutability.rs`，实现结构化、递归、带 memo 的 `TypeImmutability::is_immutable(T)`。
+  - 谓词按类型特征判定：`@InteriorMutable` nominal 直接 false；标量、`String`、tuple、`Option`、value struct 递归字段；ref class 要求全部字段为 `val` 且字段类型递归不可变；未知/接口/函数/union/缺元数据保守 false。
+  - 通过 `CompilationUnitCodegenCx` 接入 `InteriorMutableIndex`，后续折叠器可直接消费该谓词，不需要名字匹配或类型白名单。
+  - 单元覆盖：`String`、tuple、合成 all-val struct/class 为 true；`RefCell`/`AtomicInt` var 字段、`__AtomicInt` / marked class `@InteriorMutable`、含 `RefCell` 字段的 class 为 false；自引用 all-val class 可终止且为 true。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T01R：Review `is_immutable` 谓词
+### [DONE] P5-T01R：Review `is_immutable` 谓词
 
 - 参考：
   - P5-T01 完成记录
@@ -57,9 +61,13 @@
   - 谓词可靠。
 - 依赖：P5-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T01 谓词保持结构化类型特征判定，未退回 `__AtomicInt` 等名字匹配；value struct 分支只递归字段类型、不检查 `var`；ref class 分支同时要求字段非 `var` 且字段类型递归不可变；`@InteriorMutable` 按 nominal metadata 查询并优先否决。
+  - 修正：发现并修复递归 memo 的 stale optimistic true 问题。`Visiting -> true` 现在会携带 optimistic 标志，只用于打断当前递归边；依赖 optimistic cycle 的 positive 结果不会写入永久 `Done(true)` 缓存，避免互递归类型中祖先后续判 false 时留下过期 true。
+  - 测试：新增 `recursive_class_cycle_with_mutable_member_does_not_cache_optimistic_true`，覆盖 `A -> B -> A` 且 `A` 含 `var` 字段时同一 analyzer 先查 `A` 再查 `B` 仍均为 false；保留 all-val 自引用 class 可终止且为 true 的覆盖。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T02：实现 `try_emit_immortal` 折叠器并路由 String literal
+### [DONE] P5-T02：实现 `try_emit_immortal` 折叠器并路由 String literal
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -90,9 +98,14 @@
   - String literal / `__type_name` 零堆分配，聚合按门提升或安全回退。
 - 依赖：P5-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：新增 `crates/scoopc_codegen_llvm/src/llvm/codegen/main/immortal.rs`，实现 immortal String wrapper 全局发射与 `StructLit` / `MakeTuple` 的安全提升入口。
+  - String / SynthString / `TypeMetadataLiteral::TypeNameString` 现在通过 content-hash 命名的 `@__scoop_str_lit_<hash>` 全局返回 `ScoopString addrspace(1)*`，header 设置 `next=null`、`SCOOP_GC_FLAG_IMMORTAL`、`SCOOP_GC_MARK_IMMORTAL`、runtime String type descriptor、对象大小，wrapper 与 byte data 均为 `constant` + `unnamed_addr`。
+  - 聚合提升门已接入 `Rvalue::StructLit` / `MakeTuple`：仅当字段全 `Operand::Const`、transport kind 为 Tuple/Struct、字段 transport 无 boxing 时尝试提升；值类型聚合发射 constant global 并按值 load；不支持或不安全的形状安全回退现有动态路径。
+  - 发现并修复当前任务触发的 verifier 边界：`SCOOP_GC_VERIFY_ROOTS=1` 现在接受带 immortal header 的 off-heap root，避免全局/栈 root 中的 immortal String 被误报为非 heap root。
+  - 测试/fixture：新增 P5-T02 IR fixtures 覆盖 String/TypeNameString 零 `scoop_alloc_typed` 与 aggregate boxing 回退；新增 runtime GC fixture 覆盖 10M 次 String literal evaluation 不增长 `bytes_allocated`；更新 P0 metric、hard-cap OOM、struct String root 相关 fixture 以匹配 String literal immortal 行为且保持原测试目标。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T02R：Review 折叠器与 String immortal
+### [DONE] P5-T02R：Review 折叠器与 String immortal
 
 - 参考：
   - P5-T02 完成记录
@@ -113,9 +126,13 @@
   - 折叠器正确、String immortal 安全。
 - 依赖：P5-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T02 折叠器入口保持安全提升门；`StructLit` / `MakeTuple` 仅在字段全 `Operand::Const`、aggregate transport kind 为 Tuple/Struct、字段 transport 无 boxing 时尝试提升；非 Const、嵌套聚合（经 Local）、EnumVariant、boxing/value-erasure 均回退动态路径或既有 enum 路径。
+  - Header 复核：immortal `ScoopString` 发射为 `addrspace(1) constant` 全局，header 为 `next=null`、`type_desc=@__scoop_type_desc_runtime__ScoopString`、目标 store size、`SCOOP_GC_FLAG_IMMORTAL`、`SCOOP_GC_MARK_IMMORTAL`；byte data 与 wrapper 均保持 content-keyed `unnamed_addr` 常量。
+  - 测试/fixture：补强 `pos_string_literal_immortal_ir.scoop`，锁定 addrspace(1) constant 与 header 字段形状；新增 `pos_aggregate_fallback_shapes_ir.scoop`，覆盖非 Const 字段、嵌套聚合和 EnumVariant 不生成 `@__scoop_immortal_agg_`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T03：String 内容池 dedup 与其它 ref 类型 per-site
+### [DONE] P5-T03：String 内容池 dedup 与其它 ref 类型 per-site
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -137,9 +154,15 @@
   - String 内容池生效，其它 ref 类型 per-site。
 - 依赖：P5-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - String wrapper 命名继续由 byte data content key 派生，`__scoop_str_data_<hash>` 与 `__scoop_str_lit_<hash>` 按字节内容跨 site 合并，并保持 `unnamed_addr`。
+  - 折叠器的 aggregate 全局命名改为显式 key mode：值类型聚合仍按内容 key 复用；ref 类型聚合会把当前 codegen body + literal span 纳入 key，并且不设置 `unnamed_addr`，避免非 String ref 类型跨站点合并。
+  - 新增单元测试覆盖 String wrapper 命名、值聚合 content mode 复用、ref 聚合 site mode 区分 literal site。
+  - 新增 `tests/fixtures/umb_fix/P5-T03-dedup/pos_string_content_pool_ir.scoop` 与 `pos_type_name_content_pool_ir.scoop`，锁定同函数重复 `"hello"` 与重复 `Point::class` 均引用同一个 content-keyed String wrapper，且零 `scoop_alloc_typed`。
+  - Dedup 边界：当前仅 String 走内容池；这是安全的，因为 String 不可变且 Scoop 无身份运算符，值语义下合并不可观测。其它 ref 类型即使将来进入 immortal 折叠，也保持 per-site 身份，不跨站合并。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immortal --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T03-dedup --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T03R：Review dedup 策略
+### [DONE] P5-T03R：Review dedup 策略
 
 - 参考：
   - P5-T03 完成记录
@@ -159,11 +182,15 @@
   - dedup 边界正确。
 - 依赖：P5-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T03 的 dedup 边界正确；String wrapper 继续由 byte data content key 派生，重复 String literal 与 `TypeMetadataLiteral::TypeNameString` 均复用同一个 content-keyed `ScoopString` 全局。
+  - 非 String ref 边界复核：aggregate key mode 已显式区分 `Content` 与 `Site`；ref aggregate 使用当前 codegen body + literal span 参与 key，且 site mode 不设置 `unnamed_addr`，不会被折叠器按内容跨站合并。
+  - 测试复核：`immortal` 单元覆盖 String content key、value aggregate content mode 复用、ref aggregate site mode 区分 literal site；P5-T03 dedup fixtures 覆盖重复 `"hello"` 与重复 `Point::class` 引用同一 content-keyed wrapper 且零 `scoop_alloc_typed`。
+  - 验证：`cargo test -p scoopc_codegen_llvm immortal --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T03-dedup --exit-on-failure`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；`python3 tools/spec_fixtures.py check`。
 
 ## P6：Platform 折叠与 TypeMetadataLiteral 审计
 
-### [TODO] P6-T01：Platform lower 成 StructLit 并删除专用 codegen
+### [DONE] P6-T01：Platform lower 成 StructLit 并删除专用 codegen
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -189,9 +216,14 @@
   - Platform 由通用机制处理，无专用代码。
 - 依赖：P5-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - MIR lowering：`TypedIntrinsicKind::Platform` / `getPlatform()` 现在直接生成 `Rvalue::StructLit`，字段为 `triple` / `arch` / `vendor` / `os` / `env` 五个 `Operand::Const(ConstValue::SynthString(...))`，aggregate transport kind 为 `Struct`，各字段 transport 保持 `boxing: None`。
+  - Codegen 收敛：删除 LLVM 侧 `codegen_platform_literal` 专用 helper、effect-lowered `getPlatform` 分支和只服务该 helper 的 target-triple 拆分逻辑；Platform 不再有专用常量化 codegen。
+  - Folding 结果：Platform 作为普通值类型 struct 进入通用 `try_emit_immortal_struct`，Platform 聚合全局是 `%scoop.core.Platform` constant，无 GC header；五个字段分别指向 immortal `ScoopString` wrapper。
+  - 测试/fixture：新增 MIR stage 单元 `mir_platform_intrinsic_lowers_to_structlit` 覆盖 Platform StructLit lowering，新增 LLVM stage 单元 `platform_literal_stage_ir_uses_immortal_structlit_without_alloc`；更新 `call_contracts` MIR golden 以保持平台无关；新增 `tests/fixtures/umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop` 锁定 `@__scoop_immortal_agg_`、Platform value global、字段 immortal String 和零 `scoop_alloc_typed`；新增 `tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop` 覆盖 10M 次 `Platform.os` 读取不增长 heap bytes。
+  - 验证：`cargo fmt`；`cargo test -p scoopc mir_call_contract_lowers_typed_call_sites --all-targets`；`cargo test -p scoopc mir_platform_intrinsic_lowers_to_structlit --all-targets`；`cargo test -p scoopc platform_literal_stage_ir_uses_immortal_structlit_without_alloc --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/mir_lowered/call_contracts.scoop --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T01-platform --exit-on-failure`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/platform_immortal_no_alloc_loop.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T01R：Review Platform 折叠
+### [DONE] P6-T01R：Review Platform 折叠
 
 - 参考：
   - P6-T01 完成记录
@@ -211,9 +243,13 @@
   - Platform 收敛正确。
 - 依赖：P6-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P6-T01 Platform 收敛正确；`TypedIntrinsicKind::Platform` / `scoop.core.getPlatform` 在 MIR lowering 阶段直接生成普通 `Rvalue::StructLit`，五个字段为 `Operand::Const(ConstValue::SynthString(...))`，aggregate transport kind 为 `Struct`，字段 transport 均无 boxing。
+  - 反向 grep 结论：源码中已无 `codegen_platform_literal`、`get_or_create_immortal_platform` 或 `immortal_platform` 专用 LLVM 常量化路径；`getPlatform` 的源码残留限于 MIR intrinsic lowering、前端/测试引用和历史文档记录。
+  - IR 复核：Platform 聚合通过通用 `try_emit_immortal_struct` 产生 `%scoop.core.Platform` value constant global，不带 GC header；五个字段指向 ref 层 immortal `ScoopString` wrapper（`@__scoop_str_lit_...`），fixture 锁定零 `scoop_alloc_typed`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T02：`TypeMetadataLiteral` 审计与指针相等断言
+### [DONE] P6-T02：`TypeMetadataLiteral` 审计与指针相等断言
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -234,9 +270,13 @@
   - TypeMetadataLiteral 不可变性确认，指针相等成立。
 - 依赖：P6-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 审计范围：`nameOf<T>()` / `T::class` lowering 只生成 `TypeMetadataLiteralKind::TypeNameString`；MIR materialize 只重写 `source_ty`，validation 只验证源类型，dump/summary/inline/escape/effect-facts/effect-lowered 处理点只做展示、分类或依赖分析，不写入 materialized `ScoopString`；LLVM codegen 通过 `codegen_string_literal_from_text` 复用 immortal String 池。
+  - 不可变性记录：在 `TypeMetadataLiteral` MIR 定义和 LLVM `codegen_mir_type_metadata_literal` 发射点补充注释，明确 TypeNameString 消费者必须把结果视为只读，且允许复用 pointer-stable immortal `ScoopString`。
+  - 测试/fixture：新增 `tests/fixtures/umb_fix/P6-T02-typemetadata/pos_type_name_pointer_equal_run.scoop`，使用 `__scoop_unsafe_value_to_word<String>` 直接断言两次 `Point::class` 返回同一个 `ScoopString` 指针。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T02-typemetadata --exit-on-failure`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T02R：Review TypeMetadata 审计
+### [DONE] P6-T02R：Review TypeMetadata 审计
 
 - 参考：
   - P6-T02 完成记录
@@ -255,4 +295,12 @@
   - immortal codegen 线收口（P5-P6 完成）。
 - 依赖：P6-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P6-T02 审计覆盖完整，`TypeMetadataLiteral` 无消费者 mutate materialized 值，指针相等断言真实成立。
+  - 消费者覆盖复核（穷举 `TypeMetadataLiteral` 引用）：
+    - 生产端：`hir/lower/expr/main_lower.rs`、`mir/lower/fn_lowering_call.rs`、`fn_lowering_effect.rs` 仅生成 `TypeMetadataLiteralKind::TypeNameString`，不写回 materialized 字符串。
+    - `materialize/rewrite.rs:888` 仅对 `metadata.source_ty` 做单态化类型替换，不触碰 materialized 值；`materialize/validation.rs:1379` 以不可变借用只校验 `source_ty`。
+    - `inline.rs:873` 仅 `metadata.clone()`；`dump.rs` / `summary.rs` / `escape.rs` / `pass_pipeline.rs` / `effect_facts/builder.rs` / `effect_lowered/*` 全部用 `_` ignore 形式，仅做展示、分类或依赖分析，无 mutate。
+  - 不可变性根因复核：MIR `TypeMetadataLiteral` 仅携带 `source_ty` / `source_fqn` / `kind`，实际 `ScoopString` 只在 codegen 期物化为内容池 immortal 全局，不存在可被消费者 mutate 的可写 materialized 值。
+  - 指针相等路径复核：LLVM 三个消费点（`mir_body/transport.rs:193`、`terminator.rs:416/582`、`expr.rs:86`）全部经 `codegen_string_literal_from_text` → `codegen_string_literal_from_bytes` → 内容键控的 `get_or_create_immortal_string_global`，同名类型跨 site 复用同一 global。
+  - 验证：`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T02-typemetadata --exit-on-failure`（pointer-equality fixture PASS）。本任务仅改动文档/注释，复审无代码改动，full `cargo test --all --all-targets` 与 `python3 tools/run_fixtures.py` 复用 P6-T02 的最近绿色结果。

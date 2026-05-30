@@ -1067,8 +1067,78 @@ fun main(): Int {
         "String 应为 addrspace(1) GC-managed 指针"
     );
     assert!(
+        ir.contains("@__scoop_str_lit_"),
+        "String literal 应发射 immortal ScoopString 全局\n{ir}"
+    );
+    assert!(
+        !ir.contains("scoop_alloc_typed"),
+        "String literal 不应再通过 scoop_alloc_typed 做 per-use wrapper 分配\n{ir}"
+    );
+    assert!(
         !ir.contains("addrspacecast"),
         "String 相关调用不应依赖 addrspacecast 回退到 addrspace(0)"
+    );
+}
+
+#[test]
+pub(super) fn type_name_string_literal_uses_immortal_string_global() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun main(): Int {
+    val name: String = Point::class
+    return name.length()
+}
+"#,
+    );
+
+    let session = session_for_source(&source);
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_str_lit_"),
+        "TypeMetadataLiteral::TypeNameString 应复用 immortal String 路径\n{ir}"
+    );
+    assert!(
+        !ir.contains("scoop_alloc_typed"),
+        "TypeMetadataLiteral::TypeNameString 不应分配 ScoopString wrapper\n{ir}"
+    );
+}
+
+#[test]
+pub(super) fn aggregate_boxing_to_any_still_uses_dynamic_boxing_path() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Pair(val x: Int, val y: Int)
+
+fun main(): Int {
+    val boxed: Any = Pair { x: 1, y: 2 }
+    return 0
+}
+"#,
+    );
+
+    let session = session_for_source(&source);
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("scoop_alloc_typed"),
+        "aggregate Any erasure 含 boxing，必须回退动态 boxing 路径\n{ir}"
+    );
+    assert!(
+        ir.contains("MirValueBox"),
+        "aggregate Any erasure 应继续通过 MirValueBox 盒化\n{ir}"
     );
 }
 

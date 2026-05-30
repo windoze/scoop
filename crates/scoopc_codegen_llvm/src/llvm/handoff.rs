@@ -107,6 +107,7 @@ pub struct LlvmStageBaseContext {
     continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
     nominal_kinds: source_payload::NominalKindIndex,
+    interior_mutable_nominals: source_payload::InteriorMutableIndex,
     direct_supertypes: source_payload::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: HashMap<String, LlvmCallableSourceContract>,
@@ -163,6 +164,7 @@ impl LlvmStageBaseContext {
         continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
         when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
         nominal_kinds: source_payload::NominalKindIndex,
+        interior_mutable_nominals: source_payload::InteriorMutableIndex,
         direct_supertypes: source_payload::DirectSupertypesIndex,
         builtins: BuiltinTypes,
         callable_sources: HashMap<String, LlvmCallableSourceContract>,
@@ -196,6 +198,7 @@ impl LlvmStageBaseContext {
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
+            interior_mutable_nominals,
             direct_supertypes,
             builtins,
             callable_sources,
@@ -293,6 +296,14 @@ impl LlvmStageBaseContext {
 
     pub fn nominal_kinds(&self) -> &source_payload::NominalKindIndex {
         &self.nominal_kinds
+    }
+
+    pub fn interior_mutable_nominals(&self) -> &source_payload::InteriorMutableIndex {
+        &self.interior_mutable_nominals
+    }
+
+    pub fn nominal_is_interior_mutable(&self, fqn: &str) -> bool {
+        self.interior_mutable_nominals.contains(fqn)
     }
 
     pub fn direct_supertypes(&self) -> &source_payload::DirectSupertypesIndex {

@@ -1,0 +1,144 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_language_parallel_alloc_shared_roots.stdout.txt
+// TIMEOUT: 30000
+//
+// 目标：用 Scoop 语言级线程覆盖“worker 并发分配 + main 触发 STW GC + worker 局部 roots 存活”。
+// SYSROOT-DEPS: scoop.runtime.test scoop.thread scoop.sync
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+import scoop.runtime.test.*
+import scoop.sync.*
+import scoop.thread.*
+import scoop.unsafe.*
+
+class RootNode(val name: String) {
+    var next: RootNode? = None()
+}
+
+class ParallelState(
+    val lock: Mutex,
+    val cv: CondVar,
+    var readyCount: Int,
+    var doneCount: Int,
+    var left: RootNode?,
+    var right: RootNode?,
+)
+
+object ParallelShared {
+    val state: ParallelState = ParallelState(mutexCreate(), condVarCreate(), 0, 0, None(), None())
+}
+
+@Global
+var stopParallelWorkers: __AtomicInt = __AtomicInt(0)
+
+fun markParallelReady(): Unit {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    st.readyCount = st.readyCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
+}
+
+fun publishLeft(root: RootNode): Unit {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    st.left = Some(root)
+    st.doneCount = st.doneCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
+}
+
+fun publishRight(root: RootNode): Unit {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    st.right = Some(root)
+    st.doneCount = st.doneCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
+}
+
+fun workerLeft(): Unit {
+    val root: RootNode = RootNode(f"left-root-${11}")
+    root.next = Some(RootNode(f"left-child-${12}"))
+    markParallelReady()
+
+    var i: Int = 0
+    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+        val garbage: RootNode = RootNode(f"left-garbage-${i}")
+        garbage.next = Some(root)
+        val _keepAllocating: Any = garbage
+        i = i + 1
+    }
+
+    publishLeft(root)
+}
+
+fun workerRight(): Unit {
+    val root: RootNode = RootNode(f"right-root-${22}")
+    root.next = Some(RootNode(f"right-child-${23}"))
+    markParallelReady()
+
+    var i: Int = 0
+    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+        val garbage: RootNode = RootNode(f"right-garbage-${i}")
+        garbage.next = Some(root)
+        val _keepAllocating: Any = garbage
+        i = i + 1
+    }
+
+    publishRight(root)
+}
+
+fun waitParallelReady(expected: Int): Unit {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    while (st.readyCount < expected) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
+}
+
+fun expectRootNode(value: RootNode?): RootNode {
+    return when (value) {
+        Some(node) -> node
+        None -> RootNode("missing")
+    }
+}
+
+fun readLeftRoot(): RootNode {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    val got: RootNode? = st.left
+    st.lock.unlock()
+    return expectRootNode(got)
+}
+
+fun readRightRoot(): RootNode {
+    val st: ParallelState = ParallelShared.state
+    st.lock.lock()
+    val got: RootNode? = st.right
+    st.lock.unlock()
+    return expectRootNode(got)
+}
+
+fun main() {
+    val t1: Thread = threadSpawn { workerLeft() }
+    val t2: Thread = threadSpawn { workerRight() }
+
+    waitParallelReady(2)
+    __scoop_gc_debug_alloc_garbage(96)
+    __scoop_gc_collect()
+
+    @Unsafe do { __atomicIntStore(stopParallelWorkers, 1) }
+    t1.join()
+    t2.join()
+
+    __scoop_gc_debug_alloc_garbage(96)
+    __scoop_gc_collect()
+
+    println(readLeftRoot().name)
+    println(readRightRoot().name)
+    println("ok")
+}

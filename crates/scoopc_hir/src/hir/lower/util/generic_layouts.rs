@@ -86,7 +86,6 @@ pub(in crate::hir::lower) fn builtin_layout_alias_type_id(
     types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
     match base_fqn {
-        "scoop.unsafe.__AtomicInt" => Some(types.intern(TypeKind::Value(ValueTypeKind::Int))),
         "scoop.core.UIntPtr" => Some(types.intern(TypeKind::Value(ValueTypeKind::UInt))),
         _ => None,
     }

@@ -88,7 +88,12 @@ fn gc_stop_the_world_scans_roots_on_all_registered_threads() {
 
     // main 线程：也注册并持有一个 roots，然后触发 GC 并验证两个线程的对象都未被回收。
     unsafe {
-        ready_rx.recv().unwrap();
+        // The main test thread is blocked in host synchronization while the worker may allocate
+        // enough to trigger the block-pool hard GC path.
+        scoop_enter_native(std::ptr::null_mut(), 0);
+        let ready = ready_rx.recv();
+        scoop_leave_native();
+        ready.unwrap();
 
         let mut keep_main = scoop_alloc(header_size + 8);
         assert!(!keep_main.is_null());
@@ -105,7 +110,10 @@ fn gc_stop_the_world_scans_roots_on_all_registered_threads() {
         scoop_leave_native();
         stop.store(true, Ordering::SeqCst);
 
-        worker.join().unwrap();
+        scoop_enter_native(std::ptr::null_mut(), 0);
+        let joined = worker.join();
+        scoop_leave_native();
+        joined.unwrap();
 
         // 两个线程都不再持有 roots 后，再 collect 应回收所有对象。
         scoop_gc_collect();

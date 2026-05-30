@@ -3,3 +3,4 @@ crates/scoop/target/
 .env*
 tests/fixtures/**/build/
 /**/__pycache__
+/memory

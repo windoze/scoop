@@ -2654,21 +2654,6 @@ impl<'a> TypeLowering<'a> {
                 }
                 return Ok(self.builtins.int);
             }
-            // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
-            //
-            // 说明：
-            // - source-level 通过 sysroot 声明（可能是 typealias 或 intrinsic struct）；
-            // - typecheck 内部把它降低为与 `Int` 完全一致的 builtin 类型，避免后端出现额外 ABI 分歧。
-            "scoop.unsafe.__AtomicInt" => {
-                check_arity(&fqn, 0, args.len(), span)?;
-                if explicit_eff.is_some() {
-                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
-                        name: fqn,
-                        span: span.into(),
-                    });
-                }
-                return Ok(self.builtins.int);
-            }
             "scoop.core.UInt" => {
                 check_arity(&fqn, 0, args.len(), span)?;
                 if explicit_eff.is_some() {
@@ -3510,17 +3495,6 @@ impl<'a> TypeLowering<'a> {
             }
             // `Int/UInt`：word-sized 整数。
             "scoop.core.Int" => {
-                check_arity(&fqn, 0, type_args.len(), path.span)?;
-                if eff_arg.is_some() {
-                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
-                        name: fqn,
-                        span: path.span.into(),
-                    });
-                }
-                return Ok(self.builtins.int);
-            }
-            // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
-            "scoop.unsafe.__AtomicInt" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
                 if eff_arg.is_some() {
                     return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {

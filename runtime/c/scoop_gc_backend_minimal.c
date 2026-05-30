@@ -127,8 +127,11 @@ void scoop_gc_safepoint(void) {
 }
 
 void scoop_gc_safepoint_poll(void) {
-  // T1505a：minimal backend 无 STW；poll 与 safepoint 一致为 no-op。
+  // minimal backend 无 STW，但仍在 poll 处消费 backend-independent pacing 请求。
   scoop_gc_safepoint();
+  if (scoop_gc_pacing_heap_take_request(&scoop_gc_heap)) {
+    scoop_gc_collect();
+  }
 }
 
 void *scoop_gc_write_barrier(void *slot_addr, void *value) {
@@ -415,6 +418,8 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   obj->next = scoop_gc_heap.objects;
   scoop_gc_heap.objects = obj;
   scoop_gc_heap.bytes_allocated += obj->size_bytes;
+  uint64_t allocated_after = scoop_gc_heap.bytes_allocated;
+  scoop_gc_pacing_heap_after_alloc(&scoop_gc_heap, allocated_after);
 
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
@@ -429,6 +434,12 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
+  heap->next_gc = scoop_gc_pacing_initial_next_gc();
+  heap->pacing_min_threshold_bytes = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+  heap->pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  heap->max_heap_bytes = 0;
+  heap->request_collect = 0;
+  heap->_pacing_reserved_u32 = 0;
 }
 
 typedef struct ScoopGcMarkStack {
@@ -505,6 +516,10 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
     return;
   }
 
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
+    return;
+  }
+
   if (obj->mark == ctx->mark_value) {
     return;
   }
@@ -512,6 +527,49 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
   obj->mark = ctx->mark_value;
   scoop_gc_mark_stack_push(ctx->stack, obj);
 }
+
+#if !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
+intptr_t scoop_test_gc_immortal_marker_smoke(void) {
+  const uint32_t mark_value = 0x01020304u;
+  ScoopGcMarkStack stack = {0};
+  ScoopGcMarkCtx ctx = {&scoop_gc_heap, mark_value, &stack};
+
+  ScoopGcObjectHeader immortal = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = SCOOP_GC_FLAG_IMMORTAL,
+      .mark = 0xA5A5A5A5u,
+  };
+  const uint32_t immortal_flags = immortal.flags;
+  const uint32_t immortal_mark = immortal.mark;
+
+  scoop_gc_mark_object_if_needed(&ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || stack.len != 0) {
+    if (stack.items != 0) {
+      free(stack.items);
+    }
+    return -1;
+  }
+
+  ScoopGcObjectHeader ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_mark_object_if_needed(&ctx, &ordinary);
+  intptr_t rc = 1;
+  if (ordinary.mark != mark_value || stack.len != 1 || stack.items == 0 || stack.items[0] != &ordinary) {
+    rc = -2;
+  }
+  if (stack.items != 0) {
+    free(stack.items);
+  }
+  return rc;
+}
+#endif
 
 static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   if (slot == 0 || raw_ctx == 0) {
@@ -537,6 +595,7 @@ void scoop_gc_collect(void) {
 
   // minimal backend 不支持多线程 roots 枚举；检测到多线程时退化为 no-op。
   if (scoop_gc_multi_thread_seen) {
+    scoop_gc_pacing_heap_update_next_gc_unlocked(&scoop_gc_heap);
     (void)pthread_mutex_unlock(&scoop_gc_lock);
     return;
   }
@@ -610,6 +669,7 @@ void scoop_gc_collect(void) {
     free(obj);
   }
 
+  scoop_gc_pacing_heap_update_next_gc_unlocked(heap);
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
@@ -644,6 +704,13 @@ uint64_t scoop_gc_debug_heap_bytes_allocated(void) {
 uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
   uint64_t v = scoop_gc_heap.bytes_freed;
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return v;
+}
+
+uint64_t scoop_gc_debug_heap_gc_cycles(void) {
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t v = scoop_gc_heap.gc_cycles;
   (void)pthread_mutex_unlock(&scoop_gc_lock);
   return v;
 }

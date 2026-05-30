@@ -1370,6 +1370,16 @@ fn object_kind_name(kind: ast::ObjectKind) -> &'static str {
     }
 }
 
+fn type_kind_target_name(kind: ast::TypeKind) -> &'static str {
+    match kind {
+        ast::TypeKind::Class => "class type",
+        ast::TypeKind::Struct => "struct type",
+        ast::TypeKind::Interface => "interface type",
+        ast::TypeKind::Enum => "enum type",
+        ast::TypeKind::Effect => "effect type",
+    }
+}
+
 /// 批量检查一组注解使用（`@Name(...)`）。
 fn check_annotation_uses(
     ctx: AnnotationCheckContext<'_>,
@@ -2323,6 +2333,15 @@ fn check_builtin_annotations_on_fun_decl(
                 calling_convention_annotation_span = Some(name_span);
             }
             BuiltinAnnotationKind::AllowIntrinsic => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "function",
+                    span: name_span.into(),
+                });
+            }
+            BuiltinAnnotationKind::InteriorMutable => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
                     annotation: format!("@{}", kind.name()),
@@ -3409,7 +3428,7 @@ fn check_builtin_annotations_on_type_decl(
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &decl.annotations);
 
-    // type 声明目前只允许 `@Intrinsic`；其它内建注解的 target 语义留到后续任务补齐。
+    // type 声明目前只允许 compiler-owned `@Intrinsic` 与 metadata-only `@InteriorMutable`。
     for ann in &decl.annotations {
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
@@ -3423,6 +3442,35 @@ fn check_builtin_annotations_on_type_decl(
                     "类型",
                     type_fqn,
                 )?;
+                if !ann.args.is_empty() {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
+                        annotation: format!("@{}", kind.name()),
+                        span: name_span.into(),
+                    });
+                }
+            }
+            BuiltinAnnotationKind::InteriorMutable => {
+                let effective_target =
+                    effective_annotation_target(source, ann, AnnotationTargetKind::Type);
+                if effective_target != AnnotationTargetKind::Type {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                        annotation: format!("@{}", kind.name()),
+                        allowed: kind.allowed_targets_hint(),
+                        found: effective_target.as_str(),
+                        span: name_span.into(),
+                    });
+                }
+                if !matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Class) {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                        annotation: format!("@{}", kind.name()),
+                        allowed: kind.allowed_targets_hint(),
+                        found: type_kind_target_name(decl.kind),
+                        span: name_span.into(),
+                    });
+                }
                 if !ann.args.is_empty() {
                     let (_, name_span) = annotation_name_and_span(source, ann);
                     return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {

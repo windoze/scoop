@@ -1234,6 +1234,12 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
+  heap->next_gc = scoop_gc_pacing_initial_next_gc();
+  heap->pacing_min_threshold_bytes = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+  heap->pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  heap->max_heap_bytes = 0;
+  heap->request_collect = 0;
+  heap->_pacing_reserved_u32 = 0;
 }
 
 typedef struct ScoopGcMarkStack {
@@ -1315,6 +1321,10 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
     return;
   }
 
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
+    return;
+  }
+
   if (obj->mark == ctx->mark_value) {
     return;
   }
@@ -1322,6 +1332,49 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
   obj->mark = ctx->mark_value;
   scoop_gc_mark_stack_push(ctx->stack, obj);
 }
+
+#if !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
+intptr_t scoop_test_gc_immortal_marker_smoke(void) {
+  const uint32_t mark_value = 0x01020304u;
+  ScoopGcMarkStack stack = {0};
+  ScoopGcMarkCtx ctx = {&scoop_gc_heap, mark_value, &stack};
+
+  ScoopGcObjectHeader immortal = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = SCOOP_GC_FLAG_IMMORTAL,
+      .mark = 0xA5A5A5A5u,
+  };
+  const uint32_t immortal_flags = immortal.flags;
+  const uint32_t immortal_mark = immortal.mark;
+
+  scoop_gc_mark_object_if_needed(&ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || stack.len != 0) {
+    if (stack.items != 0) {
+      free(stack.items);
+    }
+    return -1;
+  }
+
+  ScoopGcObjectHeader ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_mark_object_if_needed(&ctx, &ordinary);
+  intptr_t rc = 1;
+  if (ordinary.mark != mark_value || stack.len != 1 || stack.items == 0 || stack.items[0] != &ordinary) {
+    rc = -2;
+  }
+  if (stack.items != 0) {
+    free(stack.items);
+  }
+  return rc;
+}
+#endif
 
 static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   if (slot == 0 || raw_ctx == 0) {
@@ -1657,6 +1710,10 @@ static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
   if (!scoop_gc_verify_live_set_contains(ctx->state, obj)) {
+    if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0 && obj->mark == SCOOP_GC_MARK_IMMORTAL) {
+      return;
+    }
+
     scoop_gc_verify_roots_record_error(
         ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
   }
@@ -3303,6 +3360,13 @@ uint64_t scoop_gc_debug_heap_bytes_allocated(void) {
 uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
   uint64_t v = scoop_gc_heap.bytes_freed;
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return v;
+}
+
+uint64_t scoop_gc_debug_heap_gc_cycles(void) {
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t v = scoop_gc_heap.gc_cycles;
   (void)pthread_mutex_unlock(&scoop_gc_lock);
   return v;
 }

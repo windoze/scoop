@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: effect_raise_cleanup_gc_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts an exact heap object-count delta after cleanup GC.
 // - 最小回归：本层 catch 吃掉 `Raise.raise(...)` 后，隐藏 continuation / effect frame
 //   不能继续作为 GC roots 泄漏到后续 `__scoop_gc_collect()`。
 // SYSROOT-DEPS: scoop.runtime.test

@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=2 step_types=2 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=2 surface_resume_dispatches=6 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=53 layout_callable_symbols=2
+  summary: opt_revision=1 callables=2 step_types=2 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=2 surface_resume_dispatches=6 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=2
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=28 enums=7 vtables=53 interfaces=11 class_itables=53 callable_symbols=2
+  physical_layout: classes=28 enums=7 vtables=54 interfaces=11 class_itables=54 callable_symbols=2
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -101,6 +101,7 @@ lir_facts {
     - class_vtable=scoop.lang.string.StringBuilder slots=0
     - class_vtable=scoop.unsafe.FunPtr slots=0
     - class_vtable=scoop.unsafe.Ptr slots=0
+    - class_vtable=scoop.unsafe.__AtomicInt slots=0
     - interface=scoop.collections.IntIterable id=15901905228223837312 methods=1 supers=0
     - interface=scoop.collections.IntIterator id=9964296089158589802 methods=1 supers=0
     - interface=scoop.collections.Iterable id=12253944723955285356 methods=1 supers=0
@@ -165,9 +166,10 @@ lir_facts {
     - class_itable=scoop.lang.string.StringBuilder entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
+    - class_itable=scoop.unsafe.__AtomicInt entries=0
     - callable_symbol=lir_callable(224:instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hd9d49681793dd1cf2ef3c60199416bea) root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h722537244fb9938c77c7ef25189ae185
     - callable_symbol=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h34f672f07186232bc190524f7d5aadb1) root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h309876b0cda4a554f9786fa88914c0af
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=457 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=459 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=2
     - callable=sample.nested_self_contained kind=Plain control_body=true key=lir_callable(224:instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hd9d49681793dd1cf2ef3c60199416bea)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=8 call_sites=1
@@ -175,8 +177,8 @@ lir_facts {
     - callable=sample.nested_may_suspend_outward kind=EffectStep control_body=true key=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h34f672f07186232bc190524f7d5aadb1)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=15 boundaries=4 continuation_object=cont_obj#0
   step_types=2
-    - step#0 invoke_args=t2 complete=t5 continuation_obj=t449 cases=3
-    - step#1 invoke_args=t2 complete=t5 continuation_obj=t452 cases=3
+    - step#0 invoke_args=t2 complete=t5 continuation_obj=t451 cases=3
+    - step#1 invoke_args=t2 complete=t5 continuation_obj=t454 cases=3
   dynamic_invoke_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=1

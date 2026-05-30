@@ -3,7 +3,7 @@
 > 生成时间：2026-05-29
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 格式参考：[`docs/archive/plans/PLAN-spec-fix-overload.md`](./docs/archive/plans/PLAN-spec-fix-overload.md)、[`docs/archive/plans/PLAN-managed-abi.md`](./docs/archive/plans/PLAN-managed-abi.md)
-> 当前状态：两份设计文档均为 P0 design / design-only。运行期今天没有任何按压力触发的 collect（堆单调增长直到 OOM），编译期常量值（String literal / `__type_name` / `Platform`）每次求值都在 GC 堆上分配 wrapper。
+> 初始状态（P0 baseline）：两份设计文档从 design-only 起步；当时运行期没有任何按压力触发的 collect（堆单调增长直到 OOM），编译期常量值（String literal / `__type_name` / `Platform`）每次求值都在 GC 堆上分配 wrapper。当前 runtime/spec contract 见 [`SCOOP_RUNTIME.md`](./SCOOP_RUNTIME.md)；旧行为仅保留为 design history 与 `SCOOP_GC_PACING=off` 对照。
 > 行号说明：下文以当前文件路径和符号名为准；后续若行号漂移，优先按文件路径、符号名和 fixture / 测试名定位。
 
 ## 0. 工作原则
@@ -14,13 +14,13 @@
 - 两条线在运行期之外几乎正交：Pacing 全部落在 `runtime/c/`；Immortal 跨 sysroot / typecheck / HIR→MIR lowering / codegen，且只在运行期加一个 `SCOOP_GC_FLAG_IMMORTAL` 标志位。可并行推进，但本计划按“Pacing 优先”排序。
 - Immortal 的核心不变式必须守干净：**immortal 对象永不被写、永不被 trace**。任何“可写或可能需要 trace”的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道，留作独立后续工作。
 - “是否常量化”是由**类型的传递不可变性**决定的通用决策，不是为 String / Platform 开的特判；“是否 dedup”是正交的、且仅对 String 开的内容池行为。实现不得退回“逐类型特判”。
-- Pacing 必须 **on-by-default**。现状是无条件无界增长，这不是“在 ergonomics 与正确性之间权衡”，默认开启是底线；只保留 `SCOOP_GC_PACING=off` 给需要确定性堆计数的测试。
+- Pacing 必须 **on-by-default**。P0 baseline 是无条件无界增长，这不是“在 ergonomics 与正确性之间权衡”的目标状态；默认开启是底线，只保留 `SCOOP_GC_PACING=off` 给需要确定性堆计数的测试。
 - 所有 runtime 改动必须保持现有 backend 分层（`immix` / `hosted` / `minimal`）可编译可回归；阈值比较本身 backend 无关。
 - 验收面：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`、`python3 tools/spec_fixtures.py check`，以及 runtime C 单元测试与长程序回归。
 
-## 1. 当前判断
+## 1. P0 基线判断（design history）
 
-### Pacing（来自 `GC_PACING.md`，已核对）
+### Pacing（来自 `GC_PACING.md` 的 P0 baseline，已核对）
 
 - 生产路径唯一的 collect 触发点是 `SCOOP_GC_STRESS` 测试钩子（`runtime/c/scoop_runtime.c:502-507`）；其余都是 public API 或测试代码。没有“堆增长到 X 就收集”的机制。
 - block pool 耗尽时无条件 `posix_memalign` 新块（`runtime/c/scoop_gc_immix_internal.h:548-575`），没有“先尝试回收再增长”的回退。
@@ -28,12 +28,12 @@
 - `bytes_allocated` 只是一个计数器（`scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`），从不与任何阈值比较。
 - 没有 `SCOOP_GC_HEAP_TARGET` / `TRIGGER_BYTES` / growth-factor / hard cap 任何 env 旋钮。pacing 是真缺失，不是没调好。
 
-### Immortal（来自 `GC_IMMORTAL_FIX.md`，已核对）
+### Immortal（来自 `GC_IMMORTAL_FIX.md` 的 P0/P5 baseline，已核对）
 
 - String literal 每次求值都 `scoop_alloc_typed` 一个 `ScoopString` wrapper（`scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:133-197`），字节负载已在 `.rodata`，但 wrapper 是堆对象。
 - `TypeMetadataLiteral::TypeNameString` 复用同一路径，继承 wrapper 分配（`.../mir_body/transport.rs:186-201`）。
 - `Platform` 每次读取分配 5 个 `ScoopString` 再 SSA insert 成结构体（`.../mir_body/transport.rs:203-292`）。
-- `ScoopGcObjectHeader` 的 `mark` 被 marker 无条件写（`runtime/c/scoop_gc_backend_immix.c:2719-2737`），所以朴素 `.rodata` 拷贝会在首次 trace 时打只读页 fault；但 slot 扫描已通过 heap-membership 过滤堆外指针（`:2739-2760`），这是 immortal 透明性的支点。
+- `ScoopGcObjectHeader` 的 `mark` 被 marker 无条件写（Immix 串行 `runtime/c/scoop_gc_backend_immix.c:2719-2737`、并行 `:2950-2975`，以及 baseline/minimal/hosted marker helper），所以朴素 `.rodata` 拷贝会在首次 trace 时打只读页 fault；Immix slot 扫描已通过 heap-membership 过滤堆外指针（`:2739-2760`），这是 immortal 透明性的支点。
 - `scoop.unsafe.__AtomicInt` 当前是 `typealias = Int`（`sysroot/lib/scoop.unsafe/src/unsafe.scoop:163`），在类型层被擦除成 `Int`。它是 interior-mutable（经 unsafe 原子 intrinsic 原地写）但在类型层不可见——这是常量化谓词的隐藏陷阱：藏在 `val` 字段后会被误判可变性、误常量化进 `.rodata`、原子写 fault。
 - Scoop 无任何 reference-identity 运算符（`docs/spec/language_spec-part3.md:66` 仅 `==`/`!=`），所以**对象身份对任何 ref 类型都不可观测**；这是“不可变即可常量化”和“dedup 仅 String 安全”的根。
 
@@ -42,7 +42,7 @@
 | Gap | 当前状态 | 本轮动作 | 归属阶段 |
 |---|---|---|---|
 | Pacing 软触发（堆增长阈值） | `bytes_allocated` 从不比较 | alloc 后比较 `next_gc`，超过则 safepoint 处请求 collect | P1 |
-| `next_gc` / `request_collect` / safepoint 集成 | 无 | `ScoopGcHeap` 加 `next_gc`，请求标志由 `scoop_gc_safepoint_poll` 消费，cycle 末 `next_gc = max(min, live*factor)` | P1 |
+| `next_gc` / `request_collect` / safepoint 集成 | 无 | `ScoopGcHeap` 加 `next_gc`，请求标志由 `scoop_gc_safepoint_poll` 消费，cycle 末按 `target_live = max(min, live*factor)` 更新累计水位线 `next_gc = bytes_freed + target_live` | P1 |
 | `SCOOP_GC_PACING` 等 env 旋钮 | 无 | 加 `PACING` / `GROWTH_FACTOR` / `MIN_THRESHOLD_BYTES` / `MAX_HEAP_BYTES`，默认 on | P1 |
 | nursery 满 ⇒ minor GC | 静默回退 old space | 满则 minor GC 再重试，仍满才落 old | P2 |
 | block pool 耗尽 ⇒ full GC | 无条件 `posix_memalign` | 两表空时先 full GC，取到块再用，取不到才增长 | P2 |
@@ -50,7 +50,7 @@
 | backend parity（hosted/minimal） | 仅 immix 关注 | 阈值比较 backend 无关，hosted/minimal 也尊重旋钮 | P2 |
 | `__AtomicInt` typealias → marked struct | `typealias = Int`，类型层擦除 | 升为 `@InteriorMutable struct __AtomicInt { val raw: Int }`，5 处擦除点改“类型相异、布局=Int” | P3 |
 | `@InteriorMutable` 注解 | 无 | 新增注解，metadata-only，`is_immutable` 读它即否决 | P3 |
-| `SCOOP_GC_FLAG_IMMORTAL` + marker 短路 | header 无 immortal 概念 | 加两个 sentinel，`scoop_gc_mark_object_if_needed` 加 flag 短路 | P4 |
+| `SCOOP_GC_FLAG_IMMORTAL` + marker 短路 | header 无 immortal 概念 | 加两个 sentinel，所有 backend marker helper（含 Immix 并行 marker）加 flag 短路 | P4 |
 | byte 数组 content-hash 键 + `unnamed_addr` | span-key，无 dedup | 改 content-hash，加 `set_unnamed_addr(true)`，跨 TU 折叠 | P4 |
 | `is_immutable(T)` 谓词 | 无 | 传递不可变 + `@InteriorMutable` 否决，值/ref 双层 | P5 |
 | `try_emit_immortal` 通用折叠器 | 三个手写路径 | 标量/字符串/纯数据聚合统一折叠器，提升门=全 Const+boxing none+kind(+ref 加 is_immutable) | P5 |
@@ -66,7 +66,7 @@
 | alloc 快路径 / safepoint | `runtime/c/scoop_runtime.c::scoop_alloc`（`:498-499` poll，`:502-507` stress，`:563-567` nursery 回退，`:514` OOM⇒NULL） | 无 pacing 触发；nursery 满静默落 old | alloc 后阈值比较请求 collect；nursery 满先 minor GC 再重试 |
 | 堆状态 / 计数 | `runtime/c/scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`、`ScoopGcHeap` 结构 | `bytes_allocated` 只计数不比较 | 加 `next_gc`，cycle 末按 `live*factor` 更新，alloc 比较 |
 | block pool | `runtime/c/scoop_gc_immix_internal.h:548-575::scoop_gc_immix_state_take_block`、`:283-299` `block_alloc_new` | 两表空无条件 `posix_memalign` | 先 full GC 回收，取不到才增长，可选 hard cap |
-| marker 写 mark | `runtime/c/scoop_gc_backend_immix.c:2719-2737::scoop_gc_mark_object_if_needed`、`:2739-2760` visitor、`:5177/5185` pinned | 无条件写 `mark`，朴素 .rodata 会 fault | flag 短路 immortal；membership 已过滤堆外 |
+| marker 写 mark | `runtime/c/scoop_gc_backend_immix.c:2719-2737::scoop_gc_mark_object_if_needed`、`:2950-2975` 并行 marker、`:2739-2760` visitor、`:5043-5060` / `:5169-5186` pinned/handle；baseline/minimal/hosted marker helper | 无条件写 `mark`，朴素 .rodata 会 fault | 所有 marker helper flag 短路 immortal；Immix membership 已过滤堆外 |
 | GC header / sentinel | `runtime/c/scoop_gc.h:210-244`、`scoop_runtime_api.h:37-38` | header 无 immortal 概念 | 加 `SCOOP_GC_FLAG_IMMORTAL` / `SCOOP_GC_MARK_IMMORTAL` |
 | backend parity | `runtime/c/scoop_gc_backend_hosted.c`、`scoop_gc_backend_minimal.c` | 只 immix 有 pacing | 三 backend 均尊重 pacing 旋钮 |
 | `__AtomicInt` 声明 | `sysroot/lib/scoop.unsafe/src/unsafe.scoop:163` | `typealias = Int`，标记无处可挂 | `@InteriorMutable struct __AtomicInt { val raw: Int }` |
@@ -126,7 +126,7 @@
 必须遵从的约束：
 
 - P0 不改变运行期或语言行为；只做核对、度量与记录。
-- 不得删除任何现有 GC 测试来掩盖当前无界增长。
+- 不得删除任何现有 GC 测试来掩盖 P0 baseline 的无界增长。
 
 阶段输出：
 
@@ -158,7 +158,7 @@
 必须实现的内容：
 
 1. `ScoopGcHeap` 新增 `next_gc`（初值 = `min_threshold`，默认 4 MB）与 `request_collect` 标志/计数。
-2. 每个 GC cycle 末（sweep 后，持 GC 锁）设置 `next_gc = max(min_threshold, live * growth_factor)`，`growth_factor` 默认 1.5。
+2. 每个 GC cycle 末（sweep 后，持 GC 锁）计算 `target_live = max(min_threshold, live * growth_factor)`，并设置累计水位线 `next_gc = bytes_freed + target_live`；`growth_factor` 默认 1.5。
 3. alloc 快路径：`bytes_allocated_add` 后用 relaxed load 比较 `next_gc`，超过则 `request_collect`（幂等，置标志）。
 4. `scoop_gc_safepoint_poll` 消费标志：在下一次 alloc 的 poll 处运行 collect，再分配——遵循“先 poll 后 alloc”的 root publication 纪律，不在 alloc 内同步 collect。
 5. 新增 env 旋钮：`SCOOP_GC_PACING`（默认 on）、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`（1.5）、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`（4 MB）。`SCOOP_GC_STRESS` 激活时旁路 pacing。
@@ -273,7 +273,7 @@
 
 参考：
 - [`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md) “Runtime change”“Cache and dedup keys”、Phasing 2-3
-- `runtime/c/scoop_gc.h:210-244`、`scoop_gc_backend_immix.c:2719-2737,2739-2760,5177/5185`
+- `runtime/c/scoop_gc.h:210-244`；`scoop_gc_backend_immix.c:2719-2737,2950-2975,2739-2760,5043-5060,5169-5186`；baseline/minimal/hosted marker helpers
 - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72`
 
 目标：
@@ -283,7 +283,7 @@
 必须实现的内容：
 
 1. `scoop_gc.h` 新增 `#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u` 与 `#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu`。
-2. `scoop_gc_mark_object_if_needed` 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，覆盖 pinned 扫描等不经 membership 预检的入口。slot visitor 不改（membership 已过滤堆外）。
+2. 所有 backend marker helper 开头加 `if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) return;`，Immix 并行 marker 在 atomic load/CAS 前同样短路，覆盖 pinned 扫描等不经 membership 预检的入口。Immix slot visitor 不改（membership 已过滤堆外）。
 3. `get_or_create_global_bytes`（`alloca.rs:56-72`）键从 `__scoop_str_data_{span.start}_{span.end}` 改为 `base16(SHA-256(bytes)[..16])`，并 `set_unnamed_addr(true)`。
 
 必须遵从的约束：

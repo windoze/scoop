@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: class_init_raise_cleanup_property_init_gc_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts an exact heap object-count delta after cleanup GC.
 // T1327b：类初始化期间 Raise/effect unwinding cleanup
 // - property initializer 中触发 Raise.raise，外层 try/catch 捕获后继续执行
 // - ctor call 临时 GC frame 必须在 unwind 路径 pop，否则失败构造的对象会被错误保留为 root，

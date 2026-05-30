@@ -152,6 +152,7 @@ fun getPlatform(): Platform
 - `getPlatform()` 返回当前编译/执行环境可见的平台描述。
 - `triple` 格式遵循 LLVM target triple 约定；验证细节实现定义。
 - 平台选择应尽量通过包/构建层源选择完成，不应引入语言预处理器。
+- `Platform` 是值类型编译期常量；实现应将其作为不可变 struct 值物化，不为每次读取分配堆 wrapper。字段中的 `String` 可引用 immortal 字符串常量。
 
 ## 6. Runtime Type Info
 
@@ -342,6 +343,7 @@ struct User {
 | `@NoGC` | 函数 | 禁止 GC-managed heap 分配 |
 | `@Unsafe` | 函数、`do` block | 允许 unsafe 操作 |
 | `@Safe` | 函数、`do` block、closure | 在 unsafe 上下文中重新建立 safe 区域 |
+| `@InteriorMutable` | Struct / class 类型声明 | 标记类型可能通过 unsafe/compiler intrinsic 在 `val` 字段背后原地修改；metadata-only |
 | `@Target(targets...)` | Annotation class | 限制注解目标 |
 | `@Retention(policy)` | Annotation class | 控制注解是否保留到 `.cone` |
 
@@ -390,6 +392,16 @@ enum AnnotationTarget {
 - 使用形态固定为 `@Experimental(feature = "...")`。
 - `feature` 必须是字符串字面量。
 - 当前只保留 marker 和参数校验；不会自动启用或禁用具体语言特性。
+
+### 12.5 `@InteriorMutable`
+
+`@InteriorMutable` 是编译器识别的 metadata-only 注解，用于 nominal `struct` / `class` 类型声明。它没有参数，不生成运行时代码，也不改变普通字段可见性。
+
+语义：
+
+- 标记类型可能通过 unsafe/compiler intrinsic 在 `val` 字段背后原地修改存储。
+- 编译器的 `is_immutable(T)` 常量化谓词必须把带该标记的 nominal 视为不可 immortal 化。
+- 该标记用于描述类型特征，不应作为逐类型特判或白名单使用。
 
 ## 13. 静态注解元数据
 

@@ -234,6 +234,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((llvm_idx, field_ty))
     }
 
+    pub(super) fn scalar_layout_struct_field<T: CodegenMonoInput>(
+        &self,
+        struct_ty: T,
+        scalar_cg: CgTy,
+    ) -> Result<Option<(hir::StructFieldLayout, CgTy)>, LlvmEmitError> {
+        // Some nominal value types keep source-level struct identity but share a scalar ABI.
+        let struct_ty = self.mono_type_id(struct_ty, "scalar-layout struct lookup");
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
+            return Ok(None);
+        };
+
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
+        let Some(layout) = self.struct_layouts.get(&key) else {
+            return Ok(None);
+        };
+        let [field] = layout.fields.as_slice() else {
+            return Ok(None);
+        };
+
+        let field_cg = self.cg_ty_of_layout_field(field.span, field.ty, field.ty_fqn.as_deref())?;
+        if self.cg_ty_layout_equivalent(field_cg, scalar_cg) {
+            Ok(Some((field.clone(), field_cg)))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub(super) fn struct_clayout<T: CodegenMonoInput>(
         &self,
         struct_ty: T,

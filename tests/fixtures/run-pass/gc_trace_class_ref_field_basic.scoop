@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_trace_class_ref_field_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts exact heap object counts to observe traced class refs.
 //
 // 目标：T1507a
 // - class 对象持有 ref 字段时，GC 必须能通过 type_desc trace bitmap 扫描到字段并保活引用对象。

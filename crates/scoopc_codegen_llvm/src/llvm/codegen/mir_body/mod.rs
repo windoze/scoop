@@ -13,6 +13,8 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::*;
 
+pub(in crate::llvm::codegen) mod immutability;
+
 #[derive(Clone, Copy)]
 pub(super) struct MirLocalSlot<'ctx> {
     pub(super) cg_ty: CgTy,
@@ -216,15 +218,6 @@ fn mir_direct_call_base_fqn(fqn: &str) -> &str {
     base.split_once("$overload")
         .map(|(base, _)| base)
         .unwrap_or(base)
-}
-
-fn decompose_target_triple(triple: &str) -> (String, String, String, String) {
-    let mut parts = triple.split('-');
-    let arch = parts.next().unwrap_or("").to_string();
-    let vendor = parts.next().unwrap_or("").to_string();
-    let os = parts.next().unwrap_or("").to_string();
-    let env = parts.next().unwrap_or("").to_string();
-    (arch, vendor, os, env)
 }
 
 #[derive(Clone, Copy)]

@@ -339,6 +339,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         lowered_hir.continuation_resume_call_sites,
         lowered_hir.when_pat_binding_tys,
         lowered_hir.nominal_kinds,
+        lowered_hir.interior_mutable_nominals,
         lowered_hir.direct_supertypes,
         lowered_hir.builtins,
         callable_sources,
@@ -2091,6 +2092,44 @@ fun main() {
     }
 
     #[test]
+    fn llvm_codegen_base_context_exposes_interior_mutable_nominals() {
+        let _guard = test_lock();
+        let source = SourceFile::new_virtual(
+            "<mem>/llvm_interior_mutable_fixture.scoop",
+            r#"
+package sample
+
+@InteriorMutable
+struct AtomicCell(val raw: Int)
+
+typealias AtomicAlias = AtomicCell
+
+struct PlainCell(val raw: Int)
+
+fun main(): Int {
+    return 0
+}
+"#,
+        );
+        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
+        let input = LlvmCodegenStageInput::new(
+            lowered,
+            None,
+            source_map,
+            entry_source_id,
+            None,
+            OptLevel::O0,
+        );
+
+        let stage_output = super::run(&session, input).unwrap();
+        let base = stage_output.base_context();
+
+        assert!(base.nominal_is_interior_mutable("sample.AtomicCell"));
+        assert!(!base.nominal_is_interior_mutable("sample.PlainCell"));
+        assert!(!base.nominal_is_interior_mutable("sample.AtomicAlias"));
+    }
+
+    #[test]
     fn llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified() {
         let _guard = test_lock();
         let (session, source_map, entry_source_id, primary, abi_visibility) =
@@ -2245,6 +2284,44 @@ fun main(): Int {
 
         assert!(ir.contains("define i32 @main("));
         assert_eq!(test_stage_run_count(), 1);
+    }
+
+    #[test]
+    fn platform_literal_stage_ir_uses_immortal_structlit_without_alloc() {
+        let _guard = test_lock();
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/p6_t01_platform_structlit.scoop",
+            r#"
+package fixtures.p6t01
+
+import scoop.core.*
+
+fun main(): Int {
+    val platform: Platform = getPlatform()
+    return platform.os.length() + platform.triple.length()
+}
+"#,
+        );
+
+        let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
+            .expect("Platform StructLit IR should lower through the LLVM stage");
+        assert!(
+            ir.contains("@__scoop_immortal_agg_"),
+            "Platform should be loaded from the generic immortal aggregate path:\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_str_lit_"),
+            "Platform fields should reference immortal String wrappers:\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop.core.getPlatform"),
+            "getPlatform must not survive to LLVM as a direct call:\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop_alloc_typed"),
+            "Platform access should not allocate:\n{ir}"
+        );
     }
 
     #[test]

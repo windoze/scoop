@@ -33,6 +33,5 @@ fun main(): Int {
     val cl: Int = ({ x: Int -> x + 2 })(6)
     val typeName: String = nameOf<Box>()
     val bytes: Int = sizeOf<Box>()
-    val platform: Platform = getPlatform()
     return d + g + n + e + m + box.value + fv + cl + bytes
 }

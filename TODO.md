@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；全部待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` / `P6-T02R` / `P7-T00` / `P7-T00b` / `P7-T01` / `P7-T01R` / `P7-T02` / `P7-T02R` / `P7-T03` / `P7-T03R` 已完成；当前无剩余 `[TODO]` 任务。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -13,11 +13,11 @@
 - 每个实现任务后必须紧跟一个独立 review 任务，复审该任务的完整变更、阶段目标和约束遵守情况。
 - review 任务不是形式检查；如果发现前一任务没有真正完成目标，review 任务必须直接修正或阻塞下一任务。
 - 任务完成后必须同时更新本索引和对应 `TODO-[1-5].md` 中的任务状态与完成记录；不得只更新其中一边。
-- **Pacing 必须 on-by-default**。现状是无条件无界增长；`SCOOP_GC_PACING=off` 只保留给需要确定性堆计数的测试，且每个用到它的测试必须注明 why。
+- **Pacing 必须 on-by-default**。P0 baseline 是无条件无界增长；当前默认必须保持有界，`SCOOP_GC_PACING=off` 只保留给需要确定性堆计数的测试，且每个用到它的测试必须注明 why。
 - **Immortal 不变式必须守干净**：immortal 对象永不被写、永不被 trace。任何可写或可能需要 trace 的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道。
 - “是否常量化”是由类型**传递不可变性**决定的通用决策，不得退回逐类型特判或类型白名单；“是否 dedup”是正交的、仅对 String 开的内容池。
 - 所有 runtime 改动必须保持 `immix` / `hosted` / `minimal` 三 backend 可编译可回归。
-- 不接受把当前无界增长或 per-use wrapper 分配记成最终期望；目标行为由两份设计文档定义。
+- 不接受把旧的无界增长或 per-use wrapper 分配记成最终期望；目标行为由两份设计文档定义。
 
 ## 任务包划分
 
@@ -33,48 +33,50 @@
 
 | 任务 | 状态 | 文件 | 目标 |
 | --- | --- | --- | --- |
-| P0-T01 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t01核对并冻结-pacing-当前行为基线) | 核对并冻结 pacing 当前行为基线 |
-| P0-T01R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t01rreview-pacing-行为基线) | Review P0-T01 pacing 行为基线 |
-| P0-T02 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02核对并冻结-immortal-当前行为基线) | 核对并冻结 immortal 当前行为基线（含 `__AtomicInt` 擦除点） |
-| P0-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t02rreview-immortal-行为基线) | Review P0-T02 immortal 行为基线 |
-| P0-T03 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t03建立堆增长与字面量分配计数度量) | 建立堆增长与字面量分配计数度量 |
-| P0-T03R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t03rreview-度量基线) | Review P0-T03 度量基线 |
-| P1-T01 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t01实现-pacing-核心-next_gc--request_collect--safepoint--阈值) | 实现 pacing 核心：`next_gc` + `request_collect` + safepoint + 阈值 |
-| P1-T01R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t01rreview-pacing-核心) | Review P1-T01 pacing 核心 |
-| P1-T02 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t02接入-pacing-env-旋钮与默认-on并加长程序有界回归) | 接入 pacing env 旋钮与默认 on，并加长程序有界回归 |
-| P1-T02R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p1-t02rreview-pacing-env-旋钮与有界回归) | Review P1-T02 env 旋钮与有界回归 |
-| P2-T01 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t01nursery-满触发-minor-gc-再重试) | nursery 满触发 minor GC 再重试 |
-| P2-T01R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t01rreview-nursery-full-minor-gc) | Review P2-T01 nursery-full minor GC |
-| P2-T02 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t02block-pool-耗尽先-full-gc-再增长) | block pool 耗尽先 full GC 再增长 |
-| P2-T02R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t02rreview-block-pool-回退) | Review P2-T02 block pool 回退 |
-| P2-T03 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03接入-hard-cap-与-oom-返回) | 接入 `SCOOP_GC_MAX_HEAP_BYTES` hard cap 与 OOM 返回 |
-| P2-T03R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t03rreview-hard-cap) | Review P2-T03 hard cap |
-| P2-T04 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04hostedminimal-backend-pacing-parity) | hosted/minimal backend pacing parity |
-| P2-T04R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p2-t04rreview-backend-parity) | Review P2-T04 backend parity |
-| P3-T01 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t01新增-interiormutable-注解) | 新增 `@InteriorMutable` 注解 |
-| P3-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t01rreview-interiormutable-注解) | Review P3-T01 `@InteriorMutable` 注解 |
-| P3-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02__atomicint-升为-interiormutable-struct) | `__AtomicInt` 升为 `@InteriorMutable struct` |
-| P3-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p3-t02rreview-__atomicint-struct-化) | Review P3-T02 `__AtomicInt` struct 化 |
-| P4-T01 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t01运行期-immortal-flag-与-marker-短路) | 运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路 |
-| P4-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t01rreview-immortal-运行期短路) | Review P4-T01 immortal 运行期短路 |
-| P4-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t02byte-数组-content-hash-键与-unnamed_addr) | byte 数组 content-hash 键与 `unnamed_addr` |
-| P4-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t02rreview-content-hash-键) | Review P4-T02 content-hash 键 |
-| P5-T01 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t01实现-is_immutable-谓词) | 实现 `is_immutable(T)` 谓词 |
-| P5-T01R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t01rreview-is_immutable-谓词) | Review P5-T01 `is_immutable` 谓词 |
-| P5-T02 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t02实现-try_emit_immortal-折叠器并路由-string-literal) | 实现 `try_emit_immortal` 折叠器并路由 String literal |
-| P5-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t02rreview-折叠器与-string-immortal) | Review P5-T02 折叠器与 String immortal |
-| P5-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t03string-内容池-dedup-与其它-ref-类型-per-site) | String 内容池 dedup 与其它 ref 类型 per-site |
-| P5-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t03rreview-dedup-策略) | Review P5-T03 dedup 策略 |
-| P6-T01 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t01platform-lower-成-structlit-并删除专用-codegen) | Platform lower 成 StructLit 并删除专用 codegen |
-| P6-T01R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t01rreview-platform-折叠) | Review P6-T01 Platform 折叠 |
-| P6-T02 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t02typemetadataliteral-审计与指针相等断言) | `TypeMetadataLiteral` 审计与指针相等断言 |
-| P6-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
-| P7-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |
-| P7-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
-| P7-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t02审计需要-pacingoff-的测试并注明原因) | 审计需要 `PACING=off` 的测试并注明原因 |
-| P7-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t02rreview-pacingoff-审计) | Review P7-T02 `PACING=off` 审计 |
-| P7-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t03全量测试矩阵out-of-scope-归位与收口) | 全量测试矩阵、out-of-scope 归位与收口 |
-| P7-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t03rreview-最终收口质量) | Review P7-T03 最终收口质量 |
+| P0-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01核对并冻结-pacing-当前行为基线) | 核对并冻结 pacing 当前行为基线 |
+| P0-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01rreview-pacing-行为基线) | Review P0-T01 pacing 行为基线 |
+| P0-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02核对并冻结-immortal-当前行为基线) | 核对并冻结 immortal 当前行为基线（含 `__AtomicInt` 擦除点） |
+| P0-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02rreview-immortal-行为基线) | Review P0-T02 immortal 行为基线 |
+| P0-T03 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03建立堆增长与字面量分配计数度量) | 建立堆增长与字面量分配计数度量 |
+| P0-T03R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03rreview-度量基线) | Review P0-T03 度量基线 |
+| P1-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01实现-pacing-核心-next_gc--request_collect--safepoint--阈值) | 实现 pacing 核心：`next_gc` + `request_collect` + safepoint + 阈值 |
+| P1-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01rreview-pacing-核心) | Review P1-T01 pacing 核心 |
+| P1-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02接入-pacing-env-旋钮与默认-on并加长程序有界回归) | 接入 pacing env 旋钮与默认 on，并加长程序有界回归 |
+| P1-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02rreview-pacing-env-旋钮与有界回归) | Review P1-T02 env 旋钮与有界回归 |
+| P2-T01 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01nursery-满触发-minor-gc-再重试) | nursery 满触发 minor GC 再重试 |
+| P2-T01R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01rreview-nursery-full-minor-gc) | Review P2-T01 nursery-full minor GC |
+| P2-T02 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02block-pool-耗尽先-full-gc-再增长) | block pool 耗尽先 full GC 再增长 |
+| P2-T02R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02rreview-block-pool-回退) | Review P2-T02 block pool 回退 |
+| P2-T03 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03接入-hard-cap-与-oom-返回) | 接入 `SCOOP_GC_MAX_HEAP_BYTES` hard cap 与 OOM 返回 |
+| P2-T03R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03rreview-hard-cap) | Review P2-T03 hard cap |
+| P2-T04 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04hostedminimal-backend-pacing-parity) | hosted/minimal backend pacing parity |
+| P2-T04R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04rreview-backend-parity) | Review P2-T04 backend parity |
+| P3-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01新增-interiormutable-注解) | 新增 `@InteriorMutable` 注解 |
+| P3-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01rreview-interiormutable-注解) | Review P3-T01 `@InteriorMutable` 注解 |
+| P3-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02__atomicint-升为-interiormutable-struct) | `__AtomicInt` 升为 `@InteriorMutable struct` |
+| P3-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02rreview-__atomicint-struct-化) | Review P3-T02 `__AtomicInt` struct 化 |
+| P4-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01运行期-scoop_gc_flag_immortal-与-marker-短路) | 运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路 |
+| P4-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01rreview-immortal-运行期短路) | Review P4-T01 immortal 运行期短路 |
+| P4-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t02byte-数组-content-hash-键与-unnamed_addr) | byte 数组 content-hash 键与 `unnamed_addr` |
+| P4-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t02rreview-content-hash-键) | Review P4-T02 content-hash 键 |
+| P5-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01实现-is_immutable-谓词) | 实现 `is_immutable(T)` 谓词 |
+| P5-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01rreview-is_immutable-谓词) | Review P5-T01 `is_immutable` 谓词 |
+| P5-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02实现-try_emit_immortal-折叠器并路由-string-literal) | 实现 `try_emit_immortal` 折叠器并路由 String literal |
+| P5-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02rreview-折叠器与-string-immortal) | Review P5-T02 折叠器与 String immortal |
+| P5-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t03string-内容池-dedup-与其它-ref-类型-per-site) | String 内容池 dedup 与其它 ref 类型 per-site |
+| P5-T03R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t03rreview-dedup-策略) | Review P5-T03 dedup 策略 |
+| P6-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01platform-lower-成-structlit-并删除专用-codegen) | Platform lower 成 StructLit 并删除专用 codegen |
+| P6-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01rreview-platform-折叠) | Review P6-T01 Platform 折叠 |
+| P6-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02typemetadataliteral-审计与指针相等断言) | `TypeMetadataLiteral` 审计与指针相等断言 |
+| P6-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
+| P7-T00 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00增强-stw-健壮性避免僵尸线程卡死) | 增强 STW 健壮性，避免僵尸线程卡死 stop-the-world |
+| P7-T00b | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00b补-scoop-语言级并发gc-应用测试) | 补 Scoop 语言级并发/GC 应用测试（替代已删除的 C-API stress） |
+| P7-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |
+| P7-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
+| P7-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t02审计需要-pacingoff-的测试并注明原因) | 审计需要 `PACING=off` 的测试并注明原因 |
+| P7-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t02rreview-pacingoff-审计) | Review P7-T02 `PACING=off` 审计 |
+| P7-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t03全量测试矩阵out-of-scope-归位与收口) | 全量测试矩阵、out-of-scope 归位与收口 |
+| P7-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t03rreview-最终收口质量) | Review P7-T03 最终收口质量 |
 
 ## 包间验收门禁
 

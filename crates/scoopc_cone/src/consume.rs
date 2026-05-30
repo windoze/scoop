@@ -357,6 +357,7 @@ fn build_cached_cone_import_from_payload(
                 annotation_targets,
                 annotation_retention,
                 annotation_params: Vec::new(),
+                is_interior_mutable: ty.is_interior_mutable,
                 type_param_count: type_param_names.len(),
                 eff_param: None,
                 type_param_names,
@@ -733,6 +734,7 @@ mod tests {
                         fqn: "dep.Token".to_owned(),
                         kind: crate::scoopir::IrTypeDeclKind::Struct,
                         type_params: Vec::new(),
+                        is_interior_mutable: true,
                         alias_of: None,
                     }],
                     vec![crate::scoopir::IrFunDecl {
@@ -768,7 +770,7 @@ mod tests {
         inject_cone_artifact_frontend_import(&mut index, &mut env, ConeId::new(7), &artifact)
             .expect("inject artifact frontend import");
 
-        assert!(env.type_symbol("dep.Token").is_some());
+        assert!(env.nominal_is_interior_mutable("dep.Token"));
         assert!(index.by_fqn["dep.Token"].ty.is_some());
         assert_eq!(index.by_fqn["dep.make_token"].fun.len(), 1);
         assert_eq!(index.by_fqn["dep.hidden"].fun.len(), 1);

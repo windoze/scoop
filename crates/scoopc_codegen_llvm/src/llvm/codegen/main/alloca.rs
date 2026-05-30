@@ -3,6 +3,53 @@
 #![allow(dead_code)]
 
 use super::*;
+use sha2::{Digest as _, Sha256};
+
+fn string_byte_data_global_name(bytes: &[u8]) -> String {
+    format!("__scoop_str_data_{}", string_byte_data_hash(bytes))
+}
+
+fn string_byte_data_global_name_for_hash(hash: &str, collision_index: usize) -> String {
+    let base = format!("__scoop_str_data_{hash}");
+    if collision_index == 0 {
+        base
+    } else {
+        format!("{base}_{collision_index}")
+    }
+}
+
+pub(super) fn string_byte_data_hash(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(32);
+    for byte in &digest[..16] {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
+}
+
+impl StringByteDataGlobalRegistry {
+    fn reserve(&mut self, bytes: &[u8]) -> String {
+        self.reserve_for_hash(&string_byte_data_hash(bytes), bytes)
+    }
+
+    fn reserve_for_hash(&mut self, hash: &str, bytes: &[u8]) -> String {
+        if let Some(name) = self.names_by_bytes.get(bytes) {
+            return name.clone();
+        }
+
+        let next_collision_index = self
+            .next_collision_index_by_hash
+            .entry(hash.to_string())
+            .or_insert(0);
+        let name = string_byte_data_global_name_for_hash(hash, *next_collision_index);
+        *next_collision_index += 1;
+        self.names_by_bytes.insert(bytes.to_vec(), name.clone());
+        name
+    }
+}
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn cast_int(
@@ -55,11 +102,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn get_or_create_global_bytes(
         &self,
-        span: crate::span::Span,
         bytes: &[u8],
     ) -> GlobalValue<'ctx> {
-        let name = format!("__scoop_str_data_{}_{}", span.start, span.end);
+        let name = self
+            .shared
+            .shared_caches
+            .string_byte_data_globals
+            .borrow_mut()
+            .reserve(bytes);
         if let Some(existing) = self.module.get_global(&name) {
+            existing.set_unnamed_addr(true);
             return existing;
         }
 
@@ -68,6 +120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init = self.context.const_string(bytes, false);
         gv.set_initializer(&init);
         gv.set_constant(true);
+        gv.set_unnamed_addr(true);
         gv
     }
 
@@ -141,5 +194,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .expect("alloca pointer must be an instruction before alignment is applied");
         inst.set_alignment(aligned)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        StringByteDataGlobalRegistry, string_byte_data_global_name, string_byte_data_hash,
+    };
+
+    #[test]
+    fn string_byte_data_hash_is_sha256_prefix_hex() {
+        assert_eq!(
+            string_byte_data_hash(b"hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e"
+        );
+    }
+
+    #[test]
+    fn string_byte_data_global_name_is_content_keyed() {
+        let same_bytes = "hello".as_bytes().to_vec();
+        assert_eq!(
+            string_byte_data_global_name(b"hello"),
+            string_byte_data_global_name(&same_bytes)
+        );
+        assert_ne!(
+            string_byte_data_global_name(b"hello"),
+            string_byte_data_global_name(b"hello!")
+        );
+    }
+
+    #[test]
+    fn string_byte_data_registry_disambiguates_hash_collisions() {
+        let mut registry = StringByteDataGlobalRegistry::default();
+
+        let first = registry.reserve_for_hash("same_hash", b"first");
+        let second = registry.reserve_for_hash("same_hash", b"second");
+        let second_again = registry.reserve_for_hash("same_hash", b"second");
+
+        assert_eq!(first, "__scoop_str_data_same_hash");
+        assert_eq!(second, "__scoop_str_data_same_hash_1");
+        assert_eq!(second_again, second);
     }
 }

@@ -1787,15 +1787,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_atomic_ref_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if callee_fqn == "scoop.core.getPlatform" {
-            if !args.is_empty() {
-                self.codegen.panic_verified_intrinsic_contract(
-                    "effect-lowered getPlatform",
-                    "argument count drift",
-                );
-            }
-            return self.codegen.codegen_platform_literal(span, target_cg);
-        }
         if callee_fqn == "scoop.core.panic" {
             return self.lower_panic_call(span, args);
         }

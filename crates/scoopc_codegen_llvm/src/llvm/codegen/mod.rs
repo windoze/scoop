@@ -380,6 +380,14 @@ pub(super) const CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX: u32 = 4;
 pub(super) const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 =
     CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX + 1;
 
+/// String byte-array globals keyed by truncated content hash.
+#[derive(Default)]
+struct StringByteDataGlobalRegistry {
+    /// Keeps truncated SHA-256 name collisions from aliasing different byte payloads.
+    names_by_bytes: HashMap<Vec<u8>, String>,
+    next_collision_index_by_hash: HashMap<String, usize>,
+}
+
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的共享 cache。
 ///
 /// 当前先收口两类内容：
@@ -400,6 +408,7 @@ struct SharedCodegenCaches {
     callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
     plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
     exported_abi_symbols: RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
+    string_byte_data_globals: RefCell<StringByteDataGlobalRegistry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -493,6 +502,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
+    interior_mutable_nominals: &'a hir::InteriorMutableIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
@@ -829,6 +839,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
+    pub(super) interior_mutable_nominals: &'a hir::InteriorMutableIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
     pub(super) callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
@@ -885,6 +896,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
+            interior_mutable_nominals,
             direct_supertypes,
             builtins,
             callable_sources,
@@ -928,6 +940,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
+            interior_mutable_nominals,
             direct_supertypes,
             builtins,
             callable_sources,
@@ -1026,6 +1039,19 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
 
     pub(super) fn published_late_lowered_types(&self) -> Option<&'a TypeStore> {
         self.published_late_lowered_types
+    }
+
+    #[allow(dead_code)]
+    pub(in crate::llvm::codegen) fn type_immutability(
+        &self,
+    ) -> mir_body::immutability::TypeImmutability<'_> {
+        mir_body::immutability::TypeImmutability::new(
+            self.types,
+            self.struct_layouts,
+            self.class_inits,
+            self.nominal_kinds,
+            self.interior_mutable_nominals,
+        )
     }
 
     pub(super) fn stable_type_param_resolver(&self) -> &HashMap<TypeParamType, StableTypeParamKey> {

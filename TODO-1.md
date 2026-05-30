@@ -7,7 +7,7 @@
 
 ## P0：冻结当前行为与最小回归基线
 
-### [TODO] P0-T01：核对并冻结 pacing 当前行为基线
+### [DONE] P0-T01：核对并冻结 pacing 当前行为基线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -35,9 +35,19 @@
   - P1-P2 可直接从本条记录读取 pacing 触发挂载点与现状，无需重新核对。
 - 依赖：无
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已核对并冻结 pacing 当前行为基线；本任务只更新记录与当前行为文档，未修改运行期行为。
+  - 生产触发面：`runtime/c/scoop_runtime_api.h:37-38` 只把 `scoop_gc_collect` / `scoop_gc_collect_minor` 暴露为 public C API；排除 `scoop_test_*` smoke/test helper 后，唯一自动触发 collection 的生产分配路径是 `runtime/c/scoop_runtime.c:501-507` 的 `SCOOP_GC_STRESS` 测试开关，在分配前按计数调用 `scoop_gc_collect()`。
+  - safepoint poll 挂载点：`runtime/c/scoop_runtime.c:483-499` 中 `scoop_alloc` 先保证 runtime init 与线程注册，再在 `:493-499` 调用 `scoop_gc_safepoint_poll()`；该 poll 位于 stress 触发、size 规范化、底层分配和 heap 登记之前。P1 的 requested-collect 消费点应挂在 `scoop_gc_safepoint_poll` 语义上，使下一次 allocation 在分配新对象前收集；不得在对象尚未发布到 roots 的 alloc 内同步 collect。
+  - block pool 当前无回收回退：`runtime/c/scoop_runtime.c:224-240` 的 TLS cache refill 持 `state->lock` 调 `scoop_gc_immix_state_take_block`，分配路径在 `runtime/c/scoop_runtime.c:574-584` cache 空时直接 refill；`runtime/c/scoop_gc_immix_internal.h:548-575` 依次取 `reusable_blocks`、`free_blocks`，两者为空时在 `:565` 调 `scoop_gc_immix_block_alloc_new()`，而该函数在 `:283-299` 直接 `posix_memalign` 新 32KB block。当前没有 “pool 空先 full GC 再增长” 的路径。
+  - nursery 当前静默回退：`runtime/c/scoop_runtime.c:252-323` 的 nursery allocator 在 `state->nursery_blocks >= state->nursery_max_blocks` 时返回 NULL；调用方 `runtime/c/scoop_runtime.c:562-567` 只尝试 nursery alloc，若 `p == 0` 会继续走 `:569-603` 的 old-space block allocator。当前没有 nursery-full 触发 minor GC、retry，再决定回退 old 的路径。
+  - `bytes_allocated` 当前只是观测计数：Immix backend 在 `runtime/c/scoop_gc_backend_immix.c:78-79` 以 relaxed atomic add 递增，唯一分配登记调用点是 `:2409-2417` 的 `scoop_gc_heap_register_object`；`runtime/c/scoop_gc_backend_immix.c:2473-2527` heap init 时初始化为 0，debug 读取点是 `:5382-5389`。`grep bytes_allocated runtime/c/` 未发现任何阈值比较或 pacing 触发字段；当前也没有 cycle 末根据 live/allocated 更新 `next_gc` 的逻辑。
+  - cycle 末更新落点：`runtime/c/scoop_gc_backend_immix.c:4892-5366` 的 `scoop_gc_collect` 在持 `state->lock` 且 STW 生效期间完成 mark、`:5213-5240` object sweep、`:5242-5348` region sweep、`:5350-5357` optional compaction/verify；P1 的 `next_gc = max(min_threshold, live * growth_factor)` 应落在 sweep/compaction 完成后、`:5364-5365` `scoop_gc_stop_the_world_end_unlocked()` 与 unlock 之前。当前该位置没有 pacing target 更新。
+  - `ScoopGcHeap` 当前字段：`runtime/c/scoop_gc.h:270-277` 只有 `objects`、`free_list`、`bytes_allocated`、`bytes_freed`、`gc_cycles`；没有 `next_gc`、target heap、growth factor 或 `request_collect` 字段。P1 应在该结构附近新增 pacing 目标与幂等 request 标志，并在 `scoop_gc_heap_init` 初始化默认值。
+  - 现有 env 旋钮集合（按 `grep getenv runtime/c/` 与调用点核对）：`SCOOP_GC_STRESS`（`runtime/c/scoop_runtime.c:135-159`）；Immix nursery `SCOOP_GC_IMMIX_NURSERY_BYTES` / `SCOOP_GC_IMMIX_NURSERY_BLOCKS`（`runtime/c/scoop_gc_backend_immix.c:2448-2470`）；Immix parallel mark/sweep `SCOOP_GC_IMMIX_PARALLEL_MARK`（`:3022-3050`）与 `SCOOP_GC_IMMIX_PARALLEL_SWEEP`（`:3053-3081`）；GC diagnostics `SCOOP_GC_VERIFY_ROOTS`（Immix `:3084-3113`，baseline `runtime/c/scoop_gc.c:1361-1394`）；baseline moving `SCOOP_GC_MOVE`（`runtime/c/scoop_gc.c:1388-1390`）；stackmap strict `SCOOP_STACKMAP_STRICT`（`runtime/c/scoop_stackmap.c:550-570`）。`runtime/c/platform/platform_posix.c:30` 是通用 platform env wrapper，不是固定 GC pacing knob。当前没有 `SCOOP_GC_PACING`、heap target、growth factor、min-threshold 或 max-heap hard cap 旋钮。
+  - 人工抽样复核：已读取并核对 `scoop_alloc` poll/stress/nursery fallback、`scoop_gc_immix_state_take_block`、`scoop_gc_immix_block_alloc_new`、`scoop_gc_heap_register_object`、`ScoopGcHeap` 定义、`scoop_gc_debug_heap_bytes_allocated` 与 `getenv` 命中。P1-P2 可直接引用上述挂载点与缺失点。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；fixture 汇总 `fixtures: ok (1607)`。
 
-### [TODO] P0-T01R：Review pacing 行为基线
+### [DONE] P0-T01R：Review pacing 行为基线
 
 - 参考：
   - P0-T01 完成记录
@@ -58,9 +68,14 @@
   - pacing 行为基线准确可用。
 - 依赖：P0-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已独立复核 P0-T01 pacing 行为基线；未修改运行期行为。
+  - 抽样复核结果：`runtime/c/scoop_runtime.c:493-507` 仍指向 alloc 前 safepoint poll 与 `SCOOP_GC_STRESS` 生产触发；`:562-567` 仍是 nursery 失败后静默回退 old-space；`:574-584` 仍是 TLS cache 空时持锁 refill；`runtime/c/scoop_gc_immix_internal.h:548-575` 仍在 reusable/free 为空时直接 `:565` 新分配 block，底层 `posix_memalign` 仍在 `:283-299`。
+  - 计数与字段复核结果：`runtime/c/scoop_gc_backend_immix.c:78-79`、`:2409-2417`、`:2473-2527`、`:5382-5389` 仍只提供 `bytes_allocated` 观测计数；`runtime/c/scoop_gc.h:270-277` 仍无 `next_gc`、target heap、growth factor 或 `request_collect` 字段；`runtime/c/scoop_runtime_api.h:37-38` 仍仅导出手动 GC API。
+  - 触发挂载点复核结果：safepoint poll 挂载点、alloc 计数点均已准确标定；review 补充了 cycle 末 `next_gc` 更新落点，即 `runtime/c/scoop_gc_backend_immix.c:4892-5366` 的 `scoop_gc_collect` 在 sweep/compaction 完成后、`scoop_gc_stop_the_world_end_unlocked()` 与 unlock 之前。
+  - env 旋钮复核结果：`grep getenv runtime/c/` 命中仍限于 `SCOOP_GC_STRESS`、Immix nursery/parallel mark/sweep、`SCOOP_GC_VERIFY_ROOTS`、baseline `SCOOP_GC_MOVE`、`SCOOP_STACKMAP_STRICT` 与平台通用 wrapper；当前仍无 `SCOOP_GC_PACING`、heap target/growth/min threshold 或 hard-cap pacing 旋钮。
+  - 验证：本 review 只修改文档与任务记录；`git diff --check` 通过；复用 P0-T01 完成记录中的最近一次绿色 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`（fixtures ok 1607）。因本次无代码变更，未重新运行完整 suite。
 
-### [TODO] P0-T02：核对并冻结 immortal 当前行为基线
+### [DONE] P0-T02：核对并冻结 immortal 当前行为基线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -87,9 +102,21 @@
   - P3-P6 可直接读取 immortal 现状与落点。
 - 依赖：P0-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已核对并冻结 immortal 当前行为基线；本任务只更新任务记录，未修改运行期或编译期行为。
+  - String literal 当前分配路径：`crates/scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:97-100` 把普通/合成字符串 literal 路由到 `codegen_string_literal*`；`:133-197` 的 `codegen_string_literal_from_bytes` 每次求值都会构造一个 GC-managed `ScoopString` wrapper，其中 `:145-159` 取得 String type descriptor、声明/调用 `scoop_alloc_typed(desc, sizeof(ScoopString))`，`:166-190` 再写入 `len` 与 `data`。字节 payload 已由 `crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72` 放入只读 global，但 global 名称仍按 source span 生成，当前没有 content-hash dedup，也没有 `unnamed_addr`。
+  - TypeMetadataLiteral 当前分配路径：旧 HIR direct codegen 路径 `crates/scoopc_codegen_llvm/src/llvm/codegen/expr.rs:85-92` 对 `TypeNameString` 直接调用 `codegen_string_literal_from_text`；MIR codegen 在 `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/terminator.rs:407-409` 与 `:556-558` 把 `Rvalue::TypeMetadataLiteral` 路由到 `codegen_mir_type_metadata_literal`，该函数位于 `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/transport.rs:186-201`，`:193-199` 生成类型名文本后复用 `codegen_string_literal_from_text`，因此继承 String wrapper 的 `scoop_alloc_typed` 分配。
+  - Platform 当前分配路径：effect-lowered direct call 在 `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/value.rs:1790-1798` 识别 `scoop.core.getPlatform` 并调用 `codegen_platform_literal`；`crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/transport.rs:203-292` 的 `codegen_platform_literal` 校验目标为 `scoop.core.Platform`，`:230-237` 拆分 target triple 为 `triple/arch/vendor/os/env` 五个字段，`:239-268` 遍历布局字段并在 `:250` 对每个字段调用 `codegen_string_literal_from_text`，随后 `:270-285` 用 SSA `insertvalue` 拼成 struct。当前每次读取 Platform 都会分配 5 个 `ScoopString` wrapper。
+  - GC header / marker 当前支点：`runtime/c/scoop_gc.h:210-223` 的 `ScoopGcObjectHeader` 只有 `next/type_desc/size_bytes/flags/mark`，当前 runtime 中 `grep` 未发现 `SCOOP_GC_FLAG_IMMORTAL` 或 immortal sentinel。full-GC serial marker `runtime/c/scoop_gc_backend_immix.c:2719-2737` 在 `:2728` 无条件写 `obj->mark = mark_value`，并在 `:2730-2736` 标记 Immix block line、压入 mark stack；parallel marker `:2950-2975` 同样通过 `__atomic_compare_exchange_n(&obj->mark, ...)` 写 mark 并压入 parallel work。朴素把 header 放入 `.rodata` 后，只要这些路径直接接触对象头就可能写只读页。
+  - heap-membership 过滤现状：full GC 在 `runtime/c/scoop_gc_backend_immix.c:4936-4944` 为本轮 mark 构建 membership index；index 构建与二分/线性 fallback 位于 `:2592-2709`。serial visitor `:2739-2760` 与 parallel visitor `:2977-2993` 都先做 `scoop_gc_heap_membership_index_contains`，不在 heap snapshot 中的堆外指针会被跳过，这是 immortal 透明性的主要支点。例外是 pinned roots 与 stable handles：full GC parallel 分支在 `:5043-5060` 对 `scoop_gc_pinned_objects` / `scoop_gc_handle_records` 直接调用 `scoop_gc_parallel_mark_object_if_needed`，serial 分支在 `:5169-5186` 直接调用 `scoop_gc_mark_object_if_needed`，都不先走 visitor membership；P4 的 marker 短路必须覆盖这些直接入口。minor GC 也有 nursery-only marker `:4139-4198`，其中 `:4152` 写 mark，但 slot visitor 先经过 membership、size 与 nursery-generation 过滤；后续实现 immortal 时仍应抽样确认不会从 minor 直接写 immortal header。
+  - review 补充的其它 backend marker 写路径：反向 grep `obj->mark` 发现 baseline `runtime/c/scoop_gc.c:1313-1323`、minimal `runtime/c/scoop_gc_backend_minimal.c:503-513`、hosted `runtime/c/scoop_gc_backend_hosted.c:513-523` 也各自在 marker helper 中无条件写 `mark`；它们的 pinned/handle 直接入口分别位于 baseline `:2342-2359`、minimal `:552-568`、hosted `:563-579`。P4 的 `SCOOP_GC_FLAG_IMMORTAL` 短路应覆盖所有 backend marker helper，而不能只改 Immix serial helper。
+  - `__AtomicInt` 声明现状：`sysroot/lib/scoop.unsafe/src/unsafe.scoop:151-163` 将 internal atomics 描述为与 `Int` 相同布局，`:163` 定义 `public typealias __AtomicInt = Int`；原子 intrinsic 签名仍在 `:165-187`，其语义依赖第一个参数是可寻址 lvalue slot，而不是类型层的独立 atomic nominal。
+  - 任务列出的 5 个 `__AtomicInt` 擦除点：`crates/scoopc_hir/src/typecheck/lower.rs:2657-2671` 与 `:3522-3532` 在两条 type lowering 路径中把 `scoop.unsafe.__AtomicInt` 直接返回为 `builtins.int`；`crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/types.rs:423-437` 的 `builtin_nominal_codegen_type_id` 把它映射为 `builtins.int`；`crates/scoopc_hir/src/hir/lower/util/generic_layouts.rs:84-92` 的 layout alias 把它 intern 为 `ValueTypeKind::Int`；`crates/scoopc_hir/src/hir/lower/main/impl_lowering.rs:1711-1724` 的 HIR lowering special-case 直接返回 `builtins.int`。P3 应把这些点改成“类型保持独立 `__AtomicInt` nominal，布局/ABI 等于 word-sized signed Int”。
+  - 额外直接映射点：反向 grep 还发现 codegen ABI/type 层存在直接特判，虽然不在任务列出的 5 处内，也属于 P3/P3R 迁移审计范围。`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/abi.rs:262-271` 对 nominal `__AtomicInt` 直接返回 word signed integer ABI，`:343-356` 在 value-only enum underlying FQN 映射中把 `scoop.unsafe.__AtomicInt` 当 word signed integer；`crates/scoopc_codegen_llvm/src/llvm/codegen/ty.rs:252-261` 与 `:321-324` 将 nominal/FQN `__AtomicInt` 映射为 `CgTy::Int(word, signed)`。这些位置未来应保留“布局/ABI=Int word”的事实，但不能把类型身份擦回 plain `Int`。
+  - `core.scoop` atomic 构造点：`sysroot/lib/scoop.core/src/core.scoop:1523-1536` 中 `AtomicInt.raw` 当前写作 `var raw: __AtomicInt = initial`，`:1547-1559` 中 `AtomicBool.raw` 写作 `var raw: __AtomicInt = __atomicBoolToInt(initial)`；因为当前 `__AtomicInt` 是 typealias，这等价于普通 `Int` 初始化。P3 升级为 distinct struct 后应改为显式构造 `__AtomicInt(initial)` 与 `__AtomicInt(__atomicBoolToInt(initial))`，不引入隐式 `Int` ↔ `__AtomicInt` coercion。
+  - 人工抽样复核：已读取并核对上述 String/TypeMetadata/Platform lowering、global byte payload、GC header、serial/parallel/full/minor mark、membership filtering、pinned/handle mark 入口、`__AtomicInt` sysroot 声明、`core.scoop` atomic raw 字段和 grep 到的所有 Rust 侧 `__AtomicInt` 直接映射点。P3-P6 可直接引用这些现状与落点。
+  - 验证：`git diff --check` 通过。本任务只修改 Markdown/任务记录，未修改代码；按项目规则复用 P0-T01/P0-T01R 完成记录中的最近绿色 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 与 `python3 tools/run_fixtures.py`（fixtures ok 1607），因此未重新运行完整 suite。
 
-### [TODO] P0-T02R：Review immortal 行为基线
+### [DONE] P0-T02R：Review immortal 行为基线
 
 - 参考：
   - P0-T02 完成记录
@@ -110,9 +137,14 @@
   - immortal 基线完整可用。
 - 依赖：P0-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已独立复核 P0-T02 immortal 行为基线；本 review 未修改运行期或编译期行为，但补齐了 marker 路径记录和后续 P4 任务范围。
+  - 三类分配点复核结果：`crates/scoopc_codegen_llvm/src/llvm/codegen/main/literal.rs:97-100` 仍把普通/合成字符串路由到 `codegen_string_literal*`，`:133-197` 仍通过 `scoop_alloc_typed` 分配 `ScoopString` wrapper；`crates/scoopc_codegen_llvm/src/llvm/codegen/main/alloca.rs:56-72` 仍用 span-key 创建只读 byte global。旧 HIR direct `TypeNameString` 路径 `crates/scoopc_codegen_llvm/src/llvm/codegen/expr.rs:85-92` 与 MIR `TypeMetadataLiteral` 路径 `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/transport.rs:186-201` 仍复用 string literal 分配；`codegen_platform_literal` `:203-292` 仍对 5 个 Platform 字段各调用 `codegen_string_literal_from_text`。
+  - `__AtomicInt` 反向 grep 结果：source 侧 `grep __AtomicInt` 命中仍是 P0-T02 已记录的 5 个擦除点（`typecheck/lower.rs:2662,3523`、`mir_body/types.rs:436`、`generic_layouts.rs:89`、`impl_lowering.rs:1724`）、sysroot typealias/atomic 构造点，以及已补充的 codegen ABI/type 直接映射点（`effect_lowered/layout/abi.rs:263,353`、`ty.rs:256,321`）。测试 fixture 中的 `__AtomicInt` 只是用例，不是新的擦除/映射点。
+  - marker 与 membership 复核结果：Immix serial visitor `runtime/c/scoop_gc_backend_immix.c:2739-2760` 与 parallel visitor `:2977-2993` 仍先做 membership 过滤；membership index 构建/查询仍位于 `:2592-2709`，full GC 构建点仍为 `:4941-4944`。review 发现 P0-T02 对直接 marker 入口记录不完整，已补充：Immix parallel pinned/handle 入口 `:5043-5060` 会直接调用 `scoop_gc_parallel_mark_object_if_needed`，serial pinned/handle 入口 `:5169-5186` 会直接调用 `scoop_gc_mark_object_if_needed`；baseline/minimal/hosted 也各有 marker helper 无条件写 `mark`。
+  - 任务/设计修正：已同步更新 `GC_IMMORTAL_FIX.md`、`PLAN.md` 与 `TODO-3.md`，明确 P4 的 `SCOOP_GC_FLAG_IMMORTAL` 短路必须覆盖 Immix serial/parallel marker 以及 baseline/minimal/hosted marker helper，不能只改 Immix serial helper。
+  - 验证：本 review 只修改 Markdown/任务记录/计划记录；`git diff --check` 通过。未重新运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 或 `python3 tools/run_fixtures.py`，复用 P0-T01/P0-T01R 最近绿色全量结果（fixtures ok 1607），原因是本次无代码或 fixture 行为变更。
 
-### [TODO] P0-T03：建立堆增长与字面量分配计数度量
+### [DONE] P0-T03：建立堆增长与字面量分配计数度量
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -136,9 +168,16 @@
   - 后续 P1（堆有界）与 P5/P6（零分配）可直接复用这两个度量做前后对比。
 - 依赖：P0-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已建立两个可复用度量，未改变运行期或编译期行为。
+  - 长程序堆增长度量：`crates/scoop_runtime/src/bin/gc_microbench.rs` 新增 `heap-growth` 场景，运行方式为 `cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`。默认执行 10M 个 32-byte 小对象分配、每 1M 次采样，不在循环中主动 GC，用于 P1 前后对比 pacing 是否让 live/reserved 变有界。
+  - baseline 数值（Immix，默认无 pacing）：`allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；采样点显示 `allocated/live` 从 0 线性增长到 320000000，符合当前无界增长基线。
+  - 字面量分配计数度量：新增 `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`，只包含 `String` literal 与 `getPlatform()` 读取的可达函数；新增 `tools/literal_alloc_metric.py`，运行方式为 `python3 tools/literal_alloc_metric.py --expect-min 1`，内部通过 `scoopc emit-artifact --kind llvm-ir` 生成 IR 并统计 `call/invoke @scoop_alloc_typed`。
+  - baseline 字面量计数：`scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`；其中 call 计数覆盖 1 个 String literal wrapper 分配与 `Platform` 的 5 个字段 String wrapper 分配，符合当前 per-use 分配基线。
+  - 更新（P2-T03 之后）：OOM 硬上限引入内部 wrapper `@__scoop_alloc_typed_checked` 后，codegen 分配点改为调用 wrapper，`literal_alloc_metric.py` 已拆分两种符号拼写分别计数；新基线为 `scoop_alloc_typed_calls=7`（raw=1 wrapper 内部委托 + checked=6 codegen 分配点）、`scoop_alloc_typed_symbol_occurrences=9`（raw=2 + checked=7）。其中 `scoop_alloc_typed_checked_calls=6` 对应原 baseline 的 6 个 codegen 分配点。`--expect-calls` 现应使用 7。
+  - fixture 表达能力检查：`tools/run_fixtures.py` 已支持 `ARGS: --emit-llvm`、`BUILD-LLVM-CONTAINS`、`BUILD-LLVM-REGEX`、`BUILD-LLVM-NOT-CONTAINS`；本任务使用 `BUILD-LLVM-CONTAINS: @scoop_alloc_typed` 作为全量 fixture suite 中的 baseline 存在性检查，精确计数由专用工具承担，未扩展 fixture runner 行为。
+  - 验证：`cargo fmt`、`cargo test -p scoop_runtime --bin gc_microbench`、`python3 tools/literal_alloc_metric.py --expect-min 1`、`python3 tools/literal_alloc_metric.py --expect-calls 6`、`cargo run -p scoop_runtime --bin gc_microbench -- heap-growth --allocations 1000 --sample-every 500 --json`、`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
-### [TODO] P0-T03R：Review 度量基线
+### [DONE] P0-T03R：Review 度量基线
 
 - 参考：
   - P0-T03 完成记录
@@ -157,11 +196,15 @@
   - 度量可复现、可作为前后对比基线。
 - 依赖：P0-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已独立复核 P0-T03 度量基线；未修改运行期或编译期行为。
+  - 字面量分配计数复核：`python3 tools/literal_alloc_metric.py --expect-calls 6` 通过，输出 `scoop_alloc_typed_calls=6`、`scoop_alloc_typed_symbol_occurrences=7`，与 P0-T03 baseline 记录一致，确认 String literal + Platform 读取仍能客观反映 per-use wrapper 分配。（注：P2-T03 引入 OOM wrapper 后基线更新为 calls=7/occ=9，详见 P0-T03 完成记录中的「更新」条目。）
+  - 长程序堆增长复核：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，输出 `allocations=10000000`、`bytes=320000000`、`peak_allocated=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`；1M 采样点从 0 线性增长到 320000000，确认 baseline 仍反映默认无 pacing 的无界增长。
+  - 全量 suite 影响复核：新增 fixture `tests/fixtures/umb_fix/P0-T03-gc-metrics/pos_literal_alloc_metric.scoop` 在完整 fixture suite 中通过，度量未破坏 baseline 全量回归。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
 ## P1：Pacing 核心：堆增长阈值触发
 
-### [TODO] P1-T01：实现 pacing 核心 next_gc + request_collect + safepoint + 阈值
+### [DONE] P1-T01：实现 pacing 核心 next_gc + request_collect + safepoint + 阈值
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -189,9 +232,16 @@
   - 默认运行不再无界增长（env 旋钮在 P1-T02 接入，本任务可临时硬编码默认值）。
 - 依赖：P0-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已实现 Immix pacing 核心；默认配置下长程序不再无界保留 heap。
+  - heap 状态：`runtime/c/scoop_gc.h` 新增 `SCOOP_GC_PACING_MIN_THRESHOLD_BYTES`、`ScoopGcHeap.next_gc`、`request_collect` 与保留 padding；`runtime/c/scoop_gc.c`、`runtime/c/scoop_gc_backend_minimal.c`、`runtime/c/scoop_gc_backend_hosted.c`、`runtime/c/scoop_gc_backend_immix.c` 的 heap init 均初始化 pacing 字段，保持三个 backend 可编译。
+  - Immix alloc 触发：`scoop_gc_heap_register_object` 在对象登记后对累计 `bytes_allocated` 做 relaxed add，并用 `allocated_after >= next_gc` 设置幂等 `request_collect`；不在 alloc 内同步 collect。
+  - safepoint 消费：`runtime/c/scoop_runtime.c::scoop_alloc` 仍先执行 alloc 前 poll；`scoop_gc_safepoint_poll` 先保持既有 STW poll 语义，再 CAS 消费 `request_collect` 并调用 `scoop_gc_collect()`，因此请求在下一次 alloc/write-barrier safepoint 处、分配前落地。
+  - cycle 末更新：`scoop_gc_collect` 在持 Immix lock 且 sweep/compaction/verify 完成后、`scoop_gc_stop_the_world_end_unlocked()` 前更新 `next_gc` 并清 request。由于现有 debug `bytes_allocated` / `bytes_freed` 是累计计数，`next_gc` 存为累计分配水位线 `bytes_freed + max(4MiB, live * 1.5)`，等价于目标 live heap 模型且不改变累计统计 ABI。
+  - 回归：`crates/scoop_runtime/tests/gc_immix_allocator.rs` 新增 `immix_pacing_default_collects_after_threshold`，验证默认 pacing 超过 4MiB 后无需显式 GC 也会释放无根对象，并让 live heap 保持接近默认 floor；既有多线程分配/GC smoke 也覆盖 request/collect 不死锁。
+  - P0-T03 10M heap-growth 度量：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、累计 `bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`。`peak_allocated=320000000` 仍为累计分配计数，heap 有界性以后看 `live/reserved`。
+  - 验证：`cargo fmt`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。
 
-### [TODO] P1-T01R：Review pacing 核心
+### [DONE] P1-T01R：Review pacing 核心
 
 - 参考：
   - P1-T01 完成记录
@@ -212,9 +262,15 @@
   - pacing 核心正确且默认堆有界。
 - 依赖：P1-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已复核 P1-T01 pacing 核心，并修正 review 中发现的 pacing-off 对照路径缺失；默认堆有界，`SCOOP_GC_PACING=off` 恢复旧的无界增长对照。
+  - root publication / reentrancy 复核：`runtime/c/scoop_runtime.c:504-505` 仍在 `scoop_alloc` 分配前执行 `scoop_gc_safepoint_poll()`；pacing 触发不在 alloc 内同步 collect，alloc 侧只在对象初始化并登记后由 `runtime/c/scoop_gc_backend_immix.c:2489-2497` 做计数与 request。`runtime/c/scoop_gc_backend_immix.c:1945-1949` 只在下一次 safepoint poll 消费 request 并调用 `scoop_gc_collect()`，保持“先 poll 后 alloc”的 root publication 纪律；既有 `SCOOP_GC_STRESS` 分配前 collect 路径仍在 `runtime/c/scoop_runtime.c:502-512`。
+  - 并发与阈值复核：`runtime/c/scoop_gc_backend_immix.c:241-247` 用 relaxed load 读取 `next_gc`，超过累计水位线时只幂等置 `request_collect`；`runtime/c/scoop_gc_backend_immix.c:249-257` 用 CAS 消费 request，且 STW 已请求时 no-op；`runtime/c/scoop_gc_backend_immix.c:214-228` 的 `next_gc` 更新只在 GC cycle 末调用，实际调用点为 sweep/compaction/verify 之后、STW end 之前的 `runtime/c/scoop_gc_backend_immix.c:5450`。
+  - review 修正：为满足本 review 的 pacing-off 对照要求，`runtime/c/scoop_gc.h:265-293` 新增内部 `SCOOP_GC_PACING=off` 初始化路径，默认返回 4MiB 初始 `next_gc`，`off`/`0`/`false`/`no` 返回 0；`runtime/c/scoop_gc_backend_immix.c:214-221` 在 `next_gc == 0` 时保持 pacing disabled 并清 request。该 helper 为 `static inline`，未扩大 `runtime/c/scoop_runtime_api.h` 公共导出面；baseline/minimal/hosted heap init 也统一使用该初始值以保持字段语义一致。
+  - 长程序度量（默认 pacing）：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`，确认默认配置下 live/reserved heap 有界。
+  - 长程序度量（pacing off 对照）：`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点线性增长，确认 off 路径恢复旧的无界行为并证明 pacing 生效。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test gc_immix_allocator`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。验证期间曾发现新增 helper 被 runtime ABI allowlist 视为未登记导出，已改为 header 内部 `static inline` 并由后续全量测试确认修复。
 
-### [TODO] P1-T02：接入 pacing env 旋钮与默认 on，并加长程序有界回归
+### [DONE] P1-T02：接入 pacing env 旋钮与默认 on，并加长程序有界回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -238,9 +294,16 @@
   - pacing 旋钮齐备、默认 on，长程序有界有回归覆盖。
 - 依赖：P1-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已接入 pacing env 旋钮并固化长程序有界回归；默认 pacing on，`SCOOP_GC_PACING=off` 保留旧无界增长对照，`SCOOP_GC_STRESS` 激活时旁路 pacing。
+  - env 配置：`runtime/c/scoop_runtime.c` 在首次 `scoop_runtime_init()` 中解析 `SCOOP_GC_PACING`、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES` 与既有 `SCOOP_GC_STRESS`。解析后的配置写入 `ScoopGcHeap` 内部字段，未新增 `runtime/c/scoop_runtime_api.h` 公共导出符号。
+  - GC 状态：`runtime/c/scoop_gc.h` 为 `ScoopGcHeap` 新增 `pacing_min_threshold_bytes` 与 `pacing_target_growth_factor`，baseline/minimal/hosted/immix heap init 均初始化默认值；runtime init 再按 env 覆盖 `next_gc`、min threshold 与 growth factor。
+  - Immix 阈值：`runtime/c/scoop_gc_backend_immix.c` 的 cycle 末 `next_gc` 更新改为使用 heap 内的 min threshold 与 growth factor，仍以 `next_gc == 0` 表示 pacing disabled，并保持 alloc 快路径只置 request、safepoint poll 消费 request。
+  - 长程序回归：新增 `crates/scoop_runtime/tests/gc_pacing_env.rs`，通过独立 `gc_microbench heap-growth` 子进程隔离 runtime env，覆盖默认 on 有界、`SCOOP_GC_PACING=off` 旧无界对照、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`/`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR` 生效，以及高间隔 `SCOOP_GC_STRESS` 激活时 pacing 旁路。
+  - P0-T03 10M heap-growth 度量（默认 pacing）：`allocations=10000000`、`bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`，确认默认配置下 live/reserved heap 有界。
+  - P0-T03 10M heap-growth 度量（pacing off 对照）：`SCOOP_GC_PACING=off` 下 `allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，确认 off 保持旧无界行为并作为确定性堆计数测试出口。
+  - 验证：`cargo fmt`、`cargo test -p scoop_runtime --test gc_pacing_env`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`、`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json`、`cargo test -p scoop_runtime --no-default-features --features gc-minimal`、`cargo test -p scoop_runtime --no-default-features --features gc-hosted`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。验证期间曾发现内部 pacing getter 触发 runtime 导出符号审计，已改为 heap 内部配置字段并由后续完整测试确认修复。
 
-### [TODO] P1-T02R：Review pacing env 旋钮与有界回归
+### [DONE] P1-T02R：Review pacing env 旋钮与有界回归
 
 - 参考：
   - P1-T02 完成记录
@@ -261,4 +324,11 @@
   - pacing 线核心收口，长程序在默认配置下可持续运行。
 - 依赖：P1-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已复核 P1-T02 pacing env 旋钮与有界回归；未发现需要代码修正的阻塞问题，pacing 线核心收口可进入 TODO-2。
+  - env 默认与解析复核：`runtime/c/scoop_gc.h:267-294` 定义默认 min threshold 4MiB、growth factor 1.5，并以 `next_gc == 0` 表示 pacing disabled；`runtime/c/scoop_runtime.c:228-256` 在首次 `scoop_runtime_init()` 中解析并应用 `SCOOP_GC_PACING`、`SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES`、`SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR`，默认 pacing on，`off`/`0`/`false`/`no` 会把 heap `next_gc` 设为 0。
+  - stress 旁路复核：`runtime/c/scoop_runtime.c:166-189` 保持既有 `SCOOP_GC_STRESS` 语义；`:228-236` 在 stress interval 非 0 时关闭 pacing，`:597-604` 仍只在分配前按 stress interval 手动 collect，未改变 `scoop_gc_collect()` 手动调用语义。
+  - Immix 阈值路径复核：`runtime/c/scoop_gc_backend_immix.c:193-245` 使用 heap 内的 min threshold 与 growth factor 计算 cycle 末 `next_gc`，并在 `next_gc == 0` 时清 request 且保持 disabled；`:258-264` alloc 后只置幂等 request，`:1962-1967` 在下一次 safepoint poll 消费 request 并调用 collect，`:5469-5471` 仍在 sweep/compaction/verify 后、STW end 前更新 `next_gc`。
+  - 回归覆盖复核：`crates/scoop_runtime/tests/gc_pacing_env.rs:52-118` 通过独立 `gc_microbench heap-growth` 子进程覆盖默认 on 有界、`SCOOP_GC_PACING=off` 旧无界对照、min threshold/growth factor 生效，以及高间隔 `SCOOP_GC_STRESS` 激活时 pacing 被旁路。
+  - 10M 长程序度量（默认 pacing）：`cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=3725312`、`peak_reserved=4456448`、`gc_end.live=1232896`、`gc_end.reserved=4456448`，确认默认配置下 live/reserved heap 有界。
+  - 10M 长程序度量（pacing off 对照）：`SCOOP_GC_PACING=off cargo run -p scoop_runtime --release --bin gc_microbench -- heap-growth --json` 通过，`allocations=10000000`、`bytes=320000000`、`peak_live=320000000`、`peak_reserved=322699264`、`freed=0`，采样点线性增长，确认 off 恢复旧无界行为。
+  - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test gc_pacing_env`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 均已通过；完整 fixture 汇总 `fixtures: ok (1608)`。

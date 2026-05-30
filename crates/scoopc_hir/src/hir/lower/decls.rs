@@ -1,5 +1,7 @@
 //! Declaration graph lowering for typed HIR.
 
+use crate::typecheck::{BuiltinAnnotationKind, builtin_annotation_kind};
+
 use super::*;
 
 impl<'a> HirLowering<'a> {
@@ -43,6 +45,10 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             kind: decl.kind,
+            is_interior_mutable: decl.annotations.iter().any(|ann| {
+                builtin_annotation_kind(self.source, ann)
+                    == Some(BuiltinAnnotationKind::InteriorMutable)
+            }),
             type_params,
             supertypes,
             interfaces,

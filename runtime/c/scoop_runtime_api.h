@@ -40,6 +40,7 @@
   X(scoop_gc_debug_heap_bytes_allocated) \
   X(scoop_gc_debug_heap_bytes_freed) \
   X(scoop_gc_debug_heap_bytes_reserved) \
+  X(scoop_gc_debug_heap_gc_cycles) \
   X(scoop_gc_debug_heap_object_count) \
   X(scoop_gc_heap) \
   X(scoop_gc_heap_init) \

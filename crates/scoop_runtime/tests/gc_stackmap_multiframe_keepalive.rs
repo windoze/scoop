@@ -20,6 +20,12 @@ fn gc_stackmap_multiframe_keepalive() {
         common::gc_capabilities_debug()
     );
 
+    // P7-T02 why: the native helper asserts exact heap object counts after manual GCs;
+    // disable soft pacing so no automatic safepoint collection perturbs those counters.
+    unsafe {
+        std::env::set_var("SCOOP_GC_PACING", "off");
+    }
+
     let rc = unsafe { scoop_test_gc_stackmap_multiframe_keepalive() };
     assert_eq!(rc, 1, "multiframe keepalive 返回值异常：{rc}");
 }

@@ -140,6 +140,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     }
     pairs.push((source, &ast));
     let type_kinds = collect_type_decl_kinds(&pairs);
+    let interior_mutable_nominals = collect_interior_mutable_nominals(&pairs, None);
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
     let delegated_properties = collect_delegated_properties(&pairs);
@@ -376,6 +377,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
+        interior_mutable_nominals,
         nominal_variances,
         direct_supertypes,
         builtins,

@@ -403,6 +403,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             continuation_resume_call_sites: base_context.continuation_resume_call_sites(),
             when_pat_binding_tys: base_context.when_pat_binding_tys(),
             nominal_kinds: base_context.nominal_kinds(),
+            interior_mutable_nominals: base_context.interior_mutable_nominals(),
             direct_supertypes: base_context.direct_supertypes(),
             builtins: base_context.builtins(),
             callable_sources: base_context.callable_sources(),

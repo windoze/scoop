@@ -388,6 +388,7 @@ mod tests {
                 annotation_targets: None,
                 annotation_retention: None,
                 annotation_params: Vec::new(),
+                is_interior_mutable: false,
                 type_param_count: 0,
                 eff_param: None,
                 type_param_names: Vec::new(),

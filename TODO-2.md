@@ -7,7 +7,7 @@
 
 ## P2：分代触发、OOM 防御与 backend parity
 
-### [TODO] P2-T01：nursery 满触发 minor GC 再重试
+### [DONE] P2-T01：nursery 满触发 minor GC 再重试
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -31,9 +31,13 @@
   - 分代分配模式恢复，nursery 不再一次满后永久满。
 - 依赖：P1-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：`scoop_alloc` 在 Immix nursery 分配失败后触发一次 `scoop_gc_collect_minor()`，随后重试 nursery 分配；若仍失败，才沿用 old-space fallback，避免大对象或无法恢复场景死循环。
+  - 修正：minor GC 在移除 dead nursery 对象时调用 release callback 并累计 `bytes_freed`，保证回收统计与 pacing live-bytes 观测一致。
+  - 测试：更新 `gc_immix_nursery` 覆盖 `SCOOP_GC_IMMIX_NURSERY_BLOCKS=4` 的 mixed live/dead workload，断言 `gc_cycles` 递增、`bytes_freed` 增长、nursery 自动 minor 后仍可继续分配；调整 `gc_immix_write_barrier` 以适配 nursery-full 不再静默 fallback 的行为。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T01R：Review nursery-full minor GC
+### [DONE] P2-T01R：Review nursery-full minor GC
 
 - 参考：
   - P2-T01 完成记录
@@ -54,9 +58,15 @@
   - 分代触发正确。
 - 依赖：P2-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - Review 结论：P2-T01 的 nursery-full minor-GC-then-retry 路径不死循环；单对象大于 Immix block payload 时走 large/fallback old-space 分配；minor GC 不再破坏 old-space block free/reusable 链表。
+  - 修正：write barrier 的 old→nursery 判定改为基于 heap membership 与 Immix `all_blocks` containment，避免对 large/fallback malloc 对象使用地址掩码反推 block；old/fallback 对象写入 nursery 引用时会晋升 nursery block。
+  - 修正：promote-on-store 与 pinned nursery promotion 会递归晋升 nursery 引用闭包，维持 minor GC “不扫描 old-space 字段”所依赖的无 old→nursery 边不变式。
+  - 修正：minor reset 仅清理 nursery blocks 的 `next_free`，不再清空 old-space block lists；major mark/sweep/compaction 与 reserved-bytes 统计改用 Immix state containment，避免 large/fallback 对象误判或崩溃。
+  - 测试：新增 `gc_immix_minor_old_edges` 覆盖 large/fallback old object store、跨 nursery block 引用闭包晋升以及后续 minor 不回收被 old object 引用的对象；保留并运行 fixed small nursery 回归。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_minor_old_edges -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_nursery -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_write_barrier -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_minor_collect -- --test-threads=1 --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02：block pool 耗尽先 full GC 再增长
+### [DONE] P2-T02：block pool 耗尽先 full GC 再增长
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -78,9 +88,13 @@
   - block pool 耗尽有 full-GC 回退，不再无条件增长。
 - 依赖：P2-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：`scoop_gc_immix_state_take_block` 拆出 reusable/free 取块重试逻辑；当 block pool 两表均空时，持锁路径会先释放 Immix lock、运行一次 full GC、重新加锁并重试 reusable/free blocks，仍无可用块时才 `scoop_gc_immix_block_alloc_new` 增长。
+  - Reentrancy：新增 `collection_depth` 标记 major/minor collector 持有 heap 的阶段，collector 内部分配路径不会递归触发 full GC；`scoop_alloc` 的 TLS cache refill 通过 `did_block_pool_collect` 保证单次分配最多触发一次 block-pool full GC。
+  - 测试：新增 `gc_immix_block_pool` 覆盖紧堆 old-space workload，断言 block-pool exhaustion 会增加 `gc_cycles` 且不增加 reserved bytes；同步修正受 hard trigger 影响的 STW/native-blocking 测试、pacing-env 断言与同进程 runtime-global 测试隔离，使其遵守 P2 hard-trigger contract。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_block_pool -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_enter_native -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_mark_region -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_parallel_mark_sweep_stress -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_allocator -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stackmap_multiframe_keepalive -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_stop_the_world -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T02R：Review block pool 回退
+### [DONE] P2-T02R：Review block pool 回退
 
 - 参考：
   - P2-T02 完成记录
@@ -99,9 +113,12 @@
   - block pool 回退正确。
 - 依赖：P2-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - Review 结论：P2-T02 的 block-pool fallback 在 reusable/free 两表耗尽时先释放 Immix lock 并触发一次 full GC，collector 持有 heap 时通过 `collection_depth` 跳过递归触发，单次 mutator 分配通过 `did_block_pool_collect` 避免重复 full GC。
+  - 覆盖补强：新增 `immix_block_pool_exhaustion_grows_when_collection_cannot_reclaim`，用 pinned live old-space blocks 证明 full GC 无法回收时 allocation 仍会在一次 GC 后增长，而不是误报 OOM 或递归崩溃；保留原紧堆 reclaim workload 证明可回收时不提前增长。
+  - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T03：接入 hard cap 与 OOM 返回
+### [DONE] P2-T03：接入 hard cap 与 OOM 返回
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -124,9 +141,13 @@
   - hard cap 生效，真 OOM 干净返回 NULL。
 - 依赖：P2-T02R
 - 完成记录：
-  - （待执行）
+  - 2026-05-29：已完成。
+  - 实现：新增 `SCOOP_GC_MAX_HEAP_BYTES` runtime env 解析并写入 heap 配置，默认 `0` 表示无 cap；Immix block-pool 在 P2-T02 的 full-GC retry 后若仍需增长且会超过 cap，则拒绝 `posix_memalign` 新 block，让 `scoop_alloc` 走既有 `NULL` OOM 返回路径。
+  - 完整性：reserved heap 统计同时计入 Immix blocks 与 large/fallback malloc 对象；large-object malloc fallback 也会先 full GC 再判定 hard cap，避免绕过 `SCOOP_GC_MAX_HEAP_BYTES`。
+  - 测试：新增 `gc_immix_hard_cap`，覆盖 tight cap 下 unrooted block 经 full GC 回收后分配成功、live/pinned block 超 cap 时干净返回 `NULL`，以及 large-object fallback 遵守 hard cap。
+  - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_block_pool --features gc-immix -- --test-threads=1 --nocapture`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`。
 
-### [TODO] P2-T03R：Review hard cap
+### [DONE] P2-T03R：Review hard cap
 
 - 参考：
   - P2-T03 完成记录
@@ -145,9 +166,14 @@
   - hard cap 行为正确。
 - 依赖：P2-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P2-T03 的 old-space block-pool 与 large-object hard-cap 路径均保持“先 full GC retry，仍需增长且超过 `SCOOP_GC_MAX_HEAP_BYTES` 才返回 NULL”的时序；底层 `scoop_alloc` / `scoop_alloc_typed` 的 NULL 返回语义保持可达。
+  - 修正：Immix to-space 分配新增 pending new-block 预留统计，minor GC / compaction 在新 block 尚未挂入 `all_blocks` 时也会把它们计入 hard-cap 判断，避免 live nursery evacuation 绕过 cap 暂时增长到 cap 之外。
+  - 修正：LLVM codegen 的 `scoop_alloc_typed` 调用改经内部 `__scoop_alloc_typed_checked` wrapper；runtime 返回 NULL 时统一调用 `scoop_runtime_error_fatal(NULL)` 并 `unreachable`，避免后续 GEP/store 对 NULL 产生 UB。`scoop_entry_argv_array` 在构造 argv Array/String OOM 时也改为 fatal trap，不向非空 Array/String 入口传播 NULL。
+  - 测试：新增 `gc_immix_hard_cap_nursery` 覆盖 cap=1 block、nursery live object 下 minor to-space 不得越过 cap；新增 `gc_hard_cap_codegen_oom_trap.scoop` 覆盖 generated allocation OOM 以 exit 3 trap 而非崩溃；同步更新 LLVM build fixture 对 checked allocation wrapper 的断言。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immix_hard_cap_nursery --features gc-immix -- --test-threads=1 --nocapture`；`cargo test -p scoop_runtime --test gc_immix_hard_cap --features gc-immix -- --test-threads=1 --nocapture`；`cargo build`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/gc_hard_cap_codegen_oom_trap.scoop`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T04：hosted/minimal backend pacing parity
+### [DONE] P2-T04：hosted/minimal backend pacing parity
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -168,9 +194,14 @@
   - pacing 在三 backend 一致生效，pacing 线收口。
 - 依赖：P2-T03R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 实现：将 pacing live/target/next_gc、request/take/update 逻辑抽成 `scoop_gc.h` 的 backend-independent helper；Immix 改为复用同一套 helper，避免阈值公式在 backend 间漂移。
+  - 实现：`gc-hosted` / `gc-minimal` 在对象登记后按累计 `bytes_allocated` 比较 `next_gc` 并设置 `request_collect`；各自的 `scoop_gc_safepoint_poll` 在下一次 allocation safepoint 消费请求并触发 `scoop_gc_collect()`。
+  - 实现：hosted/minimal 的正常 collection 与受限 no-op collection 路径都会更新 `next_gc` 并清除请求；hosted 多线程 no-op 不会因 pacing 请求陷入每次分配重复 collect。
+  - 测试：扩展 `gc_pacing_env`，在 `gc-minimal` / `gc-hosted` 下覆盖默认 pacing 有界、`SCOOP_GC_PACING=off` 保留旧 soft-trigger-off 行为、min-threshold/growth-factor env 生效，以及 `SCOOP_GC_STRESS` 继续绕过 pacing。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P2-T04R：Review backend parity
+### [DONE] P2-T04R：Review backend parity
 
 - 参考：
   - P2-T04 完成记录
@@ -189,4 +220,8 @@
   - pacing 全线收口（P1-P2 完成）。
 - 依赖：P2-T04
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P2-T04 的 backend-independent pacing helper 保持了 Immix 既有阈值公式；`gc-hosted` / `gc-minimal` 在对象登记后按累计 `bytes_allocated` 设置 request，并在下一次 allocation safepoint 触发 `scoop_gc_collect()`，`SCOOP_GC_PACING=off` 与 `SCOOP_GC_STRESS` 语义与 Immix soft-trigger 路径保持一致。
+  - Review 结论：hosted 多线程 no-op collect 与 minimal 多线程降级路径都会调用 pacing update/clear，不会因 request 未清理导致每次分配重复 collect；三 backend 的 pacing 专项与 runtime 回归均通过。
+  - 验证注意：不同 Cargo feature 组合会共享同名 `gc_microbench` binary 路径，因此 backend feature 验证按 backend 顺序运行，避免并行 feature build 互相覆盖测试子进程。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --test gc_pacing_env -- --nocapture`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。

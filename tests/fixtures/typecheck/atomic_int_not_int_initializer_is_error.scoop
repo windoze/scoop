@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 10:24
+// 目标：P3-T02 `__AtomicInt` 是与 `Int` 类型相异的 marked struct，不接受隐式 Int 初始化。
+
+import scoop.core.*
+import scoop.unsafe.*
+
+val raw: __AtomicInt = 0

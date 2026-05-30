@@ -42,6 +42,8 @@ mod immix {
         fn scoop_thread_unregister();
 
         fn scoop_alloc(size: u64) -> *mut c_void;
+        fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+        fn scoop_leave_native();
         fn scoop_gc_collect();
 
         // `void* scoop_gc_write_barrier(void* slot_addr, void* value)`
@@ -83,8 +85,40 @@ mod immix {
 
         let header_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64;
         let small_obj_size = header_size + 64;
+        let container_size = core::mem::size_of::<Container>() as u64;
 
-        // 1) 先分配一个 nursery 对象（young）：后续将其写入 old 容器，触发 promote-on-store。
+        // 1) 先分配容器，并通过 native root 保活；自动 minor 会把它搬到 old。
+        let mut container = unsafe { scoop_alloc(container_size) };
+        assert!(!container.is_null());
+        assert_eq!(
+            immix_generation(container),
+            GEN_NURSERY,
+            "expected initial container allocated in nursery"
+        );
+        let root0: *mut *mut c_void = &mut container;
+        let mut roots: [*mut *mut c_void; 1] = [root0];
+        unsafe {
+            let container_ptr = container as *mut Container;
+            (*container_ptr).slot = core::ptr::null_mut();
+            scoop_enter_native(roots.as_mut_ptr(), roots.len() as u32);
+        }
+
+        // 2) 填满 nursery（上限 1 block），自动 minor 应把 rooted container 搬到 old。
+        let filler_size = header_size + 8 * 1024;
+        for _ in 0..4096 {
+            let p = unsafe { scoop_alloc(filler_size) };
+            assert!(!p.is_null());
+            if immix_generation(container) == GEN_OLD {
+                break;
+            }
+        }
+        assert_eq!(
+            immix_generation(container),
+            GEN_OLD,
+            "expected automatic minor to evacuate rooted container to old"
+        );
+
+        // 3) 再分配一个 nursery 对象（young），并用 write barrier 写入 old container。
         let young = unsafe { scoop_alloc(small_obj_size) };
         assert!(!young.is_null());
         assert_eq!(
@@ -93,36 +127,8 @@ mod immix {
             "expected young object allocated in nursery"
         );
 
-        // 2) 填满 nursery（上限 1 block），让后续分配回退到 old。
-        let filler_size = header_size + 8 * 1024;
-        let mut saw_old = false;
-        for _ in 0..4096 {
-            let p = unsafe { scoop_alloc(filler_size) };
-            assert!(!p.is_null());
-            if immix_generation(p) == GEN_OLD {
-                saw_old = true;
-                break;
-            }
-        }
-        assert!(saw_old, "expected nursery to fill and fall back to old");
-
-        // 3) 分配一个 old 容器对象（container），并用 write barrier 写入 young。
-        let container_size = core::mem::size_of::<Container>() as u64;
-        let mut container = core::ptr::null_mut();
-        for _ in 0..1024 {
-            let p = unsafe { scoop_alloc(container_size) };
-            assert!(!p.is_null());
-            if immix_generation(p) == GEN_OLD {
-                container = p;
-                break;
-            }
-        }
-        assert!(!container.is_null(), "expected container allocated in old");
-
         let container_ptr = container as *mut Container;
         unsafe {
-            (*container_ptr).slot = core::ptr::null_mut();
-
             let slot_addr = core::ptr::addr_of_mut!((*container_ptr).slot) as *mut c_void;
             let written = scoop_gc_write_barrier(slot_addr, young);
 
@@ -155,6 +161,8 @@ mod immix {
         );
 
         unsafe {
+            scoop_leave_native();
+
             // 本测试不依赖 GC roots（Rust 测试代码未走 stackmap roots 协议），因此在收尾处 collect 即可。
             scoop_gc_collect();
             scoop_thread_unregister();

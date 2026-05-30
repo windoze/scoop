@@ -2,8 +2,8 @@
 // 只依赖 typed GC allocation、explicit roots 与普通 Step_F case，不再调用 legacy handler-stack/outcome runtime。
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: @scoop_alloc_typed
-// BUILD-LLVM-CONTAINS: @scoop_alloc_typed(ptr @__scoop_priv0__lowered_frame_layout__h
-// BUILD-LLVM-CONTAINS: @scoop_alloc_typed(ptr @__scoop_priv0__lowered_continuation_layout__h
+// BUILD-LLVM-CONTAINS: @__scoop_alloc_typed_checked(ptr @__scoop_priv0__lowered_frame_layout__h
+// BUILD-LLVM-CONTAINS: @__scoop_alloc_typed_checked(ptr @__scoop_priv0__lowered_continuation_layout__h
 // BUILD-LLVM-CONTAINS: @scoop_gc_write_barrier
 // BUILD-LLVM-NOT-CONTAINS: scoop_effect_handler_stack
 // BUILD-LLVM-NOT-CONTAINS: scoop_effect_outcome

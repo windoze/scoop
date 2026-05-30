@@ -51,6 +51,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, None);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -257,6 +258,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
+        interior_mutable_nominals,
         nominal_variances,
         direct_supertypes,
         builtins,
@@ -528,6 +530,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let source_cone_order =
         source_cone_order_for_lowering(files_to_lower, &source_cones, &stable_cone_key);
     let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, type_env);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -935,6 +938,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
+        interior_mutable_nominals,
         nominal_variances,
         direct_supertypes,
         builtins,

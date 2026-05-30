@@ -681,6 +681,7 @@ mod tests {
                     fqn: "upstream.Token".to_owned(),
                     kind: crate::scoopir::IrTypeDeclKind::Struct,
                     type_params: Vec::new(),
+                    is_interior_mutable: false,
                     alias_of: None,
                 }],
                 vec![crate::scoopir::IrFunDecl {

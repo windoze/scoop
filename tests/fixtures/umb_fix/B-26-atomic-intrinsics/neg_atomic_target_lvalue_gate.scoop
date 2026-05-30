@@ -12,6 +12,6 @@ import scoop.unsafe.*
 
 fun main() {
     @Unsafe do {
-        val value: Int = __atomicIntLoad(1)
+        val value: Int = __atomicIntLoad(__AtomicInt(1))
     }
 }

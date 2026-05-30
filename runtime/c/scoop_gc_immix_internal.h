@@ -104,6 +104,10 @@ typedef struct ScoopGcImmixState {
   ScoopGcImmixBlock *nursery_current_block;
   uint32_t nursery_max_blocks;
   uint32_t nursery_blocks;
+
+  // Non-zero while a collector owns the heap. Block-pool exhaustion must not
+  // recursively trigger another full GC from collector allocation paths.
+  uint32_t collection_depth;
 } ScoopGcImmixState;
 
 static inline ScoopGcImmixState *scoop_gc_immix_state_from_heap(ScoopGcHeap *heap) {
@@ -118,6 +122,93 @@ static inline void scoop_gc_immix_heap_set_state(ScoopGcHeap *heap, ScoopGcImmix
     return;
   }
   heap->free_list = (ScoopGcFreeBlock *)state;
+}
+
+extern ScoopGcHeap scoop_gc_heap;
+
+static inline uint64_t scoop_gc_immix_u64_saturating_add(uint64_t lhs, uint64_t rhs) {
+  if (UINT64_MAX - lhs < rhs) {
+    return UINT64_MAX;
+  }
+  return lhs + rhs;
+}
+
+static inline uint32_t scoop_gc_immix_state_contains_pointer_locked(
+    ScoopGcImmixState *state,
+    const void *ptr) {
+  if (state == 0 || ptr == 0) {
+    return 0;
+  }
+
+  const uintptr_t addr = (uintptr_t)ptr;
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    const uintptr_t start = (uintptr_t)it;
+    if (start > (UINTPTR_MAX - (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
+      continue;
+    }
+    const uintptr_t end = start + (uintptr_t)SCOOP_GC_IMMIX_BLOCK_SIZE;
+    if (addr >= start && addr < end) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+static inline uint64_t scoop_gc_immix_heap_reserved_bytes_locked(ScoopGcImmixState *state,
+                                                                 ScoopGcHeap *heap) {
+  uint64_t total = 0;
+  if (state != 0) {
+    for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+      total = scoop_gc_immix_u64_saturating_add(total,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE);
+    }
+  }
+
+  if (heap != 0 && total != UINT64_MAX) {
+    for (ScoopGcObjectHeader *obj =
+             __atomic_load_n(&heap->objects, __ATOMIC_ACQUIRE);
+         obj != 0;
+         obj = obj->next) {
+      if (scoop_gc_immix_state_contains_pointer_locked(state, obj)) {
+        continue;
+      }
+      total = scoop_gc_immix_u64_saturating_add(total, obj->size_bytes);
+      if (total == UINT64_MAX) {
+        break;
+      }
+    }
+  }
+
+  return total;
+}
+
+static inline uint32_t scoop_gc_immix_heap_can_reserve_with_pending_locked(
+    ScoopGcImmixState *state,
+    ScoopGcHeap *heap,
+    uint64_t bytes,
+    uint64_t pending_bytes) {
+  if (heap == 0 || bytes == 0) {
+    return 1;
+  }
+
+  uint64_t max_heap_bytes = __atomic_load_n(&heap->max_heap_bytes, __ATOMIC_RELAXED);
+  if (max_heap_bytes == 0) {
+    return 1;
+  }
+
+  uint64_t reserved = scoop_gc_immix_heap_reserved_bytes_locked(state, heap);
+  reserved = scoop_gc_immix_u64_saturating_add(reserved, pending_bytes);
+  if (reserved > max_heap_bytes) {
+    return 0;
+  }
+  return bytes <= (max_heap_bytes - reserved);
+}
+
+static inline uint32_t scoop_gc_immix_heap_can_reserve_locked(ScoopGcImmixState *state,
+                                                              ScoopGcHeap *heap,
+                                                              uint64_t bytes) {
+  return scoop_gc_immix_heap_can_reserve_with_pending_locked(state, heap, bytes, 0);
 }
 
 static inline size_t scoop_gc_immix_align_up_size(size_t value, size_t alignment) {
@@ -545,7 +636,8 @@ static inline void *scoop_gc_immix_block_alloc_bump(ScoopGcImmixBlock *block,
   return (void *)aligned;
 }
 
-static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(ScoopGcImmixState *state) {
+static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_available_block(
+    ScoopGcImmixState *state) {
   if (state == 0) {
     return 0;
   }
@@ -555,13 +647,43 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(ScoopGcImmixSta
     block = state->reusable_blocks;
     state->reusable_blocks = block->next_free;
     block->next_free = 0;
-  } else
-  if (state->free_blocks != 0) {
+  } else if (state->free_blocks != 0) {
     block = state->free_blocks;
     state->free_blocks = block->next_free;
     block->next_free = 0;
     // 空闲 block 在进入 free list 时已 reset；这里无需再 reset。
-  } else {
+  }
+
+  return block;
+}
+
+static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(
+    ScoopGcImmixState *state,
+    uint32_t *did_block_pool_collect) {
+  if (state == 0) {
+    return 0;
+  }
+
+  ScoopGcImmixBlock *block = scoop_gc_immix_state_take_available_block(state);
+  uint32_t already_collected =
+      did_block_pool_collect != 0 && *did_block_pool_collect != 0;
+  if (block == 0 && state->lock_inited && state->collection_depth == 0 && !already_collected) {
+    if (did_block_pool_collect != 0) {
+      *did_block_pool_collect = 1;
+    }
+    (void)pthread_mutex_unlock(&state->lock);
+    scoop_gc_collect();
+    (void)pthread_mutex_lock(&state->lock);
+
+    block = scoop_gc_immix_state_take_available_block(state);
+  }
+
+  if (block == 0) {
+    if (!scoop_gc_immix_heap_can_reserve_locked(state,
+                                                &scoop_gc_heap,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
+      return 0;
+    }
     block = scoop_gc_immix_block_alloc_new();
     if (block == 0) {
       return 0;
@@ -574,6 +696,9 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_state_take_block(ScoopGcImmixSta
   return block;
 }
 
+// O(1) 从对象/字段指针反推所属 Immix block：block 由 posix_memalign 对齐到 BLOCK_SIZE，
+// 因此 base = ptr & ~(BLOCK_SIZE-1)。magic 校验用于排除 large/fallback malloc 对象与非堆指针
+// （对这些指针返回 0）。写屏障用它做加锁前的 O(1) 快路径判定。
 static inline ScoopGcImmixBlock *scoop_gc_immix_block_from_object(void *object) {
   if (object == 0) {
     return 0;

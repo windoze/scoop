@@ -37,6 +37,34 @@ mod immix {
         fn scoop_gc_debug_heap_object_count() -> u64;
         fn scoop_gc_debug_heap_bytes_allocated() -> u64;
         fn scoop_gc_debug_heap_bytes_freed() -> u64;
+
+        fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+        fn scoop_leave_native();
+    }
+
+    struct NativeNoRoots;
+
+    impl NativeNoRoots {
+        fn enter() -> Self {
+            unsafe {
+                scoop_enter_native(ptr::null_mut(), 0);
+            }
+            Self
+        }
+    }
+
+    impl Drop for NativeNoRoots {
+        fn drop(&mut self) {
+            unsafe {
+                scoop_leave_native();
+            }
+        }
+    }
+
+    fn wait_at_barrier_in_native(start: &Barrier) {
+        // Registered Rust test threads have no stackmaps while blocked in host synchronization.
+        let _native = NativeNoRoots::enter();
+        start.wait();
     }
 
     #[test]
@@ -101,6 +129,42 @@ mod immix {
     }
 
     #[test]
+    fn immix_pacing_default_collects_after_threshold() {
+        let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
+        unsafe {
+            scoop_runtime_init();
+            scoop_thread_register();
+            scoop_gc_collect();
+
+            let base_allocated = scoop_gc_debug_heap_bytes_allocated();
+            let base_freed = scoop_gc_debug_heap_bytes_freed();
+            let object_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64;
+            let allocations = ((4 * 1024 * 1024) / object_size) + 2048;
+
+            for i in 0..allocations {
+                let p = scoop_alloc(object_size);
+                assert!(!p.is_null(), "scoop_alloc must return non-null (i={i})");
+            }
+
+            let allocated = scoop_gc_debug_heap_bytes_allocated();
+            let freed = scoop_gc_debug_heap_bytes_freed();
+            assert!(allocated > base_allocated);
+            assert!(
+                freed > base_freed,
+                "default pacing should run a collection after crossing the 4MiB threshold"
+            );
+            assert!(allocated >= freed);
+            assert!(
+                allocated - freed <= 5 * 1024 * 1024,
+                "live heap should stay close to the default pacing floor"
+            );
+
+            scoop_gc_collect();
+            scoop_thread_unregister();
+        }
+    }
+
+    #[test]
     fn immix_allocator_multithread_alloc_and_collect_smoke() {
         let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
         unsafe {
@@ -123,7 +187,7 @@ mod immix {
             let stop = stop.clone();
             handles.push(std::thread::spawn(move || unsafe {
                 scoop_thread_register();
-                start.wait();
+                wait_at_barrier_in_native(&start);
 
                 for i in 0..20_000usize {
                     if stop.load(Ordering::Relaxed) {
@@ -147,7 +211,7 @@ mod immix {
             }));
         }
 
-        start.wait();
+        wait_at_barrier_in_native(&start);
 
         for _ in 0..10 {
             unsafe { scoop_gc_collect() };
@@ -156,8 +220,11 @@ mod immix {
 
         stop.store(true, Ordering::Relaxed);
 
-        for h in handles {
-            h.join().unwrap();
+        {
+            let _native = NativeNoRoots::enter();
+            for h in handles {
+                h.join().unwrap();
+            }
         }
 
         unsafe {

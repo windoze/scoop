@@ -1720,8 +1720,6 @@ impl<'a> HirLowering<'a> {
             "scoop.core.Double" => return self.builtins.float64,
             "scoop.core.Float32" => return self.builtins.float32,
             "scoop.core.Int" => return self.builtins.int,
-            // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
-            "scoop.unsafe.__AtomicInt" => return self.builtins.int,
             "scoop.core.UInt" => return self.builtins.uint,
             "scoop.core.UIntPtr" => return self.builtins.uint,
             "scoop.core.Byte" => return self.types.ty_uint_n(8),

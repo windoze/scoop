@@ -31,6 +31,7 @@ mod where_clause;
 
 pub use annotations::{AnnotationError, check_file_annotations};
 pub(crate) use assignable::is_type_assignable;
+pub(crate) use builtin_annotations::{BuiltinAnnotationKind, builtin_annotation_kind};
 pub use expr::{
     ExprTypeError, check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
     check_file_exprs_with_monomorph_keys, check_file_exprs_with_monomorph_requests,

@@ -4,6 +4,7 @@
 // - GC / 线程注册 / 显式 root frame / 分配与字符串底层 substrate
 // - 不再承载 continuation / effect policy source of truth
 
+#include <errno.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdatomic.h>
@@ -131,36 +132,138 @@ static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
 // - GC 触发点选择为“分配前”：避免在对象尚未被 caller 放入 roots 之前被 GC 误回收。
 static uint64_t scoop_rt_gc_stress_interval = 0;
 static _Atomic(uint64_t) scoop_rt_gc_stress_alloc_counter = 0;
+static uint32_t scoop_rt_gc_pacing_enabled = 1;
+static uint64_t scoop_rt_gc_pacing_min_threshold_bytes =
+    (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+static double scoop_rt_gc_pacing_target_growth_factor =
+    SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+static uint64_t scoop_rt_gc_max_heap_bytes = 0;
+
+static const char *scoop_rt_env_skip_space(const char *raw) {
+  if (raw == 0) {
+    return 0;
+  }
+  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
+    raw++;
+  }
+  return raw;
+}
+
+static uint32_t scoop_rt_env_at_end_after_space(const char *raw) {
+  raw = scoop_rt_env_skip_space(raw);
+  return raw == 0 || raw[0] == 0;
+}
+
+static uint32_t scoop_rt_env_matches_token(const char *raw, const char *token) {
+  size_t len = strlen(token);
+  return strncmp(raw, token, len) == 0 && scoop_rt_env_at_end_after_space(raw + len);
+}
+
+static uint32_t scoop_rt_env_is_false_or_off(const char *raw) {
+  return scoop_rt_env_matches_token(raw, "0") || scoop_rt_env_matches_token(raw, "false") ||
+         scoop_rt_env_matches_token(raw, "no") || scoop_rt_env_matches_token(raw, "off");
+}
 
 static uint64_t scoop_rt_parse_gc_stress_interval(void) {
-  const char *raw = getenv("SCOOP_GC_STRESS");
+  const char *raw = scoop_rt_env_skip_space(getenv("SCOOP_GC_STRESS"));
   if (raw == 0) {
     return 0;
   }
 
-  // 跳过前导空白（允许 `SCOOP_GC_STRESS=" 1"`）。
-  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
-    raw++;
-  }
-
-  if (raw[0] == 0) {
+  // 空串（或仅空白）：视为“开启（每次分配触发）”。
+  if (scoop_rt_env_at_end_after_space(raw)) {
     return 1;
   }
-  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0) {
+  // 显式关闭：0/false/no/off（与其它 env 解析一致地容忍尾部空白）。
+  if (scoop_rt_env_is_false_or_off(raw)) {
     return 0;
   }
 
+  errno = 0;
   char *end = 0;
   unsigned long long v = strtoull(raw, &end, 10);
-  if (end != 0 && end != raw && end[0] == 0) {
-    if (v == 0) {
-      return 0;
-    }
-    return (uint64_t)v;
+  if (end != raw && errno == 0 && scoop_rt_env_at_end_after_space(end)) {
+    return v == 0 ? 0 : (uint64_t)v;
   }
 
-  // 非数字：只要不是显式 false/0/no，就视为“开启（每次分配触发）”。
+  // 非数字且非显式关闭：视为“开启（每次分配触发）”。
   return 1;
+}
+
+static uint64_t scoop_rt_parse_env_u64_or_default(const char *name,
+                                                  uint64_t default_value,
+                                                  uint64_t min_value) {
+  const char *raw = scoop_rt_env_skip_space(getenv(name));
+  if (raw == 0 || raw[0] == 0) {
+    return default_value;
+  }
+
+  errno = 0;
+  char *end = 0;
+  unsigned long long v = strtoull(raw, &end, 10);
+  if (end == raw || errno != 0 || !scoop_rt_env_at_end_after_space(end)) {
+    return default_value;
+  }
+  if ((uint64_t)v < min_value) {
+    return default_value;
+  }
+  return (uint64_t)v;
+}
+
+static double scoop_rt_parse_env_double_or_default(const char *name, double default_value) {
+  const char *raw = scoop_rt_env_skip_space(getenv(name));
+  if (raw == 0 || raw[0] == 0) {
+    return default_value;
+  }
+
+  errno = 0;
+  char *end = 0;
+  double v = strtod(raw, &end);
+  if (end == raw || errno != 0 || !scoop_rt_env_at_end_after_space(end) || !isfinite(v) ||
+      v <= 0.0) {
+    return default_value;
+  }
+  return v;
+}
+
+static void scoop_rt_parse_gc_pacing_config(void) {
+  const char *raw_pacing = scoop_rt_env_skip_space(getenv("SCOOP_GC_PACING"));
+  uint32_t pacing_enabled = 1;
+  if (raw_pacing != 0 && raw_pacing[0] != 0 && scoop_rt_env_is_false_or_off(raw_pacing)) {
+    pacing_enabled = 0;
+  }
+  if (scoop_rt_gc_stress_interval != 0) {
+    pacing_enabled = 0;
+  }
+
+  scoop_rt_gc_pacing_enabled = pacing_enabled;
+  scoop_rt_gc_pacing_min_threshold_bytes = scoop_rt_parse_env_u64_or_default(
+      "SCOOP_GC_HEAP_MIN_THRESHOLD_BYTES",
+      (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES,
+      1u);
+  scoop_rt_gc_pacing_target_growth_factor = scoop_rt_parse_env_double_or_default(
+      "SCOOP_GC_HEAP_TARGET_GROWTH_FACTOR",
+      SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR);
+  // growth factor 必须 > 1.0：`next_gc = freed + max(min_threshold, live*factor)`，factor <= 1.0
+  // 会让大堆（live*factor 超过 min_threshold 下限）的 next_gc 落到当前 bytes_allocated 之前，
+  // 之后每次分配都会触发 request→collect（GC storm）。非法值回退到默认。
+  if (!(scoop_rt_gc_pacing_target_growth_factor > 1.0)) {
+    scoop_rt_gc_pacing_target_growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  }
+  scoop_rt_gc_max_heap_bytes =
+      scoop_rt_parse_env_u64_or_default("SCOOP_GC_MAX_HEAP_BYTES", 0, 0);
+}
+
+static void scoop_rt_apply_gc_pacing_config(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+
+  heap->pacing_min_threshold_bytes = scoop_rt_gc_pacing_min_threshold_bytes;
+  heap->pacing_target_growth_factor = scoop_rt_gc_pacing_target_growth_factor;
+  heap->max_heap_bytes = scoop_rt_gc_max_heap_bytes;
+  heap->next_gc = scoop_rt_gc_pacing_enabled ? scoop_rt_gc_pacing_min_threshold_bytes : 0;
+  heap->request_collect = 0;
 }
 
 // GC heap（v0：数据结构骨架）。
@@ -170,6 +273,34 @@ static uint64_t scoop_rt_parse_gc_stress_interval(void) {
 // - `scoop_runtime_init()` 会初始化 heap；`scoop_alloc` 会把对象登记到 heap 链表；
 // - 手动触发 GC：`scoop_gc_collect()`（TODO T0910）。
 extern ScoopGcHeap scoop_gc_heap;
+
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+static uint32_t scoop_rt_gc_immix_can_reserve_after_full_gc(ScoopGcImmixState *state,
+                                                            uint64_t bytes) {
+  if (state == 0 || !state->lock_inited) {
+    return 1;
+  }
+  if (__atomic_load_n(&scoop_gc_heap.max_heap_bytes, __ATOMIC_RELAXED) == 0) {
+    return 1;
+  }
+
+  (void)pthread_mutex_lock(&state->lock);
+  uint32_t can_reserve =
+      scoop_gc_immix_heap_can_reserve_locked(state, &scoop_gc_heap, bytes);
+  uint32_t in_collection = state->collection_depth != 0;
+  (void)pthread_mutex_unlock(&state->lock);
+  if (can_reserve || in_collection) {
+    return can_reserve;
+  }
+
+  scoop_gc_collect();
+
+  (void)pthread_mutex_lock(&state->lock);
+  can_reserve = scoop_gc_immix_heap_can_reserve_locked(state, &scoop_gc_heap, bytes);
+  (void)pthread_mutex_unlock(&state->lock);
+  return can_reserve;
+}
+#endif
 
 uint32_t scoop_runtime_is_initialized(void) {
   return scoop_rt_initialized;
@@ -222,7 +353,8 @@ static inline void scoop_gc_immix_tls_cache_push(ScoopGcImmixBlock *block) {
 }
 
 // 注意：调用方必须持有 `state->lock`。
-static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state) {
+static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state,
+                                                          uint32_t *did_block_pool_collect) {
   if (state == 0) {
     return;
   }
@@ -231,7 +363,7 @@ static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *sta
   }
 
   for (uint32_t i = 0; i < (uint32_t)SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH; i++) {
-    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state);
+    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state, did_block_pool_collect);
     if (b == 0) {
       break;
     }
@@ -244,10 +376,10 @@ static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *sta
 // 设计目标（v0）：
 // - nursery 的分配必须“成本可上界”：只做 bump，不做 holes 搜索/复用；
 // - nursery 的工作量边界由 `nursery_max_blocks` 控制（通过 env 配置；见 immix heap init）；
-// - 当 nursery 用尽时，分配路径回退到 old allocator（现有 hole-bump + reusable blocks 复用）。
+// - 当 nursery 用尽时，分配路径先触发 minor GC 并重试，仍失败才回退到 old allocator。
 //
 // 注意：
-// - 该实现仅提供分配区与上限；minor evacuation 语义在 TODO T1412c 落地。
+// - minor evacuation 由 `scoop_gc_collect_minor` 提供；这里仅负责满 nursery 时的触发点。
 // - 调用方必须持有 `state->lock`（便于与 GC 周期/blocks 列表维护保持一致）。
 static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(
     ScoopGcImmixState *state) {
@@ -265,6 +397,11 @@ static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(
     block->next_free = 0;
   } else {
     if (state->nursery_blocks >= state->nursery_max_blocks) {
+      return 0;
+    }
+    if (!scoop_gc_immix_heap_can_reserve_locked(state,
+                                                &scoop_gc_heap,
+                                                (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE)) {
       return 0;
     }
 
@@ -331,6 +468,50 @@ uint32_t scoop_thread_is_registered(void) {
 
 // `scoop_runtime_init` 定义在文件后部；这里给出前置声明以避免隐式声明警告。
 void scoop_runtime_init(void);
+void scoop_thread_unregister(void);
+static void scoop_thread_unregister_tls(ScoopThreadTls *tls, uint32_t force_gc_unregister);
+
+static pthread_key_t scoop_thread_exit_key;
+static pthread_once_t scoop_thread_exit_key_once = PTHREAD_ONCE_INIT;
+static uint32_t scoop_thread_exit_key_ready = 0;
+static int scoop_thread_exit_key_init_rc = 0;
+
+static void scoop_thread_exit_key_destructor(void *value) {
+  // Some platforms may make C TLS state unreliable during pthread TSD teardown;
+  // the key value itself means this thread armed the hook, so remove any GC record.
+  scoop_thread_unregister_tls((ScoopThreadTls *)value, /*force_gc_unregister=*/1);
+}
+
+static void scoop_thread_exit_key_init(void) {
+  scoop_thread_exit_key_init_rc =
+      pthread_key_create(&scoop_thread_exit_key, scoop_thread_exit_key_destructor);
+  if (scoop_thread_exit_key_init_rc == 0) {
+    scoop_thread_exit_key_ready = 1;
+  }
+}
+
+static void scoop_thread_exit_hook_arm(void) {
+  int rc = pthread_once(&scoop_thread_exit_key_once, scoop_thread_exit_key_init);
+  if (rc != 0 || !scoop_thread_exit_key_ready) {
+    (void)fprintf(stderr,
+                  "[scooprt][thread] failed to initialize thread-exit hook: rc=%d key_rc=%d\n",
+                  rc,
+                  scoop_thread_exit_key_init_rc);
+    abort();
+  }
+
+  rc = pthread_setspecific(scoop_thread_exit_key, (void *)&scoop_tls);
+  if (rc != 0) {
+    (void)fprintf(stderr, "[scooprt][thread] failed to arm thread-exit hook: rc=%d\n", rc);
+    abort();
+  }
+}
+
+static void scoop_thread_exit_hook_disarm(void) {
+  if (scoop_thread_exit_key_ready) {
+    (void)pthread_setspecific(scoop_thread_exit_key, 0);
+  }
+}
 
 // GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
 // before blocking system calls, allowing STW GC to skip this thread.
@@ -338,11 +519,11 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
 void scoop_gc_thread_clear_managed_root_snapshot_current(void);
 
-// 线程注册接口（占位）。
+// 线程注册接口。
 //
 // 说明：
-// - 未来在引入 stop-the-world GC 后，新线程必须注册/注销，以便被枚举并扫描 roots；
-// - 当前阶段只做“TLS 标记 + 可重复调用”，不维护全局线程列表。
+// - 新线程必须注册/注销，以便 STW GC 枚举并扫描 roots；
+// - 注册时安装线程退出 hook，覆盖 panic/异常返回导致调用方漏掉显式注销的路径。
 void scoop_thread_register(void) {
   // 若 runtime 尚未 init，则允许先 init（保持接口易用性；init 目前是幂等的）。
   if (!scoop_rt_initialized) {
@@ -353,6 +534,8 @@ void scoop_thread_register(void) {
     return;
   }
 
+  // 异常返回/panic 路径可能跳过显式 unregister；先安装退出 hook，再纳入 GC 线程表。
+  scoop_thread_exit_hook_arm();
   scoop_tls.registered = 1;
 
   // 把当前线程纳入 GC stop-the-world 线程表（TODO T0911）。
@@ -360,14 +543,14 @@ void scoop_thread_register(void) {
   scoop_gc_thread_register(&scoop_tls);
 }
 
-void scoop_thread_unregister(void) {
-  if (!scoop_tls.registered) {
+static void scoop_thread_unregister_tls(ScoopThreadTls *tls, uint32_t force_gc_unregister) {
+  if (tls == 0 || (!tls->registered && !force_gc_unregister)) {
     return;
   }
 
   // 从 GC stop-the-world 线程表注销（TODO T0911）。
   void scoop_gc_thread_unregister(ScoopThreadTls *tls);
-  scoop_gc_thread_unregister(&scoop_tls);
+  scoop_gc_thread_unregister(tls);
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
   // T1409a/T1409b：线程退出前归还 thread-local blocks（current block + cache），避免：
@@ -378,9 +561,9 @@ void scoop_thread_unregister(void) {
     (void)pthread_mutex_lock(&state->lock);
 
     // 1) current block
-    if (scoop_tls.gc_immix_current_block != 0) {
-      ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
-      scoop_tls.gc_immix_current_block = 0;
+    if (tls->gc_immix_current_block != 0) {
+      ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)tls->gc_immix_current_block;
+      tls->gc_immix_current_block = 0;
       if (block != 0) {
         if (block->live_objects == 0) {
           block->next_free = state->free_blocks;
@@ -393,9 +576,9 @@ void scoop_thread_unregister(void) {
     }
 
     // 2) cached blocks（以 next_free 串起来）
-    ScoopGcImmixBlock *b = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
-    scoop_tls.gc_immix_block_cache = 0;
-    scoop_tls.gc_immix_block_cache_len = 0;
+    ScoopGcImmixBlock *b = (ScoopGcImmixBlock *)tls->gc_immix_block_cache;
+    tls->gc_immix_block_cache = 0;
+    tls->gc_immix_block_cache_len = 0;
 
     while (b != 0) {
       ScoopGcImmixBlock *next = b->next_free;
@@ -415,22 +598,27 @@ void scoop_thread_unregister(void) {
     (void)pthread_mutex_unlock(&state->lock);
   } else {
     // 保守：无法拿到 state lock 时仍应清空 TLS，避免泄漏悬挂指针。
-    scoop_tls.gc_immix_current_block = 0;
-    scoop_tls.gc_immix_block_cache = 0;
-    scoop_tls.gc_immix_block_cache_len = 0;
+    tls->gc_immix_current_block = 0;
+    tls->gc_immix_block_cache = 0;
+    tls->gc_immix_block_cache_len = 0;
   }
 #endif
 
   __scoop_explicit_root_frame_top = 0;
 
-  scoop_tls.registered = 0;
-  scoop_tls.gc_immix_current_block = 0;
-  scoop_tls.gc_immix_block_cache = 0;
-  scoop_tls.gc_immix_block_cache_len = 0;
-  scoop_tls._reserved_u32_1 = 0;
-  scoop_tls.gc_native_roots = 0;
-  scoop_tls.gc_native_roots_len = 0;
-  scoop_tls._reserved_u32_2 = 0;
+  tls->registered = 0;
+  tls->gc_immix_current_block = 0;
+  tls->gc_immix_block_cache = 0;
+  tls->gc_immix_block_cache_len = 0;
+  tls->_reserved_u32_1 = 0;
+  tls->gc_native_roots = 0;
+  tls->gc_native_roots_len = 0;
+  tls->_reserved_u32_2 = 0;
+  scoop_thread_exit_hook_disarm();
+}
+
+void scoop_thread_unregister(void) {
+  scoop_thread_unregister_tls(&scoop_tls, /*force_gc_unregister=*/0);
 }
 
 void scoop_gc_thread_attach_current(void) {
@@ -458,10 +646,12 @@ void scoop_runtime_init(void) {
   scoop_rt_initialized = 1;
   scoop_rt_init_calls = 1;
 
-  // 解析一次 GC stress 开关（仅首次 init 生效）。
+  // 解析一次 GC stress / pacing 开关（仅首次 init 生效）。
   scoop_rt_gc_stress_interval = scoop_rt_parse_gc_stress_interval();
+  scoop_rt_parse_gc_pacing_config();
 
   scoop_gc_heap_init(&scoop_gc_heap);
+  scoop_rt_apply_gc_pacing_config(&scoop_gc_heap);
 
   SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
                sizeof(ScoopString),
@@ -495,6 +685,7 @@ void *scoop_alloc(uint64_t size) {
   // 说明：
   // - moving GC 需要在 stop-the-world 时定位并更新该线程 stackmap spill slots；
   // - 该 ctx 由 `scoop_gc_safepoint_poll` 在 park 前捕获（T1505b/T1506）。
+  // - pacing 的 request_collect 也在这里消费，保证 collect 发生在下一次分配前。
   void scoop_gc_safepoint_poll(void);
   scoop_gc_safepoint_poll();
 
@@ -557,19 +748,30 @@ void *scoop_alloc(uint64_t size) {
 
   size_t cap = scoop_gc_immix_block_payload_capacity();
   if ((size_t)object_size > cap) {
-    p = malloc((size_t)object_size);
+    if (scoop_rt_gc_immix_can_reserve_after_full_gc(state, object_size)) {
+      p = malloc((size_t)object_size);
+    }
   } else {
-    // T1412b：nursery 优先（bump-only + 上限）。nursery 用尽后回退到 old allocator。
+    // nursery 优先（bump-only + 上限）。nursery 用尽时先做一次 minor GC，再重试一次。
     if (state->nursery_max_blocks != 0) {
       (void)pthread_mutex_lock(&state->lock);
       p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
       (void)pthread_mutex_unlock(&state->lock);
+
+      if (p == 0) {
+        scoop_gc_collect_minor();
+
+        (void)pthread_mutex_lock(&state->lock);
+        p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
+        (void)pthread_mutex_unlock(&state->lock);
+      }
     }
 
     // bump-in-hole（Immix v0 / T1409a）：
     // - 线程优先在自己的 current block 内分配（无锁快路径）；
     // - 当 block 放不下时，才进入全局锁从 block pool 取一个新 block（refill）。
     ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
+    uint32_t did_block_pool_collect = 0;
 
     for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
       if (block == 0) {
@@ -579,7 +781,7 @@ void *scoop_alloc(uint64_t size) {
         // 2) cache 空：持锁批量 refill，然后再 pop 一个。
         if (block == 0) {
           (void)pthread_mutex_lock(&state->lock);
-          scoop_gc_immix_tls_cache_refill_locked(state);
+          scoop_gc_immix_tls_cache_refill_locked(state, &did_block_pool_collect);
           (void)pthread_mutex_unlock(&state->lock);
           block = scoop_gc_immix_tls_cache_pop();
         }
@@ -882,6 +1084,7 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
       0,
       capacity);
   if (parts == 0) {
+    scoop_panic(0);
     return 0;
   }
 
@@ -891,17 +1094,30 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
   if (argc <= 0 || argv == 0) {
     void *arr = scoop_mutable_array_freeze(parts);
     scoop_unpin(parts);
+    if (arr == 0) {
+      scoop_panic(0);
+      return 0;
+    }
     return arr;
   }
 
   for (int32_t i = 0; i < argc; i++) {
     const char *s = argv[i];
     const ScoopString *str = scoop_string_from_cstr(s);
+    if (str == 0) {
+      scoop_unpin(parts);
+      scoop_panic(0);
+      return 0;
+    }
     scoop_mutable_array_push_ref(parts, (void *)str);
   }
 
   void *arr = scoop_mutable_array_freeze(parts);
   scoop_unpin(parts);
+  if (arr == 0) {
+    scoop_panic(0);
+    return 0;
+  }
   return arr;
 }
 

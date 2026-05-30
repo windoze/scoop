@@ -364,6 +364,7 @@ fn export_public_types_for_source(
             fqn: fqn.clone(),
             kind,
             type_params,
+            is_interior_mutable: symbol.is_interior_mutable,
             alias_of: match symbol.kind {
                 TypeSymbolKind::TypeAlias => {
                     Some(export_type_alias_rhs_ir_type(index, env, symbol, fqn)?)

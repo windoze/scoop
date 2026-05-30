@@ -389,8 +389,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::PatternExtract { subject, path } => {
                 self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
             }
-            crate::mir::Rvalue::MakeTuple { elements, .. } => {
-                self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+            crate::mir::Rvalue::MakeTuple {
+                elements,
+                transport,
+            } => {
+                if let Some(value) =
+                    self.try_emit_immortal_tuple(span, mir_types, elements, transport, target_cg)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+                }
             }
             crate::mir::Rvalue::SizeOf { value_ty } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
@@ -407,8 +416,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields, .. } => {
-                self.codegen_mir_make_struct(span, fields, target_cg, slots)
+            crate::mir::Rvalue::StructLit { fields, transport } => {
+                if let Some(value) =
+                    self.try_emit_immortal_struct(span, mir_types, fields, transport, target_cg)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_mir_make_struct(
+                        span, mir_types, fields, transport, target_cg, slots,
+                    )
+                }
             }
             crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_mir_rvalue: MIR verifier accepted residual interpolated string",
@@ -538,8 +555,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::PatternExtract { subject, path } => {
                 self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
             }
-            crate::mir::Rvalue::MakeTuple { elements, .. } => {
-                self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+            crate::mir::Rvalue::MakeTuple {
+                elements,
+                transport,
+            } => {
+                if let Some(value) =
+                    self.try_emit_immortal_tuple(span, mir_types, elements, transport, target_cg)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+                }
             }
             crate::mir::Rvalue::SizeOf { value_ty } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
@@ -556,8 +582,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields, .. } => {
-                self.codegen_mir_make_struct(span, fields, target_cg, slots)
+            crate::mir::Rvalue::StructLit { fields, transport } => {
+                if let Some(value) =
+                    self.try_emit_immortal_struct(span, mir_types, fields, transport, target_cg)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_mir_make_struct(
+                        span, mir_types, fields, transport, target_cg, slots,
+                    )
+                }
             }
             crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: MIR verifier accepted residual interpolated string",

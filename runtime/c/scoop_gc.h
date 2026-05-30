@@ -9,8 +9,10 @@
 #ifndef SCOOP_GC_H
 #define SCOOP_GC_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 // --- Type descriptor / Object Model ABI（T0907/T0920/T1501） ---
 //
@@ -197,6 +199,10 @@ _Static_assert(offsetof(ScoopTypeDescriptor, trace_bitmap) == 40,
                "ScoopTypeDescriptor.trace_bitmap offset must be 40");
 #endif
 
+// Immortal 对象头标记（P4）：带该 flag 的对象不在 GC heap 链上，marker 永不写入或 trace。
+#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u
+#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu
+
 // GC 对象头（v0：骨架）。
 //
 // 说明：
@@ -262,6 +268,15 @@ typedef struct ScoopGcFreeBlock {
   uint64_t size;
 } ScoopGcFreeBlock;
 
+// Pacing defaults（P1）：`next_gc == 0` 表示 pacing 被关闭。
+#define SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES (4ull * 1024ull * 1024ull)
+#define SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR 1.5
+
+// 返回 heap 初始化时的默认 pacing 水位线；runtime init 随后会应用 env 配置。
+static inline uint64_t scoop_gc_pacing_initial_next_gc(void) {
+  return (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+}
+
 // GC heap（v0：骨架）。
 //
 // 说明：
@@ -274,7 +289,119 @@ typedef struct ScoopGcHeap {
   uint64_t bytes_allocated;
   uint64_t bytes_freed;
   uint64_t gc_cycles;
+
+  // Pacing state：next_gc 是累计 bytes_allocated 水位线，request_collect 由 safepoint 消费。
+  uint64_t next_gc;
+  uint64_t pacing_min_threshold_bytes;
+  double pacing_target_growth_factor;
+  // Hard cap（P2）：0 表示不限制 reserved heap growth。
+  uint64_t max_heap_bytes;
+  uint32_t request_collect;
+  uint32_t _pacing_reserved_u32;
 } ScoopGcHeap;
+
+// Backend-independent pacing helpers. Backends call these while holding their
+// own heap lock, except for the request flag which is intentionally atomic.
+static inline uint64_t scoop_gc_pacing_heap_live_bytes(uint64_t allocated, uint64_t freed) {
+  if (allocated < freed) {
+    return 0;
+  }
+  return allocated - freed;
+}
+
+static inline uint64_t scoop_gc_pacing_heap_target_live_bytes(ScoopGcHeap *heap, uint64_t live) {
+  uint64_t min_threshold = (uint64_t)SCOOP_GC_PACING_DEFAULT_MIN_THRESHOLD_BYTES;
+  double growth_factor = SCOOP_GC_PACING_DEFAULT_TARGET_GROWTH_FACTOR;
+  if (heap != 0) {
+    if (heap->pacing_min_threshold_bytes != 0) {
+      min_threshold = heap->pacing_min_threshold_bytes;
+    }
+    if (heap->pacing_target_growth_factor > 0.0) {
+      growth_factor = heap->pacing_target_growth_factor;
+    }
+  }
+
+  const long double factor = (long double)growth_factor;
+  const long double scaled = (long double)live * factor;
+  uint64_t target = 0;
+  if (scaled >= (long double)UINT64_MAX) {
+    target = UINT64_MAX;
+  } else if (scaled > 0.0L) {
+    target = (uint64_t)scaled;
+    if ((long double)target < scaled) {
+      target += 1u;
+    }
+  }
+  if (target < min_threshold) {
+    return min_threshold;
+  }
+  return target;
+}
+
+static inline uint64_t scoop_gc_pacing_heap_next_gc(ScoopGcHeap *heap,
+                                                    uint64_t allocated,
+                                                    uint64_t freed) {
+  uint64_t live = scoop_gc_pacing_heap_live_bytes(allocated, freed);
+  uint64_t target_live = scoop_gc_pacing_heap_target_live_bytes(heap, live);
+  if (UINT64_MAX - freed < target_live) {
+    return UINT64_MAX;
+  }
+  return freed + target_live;
+}
+
+static inline void scoop_gc_pacing_heap_clear_request(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  __atomic_store_n(&heap->request_collect, 0u, __ATOMIC_RELAXED);
+}
+
+static inline void scoop_gc_pacing_heap_update_next_gc_unlocked(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  if (__atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED) == 0) {
+    scoop_gc_pacing_heap_clear_request(heap);
+    return;
+  }
+
+  uint64_t allocated = __atomic_load_n(&heap->bytes_allocated, __ATOMIC_RELAXED);
+  uint64_t freed = __atomic_load_n(&heap->bytes_freed, __ATOMIC_RELAXED);
+  uint64_t next_gc = scoop_gc_pacing_heap_next_gc(heap, allocated, freed);
+  __atomic_store_n(&heap->next_gc, next_gc, __ATOMIC_RELAXED);
+  scoop_gc_pacing_heap_clear_request(heap);
+}
+
+static inline void scoop_gc_pacing_heap_request_collect(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return;
+  }
+  __atomic_store_n(&heap->request_collect, 1u, __ATOMIC_RELAXED);
+}
+
+static inline void scoop_gc_pacing_heap_after_alloc(ScoopGcHeap *heap, uint64_t allocated_after) {
+  if (heap == 0) {
+    return;
+  }
+  uint64_t next_gc = __atomic_load_n(&heap->next_gc, __ATOMIC_RELAXED);
+  if (next_gc == 0 || allocated_after < next_gc) {
+    return;
+  }
+  scoop_gc_pacing_heap_request_collect(heap);
+}
+
+static inline uint32_t scoop_gc_pacing_heap_take_request(ScoopGcHeap *heap) {
+  if (heap == 0) {
+    return 0;
+  }
+  uint32_t expected = 1u;
+  return __atomic_compare_exchange_n(&heap->request_collect,
+                                     &expected,
+                                     0u,
+                                     0,
+                                     __ATOMIC_ACQ_REL,
+                                     __ATOMIC_RELAXED);
+}
 
 // 初始化 heap 结构（不分配任何内存）。
 void scoop_gc_heap_init(ScoopGcHeap *heap);
@@ -282,7 +409,7 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // 手动触发一次 mark-sweep GC（v0：单线程）。
 //
 // 说明：
-// - 该 API 当前用于 fixtures/集成测试回归（TODO T0910），不实现自动触发策略；
+// - 该 API 用于显式/手动 GC；自动 pacing 触发通过 safepoint request 路径独立实现；
 // - roots 枚举语义由编译期选择的 GC backend 决定（见 `crates/scoop_runtime/src/gc_backend.rs`）；
 // - GC-FIX Phase B2（stackmap-only）路线下，roots 应来自 stackmap/native_roots/handles/pin；
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
@@ -390,6 +517,7 @@ uint64_t scoop_gc_debug_heap_object_count(void);
 // 返回 heap 统计字段（累计值）。
 uint64_t scoop_gc_debug_heap_bytes_allocated(void);
 uint64_t scoop_gc_debug_heap_bytes_freed(void);
+uint64_t scoop_gc_debug_heap_gc_cycles(void);
 
 // 返回“当前 heap 保留的内存”估算值（字节）。
 //

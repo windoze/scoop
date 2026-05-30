@@ -241,6 +241,9 @@ impl<'a> MirDumpRenderer<'a> {
         self.field_debug("fqn", &nominal.fqn);
         self.field_debug("name", &nominal.name);
         self.field_debug("kind", &nominal.kind);
+        if nominal.is_interior_mutable {
+            self.field_debug("is_interior_mutable", &nominal.is_interior_mutable);
+        }
         self.field_raw(
             "type_params",
             &self.list_text(

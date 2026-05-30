@@ -396,6 +396,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
                 .collect(),
             when_pat_binding_tys: lowered_fun.when_pat_binding_tys,
             nominal_kinds: HashMap::new(),
+            interior_mutable_nominals: Default::default(),
             nominal_variances: HashMap::new(),
             direct_supertypes: HashMap::new(),
             builtins,

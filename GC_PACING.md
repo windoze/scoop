@@ -1,13 +1,16 @@
 # GC Pacing: Collect on Pressure
 
-Status: P0 design. Platform-agnostic. Strictly more urgent than the
-immortal-objects work in `GC_IMMORTAL_FIX.md`: that one reduces pressure,
-this one decides whether long-running programs run at all.
+Status: implemented in the current runtime. This file is retained as the design
+history and rationale; `SCOOP_RUNTIME.md` records the active runtime contract.
+The "Current behavior" section below is the pre-P1 baseline, not the current
+default behavior. Platform-agnostic. Strictly more urgent than the
+immortal-objects work in `GC_IMMORTAL_FIX.md`: that one reduces pressure, this
+one decides whether long-running programs run at all.
 
 ## Motivation
 
-Today the heap grows monotonically until the process OOMs. The only ways to
-trigger a collection in production code are:
+At the pre-P1 baseline, the heap grew monotonically until the process OOMed.
+The only ways to trigger a collection in production code were:
 
 1. An explicit `scoop_gc_collect()` call from user code or codegen.
 2. The `SCOOP_GC_STRESS=N` env knob, which is a testing instrument — it
@@ -15,14 +18,14 @@ trigger a collection in production code are:
    sense, and is documented as "default off, avoid in production"
    (`runtime/c/scoop_runtime.c:130`).
 
-There is no "collect when the heap has grown by X" mechanism, no nursery-full
-trigger, no fallback collection when the block pool is empty. A `loop { ... }`
-in user code that allocates anything — including the immortal-fix candidates
-in `GC_IMMORTAL_FIX.md` — eventually exhausts the address space.
+That baseline had no "collect when the heap has grown by X" mechanism, no
+nursery-full trigger, no fallback collection when the block pool was empty. A
+`loop { ... }` in user code that allocated anything — including the immortal-fix
+candidates in `GC_IMMORTAL_FIX.md` — eventually exhausted the address space.
 
-This is not an edge case. It is the default behaviour of any non-trivial
-program: a server, a script with a loop, even the test driver itself if
-nothing called `scoop_gc_collect()` between phases.
+This was not an edge case. It was the default behaviour of any non-trivial
+program: a server, a script with a loop, even the test driver itself if nothing
+called `scoop_gc_collect()` between phases.
 
 ## Current behavior (verified)
 
@@ -34,7 +37,7 @@ nothing called `scoop_gc_collect()` between phases.
 Internal callers (excluding tests and `scoop_test_*` smoke functions):
 
 ```
-runtime/c/scoop_runtime.c:502-507    — SCOOP_GC_STRESS testing path only
+runtime/c/scoop_runtime.c:501-507    — SCOOP_GC_STRESS testing path only
 ```
 
 That is the entire production trigger surface. Everything else is the
@@ -98,28 +101,37 @@ allocation pattern degrades to single-generation.
 
 ### `bytes_allocated` is an accounting counter, not a trigger
 
-`runtime/c/scoop_gc_backend_immix.c:78-79,2416,2524,5382-5388`:
+`runtime/c/scoop_gc_backend_immix.c:78-79,2409-2417,2473-2527,5382-5389`:
 
 ```c
 static inline void scoop_gc_heap_bytes_allocated_add(uint64_t delta) {
     (void)__atomic_fetch_add(&scoop_gc_heap.bytes_allocated, delta, __ATOMIC_RELAXED);
 }
 // ...
-scoop_gc_heap_bytes_allocated_add(obj->size_bytes);    // line 2416, on alloc
+scoop_gc_heap_bytes_allocated_add(obj->size_bytes);    // line 2416, on alloc register
 // ...
-heap->bytes_allocated = 0;                              // line 2524, on cycle
+heap->bytes_allocated = 0;                              // line 2524, heap init
 // ...
 uint64_t scoop_gc_debug_heap_bytes_allocated(void) {    // line 5382
     return __atomic_load_n(&scoop_gc_heap.bytes_allocated, __ATOMIC_RELAXED);
 }
 ```
 
-Incremented on alloc, reset on cycle, read out via a debug helper. **Never
-compared against any threshold.**
+Incremented on allocation registration, initialized/reset by heap init, read
+out via a debug helper. **Never compared against any threshold.** At the P0
+baseline there was no cycle-end `next_gc` update.
+
+The P1 cycle-end update point is `scoop_gc_collect` in
+`runtime/c/scoop_gc_backend_immix.c:4892-5366`: while `state->lock` is held
+and STW is active, object sweep runs at `:5213-5240`, region sweep at
+`:5242-5348`, and optional compaction / verification at `:5350-5357`.
+`target_live = max(min_threshold, live * growth_factor)` and cumulative
+`next_gc = bytes_freed + target_live` should be updated after those steps and
+before `scoop_gc_stop_the_world_end_unlocked()` / unlock at `:5364-5365`.
 
 ### Env-variable surface
 
-The full set of GC env knobs (`grep getenv runtime/c/`):
+The fixed runtime env knobs visible from `grep getenv runtime/c/`:
 
 | Var | Purpose |
 |---|---|
@@ -128,9 +140,14 @@ The full set of GC env knobs (`grep getenv runtime/c/`):
 | `SCOOP_GC_IMMIX_PARALLEL_SWEEP` | parallel sweep on/off |
 | `SCOOP_GC_IMMIX_NURSERY_BYTES` | nursery cap (bytes) |
 | `SCOOP_GC_IMMIX_NURSERY_BLOCKS` | nursery cap (blocks) |
+| `SCOOP_GC_VERIFY_ROOTS` | GC roots verification diagnostic |
+| `SCOOP_GC_MOVE` | baseline backend moving-GC diagnostic |
+| `SCOOP_STACKMAP_STRICT` | stackmap parser strict-mode diagnostic |
 
-No `SCOOP_GC_HEAP_TARGET`, no `SCOOP_GC_TRIGGER_BYTES`, no growth-factor
-knob, no hard cap. Pacing is genuinely missing — not just untuned.
+`runtime/c/platform/platform_posix.c:30` is a generic platform getenv wrapper,
+not a fixed GC pacing knob. No `SCOOP_GC_PACING`, no heap target / trigger
+bytes, no growth-factor knob, no min-threshold knob, no hard cap. Pacing is
+genuinely missing — not just untuned.
 
 ## Proposed design
 
@@ -139,16 +156,17 @@ knob, no hard cap. Pacing is genuinely missing — not just untuned.
 Industry-standard heuristic (Boehm, V8, Go, .NET):
 
 ```
-After GC:    live    = bytes_allocated_after_sweep
-             next_gc = max(min_threshold, live * growth_factor)
-On alloc:    if (bytes_allocated >= next_gc) trigger_collect()
+After GC:    live        = max(bytes_allocated - bytes_freed, 0)
+             target_live = max(min_threshold, ceil(live * growth_factor))
+             next_gc     = bytes_freed + target_live
+On alloc:    after registration, if (bytes_allocated >= next_gc) request_collect()
 ```
 
 Default growth factor `1.5` is a good starting point: tolerates 50%
 overhead before collecting, which is roughly where most steady-state
 workloads converge. Defaults are tunable via env, but the **on-by-default
 posture is critical** — we are not trading off correctness against
-ergonomics here, the existing situation is unconditional unbounded growth.
+ergonomics here; the P0 baseline was unconditional unbounded growth.
 
 Initial `next_gc` (before the first cycle) needs a floor so we don't trip
 on small startup allocations: `min_threshold = 4 MB` is plenty for most
@@ -205,9 +223,9 @@ Three reasons:
 ```
 scoop_alloc(size):
     safepoint_poll()          // <-- runs requested collect here
-    if (bytes_allocated >= next_gc) request_collect()
     p = bump-allocate(size)
     bytes_allocated += size
+    if (bytes_allocated >= next_gc) request_collect()
     return p
 ```
 
@@ -260,8 +278,9 @@ than pacing would).
 
 1. **Pacing core (Phase 1).** Add `next_gc` field to `ScoopGcHeap`,
    wire `request_collect` flag, hook into `scoop_gc_safepoint_poll`, add
-   the threshold compare in alloc, set `next_gc = max(min, live * factor)`
-   at the end of every cycle. Add the `SCOOP_GC_PACING` env knob. Land
+   the threshold compare in alloc, set cumulative `next_gc` from
+   `bytes_freed + max(min, live * factor)` at the end of every cycle. Add
+   the `SCOOP_GC_PACING` env knob. Land
    with a long-running test that loops 10M allocations and asserts
    `bytes_allocated` stays bounded (within ~`growth_factor * peak_live`).
 

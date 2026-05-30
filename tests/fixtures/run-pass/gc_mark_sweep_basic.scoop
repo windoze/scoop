@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_mark_sweep_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts exact heap object counts before/after manual mark-sweep.
 //
 // 目标：TODO T0910 GC v0 mark-sweep（单线程，手动触发）。
 // - 分配 1 个 live 对象（`Any` 装箱）
