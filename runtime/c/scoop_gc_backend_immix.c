@@ -2960,6 +2960,20 @@ static uint32_t scoop_gc_heap_membership_index_contains(const ScoopGcHeapMembers
   return 0;
 }
 
+// Mark 热路径用 O(1) 反查对象所属 block：小对象（size <= block payload capacity）必然在
+// Immix block 内分配，masked base 即 block 起始，与线性 find_block_containing 结果一致；
+// 大对象/fallback malloc 不在任何 block 内（无 line bitmap），返回 0 跳过 line 标记，行为不变。
+// 避免在 O(live) 的标记路径上再叠加 O(blocks) 的 all_blocks 线性扫描。
+static inline ScoopGcImmixBlock *scoop_gc_immix_mark_block_for_object(ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+  if (obj->size_bytes > (uint64_t)scoop_gc_immix_block_payload_capacity()) {
+    return 0;
+  }
+  return scoop_gc_immix_block_from_object(obj);
+}
+
 typedef struct ScoopGcMarkCtx {
   ScoopGcHeap *heap;
   uint32_t mark_value;
@@ -2982,8 +2996,7 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
 
   obj->mark = ctx->mark_value;
   // mark-region：额外把对象覆盖到的 lines 记录到 block 的 mark bitmap（用于 region sweep 回收 holes）。
-  ScoopGcImmixBlock *block =
-      scoop_gc_immix_state_find_block_containing_unlocked(scoop_gc_immix_state_from_heap(ctx->heap), obj);
+  ScoopGcImmixBlock *block = scoop_gc_immix_mark_block_for_object(obj);
   if (block != 0) {
     uint64_t raw_size = obj->size_bytes;
     size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
@@ -3221,8 +3234,7 @@ static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
                                     0,
                                     __ATOMIC_RELAXED,
                                     __ATOMIC_RELAXED)) {
-      ScoopGcImmixBlock *block =
-          scoop_gc_immix_state_find_block_containing_unlocked(scoop_gc_immix_state_from_heap(ctx->heap), obj);
+      ScoopGcImmixBlock *block = scoop_gc_immix_mark_block_for_object(obj);
       if (block != 0) {
         uint64_t raw_size = obj->size_bytes;
         size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
