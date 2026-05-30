@@ -162,7 +162,7 @@
   - Dedup 边界：当前仅 String 走内容池；这是安全的，因为 String 不可变且 Scoop 无身份运算符，值语义下合并不可观测。其它 ref 类型即使将来进入 immortal 折叠，也保持 per-site 身份，不跨站合并。
   - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm immortal --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T03-dedup --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T03R：Review dedup 策略
+### [DONE] P5-T03R：Review dedup 策略
 
 - 参考：
   - P5-T03 完成记录
@@ -182,7 +182,11 @@
   - dedup 边界正确。
 - 依赖：P5-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T03 的 dedup 边界正确；String wrapper 继续由 byte data content key 派生，重复 String literal 与 `TypeMetadataLiteral::TypeNameString` 均复用同一个 content-keyed `ScoopString` 全局。
+  - 非 String ref 边界复核：aggregate key mode 已显式区分 `Content` 与 `Site`；ref aggregate 使用当前 codegen body + literal span 参与 key，且 site mode 不设置 `unnamed_addr`，不会被折叠器按内容跨站合并。
+  - 测试复核：`immortal` 单元覆盖 String content key、value aggregate content mode 复用、ref aggregate site mode 区分 literal site；P5-T03 dedup fixtures 覆盖重复 `"hello"` 与重复 `Point::class` 引用同一 content-keyed wrapper 且零 `scoop_alloc_typed`。
+  - 验证：`cargo test -p scoopc_codegen_llvm immortal --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P5-T03-dedup --exit-on-failure`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；`python3 tools/spec_fixtures.py check`。
 
 ## P6：Platform 折叠与 TypeMetadataLiteral 审计
 
