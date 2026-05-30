@@ -1,88 +1,595 @@
-# GC Pacing + Immortal Objects TODO 索引
+# `@ReleaseHook` + `@NoGC` 强制 Pure TODO
 
-> 生成时间：2026-05-29
-> 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
+> 生成时间：2026-05-30
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` / `P6-T02R` / `P7-T00` / `P7-T00b` / `P7-T01` / `P7-T01R` / `P7-T02` / `P7-T02R` / `P7-T03` / `P7-T03R` 已完成；当前无剩余 `[TODO]` 任务。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 格式参考：[`docs/archive/plans/TODO-gc-pacing-immortal.md`](./docs/archive/plans/TODO-gc-pacing-immortal.md)、[`docs/archive/plans/TODO-1-gc-pacing-immortal.md`](./docs/archive/plans/TODO-1-gc-pacing-immortal.md)
+> 当前状态：任务已拆为 P0-P5 六阶段，全部 `[TODO]`。每个实现任务后紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 行号说明：下文行号以当前文件状态为准；实现时若漂移，优先按文件路径、函数名、fixture 名定位。
 
 ## 总原则
 
-- `PLAN.md` 是当前执行计划基线；如果实现时发现阶段边界、运行期决议或语言决议需要改变，必须先回写 `GC_PACING.md` / `GC_IMMORTAL_FIX.md`，再调整 TODO。
-- 所有任务按 `TODO-1.md` 到 `TODO-5.md` 顺序推进；除非对应文件明确允许，不跨包并行实现。Pacing 线（TODO-1/2）优先于 Immortal 线（TODO-3/4），因为它决定长程序能否运行。
-- 每个实现任务后必须紧跟一个独立 review 任务，复审该任务的完整变更、阶段目标和约束遵守情况。
-- review 任务不是形式检查；如果发现前一任务没有真正完成目标，review 任务必须直接修正或阻塞下一任务。
-- 任务完成后必须同时更新本索引和对应 `TODO-[1-5].md` 中的任务状态与完成记录；不得只更新其中一边。
-- **Pacing 必须 on-by-default**。P0 baseline 是无条件无界增长；当前默认必须保持有界，`SCOOP_GC_PACING=off` 只保留给需要确定性堆计数的测试，且每个用到它的测试必须注明 why。
-- **Immortal 不变式必须守干净**：immortal 对象永不被写、永不被 trace。任何可写或可能需要 trace 的对象（`.data` 静态、含可变托管引用的全局）一律不进 immortal 轨道。
-- “是否常量化”是由类型**传递不可变性**决定的通用决策，不得退回逐类型特判或类型白名单；“是否 dedup”是正交的、仅对 String 开的内容池。
-- 所有 runtime 改动必须保持 `immix` / `hosted` / `minimal` 三 backend 可编译可回归。
-- 不接受把旧的无界增长或 per-use wrapper 分配记成最终期望；目标行为由两份设计文档定义。
+- `PLAN.md` 是当前执行计划基线；实现时若发现阶段边界或 contract 需要变化，必须先回写 `PLAN.md`，再调整 TODO。
+- 任务按 P0 → P1 → P2 → P3 顺序推进，不跨阶段并行实现。**P0 是 P1 的硬前置**：`@ReleaseHook` 的安全性依赖 `@NoGC` 已被保证 Pure。
+- 每个实现任务后必须紧跟一个独立 review 任务，复审完整变更、阶段目标与约束遵守情况；review 不是形式检查，发现未达标必须直接修正或阻塞下一任务。
+- 任务完成后更新本文件中对应任务的状态（`[TODO]`→`[DONE]`）与完成记录。
+- **安全闭环不可削弱**：释放函数只能是 `@NoGC` 或 `@Extern(abi="c")`；`args` 只能是 GC-free 字段；宿主只能是 non-generic + final class 且带 `@Experimental(feature="releaseHook")`。任何放宽都必须先回写 `PLAN.md` 并补安全论证。
+- **best-effort 语义不可被误记为 finalizer**：退出时存活对象不回收是预期行为，不得为「保证退出时调用」而引入 atexit/teardown 清理。
+- 所有 runtime/codegen 改动必须保持 `baseline` / `immix` / `hosted` / `minimal` 后端可编译可回归。
 
 ## 任务包划分
 
-| 包 | 文件 | 覆盖 PLAN 阶段 | 目标 | 当前细化状态 |
-| --- | --- | --- | --- | --- |
-| 1 | [`TODO-1.md`](./TODO-1.md) | P0-P1 | 冻结 pacing/immortal 当前行为基线与度量；落地 pacing 核心触发 | 已细化 |
-| 2 | [`TODO-2.md`](./TODO-2.md) | P2 | pacing 分代触发、OOM 防御、hard cap 与 backend parity | 已细化 |
-| 3 | [`TODO-3.md`](./TODO-3.md) | P3-P4 | `@InteriorMutable` + `__AtomicInt` struct；immortal 运行期与 content-hash 键 | 已细化 |
-| 4 | [`TODO-4.md`](./TODO-4.md) | P5-P6 | 通用 `is_immutable` 谓词 + 折叠器 + String immortal；Platform 折叠与审计 | 已细化 |
-| 5 | [`TODO-5.md`](./TODO-5.md) | P7 | spec / 文档 / fixtures 收尾与全量回归矩阵 | 已细化 |
+| 阶段 | 覆盖 PLAN 阶段 | 目标 |
+| --- | --- | --- |
+| P0 | §5 / P0 | `@NoGC` 强制 Pure（独立正确性前置修复） |
+| P1 | §5 / P1 | `@ReleaseHook` 注解 surface 与 front-end/HIR 全套校验 |
+| P2 | §5 / P2 | trampoline codegen + 填 `release_fn` |
+| P3 | §5 / P3 | 验证矩阵、四后端/跨平台回归、demo 用例与文档/spec 回写 |
+| P4 | §5 / P4 | `scoop.sync` 迁移到 `@ReleaseHook`，删除 `Once.run` `@Intrinsic` 与全部编译器硬编码 |
+| P5 | §5 / P5 | `lazy`/`observable`/`vetoable` 降为普通库 class，删除属性委托全部 by-name 特判 |
 
 ## 具体任务索引
 
-| 任务 | 状态 | 文件 | 目标 |
-| --- | --- | --- | --- |
-| P0-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01核对并冻结-pacing-当前行为基线) | 核对并冻结 pacing 当前行为基线 |
-| P0-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t01rreview-pacing-行为基线) | Review P0-T01 pacing 行为基线 |
-| P0-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02核对并冻结-immortal-当前行为基线) | 核对并冻结 immortal 当前行为基线（含 `__AtomicInt` 擦除点） |
-| P0-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02rreview-immortal-行为基线) | Review P0-T02 immortal 行为基线 |
-| P0-T03 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03建立堆增长与字面量分配计数度量) | 建立堆增长与字面量分配计数度量 |
-| P0-T03R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03rreview-度量基线) | Review P0-T03 度量基线 |
-| P1-T01 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01实现-pacing-核心-next_gc--request_collect--safepoint--阈值) | 实现 pacing 核心：`next_gc` + `request_collect` + safepoint + 阈值 |
-| P1-T01R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t01rreview-pacing-核心) | Review P1-T01 pacing 核心 |
-| P1-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02接入-pacing-env-旋钮与默认-on并加长程序有界回归) | 接入 pacing env 旋钮与默认 on，并加长程序有界回归 |
-| P1-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p1-t02rreview-pacing-env-旋钮与有界回归) | Review P1-T02 env 旋钮与有界回归 |
-| P2-T01 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01nursery-满触发-minor-gc-再重试) | nursery 满触发 minor GC 再重试 |
-| P2-T01R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t01rreview-nursery-full-minor-gc) | Review P2-T01 nursery-full minor GC |
-| P2-T02 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02block-pool-耗尽先-full-gc-再增长) | block pool 耗尽先 full GC 再增长 |
-| P2-T02R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t02rreview-block-pool-回退) | Review P2-T02 block pool 回退 |
-| P2-T03 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03接入-hard-cap-与-oom-返回) | 接入 `SCOOP_GC_MAX_HEAP_BYTES` hard cap 与 OOM 返回 |
-| P2-T03R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t03rreview-hard-cap) | Review P2-T03 hard cap |
-| P2-T04 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04hostedminimal-backend-pacing-parity) | hosted/minimal backend pacing parity |
-| P2-T04R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p2-t04rreview-backend-parity) | Review P2-T04 backend parity |
-| P3-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01新增-interiormutable-注解) | 新增 `@InteriorMutable` 注解 |
-| P3-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t01rreview-interiormutable-注解) | Review P3-T01 `@InteriorMutable` 注解 |
-| P3-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02__atomicint-升为-interiormutable-struct) | `__AtomicInt` 升为 `@InteriorMutable struct` |
-| P3-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02rreview-__atomicint-struct-化) | Review P3-T02 `__AtomicInt` struct 化 |
-| P4-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01运行期-scoop_gc_flag_immortal-与-marker-短路) | 运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路 |
-| P4-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01rreview-immortal-运行期短路) | Review P4-T01 immortal 运行期短路 |
-| P4-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t02byte-数组-content-hash-键与-unnamed_addr) | byte 数组 content-hash 键与 `unnamed_addr` |
-| P4-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t02rreview-content-hash-键) | Review P4-T02 content-hash 键 |
-| P5-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01实现-is_immutable-谓词) | 实现 `is_immutable(T)` 谓词 |
-| P5-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01rreview-is_immutable-谓词) | Review P5-T01 `is_immutable` 谓词 |
-| P5-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02实现-try_emit_immortal-折叠器并路由-string-literal) | 实现 `try_emit_immortal` 折叠器并路由 String literal |
-| P5-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02rreview-折叠器与-string-immortal) | Review P5-T02 折叠器与 String immortal |
-| P5-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t03string-内容池-dedup-与其它-ref-类型-per-site) | String 内容池 dedup 与其它 ref 类型 per-site |
-| P5-T03R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t03rreview-dedup-策略) | Review P5-T03 dedup 策略 |
-| P6-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01platform-lower-成-structlit-并删除专用-codegen) | Platform lower 成 StructLit 并删除专用 codegen |
-| P6-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01rreview-platform-折叠) | Review P6-T01 Platform 折叠 |
-| P6-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02typemetadataliteral-审计与指针相等断言) | `TypeMetadataLiteral` 审计与指针相等断言 |
-| P6-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
-| P7-T00 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00增强-stw-健壮性避免僵尸线程卡死) | 增强 STW 健壮性，避免僵尸线程卡死 stop-the-world |
-| P7-T00b | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t00b补-scoop-语言级并发gc-应用测试) | 补 Scoop 语言级并发/GC 应用测试（替代已删除的 C-API stress） |
-| P7-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |
-| P7-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t01rreview-文档回写) | Review P7-T01 文档回写 |
-| P7-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t02审计需要-pacingoff-的测试并注明原因) | 审计需要 `PACING=off` 的测试并注明原因 |
-| P7-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t02rreview-pacingoff-审计) | Review P7-T02 `PACING=off` 审计 |
-| P7-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t03全量测试矩阵out-of-scope-归位与收口) | 全量测试矩阵、out-of-scope 归位与收口 |
-| P7-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p7-t03rreview-最终收口质量) | Review P7-T03 最终收口质量 |
+| 任务 | 状态 | 目标 |
+| --- | --- | --- |
+| P0-T01 | [TODO] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
+| P0-T01R | [TODO] | Review P0-T01 `@NoGC` Pure 契约 |
+| P0-T02 | [TODO] | `@NoGC` Pure typecheck fixtures + spec 回写 |
+| P0-T02R | [TODO] | Review P0-T02 fixtures 与 spec |
+| P1-T01 | [TODO] | `@ReleaseHook` 注解种类、识别与参数解析 |
+| P1-T01R | [TODO] | Review P1-T01 注解 surface |
+| P1-T02 | [TODO] | 宿主校验：class / non-generic / final / `@Experimental` |
+| P1-T02R | [TODO] | Review P1-T02 宿主校验 |
+| P1-T03 | [TODO] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
+| P1-T03R | [TODO] | Review P1-T03 函数/字段校验 |
+| P1-T04 | [TODO] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
+| P1-T04R | [TODO] | Review P1-T04 fixtures |
+| P2-T01 | [TODO] | 生成 release trampoline（按字段读值并调用释放函数） |
+| P2-T01R | [TODO] | Review P2-T01 trampoline |
+| P2-T02 | [TODO] | 在 type descriptor 填 `release_fn` + IR fixtures |
+| P2-T02R | [TODO] | Review P2-T02 descriptor 接线 |
+| P3-T01 | [TODO] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
+| P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
+| P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
+| P3-T02R | [TODO] | Review P3-T02 用例与文档 |
+| P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
+| P4-T01R | [TODO] | Review P4-T01 sync 源改造 |
+| P4-T02 | [TODO] | 收缩 `scoop_sync.c` 为只管 raw native handle |
+| P4-T02R | [TODO] | Review P4-T02 runtime 收缩 |
+| P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
+| P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
+| P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
+| P4-T04R | [TODO] | Review P4-T04 特判清理 |
+| P4-T05 | [TODO] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
+| P4-T05R | [TODO] | Review P4-T05 回归与守卫 |
+| P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
+| P5-T01R | [TODO] | Review P5-T01 委托库实现 |
+| P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
+| P5-T02R | [TODO] | Review P5-T02 特判删除 |
+| P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
+| P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
 
-## 包间验收门禁
+## 阶段间验收门禁
 
-- 进入 `TODO-2.md` 前，pacing 行为基线、immortal 行为基线、堆增长/分配计数度量必须已建立，且 pacing 核心触发已让长程序在默认配置下有界并通过 review。
-- 进入 `TODO-3.md` 前，pacing 的分代触发、block-pool 回退、hard cap 与 backend parity 必须已完成并通过 review（pacing 线收口）。
-- `TODO-3.md` 内部：P4（immortal 运行期）必须先于 `TODO-4.md` 的 P5 codegen 发射；P3（`@InteriorMutable` + `__AtomicInt`）必须先于 P5 的 `is_immutable` 谓词。
-- 进入 `TODO-4.md` 前，`@InteriorMutable` 注解、`__AtomicInt` struct 化、`SCOOP_GC_FLAG_IMMORTAL` 运行期短路、content-hash byte 键必须已完成并通过 review。
-- 进入 `TODO-5.md` 前，String / `Platform` / `__type_name` 已走通用常量化路径且零 `scoop_alloc_typed`，dedup 策略已就位。
-- 完成 `TODO-5.md` 后，`GC_PACING.md` 与 `GC_IMMORTAL_FIX.md` 的目标行为应成为运行期与编译期的实际 contract；旧的无界增长与 per-use wrapper 分配只允许存在于 `PACING=off` 对照与 design history 中。
+- 进入 P1 前：`@NoGC` 已强制 Pure（带 effect 的 `@NoGC` 函数被编译期拒绝），且与 `@Extern` 既有 Pure 检查无重复/冲突诊断；P0 fixtures 与 spec 已绿并通过 review。
+- 进入 P2 前：`@ReleaseHook` 的所有非法形态在 typecheck 阶段被拒绝，正例通过；校验结果（目标函数 FQN + 有序字段名）已落入 HIR side table 供 codegen 消费。
+- 进入 P3 前：带 `@ReleaseHook` 的类型 descriptor `release_fn` 非 null 且指向正确 trampoline，trampoline 以正确偏移/顺序/类型调用目标函数；无注解类型 `release_fn` 仍为 null（IR fixture 锁定）。
+- 进入 P4 前：P3 已收口，`@ReleaseHook` 机制在四后端 + 双平台验证通过；demo 类型工作，spec/runtime 文档已同步。`scoop.sync` 改造必须建立在已验证机制之上。
+- 完成 P3 后：端到端 + 四后端 + 双平台全绿；`@ReleaseHook` 与 `@NoGC` Pure 语义写入 spec 与 runtime 文档；最小 demo 类型以纯 Scoop + FFI 形式工作。
+- 完成 P4 后：`Mutex`/`CondVar`/`Once` 为纯 Scoop final class + `@ReleaseHook` + `@Extern(abi="c")`；`Once.run` 无 `@Intrinsic`；编译器内无这三类型的实现性硬编码（消费侧引用按 P4-T04 决策处理并被守卫测试锁定）；sync 全量回归与四后端/跨平台绿，且语义与迁移前逐项一致。
+- 进入 P5 前：P4 已收口，`Mutex`/`Once` 已是库类（线程安全委托要内部组合它们）。
+- 完成 P5 后：`lazy`/`observable`/`vetoable` 为纯库 class，三个顶层函数无 `@Intrinsic`；编译器属性委托 lowering 只剩泛型路径；`impl_lowering.rs` 的 `SYNC_MUTEX_*` 常量与 `sugar.rs`/`decls.rs` 三者合成全部删除；语义（含 lazy 三模式）与迁移前逐项一致，回归与守卫绿。
+
+---
+
+## P0：`@NoGC` 强制 Pure
+
+### [TODO] P0-T01：新增 `@NoGC` effect 契约校验并接入 fun decl 检查
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P0、§1（`@NoGC` 缺陷）、§2（安全论证）
+  - `crates/scoopc_hir/src/typecheck/annotations.rs`（`check_extern_fun_effect_contract:2509-2525`、`check_builtin_annotations_on_fun_decl:2301`、`AnnotationError` 变体约 :376）
+- 目标：
+  - 让 `abi = "scoop"` 的 `@NoGC` 函数禁止携带 effect（禁 `eff_param`、要求 `effects.terms` 为空），与 `@Extern` 一致。
+- 必须检查的文件/位置：
+  - `check_extern_fun_effect_contract`（镜像对象）
+  - `check_builtin_annotations_on_fun_decl` 中 `@NoGC` 分支与 `@Extern` 分支（确认 extern 隐含 `@NoGC` 的现状，避免重复诊断）
+  - `BuiltinAnnotationKind`（`builtin_annotations.rs:19-47`）确认 `NoGC` 变体
+- 必须实现的内容：
+  1. 新增 `check_nogc_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), AnnotationError>`，结构镜像 extern 版：`eff_param` 存在则报错；`effects.terms` 非空则报错。
+  2. 视诊断需要新增/复用 `AnnotationError` 变体（如 `NoGcFunEffParamNotAllowed` / `NoGcFunEffectsNotAllowed`，参考 `ExternFun*` 变体）。
+  3. 在 `check_builtin_annotations_on_fun_decl` 里，当函数显式带 `@NoGC` 时调用该检查。
+- 必须遵从的约束：
+  - `@Extern(abi="c")` 隐含 `@NoGC`：不得对同一 extern 函数同时触发 extern 与 nogc 两套 effect 报错；如有重叠，复用 extern 路径或在调用点排除已由 extern 覆盖的情形。
+  - 不得改变 `@NoGC` 已有的调用点 gate 语义（`gates.rs:214-240`）。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test --all --all-targets`
+- 完成条件：
+  - 带 effect 的 `@NoGC` 函数编译期被拒绝；既有 Pure 的 `@NoGC` 用例不受影响。
+- 依赖：无
+- 完成记录：
+  - （待填）
+
+### [TODO] P0-T01R：Review P0-T01 `@NoGC` Pure 契约
+
+- 参考：P0-T01 完成记录、`check_extern_fun_effect_contract`
+- 目标：独立复核 `@NoGC` Pure 契约的正确性与无误伤。
+- 必须实现的内容：
+  1. 复核 `eff_param` 与非空 `effects.terms` 两条路径都被拒绝。
+  2. 确认 `@Extern(abi="c")`（隐含 `@NoGC`）无重复/冲突诊断。
+  3. 抽样既有 `@NoGC` 用例确认无误伤。
+- 必须遵从的约束：发现未达标直接修正或阻塞 P0-T02。
+- 验证：`cargo test --all --all-targets`
+- 完成条件：契约准确、无误伤。
+- 依赖：P0-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P0-T02：`@NoGC` Pure typecheck fixtures + spec 回写
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P0-T03、P0-T04
+  - `SCOOP_FULL_SPEC.md`（`@NoGC` 约 :2646-2700）
+  - 既有 typecheck fixture 命名/结构（`tests/fixtures/typecheck/`）
+- 必须实现的内容：
+  1. 新增 `tests/fixtures/typecheck/nogc_fun_with_effect_is_error.scoop`。
+  2. 新增 `tests/fixtures/typecheck/nogc_fun_with_eff_param_is_error.scoop`。
+  3. 新增正例 `tests/fixtures/typecheck/nogc_fun_pure_ok.scoop`。
+  4. 回写 `SCOOP_FULL_SPEC.md` `@NoGC` 章节：明确 `@NoGC` 蕴含 Pure。
+- 必须遵从的约束：fixture 期望输出须与实际诊断一致；spec 措辞与实现 contract 对齐。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：错误/正例 fixture 全绿；spec 已同步。
+- 依赖：P0-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P0-T02R：Review P0-T02 fixtures 与 spec
+
+- 参考：P0-T02 完成记录
+- 必须实现的内容：复核 fixture 覆盖完整（effect / eff_param / 正例）、期望输出准确、spec 与实现一致。
+- 必须遵从的约束：发现缺口直接补齐或阻塞 P1。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P0 收口，可进入 P1。
+- 依赖：P0-T02
+- 完成记录：
+  - （待填）
+
+---
+
+## P1：`@ReleaseHook` 注解 surface 与校验
+
+### [TODO] P1-T01：`@ReleaseHook` 注解种类、识别与参数解析
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P1-T01
+  - `crates/scoopc_hir/src/typecheck/builtin_annotations.rs`（`BuiltinAnnotationKind:19-47`、`builtin_annotation_kind:~104`、`parse_experimental_annotation:~194`）
+- 注解形态：`@ReleaseHook(name = "releaseFunctionFQN", args = ["field1", "field2", ...])`
+- 必须实现的内容：
+  1. `BuiltinAnnotationKind` 新增 `ReleaseHook`。
+  2. `builtin_annotation_kind` 识别 `["ReleaseHook"]` 与 `["scoop","core","ReleaseHook"]`。
+  3. 新增 `parse_release_hook_annotation`：解析 `name`（字符串字面量 FQN）与 `args`（字符串数组），对参数形状（缺字段、类型错误、多余 key）给出清晰诊断；结构参考 `parse_experimental_annotation`。
+- 必须遵从的约束：本任务只做解析与 surface 识别，不做宿主/函数/字段语义校验（留给 P1-T02/T03）。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo test --all --all-targets`
+- 完成条件：注解被识别，`name`/`args` 能被正确解析出结构化值。
+- 依赖：P0 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T01R：Review P1-T01 注解 surface
+
+- 必须实现的内容：复核识别路径（短名 + FQN）、参数解析的错误形状覆盖。
+- 验证：`cargo test --all --all-targets`
+- 依赖：P1-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T02：宿主校验（class / non-generic / final / `@Experimental`）
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P1-T02
+  - `crates/scoopc_hir/src/typecheck/annotations.rs`（`check_builtin_annotations_on_type_decl`）
+  - `crates/scoopc_ast/src/ast/mod.rs`（`TypeDecl.type_params`、`Modifier::{Open,Abstract,Sealed}:535-537`）
+- 必须实现的内容：
+  1. 仅允许宿主为 **class**（拒绝 struct/enum/interface/annotation class）。
+  2. **non-generic**：`type_params.is_empty()`，否则报错。
+  3. **final**：modifiers 不含 `Open` / `Abstract` / `Sealed`，否则报错。
+  4. **必须同时带** `@Experimental(feature = "releaseHook")`，否则报错。
+  5. 每条违例独立、清晰诊断。
+- 必须遵从的约束：错误信息要能直接指导用户改正（指出缺哪个条件）。
+- 验证：`cargo test --all --all-targets`
+- 完成条件：四类宿主约束均被强制。
+- 依赖：P1-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T02R：Review P1-T02 宿主校验
+
+- 必须实现的内容：复核四个条件（class/non-generic/final/`@Experimental`）逐一被拒绝且诊断清晰。
+- 验证：`cargo test --all --all-targets`
+- 依赖：P1-T02
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T03：释放函数签名校验 + `args` 字段校验 + HIR side table
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P1-T03、P1-T04、P1-T05、§2（安全论证）
+  - `crates/scoopc_hir/src/typecheck/lower.rs`（`is_gc_free_value_type:3168`）
+  - `crates/scoopc_hir/src/typecheck/expr/call/gates.rs`（`@NoGC` 判定）、`@Extern` ABI 判定
+- 必须实现的内容：
+  1. `name` 函数校验：FQN 可解析、可访问；必须是 `@NoGC` 或 `@Extern(abi="c")`；签名为 `void f(FieldType1, ...)`（返回 Unit；参数个数/顺序与 `args` 对应）。
+  2. `args` 字段校验：每个名字是该 class 字段；每个字段类型 GC-free（复用 `is_gc_free_value_type`）；字段类型与释放函数对应参数类型精确匹配（按 `args` 顺序）。
+  3. 把校验结果（目标函数 FQN + 有序字段名列表）存入 HIR side table，供 P2 codegen 消费（落点/命名参考现有 annotation→codegen 传递机制）。
+- 必须遵从的约束：不得放宽到允许传 `self` 或任何 GC 引用；不得接受非 `@NoGC` 且非 `@Extern(c)` 的释放函数。
+- 验证：
+  1. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo test --all --all-targets`
+- 完成条件：签名/字段全部校验通过的合法用例产出可供 codegen 消费的 side table 记录。
+- 依赖：P1-T02
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T03R：Review P1-T03 函数/字段校验
+
+- 必须实现的内容：复核签名匹配（个数/顺序/类型/返回 Unit）、`@NoGC`/`@Extern(c)` 限定、GC-free 判定、side table 内容正确。
+- 验证：`cargo test --all --all-targets`
+- 依赖：P1-T03
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T04：`@ReleaseHook` typecheck fixtures（错误面 + 正例）
+
+- 参考：[`PLAN.md`](./PLAN.md) §5 / P1-T06
+- 必须实现的内容（每个错误面各一个 fixture，正例一个）：
+  1. 宿主错误：generic class、open/abstract/sealed class、缺 `@Experimental`、非 class 宿主。
+  2. 函数错误：释放函数不存在 / 不可访问 / 非 `@NoGC` 且非 `@Extern(c)` / 返回非 Unit / 参数个数或类型不匹配。
+  3. 字段错误：`args` 字段不存在 / 非 GC-free / 类型不匹配。
+  4. 正例：final non-generic class + `Ptr<T>` handle 字段 + `@Extern(abi="c")` 释放函数 + `@Experimental(feature="releaseHook")`。
+- 必须遵从的约束：fixture 期望输出与实际诊断一致。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：全部错误面被拒绝、正例通过。
+- 依赖：P1-T03
+- 完成记录：
+  - （待填）
+
+### [TODO] P1-T04R：Review P1-T04 fixtures
+
+- 必须实现的内容：复核错误面覆盖完整、期望输出准确、正例确实通过。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P1 收口，可进入 P2。
+- 依赖：P1-T04
+- 完成记录：
+  - （待填）
+
+---
+
+## P2：trampoline codegen + 填 `release_fn`
+
+### [TODO] P2-T01：生成 release trampoline
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P2-T01、§1（对象指针布局）
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/layout.rs`（`lookup_struct_field:192`、`codegen_class_field_ptr:287`）
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/gc.rs`（`offset_of_element` 用法 :920、header 类型 :827、payload 布局 :1157）
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/identity.rs`（`lir_callable_symbol_facts:267`）、`gc.rs`（`declare_dispatch_target_fun:6-52`）
+- 必须实现的内容：
+  1. 生成 `void __scoop_release_<TypeMangled>(void *object)`，签名匹配 `ScoopTypeReleaseFn`。
+  2. 把 `object`（header 基址）按该 class **完整布局**（含 header，payload 从 index 1）GEP 出各 `args` 字段值。
+  3. 解析释放函数符号并按 `args` 顺序生成调用。
+  4. 确保被引用的释放函数不被 DCE（trampoline 引用即保活点，必要时显式标记）。
+- 必须遵从的约束：字段偏移必须基于含 header 的完整对象布局；不得只按 payload 偏移计算。
+- 验证：
+  1. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo test --all --all-targets`
+- 完成条件：trampoline 读取正确字段并以正确顺序/类型调用目标函数。
+- 依赖：P1 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P2-T01R：Review P2-T01 trampoline
+
+- 必须实现的内容：复核字段偏移（含 header）、调用顺序/类型、符号解析与 DCE 保活。
+- 验证：`cargo test --all --all-targets`
+- 依赖：P2-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P2-T02：在 type descriptor 填 `release_fn` + IR fixtures
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P2-T02、P2-T03
+  - `crates/scoopc_codegen_llvm/src/llvm/codegen/gc.rs`（`get_or_create_type_descriptor_global:1023`、release_fn 槽 :1080）
+- 必须实现的内容：
+  1. 在 `get_or_create_type_descriptor_global` 内，当该类型带 `@ReleaseHook`（查 P1 的 HIR side table）时，把 values 第 9 项（:1080）由 `const_null` 改为 trampoline 函数指针；其余类型保持 null。
+  2. IR/build fixtures：断言带 `@ReleaseHook` 类型的 descriptor `release_fn` 非 null 且指向 trampoline；trampoline 字段偏移/调用正确；无注解类型 `release_fn` 仍为 null。
+- 必须遵从的约束：不得改变无注解类型的 descriptor 输出。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：descriptor 正确接线，IR fixture 锁定。
+- 依赖：P2-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P2-T02R：Review P2-T02 descriptor 接线
+
+- 必须实现的内容：复核 release_fn 填充条件正确、无注解类型无回归、IR fixture 断言充分。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P2 收口，可进入 P3。
+- 依赖：P2-T02
+- 完成记录：
+  - （待填）
+
+---
+
+## P3：验证矩阵、回归与文档收尾
+
+### [TODO] P3-T01：run-pass 端到端 + 四后端 parity + 跨平台矩阵
+
+- 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T01、P3-T02、P3-T03、§6（风险）
+- 必须实现的内容：
+  1. run-pass fixture：final non-generic class 持有 `Ptr<T>` native handle，构造时经 `@Extern(abi="c")` FFI 创建资源，`@ReleaseHook` 指向销毁函数；制造对象不可达 + 触发 GC，用计数器/side-effect 探针断言释放函数被调用且字段值正确传入。
+  2. 断言进程退出时存活对象**不**触发释放（验证 best-effort 边界）。
+  3. 四后端 parity（baseline moving / baseline non-moving / immix / minimal / hosted）：release_fn 调用一致；immix minor 与 major reclaim 都正确，单对象不重复释放。
+  4. 跨平台矩阵至少 `linux/amd64` + `macos/aarch64`。
+- 必须遵从的约束：探针机制不得依赖会触发分配/effect 的路径（保持释放上下文约束）。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：端到端 + 四后端 + 双平台全绿。
+- 依赖：P2 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P3-T01R：Review P3-T01 验证矩阵
+
+- 必须实现的内容：复核端到端断言有效（确实观测到释放且字段正确）、退出不回收语义被验证、四后端与跨平台覆盖完整、无重复释放。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P3-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P3-T02：真实用例 + spec/runtime 文档回写
+
+- 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T04、P3-T05
+  - `runtime/c/include/scoop_runtime.h:38-43`、`SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md`（release callback 约 :2959-2972）
+- 必须实现的内容：
+  1. 用 `@ReleaseHook` 把一个真实用例（`Mutex` 或 `CondVar`）重写为纯 Scoop class + FFI，去掉对应 compiler intrinsic 依赖；若本轮 scope 仅验证机制，可先以最小 demo 类型代替，并把正式迁移列为后续 backlog（在完成记录中注明）。
+  2. `SCOOP_FULL_SPEC.md` 新增 `@ReleaseHook` 章节：形态、约束（class/non-generic/final/`@Experimental`/`@NoGC`|`@Extern(c)`/GC-free args）、best-effort 语义、退出不回收、与 `@NoGC`/`@Extern` 的关系。
+  3. `runtime/c/include/scoop_runtime.h` release callback 注释与 `SCOOP_RUNTIME.md` 与 `@ReleaseHook` 关联说明对齐。
+- 必须遵从的约束：文档措辞必须与实际实现 contract 一致，明确标注「尽力而为、非确定性析构」。
+- 验证：
+  1. `cargo test --all --all-targets`
+  2. `python3 tools/run_fixtures.py`
+- 完成条件：至少一个真实/演示类型以纯 Scoop + FFI 工作；spec 与 runtime 文档同步。
+- 依赖：P3-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P3-T02R：Review P3-T02 用例与文档
+
+- 必须实现的内容：复核 demo 用例确实走纯 Scoop + `@ReleaseHook` 路径、spec/runtime 文档与实现一致、best-effort 语义表述准确。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P3 收口，可进入 P4。
+- 依赖：P3-T02
+- 完成记录：
+  - （待填）
+
+---
+
+## P4：`scoop.sync` 迁移到 `@ReleaseHook` 并清理 intrinsic
+
+> 现状（已核实）：`Mutex`/`CondVar`/`Once` 当前是 opaque `public class`，op 为 `@Extern(abi="scoop")`，对象由 C 侧 `scoop_sync_*_create` + C 写死的 type descriptor（已带 `release_fn`）分配；只有 `__scoop_sync_once_run` 是 `@Intrinsic`。本阶段把它们收敛为「普通 final class + `Ptr<T>` handle + `@ReleaseHook` + `@Extern(abi="c")`」，并删光编译器硬编码。
+
+### [TODO] P4-T01：重写 `sync.scoop` 三类型为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4-T01、§3.1
+  - `sysroot/lib/scoop.sync/src/sync.scoop`（`Mutex:21`/`CondVar:24`/`Once:27`；op `:32-101,110-119`；`__scoop_sync_once_run` `:130-131`）
+- 必须实现的内容：
+  1. `Mutex`/`CondVar`/`Once` 改为 final non-generic class，持 `Ptr<T>` native handle 字段；构造经 `@Extern(abi="c")` create-native（返回裸 handle）填字段。
+  2. 各 op（lock/unlock、wait/notifyOne/notifyAll、isDone）改为 method body 内解出 `self.handle` 调 `@Extern(abi="c")` 函数；删除旧 `@Extern(abi="scoop")` 包装。
+  3. 每类型加 `@ReleaseHook(name = destroyNative, args = ["handle"])` + `@Experimental(feature = "releaseHook")`，释放函数为 `@Extern(abi="c")` 销毁。
+  4. `Once.run` 用纯 Scoop 重写（基于已 class 化的 `Mutex`/`CondVar` + `isDone`），删除 `@Intrinsic`。
+- 必须遵从的约束：
+  - 可见语义（可重入性、condvar 原子 unlock-wait-relock、once 并发单次执行）必须与迁移前一致。
+  - handle 字段类型须满足 `@ReleaseHook` 的 GC-free 约束（`Ptr<T>`）。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：三类型为纯 Scoop class，`Once.run` 无 `@Intrinsic`。
+- 依赖：P3 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T01R：Review P4-T01 sync 源改造
+
+- 必须实现的内容：复核三类型 class 形态、`@ReleaseHook`/`@Experimental` 正确、op 走 `@Extern(abi="c")`、`Once.run` 纯 Scoop 且语义不变。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P4-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T02：收缩 `scoop_sync.c` 为只管 raw native handle
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4-T02
+  - `sysroot/lib/scoop.sync/native/scoop_sync.c`（C 侧 type desc + `*_release` `:209-224/334-349/496-511`；handle 布局 `:173-182`；create/op/destroy 各段）
+- 必须实现的内容：
+  1. 删除 C 侧 GC 对象分配（`scoop_alloc_typed`）、C 写死的 `ScoopTypeDescriptor` 与 `scoop_sync_*_release` wrapper。
+  2. create 改为只 malloc + 初始化 native struct，返回裸指针；destroy 接收裸指针释放；op 接收裸指针操作。
+  3. 保留 `destroyed` 等幂等标志，使显式 destroy 与 `@ReleaseHook` 兜底不会双重释放。
+- 必须遵从的约束：`baseline`/`immix`/`hosted`/`minimal` 均可编译可回归；不得保留任何 C 侧 type descriptor 路径。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：C runtime 只承担 raw native handle 生命周期，不再涉足 GC 对象/descriptor。
+- 依赖：P4-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T02R：Review P4-T02 runtime 收缩
+
+- 必须实现的内容：复核 C 侧已无 GC 对象分配与 type descriptor、幂等释放标志有效、四后端编译通过。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P4-T02
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T03：删除 `Once.run` intrinsic 全套硬编码
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4-T03、§3.1
+  - `runtime_symbols.rs:26`、`runtime_abi.rs:266-283`、`call/lowering.rs:1558`、`intrinsics/sync.rs:6-92`、`effect_lowered/value.rs:1794,1925-1997`、`closure/mod.rs:691`
+- 必须实现的内容：
+  1. 删除 `SCOOP_SYNC_ONCE_RUN` 符号常量与 `declare_runtime_sync_once_run`。
+  2. 删除 `call/lowering.rs` 与 `effect_lowered/value.rs` 对 `scoop.sync.__scoop_sync_once_run` 的 FQN dispatch 及 `codegen_sysroot_sync_once_run` / `lower_sync_intrinsic` handler。
+  3. 移除 `closure/mod.rs` 中为 `Once.run` 准备的 `lookup_pure_unit_closure_type` 特例（若仅为此存在）。
+- 必须遵从的约束：删除后 `Once.run`（已纯 Scoop 化）走常规 method/closure codegen；不得残留任何 sync 专用 codegen 分支。
+- 验证：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：编译器 codegen/runtime 层无 `Once.run` 专用路径。
+- 依赖：P4-T01（纯 Scoop `Once.run` 必须先就位）
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T03R：Review P4-T03 intrinsic 删除
+
+- 必须实现的内容：复核所有列出的硬编码点已删除、`Once.run` 走常规路径、无回归。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P4-T03
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T04：删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4-T04、§3.1、§6（lazy 属性同步风险）
+  - `effect_facts/builder.rs:2857-2867`、`session/mod.rs:242,269`、`scoop_project_model/graph_loader.rs:668,682,710,767`、`pipeline/llvm_codegen_stage.rs:617`
+  - 消费侧：`impl_lowering.rs:33-36`、`decls.rs:965,982,1008,1025`、`sugar.rs:326,336,656,666,778,788,914,926`
+- 必须实现的内容：
+  1. 删除 `effect_facts/builder.rs` 的 11 个 sync FQN 无 effect 白名单；确认 class 化后常规 effect 推导给出正确结果（必要时调整 sync op 的 effect 声明）。
+  2. 评估并按需收敛 `session`/`project_model`/auto-import 对 `scoop.sync` 的特殊处理。
+  3. **决策点（必须在完成记录写明结论与理由）**：lazy/delegate 属性同步注入的 `Mutex` 引用是消费侧依赖——二选一：(a) 保留为经普通名字解析的 stdlib 引用（精确保留这唯一允许点），或 (b) 把 lazy-property 加锁合成下放 sysroot helper 使编译器持零 sync FQN。
+- 必须遵从的约束：lazy/Observable/Vetoable 属性的同步语义不得被破坏；删白名单后 effect 推导结果必须与迁移前对这些调用的可见 effect 行为一致。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：除 P4-T04 决策保留的唯一消费侧引用外，编译器无 `scoop.sync` 实现性特判。
+- 依赖：P4-T01、P4-T03
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T04R：Review P4-T04 特判清理
+
+- 必须实现的内容：复核白名单删除后 effect 推导正确、属性同步未被破坏、消费侧决策合理且被精确界定。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P4-T04
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T05：sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫
+
+- 参考：[`PLAN.md`](./PLAN.md) §5 / P4-T05、§6（sync 双重释放 / 行为基线）
+- 必须实现的内容：
+  1. sync run-pass fixtures：lock/unlock、condvar wait/notify、once 单次执行 + 并发竞争；以迁移前语义为基线逐项对齐。
+  2. 四后端（baseline moving/non-moving、immix、minimal、hosted）+ 跨平台（`linux/amd64` + `macos/aarch64`）parity。
+  3. 新增「零编译器硬编码」grep 守卫测试：断言 `Mutex`/`CondVar`/`Once`/`scoop.sync` 相关 FQN 不再出现在编译器 crate（消费侧若选 P4-T04(a)，守卫精确排除该唯一允许点）。
+  4. 删除/迁移已被取代的旧 sync fixtures。
+- 必须遵从的约束：显式 `destroy()` 与 `@ReleaseHook` 共存路径必须验证不双重释放。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：sync 全量回归与四后端/跨平台绿；守卫测试锁定零硬编码（除允许点）。
+- 依赖：P4-T02、P4-T03、P4-T04
+- 完成记录：
+  - （待填）
+
+### [TODO] P4-T05R：Review P4-T05 回归与守卫
+
+- 必须实现的内容：复核语义对齐基线、并发用例有效、守卫测试覆盖完整且排除点精确、无双重释放。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P4 整体收口。
+- 依赖：P4-T05
+- 完成记录：
+  - （待填）
+
+---
+
+## P5：`lazy` / `observable` / `vetoable` 降为普通库 class
+
+> 依据（已核实）：泛型委托路径已把委托对象存成宿主类普通字段、读写编译成 `getValue`/`setValue`（`tests/fixtures/hir/delegated_property_lowering.scoop`），这正是三者要走的路；普通 class 本就能自由持有/改写 `var` 字段（`sysroot/lib/scoop.core/src/core.scoop:1506` 的 `RefCell`/`Atomic`），`@InteriorMutable` 只是值类型后门（`structs.rs:37-44`），与 class 委托无关。本阶段**不需要任何新原语**，是纯减法 + 库重写。
+
+### [TODO] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P5-T01
+  - `sysroot/lib/scoop.delegates/src/delegates.scoop`（`ReadOnlyProperty`/`ReadWriteProperty` `:11-19`；`@Intrinsic` 顶层 `lazy`/`observable`/`vetoable` `:29-63`）
+  - `sysroot/lib/scoop.sync/src/sync.scoop`（P4 后的库 `Mutex`/`Once`）
+- 必须实现的内容：
+  1. `Lazy<V>` class 持 `var inited: Bool` + `var value: V`（或等价 nullable 存储），实现 `ReadOnlyProperty`，`getValue` 内首次跑 initializer 并 memoize。
+  2. `ObservableProperty<V>` / `VetoableProperty<V>` class 持 backing value + 回调，实现 `ReadWriteProperty`；observable 回调在写之后、vetoable 否决则不写。
+  3. 线程安全模式内部组合库 `Mutex`（或 lazy 用 `Once`）；`lazy` 的 `LazyThreadSafetyMode`（None/Synchronized/Publication）各模式行为对齐现状。
+  4. `lazy`/`observable`/`vetoable` 三个顶层函数从 `@Intrinsic` 降为返回上述包装类的普通 `fun`。
+- 必须遵从的约束：可见语义必须复刻现状；不依赖任何新编译器原语或 `@InteriorMutable`。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：三者有可用的纯库实现，顶层函数无 `@Intrinsic`。
+- 依赖：P4 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T01R：Review P5-T01 委托库实现
+
+- 必须实现的内容：复核三者实现 `ReadOnlyProperty`/`ReadWriteProperty` 正确、lazy 三模式与回调/否决语义对齐、线程安全靠库 `Mutex`/`Once` 组合。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P5-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T02：删除三者 by-name 合成与分叉
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P5-T02
+  - `hir/lower/sugar.rs`（lazy get `:201-622`、observable get/set `:624-854`、vetoable `:856-1047`）
+  - `hir/lower/util/decls.rs`（lazy 字段注入 `:933-987`、observable/vetoable `:1000-1046`）
+  - `hir/lower/main/impl_lowering.rs:33-36`（`SYNC_MUTEX_*` 常量）及使用点 `decls.rs:964-986/1021-1029`
+- 必须实现的内容：
+  1. 删除 `sugar.rs` 三者的 get/set 合成与 `decls.rs` 的 backing 字段注入。
+  2. 删除 `impl_lowering.rs:33-36` 的 `SYNC_MUTEX_*` 常量及其全部使用点。
+  3. 删除 `ParsedStdDelegateExpr::{Lazy,Observable,Vetoable}` 分叉，使 `DelegatedPropertyInfo` 只剩泛型分支；`by lazy{...}`/`observable(...)`/`vetoable(...)` 经普通表达式求值 + 泛型委托 lowering 接入。
+- 必须遵从的约束：泛型委托路径不得改动；删除后这三者完全走泛型路径。
+- 验证：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：编译器属性委托 lowering 只剩唯一的泛型路径。
+- 依赖：P5-T01
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T02R：Review P5-T02 特判删除
+
+- 必须实现的内容：复核三者合成与 `SYNC_MUTEX_*` 常量已全删、`DelegatedPropertyInfo` 只剩泛型分支、无残留 by-name 分叉。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P5-T02
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T03：委托回归 + 守卫扩展
+
+- 参考：[`PLAN.md`](./PLAN.md) §5 / P5-T03、§6（委托库化语义对齐）
+- 必须实现的内容：
+  1. 把现有 lazy/observable/vetoable run-pass / hir fixtures 切到库实现，验证语义不变：lazy 三模式、observable 回调在写后、vetoable 否决不写、并发可见性。
+  2. 把「零编译器硬编码」grep 守卫扩展到 `lazy`/`observable`/`vetoable` 及 `scoop.sync.Mutex` 注入点；P4-T04 若保留过消费侧允许点，此时一并删除并收紧守卫。
+  3. 删除/迁移已被取代的旧委托合成 fixtures。
+- 必须遵从的约束：以迁移前语义为基线逐项对齐；分配开销变化（委托对象字段 vs 宿主内联字段）在基线说明中注明。
+- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：委托回归与守卫绿；语义逐项一致。
+- 依赖：P5-T02
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T03R：Review P5-T03 回归与守卫
+
+- 必须实现的内容：复核语义逐项对齐（尤其 lazy 三模式与 vetoable 否决）、守卫覆盖三者且无遗漏允许点、旧 fixtures 已清理。
+- 验证：`python3 tools/run_fixtures.py`
+- 完成条件：P5 整体收口；属性委托对编译器完全透明。
+- 依赖：P5-T03
+- 完成记录：
+  - （待填）
