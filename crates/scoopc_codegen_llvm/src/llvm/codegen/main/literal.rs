@@ -135,64 +135,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         bytes: &[u8],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 1) 分配一个 GC-managed `ScoopString` 对象：
-        //    - LLVM 侧类型为 `ScoopString addrspace(1)*`
-        //    - 分配通过 `scoop_alloc_typed(desc, sizeof(ScoopString))`（runtime 写入对象头 type_desc）
-        let scoop_str_ty = self.llvm_scoop_string_type();
-        let obj_size = self.target_data.get_store_size(&scoop_str_ty);
-        let size_v = self.context.i64_type().const_int(obj_size, false);
-
-        let str_desc = self.get_or_create_string_type_desc_global(span)?;
-        let str_desc_i8 = self.builder.build_pointer_cast(
-            str_desc.as_pointer_value(),
-            self.llvm_i8_ptr_type(),
-            "str_type_desc_i8",
-        )?;
-        let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.build_call_preserving_gc_local_roots(
-            span,
-            rt_alloc,
-            &[str_desc_i8.into(), size_v.into()],
-            "rt_alloc_string_lit",
-        )?;
-        let raw = self.expect_basic_value(call, "scoop_alloc_typed string allocation");
-        let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed string allocation");
-
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let str_ptr = self
-            .builder
-            .build_pointer_cast(raw_ptr, str_ptr_ty, "str_obj_ptr")?;
-
-        // 2) 写入 `{ len, data }`。
-        let len_ptr = self
-            .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_len_gep")?;
-        let data_ptr = self
-            .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 2, "str_data_gep")?;
-
-        let len = self.context.i64_type().const_int(bytes.len() as u64, false);
-        let _ = self.builder.build_store(len_ptr, len)?;
-
-        // 空串：保持 `data = NULL`（与 runtime 侧空串约定一致）。
-        if bytes.is_empty() {
-            let i8_ptr_ty = self.llvm_i8_ptr_type();
-            let _ = self.builder.build_store(data_ptr, i8_ptr_ty.const_null())?;
-        } else {
-            // 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
-            let data_gv = self.get_or_create_global_bytes(bytes);
-            let i8_ptr_ty = self.llvm_i8_ptr_type();
-            let data_i8_ptr = self.builder.build_pointer_cast(
-                data_gv.as_pointer_value(),
-                i8_ptr_ty,
-                "str_data_ptr",
-            )?;
-            let _ = self.builder.build_store(data_ptr, data_i8_ptr)?;
-        }
+        let str_global = self.get_or_create_immortal_string_global(span, bytes)?;
 
         Ok(CgValue {
             ty: CgTy::String,
-            value: Some(str_ptr.into()),
+            value: Some(str_global.as_pointer_value().into()),
         })
     }
 }

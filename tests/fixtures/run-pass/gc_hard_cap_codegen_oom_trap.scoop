@@ -4,9 +4,12 @@
 // ENV: SCOOP_GC_MAX_HEAP_BYTES=1
 // ENV: SCOOP_GC_IMMIX_NURSERY_BLOCKS=0
 // 目标：generated `scoop_alloc_typed` OOM 必须走 fatal trap，而不是继续 GEP/store 触发 UB。
+// P5-T02 后 String literal 本身不再分配；这里用 class object 触发 typed allocation。
 
 import scoop.core.*
 
+class Box(val s: String)
+
 fun main() {
-    println("oom")
+    val _box: Box = Box("oom")
 }

@@ -67,7 +67,7 @@
   - 测试：新增 `recursive_class_cycle_with_mutable_member_does_not_cache_optimistic_true`，覆盖 `A -> B -> A` 且 `A` 含 `var` 字段时同一 analyzer 先查 `A` 再查 `B` 仍均为 false；保留 all-val 自引用 class 可终止且为 true 的覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_codegen_llvm immutability --all-targets`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T02：实现 `try_emit_immortal` 折叠器并路由 String literal
+### [DONE] P5-T02：实现 `try_emit_immortal` 折叠器并路由 String literal
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -98,7 +98,12 @@
   - String literal / `__type_name` 零堆分配，聚合按门提升或安全回退。
 - 依赖：P5-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：新增 `crates/scoopc_codegen_llvm/src/llvm/codegen/main/immortal.rs`，实现 immortal String wrapper 全局发射与 `StructLit` / `MakeTuple` 的安全提升入口。
+  - String / SynthString / `TypeMetadataLiteral::TypeNameString` 现在通过 content-hash 命名的 `@__scoop_str_lit_<hash>` 全局返回 `ScoopString addrspace(1)*`，header 设置 `next=null`、`SCOOP_GC_FLAG_IMMORTAL`、`SCOOP_GC_MARK_IMMORTAL`、runtime String type descriptor、对象大小，wrapper 与 byte data 均为 `constant` + `unnamed_addr`。
+  - 聚合提升门已接入 `Rvalue::StructLit` / `MakeTuple`：仅当字段全 `Operand::Const`、transport kind 为 Tuple/Struct、字段 transport 无 boxing 时尝试提升；值类型聚合发射 constant global 并按值 load；不支持或不安全的形状安全回退现有动态路径。
+  - 发现并修复当前任务触发的 verifier 边界：`SCOOP_GC_VERIFY_ROOTS=1` 现在接受带 immortal header 的 off-heap root，避免全局/栈 root 中的 immortal String 被误报为非 heap root。
+  - 测试/fixture：新增 P5-T02 IR fixtures 覆盖 String/TypeNameString 零 `scoop_alloc_typed` 与 aggregate boxing 回退；新增 runtime GC fixture 覆盖 10M 次 String literal evaluation 不增长 `bytes_allocated`；更新 P0 metric、hard-cap OOM、struct String root 相关 fixture 以匹配 String literal immortal 行为且保持原测试目标。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P5-T02R：Review 折叠器与 String immortal
 

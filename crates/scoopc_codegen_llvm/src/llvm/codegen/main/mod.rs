@@ -25,6 +25,7 @@ mod function;
 mod gc_locals;
 mod globals;
 mod identity;
+mod immortal;
 mod immut_value;
 mod literal;
 mod numeric;

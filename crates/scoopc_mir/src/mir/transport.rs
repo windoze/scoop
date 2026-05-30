@@ -184,6 +184,21 @@ pub struct AggregateTransportMetadata {
     pub fields: Vec<AggregateTransportField>,
 }
 
+impl AggregateTransportMetadata {
+    pub fn is_tuple_or_struct(&self) -> bool {
+        matches!(
+            self.kind,
+            AggregateTransportKind::Tuple | AggregateTransportKind::Struct
+        )
+    }
+
+    pub fn fields_have_no_boxing(&self) -> bool {
+        self.fields
+            .iter()
+            .all(|field| field.transport.boxing.is_none())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClosureCaptureTransportMetadata {
     pub name: String,

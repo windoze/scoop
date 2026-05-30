@@ -1710,6 +1710,10 @@ static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
   if (!scoop_gc_verify_live_set_contains(ctx->state, obj)) {
+    if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0 && obj->mark == SCOOP_GC_MARK_IMMORTAL) {
+      return;
+    }
+
     scoop_gc_verify_roots_record_error(
         ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
   }

@@ -16,6 +16,10 @@ public fun __scoop_gc_collect(): Unit
 @Extern(name = "scoop_gc_debug_heap_object_count", abi = "c")
 public fun __scoop_gc_debug_heap_object_count(): Int
 
+// 只读取 runtime 累计分配字节数，不接收/返回 GC ref，按 C ABI leaf helper 暴露。
+@Extern(name = "scoop_gc_debug_heap_bytes_allocated", abi = "c")
+public fun __scoop_gc_debug_heap_bytes_allocated(): Int
+
 // 会通过 runtime 分配垃圾对象并可能触发 safepoint；必须保持 managed boundary。
 @Extern(name = "scoop_gc_debug_alloc_garbage", abi = "scoop")
 public fun __scoop_gc_debug_alloc_garbage(count: Int): Unit

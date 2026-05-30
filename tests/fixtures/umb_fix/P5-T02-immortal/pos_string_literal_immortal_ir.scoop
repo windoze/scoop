@@ -1,0 +1,25 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @__scoop_str_lit_
+// BUILD-LLVM-NOT-CONTAINS: scoop_alloc_typed
+// P5-T02: String literals and TypeNameString metadata use immortal wrappers.
+
+package fixtures.umb_fix.p5_t02_immortal
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun literalOnly(): Int {
+    val s: String = "hello"
+    return s.length()
+}
+
+fun typeNameOnly(): Int {
+    val name: String = Point::class
+    return name.length()
+}
+
+fun main(): Int {
+    return literalOnly() + typeNameOnly()
+}

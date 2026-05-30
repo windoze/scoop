@@ -1,0 +1,16 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: scoop_alloc_typed
+// BUILD-LLVM-CONTAINS: MirValueBox
+// P5-T02: aggregate value-erasure boxing is not liftable and stays dynamic.
+
+package fixtures.umb_fix.p5_t02_immortal
+
+import scoop.core.*
+
+struct Pair(val x: Int, val y: Int)
+
+fun main(): Int {
+    val boxed: Any = Pair { x: 1, y: 2 }
+    return 0
+}

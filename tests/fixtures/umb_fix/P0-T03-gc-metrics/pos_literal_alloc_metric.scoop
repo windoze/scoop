@@ -1,7 +1,8 @@
 // EXPECT: pass
 // ARGS: --emit-llvm
-// BUILD-LLVM-CONTAINS: @scoop_alloc_typed
-// P0-T03 metric fixture: keep this source limited to String literal and Platform reads.
+// BUILD-LLVM-CONTAINS: @__scoop_str_lit_
+// BUILD-LLVM-NOT-CONTAINS: scoop_alloc_typed
+// P0-T03/P5-T02 metric fixture: keep this source limited to String literal and Platform reads.
 
 package fixtures.umb_fix.p0_t03_gc_metrics
 

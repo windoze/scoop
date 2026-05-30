@@ -12,8 +12,9 @@ import scoop.runtime.test.*
 struct Wrap(val s: String)
 
 fun make(): Wrap {
-    // 字符串字面量当前会分配一个 GC-managed `ScoopString`（T1502b3），作为可观测的 live root。
-    return Wrap { s: "hello" }
+    // P5-T02 后 String literal 是 immortal off-heap 常量；这里用 concat 生成一个
+    // GC-managed `ScoopString`，继续覆盖 struct 内 String ref 的 root 枚举。
+    return Wrap { s: "he".concat("llo") }
 }
 
 fun main(): Unit {

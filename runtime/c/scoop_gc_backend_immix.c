@@ -3381,7 +3381,8 @@ static uint32_t scoop_gc_verify_roots_enabled(void) {
 //
 // 校验内容（v0）：
 // - GC 完成（sweep + region sweep + compaction + roots update）后，再次枚举所有 roots slots；
-// - 要求：每个非 NULL roots 值必须指向当前 heap.objects 中的某个 live 对象（对象头地址）；
+// - 要求：每个非 NULL roots 值必须指向当前 heap.objects 中的某个 live 对象（对象头地址），
+//   或指向带 immortal header 的 off-heap 常量对象；
 // - 对 stackmap roots：要求 stackmap lookup 至少命中 1 条 record（否则视为“未产生/未注册 stackmaps”）。
 //
 // 注意：
@@ -3451,6 +3452,10 @@ static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
   if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
+    if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0 && obj->mark == SCOOP_GC_MARK_IMMORTAL) {
+      return;
+    }
+
     scoop_gc_verify_roots_record_error(
         ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
 
