@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` / `P5-T03` / `P5-T03R` / `P6-T01` / `P6-T01R` / `P6-T02` / `P6-T02R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -68,7 +68,7 @@
 | P6-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01platform-lower-成-structlit-并删除专用-codegen) | Platform lower 成 StructLit 并删除专用 codegen |
 | P6-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t01rreview-platform-折叠) | Review P6-T01 Platform 折叠 |
 | P6-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02typemetadataliteral-审计与指针相等断言) | `TypeMetadataLiteral` 审计与指针相等断言 |
-| P6-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
+| P6-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p6-t02rreview-typemetadata-审计) | Review P6-T02 TypeMetadata 审计 |
 | P7-T00 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t00增强-stw-健壮性避免僵尸线程卡死) | 增强 STW 健壮性，避免僵尸线程卡死 stop-the-world |
 | P7-T00b | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t00b补-scoop-语言级并发gc-应用测试) | 补 Scoop 语言级并发/GC 应用测试（替代已删除的 C-API stress） |
 | P7-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p7-t01回写-runtimespec-文档pacing--immortal) | 回写 runtime/spec 文档（pacing + immortal） |

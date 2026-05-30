@@ -276,7 +276,7 @@
   - 测试/fixture：新增 `tests/fixtures/umb_fix/P6-T02-typemetadata/pos_type_name_pointer_equal_run.scoop`，使用 `__scoop_unsafe_value_to_word<String>` 直接断言两次 `Point::class` 返回同一个 `ScoopString` 指针。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T02-typemetadata --exit-on-failure`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P6-T02R：Review TypeMetadata 审计
+### [DONE] P6-T02R：Review TypeMetadata 审计
 
 - 参考：
   - P6-T02 完成记录
@@ -295,4 +295,12 @@
   - immortal codegen 线收口（P5-P6 完成）。
 - 依赖：P6-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P6-T02 审计覆盖完整，`TypeMetadataLiteral` 无消费者 mutate materialized 值，指针相等断言真实成立。
+  - 消费者覆盖复核（穷举 `TypeMetadataLiteral` 引用）：
+    - 生产端：`hir/lower/expr/main_lower.rs`、`mir/lower/fn_lowering_call.rs`、`fn_lowering_effect.rs` 仅生成 `TypeMetadataLiteralKind::TypeNameString`，不写回 materialized 字符串。
+    - `materialize/rewrite.rs:888` 仅对 `metadata.source_ty` 做单态化类型替换，不触碰 materialized 值；`materialize/validation.rs:1379` 以不可变借用只校验 `source_ty`。
+    - `inline.rs:873` 仅 `metadata.clone()`；`dump.rs` / `summary.rs` / `escape.rs` / `pass_pipeline.rs` / `effect_facts/builder.rs` / `effect_lowered/*` 全部用 `_` ignore 形式，仅做展示、分类或依赖分析，无 mutate。
+  - 不可变性根因复核：MIR `TypeMetadataLiteral` 仅携带 `source_ty` / `source_fqn` / `kind`，实际 `ScoopString` 只在 codegen 期物化为内容池 immortal 全局，不存在可被消费者 mutate 的可写 materialized 值。
+  - 指针相等路径复核：LLVM 三个消费点（`mir_body/transport.rs:193`、`terminator.rs:416/582`、`expr.rs:86`）全部经 `codegen_string_literal_from_text` → `codegen_string_literal_from_bytes` → 内容键控的 `get_or_create_immortal_string_global`，同名类型跨 site 复用同一 global。
+  - 验证：`python3 tools/run_fixtures.py tests/fixtures/umb_fix/P6-T02-typemetadata --exit-on-failure`（pointer-equality fixture PASS）。本任务仅改动文档/注释，复审无代码改动，full `cargo test --all --all-targets` 与 `python3 tools/run_fixtures.py` 复用 P6-T02 的最近绿色结果。
