@@ -33,8 +33,8 @@ mod immix {
 
     #[test]
     fn immix_block_pool_exhaustion_collects_before_growing() {
-        // Isolate the P2 hard trigger: disable soft pacing/stress/nursery so any GC cycle observed
-        // during allocation must come from old-space block-pool exhaustion.
+        // P7-T02 why: isolate the P2 hard trigger; disabling soft pacing/stress/nursery means
+        // any GC cycle observed during allocation comes from old-space block-pool exhaustion.
         unsafe {
             std::env::set_var("SCOOP_GC_PACING", "off");
             std::env::remove_var("SCOOP_GC_STRESS");
@@ -87,8 +87,8 @@ mod immix {
 
     #[test]
     fn immix_block_pool_exhaustion_grows_when_collection_cannot_reclaim() {
-        // Keep all old-space blocks live so the block-pool hard trigger must fall through to growth
-        // after its full-GC retry instead of treating an ineffective collection as OOM.
+        // P7-T02 why: keep all old-space blocks live and disable soft pacing/stress/nursery, so
+        // observed GC/reserved-byte changes belong to the block-pool hard trigger under test.
         unsafe {
             std::env::set_var("SCOOP_GC_PACING", "off");
             std::env::remove_var("SCOOP_GC_STRESS");

@@ -4,6 +4,8 @@
 // BUCKETS: B-29
 // REASON: P7-B3.4 retired B-29 rows; coverage is owned by the retired ledger.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/gc_pin_unpin_basic.scoop
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: source fixture prints exact heap object counts for pin/unpin liveness.
 // SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*

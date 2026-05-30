@@ -33,6 +33,8 @@ mod immix {
     #[test]
     fn immix_hard_cap_reuses_after_gc_and_returns_null_when_live() {
         unsafe {
+            // P7-T02 why: this test asserts exact reserved-byte and GC-cycle counters for the
+            // hard-cap retry path, so soft pacing must not add unrelated collections.
             std::env::set_var("SCOOP_GC_PACING", "off");
             std::env::set_var("SCOOP_GC_MAX_HEAP_BYTES", IMMIX_BLOCK_SIZE.to_string());
             std::env::remove_var("SCOOP_GC_STRESS");

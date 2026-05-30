@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: effect_handle_return_from_function_any_boxing.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts the exact boxed return object count after manual GC.
 //
 // T3016R：handle 内的 function-return 必须继续走普通函数返回的 coercion 合同。
 // 这里 `return 1` 需要按 `Any` 返回类型执行 `Int -> Any` boxing；否则 boxed object

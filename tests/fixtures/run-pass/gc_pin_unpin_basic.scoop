@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_pin_unpin_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts exact heap object counts while testing pin/unpin liveness.
 //
 // 目标：GC pin/unpin 语言层 API（sysroot + codegen → runtime）的稳定支持面回归。
 // - `GC.pin(obj)`：把 heap 对象加入 runtime 的 pinned roots（即使没有栈 roots 也应保活）

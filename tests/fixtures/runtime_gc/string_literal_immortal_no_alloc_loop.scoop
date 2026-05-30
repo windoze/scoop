@@ -2,6 +2,8 @@
 // EXPECT-EXIT: 0
 // SYSROOT-DEPS: scoop.runtime.test
 // P5-T02: repeated String literal evaluation must not allocate ScoopString wrappers.
+// P7-T02: keep default pacing on; immortal literals are off-heap, so the zero-allocation
+// assertion must hold without `SCOOP_GC_PACING=off`.
 
 import scoop.core.*
 import scoop.runtime.test.*

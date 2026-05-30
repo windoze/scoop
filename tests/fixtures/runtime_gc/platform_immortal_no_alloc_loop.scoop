@@ -2,6 +2,8 @@
 // EXPECT-EXIT: 0
 // SYSROOT-DEPS: scoop.runtime.test
 // P6-T01: repeated Platform field reads must not allocate after lowering through StructLit folding.
+// P7-T02: keep default pacing on; Platform folding should avoid heap allocation outright,
+// so this immortal-path assertion must not need `SCOOP_GC_PACING=off`.
 
 import scoop.core.*
 import scoop.runtime.test.*

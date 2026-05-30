@@ -64,6 +64,8 @@ mod immix {
     #[test]
     fn immix_hard_cap_prevents_minor_tospace_growth() {
         unsafe {
+            // P7-T02 why: this test asserts exact reserved-byte/generation behavior for the
+            // nursery hard-cap path, so soft pacing must not add unrelated collections.
             std::env::set_var("SCOOP_GC_PACING", "off");
             std::env::set_var("SCOOP_GC_MAX_HEAP_BYTES", IMMIX_BLOCK_SIZE.to_string());
             std::env::set_var("SCOOP_GC_IMMIX_NURSERY_BLOCKS", "1");

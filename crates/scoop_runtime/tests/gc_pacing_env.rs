@@ -66,7 +66,8 @@ mod immix {
         );
 
         let mut off_cmd = heap_growth_command();
-        // `PACING=off` 只关闭 soft threshold；P2 block-pool exhaustion 仍必须先 full GC 再增长。
+        // P7-T02 why: this is the explicit Immix opt-out regression; `PACING=off` disables only
+        // the soft threshold while block-pool exhaustion must still full-GC before growing.
         off_cmd.env("SCOOP_GC_PACING", "off");
         let off = run_heap_growth(off_cmd);
         let off_bytes = json_u64(&off, "bytes");
@@ -199,6 +200,8 @@ mod non_immix {
             .arg("200000")
             .arg("--sample-every")
             .arg("50000")
+            // P7-T02 why: this is the explicit opt-out regression for non-Immix soft
+            // pacing; the assertions below require the old unbounded counters.
             .env("SCOOP_GC_PACING", "off");
         let off = run_heap_growth(off_cmd);
         let off_bytes = json_u64(&off, "bytes");

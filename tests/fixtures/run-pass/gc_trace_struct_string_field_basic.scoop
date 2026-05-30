@@ -1,5 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_trace_struct_string_field_basic.stdout
+// ENV: SCOOP_GC_PACING=off
+// P7-T02 why: stdout asserts exact heap object counts around explicit manual collects.
 //
 // 目标：GC-FIX Phase C2a（SROA）
 // - struct（值类型）里包含 `String` ref 字段时，即使只以“整体 struct”跨越 `__scoop_gc_collect()`，

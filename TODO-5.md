@@ -120,7 +120,7 @@
   - 旧行为归位：`GC_PACING.md` / `GC_IMMORTAL_FIX.md` 将 “Today/currently” 旧行为语句改为 P0/P5 baseline/design-history 表述；`PLAN.md` / `TODO.md` 不再把旧无界增长描述成当前状态；`PLAN.md` 同步累计 `next_gc = bytes_freed + target_live` 公式。
   - 验证：`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）。`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 未运行，因为本 review 只修改 Markdown 文档、任务记录和 `memory/claude_plan.md`，不改变编译输出；沿用 P7-T00b / P7-T01 记录中的最近完整绿灯。
 
-### [TODO] P7-T02：审计需要 `PACING=off` 的测试并注明原因
+### [DONE] P7-T02：审计需要 `PACING=off` 的测试并注明原因
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P7
@@ -142,7 +142,12 @@
   - 需要确定性计数的测试已显式 opt-out 并注明原因。
 - 依赖：P7-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 精确 heap object-count fixture：为 `gc_trace_struct_string_field_basic.scoop`、`gc_mark_sweep_basic.scoop`、`gc_pin_unpin_basic.scoop`、`effect_handle_return_from_function_any_boxing.scoop`、`class_init_raise_cleanup_property_init_gc_basic.scoop`、`class_init_raise_cleanup_init_block_gc_basic.scoop`、`gc_trace_class_ref_field_basic.scoop`、`effect_raise_cleanup_gc_basic.scoop` 以及 retired-ledger mirror `umb_fix/B-29-gc-intrinsics/pos_gc_pin_handle_boundary.scoop` 增加 `SCOOP_GC_PACING=off`，并逐个添加 `P7-T02 why` 注释，说明 stdout / source fixture 依赖确定性 heap object-count。
+  - 运行期 integration tests：补充 `gc_pacing_env.rs`、`gc_immix_block_pool.rs`、`gc_immix_hard_cap.rs`、`gc_immix_hard_cap_nursery.rs` 中既有 `SCOOP_GC_PACING=off` 的 `P7-T02 why` 注释；为 `gc_stackmap_multiframe_keepalive.rs` 设置 `SCOOP_GC_PACING=off`，因为 native helper 在 `runtime/c` 中断言 manual GC 后的精确 heap object-count。
+  - Opt-out 收窄：移除 `gc_hard_cap_codegen_oom_trap.scoop` 中不需要的 `SCOOP_GC_PACING=off`；该 fixture 只验证 hard-cap OOM fatal trap，不断言确定性 heap 计数。
+  - Immortal 审计：`string_literal_immortal_no_alloc_loop.scoop` 与 `platform_immortal_no_alloc_loop.scoop` 保持默认 pacing on，并补注释说明 immortal / Platform folding 路径不应进堆，零 allocation 断言不需要 `SCOOP_GC_PACING=off`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。
 
 ### [TODO] P7-T02R：Review `PACING=off` 审计
 
