@@ -47,7 +47,7 @@
 | P2-T01R | [DONE] | Review P2-T01 trampoline |
 | P2-T02 | [DONE] | 在 type descriptor 填 `release_fn` + IR fixtures |
 | P2-T02R | [DONE] | Review P2-T02 descriptor 接线 |
-| P3-T01 | [TODO] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
+| P3-T01 | [DONE] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
 | P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
 | P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
 | P3-T02R | [TODO] | Review P3-T02 用例与文档 |
@@ -348,7 +348,7 @@
 
 ## P3：验证矩阵、回归与文档收尾
 
-### [TODO] P3-T01：run-pass 端到端 + 四后端 parity + 跨平台矩阵
+### [DONE] P3-T01：run-pass 端到端 + 四后端 parity + 跨平台矩阵
 
 - 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T01、P3-T02、P3-T03、§6（风险）
 - 必须实现的内容：
@@ -363,7 +363,9 @@
 - 完成条件：端到端 + 四后端 + 双平台全绿。
 - 依赖：P2 完成
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增 `@ReleaseHook` 端到端 run-pass fixtures，宿主为 final non-generic class 持 `Ptr<Int>` native handle，构造经 `@Extern(abi="c")` 探针创建资源，`@ReleaseHook` 指向销毁探针。fixture 制造对象不可达 + 显式 `__scoop_gc_collect()`/`__scoop_gc_collect_minor()` 触发 GC，用 test-only native handle 探针（`scoop_test.c` 内 `scoop_test_release_hook_probe_*`）断言释放被调用一次、字段值（裸 handle id）正确传入、live/duplicate/invalid 计数正确；`__scoop_release_hook_probe_expect_at_exit` 注册 `atexit` 断言进程退出时存活对象**不**触发释放（best-effort 边界）。四后端 parity 经 fixture header `// ENV: SCOOP_RUNTIME_GC_BACKEND=...` 选择后端：baseline moving（`SCOOP_GC_MOVE=1`）/ baseline non-moving / immix major / immix minor（`SCOOP_GC_IMMIX_NURSERY_BLOCKS=1` 走 minor reclaim）/ minimal / hosted，单对象不重复释放。为支持 fixture 选后端，`scoopld` 新增 `SCOOP_RUNTIME_GC_BACKEND` env → `RuntimeGcBackend` 解析并透传 `-DSCOOP_GC_BACKEND=`（默认 Immix，保持既有 driver 行为）；`runtime_test.scoop` 新增 `__scoop_gc_collect_minor` 与探针 FFI surface。
+  - 跨平台矩阵：macos/aarch64 本地全绿；linux/amd64 在 nuc12（`/home/chenxu/repos/scoop-1`，LLVM 21.1.8 via linuxbrew）经未提交变更 patch 后构建并运行六个后端 fixture，全部 PASS（baseline moving / baseline non-moving / hosted / immix major / immix minor / minimal）。
+  - 验证：`cargo build -p scoop -p scoopc`；本地 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/release_hook_e2e_*.scoop`（macos/aarch64）；nuc12 `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/release_hook_e2e_{baseline_moving,baseline_nonmoving,hosted,immix_major,immix_minor,minimal}.scoop`（linux/amd64，全 PASS）。
 
 ### [TODO] P3-T01R：Review P3-T01 验证矩阵
 

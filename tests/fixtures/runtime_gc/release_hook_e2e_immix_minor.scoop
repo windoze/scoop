@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: release_hook_e2e_immix_minor.stdout.txt
+// ENV: SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
+// SYSROOT-DEPS: scoop.runtime.test
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+import scoop.runtime.test.*
+import scoop.unsafe.*
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "scoop.runtime.test.__scoop_release_hook_probe_release", args = ["raw"])
+class ReleaseHookProbe(val tag: Int, val raw: Ptr<Int>, val trailer: Int)
+
+fun makeAndDrop(id: Int): Unit {
+    val raw: Ptr<Int> = @Unsafe do { __scoop_release_hook_probe_create(id) }
+    val probe: ReleaseHookProbe = ReleaseHookProbe(7, raw, 9)
+    val seen: Int = @Unsafe do { __scoop_release_hook_probe_id(probe.raw) }
+    if (seen == -1) {
+        println("bad probe")
+    }
+}
+
+fun makeSurvivor(id: Int): ReleaseHookProbe {
+    val raw: Ptr<Int> = @Unsafe do { __scoop_release_hook_probe_create(id) }
+    return ReleaseHookProbe(11, raw, 13)
+}
+
+fun printProbeState(label: String): Unit {
+    val releases: Int = @Unsafe do { __scoop_release_hook_probe_release_count() }
+    val lastId: Int = @Unsafe do { __scoop_release_hook_probe_last_id() }
+    val live: Int = @Unsafe do { __scoop_release_hook_probe_live_count() }
+    val duplicates: Int = @Unsafe do { __scoop_release_hook_probe_duplicate_count() }
+    val invalid: Int = @Unsafe do { __scoop_release_hook_probe_invalid_count() }
+    println(f"${label} ${releases} ${lastId} ${live} ${duplicates} ${invalid}")
+}
+
+fun main() {
+    @Unsafe do { __scoop_release_hook_probe_reset() }
+    printProbeState("before")
+
+    makeAndDrop(101)
+    __scoop_gc_collect_minor()
+    printProbeState("after-drop")
+
+    __scoop_gc_collect_minor()
+    printProbeState("after-second-collect")
+
+    val survivor: ReleaseHookProbe = makeSurvivor(202)
+    val survivorId: Int = @Unsafe do { __scoop_release_hook_probe_id(survivor.raw) }
+    val survivorSum: Int = survivor.tag + survivor.trailer
+    println(f"survivor ${survivorId} ${survivorSum}")
+
+    @Unsafe do { __scoop_release_hook_probe_expect_at_exit(1, 1) }
+    printProbeState("exit-check-armed")
+}
