@@ -54,7 +54,7 @@
 | P4-T01 | [DONE] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
 | P4-T01R | [DONE] | Review P4-T01 sync 源改造 |
 | P4-T02 | [DONE] | 收缩 `scoop_sync.c` 为只管 raw native handle |
-| P4-T02R | [TODO] | Review P4-T02 runtime 收缩 |
+| P4-T02R | [DONE] | Review P4-T02 runtime 收缩 |
 | P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
 | P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
 | P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
@@ -460,13 +460,15 @@
   - 验证过程中完整 fixture 首轮暴露两个未调度 runtime_gc timeout：`gc_language_cross_thread_ref_handoff.scoop` 与 `gc_language_repeated_collect_shared_chain.scoop`。已按失败策略修复为确定性跨线程发布回归：线程先发布对象图并结束，主线程随后反复触发 GC 并读取；专门的 live-thread STW roots 场景仍由既有 `gc_stw_cross_thread_roots_basic.scoop` 与 `gc_stw_cross_thread_in_native_roots_basic.scoop` 覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；多轮 targeted `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_cross_thread_ref_handoff.scoop` / `gc_language_repeated_collect_shared_chain.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P4-T02R：Review P4-T02 runtime 收缩
+### [DONE] P4-T02R：Review P4-T02 runtime 收缩
 
 - 必须实现的内容：复核 C 侧已无 GC 对象分配与 type descriptor、幂等释放标志有效、四后端编译通过。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P4-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P4-T02 runtime 收缩：`sysroot/lib/scoop.sync/native/scoop_sync.c` 已无 `scoop_alloc_typed`、C 侧 `ScoopTypeDescriptor`、旧 object-facing `scoop_sync_*` API、`scoop_sync_*_release` wrapper 或 `scoop_runtime.h` 依赖；保留的 `scoop_sync_*_native_*` create/op/destroy 均只操作 malloc 出的 raw native handle。`Mutex` / `CondVar` native handle 仍通过 `destroyed` / `initialized` 标志配合 Scoop 层显式 `destroy()` 后置空 `rawHandle`，避免显式释放与 `@ReleaseHook` 兜底 double-destroy；`Once` 没有公开显式 destroy，native 侧只保留 raw state / owner，并通过 `@ReleaseHook` 回收。
+  - 同步复核 `sysroot/lib/scoop.sync/src/sync.scoop`：三类型仍为普通 `@ReleaseHook` class，op 走 `@Extern(abi="c")` raw helper，未发现 sync 相关 `@Intrinsic` 或 `@Extern(abi="scoop")` 包装残留；`Once.run` intrinsic 的 compiler 侧旧硬编码仍由后续 P4-T03 明确处理，本 review 不越界删除。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T03：删除 `Once.run` intrinsic 全套硬编码
 
