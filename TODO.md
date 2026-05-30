@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -56,7 +56,7 @@
 | P3-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02__atomicint-升为-interiormutable-struct) | `__AtomicInt` 升为 `@InteriorMutable struct` |
 | P3-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p3-t02rreview-__atomicint-struct-化) | Review P3-T02 `__AtomicInt` struct 化 |
 | P4-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01运行期-scoop_gc_flag_immortal-与-marker-短路) | 运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路 |
-| P4-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t01rreview-immortal-运行期短路) | Review P4-T01 immortal 运行期短路 |
+| P4-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p4-t01rreview-immortal-运行期短路) | Review P4-T01 immortal 运行期短路 |
 | P4-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t02byte-数组-content-hash-键与-unnamed_addr) | byte 数组 content-hash 键与 `unnamed_addr` |
 | P4-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p4-t02rreview-content-hash-键) | Review P4-T02 content-hash 键 |
 | P5-T01 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t01实现-is_immutable-谓词) | 实现 `is_immutable(T)` 谓词 |

@@ -163,7 +163,7 @@
   - 测试：新增 `scoop_test_gc_immortal_marker_smoke` test-only C helper 和 `crates/scoop_runtime/tests/gc_immortal_marker.rs`，覆盖栈上 immortal header 不改 `flags`/`mark`、普通对象仍被标记；默认 Immix helper 覆盖 serial、parallel 与 minor marker，非默认 backend helper 覆盖 baseline/minimal/hosted 可达路径。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_immortal_marker`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P4-T01R：Review immortal 运行期短路
+### [DONE] P4-T01R：Review immortal 运行期短路
 
 - 参考：
   - P4-T01 完成记录
@@ -184,7 +184,11 @@
   - 运行期可安全承载 immortal 对象。
 - 依赖：P4-T01
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：`SCOOP_GC_FLAG_IMMORTAL` / `SCOOP_GC_MARK_IMMORTAL` 已作为 runtime header contract 落在 `scoop_gc.h`；baseline、minimal、hosted 与 Immix marker helper 都在读取或写入 `mark` 前按 `SCOOP_GC_FLAG_IMMORTAL` 返回，普通堆对象仍保持原 marker 行为。
+  - 覆盖面：Immix serial marker、parallel marker 与 minor marker 均已 flag-gated，其中 parallel 路径在 atomic load/CAS 前短路；pinned objects 与 stable handles 的根扫描入口直接调用这些 helper，不会绕过 immortal 短路；slot visitor 的 heap-membership 过滤保持不变。
+  - 测试：复核 `scoop_test_gc_immortal_marker_smoke` 覆盖 synthetic immortal header 的 `flags`/`mark` 不变、普通 header 仍被标记；默认 Immix 覆盖 serial/parallel/minor marker，baseline/minimal/hosted 覆盖各自 helper。ASan 下四个 backend 的 smoke 均通过。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_immortal_marker`；default Immix、gc-baseline、gc-minimal、gc-hosted 的 ASan variants（显式设置 `CFLAGS="-fsanitize=address -fno-omit-frame-pointer"`、`RUSTFLAGS="-Clink-arg=-fsanitize=address -Clink-arg=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/lib/darwin/libclang_rt.asan_osx_dynamic.dylib"`、`DYLD_LIBRARY_PATH=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/lib/darwin`）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P4-T02：byte 数组 content-hash 键与 `unnamed_addr`
 
