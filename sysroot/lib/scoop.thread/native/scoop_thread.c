@@ -160,7 +160,10 @@ static void *scoop_thread_entry(void *arg) {
   free(args);
 
   scoop_gc_thread_attach_current();
+  // A GC may already be requested before this OS thread reaches managed code.
+  scoop_gc_safepoint_poll();
   scoop_thread_init_current_if_present();
+  scoop_gc_safepoint_poll();
   if (entry_handle_raw != 0) {
     scoop_thread_entry_trampoline(entry_handle_raw);
     (void)scoop_handle_drop((uint64_t)entry_handle_raw);
@@ -194,7 +197,13 @@ void *scoop_thread_spawn(uintptr_t entry_handle_raw) {
   }
   args->entry_handle_raw = entry_handle_raw;
 
-  if (!scoop_thread_native_spawn(&t->thread, scoop_thread_entry, (void *)args)) {
+  // Keep the managed Thread handle rooted while pthread_create overlaps GC.
+  void **native_root_slots[] = {(void **)&t};
+  scoop_enter_native((void ***)native_root_slots, 1);
+  int spawned = scoop_thread_native_spawn(&t->thread, scoop_thread_entry, (void *)args);
+  scoop_leave_native();
+
+  if (!spawned) {
     (void)scoop_handle_drop((uint64_t)entry_handle_raw);
     free(args);
     return 0;

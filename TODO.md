@@ -543,14 +543,17 @@
   - 跨平台矩阵：macos/aarch64 本地完整回归全绿；linux/amd64 在 `nuc12` 的独立 worktree `/tmp/scoop-p4t05-aadaa9da`（LLVM 21 via `/home/linuxbrew/.linuxbrew/opt/llvm@21`）运行六个 `std_sync_backend_parity_*` fixtures，全部 PASS。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --test p4_sync_hardcoding_guard`；逐项运行六个 `tests/fixtures/runtime_gc/std_sync_backend_parity_*.scoop`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1659)`）；nuc12/linux/amd64 逐项运行六个 `std_sync_backend_parity_*` fixtures。
 
-### [TODO] P4-T05R：Review P4-T05 回归与守卫
+### [DONE] P4-T05R：Review P4-T05 回归与守卫
 
 - 必须实现的内容：复核语义对齐基线、并发用例有效、守卫测试覆盖完整且排除点精确、无双重释放。
 - 验证：`python3 tools/run_fixtures.py`
 - 完成条件：P4 整体收口。
 - 依赖：P4-T05
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P4-T05 regression matrix 与硬编码守卫：六个 `std_sync_backend_parity_*` fixture 覆盖 baseline moving / baseline non-moving / hosted / immix major / immix minor / minimal；stdout 锁定 `Mutex` lock/unlock、`CondVar.wait` + `notifyOne` / `notifyAll`、双线程竞争 `Once.run` 只执行一次、`Once.isDone()` 结果，以及显式 `destroy()` 后 `__scoop_gc_collect()` 不 double-destroy。守卫 `crates/scoop/tests/p4_sync_hardcoding_guard.rs` 扫描生产编译器 Rust 源码并跳过测试目录；禁止 `scoop.sync` / `scoop_sync_` / 旧 Once intrinsic / `SYNC_MUTEX_*` 等实现性硬编码，仅允许 P4-T04(a) 决策保留的 delegated-property `Mutex` 消费侧边界，排除点精确。
+  - Review 中修正三个矩阵缺口：Immix major/minor fixtures 显式设置 `SCOOP_GC_IMMIX_NURSERY_BYTES=0`，避免外部 env 覆盖 `SCOOP_GC_IMMIX_NURSERY_BLOCKS`；double-destroy 检查移到线程启动前，确保 minimal 后端的 `__scoop_gc_collect()` 真正执行而不是多线程后 no-op；CondVar 测试新增独立 `report` 条件变量并锁定 `notify_one_count=1`，避免 worker 自身报告唤醒干扰 `notifyOne` / `notifyAll` 区分。
+  - 验证过程中发现并修复一个直接阻塞 P4-T05R 的线程/GC 边界 bug：`scoop.thread` 的 `scoop_thread_spawn` 是 `abi="scoop"` native runtime 入口，`pthread_create` 期间未切到 `InNative`，新线程 attach/init 后也缺少启动 safepoint；Immix major 下 worker 触发 STW 时可能等待仍处于 Running 的启动线程。修复为新线程 attach/init 后执行 `scoop_gc_safepoint_poll()`，并在 `pthread_create` 期间把 `Thread` handle 作为 native root 后 enter/leave native。
+  - 验证：直接运行 immix major sync fixture（复现并确认 STW timeout 消失）；`python3 tools/run_fixtures.py --fixtures tests/fixtures/runtime_gc/std_sync_backend_parity_immix_major.scoop`（重复通过）；`SCOOP_GC_IMMIX_NURSERY_BYTES=1048576` 污染下运行 immix major/minor parity fixtures；`python3 tools/run_fixtures.py --fixtures tests/fixtures/runtime_gc`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1659)`）。验证后仅补充 C 注释，未改变编译输出，未重跑。P4 整体收口，可进入 P5。
 
 ---
 

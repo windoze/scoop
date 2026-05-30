@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: std_sync_backend_parity.stdout.txt
-// ENV: SCOOP_RUNTIME_GC_BACKEND=immix SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
+// ENV: SCOOP_RUNTIME_GC_BACKEND=immix SCOOP_GC_IMMIX_NURSERY_BYTES=0 SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
 // TIMEOUT: 30000
 // SYSROOT-DEPS: scoop.runtime.test scoop.sync scoop.thread
 
@@ -26,6 +26,7 @@ fun syncOnceDestroyCount(): Int
 class SyncState(
     val lock: Mutex,
     val cv: CondVar,
+    val report: CondVar,
     var waitReady: Int,
     var phase: Int,
     var awakenedCount: Int,
@@ -35,7 +36,7 @@ class SyncState(
 )
 
 object SharedSync {
-    val state: SyncState = SyncState(mutexCreate(), condVarCreate(), 0, 0, 0, 0, 0, 0)
+    val state: SyncState = SyncState(mutexCreate(), condVarCreate(), condVarCreate(), 0, 0, 0, 0, 0, 0)
     val once: Once = onceCreate()
 }
 
@@ -50,12 +51,12 @@ fun condvarWorker(): Unit {
     val st: SyncState = SharedSync.state
     st.lock.lock()
     st.waitReady = st.waitReady + 1
-    st.cv.notifyAll()
+    st.report.notifyAll()
     while (st.phase < 1) {
         st.cv.wait(st.lock)
     }
     st.awakenedCount = st.awakenedCount + 1
-    st.cv.notifyAll()
+    st.report.notifyAll()
     st.lock.unlock()
 }
 
@@ -63,7 +64,7 @@ fun onceWorker(): Unit {
     val st: SyncState = SharedSync.state
     st.lock.lock()
     st.onceReady = st.onceReady + 1
-    st.cv.notifyAll()
+    st.report.notifyAll()
     while (st.phase < 2) {
         st.cv.wait(st.lock)
     }
@@ -78,7 +79,7 @@ fun onceWorker(): Unit {
 
     st.lock.lock()
     st.onceDoneWorkers = st.onceDoneWorkers + 1
-    st.cv.notifyAll()
+    st.report.notifyAll()
     st.lock.unlock()
 }
 
@@ -99,23 +100,31 @@ fun main() {
     println("mutex: lock/unlock")
     @Unsafe do { syncDestroyCountsReset() }
 
+    destroyThenDrop()
+    printDestroyCounts("after-explicit")
+    __scoop_gc_collect()
+    printDestroyCounts("after-explicit-gc")
+
     val waiter1: Thread = threadSpawn { condvarWorker() }
     val waiter2: Thread = threadSpawn { condvarWorker() }
     val st: SyncState = SharedSync.state
     st.lock.lock()
     while (st.waitReady < 2) {
-        st.cv.wait(st.lock)
+        st.report.wait(st.lock)
     }
     println("condvar: ready")
     st.phase = 1
     st.cv.notifyOne()
     while (st.awakenedCount < 1) {
-        st.cv.wait(st.lock)
+        st.report.wait(st.lock)
     }
-    println("condvar: notify_one")
+    st.lock.unlock()
+    sleepMillis(20)
+    st.lock.lock()
+    println(f"condvar: notify_one_count=${st.awakenedCount}")
     st.cv.notifyAll()
     while (st.awakenedCount < 2) {
-        st.cv.wait(st.lock)
+        st.report.wait(st.lock)
     }
     st.lock.unlock()
     waiter1.join()
@@ -126,13 +135,13 @@ fun main() {
     val runner2: Thread = threadSpawn { onceWorker() }
     st.lock.lock()
     while (st.onceReady < 2) {
-        st.cv.wait(st.lock)
+        st.report.wait(st.lock)
     }
     println("once: ready")
     st.phase = 2
     st.cv.notifyAll()
     while (st.onceDoneWorkers < 2) {
-        st.cv.wait(st.lock)
+        st.report.wait(st.lock)
     }
     val onceCalls: Int = st.onceCalls
     st.lock.unlock()
@@ -144,9 +153,5 @@ fun main() {
         false -> println("once_done=false")
     }
 
-    destroyThenDrop()
-    printDestroyCounts("after-explicit")
-    __scoop_gc_collect()
-    printDestroyCounts("after-explicit-gc")
     println("ok")
 }
