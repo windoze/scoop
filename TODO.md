@@ -33,7 +33,7 @@
 | --- | --- | --- |
 | P0-T01 | [DONE] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
 | P0-T01R | [DONE] | Review P0-T01 `@NoGC` Pure 契约 |
-| P0-T02 | [TODO] | `@NoGC` Pure typecheck fixtures + spec 回写 |
+| P0-T02 | [DONE] | `@NoGC` Pure typecheck fixtures + spec 回写 |
 | P0-T02R | [TODO] | Review P0-T02 fixtures 与 spec |
 | P1-T01 | [TODO] | `@ReleaseHook` 注解种类、识别与参数解析 |
 | P1-T01R | [TODO] | Review P1-T01 注解 surface |
@@ -128,7 +128,7 @@
   - 2026-05-30：复核 P0-T01 实现：`check_nogc_fun_effect_contract` 同时拒绝 `eff_param` 与非空 `effects.terms`；该检查只在非 `@Extern` 的显式 `@NoGC` 函数上执行，`@Extern(abi="c")` 仍由 extern 契约与重复修饰符诊断覆盖，未发现重复/冲突诊断；抽样既有 Pure `@NoGC` 正例无误伤。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/unsafe_nogc/nogc_call_nogc_function_ok.scoop`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/extern_fun_c_abi_nogc_redundant_is_error.scoop`。
 
-### [TODO] P0-T02：`@NoGC` Pure typecheck fixtures + spec 回写
+### [DONE] P0-T02：`@NoGC` Pure typecheck fixtures + spec 回写
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0-T03、P0-T04
@@ -146,7 +146,8 @@
 - 完成条件：错误/正例 fixture 全绿；spec 已同步。
 - 依赖：P0-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-30：新增 `nogc_fun_with_effect_is_error.scoop`、`nogc_fun_with_eff_param_is_error.scoop`、`nogc_fun_pure_ok.scoop`，覆盖显式非 Pure effect row、effect-row 参数与 Pure 正例；回写 `SCOOP_FULL_SPEC.md` §15.8，明确 `@NoGC` 在声明边界蕴含 Pure（禁止 effect-row 参数，effect row 只能省略或为 `Pure` / `Pure!`）。
+  - 验证：`cargo build -p scoop -p scoopc`（确保 fixture runner 使用更新后的 compiler 二进制）；`python3 tools/run_fixtures.py tests/fixtures/typecheck/nogc_fun_with_effect_is_error.scoop`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/nogc_fun_with_eff_param_is_error.scoop`；`python3 tools/run_fixtures.py tests/fixtures/typecheck/nogc_fun_pure_ok.scoop`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P0-T02R：Review P0-T02 fixtures 与 spec
 

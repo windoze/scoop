@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_fun_eff_param_not_allowed
+// EXPECT-ERROR: `@NoGC` 函数不允许声明 effect row 参数
+// EXPECT-ERROR-AT: 11:6
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun <eff E = Pure> badNoGcEffectParam(): Unit / E {}

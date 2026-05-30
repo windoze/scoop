@@ -1,0 +1,13 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+@NoGC
+fun pureAdd(a: Int, b: Int): Int / Pure {
+    return a + b
+}
+
+@NoGC
+fun pureCaller(value: Int): Int {
+    return pureAdd(value, 1)
+}

@@ -2647,6 +2647,8 @@ This design serves two purposes:
 
 The `@NoGC` annotation marks a function as safe to run in contexts where **GC-managed heap allocation must not occur**, such as parts of the runtime itself (including the GC implementation written in Scoop).
 
+At its declaration boundary, `@NoGC` also implies **Pure**: a `@NoGC` function must not declare an effect-row parameter, and its effect row must be omitted or explicitly `Pure` / `Pure!`. Any explicit non-Pure effect row is rejected, so `@NoGC` code cannot depend on effect polymorphism or propagate ordinary effects.
+
 #### 15.8.1 Call restrictions
 
 A `@NoGC` function may only call:
