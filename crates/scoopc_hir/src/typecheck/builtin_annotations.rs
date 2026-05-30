@@ -1009,6 +1009,9 @@ class Handle
             builtin_annotation_kind(&source, &ann),
             Some(BuiltinAnnotationKind::ReleaseHook)
         );
+        let info = parse_release_hook_annotation(&source, &ann).unwrap();
+        assert_eq!(info.name, "native.release");
+        assert!(info.args.is_empty());
     }
 
     #[test]
@@ -1024,6 +1027,54 @@ class Handle
         assert!(matches!(
             err,
             ReleaseHookAnnotationParseError::MissingParam { param: "name", .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_reports_missing_args_param() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release")
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::MissingParam { param: "args", .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_rejects_positional_arg() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook("native.release", args = [])
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::PositionalArgNotSupported { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_reports_duplicate_param() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = "native.release", name = "native.release2", args = [])
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::DuplicateParam { param: "name", .. }
         ));
     }
 
@@ -1056,6 +1107,22 @@ class Handle
         assert!(matches!(
             err,
             ReleaseHookAnnotationParseError::ArgsMustBeStringArray { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_requires_name_to_be_string() {
+        let (source, ann) = first_type_annotation(
+            r#"package test
+@ReleaseHook(name = 1, args = [])
+class Handle
+"#,
+        );
+
+        let err = parse_release_hook_annotation(&source, &ann).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseHookAnnotationParseError::NameMustBeString { .. }
         ));
     }
 

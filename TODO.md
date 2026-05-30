@@ -36,7 +36,7 @@
 | P0-T02 | [DONE] | `@NoGC` Pure typecheck fixtures + spec 回写 |
 | P0-T02R | [DONE] | Review P0-T02 fixtures 与 spec |
 | P1-T01 | [DONE] | `@ReleaseHook` 注解种类、识别与参数解析 |
-| P1-T01R | [TODO] | Review P1-T01 注解 surface |
+| P1-T01R | [DONE] | Review P1-T01 注解 surface |
 | P1-T02 | [TODO] | 宿主校验：class / non-generic / final / `@Experimental` |
 | P1-T02R | [TODO] | Review P1-T02 宿主校验 |
 | P1-T03 | [TODO] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
@@ -186,13 +186,14 @@
   - 2026-05-31：新增 `BuiltinAnnotationKind::ReleaseHook`，识别 `@ReleaseHook` 与 `@scoop.core.ReleaseHook`；新增 `ReleaseHookAnnotationInfo` 与 `parse_release_hook_annotation`，解析 `name` 字符串 FQN 与 `args` 字符串数组，并对缺少参数、位置参数、未知 key、重复 key、`name` 非字符串、`args` 非字符串数组、`args` 元素非字符串给出结构化诊断；type 声明路径现在会校验 `@ReleaseHook` 参数 surface，宿主/函数/字段语义仍留给 P1-T02/P1-T03。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
-### [TODO] P1-T01R：Review P1-T01 注解 surface
+### [DONE] P1-T01R：Review P1-T01 注解 surface
 
 - 必须实现的内容：复核识别路径（短名 + FQN）、参数解析的错误形状覆盖。
 - 验证：`cargo test --all --all-targets`
 - 依赖：P1-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P1-T01 注解 surface：`BuiltinAnnotationKind::ReleaseHook` 覆盖短名 `@ReleaseHook` 与 FQN `@scoop.core.ReleaseHook`，两条路径均可解析出 `name` 与 `args`；`parse_release_hook_annotation` 对缺少 `name`/`args`、位置参数、未知 key、重复 key、`name` 非字符串、`args` 非字符串数组、`args` 元素非字符串均有结构化错误。补齐 review 中发现的单元测试覆盖缺口：FQN 路径同时断言解析结果，并新增缺 `args`、位置参数、重复参数、`name` 非字符串测试。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 
 ### [TODO] P1-T02：宿主校验（class / non-generic / final / `@Experimental`）
 
