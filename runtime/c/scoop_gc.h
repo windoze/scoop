@@ -199,6 +199,10 @@ _Static_assert(offsetof(ScoopTypeDescriptor, trace_bitmap) == 40,
                "ScoopTypeDescriptor.trace_bitmap offset must be 40");
 #endif
 
+// Immortal 对象头标记（P4）：带该 flag 的对象不在 GC heap 链上，marker 永不写入或 trace。
+#define SCOOP_GC_FLAG_IMMORTAL 0x80000000u
+#define SCOOP_GC_MARK_IMMORTAL 0xFFFFFFFFu
+
 // GC 对象头（v0：骨架）。
 //
 // 说明：

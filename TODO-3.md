@@ -133,7 +133,7 @@
 
 ## P4：Immortal 运行期支持与 content-hash 键
 
-### [TODO] P4-T01：运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路
+### [DONE] P4-T01：运行期 `SCOOP_GC_FLAG_IMMORTAL` 与 marker 短路
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -157,7 +157,11 @@
   - immortal flag 短路正确且 flag-gated。
 - 依赖：P2-T04R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Runtime header：`scoop_gc.h` 新增 `SCOOP_GC_FLAG_IMMORTAL` 与 `SCOOP_GC_MARK_IMMORTAL`，作为后续 codegen 发射 immortal ref 对象 header 的运行期 contract。
+  - Marker 短路：baseline、minimal、hosted marker helper 在写 `mark` / push mark stack 前先按 flag 返回；Immix serial marker 与 parallel marker 同样 flag-gated，其中 parallel 路径在 `obj->mark` atomic load/CAS 前返回；Immix minor marker 也加同类短路，避免 minor 直接入口写 immortal header。
+  - 测试：新增 `scoop_test_gc_immortal_marker_smoke` test-only C helper 和 `crates/scoop_runtime/tests/gc_immortal_marker.rs`，覆盖栈上 immortal header 不改 `flags`/`mark`、普通对象仍被标记；默认 Immix helper 覆盖 serial、parallel 与 minor marker，非默认 backend helper 覆盖 baseline/minimal/hosted 可达路径。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_immortal_marker`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P4-T01R：Review immortal 运行期短路
 

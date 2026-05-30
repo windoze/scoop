@@ -2972,6 +2972,10 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
     return;
   }
 
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
+    return;
+  }
+
   if (obj->mark == ctx->mark_value) {
     return;
   }
@@ -3202,6 +3206,10 @@ typedef struct ScoopGcParallelMarkCtx {
 static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
                                                     ScoopGcObjectHeader *obj) {
   if (ctx == 0 || obj == 0) {
+    return;
+  }
+
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
     return;
   }
 
@@ -4412,6 +4420,9 @@ static void scoop_gc_immix_minor_mark_object_if_needed(ScoopGcImmixMinorMarkCtx 
   if (ctx == 0 || obj == 0) {
     return;
   }
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
+    return;
+  }
   if (ctx->oom) {
     return;
   }
@@ -4427,6 +4438,141 @@ static void scoop_gc_immix_minor_mark_object_if_needed(ScoopGcImmixMinorMarkCtx 
     return;
   }
 }
+
+#if !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
+intptr_t scoop_test_gc_immortal_marker_smoke(void) {
+  const uint32_t serial_mark_value = 0x01020304u;
+  ScoopGcMarkStack stack = {0};
+  ScoopGcMarkCtx serial_ctx = {&scoop_gc_heap, serial_mark_value, &stack, 0};
+
+  ScoopGcObjectHeader immortal = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = SCOOP_GC_FLAG_IMMORTAL,
+      .mark = 0xA5A5A5A5u,
+  };
+  const uint32_t immortal_flags = immortal.flags;
+  const uint32_t immortal_mark = immortal.mark;
+
+  scoop_gc_mark_object_if_needed(&serial_ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || stack.len != 0) {
+    if (stack.items != 0) {
+      free(stack.items);
+    }
+    return -1;
+  }
+
+  ScoopGcObjectHeader ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_mark_object_if_needed(&serial_ctx, &ordinary);
+  if (ordinary.mark != serial_mark_value || stack.len != 1 || stack.items == 0 ||
+      stack.items[0] != &ordinary) {
+    if (stack.items != 0) {
+      free(stack.items);
+    }
+    return -2;
+  }
+  free(stack.items);
+
+  const uint32_t parallel_mark_value = 0x02030405u;
+  ScoopGcParallelMarkWork work = {0};
+  if (!scoop_gc_parallel_mark_work_init(&work)) {
+    return -10;
+  }
+  ScoopGcParallelMarkCtx parallel_ctx = {&scoop_gc_heap, parallel_mark_value, &work, 0};
+
+  immortal.mark = immortal_mark;
+  immortal.flags = immortal_flags;
+  scoop_gc_parallel_mark_object_if_needed(&parallel_ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || work.len != 0 ||
+      __atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE) != 0) {
+    scoop_gc_parallel_mark_work_destroy(&work);
+    return -11;
+  }
+
+  ScoopGcObjectHeader parallel_ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_parallel_mark_object_if_needed(&parallel_ctx, &parallel_ordinary);
+  if (parallel_ordinary.mark != parallel_mark_value || work.len != 1 || work.items == 0 ||
+      work.items[0] != &parallel_ordinary ||
+      __atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE) != 1) {
+    scoop_gc_parallel_mark_work_destroy(&work);
+    return -12;
+  }
+  ScoopGcObjectHeader *popped = scoop_gc_parallel_mark_work_pop(&work);
+  if (popped != &parallel_ordinary) {
+    scoop_gc_parallel_mark_work_destroy(&work);
+    return -13;
+  }
+  scoop_gc_parallel_mark_work_finish_one(&work);
+  if (__atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE) != 0) {
+    scoop_gc_parallel_mark_work_destroy(&work);
+    return -14;
+  }
+  scoop_gc_parallel_mark_work_destroy(&work);
+
+  const uint32_t minor_mark_value = 0x03040506u;
+  ScoopGcImmixMinorWorkStack minor_stack = {0};
+  ScoopGcImmixMinorLiveSet minor_live = {0};
+  ScoopGcImmixMinorMarkCtx minor_ctx = {
+      .state = 0,
+      .heap = &scoop_gc_heap,
+      .mark_value = minor_mark_value,
+      .stack = &minor_stack,
+      .live = &minor_live,
+      .membership = 0,
+      .small_object_cap = sizeof(ScoopGcObjectHeader),
+      .oom = 0,
+  };
+
+  immortal.mark = immortal_mark;
+  immortal.flags = immortal_flags;
+  scoop_gc_immix_minor_mark_object_if_needed(&minor_ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || minor_stack.len != 0 ||
+      minor_live.len != 0 || minor_ctx.oom) {
+    if (minor_stack.items != 0) {
+      free(minor_stack.items);
+    }
+    if (minor_live.items != 0) {
+      free(minor_live.items);
+    }
+    return -20;
+  }
+
+  ScoopGcObjectHeader minor_ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_immix_minor_mark_object_if_needed(&minor_ctx, &minor_ordinary);
+  intptr_t rc = 1;
+  if (minor_ordinary.mark != minor_mark_value || minor_stack.len != 1 || minor_live.len != 1 ||
+      minor_stack.items == 0 || minor_live.items == 0 || minor_stack.items[0] != &minor_ordinary ||
+      minor_live.items[0] != &minor_ordinary || minor_ctx.oom) {
+    rc = -21;
+  }
+  if (minor_stack.items != 0) {
+    free(minor_stack.items);
+  }
+  if (minor_live.items != 0) {
+    free(minor_live.items);
+  }
+  return rc;
+}
+#endif
 
 static void scoop_gc_immix_minor_mark_slot_visitor(void **slot, void *raw_ctx) {
   if (slot == 0 || raw_ctx == 0) {

@@ -516,6 +516,10 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
     return;
   }
 
+  if ((obj->flags & SCOOP_GC_FLAG_IMMORTAL) != 0) {
+    return;
+  }
+
   if (obj->mark == ctx->mark_value) {
     return;
   }
@@ -523,6 +527,49 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
   obj->mark = ctx->mark_value;
   scoop_gc_mark_stack_push(ctx->stack, obj);
 }
+
+#if !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
+intptr_t scoop_test_gc_immortal_marker_smoke(void) {
+  const uint32_t mark_value = 0x01020304u;
+  ScoopGcMarkStack stack = {0};
+  ScoopGcMarkCtx ctx = {&scoop_gc_heap, mark_value, &stack};
+
+  ScoopGcObjectHeader immortal = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = SCOOP_GC_FLAG_IMMORTAL,
+      .mark = 0xA5A5A5A5u,
+  };
+  const uint32_t immortal_flags = immortal.flags;
+  const uint32_t immortal_mark = immortal.mark;
+
+  scoop_gc_mark_object_if_needed(&ctx, &immortal);
+  if (immortal.flags != immortal_flags || immortal.mark != immortal_mark || stack.len != 0) {
+    if (stack.items != 0) {
+      free(stack.items);
+    }
+    return -1;
+  }
+
+  ScoopGcObjectHeader ordinary = {
+      .next = 0,
+      .type_desc = 0,
+      .size_bytes = sizeof(ScoopGcObjectHeader),
+      .flags = 0,
+      .mark = 0,
+  };
+  scoop_gc_mark_object_if_needed(&ctx, &ordinary);
+  intptr_t rc = 1;
+  if (ordinary.mark != mark_value || stack.len != 1 || stack.items == 0 || stack.items[0] != &ordinary) {
+    rc = -2;
+  }
+  if (stack.items != 0) {
+    free(stack.items);
+  }
+  return rc;
+}
+#endif
 
 static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   if (slot == 0 || raw_ctx == 0) {
