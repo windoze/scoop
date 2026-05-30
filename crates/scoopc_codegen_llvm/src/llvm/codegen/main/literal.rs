@@ -180,7 +180,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_store(data_ptr, i8_ptr_ty.const_null())?;
         } else {
             // 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
-            let data_gv = self.get_or_create_global_bytes(span, bytes);
+            let data_gv = self.get_or_create_global_bytes(bytes);
             let i8_ptr_ty = self.llvm_i8_ptr_type();
             let data_i8_ptr = self.builder.build_pointer_cast(
                 data_gv.as_pointer_value(),

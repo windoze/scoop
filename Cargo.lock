@@ -723,6 +723,7 @@ dependencies = [
  "scoopc_ids",
  "scoopc_lir",
  "scoopc_lir_facts",
+ "sha2",
  "thiserror",
  "tracing",
 ]

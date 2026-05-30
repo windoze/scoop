@@ -1,0 +1,14 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @__scoop_str_data_a4d26868017c0ccffe2efe50944ef421 = unnamed_addr constant [6 x i8] c"shared"
+// BUILD-LLVM-REGEX: (?s)@__scoop_str_data_a4d26868017c0ccffe2efe50944ef421 = unnamed_addr constant \[6 x i8\] c"shared"(?!.*@__scoop_str_data_a4d26868017c0ccffe2efe50944ef421 =)
+
+package fixtures.build
+
+fun sink(value: String): Unit {}
+
+fun main(): Int {
+    sink("shared")
+    sink("shared")
+    return 0
+}

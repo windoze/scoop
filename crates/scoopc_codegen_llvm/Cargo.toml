@@ -16,5 +16,6 @@ scoop_project_model = { path = "../scoop_project_model" }
 inkwell = { version = "0.8.0", optional = true, features = ["llvm21-1"] }
 llvm-sys = { version = "211.0.0", optional = true }
 miette = { version = "7.6.0", features = ["fancy"] }
+sha2 = "0.10.9"
 thiserror = "2.0.12"
 tracing = "0.1.40"

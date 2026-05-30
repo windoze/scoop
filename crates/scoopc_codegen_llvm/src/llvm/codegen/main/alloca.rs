@@ -3,6 +3,23 @@
 #![allow(dead_code)]
 
 use super::*;
+use sha2::{Digest as _, Sha256};
+
+fn string_byte_data_global_name(bytes: &[u8]) -> String {
+    format!("__scoop_str_data_{}", string_byte_data_hash(bytes))
+}
+
+fn string_byte_data_hash(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(32);
+    for byte in &digest[..16] {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
+}
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn cast_int(
@@ -55,11 +72,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn get_or_create_global_bytes(
         &self,
-        span: crate::span::Span,
         bytes: &[u8],
     ) -> GlobalValue<'ctx> {
-        let name = format!("__scoop_str_data_{}_{}", span.start, span.end);
+        let name = string_byte_data_global_name(bytes);
         if let Some(existing) = self.module.get_global(&name) {
+            existing.set_unnamed_addr(true);
             return existing;
         }
 
@@ -68,6 +85,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init = self.context.const_string(bytes, false);
         gv.set_initializer(&init);
         gv.set_constant(true);
+        gv.set_unnamed_addr(true);
         gv
     }
 
@@ -141,5 +159,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .expect("alloca pointer must be an instruction before alignment is applied");
         inst.set_alignment(aligned)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{string_byte_data_global_name, string_byte_data_hash};
+
+    #[test]
+    fn string_byte_data_hash_is_sha256_prefix_hex() {
+        assert_eq!(
+            string_byte_data_hash(b"hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e"
+        );
+    }
+
+    #[test]
+    fn string_byte_data_global_name_is_content_keyed() {
+        let same_bytes = "hello".as_bytes().to_vec();
+        assert_eq!(
+            string_byte_data_global_name(b"hello"),
+            string_byte_data_global_name(&same_bytes)
+        );
+        assert_ne!(
+            string_byte_data_global_name(b"hello"),
+            string_byte_data_global_name(b"hello!")
+        );
     }
 }

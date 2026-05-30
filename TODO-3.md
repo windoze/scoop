@@ -190,7 +190,7 @@
   - 测试：复核 `scoop_test_gc_immortal_marker_smoke` 覆盖 synthetic immortal header 的 `flags`/`mark` 不变、普通 header 仍被标记；默认 Immix 覆盖 serial/parallel/minor marker，baseline/minimal/hosted 覆盖各自 helper。ASan 下四个 backend 的 smoke 均通过。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_runtime --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-baseline --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-minimal --test gc_immortal_marker`；`cargo test -p scoop_runtime --no-default-features --features gc-hosted --test gc_immortal_marker`；default Immix、gc-baseline、gc-minimal、gc-hosted 的 ASan variants（显式设置 `CFLAGS="-fsanitize=address -fno-omit-frame-pointer"`、`RUSTFLAGS="-Clink-arg=-fsanitize=address -Clink-arg=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/lib/darwin/libclang_rt.asan_osx_dynamic.dylib"`、`DYLD_LIBRARY_PATH=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/lib/darwin`）；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P4-T02：byte 数组 content-hash 键与 `unnamed_addr`
+### [DONE] P4-T02：byte 数组 content-hash 键与 `unnamed_addr`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -212,7 +212,11 @@
   - byte 数组按内容去重、可被 linker 折叠。
 - 依赖：P4-T01R
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Codegen：`get_or_create_global_bytes` 从 source-span 命名改为 `base16(SHA-256(bytes)[..16])` 内容键，生成 `__scoop_str_data_<hash>`；命中同名全局时直接复用，保证相同 byte payload 只生成一个 byte-array global。
+  - LLVM 全局属性：byte-array global 继续 `constant`，并新增 `unnamed_addr`，为后续 linker 折叠与 wrapper immortal 化铺路；字符串 wrapper 分配语义未改变。
+  - 测试：新增 codegen 单元测试覆盖 SHA-256 前 16 字节 hex 命名与内容相同/不同的 key 行为；新增 build fixture `tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop`，断言重复 `"shared"` 字面量只产生一个 content-hash byte-array global 且带 `unnamed_addr`。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_codegen_llvm string_byte_data --all-targets`；`cargo build -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/build/string_byte_data_content_hash_dedup_llvm.scoop --exit-on-failure`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P4-T02R：Review content-hash 键
 
