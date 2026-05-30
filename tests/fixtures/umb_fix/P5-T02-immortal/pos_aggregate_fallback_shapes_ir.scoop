@@ -1,0 +1,28 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @__scoop_str_lit_
+// BUILD-LLVM-NOT-CONTAINS: @__scoop_immortal_agg_
+// P5-T02R: non-Const fields, nested aggregates, and EnumVariant values stay on fallback paths.
+
+package fixtures.umb_fix.p5_t02_immortal
+
+import scoop.core.*
+
+struct Pair(val x: Int, val y: Int)
+struct Wrapper(val pair: Pair, val label: String)
+
+enum Choice {
+    Empty,
+    Nested(val wrapper: Wrapper),
+}
+
+fun main(): Int {
+    val seed: Int = 1
+    val pair: Pair = Pair { x: seed, y: 2 }
+    val wrapper: Wrapper = Wrapper { pair: Pair { x: 3, y: 4 }, label: "nested" }
+    val choice: Choice = Nested(wrapper)
+    return when (choice) {
+        Nested(w) -> pair.x + w.pair.y + w.label.length()
+        Empty -> 0
+    }
+}

@@ -1,6 +1,8 @@
 // EXPECT: pass
 // ARGS: --emit-llvm
 // BUILD-LLVM-CONTAINS: @__scoop_str_lit_
+// BUILD-LLVM-CONTAINS: addrspace(1) constant %scoop.runtime.ScoopString
+// BUILD-LLVM-REGEX: %scoop\.runtime\.ScoopGcObjectHeader \{ ptr null, ptr @__scoop_type_desc_runtime__ScoopString, i64 [0-9]+, i32 -2147483648, i32 -1 \}
 // BUILD-LLVM-NOT-CONTAINS: scoop_alloc_typed
 // P5-T02: String literals and TypeNameString metadata use immortal wrappers.
 

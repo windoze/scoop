@@ -4,7 +4,7 @@
 > 设计基线：[`GC_PACING.md`](./GC_PACING.md)、[`GC_IMMORTAL_FIX.md`](./GC_IMMORTAL_FIX.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 格式参考：[`docs/archive/plans/TODO-spec-fix-overload.md`](./docs/archive/plans/TODO-spec-fix-overload.md)
-> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
+> 当前状态：任务已拆分为 5 个任务包；`P0-T01` / `P0-T01R` / `P0-T02` / `P0-T02R` / `P0-T03` / `P0-T03R` / `P1-T01` / `P1-T01R` / `P1-T02` / `P1-T02R` / `P2-T01` / `P2-T01R` / `P2-T02` / `P2-T02R` / `P2-T03` / `P2-T03R` / `P2-T04` / `P2-T04R` / `P3-T01` / `P3-T01R` / `P3-T02` / `P3-T02R` / `P4-T01` / `P4-T01R` / `P4-T02` / `P4-T02R` / `P5-T01` / `P5-T01R` / `P5-T02` / `P5-T02R` 已完成，其余待执行（`[TODO]`）。每个实现任务后都紧跟一个独立 review 任务，编号为原任务 ID + `R`。
 
 ## 总原则
 
@@ -62,7 +62,7 @@
 | P5-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01实现-is_immutable-谓词) | 实现 `is_immutable(T)` 谓词 |
 | P5-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t01rreview-is_immutable-谓词) | Review P5-T01 `is_immutable` 谓词 |
 | P5-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02实现-try_emit_immortal-折叠器并路由-string-literal) | 实现 `try_emit_immortal` 折叠器并路由 String literal |
-| P5-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t02rreview-折叠器与-string-immortal) | Review P5-T02 折叠器与 String immortal |
+| P5-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p5-t02rreview-折叠器与-string-immortal) | Review P5-T02 折叠器与 String immortal |
 | P5-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t03string-内容池-dedup-与其它-ref-类型-per-site) | String 内容池 dedup 与其它 ref 类型 per-site |
 | P5-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p5-t03rreview-dedup-策略) | Review P5-T03 dedup 策略 |
 | P6-T01 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p6-t01platform-lower-成-structlit-并删除专用-codegen) | Platform lower 成 StructLit 并删除专用 codegen |

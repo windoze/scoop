@@ -105,7 +105,7 @@
   - 测试/fixture：新增 P5-T02 IR fixtures 覆盖 String/TypeNameString 零 `scoop_alloc_typed` 与 aggregate boxing 回退；新增 runtime GC fixture 覆盖 10M 次 String literal evaluation 不增长 `bytes_allocated`；更新 P0 metric、hard-cap OOM、struct String root 相关 fixture 以匹配 String literal immortal 行为且保持原测试目标。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P5-T02R：Review 折叠器与 String immortal
+### [DONE] P5-T02R：Review 折叠器与 String immortal
 
 - 参考：
   - P5-T02 完成记录
@@ -126,7 +126,11 @@
   - 折叠器正确、String immortal 安全。
 - 依赖：P5-T02
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - Review 结论：P5-T02 折叠器入口保持安全提升门；`StructLit` / `MakeTuple` 仅在字段全 `Operand::Const`、aggregate transport kind 为 Tuple/Struct、字段 transport 无 boxing 时尝试提升；非 Const、嵌套聚合（经 Local）、EnumVariant、boxing/value-erasure 均回退动态路径或既有 enum 路径。
+  - Header 复核：immortal `ScoopString` 发射为 `addrspace(1) constant` 全局，header 为 `next=null`、`type_desc=@__scoop_type_desc_runtime__ScoopString`、目标 store size、`SCOOP_GC_FLAG_IMMORTAL`、`SCOOP_GC_MARK_IMMORTAL`；byte data 与 wrapper 均保持 content-keyed `unnamed_addr` 常量。
+  - 测试/fixture：补强 `pos_string_literal_immortal_ir.scoop`，锁定 addrspace(1) constant 与 header 字段形状；新增 `pos_aggregate_fallback_shapes_ir.scoop`，覆盖非 Const 字段、嵌套聚合和 EnumVariant 不生成 `@__scoop_immortal_agg_`。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] P5-T03：String 内容池 dedup 与其它 ref 类型 per-site
 
