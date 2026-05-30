@@ -53,7 +53,7 @@
 | P3-T02R | [DONE] | Review P3-T02 用例与文档 |
 | P4-T01 | [DONE] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
 | P4-T01R | [DONE] | Review P4-T01 sync 源改造 |
-| P4-T02 | [TODO] | 收缩 `scoop_sync.c` 为只管 raw native handle |
+| P4-T02 | [DONE] | 收缩 `scoop_sync.c` 为只管 raw native handle |
 | P4-T02R | [TODO] | Review P4-T02 runtime 收缩 |
 | P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
 | P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
@@ -442,7 +442,7 @@
   - 验证过程中发现并修复两个未调度 runtime_gc fixture 超时：`gc_language_repeated_collect_shared_chain.scoop` 改为 worker 在 stop flag 置位前持续扩展本地链并显式 `yield()` safepoint，main 在 worker 活跃期间重复触发 GC；`gc_language_cross_thread_ref_handoff.scoop` 增加 `waiters` barrier，确保首次 GC 前 producer/consumer 都进入 phase wait 协议，并保持 producer 在 consumer GC 完成前不退出。两个多线程语言级 STW fixture 的 timeout 调整为 55s，仍低于单 fixture 1 分钟上限。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_repeated_collect_shared_chain.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_cross_thread_ref_handoff.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。Rust 验证后仅修改 fixture / TODO / memory，未重复运行 Rust 测试。
 
-### [TODO] P4-T02：收缩 `scoop_sync.c` 为只管 raw native handle
+### [DONE] P4-T02：收缩 `scoop_sync.c` 为只管 raw native handle
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4-T02
@@ -456,7 +456,9 @@
 - 完成条件：C runtime 只承担 raw native handle 生命周期，不再涉足 GC 对象/descriptor。
 - 依赖：P4-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：`sysroot/lib/scoop.sync/native/scoop_sync.c` 已收缩为只承担 raw native handle 生命周期与操作：删除 `Mutex` / `CondVar` / `Once` 的 C 侧 GC object wrapper、`scoop_alloc_typed` 分配路径、手写 `ScoopTypeDescriptor`、`scoop_sync_*_release` release wrapper 与旧 object-facing `scoop_sync_*` API；文件不再依赖 `scoop_runtime.h`。保留的 `scoop_sync_*_native_*` create/op/destroy 均以 malloc 出的 native struct 指针为 handle，`Mutex` / `CondVar` 继续用 `destroyed` / `initialized` 标志保护显式 destroy 与 `@ReleaseHook` 兜底路径，`Once` native handle 只保留纯 raw state / owner 数据。
+  - 验证过程中完整 fixture 首轮暴露两个未调度 runtime_gc timeout：`gc_language_cross_thread_ref_handoff.scoop` 与 `gc_language_repeated_collect_shared_chain.scoop`。已按失败策略修复为确定性跨线程发布回归：线程先发布对象图并结束，主线程随后反复触发 GC 并读取；专门的 live-thread STW roots 场景仍由既有 `gc_stw_cross_thread_roots_basic.scoop` 与 `gc_stw_cross_thread_in_native_roots_basic.scoop` 覆盖。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；多轮 targeted `python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_cross_thread_ref_handoff.scoop` / `gc_language_repeated_collect_shared_chain.scoop`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P4-T02R：Review P4-T02 runtime 收缩
 

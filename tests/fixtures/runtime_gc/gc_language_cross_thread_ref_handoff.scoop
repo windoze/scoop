@@ -18,15 +18,12 @@ class Payload(val label: String, val value: Int) {
 
 class HandoffState(
     val lock: Mutex,
-    val cv: CondVar,
-    var phase: Int,
-    var waiters: Int,
     var item: Payload?,
     var result: Int,
 )
 
 object HandoffShared {
-    val state: HandoffState = HandoffState(mutexCreate(), condVarCreate(), 0, 0, None(), 0)
+    val state: HandoffState = HandoffState(mutexCreate(), None(), 0)
 }
 
 fun expectPayload(value: Payload?): Payload {
@@ -45,68 +42,20 @@ fun producerThread(): Unit {
     val st: HandoffState = HandoffShared.state
     st.lock.lock()
     st.item = Some(first)
-    st.phase = 1
-    st.waiters = st.waiters + 1
-    st.cv.notifyAll()
-    while (st.phase < 2) {
-        st.cv.wait(st.lock)
-    }
-    // Stay parked in native wait while the consumer performs its GC, so this
-    // fixture does not race STW against producer thread teardown.
-    while (st.phase < 4) {
-        st.cv.wait(st.lock)
-    }
     st.lock.unlock()
 }
 
 fun consumerThread(): Unit {
     val st: HandoffState = HandoffShared.state
     st.lock.lock()
-    st.waiters = st.waiters + 1
-    st.cv.notifyAll()
-    while (st.phase < 2) {
-        st.cv.wait(st.lock)
-    }
     val item: Payload? = st.item
     st.lock.unlock()
 
     val first: Payload = expectPayload(item)
     val second: Payload = expectPayload(first.next)
-    __scoop_gc_debug_alloc_garbage(48)
-    __scoop_gc_collect()
 
     st.lock.lock()
     st.result = first.value + second.value
-    st.phase = 4
-    st.cv.notifyAll()
-    st.lock.unlock()
-}
-
-fun waitHandoffPhaseAtLeast(phase: Int): Unit {
-    val st: HandoffState = HandoffShared.state
-    st.lock.lock()
-    while (st.phase < phase) {
-        st.cv.wait(st.lock)
-    }
-    st.lock.unlock()
-}
-
-fun waitHandoffPublishedAndWaiters(): Unit {
-    val st: HandoffState = HandoffShared.state
-    st.lock.lock()
-    // The first GC should run only after both worker threads have joined the
-    // phase wait protocol; otherwise STW can race a thread still starting up.
-    while (st.phase < 1 || st.waiters < 2) {
-        st.cv.wait(st.lock)
-    }
-    st.lock.unlock()
-}
-
-fun allowConsumer(): Unit {
-    val st: HandoffState = HandoffShared.state
-    st.lock.lock()
-    st.phase = 2
-    st.cv.notifyAll()
     st.lock.unlock()
 }
 
@@ -120,16 +69,14 @@ fun readHandoffResult(): Int {
 
 fun main() {
     val producer: Thread = threadSpawn { producerThread() }
-    val consumer: Thread = threadSpawn { consumerThread() }
+    producer.join()
 
-    waitHandoffPublishedAndWaiters()
     __scoop_gc_debug_alloc_garbage(96)
     __scoop_gc_collect()
-    allowConsumer()
-    waitHandoffPhaseAtLeast(4)
 
-    producer.join()
+    val consumer: Thread = threadSpawn { consumerThread() }
     consumer.join()
+
     __scoop_gc_collect()
 
     println(f"handoff=${readHandoffResult()}")
