@@ -206,7 +206,7 @@
   - Out-of-scope 归位（immortal）：`.data` 单实例静态初始化与 static rooting 仍涉及可写/可 trace 全局，不能并入“永不写、永不 trace”的 immortal 轨道；嵌套聚合经 `Local`、`EnumVariant` 常量、boxing / value-erasure transport 与 general const-eval lifting 需要额外 MIR/前端能力，当前直接 `Operand::Const` 纯数据路径已闭环；跨类型 dedup 需身份敏感 API 评审，跨 `.cone` 字面量 dedup 需弱链接或跨归档 content-hash mangling，嵌入式 section hint 属目标专用布局策略。
   - `PLAN.md` §6 对照：默认配置下 heap-growth 长程序有界，nursery full、block pool full-GC retry 与 hard cap 路径由 runtime tests 覆盖；pacing 默认 on 且 `SCOOP_GC_STRESS` / manual collect 语义保持，三 backend feature tests 通过；String literal、`__type_name(T)` 与 `Platform` 已走通用常量化且无 GC heap wrapper 分配；`is_immutable(T)` 为传递结构谓词，`var` / `@InteriorMutable` / `__AtomicInt` 自动排除；dedup 仅 String，其他可常量化 ref 类型 per-site，immortal header 保持“永不写、永不 trace”；`scoop.unsafe.__AtomicInt` 是带 `@InteriorMutable` 的相异 struct；Platform / String 专用常量化路径已归入折叠器；测试矩阵覆盖长程序有界、nursery/blockpool/hardcap 触发、immortal marker/header、String/Platform 零分配与 dedup 指针相等。
 
-### [TODO] P7-T03R：Review 最终收口质量
+### [DONE] P7-T03R：Review 最终收口质量
 
 - 参考：
   - P7-T03 完成记录
@@ -230,4 +230,7 @@
   - 两份设计文档的目标行为完整闭环。
 - 依赖：P7-T03
 - 完成记录：
-  - （待执行）
+  - 2026-05-30：已完成。
+  - 复核结果：P7-T03 收口记录逐项覆盖 `PLAN.md` §6 的默认 pacing、三 backend parity、String / `__type_name(T)` / `Platform` 通用常量化、传递不可变性谓词、String-only dedup、`@InteriorMutable __AtomicInt`、无 Platform / String 专用常量化代码与测试矩阵要求；未发现需要补做的 §6 项。
+  - Out-of-scope 复核：pacing 的 incremental/concurrent GC、time-budget pacing、allocation-rate 自适应、pause-time tuning 与 embedded tier targets，以及 immortal 的 `.data` static rooting、嵌套聚合 / `EnumVariant` 常量、跨类型或跨 `.cone` dedup、embedded section hint，均为两份设计文档外的 v2+ 扩展，不是本轮未完成 contract。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`（`spec fixtures: ok (1)`）；`python3 tools/run_fixtures.py`（`fixtures: ok (1625)`）。
