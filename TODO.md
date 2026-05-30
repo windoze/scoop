@@ -37,8 +37,8 @@
 | P0-T02R | [DONE] | Review P0-T02 fixtures 与 spec |
 | P1-T01 | [DONE] | `@ReleaseHook` 注解种类、识别与参数解析 |
 | P1-T01R | [DONE] | Review P1-T01 注解 surface |
-| P1-T02 | [TODO] | 宿主校验：class / non-generic / final / `@Experimental` |
-| P1-T02R | [TODO] | Review P1-T02 宿主校验 |
+| P1-T02 | [DONE] | 宿主校验：class / non-generic / final / `@Experimental` |
+| P1-T02R | [DONE] | Review P1-T02 宿主校验 |
 | P1-T03 | [TODO] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
 | P1-T03R | [TODO] | Review P1-T03 函数/字段校验 |
 | P1-T04 | [TODO] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
@@ -215,13 +215,14 @@
   - 2026-05-31：在 type 声明内建注解检查路径中为 `@ReleaseHook` 增加宿主校验：仅接受普通 `class`（拒绝 struct / enum / interface / annotation class）、拒绝泛型宿主、拒绝 `open` / `abstract` / `sealed` 非 final 宿主，并要求同一声明带 `@Experimental(feature = "releaseHook")`；每类违例都有独立诊断。补充 Rust 单元测试覆盖合法宿主、非 class、annotation class、generic、open/abstract/sealed 与缺少 releaseHook 实验开关。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。fixture 套件通过后仅收紧了 `#[cfg(test)]` 断言覆盖，编译器产物未变，因此未重复运行 fixture 套件。
 
-### [TODO] P1-T02R：Review P1-T02 宿主校验
+### [DONE] P1-T02R：Review P1-T02 宿主校验
 
 - 必须实现的内容：复核四个条件（class/non-generic/final/`@Experimental`）逐一被拒绝且诊断清晰。
 - 验证：`cargo test --all --all-targets`
 - 依赖：P1-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P1-T02 宿主校验实现：`@ReleaseHook` type 声明路径先校验注解参数 surface，再强制普通 `class`、non-generic、final（拒绝 `open` / `abstract` / `sealed`）和 `@Experimental(feature = "releaseHook")`；诊断分别指出非 class 宿主、类型参数、非 final modifier 与缺少实验开关。补齐 review 中发现的非 class 测试缺口：`release_hook_host_rejects_non_class_type` 现在同时锁定 `struct` / `enum` / `interface`，既有 `annotation class`、generic、open/abstract/sealed 与缺少 releaseHook 实验开关测试继续覆盖其余条件。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。`python3 tools/run_fixtures.py` 未重跑，因为本次仅修改 `#[cfg(test)]` 单元测试与 TODO 记录，不改变编译器产物或 fixture 行为。
 
 ### [TODO] P1-T03：释放函数签名校验 + `args` 字段校验 + HIR side table
 

@@ -3912,22 +3912,25 @@ class Handle
 
     #[test]
     fn release_hook_host_rejects_non_class_type() {
-        let err = check_first_type(
-            r#"package test
+        for (decl, expected) in [
+            ("struct Handle", "struct"),
+            ("enum Handle { Value }", "enum"),
+            ("interface Handle {}", "interface"),
+        ] {
+            let err = check_first_type(&format!(
+                r#"package test
 @Experimental(feature = "releaseHook")
 @ReleaseHook(name = "native.release", args = [])
-struct Handle
+{decl}
 "#,
-        )
-        .unwrap_err();
+            ))
+            .unwrap_err();
 
-        assert!(matches!(
-            err,
-            AnnotationError::ReleaseHookHostMustBeClass {
-                found: "struct",
-                ..
-            }
-        ));
+            assert!(matches!(
+                err,
+                AnnotationError::ReleaseHookHostMustBeClass { found, .. } if found == expected
+            ));
+        }
     }
 
     #[test]
