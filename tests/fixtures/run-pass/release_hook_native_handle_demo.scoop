@@ -1,0 +1,37 @@
+// EXPECT: pass
+// RUN-STDOUT: release_hook_native_handle_demo.stdout
+// SYSROOT-DEPS: scoop.runtime.test
+
+import scoop.core.*
+import scoop.runtime.test.*
+import scoop.unsafe.*
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "scoop.runtime.test.__scoop_release_hook_probe_release", args = ["raw"])
+class DemoNativeHandle(val raw: Ptr<Int>)
+
+fun makeDemoHandle(id: Int): Unit {
+    val raw: Ptr<Int> = @Unsafe do { __scoop_release_hook_probe_create(id) }
+    val resource: DemoNativeHandle = DemoNativeHandle(raw)
+    val seen: Int = @Unsafe do { __scoop_release_hook_probe_id(resource.raw) }
+    println(f"created ${seen}")
+}
+
+fun printDemoState(label: String): Unit {
+    val releases: Int = @Unsafe do { __scoop_release_hook_probe_release_count() }
+    val lastId: Int = @Unsafe do { __scoop_release_hook_probe_last_id() }
+    val live: Int = @Unsafe do { __scoop_release_hook_probe_live_count() }
+    val duplicates: Int = @Unsafe do { __scoop_release_hook_probe_duplicate_count() }
+    val invalid: Int = @Unsafe do { __scoop_release_hook_probe_invalid_count() }
+    println(f"${label} ${releases} ${lastId} ${live} ${duplicates} ${invalid}")
+}
+
+fun main(): Unit {
+    @Unsafe do { __scoop_release_hook_probe_reset() }
+    printDemoState("before")
+
+    makeDemoHandle(303)
+    __scoop_gc_collect()
+
+    printDemoState("after")
+}

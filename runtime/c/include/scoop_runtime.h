@@ -21,6 +21,13 @@ typedef void (*ScoopGcTraceVisitor)(void **slot, void *ctx);
 typedef uint64_t (*ScoopTypeTraceFn)(void *object,
                                      ScoopGcTraceVisitor visitor,
                                      void *ctx);
+
+// Optional cleanup hook for GC-managed object types. The runtime calls this
+// with the object header pointer immediately before reclaiming unreachable
+// object storage. Compiler-generated `@ReleaseHook` trampolines use it to read
+// statically verified GC-free fields and call the user-selected leaf release
+// function. This is best-effort cleanup, not deterministic destruction: live
+// objects at process exit are not released through this hook.
 typedef void (*ScoopTypeReleaseFn)(void *object);
 
 typedef struct ScoopTypeDescriptor {

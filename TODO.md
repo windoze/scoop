@@ -49,7 +49,7 @@
 | P2-T02R | [DONE] | Review P2-T02 descriptor 接线 |
 | P3-T01 | [DONE] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
 | P3-T01R | [DONE] | Review P3-T01 验证矩阵 |
-| P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
+| P3-T02 | [DONE] | 最小 demo 用例 + spec/runtime 文档回写 |
 | P3-T02R | [TODO] | Review P3-T02 用例与文档 |
 | P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
 | P4-T01R | [TODO] | Review P4-T01 sync 源改造 |
@@ -376,7 +376,7 @@
   - 2026-05-31：复核 P3-T01 端到端验证矩阵：`ReleaseHookProbe` 为 final non-generic class，持 `Ptr<Int>` raw handle，释放 trampoline 仅把中间字段 `raw` 传给 `@Extern(abi="c")` 探针；stdout 断言释放次数、last id、live、duplicate、invalid 计数，能观测字段值正确传入、不可达对象被释放一次、重复 collect 不重复释放。`scoop_test_release_hook_probe_expect_at_exit` 的 atexit 检查锁定进程退出时仍存活对象不触发 release，符合 best-effort 边界。复核四后端/模式 fixture 覆盖 baseline moving、baseline non-moving、hosted、immix major、immix minor、minimal；本次修正 review 中发现的环境隔离缺口：baseline non-moving 显式 `SCOOP_GC_MOVE=0`，immix major/minor 显式 `SCOOP_RUNTIME_GC_BACKEND=immix` 并固定 nursery env，避免矩阵受外部环境污染。跨平台记录已在 P3-T01 完成记录中覆盖 macos/aarch64 与 linux/amd64。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1652)`）。
 
-### [TODO] P3-T02：真实用例 + spec/runtime 文档回写
+### [DONE] P3-T02：真实用例 + spec/runtime 文档回写
 
 - 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T04、P3-T05
   - `runtime/c/include/scoop_runtime.h:38-43`、`SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md`（release callback 约 :2959-2972）
@@ -391,7 +391,9 @@
 - 完成条件：至少一个真实/演示类型以纯 Scoop + FFI 工作；spec 与 runtime 文档同步。
 - 依赖：P3-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：新增最小 tracer-bullet demo `tests/fixtures/run-pass/release_hook_native_handle_demo.scoop`，用 final non-generic `DemoNativeHandle` 持 `Ptr<Int>` raw native handle，构造经 test-only `@Extern(abi="c")` create 探针获得裸 handle，`@ReleaseHook` 指向 `@Extern(abi="c")` release 探针并用 stdout 断言 GC reclaim 后释放一次、字段值正确传入、live/duplicate/invalid 计数正确。真实 `Mutex` / `CondVar` / `Once` 迁移按既有 P4-T01/P4-T02 backlog 推进，本任务仅完成机制 demo 与文档收口。
+  - 文档：`SCOOP_FULL_SPEC.md` 新增/替换 `@ReleaseHook` 用户可见章节，覆盖注解形态、宿主约束、释放函数约束、GC-free `args`、best-effort/退出不回收语义、与 `@NoGC` / `@Extern(abi="c")` 的安全关系和最小示例；同步 `docs/spec/language_spec-part6.md`；`SCOOP_RUNTIME.md` 与 `runtime/c/include/scoop_runtime.h` 的 `release_fn` / `ScoopTypeReleaseFn` 说明已与 `@ReleaseHook` trampoline、GC 受限上下文和非确定性释放语义对齐。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/release_hook_native_handle_demo.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ### [TODO] P3-T02R：Review P3-T02 用例与文档
 

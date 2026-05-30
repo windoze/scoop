@@ -449,24 +449,47 @@ struct __AtomicBoolean
 - 当前 sysroot 中 `__AtomicInt` 是与 `Int` 相异的 nominal struct，但布局/ABI 等同一个 word-sized `Int`；不得依赖 typealias 擦除来表达原子性。
 - 具体 API 属于 sysroot/runtime 表面，不是普通标准库语言要求。
 
-## 16. FFI-managed resource release callback
+## 16. `@ReleaseHook` 与 FFI-managed resource release callback
 
-Scoop 不提供通用用户 finalizer。为了 FFI 管理资源，运行时可为特定 GC-managed 对象类型关联 release callback。
+Scoop 不提供通用用户 finalizer。为了 FFI 与 managed/unmanaged interop，final class 可用 `@ReleaseHook` 为其 unmanaged 资源声明一个尽力而为的释放钩子：
 
-高层语义：
+```kotlin
+@ReleaseHook(name = "fully.qualified.releaseFunction", args = ["fieldName", ...])
+```
 
-- 每个 GC-managed 类型有实现定义的 type descriptor。
-- Type descriptor 可包含可选 release callback。
-- 当 GC 判定对象不可达并准备回收时，若存在 callback，则以对象存储地址调用。
-- Callback 用于释放 unmanaged 资源，例如 OS handle、非 GC arena 内存。
+`@ReleaseHook` 会让编译器为该 class 合成 type descriptor 中的 release callback。当 GC 判定某个实例不可达并准备回收对象存储时，运行时调用该 callback；callback 按 `args` 顺序读取列出的字段，并把这些字段值传给指定释放函数。
 
-限制：
+宿主类型要求：
 
-- 这不是 Scoop 0.1 的用户级语言特性。
-- Callback 由编译器为特定 runtime/library 类型自动合成。
-- Callback 不能复活对象。
-- Callback 不能依赖其它 GC-managed 对象仍然存活。
-- Callback 的调用上下文和允许操作由实现定义；应按 `@NoGC` / `@Unsafe` 风格约束。
+- 只能标注 `class`，不能标注 `struct`、`enum`、`interface` 或 annotation class。
+- Class 必须是 non-generic。
+- Class 必须是 final，不得为 `open`、`abstract` 或 `sealed`。
+- 同一声明必须同时带 `@Experimental(feature = "releaseHook")`。
+
+释放函数要求：
+
+- `name` 是字符串字面量形式的 fully qualified function name。
+- 目标必须解析为单个可见、无 receiver、non-generic 的函数。
+- 目标必须是 `@NoGC` 函数，或是 `@Extern(abi = "c")` 函数。
+- 目标返回 `Unit`。
+- 目标参数个数、顺序、类型必须与 `args` 字段逐项精确匹配。
+
+`args` 字段要求：
+
+- 每个名字必须是同一个 class 上存在的字段。
+- 每个字段类型必须是 GC-free。
+- Release hook 永远不传 `self`，也不能传任何 GC-managed reference；典型参数是标量或 `Ptr<T>` 这类 raw native handle。
+
+运行时语义：
+
+- 若带 release hook 的对象变为不可达且被 GC 回收，释放函数会在对象存储被释放前调用。
+- 这是 best-effort、非确定性的资源兜底释放，不是 lexical scope exit、引用计数或确定性析构。
+- 进程退出或 runtime teardown 时仍存活的对象不会通过 `@ReleaseHook` 释放；运行时不为该特性安装 `atexit` finalization pass。
+- 不同对象的 release hook 调用顺序没有保证。
+- 释放函数不能复活对象，也不能依赖其它 GC-managed 对象仍然存活。
+- 释放函数不能分配、触发 GC，或调用会 re-enter GC 的 API。类型检查通过 `@NoGC` / `@Extern(abi = "c")` 目标限制和 GC-free 参数限制静态保证语言层面的安全闭环。
+
+若需要确定性释放，类型仍应提供显式 `close` / `destroy` API。若显式释放和 `@ReleaseHook` 同时存在，native 释放操作应具备幂等性，避免显式释放后再由 GC 兜底释放造成 double free。若多个对象共享同一个 unmanaged handle，可能触发多次 release；资源所有权仍属于库/API contract。
 
 ## 17. Managed ABI 状态说明
 
