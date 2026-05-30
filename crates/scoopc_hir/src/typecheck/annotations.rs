@@ -4688,6 +4688,129 @@ class NativeBox(val raw: UInt)
     }
 
     #[test]
+    fn release_hook_contract_accepts_nogc_release_function() {
+        let file = check_annotations(
+            r#"package test
+@NoGC
+fun release(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap();
+
+        assert!(file.release_hook_bindings().contains_key("test.NativeBox"));
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_scoop_abi_extern_release_function() {
+        let err = check_annotations(
+            r#"package test
+@Extern(abi = "scoop")
+fun release(raw: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookFunctionMustBeNoGcOrCExtern { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_non_unit_release_function() {
+        let err = check_annotations(
+            r#"package test
+@NoGC
+fun release(raw: UInt): Int { return 1 }
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookFunctionReturnMustBeUnit { .. }
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_rejects_arg_count_mismatch() {
+        let err = check_annotations(
+            r#"package test
+@NoGC
+fun release(raw: UInt, flags: Int): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookArgCountMismatch {
+                field_count: 1,
+                param_count: 2,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn release_hook_contract_matches_args_in_declared_order() {
+        let file = check_annotations(
+            r#"package test
+@NoGC
+fun release(count: Int, raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["count", "raw"])
+class NativeBox(val raw: UInt, val count: Int)
+"#,
+        )
+        .unwrap();
+
+        let mut bindings = file.release_hook_bindings();
+        let binding = bindings
+            .remove("test.NativeBox")
+            .expect("valid ordered args should record binding");
+        assert_eq!(
+            binding.arg_fields,
+            vec!["count".to_string(), "raw".to_string()]
+        );
+
+        let err = check_annotations(
+            r#"package test
+@NoGC
+fun release(count: Int, raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "test.release", args = ["raw", "count"])
+class NativeBox(val raw: UInt, val count: Int)
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            AnnotationError::ReleaseHookArgTypeMismatch { field_name, .. }
+                if field_name == "raw"
+        ));
+    }
+
+    #[test]
     fn release_hook_contract_rejects_non_gc_free_field() {
         let err = check_annotations(
             r#"package test

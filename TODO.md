@@ -39,8 +39,8 @@
 | P1-T01R | [DONE] | Review P1-T01 注解 surface |
 | P1-T02 | [DONE] | 宿主校验：class / non-generic / final / `@Experimental` |
 | P1-T02R | [DONE] | Review P1-T02 宿主校验 |
-| P1-T03 | [TODO] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
-| P1-T03R | [TODO] | Review P1-T03 函数/字段校验 |
+| P1-T03 | [DONE] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
+| P1-T03R | [DONE] | Review P1-T03 函数/字段校验 |
 | P1-T04 | [TODO] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
 | P1-T04R | [TODO] | Review P1-T04 fixtures |
 | P2-T01 | [TODO] | 生成 release trampoline（按字段读值并调用释放函数） |
@@ -244,13 +244,14 @@
   - 2026-05-31：新增 `@ReleaseHook` 语义校验：释放函数 FQN 必须解析为唯一可见的无 receiver 非泛型函数，且必须是 `@NoGC` 或 `@Extern(abi="c")`；返回类型必须为 Unit，参数数量/顺序/类型必须与 `args` 字段精确匹配。`args` 现在必须引用宿主 class 的真实字段，字段类型必须通过 `is_gc_free_value_type` 判定为 GC-free，禁止传入 GC ref / self / member receiver 路径。新增 AST `ReleaseHookBinding` side table，并在 HIR lowering 中发布 `ReleaseHookIndex`（class FQN -> 目标函数 FQN + 有序字段名列表）供 P2 codegen 消费；补充单元测试覆盖正例记录、非 leaf 释放函数、非 GC-free 字段、字段/参数类型不匹配和 HIR side table handoff。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 
-### [TODO] P1-T03R：Review P1-T03 函数/字段校验
+### [DONE] P1-T03R：Review P1-T03 函数/字段校验
 
 - 必须实现的内容：复核签名匹配（个数/顺序/类型/返回 Unit）、`@NoGC`/`@Extern(c)` 限定、GC-free 判定、side table 内容正确。
 - 验证：`cargo test --all --all-targets`
 - 依赖：P1-T03
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P1-T03 实现：释放函数解析为唯一可见的无 receiver 非泛型 FQN；只接受显式 `@NoGC` 或 `@Extern(abi = "c")`，拒绝普通函数与 `@Extern(abi = "scoop")`；返回类型必须为 Unit；参数个数、顺序与类型按 `args` 字段精确匹配；字段必须存在且经 `is_gc_free_value_type` 判定为 GC-free；typecheck 成功后写入 AST `ReleaseHookBinding`，HIR lowering 汇总为 `ReleaseHookIndex` 供后端消费。补齐 review 覆盖缺口：新增单元测试锁定显式 `@NoGC` 正例、`@Extern(abi = "scoop")` 拒绝、非 Unit 返回拒绝、参数个数不匹配、按 `args` 顺序匹配与 side table 字段顺序。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。`python3 tools/run_fixtures.py` 未重跑，因为本次仅新增 `#[cfg(test)]` 单元测试与 TODO 记录，不改变编译器产物或 fixture 行为。
 
 ### [TODO] P1-T04：`@ReleaseHook` typecheck fixtures（错误面 + 正例）
 
