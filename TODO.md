@@ -50,7 +50,7 @@
 | P3-T01 | [DONE] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
 | P3-T01R | [DONE] | Review P3-T01 验证矩阵 |
 | P3-T02 | [DONE] | 最小 demo 用例 + spec/runtime 文档回写 |
-| P3-T02R | [TODO] | Review P3-T02 用例与文档 |
+| P3-T02R | [DONE] | Review P3-T02 用例与文档 |
 | P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
 | P4-T01R | [TODO] | Review P4-T01 sync 源改造 |
 | P4-T02 | [TODO] | 收缩 `scoop_sync.c` 为只管 raw native handle |
@@ -395,14 +395,15 @@
   - 文档：`SCOOP_FULL_SPEC.md` 新增/替换 `@ReleaseHook` 用户可见章节，覆盖注解形态、宿主约束、释放函数约束、GC-free `args`、best-effort/退出不回收语义、与 `@NoGC` / `@Extern(abi="c")` 的安全关系和最小示例；同步 `docs/spec/language_spec-part6.md`；`SCOOP_RUNTIME.md` 与 `runtime/c/include/scoop_runtime.h` 的 `release_fn` / `ScoopTypeReleaseFn` 说明已与 `@ReleaseHook` trampoline、GC 受限上下文和非确定性释放语义对齐。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/release_hook_native_handle_demo.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
-### [TODO] P3-T02R：Review P3-T02 用例与文档
+### [DONE] P3-T02R：Review P3-T02 用例与文档
 
 - 必须实现的内容：复核 demo 用例确实走纯 Scoop + `@ReleaseHook` 路径、spec/runtime 文档与实现一致、best-effort 语义表述准确。
 - 验证：`python3 tools/run_fixtures.py`
 - 完成条件：P3 收口，可进入 P4。
 - 依赖：P3-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P3-T02 demo 与文档：`release_hook_native_handle_demo.scoop` 使用纯 Scoop final non-generic `DemoNativeHandle` 持 `Ptr<Int>` raw handle，配套 `@Experimental(feature = "releaseHook")` 与 `@ReleaseHook`，释放目标为 `scoop.runtime.test.__scoop_release_hook_probe_release` 的 `@Extern(abi="c")` 探针；fixture stdout 锁定 GC reclaim 后释放一次、字段值 `303` 正确传入、live/duplicate/invalid 计数归零。对照当前 typecheck/codegen/runtime 实现复核 `SCOOP_FULL_SPEC.md`、`docs/spec/language_spec-part6.md`、`SCOOP_RUNTIME.md` 与 `runtime/c/include/scoop_runtime.h`，确认宿主约束、释放函数约束、GC-free args、descriptor release trampoline、best-effort/非确定性释放与进程退出不释放语义一致，未发现需修正文档或实现的缺口。P3 可收口进入 P4。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/release_hook_native_handle_demo.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1653)`）。
 
 ---
 
