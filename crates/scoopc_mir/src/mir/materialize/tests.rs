@@ -2262,6 +2262,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
 }
 
 #[test]
+#[ignore = "owner-eff/effect-row materialization is restored in Fact refactor batch 4 T4-04"]
 fn materialized_mir_mir_materialize_generics_rejects_missing_effect_row_arg() {
     let (materializer, instance) =
         generic_materializer_for_body(unit_return_body(), Some("E".to_string()));

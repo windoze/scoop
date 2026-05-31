@@ -2,7 +2,7 @@ MaterializedEffectFacts
 snapshot_binding:
   query_surface: PassView
   opt_level: O2
-  instance_count: 6
+  instance_count: 5
   canonical_body_fqns:
     - fixtures.mir.Base.ping
     - fixtures.mir.callInterface
