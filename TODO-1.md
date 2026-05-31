@@ -9,7 +9,7 @@
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
 | T1-00 | [DONE] | 基线清理：回退纯重建 WIP 补丁 + bypass 失败 delegate fixture/test |
-| T1-00R | [TODO] | Review T1-00 基线与 bypass 范围 |
+| T1-00R | [DONE] | Review T1-00 基线与 bypass 范围 |
 | T1-01 | [TODO] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
 | T1-01R | [TODO] | Review T1-01 表示与稳定性 |
 | T1-02 | [TODO] | 上游 identity 贯穿（MonomorphRequest / template-body-site inventory / generic direct-call inventory / `CallKind::Direct` / dispatch candidate 携带 stable key + owner eff） |
@@ -30,18 +30,22 @@
 - 完成条件：CI 全绿（owner-eff/delegate 失败已 bypass 并登记待恢复）；清单写入 memory。
 - 依赖：无
 - 完成记录：
-  - 代码基线：`crates/` 已回到 `4b66dcd7` 对应状态（`git diff --stat 4b66dcd7 -- crates` 无输出），未保留纯“下游重建”WIP 路径。
+  - 代码基线：`crates/` 已回到 `4b66dcd7` 对应状态；相对该基线仅保留 1 个 owner-eff Rust 单测 `#[ignore]` bypass（见下条），未保留纯“下游重建”WIP 路径。
   - Delegate / owner-eff bypass：10 个 delegated-property/delegate fixture 加 `IGNORE-UNTIL-FIX`，1 个 owner-eff materialize Rust 单测加 `#[ignore]`；均登记在 `memory/claude_plan.md`，由批 4 `T4-04` 恢复。
   - 并发 GC timeout bypass：4 个指定 runtime GC fixture 加 `IGNORE-UNTIL-FIX`，登记为本轮 Fact 重构后另行修复，不纳入 `T4-04`。
   - 越界 bypass 复核：`tests/fixtures/effect_facts/dispatch_and_resume_call.scoop` 不属于 delegate/owner-eff 范围，已取消跳过并修正 `dispatch_and_resume_call.effectfacts` 的 `instance_count` golden 漂移（6 → 5）。
   - 现状 effect/identity 重建点清单已写入 `memory/claude_plan.md`。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo build -p scoop -p scoopc` 通过；`cargo test --all --all-targets` 通过（仅上述 1 个 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（14 个已登记 fixture skipped，`fixtures: ok (1663)`）。
 
-### [TODO] T1-00R：Review T1-00 基线与 bypass 范围
+### [DONE] T1-00R：Review T1-00 基线与 bypass 范围
 - 必须实现的内容：复核回退干净（无 eff-aware mangle/重建残留、carrier ABI 保留）、bypass 仅限 owner-eff/delegate、清单准确。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T1-00
-- 完成记录：（待填）
+- 完成记录：
+  - 基线复核：`git diff --stat 4b66dcd7 -- crates` 仅剩 `crates/scoopc_mir/src/mir/materialize/tests.rs | 1 +`，即已登记的 owner-eff materialize 单测 `#[ignore]`；`eff[-_ ]?aware|mangle.*eff|eff.*mangle|blanket.*mangle|owner[-_ ]?eff.*mangle` 定向搜索无命中，未发现 eff-aware mangle / 纯下游重建 WIP 残留。
+  - Carrier ABI 复核：当前 `crates/` 相对 `4b66dcd7` 仅有上述测试 ignore 差异，因此 `4b66dcd7` 的 effectful closure/method carrier explicit-arg ABI 代码保持保留。
+  - Bypass 范围复核：fixture `IGNORE-UNTIL-FIX` 仅有 14 个，分别为 10 个 delegate/owner-eff fixture 与 4 个已登记并发 GC timeout fixture；Rust `#[ignore]` 仅有 1 个 owner-eff materialize 单测；`tests/fixtures/**/*.scoop` 无 lowercase `ignore-until-fix`。
+  - 验证：`python3 tools/run_fixtures.py` 通过，`fixtures: ok (1663)`；输出中仅上述 14 个登记 fixture 被 skip。
 
 ### [TODO] T1-01：稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施
 
