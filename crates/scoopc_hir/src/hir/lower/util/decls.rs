@@ -1095,7 +1095,11 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
 
     // 非泛型 class 在此处直接构造 MonoClassInit；泛型 class 仅入 generic_class_decls，
     // 等监 monomorph driver 在 substitute 后产出 MonoClassInit。
-    let is_generic = !decl.type_params.is_empty();
+    // eff-only classes (no value type params, only an owner `eff E`) are still generic over
+    // their owner effect row: they must defer to the monomorph driver so `eff E` is substituted
+    // per concrete instance, otherwise `eff E` leaks into fields after a bogus non-generic
+    // MonoClassInit (`contains Param after monomorphization`).
+    let is_generic = !decl.type_params.is_empty() || decl.eff_param.is_some();
     let entry_fqn = class_fqn.to_string();
     let inserted = out.entry(entry_fqn.clone()).or_insert(init);
     let entry_key = crate::hir::ClassInstanceKey::for_unparameterized(&entry_fqn);

@@ -361,7 +361,8 @@ impl MirInstanceMaterializer {
                         .roots
                         .get(template)
                         .and_then(|root| root.eff_param_name.as_ref());
-                    if signature.eff_param_name.is_some()
+                    if (signature.eff_param_name.is_some()
+                        && signature.owner_eff_param_name.is_none())
                         || signature.type_param_names.len() != type_args.len()
                     {
                         continue;
@@ -880,7 +881,11 @@ impl MirInstanceMaterializer {
                     .roots
                     .get(template)
                     .and_then(|root| root.eff_param_name.as_ref());
-                if signature.eff_param_name.is_some() {
+                // Owner-bound effects (`eff E` on the owner class) are determinable from each
+                // concrete class instance, so owner-eff member instances are seedable here.
+                // Only skip when the method needs a fun-level effect arg that the class instance
+                // cannot supply.
+                if signature.eff_param_name.is_some() && signature.owner_eff_param_name.is_none() {
                     continue;
                 }
                 let Some((owner_fqn, _)) = template.fqn.rsplit_once('.') else {

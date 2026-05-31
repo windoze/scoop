@@ -54,6 +54,7 @@ impl<'a> HirLowering<'a> {
                     == Some(BuiltinAnnotationKind::InteriorMutable)
             }),
             type_params,
+            has_eff_param: decl.eff_param.is_some(),
             supertypes,
             interfaces,
             constructors,

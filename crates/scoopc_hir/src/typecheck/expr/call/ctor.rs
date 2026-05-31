@@ -711,7 +711,10 @@ pub(in crate::typecheck::expr) fn try_infer_nominal_constructor_call_expr_type_w
         | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args, nominal.eff),
         _ => return Ok(None),
     };
-    if expected_args.is_empty() {
+    // eff-only owner classes (no value type params, only an owner `eff E`) still need the
+    // expected owner effect row propagated into constructor inference; only bail when there is
+    // neither an expected type arg nor an expected owner effect to carry.
+    if expected_args.is_empty() && expected_eff.is_none() {
         return Ok(None);
     }
 

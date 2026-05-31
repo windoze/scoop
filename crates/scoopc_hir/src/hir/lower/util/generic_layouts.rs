@@ -1185,13 +1185,25 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
             continue;
         };
-        if nominal.args.is_empty() {
+        // eff-only owner classes (no value type args, only a concrete owner `eff`) are still
+        // generic instances that need a per-instance MonoClassInit; only skip when there is
+        // neither a value type arg nor an owner effect row.
+        if nominal.args.is_empty() && nominal.eff.is_none() {
             continue;
         }
         if nominal
             .args
             .iter()
             .any(|&arg| type_contains_param(types, arg))
+        {
+            continue;
+        }
+        // Skip templates whose owner effect row still carries an unsubstituted `Param`.
+        if let Some(eff) = &nominal.eff
+            && eff
+                .terms
+                .iter()
+                .any(|&term| type_contains_param(types, term))
         {
             continue;
         }

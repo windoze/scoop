@@ -210,6 +210,22 @@ trampoline 形态：`void __scoop_release_<TypeMangled>(void *object)`，内部�
 
 验收：三个委托为纯库 class；编译器属性委托 lowering 只剩泛型路径；`impl_lowering.rs` 的 `SYNC_MUTEX_*` 常量与 `sugar.rs`/`decls.rs` 的三者合成全部删除；语义与迁移前逐项一致，回归与守卫绿。
 
+#### P5 设计原则：effect row 是 dynamic dispatch 的 ABI（owner-`eff` 委托落地的基线）
+
+把 `observable`/`vetoable` 的回调做成 effect-polymorphic（`onChange: (V,V) -> Unit / E`、`setValue: ... / E`）需要 owner `eff` 泛型 class + 参数化 interface（`ReadWriteProperty<.., eff E>`）。落地此机制必须遵守以下**语言级规则**（项目未发布，可直接 breaking change，无需历史兼容）：
+
+- **核心原则**：effect row 推导只适用于 **static dispatch**；**dynamic dispatch（itable/vtable）的 dispatch target，其 effect ABI 必须已确定**——显式写出或在 slot 处钉死，绝不依赖「每个实现各自推导」。
+  - 原因：一个方法有没有 / 有哪些 effect 决定它真实的 lowered ABI（`EffectStep` vs `Plain`、用哪个 step schema / continuation 形状）。effect row 是 itable/vtable slot 的语义 ABI 成分，不能被子类/实现类更改；否则 dynamic dispatch 会面对同一 slot 的非统一 ABI。
+- **具体规则**：
+  1. **interface method（含 default）、`abstract` method、`open` method 都是 dispatch slot**：effectful 时必须**显式写出 effect row**；泛型 interface 的传递性 effect row 也必须写出（例：`fun foo(): T` 省略 row ⇒ `Pure!`；`fun bar(): T / E` 显式带 `E`）。省略 row 即闭合纯 `Pure!`。
+  2. **重写/实现必须与 slot 的 effect row 逐字一致**（不允许 effect 协变收窄）：即便「纯实现重写 effectful slot」类型上 sound，它的 ABI 也会与 slot 不同，破坏统一 dispatch ABI；故纯实现也必须声明/携带 slot 的 row（只是不用）。
+  3. **effect row 推导仅保留给非 dispatch slot**：`final`/非虚方法、自由函数、lambda。
+  4. **区分**「方法自身的 effect row」（签名 `/` 后）与「类型里嵌套的 effect」（如参数/返回的函数类型自带 `/ E`）——后者是那个类型的 ABI，与方法 row 是两回事。
+- **对 codegen 的收益**：dispatch 只按 **slot（按接口实例化后）的固定 row** 统一降级，不必再发现/调和「不同实现有不同 effect ABI」——这正是 owner-`eff` 委托 dispatch 落地的关键简化。
+- **诊断**：(a) dispatch slot 的 effectful 方法漏写 row；(b) 重写改了 row；(c) default/open 的 body perform 了未在声明 row 内的 effect——都要清晰报错。
+
+P5-T02B00/P5-T02B0/P5-T02B 按本原则推进：先在 typecheck 层强制 interface/abstract/open 的显式 effect row + 重写一致性，再让 dispatch 按 slot row 统一降级（owner `eff` 泛型实例化后 slot row 被替换为具体 effect）。
+
 ## 6. 风险与注意点
 
 - **退出不回收**：必须在用户文档明确——`@ReleaseHook` 是尽力而为，不保证进程退出时被调用；需确定性释放的场景仍需显式 API。

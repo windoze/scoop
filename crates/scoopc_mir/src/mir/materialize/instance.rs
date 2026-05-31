@@ -6,7 +6,7 @@ fn filter_materialized_metadata_root(root: &MetadataRoot) -> Option<MetadataRoot
     match root {
         MetadataRoot::TypeAlias(alias) => alias.type_params.is_empty().then(|| root.clone()),
         MetadataRoot::Nominal(nominal) => {
-            if !nominal.type_params.is_empty() {
+            if !nominal.type_params.is_empty() || nominal.has_eff_param {
                 return None;
             }
             let mut nominal = nominal.clone();
@@ -144,6 +144,7 @@ impl MirInstanceMaterializer {
                         template,
                         type_param_names: info.type_param_names,
                         eff_param_name: info.eff_param_name,
+                        owner_eff_param_name: info.owner_eff_param_name,
                         signature_key: info.signature_key,
                         signature,
                     });
@@ -171,6 +172,7 @@ impl MirInstanceMaterializer {
                 template,
                 type_param_names: info.type_param_names,
                 eff_param_name: info.eff_param_name,
+                owner_eff_param_name: info.owner_eff_param_name,
                 signature_key: info.signature_key,
                 root_fun,
             });
@@ -238,6 +240,7 @@ impl MirInstanceMaterializer {
                     template: canonical.clone(),
                     type_param_names: candidate.type_param_names.clone(),
                     eff_param_name: candidate.eff_param_name.clone(),
+                    owner_eff_param_name: candidate.owner_eff_param_name.clone(),
                     fun_ty: candidate.root_fun.ty,
                     return_ty: candidate.root_fun.return_ty,
                     params: candidate
@@ -257,6 +260,7 @@ impl MirInstanceMaterializer {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
                     eff_param_name: candidate.eff_param_name,
+                    owner_eff_param_name: candidate.owner_eff_param_name,
                     family,
                 },
             );
@@ -283,6 +287,7 @@ impl MirInstanceMaterializer {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
                     eff_param_name: candidate.eff_param_name,
+                    owner_eff_param_name: candidate.owner_eff_param_name,
                     fun_ty: candidate.signature.fun_ty,
                     return_ty: candidate.signature.return_ty,
                     params: candidate.signature.params,

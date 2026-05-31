@@ -590,11 +590,12 @@ pub(crate) fn nominal_source_type_compatible(
     if local_nominal == expected_nominal {
         return true;
     }
-    if !local_nominal.args.is_empty()
-        || local_nominal.eff.is_some()
-        || !expected_nominal.args.is_empty()
-        || expected_nominal.eff.is_some()
-    {
+    // The direct-supertype index is keyed by bare FQN, so it can only resolve a sound subtype
+    // relation when the subtype passes its type args / owner effect row straight through to the
+    // supertype (`class Box<eff E> : Sink<eff E>`, `class List<T> : Iterable<T>`). When the
+    // local and expected instantiations share identical args and owner effect, the bare-name
+    // walk is sound; any reparameterizing supertype would change them, so bail conservatively.
+    if local_nominal.args != expected_nominal.args || local_nominal.eff != expected_nominal.eff {
         return false;
     }
 

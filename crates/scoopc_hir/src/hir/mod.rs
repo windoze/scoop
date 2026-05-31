@@ -149,6 +149,10 @@ pub struct NominalDecl {
     pub kind: ast::TypeKind,
     pub is_interior_mutable: bool,
     pub type_params: Vec<DeclTypeParam>,
+    /// True when the nominal declares an owner `eff E` parameter. Propagated to
+    /// `NominalMetadata::has_eff_param` so per-instance materialization drops the eff-generic
+    /// template just like `type_params`-generic templates.
+    pub has_eff_param: bool,
     pub supertypes: Vec<SupertypeDecl>,
     pub interfaces: Vec<String>,
     pub constructors: Vec<CtorDecl>,
