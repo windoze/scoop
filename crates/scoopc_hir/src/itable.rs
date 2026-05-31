@@ -479,6 +479,14 @@ fn collect_concrete_class_targets(types: &TypeStore, env: &TypeEnv) -> Vec<Concr
         {
             continue;
         }
+        // A class that declares an owner `eff` parameter must always be instantiated with a
+        // concrete owner effect row; an instance with `eff = None` is under-substituted (the eff
+        // arg was dropped upstream). Building an itable for it would seed eff-less member impl
+        // targets (`getValue::<Int>` instead of `getValue::<Int, eff Raise<Int>>`), creating a
+        // spurious second instance set that diverges the per-program step-schema numbering.
+        if sym.eff_param.is_some() && nominal.eff.is_none() {
+            continue;
+        }
 
         let class_key = if nominal.args.is_empty() && nominal.eff.is_none() {
             nominal.fqn.clone()
