@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | T1-00 | [DONE] | 基线清理：回退纯重建 WIP 补丁 + bypass 失败 delegate fixture/test |
 | T1-00R | [DONE] | Review T1-00 基线与 bypass 范围 |
-| T1-01 | [TODO] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
+| T1-01 | [DONE] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
 | T1-01R | [TODO] | Review T1-01 表示与稳定性 |
 | T1-02 | [TODO] | 上游 identity 贯穿（MonomorphRequest / template-body-site inventory / generic direct-call inventory / `CallKind::Direct` / dispatch candidate 携带 stable key + owner eff） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
@@ -47,7 +47,7 @@
   - Bypass 范围复核：fixture `IGNORE-UNTIL-FIX` 仅有 14 个，分别为 10 个 delegate/owner-eff fixture 与 4 个已登记并发 GC timeout fixture；Rust `#[ignore]` 仅有 1 个 owner-eff materialize 单测；`tests/fixtures/**/*.scoop` 无 lowercase `ignore-until-fix`。
   - 验证：`python3 tools/run_fixtures.py` 通过，`fixtures: ok (1663)`；输出中仅上述 14 个登记 fixture 被 skip。
 
-### [TODO] T1-01：稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施
+### [DONE] T1-01：稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施
 
 - 参考：`PLAN.md` §2.1/§2.2；现有 `StableInstanceKey`/`StableTemplateKey`/`StableDefKey`/`StableLirCallableKey`。
 - 必须实现的内容：
@@ -58,7 +58,12 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 - 完成条件：稳定 key + `EffectRowTemplate` 可用、有 canonical/substitution 单测、与现有 stable_id 一致。
 - 依赖：T1-00R
-- 完成记录：（待填）
+- 完成记录：
+  - 在 `crates/scoopc_hir/src/stable_id.rs` 新增 `EffectRowTemplate { terms, closed }`、`EffectTerm::{Concrete, Param}`、`StableEffectParamKey`、effect-param resolver、canonical text、substitution、`Pure!` 判定，以及 `EffectRow` ⇄ template 的受控转换 API（从本地 `EffectRow` 生成 stable template；通过 canonical type key resolver 转回本地 `EffectRow`）。
+  - `StableInstanceKey` 现在保存结构化 effect arg template，并继续用 canonical type arg + canonical effect-row template text 组成语义 identity；open concrete row 的 canonical text 保持既有 `E(...)` 形态以避免无关漂移。
+  - 补齐 `DispatchTargetKey`、`CallTargetKey`、`AbiSymbolKey` 的 canonical key 表面；readable/FQN path 仅作为 `StableSymbolKey::readable_path()` 诊断/符号可读锚点，不作为语义匹配依据。
+  - 单元测试覆盖 canonical 稳定性、substitution、closed/Pure! 判定、concrete effect type key 对齐、`StableInstanceKey` effect template 存储、call/dispatch/ABI key canonical 分离。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（155/156 MIR 单测中 1 个 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
 ### [TODO] T1-01R：Review T1-01 表示与稳定性
 - 必须实现的内容：复核无 `TypeId`/span 泄漏、canonical/substitution 正确、display 与 semantic identity 分离、与现有 stable_id 对齐。
