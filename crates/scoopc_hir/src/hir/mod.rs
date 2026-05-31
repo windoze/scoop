@@ -16,7 +16,7 @@ mod dump;
 mod lower;
 mod stable_closure;
 pub use dump::stable_dump_file;
-pub use lower::mangle_nominal_fqn;
+pub use lower::{mangle_nominal_fqn, mangle_nominal_fqn_with_eff};
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -874,7 +874,18 @@ impl ClassInstanceKey {
             .iter()
             .map(|arg| arg.inner())
             .collect::<Vec<_>>();
-        Some(Self(mangle_nominal_fqn(nominal.fqn, &args, types)))
+        let eff_terms = nominal.eff.as_ref().map(|row| {
+            row.terms
+                .iter()
+                .map(|term| term.inner())
+                .collect::<Vec<_>>()
+        });
+        Some(Self(mangle_nominal_fqn_with_eff(
+            nominal.fqn,
+            &args,
+            eff_terms.as_deref(),
+            types,
+        )))
     }
 
     /// 无 type-param class 的单态等价 key。仅供 HIR lowering 注册非泛型 class 使用。

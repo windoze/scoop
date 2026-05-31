@@ -480,10 +480,15 @@ fn collect_concrete_class_targets(types: &TypeStore, env: &TypeEnv) -> Vec<Concr
             continue;
         }
 
-        let class_key = if nominal.args.is_empty() {
+        let class_key = if nominal.args.is_empty() && nominal.eff.is_none() {
             nominal.fqn.clone()
         } else {
-            crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types)
+            crate::hir::mangle_nominal_fqn_with_eff(
+                &nominal.fqn,
+                &nominal.args,
+                nominal.eff.as_ref().map(|row| row.terms.as_slice()),
+                types,
+            )
         };
 
         out.entry(class_key.clone())
