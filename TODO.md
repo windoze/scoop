@@ -66,6 +66,7 @@
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
+| P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
@@ -646,11 +647,30 @@
   - 验证过程中完整 fixture suite 暴露 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` 在并行回归下超时；已将 worker 改为有界分配并在等待 stop flag 时 `yield()`，保留语言级线程 local roots + main STW GC 覆盖，同时消除不受控忙分配。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted delegated-property run-pass/HIR fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
+### [TODO] P5-T02A：移除剩余 MapBacked 委托特判并修复泛型委托运行路径
+
+- 触发：P5-T02R review 发现 `DelegatedPropertyInfo::MapBacked`、`parse_map_backed_delegate_expr` 与 `decls.rs` 的 map-backed field-copy lowering 仍存在，和 P5-T02/P5-T02R 的「只剩泛型分支 / 唯一泛型路径」完成条件不一致。
+- 必须实现的内容：
+  1. 删除 `DelegatedPropertyInfo::MapBacked`、`parse_map_backed_delegate_expr`、`decls.rs` 中 `Ident` / `MemberAccess` delegate 的 field-copy lowering，以及 `members.rs` / `sugar.rs` 中对 MapBacked 的分支。
+  2. 让 `by data` / `by this.delegate` / `by factory(...)` 等委托表达式统一生成 `$delegate` 字段，并通过 `getValue` / `setValue` 泛型委托路径读写。
+  3. 修复该统一路径暴露的泛型委托运行期缺口：`lazy` / `observable` / `vetoable` 的 generic `getValue` / `setValue` 物化必须能从 receiver / result / value 类型推导实例；`PropertyMeta` 参数必须有 spec-correct 的 HIR/MIR/codegen ABI 表示，不得通过省略、改类型或标准库名称特判绕过。
+  4. 更新受影响 fixtures/goldens：`tests/fixtures/hir/delegated_property_lowering.scoop`、既有 lazy/observable/vetoable run-pass，以及原 `delegated_property_map_backed_basic.scoop`，使它们覆盖统一泛型路径而不是旧 field-copy 策略。
+- 必须遵从的约束：
+  - 不得恢复 lazy/observable/vetoable 专用 lowering、`SYNC_MUTEX_*` 注入或任何标准委托名称特判。
+  - 不得用删除语义覆盖、弱化 fixture、把 `PropertyMeta` 改成非 spec 类型、或只针对单个 fixture 的 shim 规避问题。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`、`python3 tools/run_fixtures.py`。
+- 完成条件：HIR lowering 源码 grep 无 `MapBacked` / `parse_map_backed_delegate_expr` / map-backed field-copy 分支；属性委托 lowering 只剩泛型 `$delegate` + `getValue` / `setValue` 路径；上述 targeted 与完整回归全绿。
+- 依赖：P5-T02
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T02R：Review P5-T02 特判删除
 
 - 必须实现的内容：复核三者合成与 `SYNC_MUTEX_*` 常量已全删、`DelegatedPropertyInfo` 只剩泛型分支、无残留 by-name 分叉。
 - 验证：`python3 tools/run_fixtures.py`
-- 依赖：P5-T02
+- 依赖：P5-T02A
+- 阻塞记录：
+  - 2026-05-31：review 确认 `ParsedStdDelegateExpr` 与 `SYNC_MUTEX_*` 已不在 HIR lowering 生产代码中残留，但发现 `DelegatedPropertyInfo::MapBacked` 及 field-copy lowering 仍违反「只剩泛型分支」完成条件；尝试直接删除该分支后，targeted fixtures 暴露 generic delegated-property 运行路径还缺少泛型 `getValue`/`setValue` 物化与 `PropertyMeta` 参数 ABI/codegen 支持。已新增 P5-T02A 作为最小前置修复任务，本 review 保持未完成。
 - 完成记录：
   - （待填）
 
