@@ -69,7 +69,7 @@
 | P5-T02A0P | [DONE] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
-| P5-T02R | [TODO] | Review P5-T02 特判删除 |
+| P5-T02R | [DONE] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
 
@@ -712,7 +712,7 @@
   - 更新受影响 fixtures/goldens：`delegated_property_map_backed_basic.scoop` 不再描述旧 field-copy 策略，改为同时覆盖 `by data` 与 `by this.data`，并通过 `PropertyMeta.name` 验证运行期确实调用 delegate `getValue`；`delegated_property_lowering.hir` 同步为 spec-correct `PropertyMeta` struct literal（含嵌套 `TypeMeta` / `MetaList<AnnotationMeta>`）与对应 constructor call contracts。既有 lazy、observable/vetoable targeted fixtures 继续走统一泛型路径并通过。
   - 验证：`cargo build -p scoop -p scoopc`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`；`python3 tools/run_fixtures.py`。完整 fixture suite 当前仅剩 1 个失败，已在后续 `P5-T03` 精确调度：`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`；未发现新的未调度失败。
 
-### [TODO] P5-T02R：Review P5-T02 特判删除
+### [DONE] P5-T02R：Review P5-T02 特判删除
 
 - 必须实现的内容：复核三者合成与 `SYNC_MUTEX_*` 常量已全删、`DelegatedPropertyInfo` 只剩泛型分支、无残留 by-name 分叉。
 - 验证：`python3 tools/run_fixtures.py`
@@ -720,7 +720,8 @@
 - 阻塞记录：
   - 2026-05-31：review 确认 `ParsedStdDelegateExpr` 与 `SYNC_MUTEX_*` 已不在 HIR lowering 生产代码中残留，但发现 `DelegatedPropertyInfo::MapBacked` 及 field-copy lowering 仍违反「只剩泛型分支」完成条件；尝试直接删除该分支后，targeted fixtures 暴露 generic delegated-property 运行路径还缺少泛型 `getValue`/`setValue` 物化与 `PropertyMeta` 参数 ABI/codegen 支持。已新增 P5-T02A 作为最小前置修复任务，本 review 保持未完成。
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P5-T02 / P5-T02A 当前源码：`crates/scoopc_hir/src/hir/lower/types.rs` 中 `DelegatedPropertyInfo` 已收敛为 `GenericDelegatedPropertyInfo` 类型别名，生产 HIR lowering grep 未发现 `ParsedStdDelegateExpr`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`MapBacked`、`parse_map_backed_delegate_expr`、map-backed field-copy 分支或生产 `SYNC_MUTEX_*` 常量残留。`decls.rs` 统一为每个 delegated property 注入普通 `$delegate` 字段并 lower 原始 delegate 表达式，`members.rs` / `sugar.rs` 统一生成 `$delegate.getValue(thisRef, PropertyMeta)` / `$delegate.setValue(thisRef, PropertyMeta, value)` synthetic call，相关 HIR golden 与 `delegated_property_map_backed_basic.scoop` 覆盖统一泛型路径。仍存在的 `scoop.delegates.lazy/observable/vetoable` typecheck/platform policy by-name 逻辑不属于 HIR lowering 合成残留，已由后续 `P5-T03` 的硬编码守卫/透明化收口覆盖。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`。完整 `python3 tools/run_fixtures.py` 首轮除已由 `P5-T03` 精确调度的 `run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 外，还观测到一次 `runtime_gc/std_sync_backend_parity_immix_major.scoop` 59s timeout；该 fixture 单独重复运行、`tests/fixtures/runtime_gc` 子套件运行与完整 suite 重跑均通过。完整重跑最终仅剩 `P5-T03` 已调度失败，未发现新的未调度失败。
 
 ### [TODO] P5-T03：委托回归 + 守卫扩展
 
