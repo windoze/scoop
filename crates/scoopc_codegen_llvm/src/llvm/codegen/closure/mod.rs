@@ -86,6 +86,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_closure_expr: typecheck must publish a function type for lambda expressions"
             )
         };
+        let mut effective_fun_ty = fun_ty.clone();
+        for (idx, param_ty) in effective_fun_ty.params.iter_mut().enumerate() {
+            if self.try_mono_type_id(*param_ty).is_none()
+                && let Some(param) = closure.params.get(idx)
+            {
+                *param_ty = param.ty;
+            }
+        }
+        if self.try_mono_type_id(effective_fun_ty.return_ty).is_none() {
+            effective_fun_ty.return_ty = closure.body.ty;
+        }
+        let fun_ty = &effective_fun_ty;
 
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
         let ClosureParamBindings {
@@ -221,8 +233,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
 
-        let closure_desc =
-            self.get_or_create_closure_object_type_desc_global(span, expected_fun_ty)?;
+        let closure_desc = self.get_or_create_closure_object_type_desc_for_signature(
+            span,
+            fun_ty.receiver,
+            &fun_ty.params,
+            fun_ty.return_ty,
+        )?;
         let closure_desc_i8 = self.builder.build_pointer_cast(
             closure_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),

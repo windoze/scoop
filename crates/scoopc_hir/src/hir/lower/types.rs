@@ -16,7 +16,7 @@ use crate::parser::ParseError;
 use crate::resolve::ResolveError;
 use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
-use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
+use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
 use crate::typecheck::{
     AnnotationError, ExprTypeError, PropertyDeclError, StructDeclError, TypeEnvError,
     TypeHeaderError, TypeLowerError,
@@ -36,23 +36,13 @@ pub(super) struct GenericDelegatedPropertyInfo {
     pub(super) name: String,
     pub(super) delegate_field_fqn: String,
     pub(super) property_meta_fqn: String,
+    /// Delegate expression type as recorded by typecheck. HIR lowering re-interns it into its own
+    /// `TypeStore` so synthetic generic `getValue` / `setValue` calls keep owner type arguments.
+    pub(super) delegate_ty: Option<TypeId>,
     pub(super) delegate_class_fqn: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub(super) enum DelegatedPropertyInfo {
-    /// 通用 delegated property lowering：仍按 spec 生成 `getValue/setValue` 调用形状（T1210）。
-    ///
-    /// `$delegate` 字段和 `PropertyMeta` 参数均由普通 lowering/codegen 路径承接。
-    Generic(GenericDelegatedPropertyInfo),
-    /// map-backed delegated properties（spec §10.4）。
-    ///
-    /// 早期阶段的实现策略：
-    /// - 在 class 初始化阶段把 `val p by data` 的值“拷贝”到真实字段 `p`；
-    /// - 读取 `p` 直接走字段访问；
-    /// - 这避免了 `PropertyMeta` 运行期构造与 Map 查找（当前阶段尚未实现）。
-    MapBacked,
-}
+pub(super) type DelegatedPropertyInfo = GenericDelegatedPropertyInfo;
 
 pub(super) type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
 

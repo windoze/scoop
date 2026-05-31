@@ -731,7 +731,10 @@ impl<'a> HirLowering<'a> {
                 // 调用降糖成其它 HIR 形态，也要优先保留该结果类型，避免局部 `val x = call(...)`
                 // 因为中间表达式被写成 `Any` 而在 codegen 时触发错误的 value coercion。
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
-                let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
+                let call_ty = expected
+                    .value_ty
+                    .or(typechecked_call_ty)
+                    .unwrap_or(self.builtins.any);
                 let callee_expr = self.transparent_call_callee(callee);
                 let synthesized_args =
                     self.synthesized_unit_call_args_for_typed_sugar(e.span, args);
@@ -1101,8 +1104,15 @@ impl<'a> HirLowering<'a> {
                         })
                     });
 
+                    let expected_fun_binding = self
+                        .typechecked_top_level_fun_call_binding(e.span)
+                        .map(|binding| {
+                            self.fun_call_binding_with_expected_return(binding, expected.value_ty)
+                        });
                     let materialized_direct_target =
-                        self.materialized_top_level_fun_call_target_fqn(e.span);
+                        expected_fun_binding.as_ref().and_then(|binding| {
+                            self.materialized_direct_call_target_fqn_for_binding(binding)
+                        });
                     let callee = if let Some(target_fqn) = materialized_direct_target {
                         Box::new(self.top_level_callee_expr_with_fqn(callee.span, target_fqn))
                     } else {
@@ -1123,10 +1133,8 @@ impl<'a> HirLowering<'a> {
                                 )
                             })
                             .flatten();
-                        let plan = if let Some(fun_binding) =
-                            self.typechecked_top_level_fun_call_binding(e.span)
-                        {
-                            self.callable_param_plan_for_fun_binding(&fun_binding)
+                        let plan = if let Some(fun_binding) = expected_fun_binding.as_ref() {
+                            self.callable_param_plan_for_fun_binding(fun_binding)
                         } else if let Some(ctor_binding) = ctor_binding.as_ref() {
                             self.callable_param_plan_for_ctor_binding(e.span, ctor_binding)
                         } else {

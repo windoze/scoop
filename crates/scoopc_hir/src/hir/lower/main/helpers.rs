@@ -88,7 +88,8 @@ pub(crate) fn lower_fun_with_bindings_and_mir_facts(
         materialize_direct_call_targets,
     } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let delegated_properties = collect_delegated_properties(compilation_unit, index);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
@@ -184,7 +185,8 @@ pub(crate) fn lower_member_fun_with_bindings(
         fun,
     } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let delegated_properties = collect_delegated_properties(compilation_unit, index);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
@@ -267,7 +269,8 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         property,
     } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let delegated_properties = collect_delegated_properties(compilation_unit, index);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(

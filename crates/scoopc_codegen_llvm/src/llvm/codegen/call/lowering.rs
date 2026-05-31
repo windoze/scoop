@@ -1767,28 +1767,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let callable_abi = self.direct_call_abi_identity(fqn);
         let dispatch_fqn = direct_call_dispatch_fqn(fqn);
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let (signature_owner_fqn, source_types, param_names, source_param_tys, source_return_ty) =
-            self.published_callable_signature_with_names(fqn)
-                .map(|(source_types, param_names, param_tys, return_ty)| {
-                    (fqn, source_types, param_names, param_tys, return_ty)
-                })
-                .or_else(|| {
-                    (dispatch_fqn != fqn)
-                        .then(|| self.published_callable_signature_with_names(dispatch_fqn))
-                        .flatten()
-                        .map(|(source_types, param_names, param_tys, return_ty)| {
-                            (
-                                dispatch_fqn,
-                                source_types,
-                                param_names,
-                                param_tys,
-                                return_ty,
-                            )
-                        })
-                })
-                .ok_or_else(|| LlvmEmitError::Frontend {
-                    message: format!("call callee `{fqn}` 缺少 LIR callable signature facts"),
-                })?;
+        let (
+            signature_owner_fqn,
+            source_types,
+            mut param_names,
+            mut source_param_tys,
+            source_return_ty,
+        ) = self
+            .published_callable_signature_with_names(fqn)
+            .map(|(source_types, param_names, param_tys, return_ty)| {
+                (fqn, source_types, param_names, param_tys, return_ty)
+            })
+            .or_else(|| {
+                (dispatch_fqn != fqn)
+                    .then(|| self.published_callable_signature_with_names(dispatch_fqn))
+                    .flatten()
+                    .map(|(source_types, param_names, param_tys, return_ty)| {
+                        (
+                            dispatch_fqn,
+                            source_types,
+                            param_names,
+                            param_tys,
+                            return_ty,
+                        )
+                    })
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("call callee `{fqn}` 缺少 LIR callable signature facts"),
+            })?;
+        if args.len() == source_param_tys.len() + 1
+            && signature_owner_fqn.rsplit_once('.').is_some()
+            && let Some(receiver_ty) = args.first().map(|arg| match arg {
+                hir::CallArg::Positional(expr) => expr.ty,
+                hir::CallArg::Named { value, .. } => value.ty,
+            })
+        {
+            param_names.insert(0, "this".to_string());
+            source_param_tys.insert(0, receiver_ty);
+        }
         let (mut param_tys, mut return_ty) = self
             .published_signature_tys_as_codegen_tys(
                 source_types,
@@ -1882,7 +1898,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .extern_funs
             .get(fqn)
             .map(|extern_fun| extern_fun.symbol.as_str())
-            .unwrap_or(signature_owner_fqn);
+            .unwrap_or(fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => {

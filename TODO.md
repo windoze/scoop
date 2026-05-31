@@ -66,6 +66,7 @@
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
+| P5-T02A0 | [TODO] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
@@ -647,6 +648,22 @@
   - 验证过程中完整 fixture suite 暴露 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` 在并行回归下超时；已将 worker 改为有界分配并在等待 stop flag 时 `yield()`，保留语言级线程 local roots + main STW GC 覆盖，同时消除不受控忙分配。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted delegated-property run-pass/HIR fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
+### [TODO] P5-T02A0：修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI
+
+- 触发：执行 P5-T02A 时删除 MapBacked field-copy 后，`by lazy { ... }` / `by observable(...)` 统一 `$delegate.getValue/setValue(thisRef, PropertyMeta, ...)` 路径进入 codegen；targeted run-pass 暴露 `PropertyMeta` 参数在 materialized/devirtualized direct-call ABI 中仍被错误处理，表现为 `unsupported value coercion from Ref to Struct(...)` 或 LLVM call 参数类型与函数签名不匹配。
+- 必须实现的内容：
+  1. 让 class init 中的泛型 delegate factory 调用（如 `lazy {}` / `observable(...)` / `vetoable(...)`）按 delegate 字段目标类型 materialize 正确实例，并为 class-init 中出现的 generic direct calls 发布可用 LIR callable facts。
+  2. 修复 devirtualized member direct-call 的 receiver/显式参数 ABI 顺序，使 `delegate.getValue(thisRef, property)` / `delegate.setValue(thisRef, property, value)` 的 receiver、`thisRef`、`PropertyMeta`、`value` 与 materialized callable signature 一致。
+  3. 为 `PropertyMeta`（含嵌套 `TypeMeta` / `MetaList<AnnotationMeta>`）建立 spec-correct 的 HIR/MIR/codegen 传参表示；不得省略参数、改成非 spec 类型、或对标准委托名称做特判。
+- 必须遵从的约束：该修复是泛型委托协议与 metadata ABI 的通用修复，不得恢复 lazy/observable/vetoable 专用 lowering，也不得绕开 `PropertyMeta`。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`。
+- 完成条件：上述 lazy/observable/vetoable unified delegated-property fixtures 不再在 class-init generic factory、devirtualized getValue/setValue 或 `PropertyMeta` ABI/codegen 处失败。
+- 依赖：P5-T02
+- 阻塞记录：
+  - 2026-05-31：P5-T02A 尝试删除 MapBacked 后已能生成统一 `$delegate` 字段并进入 generic `getValue`/`setValue` 路径；继续验证时发现 class init 中 generic delegate factory materialization 与 `PropertyMeta` aggregate ABI 仍存在通用 codegen 缺口，阻塞 P5-T02A 完成。
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T02A：移除剩余 MapBacked 委托特判并修复泛型委托运行路径
 
 - 触发：P5-T02R review 发现 `DelegatedPropertyInfo::MapBacked`、`parse_map_backed_delegate_expr` 与 `decls.rs` 的 map-backed field-copy lowering 仍存在，和 P5-T02/P5-T02R 的「只剩泛型分支 / 唯一泛型路径」完成条件不一致。
@@ -660,7 +677,9 @@
   - 不得用删除语义覆盖、弱化 fixture、把 `PropertyMeta` 改成非 spec 类型、或只针对单个 fixture 的 shim 规避问题。
 - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`、`python3 tools/run_fixtures.py`。
 - 完成条件：HIR lowering 源码 grep 无 `MapBacked` / `parse_map_backed_delegate_expr` / map-backed field-copy 分支；属性委托 lowering 只剩泛型 `$delegate` + `getValue` / `setValue` 路径；上述 targeted 与完整回归全绿。
-- 依赖：P5-T02
+- 依赖：P5-T02；P5-T02A0
+- 阻塞记录：
+  - 2026-05-31：删除 MapBacked 分支并统一 `$delegate` lowering 后，targeted run-pass 暴露 `PropertyMeta` 参数在泛型委托 class-init/direct-call ABI 中仍无法按 spec 传递；已新增 P5-T02A0 作为最小前置修复任务，本任务保持未完成。
 - 完成记录：
   - （待填）
 

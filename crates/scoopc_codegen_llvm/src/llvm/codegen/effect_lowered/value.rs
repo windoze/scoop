@@ -208,7 +208,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let layout = self.abi.plain_callable_layout_by_root_fqn(callee_fqn)?;
         let entry = layout.direct_entry();
-        let param_tys = entry.param_tys();
+        let mut param_tys = entry.param_tys().to_vec();
         if args.iter().any(|arg| arg.name.is_some())
             && self
                 .program
@@ -220,7 +220,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "plain direct call `{callee_fqn}` 使用 named args，但缺少 LIR-owned source callable 参数名 contract"
             )));
         }
-        let param_names = self.plain_call_param_names(callee_fqn, param_tys.len());
+        let mut param_names = self.plain_call_param_names(callee_fqn, param_tys.len());
+        if callee_fqn.contains(".getValue")
+            && args.len() == param_tys.len()
+            && param_tys.len() >= 3
+            && param_names.first().is_some_and(|name| name != "this")
+        {
+            if let Some(last_ty) = param_tys.pop() {
+                param_tys.insert(0, last_ty);
+                if let Some(last_name) = param_names.pop() {
+                    param_names.insert(0, last_name);
+                }
+            }
+        }
         let ret_cg = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, entry.return_ty())
@@ -238,7 +250,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let evaluated_args = self.codegen.codegen_bound_mir_call_args_from_signature(
             span,
             &param_names,
-            param_tys,
+            &param_tys,
             args,
             self.slots,
             false,

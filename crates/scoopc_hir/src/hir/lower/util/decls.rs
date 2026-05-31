@@ -426,6 +426,7 @@ pub(in crate::hir::lower) fn resolve_supertypes(
 pub(in crate::hir::lower) struct InitCollectionCx<'a> {
     pub source: &'a SourceFile,
     pub file: &'a ast::File,
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub index: &'a Index,
     pub type_kinds: &'a HashMap<String, ast::TypeKind>,
     pub typecheck_types: Option<&'a TypeStore>,
@@ -449,6 +450,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
     let InitCollectionCx {
         source,
         file,
+        compilation_unit,
         index,
         type_kinds,
         typecheck_types,
@@ -456,13 +458,13 @@ pub(in crate::hir::lower) fn collect_object_inits(
         materialize_direct_call_targets,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex = HashMap::new();
-    let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
+    let default_arg_structs = super::super::collect_default_arg_structs(compilation_unit);
     let computed_property_accessors =
-        super::super::collect_computed_property_accessor_fqns(&compilation_unit);
+        super::super::collect_computed_property_accessor_fqns(compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(index, &compilation_unit);
+        collect_generic_template_symbol_suffixes(index, compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -472,7 +474,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             computed_property_getters: &computed_property_accessors.getters,
             computed_property_setters: &computed_property_accessors.setters,
@@ -481,6 +483,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             materialize_direct_call_targets,
         },
     );
+    ctx.next_synthetic_call_site = 50_000;
 
     let mut out: ObjectInitIndex = HashMap::new();
     for item in &file.items {
@@ -630,6 +633,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
     let InitCollectionCx {
         source,
         file,
+        compilation_unit,
         index,
         type_kinds,
         typecheck_types,
@@ -637,13 +641,13 @@ pub(in crate::hir::lower) fn collect_class_inits(
         materialize_direct_call_targets,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex = HashMap::new();
-    let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
+    let default_arg_structs = super::super::collect_default_arg_structs(compilation_unit);
     let computed_property_accessors =
-        super::super::collect_computed_property_accessor_fqns(&compilation_unit);
+        super::super::collect_computed_property_accessor_fqns(compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(index, &compilation_unit);
+        collect_generic_template_symbol_suffixes(index, compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -653,7 +657,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             computed_property_getters: &computed_property_accessors.getters,
             computed_property_setters: &computed_property_accessors.setters,
@@ -662,6 +666,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             materialize_direct_call_targets,
         },
     );
+    ctx.next_synthetic_call_site = 100_000;
 
     let mut out: GenericClassDeclIndex = HashMap::new();
     let mut mono_out: ClassInitIndex = HashMap::new();
@@ -927,94 +932,78 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                             .map(|t| ctx.lower_type_ref(t))
                             .unwrap_or(ctx.builtins.any);
 
-                    // delegated property（spec §10.4）：std delegates are ordinary delegate
-                    // objects; map-backed keeps its existing field-copy lowering.
+                    // delegated property（spec §10.4）：store the delegate object in a normal
+                    // `$delegate` field; reads/writes lower to `getValue` / `setValue` calls.
                     if let Some(delegate_expr) = p.delegate.as_ref() {
-                        if let Some(delegate) = parse_map_backed_delegate_expr(delegate_expr) {
-                            // map-backed：早期阶段在初始化时把 `by data` 的值写入真实字段 `<name>`。
-                            //
-                            // 约束：目前只支持 delegate 为 `this.data` 这类“class 字段访问”，
-                            // 并要求 delegate 类型存在同名字段（`data.<name>`）。
-                            let field_fqn = format!("{class_fqn}.{name}");
-                            insert_field(
-                                &mut init,
-                                ClassField {
-                                    fqn: field_fqn.clone(),
-                                    name: name.clone(),
-                                    mutable: false,
-                                    ty,
-                                },
-                            );
-
-                            let delegate_field_fqn = match &delegate.kind {
-                                ast::ExprKind::MemberAccess { member, .. } => {
-                                    let Some(ast::ResolvedMemberRef::Value { fqn }) =
-                                        member.resolved.as_ref()
-                                    else {
-                                        continue;
-                                    };
-                                    fqn.clone()
+                        let field_fqn = format!("{class_fqn}.{name}$delegate");
+                        let property_fqn = format!("{class_fqn}.{name}");
+                        let delegate_ty = ctx
+                            .delegated_properties
+                            .get(&property_fqn)
+                            .cloned()
+                            .map(|info| {
+                                if let Some(class_fqn) = info.delegate_class_fqn.as_ref()
+                                    && ctx.type_param_count_for_nominal_fqn(class_fqn) == Some(1)
+                                {
+                                    ctx.intern_nominal(class_fqn.clone(), vec![ty], None)
+                                } else {
+                                    ctx.specialized_delegated_property_delegate_ty(&info, ty)
                                 }
-                                _ => continue,
-                            };
-
-                            let Some(idx) = init.field_indices.get(&delegate_field_fqn).copied()
-                            else {
-                                continue;
-                            };
-                            let Some(delegate_field) = init.fields.get(idx as usize) else {
-                                continue;
-                            };
-
-                            let delegate_ty_fqn = match ctx.types.kind(delegate_field.ty) {
-                                TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.fqn.clone(),
-                                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                                    nominal.fqn.clone()
-                                }
-                                _ => continue,
-                            };
-
-                            let delegate_member_fqn = format!("{delegate_ty_fqn}.{name}");
-                            let delegate_recv = ctx.lower_expr(pkg_prefix, &delegate);
-                            let init_expr = super::super::Expr {
-                                span: p.name.span,
-                                ty: ctx.builtins.any,
-                                kind: super::super::ExprKind::MemberAccess {
-                                    receiver: Box::new(delegate_recv),
-                                    member: MemberAccess {
-                                        span: p.name.span,
-                                        name: name.clone(),
-                                        resolved: Some(MemberRef::Value {
-                                            id: ctx
-                                                .symbols
-                                                .intern_top_level(delegate_member_fqn.clone()),
-                                            fqn: delegate_member_fqn,
-                                        }),
-                                    },
-                                },
-                            };
-                            init.steps.push(ClassInitStep::PropertyInit {
-                                field_fqn,
-                                init: init_expr,
+                            })
+                            .unwrap_or(ctx.builtins.any);
+                        let expected_fun_binding = ctx
+                            .typechecked_top_level_fun_call_binding(delegate_expr.span)
+                            .map(|binding| {
+                                ctx.fun_call_binding_with_expected_return(
+                                    binding,
+                                    Some(delegate_ty),
+                                )
                             });
-                        } else {
-                            let field_fqn = format!("{class_fqn}.{name}$delegate");
-                            let init_expr = ctx.lower_expr(pkg_prefix, delegate_expr);
-                            let delegate_ty = init_expr.ty;
-                            insert_field(
-                                &mut init,
-                                ClassField {
-                                    fqn: field_fqn.clone(),
-                                    name: format!("{name}$delegate"),
-                                    mutable: false,
-                                    ty: delegate_ty,
-                                },
-                            );
-                            init.steps.push(ClassInitStep::PropertyInit {
-                                field_fqn,
-                                init: init_expr,
-                            });
+                        if let Some(binding) = expected_fun_binding.as_ref() {
+                            let mut bindings = ctx.file.top_level_fun_call_bindings();
+                            bindings.insert(delegate_expr.span, binding.clone());
+                            ctx.file.replace_top_level_fun_call_bindings(bindings);
                         }
+                        let mut init_expr = ctx.lower_expr_with_expected(
+                            pkg_prefix,
+                            delegate_expr,
+                            ExpectedExpr {
+                                value_ty: Some(delegate_ty),
+                                ..ExpectedExpr::default()
+                            },
+                        );
+                        let materialized_target = expected_fun_binding
+                            .as_ref()
+                            .and_then(|binding| {
+                                ctx.materialized_direct_call_target_fqn_for_binding(binding)
+                            })
+                            .or_else(|| {
+                                materialized_delegate_factory_target_fqn(
+                                    ctx,
+                                    delegate_expr,
+                                    delegate_ty,
+                                )
+                            });
+                        if let Some(target_fqn) = materialized_target
+                            && let super::super::ExprKind::Call { callee, .. } = &mut init_expr.kind
+                        {
+                            *callee = Box::new(
+                                ctx.top_level_callee_expr_with_fqn(delegate_expr.span, target_fqn),
+                            );
+                        }
+                        insert_field(
+                            &mut init,
+                            ClassField {
+                                fqn: field_fqn.clone(),
+                                name: format!("{name}$delegate"),
+                                mutable: false,
+                                ty: delegate_ty,
+                            },
+                        );
+                        init.steps.push(ClassInitStep::PropertyInit {
+                            field_fqn,
+                            init: init_expr,
+                        });
                         continue;
                     }
 
@@ -1131,6 +1120,47 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         }
     }
     Ok(())
+}
+
+fn materialized_delegate_factory_target_fqn(
+    ctx: &HirLowering<'_>,
+    delegate_expr: &ast::Expr,
+    delegate_ty: TypeId,
+) -> Option<String> {
+    let ast::ExprKind::Call { callee, args } = &delegate_expr.kind else {
+        return None;
+    };
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+    let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+        return None;
+    };
+    let type_args = match ctx.types.kind(delegate_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
+        _ => return None,
+    };
+    if type_args.is_empty() {
+        return None;
+    }
+    let overload = ctx.index.by_fqn.get(fqn).and_then(|symbols| {
+        symbols
+            .fun
+            .iter()
+            .find(|overload| overload.sig.params.len() == args.len())
+            .or_else(|| symbols.fun.first())
+    })?;
+    if overload.sig.type_params.len() != type_args.len() {
+        return None;
+    }
+    Some(ctx.materialized_instance_fqn_for_decl(
+        fqn,
+        overload.symbol.decl_file.as_path(),
+        overload.symbol.span,
+        &type_args,
+        &[],
+    ))
 }
 
 #[cfg(test)]

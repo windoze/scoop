@@ -89,6 +89,14 @@ pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(
     }
 }
 
+fn delegate_class_fqn_from_type(types: &TypeStore, ty: TypeId) -> Option<String> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.clone()),
+        _ => None,
+    }
+}
+
 fn top_level_fun_return_nominal_fqn(
     files: &[(&SourceFile, &ast::File)],
     index: &Index,
@@ -153,40 +161,34 @@ fn type_path_fqn_in_fun_context(
     }
 }
 
-pub(in crate::hir::lower) fn parse_map_backed_delegate_expr(
-    delegate_expr: &ast::Expr,
-) -> Option<ast::Expr> {
-    match &delegate_expr.kind {
-        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => Some(delegate_expr.clone()),
-        _ => None,
-    }
-}
-
 fn delegated_property_info(
     files: &[(&SourceFile, &ast::File)],
+    file: &ast::File,
     index: &Index,
+    typecheck_types: Option<&TypeStore>,
     owner_fqn: &str,
     name: &str,
     delegate_expr: &ast::Expr,
 ) -> DelegatedPropertyInfo {
-    if parse_map_backed_delegate_expr(delegate_expr).is_some() {
-        return DelegatedPropertyInfo::MapBacked;
-    }
-
     let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
     let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
-    let delegate_class_fqn = delegate_class_fqn_from_expr(files, index, delegate_expr);
-    DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
+    let delegate_ty = file.inferred_expr_ty(delegate_expr.span);
+    let delegate_class_fqn = delegate_ty
+        .and_then(|ty| typecheck_types.and_then(|types| delegate_class_fqn_from_type(types, ty)))
+        .or_else(|| delegate_class_fqn_from_expr(files, index, delegate_expr));
+    GenericDelegatedPropertyInfo {
         name: name.to_string(),
         delegate_field_fqn,
         property_meta_fqn,
+        delegate_ty,
         delegate_class_fqn,
-    })
+    }
 }
 
 pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
     pairs: &[(&'a SourceFile, &'a ast::File)],
     index: &Index,
+    typecheck_types: Option<&TypeStore>,
 ) -> DelegatedPropertyIndex {
     let mut out: DelegatedPropertyIndex = HashMap::new();
 
@@ -202,6 +204,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
                         &pkg_prefix,
                         pairs,
                         index,
+                        typecheck_types,
                         &mut out,
                     );
                 }
@@ -213,6 +216,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
                         &pkg_prefix,
                         pairs,
                         index,
+                        typecheck_types,
                         &mut out,
                     );
                 }
@@ -234,6 +238,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
     prefix: &str,
     files: &[(&SourceFile, &ast::File)],
     index: &Index,
+    typecheck_types: Option<&TypeStore>,
     out: &mut DelegatedPropertyIndex,
 ) {
     let local_name = source.slice(decl.name.span);
@@ -249,19 +254,40 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
                         continue;
                     };
 
-                    let info =
-                        delegated_property_info(files, index, &owner_fqn, &name, delegate_expr);
+                    let info = delegated_property_info(
+                        files,
+                        file,
+                        index,
+                        typecheck_types,
+                        &owner_fqn,
+                        &name,
+                        delegate_expr,
+                    );
 
                     out.entry(prop_fqn).or_insert(info);
                 }
                 ast::TypeMember::Type(nested) => {
                     collect_delegated_properties_in_type_decl(
-                        source, file, nested, &owner_fqn, files, index, out,
+                        source,
+                        file,
+                        nested,
+                        &owner_fqn,
+                        files,
+                        index,
+                        typecheck_types,
+                        out,
                     );
                 }
                 ast::TypeMember::Object(obj) => {
                     collect_delegated_properties_in_object_decl(
-                        source, file, obj, &owner_fqn, files, index, out,
+                        source,
+                        file,
+                        obj,
+                        &owner_fqn,
+                        files,
+                        index,
+                        typecheck_types,
+                        out,
                     );
                 }
                 ast::TypeMember::EnumVariant(_)
@@ -281,6 +307,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
     prefix: &str,
     files: &[(&SourceFile, &ast::File)],
     index: &Index,
+    typecheck_types: Option<&TypeStore>,
     out: &mut DelegatedPropertyIndex,
 ) {
     let obj_name = match &obj.name {
@@ -305,18 +332,40 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
                     continue;
                 };
 
-                let info = delegated_property_info(files, index, &owner_fqn, &name, delegate_expr);
+                let info = delegated_property_info(
+                    files,
+                    file,
+                    index,
+                    typecheck_types,
+                    &owner_fqn,
+                    &name,
+                    delegate_expr,
+                );
 
                 out.entry(prop_fqn).or_insert(info);
             }
             ast::TypeMember::Type(nested) => {
                 collect_delegated_properties_in_type_decl(
-                    source, file, nested, &owner_fqn, files, index, out,
+                    source,
+                    file,
+                    nested,
+                    &owner_fqn,
+                    files,
+                    index,
+                    typecheck_types,
+                    out,
                 );
             }
             ast::TypeMember::Object(nested) => {
                 collect_delegated_properties_in_object_decl(
-                    source, file, nested, &owner_fqn, files, index, out,
+                    source,
+                    file,
+                    nested,
+                    &owner_fqn,
+                    files,
+                    index,
+                    typecheck_types,
+                    out,
                 );
             }
             ast::TypeMember::EnumVariant(_)

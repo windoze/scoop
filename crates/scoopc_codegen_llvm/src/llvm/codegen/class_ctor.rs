@@ -699,8 +699,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let saved_source_id = self.current_source_id;
+        let saved_callable_fqn = self.function_cx.current_callable_fqn.clone();
+        let saved_stable_owner_key = self.function_cx.current_stable_owner_key.clone();
+        let saved_stable_closure_path_prefix =
+            self.function_cx.current_stable_closure_path_prefix.clone();
+        let saved_next_stable_child_closure_index =
+            self.function_cx.next_stable_child_closure_index;
+        let saved_stable_closure_paths = self.function_cx.stable_closure_paths.clone();
         self.current_source_id =
             self.source_id_for_path(init_body.source_path().as_path(), callee_span)?;
+        let class_key = class.key();
+        self.function_cx.current_callable_fqn = Some(format!("{}.<init>", class_key.as_str()));
+        self.function_cx.current_stable_owner_key = Some(self.stable_def_key_for_source_path(
+            class.source_path.as_path(),
+            StableDefNamespace::Type,
+            class_key.as_str(),
+            "class_init",
+        ));
+        self.function_cx.current_stable_closure_path_prefix =
+            Some(format!("{}.$init", class_key.as_str()));
+        self.function_cx.next_stable_child_closure_index = 0;
+        self.function_cx.stable_closure_paths.clear();
         let result = (|| {
             if self.function_cx.current_effect_outcome_ptr.is_none() {
                 let outcome_slot =
@@ -804,6 +823,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })();
 
         self.current_source_id = saved_source_id;
+        self.function_cx.current_callable_fqn = saved_callable_fqn;
+        self.function_cx.current_stable_owner_key = saved_stable_owner_key;
+        self.function_cx.current_stable_closure_path_prefix = saved_stable_closure_path_prefix;
+        self.function_cx.next_stable_child_closure_index = saved_next_stable_child_closure_index;
+        self.function_cx.stable_closure_paths = saved_stable_closure_paths;
         stack.remove(&key);
         result
     }

@@ -254,12 +254,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted arg binding drift")
         });
 
-        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy)>> =
             vec![None; param_tys.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
             let param_ty = param_tys[param_idx];
-            let target_cg = self
+            let mut target_cg = self
                 .cg_ty_of_mir_type(source_types, param_ty)
                 .or_else(|| {
                     self.equivalent_codegen_type_id(source_types, param_ty)
@@ -269,6 +269,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .unwrap_or_else(|| {
                     panic!("codegen_bound_mir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
                 });
+            if let crate::mir::Operand::Local(local) = arg.value
+                && matches!(target_cg, CgTy::Struct(_))
+                && let Some(slot) = slots.get(local.as_u32() as usize)
+                && matches!(slot.cg_ty, CgTy::Ref)
+            {
+                target_cg = slot.cg_ty;
+            }
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -277,14 +284,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("pass_mir_call_arg_{param_idx}"),
                 coerced,
             )?;
-            evaluated[param_idx] = Some((arg.span, deferred));
+            evaluated[param_idx] = Some((arg.span, deferred, target_cg));
         }
 
         evaluated
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                let (arg_span, deferred, param_cg) = slot.unwrap_or_else(|| {
                     panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted missing evaluated arg slot")
                 });
                 let param_ty = param_tys[param_idx];
@@ -294,7 +301,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_abi = if uses_native_abi {
                     None
                 } else {
-                    Some(self.ordinary_param_abi(span, abi_ty)?)
+                    Some(self.ordinary_param_abi_from_cg(span, abi_ty, param_cg)?)
                 };
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()

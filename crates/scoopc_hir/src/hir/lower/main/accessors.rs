@@ -331,6 +331,7 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
         let init_collection_cx = InitCollectionCx {
             source,
             file,
+            compilation_unit,
             index,
             type_kinds,
             typecheck_types,

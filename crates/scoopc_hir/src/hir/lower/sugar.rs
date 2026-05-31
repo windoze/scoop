@@ -71,60 +71,56 @@ impl<'a> HirLowering<'a> {
         };
         let info = self.delegated_properties.get(fqn.as_str()).cloned()?;
 
-        match info {
-            DelegatedPropertyInfo::Generic(info) => {
-                let receiver = self.lower_expr(pkg_prefix, receiver);
-                let this_ref = receiver.clone();
-                let delegate = self.lower_generic_delegated_property_delegate_access_expr(
-                    member.span,
-                    receiver.clone(),
-                    &info,
-                );
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        let this_ref = receiver.clone();
+        let value = self.lower_expr(pkg_prefix, rhs);
+        let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+            member.span,
+            receiver.clone(),
+            &info,
+            value.ty,
+        );
 
-                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
-                let value = self.lower_expr(pkg_prefix, rhs);
+        let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
 
-                if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
-                    let setter_fqn = format!("{class_fqn}.setValue");
-                    let receiver_ty = delegate.ty;
-                    return Some(self.lower_synthetic_member_call_with_receiver_ty(
-                        span,
-                        delegate,
-                        receiver_ty,
-                        &setter_fqn,
-                        vec![this_ref, meta, value],
-                        self.builtins.unit,
-                    ));
-                }
-
-                let callee = Expr {
-                    span: member.span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::MemberAccess {
-                        receiver: Box::new(delegate),
-                        member: MemberAccess {
-                            span: member.span,
-                            name: "setValue".to_string(),
-                            resolved: None,
-                        },
-                    },
-                };
-
-                Some(Expr {
-                    span,
-                    ty: self.builtins.unit,
-                    kind: ExprKind::Call {
-                        callee: Box::new(callee),
-                        args: vec![
-                            CallArg::Positional(this_ref),
-                            CallArg::Positional(meta),
-                            CallArg::Positional(value),
-                        ],
-                    },
-                })
-            }
-            DelegatedPropertyInfo::MapBacked => None,
+        if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
+            let setter_fqn = format!("{class_fqn}.setValue");
+            let receiver_ty = delegate.ty;
+            return Some(self.lower_synthetic_member_call_with_receiver_ty(
+                span,
+                delegate,
+                receiver_ty,
+                &setter_fqn,
+                vec![this_ref, meta, value],
+                self.builtins.unit,
+            ));
         }
+
+        let callee = Expr {
+            span: member.span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(delegate),
+                member: MemberAccess {
+                    span: member.span,
+                    name: "setValue".to_string(),
+                    resolved: None,
+                },
+            },
+        };
+
+        Some(Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: vec![
+                    CallArg::Positional(this_ref),
+                    CallArg::Positional(meta),
+                    CallArg::Positional(value),
+                ],
+            },
+        })
     }
 
     pub(super) fn lower_generic_delegated_property_delegate_access_expr(
@@ -132,12 +128,9 @@ impl<'a> HirLowering<'a> {
         span: Span,
         receiver: Expr,
         info: &GenericDelegatedPropertyInfo,
+        property_ty: TypeId,
     ) -> Expr {
-        let ty = info
-            .delegate_class_fqn
-            .as_ref()
-            .map(|fqn| self.intern_nominal(fqn.clone(), Vec::new(), None))
-            .unwrap_or(self.builtins.any);
+        let ty = self.specialized_delegated_property_delegate_ty(info, property_ty);
         Expr {
             span,
             ty,
@@ -155,6 +148,70 @@ impl<'a> HirLowering<'a> {
                 },
             },
         }
+    }
+
+    pub(in crate::hir::lower) fn specialized_delegated_property_delegate_ty(
+        &mut self,
+        info: &GenericDelegatedPropertyInfo,
+        property_ty: TypeId,
+    ) -> TypeId {
+        let base_ty = match (info.delegate_ty, self.typecheck_types) {
+            (Some(ty), Some(typecheck_types)) => {
+                let ty = self.types.re_intern_from(typecheck_types, ty);
+                self.apply_active_type_param_bindings(ty)
+            }
+            _ => info
+                .delegate_class_fqn
+                .as_ref()
+                .map(|fqn| self.intern_nominal(fqn.clone(), Vec::new(), None))
+                .unwrap_or(self.builtins.any),
+        };
+
+        if self
+            .nominal_type_arg_count(base_ty)
+            .is_some_and(|count| count > 0)
+        {
+            return base_ty;
+        }
+
+        let Some(class_fqn) = info
+            .delegate_class_fqn
+            .as_ref()
+            .cloned()
+            .or_else(|| self.nominal_fqn_for_ty(base_ty))
+        else {
+            return base_ty;
+        };
+
+        if self.type_param_count_for_nominal_fqn(&class_fqn) == Some(1) {
+            return self.intern_nominal(class_fqn, vec![property_ty], None);
+        }
+
+        base_ty
+    }
+
+    fn nominal_type_arg_count(&self, ty: TypeId) -> Option<usize> {
+        match self.types.kind(ty) {
+            crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal))
+            | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) => {
+                Some(nominal.args.len())
+            }
+            _ => None,
+        }
+    }
+
+    pub(in crate::hir::lower) fn type_param_count_for_nominal_fqn(
+        &self,
+        target_fqn: &str,
+    ) -> Option<usize> {
+        for (source, file) in self.compilation_unit.iter().copied() {
+            let prefix = super::package_prefix(source, file.package.as_ref());
+            if let Some(count) = type_param_count_in_items(source, &file.items, &prefix, target_fqn)
+            {
+                return Some(count);
+            }
+        }
+        None
     }
 
     pub(super) fn lower_property_meta_ref_expr(&mut self, span: Span, fqn: &str) -> Expr {
@@ -293,4 +350,118 @@ impl<'a> HirLowering<'a> {
             },
         }
     }
+}
+
+fn join_fqn(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() {
+        name.to_string()
+    } else {
+        format!("{prefix}.{name}")
+    }
+}
+
+fn type_param_count_in_items(
+    source: &crate::source::SourceFile,
+    items: &[ast::Item],
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<usize> {
+    for item in items {
+        match item {
+            ast::Item::Type(ty) => {
+                if let Some(count) = type_param_count_in_type_decl(source, ty, prefix, target_fqn) {
+                    return Some(count);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(count) =
+                    type_param_count_in_object_decl(source, obj, prefix, target_fqn)
+                {
+                    return Some(count);
+                }
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_) => {}
+        }
+    }
+    None
+}
+
+fn type_param_count_in_type_decl(
+    source: &crate::source::SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<usize> {
+    let name = decl.name.text(source);
+    let fqn = join_fqn(prefix, name);
+    if fqn == target_fqn {
+        return Some(decl.type_params.len());
+    }
+
+    let body = decl.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(count) = type_param_count_in_type_decl(source, nested, &fqn, target_fqn)
+                {
+                    return Some(count);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(count) = type_param_count_in_object_decl(source, obj, &fqn, target_fqn)
+                {
+                    return Some(count);
+                }
+            }
+            ast::TypeMember::Property(_)
+            | ast::TypeMember::Fun(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::EnumVariant(_) => {}
+        }
+    }
+    None
+}
+
+fn type_param_count_in_object_decl(
+    source: &crate::source::SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<usize> {
+    let obj_name = match &obj.name {
+        Some(name) => name.text(source).to_string(),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => "Companion".to_string(),
+            ast::ObjectKind::Object => return None,
+        },
+    };
+    let fqn = join_fqn(prefix, &obj_name);
+    let body = obj.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(count) = type_param_count_in_type_decl(source, nested, &fqn, target_fqn)
+                {
+                    return Some(count);
+                }
+            }
+            ast::TypeMember::Object(nested) => {
+                if let Some(count) =
+                    type_param_count_in_object_decl(source, nested, &fqn, target_fqn)
+                {
+                    return Some(count);
+                }
+            }
+            ast::TypeMember::Property(_)
+            | ast::TypeMember::Fun(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::EnumVariant(_) => {}
+        }
+    }
+    None
 }

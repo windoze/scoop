@@ -96,19 +96,10 @@ pub(in crate::hir::lower) fn infer_generic_fun_call_type_args(
         collect_hir_type_param_bindings(types, param.ty, concrete_ty, &mut bindings);
     }
     if type_contains_param(types, sig_fun.return_ty) && !type_contains_param(types, result_ty) {
-        let param_type_param_names = sig_fun
-            .params
-            .iter()
-            .flat_map(|param| {
-                let mut names = Vec::new();
-                collect_hir_type_param_names(types, param.ty, &mut names);
-                names
-            })
-            .collect::<HashSet<_>>();
         let mut result_bindings = HashMap::new();
         collect_hir_type_param_bindings(types, sig_fun.return_ty, result_ty, &mut result_bindings);
         for (name, ty) in result_bindings {
-            if !param_type_param_names.contains(&name) || bindings.contains_key(&name) {
+            if !bindings.contains_key(&name) {
                 bindings.entry(name).or_insert(ty);
             }
         }
@@ -321,21 +312,21 @@ pub(in crate::hir::lower) fn collect_generic_fun_calls_in_expr(
         super::super::ExprKind::Call { callee, args } => {
             if let Some(callee_fqn) = generic_fun_callee_fqn(callee)
                 && let Some(candidates) = generic_fun_candidates_by_fqn.get(callee_fqn)
-                && candidates.len() == 1
             {
-                let lookup_key = candidates[0].clone();
-                if let (Some(sig_fun), Some(type_param_names)) = (
-                    generic_fun_signatures.get(&lookup_key),
-                    generic_fun_type_param_names.get(&lookup_key),
-                ) && let Some(type_args) = infer_generic_fun_call_type_args(
-                    types,
-                    sig_fun,
-                    type_param_names,
-                    generic_fun_call_receiver_expr(callee),
-                    args,
-                    expr.ty,
-                ) {
-                    out.push((lookup_key, type_args));
+                for lookup_key in candidates {
+                    if let (Some(sig_fun), Some(type_param_names)) = (
+                        generic_fun_signatures.get(lookup_key),
+                        generic_fun_type_param_names.get(lookup_key),
+                    ) && let Some(type_args) = infer_generic_fun_call_type_args(
+                        types,
+                        sig_fun,
+                        type_param_names,
+                        generic_fun_call_receiver_expr(callee),
+                        args,
+                        expr.ty,
+                    ) {
+                        out.push((lookup_key.clone(), type_args));
+                    }
                 }
             }
 
@@ -518,6 +509,7 @@ pub(in crate::hir::lower) struct GenericFunInstantiationInputs<'a> {
     pub typecheck_types: &'a TypeStore,
     pub initial_items: &'a [super::super::Item],
     pub initial_member_funs: &'a [super::super::FunDecl],
+    pub initial_class_inits: &'a ClassInitIndex,
     pub stable_cone_key: &'a StableConeKey,
     pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 }
@@ -535,11 +527,16 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
         typecheck_types,
         initial_items,
         initial_member_funs,
+        initial_class_inits,
         stable_cone_key,
         source_cones,
     } = inputs;
 
-    if monomorph_keys.is_empty() && initial_items.is_empty() && initial_member_funs.is_empty() {
+    if monomorph_keys.is_empty()
+        && initial_items.is_empty()
+        && initial_member_funs.is_empty()
+        && initial_class_inits.is_empty()
+    {
         return Vec::new();
     }
 
@@ -681,6 +678,28 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
             types,
             &mut pending,
         );
+    }
+    for init in initial_class_inits.values() {
+        for step in &init.steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => collect_generic_fun_calls_in_expr(
+                    init,
+                    &generic_fun_candidates_by_fqn,
+                    &generic_fun_type_param_names,
+                    &generic_fun_signatures,
+                    types,
+                    &mut pending,
+                ),
+                ClassInitStep::InitBlock { block } => collect_generic_fun_calls_in_block(
+                    block,
+                    &generic_fun_candidates_by_fqn,
+                    &generic_fun_type_param_names,
+                    &generic_fun_signatures,
+                    types,
+                    &mut pending,
+                ),
+            }
+        }
     }
 
     while let Some((lookup_key, re_interned_args)) = pending.pop() {

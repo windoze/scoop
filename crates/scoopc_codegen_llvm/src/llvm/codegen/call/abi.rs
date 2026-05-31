@@ -14,6 +14,16 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn try_cg_ty_for_call_abi_type(&self, ty: TypeId) -> Option<CgTy> {
+        self.try_cg_ty_of_type_id(ty)
+            .or_else(|| match self.types.kind(ty) {
+                // Function values are always passed as managed references; their generic parameter and
+                // return types do not affect the ABI shape of the closure object pointer.
+                TypeKind::Ref(RefTypeKind::Function(_)) => Some(CgTy::Ref),
+                _ => None,
+            })
+    }
+
     fn callable_source_carrier_tys_impl(
         &self,
         source_types: &TypeStore,
@@ -51,11 +61,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_for_call_abi_type(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .try_mono_type_id(ty)
                 .map(|ty| self.types.display(ty.inner()).to_string())
-                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+                .unwrap_or_else(|| self.types.display(ty).to_string());
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
                 ?span,
@@ -75,11 +85,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
-        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_for_call_abi_type(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .try_mono_type_id(ty)
                 .map(|ty| self.types.display(ty.inner()).to_string())
-                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+                .unwrap_or_else(|| self.types.display(ty).to_string());
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
                 ?span,
@@ -88,6 +98,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
             panic!("ordinary_param_abi: MIR signature verifier accepted unsupported param type {ty_desc}")
         });
+        self.ordinary_param_abi_from_cg(span, ty, cg)
+    }
+
+    pub(in crate::llvm::codegen) fn ordinary_param_abi_from_cg(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+        cg: CgTy,
+    ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
         let llvm_ty = self.llvm_basic_type_of(span, cg)?;
         let needs_indirect = matches!(
             llvm_ty,
@@ -751,7 +770,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map_call_args_to_params_by_name(param_names, args)
             .unwrap_or_else(|| std::panic::panic_any(kind));
 
-        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy)>> =
             vec![None; param_names.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param
@@ -762,9 +781,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .get(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
             let target_cg = self
-                .try_cg_ty_of_type_id(param_ty)
+                .try_cg_ty_for_call_abi_type(param_ty)
                 .unwrap_or_else(|| {
-                    panic!("codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type")
+                    panic!(
+                        "codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type {}",
+                        self.types.display(param_ty)
+                    )
                 });
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
@@ -785,14 +807,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let slot = evaluated
                 .get_mut(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
-            *slot = Some((expr.span, deferred));
+            *slot = Some((expr.span, deferred, target_cg));
         }
 
         evaluated
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (expr_span, deferred) = slot.unwrap_or_else(|| std::panic::panic_any(kind));
+                let (expr_span, deferred, param_cg) =
+                    slot.unwrap_or_else(|| std::panic::panic_any(kind));
                 let param_ty = *param_tys.get(param_idx).unwrap_or_else(|| {
                     panic!(
                         "codegen_bound_call_args_impl: call ABI verifier accepted param index drift"
@@ -801,7 +824,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_abi = match abi_mode {
                     CallArgAbiMode::Native => None,
                     CallArgAbiMode::Ordinary => {
-                        Some(self.ordinary_param_abi(callee_span, param_ty)?)
+                        Some(self.ordinary_param_abi_from_cg(callee_span, param_ty, param_cg)?)
                     }
                 };
                 if let Some(abi) = param_abi

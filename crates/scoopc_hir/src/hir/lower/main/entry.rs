@@ -143,7 +143,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let interior_mutable_nominals = collect_interior_mutable_nominals(&pairs, None);
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
-    let delegated_properties = collect_delegated_properties(&pairs, &index);
+    let delegated_properties = collect_delegated_properties(&pairs, &index, None);
     let default_arg_structs = collect_default_arg_structs(&pairs);
     let computed_property_accessors = collect_computed_property_accessor_fqns(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;

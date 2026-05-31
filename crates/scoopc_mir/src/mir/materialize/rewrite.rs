@@ -952,10 +952,16 @@ impl MirInstanceMaterializer {
                 self.rewrite_aggregate_transport(payload, ctx.substitution);
             }
             Rvalue::ClassCtor {
+                class_fqn,
                 args,
                 hidden_effects,
                 ..
             } => {
+                if let Some(result_ty) = result_ty
+                    && let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty)
+                {
+                    *class_fqn = nominal.fqn.clone();
+                }
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
