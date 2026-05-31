@@ -1,12 +1,9 @@
 // Scoop sysroot: standard delegates (spec §10.4)
-//
-// 说明：
-// - 本文件仅提供“声明表面”，用于名字解析与类型检查；
-// - 标准库的真实实现与线程安全/运行期语义由后续 runtime/stdlib 任务补齐。
 
 package scoop.delegates
 
 import scoop.core.*
+import scoop.sync.*
 
 /// 委托属性的只读接口（spec §10.4）。
 public interface ReadOnlyProperty<in T, out V> {
@@ -25,9 +22,142 @@ public enum LazyThreadSafetyMode {
     Synchronized,
 }
 
-/// lazy：首次读取时计算并缓存（实现语义后续补齐）。
-@Intrinsic
-public fun <V> lazy(initializer: () -> V): ReadOnlyProperty<Any, V>
+private fun __scoop_delegates_lazy_mutex(mode: LazyThreadSafetyMode): Mutex? {
+    return when (mode) {
+        None -> None()
+        Publication -> Some(mutexCreate())
+        Synchronized -> Some(mutexCreate())
+    }
+}
+
+/// `lazy` 委托对象：首次读取时计算并缓存 initializer 结果。
+public class Lazy<V>(mode: LazyThreadSafetyMode, initializer: () -> V, mutex: Mutex?) : ReadOnlyProperty<Any, V> {
+    private val mode: LazyThreadSafetyMode = mode
+    private val initializer: () -> V = initializer
+    private val mutex: Mutex? = mutex
+    private var value: V? = None()
+
+    private fun requireMutex(): Mutex {
+        return when (this.mutex) {
+            Some(m) -> m
+            None -> panic("lazy mode requires a mutex")
+        }
+    }
+
+    private fun getValueNone(): V {
+        return when (this.value) {
+            Some(v) -> v
+            None -> {
+                val computed: V = this.initializer()
+                this.value = Some(computed)
+                computed
+            }
+        }
+    }
+
+    private fun getValueSynchronized(): V {
+        val m: Mutex = this.requireMutex()
+        m.lock()
+        val result: V = when (this.value) {
+            Some(v) -> v
+            None -> {
+                val computed: V = this.initializer()
+                this.value = Some(computed)
+                computed
+            }
+        }
+        m.unlock()
+        return result
+    }
+
+    private fun getValuePublication(): V {
+        val m: Mutex = this.requireMutex()
+        m.lock()
+        when (this.value) {
+            Some(v) -> {
+                m.unlock()
+                return v
+            }
+            None -> {
+                m.unlock()
+            }
+        }
+
+        val computed: V = this.initializer()
+
+        m.lock()
+        val result: V = when (this.value) {
+            Some(v) -> v
+            None -> {
+                this.value = Some(computed)
+                computed
+            }
+        }
+        m.unlock()
+        return result
+    }
+
+    public fun getValue(thisRef: Any, property: PropertyMeta): V {
+        return when (this.mode) {
+            None -> this.getValueNone()
+            Publication -> this.getValuePublication()
+            Synchronized -> this.getValueSynchronized()
+        }
+    }
+}
+
+/// observable：持有 backing value，并在写入完成后调用回调。
+public class ObservableProperty<V>(initial: V, onChange: (V, V) -> Unit, mutex: Mutex) : ReadWriteProperty<Any, V> {
+    private var value: V = initial
+    private val onChange: (V, V) -> Unit = onChange
+    private val mutex: Mutex = mutex
+
+    public fun getValue(thisRef: Any, property: PropertyMeta): V {
+        this.mutex.lock()
+        val result: V = this.value
+        this.mutex.unlock()
+        return result
+    }
+
+    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit {
+        this.mutex.lock()
+        val old: V = this.value
+        this.value = newValue
+        this.mutex.unlock()
+        this.onChange(old, newValue)
+    }
+}
+
+/// vetoable：写入前调用回调；回调返回 false 时保留旧值。
+public class VetoableProperty<V>(initial: V, onChange: (V, V) -> Bool, mutex: Mutex) : ReadWriteProperty<Any, V> {
+    private var value: V = initial
+    private val onChange: (V, V) -> Bool = onChange
+    private val mutex: Mutex = mutex
+
+    public fun getValue(thisRef: Any, property: PropertyMeta): V {
+        this.mutex.lock()
+        val result: V = this.value
+        this.mutex.unlock()
+        return result
+    }
+
+    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit {
+        this.mutex.lock()
+        val old: V = this.value
+        this.mutex.unlock()
+
+        if (this.onChange(old, newValue)) {
+            this.mutex.lock()
+            this.value = newValue
+            this.mutex.unlock()
+        }
+    }
+}
+
+/// lazy：默认使用 `Synchronized`，首次读取时计算并缓存。
+public fun <V> lazy(initializer: () -> V): Lazy<V> {
+    return lazy(LazyThreadSafetyMode.Synchronized, initializer)
+}
 
 /// lazy：指定线程安全策略（实现语义后续补齐）。
 ///
@@ -35,8 +165,9 @@ public fun <V> lazy(initializer: () -> V): ReadOnlyProperty<Any, V>
 /// - `LazyThreadSafetyMode.None`：不依赖线程/互斥锁，可在所有平台落地；
 /// - `Publication/Synchronized`（以及省略 mode 的默认行为）会被编译器 lowering 为 `Mutex` + lock/unlock，
 ///   因此要求目标平台具备线程/互斥锁 runtime 能力；否则编译期会给出清晰诊断。
-@Intrinsic
-public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): ReadOnlyProperty<Any, V>
+public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): Lazy<V> {
+    return Lazy(mode, initializer, __scoop_delegates_lazy_mutex(mode))
+}
 
 /// observable：每次写入触发回调（old/new）。
 ///
@@ -48,8 +179,9 @@ public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): ReadOnlyP
 /// 平台 policy（early stage）：
 /// - 当前实现依赖 per-property `Mutex` 以保证并发可见性，因此要求目标平台具备线程/互斥锁能力；
 /// - 单线程/无 mutex 平台的“无锁降级实现”留给后续平台 backends 任务细化。
-@Intrinsic
-public fun <V> observable(initial: V, onChange: (V, V) -> Unit): ReadWriteProperty<Any, V>
+public fun <V> observable(initial: V, onChange: (V, V) -> Unit): ObservableProperty<V> {
+    return ObservableProperty(initial, onChange, mutexCreate())
+}
 
 /// vetoable：写入前触发回调，返回 false 时拒绝更新。
 ///
@@ -59,5 +191,6 @@ public fun <V> observable(initial: V, onChange: (V, V) -> Unit): ReadWriteProper
 /// - 因此在并发场景下，回调看到的 `old` 是一次受保护读取的快照；回调返回 `true` 后的实际写入会再次加锁提交。
 ///
 /// 平台 policy（early stage）：同 `observable`（需要线程/互斥锁能力）。
-@Intrinsic
-public fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): ReadWriteProperty<Any, V>
+public fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): VetoableProperty<V> {
+    return VetoableProperty(initial, onChange, mutexCreate())
+}

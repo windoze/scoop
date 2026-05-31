@@ -63,7 +63,7 @@
 | P4-T05R | [DONE] | Review P4-T05 回归与守卫 |
 | P5-T00 | [DONE] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
 | P5-T00R | [DONE] | Review P5-T00 itable 泛型 interface 修复 |
-| P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
+| P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [TODO] | Review P5-T01 委托库实现 |
 | P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
@@ -593,7 +593,7 @@
   - 复核新增 fixture `generic_class_parameterized_interface_itable_stable_id.scoop`：`Box<T> : Tagged<T>` 的 `Box<Int>` ground 实例同时经 `Tagged<Int>` interface dispatch 与 `is Tagged<Int>` runtime match 触发 itable metadata 生成，可锁定泛型 class 实现参数化 interface 时 stable type id 生成不再报 `missing stable type parameter key for \`V\`` 类错误。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
-### [TODO] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
+### [DONE] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5-T01
@@ -611,7 +611,9 @@
 - 阻塞记录：
   - 2026-05-31：尝试按计划实现 `Lazy<V> : ReadOnlyProperty<Any, V>`、`ObservableProperty<V> : ReadWriteProperty<Any, V>` 时，`tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop` 在编译期触发 `scoop::itable::stable_type_id`：`missing stable type parameter key for \`V\``。该问题来自泛型 class 实现参数化 interface 的 runtime itable metadata 计算，不是委托库局部可绕过的问题；已新增 P5-T00/P5-T00R 作为前置修复。
 - 完成记录：
-  - （待填）
+  - 2026-05-31：在 `sysroot/lib/scoop.delegates/src/delegates.scoop` 中把 `lazy` / `observable` / `vetoable` 从声明式 `@Intrinsic` 改为普通库实现：新增 `Lazy<V>`（`V?` memoized storage + `Mutex?`，`None` 无锁、`Publication` 初始化期间不持锁、`Synchronized` 锁内单次初始化）、`ObservableProperty<V>`（锁内写入后解锁回调）和 `VetoableProperty<V>`（锁内读取 old、解锁回调、通过后再锁内提交），均实现既有 `ReadOnlyProperty` / `ReadWriteProperty` surface；三个顶层函数现在返回对应 wrapper class。`scoop.delegates` 显式依赖 P4 后的库 `scoop.sync`，以便线程安全模式组合普通 `Mutex`。
+  - 同步更新默认 sysroot 依赖带来的验证期望：`p8_runtime_migration` 不再把 `scoop_sync_*` 视作普通构建禁止符号；release-hook 负例 fixture 改为只禁止本地未注解 class 的 release trampoline；HIR/effect-lowered goldens 更新默认 sysroot 新增 delegates/sync metadata 后的统计与布局快照。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
 ### [TODO] P5-T01R：Review P5-T01 委托库实现
 

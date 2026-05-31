@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=4 step_types=0 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=0 surface_resume_dispatches=0 layout_classes=29 layout_enums=7 layout_interfaces=11 layout_class_itables=55 layout_callable_symbols=4
+  summary: opt_revision=1 callables=4 step_types=0 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=0 surface_resume_dispatches=0 layout_classes=32 layout_enums=9 layout_interfaces=11 layout_class_itables=64 layout_callable_symbols=4
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=false
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=29 enums=7 vtables=55 interfaces=11 class_itables=55 callable_symbols=4
+  physical_layout: classes=32 enums=9 vtables=64 interfaces=11 class_itables=64 callable_symbols=4
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -42,10 +42,15 @@ lir_facts {
     - class=scoop.core.Target layout_key=scoop.core.Target super=<none> fields=1
     - class=scoop.core.ThreadLocal layout_key=scoop.core.ThreadLocal super=<none> fields=0
     - class=scoop.lang.string.StringBuilder layout_key=scoop.lang.string.StringBuilder super=<none> fields=1
+    - class=scoop.sync.CondVar layout_key=scoop.sync.CondVar super=<none> fields=1
+    - class=scoop.sync.Mutex layout_key=scoop.sync.Mutex super=<none> fields=1
+    - class=scoop.sync.Once layout_key=scoop.sync.Once super=<none> fields=3
     - enum=scoop.core.AnnotationTarget repr=tagged_union variants=11
     - enum=scoop.core.Nothing repr=tagged_union variants=0
     - enum=scoop.core.Option<Int> repr=tagged_union variants=2
     - enum=scoop.core.Option<T> repr=tagged_union variants=2
+    - enum=scoop.core.Option<V> repr=tagged_union variants=2
+    - enum=scoop.core.Option<scoop.sync.Mutex> repr=tagged_union variants=2
     - enum=scoop.core.RuntimeError repr=tagged_union variants=3
     - enum=scoop.core.TypeKind repr=tagged_union variants=7
     - enum=scoop.delegates.LazyThreadSafetyMode repr=tagged_union variants=3
@@ -100,7 +105,16 @@ lir_facts {
     - class_vtable=scoop.core.ULongProgression slots=0
     - class_vtable=scoop.core.Unit slots=0
     - class_vtable=scoop.core.VariantMeta slots=0
+    - class_vtable=scoop.delegates.Lazy slots=0
+    - class_vtable=scoop.delegates.ObservableProperty slots=0
+    - class_vtable=scoop.delegates.VetoableProperty slots=0
     - class_vtable=scoop.lang.string.StringBuilder slots=0
+    - class_vtable=scoop.sync.CondVar slots=0
+    - class_vtable=scoop.sync.Mutex slots=0
+    - class_vtable=scoop.sync.Once slots=0
+    - class_vtable=scoop.sync.__ScoopSyncCondVarNative slots=0
+    - class_vtable=scoop.sync.__ScoopSyncMutexNative slots=0
+    - class_vtable=scoop.sync.__ScoopSyncOnceNative slots=0
     - class_vtable=scoop.unsafe.FunPtr slots=0
     - class_vtable=scoop.unsafe.Ptr slots=0
     - class_vtable=scoop.unsafe.__AtomicInt slots=0
@@ -166,7 +180,16 @@ lir_facts {
     - class_itable=scoop.core.ULongProgression entries=0
     - class_itable=scoop.core.Unit entries=0
     - class_itable=scoop.core.VariantMeta entries=0
+    - class_itable=scoop.delegates.Lazy entries=1
+    - class_itable=scoop.delegates.ObservableProperty entries=2
+    - class_itable=scoop.delegates.VetoableProperty entries=2
     - class_itable=scoop.lang.string.StringBuilder entries=0
+    - class_itable=scoop.sync.CondVar entries=0
+    - class_itable=scoop.sync.Mutex entries=0
+    - class_itable=scoop.sync.Once entries=0
+    - class_itable=scoop.sync.__ScoopSyncCondVarNative entries=0
+    - class_itable=scoop.sync.__ScoopSyncMutexNative entries=0
+    - class_itable=scoop.sync.__ScoopSyncOnceNative entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
@@ -174,7 +197,7 @@ lir_facts {
     - callable_symbol=lir_callable(187:instance(155:template(141:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;6:a.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h5a8fa69e34d93da1cada96447be38d38) root=a.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__h8d98683f32ce245393d464f9cd82f9d7
     - callable_symbol=lir_callable(191:instance(159:template(145:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;4:a.id;20:non_generic_callable;54:callable_sig(1:0;1:0;1:0;25:F(-;[V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h7de99667d340e1d0d84af119a154a0dc) root=a.id kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_id__h9a12cfa061d63ba7bd5b1915817fbbcf
     - callable_symbol=lir_callable(221:instance(189:template(175:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;8:a.callFn;20:non_generic_callable;80:callable_sig(1:0;1:0;1:0;51:F(-;[F(-;[V(Int)]->V(Int)/E()),V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h968600810847af64b9b526ad4badd29e) root=a.callFn kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_callFn__h48acacaa1e77bf0456047e8bafafd78e
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=453 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=502 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=4
     - callable=a.main.$lambda0 kind=Plain control_body=false key=lir_callable(146:instance(114:template(100:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;15:a.main.$lambda0;21:materialized_callable));6:list();6:list());38:body#h4ba143b1e642a0084550ca04b375f380)
       plain_abi: function_ty=t0 params=2 return=t5 body_slices=1 call_sites=0
@@ -183,7 +206,7 @@ lir_facts {
     - callable=a.id kind=Plain control_body=false key=lir_callable(191:instance(159:template(145:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;4:a.id;20:non_generic_callable;54:callable_sig(1:0;1:0;1:0;25:F(-;[V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h7de99667d340e1d0d84af119a154a0dc)
       plain_abi: function_ty=t45 params=1 return=t5 body_slices=1 call_sites=0
     - callable=a.callFn kind=Plain control_body=false key=lir_callable(221:instance(189:template(175:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;8:a.callFn;20:non_generic_callable;80:callable_sig(1:0;1:0;1:0;51:F(-;[F(-;[V(Int)]->V(Int)/E()),V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h968600810847af64b9b526ad4badd29e)
-      plain_abi: function_ty=t446 params=2 return=t5 body_slices=1 call_sites=1
+      plain_abi: function_ty=t495 params=2 return=t5 body_slices=1 call_sites=1
   step_types=0
   dynamic_invoke_contracts=0
   dispatch_contracts=0

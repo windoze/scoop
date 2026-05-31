@@ -2,3 +2,6 @@
 name = "scoop.delegates"
 version = "0.0.0"
 kind = "syslib"
+
+[dependencies]
+"scoop.sync" = "0.0.0"

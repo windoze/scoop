@@ -2,7 +2,9 @@
 // ARGS: --emit-llvm
 // BUILD-LLVM-CONTAINS: = internal constant %scoop.runtime.ScoopTypeDescriptor
 // BUILD-LLVM-CONTAINS: ptr null, ptr null
-// BUILD-LLVM-NOT-CONTAINS: __scoop_release_
+// `scoop.sync` is now pulled by the default delegates cone and has release hooks;
+// this fixture only asserts the local unannotated class does not get one.
+// BUILD-LLVM-NOT-CONTAINS: __scoop_release_fixtures_build_releasehook_PlainResource
 
 package fixtures.build.releasehook
 
