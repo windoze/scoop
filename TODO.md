@@ -60,7 +60,9 @@
 | P4-T04 | [DONE] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
 | P4-T04R | [DONE] | Review P4-T04 特判清理 |
 | P4-T05 | [DONE] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
-| P4-T05R | [TODO] | Review P4-T05 回归与守卫 |
+| P4-T05R | [DONE] | Review P4-T05 回归与守卫 |
+| P5-T00 | [TODO] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
+| P5-T00R | [TODO] | Review P5-T00 itable 泛型 interface 修复 |
 | P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [TODO] | Review P5-T01 委托库实现 |
 | P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
@@ -561,6 +563,33 @@
 
 > 依据（已核实）：泛型委托路径已把委托对象存成宿主类普通字段、读写编译成 `getValue`/`setValue`（`tests/fixtures/hir/delegated_property_lowering.scoop`），这正是三者要走的路；普通 class 本就能自由持有/改写 `var` 字段（`sysroot/lib/scoop.core/src/core.scoop:1506` 的 `RefCell`/`Atomic`），`@InteriorMutable` 只是值类型后门（`structs.rs:37-44`），与 class 委托无关。本阶段**不需要任何新原语**，是纯减法 + 库重写。
 
+### [TODO] P5-T00：修复泛型 class 实现参数化 interface 的 itable stable type id
+
+- 参考：
+  - `crates/scoopc_hir/src/itable.rs`（`collect_concrete_class_targets`、`build_precise_class_itable_entries`、`stable_runtime_type_id_for_lower`）
+  - `crates/scoopc_hir/src/stable_id.rs`（`StableTypeParamResolver`、`NoTypeParamResolver`、`MissingTypeParamKey`）
+  - 触发形态：`class Lazy<V>(...) : ReadOnlyProperty<Any, V>` / `class ObservableProperty<V>(...) : ReadWriteProperty<Any, V>`
+- 必须实现的内容：
+  1. 修复 runtime itable metadata 对泛型 class 模板或未替换 type param 的处理：不得用 `NoTypeParamResolver` 对含 `TypeParam` 的具体 interface 实例直接求 stable type id。
+  2. 确保 `Lazy<Int> : ReadOnlyProperty<Any, Int>`、`ObservableProperty<Int> : ReadWriteProperty<Any, Int>` 等实例能生成稳定 itable metadata；必要时跳过非 ground 模板、或在 class 实例化后用正确 type-param substitution / stable key resolver 计算。
+  3. 新增最小 run-pass 或 build fixture，覆盖泛型 class 实现参数化 interface 并触发 runtime itable metadata 生成，防止再次出现 `missing stable type parameter key for \`V\``。
+- 必须遵从的约束：
+  - 不得通过让委托类放弃实现 `ReadOnlyProperty` / `ReadWriteProperty`、改成非泛型类、改返回 `Any`、或关闭 itable metadata 来绕过。
+  - 修复应覆盖泛型 class + 参数化 interface 的通用形态，不只针对 `scoop.delegates` 名称。
+- 验证：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
+- 完成条件：泛型 class 实现参数化 interface 的实例可完成 itable metadata 生成；P5-T01 的库委托类形状不再触发 stable type id 错误。
+- 依赖：P4 完成
+- 完成记录：
+  - （待填）
+
+### [TODO] P5-T00R：Review P5-T00 itable 泛型 interface 修复
+
+- 必须实现的内容：复核修复覆盖的是通用泛型 class + 参数化 interface 问题，`NoTypeParamResolver` 不再误用于含未替换 type param 的 runtime interface 实例，新增 fixture 能真实触发 itable metadata。
+- 验证：`python3 tools/run_fixtures.py`
+- 依赖：P5-T00
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
 
 - 参考：
@@ -575,7 +604,9 @@
 - 必须遵从的约束：可见语义必须复刻现状；不依赖任何新编译器原语或 `@InteriorMutable`。
 - 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
 - 完成条件：三者有可用的纯库实现，顶层函数无 `@Intrinsic`。
-- 依赖：P4 完成
+- 依赖：P4 完成；P5-T00R
+- 阻塞记录：
+  - 2026-05-31：尝试按计划实现 `Lazy<V> : ReadOnlyProperty<Any, V>`、`ObservableProperty<V> : ReadWriteProperty<Any, V>` 时，`tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop` 在编译期触发 `scoop::itable::stable_type_id`：`missing stable type parameter key for \`V\``。该问题来自泛型 class 实现参数化 interface 的 runtime itable metadata 计算，不是委托库局部可绕过的问题；已新增 P5-T00/P5-T00R 作为前置修复。
 - 完成记录：
   - （待填）
 

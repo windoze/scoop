@@ -88,6 +88,7 @@
 - P3 收尾之前不算完成：单后端通过不代表四个 GC 后端 + 跨平台都正确。
 - P4 必须晚于 P3：`scoop.sync` 改造是 `@ReleaseHook` 的首个真实 first-user，必须建立在机制已验证、四后端/跨平台已绿之上；否则会把机制 bug 与迁移 bug 混在一起难以定位。
 - P5 必须晚于 P4：线程安全模式的 `lazy`/`observable`/`vetoable` 委托类内部要组合**库** `Mutex`/`Once`，这要求 `scoop.sync` 已先 class 化。P5 同时让 P4-T04 的「lazy/delegate 消费侧 Mutex 引用」决策点彻底消失（宿主类不再被注入 Mutex）。
+- P5-T01 必须晚于 P5-T00/P5-T00R：库委托类按目标形态需要 `class Lazy<V> : ReadOnlyProperty<Any, V>` / `class ObservableProperty<V> : ReadWriteProperty<Any, V>`；当前 runtime itable metadata 对泛型 class 实现参数化 interface 的 stable type id 计算必须先修复并复核。
 
 ## 5. 分阶段计划
 
@@ -198,9 +199,11 @@ trampoline 形态：`void __scoop_release_<TypeMangled>(void *object)`，内部�
 - 泛型委托路径**已经**把委托对象存成宿主类的普通字段、把读写编译成 `getValue`/`setValue`（`tests/fixtures/hir/delegated_property_lowering.scoop`）；这正是这三者要走的路，机制无需新增。
 - 普通 class **本就能自由持有并改写 `var` 字段**（带正常 GC write barrier，零注解）；`sysroot/lib/scoop.core/src/core.scoop:1506` 的 `RefCell<T>`、`Atomic<T: ref>` 即是现成例子。`@InteriorMutable` 只是**值类型（struct 必须 `val`，见 `structs.rs:37-44`）的后门**，与 class 委托无关——因此本阶段**不需要任何新原语、不需要 cell**。
 - 现有特判按代码注释自陈是「早期阶段」策略（`decls.rs:1002-1005`），无本质必要性。
+- 当前新增前置缺口：泛型 class 实现参数化 interface 时，runtime itable metadata 可能对仍含 class type param 的 interface 实例使用 `NoTypeParamResolver` 计算 stable type id，触发 `missing stable type parameter key`。该问题必须先修复，不能通过改变委托库形状绕开。
 
 子任务：
 
+- P5-T00：修复泛型 class 实现参数化 interface 的 runtime itable stable type id 计算——确保 `Lazy<Int> : ReadOnlyProperty<Any, Int>` 这类实例不会以未替换 type param 求 stable id，并用 fixture 锁定通用形态。
 - P5-T01：在 `scoop.delegates` 写 `lazy`/`observable`/`vetoable` 的库实现——普通 class 持自身 `var` 状态（lazy: `inited`/`value`；observable/vetoable: backing value + 回调），实现 `ReadOnlyProperty`/`ReadWriteProperty`；线程安全模式内部组合**库** `Mutex`（P4 后）或 `Once`。三个顶层 `lazy`/`observable`/`vetoable` 从 `@Intrinsic` 降为返回包装类的普通 `fun`；`lazy` 的 `LazyThreadSafetyMode`（None/Synchronized/Publication）各模式行为对齐。
 - P5-T02：删除 by-name 合成与分叉——`hir/lower/sugar.rs` 三者的 get/set 合成（`:201-622`/`:624-854`/`:856-1047`）、`hir/lower/util/decls.rs` 的 backing 字段注入（`:933-987`/`:1000-1046`）、`impl_lowering.rs:33-36` 的 `SYNC_MUTEX_*` FQN 常量及其 `decls.rs:964-986`/`1021-1029` 使用点、`ParsedStdDelegateExpr::{Lazy,Observable,Vetoable}` 分叉；使 `DelegatedPropertyInfo` 只剩泛型分支。
 - P5-T03：回归与守卫——把现有 lazy/observable/vetoable run-pass/hir fixtures 切到库实现并验证语义不变（含 lazy 三模式、observable 回调在「写后」、vetoable 否决不写）；把「零编译器硬编码」grep 守卫扩展到 `lazy`/`observable`/`vetoable` 与 `scoop.sync.Mutex` 注入点（P4-T04 的消费侧允许点此时应可一并删除）。
