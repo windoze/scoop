@@ -70,6 +70,7 @@
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [DONE] | Review P5-T02 特判删除 |
+| P5-T02B | [TODO] | 修复标准委托 effectful 回调的 owner `eff` 参数运行路径 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
 
@@ -723,6 +724,21 @@
   - 2026-05-31：复核 P5-T02 / P5-T02A 当前源码：`crates/scoopc_hir/src/hir/lower/types.rs` 中 `DelegatedPropertyInfo` 已收敛为 `GenericDelegatedPropertyInfo` 类型别名，生产 HIR lowering grep 未发现 `ParsedStdDelegateExpr`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`MapBacked`、`parse_map_backed_delegate_expr`、map-backed field-copy 分支或生产 `SYNC_MUTEX_*` 常量残留。`decls.rs` 统一为每个 delegated property 注入普通 `$delegate` 字段并 lower 原始 delegate 表达式，`members.rs` / `sugar.rs` 统一生成 `$delegate.getValue(thisRef, PropertyMeta)` / `$delegate.setValue(thisRef, PropertyMeta, value)` synthetic call，相关 HIR golden 与 `delegated_property_map_backed_basic.scoop` 覆盖统一泛型路径。仍存在的 `scoop.delegates.lazy/observable/vetoable` typecheck/platform policy by-name 逻辑不属于 HIR lowering 合成残留，已由后续 `P5-T03` 的硬编码守卫/透明化收口覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`。完整 `python3 tools/run_fixtures.py` 首轮除已由 `P5-T03` 精确调度的 `run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 外，还观测到一次 `runtime_gc/std_sync_backend_parity_immix_major.scoop` 59s timeout；该 fixture 单独重复运行、`tests/fixtures/runtime_gc` 子套件运行与完整 suite 重跑均通过。完整重跑最终仅剩 `P5-T03` 已调度失败，未发现新的未调度失败。
 
+### [TODO] P5-T02B：修复标准委托 effectful 回调的 owner `eff` 参数运行路径
+
+- 触发：执行 P5-T03 时，`tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 仍失败。先修正 `PropertyMeta` 合成中的 `TypeKind` 裸 `UnresolvedIdent` 后，失败推进为标准库 `observable` 回调仍按 Pure 函数值存储，`Raise.raise` 在闭包体 codegen 时缺少 explicit `EffectOutcome` 槽位；尝试把 `ObservableProperty<V>` / `VetoableProperty<V>` 改为 `ObservableProperty<V, eff E>` / `VetoableProperty<V, eff E>` 后，又暴露 owner effect 参数在 constructor overload、member type instantiation、HIR generic template/materialization 与 effect facts 路径中的支持不完整。
+- 必须实现的内容：
+  1. 为泛型 class 的 owner `eff` 参数补齐 typecheck/HIR/MIR 运行路径：constructor 参数类型、member 字段/方法类型、direct supertype、dispatch candidate materialization、stable signature key 与 effect facts surface 都必须能携带并替换 owner `eff E`。
+  2. 将 `ObservableProperty` / `VetoableProperty` 及其 factory 函数改为 effect-polymorphic：`onChange` 类型分别为 `(V, V) -> Unit / E`、`(V, V) -> Bool / E`，`setValue` 声明 `/ E`，且 `observable` 回调在写后执行、`vetoable` 否决不写的既有语义不变。
+  3. 修复 delegated-property synthetic `PropertyMeta` 中 `TypeKind` enum variant 合成，不能在 MIR/effect-lowered 中留下 `UnresolvedName { name: "Primitive" | "Class" }`。
+  4. 新增/更新最小回归，覆盖 owner effect-param class 构造、member call 和 `observable + Raise` 委托属性路径。
+- 必须遵从的约束：不得恢复 lazy/observable/vetoable 专用 lowering，不得把回调改成 Pure、Any shim、名称特判或 fixture-only 绕过。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、相关 owner-effect targeted fixtures、`python3 tools/run_fixtures.py`。
+- 完成条件：`delegated_property_observable_raise_does_not_poison_mutex.scoop` 通过；标准委托 effectful 回调通过普通库类 + 泛型委托路径传播 effect；owner `eff` 参数不再在构造、member、materialization 或 effect facts 任一路径退化/丢失。
+- 依赖：P5-T02R
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T03：委托回归 + 守卫扩展
 
 - 参考：[`PLAN.md`](./PLAN.md) §5 / P5-T03、§6（委托库化语义对齐）
@@ -733,7 +749,7 @@
 - 必须遵从的约束：以迁移前语义为基线逐项对齐；分配开销变化（委托对象字段 vs 宿主内联字段）在基线说明中注明。
 - 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
 - 完成条件：委托回归与守卫绿；语义逐项一致。
-- 依赖：P5-T02
+- 依赖：P5-T02B
 - 完成记录：
   - （待填）
 

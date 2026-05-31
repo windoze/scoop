@@ -453,6 +453,7 @@ impl<'a> HirLowering<'a> {
                         pkg_prefix,
                         &owner_fqn,
                         &decl.type_params,
+                        decl.eff_param.as_ref(),
                         decl.name.span,
                         fun,
                     ));
@@ -494,6 +495,7 @@ impl<'a> HirLowering<'a> {
                         pkg_prefix,
                         &owner_fqn,
                         &[],
+                        None,
                         this_decl_span,
                         fun,
                     ));
@@ -714,11 +716,13 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         owner_fqn: &str,
         owner_type_params: &[ast::TypeParam],
+        owner_eff_param: Option<&ast::EffectRowParam>,
         this_decl_span: Span,
         fun: &ast::FunDecl,
     ) -> FunDecl {
         // owner type params 在 member 方法体内可见（例如 `class Box<T> { fun get(): T }`）。
         self.push_type_params(owner_type_params);
+        let owner_eff_binding_pushed = self.push_missing_fun_effect_placeholder(owner_eff_param);
         self.push_type_params(&fun.type_params);
         let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
 
@@ -730,7 +734,18 @@ impl<'a> HirLowering<'a> {
             .iter()
             .filter_map(|p| self.lookup_type_param(p.name.text(self.source)))
             .collect();
-        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, None);
+        let this_eff = owner_eff_param.and_then(|eff_param| {
+            let name = eff_param.name.text(self.source);
+            self.effect_row_param_scopes
+                .iter()
+                .rev()
+                .find_map(|scope| scope.get(name))
+                .map(|binding| match binding {
+                    EffectRowParamBinding::Placeholder(marker) => EffectRow::new(vec![*marker]),
+                    EffectRowParamBinding::Concrete(row) => row.clone(),
+                })
+        });
+        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, this_eff);
 
         let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + 1);
         params.push(Param {
@@ -783,6 +798,9 @@ impl<'a> HirLowering<'a> {
             self.pop_effect_row_param_binding();
         }
         self.pop_type_params(); // fun type params
+        if owner_eff_binding_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params(); // owner type params
 
         FunDecl {
@@ -1109,6 +1127,7 @@ impl<'a> HirLowering<'a> {
         owner_fqn: &str,
         this_decl_span: Span,
         this_concrete_args: &[TypeId],
+        this_concrete_eff: Option<EffectRow>,
         fun: &ast::FunDecl,
     ) -> FunDecl {
         // 方法自身的 type params（如果有的话）仍然需要 push；
@@ -1120,7 +1139,11 @@ impl<'a> HirLowering<'a> {
         let fqn = format!("{owner_fqn}.{name}");
 
         let this_id = self.intern_local_symbol(this_decl_span, false);
-        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_concrete_args.to_vec(), None);
+        let this_ty = self.intern_nominal(
+            owner_fqn.to_string(),
+            this_concrete_args.to_vec(),
+            this_concrete_eff,
+        );
 
         let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + 1);
         params.push(Param {

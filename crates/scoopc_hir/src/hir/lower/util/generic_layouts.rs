@@ -279,6 +279,15 @@ pub(in crate::hir::lower) fn lower_layout_effect_row_expr(
                 param_map,
                 types,
             )
+            .or_else(|| {
+                (term.segments.len() == 1 && term.args.is_empty()).then(|| {
+                    types.intern(TypeKind::Param(TypeParamType {
+                        name: term.segments[0].text(source).to_string(),
+                        decl_file: std::path::PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
+                        decl_span: term.span,
+                    }))
+                })
+            })
         })
         .collect::<Option<Vec<_>>>()?;
     Some(EffectRow::new(terms))

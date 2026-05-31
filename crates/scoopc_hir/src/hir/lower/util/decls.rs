@@ -862,6 +862,7 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     // T0125：泛型 class 的 ctor 参数类型可能引用 type params（如 `T`），
     // 需要在 lowering 之前推入 type param 作用域，使 `lower_type_ref` 能够解析为 `TypeKind::Param`。
     ctx.push_type_params(&decl.type_params);
+    let type_eff_pushed = ctx.push_missing_fun_effect_placeholder(decl.eff_param.as_ref());
 
     // primary ctor（若存在）。注意：resolver 当前只会把”显式 primary ctor”加入 constructors overload set，
     // 因此这里也只收集显式 primary ctor。
@@ -1091,6 +1092,9 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         }
     }
 
+    if type_eff_pushed {
+        ctx.pop_effect_row_param_binding();
+    }
     ctx.pop_type_params();
 
     // 非泛型 class 在此处直接构造 MonoClassInit；泛型 class 仅入 generic_class_decls，
@@ -1135,9 +1139,12 @@ fn materialized_delegate_factory_target_fqn(
     let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
         return None;
     };
-    let type_args = match ctx.types.kind(delegate_ty) {
+    let (type_args, eff_args) = match ctx.types.kind(delegate_ty) {
         TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let eff_args = nominal.eff.clone().into_iter().collect::<Vec<_>>();
+            (nominal.args.clone(), eff_args)
+        }
         _ => return None,
     };
     if type_args.is_empty() {
@@ -1158,7 +1165,7 @@ fn materialized_delegate_factory_target_fqn(
         overload.symbol.decl_file.as_path(),
         overload.symbol.span,
         &type_args,
-        &[],
+        &eff_args,
     ))
 }
 

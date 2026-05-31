@@ -348,7 +348,6 @@ pub(super) fn collect_top_level_fun_signatures(
             lower.push_where_bounds(bounds);
             true
         };
-
         // T0509：effect row 参数（`<eff E = Pure>`）。
         //
         // 说明：这里先把 `E` 绑定到默认值（缺省为 Pure），以便签名里的 `(...) / E` 能顺利 lowering；
@@ -1038,6 +1037,7 @@ fn collect_struct_field_types_in_foreign_type_decl(
                     &type_fqn,
                     field_name,
                     &type_param_names,
+                    decl.eff_param.as_ref(),
                     ty_ref,
                     lower,
                     out,
@@ -1059,6 +1059,7 @@ fn collect_struct_field_types_in_foreign_type_decl(
                     &type_fqn,
                     field_name,
                     &type_param_names,
+                    decl.eff_param.as_ref(),
                     ty_ref,
                     lower,
                     out,
@@ -1082,6 +1083,7 @@ fn collect_struct_field_types_in_foreign_type_decl(
                     &type_fqn,
                     field_name,
                     &type_param_names,
+                    decl.eff_param.as_ref(),
                     ty_ref,
                     lower,
                     out,
@@ -1103,6 +1105,7 @@ fn collect_struct_field_types_in_foreign_type_decl(
                     &type_fqn,
                     field_name,
                     &type_param_names,
+                    decl.eff_param.as_ref(),
                     ty_ref,
                     lower,
                     out,
@@ -1176,6 +1179,7 @@ fn collect_struct_field_types_in_foreign_object_decl(
                     &obj_fqn,
                     field_name,
                     &[],
+                    None,
                     ty_ref,
                     lower,
                     out,
@@ -1201,11 +1205,13 @@ fn collect_struct_field_types_in_foreign_object_decl(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn insert_foreign_struct_field_type(
     decl_file: &Path,
     owner_fqn: &str,
     field_name: &str,
     type_param_names: &[String],
+    eff_param: Option<&ast::EffectRowParam>,
     ty_ref: &ast::TypeRef,
     lower: &mut TypeLowering<'_>,
     out: &mut HashMap<String, TypeId>,
@@ -1215,9 +1221,10 @@ fn insert_foreign_struct_field_type(
         return Ok(());
     }
 
-    let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+    let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params_and_eff(
         decl_file,
         type_param_names,
+        eff_param,
         ty_ref,
     )?;
     out.insert(field_fqn, ty);
@@ -1249,6 +1256,13 @@ fn collect_struct_field_types_in_type_decl(
             lower.push_where_bounds(bounds);
             true
         };
+        let eff_binding_pushed = if let Some(eff_param) = &decl.eff_param {
+            let name = source.slice(eff_param.name.span).to_string();
+            lower.push_effect_row_param_marker_binding(name, eff_param.name.span);
+            true
+        } else {
+            false
+        };
 
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
@@ -1277,6 +1291,9 @@ fn collect_struct_field_types_in_type_decl(
         if where_bounds_pushed {
             lower.pop_where_bounds();
         }
+        if eff_binding_pushed {
+            lower.pop_effect_row_param_binding();
+        }
         lower.pop_type_params(&decl.type_params);
     }
 
@@ -1290,6 +1307,13 @@ fn collect_struct_field_types_in_type_decl(
         } else {
             lower.push_where_bounds(bounds);
             true
+        };
+        let eff_binding_pushed = if let Some(eff_param) = &decl.eff_param {
+            let name = source.slice(eff_param.name.span).to_string();
+            lower.push_effect_row_param_marker_binding(name, eff_param.name.span);
+            true
+        } else {
+            false
         };
 
         // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 类型表。
@@ -1322,6 +1346,9 @@ fn collect_struct_field_types_in_type_decl(
 
         if where_bounds_pushed {
             lower.pop_where_bounds();
+        }
+        if eff_binding_pushed {
+            lower.pop_effect_row_param_binding();
         }
         lower.pop_type_params(&decl.type_params);
     }

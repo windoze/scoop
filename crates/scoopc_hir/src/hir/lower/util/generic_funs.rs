@@ -971,6 +971,7 @@ pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates_wi
                         index,
                         &fqn,
                         &[],
+                        None,
                         fun,
                     ),
                     has_body: !matches!(fun.body, ast::FunBody::Missing),

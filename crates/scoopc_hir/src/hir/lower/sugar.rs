@@ -284,8 +284,15 @@ impl<'a> HirLowering<'a> {
                         value: Expr {
                             span,
                             ty: type_kind_ty,
-                            kind: ExprKind::UnresolvedIdent {
-                                name: kind_name.to_string(),
+                            kind: ExprKind::Call {
+                                callee: Box::new(Expr {
+                                    span,
+                                    ty: self.builtins.any,
+                                    kind: ExprKind::UnresolvedIdent {
+                                        name: kind_name.to_string(),
+                                    },
+                                }),
+                                args: Vec::new(),
                             },
                         },
                     },

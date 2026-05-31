@@ -388,6 +388,8 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_with_sour
                             owner_fqn: base_fqn,
                             this_decl_span: decl.name.span,
                             this_concrete_args: concrete_args,
+                            this_concrete_eff: None,
+                            owner_effect_binding: None,
                             fun,
                         },
                         bindings.clone(),
@@ -465,6 +467,7 @@ pub(in crate::hir::lower) enum ExplicitMemberTemplate<'a> {
         file: &'a ast::File,
         owner_fqn: String,
         owner_type_params: &'a [ast::TypeParam],
+        owner_eff_param: Option<&'a ast::EffectRowParam>,
         this_decl_span: Span,
         fun: &'a ast::FunDecl,
         signature_key: String,
@@ -596,6 +599,7 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
     f(&mut ctx)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn canonical_generic_fun_signature_key(
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
@@ -603,6 +607,7 @@ pub fn canonical_generic_fun_signature_key(
     index: &Index,
     owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
+    owner_eff_param: Option<&ast::EffectRowParam>,
     fun: &ast::FunDecl,
 ) -> String {
     let declaration_kind = generic_fun_decl_kind(fun);
@@ -625,6 +630,21 @@ pub fn canonical_generic_fun_signature_key(
             &*ctx.types,
             &mut resolver,
         );
+        let owner_eff_count = usize::from(owner_eff_param.is_some());
+        if let Some(eff_param) = owner_eff_param {
+            let name = eff_param.name.text(source).to_string();
+            ctx.push_effect_row_param_placeholder(name, eff_param.name.span);
+            let effect_scope_index = ctx.effect_row_param_scopes.len() - 1;
+            bind_signature_effect_param(
+                source,
+                &ctx.effect_row_param_scopes[effect_scope_index],
+                eff_param,
+                &owner_key,
+                owner_type_params.len(),
+                &*ctx.types,
+                &mut resolver,
+            );
+        }
 
         ctx.push_type_params(&fun.type_params);
         let fun_scope_index = ctx.type_param_scopes.len() - 1;
@@ -633,7 +653,7 @@ pub fn canonical_generic_fun_signature_key(
             &ctx.type_param_scopes[fun_scope_index],
             &fun.type_params,
             &owner_key,
-            owner_type_params.len(),
+            owner_type_params.len() + owner_eff_count,
             &*ctx.types,
             &mut resolver,
         );
@@ -647,7 +667,7 @@ pub fn canonical_generic_fun_signature_key(
                 &ctx.effect_row_param_scopes[effect_scope_index],
                 eff_param,
                 &owner_key,
-                owner_type_params.len() + fun.type_params.len(),
+                owner_type_params.len() + owner_eff_count + fun.type_params.len(),
                 &*ctx.types,
                 &mut resolver,
             );
@@ -687,7 +707,7 @@ pub fn canonical_generic_fun_signature_key(
             callable_ty,
             owner_type_params.len(),
             fun.type_params.len(),
-            usize::from(fun.eff_param.is_some()),
+            owner_eff_count + usize::from(fun.eff_param.is_some()),
             &resolver,
         )
         .expect("generic callable signature key should encode canonical type/effect text")
@@ -844,18 +864,29 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                 file,
                 owner_fqn,
                 owner_type_params,
+                owner_eff_param,
                 this_decl_span,
                 fun,
                 ..
             } => {
                 let owner_param_count = owner_type_params.len();
                 let fun_param_count = fun.type_params.len();
+                let owner_eff_count = usize::from(owner_eff_param.is_some());
+                let fun_eff_count = usize::from(fun.eff_param.is_some());
                 if instance.type_args.len() != owner_param_count + fun_param_count {
                     return Err(explicit_instance_lowering_error(format!(
                         "member fun `{}` 的 type args 数量不匹配：期望 {}，得到 {}",
                         instance.template.fqn,
                         owner_param_count + fun_param_count,
                         instance.type_args.len()
+                    )));
+                }
+                if instance.eff_args.len() != owner_eff_count + fun_eff_count {
+                    return Err(explicit_instance_lowering_error(format!(
+                        "member fun `{}` 的 effect args 数量不匹配：期望 {}，得到 {}",
+                        instance.template.fqn,
+                        owner_eff_count + fun_eff_count,
+                        instance.eff_args.len()
                     )));
                 }
                 let owner_args = instance.type_args[..owner_param_count]
@@ -871,11 +902,18 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                     .iter()
                     .map(|row| re_intern_effect_row_from(types, instance_types, row))
                     .collect::<Vec<_>>();
-                let effect_binding = build_effect_binding(
+                let owner_eff_param_owned = owner_eff_param.as_ref().map(|param| (*param).clone());
+                let owner_effect_binding = build_effect_binding(
+                    source,
+                    &instance.template.fqn,
+                    &owner_eff_param_owned,
+                    &eff_args[..owner_eff_count],
+                )?;
+                let fun_effect_binding = build_effect_binding(
                     source,
                     &instance.template.fqn,
                     &fun.eff_param,
-                    &eff_args,
+                    &eff_args[owner_eff_count..],
                 )?;
                 let instance_fqn = stable_instance_fqn(
                     types,
@@ -918,11 +956,15 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                         owner_fqn,
                         this_decl_span: *this_decl_span,
                         this_concrete_args: &owner_args,
+                        this_concrete_eff: owner_effect_binding
+                            .as_ref()
+                            .map(|(_, row)| row.clone()),
+                        owner_effect_binding,
                         fun,
                     },
                     owner_bindings,
                     fun_bindings,
-                    effect_binding,
+                    fun_effect_binding,
                 );
                 hir_fun.fqn = instance_fqn;
                 out.push(hir_fun);
@@ -1094,7 +1136,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_type_decl<'a>(
 ) {
     let local_name = decl.name.text(source);
     let owner_fqn = join_prefix(owner_prefix, local_name);
-    let owner_is_generic = !decl.type_params.is_empty();
+    let owner_is_generic = !decl.type_params.is_empty() || decl.eff_param.is_some();
     let Some(body) = &decl.body else {
         return;
     };
@@ -1116,6 +1158,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_type_decl<'a>(
                         file,
                         owner_fqn: owner_fqn.clone(),
                         owner_type_params: &decl.type_params,
+                        owner_eff_param: decl.eff_param.as_ref(),
                         this_decl_span: decl.name.span,
                         fun,
                         signature_key: canonical_generic_fun_signature_key(
@@ -1125,6 +1168,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_type_decl<'a>(
                             index,
                             &owner_fqn,
                             &decl.type_params,
+                            decl.eff_param.as_ref(),
                             fun,
                         ),
                         has_body: !matches!(fun.body, ast::FunBody::Missing),
@@ -1229,6 +1273,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_object_decl<'a
                         file,
                         owner_fqn: owner_fqn.clone(),
                         owner_type_params: &[],
+                        owner_eff_param: None,
                         this_decl_span,
                         fun,
                         signature_key: canonical_generic_fun_signature_key(
@@ -1238,6 +1283,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_object_decl<'a
                             index,
                             &owner_fqn,
                             &[],
+                            None,
                             fun,
                         ),
                         has_body: !matches!(fun.body, ast::FunBody::Missing),

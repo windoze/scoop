@@ -21,6 +21,8 @@ pub(in crate::hir) struct BoundMemberFunLoweringTarget<'a> {
     pub(in crate::hir::lower) owner_fqn: &'a str,
     pub(in crate::hir::lower) this_decl_span: Span,
     pub(in crate::hir::lower) this_concrete_args: &'a [TypeId],
+    pub(in crate::hir::lower) this_concrete_eff: Option<EffectRow>,
+    pub(in crate::hir::lower) owner_effect_binding: Option<(String, EffectRow)>,
     pub(in crate::hir::lower) fun: &'a ast::FunDecl,
 }
 
@@ -182,6 +184,8 @@ pub(crate) fn lower_member_fun_with_bindings(
         owner_fqn,
         this_decl_span,
         this_concrete_args,
+        this_concrete_eff,
+        owner_effect_binding,
         fun,
     } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -219,6 +223,12 @@ pub(crate) fn lower_member_fun_with_bindings(
     if fun_type_bindings_pushed {
         ctx.push_type_param_bindings(fun_type_bindings);
     }
+    let owner_effect_binding_pushed = if let Some((name, row)) = owner_effect_binding {
+        ctx.push_effect_row_param_binding(name, row);
+        true
+    } else {
+        false
+    };
     let effect_binding_pushed = if let Some((name, row)) = effect_binding {
         ctx.push_effect_row_param_binding(name, row);
         true
@@ -230,9 +240,13 @@ pub(crate) fn lower_member_fun_with_bindings(
         owner_fqn,
         this_decl_span,
         this_concrete_args,
+        this_concrete_eff,
         fun,
     );
     if effect_binding_pushed {
+        ctx.pop_effect_row_param_binding();
+    }
+    if owner_effect_binding_pushed {
         ctx.pop_effect_row_param_binding();
     }
     if fun_type_bindings_pushed {

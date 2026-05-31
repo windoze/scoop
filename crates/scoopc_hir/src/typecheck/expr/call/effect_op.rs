@@ -132,7 +132,7 @@ pub(in crate::typecheck::expr) fn combined_member_instance_type_args(
     lower: &mut TypeLowering<'_>,
 ) -> Result<Vec<TypeId>, ExprTypeError> {
     let mut type_args = find_member_owner_nominal_instantiation(receiver_ty, callee_fqn, lower)?
-        .map(|(_, owner_args)| owner_args)
+        .map(|(_, owner_args, _)| owner_args)
         .unwrap_or_default();
     type_args.extend(fun_type_args.iter().copied());
     Ok(type_args)

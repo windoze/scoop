@@ -37,6 +37,7 @@ struct CtorTypeParamContext {
     owner_type_param_count: usize,
     type_params: Vec<TypeId>,
     bindings: Vec<(String, TypeId)>,
+    eff_bindings: Vec<(String, EffectRow)>,
     where_constraints: Vec<FunWhereConstraintInfo>,
 }
 
@@ -87,6 +88,15 @@ fn ctor_type_param_context(
         type_params.push(ty);
         bindings.push((name.clone(), ty));
     }
+    let mut eff_bindings = Vec::new();
+    if let Some(eff_param) = owner_sym.as_ref().and_then(|sym| sym.eff_param.as_ref()) {
+        let marker = lower.ty_param_named(
+            eff_param.name.clone(),
+            std::path::PathBuf::from(crate::ty::EFFECT_ROW_PARAM_DECL_FILE),
+            eff_param.span,
+        );
+        eff_bindings.push((eff_param.name.clone(), EffectRow::new(vec![marker])));
+    }
 
     for param in &ctor.type_params {
         let ty = lower.ty_param_named(param.name.clone(), ctor.decl_file.clone(), param.name_span);
@@ -126,6 +136,7 @@ fn ctor_type_param_context(
         owner_type_param_count: owner_names.len(),
         type_params,
         bindings,
+        eff_bindings,
         where_constraints,
     }
 }
@@ -211,6 +222,11 @@ pub(super) fn instantiate_ctor_param_tys(
         for param_ty in type_params.iter().copied() {
             let mut candidates: Vec<TypeId> = Vec::new();
             for found_ty in &found_tys {
+                if expected_ty == param_ty
+                    && matches!(lower.type_kind(*found_ty), TypeKind::Param(_))
+                {
+                    candidates.push(*found_ty);
+                }
                 collect_type_arg_candidates_for_single_type_param(
                     expected_ty,
                     *found_ty,
@@ -254,6 +270,10 @@ pub(super) fn instantiate_ctor_param_tys(
         let chosen = if let Some(t) = explicit_at {
             if let Some(bound) = arg_inferred
                 && bound != t
+                && !matches!(
+                    (lower.type_kind(bound), lower.type_kind(t)),
+                    (TypeKind::Param(_), TypeKind::Param(_))
+                )
             {
                 return Ok(None);
             }
@@ -368,9 +388,10 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
                 ok = false;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &ctor.decl_file,
                 type_param_context.bindings.iter().cloned(),
+                type_param_context.eff_bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_tys.push(ty);
@@ -523,9 +544,10 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
                 malformed = true;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &ctor.decl_file,
                 type_param_context.bindings.iter().cloned(),
+                type_param_context.eff_bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_ty_strs.push(lower.fmt_type(ty));

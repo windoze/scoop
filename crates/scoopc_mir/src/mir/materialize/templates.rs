@@ -13,6 +13,7 @@ pub(super) struct GenericTemplateInfo {
     pub(super) has_body: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn generic_template_signature_key_with_owner_params(
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
@@ -20,6 +21,7 @@ pub(super) fn generic_template_signature_key_with_owner_params(
     index: &Index,
     owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
+    owner_eff_param: Option<&ast::EffectRowParam>,
     fun: &ast::FunDecl,
 ) -> String {
     crate::hir::canonical_generic_fun_signature_key(
@@ -29,6 +31,7 @@ pub(super) fn generic_template_signature_key_with_owner_params(
         index,
         owner_fqn,
         owner_type_params,
+        owner_eff_param,
         fun,
     )
 }
@@ -42,9 +45,14 @@ pub(super) fn push_generic_template_info(
     index: &Index,
     owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
+    owner_eff_param: Option<&ast::EffectRowParam>,
     fun: &ast::FunDecl,
 ) {
-    if owner_type_params.is_empty() && fun.type_params.is_empty() && fun.eff_param.is_none() {
+    if owner_type_params.is_empty()
+        && owner_eff_param.is_none()
+        && fun.type_params.is_empty()
+        && fun.eff_param.is_none()
+    {
         return;
     }
 
@@ -61,6 +69,7 @@ pub(super) fn push_generic_template_info(
         index,
         owner_fqn,
         owner_type_params,
+        owner_eff_param,
         fun,
     );
     out.push(GenericTemplateInfo {
@@ -86,9 +95,8 @@ pub(super) fn push_generic_template_info(
                     .map(|param| param.name.text(source).to_string()),
             )
             .collect(),
-        eff_param_name: fun
-            .eff_param
-            .as_ref()
+        eff_param_name: owner_eff_param
+            .or(fun.eff_param.as_ref())
             .map(|param| param.name.text(source).to_string()),
         signature_key,
         has_body: matches!(fun.body, ast::FunBody::Block(_)),
@@ -181,6 +189,7 @@ pub(super) fn collect_generic_templates_from_type_body(
     index: &Index,
     owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
+    owner_eff_param: Option<&ast::EffectRowParam>,
     owner_kind: Option<ast::TypeKind>,
     body: Option<&ast::TypeBody>,
 ) {
@@ -197,6 +206,7 @@ pub(super) fn collect_generic_templates_from_type_body(
                 index,
                 owner_fqn,
                 owner_type_params,
+                owner_eff_param,
                 fun,
             ),
             ast::TypeMember::Property(property)
@@ -226,6 +236,7 @@ pub(super) fn collect_generic_templates_from_type_body(
                     index,
                     &nested_owner,
                     &ty.type_params,
+                    ty.eff_param.as_ref(),
                     Some(ty.kind),
                     ty.body.as_ref(),
                 );
@@ -251,6 +262,7 @@ pub(super) fn collect_generic_templates_from_type_body(
                     index,
                     &nested_owner,
                     &[],
+                    None,
                     None,
                     obj.body.as_ref(),
                 );
@@ -301,6 +313,7 @@ pub(super) fn collect_generic_template_infos_with_source_cones(
                         index,
                         &pkg_prefix,
                         &[],
+                        None,
                         fun,
                     );
                 }
@@ -318,6 +331,7 @@ pub(super) fn collect_generic_template_infos_with_source_cones(
                         index,
                         &owner_fqn,
                         &ty.type_params,
+                        ty.eff_param.as_ref(),
                         Some(ty.kind),
                         ty.body.as_ref(),
                     );
@@ -347,6 +361,7 @@ pub(super) fn collect_generic_template_infos_with_source_cones(
                         index,
                         &owner_fqn,
                         &[],
+                        None,
                         None,
                         obj.body.as_ref(),
                     );
