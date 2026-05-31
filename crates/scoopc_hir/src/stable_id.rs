@@ -7,7 +7,11 @@
 //! text here instead of reusing `TypeStore::display()`, raw `Debug` output, or
 //! path/span text as the authoritative identity input.
 
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::HashMap,
+    fmt,
+    hash::{Hash, Hasher},
+};
 
 use thiserror::Error;
 
@@ -329,8 +333,12 @@ impl EffectRowTemplate {
         }
         let terms = split_top_level_effect_terms(body)
             .into_iter()
-            .map(EffectTerm::concrete)
-            .collect();
+            .map(|term| {
+                parse_effect_term_canonical_text(&term).ok_or_else(|| {
+                    CanonicalEncodingError::InvalidEffectRowTemplateText { text: text.clone() }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self::new(terms, closed))
     }
 
@@ -668,7 +676,7 @@ impl StableSymbolKey for CallTargetKey {
 }
 
 /// ABI symbol identity composed from the ABI namespace and semantic target key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AbiSymbolKey {
     kind: AbiSymbolKind,
     target_canonical_text: String,
@@ -701,6 +709,21 @@ impl StableCanonicalKey for AbiSymbolKey {
                 self.target_canonical_text.clone(),
             ],
         )
+    }
+}
+
+impl PartialEq for AbiSymbolKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.target_canonical_text == other.target_canonical_text
+    }
+}
+
+impl Eq for AbiSymbolKey {}
+
+impl Hash for AbiSymbolKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kind.hash(state);
+        self.target_canonical_text.hash(state);
     }
 }
 
@@ -1336,6 +1359,91 @@ fn split_top_level_effect_terms(body: &str) -> Vec<String> {
     parts
 }
 
+fn parse_effect_term_canonical_text(text: &str) -> Option<EffectTerm> {
+    if text.is_empty() {
+        return None;
+    }
+    if text.starts_with("eff_param(") {
+        return parse_stable_effect_param_key(text).map(|param| {
+            EffectTerm::param(
+                param.owner().clone(),
+                param.ordinal(),
+                param.name().to_string(),
+            )
+        });
+    }
+    Some(EffectTerm::concrete(text))
+}
+
+fn parse_stable_effect_param_key(text: &str) -> Option<StableEffectParamKey> {
+    let parts = parse_canonical_record(text, "eff_param")?;
+    let [owner_text, ordinal_text, name] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableEffectParamKey::new(
+        parse_stable_def_key(owner_text)?,
+        ordinal_text.parse().ok()?,
+        (*name).to_string(),
+    ))
+}
+
+fn parse_stable_def_key(text: &str) -> Option<StableDefKey> {
+    let parts = parse_canonical_record(text, "def")?;
+    if !(4..=5).contains(&parts.len()) {
+        return None;
+    }
+    Some(StableDefKey::new(
+        parse_stable_cone_key(parts[0])?,
+        parse_stable_def_namespace(parts[1])?,
+        parts[2].to_string(),
+        parts[3].to_string(),
+        parts.get(4).map(|part| (*part).to_string()),
+    ))
+}
+
+fn parse_stable_cone_key(text: &str) -> Option<StableConeKey> {
+    let parts = parse_canonical_record(text, "cone")?;
+    let [name, version] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableConeKey::new(*name, *version))
+}
+
+fn parse_stable_def_namespace(text: &str) -> Option<StableDefNamespace> {
+    match text {
+        "type" => Some(StableDefNamespace::Type),
+        "value" => Some(StableDefNamespace::Value),
+        "fun" => Some(StableDefNamespace::Fun),
+        "property_getter" => Some(StableDefNamespace::PropertyGetter),
+        "property_setter" => Some(StableDefNamespace::PropertySetter),
+        "object_init" => Some(StableDefNamespace::ObjectInit),
+        "top_level_init" => Some(StableDefNamespace::TopLevelInit),
+        "extern_global" => Some(StableDefNamespace::ExternGlobal),
+        "interface" => Some(StableDefNamespace::Interface),
+        _ => None,
+    }
+}
+
+fn parse_canonical_record<'a>(text: &'a str, tag: &str) -> Option<Vec<&'a str>> {
+    let prefix = format!("{tag}(");
+    let mut rest = text.strip_prefix(&prefix)?.strip_suffix(')')?;
+    let mut parts = Vec::new();
+    while !rest.is_empty() {
+        let colon = rest.find(':')?;
+        let len = rest[..colon].parse::<usize>().ok()?;
+        let value_start = colon + 1;
+        let value_end = value_start.checked_add(len)?;
+        let value = rest.get(value_start..value_end)?;
+        parts.push(value);
+        rest = rest.get(value_end..)?;
+        if rest.is_empty() {
+            break;
+        }
+        rest = rest.strip_prefix(';')?;
+    }
+    Some(parts)
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -1552,6 +1660,70 @@ mod tests {
     }
 
     #[test]
+    fn effect_row_template_from_effect_row_preserves_effect_params() {
+        let mut types = TypeStore::new();
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.run",
+            "generic_fun",
+            None,
+        );
+        let param = TypeParamType {
+            name: "E".to_string(),
+            decl_file: PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
+            decl_span: Span::new(5, 6),
+        };
+        let param_ty = types.ty_param(param.clone());
+        let param_key = StableEffectParamKey::new(owner.clone(), 0, "E");
+
+        let template = EffectRowTemplate::from_effect_row(
+            &types,
+            &EffectRow::new(vec![param_ty]),
+            &NoTypeParamResolver,
+            &HashMap::from([(param, param_key)]),
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(template.terms(), &[EffectTerm::param(owner, 0, "E")]);
+        assert!(template.canonical_text().contains("eff_param("));
+    }
+
+    #[test]
+    fn effect_row_template_from_canonical_text_preserves_effect_params() {
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.run",
+            "generic_fun",
+            Some("sig".to_string()),
+        );
+        let template = EffectRowTemplate::new(
+            vec![
+                EffectTerm::param(owner.clone(), 0, "E"),
+                EffectTerm::concrete("N(pkg.IO)"),
+            ],
+            true,
+        );
+
+        let parsed = EffectRowTemplate::from_canonical_text(template.canonical_text()).unwrap();
+        let instance = StableInstanceKey::from_canonical_args(
+            StableTemplateKey::new(owner.clone()),
+            Vec::new(),
+            vec![template.canonical_text()],
+        );
+        let substituted = parsed.substitute(&HashMap::from([(
+            StableEffectParamKey::new(owner, 0, "E"),
+            EffectRowTemplate::pure_closed(),
+        )]));
+
+        assert_eq!(parsed, template);
+        assert_eq!(instance.effect_arg_templates(), &[template]);
+        assert_eq!(substituted.canonical_text(), "E(N(pkg.IO))!");
+    }
+
+    #[test]
     fn effect_row_template_tracks_closed_pure_separately_from_open_pure() {
         let open = EffectRowTemplate::pure();
         let closed = EffectRowTemplate::pure_closed();
@@ -1616,6 +1788,54 @@ mod tests {
         assert_eq!(direct_call.readable_path(), "pkg.Service.run");
         assert_ne!(abi_fun.canonical_text(), abi_global.canonical_text());
         assert_eq!(abi_fun.readable_path(), "pkg.Service.run");
+    }
+
+    #[test]
+    fn abi_symbol_key_equality_and_hash_ignore_readable_path() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash as _, Hasher as _};
+
+        struct TestSymbolKey {
+            canonical: &'static str,
+            readable: &'static str,
+        }
+
+        impl StableCanonicalKey for TestSymbolKey {
+            fn canonical_text(&self) -> String {
+                self.canonical.to_string()
+            }
+        }
+
+        impl StableSymbolKey for TestSymbolKey {
+            fn readable_path(&self) -> &str {
+                self.readable
+            }
+        }
+
+        let left = AbiSymbolKey::new(
+            AbiSymbolKind::Fun,
+            &TestSymbolKey {
+                canonical: "target(semantic)",
+                readable: "pkg.old_name",
+            },
+        );
+        let right = AbiSymbolKey::new(
+            AbiSymbolKind::Fun,
+            &TestSymbolKey {
+                canonical: "target(semantic)",
+                readable: "pkg.new_name",
+            },
+        );
+        let mut left_hash = DefaultHasher::new();
+        let mut right_hash = DefaultHasher::new();
+
+        left.hash(&mut left_hash);
+        right.hash(&mut right_hash);
+
+        assert_eq!(left, right);
+        assert_eq!(left.canonical_text(), right.canonical_text());
+        assert_ne!(left.readable_path(), right.readable_path());
+        assert_eq!(left_hash.finish(), right_hash.finish());
     }
 
     #[test]

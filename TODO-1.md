@@ -11,7 +11,7 @@
 | T1-00 | [DONE] | 基线清理：回退纯重建 WIP 补丁 + bypass 失败 delegate fixture/test |
 | T1-00R | [DONE] | Review T1-00 基线与 bypass 范围 |
 | T1-01 | [DONE] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
-| T1-01R | [TODO] | Review T1-01 表示与稳定性 |
+| T1-01R | [DONE] | Review T1-01 表示与稳定性 |
 | T1-02 | [TODO] | 上游 identity 贯穿（MonomorphRequest / template-body-site inventory / generic direct-call inventory / `CallKind::Direct` / dispatch candidate 携带 stable key + owner eff） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
@@ -65,11 +65,15 @@
   - 单元测试覆盖 canonical 稳定性、substitution、closed/Pure! 判定、concrete effect type key 对齐、`StableInstanceKey` effect template 存储、call/dispatch/ABI key canonical 分离。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（155/156 MIR 单测中 1 个 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
-### [TODO] T1-01R：Review T1-01 表示与稳定性
+### [DONE] T1-01R：Review T1-01 表示与稳定性
 - 必须实现的内容：复核无 `TypeId`/span 泄漏、canonical/substitution 正确、display 与 semantic identity 分离、与现有 stable_id 对齐。
 - 验证：`cargo test --all --all-targets`
 - 依赖：T1-01
-- 完成记录：（待填）
+- 完成记录：
+  - 复核 T1-01 新增 `EffectRowTemplate` / `EffectTerm` / `StableInstanceKey` / call-dispatch-ABI key 表示，未发现新增 API 直接把裸 `TypeId`、span、`TypeStore::display()` 或 `Debug` 输出作为 canonical identity 输入；既有下游 FQN/span 重建点仍属于 T1-02/TODO-2 后续范围。
+  - 修复 review 发现的参数化 effect row round-trip 缺口：`EffectRowTemplate::from_canonical_text` 现在能把 `eff_param(...)` canonical term 还原为结构化 `EffectTerm::Param`，`StableInstanceKey::from_canonical_args` 不再丢失 effect-param 结构；补充 effect-param marker → template、canonical text → template、substitution 回归测试。
+  - 修复 `AbiSymbolKey` display/semantic identity 分离缺口：`PartialEq`/`Hash` 现在只使用 ABI kind + target canonical text，`readable_path` 仅保留为诊断/符号可读锚点；补充 readable path 不影响 equality/hash 的测试。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 
