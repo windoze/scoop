@@ -64,7 +64,7 @@
 | P5-T00 | [DONE] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
 | P5-T00R | [DONE] | Review P5-T00 itable 泛型 interface 修复 |
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
-| P5-T01R | [TODO] | Review P5-T01 委托库实现 |
+| P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
@@ -615,13 +615,15 @@
   - 同步更新默认 sysroot 依赖带来的验证期望：`p8_runtime_migration` 不再把 `scoop_sync_*` 视作普通构建禁止符号；release-hook 负例 fixture 改为只禁止本地未注解 class 的 release trampoline；HIR/effect-lowered goldens 更新默认 sysroot 新增 delegates/sync metadata 后的统计与布局快照。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
-### [TODO] P5-T01R：Review P5-T01 委托库实现
+### [DONE] P5-T01R：Review P5-T01 委托库实现
 
 - 必须实现的内容：复核三者实现 `ReadOnlyProperty`/`ReadWriteProperty` 正确、lazy 三模式与回调/否决语义对齐、线程安全靠库 `Mutex`/`Once` 组合。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P5-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P5-T01 委托库实现：`Lazy<V>` / `ObservableProperty<V>` / `VetoableProperty<V>` 均为普通库 class，分别实现 `ReadOnlyProperty<Any, V>` / `ReadWriteProperty<Any, V>`；`lazy` / `observable` / `vetoable` 顶层函数已无 `@Intrinsic`，线程安全路径组合 P4 后的库 `Mutex`。复核 lazy 三模式：`None` 无锁单线程 memoize，`Synchronized` 锁内单次初始化，`Publication` 初始化期间释放锁、二次加锁发布；observable 写入后解锁回调，vetoable 先读取 old、解锁回调、通过后再提交，语义与现有 by-name 回归一致。
+  - Review 中修正 P5-T01 暴露的真实缺口：默认 `lazy(initializer)` 不再转调同名泛型重载，改为直接构造 `Lazy`，避免 generic MIR materialization 的重载转调 contract 漂移；resolver 现在允许 interface receiver 沿 super-interface 解析继承的抽象方法；MIR lowering/materialization 修复 owner-specialized generic member store 的 receiver metadata；构造泛型 class 时会把其 itable method instances 纳入初始 materialization 种子，确保 `Lazy<Int>` 这类实现参数化 interface 且方法签名依赖 owner type param 的 wrapper 可发布对应 callable/source signature。新增 `delegate_library_wrappers_construct_basic.scoop`，直接构造三类 wrapper 与三个顶层函数，锁定普通库构造路径。
+  - 验证：`cargo fmt`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegate_library_wrappers_construct_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/generic_class_parameterized_interface_itable_stable_id.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
 ### [TODO] P5-T02：删除三者 by-name 合成与分叉
 

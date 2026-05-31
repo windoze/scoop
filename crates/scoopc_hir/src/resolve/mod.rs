@@ -597,6 +597,10 @@ pub struct Index {
     /// 由 [`Index::collect_direct_supertypes`] 在 `add_file_in_cone` 全部完成后填充，
     /// 因此 supertype FQN 解析结果可用且与 cross-file 顺序无关。
     pub direct_supertypes: HashMap<String, Vec<String>>,
+    /// 类型 FQN → 声明种类。
+    ///
+    /// resolver 在 interface receiver 上查找继承的抽象方法时需要区分 interface 与普通 class。
+    pub type_kinds: HashMap<String, ast::TypeKind>,
 }
 
 /// `Index` 构建输入：一个源文件 + AST，以及它所属的 cone。
@@ -1208,6 +1212,7 @@ impl Index {
         } else {
             format!("{prefix}.{type_name}")
         };
+        self.type_kinds.insert(type_prefix.clone(), ty.kind);
         let type_origin = DeclOrigin {
             pkg_prefix: &type_prefix,
             ..decl_origin

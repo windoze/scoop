@@ -76,6 +76,34 @@ impl MirInstanceMaterializer {
         }
     }
 
+    pub(super) fn repair_member_store_receiver_types(&mut self, body: &mut Body) {
+        let locals = body.locals.clone();
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::StoreMember {
+                    receiver, member, ..
+                } = &mut stmt.kind
+                else {
+                    continue;
+                };
+                let Some(receiver_ty) = operand_type(&self.types, self.builtins, &locals, receiver)
+                else {
+                    continue;
+                };
+                if receiver_ty == member.receiver_ty
+                    || type_contains_param(&self.types, receiver_ty)
+                {
+                    continue;
+                }
+                if nominal_type_fqn(&self.types, receiver_ty)
+                    == nominal_type_fqn(&self.types, member.receiver_ty)
+                {
+                    member.receiver_ty = receiver_ty;
+                }
+            }
+        }
+    }
+
     pub(super) fn repair_array_call_transport_types(&mut self, body: &mut Body) {
         let locals = body.locals.clone();
         for block in &mut body.blocks {

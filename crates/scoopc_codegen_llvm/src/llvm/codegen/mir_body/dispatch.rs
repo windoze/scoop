@@ -316,6 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             }
 
+            let signature = self.instantiate_interface_dispatch_signature(signature, *receiver_ty);
             let interface_fqn = signature.fqn.rsplit_once('.').map(|(owner, _)| owner).unwrap_or_else(|| {
                 std::panic::panic_any(
                     "codegen_mir_plain_dispatch_call: selected interface member must publish owner FQN",
@@ -358,7 +359,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 interface_fqn,
                 *slot,
-                signature,
+                &signature,
                 false,
                 receiver_ptr,
                 lookup,
@@ -494,6 +495,89 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }),
                 )?
             }),
+        }
+    }
+
+    fn instantiate_interface_dispatch_signature(
+        &self,
+        signature: &CodegenCallableSignature,
+        receiver_ty: TypeId,
+    ) -> CodegenCallableSignature {
+        let Some(receiver_param_ty) = signature.param_tys.first().copied() else {
+            return signature.clone();
+        };
+        let TypeKind::Ref(RefTypeKind::Nominal(signature_receiver)) =
+            self.types.kind(receiver_param_ty).clone()
+        else {
+            return signature.clone();
+        };
+        let TypeKind::Ref(RefTypeKind::Nominal(actual_receiver)) =
+            self.types.kind(receiver_ty).clone()
+        else {
+            return signature.clone();
+        };
+        if signature_receiver.args.len() != actual_receiver.args.len() {
+            return signature.clone();
+        }
+
+        let mut type_args = std::collections::HashMap::new();
+        for (signature_arg, actual_arg) in signature_receiver
+            .args
+            .iter()
+            .copied()
+            .zip(actual_receiver.args.iter().copied())
+        {
+            if let TypeKind::Param(param) = self.types.kind(signature_arg) {
+                type_args.insert(param.name.clone(), actual_arg);
+            }
+        }
+        if type_args.is_empty() {
+            return signature.clone();
+        }
+
+        CodegenCallableSignature {
+            fqn: signature.fqn.clone(),
+            param_names: signature.param_names.clone(),
+            param_tys: signature
+                .param_tys
+                .iter()
+                .copied()
+                .map(|ty| self.substitute_interface_dispatch_ty(ty, &type_args))
+                .collect(),
+            return_ty: self.substitute_interface_dispatch_ty(signature.return_ty, &type_args),
+        }
+    }
+
+    fn substitute_interface_dispatch_ty(
+        &self,
+        ty: TypeId,
+        type_args: &std::collections::HashMap<String, TypeId>,
+    ) -> TypeId {
+        match self.types.kind(ty).clone() {
+            TypeKind::Param(param) => type_args.get(&param.name).copied().unwrap_or(ty),
+            TypeKind::Ref(
+                RefTypeKind::Any
+                | RefTypeKind::String
+                | RefTypeKind::Nominal(_)
+                | RefTypeKind::Function(_)
+                | RefTypeKind::Union(_),
+            )
+            | TypeKind::Value(
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_)
+                | ValueTypeKind::Nominal(_)
+                | ValueTypeKind::Option(_)
+                | ValueTypeKind::Tuple(_),
+            )
+            | TypeKind::StarProjection(_) => ty,
         }
     }
 

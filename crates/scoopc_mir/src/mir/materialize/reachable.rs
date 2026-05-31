@@ -199,6 +199,14 @@ impl MirInstanceMaterializer {
                 class_fqn, ctor, ..
             } => {
                 self.scan_reachable_class_ctor(class_fqn, ctor.selected_ctor_span, out)?;
+                if let Some(result_ty) = scan.result_ty {
+                    let result_ty = substitute_type_and_effect_params(
+                        &mut self.types,
+                        result_ty,
+                        scan.substitution,
+                    );
+                    self.scan_reachable_class_itable_instances(result_ty, out);
+                }
             }
             Rvalue::MakeClosure { fn_ptr, .. } => {
                 if let Some(reachable_closure) =
@@ -310,6 +318,59 @@ impl MirInstanceMaterializer {
         }
 
         Ok(())
+    }
+
+    fn scan_reachable_class_itable_instances(&self, class_ty: TypeId, out: &mut Vec<InstanceKey>) {
+        let Some(class_fqn) = nominal_type_fqn(&self.types, class_ty) else {
+            return;
+        };
+        let Some(entries) = self.class_itables.get(class_fqn) else {
+            return;
+        };
+        let type_args = match self.types.kind(class_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
+            _ => return,
+        };
+        if type_args.is_empty()
+            || type_args
+                .iter()
+                .any(|ty| type_contains_param(&self.types, *ty))
+        {
+            return;
+        }
+
+        for entry in entries {
+            for impl_member_fqn in &entry.method_impl_fqns {
+                if let Some(instance) = self.explicit_dispatch_candidate_instance(impl_member_fqn) {
+                    if !out.contains(&instance) {
+                        out.push(instance);
+                    }
+                    continue;
+                }
+                let Some(templates) = self.roots_by_fqn.get(impl_member_fqn) else {
+                    continue;
+                };
+                for template in templates {
+                    let Some(signature) = self.template_signatures.get(template) else {
+                        continue;
+                    };
+                    if signature.eff_param_name.is_some()
+                        || signature.type_param_names.len() != type_args.len()
+                    {
+                        continue;
+                    }
+                    let instance = InstanceKey {
+                        template: template.clone(),
+                        type_args: type_args.clone(),
+                        eff_args: Vec::new(),
+                    };
+                    if !out.contains(&instance) {
+                        out.push(instance);
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn scan_reachable_top_level_immutable_value_inner(

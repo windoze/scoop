@@ -450,6 +450,7 @@ impl MirInstanceMaterializer {
             None,
         )?;
         self.repair_direct_call_result_types(body);
+        self.repair_member_store_receiver_types(body);
         self.repair_array_call_transport_types(body);
         self.repair_closure_capture_transport_targets(body);
         self.repair_handle_payload_metadata_types(body);

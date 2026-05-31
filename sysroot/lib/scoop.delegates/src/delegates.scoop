@@ -156,7 +156,11 @@ public class VetoableProperty<V>(initial: V, onChange: (V, V) -> Bool, mutex: Mu
 
 /// lazy：默认使用 `Synchronized`，首次读取时计算并缓存。
 public fun <V> lazy(initializer: () -> V): Lazy<V> {
-    return lazy(LazyThreadSafetyMode.Synchronized, initializer)
+    return Lazy(
+        LazyThreadSafetyMode.Synchronized,
+        initializer,
+        __scoop_delegates_lazy_mutex(LazyThreadSafetyMode.Synchronized),
+    )
 }
 
 /// lazy：指定线程安全策略（实现语义后续补齐）。
