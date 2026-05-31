@@ -68,7 +68,7 @@
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
 | P5-T02A0P | [DONE] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
-| P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
+| P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
@@ -691,7 +691,7 @@
   - 验证期间 `cargo test --all --all-targets` 暴露未调度 `once_guard_cross_dylib` 链接失败：该测试单独编译 `scoop_once.c`，但最新 once wait loop 需要 `scoop_gc_safepoint_poll`；已在测试临时 plugin C 源中补 no-op safepoint hook，真实 runtime backend 提供的符号与行为不变。
   - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test once_guard_cross_dylib`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py`。完整 fixture suite 当前仅剩 3 个已精确排期失败：`hir/delegated_property_lowering.scoop` 与 `run-pass/delegated_property_map_backed_basic.scoop` 归属 P5-T02A，`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 归属 P5-T03；未发现新的未调度失败。
 
-### [TODO] P5-T02A：移除剩余 MapBacked 委托特判并修复泛型委托运行路径
+### [DONE] P5-T02A：移除剩余 MapBacked 委托特判并修复泛型委托运行路径
 
 - 触发：P5-T02R review 发现 `DelegatedPropertyInfo::MapBacked`、`parse_map_backed_delegate_expr` 与 `decls.rs` 的 map-backed field-copy lowering 仍存在，和 P5-T02/P5-T02R 的「只剩泛型分支 / 唯一泛型路径」完成条件不一致。
 - 必须实现的内容：
@@ -708,7 +708,9 @@
 - 阻塞记录：
   - 2026-05-31：删除 MapBacked 分支并统一 `$delegate` lowering 后，targeted run-pass 暴露 `PropertyMeta` 参数在泛型委托 class-init/direct-call ABI 中仍无法按 spec 传递；已新增 P5-T02A0 作为最小前置修复任务，本任务保持未完成。
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核并完成 MapBacked 删除收口：生产 HIR lowering 源码 grep 已无 `MapBacked` / `parse_map_backed_delegate_expr` / map-backed field-copy 分支，`DelegatedPropertyInfo` 仍为 `GenericDelegatedPropertyInfo` 唯一路径，属性委托统一生成 `$delegate` 字段并通过 synthetic `getValue` / `setValue` 调用读写。修复统一路径暴露的 member-access delegate 缺口：typecheck 现在对 `by this.delegate` 这类 member-access delegate 反查字段/属性声明类型并执行 `getValue` / `setValue` 签名校验；HIR delegated-property index 对 member access 优先读取 typechecked member resolution，能为 `by data` / `by this.data` 统一路径发布正确 delegate class FQN、dispatch kind 和 typed call-site contract。
+  - 更新受影响 fixtures/goldens：`delegated_property_map_backed_basic.scoop` 不再描述旧 field-copy 策略，改为同时覆盖 `by data` 与 `by this.data`，并通过 `PropertyMeta.name` 验证运行期确实调用 delegate `getValue`；`delegated_property_lowering.hir` 同步为 spec-correct `PropertyMeta` struct literal（含嵌套 `TypeMeta` / `MetaList<AnnotationMeta>`）与对应 constructor call contracts。既有 lazy、observable/vetoable targeted fixtures 继续走统一泛型路径并通过。
+  - 验证：`cargo build -p scoop -p scoopc`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`；`python3 tools/run_fixtures.py`。完整 fixture suite 当前仅剩 1 个失败，已在后续 `P5-T03` 精确调度：`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`；未发现新的未调度失败。
 
 ### [TODO] P5-T02R：Review P5-T02 特判删除
 

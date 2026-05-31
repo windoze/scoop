@@ -61,32 +61,359 @@ pub(in crate::hir::lower) fn unique_top_level_fun_fqn_from_callee(
 /// 写回的 `Constructor { ty_fqn }` candidate 中读出类的 FQN。
 pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(
     files: &[(&SourceFile, &ast::File)],
+    file: &ast::File,
     index: &Index,
     delegate_expr: &ast::Expr,
 ) -> Option<String> {
-    let ast::ExprKind::Call { callee, .. } = &delegate_expr.kind else {
-        return None;
-    };
-    let ast::ExprKind::Ident(id) = &callee.kind else {
-        return None;
-    };
-    let call = id.call.as_ref()?;
-    let mut tys: Vec<String> = call
-        .candidates
-        .iter()
-        .filter_map(|c| match c {
-            ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
-            ast::CallCandidate::Fun { .. } => None,
-        })
-        .collect();
-    tys.sort();
-    tys.dedup();
-    if tys.len() == 1 {
-        Some(tys.remove(0))
-    } else {
-        let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
-        top_level_fun_return_nominal_fqn(files, index, &fqn)
+    match &delegate_expr.kind {
+        ast::ExprKind::Call { callee, .. } => {
+            let ast::ExprKind::Ident(id) = &callee.kind else {
+                return None;
+            };
+            let call = id.call.as_ref()?;
+            let mut tys: Vec<String> = call
+                .candidates
+                .iter()
+                .filter_map(|c| match c {
+                    ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+                    ast::CallCandidate::Fun { .. } => None,
+                })
+                .collect();
+            tys.sort();
+            tys.dedup();
+            if tys.len() == 1 {
+                Some(tys.remove(0))
+            } else {
+                let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
+                top_level_fun_return_nominal_fqn(files, index, &fqn)
+            }
+        }
+        ast::ExprKind::Ident(id) => {
+            delegate_class_fqn_from_value_ref(files, index, id.resolved.as_ref()?)
+        }
+        ast::ExprKind::MemberAccess { member, .. } => {
+            let resolved = file
+                .typechecked_member_resolved(member.span)
+                .or_else(|| member.resolved.clone())?;
+            delegate_class_fqn_from_member_ref(files, index, &resolved)
+        }
+        _ => None,
     }
+}
+
+fn delegate_class_fqn_from_value_ref(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    resolved: &ast::ResolvedValueRef,
+) -> Option<String> {
+    match resolved {
+        ast::ResolvedValueRef::Local { decl_span, .. } => {
+            nominal_fqn_for_decl_span(files, index, *decl_span)
+        }
+        ast::ResolvedValueRef::TopLevel { fqn } => nominal_fqn_for_value_fqn(files, index, fqn),
+    }
+}
+
+fn delegate_class_fqn_from_member_ref(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    resolved: &ast::ResolvedMemberRef,
+) -> Option<String> {
+    match resolved {
+        ast::ResolvedMemberRef::Value { fqn } | ast::ResolvedMemberRef::ExtensionValue { fqn } => {
+            nominal_fqn_for_value_fqn(files, index, fqn)
+        }
+        ast::ResolvedMemberRef::Fun { .. } | ast::ResolvedMemberRef::ExtensionFun { .. } => None,
+    }
+}
+
+fn nominal_fqn_for_decl_span(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    decl_span: Span,
+) -> Option<String> {
+    files.iter().find_map(|(source, file)| {
+        nominal_fqn_for_decl_span_in_items(source, file, index, &file.items, decl_span)
+    })
+}
+
+fn nominal_fqn_for_decl_span_in_items(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    items: &[ast::Item],
+    decl_span: Span,
+) -> Option<String> {
+    let prefix = package_prefix(source, file.package.as_ref());
+    for item in items {
+        match item {
+            ast::Item::Val(v) => {
+                if v.name().is_some_and(|name| name.span == decl_span)
+                    && let Some(ty) = v.ty.as_ref()
+                {
+                    return index.type_ref_to_fqn_in_file(source, file, ty);
+                }
+            }
+            ast::Item::Fun(fun) => {
+                if let Some(fqn) =
+                    nominal_fqn_for_decl_span_in_params(source, file, index, &fun.params, decl_span)
+                {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Type(ty) => {
+                if let Some(fqn) = nominal_fqn_for_decl_span_in_type_decl(
+                    source, file, index, &prefix, ty, decl_span,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(fqn) = nominal_fqn_for_decl_span_in_object_decl(
+                    source, file, index, &prefix, obj, decl_span,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::ExtensionProperty(_) | ast::Item::TypeAlias(_) => {}
+        }
+    }
+    None
+}
+
+fn nominal_fqn_for_decl_span_in_type_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    decl: &ast::TypeDecl,
+    decl_span: Span,
+) -> Option<String> {
+    if let Some(primary) = decl.primary_ctor.as_ref()
+        && let Some(fqn) =
+            nominal_fqn_for_decl_span_in_params(source, file, index, &primary.params, decl_span)
+    {
+        return Some(fqn);
+    }
+
+    let owner_fqn = join_prefix(prefix, source.slice(decl.name.span));
+    let body = decl.body.as_ref()?;
+    nominal_fqn_for_decl_span_in_type_body(source, file, index, &owner_fqn, body, decl_span)
+}
+
+fn nominal_fqn_for_decl_span_in_object_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    obj: &ast::ObjectDecl,
+    decl_span: Span,
+) -> Option<String> {
+    let name = object_decl_name(source, obj)?;
+    let owner_fqn = join_prefix(prefix, &name);
+    let body = obj.body.as_ref()?;
+    nominal_fqn_for_decl_span_in_type_body(source, file, index, &owner_fqn, body, decl_span)
+}
+
+fn nominal_fqn_for_decl_span_in_type_body(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
+    body: &ast::TypeBody,
+    decl_span: Span,
+) -> Option<String> {
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                if p.name.span == decl_span
+                    && let Some(ty) = p.ty.as_ref()
+                {
+                    return index.type_ref_to_fqn_in_file(source, file, ty);
+                }
+            }
+            ast::TypeMember::SecondaryCtor(ctor) => {
+                if let Some(fqn) = nominal_fqn_for_decl_span_in_params(
+                    source,
+                    file,
+                    index,
+                    &ctor.params,
+                    decl_span,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::Fun(fun) => {
+                if let Some(fqn) =
+                    nominal_fqn_for_decl_span_in_params(source, file, index, &fun.params, decl_span)
+                {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::Type(nested) => {
+                if let Some(fqn) = nominal_fqn_for_decl_span_in_type_decl(
+                    source, file, index, owner_fqn, nested, decl_span,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(fqn) = nominal_fqn_for_decl_span_in_object_decl(
+                    source, file, index, owner_fqn, obj, decl_span,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::EnumVariant(_) | ast::TypeMember::InitBlock(_) => {}
+        }
+    }
+    None
+}
+
+fn nominal_fqn_for_decl_span_in_params(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    params: &[ast::Param],
+    decl_span: Span,
+) -> Option<String> {
+    params.iter().find_map(|p| {
+        (p.name.span == decl_span)
+            .then_some(p.ty.as_ref())
+            .flatten()
+            .and_then(|ty| index.type_ref_to_fqn_in_file(source, file, ty))
+    })
+}
+
+fn nominal_fqn_for_value_fqn(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    target_fqn: &str,
+) -> Option<String> {
+    files.iter().find_map(|(source, file)| {
+        nominal_fqn_for_value_fqn_in_items(source, file, index, &file.items, target_fqn)
+    })
+}
+
+fn nominal_fqn_for_value_fqn_in_items(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    items: &[ast::Item],
+    target_fqn: &str,
+) -> Option<String> {
+    let prefix = package_prefix(source, file.package.as_ref());
+    for item in items {
+        match item {
+            ast::Item::Val(v) => {
+                if let Some(name) = v.name() {
+                    let fqn = join_prefix(&prefix, name.text(source));
+                    if fqn == target_fqn
+                        && let Some(ty) = v.ty.as_ref()
+                    {
+                        return index.type_ref_to_fqn_in_file(source, file, ty);
+                    }
+                }
+            }
+            ast::Item::Type(ty) => {
+                if let Some(fqn) = nominal_fqn_for_value_fqn_in_type_decl(
+                    source, file, index, &prefix, ty, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(fqn) = nominal_fqn_for_value_fqn_in_object_decl(
+                    source, file, index, &prefix, obj, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Fun(_) | ast::Item::ExtensionProperty(_) | ast::Item::TypeAlias(_) => {}
+        }
+    }
+    None
+}
+
+fn nominal_fqn_for_value_fqn_in_type_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    decl: &ast::TypeDecl,
+    target_fqn: &str,
+) -> Option<String> {
+    let owner_fqn = join_prefix(prefix, source.slice(decl.name.span));
+    if let Some(primary) = decl.primary_ctor.as_ref() {
+        for p in &primary.params {
+            if p.kind.is_some() {
+                let field_fqn = format!("{owner_fqn}.{}", p.name.text(source));
+                if field_fqn == target_fqn
+                    && let Some(ty) = p.ty.as_ref()
+                {
+                    return index.type_ref_to_fqn_in_file(source, file, ty);
+                }
+            }
+        }
+    }
+
+    let body = decl.body.as_ref()?;
+    nominal_fqn_for_value_fqn_in_type_body(source, file, index, &owner_fqn, body, target_fqn)
+}
+
+fn nominal_fqn_for_value_fqn_in_object_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    obj: &ast::ObjectDecl,
+    target_fqn: &str,
+) -> Option<String> {
+    let name = object_decl_name(source, obj)?;
+    let owner_fqn = join_prefix(prefix, &name);
+    let body = obj.body.as_ref()?;
+    nominal_fqn_for_value_fqn_in_type_body(source, file, index, &owner_fqn, body, target_fqn)
+}
+
+fn nominal_fqn_for_value_fqn_in_type_body(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
+    body: &ast::TypeBody,
+    target_fqn: &str,
+) -> Option<String> {
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                let field_fqn = format!("{owner_fqn}.{}", p.name.text(source));
+                if field_fqn == target_fqn
+                    && let Some(ty) = p.ty.as_ref()
+                {
+                    return index.type_ref_to_fqn_in_file(source, file, ty);
+                }
+            }
+            ast::TypeMember::Type(nested) => {
+                if let Some(fqn) = nominal_fqn_for_value_fqn_in_type_decl(
+                    source, file, index, owner_fqn, nested, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(fqn) = nominal_fqn_for_value_fqn_in_object_decl(
+                    source, file, index, owner_fqn, obj, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+    None
 }
 
 fn delegate_class_fqn_from_type(types: &TypeStore, ty: TypeId) -> Option<String> {
@@ -175,7 +502,7 @@ fn delegated_property_info(
     let delegate_ty = file.inferred_expr_ty(delegate_expr.span);
     let delegate_class_fqn = delegate_ty
         .and_then(|ty| typecheck_types.and_then(|types| delegate_class_fqn_from_type(types, ty)))
-        .or_else(|| delegate_class_fqn_from_expr(files, index, delegate_expr));
+        .or_else(|| delegate_class_fqn_from_expr(files, file, index, delegate_expr));
     GenericDelegatedPropertyInfo {
         name: name.to_string(),
         delegate_field_fqn,

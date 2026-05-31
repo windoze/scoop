@@ -241,11 +241,153 @@ File {
                                                             Expr {
                                                                 span: 290..291,
                                                                 ty: scoop.core.PropertyMeta,
-                                                                kind: VarRef(
-                                                                    TopLevel {
-                                                                        fqn: "a.C.$PropertyMeta$p",
-                                                                    }
-                                                                ),
+                                                                kind: StructLit {
+                                                                    ty: scoop.core.PropertyMeta,
+                                                                    fields: [
+                                                                        StructLitField {
+                                                                            span: 290..291,
+                                                                            name: "name",
+                                                                            name_span: 290..291,
+                                                                            colon_span: 290..291,
+                                                                            value:
+                                                                                Expr {
+                                                                                    span: 290..291,
+                                                                                    ty: String,
+                                                                                    kind: Literal(SynthString("p")),
+                                                                                }
+                                                                        },
+                                                                        StructLitField {
+                                                                            span: 290..291,
+                                                                            name: "type",
+                                                                            name_span: 290..291,
+                                                                            colon_span: 290..291,
+                                                                            value:
+                                                                                Expr {
+                                                                                    span: 290..291,
+                                                                                    ty: scoop.core.TypeMeta,
+                                                                                    kind: StructLit {
+                                                                                        ty: scoop.core.TypeMeta,
+                                                                                        fields: [
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "name",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 290..291,
+                                                                                                        ty: String,
+                                                                                                        kind: Literal(SynthString("")),
+                                                                                                    }
+                                                                                            },
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "kind",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 290..291,
+                                                                                                        ty: scoop.core.TypeKind,
+                                                                                                        kind: UnresolvedIdent {
+                                                                                                            name: "Primitive",
+                                                                                                        },
+                                                                                                    }
+                                                                                            },
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "annotations",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 1048884..1048885,
+                                                                                                        ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+                                                                                                        kind: Call {
+                                                                                                            callee:
+                                                                                                                Expr {
+                                                                                                                    span: 1048884..1048885,
+                                                                                                                    ty: Any,
+                                                                                                                    kind: UnresolvedIdent {
+                                                                                                                        name: "MetaList",
+                                                                                                                    },
+                                                                                                                }
+                                                                                                            args: [
+                                                                                                            ],
+                                                                                                        },
+                                                                                                    }
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                }
+                                                                        },
+                                                                        StructLitField {
+                                                                            span: 290..291,
+                                                                            name: "owner",
+                                                                            name_span: 290..291,
+                                                                            colon_span: 290..291,
+                                                                            value:
+                                                                                Expr {
+                                                                                    span: 290..291,
+                                                                                    ty: scoop.core.TypeMeta,
+                                                                                    kind: StructLit {
+                                                                                        ty: scoop.core.TypeMeta,
+                                                                                        fields: [
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "name",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 290..291,
+                                                                                                        ty: String,
+                                                                                                        kind: Literal(SynthString("a.C")),
+                                                                                                    }
+                                                                                            },
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "kind",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 290..291,
+                                                                                                        ty: scoop.core.TypeKind,
+                                                                                                        kind: UnresolvedIdent {
+                                                                                                            name: "Class",
+                                                                                                        },
+                                                                                                    }
+                                                                                            },
+                                                                                            StructLitField {
+                                                                                                span: 290..291,
+                                                                                                name: "annotations",
+                                                                                                name_span: 290..291,
+                                                                                                colon_span: 290..291,
+                                                                                                value:
+                                                                                                    Expr {
+                                                                                                        span: 1048886..1048887,
+                                                                                                        ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+                                                                                                        kind: Call {
+                                                                                                            callee:
+                                                                                                                Expr {
+                                                                                                                    span: 1048886..1048887,
+                                                                                                                    ty: Any,
+                                                                                                                    kind: UnresolvedIdent {
+                                                                                                                        name: "MetaList",
+                                                                                                                    },
+                                                                                                                }
+                                                                                                            args: [
+                                                                                                            ],
+                                                                                                        },
+                                                                                                    }
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                }
+                                                                        },
+                                                                    ],
+                                                                },
                                                             }
                                                         ),
                                                     ],
@@ -321,11 +463,153 @@ File {
                                                     Expr {
                                                         span: 296..297,
                                                         ty: scoop.core.PropertyMeta,
-                                                        kind: VarRef(
-                                                            TopLevel {
-                                                                fqn: "a.C.$PropertyMeta$p",
-                                                            }
-                                                        ),
+                                                        kind: StructLit {
+                                                            ty: scoop.core.PropertyMeta,
+                                                            fields: [
+                                                                StructLitField {
+                                                                    span: 296..297,
+                                                                    name: "name",
+                                                                    name_span: 296..297,
+                                                                    colon_span: 296..297,
+                                                                    value:
+                                                                        Expr {
+                                                                            span: 296..297,
+                                                                            ty: String,
+                                                                            kind: Literal(SynthString("p")),
+                                                                        }
+                                                                },
+                                                                StructLitField {
+                                                                    span: 296..297,
+                                                                    name: "type",
+                                                                    name_span: 296..297,
+                                                                    colon_span: 296..297,
+                                                                    value:
+                                                                        Expr {
+                                                                            span: 296..297,
+                                                                            ty: scoop.core.TypeMeta,
+                                                                            kind: StructLit {
+                                                                                ty: scoop.core.TypeMeta,
+                                                                                fields: [
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "name",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 296..297,
+                                                                                                ty: String,
+                                                                                                kind: Literal(SynthString("")),
+                                                                                            }
+                                                                                    },
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "kind",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 296..297,
+                                                                                                ty: scoop.core.TypeKind,
+                                                                                                kind: UnresolvedIdent {
+                                                                                                    name: "Primitive",
+                                                                                                },
+                                                                                            }
+                                                                                    },
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "annotations",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 1048888..1048889,
+                                                                                                ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+                                                                                                kind: Call {
+                                                                                                    callee:
+                                                                                                        Expr {
+                                                                                                            span: 1048888..1048889,
+                                                                                                            ty: Any,
+                                                                                                            kind: UnresolvedIdent {
+                                                                                                                name: "MetaList",
+                                                                                                            },
+                                                                                                        }
+                                                                                                    args: [
+                                                                                                    ],
+                                                                                                },
+                                                                                            }
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        }
+                                                                },
+                                                                StructLitField {
+                                                                    span: 296..297,
+                                                                    name: "owner",
+                                                                    name_span: 296..297,
+                                                                    colon_span: 296..297,
+                                                                    value:
+                                                                        Expr {
+                                                                            span: 296..297,
+                                                                            ty: scoop.core.TypeMeta,
+                                                                            kind: StructLit {
+                                                                                ty: scoop.core.TypeMeta,
+                                                                                fields: [
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "name",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 296..297,
+                                                                                                ty: String,
+                                                                                                kind: Literal(SynthString("a.C")),
+                                                                                            }
+                                                                                    },
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "kind",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 296..297,
+                                                                                                ty: scoop.core.TypeKind,
+                                                                                                kind: UnresolvedIdent {
+                                                                                                    name: "Class",
+                                                                                                },
+                                                                                            }
+                                                                                    },
+                                                                                    StructLitField {
+                                                                                        span: 296..297,
+                                                                                        name: "annotations",
+                                                                                        name_span: 296..297,
+                                                                                        colon_span: 296..297,
+                                                                                        value:
+                                                                                            Expr {
+                                                                                                span: 1048890..1048891,
+                                                                                                ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+                                                                                                kind: Call {
+                                                                                                    callee:
+                                                                                                        Expr {
+                                                                                                            span: 1048890..1048891,
+                                                                                                            ty: Any,
+                                                                                                            kind: UnresolvedIdent {
+                                                                                                                name: "MetaList",
+                                                                                                            },
+                                                                                                        }
+                                                                                                    args: [
+                                                                                                    ],
+                                                                                                },
+                                                                                            }
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        }
+                                                                },
+                                                            ],
+                                                        },
                                                     }
                                                 ),
                                                 Positional(
@@ -367,9 +651,9 @@ File {
 
 
 hir_facts {
-  declarations: nominals=84, callables=3, fields=62, enum_variants=24, vtables=66, itables=37
-  source_sites: function_effects=3, calls=3, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
-  globals: roots=1, object_inits=1, class_inits=32
+  declarations: nominals=84, callables=3, fields=72, enum_variants=24, vtables=66, itables=37
+  source_sites: function_effects=3, calls=7, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
+  globals: roots=1, object_inits=1, class_inits=33
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
   type_context: universe=hir-stage-type-store, type_params=88, source_cones=9
 }
@@ -432,6 +716,38 @@ source_site_contracts {
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048884..1048885,
+            kind: Constructor,
+            owner_fqn: "scoop.core.MetaList",
+            ctor_span: None,
+            result_ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+            arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 1048886..1048887,
+            kind: Constructor,
+            owner_fqn: "scoop.core.MetaList",
+            ctor_span: None,
+            result_ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+            arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 1048888..1048889,
+            kind: Constructor,
+            owner_fqn: "scoop.core.MetaList",
+            ctor_span: None,
+            result_ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+            arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 1048890..1048891,
+            kind: Constructor,
+            owner_fqn: "scoop.core.MetaList",
+            ctor_span: None,
+            result_ty: scoop.core.MetaList<scoop.core.AnnotationMeta>,
+            arg_mapping: [],
         },
     ],
     with_update_contracts: [

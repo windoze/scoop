@@ -317,12 +317,9 @@ fn check_type_decl_properties(
 fn collect_class_value_decl_types(decl: &ast::TypeDecl) -> HashMap<Span, &ast::TypeRef> {
     let mut out: HashMap<Span, &ast::TypeRef> = HashMap::new();
 
-    // 主构造参数中的 `val/var` 字段（T0438）。
+    // 主构造参数在 class 初始化语境中可作为 delegate 表达式引用；带 `val/var` 的参数同时也是字段。
     if let Some(primary_ctor) = &decl.primary_ctor {
         for p in &primary_ctor.params {
-            if p.kind.is_none() {
-                continue;
-            }
             let Some(ty) = p.ty.as_ref() else {
                 continue;
             };
@@ -1088,7 +1085,174 @@ fn delegate_expr_nominal_type_fqn(
             type_ref_to_fqn_in_file(source, file, index, ty)
         }
 
+        // 4) `val x: T by this.delegate`：从解析到的成员字段/属性 FQN 反查声明类型。
+        ast::ExprKind::MemberAccess { member, .. } => {
+            let resolved = member.resolved.as_ref()?;
+            let fqn = match resolved {
+                ast::ResolvedMemberRef::Value { fqn }
+                | ast::ResolvedMemberRef::ExtensionValue { fqn } => fqn,
+                ast::ResolvedMemberRef::Fun { .. }
+                | ast::ResolvedMemberRef::ExtensionFun { .. } => {
+                    return None;
+                }
+            };
+            value_fqn_type_fqn(source, file, index, env, fqn)
+        }
+
         _ => None,
+    }
+}
+
+fn value_fqn_type_fqn(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    target_fqn: &str,
+) -> Option<String> {
+    value_fqn_type_fqn_in_file(source, file, index, target_fqn).or_else(|| {
+        env.files().find_map(|(path, file)| {
+            let source = env.source(path)?;
+            value_fqn_type_fqn_in_file(source, file, index, target_fqn)
+        })
+    })
+}
+
+fn value_fqn_type_fqn_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    target_fqn: &str,
+) -> Option<String> {
+    let prefix = package_prefix(source, file.package.as_ref());
+    for item in &file.items {
+        match item {
+            ast::Item::Val(v) => {
+                if let Some(name) = v.name() {
+                    let fqn = join_prefix(&prefix, source.slice(name.span));
+                    if fqn == target_fqn
+                        && let Some(ty) = v.ty.as_ref()
+                    {
+                        return type_ref_to_fqn_in_file(source, file, index, ty);
+                    }
+                }
+            }
+            ast::Item::Type(decl) => {
+                if let Some(fqn) =
+                    value_fqn_type_fqn_in_type_decl(source, file, index, &prefix, decl, target_fqn)
+                {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(fqn) =
+                    value_fqn_type_fqn_in_object_decl(source, file, index, &prefix, obj, target_fqn)
+                {
+                    return Some(fqn);
+                }
+            }
+            ast::Item::Fun(_) | ast::Item::ExtensionProperty(_) | ast::Item::TypeAlias(_) => {}
+        }
+    }
+    None
+}
+
+fn value_fqn_type_fqn_in_type_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    decl: &ast::TypeDecl,
+    target_fqn: &str,
+) -> Option<String> {
+    let owner_fqn = join_prefix(prefix, source.slice(decl.name.span));
+    if let Some(primary) = decl.primary_ctor.as_ref() {
+        for param in &primary.params {
+            if param.kind.is_some() {
+                let field_fqn = format!("{owner_fqn}.{}", source.slice(param.name.span));
+                if field_fqn == target_fqn
+                    && let Some(ty) = param.ty.as_ref()
+                {
+                    return type_ref_to_fqn_in_file(source, file, index, ty);
+                }
+            }
+        }
+    }
+
+    let body = decl.body.as_ref()?;
+    value_fqn_type_fqn_in_type_body(source, file, index, &owner_fqn, body, target_fqn)
+}
+
+fn value_fqn_type_fqn_in_object_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    prefix: &str,
+    obj: &ast::ObjectDecl,
+    target_fqn: &str,
+) -> Option<String> {
+    let name = object_decl_name(source, obj)?;
+    let owner_fqn = join_prefix(prefix, &name);
+    let body = obj.body.as_ref()?;
+    value_fqn_type_fqn_in_type_body(source, file, index, &owner_fqn, body, target_fqn)
+}
+
+fn value_fqn_type_fqn_in_type_body(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
+    body: &ast::TypeBody,
+    target_fqn: &str,
+) -> Option<String> {
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                let field_fqn = format!("{owner_fqn}.{}", source.slice(p.name.span));
+                if field_fqn == target_fqn
+                    && let Some(ty) = p.ty.as_ref()
+                {
+                    return type_ref_to_fqn_in_file(source, file, index, ty);
+                }
+            }
+            ast::TypeMember::Type(nested) => {
+                if let Some(fqn) = value_fqn_type_fqn_in_type_decl(
+                    source, file, index, owner_fqn, nested, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(fqn) = value_fqn_type_fqn_in_object_decl(
+                    source, file, index, owner_fqn, obj, target_fqn,
+                ) {
+                    return Some(fqn);
+                }
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+    None
+}
+
+fn join_prefix(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() {
+        name.to_string()
+    } else {
+        format!("{prefix}.{name}")
+    }
+}
+
+fn object_decl_name(source: &SourceFile, obj: &ast::ObjectDecl) -> Option<String> {
+    match obj.name.as_ref() {
+        Some(name) => Some(source.slice(name.span).to_string()),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => Some("Companion".to_string()),
+            ast::ObjectKind::Object => None,
+        },
     }
 }
 
