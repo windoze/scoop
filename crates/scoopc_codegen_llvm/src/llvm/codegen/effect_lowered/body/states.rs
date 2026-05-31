@@ -90,13 +90,18 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         )?
                     }
                 } else {
+                    // The non-flattened lambda invoke-args tuple is `(env, explicit_params...)`:
+                    // the env parameter always occupies exactly one leading source slot
+                    // (component 0), even when it is `Unit` (env_component_count == 0) and thus
+                    // elided. Explicit param at mir index `index` therefore maps 1:1 to source
+                    // component `index`.
                     self.bind_direct_param_from_component(
                         entry_layout.symbol_name(),
                         param.span,
                         param_cg,
                         args_layout,
                         raw_arg,
-                        env_component_count + index - 1,
+                        index,
                     )?
                 }
             } else if self.mir_fun.params.len() == 1

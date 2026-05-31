@@ -70,7 +70,7 @@
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [DONE] | Review P5-T02 特判删除 |
-| P5-T02B00 | [TODO] | 修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI（缺 source component） |
+| P5-T02B00 | [DONE] | 修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI（缺 source component） |
 | P5-T02B0 | [TODO] | 修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff |
 | P5-T02B | [TODO] | 修复 owner `eff` 参数路径，并收口同步标准委托 effect 边界 |
 | P5-T03 | [TODO] | 同步委托回归（含 lazy Pure initializer / 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
@@ -726,7 +726,7 @@
   - 2026-05-31：复核 P5-T02 / P5-T02A 当前源码：`crates/scoopc_hir/src/hir/lower/types.rs` 中 `DelegatedPropertyInfo` 已收敛为 `GenericDelegatedPropertyInfo` 类型别名，生产 HIR lowering grep 未发现 `ParsedStdDelegateExpr`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`MapBacked`、`parse_map_backed_delegate_expr`、map-backed field-copy 分支或生产 `SYNC_MUTEX_*` 常量残留。`decls.rs` 统一为每个 delegated property 注入普通 `$delegate` 字段并 lower 原始 delegate 表达式，`members.rs` / `sugar.rs` 统一生成 `$delegate.getValue(thisRef, PropertyMeta)` / `$delegate.setValue(thisRef, PropertyMeta, value)` synthetic call，相关 HIR golden 与 `delegated_property_map_backed_basic.scoop` 覆盖统一泛型路径。仍存在的 `scoop.delegates.lazy/observable/vetoable` typecheck/platform policy by-name 逻辑不属于 HIR lowering 合成残留，已由后续 `P5-T03` 的硬编码守卫/透明化收口覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`。完整 `python3 tools/run_fixtures.py` 首轮除已由 `P5-T03` 精确调度的 `run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 外，还观测到一次 `runtime_gc/std_sync_backend_parity_immix_major.scoop` 59s timeout；该 fixture 单独重复运行、`tests/fixtures/runtime_gc` 子套件运行与完整 suite 重跑均通过。完整重跑最终仅剩 `P5-T03` 已调度失败，未发现新的未调度失败。
 
-### [TODO] P5-T02B00：修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI
+### [DONE] P5-T02B00：修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI
 
 - 触发：执行 P5-T02B0 时，用最小 repro `class Box<eff E> : Sink<eff E>` 逐层定位 owner-eff 缺口，推进到 codegen 阶段后暴露一个**与 owner-eff / 泛型无关的既有 bug**：带显式参数且 effectful 的闭包（以及 effectful interface/vtable 方法）经 dispatch-carrier shell 降级时报 `LLVM codegen 前端准备失败：ABI tuple payload \`carrier_direct_args\` 缺少 source component N`。
 - 已确认最小复现（无泛型、无 owner eff）：
@@ -744,6 +744,13 @@
 - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、新增 targeted fixtures、`python3 tools/run_fixtures.py`。
 - 完成条件：带显式参数的 effectful 闭包/方法经 carrier shell 正确降级，`carrier_direct_args` 不再缺 source component。
 - 依赖：P5-T02R
+- 完成记录：
+  - 2026-06-01：根因定位为非 flatten lambda 的 invoke-args tuple 形态 `(env, explicit...)`：env 永远占据 leading source slot 0（即使是 `Unit` 被 elide）。但 carrier 打包 `build_carrier_direct_args` 与 direct entry 解包 `bind_direct_args` 都以「已加载的 env 值组件数」（`Unit` env = 0）作为显式参数起点，导致显式参数整体左移一个 slot，`build_source_payload_from_components` 报 `carrier_direct_args 缺少 source component 1`。修复：两处统一为 env 在非 flatten lambda 中固定占 1 个 source slot——`build_carrier_direct_args` 的 `explicit_component_start` 改为 `if flatten_env { env_component_count } else { 1 }`（`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body/main_carrier.rs`）；`bind_direct_args` 显式参数 `source_index` 改为直接用 mir param `index`（`crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body/states.rs`）。captures 情况（env 值组件数=1）行为不变，仅 `Unit`-env 情况被修正，未改 Pure、未绕 effect-frame ABI、未对名称特判。覆盖 ClosureObject、InterfaceItable、ClassVtable 三类 carrier 的 effectful+显式参数路径（InterfaceItable/ClassVtable receiver 占 slot 0，本就一致，已实测正常）。
+  - 新增 run-pass fixtures：`tests/fixtures/run-pass/effectful_closure_explicit_param_carrier.scoop`（ClosureObject，最小 repro，断言 try/catch Raise=99）、`tests/fixtures/run-pass/effectful_interface_method_explicit_param_carrier.scoop`（InterfaceItable，带参 effectful 方法，Raise=8）。
+  - 既有 HEAD 红：scheduling commit `57b94578 [P5-T02B] Schedule owner effect ABI prerequisite` 实际提交了 39 文件 owner-eff 探索（+1197/-261，含 typecheck/HIR/MIR materialize/generic_signatures/`scoop.delegates`），与本计划「该探索已回滚未提交」相悖，留下 clippy `type_complexity` + 6 个 Rust HIR golden + 1 个 Rust MIR test + 38 个 fixture 全红。按用户指示「不再新建任务，直接修复未被后续任务调度的问题」：
+    - 修复未调度的 benign 漂移：clippy 用 type alias `MemberOwnerNominalInstantiation` 收口 `itable.rs::find_member_owner_nominal_instantiation` 返回类型；同步 6 个 Rust HIR golden 与 27 个 fixture golden（17 个 `tests/fixtures/hir/*` + 10 个 `tests/fixtures/effect_lowered/*`），逐项确认 diff 仅为 `type_params` / `remapped_types` 计数 +5/+6 与 `t<N>` 稳定 id 漂移（fixture HIR/effect-lowered 结构逐字节相同），与 P5-T02A0P 同类漂移先例一致。
+    - 保留给已调度的 owner-eff/delegate 任务（不新建任务）：`hir/delegated_property_lowering`（语义，属 P5-T02A/P5-T03）、`effect_facts/dispatch_and_resume_call`（`instance_count` 6→5，owner-eff materialize，属 P5-T02B0）、7 个 `run-pass/delegated_property_*` + `delegate_library_wrappers_construct_basic` + 2 个 `typecheck/delegated_property_lazy_*`（owner-eff/同步委托，属 P5-T02B/P5-T03）、Rust test `mir::materialize::tests::materialized_mir_mir_materialize_generics_rejects_missing_effect_row_arg`（owner-eff effect-arg arity，属 P5-T02B0 roadmap 项 1）。这些均为 `57b94578` owner-eff 行为变更的症状，由 P5-T02B0 redo owner-eff「整体验证」与 P5-T02B/P5-T03 委托库化覆盖，不可在不做 owner-eff 工作的前提下安全单独修复。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`（绿）；`cargo test --all --all-targets --no-fail-fast`（仅剩上列 1 个 owner-eff MIR test 红，其余全绿，含修复后的 HIR golden 测试）；新增两个 carrier fixtures 通过；`python3 tools/run_fixtures.py`（`failed (11/1624)`，11 个均为上列 owner-eff/delegate 已调度 fixture）。本任务 carrier 改动经 stash 重建确认与上述既有红互相独立（既有红在 stash 后仍复现）。
 
 ### [TODO] P5-T02B0：修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff
 

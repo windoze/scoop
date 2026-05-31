@@ -195,7 +195,7 @@ lir_facts {
     - class_itable=scoop.unsafe.__AtomicInt entries=0
     - callable_symbol=lir_callable(224:instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hd9d49681793dd1cf2ef3c60199416bea) root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h722537244fb9938c77c7ef25189ae185
     - callable_symbol=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h34f672f07186232bc190524f7d5aadb1) root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h309876b0cda4a554f9786fa88914c0af
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=507 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=513 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=2
     - callable=sample.nested_self_contained kind=Plain control_body=true key=lir_callable(224:instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hd9d49681793dd1cf2ef3c60199416bea)
       plain_abi: function_ty=t105 params=0 return=t5 body_slices=8 call_sites=1
@@ -203,8 +203,8 @@ lir_facts {
     - callable=sample.nested_may_suspend_outward kind=EffectStep control_body=true key=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h34f672f07186232bc190524f7d5aadb1)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=15 boundaries=4 continuation_object=cont_obj#0
   step_types=2
-    - step#0 invoke_args=t2 complete=t5 continuation_obj=t499 cases=3
-    - step#1 invoke_args=t2 complete=t5 continuation_obj=t502 cases=3
+    - step#0 invoke_args=t2 complete=t5 continuation_obj=t505 cases=3
+    - step#1 invoke_args=t2 complete=t5 continuation_obj=t508 cases=3
   dynamic_invoke_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=1

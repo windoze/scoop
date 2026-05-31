@@ -633,11 +633,14 @@ fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
     false
 }
 
+/// Resolved owner nominal instantiation: `(owner_fqn, type_args, owner_effect_row)`.
+type MemberOwnerNominalInstantiation = (String, Vec<TypeId>, Option<EffectRow>);
+
 fn find_member_owner_nominal_instantiation(
     receiver_ty: TypeId,
     member_fqn: &str,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<(String, Vec<TypeId>, Option<EffectRow>)>, ItableLayoutError> {
+) -> Result<Option<MemberOwnerNominalInstantiation>, ItableLayoutError> {
     let Some((member_owner_fqn, _)) = member_fqn.rsplit_once('.') else {
         return Ok(None);
     };

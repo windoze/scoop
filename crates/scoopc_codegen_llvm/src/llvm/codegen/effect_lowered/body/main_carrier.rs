@@ -296,8 +296,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let env_component_count = env_components.len();
                 components = env_components;
-                components.resize(direct_component_count.max(env_component_count), None);
-                (1, env_component_count)
+                // In the non-flattened lambda ABI the env parameter always occupies exactly
+                // one leading source-tuple slot (component 0), even when it is `Unit` and thus
+                // elided from the layout: the invoke-args tuple is `(env, explicit_params...)`.
+                // Explicit params therefore start at source slot 1. In the flattened case the
+                // single env param *is* the whole invoke-args tuple, so its captures fill all
+                // leading slots and there are no explicit params to place.
+                let env_slot_count = if flatten_env { env_component_count } else { 1 };
+                components.resize(direct_component_count.max(env_slot_count), None);
+                (1, env_slot_count)
             }
             CallableCarrierKind::ClosureObject => (0, 0),
             CallableCarrierKind::ClassVtable | CallableCarrierKind::InterfaceItable => {
