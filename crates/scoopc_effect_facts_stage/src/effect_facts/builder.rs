@@ -245,27 +245,6 @@ impl EffectFactsTypeContext {
             .collect()
     }
 
-    /// For a dispatch target whose owner class carries an `eff E` parameter, the concrete
-    /// instance identity includes the owner effect row bound from the receiver type (e.g. a
-    /// `Box.accept` candidate dispatched on `Sink<eff Raise<Int>>` belongs to the
-    /// `Box.accept::<eff Raise<Int>>` instance). The AST-only dispatch itable yields a bare base
-    /// FQN, so the resolved `InstanceKey` has empty `eff_args`; recover the owner effect args
-    /// here so the dispatch target points at the published owner-eff callable.
-    fn dispatch_target_owner_eff_args(
-        &self,
-        types: &mut TypeStore,
-        callable_fqn: &str,
-        receiver_ty: Option<TypeId>,
-    ) -> Vec<EffectRow> {
-        match callable_owner_context(types, &self.env, callable_fqn, receiver_ty) {
-            Some(ctx) => match (ctx.eff_param_name, ctx.eff_arg) {
-                (Some(_), Some(row)) => vec![row],
-                _ => Vec::new(),
-            },
-            None => Vec::new(),
-        }
-    }
-
     fn surface_callable_contract(
         &self,
         types: &mut TypeStore,
@@ -373,10 +352,8 @@ fn callable_owner_context(
 ) -> Option<CallableOwnerContext> {
     let (owner_fqn, _) = callable_fqn.rsplit_once('.')?;
     let owner_sym = env.type_symbol(owner_fqn)?;
-    let receiver_nominal_any =
-        receiver_ty.and_then(|ty| nominal_type_for_effect_context(types, ty));
-    let receiver_nominal = receiver_nominal_any
-        .clone()
+    let receiver_nominal = receiver_ty
+        .and_then(|ty| nominal_type_for_effect_context(types, ty))
         .filter(|nominal| nominal.fqn == owner_fqn);
     let type_bindings = receiver_nominal
         .as_ref()
@@ -389,16 +366,6 @@ fn callable_owner_context(
                 .collect()
         })
         .unwrap_or_default();
-    // For interface/virtual dispatch the static receiver is the interface (or super) type
-    // (`Sink<eff Raise<Int>>`) while the candidate's owner is the impl class (`Box`), so the
-    // fqn-filtered receiver is `None`. Standard owner-eff classes pass their own `eff E`
-    // straight through to the implemented interface (`class Box<eff E> : Sink<eff E>`), so the
-    // receiver type's owner effect arg is the impl owner's effect arg. Fall back to it instead
-    // of dropping the owner effect (which would mis-lower the dispatch call as pure).
-    let eff_arg = receiver_nominal
-        .as_ref()
-        .and_then(|nominal| nominal.eff.clone())
-        .or_else(|| receiver_nominal_any.and_then(|nominal| nominal.eff));
     Some(CallableOwnerContext {
         decl_file: owner_sym.decl_file.clone(),
         type_bindings,
@@ -407,7 +374,7 @@ fn callable_owner_context(
             .eff_param
             .as_ref()
             .and_then(|param| param.default.clone()),
-        eff_arg,
+        eff_arg: receiver_nominal.and_then(|nominal| nominal.eff),
     })
 }
 
@@ -1813,24 +1780,8 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         result_ty: TypeId,
         receiver_ty: Option<TypeId>,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        let mut candidate_keys =
+        let candidate_keys =
             self.resolve_candidate_keys(candidate_fqns, explicit_arg_count, receiver_ty.is_some());
-        // The AST-only dispatch itable resolves candidates to bare base FQNs (empty `eff_args`).
-        // For owner-`eff` classes the concrete dispatch target lives under the owner effect row
-        // bound from the receiver type, so recover it; otherwise the target points at a
-        // non-existent eff-less callable instance.
-        for key in &mut candidate_keys {
-            if key.eff_args.is_empty() {
-                let eff_args = self.type_ctx.dispatch_target_owner_eff_args(
-                    types,
-                    &key.template.fqn,
-                    receiver_ty,
-                );
-                if !eff_args.is_empty() {
-                    key.eff_args = eff_args;
-                }
-            }
-        }
         if !candidate_keys.is_empty() {
             let declared_row =
                 self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;

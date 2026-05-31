@@ -33,11 +33,6 @@ pub(super) struct TemplateRootInfo {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_name: Option<String>,
-    /// Set when the (single) effect param is the owner class's `eff E` rather than a fun-level
-    /// effect param. Owner-bound effects can be determined from a concrete class instance, so
-    /// such member instances are seedable from class instantiations; fun-level effects need a
-    /// call-site effect arg and are not.
-    pub(super) owner_eff_param_name: Option<String>,
     pub(super) family: Vec<FunDecl>,
 }
 
@@ -47,7 +42,6 @@ pub(super) struct TemplateRootCandidate {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_name: Option<String>,
-    pub(super) owner_eff_param_name: Option<String>,
     pub(super) signature_key: String,
     pub(super) root_fun: FunDecl,
 }
@@ -58,7 +52,6 @@ pub(super) struct DeclOnlyTemplateCandidate {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_name: Option<String>,
-    pub(super) owner_eff_param_name: Option<String>,
     pub(super) signature_key: String,
     pub(super) signature: CallableSignatureInfo,
 }
@@ -76,7 +69,6 @@ pub(super) struct TemplateSignatureInfo {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_name: Option<String>,
-    pub(super) owner_eff_param_name: Option<String>,
     pub(super) fun_ty: TypeId,
     pub(super) return_ty: TypeId,
     pub(super) params: Vec<CallableSignatureParam>,

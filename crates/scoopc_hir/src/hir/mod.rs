@@ -16,7 +16,7 @@ mod dump;
 mod lower;
 mod stable_closure;
 pub use dump::stable_dump_file;
-pub use lower::{mangle_nominal_fqn, mangle_nominal_fqn_with_eff};
+pub use lower::mangle_nominal_fqn;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -149,10 +149,6 @@ pub struct NominalDecl {
     pub kind: ast::TypeKind,
     pub is_interior_mutable: bool,
     pub type_params: Vec<DeclTypeParam>,
-    /// True when the nominal declares an owner `eff E` parameter. Propagated to
-    /// `NominalMetadata::has_eff_param` so per-instance materialization drops the eff-generic
-    /// template just like `type_params`-generic templates.
-    pub has_eff_param: bool,
     pub supertypes: Vec<SupertypeDecl>,
     pub interfaces: Vec<String>,
     pub constructors: Vec<CtorDecl>,
@@ -874,18 +870,7 @@ impl ClassInstanceKey {
             .iter()
             .map(|arg| arg.inner())
             .collect::<Vec<_>>();
-        let eff_terms = nominal.eff.as_ref().map(|row| {
-            row.terms
-                .iter()
-                .map(|term| term.inner())
-                .collect::<Vec<_>>()
-        });
-        Some(Self(mangle_nominal_fqn_with_eff(
-            nominal.fqn,
-            &args,
-            eff_terms.as_deref(),
-            types,
-        )))
+        Some(Self(mangle_nominal_fqn(nominal.fqn, &args, types)))
     }
 
     /// 无 type-param class 的单态等价 key。仅供 HIR lowering 注册非泛型 class 使用。

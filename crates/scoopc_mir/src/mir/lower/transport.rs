@@ -201,7 +201,6 @@ pub(in crate::mir::lower) fn lower_decl_metadata(decl: &hir::Decl) -> MetadataRo
                 .iter()
                 .map(lower_decl_type_param_metadata)
                 .collect(),
-            has_eff_param: nominal.has_eff_param,
             supertypes: nominal
                 .supertypes
                 .iter()

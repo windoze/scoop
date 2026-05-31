@@ -10,41 +10,15 @@ use super::*;
 /// - 无 type args 时返回 base FQN 本身（如 `"pkg.Point"`）
 /// - 有 type args 时返回 `"pkg.Pair<Int, String>"` 格式（与 TypeStore display 格式对齐）
 pub fn mangle_nominal_fqn(fqn: &str, args: &[crate::ty::TypeId], types: &TypeStore) -> String {
-    mangle_nominal_fqn_with_eff(fqn, args, None, types)
-}
-
-/// Like [`mangle_nominal_fqn`] but also encodes the owner effect row when present, so that
-/// effect-parameterized nominals (`ObservableProperty<Int, eff Raise<Int>>`,
-/// `Continuation<R, A, eff E>`, ...) get distinct layout / itable / instance keys per effect
-/// instantiation. The effect row is an ABI-significant component of itable/vtable slots, so two
-/// instances differing only in their owner effect must not collapse to the same key. `eff_terms =
-/// None` (a nominal that declares no `eff` parameter) reproduces the legacy key exactly.
-pub fn mangle_nominal_fqn_with_eff(
-    fqn: &str,
-    args: &[crate::ty::TypeId],
-    eff_terms: Option<&[crate::ty::TypeId]>,
-    types: &TypeStore,
-) -> String {
-    let mut parts: Vec<String> = args
-        .iter()
-        .map(|id| types.display(*id).to_string())
-        .collect();
-    if let Some(terms) = eff_terms {
-        let row = if terms.is_empty() {
-            "Pure".to_string()
-        } else {
-            terms
-                .iter()
-                .map(|id| types.display(*id).to_string())
-                .collect::<Vec<_>>()
-                .join(" + ")
-        };
-        parts.push(format!("eff {row}"));
-    }
-    if parts.is_empty() {
+    if args.is_empty() {
         return fqn.to_string();
     }
-    format!("{fqn}<{}>", parts.join(", "))
+    let arg_str = args
+        .iter()
+        .map(|id| types.display(*id).to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{fqn}<{arg_str}>")
 }
 
 /// 将 TypeId 转为 layout 索引中使用的 FQN 字符串。
@@ -1211,10 +1185,7 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
             continue;
         };
-        // eff-only owner classes (no value type args, only a concrete owner `eff`) are still
-        // generic instances that need a per-instance MonoClassInit; only skip when there is
-        // neither a value type arg nor an owner effect row.
-        if nominal.args.is_empty() && nominal.eff.is_none() {
+        if nominal.args.is_empty() {
             continue;
         }
         if nominal
@@ -1224,28 +1195,10 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
         {
             continue;
         }
-        // Skip templates whose owner effect row still carries an unsubstituted `Param`.
-        if let Some(eff) = &nominal.eff
-            && eff
-                .terms
-                .iter()
-                .any(|&term| type_contains_param(types, term))
-        {
-            continue;
-        }
 
         let Some((source, decl)) = generic_classes.get(&nominal.fqn) else {
             continue;
         };
-
-        // A class that declares an owner `eff` parameter must always be instantiated with a
-        // concrete owner effect row. An instance with `eff = None` is under-substituted (the eff
-        // arg was dropped upstream), so substituting its fields would leak the unbound `eff E`
-        // (e.g. `ObservableProperty<Int>`'s `onChange: (V,V) -> Unit / E`). Skip such malformed
-        // instances rather than materializing a leaking layout.
-        if decl.eff_param.is_some() && nominal.eff.is_none() {
-            continue;
-        }
 
         let Some(class_key) = types
             .as_mono(ty_id)

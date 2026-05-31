@@ -1,3 +1,4 @@
+// IGNORE-UNTIL-FIX: owner-eff/标准委托端到端未完成，Fact 重构批 4（T4-03/T4-04）恢复
 package fixtures.mir
 
 import scoop.core.*

@@ -9,7 +9,6 @@ pub(super) struct GenericTemplateInfo {
     pub(super) stable_template_key: StableTemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_name: Option<String>,
-    pub(super) owner_eff_param_name: Option<String>,
     pub(super) signature_key: String,
     pub(super) has_body: bool,
 }
@@ -99,7 +98,6 @@ pub(super) fn push_generic_template_info(
         eff_param_name: owner_eff_param
             .or(fun.eff_param.as_ref())
             .map(|param| param.name.text(source).to_string()),
-        owner_eff_param_name: owner_eff_param.map(|param| param.name.text(source).to_string()),
         signature_key,
         has_body: matches!(fun.body, ast::FunBody::Block(_)),
     });
@@ -174,7 +172,6 @@ pub(super) fn push_generic_value_property_getter_template_info(
             .map(|param| param.name.text(source).to_string())
             .collect(),
         eff_param_name: None,
-        owner_eff_param_name: None,
         signature_key,
         has_body: property
             .getter

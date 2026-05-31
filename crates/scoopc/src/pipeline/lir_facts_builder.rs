@@ -40,12 +40,6 @@ struct LirFactsBuildContext<'a> {
     materialized: &'a MaterializedMir,
     effect_facts: &'a MaterializedEffectFacts,
     callable_keys_by_root: HashMap<String, StableLirCallableKey>,
-    /// Published callable keys indexed by their stable instance-key canonical text. Dispatch
-    /// targets carry an `InstanceKey` whose `template.fqn` is the bare member name (e.g.
-    /// `Box.accept`) rather than the eff-mangled root (`Box.accept::<eff Raise<Int>>`), so the
-    /// by-root lookup misses for owner-eff instances; resolving by canonical instance text keeps
-    /// the dispatch target pointed at the published owner-eff callable.
-    callable_keys_by_instance: HashMap<String, StableLirCallableKey>,
     body_versions_by_key: HashMap<StableLirCallableKey, BodyVersionKey>,
 }
 
@@ -75,7 +69,6 @@ pub(crate) fn build_lir_facts(
     opt_pipeline: LirOptPipelineFacts,
 ) -> Result<LirFacts, EffectLoweringError> {
     let callable_keys_by_root = callable_key_index(lir, effect_facts.types())?;
-    let callable_keys_by_instance = callable_key_by_instance_index(lir, &callable_keys_by_root)?;
     let body_versions_by_key = body_version_index(lir, &callable_keys_by_root)?;
     let ctx = LirFactsBuildContext {
         lir,
@@ -83,7 +76,6 @@ pub(crate) fn build_lir_facts(
         materialized,
         effect_facts,
         callable_keys_by_root,
-        callable_keys_by_instance,
         body_versions_by_key,
     };
 
@@ -145,33 +137,6 @@ fn callable_key_index(
             callable.root_fqn().to_string(),
             stable_lir_callable_key(lir, types, callable)?,
         );
-    }
-    Ok(out)
-}
-
-/// A `TemplateKey`-identity-independent instance signature: `(base fqn, type-arg ids, eff-term
-/// ids)`. Dispatch targets recovered from the AST-only itable carry a `TemplateKey` whose
-/// `source_path`/`decl_span` may differ from the published callable's (even when the logical
-/// instance — base fqn + type args + owner eff — is identical), so exact `InstanceKey` equality
-/// fails. Matching on this loose signature resolves the dispatch target to the published callable.
-fn loose_instance_signature(instance: &InstanceKey) -> String {
-    let type_args: Vec<u32> = instance.type_args.iter().map(|ty| ty.as_u32()).collect();
-    let eff_args: Vec<Vec<u32>> = instance
-        .eff_args
-        .iter()
-        .map(|row| row.terms.iter().map(|ty| ty.as_u32()).collect())
-        .collect();
-    format!("{}|{type_args:?}|{eff_args:?}", instance.template.fqn)
-}
-
-fn callable_key_by_instance_index(
-    lir: &LateLoweredProgram,
-    callable_keys_by_root: &HashMap<String, StableLirCallableKey>,
-) -> Result<HashMap<String, StableLirCallableKey>, EffectLoweringError> {
-    let mut out = HashMap::new();
-    for callable in lir.callables() {
-        let key = callable_key_for_root(callable_keys_by_root, callable.root_fqn())?.clone();
-        out.insert(loose_instance_signature(callable.instance_key()), key);
     }
     Ok(out)
 }
@@ -1976,15 +1941,6 @@ fn target_callable_key(
     instance: &InstanceKey,
 ) -> StableLirCallableKey {
     if let Some(key) = ctx.callable_keys_by_root.get(&instance.template.fqn) {
-        return key.clone();
-    }
-    // Owner-eff (and other generic) instances are published under their eff-mangled root, so the
-    // bare-`template.fqn` lookup above misses; resolve via the loose instance signature (base fqn
-    // + type args + owner eff), which is robust to `TemplateKey` source/span differences.
-    if let Some(key) = ctx
-        .callable_keys_by_instance
-        .get(&loose_instance_signature(instance))
-    {
         return key.clone();
     }
     if let Some(stable_key) = ctx.lir.stable_instance_key(instance) {

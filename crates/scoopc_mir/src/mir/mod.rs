@@ -1861,10 +1861,6 @@ pub struct NominalMetadata {
     pub kind: ast::TypeKind,
     pub is_interior_mutable: bool,
     pub type_params: Vec<DeclTypeParamMetadata>,
-    /// True when the nominal declares an owner `eff E` parameter; such templates are generic
-    /// over their owner effect row and must be dropped from per-instance materialized metadata
-    /// (alongside `type_params`-generic templates) to avoid leaking unsubstituted `eff` rows.
-    pub has_eff_param: bool,
     pub supertypes: Vec<SupertypeMetadata>,
     pub interfaces: Vec<String>,
     pub constructors: Vec<CtorMetadata>,

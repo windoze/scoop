@@ -20,11 +20,11 @@ mod stmt;
 
 pub use types::{HirLowerError, HirStageError, LoweredHir};
 pub use util::GenericTemplateSymbolSuffixIndex;
+pub use util::mangle_nominal_fqn;
 pub use util::{
     canonical_generic_fun_signature_key, canonical_generic_property_getter_signature_key,
     collect_generic_template_symbol_suffixes, stable_instance_fqn,
 };
-pub use util::{mangle_nominal_fqn, mangle_nominal_fqn_with_eff};
 
 use std::collections::{HashMap, HashSet};
 
