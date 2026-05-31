@@ -70,6 +70,7 @@
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [DONE] | Review P5-T02 特判删除 |
+| P5-T02B00 | [TODO] | 修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI（缺 source component） |
 | P5-T02B0 | [TODO] | 修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff |
 | P5-T02B | [TODO] | 修复 owner `eff` 参数路径，并收口同步标准委托 effect 边界 |
 | P5-T03 | [TODO] | 同步委托回归（含 lazy Pure initializer / 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
@@ -725,9 +726,35 @@
   - 2026-05-31：复核 P5-T02 / P5-T02A 当前源码：`crates/scoopc_hir/src/hir/lower/types.rs` 中 `DelegatedPropertyInfo` 已收敛为 `GenericDelegatedPropertyInfo` 类型别名，生产 HIR lowering grep 未发现 `ParsedStdDelegateExpr`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`MapBacked`、`parse_map_backed_delegate_expr`、map-backed field-copy 分支或生产 `SYNC_MUTEX_*` 常量残留。`decls.rs` 统一为每个 delegated property 注入普通 `$delegate` 字段并 lower 原始 delegate 表达式，`members.rs` / `sugar.rs` 统一生成 `$delegate.getValue(thisRef, PropertyMeta)` / `$delegate.setValue(thisRef, PropertyMeta, value)` synthetic call，相关 HIR golden 与 `delegated_property_map_backed_basic.scoop` 覆盖统一泛型路径。仍存在的 `scoop.delegates.lazy/observable/vetoable` typecheck/platform policy by-name 逻辑不属于 HIR lowering 合成残留，已由后续 `P5-T03` 的硬编码守卫/透明化收口覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`。完整 `python3 tools/run_fixtures.py` 首轮除已由 `P5-T03` 精确调度的 `run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 外，还观测到一次 `runtime_gc/std_sync_backend_parity_immix_major.scoop` 59s timeout；该 fixture 单独重复运行、`tests/fixtures/runtime_gc` 子套件运行与完整 suite 重跑均通过。完整重跑最终仅剩 `P5-T03` 已调度失败，未发现新的未调度失败。
 
+### [TODO] P5-T02B00：修复带显式参数的 effectful 闭包/方法 dispatch-carrier ABI
+
+- 触发：执行 P5-T02B0 时，用最小 repro `class Box<eff E> : Sink<eff E>` 逐层定位 owner-eff 缺口，推进到 codegen 阶段后暴露一个**与 owner-eff / 泛型无关的既有 bug**：带显式参数且 effectful 的闭包（以及 effectful interface/vtable 方法）经 dispatch-carrier shell 降级时报 `LLVM codegen 前端准备失败：ABI tuple payload \`carrier_direct_args\` 缺少 source component N`。
+- 已确认最小复现（无泛型、无 owner eff）：
+  ```
+  fun run(cb: (Int) -> Unit / Raise<Int>): Unit / Raise<Int> { cb(1) }
+  fun main(): Int { try { run { v -> if (v == 1) { Raise.raise(99) } } } catch (e: Int) { ... }; return 0 }
+  ```
+  报错 carrier 为 `kind=ClosureObject carrier_fqn=main.$lambda0`：`mir_fun.params=2`（env + v）、`direct_component_count=2`、`explicit_start=(1,0)`，但只填了 `components[0]=v`，`components[1]` 为 None。即 effectful 闭包 direct entry 的 args tuple 比显式参数多出一个（effect-frame/continuation 相关）source component，`build_carrier_direct_args` 无法填充。
+- 对照：`tests/fixtures/run-pass/for_in_custom_iterator_effects.scoop` 中 effectful interface 方法（`next()` / `iterator()`，**无显式参数**）工作正常；纯（非 effectful）带参闭包也正常（不走 carrier shell）。因此 bug 范围是「effectful + 至少一个显式参数 + 走 dispatch/closure carrier shell」。
+- 必须实现的内容：
+  1. 修正 `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body/main_carrier.rs` 的 `build_carrier_direct_args` / `unpack_carrier_explicit_args`（及相关 `CallableEntryLayout::invoke_args_tuple_ty` 消费），使 effectful 直接入口的 args tuple 中显式参数 source component 偏移与 carrier 填充一致；不得通过默认值掩盖 contract 漂移（`states.rs` 已有此类禁令）。
+  2. 覆盖 ClosureObject、InterfaceItable、ClassVtable 三类 carrier 的 effectful + 显式参数路径。
+  3. 新增最小 run-pass fixture：effectful 闭包带参（如上 repro）、effectful interface 方法带参，断言 try/catch Raise 行为正确。
+- 必须遵从的约束：不得把 effectful 方法/闭包改成 Pure、不得绕开 effect-frame ABI、不得对特定名称特判。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、新增 targeted fixtures、`python3 tools/run_fixtures.py`。
+- 完成条件：带显式参数的 effectful 闭包/方法经 carrier shell 正确降级，`carrier_direct_args` 不再缺 source component。
+- 依赖：P5-T02R
+
 ### [TODO] P5-T02B0：修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff
 
 - 触发：执行 P5-T02B 时，`delegated_property_observable_raise_does_not_poison_mutex.scoop` 从 effect-facts `Any` row 推进到 cone 模式 codegen 阶段后，继续暴露 owner `eff` 泛型 class 的 constructor result、itable method impl FQN、callable carrier target 与跨 cone ABI handoff 不一致：`ObservableProperty<V, eff E>` 在 `observable<V, eff E>` factory 内仍会产生 `eff Pure` / 缺失 owner-eff callable signature 的 itable target，导致 `getValue::<Int, eff Pure>` / `setValue` layout 与实际 `eff Raise<Int>` 路径漂移。
+- 实现路线图（2026-05-31 用最小 repro `class Box<eff E> : Sink<eff E>` 逐层定位，按层修复；本轮探索代码已回滚，未提交，下次按此 roadmap 重做并整体验证）：
+  1. typecheck ctor：`crates/scoopc_hir/src/typecheck/expr/call/ctor.rs` 的 `try_infer_nominal_constructor_call_expr_type_with_expected` 在 `expected_args.is_empty()` 时过早返回 `Ok(None)`，eff-only class（无普通 type param，仅 `eff E`）拿不到 expected owner eff。改为 `expected_args.is_empty() && expected_eff.is_none()` 才 bail。
+  2. HIR 单态化判定：`crates/scoopc_hir/src/hir/lower/util/decls.rs` 的 `is_generic = !decl.type_params.is_empty()` 漏掉 eff-only class，应改为 `|| decl.eff_param.is_some()`，否则被当 non-generic 直接 monomorph，`eff E` 泄漏到字段（`contains Param after monomorphization`）。
+  3. 实例扫描门：`crates/scoopc_hir/src/hir/lower/util/generic_layouts.rs::collect_generic_class_instantiation_inits` 跳过 `nominal.args.is_empty()` 的实例，应改为 `args.is_empty() && nominal.eff.is_none()` 才跳过，并增加 eff terms 的 param-leak 检查。
+  4. decl metadata 过滤：`crates/scoopc_mir/src/mir/materialize/instance.rs::filter_materialized_metadata_root` 只丢弃 `!type_params.is_empty()` 的 nominal 模板，eff-only class 模板（带 `Sink<eff E>` 未替换 supertype）被保留导致 MIR `unresolved_generic_param`。需给 HIR `NominalDecl` / MIR `NominalMetadata` 加 `has_eff_param` 字段（HIR `lower_nominal_decl` 取 `decl.eff_param.is_some()`，`lower_decl_metadata` 透传），过滤时 `|| nominal.has_eff_param` 一并丢弃。
+  5. class instance key 必须编码 eff：`ClassInstanceKey::from_mono_nominal`（`crates/scoopc_hir/src/hir/mod.rs`）与 itable `collect_concrete_class_targets`（`crates/scoopc_hir/src/itable.rs`）的 class_key 都用 `mangle_nominal_fqn`（忽略 eff），导致 `Box<eff Pure>` 与 `Box<eff Raise<Int>>` 撞 key、itable dedup 取错实例、生成 `getValue::<Int, eff Pure>` target。需新增 eff-aware mangling（`mangle_nominal_fqn_with_eff`，eff=None 时与旧行为一致）。**注意高风险**：此改动影响所有带 eff 参数的 nominal（如 `Continuation<R,A,eff E>`），需全量 golden/回归验证。
+  6. 修完上述后下一个 blocker 即 `P5-T02B00`（effectful 带参闭包/方法 carrier ABI）；本任务依赖它。
 - 必须实现的内容：
   1. 让 owner `eff` class constructor 的 result type 在 typecheck → HIR lowering → MIR materialization → class layout/type descriptor/itable 全路径保留 expected/explicit owner effect row，不得回落到默认 `Pure`。
   2. 让 itable/vtable method impl FQN materialization、callable signature publication 与 carrier target selection 使用 concrete owner `eff` instance key；跨 cone consumer/imported callable ABI 必须按同一 canonical owner-eff instance 对齐。
@@ -736,7 +763,7 @@
 - 必须遵从的约束：不得通过去掉 interface 实现、弱化 itable、把 `ObservableProperty` 特判为名称匹配、或让 Pure/非 Pure owner effect 共享错误 callable 身份来绕过。
 - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、owner-eff targeted cone fixture、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、`python3 tools/run_fixtures.py`。
 - 完成条件：owner `eff` 泛型 class 的 constructor、itable method targets、callable carrier 与跨 cone ABI 全部使用 concrete owner effect row；`ObservableProperty<Int, eff Raise<Int>>` 不再退化到 `eff Pure` / missing signature。
-- 依赖：P5-T02R
+- 依赖：P5-T02R、P5-T02B00（effectful 带参闭包/方法 carrier ABI 必须先修，否则 owner-eff + Raise 回调无法端到端验证）
 - 完成记录：
   - （待填）
 
