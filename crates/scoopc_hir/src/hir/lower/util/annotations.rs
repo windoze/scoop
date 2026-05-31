@@ -231,6 +231,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
     out
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
     source: &'a SourceFile,
     file: &'a ast::File,
@@ -300,6 +301,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
     source: &'a SourceFile,
     file: &'a ast::File,

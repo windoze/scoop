@@ -987,9 +987,8 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                         if let Some(target_fqn) = materialized_target
                             && let super::super::ExprKind::Call { callee, .. } = &mut init_expr.kind
                         {
-                            *callee = Box::new(
-                                ctx.top_level_callee_expr_with_fqn(delegate_expr.span, target_fqn),
-                            );
+                            **callee =
+                                ctx.top_level_callee_expr_with_fqn(delegate_expr.span, target_fqn);
                         }
                         insert_field(
                             &mut init,

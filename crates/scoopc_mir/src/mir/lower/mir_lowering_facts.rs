@@ -24,6 +24,23 @@ impl MirLoweringFacts {
         self.member_value_tys.extend(facts.member_value_tys());
         self.nominal_kinds.extend(facts.nominal_kinds());
         self.enum_has_payload.extend(facts.enum_payload_kinds());
+        let mut variant_owners: HashMap<String, Option<String>> = HashMap::new();
+        for variant in &hir_facts.declarations.enum_variants {
+            let owner = variant.enum_owner.as_str().to_string();
+            variant_owners
+                .entry(variant.name.clone())
+                .and_modify(|existing| {
+                    if existing.as_ref() != Some(&owner) {
+                        *existing = None;
+                    }
+                })
+                .or_insert(Some(owner));
+        }
+        self.enum_variant_owner_fqns.extend(
+            variant_owners
+                .into_iter()
+                .filter_map(|(name, owner)| owner.map(|owner| (name, owner))),
+        );
 
         self
     }
@@ -285,6 +302,10 @@ impl MirLoweringFacts {
 
     pub(in crate::mir::lower) fn enum_has_payload(&self, fqn: &str) -> Option<bool> {
         self.enum_has_payload.get(fqn).copied()
+    }
+
+    pub(in crate::mir::lower) fn enum_variant_owner_fqn(&self, name: &str) -> Option<&str> {
+        self.enum_variant_owner_fqns.get(name).map(String::as_str)
     }
 
     pub(in crate::mir::lower) fn dispatch_target_kind(

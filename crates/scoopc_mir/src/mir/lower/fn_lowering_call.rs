@@ -72,7 +72,17 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Constructor(ctor) => {
-                self.lower_constructor_call_expr(span, result, &ctor, args);
+                let result_ty = self.body.locals[result.as_u32() as usize].ty;
+                let ctor_result_ty = self.constructor_result_ty_for_contract(&ctor);
+                let ctor_result = if result_ty == ctor_result_ty {
+                    result
+                } else {
+                    self.push_temp_local(span, ctor_result_ty)
+                };
+                self.lower_constructor_call_expr(span, ctor_result, &ctor, args);
+                if ctor_result != result && !self.current_is_terminated() {
+                    self.assign_use_to_local(span, result, Operand::Local(ctor_result));
+                }
                 true
             }
             TypedCallSiteContract::Closure { arg_binding, .. } => {
@@ -440,20 +450,27 @@ impl<'a> FnLowering<'a> {
         }
         let stripped_binding = call_arg_binding_without_receiver(member.function().arg_binding());
         let arg_binding = Self::active_hir_call_arg_binding(call_args, stripped_binding.as_ref());
+        let selected_param_tys = self.selected_or_indexed_param_tys(member.function());
         let function_has_receiver = member
             .function()
             .arg_binding()
-            .is_some_and(call_arg_binding_has_receiver);
-        let expected_tys = self
-            .selected_or_indexed_param_tys(member.function())
+            .is_some_and(call_arg_binding_has_receiver)
+            || selected_param_tys.as_ref().is_some_and(|param_tys| {
+                self.dispatch_param_tys_include_receiver(
+                    param_tys,
+                    call_args.len(),
+                    member.receiver_ty(),
+                )
+            });
+        let expected_tys = selected_param_tys
             .map(|param_tys| {
-                let param_tys = if function_has_receiver {
+                let explicit_param_tys = if function_has_receiver {
                     param_tys.get(1..).unwrap_or(&[])
                 } else {
-                    &param_tys
+                    param_tys.as_slice()
                 };
                 self.source_arg_expected_tys_from_param_tys(
-                    param_tys,
+                    explicit_param_tys,
                     call_args.len(),
                     false,
                     arg_binding,
@@ -497,6 +514,41 @@ impl<'a> FnLowering<'a> {
                 transport,
             },
         );
+    }
+
+    fn dispatch_param_tys_include_receiver(
+        &self,
+        param_tys: &[TypeId],
+        explicit_arg_count: usize,
+        receiver_ty: TypeId,
+    ) -> bool {
+        if param_tys.len() != explicit_arg_count.saturating_add(1) {
+            return false;
+        }
+        let Some(&first_param_ty) = param_tys.first() else {
+            return false;
+        };
+        if first_param_ty == receiver_ty {
+            return true;
+        }
+        self.nominal_fqn_for_ty(first_param_ty)
+            .zip(self.nominal_fqn_for_ty(receiver_ty))
+            .is_some_and(|(param_fqn, receiver_fqn)| param_fqn == receiver_fqn)
+    }
+
+    fn constructor_result_ty_for_contract(
+        &mut self,
+        ctor: &ConstructorCallTargetContract,
+    ) -> TypeId {
+        if self.nominal_fqn_for_ty(ctor.result_ty()).as_deref() == Some(ctor.owner_fqn()) {
+            return ctor.result_ty();
+        }
+        self.types
+            .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                fqn: ctor.owner_fqn().to_string(),
+                args: Vec::new(),
+                eff: None,
+            })))
     }
 
     pub(in crate::mir::lower) fn dispatch_receiver_and_args<'b>(
@@ -973,7 +1025,7 @@ impl<'a> FnLowering<'a> {
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
             && matches!(
-                self.types.kind(ty),
+                self.types.kind(result_ty),
                 TypeKind::Value(ValueTypeKind::Option(_) | ValueTypeKind::Nominal(_))
             )
         {
@@ -981,7 +1033,7 @@ impl<'a> FnLowering<'a> {
                 return result;
             };
             let payload = self.aggregate_transport(
-                ty,
+                result_ty,
                 AggregateTransportKind::EnumPayload,
                 args.iter()
                     .map(|arg| (arg.name.clone(), self.operand_ty(&arg.value)))
@@ -991,7 +1043,7 @@ impl<'a> FnLowering<'a> {
                 span,
                 result,
                 Rvalue::EnumVariant {
-                    enum_ty: ty,
+                    enum_ty: result_ty,
                     variant_name: name.clone(),
                     args,
                     payload,

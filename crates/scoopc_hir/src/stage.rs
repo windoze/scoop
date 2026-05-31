@@ -4388,8 +4388,12 @@ impl<'a> ContractCollector<'a> {
     }
 
     fn call_may_lower_without_typed_contract(&self, expr: &Expr, callee: &Expr) -> bool {
-        if !matches!(callee.kind, ExprKind::UnresolvedIdent { .. }) {
+        let ExprKind::UnresolvedIdent { name } = &callee.kind else {
             return false;
+        };
+
+        if self.unresolved_callee_is_enum_variant(name) {
+            return true;
         }
 
         match self.lowered_hir.types.kind(expr.ty) {
@@ -4401,6 +4405,13 @@ impl<'a> ContractCollector<'a> {
                 .is_some_and(|kind| *kind == ast::TypeKind::Enum),
             _ => false,
         }
+    }
+
+    fn unresolved_callee_is_enum_variant(&self, name: &str) -> bool {
+        self.lowered_hir
+            .enum_layouts
+            .values()
+            .any(|layout| layout.variants.iter().any(|variant| variant.name == name))
     }
 
     fn call_arg_binding_contract(

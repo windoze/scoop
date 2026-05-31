@@ -551,6 +551,14 @@ impl MirInstanceMaterializer {
                 }) = &callee.kind
                 {
                     self.scan_reachable_top_level_ref_fqn(source_path, expr.span, fqn, out)?;
+                    self.scan_reachable_static_hir_direct_call_instance(
+                        source_path,
+                        expr.span,
+                        expr.ty,
+                        fqn,
+                        args,
+                        out,
+                    );
                 } else {
                     self.scan_reachable_static_init_expr(source_path, callee, out)?;
                 }
@@ -647,6 +655,112 @@ impl MirInstanceMaterializer {
             | crate::hir::ExprKind::Todo(_) => {}
         }
         Ok(())
+    }
+
+    fn scan_reachable_static_hir_direct_call_instance(
+        &mut self,
+        source_path: &Path,
+        call_span: Span,
+        result_ty: TypeId,
+        callee_fqn: &str,
+        args: &[crate::hir::CallArg],
+        out: &mut Vec<InstanceKey>,
+    ) {
+        let base_fqn = callee_fqn
+            .split_once("::<")
+            .map(|(base, _)| base)
+            .unwrap_or(callee_fqn);
+        let Some(templates) = self.roots_by_fqn.get(base_fqn) else {
+            return;
+        };
+        let candidates = templates
+            .iter()
+            .filter_map(|template| {
+                let signature = self.template_signatures.get(template)?;
+                let symbol_suffix = self.template_symbol_suffix(template);
+                if signature.params.len() != args.len() {
+                    return None;
+                }
+                if signature.eff_param_name.is_some()
+                    || signature.type_param_names.is_empty()
+                    || map_hir_call_args_to_signature_params(&signature.params, args).is_none()
+                {
+                    return None;
+                }
+                Some((
+                    template.clone(),
+                    signature.clone(),
+                    !symbol_suffix.is_empty() && callee_fqn.ends_with(symbol_suffix),
+                ))
+            })
+            .collect::<Vec<_>>();
+        let suffix_matched = candidates
+            .iter()
+            .filter(|(_, _, suffix_matches)| *suffix_matches)
+            .collect::<Vec<_>>();
+        let selected = if suffix_matched.len() == 1 {
+            let (template, signature, _) = suffix_matched[0];
+            Some((template, signature))
+        } else if candidates.len() == 1 {
+            let (template, signature, _) = &candidates[0];
+            Some((template, signature))
+        } else {
+            None
+        };
+        let Some((template, signature)) = selected else {
+            return;
+        };
+        let Some(arg_to_param) = map_hir_call_args_to_signature_params(&signature.params, args)
+        else {
+            return;
+        };
+
+        let mut bindings = std::collections::HashMap::new();
+        for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
+            let Some(param) = signature.params.get(param_idx) else {
+                return;
+            };
+            if !type_contains_param(&self.types, param.ty) {
+                continue;
+            }
+            let arg_ty = match args.get(arg_idx) {
+                Some(crate::hir::CallArg::Positional(value)) => value.ty,
+                Some(crate::hir::CallArg::Named { value, .. }) => value.ty,
+                None => return,
+            };
+            if type_contains_param(&self.types, arg_ty) {
+                return;
+            }
+            collect_type_param_bindings(&self.types, param.ty, arg_ty, &mut bindings);
+        }
+        if !type_contains_param(&self.types, result_ty) {
+            collect_type_param_bindings(&self.types, signature.return_ty, result_ty, &mut bindings);
+        }
+
+        let mut type_args = Vec::with_capacity(signature.type_param_names.len());
+        for name in &signature.type_param_names {
+            let Some(ty) = bindings.get(name).copied() else {
+                return;
+            };
+            if type_contains_param(&self.types, ty) {
+                return;
+            }
+            type_args.push(ty);
+        }
+        if type_args.is_empty() {
+            return;
+        }
+
+        let instance = InstanceKey {
+            template: template.clone(),
+            type_args,
+            eff_args: Vec::new(),
+        };
+        if instance_request_is_concrete(&self.types, &instance.type_args, &instance.eff_args) {
+            self.reachable_request_call_sites
+                .insert((source_path.to_path_buf(), call_span));
+            out.push(instance);
+        }
     }
 
     pub(super) fn scan_reachable_dispatch_candidates(

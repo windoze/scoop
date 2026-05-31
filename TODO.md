@@ -66,6 +66,7 @@
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
+| P5-T02A0P | [TODO] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
 | P5-T02A0 | [TODO] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
@@ -648,6 +649,27 @@
   - 验证过程中完整 fixture suite 暴露 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` 在并行回归下超时；已将 worker 改为有界分配并在等待 stop flag 时 `yield()`，保留语言级线程 local roots + main STW GC 覆盖，同时消除不受控忙分配。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted delegated-property run-pass/HIR fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
+### [TODO] P5-T02A0P：修复 P5-T02A0 验证暴露的未调度完整 fixture 回归
+
+- 触发：执行 P5-T02A0 时，`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 已通过，且 P5-T02A0 指定的 `delegated_property_lazy_init_once_basic.scoop` / `delegated_property_observable_vetoable_basic.scoop` 已通过；但完整 `python3 tools/run_fixtures.py` 仍暴露未调度失败。
+- 已确认可由后续既有任务覆盖的失败：`run-pass/delegated_property_map_backed_basic.scoop` 属于 P5-T02A；`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 与委托回归/守卫属于 P5-T03；`hir/delegated_property_lowering.scoop` 的最终统一泛型路径 golden 属于 P5-T02A/P5-T03 收口。
+- 未调度失败集合（需本任务处理或进一步精确归档）：
+  1. `effect_lowered/*` 多个 golden 仅表现为稳定 type id 漂移时，确认语义无变化后同步 golden；若存在语义变化则修复实现。
+  2. `hir/do_block_multiple_trailing_lambda_boundary.scoop` golden 与 `run-pass/do_block_multiple_trailing_lambda_boundary.scoop`。
+  3. `run-pass/continuation_resume_ref_class.scoop`。
+  4. `run-pass/member_call_interface_dispatch_generic_class_body_method_basic.scoop`。
+  5. `run-pass/smart_cast_any_member_access_generic_class_basic.scoop`。
+  6. `run-pass/top_level_generic_function_value_basic.scoop`。
+- 必须实现的内容：
+  1. 对上述未调度失败逐项复现；区分 golden 漂移、真实 MIR/LIR contract 回归、运行期语义回归。
+  2. 修复所有真实回归；golden 仅在确认语义正确后更新。
+  3. 不得把这些失败并入后续委托任务，除非 TODO 中已存在完全匹配的任务范围。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、相关 targeted fixtures、`python3 tools/run_fixtures.py`。
+- 完成条件：完整 fixture suite 通过，或剩余失败已被精确证明并调度到更早的前置任务。
+- 依赖：P5-T02
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T02A0：修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI
 
 - 触发：执行 P5-T02A 时删除 MapBacked field-copy 后，`by lazy { ... }` / `by observable(...)` 统一 `$delegate.getValue/setValue(thisRef, PropertyMeta, ...)` 路径进入 codegen；targeted run-pass 暴露 `PropertyMeta` 参数在 materialized/devirtualized direct-call ABI 中仍被错误处理，表现为 `unsupported value coercion from Ref to Struct(...)` 或 LLVM call 参数类型与函数签名不匹配。
@@ -658,9 +680,10 @@
 - 必须遵从的约束：该修复是泛型委托协议与 metadata ABI 的通用修复，不得恢复 lazy/observable/vetoable 专用 lowering，也不得绕开 `PropertyMeta`。
 - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`。
 - 完成条件：上述 lazy/observable/vetoable unified delegated-property fixtures 不再在 class-init generic factory、devirtualized getValue/setValue 或 `PropertyMeta` ABI/codegen 处失败。
-- 依赖：P5-T02
+- 依赖：P5-T02；P5-T02A0P
 - 阻塞记录：
   - 2026-05-31：P5-T02A 尝试删除 MapBacked 后已能生成统一 `$delegate` 字段并进入 generic `getValue`/`setValue` 路径；继续验证时发现 class init 中 generic delegate factory materialization 与 `PropertyMeta` aggregate ABI 仍存在通用 codegen 缺口，阻塞 P5-T02A 完成。
+  - 2026-05-31：已实现 P5-T02A0 目标路径的主体修复：class-init generic delegate factory 可发布 LIR callable facts，devirtualized `getValue`/`setValue` direct-call receiver/显式参数顺序与 `PropertyMeta` by-address ABI 已对齐；指定 lazy/observable/vetoable fixtures 通过。但完整 fixture suite 仍暴露未调度回归，已新增 P5-T02A0P 作为前置任务，本任务保持未完成。
 - 完成记录：
   - （待填）
 

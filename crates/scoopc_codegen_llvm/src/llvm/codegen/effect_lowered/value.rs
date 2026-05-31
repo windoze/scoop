@@ -225,12 +225,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             && args.len() == param_tys.len()
             && param_tys.len() >= 3
             && param_names.first().is_some_and(|name| name != "this")
+            && let Some(last_ty) = param_tys.pop()
         {
-            if let Some(last_ty) = param_tys.pop() {
-                param_tys.insert(0, last_ty);
-                if let Some(last_name) = param_names.pop() {
-                    param_names.insert(0, last_name);
-                }
+            param_tys.insert(0, last_ty);
+            if let Some(last_name) = param_names.pop() {
+                param_names.insert(0, last_name);
             }
         }
         let ret_cg = self

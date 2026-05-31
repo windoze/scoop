@@ -75,7 +75,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(None);
         }
-        self.codegen_top_level_fun_call(span, callee_span, impl_fqn, args)
+        self.codegen_top_level_fun_call(span, callee_span, impl_fqn, args, None)
             .map(Some)
     }
 
@@ -1635,7 +1635,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            return self.codegen_top_level_fun_call(span, callee.span, &concrete_fqn, args);
+            return self.codegen_top_level_fun_call(
+                span,
+                callee.span,
+                &concrete_fqn,
+                args,
+                result_ty,
+            );
         }
 
         if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
@@ -1757,15 +1763,62 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         panic!("codegen_call_expr: call ABI verifier accepted unsupported callee form")
     }
 
+    fn resolve_lir_root_for_hir_direct_call(
+        &self,
+        requested_fqn: &str,
+        dispatch_fqn: &str,
+        args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
+    ) -> Option<String> {
+        if self.lir_callable_symbol_facts(requested_fqn).is_some() {
+            return Some(requested_fqn.to_string());
+        }
+        if dispatch_fqn == requested_fqn || !requested_fqn.contains("::<") {
+            return None;
+        }
+
+        let matches = self
+            .published_lir_facts
+            .physical_layout
+            .callable_symbols
+            .values()
+            .filter_map(|symbol| {
+                let root_fqn = symbol.root_fqn.as_str();
+                if direct_call_dispatch_fqn(root_fqn) != dispatch_fqn {
+                    return None;
+                }
+                let signature = self.published_codegen_callable_signature(root_fqn)?;
+                if signature.param_tys.len() != args.len() {
+                    return None;
+                }
+                if let Some(result_ty) = result_ty
+                    && self.types.display(signature.return_ty).to_string()
+                        != self.types.display(result_ty).to_string()
+                {
+                    return None;
+                }
+                Some(root_fqn.to_string())
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [root] => Some(root.clone()),
+            _ => None,
+        }
+    }
+
     pub(in crate::llvm::codegen) fn codegen_top_level_fun_call_impl(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
         fqn: &str,
         args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let callable_abi = self.direct_call_abi_identity(fqn);
         let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+        let resolved_lir_fqn =
+            self.resolve_lir_root_for_hir_direct_call(fqn, dispatch_fqn, args, result_ty);
+        let callable_fqn = resolved_lir_fqn.as_deref().unwrap_or(fqn);
+        let callable_abi = self.direct_call_abi_identity(callable_fqn);
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
         let (
             signature_owner_fqn,
@@ -1774,12 +1827,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mut source_param_tys,
             source_return_ty,
         ) = self
-            .published_callable_signature_with_names(fqn)
+            .published_callable_signature_with_names(callable_fqn)
             .map(|(source_types, param_names, param_tys, return_ty)| {
-                (fqn, source_types, param_names, param_tys, return_ty)
+                (
+                    callable_fqn,
+                    source_types,
+                    param_names,
+                    param_tys,
+                    return_ty,
+                )
             })
             .or_else(|| {
-                (dispatch_fqn != fqn)
+                (dispatch_fqn != callable_fqn)
                     .then(|| self.published_callable_signature_with_names(dispatch_fqn))
                     .flatten()
                     .map(|(source_types, param_names, param_tys, return_ty)| {
@@ -1793,7 +1852,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!("call callee `{fqn}` 缺少 LIR callable signature facts"),
+                message: format!("call callee `{callable_fqn}` 缺少 LIR callable signature facts"),
             })?;
         if args.len() == source_param_tys.len() + 1
             && signature_owner_fqn.rsplit_once('.').is_some()
@@ -1834,7 +1893,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let native_abi = if callable_abi.uses_native_abi() {
             Some(self.classify_direct_extern_native_callable(
                 callee_span,
-                fqn,
+                callable_fqn,
                 &param_tys,
                 return_ty,
             )?)
@@ -1896,10 +1955,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let llvm_name = self
             .extern_funs
-            .get(fqn)
+            .get(callable_fqn)
             .map(|extern_fun| extern_fun.symbol.as_str())
-            .unwrap_or(fqn);
-        let llvm_fun = match self.module.get_function(llvm_name) {
+            .or_else(|| {
+                self.extern_funs
+                    .get(fqn)
+                    .map(|extern_fun| extern_fun.symbol.as_str())
+            })
+            .map(str::to_string)
+            .or_else(|| {
+                self.lir_callable_symbol_facts(callable_fqn)
+                    .map(|symbol_facts| {
+                        symbol_facts
+                            .exported_symbol
+                            .clone()
+                            .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable))
+                    })
+            })
+            .unwrap_or_else(|| callable_fqn.to_string());
+        let llvm_fun = match self.module.get_function(&llvm_name) {
             Some(function) => function,
             None => {
                 let declaration_surface = if callable_abi.is_extern() {
@@ -1908,7 +1982,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     LlvmFunctionDeclarationSurface::ExportedAbi
                 };
                 self.declare_lir_plain_fun_with_symbol(
-                    llvm_name,
+                    &llvm_name,
                     declaration_surface,
                     signature_owner_fqn,
                     &source_param_tys,

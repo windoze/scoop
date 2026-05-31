@@ -18,7 +18,7 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
 };
 use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
@@ -316,6 +316,10 @@ impl ConstructorCallTargetContract {
     pub fn arg_mapping(&self) -> &[Option<usize>] {
         &self.arg_mapping
     }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
 }
 
 #[allow(dead_code)]
@@ -401,6 +405,7 @@ pub struct MirLoweringFacts {
     when_pat_binding_tys: HashMap<Span, TypeId>,
     nominal_kinds: HashMap<String, ast::TypeKind>,
     enum_has_payload: HashMap<String, bool>,
+    enum_variant_owner_fqns: HashMap<String, String>,
     top_level_fun_call_fqns: HashMap<hir::CallSite, String>,
     member_value_tys: HashMap<String, TypeId>,
     continuation_identity_return_funs: HashMap<String, usize>,

@@ -41,6 +41,19 @@ impl<'a> FnLowering<'a> {
         {
             return Some(*return_ty);
         }
+        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
+            && let Some(owner_fqn) = self.facts.enum_variant_owner_fqn(name)
+        {
+            return self.types.iter_ids().find(|&ty| {
+                matches!(
+                    self.types.kind(ty),
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                        if nominal.fqn == owner_fqn
+                            && nominal.args.is_empty()
+                            && nominal.eff.is_none()
+                )
+            });
+        }
         match self.types.kind(callee.ty) {
             TypeKind::Ref(RefTypeKind::Function(fun)) => Some(fun.return_ty),
             _ => None,

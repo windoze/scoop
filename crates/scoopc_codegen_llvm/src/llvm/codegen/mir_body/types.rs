@@ -104,6 +104,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     crate::mir::Rvalue::Call { kind, .. } => {
                         self.mir_call_result_cg_ty(body, mir_types, kind)?
                     }
+                    crate::mir::Rvalue::StructLit { transport, .. } => {
+                        let aggregate_ty =
+                            self.equivalent_codegen_type_id(mir_types, transport.aggregate_ty)?;
+                        self.try_cg_ty_of_type_id(aggregate_ty)?
+                    }
                     crate::mir::Rvalue::MemberAccess { member, .. } => {
                         self.mir_member_resolved_static_value_cg_ty(member)?
                     }

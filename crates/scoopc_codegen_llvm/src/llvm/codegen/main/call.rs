@@ -187,8 +187,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         fqn: &str,
         args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args)
+        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args, result_ty)
     }
 
     /// 为 native callable 调用点生成 `scoop_enter_native(root_slots, len)`。

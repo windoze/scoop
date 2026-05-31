@@ -259,7 +259,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
             let param_ty = param_tys[param_idx];
-            let mut target_cg = self
+            let target_cg = self
                 .cg_ty_of_mir_type(source_types, param_ty)
                 .or_else(|| {
                     self.equivalent_codegen_type_id(source_types, param_ty)
@@ -269,13 +269,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .unwrap_or_else(|| {
                     panic!("codegen_bound_mir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
                 });
-            if let crate::mir::Operand::Local(local) = arg.value
-                && matches!(target_cg, CgTy::Struct(_))
-                && let Some(slot) = slots.get(local.as_u32() as usize)
-                && matches!(slot.cg_ty, CgTy::Ref)
-            {
-                target_cg = slot.cg_ty;
-            }
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
