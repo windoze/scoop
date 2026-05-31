@@ -471,6 +471,14 @@ fn collect_concrete_class_targets(types: &TypeStore, env: &TypeEnv) -> Vec<Concr
         if !matches!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Class)) {
             continue;
         }
+        // Runtime itable metadata is only meaningful for ground instances;
+        // generic templates such as `Box<T>` cannot have stable RTTI ids.
+        if type_contains_param(types, id)
+            || (!sym.type_param_names.is_empty()
+                && nominal.args.len() != sym.type_param_names.len())
+        {
+            continue;
+        }
 
         let class_key = if nominal.args.is_empty() {
             nominal.fqn.clone()
@@ -495,14 +503,16 @@ fn collect_concrete_interface_targets(types: &TypeStore, env: &TypeEnv) -> Vec<T
     let mut out: Vec<TypeId> = types
         .iter_ids()
         .filter(|id| {
-            matches!(
-                types.kind(*id),
-                TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                    if matches!(
-                        env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
-                        Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-                    )
-            )
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(*id) else {
+                return false;
+            };
+            let Some(sym) = env.type_symbol(&nominal.fqn) else {
+                return false;
+            };
+            matches!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Interface))
+                && !type_contains_param(types, *id)
+                && (sym.type_param_names.is_empty()
+                    || nominal.args.len() == sym.type_param_names.len())
         })
         .collect();
 
@@ -559,11 +569,68 @@ fn stable_runtime_type_id_for_lower(
     ty: TypeId,
     context: &str,
 ) -> Result<u64, ItableLayoutError> {
+    if type_contains_param(lower.types(), ty) {
+        return Err(ItableLayoutError::StableTypeId {
+            message: format!(
+                "{context}: non-ground runtime type `{}` still contains type parameters",
+                lower.fmt_type(ty)
+            ),
+        });
+    }
     stable_rtti_type_id_for_type(lower.types(), ty, &NoTypeParamResolver).map_err(|err| {
         ItableLayoutError::StableTypeId {
             message: format!("{context}: {err}"),
         }
     })
+}
+
+/// Returns whether `ty` still contains a declaration-site type parameter.
+fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    let mut stack = vec![ty];
+    let mut seen = HashSet::new();
+    while let Some(id) = stack.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        match types.kind(id) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied());
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+    false
 }
 
 fn find_member_owner_nominal_instantiation(

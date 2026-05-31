@@ -61,7 +61,7 @@
 | P4-T04R | [DONE] | Review P4-T04 特判清理 |
 | P4-T05 | [DONE] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
 | P4-T05R | [DONE] | Review P4-T05 回归与守卫 |
-| P5-T00 | [TODO] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
+| P5-T00 | [DONE] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
 | P5-T00R | [TODO] | Review P5-T00 itable 泛型 interface 修复 |
 | P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [TODO] | Review P5-T01 委托库实现 |
@@ -563,7 +563,7 @@
 
 > 依据（已核实）：泛型委托路径已把委托对象存成宿主类普通字段、读写编译成 `getValue`/`setValue`（`tests/fixtures/hir/delegated_property_lowering.scoop`），这正是三者要走的路；普通 class 本就能自由持有/改写 `var` 字段（`sysroot/lib/scoop.core/src/core.scoop:1506` 的 `RefCell`/`Atomic`），`@InteriorMutable` 只是值类型后门（`structs.rs:37-44`），与 class 委托无关。本阶段**不需要任何新原语**，是纯减法 + 库重写。
 
-### [TODO] P5-T00：修复泛型 class 实现参数化 interface 的 itable stable type id
+### [DONE] P5-T00：修复泛型 class 实现参数化 interface 的 itable stable type id
 
 - 参考：
   - `crates/scoopc_hir/src/itable.rs`（`collect_concrete_class_targets`、`build_precise_class_itable_entries`、`stable_runtime_type_id_for_lower`）
@@ -580,7 +580,8 @@
 - 完成条件：泛型 class 实现参数化 interface 的实例可完成 itable metadata 生成；P5-T01 的库委托类形状不再触发 stable type id 错误。
 - 依赖：P4 完成
 - 完成记录：
-  - （待填）
+  - 2026-05-31：修复 runtime itable metadata 收集路径：`collect_concrete_class_targets` 与 `collect_concrete_interface_targets` 现在跳过仍含 `TypeKind::Param` 或泛型实参未完整替换的模板目标，只对 ground runtime class/interface 实例生成 stable type id；`stable_runtime_type_id_for_lower` 增加 ground-type guard，避免把含未替换 type param 的 runtime type 交给 `NoTypeParamResolver`。新增 run-pass fixture `generic_class_parameterized_interface_itable_stable_id.scoop`，覆盖 `Box<T> : Tagged<T>` 的 `Box<Int>` ground 实例、interface dispatch 与 `is Tagged<Int>` runtime match，锁定泛型 class 实现参数化 interface 时 itable metadata 可稳定生成。
+  - 验证：`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/generic_class_parameterized_interface_itable_stable_id.scoop`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
 ### [TODO] P5-T00R：Review P5-T00 itable 泛型 interface 修复
 
