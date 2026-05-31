@@ -62,7 +62,7 @@
 | P4-T05 | [DONE] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
 | P4-T05R | [DONE] | Review P4-T05 回归与守卫 |
 | P5-T00 | [DONE] | 修复泛型 class 实现参数化 interface 的 itable stable type id |
-| P5-T00R | [TODO] | Review P5-T00 itable 泛型 interface 修复 |
+| P5-T00R | [DONE] | Review P5-T00 itable 泛型 interface 修复 |
 | P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [TODO] | Review P5-T01 委托库实现 |
 | P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
@@ -583,13 +583,15 @@
   - 2026-05-31：修复 runtime itable metadata 收集路径：`collect_concrete_class_targets` 与 `collect_concrete_interface_targets` 现在跳过仍含 `TypeKind::Param` 或泛型实参未完整替换的模板目标，只对 ground runtime class/interface 实例生成 stable type id；`stable_runtime_type_id_for_lower` 增加 ground-type guard，避免把含未替换 type param 的 runtime type 交给 `NoTypeParamResolver`。新增 run-pass fixture `generic_class_parameterized_interface_itable_stable_id.scoop`，覆盖 `Box<T> : Tagged<T>` 的 `Box<Int>` ground 实例、interface dispatch 与 `is Tagged<Int>` runtime match，锁定泛型 class 实现参数化 interface 时 itable metadata 可稳定生成。
   - 验证：`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/generic_class_parameterized_interface_itable_stable_id.scoop`；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
-### [TODO] P5-T00R：Review P5-T00 itable 泛型 interface 修复
+### [DONE] P5-T00R：Review P5-T00 itable 泛型 interface 修复
 
 - 必须实现的内容：复核修复覆盖的是通用泛型 class + 参数化 interface 问题，`NoTypeParamResolver` 不再误用于含未替换 type param 的 runtime interface 实例，新增 fixture 能真实触发 itable metadata。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：P5-T00
 - 完成记录：
-  - （待填）
+  - 2026-05-31：复核 P5-T00 itable 修复：`collect_concrete_class_targets` 与 `collect_concrete_interface_targets` 现在只收集 ground runtime class/interface 实例，跳过仍含 `TypeKind::Param` 或泛型实参未完整替换的模板目标；`stable_runtime_type_id_for_lower` 在调用 `NoTypeParamResolver` 前先拒绝非 ground runtime type，因此不会再把含未替换 type param 的具体 interface 实例交给 `NoTypeParamResolver`。该修复基于 runtime metadata 的通用 ground-type 边界，不依赖 `scoop.delegates` 名称或委托专用形状。
+  - 复核新增 fixture `generic_class_parameterized_interface_itable_stable_id.scoop`：`Box<T> : Tagged<T>` 的 `Box<Int>` ground 实例同时经 `Tagged<Int>` interface dispatch 与 `is Tagged<Int>` runtime match 触发 itable metadata 生成，可锁定泛型 class 实现参数化 interface 时 stable type id 生成不再报 `missing stable type parameter key for \`V\`` 类错误。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1660)`）。
 
 ### [TODO] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
 
