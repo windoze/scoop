@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_language_parallel_alloc_shared_roots.stdout.txt
-// TIMEOUT: 30000
+// TIMEOUT: 55000
 //
 // 目标：用 Scoop 语言级线程覆盖“worker 并发分配 + main 触发 STW GC + worker 局部 roots 存活”。
 // SYSROOT-DEPS: scoop.runtime.test scoop.thread scoop.sync

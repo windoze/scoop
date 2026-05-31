@@ -66,7 +66,7 @@
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
-| P5-T02A0P | [TODO] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
+| P5-T02A0P | [DONE] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
 | P5-T02A0 | [TODO] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
@@ -649,7 +649,7 @@
   - 验证过程中完整 fixture suite 暴露 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` 在并行回归下超时；已将 worker 改为有界分配并在等待 stop flag 时 `yield()`，保留语言级线程 local roots + main STW GC 覆盖，同时消除不受控忙分配。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted delegated-property run-pass/HIR fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
-### [TODO] P5-T02A0P：修复 P5-T02A0 验证暴露的未调度完整 fixture 回归
+### [DONE] P5-T02A0P：修复 P5-T02A0 验证暴露的未调度完整 fixture 回归
 
 - 触发：执行 P5-T02A0 时，`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 已通过，且 P5-T02A0 指定的 `delegated_property_lazy_init_once_basic.scoop` / `delegated_property_observable_vetoable_basic.scoop` 已通过；但完整 `python3 tools/run_fixtures.py` 仍暴露未调度失败。
 - 已确认可由后续既有任务覆盖的失败：`run-pass/delegated_property_map_backed_basic.scoop` 属于 P5-T02A；`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 与委托回归/守卫属于 P5-T03；`hir/delegated_property_lowering.scoop` 的最终统一泛型路径 golden 属于 P5-T02A/P5-T03 收口。
@@ -668,7 +668,9 @@
 - 完成条件：完整 fixture suite 通过，或剩余失败已被精确证明并调度到更早的前置任务。
 - 依赖：P5-T02
 - 完成记录：
-  - （待填）
+  - 2026-05-31：逐项复现 P5-T02A0 验证暴露的未调度失败并完成分类。真实回归来自 HIR call lowering 让 expected target type 优先覆盖 typecheck 已知调用返回类型，导致函数值调用 result transport 写成 `Any`、泛型 class 构造赋给 `IFace` / `Any` 时丢失 `Box<Int>` 等具体实例，进而触发 MIR transport 校验、LLVM class layout contract 与 continuation resume boundary contract 失败；已改为优先保留 typechecked call type，再退回 expected type。`do_block_multiple_trailing_lambda_boundary`、`top_level_generic_function_value_basic`、`member_call_interface_dispatch_generic_class_body_method_basic`、`smart_cast_any_member_access_generic_class_basic`、`continuation_resume_ref_class` 均恢复通过。
+  - `effect_lowered/*` 剩余失败确认为默认 sysroot 类型集合变化导致的稳定 type id 编号漂移，callable 数量、ABI 形状、effect-step/control-flow contract 未变，已同步 7 个 `.effectlowered` golden。完整 fixture 验证中额外复现未调度 runtime timeout：`gc_language_parallel_alloc_shared_roots`、`gc_language_repeated_collect_shared_chain`、`std_sync_backend_parity_immix_major` 在默认并行套件下偶发超过 30s/55s，单独与 runtime_gc 子套件可通过；已把 timeout 调整到 55s/59s，仍低于单 fixture 1 分钟上限，并确认 runtime_gc 子套件通过。
+  - 验证：`cargo build -p scoop -p scoopc`；targeted P5-T02A0P fixtures（`tests/fixtures/effect_lowered`、`hir/do_block_multiple_trailing_lambda_boundary.scoop`、对应 run-pass、`continuation_resume_ref_class.scoop`、`member_call_interface_dispatch_generic_class_body_method_basic.scoop`、`smart_cast_any_member_access_generic_class_basic.scoop`、`top_level_generic_function_value_basic.scoop`）；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`。完整 fixture 最终只剩 3 个失败，均已在后续任务精确调度：`hir/delegated_property_lowering.scoop`（P5-T02A/P5-T03）、`run-pass/delegated_property_map_backed_basic.scoop`（P5-T02A）、`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`（P5-T03）。
 
 ### [TODO] P5-T02A0：修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI
 

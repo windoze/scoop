@@ -1,7 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: std_sync_backend_parity.stdout.txt
 // ENV: SCOOP_RUNTIME_GC_BACKEND=immix SCOOP_GC_IMMIX_NURSERY_BYTES=0 SCOOP_GC_IMMIX_NURSERY_BLOCKS=0
-// TIMEOUT: 30000
+// TIMEOUT: 59000
 // SYSROOT-DEPS: scoop.runtime.test scoop.sync scoop.thread
 
 package fixtures.runtime_gc

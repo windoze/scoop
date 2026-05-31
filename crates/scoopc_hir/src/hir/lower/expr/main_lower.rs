@@ -731,9 +731,8 @@ impl<'a> HirLowering<'a> {
                 // 调用降糖成其它 HIR 形态，也要优先保留该结果类型，避免局部 `val x = call(...)`
                 // 因为中间表达式被写成 `Any` 而在 codegen 时触发错误的 value coercion。
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
-                let call_ty = expected
-                    .value_ty
-                    .or(typechecked_call_ty)
+                let call_ty = typechecked_call_ty
+                    .or(expected.value_ty)
                     .unwrap_or(self.builtins.any);
                 let callee_expr = self.transparent_call_callee(callee);
                 let synthesized_args =
