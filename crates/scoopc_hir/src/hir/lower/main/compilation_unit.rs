@@ -54,7 +54,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, None);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit, index);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
@@ -535,7 +535,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, type_env);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit, index);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;

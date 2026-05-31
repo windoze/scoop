@@ -30,12 +30,6 @@ impl<'a> HirLowering<'a> {
         "scoop.lang.string.StringBuilder.toString";
     pub(in crate::hir::lower) const TO_STRING_INTERFACE_METHOD_FQN: &'static str =
         "scoop.core.ToString.toString";
-    // P4-T04 keeps this single consumer-side dependency until P5 lowers std delegates to library
-    // classes. These calls go through ordinary HIR call lowering; they are not sync intrinsics.
-    pub(in crate::hir::lower) const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
-    pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
-    pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
-    pub(in crate::hir::lower) const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
     pub(in crate::hir::lower) const PANIC_FQN: &'static str = "scoop.core.panic";
 
     pub(crate) fn new(

@@ -14,7 +14,6 @@ use crate::ast;
 use crate::cone::SourceConeInfo;
 use crate::parser::ParseError;
 use crate::resolve::ResolveError;
-use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
@@ -40,86 +39,12 @@ pub(super) struct GenericDelegatedPropertyInfo {
     pub(super) delegate_class_fqn: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(super) struct DelegatedPropertyDeclContext<'a> {
-    pub(super) source: &'a SourceFile,
-    pub(super) file: &'a ast::File,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StdLazyThreadSafetyMode {
-    None,
-    Publication,
-    Synchronized,
-}
-
-impl StdLazyThreadSafetyMode {
-    pub(super) fn default_for_lazy_call() -> Self {
-        // Kotlin-like：lazy 默认 thread-safe。
-        Self::Synchronized
-    }
-
-    pub(super) fn requires_mutex(self) -> bool {
-        matches!(self, Self::Publication | Self::Synchronized)
-    }
-}
-
 #[derive(Debug, Clone)]
-pub(super) struct LazyDelegatedPropertyInfo<'a> {
-    pub(super) decl: DelegatedPropertyDeclContext<'a>,
-    pub(super) name: String,
-    /// 属性类型（用于生成缓存字段的类型与 lazy initializer 的返回类型上下文）。
-    pub(super) ty: Option<ast::TypeRef>,
-    /// `lazy(mode)` 的线程安全策略（默认为 `Synchronized`）。
-    pub(super) mode: StdLazyThreadSafetyMode,
-    /// lazy 缓存值字段（class field fqn）。
-    pub(super) value_field_fqn: String,
-    /// lazy 初始化标记字段（class field fqn）。
-    pub(super) inited_field_fqn: String,
-    /// lazy 的互斥锁字段（class field fqn；仅当 mode 需要互斥锁时才存在）。
-    pub(super) mutex_field_fqn: Option<String>,
-    /// initializer lambda 的 body（我们在 getter 内 inline 这段表达式，避免依赖 closure codegen）。
-    pub(super) initializer_body: ast::Expr,
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct ObservableDelegatedPropertyInfo<'a> {
-    pub(super) decl: DelegatedPropertyDeclContext<'a>,
-    pub(super) name: String,
-    pub(super) property_fqn: String,
-    pub(super) ty: Option<ast::TypeRef>,
-    pub(super) on_change: ast::LambdaExpr,
-    /// observable/vetoable 的内部互斥锁字段（class field fqn）。
-    ///
-    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
-    pub(super) mutex_field_fqn: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct VetoableDelegatedPropertyInfo<'a> {
-    pub(super) decl: DelegatedPropertyDeclContext<'a>,
-    pub(super) name: String,
-    pub(super) property_fqn: String,
-    pub(super) ty: Option<ast::TypeRef>,
-    pub(super) on_change: ast::LambdaExpr,
-    /// vetoable 的内部互斥锁字段（class field fqn）。
-    ///
-    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
-    pub(super) mutex_field_fqn: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub(super) enum DelegatedPropertyInfo<'a> {
+pub(super) enum DelegatedPropertyInfo {
     /// 通用 delegated property lowering：仍按 spec 生成 `getValue/setValue` 调用形状（T1210）。
     ///
-    /// 注意：当前 LLVM 后端不要求该路径可执行（主要用于 dump-hir/fixtures 稳定输出）。
+    /// `$delegate` 字段和 `PropertyMeta` 参数均由普通 lowering/codegen 路径承接。
     Generic(GenericDelegatedPropertyInfo),
-    /// 标准 delegates：`lazy`（spec §10.4）。
-    Lazy(LazyDelegatedPropertyInfo<'a>),
-    /// 标准 delegates：`observable`（spec §10.4）。
-    Observable(ObservableDelegatedPropertyInfo<'a>),
-    /// 标准 delegates：`vetoable`（spec §10.4）。
-    Vetoable(VetoableDelegatedPropertyInfo<'a>),
     /// map-backed delegated properties（spec §10.4）。
     ///
     /// 早期阶段的实现策略：
@@ -129,7 +54,7 @@ pub(super) enum DelegatedPropertyInfo<'a> {
     MapBacked,
 }
 
-pub(super) type DelegatedPropertyIndex<'a> = HashMap<String, DelegatedPropertyInfo<'a>>;
+pub(super) type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
 
 /// typed HIR stage 的结构化错误。
 ///

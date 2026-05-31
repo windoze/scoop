@@ -574,9 +574,8 @@ struct HirLowering<'a> {
     /// - `receiver.prop` 读取：降糖为 `receiver.prop$delegate.getValue(receiver, PropertyMeta)`；
     /// - `receiver.prop = value` 写入：降糖为 `receiver.prop$delegate.setValue(receiver, PropertyMeta, value)`。
     ///
-    /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
-    /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
-    delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    /// `$delegate` 字段由 class init side table 初始化，`PropertyMeta` 在调用点按值合成。
+    delegated_properties: &'a DelegatedPropertyIndex,
     /// 当前 lowering 可见的完整编译单元 AST（含 sysroot/同编译单元其它文件）。
     ///
     /// 用途：
@@ -673,7 +672,7 @@ struct HirLowering<'a> {
 struct HirLoweringSetup<'a> {
     typecheck_types: Option<&'a TypeStore>,
     type_kinds: &'a HashMap<String, ast::TypeKind>,
-    delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    delegated_properties: &'a DelegatedPropertyIndex,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     computed_property_getters: &'a HashSet<String>,

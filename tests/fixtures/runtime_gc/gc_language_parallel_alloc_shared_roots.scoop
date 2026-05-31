@@ -65,11 +65,16 @@ fun workerLeft(): Unit {
     markParallelReady()
 
     var i: Int = 0
-    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+    while (i < 64) {
         val garbage: RootNode = RootNode(f"left-garbage-${i}")
         garbage.next = Some(root)
         val _keepAllocating: Any = garbage
         i = i + 1
+        yield()
+    }
+
+    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+        yield()
     }
 
     publishLeft(root)
@@ -81,11 +86,16 @@ fun workerRight(): Unit {
     markParallelReady()
 
     var i: Int = 0
-    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+    while (i < 64) {
         val garbage: RootNode = RootNode(f"right-garbage-${i}")
         garbage.next = Some(root)
         val _keepAllocating: Any = garbage
         i = i + 1
+        yield()
+    }
+
+    while (@Unsafe do { __atomicIntLoad(stopParallelWorkers) } == 0) {
+        yield()
     }
 
     publishRight(root)

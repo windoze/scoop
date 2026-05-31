@@ -65,7 +65,7 @@
 | P5-T00R | [DONE] | Review P5-T00 itable 泛型 interface 修复 |
 | P5-T01 | [DONE] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
-| P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
+| P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
@@ -625,7 +625,7 @@
   - Review 中修正 P5-T01 暴露的真实缺口：默认 `lazy(initializer)` 不再转调同名泛型重载，改为直接构造 `Lazy`，避免 generic MIR materialization 的重载转调 contract 漂移；resolver 现在允许 interface receiver 沿 super-interface 解析继承的抽象方法；MIR lowering/materialization 修复 owner-specialized generic member store 的 receiver metadata；构造泛型 class 时会把其 itable method instances 纳入初始 materialization 种子，确保 `Lazy<Int>` 这类实现参数化 interface 且方法签名依赖 owner type param 的 wrapper 可发布对应 callable/source signature。新增 `delegate_library_wrappers_construct_basic.scoop`，直接构造三类 wrapper 与三个顶层函数，锁定普通库构造路径。
   - 验证：`cargo fmt`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegate_library_wrappers_construct_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/generic_class_parameterized_interface_itable_stable_id.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
-### [TODO] P5-T02：删除三者 by-name 合成与分叉
+### [DONE] P5-T02：删除三者 by-name 合成与分叉
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5-T02
@@ -641,7 +641,10 @@
 - 完成条件：编译器属性委托 lowering 只剩唯一的泛型路径。
 - 依赖：P5-T01
 - 完成记录：
-  - （待填）
+  - 2026-05-31：删除 `lazy` / `observable` / `vetoable` 的 HIR by-name 专用 lowering：移除 `ParsedStdDelegateExpr::{Lazy, Observable, Vetoable}`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`sugar.rs` 中三者的 get/set 合成，以及 `decls.rs` 中三者的 backing value / inited / per-property `Mutex` 字段注入。三者现在和普通委托一样生成 `$delegate` 字段，字段 initializer 直接 lower 原始 delegate 表达式，读写通过泛型 delegated-property `getValue` / `setValue` 调用路径接入；同时删除 `HirLowering::SYNC_MUTEX_*` 四个消费侧 FQN 常量及所有使用点。
+  - 为让泛型 delegated-property 路径可执行，`PropertyMeta` 参数改为在调用点合成最小值，delegate class FQN 可从构造调用或顶层 factory 返回类型推导；更新 observable callback effect 单元测试，使其检查普通 `$delegate` initializer 中闭包体的 effect lowering。同步 `scoop.delegates` / typecheck 注释，说明线程安全现在由库委托对象内部组合 `Mutex`，不是编译器注入宿主字段。
+  - 验证过程中完整 fixture suite 暴露 `runtime_gc/gc_language_parallel_alloc_shared_roots.scoop` 在并行回归下超时；已将 worker 改为有界分配并在等待 stop flag 时 `yield()`，保留语言级线程 local roots + main STW GC 覆盖，同时消除不受控忙分配。
+  - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted delegated-property run-pass/HIR fixtures；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc/gc_language_parallel_alloc_shared_roots.scoop`；`python3 tools/run_fixtures.py`（`fixtures: ok (1661)`）。
 
 ### [TODO] P5-T02R：Review P5-T02 特判删除
 

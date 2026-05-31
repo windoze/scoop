@@ -457,7 +457,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let delegated_properties: DelegatedPropertyIndex = HashMap::new();
     let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
     let computed_property_accessors =
         super::super::collect_computed_property_accessor_fqns(&compilation_unit);
@@ -638,7 +638,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let delegated_properties: DelegatedPropertyIndex = HashMap::new();
     let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
     let computed_property_accessors =
         super::super::collect_computed_property_accessor_fqns(&compilation_unit);
@@ -927,198 +927,93 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                             .map(|t| ctx.lower_type_ref(t))
                             .unwrap_or(ctx.builtins.any);
 
-                    // delegated property（spec §10.4）：标准 delegates（lazy/observable/vetoable）与 map-backed。
+                    // delegated property（spec §10.4）：std delegates are ordinary delegate
+                    // objects; map-backed keeps its existing field-copy lowering.
                     if let Some(delegate_expr) = p.delegate.as_ref() {
-                        match parse_std_delegate_expr(ctx.source, delegate_expr) {
-                            Some(ParsedStdDelegateExpr::Lazy { mode, .. }) => {
-                                // lazy：为属性生成两个隐藏字段：
-                                // - `<name>$lazy_inited: Bool`
-                                // - `<name>$lazy_value: T`
-                                // - （可选）`<name>$lazy_mutex: Mutex`（当 mode 需要互斥锁时）
-                                //
-                                // getter 会在首次访问时写入 `<name>$lazy_value` 并把 `<name>$lazy_inited` 置 true。
-                                let inited_fqn = format!("{class_fqn}.{name}$lazy_inited");
-                                let value_fqn = format!("{class_fqn}.{name}$lazy_value");
-                                let mutex_fqn = format!("{class_fqn}.{name}$lazy_mutex");
+                        if let Some(delegate) = parse_map_backed_delegate_expr(delegate_expr) {
+                            // map-backed：早期阶段在初始化时把 `by data` 的值写入真实字段 `<name>`。
+                            //
+                            // 约束：目前只支持 delegate 为 `this.data` 这类“class 字段访问”，
+                            // 并要求 delegate 类型存在同名字段（`data.<name>`）。
+                            let field_fqn = format!("{class_fqn}.{name}");
+                            insert_field(
+                                &mut init,
+                                ClassField {
+                                    fqn: field_fqn.clone(),
+                                    name: name.clone(),
+                                    mutable: false,
+                                    ty,
+                                },
+                            );
 
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: inited_fqn.clone(),
-                                        name: format!("{name}$lazy_inited"),
-                                        mutable: true,
-                                        ty: ctx.builtins.bool_,
-                                    },
-                                );
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: value_fqn,
-                                        name: format!("{name}$lazy_value"),
-                                        mutable: true,
-                                        ty,
-                                    },
-                                );
-
-                                if mode.requires_mutex() {
-                                    let mutex_ty = ctx.intern_nominal(
-                                        HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
-                                        Vec::new(),
-                                        None,
-                                    );
-                                    insert_field(
-                                        &mut init,
-                                        ClassField {
-                                            fqn: mutex_fqn.clone(),
-                                            name: format!("{name}$lazy_mutex"),
-                                            mutable: false,
-                                            ty: mutex_ty,
-                                        },
-                                    );
-                                    init.steps.push(ClassInitStep::PropertyInit {
-                                        field_fqn: mutex_fqn,
-                                        init: ctx.call_top_level_fun(
-                                            p.name.span,
-                                            HirLowering::SYNC_MUTEX_CREATE_FQN,
-                                            Vec::new(),
-                                            mutex_ty,
-                                        ),
-                                    });
+                            let delegate_field_fqn = match &delegate.kind {
+                                ast::ExprKind::MemberAccess { member, .. } => {
+                                    let Some(ast::ResolvedMemberRef::Value { fqn }) =
+                                        member.resolved.as_ref()
+                                    else {
+                                        continue;
+                                    };
+                                    fqn.clone()
                                 }
+                                _ => continue,
+                            };
 
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn: inited_fqn,
-                                    init: super::super::Expr {
+                            let Some(idx) = init.field_indices.get(&delegate_field_fqn).copied()
+                            else {
+                                continue;
+                            };
+                            let Some(delegate_field) = init.fields.get(idx as usize) else {
+                                continue;
+                            };
+
+                            let delegate_ty_fqn = match ctx.types.kind(delegate_field.ty) {
+                                TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.fqn.clone(),
+                                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                                    nominal.fqn.clone()
+                                }
+                                _ => continue,
+                            };
+
+                            let delegate_member_fqn = format!("{delegate_ty_fqn}.{name}");
+                            let delegate_recv = ctx.lower_expr(pkg_prefix, &delegate);
+                            let init_expr = super::super::Expr {
+                                span: p.name.span,
+                                ty: ctx.builtins.any,
+                                kind: super::super::ExprKind::MemberAccess {
+                                    receiver: Box::new(delegate_recv),
+                                    member: MemberAccess {
                                         span: p.name.span,
-                                        ty: ctx.builtins.bool_,
-                                        kind: super::super::ExprKind::Literal(LiteralKind::Bool(
-                                            false,
-                                        )),
-                                    },
-                                });
-                            }
-                            Some(ParsedStdDelegateExpr::Observable { initial, .. })
-                            | Some(ParsedStdDelegateExpr::Vetoable { initial, .. }) => {
-                                // observable/vetoable：在 early stage 采用“编译器内建 delegate”策略：
-                                // - 把当前值落到真实字段 `<name>`；
-                                // - 注入一个内部互斥锁字段 `<name>$delegate_mutex: Mutex`；
-                                // - 在 getter/setter lowering 时通过该 mutex 保障并发可见性（T1326b）。
-                                let mutex_fqn = format!("{class_fqn}.{name}$delegate_mutex");
-                                let mutex_ty = ctx.intern_nominal(
-                                    HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
-                                    Vec::new(),
-                                    None,
-                                );
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: mutex_fqn.clone(),
-                                        name: format!("{name}$delegate_mutex"),
-                                        mutable: false,
-                                        ty: mutex_ty,
-                                    },
-                                );
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn: mutex_fqn,
-                                    init: ctx.call_top_level_fun(
-                                        p.name.span,
-                                        HirLowering::SYNC_MUTEX_CREATE_FQN,
-                                        Vec::new(),
-                                        mutex_ty,
-                                    ),
-                                });
-
-                                // 把当前值落到真实字段 `<name>`，并在初始化时写入 `initial`。
-                                let field_fqn = format!("{class_fqn}.{name}");
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: field_fqn.clone(),
-                                        name,
-                                        mutable: true,
-                                        ty,
-                                    },
-                                );
-                                let lowered = ctx.lower_expr(pkg_prefix, &initial);
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn,
-                                    init: lowered,
-                                });
-                            }
-                            Some(ParsedStdDelegateExpr::MapBacked { delegate }) => {
-                                // map-backed：早期阶段在初始化时把 `by data` 的值写入真实字段 `<name>`。
-                                //
-                                // 约束：目前只支持 delegate 为 `this.data` 这类“class 字段访问”，
-                                // 并要求 delegate 类型存在同名字段（`data.<name>`）。
-                                let field_fqn = format!("{class_fqn}.{name}");
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: field_fqn.clone(),
                                         name: name.clone(),
-                                        mutable: false,
-                                        ty,
+                                        resolved: Some(MemberRef::Value {
+                                            id: ctx
+                                                .symbols
+                                                .intern_top_level(delegate_member_fqn.clone()),
+                                            fqn: delegate_member_fqn,
+                                        }),
                                     },
-                                );
-
-                                let delegate_field_fqn = match &delegate.kind {
-                                    ast::ExprKind::MemberAccess { member, .. } => {
-                                        let Some(ast::ResolvedMemberRef::Value { fqn }) =
-                                            member.resolved.as_ref()
-                                        else {
-                                            continue;
-                                        };
-                                        fqn.clone()
-                                    }
-                                    _ => continue,
-                                };
-
-                                let Some(idx) =
-                                    init.field_indices.get(&delegate_field_fqn).copied()
-                                else {
-                                    continue;
-                                };
-                                let Some(delegate_field) = init.fields.get(idx as usize) else {
-                                    continue;
-                                };
-
-                                let delegate_ty_fqn = match ctx.types.kind(delegate_field.ty) {
-                                    TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                                        nominal.fqn.clone()
-                                    }
-                                    TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                                        nominal.fqn.clone()
-                                    }
-                                    _ => continue,
-                                };
-
-                                let delegate_member_fqn = format!("{delegate_ty_fqn}.{name}");
-                                let delegate_recv = ctx.lower_expr(pkg_prefix, &delegate);
-                                let init_expr = super::super::Expr {
-                                    span: p.name.span,
-                                    ty: ctx.builtins.any,
-                                    kind: super::super::ExprKind::MemberAccess {
-                                        receiver: Box::new(delegate_recv),
-                                        member: MemberAccess {
-                                            span: p.name.span,
-                                            name: name.clone(),
-                                            resolved: Some(MemberRef::Value {
-                                                id: ctx
-                                                    .symbols
-                                                    .intern_top_level(delegate_member_fqn.clone()),
-                                                fqn: delegate_member_fqn,
-                                            }),
-                                        },
-                                    },
-                                };
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn,
-                                    init: init_expr,
-                                });
-                            }
-                            None => {
-                                // 非标准 delegated property：当前阶段不纳入 class init side table。
-                            }
+                                },
+                            };
+                            init.steps.push(ClassInitStep::PropertyInit {
+                                field_fqn,
+                                init: init_expr,
+                            });
+                        } else {
+                            let field_fqn = format!("{class_fqn}.{name}$delegate");
+                            let init_expr = ctx.lower_expr(pkg_prefix, delegate_expr);
+                            let delegate_ty = init_expr.ty;
+                            insert_field(
+                                &mut init,
+                                ClassField {
+                                    fqn: field_fqn.clone(),
+                                    name: format!("{name}$delegate"),
+                                    mutable: false,
+                                    ty: delegate_ty,
+                                },
+                            );
+                            init.steps.push(ClassInitStep::PropertyInit {
+                                field_fqn,
+                                init: init_expr,
+                            });
                         }
                         continue;
                     }

@@ -568,7 +568,7 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
 ) -> T {
     let compilation_unit = [(source, file)];
     let type_kinds = HashMap::new();
-    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let delegated_properties: DelegatedPropertyIndex = HashMap::new();
     let default_arg_structs = HashMap::new();
     let computed_property_getters = HashSet::new();
     let computed_property_setters = HashSet::new();

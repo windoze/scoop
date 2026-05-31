@@ -1527,11 +1527,11 @@ fn find_raise_perform_effect_ty_in_expr(expr: &Expr) -> Option<TypeId> {
                     .as_ref()
                     .and_then(find_raise_perform_effect_ty_in_block)
             }),
+        ExprKind::Closure(closure) => find_raise_perform_effect_ty_in_expr(&closure.body),
         ExprKind::Literal(_)
         | ExprKind::VarRef(_)
         | ExprKind::UnresolvedIdent { .. }
         | ExprKind::ClassLiteral(_)
-        | ExprKind::Closure(_)
         | ExprKind::Missing
         | ExprKind::Todo(_) => None,
     }
@@ -2494,18 +2494,27 @@ fun main(): Int {
     );
 
     let lowered = lower_typed_single_source_file(&sess, &source);
-    let main_fun = lowered
-        .file
-        .items
+    let class_init = lowered
+        .class_inits
+        .get(&crate::hir::ClassInstanceKey::for_unparameterized(
+            "fixtures.t3014c.Counter",
+        ))
+        .expect("应收集到 Counter 的 class init");
+    let delegate_init = class_init
+        .steps
         .iter()
-        .find_map(|item| match item {
-            Item::Fun(fun) if fun.fqn == "fixtures.t3014c.main" => Some(fun),
+        .find_map(|step| match step {
+            ClassInitStep::PropertyInit { field_fqn, init }
+                if field_fqn == "fixtures.t3014c.Counter.x$delegate" =>
+            {
+                Some(init)
+            }
             _ => None,
         })
-        .expect("应收集到 fixtures.t3014c.main");
-    let main_body = main_fun.body.as_ref().expect("main 应有 body");
-    let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
-        .expect("observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        .expect("Counter.x$delegate 应存在普通委托字段 initializer");
+    let effect_ty = find_raise_perform_effect_ty_in_expr(delegate_init).expect(
+        "observable delegate closure 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform",
+    );
     assert_raise_int_effect_ty(&lowered.types, effect_ty);
 }
 
@@ -2779,18 +2788,27 @@ fun main(): Int {
     )
     .unwrap();
 
-    let main_fun = lowered
-        .file
-        .items
+    let class_init = lowered
+        .class_inits
+        .get(&crate::hir::ClassInstanceKey::for_unparameterized(
+            "fixtures.t3014cr.Counter",
+        ))
+        .expect("应收集到 Counter 的 class init");
+    let delegate_init = class_init
+        .steps
         .iter()
-        .find_map(|item| match item {
-            Item::Fun(fun) if fun.fqn == "fixtures.t3014cr.main" => Some(fun),
+        .find_map(|step| match step {
+            ClassInitStep::PropertyInit { field_fqn, init }
+                if field_fqn == "fixtures.t3014cr.Counter.x$delegate" =>
+            {
+                Some(init)
+            }
             _ => None,
         })
-        .expect("应收集到 fixtures.t3014cr.main");
-    let main_body = main_fun.body.as_ref().expect("main 应有 body");
-    let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
-        .expect("跨文件 observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        .expect("Counter.x$delegate 应存在普通委托字段 initializer");
+    let effect_ty = find_raise_perform_effect_ty_in_expr(delegate_init).expect(
+        "跨文件 observable delegate closure 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform",
+    );
     assert_raise_int_effect_ty(&lowered.types, effect_ty);
 }
 

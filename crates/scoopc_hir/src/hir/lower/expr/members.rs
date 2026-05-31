@@ -59,7 +59,7 @@ impl<'a> HirLowering<'a> {
 
     pub(in crate::hir::lower) fn lower_member_access_expr_from_receiver(
         &mut self,
-        pkg_prefix: &str,
+        _pkg_prefix: &str,
         span: Span,
         receiver: Expr,
         member: &ast::MemberIdent,
@@ -73,14 +73,6 @@ impl<'a> HirLowering<'a> {
             && let Some(info) = self.delegated_properties.get(fqn).cloned()
         {
             match info {
-                DelegatedPropertyInfo::Lazy(info) => {
-                    return self.lower_lazy_delegated_property_get_from_receiver(
-                        pkg_prefix,
-                        member.span,
-                        receiver,
-                        &info,
-                    );
-                }
                 DelegatedPropertyInfo::Generic(info) => {
                     let this_ref = receiver.clone();
 
@@ -125,26 +117,6 @@ impl<'a> HirLowering<'a> {
                             args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
                         },
                         result_ty,
-                    );
-                }
-                DelegatedPropertyInfo::Observable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        member.span,
-                        receiver,
-                        fqn,
-                        info.decl,
-                        info.ty.as_ref(),
-                        info.mutex_field_fqn,
-                    );
-                }
-                DelegatedPropertyInfo::Vetoable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        member.span,
-                        receiver,
-                        fqn,
-                        info.decl,
-                        info.ty.as_ref(),
-                        info.mutex_field_fqn,
                     );
                 }
                 DelegatedPropertyInfo::MapBacked => {

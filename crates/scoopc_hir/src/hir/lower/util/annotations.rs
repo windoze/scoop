@@ -1,4 +1,4 @@
-//! Std-delegate parsing, lazy thread-safety, extern libs, calling-convention, CLayout, struct/enum layouts.
+//! Delegated-property indexing, extern libs, calling-convention, CLayout, struct/enum layouts.
 
 #![allow(dead_code)]
 
@@ -23,25 +23,6 @@ pub(in crate::hir::lower) fn join_prefix(prefix: &str, name: &str) -> String {
     } else {
         format!("{prefix}.{name}")
     }
-}
-
-#[derive(Debug, Clone)]
-pub(in crate::hir::lower) enum ParsedStdDelegateExpr {
-    Lazy {
-        mode: StdLazyThreadSafetyMode,
-        initializer_body: ast::Expr,
-    },
-    Observable {
-        initial: ast::Expr,
-        on_change: ast::LambdaExpr,
-    },
-    Vetoable {
-        initial: ast::Expr,
-        on_change: ast::LambdaExpr,
-    },
-    MapBacked {
-        delegate: ast::Expr,
-    },
 }
 
 pub(in crate::hir::lower) fn unique_top_level_fun_fqn_from_callee(
@@ -75,37 +56,12 @@ pub(in crate::hir::lower) fn unique_top_level_fun_fqn_from_callee(
     }
 }
 
-pub(in crate::hir::lower) fn parse_lazy_thread_safety_mode(
-    source: &SourceFile,
-    expr: &ast::Expr,
-) -> Option<StdLazyThreadSafetyMode> {
-    // 目前仅支持最常见的枚举常量写法（用于 delegated property 的 early lowering）：
-    // - `LazyThreadSafetyMode.None`
-    // - `LazyThreadSafetyMode.Publication`
-    // - `LazyThreadSafetyMode.Synchronized`
-    //
-    // 备注：这里优先从源文本切片解析，避免依赖 enum variant 的 resolver/typecheck 语义细节。
-    let raw = source.slice(expr.span).trim();
-
-    // 支持命名参数：`mode = LazyThreadSafetyMode.None`。
-    let raw = raw
-        .split_once('=')
-        .map(|(_, rhs)| rhs.trim())
-        .unwrap_or(raw);
-
-    let raw = raw.strip_prefix("scoop.delegates.").unwrap_or(raw);
-    match raw {
-        "LazyThreadSafetyMode.None" => Some(StdLazyThreadSafetyMode::None),
-        "LazyThreadSafetyMode.Publication" => Some(StdLazyThreadSafetyMode::Publication),
-        "LazyThreadSafetyMode.Synchronized" => Some(StdLazyThreadSafetyMode::Synchronized),
-        _ => None,
-    }
-}
-
 /// 提取 generic delegated property 的 delegate class FQN，用于 lowered HIR 中 setValue/getValue
 /// 调用的 typed call-site contract 发布。常见输入是 `Delegate()` 这样的构造调用，从 resolver
 /// 写回的 `Constructor { ty_fqn }` candidate 中读出类的 FQN。
 pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
     delegate_expr: &ast::Expr,
 ) -> Option<String> {
     let ast::ExprKind::Call { callee, .. } = &delegate_expr.kind else {
@@ -128,79 +84,111 @@ pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(
     if tys.len() == 1 {
         Some(tys.remove(0))
     } else {
-        None
+        let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
+        top_level_fun_return_nominal_fqn(files, index, &fqn)
     }
 }
 
-pub(in crate::hir::lower) fn parse_std_delegate_expr(
+fn top_level_fun_return_nominal_fqn(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    fun_fqn: &str,
+) -> Option<String> {
+    let overloads = index.by_fqn.get(fun_fqn).map(|syms| syms.fun.as_slice())?;
+    let mut return_fqn: Option<String> = None;
+
+    for overload in overloads {
+        let ret = overload.sig.return_ty.as_ref()?;
+        let decl_source = files.iter().find_map(|(source, _)| {
+            (source.path() == overload.symbol.decl_file).then_some(*source)
+        })?;
+        let fqn = type_ref_nominal_fqn_in_fun_context(decl_source, fun_fqn, ret)?;
+        match return_fqn.as_ref() {
+            None => return_fqn = Some(fqn),
+            Some(prev) if prev == &fqn => {}
+            Some(_) => return None,
+        }
+    }
+
+    return_fqn
+}
+
+fn type_ref_nominal_fqn_in_fun_context(
     source: &SourceFile,
+    fun_fqn: &str,
+    ty: &ast::TypeRef,
+) -> Option<String> {
+    match ty {
+        ast::TypeRef::Path(path) => Some(type_path_fqn_in_fun_context(source, fun_fqn, path)),
+        ast::TypeRef::Nullable { inner, .. } => {
+            type_ref_nominal_fqn_in_fun_context(source, fun_fqn, inner)
+        }
+        ast::TypeRef::Tuple(_)
+        | ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+fn type_path_fqn_in_fun_context(
+    source: &SourceFile,
+    fun_fqn: &str,
+    path: &ast::TypePath,
+) -> String {
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| segment.text(source).to_string())
+        .collect::<Vec<_>>();
+    if segments.len() > 1 {
+        return segments.join(".");
+    }
+
+    let local_name = segments.first().cloned().unwrap_or_default();
+    let package = fun_fqn.rsplit_once('.').map(|(pkg, _)| pkg).unwrap_or("");
+    if package.is_empty() {
+        local_name
+    } else {
+        format!("{package}.{local_name}")
+    }
+}
+
+pub(in crate::hir::lower) fn parse_map_backed_delegate_expr(
     delegate_expr: &ast::Expr,
-) -> Option<ParsedStdDelegateExpr> {
+) -> Option<ast::Expr> {
     match &delegate_expr.kind {
-        ast::ExprKind::Call { callee, args } => {
-            let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
-
-            // lazy：`lazy { ... }` / `lazy(mode) { ... }`
-            if fqn == "scoop.delegates.lazy" {
-                let last = args.last()?;
-                let ast::ExprKind::Lambda(lam) = &last.kind else {
-                    return None;
-                };
-
-                let mode = if args.len() >= 2 {
-                    parse_lazy_thread_safety_mode(source, &args[0])
-                        .unwrap_or_else(StdLazyThreadSafetyMode::default_for_lazy_call)
-                } else {
-                    StdLazyThreadSafetyMode::default_for_lazy_call()
-                };
-                return Some(ParsedStdDelegateExpr::Lazy {
-                    mode,
-                    initializer_body: (*lam.body).clone(),
-                });
-            }
-
-            // observable/vetoable：`observable(init) { old, new -> ... }`
-            if fqn == "scoop.delegates.observable" || fqn == "scoop.delegates.vetoable" {
-                if args.len() < 2 {
-                    return None;
-                }
-                let initial = args.first()?.clone();
-                let last = args.last()?;
-                let ast::ExprKind::Lambda(lam) = &last.kind else {
-                    return None;
-                };
-
-                return if fqn == "scoop.delegates.observable" {
-                    Some(ParsedStdDelegateExpr::Observable {
-                        initial,
-                        on_change: lam.clone(),
-                    })
-                } else {
-                    Some(ParsedStdDelegateExpr::Vetoable {
-                        initial,
-                        on_change: lam.clone(),
-                    })
-                };
-            }
-
-            None
-        }
-
-        // map-backed：`val x: T by data`
-        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => {
-            Some(ParsedStdDelegateExpr::MapBacked {
-                delegate: delegate_expr.clone(),
-            })
-        }
-
+        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => Some(delegate_expr.clone()),
         _ => None,
     }
 }
 
+fn delegated_property_info(
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    owner_fqn: &str,
+    name: &str,
+    delegate_expr: &ast::Expr,
+) -> DelegatedPropertyInfo {
+    if parse_map_backed_delegate_expr(delegate_expr).is_some() {
+        return DelegatedPropertyInfo::MapBacked;
+    }
+
+    let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
+    let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+    let delegate_class_fqn = delegate_class_fqn_from_expr(files, index, delegate_expr);
+    DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
+        name: name.to_string(),
+        delegate_field_fqn,
+        property_meta_fqn,
+        delegate_class_fqn,
+    })
+}
+
 pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
     pairs: &[(&'a SourceFile, &'a ast::File)],
-) -> DelegatedPropertyIndex<'a> {
-    let mut out: DelegatedPropertyIndex<'a> = HashMap::new();
+    index: &Index,
+) -> DelegatedPropertyIndex {
+    let mut out: DelegatedPropertyIndex = HashMap::new();
 
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -212,6 +200,8 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
                         file,
                         ty,
                         &pkg_prefix,
+                        pairs,
+                        index,
                         &mut out,
                     );
                 }
@@ -221,6 +211,8 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
                         file,
                         obj,
                         &pkg_prefix,
+                        pairs,
+                        index,
                         &mut out,
                     );
                 }
@@ -240,7 +232,9 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
     file: &'a ast::File,
     decl: &ast::TypeDecl,
     prefix: &str,
-    out: &mut DelegatedPropertyIndex<'a>,
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    out: &mut DelegatedPropertyIndex,
 ) {
     let local_name = source.slice(decl.name.span);
     let owner_fqn = join_prefix(prefix, local_name);
@@ -255,74 +249,20 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_type_decl<'a>(
                         continue;
                     };
 
-                    let info = match parse_std_delegate_expr(source, delegate_expr) {
-                        Some(ParsedStdDelegateExpr::Lazy {
-                            mode,
-                            initializer_body,
-                        }) => {
-                            let mutex_field_fqn = mode
-                                .requires_mutex()
-                                .then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
-                            DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
-                                decl: DelegatedPropertyDeclContext { source, file },
-                                name: name.clone(),
-                                ty: p.ty.clone(),
-                                mode,
-                                value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
-                                inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
-                                mutex_field_fqn,
-                                initializer_body,
-                            })
-                        }
-                        Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
-                            let mutex_field_fqn =
-                                Some(format!("{owner_fqn}.{name}$delegate_mutex"));
-                            DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
-                                decl: DelegatedPropertyDeclContext { source, file },
-                                name: name.clone(),
-                                property_fqn: prop_fqn.clone(),
-                                ty: p.ty.clone(),
-                                on_change,
-                                mutex_field_fqn,
-                            })
-                        }
-                        Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
-                            let mutex_field_fqn =
-                                Some(format!("{owner_fqn}.{name}$delegate_mutex"));
-                            DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
-                                decl: DelegatedPropertyDeclContext { source, file },
-                                name: name.clone(),
-                                property_fqn: prop_fqn.clone(),
-                                ty: p.ty.clone(),
-                                on_change,
-                                mutex_field_fqn,
-                            })
-                        }
-                        Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
-                            DelegatedPropertyInfo::MapBacked
-                        }
-                        None => {
-                            let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
-                            let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
-                            let delegate_class_fqn = delegate_class_fqn_from_expr(delegate_expr);
-                            DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
-                                name: name.clone(),
-                                delegate_field_fqn,
-                                property_meta_fqn,
-                                delegate_class_fqn,
-                            })
-                        }
-                    };
+                    let info =
+                        delegated_property_info(files, index, &owner_fqn, &name, delegate_expr);
 
                     out.entry(prop_fqn).or_insert(info);
                 }
                 ast::TypeMember::Type(nested) => {
                     collect_delegated_properties_in_type_decl(
-                        source, file, nested, &owner_fqn, out,
+                        source, file, nested, &owner_fqn, files, index, out,
                     );
                 }
                 ast::TypeMember::Object(obj) => {
-                    collect_delegated_properties_in_object_decl(source, file, obj, &owner_fqn, out);
+                    collect_delegated_properties_in_object_decl(
+                        source, file, obj, &owner_fqn, files, index, out,
+                    );
                 }
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::Property(_)
@@ -339,7 +279,9 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
     file: &'a ast::File,
     obj: &ast::ObjectDecl,
     prefix: &str,
-    out: &mut DelegatedPropertyIndex<'a>,
+    files: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    out: &mut DelegatedPropertyIndex,
 ) {
     let obj_name = match &obj.name {
         Some(name) => source.slice(name.span).to_string(),
@@ -363,70 +305,19 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
                     continue;
                 };
 
-                let info = match parse_std_delegate_expr(source, delegate_expr) {
-                    Some(ParsedStdDelegateExpr::Lazy {
-                        mode,
-                        initializer_body,
-                    }) => {
-                        let mutex_field_fqn = mode
-                            .requires_mutex()
-                            .then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
-                        DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
-                            decl: DelegatedPropertyDeclContext { source, file },
-                            name: name.clone(),
-                            ty: p.ty.clone(),
-                            mode,
-                            value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
-                            inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
-                            mutex_field_fqn,
-                            initializer_body,
-                        })
-                    }
-                    Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
-                        let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
-                        DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
-                            decl: DelegatedPropertyDeclContext { source, file },
-                            name: name.clone(),
-                            property_fqn: prop_fqn.clone(),
-                            ty: p.ty.clone(),
-                            on_change,
-                            mutex_field_fqn,
-                        })
-                    }
-                    Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
-                        let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
-                        DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
-                            decl: DelegatedPropertyDeclContext { source, file },
-                            name: name.clone(),
-                            property_fqn: prop_fqn.clone(),
-                            ty: p.ty.clone(),
-                            on_change,
-                            mutex_field_fqn,
-                        })
-                    }
-                    Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
-                        DelegatedPropertyInfo::MapBacked
-                    }
-                    None => {
-                        let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
-                        let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
-                        let delegate_class_fqn = delegate_class_fqn_from_expr(delegate_expr);
-                        DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
-                            name: name.clone(),
-                            delegate_field_fqn,
-                            property_meta_fqn,
-                            delegate_class_fqn,
-                        })
-                    }
-                };
+                let info = delegated_property_info(files, index, &owner_fqn, &name, delegate_expr);
 
                 out.entry(prop_fqn).or_insert(info);
             }
             ast::TypeMember::Type(nested) => {
-                collect_delegated_properties_in_type_decl(source, file, nested, &owner_fqn, out);
+                collect_delegated_properties_in_type_decl(
+                    source, file, nested, &owner_fqn, files, index, out,
+                );
             }
             ast::TypeMember::Object(nested) => {
-                collect_delegated_properties_in_object_decl(source, file, nested, &owner_fqn, out);
+                collect_delegated_properties_in_object_decl(
+                    source, file, nested, &owner_fqn, files, index, out,
+                );
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)

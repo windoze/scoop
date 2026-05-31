@@ -493,10 +493,10 @@ fn check_std_delegates_platform_policy(
     // 早期阶段的最小落点：
     // - `lazy`：
     //   - `LazyThreadSafetyMode.None`：不依赖线程/Mutex，可在所有平台落地；
-    //   - `Publication/Synchronized`（以及省略 mode 的默认行为）：会被 lowering 为 `Mutex` + lock/unlock，
+    //   - `Publication/Synchronized`（以及省略 mode 的默认行为）：库实现会组合 `Mutex`，
     //     因此要求目标平台具备线程/互斥锁 runtime 落点；否则应在 typecheck 给出清晰诊断。
     // - `observable/vetoable`：
-    //   - 当前实现依赖 per-property `Mutex` 保证并发可见性（T1326b），因此同样要求 mutex 能力；
+    //   - 当前库实现依赖委托对象内部 `Mutex` 保证并发可见性（T1326b），因此同样要求 mutex 能力；
     //   - 单线程/无 mutex 平台的降级实现（不注入锁）留给后续平台 backends 任务细化。
     if env.target_platform().supports_sync_mutex() {
         return Ok(());
