@@ -3,6 +3,39 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn published_dispatch_target_fqn(&self, callable_fqn: &str) -> String {
+        if self
+            .published_codegen_callable_signature(callable_fqn)
+            .is_some()
+        {
+            return callable_fqn.to_string();
+        }
+        let Some((base, _)) = callable_fqn.split_once("::<") else {
+            return callable_fqn.to_string();
+        };
+        let prefix = format!("{base}::<");
+        let mut candidates = self
+            .published_lir_facts
+            .callables
+            .values()
+            .map(|callable| callable.root_fqn.as_str())
+            .chain(
+                self.published_lir_facts
+                    .source_signatures
+                    .keys()
+                    .map(String::as_str),
+            )
+            .filter(|fqn| fqn.starts_with(&prefix))
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        candidates.sort();
+        candidates.dedup();
+        match candidates.as_slice() {
+            [candidate] => candidate.clone(),
+            _ => callable_fqn.to_string(),
+        }
+    }
+
     fn declare_dispatch_target_fun(
         &mut self,
         _at: crate::span::Span,
@@ -1504,11 +1537,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         inits.push(i8_ptr_ty.const_null());
                         continue;
                     }
-                    let llvm_fun = self.declare_dispatch_target_fun(at, impl_fqn)?;
+                    let target_fqn = self.published_dispatch_target_fqn(impl_fqn);
+                    let llvm_fun = self.declare_dispatch_target_fun(at, &target_fqn)?;
 
                     let fn_ptr = self.callable_carrier_target_fn_ptr(
                         CallableCarrierKind::InterfaceItable,
-                        impl_fqn,
+                        &target_fqn,
                         llvm_fun.as_global_value().as_pointer_value(),
                     )?;
                     inits.push(fn_ptr.const_cast(i8_ptr_ty));
@@ -1656,11 +1690,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut inits: Vec<PointerValue<'ctx>> = Vec::with_capacity(slots.len());
         for slot in slots {
-            let llvm_fun = self.declare_dispatch_target_fun(at, &slot.impl_member_fqn)?;
+            let target_fqn = self.published_dispatch_target_fqn(&slot.impl_member_fqn);
+            let llvm_fun = self.declare_dispatch_target_fun(at, &target_fqn)?;
 
             let fn_ptr = self.callable_carrier_target_fn_ptr(
                 CallableCarrierKind::ClassVtable,
-                &slot.impl_member_fqn,
+                &target_fqn,
                 llvm_fun.as_global_value().as_pointer_value(),
             )?;
             inits.push(fn_ptr.const_cast(i8_ptr_ty));

@@ -428,6 +428,7 @@ pub struct TopLevelFunCallBinding {
     pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
+    pub types_are_hir: bool,
 }
 
 #[derive(Debug, Clone)]

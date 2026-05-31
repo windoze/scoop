@@ -236,6 +236,7 @@ pub(in crate::typecheck::expr) fn lower_effect_op_signature(
         param_has_defaults: vec![false; param_count],
         param_is_vararg: vec![false; param_count],
         type_params,
+        owner_eff_param: None,
         eff_param: None,
         param_fn_effect_eff_base: vec![None; param_count],
         param_nominal_eff_eff_base: vec![None; param_count],

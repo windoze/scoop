@@ -464,12 +464,24 @@ impl MirInstanceMaterializer {
             let type_args = binding
                 .type_args
                 .iter()
-                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                .map(|&ty| {
+                    if binding.types_are_hir {
+                        ty
+                    } else {
+                        self.types.re_intern_from(typecheck_types, ty)
+                    }
+                })
                 .collect();
             let eff_args = binding
                 .eff_args
                 .iter()
-                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
+                .map(|row| {
+                    if binding.types_are_hir {
+                        row.clone()
+                    } else {
+                        re_intern_effect_row_from(&mut self.types, typecheck_types, row)
+                    }
+                })
                 .collect();
             self.call_bindings.insert(
                 site,

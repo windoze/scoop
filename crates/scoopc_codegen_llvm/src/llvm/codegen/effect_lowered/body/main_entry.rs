@@ -13,6 +13,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
+            if callable.effect_step_abi().is_some()
+                && !abi.callable_version_is_primary(callable.body_version_key())
+            {
+                continue;
+            }
+            if callable.effect_step_abi().is_some()
+                && callable
+                    .body_step_schema()
+                    .is_some_and(|step| abi.frame_layout(step).is_none())
+            {
+                continue;
+            }
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
                 child.codegen_plain_callable_entry(program, source_types, abi, callable)?;

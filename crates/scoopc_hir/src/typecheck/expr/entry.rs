@@ -1304,17 +1304,25 @@ fn check_standard_delegated_property_inline_exprs(
                 return Ok(());
             }
 
-            lower.with_safe_lambda_context(lambda, |lower| {
-                let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
-                    lower,
-                    lambda.body.as_ref(),
-                    property_ty,
-                    ExpectedTypeFrom::new(format!(
-                        "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
-                    )),
-                )?;
-                Ok::<(), ExprTypeError>(())
+            let (_, performed_effects) = lower.with_safe_lambda_context(lambda, |lower| {
+                lower.with_nested_effect_collection(|lower| {
+                    expr_infer_inputs(shared, outer_locals).infer_in_expected(
+                        lower,
+                        lambda.body.as_ref(),
+                        property_ty,
+                        ExpectedTypeFrom::new(format!(
+                            "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
+                        )),
+                    )
+                })
             })?;
+            if let Some((effect, span)) = performed_effects.first().copied() {
+                return Err(ExprTypeError::LazyInitializerMustBePure {
+                    property: property_name.to_string(),
+                    required: lower.fmt_type(effect),
+                    span: span.into(),
+                });
+            }
         }
         "scoop.delegates.observable" | "scoop.delegates.vetoable" => {
             let Some(initial) = args.first() else {
@@ -1364,6 +1372,8 @@ fn check_standard_delegated_property_inline_exprs(
         }
         _ => {}
     }
+
+    let _ = expr_infer_inputs(shared, outer_locals).infer(lower, delegate)?;
 
     Ok(())
 }

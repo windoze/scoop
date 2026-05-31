@@ -146,6 +146,11 @@ struct FunSigOwned {
     /// - 让调用点可以识别“哪些 TypeId 是该函数的类型参数”
     /// - 在参数检查前做最小泛型实参推断，并对签名做 substitution（实例化）
     type_params: Vec<TypeId>,
+    /// 所属泛型 owner 的 effect row 参数（仅 class/interface/effect 成员方法使用）。
+    ///
+    /// 该参数不属于函数自身的 `<eff E>`，但 materialized member instance key
+    /// 需要把 owner effect arg 放在函数 effect arg 之前。
+    owner_eff_param: Option<EffParamSig>,
     /// effect row 参数（`<eff E = Pure>`）（spec §3.4 / §14.7.3）。
     ///
     /// 说明：

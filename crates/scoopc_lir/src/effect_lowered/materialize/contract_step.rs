@@ -573,6 +573,9 @@ pub(crate) fn nominal_source_type_compatible(
     if builtin_string_source_type_compatible(types, local_ty, expected_ty) {
         return true;
     }
+    if matches!(types.kind(expected_ty), TypeKind::Ref(RefTypeKind::Any)) {
+        return matches!(types.kind(local_ty), TypeKind::Ref(_));
+    }
     let (local_nominal, expected_nominal) = match (types.kind(local_ty), types.kind(expected_ty)) {
         (
             TypeKind::Ref(RefTypeKind::Nominal(local_nominal)),

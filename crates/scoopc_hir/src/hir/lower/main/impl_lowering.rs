@@ -1378,6 +1378,14 @@ impl<'a> HirLowering<'a> {
             }
         }
 
+        self.record_synthetic_member_fun_call_binding(
+            span,
+            &target_fqn,
+            receiver_ty,
+            &args,
+            ret_ty,
+        );
+
         let mut call_args = Vec::with_capacity(args.len() + 1);
         call_args.push(CallArg::Positional(receiver));
         call_args.extend(args.into_iter().map(CallArg::Positional));
@@ -1397,6 +1405,58 @@ impl<'a> HirLowering<'a> {
                 args: call_args,
             },
         }
+    }
+
+    fn record_synthetic_member_fun_call_binding(
+        &mut self,
+        span: Span,
+        fqn: &str,
+        receiver_ty: TypeId,
+        args: &[Expr],
+        ret_ty: TypeId,
+    ) {
+        let mut bindings = self.file.top_level_fun_call_bindings();
+
+        let Some(overload) = self.index.by_fqn.get(fqn).and_then(|syms| syms.fun.first()) else {
+            return;
+        };
+        let (mut type_args, owner_eff) = match self.types.kind(receiver_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (nominal.args.clone(), nominal.eff.clone())
+            }
+            _ => (Vec::new(), None),
+        };
+        if type_args.is_empty() && owner_eff.is_none() && overload.sig.type_params.is_empty() {
+            return;
+        }
+        if !overload.sig.type_params.is_empty() {
+            type_args.extend(std::iter::repeat_n(
+                self.builtins.any,
+                overload.sig.type_params.len(),
+            ));
+        }
+        let eff_args = owner_eff.into_iter().collect::<Vec<_>>();
+        let mut param_tys = Vec::with_capacity(args.len() + 1);
+        param_tys.push(receiver_ty);
+        param_tys.extend(args.iter().map(|arg| arg.ty));
+
+        bindings.insert(
+            span,
+            crate::ast::TopLevelFunCallBinding {
+                fqn: fqn.to_string(),
+                decl_file: overload.symbol.decl_file.clone(),
+                decl_span: overload.symbol.span,
+                is_intrinsic: overload.sig.builtin_flags.is_intrinsic,
+                intrinsic_entry_name: overload.sig.builtin_flags.intrinsic_entry_name.clone(),
+                param_tys,
+                return_ty: Some(ret_ty),
+                type_args,
+                eff_args,
+                types_are_hir: true,
+            },
+        );
+        self.file.replace_top_level_fun_call_bindings(bindings);
     }
 
     pub(crate) fn record_synthetic_top_level_fun_call_binding(
@@ -1442,6 +1502,7 @@ impl<'a> HirLowering<'a> {
                 return_ty: None,
                 type_args: Vec::new(),
                 eff_args: Vec::new(),
+                types_are_hir: true,
             },
         );
         self.file.replace_top_level_fun_call_bindings(bindings);
@@ -1486,6 +1547,7 @@ impl<'a> HirLowering<'a> {
                 return_ty: None,
                 type_args: Vec::new(),
                 eff_args: Vec::new(),
+                types_are_hir: true,
             },
         );
         self.file.replace_top_level_fun_call_bindings(bindings);

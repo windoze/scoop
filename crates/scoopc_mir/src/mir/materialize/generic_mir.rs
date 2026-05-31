@@ -397,6 +397,84 @@ pub(super) fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
     }
 }
 
+pub(super) fn nominal_eff_row_from_type(types: &TypeStore, ty: TypeId) -> Option<EffectRow> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.eff.clone(),
+        _ => None,
+    }
+}
+
+pub(super) fn collect_effect_row_param_names_in_type(
+    types: &TypeStore,
+    ty: TypeId,
+    out: &mut HashSet<String>,
+) {
+    match types.kind(ty).clone() {
+        TypeKind::Param(param) => {
+            if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE {
+                out.insert(param.name);
+            }
+        }
+        TypeKind::StarProjection(star) => {
+            collect_effect_row_param_names_in_type(types, star.read_ty, out);
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            collect_effect_row_param_names_in_type(types, inner, out);
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            for element in elements {
+                collect_effect_row_param_names_in_type(types, element, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            for arg in nominal.args {
+                collect_effect_row_param_names_in_type(types, arg, out);
+            }
+            if let Some(row) = nominal.eff {
+                collect_effect_row_param_names_in_row(types, &row, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            if let Some(receiver) = fun.receiver {
+                collect_effect_row_param_names_in_type(types, receiver, out);
+            }
+            for param in fun.params {
+                collect_effect_row_param_names_in_type(types, param, out);
+            }
+            collect_effect_row_param_names_in_type(types, fun.return_ty, out);
+            collect_effect_row_param_names_in_row(types, &fun.effects, out);
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            for variant in union.variants {
+                collect_effect_row_param_names_in_type(types, variant, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+    }
+}
+
+fn collect_effect_row_param_names_in_row(
+    types: &TypeStore,
+    row: &EffectRow,
+    out: &mut HashSet<String>,
+) {
+    for term in &row.terms {
+        collect_effect_row_param_names_in_type(types, *term, out);
+    }
+}
+
 pub(super) fn is_builtin_scalar_or_string_type(types: &TypeStore, ty: TypeId) -> bool {
     matches!(
         types.kind(ty),

@@ -397,6 +397,11 @@ impl MirInstanceMaterializer {
             (Some(name), [row]) => {
                 substitution.effect_params.insert(name.clone(), row.clone());
             }
+            (Some(name), []) => {
+                substitution
+                    .effect_params
+                    .insert(name.clone(), EffectRow::pure());
+            }
             (Some(_), eff_args) => {
                 return Err(materialize_err(
                     MirMaterializeError::EffectArgArityMismatch {

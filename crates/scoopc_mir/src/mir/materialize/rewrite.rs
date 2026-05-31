@@ -482,6 +482,13 @@ impl MirInstanceMaterializer {
                 for (name, ty) in info.owner_type_param_names.iter().zip(nominal.args.iter()) {
                     substitution.type_params.insert(name.clone(), *ty);
                 }
+                if let Some(row) = nominal.eff {
+                    let mut names = HashSet::new();
+                    collect_effect_row_param_names_in_type(&self.types, info.ty, &mut names);
+                    for name in names {
+                        substitution.effect_params.insert(name, row.clone());
+                    }
+                }
             }
             _ if info.owner_type_param_names.is_empty() => {}
             _ => return None,
@@ -1654,6 +1661,13 @@ impl MirInstanceMaterializer {
         signature: &TemplateSignatureInfo,
         bindings: HashMap<String, TypeId>,
     ) -> Option<InstanceKey> {
+        if self
+            .roots
+            .get(&signature.template)
+            .is_some_and(|root| root.eff_param_name.is_some())
+        {
+            return None;
+        }
         let mut ordered = Vec::with_capacity(signature.type_param_names.len());
         for name in &signature.type_param_names {
             let ty = bindings.get(name).copied()?;

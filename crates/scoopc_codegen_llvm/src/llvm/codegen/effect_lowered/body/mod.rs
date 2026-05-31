@@ -269,10 +269,15 @@ fn validate_plain_callable_layout(
         ))
     })?;
     let entry = layout.direct_entry();
-    if layout.root_fqn() != callable.root_fqn()
-        || entry.param_tys() != plain.param_tys()
-        || entry.return_ty() != plain.return_ty()
-    {
+    let exact = layout.root_fqn() == callable.root_fqn()
+        && entry.param_tys() == plain.param_tys()
+        && entry.return_ty() == plain.return_ty();
+    let same_generic_instance_shape = layout.surface_instance().template
+        == callable.instance_key().template
+        && layout.surface_instance().type_args == callable.instance_key().type_args
+        && entry.param_tys().len() == plain.param_tys().len()
+        && entry.return_ty() == plain.return_ty();
+    if !exact && !same_generic_instance_shape {
         return Err(frontend_error(format!(
             "plain callable `{}` ABI contract 漂移：layout_root=`{}` return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
             callable.root_fqn(),

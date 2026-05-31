@@ -395,6 +395,7 @@ fn substitute_class_init_steps(
     types: &mut TypeStore,
     steps: &[ClassInitStep],
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> Vec<ClassInitStep> {
     steps
         .iter()
@@ -402,19 +403,30 @@ fn substitute_class_init_steps(
         .map(|step| match step {
             ClassInitStep::PropertyInit { field_fqn, init } => ClassInitStep::PropertyInit {
                 field_fqn,
-                init: substitute_expr_type_params(types, init, param_map),
+                init: substitute_expr_type_params(types, init, param_map, eff_map),
             },
             ClassInitStep::InitBlock { block } => ClassInitStep::InitBlock {
-                block: substitute_block_type_params(types, block, param_map),
+                block: substitute_block_type_params(types, block, param_map, eff_map),
             },
         })
         .collect()
+}
+
+fn substitute_type_params_and_eff(
+    types: &mut TypeStore,
+    ty: crate::ty::TypeId,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
+) -> crate::ty::TypeId {
+    let ty = substitute_type_params(types, ty, param_map);
+    substitute_effect_row_params(types, ty, eff_map)
 }
 
 fn substitute_class_ctor_type_params(
     types: &mut TypeStore,
     ctor: ClassCtor<TypeId>,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> ClassCtor<TypeId> {
     ClassCtor {
         kind: ctor.kind,
@@ -426,11 +438,11 @@ fn substitute_class_ctor_type_params(
                 id: param.id,
                 name: param.name,
                 decl_span: param.decl_span,
-                ty: substitute_type_params(types, param.ty, param_map),
+                ty: substitute_type_params_and_eff(types, param.ty, param_map, eff_map),
                 has_default: param.has_default,
                 default_value: param
                     .default_value
-                    .map(|expr| substitute_expr_type_params(types, expr, param_map)),
+                    .map(|expr| substitute_expr_type_params(types, expr, param_map, eff_map)),
                 is_property: param.is_property,
                 property_field_fqn: param.property_field_fqn,
             })
@@ -439,11 +451,11 @@ fn substitute_class_ctor_type_params(
             kind: delegation.kind,
             span: delegation.span,
             call: delegation.call,
-            args: substitute_call_args_type_params(types, delegation.args, param_map),
+            args: substitute_call_args_type_params(types, delegation.args, param_map, eff_map),
         }),
         body: ctor
             .body
-            .map(|block| substitute_block_type_params(types, block, param_map)),
+            .map(|block| substitute_block_type_params(types, block, param_map, eff_map)),
     }
 }
 
@@ -451,14 +463,15 @@ fn substitute_block_type_params(
     types: &mut TypeStore,
     block: Block,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> Block {
     Block {
         span: block.span,
-        ty: substitute_type_params(types, block.ty, param_map),
+        ty: substitute_type_params_and_eff(types, block.ty, param_map, eff_map),
         stmts: block
             .stmts
             .into_iter()
-            .map(|stmt| substitute_stmt_type_params(types, stmt, param_map))
+            .map(|stmt| substitute_stmt_type_params(types, stmt, param_map, eff_map))
             .collect(),
     }
 }
@@ -467,33 +480,36 @@ fn substitute_stmt_type_params(
     types: &mut TypeStore,
     stmt: Stmt,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> Stmt {
     let kind = match stmt.kind {
         StmtKind::Empty => StmtKind::Empty,
-        StmtKind::Expr(expr) => StmtKind::Expr(substitute_expr_type_params(types, expr, param_map)),
-        StmtKind::Val(decl) => {
-            StmtKind::Val(substitute_val_decl_type_params(types, decl, param_map))
+        StmtKind::Expr(expr) => {
+            StmtKind::Expr(substitute_expr_type_params(types, expr, param_map, eff_map))
         }
+        StmtKind::Val(decl) => StmtKind::Val(substitute_val_decl_type_params(
+            types, decl, param_map, eff_map,
+        )),
         StmtKind::Assign { lhs, eq_span, rhs } => StmtKind::Assign {
-            lhs: substitute_expr_type_params(types, lhs, param_map),
+            lhs: substitute_expr_type_params(types, lhs, param_map, eff_map),
             eq_span,
-            rhs: substitute_expr_type_params(types, rhs, param_map),
+            rhs: substitute_expr_type_params(types, rhs, param_map, eff_map),
         },
         StmtKind::While { cond, body } => StmtKind::While {
-            cond: substitute_expr_type_params(types, cond, param_map),
-            body: substitute_block_type_params(types, body, param_map),
+            cond: substitute_expr_type_params(types, cond, param_map, eff_map),
+            body: substitute_block_type_params(types, body, param_map, eff_map),
         },
         StmtKind::Break { break_span } => StmtKind::Break { break_span },
         StmtKind::Continue { continue_span } => StmtKind::Continue { continue_span },
         StmtKind::Return { value } => StmtKind::Return {
-            value: value.map(|expr| substitute_expr_type_params(types, expr, param_map)),
+            value: value.map(|expr| substitute_expr_type_params(types, expr, param_map, eff_map)),
         },
         StmtKind::Todo(msg) => StmtKind::Todo(msg),
     };
 
     Stmt {
         span: stmt.span,
-        ty: substitute_type_params(types, stmt.ty, param_map),
+        ty: substitute_type_params_and_eff(types, stmt.ty, param_map, eff_map),
         kind,
     }
 }
@@ -502,16 +518,17 @@ fn substitute_val_decl_type_params(
     types: &mut TypeStore,
     decl: ValDecl,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> ValDecl {
     ValDecl {
         span: decl.span,
         id: decl.id,
         name: decl.name,
         mutable: decl.mutable,
-        ty: substitute_type_params(types, decl.ty, param_map),
+        ty: substitute_type_params_and_eff(types, decl.ty, param_map, eff_map),
         init: decl
             .init
-            .map(|expr| substitute_expr_type_params(types, expr, param_map)),
+            .map(|expr| substitute_expr_type_params(types, expr, param_map, eff_map)),
     }
 }
 
@@ -519,6 +536,7 @@ fn substitute_expr_type_params(
     types: &mut TypeStore,
     expr: Expr,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> Expr {
     let kind = match expr.kind {
         ExprKind::Missing => ExprKind::Missing,
@@ -526,7 +544,7 @@ fn substitute_expr_type_params(
         ExprKind::VarRef(value) => ExprKind::VarRef(value),
         ExprKind::UnresolvedIdent { name } => ExprKind::UnresolvedIdent { name },
         ExprKind::StructLit { ty, fields } => ExprKind::StructLit {
-            ty: substitute_type_params(types, ty, param_map),
+            ty: substitute_type_params_and_eff(types, ty, param_map, eff_map),
             fields: fields
                 .into_iter()
                 .map(|field| StructLitField {
@@ -534,20 +552,20 @@ fn substitute_expr_type_params(
                     name: field.name,
                     name_span: field.name_span,
                     colon_span: field.colon_span,
-                    value: substitute_expr_type_params(types, field.value, param_map),
+                    value: substitute_expr_type_params(types, field.value, param_map, eff_map),
                 })
                 .collect(),
         },
         ExprKind::ClassLiteral(lit) => ExprKind::ClassLiteral(ClassLiteralExpr {
-            source_ty: substitute_type_params(types, lit.source_ty, param_map),
+            source_ty: substitute_type_params_and_eff(types, lit.source_ty, param_map, eff_map),
             source_fqn: lit.source_fqn,
             metadata_kind: lit.metadata_kind,
-            result_ty: substitute_type_params(types, lit.result_ty, param_map),
+            result_ty: substitute_type_params_and_eff(types, lit.result_ty, param_map, eff_map),
         }),
         ExprKind::TupleLit { elements } => ExprKind::TupleLit {
             elements: elements
                 .into_iter()
-                .map(|element| substitute_expr_type_params(types, element, param_map))
+                .map(|element| substitute_expr_type_params(types, element, param_map, eff_map))
                 .collect(),
         },
         ExprKind::InterpolatedString { raw, parts } => ExprKind::InterpolatedString {
@@ -557,7 +575,7 @@ fn substitute_expr_type_params(
                 .map(|part| match part {
                     InterpolatedStringPart::Text { span } => InterpolatedStringPart::Text { span },
                     InterpolatedStringPart::Expr { expr } => InterpolatedStringPart::Expr {
-                        expr: substitute_expr_type_params(types, expr, param_map),
+                        expr: substitute_expr_type_params(types, expr, param_map, eff_map),
                     },
                 })
                 .collect(),
@@ -565,7 +583,9 @@ fn substitute_expr_type_params(
         ExprKind::Unary { op, op_span, expr } => ExprKind::Unary {
             op,
             op_span,
-            expr: Box::new(substitute_expr_type_params(types, *expr, param_map)),
+            expr: Box::new(substitute_expr_type_params(
+                types, *expr, param_map, eff_map,
+            )),
         },
         ExprKind::Binary {
             lhs,
@@ -573,10 +593,10 @@ fn substitute_expr_type_params(
             op_span,
             rhs,
         } => ExprKind::Binary {
-            lhs: Box::new(substitute_expr_type_params(types, *lhs, param_map)),
+            lhs: Box::new(substitute_expr_type_params(types, *lhs, param_map, eff_map)),
             op,
             op_span,
-            rhs: Box::new(substitute_expr_type_params(types, *rhs, param_map)),
+            rhs: Box::new(substitute_expr_type_params(types, *rhs, param_map, eff_map)),
         },
         ExprKind::TypeCheck {
             expr,
@@ -584,10 +604,12 @@ fn substitute_expr_type_params(
             op_span,
             target_ty,
         } => ExprKind::TypeCheck {
-            expr: Box::new(substitute_expr_type_params(types, *expr, param_map)),
+            expr: Box::new(substitute_expr_type_params(
+                types, *expr, param_map, eff_map,
+            )),
             op,
             op_span,
-            target_ty: substitute_type_params(types, target_ty, param_map),
+            target_ty: substitute_type_params_and_eff(types, target_ty, param_map, eff_map),
         },
         ExprKind::Cast {
             expr,
@@ -595,14 +617,16 @@ fn substitute_expr_type_params(
             op_span,
             target_ty,
         } => ExprKind::Cast {
-            expr: Box::new(substitute_expr_type_params(types, *expr, param_map)),
+            expr: Box::new(substitute_expr_type_params(
+                types, *expr, param_map, eff_map,
+            )),
             op,
             op_span,
-            target_ty: substitute_type_params(types, target_ty, param_map),
+            target_ty: substitute_type_params_and_eff(types, target_ty, param_map, eff_map),
         },
-        ExprKind::Block(block) => {
-            ExprKind::Block(substitute_block_type_params(types, block, param_map))
-        }
+        ExprKind::Block(block) => ExprKind::Block(substitute_block_type_params(
+            types, block, param_map, eff_map,
+        )),
         ExprKind::Closure(closure) => ExprKind::Closure(ClosureExpr {
             span: closure.span,
             id: closure.id,
@@ -615,35 +639,56 @@ fn substitute_expr_type_params(
                     span: param.span,
                     id: param.id,
                     name: param.name,
-                    ty: substitute_type_params(types, param.ty, param_map),
+                    ty: substitute_type_params_and_eff(types, param.ty, param_map, eff_map),
                 })
                 .collect(),
-            body: Box::new(substitute_expr_type_params(types, *closure.body, param_map)),
+            body: Box::new(substitute_expr_type_params(
+                types,
+                *closure.body,
+                param_map,
+                eff_map,
+            )),
         }),
         ExprKind::If {
             cond,
             then_branch,
             else_branch,
         } => ExprKind::If {
-            cond: Box::new(substitute_expr_type_params(types, *cond, param_map)),
-            then_branch: Box::new(substitute_expr_type_params(types, *then_branch, param_map)),
-            else_branch: else_branch
-                .map(|branch| Box::new(substitute_expr_type_params(types, *branch, param_map))),
+            cond: Box::new(substitute_expr_type_params(
+                types, *cond, param_map, eff_map,
+            )),
+            then_branch: Box::new(substitute_expr_type_params(
+                types,
+                *then_branch,
+                param_map,
+                eff_map,
+            )),
+            else_branch: else_branch.map(|branch| {
+                Box::new(substitute_expr_type_params(
+                    types, *branch, param_map, eff_map,
+                ))
+            }),
         },
         ExprKind::When { subject, arms } => ExprKind::When {
-            subject: Box::new(substitute_expr_type_params(types, *subject, param_map)),
+            subject: Box::new(substitute_expr_type_params(
+                types, *subject, param_map, eff_map,
+            )),
             arms: arms
                 .into_iter()
-                .map(|arm| substitute_when_arm_type_params(types, arm, param_map))
+                .map(|arm| substitute_when_arm_type_params(types, arm, param_map, eff_map))
                 .collect(),
         },
         ExprKind::MemberAccess { receiver, member } => ExprKind::MemberAccess {
-            receiver: Box::new(substitute_expr_type_params(types, *receiver, param_map)),
+            receiver: Box::new(substitute_expr_type_params(
+                types, *receiver, param_map, eff_map,
+            )),
             member,
         },
         ExprKind::Call { callee, args } => ExprKind::Call {
-            callee: Box::new(substitute_expr_type_params(types, *callee, param_map)),
-            args: substitute_call_args_type_params(types, args, param_map),
+            callee: Box::new(substitute_expr_type_params(
+                types, *callee, param_map, eff_map,
+            )),
+            args: substitute_call_args_type_params(types, args, param_map, eff_map),
         },
         ExprKind::Perform {
             effect_ty,
@@ -653,23 +698,23 @@ fn substitute_expr_type_params(
             op.type_args = op
                 .type_args
                 .into_iter()
-                .map(|ty| substitute_type_params(types, ty, param_map))
+                .map(|ty| substitute_type_params_and_eff(types, ty, param_map, eff_map))
                 .collect();
             ExprKind::Perform {
-                effect_ty: substitute_type_params(types, effect_ty, param_map),
+                effect_ty: substitute_type_params_and_eff(types, effect_ty, param_map, eff_map),
                 op,
-                args: substitute_call_args_type_params(types, args, param_map),
+                args: substitute_call_args_type_params(types, args, param_map, eff_map),
             }
         }
-        ExprKind::Handle(handle) => {
-            ExprKind::Handle(substitute_handle_type_params(types, handle, param_map))
-        }
+        ExprKind::Handle(handle) => ExprKind::Handle(substitute_handle_type_params(
+            types, handle, param_map, eff_map,
+        )),
         ExprKind::Todo(msg) => ExprKind::Todo(msg),
     };
 
     Expr {
         span: expr.span,
-        ty: substitute_type_params(types, expr.ty, param_map),
+        ty: substitute_type_params_and_eff(types, expr.ty, param_map, eff_map),
         kind,
     }
 }
@@ -678,11 +723,12 @@ fn substitute_call_args_type_params(
     types: &mut TypeStore,
     args: Vec<CallArg>,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> Vec<CallArg> {
     args.into_iter()
         .map(|arg| match arg {
             CallArg::Positional(expr) => {
-                CallArg::Positional(substitute_expr_type_params(types, expr, param_map))
+                CallArg::Positional(substitute_expr_type_params(types, expr, param_map, eff_map))
             }
             CallArg::Named {
                 name,
@@ -691,7 +737,7 @@ fn substitute_call_args_type_params(
             } => CallArg::Named {
                 name,
                 name_span,
-                value: substitute_expr_type_params(types, value, param_map),
+                value: substitute_expr_type_params(types, value, param_map, eff_map),
             },
         })
         .collect()
@@ -701,15 +747,16 @@ fn substitute_when_arm_type_params(
     types: &mut TypeStore,
     arm: WhenArm,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> WhenArm {
     WhenArm {
         span: arm.span,
-        pat: substitute_when_pat_type_params(types, arm.pat, param_map),
+        pat: substitute_when_pat_type_params(types, arm.pat, param_map, eff_map),
         guard: arm
             .guard
-            .map(|expr| substitute_expr_type_params(types, expr, param_map)),
+            .map(|expr| substitute_expr_type_params(types, expr, param_map, eff_map)),
         arrow_span: arm.arrow_span,
-        body: substitute_expr_type_params(types, arm.body, param_map),
+        body: substitute_expr_type_params(types, arm.body, param_map, eff_map),
     }
 }
 
@@ -717,24 +764,25 @@ fn substitute_when_pat_type_params(
     types: &mut TypeStore,
     pat: WhenPat,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> WhenPat {
     match pat {
         WhenPat::Or { span, pats } => WhenPat::Or {
             span,
             pats: pats
                 .into_iter()
-                .map(|pat| substitute_when_pat_type_params(types, pat, param_map))
+                .map(|pat| substitute_when_pat_type_params(types, pat, param_map, eff_map))
                 .collect(),
         },
         WhenPat::Is { span, ty } => WhenPat::Is {
             span,
-            ty: substitute_type_params(types, ty, param_map),
+            ty: substitute_type_params_and_eff(types, ty, param_map, eff_map),
         },
         WhenPat::Tuple { span, elements } => WhenPat::Tuple {
             span,
             elements: elements
                 .into_iter()
-                .map(|pat| substitute_when_pat_type_params(types, pat, param_map))
+                .map(|pat| substitute_when_pat_type_params(types, pat, param_map, eff_map))
                 .collect(),
         },
         WhenPat::Variant {
@@ -748,7 +796,7 @@ fn substitute_when_pat_type_params(
             name,
             args: args
                 .into_iter()
-                .map(|pat| substitute_when_pat_type_params(types, pat, param_map))
+                .map(|pat| substitute_when_pat_type_params(types, pat, param_map, eff_map))
                 .collect(),
         },
         other => other,
@@ -759,22 +807,23 @@ fn substitute_handle_type_params(
     types: &mut TypeStore,
     handle: HandleExpr,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> HandleExpr {
     HandleExpr {
-        body: substitute_block_type_params(types, handle.body, param_map),
+        body: substitute_block_type_params(types, handle.body, param_map, eff_map),
         arms: handle
             .arms
             .into_iter()
             .map(|arm| HandleArm {
                 span: arm.span,
-                op: substitute_handle_op_type_params(types, arm.op, param_map),
+                op: substitute_handle_op_type_params(types, arm.op, param_map, eff_map),
                 kind: arm.kind,
-                body: substitute_expr_type_params(types, arm.body, param_map),
+                body: substitute_expr_type_params(types, arm.body, param_map, eff_map),
             })
             .collect(),
         finally: handle
             .finally
-            .map(|block| substitute_block_type_params(types, block, param_map)),
+            .map(|block| substitute_block_type_params(types, block, param_map, eff_map)),
     }
 }
 
@@ -782,13 +831,14 @@ fn substitute_handle_op_type_params(
     types: &mut TypeStore,
     mut op: HandleOp,
     param_map: &HashMap<String, crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
 ) -> HandleOp {
-    op.effect_ty = substitute_type_params(types, op.effect_ty, param_map);
+    op.effect_ty = substitute_type_params_and_eff(types, op.effect_ty, param_map, eff_map);
     op.op.type_args = op
         .op
         .type_args
         .into_iter()
-        .map(|ty| substitute_type_params(types, ty, param_map))
+        .map(|ty| substitute_type_params_and_eff(types, ty, param_map, eff_map))
         .collect();
     op.binders = op
         .binders
@@ -797,7 +847,7 @@ fn substitute_handle_op_type_params(
             span: binder.span,
             id: binder.id,
             name: binder.name,
-            ty: substitute_type_params(types, binder.ty, param_map),
+            ty: substitute_type_params_and_eff(types, binder.ty, param_map, eff_map),
         })
         .collect();
     op
@@ -852,7 +902,7 @@ pub(in crate::hir::lower) fn collect_generic_struct_instantiation_layouts(
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.clone(),
             _ => continue,
         };
-        if nominal.args.is_empty() {
+        if nominal.args.is_empty() && nominal.eff.is_none() {
             continue;
         }
         if nominal
@@ -883,7 +933,6 @@ pub(in crate::hir::lower) fn collect_generic_struct_instantiation_layouts(
             let name = p.name.text(source).to_string();
             param_map.insert(name, nominal.args[idx]);
         }
-
         // 为每个字段解析 ty_fqn。
         let mut fields: Vec<StructFieldLayout> = Vec::new();
         if let Some(primary_ctor) = &decl.primary_ctor {
@@ -1006,7 +1055,7 @@ pub(in crate::hir::lower) fn collect_generic_enum_instantiation_layouts(
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.clone(),
             _ => continue,
         };
-        if nominal.args.is_empty() {
+        if nominal.args.is_empty() && nominal.eff.is_none() {
             continue;
         }
         if nominal
@@ -1036,7 +1085,6 @@ pub(in crate::hir::lower) fn collect_generic_enum_instantiation_layouts(
             let name = p.name.text(source).to_string();
             param_map.insert(name, nominal.args[idx]);
         }
-
         let mut variants: Vec<EnumVariantLayout> = Vec::new();
         let mut next_tag: u64 = 0;
 
@@ -1179,6 +1227,12 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
             let name = p.name.text(source).to_string();
             param_map.insert(name, nominal.args[idx]);
         }
+        let mut eff_map: HashMap<String, EffectRow> = HashMap::new();
+        if let Some(eff_param) = decl.eff_param.as_ref()
+            && let Some(eff) = nominal.eff.clone()
+        {
+            eff_map.insert(eff_param.name.text(source).to_string(), eff);
+        }
 
         // 替换字段类型（仍然是 TypeId 形态）：必须递归穿透 nominal args / Option / function
         // 等嵌套位置，否则 `__TaskState<T>`、`Option<T>` 这类字段会把 `TypeKind::Param`
@@ -1190,7 +1244,7 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
                 fqn: f.fqn.clone(),
                 name: f.name.clone(),
                 mutable: f.mutable,
-                ty: substitute_type_params(types, f.ty, &param_map),
+                ty: substitute_type_params_and_eff(types, f.ty, &param_map, &eff_map),
             })
             .collect();
 
@@ -1201,7 +1255,7 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
             .ctors
             .iter()
             .cloned()
-            .map(|ctor| substitute_class_ctor_type_params(types, ctor, &param_map))
+            .map(|ctor| substitute_class_ctor_type_params(types, ctor, &param_map, &eff_map))
             .collect();
 
         // 先建一个 substituted 的 GenericClassDecl，再立即升级为 MonoClassInit。
@@ -1216,11 +1270,12 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
                 types,
                 base_decl.super_ctor_args.clone(),
                 &param_map,
+                &eff_map,
             ),
             this_id: base_decl.this_id,
             fields,
             field_indices,
-            steps: substitute_class_init_steps(types, &base_decl.steps, &param_map),
+            steps: substitute_class_init_steps(types, &base_decl.steps, &param_map, &eff_map),
             ctors,
         };
 
@@ -1253,7 +1308,9 @@ pub(in crate::hir::lower) fn collect_generic_class_decls_in_items<'a>(
                 let name = ty.name.text(source).to_string();
                 let fqn = join_prefix(owner_prefix, &name);
 
-                if matches!(ty.kind, ast::TypeKind::Class) && !ty.type_params.is_empty() {
+                if matches!(ty.kind, ast::TypeKind::Class)
+                    && (!ty.type_params.is_empty() || ty.eff_param.is_some())
+                {
                     out.insert(fqn.clone(), (source, ty));
                 }
 
@@ -1264,7 +1321,7 @@ pub(in crate::hir::lower) fn collect_generic_class_decls_in_items<'a>(
                             let nested_name = nested.name.text(source).to_string();
                             let nested_fqn = join_prefix(&fqn, &nested_name);
                             if matches!(nested.kind, ast::TypeKind::Class)
-                                && !nested.type_params.is_empty()
+                                && (!nested.type_params.is_empty() || nested.eff_param.is_some())
                             {
                                 out.insert(nested_fqn, (source, nested));
                             }
@@ -1282,7 +1339,8 @@ pub(in crate::hir::lower) fn collect_generic_class_decls_in_items<'a>(
                                 let nested_name = nested.name.text(source).to_string();
                                 let nested_fqn = join_prefix(&obj_fqn, &nested_name);
                                 if matches!(nested.kind, ast::TypeKind::Class)
-                                    && !nested.type_params.is_empty()
+                                    && (!nested.type_params.is_empty()
+                                        || nested.eff_param.is_some())
                                 {
                                     out.insert(nested_fqn, (source, nested));
                                 }

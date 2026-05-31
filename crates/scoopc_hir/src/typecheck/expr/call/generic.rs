@@ -640,7 +640,10 @@ pub(super) fn effect_row_difference(found: &EffectRow, base: &EffectRow) -> Effe
     EffectRow::new(out)
 }
 
-pub(super) fn nominal_eff_row_from_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {
+pub(in crate::typecheck::expr) fn nominal_eff_row_from_type(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> Option<EffectRow> {
     match lower.type_kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.eff,
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.eff,
@@ -1372,6 +1375,7 @@ pub(super) fn try_infer_where_bound_method_call(
             return_ty: Some(chosen.instantiated.return_ty),
             type_args: chosen.type_args,
             eff_args: chosen.eff_args,
+            types_are_hir: false,
         },
     );
     if let Some(binding) =

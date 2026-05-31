@@ -3850,7 +3850,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         sources: &[LateLoweredOperandSource],
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let layout = self.abi.source_value_layout(source_ty)?;
+        let layout = match self.abi.source_value_layout(source_ty) {
+            Ok(layout) => layout,
+            Err(err) if !sources.is_empty() => {
+                return self.pack_sources_from_field_layouts(sources, name).map_err(|fallback_err| {
+                    frontend_error(format!(
+                        "{err}; fallback ABI packing from operand sources also failed: {fallback_err}"
+                    ))
+                });
+            }
+            Err(err) => return Err(err),
+        };
         if layout.abi().is_elided() {
             return Ok(None);
         }
@@ -3901,6 +3911,46 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(aggregate.into()))
             }
         }
+    }
+
+    fn pack_sources_from_field_layouts(
+        &mut self,
+        sources: &[LateLoweredOperandSource],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let mut values = Vec::new();
+        let mut field_tys = Vec::new();
+        for source in sources {
+            let field_layout = self.abi.source_value_layout(source.source_ty())?;
+            if field_layout.abi().is_elided() {
+                continue;
+            }
+            let raw = self.lower_operand_source(source)?.value.ok_or_else(|| {
+                frontend_error(format!(
+                    "ABI tuple payload `{name}` fallback source was elided but field needs value"
+                ))
+            })?;
+            field_tys.push(raw.get_type());
+            values.push(raw);
+        }
+        if values.is_empty() {
+            return Ok(None);
+        }
+        let struct_ty = self.codegen.context.struct_type(&field_tys, false);
+        let mut aggregate = struct_ty.get_undef();
+        for (index, value) in values.into_iter().enumerate() {
+            aggregate = self
+                .codegen
+                .builder
+                .build_insert_value(
+                    aggregate,
+                    value,
+                    index as u32,
+                    &format!("{name}_field{index}"),
+                )?
+                .into_struct_value();
+        }
+        Ok(Some(aggregate.into()))
     }
 
     fn pack_whole_tuple_operand(

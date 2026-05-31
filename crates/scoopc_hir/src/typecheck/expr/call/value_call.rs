@@ -648,6 +648,13 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
             )?,
             None => builtins.unit,
         };
+        let return_eff_row_var_subst = if let (Some(eff_param), Some(ret_ref)) =
+            (eff_param_sig.as_ref(), o.sig.return_ty.as_ref())
+        {
+            build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, &decl_source, lower)?
+        } else {
+            EffRowVarSubstPlan::None
+        };
 
         // T0509/T0628b：为跨文件签名补齐 `eff` row 参数相关的基底与替换计划，
         // 以便调用点可以从 lambda body 推断 `E` 并实例化替换。
@@ -732,11 +739,12 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
             param_has_defaults,
             param_is_vararg,
             type_params: type_params.clone(),
+            owner_eff_param: None,
             eff_param: eff_param_sig.clone(),
             param_fn_effect_eff_base,
             param_nominal_eff_eff_base,
             param_eff_row_var_subst,
-            return_eff_row_var_subst: EffRowVarSubstPlan::None,
+            return_eff_row_var_subst,
             params,
             return_ty,
             effects: o.sig.effects.clone(),

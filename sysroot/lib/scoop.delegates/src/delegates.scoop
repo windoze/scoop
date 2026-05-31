@@ -11,8 +11,8 @@ public interface ReadOnlyProperty<in T, out V> {
 }
 
 /// 委托属性的可写接口（spec §10.4）。
-public interface ReadWriteProperty<in T, V> : ReadOnlyProperty<T, V> {
-    public fun setValue(thisRef: T, property: PropertyMeta, value: V)
+public interface ReadWriteProperty<in T, V, eff E = Pure> : ReadOnlyProperty<T, V> {
+    public fun setValue(thisRef: T, property: PropertyMeta, value: V): Unit / E
 }
 
 /// `lazy` 的线程安全策略（Kotlin-like，spec §10.4 示例）。
@@ -31,9 +31,9 @@ private fun __scoop_delegates_lazy_mutex(mode: LazyThreadSafetyMode): Mutex? {
 }
 
 /// `lazy` 委托对象：首次读取时计算并缓存 initializer 结果。
-public class Lazy<V>(mode: LazyThreadSafetyMode, initializer: () -> V, mutex: Mutex?) : ReadOnlyProperty<Any, V> {
+public class Lazy<V>(mode: LazyThreadSafetyMode, initializer: () -> V / Pure!, mutex: Mutex?) : ReadOnlyProperty<Any, V> {
     private val mode: LazyThreadSafetyMode = mode
-    private val initializer: () -> V = initializer
+    private val initializer: () -> V / Pure! = initializer
     private val mutex: Mutex? = mutex
     private var value: V? = None()
 
@@ -107,9 +107,9 @@ public class Lazy<V>(mode: LazyThreadSafetyMode, initializer: () -> V, mutex: Mu
 }
 
 /// observable：持有 backing value，并在写入完成后调用回调。
-public class ObservableProperty<V>(initial: V, onChange: (V, V) -> Unit, mutex: Mutex) : ReadWriteProperty<Any, V> {
+public class ObservableProperty<V, eff E = Pure>(initial: V, onChange: (V, V) -> Unit / E, mutex: Mutex) : ReadWriteProperty<Any, V, eff E> {
     private var value: V = initial
-    private val onChange: (V, V) -> Unit = onChange
+    private val onChange: (V, V) -> Unit / E = onChange
     private val mutex: Mutex = mutex
 
     public fun getValue(thisRef: Any, property: PropertyMeta): V {
@@ -119,7 +119,7 @@ public class ObservableProperty<V>(initial: V, onChange: (V, V) -> Unit, mutex: 
         return result
     }
 
-    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit {
+    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit / E {
         this.mutex.lock()
         val old: V = this.value
         this.value = newValue
@@ -129,9 +129,9 @@ public class ObservableProperty<V>(initial: V, onChange: (V, V) -> Unit, mutex: 
 }
 
 /// vetoable：写入前调用回调；回调返回 false 时保留旧值。
-public class VetoableProperty<V>(initial: V, onChange: (V, V) -> Bool, mutex: Mutex) : ReadWriteProperty<Any, V> {
+public class VetoableProperty<V, eff E = Pure>(initial: V, onChange: (V, V) -> Bool / E, mutex: Mutex) : ReadWriteProperty<Any, V, eff E> {
     private var value: V = initial
-    private val onChange: (V, V) -> Bool = onChange
+    private val onChange: (V, V) -> Bool / E = onChange
     private val mutex: Mutex = mutex
 
     public fun getValue(thisRef: Any, property: PropertyMeta): V {
@@ -141,7 +141,7 @@ public class VetoableProperty<V>(initial: V, onChange: (V, V) -> Bool, mutex: Mu
         return result
     }
 
-    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit {
+    public fun setValue(thisRef: Any, property: PropertyMeta, newValue: V): Unit / E {
         this.mutex.lock()
         val old: V = this.value
         this.mutex.unlock()
@@ -155,7 +155,7 @@ public class VetoableProperty<V>(initial: V, onChange: (V, V) -> Bool, mutex: Mu
 }
 
 /// lazy：默认使用 `Synchronized`，首次读取时计算并缓存。
-public fun <V> lazy(initializer: () -> V): Lazy<V> {
+public fun <V> lazy(initializer: () -> V / Pure!): Lazy<V> {
     return Lazy(
         LazyThreadSafetyMode.Synchronized,
         initializer,
@@ -168,7 +168,7 @@ public fun <V> lazy(initializer: () -> V): Lazy<V> {
 /// 平台 policy：
 /// - `LazyThreadSafetyMode.None`：不依赖线程/互斥锁，可在所有平台落地；
 /// - `Publication/Synchronized`（以及省略 mode 的默认行为）会由库实现组合 `Mutex`，因此要求目标平台具备线程/互斥锁 runtime 能力。
-public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): Lazy<V> {
+public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V / Pure!): Lazy<V> {
     return Lazy(mode, initializer, __scoop_delegates_lazy_mutex(mode))
 }
 
@@ -181,8 +181,9 @@ public fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): Lazy<V> {
 /// 平台 policy：
 /// - 当前实现依赖委托对象内部 `Mutex` 以保证并发可见性，因此要求目标平台具备线程/互斥锁能力；
 /// - 单线程/无 mutex 平台的“无锁降级实现”留给后续平台 backends 任务细化。
-public fun <V> observable(initial: V, onChange: (V, V) -> Unit): ObservableProperty<V> {
-    return ObservableProperty(initial, onChange, mutexCreate())
+public fun <V, eff E = Pure> observable(initial: V, onChange: (V, V) -> Unit / E): ObservableProperty<V, eff E> {
+    val property: ObservableProperty<V, eff E> = ObservableProperty(initial, onChange, mutexCreate())
+    return property
 }
 
 /// vetoable：写入前触发回调，返回 false 时拒绝更新。
@@ -193,6 +194,7 @@ public fun <V> observable(initial: V, onChange: (V, V) -> Unit): ObservablePrope
 /// - 因此在并发场景下，回调看到的 `old` 是一次受保护读取的快照；回调返回 `true` 后的实际写入会再次加锁提交。
 ///
 /// 平台 policy（early stage）：同 `observable`（需要线程/互斥锁能力）。
-public fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): VetoableProperty<V> {
-    return VetoableProperty(initial, onChange, mutexCreate())
+public fun <V, eff E = Pure> vetoable(initial: V, onChange: (V, V) -> Bool / E): VetoableProperty<V, eff E> {
+    val property: VetoableProperty<V, eff E> = VetoableProperty(initial, onChange, mutexCreate())
+    return property
 }

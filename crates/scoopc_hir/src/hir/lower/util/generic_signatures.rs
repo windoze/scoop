@@ -207,6 +207,193 @@ pub(in crate::hir::lower) fn substitute_type_param_effect_row(
     }
 }
 
+pub(in crate::hir::lower) fn substitute_effect_row_params(
+    types: &mut TypeStore,
+    ty: crate::ty::TypeId,
+    eff_map: &HashMap<String, EffectRow>,
+) -> crate::ty::TypeId {
+    if eff_map.is_empty() {
+        return ty;
+    }
+
+    match types.kind(ty).clone() {
+        TypeKind::Param(_)
+        | TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => ty,
+        TypeKind::StarProjection(star) => {
+            let read_ty = substitute_effect_row_params(types, star.read_ty, eff_map);
+            if read_ty == star.read_ty {
+                ty
+            } else {
+                types.ty_star_projection(read_ty)
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let new_inner = substitute_effect_row_params(types, inner, eff_map);
+            if new_inner == inner {
+                ty
+            } else {
+                types.ty_option(new_inner)
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            let mut changed = false;
+            let new_elements = elements
+                .into_iter()
+                .map(|element| {
+                    let new_element = substitute_effect_row_params(types, element, eff_map);
+                    if new_element != element {
+                        changed = true;
+                    }
+                    new_element
+                })
+                .collect::<Vec<_>>();
+            if changed {
+                types.ty_tuple(new_elements)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            let (args, args_changed) =
+                substitute_effect_row_params_in_type_vec(types, nominal.args, eff_map);
+            let (eff, eff_changed) = nominal
+                .eff
+                .map(|row| substitute_effect_row_params_in_row(types, row, eff_map))
+                .map(|(row, changed)| (Some(row), changed))
+                .unwrap_or((None, false));
+            if args_changed || eff_changed {
+                types.intern(TypeKind::Ref(RefTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: nominal.fqn,
+                        args,
+                        eff,
+                    },
+                )))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let (args, args_changed) =
+                substitute_effect_row_params_in_type_vec(types, nominal.args, eff_map);
+            let (eff, eff_changed) = nominal
+                .eff
+                .map(|row| substitute_effect_row_params_in_row(types, row, eff_map))
+                .map(|(row, changed)| (Some(row), changed))
+                .unwrap_or((None, false));
+            if args_changed || eff_changed {
+                types.intern(TypeKind::Value(ValueTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: nominal.fqn,
+                        args,
+                        eff,
+                    },
+                )))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            let mut changed = false;
+            let receiver = fun.receiver.map(|receiver| {
+                let new_receiver = substitute_effect_row_params(types, receiver, eff_map);
+                if new_receiver != receiver {
+                    changed = true;
+                }
+                new_receiver
+            });
+            let (params, params_changed) =
+                substitute_effect_row_params_in_type_vec(types, fun.params, eff_map);
+            if params_changed {
+                changed = true;
+            }
+            let return_ty = substitute_effect_row_params(types, fun.return_ty, eff_map);
+            if return_ty != fun.return_ty {
+                changed = true;
+            }
+            let (effects, effects_changed) =
+                substitute_effect_row_params_in_row(types, fun.effects, eff_map);
+            if effects_changed {
+                changed = true;
+            }
+            if changed {
+                types.ty_function(receiver, params, return_ty, effects, fun.effects_closed)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            let (variants, changed) =
+                substitute_effect_row_params_in_type_vec(types, union.variants, eff_map);
+            if changed {
+                types.ty_union(variants)
+            } else {
+                ty
+            }
+        }
+    }
+}
+
+fn substitute_effect_row_params_in_type_vec(
+    types: &mut TypeStore,
+    values: Vec<crate::ty::TypeId>,
+    eff_map: &HashMap<String, EffectRow>,
+) -> (Vec<crate::ty::TypeId>, bool) {
+    let mut changed = false;
+    let values = values
+        .into_iter()
+        .map(|value| {
+            let new_value = substitute_effect_row_params(types, value, eff_map);
+            if new_value != value {
+                changed = true;
+            }
+            new_value
+        })
+        .collect();
+    (values, changed)
+}
+
+fn substitute_effect_row_params_in_row(
+    types: &mut TypeStore,
+    row: EffectRow,
+    eff_map: &HashMap<String, EffectRow>,
+) -> (EffectRow, bool) {
+    let mut changed = false;
+    let mut terms = Vec::new();
+    for term in row.terms {
+        if let TypeKind::Param(param) = types.kind(term)
+            && param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE
+            && let Some(replacement) = eff_map.get(&param.name)
+        {
+            terms.extend(replacement.terms.iter().copied());
+            changed = true;
+            continue;
+        }
+
+        let new_term = substitute_effect_row_params(types, term, eff_map);
+        if new_term != term {
+            changed = true;
+        }
+        terms.push(new_term);
+    }
+    let row = if changed {
+        EffectRow::new(terms)
+    } else {
+        EffectRow { terms }
+    };
+    (row, changed)
+}
+
 /// 解析字段的类型 FQN：如果字段类型是 type param，替换为具体类型的 FQN。
 pub(in crate::hir::lower) fn resolve_field_type_fqn_with_type_kinds(
     source: &SourceFile,
@@ -881,7 +1068,11 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                         instance.type_args.len()
                     )));
                 }
-                if instance.eff_args.len() != owner_eff_count + fun_eff_count {
+                let missing_owner_eff_defaults =
+                    instance.eff_args.is_empty() && owner_eff_count == 1 && fun_eff_count == 0;
+                if instance.eff_args.len() != owner_eff_count + fun_eff_count
+                    && !missing_owner_eff_defaults
+                {
                     return Err(explicit_instance_lowering_error(format!(
                         "member fun `{}` 的 effect args 数量不匹配：期望 {}，得到 {}",
                         instance.template.fqn,
@@ -897,11 +1088,14 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                     .iter()
                     .map(|&arg| types.re_intern_from(instance_types, arg))
                     .collect::<Vec<_>>();
-                let eff_args = instance
+                let mut eff_args = instance
                     .eff_args
                     .iter()
                     .map(|row| re_intern_effect_row_from(types, instance_types, row))
                     .collect::<Vec<_>>();
+                if missing_owner_eff_defaults {
+                    eff_args.push(EffectRow::pure());
+                }
                 let owner_eff_param_owned = owner_eff_param.as_ref().map(|param| (*param).clone());
                 let owner_effect_binding = build_effect_binding(
                     source,

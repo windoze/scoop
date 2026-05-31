@@ -2231,6 +2231,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                     return_ty: None,
                     type_args: vec![typecheck_builtins.int],
                     eff_args: Vec::new(),
+                    types_are_hir: false,
                 },
             )]),
             lowered_top_level_fun_call_bindings: HashMap::new(),

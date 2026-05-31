@@ -327,12 +327,14 @@ impl MirInstanceMaterializer {
         let Some(entries) = self.class_itables.get(class_fqn) else {
             return;
         };
-        let type_args = match self.types.kind(class_ty) {
+        let (type_args, class_eff) = match self.types.kind(class_ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (nominal.args.clone(), nominal.eff.clone())
+            }
             _ => return,
         };
-        if type_args.is_empty()
+        if (type_args.is_empty() && class_eff.is_none())
             || type_args
                 .iter()
                 .any(|ty| type_contains_param(&self.types, *ty))
@@ -355,15 +357,27 @@ impl MirInstanceMaterializer {
                     let Some(signature) = self.template_signatures.get(template) else {
                         continue;
                     };
+                    let root_eff_param = self
+                        .roots
+                        .get(template)
+                        .and_then(|root| root.eff_param_name.as_ref());
                     if signature.eff_param_name.is_some()
                         || signature.type_param_names.len() != type_args.len()
                     {
                         continue;
                     }
+                    let eff_args = if root_eff_param.is_some() {
+                        let Some(row) = class_eff.clone() else {
+                            continue;
+                        };
+                        vec![row]
+                    } else {
+                        Vec::new()
+                    };
                     let instance = InstanceKey {
                         template: template.clone(),
                         type_args: type_args.clone(),
-                        eff_args: Vec::new(),
+                        eff_args,
                     };
                     if !out.contains(&instance) {
                         out.push(instance);
@@ -677,6 +691,10 @@ impl MirInstanceMaterializer {
             .iter()
             .filter_map(|template| {
                 let signature = self.template_signatures.get(template)?;
+                let root_eff_param = self
+                    .roots
+                    .get(template)
+                    .and_then(|root| root.eff_param_name.as_ref());
                 let symbol_suffix = self.template_symbol_suffix(template);
                 if signature.params.len() != args.len() {
                     return None;
@@ -690,24 +708,25 @@ impl MirInstanceMaterializer {
                 Some((
                     template.clone(),
                     signature.clone(),
+                    root_eff_param.cloned(),
                     !symbol_suffix.is_empty() && callee_fqn.ends_with(symbol_suffix),
                 ))
             })
             .collect::<Vec<_>>();
         let suffix_matched = candidates
             .iter()
-            .filter(|(_, _, suffix_matches)| *suffix_matches)
+            .filter(|(_, _, _, suffix_matches)| *suffix_matches)
             .collect::<Vec<_>>();
         let selected = if suffix_matched.len() == 1 {
-            let (template, signature, _) = suffix_matched[0];
-            Some((template, signature))
+            let (template, signature, root_eff_param, _) = suffix_matched[0];
+            Some((template, signature, root_eff_param))
         } else if candidates.len() == 1 {
-            let (template, signature, _) = &candidates[0];
-            Some((template, signature))
+            let (template, signature, root_eff_param, _) = &candidates[0];
+            Some((template, signature, root_eff_param))
         } else {
             None
         };
-        let Some((template, signature)) = selected else {
+        let Some((template, signature, root_eff_param)) = selected else {
             return;
         };
         let Some(arg_to_param) = map_hir_call_args_to_signature_params(&signature.params, args)
@@ -747,14 +766,25 @@ impl MirInstanceMaterializer {
             }
             type_args.push(ty);
         }
-        if type_args.is_empty() {
+        let eff_args = if root_eff_param.is_some() {
+            let Some(crate::hir::CallArg::Positional(receiver)) = args.first() else {
+                return;
+            };
+            let Some(row) = nominal_eff_row_from_type(&self.types, receiver.ty) else {
+                return;
+            };
+            vec![row]
+        } else {
+            Vec::new()
+        };
+        if type_args.is_empty() && eff_args.is_empty() {
             return;
         }
 
         let instance = InstanceKey {
             template: template.clone(),
             type_args,
-            eff_args: Vec::new(),
+            eff_args,
         };
         if instance_request_is_concrete(&self.types, &instance.type_args, &instance.eff_args) {
             self.reachable_request_call_sites
@@ -846,6 +876,10 @@ impl MirInstanceMaterializer {
                 let Some(signature) = self.template_signatures.get(template) else {
                     continue;
                 };
+                let root_eff_param = self
+                    .roots
+                    .get(template)
+                    .and_then(|root| root.eff_param_name.as_ref());
                 if signature.eff_param_name.is_some() {
                     continue;
                 }
@@ -869,7 +903,7 @@ impl MirInstanceMaterializer {
                         }
                         _ => continue,
                     };
-                    if nominal.args.is_empty()
+                    if (nominal.args.is_empty() && nominal.eff.is_none())
                         || nominal
                             .args
                             .iter()
@@ -878,6 +912,19 @@ impl MirInstanceMaterializer {
                     {
                         continue;
                     }
+                    let eff_args = if root_eff_param.is_some() {
+                        let Some(row) = nominal.eff.as_ref() else {
+                            continue;
+                        };
+                        vec![EffectRow::new(
+                            row.terms
+                                .iter()
+                                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                                .collect(),
+                        )]
+                    } else {
+                        Vec::new()
+                    };
 
                     let instance = InstanceKey {
                         template: template.clone(),
@@ -886,7 +933,7 @@ impl MirInstanceMaterializer {
                             .iter()
                             .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
                             .collect(),
-                        eff_args: Vec::new(),
+                        eff_args,
                     };
                     let display_fqn = self.instance_display_fqn(&instance);
                     let entry = out.entry(display_fqn).or_default();

@@ -93,6 +93,12 @@ impl<'ctx> AbiValue<'ctx> {
     }
 }
 
+fn abi_values_compatible(lhs: &AbiValue<'_>, rhs: &AbiValue<'_>) -> bool {
+    lhs.is_elided() == rhs.is_elided()
+        && lhs.llvm_ty().print_to_string().to_string()
+            == rhs.llvm_ty().print_to_string().to_string()
+}
+
 /// source type 在 LLVM ABI 中的稳定 carrier 分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SourceAbiLayoutKind {
@@ -2990,14 +2996,38 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         version_key: &LateLoweredBodyVersionKey,
     ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
-        self.plain_callable_layouts_by_version_key
-            .get(version_key)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "LLVM ABI query 缺少 body version key {:?} 的 plain callable layout",
-                    version_key
-                ),
-            })
+        if let Some(layout) = self.plain_callable_layouts_by_version_key.get(version_key) {
+            return Ok(layout);
+        }
+        if let Some(layout) = self.unique_compatible_plain_callable_layout(version_key) {
+            return Ok(layout);
+        }
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM ABI query 缺少 body version key {:?} 的 plain callable layout",
+                version_key
+            ),
+        })
+    }
+
+    fn unique_compatible_plain_callable_layout(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> Option<&PlainCallableLayout<'ctx>> {
+        let requested = version_key.surface_instance();
+        let mut matches = self
+            .plain_callable_layouts_by_version_key
+            .values()
+            .filter(|layout| {
+                let candidate = layout.surface_instance();
+                candidate.template == requested.template
+                    && candidate.type_args == requested.type_args
+                    && layout.body_version_key().allowed_row() == version_key.allowed_row()
+                    && layout.body_version_key().impl_plan() == version_key.impl_plan()
+                    && layout.body_version_key().needs_reentry() == version_key.needs_reentry()
+            });
+        let first = matches.next()?;
+        matches.next().is_none().then_some(first)
     }
 
     pub(super) fn plain_callable_layout_by_root_fqn(
@@ -3407,15 +3437,30 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                         ),
                     });
                 }
-                if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty() {
+                if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
+                    && !self.invoke_args_abi_compatible(layout.dynamic_entry(), facts)
+                {
+                    let facts_abi = self
+                        .source_value_layouts
+                        .get(&facts.invoke_args_tuple_ty())
+                        .map(|layout| layout.abi().llvm_ty().print_to_string().to_string())
+                        .unwrap_or_else(|| "<missing>".to_string());
+                    let entry_abi = layout
+                        .dynamic_entry()
+                        .args_abi()
+                        .llvm_ty()
+                        .print_to_string()
+                        .to_string();
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
-                            "LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
+                            "LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, args_abi={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, args_abi={}, callee_step_schema={})",
                             instance,
                             layout.dynamic_entry().invoke_args_tuple_ty().as_u32(),
+                            entry_abi,
                             layout.dynamic_entry().return_step_schema().as_u32(),
                             layout.body_version_key(),
                             facts.invoke_args_tuple_ty().as_u32(),
+                            facts_abi,
                             facts.callee_schema().as_u32(),
                         ),
                     });
@@ -3434,7 +3479,8 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                     },
                 )?;
                 if layout.target_mode() != facts.target_mode()
-                    || layout.invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
+                    || (layout.invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
+                        && !self.dynamic_invoke_args_abi_compatible(layout, facts))
                 {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
@@ -3453,5 +3499,27 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 Ok(CallTargetQuery::DynamicInvoke(layout))
             }
         }
+    }
+
+    fn invoke_args_abi_compatible(
+        &self,
+        entry: &CallableEntryLayout<'ctx>,
+        facts: &CallSiteEffectFacts,
+    ) -> bool {
+        self.source_value_layouts
+            .get(&facts.invoke_args_tuple_ty())
+            .map(|facts_layout| abi_values_compatible(entry.args_abi(), facts_layout.abi()))
+            .unwrap_or(true)
+    }
+
+    fn dynamic_invoke_args_abi_compatible(
+        &self,
+        layout: &DynamicInvokeLayout<'ctx>,
+        facts: &CallSiteEffectFacts,
+    ) -> bool {
+        self.source_value_layouts
+            .get(&facts.invoke_args_tuple_ty())
+            .map(|facts_layout| abi_values_compatible(layout.args_abi(), facts_layout.abi()))
+            .unwrap_or(true)
     }
 }

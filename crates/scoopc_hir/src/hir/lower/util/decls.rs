@@ -943,7 +943,8 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                             .get(&property_fqn)
                             .cloned()
                             .map(|info| {
-                                if let Some(class_fqn) = info.delegate_class_fqn.as_ref()
+                                if info.delegate_ty.is_none()
+                                    && let Some(class_fqn) = info.delegate_class_fqn.as_ref()
                                     && ctx.type_param_count_for_nominal_fqn(class_fqn) == Some(1)
                                 {
                                     ctx.intern_nominal(class_fqn.clone(), vec![ty], None)
@@ -960,11 +961,6 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                                     Some(delegate_ty),
                                 )
                             });
-                        if let Some(binding) = expected_fun_binding.as_ref() {
-                            let mut bindings = ctx.file.top_level_fun_call_bindings();
-                            bindings.insert(delegate_expr.span, binding.clone());
-                            ctx.file.replace_top_level_fun_call_bindings(bindings);
-                        }
                         let mut init_expr = ctx.lower_expr_with_expected(
                             pkg_prefix,
                             delegate_expr,

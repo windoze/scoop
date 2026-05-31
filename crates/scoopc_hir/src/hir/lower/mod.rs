@@ -429,6 +429,7 @@ fn named_intrinsic_binding_for_callee(
         return_ty: None,
         type_args: Vec::new(),
         eff_args: Vec::new(),
+        types_are_hir: true,
     })
 }
 
@@ -463,6 +464,7 @@ fn synthetic_array_helper_binding_for_call(
         return_ty: None,
         type_args,
         eff_args: Vec::new(),
+        types_are_hir: true,
     })
 }
 
@@ -517,6 +519,9 @@ fn collect_top_level_fun_call_sites_with_type_remap(
         return sites;
     };
     for binding in sites.values_mut() {
+        if binding.types_are_hir {
+            continue;
+        }
         binding.param_tys = binding
             .param_tys
             .iter()
@@ -542,6 +547,7 @@ fn collect_top_level_fun_call_sites_with_type_remap(
                 )
             })
             .collect();
+        binding.types_are_hir = true;
     }
     sites
 }

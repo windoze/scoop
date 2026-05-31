@@ -139,8 +139,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-            let uses_explicit_effect_hidden_abi = self
+            let published_effect_step = self
                 .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str());
+            let uses_explicit_effect_hidden_abi =
+                published_effect_step || !fun_ty.effects.is_pure();
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
                 1 + fun_ty.params.len()
                     + usize::from(fun_ty.receiver.is_some())
@@ -387,7 +389,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        if fun_ty.effects.is_pure() {
+        if fun_ty.effects.is_pure()
+            || !self
+                .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str())
+        {
             self.register_plain_callable_carrier_fallback(
                 CallableCarrierKind::ClosureObject,
                 closure_identity.callable_fqn.as_str(),
@@ -515,8 +520,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
-        let uses_explicit_effect_hidden_abi =
-            self.callable_uses_explicit_effect_hidden_abi(spec.callable_fqn);
+        let uses_explicit_effect_hidden_abi = self
+            .callable_uses_explicit_effect_hidden_abi(spec.callable_fqn)
+            || !fun_ty.effects.is_pure();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun

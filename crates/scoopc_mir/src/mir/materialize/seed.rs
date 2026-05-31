@@ -59,6 +59,14 @@ impl MirInstanceMaterializer {
             if key.type_args.is_empty() && key.eff_args.is_empty() {
                 continue;
             }
+            if self
+                .roots
+                .get(&template)
+                .is_some_and(|root| root.eff_param_name.is_some())
+                && key.eff_args.is_empty()
+            {
+                continue;
+            }
             let type_args = key
                 .type_args
                 .iter()

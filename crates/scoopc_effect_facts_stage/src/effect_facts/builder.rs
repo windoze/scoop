@@ -250,12 +250,14 @@ impl EffectFactsTypeContext {
         types: &mut TypeStore,
         fqn: &str,
         explicit_arg_count: usize,
-        has_receiver: bool,
+        receiver_ty: Option<TypeId>,
     ) -> Option<SurfaceCallableContract> {
         let builtins = types.intern_builtins();
         let mut terms = Vec::new();
         let mut saw_match = false;
-        for overload in self.matching_fun_overloads(fqn, explicit_arg_count, has_receiver) {
+        let owner = callable_owner_context(types, &self.env, fqn, receiver_ty);
+        for overload in self.matching_fun_overloads(fqn, explicit_arg_count, receiver_ty.is_some())
+        {
             saw_match = true;
             let decl_source = self.env.source(&overload.symbol.decl_file)?;
             let file_ctx = self.env.file_type_context(&overload.symbol.decl_file)?;
@@ -268,11 +270,43 @@ impl EffectFactsTypeContext {
                 file_ctx.pkg_prefix.clone(),
                 file_ctx.imports.clone(),
             );
+            let mut type_bindings = owner
+                .as_ref()
+                .map(|owner| owner.type_bindings.clone())
+                .unwrap_or_default();
+            let mut eff_bindings = Vec::new();
+            if let Some(owner) = &owner
+                && let Some(eff_param_name) = owner.eff_param_name.as_ref()
+            {
+                let row = match owner.eff_arg.clone() {
+                    Some(row) => row,
+                    None => lower
+                        .lower_effect_row_expr_in_decl_file_with_scopes(
+                            &owner.decl_file,
+                            type_bindings.clone(),
+                            std::iter::empty::<(String, EffectRow)>(),
+                            owner.eff_param_default.as_ref(),
+                        )
+                        .ok()?,
+                };
+                eff_bindings.push((eff_param_name.clone(), row));
+            }
+            if let Some(eff_param) = &overload.sig.eff_param {
+                let row = lower
+                    .lower_effect_row_expr_in_decl_file_with_scopes(
+                        &overload.symbol.decl_file,
+                        type_bindings.clone(),
+                        std::iter::empty::<(String, EffectRow)>(),
+                        eff_param.default.as_ref(),
+                    )
+                    .ok()?;
+                eff_bindings.push((eff_param.name.text(decl_source).to_string(), row));
+            }
             let declared_row = lower
                 .lower_effect_row_expr_in_decl_file_with_scopes(
                     &overload.symbol.decl_file,
-                    std::iter::empty::<(String, TypeId)>(),
-                    std::iter::empty::<(String, EffectRow)>(),
+                    std::mem::take(&mut type_bindings),
+                    eff_bindings,
                     overload.sig.effects.as_ref(),
                 )
                 .ok()?;
@@ -298,6 +332,57 @@ impl EffectFactsTypeContext {
         Some(SurfaceCallableContract {
             declared_row: EffectRow::pure(),
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CallableOwnerContext {
+    decl_file: std::path::PathBuf,
+    type_bindings: Vec<(String, TypeId)>,
+    eff_param_name: Option<String>,
+    eff_param_default: Option<ast::EffectRowExpr>,
+    eff_arg: Option<EffectRow>,
+}
+
+fn callable_owner_context(
+    types: &TypeStore,
+    env: &TypeEnv,
+    callable_fqn: &str,
+    receiver_ty: Option<TypeId>,
+) -> Option<CallableOwnerContext> {
+    let (owner_fqn, _) = callable_fqn.rsplit_once('.')?;
+    let owner_sym = env.type_symbol(owner_fqn)?;
+    let receiver_nominal = receiver_ty
+        .and_then(|ty| nominal_type_for_effect_context(types, ty))
+        .filter(|nominal| nominal.fqn == owner_fqn);
+    let type_bindings = receiver_nominal
+        .as_ref()
+        .map(|nominal| {
+            owner_sym
+                .type_param_names
+                .iter()
+                .cloned()
+                .zip(nominal.args.iter().copied())
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(CallableOwnerContext {
+        decl_file: owner_sym.decl_file.clone(),
+        type_bindings,
+        eff_param_name: owner_sym.eff_param.as_ref().map(|param| param.name.clone()),
+        eff_param_default: owner_sym
+            .eff_param
+            .as_ref()
+            .and_then(|param| param.default.clone()),
+        eff_arg: receiver_nominal.and_then(|nominal| nominal.eff),
+    })
+}
+
+fn nominal_type_for_effect_context(types: &TypeStore, ty: TypeId) -> Option<NominalType> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.clone()),
+        _ => None,
     }
 }
 
@@ -1589,7 +1674,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     types,
                     callable_fqn,
                     explicit_arg_count,
-                    receiver_ty.is_some(),
+                    receiver_ty,
                 ) {
                     Some(contract) => contract.declared_row,
                     None if self.callable_value_reference_exists(callable_fqn) => {
@@ -1643,7 +1728,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 types,
                 callable_fqn,
                 explicit_arg_count,
-                receiver_ty.is_some(),
+                receiver_ty,
             ) {
                 Some(contract) => contract.declared_row,
                 None if self.callable_value_reference_exists(callable_fqn) => {
@@ -1761,12 +1846,10 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 saw_any = true;
                 continue;
             }
-            if let Some(contract) = self.type_ctx.surface_callable_contract(
-                types,
-                fqn,
-                explicit_arg_count,
-                receiver_ty.is_some(),
-            ) {
+            if let Some(contract) =
+                self.type_ctx
+                    .surface_callable_contract(types, fqn, explicit_arg_count, receiver_ty)
+            {
                 terms.extend(contract.declared_row.terms);
                 saw_any = true;
             }

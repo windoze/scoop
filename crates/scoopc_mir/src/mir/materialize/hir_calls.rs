@@ -276,12 +276,24 @@ pub(super) fn collect_hir_direct_call_instances_in_expr(
                     let type_args = binding
                         .type_args
                         .iter()
-                        .map(|&ty| types.re_intern_from(typecheck_types, ty))
+                        .map(|&ty| {
+                            if binding.types_are_hir {
+                                ty
+                            } else {
+                                types.re_intern_from(typecheck_types, ty)
+                            }
+                        })
                         .collect::<Vec<_>>();
                     let eff_args = binding
                         .eff_args
                         .iter()
-                        .map(|row| re_intern_effect_row_from(types, typecheck_types, row))
+                        .map(|row| {
+                            if binding.types_are_hir {
+                                row.clone()
+                            } else {
+                                re_intern_effect_row_from(types, typecheck_types, row)
+                            }
+                        })
                         .collect::<Vec<_>>();
                     if !type_args.is_empty() || !eff_args.is_empty() {
                         let instance = InstanceKey {

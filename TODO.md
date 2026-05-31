@@ -70,6 +70,7 @@
 | P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [DONE] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [DONE] | Review P5-T02 特判删除 |
+| P5-T02B0 | [TODO] | 修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff |
 | P5-T02B | [TODO] | 修复 owner `eff` 参数路径，并收口同步标准委托 effect 边界 |
 | P5-T03 | [TODO] | 同步委托回归（含 lazy Pure initializer / 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
 | P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
@@ -724,6 +725,21 @@
   - 2026-05-31：复核 P5-T02 / P5-T02A 当前源码：`crates/scoopc_hir/src/hir/lower/types.rs` 中 `DelegatedPropertyInfo` 已收敛为 `GenericDelegatedPropertyInfo` 类型别名，生产 HIR lowering grep 未发现 `ParsedStdDelegateExpr`、`DelegatedPropertyInfo::{Lazy, Observable, Vetoable}`、`MapBacked`、`parse_map_backed_delegate_expr`、map-backed field-copy 分支或生产 `SYNC_MUTEX_*` 常量残留。`decls.rs` 统一为每个 delegated property 注入普通 `$delegate` 字段并 lower 原始 delegate 表达式，`members.rs` / `sugar.rs` 统一生成 `$delegate.getValue(thisRef, PropertyMeta)` / `$delegate.setValue(thisRef, PropertyMeta, value)` synthetic call，相关 HIR golden 与 `delegated_property_map_backed_basic.scoop` 覆盖统一泛型路径。仍存在的 `scoop.delegates.lazy/observable/vetoable` typecheck/platform policy by-name 逻辑不属于 HIR lowering 合成残留，已由后续 `P5-T03` 的硬编码守卫/透明化收口覆盖。
   - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_map_backed_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/hir/delegated_property_lowering.scoop`。完整 `python3 tools/run_fixtures.py` 首轮除已由 `P5-T03` 精确调度的 `run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 外，还观测到一次 `runtime_gc/std_sync_backend_parity_immix_major.scoop` 59s timeout；该 fixture 单独重复运行、`tests/fixtures/runtime_gc` 子套件运行与完整 suite 重跑均通过。完整重跑最终仅剩 `P5-T03` 已调度失败，未发现新的未调度失败。
 
+### [TODO] P5-T02B0：修复 owner `eff` 泛型 class constructor/itable 与跨 cone callable ABI handoff
+
+- 触发：执行 P5-T02B 时，`delegated_property_observable_raise_does_not_poison_mutex.scoop` 从 effect-facts `Any` row 推进到 cone 模式 codegen 阶段后，继续暴露 owner `eff` 泛型 class 的 constructor result、itable method impl FQN、callable carrier target 与跨 cone ABI handoff 不一致：`ObservableProperty<V, eff E>` 在 `observable<V, eff E>` factory 内仍会产生 `eff Pure` / 缺失 owner-eff callable signature 的 itable target，导致 `getValue::<Int, eff Pure>` / `setValue` layout 与实际 `eff Raise<Int>` 路径漂移。
+- 必须实现的内容：
+  1. 让 owner `eff` class constructor 的 result type 在 typecheck → HIR lowering → MIR materialization → class layout/type descriptor/itable 全路径保留 expected/explicit owner effect row，不得回落到默认 `Pure`。
+  2. 让 itable/vtable method impl FQN materialization、callable signature publication 与 carrier target selection 使用 concrete owner `eff` instance key；跨 cone consumer/imported callable ABI 必须按同一 canonical owner-eff instance 对齐。
+  3. 删除本任务执行中为推进诊断加入的临时宽松 fallback/compatibility 逻辑，改为通过正确 owner-eff instance handoff 消除 drift。
+  4. 新增最小 cone/run-pass 回归，覆盖 `class Box<eff E> : Interface<eff E>` 的 constructor + itable dispatch + 跨 cone callable target，确保不再生成默认 `eff Pure` target。
+- 必须遵从的约束：不得通过去掉 interface 实现、弱化 itable、把 `ObservableProperty` 特判为名称匹配、或让 Pure/非 Pure owner effect 共享错误 callable 身份来绕过。
+- 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、owner-eff targeted cone fixture、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、`python3 tools/run_fixtures.py`。
+- 完成条件：owner `eff` 泛型 class 的 constructor、itable method targets、callable carrier 与跨 cone ABI 全部使用 concrete owner effect row；`ObservableProperty<Int, eff Raise<Int>>` 不再退化到 `eff Pure` / missing signature。
+- 依赖：P5-T02R
+- 完成记录：
+  - （待填）
+
 ### [TODO] P5-T02B：修复 owner `eff` 参数路径，并收口同步标准委托 effect 边界
 
 - 触发：执行 P5-T03 时，`tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 仍失败。先修正 `PropertyMeta` 合成中的 `TypeKind` 裸 `UnresolvedIdent` 后，失败推进为标准库 `observable` 回调仍按 Pure 函数值存储，`Raise.raise` 在闭包体 codegen 时缺少 explicit `EffectOutcome` 槽位；尝试把 `ObservableProperty<V>` / `VetoableProperty<V>` 改为 `ObservableProperty<V, eff E>` / `VetoableProperty<V, eff E>` 后，又暴露 owner effect 参数在 constructor overload、member type instantiation、HIR generic template/materialization 与 effect facts 路径中的支持不完整。
@@ -737,7 +753,9 @@
 - 必须遵从的约束：不得恢复 lazy/observable/vetoable 专用 lowering，不得把回调改成 Pure、Any shim、名称特判或 fixture-only 绕过；不得在 core/delegates 中引入 async executor 语义、effectful lock-like object 或会自行 park/await 的同步原语。
 - 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、相关 owner-effect targeted fixtures、lazy Pure initializer contract fixtures、`python3 tools/run_fixtures.py`。
 - 完成条件：`delegated_property_observable_raise_does_not_poison_mutex.scoop` 通过；`observable` / `vetoable` 回调通过普通库类 + 泛型委托路径传播同步 effect；`lazy` initializer 被收口为 closed Pure；owner `eff` 参数不再在构造、member、materialization 或 effect facts 任一路径退化/丢失。
-- 依赖：P5-T02R
+- 依赖：P5-T02B0
+- 阻塞记录：
+  - 2026-05-31：执行本任务时已将 `ReadWriteProperty` / `ObservableProperty` / `VetoableProperty` 改向同步 effect-polymorphic，并修复了若干 owner-eff substitution 与 `PropertyMeta.TypeKind` 合成路径；targeted fixture 推进后暴露更底层的 owner `eff` 泛型 class constructor/itable/cross-cone callable ABI handoff 漏洞，已新增 P5-T02B0 作为最小前置修复，本任务保持未完成。
 - 完成记录：
   - （待填）
 

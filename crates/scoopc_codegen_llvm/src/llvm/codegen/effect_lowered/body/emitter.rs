@@ -80,6 +80,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     .ok_or_else(|| frontend_error("missing local effect ABI schema".to_string()))
             })
             .unwrap_or(body_step_schema);
+        let abi_step_schema = if program.step_type(abi_step_schema).is_some() {
+            abi_step_schema
+        } else {
+            body_step_schema
+        };
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
