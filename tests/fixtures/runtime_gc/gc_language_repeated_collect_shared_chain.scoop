@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_language_repeated_collect_shared_chain.stdout.txt
-// TIMEOUT: 59000
+// TIMEOUT: 55000
 //
 // 目标：Scoop worker 发布链表节点后反复触发 GC，验证跨线程发布的链仍可追踪。
 // SYSROOT-DEPS: scoop.runtime.test scoop.thread scoop.sync

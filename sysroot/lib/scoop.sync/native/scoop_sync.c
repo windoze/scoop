@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+// 协作式 GC 边界（runtime ABI，定义在 scoop_gc*.c）。阻塞在内核（抢占用 mutex /
+// 等 condvar）时必须切到 InNative，否则线程停在 RUNNING 态无法为 stop-the-world
+// 让出，会与触发 GC 的 STW initiator 互等死锁。栈上托管根仍由 explicit root frame
+// chain 在 enter_native 时捕获，因此 root_slots 传 0 是安全的（与 Thread.join 一致）。
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 #if defined(_WIN32)
 typedef struct ScoopSyncNativeMutex {
   uint64_t _storage[8];
@@ -77,7 +84,14 @@ static void scoop_sync_native_mutex_lock(ScoopSyncNativeMutex *mutex) {
   if (mutex == 0) {
     return;
   }
+  // 快路径：无争用即可立刻拿到锁，不必走 GC handshake（避免每次加锁都过全局 GC 锁）。
+  if (pthread_mutex_trylock(mutex) == 0) {
+    return;
+  }
+  // 慢路径：确实要阻塞等待，先切到 InNative 让 GC 可在此期间推进。
+  scoop_enter_native(0, 0);
   (void)pthread_mutex_lock(mutex);
+  scoop_leave_native();
 }
 
 static void scoop_sync_native_mutex_unlock(ScoopSyncNativeMutex *mutex) {
@@ -106,7 +120,10 @@ static void scoop_sync_native_condvar_wait(ScoopSyncNativeCondVar *condvar,
   if (condvar == 0 || mutex == 0) {
     return;
   }
+  // cond_wait 必然阻塞（原子释放 mutex 后睡眠，唤醒时重新抢锁），全程切到 InNative。
+  scoop_enter_native(0, 0);
   (void)pthread_cond_wait(condvar, mutex);
+  scoop_leave_native();
 }
 
 static void scoop_sync_native_condvar_signal(ScoopSyncNativeCondVar *condvar) {
