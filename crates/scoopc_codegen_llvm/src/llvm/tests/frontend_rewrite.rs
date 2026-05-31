@@ -136,7 +136,7 @@ pub(super) fn builtin_string_intrinsic_member_calls_lower_to_direct_calls() {
                 let crate::mir::Rvalue::Call { kind, .. } = value else {
                     return false;
                 };
-                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                let crate::mir::CallKind::Direct { callee_fqn, .. } = kind else {
                     return false;
                 };
                 callee_fqn == expected_fqn
@@ -242,7 +242,7 @@ pub(super) fn builtin_string_member_calls_lower_to_direct_calls() {
                 let crate::mir::Rvalue::Call { kind, .. } = value else {
                     return false;
                 };
-                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                let crate::mir::CallKind::Direct { callee_fqn, .. } = kind else {
                     return false;
                 };
                 callee_fqn == expected_fqn
@@ -370,7 +370,7 @@ pub(super) fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
                 let crate::mir::Rvalue::Call { kind, .. } = value else {
                     return false;
                 };
-                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                let crate::mir::CallKind::Direct { callee_fqn, .. } = kind else {
                     return false;
                 };
                 callee_fqn == expected_fqn
@@ -442,7 +442,7 @@ pub(super) fn top_level_generic_named_args_keep_canonical_param_order_in_pass_mi
                 let crate::mir::Rvalue::Call { kind, args, .. } = value else {
                     return None;
                 };
-                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                let crate::mir::CallKind::Direct { callee_fqn, .. } = kind else {
                     return None;
                 };
                 (callee_fqn == expected_fqn).then_some(args)

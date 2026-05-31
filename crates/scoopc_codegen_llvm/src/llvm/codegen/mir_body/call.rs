@@ -17,7 +17,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 if let Some(class_key) = self.registered_class_instance_key(callee_fqn) {
                     return self.codegen_mir_class_ctor_call_at_site(span, &class_key, args, slots);
                 }

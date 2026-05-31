@@ -66,6 +66,8 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         index,
         compilation_unit,
     );
+    let monomorph_requests =
+        stabilize_monomorph_requests(typecheck_types, monomorph_requests, &template_catalog)?;
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
@@ -143,7 +145,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         types,
         builtins,
         MaterializeRequestSet {
-            monomorph_requests,
+            monomorph_requests: &monomorph_requests,
             hir_direct_instance_keys_by_fun,
             construction_inputs: MaterializerConstructionInputs {
                 stable_cone_key,
@@ -175,4 +177,66 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         },
         opt_level,
     )
+}
+
+pub(super) fn stabilize_monomorph_requests(
+    typecheck_types: &TypeStore,
+    monomorph_requests: &[MonomorphRequest],
+    template_catalog: &[GenericTemplateInfo],
+) -> MaterializeResult<Vec<MonomorphRequest>> {
+    let templates_by_request = template_catalog
+        .iter()
+        .map(|info| {
+            (
+                info.request_lookup_key.clone(),
+                info.stable_template_key.clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    monomorph_requests
+        .iter()
+        .map(|request| {
+            let key = &request.key;
+            if key.type_args.is_empty() && key.eff_args.is_empty() {
+                return Ok(request.clone());
+            }
+            if !instance_request_is_concrete(typecheck_types, &key.type_args, &key.eff_args) {
+                return Ok(request.clone());
+            }
+            let lookup_key = (
+                key.symbol.fqn.clone(),
+                key.symbol.decl_file.clone(),
+                key.symbol.decl_span,
+            );
+            let Some(stable_template_key) = templates_by_request.get(&lookup_key).cloned() else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: key.symbol.fqn.clone(),
+                        file: key.symbol.decl_file.display().to_string(),
+                        span: key.symbol.decl_span,
+                        call_file: Some(request.request_source_path.display().to_string()),
+                        call_site: Some(request.call_span),
+                    },
+                ));
+            };
+            let stable_instance_key = StableInstanceKey::from_type_arguments(
+                stable_template_key.clone(),
+                typecheck_types,
+                &key.type_args,
+                &key.eff_args,
+                &NoTypeParamResolver,
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "无法为 monomorph request `{}` 构造 stable instance key: {err}",
+                    key.symbol.fqn
+                ))
+            })?;
+            let mut request = request.clone();
+            request.key = request
+                .key
+                .with_stable_identity(stable_template_key, stable_instance_key);
+            Ok(request)
+        })
+        .collect()
 }

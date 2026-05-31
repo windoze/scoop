@@ -40,7 +40,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::span::Span;
-use crate::stable_id::StableConeKey;
+use crate::stable_id::{StableConeKey, StableInstanceKey};
 use crate::ty::{EffectRow, MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
@@ -909,7 +909,7 @@ impl File {
         transport: &CallTransportMetadata,
     ) -> Result<(), MirValidationError> {
         let direct_operation = match kind {
-            CallKind::Direct { callee_fqn } => gc_intrinsic_operation(callee_fqn),
+            CallKind::Direct { callee_fqn, .. } => gc_intrinsic_operation(callee_fqn),
             CallKind::Closure { .. }
             | CallKind::FunValue { .. }
             | CallKind::FunPtr { .. }
@@ -1196,7 +1196,7 @@ impl File {
         kind: &CallKind,
     ) -> Result<(), MirValidationError> {
         match kind {
-            CallKind::Direct { callee_fqn } if callee_fqn.is_empty() => {
+            CallKind::Direct { callee_fqn, .. } if callee_fqn.is_empty() => {
                 Err(MirValidationError::ProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
@@ -2650,7 +2650,11 @@ pub enum HandlerArmKind {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CallKind {
     /// 目标函数在 MIR 上已经静态唯一确定。
-    Direct { callee_fqn: String },
+    Direct {
+        callee_fqn: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stable_instance_key: Option<Box<StableInstanceKey>>,
+    },
     /// 已知调用的是某个 closure value。
     ///
     /// `fn_ptr` 记录该 closure 当前可恢复出的唯一 invoke target，便于后续 closure/provenance 分析。
@@ -4492,6 +4496,7 @@ mod tests {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "sample.helper".to_string(),
+                            stable_instance_key: None,
                         },
                         args: Vec::new(),
                         transport: test_call_transport(builtins.unit),
@@ -4612,7 +4617,7 @@ fun entry(): Int {
             })
             .expect("expected direct call in generic use function body");
         match call_kind {
-            CallKind::Direct { callee_fqn } => {
+            CallKind::Direct { callee_fqn, .. } => {
                 assert_eq!(callee_fqn, "fixtures.mir.id");
             }
             other => panic!("expected direct generic-template call, got {other:?}"),

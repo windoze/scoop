@@ -444,7 +444,7 @@ fn observe_rvalue(
         }
         Rvalue::Call { kind, args, .. } => {
             match kind {
-                CallKind::Direct { callee_fqn } => {
+                CallKind::Direct { callee_fqn, .. } => {
                     direct_callees.insert(callee_fqn.clone());
                 }
                 CallKind::Closure { callee, fn_ptr } => {

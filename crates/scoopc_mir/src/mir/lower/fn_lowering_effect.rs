@@ -597,6 +597,7 @@ impl<'a> FnLowering<'a> {
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let compare_kind = CallKind::Direct {
             callee_fqn: binding.to_string(),
+            stable_instance_key: None,
         };
         let compare_args = vec![
             CallArg {
@@ -664,6 +665,7 @@ impl<'a> FnLowering<'a> {
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let compare_kind = CallKind::Direct {
             callee_fqn: "scoop.core.String.compareTo".to_string(),
+            stable_instance_key: None,
         };
         let compare_args = vec![
             CallArg {
@@ -737,6 +739,7 @@ impl<'a> FnLowering<'a> {
 
         let kind = CallKind::Direct {
             callee_fqn: format!("{owner_fqn}.{method}"),
+            stable_instance_key: None,
         };
         let args = vec![
             CallArg {
@@ -787,6 +790,7 @@ impl<'a> FnLowering<'a> {
         };
         let kind = CallKind::Direct {
             callee_fqn: format!("{owner_fqn}.{method}"),
+            stable_instance_key: None,
         };
         let args = vec![CallArg {
             span: operand.span,
@@ -925,6 +929,7 @@ impl<'a> FnLowering<'a> {
         };
         let kind = CallKind::Direct {
             callee_fqn: format!("scoop.core.Int.{method}"),
+            stable_instance_key: None,
         };
         let args = vec![
             CallArg {

@@ -169,7 +169,7 @@ fn direct_call_fqns(fun: &FunDecl) -> Vec<String> {
             StatementKind::Assign {
                 value:
                     Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
+                        kind: CallKind::Direct { callee_fqn, .. },
                         ..
                     },
                 ..
@@ -1295,6 +1295,7 @@ fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
                     site_id: SiteId::from_raw(0),
                     kind: CallKind::Direct {
                         callee_fqn: "fixtures.materialize.callee".to_string(),
+                        stable_instance_key: None,
                     },
                     args: vec![CallArg {
                         span: test_span(),
@@ -2875,6 +2876,9 @@ return 0
     let stable_cone_key = StableConeKey::for_virtual_source_path(&source_path);
     let template_infos =
         collect_generic_template_infos(&stable_cone_key, &index, &compilation_unit);
+    let monomorph_requests =
+        stabilize_monomorph_requests(&typecheck_types, &monomorph_requests, &template_infos)
+            .unwrap();
     let callable_body_infos = collect_callable_body_infos(&compilation_unit);
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(&compilation_unit);
@@ -3045,6 +3049,7 @@ fn append_unreachable_id_call_to_main(generic_file: &mut File, builtins: Builtin
                     site_id: crate::mir::SiteId::from_raw(0),
                     kind: CallKind::Direct {
                         callee_fqn: "fixtures.materialize.id".to_string(),
+                        stable_instance_key: None,
                     },
                     args: vec![CallArg {
                         span: call_span,
@@ -3864,6 +3869,12 @@ println(holder.node.tag.score)
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
     let template_catalog =
         collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
+    let monomorph_requests = stabilize_monomorph_requests(
+        &inputs.typecheck_types,
+        &inputs.monomorph_requests,
+        &template_catalog,
+    )
+    .unwrap();
     let callable_body_infos = collect_callable_body_infos(&compilation_unit);
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(&compilation_unit);
@@ -3987,7 +3998,7 @@ println(holder.node.tag.score)
                     StatementKind::Assign {
                         value:
                             Rvalue::Call {
-                                kind: CallKind::Direct { callee_fqn },
+                                kind: CallKind::Direct { callee_fqn, .. },
                                 ..
                             },
                         ..
@@ -4037,7 +4048,7 @@ println(holder.node.tag.score)
                 let StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -4088,7 +4099,7 @@ println(holder.node.tag.score)
         "request-root 可达扫描不应推导出 println::<Any>：{reachable_println_calls:#?}"
     );
     let mut initial_requests = materializer
-        .seed_requests(&inputs.typecheck_types, &inputs.monomorph_requests)
+        .seed_requests(&inputs.typecheck_types, &monomorph_requests)
         .unwrap();
     let initial_println_requests = initial_requests
         .iter()
@@ -4335,6 +4346,12 @@ return read(ints) + read(texts)
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
     let template_catalog =
         collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
+    let monomorph_requests = stabilize_monomorph_requests(
+        &inputs.typecheck_types,
+        &inputs.monomorph_requests,
+        &template_catalog,
+    )
+    .unwrap();
     let callable_body_infos = collect_callable_body_infos(&compilation_unit);
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(&compilation_unit);
@@ -4485,7 +4502,7 @@ return read(ints) + read(texts)
     );
 
     let initial_requests = materializer
-        .seed_requests(&inputs.typecheck_types, &inputs.monomorph_requests)
+        .seed_requests(&inputs.typecheck_types, &monomorph_requests)
         .unwrap();
     let mut seeded_fqns = initial_requests
         .iter()
@@ -4696,7 +4713,7 @@ fun main(): Int {
             let StatementKind::Assign {
                 value:
                     Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
+                        kind: CallKind::Direct { callee_fqn, .. },
                         transport,
                         ..
                     },

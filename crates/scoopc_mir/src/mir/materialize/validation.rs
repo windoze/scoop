@@ -1798,7 +1798,7 @@ pub(super) fn validate_materialized_gc_intrinsic_contract(
     result_ty: Option<TypeId>,
 ) -> MaterializeResult<()> {
     let direct_operation = match kind {
-        CallKind::Direct { callee_fqn } => materialized_gc_intrinsic_operation(callee_fqn),
+        CallKind::Direct { callee_fqn, .. } => materialized_gc_intrinsic_operation(callee_fqn),
         CallKind::Closure { .. }
         | CallKind::FunValue { .. }
         | CallKind::FunPtr { .. }
@@ -2282,7 +2282,7 @@ pub(super) fn validate_materialized_call_kind(
     root_sets: MaterializedRootSets<'_>,
 ) -> MaterializeResult<()> {
     match kind {
-        CallKind::Direct { callee_fqn } => validate_materialized_call_target(
+        CallKind::Direct { callee_fqn, .. } => validate_materialized_call_target(
             fqn,
             Some(block),
             span,
@@ -2391,7 +2391,7 @@ pub(super) fn validate_materialized_call_abi(
     result_ty: Option<TypeId>,
 ) -> MaterializeResult<()> {
     match kind {
-        CallKind::Direct { callee_fqn } => {
+        CallKind::Direct { callee_fqn, .. } => {
             let Some(callee) = materialized_callable_by_fqn(materialized, callee_fqn) else {
                 if result_ty.is_some_and(|ty| {
                     !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)

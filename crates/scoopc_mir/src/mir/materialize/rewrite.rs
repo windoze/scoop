@@ -11,7 +11,7 @@ impl MirInstanceMaterializer {
                     continue;
                 };
                 let Rvalue::Call {
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     transport,
                     ..
                 } = value
@@ -1068,7 +1068,10 @@ impl MirInstanceMaterializer {
             substitution: ctx.substitution,
         };
         match kind {
-            CallKind::Direct { callee_fqn } => {
+            CallKind::Direct {
+                callee_fqn,
+                stable_instance_key,
+            } => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
                     callee_fqn,
                     ctx.template_root_fqn,
@@ -1077,7 +1080,12 @@ impl MirInstanceMaterializer {
                     *callee_fqn = rewritten;
                     return Ok(());
                 }
-                self.materialize_direct_call_target(callee_fqn, args, direct_ctx)?;
+                self.materialize_direct_call_target(
+                    callee_fqn,
+                    stable_instance_key,
+                    args,
+                    direct_ctx,
+                )?;
             }
             CallKind::Closure { callee, fn_ptr } => {
                 *callee = self.rewrite_operand(callee.clone());
@@ -1262,6 +1270,7 @@ impl MirInstanceMaterializer {
     pub(super) fn materialize_direct_call_target(
         &mut self,
         callee_fqn: &mut String,
+        stable_instance_key: &mut Option<Box<StableInstanceKey>>,
         args: &[CallArg],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
@@ -1304,6 +1313,7 @@ impl MirInstanceMaterializer {
                     .insert(instance_fqn.clone(), return_ty);
             }
             *callee_fqn = instance_fqn;
+            *stable_instance_key = Some(Box::new(self.stable_instance_key(&instance_key)));
             self.enqueue(instance_key);
             return Ok(());
         }

@@ -268,7 +268,7 @@ impl PublishedContinuationProvenance {
                 let StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },

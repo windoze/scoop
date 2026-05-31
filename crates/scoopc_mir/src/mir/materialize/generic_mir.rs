@@ -311,6 +311,7 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) hir_direct_instance_keys_by_fun: HashMap<(PathBuf, Span), Vec<InstanceKey>>,
     pub(super) generic_family_fqns: HashSet<String>,
     pub(super) request_templates: HashMap<RequestTemplateKey, TemplateKey>,
+    pub(super) templates_by_stable_key: HashMap<StableTemplateKey, TemplateKey>,
     pub(super) roots: HashMap<TemplateKey, TemplateRootInfo>,
     pub(super) source_callable_signatures: Vec<super::MaterializedCallableSignature>,
     pub(super) template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,

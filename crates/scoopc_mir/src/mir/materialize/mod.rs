@@ -23,9 +23,9 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    AbiMangler, NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace,
-    StableInstanceKey, StableTemplateKey, canonical_callable_signature_key,
-    stable_template_symbol_suffix,
+    AbiMangler, CanonicalTextKey, EffectRowTemplate, NoTypeParamResolver, StableConeKey,
+    StableDefKey, StableDefNamespace, StableInstanceKey, StableTemplateKey,
+    canonical_callable_signature_key, canonical_type_text, stable_template_symbol_suffix,
 };
 use crate::ty::{
     BuiltinTypes, EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId,

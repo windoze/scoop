@@ -124,7 +124,7 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<()> {
         match value {
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
+                kind: CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => {

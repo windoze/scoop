@@ -291,6 +291,10 @@ impl MirInstanceMaterializer {
         }
 
         let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
+        let templates_by_stable_key = stable_template_keys
+            .iter()
+            .map(|(template, stable_key)| (stable_key.clone(), template.clone()))
+            .collect::<HashMap<_, _>>();
         let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
         for template in template_signatures.keys() {
             roots_by_fqn
@@ -371,6 +375,7 @@ impl MirInstanceMaterializer {
             hir_direct_instance_keys_by_fun: HashMap::new(),
             generic_family_fqns,
             request_templates,
+            templates_by_stable_key,
             roots,
             source_callable_signatures,
             template_signatures,

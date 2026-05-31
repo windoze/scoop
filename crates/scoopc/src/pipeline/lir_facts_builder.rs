@@ -1128,7 +1128,7 @@ fn publish_call_site_source_signatures(
 
 fn call_site_signature_target(kind: &MirCallKind) -> Option<(&str, Option<TypeId>)> {
     match kind {
-        MirCallKind::Direct { callee_fqn } => Some((callee_fqn.as_str(), None)),
+        MirCallKind::Direct { callee_fqn, .. } => Some((callee_fqn.as_str(), None)),
         MirCallKind::Virtual { dispatch, .. } | MirCallKind::Interface { dispatch, .. } => {
             Some((dispatch.member_fqn.as_str(), Some(dispatch.receiver_ty)))
         }

@@ -12,7 +12,8 @@
 | T1-00R | [DONE] | Review T1-00 基线与 bypass 范围 |
 | T1-01 | [DONE] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
 | T1-01R | [DONE] | Review T1-01 表示与稳定性 |
-| T1-02 | [TODO] | 上游 identity 贯穿（MonomorphRequest / template-body-site inventory / generic direct-call inventory / `CallKind::Direct` / dispatch candidate 携带 stable key + owner eff） |
+| T1-02A | [DONE] | Stable request/direct-call identity transport 前置落地（MonomorphRequest stable key seed + `CallKind::Direct` stable instance carrier） |
+| T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
 ---
@@ -75,19 +76,38 @@
   - 修复 `AbiSymbolKey` display/semantic identity 分离缺口：`PartialEq`/`Hash` 现在只使用 ABI kind + target canonical text，`readable_path` 仅保留为诊断/符号可读锚点；补充 readable path 不影响 equality/hash 的测试。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
+### [DONE] T1-02A：Stable request/direct-call identity transport 前置落地
+
+- 背景：执行原 `T1-02` 时发现其 fact inventory / dispatch 纯消费改造依赖 request 与 materialized direct-call 已能承载 stable identity；否则后续 HIR/P3 facts 即使发布 stable key，下游仍会退回 `(fqn, decl_file, span)` / raw `TypeId` 重建。该前置步骤可独立验证并先落地，不改变原 `T1-02` 的剩余验收边界。
+- 必须实现的内容：
+  1. `MonomorphRequest`/`MonomorphKey` 支持携带 `StableTemplateKey` 与 `StableInstanceKey`；materializer 入口用 template catalog 为 concrete requests 补齐 stable identity。
+  2. materializer 建立 `StableTemplateKey -> TemplateKey` 索引，seed requests 按 stable key 精确匹配；删除 `(fqn, decl_file)` 唯一性兜底。
+  3. type/effect args 本地化时以 stable canonical encoding 为校验主线，materializer 不再无验证地接受 raw cross-store re-intern 结果。
+  4. MIR `CallKind::Direct` 增加 boxed optional `StableInstanceKey` carrier；materialization 在 generic direct-call 实例解析成功时写入 concrete stable instance key，FQN 继续仅作为 display/debug surface。
+- 必须遵从的约束：不恢复 blanket eff-aware mangle；不按名称特判 owner-eff；不得把本步骤视为原 `T1-02` 全量完成，剩余 fact inventory / dispatch candidate / 下游重建删除仍由后续 `T1-02` 完成。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+- 完成条件：request seed 与 materialized direct-call 已具备 stable identity transport，现有回归全绿。
+- 依赖：T1-01R
+- 完成记录：
+  - `MonomorphKey` 新增 stable template/instance identity 字段；materializer 入口通过 template catalog 对 concrete requests 生成 stable keys。
+  - materializer 新增 stable-template 索引，seed 路径改为按 `StableTemplateKey` 精确解析 template，并移除了旧 `(fqn, decl_file)` 唯一性兜底。
+  - seed 的 type/effect arg 本地化现在按 `StableInstanceKey` 的 canonical type args 与 `EffectRowTemplate` 校验，避免未验证的 raw cross-store re-intern 结果成为语义身份。
+  - `CallKind::Direct` 增加 boxed optional `StableInstanceKey` carrier；generic direct-call materialization 成功推导 concrete instance 后写入该 stable key。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
+
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-01/02/03/04/05/14。
 - 必须实现的内容：
-  1. **FG-02**：`MonomorphRequest`（`crates/scoopc_hir/src/monomorph.rs`）携带 `StableTemplateKey`/declaration identity 与 type/eff args 的稳定编码；materializer seed（`materialize/seed.rs`）按 stable key 精确匹配，删除 `(fqn, decl_file)` 唯一性兜底与裸 re-intern。
+  1. **FG-02 剩余收口**：在 `T1-02A` 的 stable request seed 基础上，把 request stable identity 的生成继续上移到 P2/P3 fact/side-table 发布点；下游不得再把 `(fqn, decl_file, span)` 作为语义匹配主键。
   2. **FG-01/03**：HIR facts 发布 materializer-ready 的 template/body/site-binding inventory 与 per-call-site `CallSiteInstanceFact { source_site, template_key, stable_instance_key, type_args, eff_args }`；materializer 只消费 fact，不再扫 AST/HIR 重建 lookup key（`materialize/templates.rs`/`hir_calls.rs`）。
-  3. **FG-04**：MIR `CallKind::Direct`（`crates/scoopc_mir/src/mir/mod.rs`）附 resolved callee definition key + concrete `StableInstanceKey`，FQN 仅 display；materializer dispatch/rewrite 删除 receiver/arg/result-type 反推（`materialize/dispatch.rs`/`rewrite.rs`）。
+  3. **FG-04 剩余收口**：在 `T1-02A` 的 `CallKind::Direct` stable instance carrier 基础上，补齐 resolved callee definition key，并删除 materializer dispatch/rewrite 的 receiver/arg/result-type 反推（`materialize/dispatch.rs`/`rewrite.rs`）。
   4. **FG-05**：HIR/P3 dispatch contract 发布 `DispatchCandidateFact { site, dispatch_kind, receiver_ty, stable_instance_keys }`，owner effect args 纳入 canonical target identity；删除从 receiver 重建 owner eff 的逻辑。
   5. **FG-14（表示侧）**：让 LIR callable/call-target 能直接由上游 stable key 无损映射（兜底删除留批 3）。
 - 必须遵从的约束：owner-eff 泛型的必需基础（`is_generic` 含 `eff_param`、MIR `has_eff_param`、boundary upcast 的 args+eff 比较）按新表示重新落地；不恢复 blanket eff-aware mangle、不按名称特判。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（bypass 的 delegate 仍 SKIP）。
 - 完成条件：上游 request/IR/dispatch 携带 stable key + owner eff；materializer/dispatch 不再 span/FQN/receiver 重建。
-- 依赖：T1-01R
+- 依赖：T1-02A
 - 完成记录：（待填）
 
 ### [TODO] T1-02R：Review T1-02 上游 identity

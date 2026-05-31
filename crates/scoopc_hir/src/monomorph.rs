@@ -4,6 +4,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use crate::span::Span;
+use crate::stable_id::{StableInstanceKey, StableTemplateKey};
 use crate::ty::{EffectRow, TypeId};
 
 /// Stable reference to a monomorphization target observed by the frontend.
@@ -30,14 +31,30 @@ impl fmt::Debug for MonomorphSymbol {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MonomorphKey {
     pub symbol: MonomorphSymbol,
+    pub stable_template_key: Option<StableTemplateKey>,
+    pub stable_instance_key: Option<StableInstanceKey>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
+}
+
+impl MonomorphKey {
+    pub fn with_stable_identity(
+        mut self,
+        stable_template_key: StableTemplateKey,
+        stable_instance_key: StableInstanceKey,
+    ) -> Self {
+        self.stable_template_key = Some(stable_template_key);
+        self.stable_instance_key = Some(stable_instance_key);
+        self
+    }
 }
 
 impl fmt::Debug for MonomorphKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MonomorphKey")
             .field("symbol", &self.symbol)
+            .field("stable_template_key", &self.stable_template_key)
+            .field("stable_instance_key", &self.stable_instance_key)
             .field("type_args", &TypeIdList(&self.type_args))
             .field("eff_args", &EffectRowList(&self.eff_args))
             .finish()

@@ -136,7 +136,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         kind: &crate::mir::CallKind,
     ) -> Option<CgTy> {
         match kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 if self.registered_class_instance_key(callee_fqn).is_some() {
                     return Some(CgTy::Ref);
                 }

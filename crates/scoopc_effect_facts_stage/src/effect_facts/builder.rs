@@ -1213,7 +1213,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &arg_tys);
         let result_ty = self.body().locals[result_local.as_u32() as usize].ty;
         match kind {
-            CallKind::Direct { callee_fqn } => self.build_direct_like_call_site(
+            CallKind::Direct { callee_fqn, .. } => self.build_direct_like_call_site(
                 types,
                 CallSiteKind::Direct,
                 callee_fqn,
@@ -1451,7 +1451,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 | crate::mir::MemberTarget::ExtensionValue { .. } => None,
             },
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
+                kind: CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => self.callable_value_provenance_from_direct_call(types, callee_fqn, args, visiting),
@@ -2877,7 +2877,7 @@ fn static_callee_fqns(fun: &MirFunDecl) -> Vec<&str> {
                 continue;
             };
             match kind {
-                CallKind::Direct { callee_fqn } => callees.push(callee_fqn.as_str()),
+                CallKind::Direct { callee_fqn, .. } => callees.push(callee_fqn.as_str()),
                 CallKind::Closure { fn_ptr, .. } => callees.push(fn_ptr.as_str()),
                 CallKind::FunValue { .. }
                 | CallKind::FunPtr { .. }

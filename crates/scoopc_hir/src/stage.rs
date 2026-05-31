@@ -13,7 +13,9 @@ use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry}
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::stable_id::{CanonicalTextKey, SiteId, StableHashScope, stable_hash64};
+use crate::stable_id::{
+    CanonicalTextKey, SiteId, StableHashScope, StableInstanceKey, stable_hash64,
+};
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::{
     HirFacts,
@@ -659,6 +661,7 @@ pub struct FunctionTargetContract {
     pub(crate) abi_identity: CallableAbiIdentity,
     pub(crate) param_tys: Vec<TypeId>,
     pub(crate) return_ty: Option<TypeId>,
+    pub(crate) stable_instance_key: Option<StableInstanceKey>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -683,6 +686,7 @@ impl FunctionTargetContract {
                 .filter(|ty| type_id_in_store(types, *ty))
                 .collect(),
             return_ty: binding.return_ty.filter(|ty| type_id_in_store(types, *ty)),
+            stable_instance_key: None,
             type_args: binding
                 .type_args
                 .iter()
@@ -718,6 +722,7 @@ impl FunctionTargetContract {
             abi_identity,
             param_tys: Vec::new(),
             return_ty: None,
+            stable_instance_key: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
             arg_binding,
@@ -748,6 +753,10 @@ impl FunctionTargetContract {
 
     pub fn return_ty(&self) -> Option<TypeId> {
         self.return_ty
+    }
+
+    pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
+        self.stable_instance_key.as_ref()
     }
 
     pub fn type_args(&self) -> &[TypeId] {

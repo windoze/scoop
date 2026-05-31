@@ -159,7 +159,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | crate::mir::MemberTarget::ExtensionValue { .. } => None,
             },
             crate::mir::Rvalue::Call {
-                kind: crate::mir::CallKind::Direct { callee_fqn },
+                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => self.mir_callable_value_fqn_from_direct_call(

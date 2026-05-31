@@ -1110,6 +1110,8 @@ impl<'a> TypeLowering<'a> {
         };
         let key = MonomorphKey {
             symbol,
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: type_args.to_vec(),
             eff_args: eff_args.to_vec(),
         };

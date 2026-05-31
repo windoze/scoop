@@ -35,11 +35,15 @@ mod tests {
 
         let key1 = MonomorphKey {
             symbol: symbol.clone(),
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: vec![builtins.int],
             eff_args: vec![EffectRow::pure()],
         };
         let key2 = MonomorphKey {
             symbol,
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: vec![builtins.int],
             eff_args: vec![EffectRow::pure()],
         };
@@ -62,11 +66,15 @@ mod tests {
 
         let key1 = MonomorphKey {
             symbol: symbol.clone(),
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: vec![builtins.int],
             eff_args: vec![EffectRow::pure()],
         };
         let key2 = MonomorphKey {
             symbol,
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: vec![builtins.uint],
             eff_args: vec![EffectRow::pure()],
         };
@@ -90,6 +98,8 @@ mod tests {
                 decl_file: PathBuf::from("a.scoop"),
                 decl_span: Span::new(10, 20),
             },
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: vec![builtins.int],
             eff_args: vec![EffectRow::pure()],
         };

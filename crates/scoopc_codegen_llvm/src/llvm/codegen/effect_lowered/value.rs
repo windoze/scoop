@@ -771,7 +771,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     continue;
                 }
                 if let mir::Rvalue::Call {
-                    kind: mir::CallKind::Direct { callee_fqn },
+                    kind: mir::CallKind::Direct { callee_fqn, .. },
                     args,
                     ..
                 } = value
@@ -1096,7 +1096,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         };
         let surface_ty = match kind {
-            mir::CallKind::Direct { callee_fqn } => {
+            mir::CallKind::Direct { callee_fqn, .. } => {
                 if let Ok(layout) = self.abi.callable_layout_by_root_fqn(callee_fqn) {
                     source_carrier_types(
                         self.source_types,
@@ -1695,7 +1695,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
         }
         let callee_fqn = match kind {
-            mir::CallKind::Direct { callee_fqn } => callee_fqn,
+            mir::CallKind::Direct { callee_fqn, .. } => callee_fqn,
             mir::CallKind::Closure { .. }
             | mir::CallKind::FunValue { .. }
             | mir::CallKind::FunPtr { .. }

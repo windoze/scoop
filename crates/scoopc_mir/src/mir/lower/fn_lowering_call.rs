@@ -196,10 +196,11 @@ impl<'a> FnLowering<'a> {
         let args = self.canonicalize_call_args_from_binding(args, arg_binding);
         let kind = CallKind::Direct {
             callee_fqn: callee_fqn.to_string(),
+            stable_instance_key: None,
         };
         let terminates_current_block = matches!(
             &kind,
-            CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
+            CallKind::Direct { callee_fqn, .. } if callee_fqn == "scoop.core.panic"
         );
         let site_id = self.fresh_site_id();
         let transport = self.call_transport_metadata(
@@ -770,7 +771,7 @@ impl<'a> FnLowering<'a> {
         let callee_fqn = match gc_intrinsic_callee {
             Some(callee_fqn) => callee_fqn,
             None => match kind {
-                CallKind::Direct { callee_fqn } => callee_fqn.as_str(),
+                CallKind::Direct { callee_fqn, .. } => callee_fqn.as_str(),
                 CallKind::Closure { .. }
                 | CallKind::FunValue { .. }
                 | CallKind::FunPtr { .. }
@@ -853,7 +854,7 @@ impl<'a> FnLowering<'a> {
         kind: &CallKind,
         args: &[CallArg],
     ) -> Option<ArrayElementTransportMetadata> {
-        let CallKind::Direct { callee_fqn } = kind else {
+        let CallKind::Direct { callee_fqn, .. } = kind else {
             return None;
         };
         match intrinsic_base_fqn(callee_fqn.as_str()) {

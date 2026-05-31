@@ -187,7 +187,7 @@ impl InlineSnapshot {
                     target,
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -272,7 +272,7 @@ impl BlockCallableProvenance {
                 Some(CallableProvenance::KnownClosure(fn_ptr.clone()))
             }
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
+                kind: CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => {
@@ -416,7 +416,7 @@ fn try_expand_direct_call(
     let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
-    let CallKind::Direct { callee_fqn } = kind else {
+    let CallKind::Direct { callee_fqn, .. } = kind else {
         return None;
     };
     if callee_fqn == caller_fqn {
@@ -949,8 +949,12 @@ fn remap_call_kind(
     direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
 ) -> Option<CallKind> {
     match kind {
-        CallKind::Direct { callee_fqn } => Some(CallKind::Direct {
+        CallKind::Direct {
+            callee_fqn,
+            stable_instance_key,
+        } => Some(CallKind::Direct {
             callee_fqn: callee_fqn.clone(),
+            stable_instance_key: stable_instance_key.clone(),
         }),
         CallKind::FunValue { callee } => remap_known_callable_call_kind(
             callee,
@@ -989,6 +993,7 @@ fn remap_known_callable_call_kind(
     match provenance {
         CallableProvenance::DirectFunction(callee_fqn) => Some(CallKind::Direct {
             callee_fqn: callee_fqn.clone(),
+            stable_instance_key: None,
         }),
         CallableProvenance::KnownClosure(fn_ptr) => Some(CallKind::Closure {
             callee: remap_operand(callee, local_operands, local_map)?,
@@ -1369,6 +1374,7 @@ fun main(): Int {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "fixtures.inline.seed".to_string(),
+                            stable_instance_key: None,
                         },
                         args: Vec::new(),
                         transport: call_transport(builtins.unit),
@@ -1400,6 +1406,7 @@ fun main(): Int {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "fixtures.inline.inner".to_string(),
+                            stable_instance_key: None,
                         },
                         args: Vec::new(),
                         transport: call_transport(builtins.unit),
@@ -1529,7 +1536,7 @@ fun main(): Int {
                 let StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             ..
                         },
                     ..

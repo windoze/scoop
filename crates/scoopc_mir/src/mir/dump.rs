@@ -1233,7 +1233,7 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn call_kind_text(&self, ctx: &BodyRenderCtx<'_>, kind: &CallKind) -> String {
         match kind {
-            CallKind::Direct { callee_fqn } => {
+            CallKind::Direct { callee_fqn, .. } => {
                 self.inline_struct("Direct", vec![("callee_fqn", format_debug(callee_fqn))])
             }
             CallKind::Closure { callee, fn_ptr } => self.inline_struct(

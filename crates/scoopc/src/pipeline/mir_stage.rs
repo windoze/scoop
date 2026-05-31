@@ -1378,7 +1378,7 @@ fun main(): Int {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -1562,7 +1562,7 @@ fun main(): Int {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             ..
                         },
                     ..
@@ -1809,7 +1809,7 @@ fun main(): Int {
                     StatementKind::Assign {
                         value:
                             Rvalue::Call {
-                                kind: CallKind::Direct { callee_fqn },
+                                kind: CallKind::Direct { callee_fqn, .. },
                                 ..
                             },
                         ..
@@ -2317,7 +2317,13 @@ fun bad() {
             .collect::<Vec<_>>();
         assert!(matches!(
             main_calls.as_slice(),
-            [CallKind::Direct { callee_fqn }, CallKind::Direct { callee_fqn: callee_fqn_2 }]
+            [
+                CallKind::Direct { callee_fqn, .. },
+                CallKind::Direct {
+                    callee_fqn: callee_fqn_2,
+                    ..
+                }
+            ]
                 if callee_fqn == "a.id" && callee_fqn_2 == "a.callFn"
         ));
 
@@ -2607,7 +2613,7 @@ fun entry(): Int / Raise<Int> {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -2882,7 +2888,7 @@ fun main(): Unit {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             transport,
                             ..
                         },
@@ -2953,7 +2959,7 @@ fun main(): Unit {
                     StatementKind::Assign {
                         value:
                             Rvalue::Call {
-                                kind: CallKind::Direct { callee_fqn },
+                                kind: CallKind::Direct { callee_fqn, .. },
                                 ..
                             },
                         ..

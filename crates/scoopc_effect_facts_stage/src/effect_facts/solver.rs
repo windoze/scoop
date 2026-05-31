@@ -1783,7 +1783,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                 };
                 let Rvalue::Call {
                     site_id,
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     ..
                 } = value
                 else {
@@ -1888,7 +1888,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                 };
                 let Rvalue::Call {
                     site_id,
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     ..
                 } = value
                 else {
