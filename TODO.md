@@ -67,7 +67,7 @@
 | P5-T01R | [DONE] | Review P5-T01 委托库实现 |
 | P5-T02 | [DONE] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
 | P5-T02A0P | [DONE] | 修复 P5-T02A0 验证暴露的未调度完整 fixture 回归 |
-| P5-T02A0 | [TODO] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
+| P5-T02A0 | [DONE] | 修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI |
 | P5-T02A | [TODO] | 移除剩余 MapBacked 委托特判并修复泛型委托运行路径 |
 | P5-T02R | [TODO] | Review P5-T02 特判删除 |
 | P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
@@ -672,7 +672,7 @@
   - `effect_lowered/*` 剩余失败确认为默认 sysroot 类型集合变化导致的稳定 type id 编号漂移，callable 数量、ABI 形状、effect-step/control-flow contract 未变，已同步 7 个 `.effectlowered` golden。完整 fixture 验证中额外复现未调度 runtime timeout：`gc_language_parallel_alloc_shared_roots`、`gc_language_repeated_collect_shared_chain`、`std_sync_backend_parity_immix_major` 在默认并行套件下偶发超过 30s/55s，单独与 runtime_gc 子套件可通过；已把 timeout 调整到 55s/59s，仍低于单 fixture 1 分钟上限，并确认 runtime_gc 子套件通过。
   - 验证：`cargo build -p scoop -p scoopc`；targeted P5-T02A0P fixtures（`tests/fixtures/effect_lowered`、`hir/do_block_multiple_trailing_lambda_boundary.scoop`、对应 run-pass、`continuation_resume_ref_class.scoop`、`member_call_interface_dispatch_generic_class_body_method_basic.scoop`、`smart_cast_any_member_access_generic_class_basic.scoop`、`top_level_generic_function_value_basic.scoop`）；`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/runtime_gc`；`python3 tools/run_fixtures.py`。完整 fixture 最终只剩 3 个失败，均已在后续任务精确调度：`hir/delegated_property_lowering.scoop`（P5-T02A/P5-T03）、`run-pass/delegated_property_map_backed_basic.scoop`（P5-T02A）、`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`（P5-T03）。
 
-### [TODO] P5-T02A0：修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI
+### [DONE] P5-T02A0：修复泛型委托 class-init/direct-call 的 `PropertyMeta` ABI
 
 - 触发：执行 P5-T02A 时删除 MapBacked field-copy 后，`by lazy { ... }` / `by observable(...)` 统一 `$delegate.getValue/setValue(thisRef, PropertyMeta, ...)` 路径进入 codegen；targeted run-pass 暴露 `PropertyMeta` 参数在 materialized/devirtualized direct-call ABI 中仍被错误处理，表现为 `unsupported value coercion from Ref to Struct(...)` 或 LLVM call 参数类型与函数签名不匹配。
 - 必须实现的内容：
@@ -687,7 +687,9 @@
   - 2026-05-31：P5-T02A 尝试删除 MapBacked 后已能生成统一 `$delegate` 字段并进入 generic `getValue`/`setValue` 路径；继续验证时发现 class init 中 generic delegate factory materialization 与 `PropertyMeta` aggregate ABI 仍存在通用 codegen 缺口，阻塞 P5-T02A 完成。
   - 2026-05-31：已实现 P5-T02A0 目标路径的主体修复：class-init generic delegate factory 可发布 LIR callable facts，devirtualized `getValue`/`setValue` direct-call receiver/显式参数顺序与 `PropertyMeta` by-address ABI 已对齐；指定 lazy/observable/vetoable fixtures 通过。但完整 fixture suite 仍暴露未调度回归，已新增 P5-T02A0P 作为前置任务，本任务保持未完成。
 - 完成记录：
-  - （待填）
+  - 2026-05-31：前置 `P5-T02A0P` 收口后复核并完成 `P5-T02A0`：class-init 中的泛型 delegate factory 调用会按 `$delegate` 字段目标类型 materialize 正确实例，并为 class-init generic direct calls 发布 LIR callable facts；devirtualized `getValue` / `setValue` direct-call 的 receiver、`thisRef`、`PropertyMeta`、`value` 参数顺序与 materialized callable signature 对齐；`PropertyMeta` 在 HIR 调用点按 spec struct 形态合成（含嵌套 `TypeMeta` / `MetaList<AnnotationMeta>`），MIR/LLVM 普通调用 ABI 通过 GC aggregate indirect argument 路径传参，未恢复 lazy / observable / vetoable 专用 lowering，也未省略或弱化 `PropertyMeta`。
+  - 验证期间 `cargo test --all --all-targets` 暴露未调度 `once_guard_cross_dylib` 链接失败：该测试单独编译 `scoop_once.c`，但最新 once wait loop 需要 `scoop_gc_safepoint_poll`；已在测试临时 plugin C 源中补 no-op safepoint hook，真实 runtime backend 提供的符号与行为不变。
+  - 验证：`cargo fmt`；`cargo test -p scoop_runtime --test once_guard_cross_dylib`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`；`python3 tools/run_fixtures.py`。完整 fixture suite 当前仅剩 3 个已精确排期失败：`hir/delegated_property_lowering.scoop` 与 `run-pass/delegated_property_map_backed_basic.scoop` 归属 P5-T02A，`run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop` 归属 P5-T03；未发现新的未调度失败。
 
 ### [TODO] P5-T02A：移除剩余 MapBacked 委托特判并修复泛型委托运行路径
 
