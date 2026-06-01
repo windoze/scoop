@@ -77,7 +77,9 @@ impl SurfaceResumeOwnerTrampolineCandidate {
         projection: LateLoweredSurfaceResumeWrapperProjection,
     ) -> Result<(), LlvmEmitError> {
         if let Some(existing) = &self.wrapper_projection {
-            if !same_surface_resume_wrapper_projection_shape(existing, &projection) {
+            if !same_surface_resume_wrapper_projection_shape(existing, &projection)
+                && !same_surface_resume_wrapper_projection_contract_shape(existing, &projection)
+            {
                 return Err(frontend_error(format!(
                     "LLVM ABI materialization 发现 continuation schema k{} owner ko{} 的 owner-step -> wrapper-step projection contract 歧义：published={existing:?}，new={projection:?}",
                     continuation_schema.as_u32(),
@@ -663,10 +665,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let Some(derived) = derived else {
                 continue;
             };
-            if !derived_candidates
-                .iter()
-                .any(|candidate| same_surface_resume_wrapper_projection_shape(candidate, &derived))
-            {
+            if !derived_candidates.iter().any(|candidate| {
+                same_surface_resume_wrapper_projection_shape(candidate, &derived)
+                    || same_surface_resume_wrapper_projection_contract_shape(candidate, &derived)
+            }) {
                 derived_candidates.push(derived);
             }
         }
@@ -680,7 +682,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         match (published_projection, derived_candidates.pop()) {
             (Some(published), Some(derived)) => {
-                if !same_surface_resume_wrapper_projection_shape(published, &derived) {
+                if !same_surface_resume_wrapper_projection_shape(published, &derived)
+                    && !same_surface_resume_wrapper_projection_contract_shape(published, &derived)
+                {
                     return Err(frontend_error(format!(
                         "LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 漂移：published={published:?}，derived={derived:?}",
                         entry.continuation_schema().as_u32(),
@@ -1125,6 +1129,32 @@ fn same_surface_resume_wrapper_projection_shape(
                 ),
             )
             && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_wrapper_projection_contract_shape(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    left.owner_step_schema() == right.owner_step_schema()
+        && left.wrapper_step_schema() == right.wrapper_step_schema()
+        && same_surface_resume_wrapper_complete_shape(
+            left.complete(),
+            right.complete(),
+            matches!(
+                (
+                    left.underlying_route().publication(),
+                    right.underlying_route().publication()
+                ),
+                (
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+                    _
+                ) | (
+                    _,
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+                )
+            ),
+        )
+        && left.outward_cases() == right.outward_cases()
 }
 
 fn same_surface_resume_projection_owner_identity(

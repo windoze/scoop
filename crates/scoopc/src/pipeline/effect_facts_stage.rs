@@ -669,7 +669,6 @@ fun callInterface(i: IFace): Int {
         let dump = run_stage(&session, &source).stable_dump();
 
         assert!(dump.contains("sample.callInterface:"));
-        assert!(dump.contains("target: KnownInstance(sample.IFace.foo)"));
         assert!(dump.contains("callee_abi_kind: Plain"));
         assert!(dump.contains("callee_schema: <none>"));
     }

@@ -131,6 +131,21 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 case_tag.as_u32()
             ))
         })?;
+        self.build_propagating_effect_outcome_for_layout_case(
+            case_layout,
+            payload,
+            payload_ty,
+            resume_token,
+        )
+    }
+
+    pub(super) fn build_propagating_effect_outcome_for_layout_case(
+        &mut self,
+        case_layout: &StepCaseLayout<'ctx>,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+        resume_token: PointerValue<'ctx>,
+    ) -> Result<StructValue<'ctx>, LlvmEmitError> {
         let (op_tag, effect_instance_key) = self.effect_signal_constants_for_case(case_layout)?;
         let payload_transport =
             self.encode_effect_transport_parts(payload_ty, payload, "effect_outcome_payload")?;
@@ -145,6 +160,107 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             self.zero_transport_parts(),
             signal,
         )
+    }
+
+    /// Re-encodes a projected Step_F value as the explicit EffectOutcome ABI used by outcome surfaces.
+    pub(super) fn emit_step_as_effect_outcome_to_ptr(
+        &mut self,
+        step_layout: &StepLayout<'ctx>,
+        step: BasicValueEnum<'ctx>,
+        outcome_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.function;
+        let complete_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_complete"));
+        let dispatch_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_dispatch"));
+        let unmatched_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_unmatched"));
+        let tag = self.codegen.extract_step_tag(step_layout, step)?;
+        let is_complete = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            tag,
+            self.codegen
+                .context
+                .i32_type()
+                .const_int(STEP_TAG_COMPLETE, false),
+            &format!("{name}_is_complete"),
+        )?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
+
+        self.codegen.builder.position_at_end(complete_bb);
+        let complete_payload = self.codegen.extract_step_payload(
+            step_layout,
+            step,
+            step_layout.complete_variant(),
+            &format!("{name}_complete_payload"),
+        )?;
+        let complete = self.encode_effect_transport_parts(
+            step_layout.complete_variant().payload_source_ty(),
+            complete_payload,
+            &format!("{name}_complete_transport"),
+        )?;
+        let zero_signal = self.codegen.build_effect_signal(
+            self.codegen.context.i32_type().const_zero(),
+            self.codegen.context.i32_type().const_zero(),
+            self.zero_transport_parts(),
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+        )?;
+        let outcome =
+            self.codegen
+                .build_effect_outcome(EffectOutcomeTag::Complete, complete, zero_signal)?;
+        self.emit_effect_outcome_return_to_ptr(outcome_ptr, outcome)?;
+
+        self.codegen.builder.position_at_end(dispatch_bb);
+        let mut switch_cases = Vec::new();
+        let mut case_blocks = Vec::new();
+        for case_layout in step_layout.cases().values() {
+            let bb = self.codegen.context.append_basic_block(
+                function,
+                &format!("{name}_case{}", case_layout.case_tag().as_u32()),
+            );
+            switch_cases.push((
+                self.codegen
+                    .context
+                    .i32_type()
+                    .const_int(case_layout.variant().tag_value() as u64, false),
+                bb,
+            ));
+            case_blocks.push((case_layout, bb));
+        }
+        self.codegen
+            .builder
+            .build_switch(tag, unmatched_bb, &switch_cases)?;
+
+        for (case_layout, bb) in case_blocks {
+            self.codegen.builder.position_at_end(bb);
+            let (payload, continuation) = self.codegen.extract_step_case_parts(
+                step_layout,
+                step,
+                case_layout,
+                &format!("{name}_case_payload"),
+            )?;
+            let outcome = self.build_propagating_effect_outcome_for_layout_case(
+                case_layout,
+                payload,
+                case_layout.payload_tuple_ty(),
+                continuation,
+            )?;
+            self.emit_effect_outcome_return_to_ptr(outcome_ptr, outcome)?;
+        }
+
+        self.codegen.builder.position_at_end(unmatched_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
     }
 
     pub(super) fn build_step_from_effect_outcome(

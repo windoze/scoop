@@ -46,6 +46,19 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         projection: &crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
         owner_step: BasicValueEnum<'ctx>,
     ) -> Result<(), LlvmEmitError> {
+        let projected =
+            self.build_projected_owner_step_to_wrapper(projection, owner_step, "wrapper_project")?;
+        self.codegen.builder.build_return(Some(&projected))?;
+        Ok(())
+    }
+
+    /// Builds the wrapper Step_F value without returning, so outcome surfaces can re-encode it.
+    pub(super) fn build_projected_owner_step_to_wrapper(
+        &mut self,
+        projection: &crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
+        owner_step: BasicValueEnum<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
         let owner_step_schema = projection.owner_step_schema();
         let wrapper_step_schema = projection.wrapper_step_schema();
         let owner_layout = self.abi.step_layout(owner_step_schema).ok_or_else(|| {
@@ -64,11 +77,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let complete_bb = self
             .codegen
             .context
-            .append_basic_block(self.function, "wrapper_project_complete");
+            .append_basic_block(self.function, &format!("{name}_complete"));
         let unmatched_bb = self
             .codegen
             .context
-            .append_basic_block(self.function, "wrapper_project_unmatched");
+            .append_basic_block(self.function, &format!("{name}_unmatched"));
+        let done_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, &format!("{name}_done"));
         let cases = projection
             .outward_cases()
             .iter()
@@ -85,7 +102,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         .const_int(owner_case.variant().tag_value() as u64, false),
                     self.codegen.context.append_basic_block(
                         self.function,
-                        &format!("wrapper_project_case{}", wrapper_case_tag.as_u32()),
+                        &format!("{name}_case{}", wrapper_case_tag.as_u32()),
                     ),
                     owner_case_tag,
                     wrapper_case_tag,
@@ -105,15 +122,17 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             inkwell::IntPredicate::EQ,
             tag,
             complete_tag,
-            "wrapper_project_is_complete",
+            &format!("{name}_is_complete"),
         )?;
         let dispatch_bb = self
             .codegen
             .context
-            .append_basic_block(self.function, "wrapper_project_dispatch");
+            .append_basic_block(self.function, &format!("{name}_dispatch"));
         self.codegen
             .builder
             .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
+
+        let mut incoming_steps = Vec::new();
 
         self.codegen.builder.position_at_end(dispatch_bb);
         self.codegen
@@ -127,7 +146,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             owner_step,
         )?;
         let projected = self.codegen.build_step_complete(wrapper_layout, payload)?;
-        self.codegen.builder.build_return(Some(&projected))?;
+        self.codegen.builder.build_unconditional_branch(done_bb)?;
+        let complete_end =
+            self.codegen.builder.get_insert_block().ok_or_else(|| {
+                frontend_error(format!("`{name}` complete path 缺少 insert block"))
+            })?;
+        incoming_steps.push((projected, complete_end));
 
         for (_, bb, owner_case, wrapper_case) in cases {
             self.codegen.builder.position_at_end(bb);
@@ -156,12 +180,26 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 payload,
                 continuation,
             )?;
-            self.codegen.builder.build_return(Some(&projected))?;
+            self.codegen.builder.build_unconditional_branch(done_bb)?;
+            let case_end =
+                self.codegen.builder.get_insert_block().ok_or_else(|| {
+                    frontend_error(format!("`{name}` case path 缺少 insert block"))
+                })?;
+            incoming_steps.push((projected, case_end));
         }
 
         self.codegen.builder.position_at_end(unmatched_bb);
         self.codegen.builder.build_unreachable()?;
-        Ok(())
+
+        self.codegen.builder.position_at_end(done_bb);
+        let phi = self
+            .codegen
+            .builder
+            .build_phi(wrapper_layout.llvm_ty(), &format!("{name}_phi"))?;
+        for (step, block) in incoming_steps {
+            phi.add_incoming(&[(&step, block)]);
+        }
+        Ok(phi.as_basic_value())
     }
 
     pub(super) fn lower_wrapper_complete_payload(

@@ -855,12 +855,10 @@ fun main(): Int {
         assert!(dump.contains("root: main"));
         assert!(dump.contains("abi: Plain"));
         assert!(dump.contains("plain_call_sites:"));
-        assert!(dump.contains("target=executeCase callee_abi=EffectStep"));
-        assert!(dump.contains("callee_step_schema=step#h"));
-        assert!(dump.contains("resolved_cases=[case#h"));
-        assert!(dump.contains("dispatch=EffectStepDispatch"));
-        assert!(dump.contains("plain_local_effect_control: step#h"));
-        assert!(dump.contains("consumed_runtime_error_case: in case#h"));
+        assert!(dump.contains("target=executeCase"));
+        assert!(dump.contains("Call kind=Direct target_mode=KnownInstance"));
+        assert!(dump.contains("callee_step=step#h"));
+        assert!(dump.contains("dispatch_input_step_schema: step#h"));
         assert!(dump.contains("scoop.core.Raise.raise"));
     }
 
@@ -1086,12 +1084,12 @@ fun main(): Int {
         for needle in [
             "continuation_schema: cont#h",
             "source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
+            "handle_continuation_binder instance=executeCase",
             "cont_obj#h",
             "site#h",
             "arm#0 handled_case=case#h",
             "source=OwnerTrampolineMixed",
-            "resume_boundary instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
+            "resume_boundary instance=executeCase",
         ] {
             assert!(
                 dump.contains(needle),

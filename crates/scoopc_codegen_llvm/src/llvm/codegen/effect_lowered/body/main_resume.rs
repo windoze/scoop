@@ -97,21 +97,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
             args.push(payload.into());
         }
-        if targets.len() == 1 {
-            let trampoline_fun = self.function(targets[0].symbol_name())?;
-            let call = self
-                .builder
-                .build_call(trampoline_fun, &args, "surface_resume_call")?;
-            let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
-                frontend_error(format!(
-                    "surface resume `{}` 调用 owner dispatch 未返回 Step_F",
-                    surface.symbol_name()
-                ))
-            })?;
-            self.builder.build_return(Some(&owner_step))?;
-            return Ok(());
-        }
-
         let current_desc = self.load_gc_object_type_desc(cont_ptr, "surface_resume_cont_desc")?;
         let word_ty = self.context.i64_type();
         let current_desc_int =
@@ -233,18 +218,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ))
         })?;
         args.push(outcome_ptr.into());
-        if targets.len() == 1 {
-            let callee = self.surface_resume_owner_outcome_function(surface, &targets[0]);
-            self.build_call_preserving_gc_local_roots(
-                crate::span::Span::new(0, 0),
-                callee,
-                &args,
-                "surface_resume_outcome_call",
-            )?;
-            self.builder.build_return(None)?;
-            return Ok(());
-        }
-
         let cont_ptr = cont.into_pointer_value();
         let current_desc =
             self.load_gc_object_type_desc(cont_ptr, "surface_resume_outcome_desc")?;
@@ -376,18 +349,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             answer_slot.into_pointer_value().into(),
             outcome_ptr.into_pointer_value().into(),
         ];
-        if targets.len() == 1 {
-            let callee = self.continuation_drive_owner_outcome_function(surface, &targets[0]);
-            self.build_call_preserving_gc_local_roots(
-                crate::span::Span::new(0, 0),
-                callee,
-                &args,
-                "continuation_drive_outcome_call",
-            )?;
-            self.builder.build_return(None)?;
-            return Ok(());
-        }
-
         let cont_ptr = cont.into_pointer_value();
         let current_desc =
             self.load_gc_object_type_desc(cont_ptr, "continuation_drive_outcome_desc")?;
@@ -523,7 +484,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             else {
                 continue;
             };
-            candidates.push((callable, continuation_layout, owner_surface));
+            let Some(owner_dispatch) = abi
+                .surface_resume_dispatch_layout(owner_surface.continuation_schema())
+                .ok()
+            else {
+                continue;
+            };
+            let Some(owner_target) =
+                owner_dispatch
+                    .target()
+                    .owner_trampolines()
+                    .iter()
+                    .find(|target| {
+                        target.owner_continuation_object() == callable.continuation_object()
+                            || target.owner_version_key() == callable.body_version_key()
+                    })
+            else {
+                continue;
+            };
+            candidates.push((
+                callable,
+                continuation_layout,
+                owner_surface,
+                owner_target.symbol_name().to_string(),
+            ));
         }
         if candidates.is_empty() {
             let entry = self.context.append_basic_block(function, "entry");
@@ -564,7 +548,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_unconditional_branch(first_check)?;
 
         let mut check_bb = first_check;
-        for (index, (callable, continuation_layout, owner_surface)) in
+        for (index, (callable, continuation_layout, owner_surface, owner_symbol_name)) in
             candidates.into_iter().enumerate()
         {
             let next_bb = self
@@ -600,7 +584,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_conditional_branch(is_match, hit_bb, next_bb)?;
 
             self.builder.position_at_end(hit_bb);
-            let owner_fun = self.function(owner_surface.symbol_name())?;
+            let owner_fun = self.function(&owner_symbol_name)?;
             let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::from([cont_ptr.into()]);
             if owner_surface.param_count() > 1 {
                 args.push(
@@ -631,7 +615,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let projected = self.project_step_to_schema(
                 abi,
                 owner_step,
-                callable.step_schema(),
+                owner_surface.return_step_schema(),
                 surface.return_step_schema(),
             )?;
             self.builder.build_return(Some(&projected))?;
@@ -770,7 +754,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir_fun,
             body,
             outcome_fun,
-            None,
+            target.wrapper_projection(),
             None,
             self.collect_surface_resume_handle_sites(target),
             HandleCompletionMode::ReturnFromFunction,

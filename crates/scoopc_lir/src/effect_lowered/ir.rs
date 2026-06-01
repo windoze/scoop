@@ -2108,6 +2108,18 @@ fn register_call_boundary_callee_wrapper_projection(
         return;
     }
 
+    // Dynamic fallback call sites may not publish a closed callee step set, so publish every
+    // ABI-compatible continuation object and let the LLVM surface dispatch pick by descriptor.
+    let target_set_is_open = carrier_target_step_schemas.is_empty();
+    let mut registered_owner_targets = wrapper_projections
+        .get(&wrapper_contract.continuation_schema())
+        .into_iter()
+        .flat_map(|projections| projections.iter())
+        .filter_map(|projection| {
+            surface_resume_projection_owner_identity_for_targets(projection, continuation_objects)
+                .map(|(owner, object)| (owner.clone(), object))
+        })
+        .collect::<Vec<_>>();
     let mut candidates = Vec::new();
     for object in continuation_objects {
         for method in object.methods() {
@@ -2118,12 +2130,20 @@ fn register_call_boundary_callee_wrapper_projection(
             {
                 continue;
             }
-            if method.surface_ty() != wrapper_contract.surface_ty()
+            if !target_set_is_open
+                && method.surface_ty() != wrapper_contract.surface_ty()
                 && !carrier_target_step_schemas.contains(&method.out_step_schema())
             {
                 continue;
             }
-            if carrier_target_step_schemas.is_empty() {
+            if target_set_is_open {
+                let candidate_owner = (object.owner_version_key().clone(), object.object_id());
+                if registered_owner_targets
+                    .iter()
+                    .any(|existing| existing == &candidate_owner)
+                {
+                    continue;
+                }
                 let caller_contract = composition.caller_continuation_contract();
                 if method.out_step_schema() == caller_contract.out_step_schema()
                     && wrapper_contract.continuation_schema()
@@ -2131,6 +2151,7 @@ fn register_call_boundary_callee_wrapper_projection(
                 {
                     continue;
                 }
+                registered_owner_targets.push(candidate_owner);
             } else if !carrier_target_step_schemas.contains(&method.out_step_schema()) {
                 continue;
             }
@@ -2376,6 +2397,21 @@ fn surface_resume_projection_owner_identity(
         } => Some((owner_version_key, *owner_continuation_object)),
         LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
         | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => None,
+    }
+}
+
+fn surface_resume_projection_owner_identity_for_targets<'a>(
+    projection: &'a LateLoweredSurfaceResumeWrapperProjection,
+    continuation_objects: &'a [LateLoweredContinuationObject],
+) -> Option<(&'a LateLoweredBodyVersionKey, ContinuationObjectId)> {
+    match projection.underlying_route().publication() {
+        LateLoweredSurfaceResumeDispatchPublication::InternalMethod { object_id, .. } => {
+            continuation_objects
+                .iter()
+                .find(|object| object.object_id() == *object_id)
+                .map(|object| (object.owner_version_key(), object.object_id()))
+        }
+        _ => surface_resume_projection_owner_identity(projection),
     }
 }
 
