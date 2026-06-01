@@ -3737,6 +3737,75 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         (materialized, facts)
     }
 
+    #[test]
+    fn gc_handle_intrinsic_call_sites_use_handle_token_carrier() {
+        let source = SourceFile::new_virtual(
+            "<mem>/effect_facts_gc_handle_carrier.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+fun main(): Unit {
+    @Unsafe do {
+        val box: Any = Box(value = 1)
+        val h: GcHandle = GC.handleNew(box)
+        val got: Any = GC.handleGet(h)
+        GC.handleDrop(h)
+    }
+}
+"#,
+        );
+        let (_, facts) = build_facts_for_source(source);
+        let (main_key, _) = callable_facts_for(&facts, "sample.main");
+        let body = facts
+            .body(main_key)
+            .expect("sample.main body facts should be published");
+
+        let handle_carriers = body
+            .sites()
+            .values()
+            .filter_map(|site| {
+                let SiteEffectFacts::Call(call) = site else {
+                    return None;
+                };
+                let CallSiteTarget::KnownInstance(target) = call.target() else {
+                    return None;
+                };
+                matches!(
+                    target.template.fqn.as_str(),
+                    "scoop.core.GC.handleGet" | "scoop.core.GC.handleDrop"
+                )
+                .then(|| {
+                    (
+                        target.template.fqn.clone(),
+                        facts
+                            .types()
+                            .display(call.invoke_args_tuple_ty())
+                            .to_string(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            handle_carriers,
+            vec![
+                (
+                    "scoop.core.GC.handleGet".to_string(),
+                    "scoop.core.GcHandle".to_string(),
+                ),
+                (
+                    "scoop.core.GC.handleDrop".to_string(),
+                    "scoop.core.GcHandle".to_string(),
+                ),
+            ],
+            "GC handle token calls must publish the stable handle carrier, not the GC singleton receiver",
+        );
+    }
+
     fn call_and_resume_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/effect_facts_call_sites.scoop",

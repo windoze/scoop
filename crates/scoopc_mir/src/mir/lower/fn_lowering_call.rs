@@ -16,6 +16,50 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn direct_call_explicit_param_tys(
+        &self,
+        function: &FunctionTargetContract,
+        explicit_arg_count: usize,
+    ) -> Option<Vec<TypeId>> {
+        let mut param_tys = self.selected_or_indexed_param_tys(function)?;
+        if self.retained_gc_intrinsic_params_include_receiver(
+            function.fqn(),
+            explicit_arg_count,
+            &param_tys,
+        ) {
+            param_tys.remove(0);
+        }
+        Some(param_tys)
+    }
+
+    fn retained_gc_intrinsic_params_include_receiver(
+        &self,
+        fqn: &str,
+        explicit_arg_count: usize,
+        param_tys: &[TypeId],
+    ) -> bool {
+        if !matches!(
+            fqn,
+            "scoop.core.GC.pin"
+                | "scoop.core.GC.unpin"
+                | "scoop.core.GC.handleNew"
+                | "scoop.core.GC.handleGet"
+                | "scoop.core.GC.handleDrop"
+        ) || param_tys.len() != explicit_arg_count.saturating_add(1)
+        {
+            return false;
+        }
+        let Some((owner_fqn, _)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        matches!(
+            self.types.kind(param_tys[0]),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == owner_fqn
+        )
+    }
+
     pub(in crate::mir::lower) fn source_arg_expected_tys_for_callee_ty(
         &self,
         callee_ty: TypeId,
@@ -180,7 +224,7 @@ impl<'a> FnLowering<'a> {
             .filter(|binding| !call_arg_binding_has_receiver(binding));
         let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let expected_tys = function
-            .and_then(|function| self.selected_or_indexed_param_tys(function))
+            .and_then(|function| self.direct_call_explicit_param_tys(function, args.len()))
             .map(|param_tys| {
                 self.source_arg_expected_tys_from_param_tys(
                     &param_tys,

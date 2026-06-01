@@ -9,7 +9,7 @@
 
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
-| T2-01E | [TODO] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
+| T2-01E | [DONE] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
 | T2-01F | [TODO] | Restore full fixture baseline observed during T2-01 validation |
 | T2-01 | [TODO] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [TODO] | Review T2-01 |
@@ -20,7 +20,7 @@
 
 ---
 
-### [TODO] T2-01E：Fix effect-lowered GC handle token ABI regression exposed by T2-01F
+### [DONE] T2-01E：Fix effect-lowered GC handle token ABI regression exposed by T2-01F
 
 - 背景：恢复 `T2-01F` fixture baseline 时，泛型 member dispatch / synthetic array binding 等 failures 已定位并部分修复，但 GC handle 相关 fixtures 仍阻塞完整 baseline。当前 `dump-ir` 中 `GC.handleDrop(h)` 的 MIR metadata/transport 显示参数为 `scoop.core.GcHandle`，但 effect-lowered/LLVM codegen 路径仍把该参数 lowering 为 `Ref`，触发 `MIR GC.handleDrop lowering: argument is not a GcHandle struct`。
 - 必须处理的 failures：
@@ -32,7 +32,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；上述 targeted fixtures；`python3 tools/run_fixtures.py`。
 - 完成条件：上述 GC handle/build/runtime failures 通过，且不再触发 `GC.handleDrop` argument `Ref`/`GcHandle` drift。
 - 依赖：T1-02R
-- 完成记录：（待填）
+- 完成记录：2026-06-01 完成。修复 retained object-singleton `scoop.core.GC.*` intrinsic direct-call lowering 的显式参数类型推断：当 published function param list 含隐式 `GC` receiver 时，MIR lowering 会剥离该 receiver，再用真实显式参数推导 call arg carrier，避免 `GC.handleGet` / `GC.handleDrop` 的 `invoke_args_tuple_ty` 从 `scoop.core.GcHandle` 漂移到 `scoop.core.GC` / `Ref`。新增 effect-facts regression `gc_handle_intrinsic_call_sites_use_handle_token_carrier`，覆盖 `GC.handleGet` / `GC.handleDrop` 的 stable handle token carrier。验证：`cargo fmt`；`cargo test -p scoopc_effect_facts_stage gc_handle_intrinsic_call_sites_use_handle_token_carrier` 通过；`cargo build -p scoop -p scoopc` 通过；targeted fixtures `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`、`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop` 均通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 已完整运行，剩余 7 个 failures 均是本文件下一任务 `T2-01F` 已明确列出的 fixture baseline 修复项（`effect_lowered/handle_finally_boundary.scoop`、`effect_lowered/nested_handle_self_contained_vs_outward.scoop`、`mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_materialized/pass_pipeline_metadata.scoop`、`run_pass_cone/dependency_c_sources_extern_call`、`run_pass_cone/dependency_cxx_sources_extern_call_cpp_stdlib`），本任务要求的 GC handle/build/runtime failures 已恢复通过且不再触发 `GC.handleDrop`/`GC.handleGet` argument `Ref`/`GcHandle` drift。
 
 ### [TODO] T2-01F：Restore full fixture baseline observed during T2-01 validation
 
