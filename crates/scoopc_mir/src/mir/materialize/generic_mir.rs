@@ -32,26 +32,24 @@ pub(super) fn materialize_generic_mir(
 pub(super) struct TemplateRootInfo {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) family: Vec<FunDecl>,
 }
 
 #[derive(Clone)]
 pub(super) struct TemplateRootCandidate {
-    pub(super) request_lookup_key: RequestTemplateKey,
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) signature_key: String,
     pub(super) root_fun: FunDecl,
 }
 
 #[derive(Clone)]
 pub(super) struct DeclOnlyTemplateCandidate {
-    pub(super) request_lookup_key: RequestTemplateKey,
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) signature_key: String,
     pub(super) signature: CallableSignatureInfo,
 }
@@ -68,7 +66,7 @@ pub(super) struct TemplateCatalogCandidate {
 pub(super) struct TemplateSignatureInfo {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) fun_ty: TypeId,
     pub(super) return_ty: TypeId,
     pub(super) params: Vec<CallableSignatureParam>,
@@ -310,7 +308,6 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) request_root_funs: Vec<ReachableMirFun>,
     pub(super) hir_direct_instance_keys_by_fun: HashMap<(PathBuf, Span), Vec<InstanceKey>>,
     pub(super) generic_family_fqns: HashSet<String>,
-    pub(super) request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     pub(super) templates_by_stable_key: HashMap<StableTemplateKey, TemplateKey>,
     pub(super) roots: HashMap<TemplateKey, TemplateRootInfo>,
     pub(super) source_callable_signatures: Vec<super::MaterializedCallableSignature>,

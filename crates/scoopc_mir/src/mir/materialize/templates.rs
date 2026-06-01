@@ -4,15 +4,17 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) struct GenericTemplateInfo {
+    #[cfg(test)]
     pub(super) request_lookup_key: RequestTemplateKey,
     pub(super) template: TemplateKey,
     pub(super) stable_template_key: StableTemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) signature_key: String,
     pub(super) has_body: bool,
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn generic_template_signature_key_with_owner_params(
     stable_cone_key: &StableConeKey,
@@ -36,6 +38,7 @@ pub(super) fn generic_template_signature_key_with_owner_params(
     )
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_generic_template_info(
     out: &mut Vec<GenericTemplateInfo>,
@@ -95,14 +98,17 @@ pub(super) fn push_generic_template_info(
                     .map(|param| param.name.text(source).to_string()),
             )
             .collect(),
-        eff_param_name: owner_eff_param
-            .or(fun.eff_param.as_ref())
-            .map(|param| param.name.text(source).to_string()),
+        eff_param_names: owner_eff_param
+            .into_iter()
+            .chain(fun.eff_param.as_ref())
+            .map(|param| param.name.text(source).to_string())
+            .collect(),
         signature_key,
         has_body: matches!(fun.body, ast::FunBody::Block(_)),
     });
 }
 
+#[cfg(test)]
 pub(super) fn generic_value_property_getter_signature_key(
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
@@ -123,6 +129,7 @@ pub(super) fn generic_value_property_getter_signature_key(
     )
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_generic_value_property_getter_template_info(
     out: &mut Vec<GenericTemplateInfo>,
@@ -171,7 +178,7 @@ pub(super) fn push_generic_value_property_getter_template_info(
             .iter()
             .map(|param| param.name.text(source).to_string())
             .collect(),
-        eff_param_name: None,
+        eff_param_names: Vec::new(),
         signature_key,
         has_body: property
             .getter
@@ -180,6 +187,7 @@ pub(super) fn push_generic_value_property_getter_template_info(
     });
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn collect_generic_templates_from_type_body(
     out: &mut Vec<GenericTemplateInfo>,
@@ -289,6 +297,7 @@ pub(super) fn collect_generic_template_infos(
     )
 }
 
+#[cfg(test)]
 pub(super) fn collect_generic_template_infos_with_source_cones(
     stable_cone_key: &StableConeKey,
     source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
@@ -390,36 +399,71 @@ pub(super) fn collect_generic_template_infos_from_lowered_hir(
         .collect()
 }
 
-pub(super) fn retag_generic_template_infos_with_hir_stable_keys(
-    template_infos: &mut [GenericTemplateInfo],
-    lowered_hir: &crate::hir::LoweredHir,
-) {
-    fn span_contains(outer: Span, inner: Span) -> bool {
-        outer.start <= inner.start && inner.end <= outer.end
-    }
+pub(super) fn collect_generic_template_infos_from_hir_facts(
+    hir_facts: &scoopc_hir::hir_facts::HirFacts,
+) -> MaterializeResult<Vec<GenericTemplateInfo>> {
+    hir_facts
+        .declarations
+        .generic_templates
+        .iter()
+        .map(|fact| {
+            let stable_template_key = StableTemplateKey::from_canonical_text(
+                fact.stable_template_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR generic template fact `{}` has invalid stable template key: {err}",
+                    fact.template_fqn
+                ))
+            })?;
+            let mut type_param_names = fact.owner_type_param_names.clone();
+            type_param_names.extend(fact.function_type_param_names.clone());
+            let eff_param_names = fact
+                .owner_eff_param_name
+                .iter()
+                .chain(fact.function_eff_param_name.iter())
+                .cloned()
+                .collect();
+            Ok(GenericTemplateInfo {
+                #[cfg(test)]
+                request_lookup_key: (
+                    fact.request_fqn.clone(),
+                    fact.request_source_path.clone(),
+                    fact.request_span,
+                ),
+                template: TemplateKey {
+                    fqn: fact.template_fqn.clone(),
+                    source_path: fact.template_source_path.clone(),
+                    decl_span: fact.template_decl_span,
+                },
+                stable_template_key,
+                type_param_names,
+                eff_param_names,
+                signature_key: fact.signature_key.as_str().to_string(),
+                has_body: fact.has_body,
+            })
+        })
+        .collect()
+}
 
-    for info in template_infos {
-        let stable_template_key = lowered_hir
-            .generic_stable_template_keys
-            .get(&info.template)
-            .cloned()
-            .or_else(|| {
-                lowered_hir
-                    .generic_stable_template_keys
-                    .iter()
-                    .find(|(template, _)| {
-                        template.fqn == info.template.fqn
-                            && template.source_path == info.template.source_path
-                            && (span_contains(template.decl_span, info.template.decl_span)
-                                || span_contains(info.template.decl_span, template.decl_span))
-                    })
-                    .map(|(_, stable)| stable.clone())
-            });
-        if let Some(stable_template_key) = stable_template_key {
-            info.signature_key = stable_template_key.canonical_text();
-            info.stable_template_key = stable_template_key;
-        }
-    }
+pub(super) fn collect_callable_body_infos_from_hir_facts(
+    hir_facts: &scoopc_hir::hir_facts::HirFacts,
+) -> Vec<CallableBodyInfo> {
+    hir_facts
+        .declarations
+        .callable_bodies
+        .iter()
+        .map(|fact| CallableBodyInfo {
+            request_lookup_key: (
+                fact.request_fqn.clone(),
+                fact.request_source_path.clone(),
+                fact.request_span,
+            ),
+            source_path: fact.source_path.clone(),
+            fqn: fact.fqn.clone(),
+            body_span: fact.body_span,
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -441,25 +485,25 @@ fn generic_template_info_from_hir_fun(
         collect_type_param_names_in_type(&lowered_hir.types, param.ty, &mut type_param_names);
     }
     collect_type_param_names_in_type(&lowered_hir.types, fun.return_ty, &mut type_param_names);
-    let eff_param_name = hir_fun_effect_param_name(&lowered_hir.types, fun.ty);
+    let eff_param_names = hir_fun_effect_param_names(&lowered_hir.types, fun.ty);
     Some(GenericTemplateInfo {
         request_lookup_key: (fun.fqn.clone(), fun.source_path.clone(), fun.span),
         template,
         signature_key: stable_template_key.canonical_text(),
         stable_template_key,
         type_param_names,
-        eff_param_name,
+        eff_param_names,
         has_body: fun.body.is_some(),
     })
 }
 
 #[cfg(test)]
-fn hir_fun_effect_param_name(types: &TypeStore, fun_ty: TypeId) -> Option<String> {
+fn hir_fun_effect_param_names(types: &TypeStore, fun_ty: TypeId) -> Vec<String> {
     let mut names = HashSet::new();
     collect_effect_row_param_names_in_type(types, fun_ty, &mut names);
     let mut names = names.into_iter().collect::<Vec<_>>();
     names.sort();
-    names.into_iter().next()
+    names
 }
 
 pub(super) fn stable_template_key_for_template(
@@ -478,6 +522,7 @@ pub(super) fn stable_template_key_for_template(
     ))
 }
 
+#[cfg(test)]
 pub(super) fn generic_fun_decl_kind(fun: &ast::FunDecl) -> &'static str {
     match fun.kind {
         ast::FunDeclKind::Regular => "generic_fun",
@@ -485,10 +530,12 @@ pub(super) fn generic_fun_decl_kind(fun: &ast::FunDecl) -> &'static str {
     }
 }
 
+#[cfg(test)]
 pub(super) fn generic_property_getter_decl_kind(_: &ast::PropertyDecl) -> &'static str {
     "generic_value_getter"
 }
 
+#[cfg(test)]
 pub(super) fn push_callable_fun_body_info(
     out: &mut Vec<CallableBodyInfo>,
     source: &SourceFile,
@@ -513,6 +560,7 @@ pub(super) fn push_callable_fun_body_info(
     });
 }
 
+#[cfg(test)]
 pub(super) fn push_callable_property_getter_body_info(
     out: &mut Vec<CallableBodyInfo>,
     source: &SourceFile,
@@ -540,6 +588,7 @@ pub(super) fn push_callable_property_getter_body_info(
     });
 }
 
+#[cfg(test)]
 pub(super) fn collect_callable_body_infos_from_type_body(
     out: &mut Vec<CallableBodyInfo>,
     source: &SourceFile,
@@ -591,6 +640,7 @@ pub(super) fn collect_callable_body_infos_from_type_body(
     }
 }
 
+#[cfg(test)]
 pub(super) fn collect_callable_body_infos(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Vec<CallableBodyInfo> {
@@ -706,6 +756,7 @@ pub(super) fn load_dump_support_sources(session: &Session) -> MaterializeResult<
     Ok(out)
 }
 
+#[cfg(test)]
 pub(super) fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {
     let Some(package) = package else {
         return String::new();

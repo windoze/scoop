@@ -665,6 +665,7 @@ pub(in crate::hir::lower) enum ExplicitMemberTemplate<'a> {
         file: &'a ast::File,
         owner_fqn: String,
         owner_type_params: &'a [ast::TypeParam],
+        owner_eff_param: Option<&'a ast::EffectRowParam>,
         this_decl_span: Span,
         property: &'a ast::PropertyDecl,
         signature_key: String,
@@ -1386,6 +1387,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_type_decl<'a>(
                         file,
                         owner_fqn: owner_fqn.clone(),
                         owner_type_params: &decl.type_params,
+                        owner_eff_param: decl.eff_param.as_ref(),
                         this_decl_span: decl.name.span,
                         property,
                         signature_key: canonical_generic_property_getter_signature_key(

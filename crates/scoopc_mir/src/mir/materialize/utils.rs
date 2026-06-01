@@ -115,6 +115,7 @@ pub(super) fn rewrite_family_symbol_name(
         .then(|| format!("{instance_root_fqn}{suffix}"))
 }
 
+#[cfg(test)]
 pub(super) fn re_intern_effect_row_from(
     types: &mut TypeStore,
     other: &TypeStore,

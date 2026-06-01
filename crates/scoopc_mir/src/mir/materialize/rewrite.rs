@@ -1443,7 +1443,7 @@ impl MirInstanceMaterializer {
             .iter()
             .filter_map(|template| {
                 let signature = self.template_signatures.get(template)?;
-                if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
+                if signature.type_param_names.is_empty() || !signature.eff_param_names.is_empty() {
                     return None;
                 }
                 if !type_contains_param(&self.types, signature.fun_ty) {
@@ -1565,7 +1565,7 @@ impl MirInstanceMaterializer {
         input: &DirectCallInferenceInput<'_>,
     ) -> Option<InstanceKey> {
         let signature = self.template_signatures.get(template)?;
-        if signature.type_param_names.is_empty() && signature.eff_param_name.is_none() {
+        if signature.type_param_names.is_empty() && signature.eff_param_names.is_empty() {
             return None;
         }
         let mut param_type_param_names = Vec::new();
@@ -1673,10 +1673,11 @@ impl MirInstanceMaterializer {
             }
             type_args.push(ty);
         }
-        let eff_args = match signature.eff_param_name.as_ref() {
-            Some(name) => vec![substitution.effect_params.get(name).cloned()?],
-            None => Vec::new(),
-        };
+        let eff_args = signature
+            .eff_param_names
+            .iter()
+            .map(|name| substitution.effect_params.get(name).cloned())
+            .collect::<Option<Vec<_>>>()?;
         if type_args.is_empty() && eff_args.is_empty() {
             return None;
         }
@@ -1695,7 +1696,7 @@ impl MirInstanceMaterializer {
         if self
             .roots
             .get(&signature.template)
-            .is_some_and(|root| root.eff_param_name.is_some())
+            .is_some_and(|root| !root.eff_param_names.is_empty())
         {
             return None;
         }
@@ -1865,8 +1866,7 @@ impl MirInstanceMaterializer {
                 let signature = self.template_signatures.get(candidate)?;
                 (signature.params.len() == source_signature.params.len()
                     && signature.type_param_names.len() == source_signature.type_param_names.len()
-                    && signature.eff_param_name.is_some()
-                        == source_signature.eff_param_name.is_some())
+                    && signature.eff_param_names.len() == source_signature.eff_param_names.len())
                 .then_some(candidate.clone())
             })
             .collect::<Vec<_>>();

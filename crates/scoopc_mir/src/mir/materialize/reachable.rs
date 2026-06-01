@@ -393,8 +393,8 @@ impl MirInstanceMaterializer {
                     let root_eff_param = self
                         .roots
                         .get(template)
-                        .and_then(|root| root.eff_param_name.as_ref());
-                    if signature.eff_param_name.is_some()
+                        .and_then(|root| root.eff_param_names.first());
+                    if !signature.eff_param_names.is_empty()
                         || signature.type_param_names.len() != type_args.len()
                     {
                         continue;
@@ -727,12 +727,12 @@ impl MirInstanceMaterializer {
                 let root_eff_param = self
                     .roots
                     .get(template)
-                    .and_then(|root| root.eff_param_name.as_ref());
+                    .and_then(|root| root.eff_param_names.first());
                 let symbol_suffix = self.template_symbol_suffix(template);
                 if signature.params.len() != args.len() {
                     return None;
                 }
-                if signature.eff_param_name.is_some()
+                if !signature.eff_param_names.is_empty()
                     || signature.type_param_names.is_empty()
                     || map_hir_call_args_to_signature_params(&signature.params, args).is_none()
                 {
@@ -912,8 +912,8 @@ impl MirInstanceMaterializer {
                 let root_eff_param = self
                     .roots
                     .get(template)
-                    .and_then(|root| root.eff_param_name.as_ref());
-                if signature.eff_param_name.is_some() {
+                    .and_then(|root| root.eff_param_names.first());
+                if !signature.eff_param_names.is_empty() {
                     continue;
                 }
                 let Some((owner_fqn, _)) = template.fqn.rsplit_once('.') else {

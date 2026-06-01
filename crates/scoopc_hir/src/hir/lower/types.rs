@@ -24,11 +24,12 @@ use crate::typecheck::{
 };
 
 use super::super::{
-    AssignPlaceSiteIndex, CallArgBindingSiteIndex, ClassInitIndex, ContinuationResumeCallSiteIndex,
-    CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, ExternGlobalIndex,
-    File, FunDecl, GenericClassDeclIndex, InteriorMutableIndex, NativeCallableFunIndex,
-    NominalKindIndex, NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex,
-    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelFunCallSiteIndex,
+    AssignPlaceSiteIndex, CallArgBindingSiteIndex, CallableBodyInventory, ClassInitIndex,
+    ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex,
+    ExternFunIndex, ExternGlobalIndex, File, FunDecl, GenericClassDeclIndex,
+    GenericTemplateInventory, InteriorMutableIndex, NativeCallableFunIndex, NominalKindIndex,
+    NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
+    StructLayoutIndex, SymbolId, TopLevelFunCallSiteIndex, TopLevelFunValueRefIndex,
     TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex, WithUpdateSiteIndex,
 };
 
@@ -242,6 +243,10 @@ pub struct LoweredHir {
     pub stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
     /// Generic template declarations keyed by frontend template identity and tagged with semantic stable keys.
     pub generic_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
+    /// Materializer-ready generic template declarations published by HIR lowering.
+    pub generic_template_inventory: Vec<GenericTemplateInventory>,
+    /// Materializer-ready callable body inventory published by HIR lowering.
+    pub callable_body_inventory: Vec<CallableBodyInventory>,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///
     /// 说明：
@@ -277,6 +282,8 @@ pub struct LoweredHir {
     /// - generic MIR lowering / production reachability 会用它恢复 operator overload /
     ///   `compareTo` 等语法糖调用点的真实 callee 身份。
     pub top_level_fun_call_sites: TopLevelFunCallSiteIndex,
+    /// typecheck 已确认的 generic function-value 绑定（`source_path + expr span`）。
+    pub top_level_fun_value_refs: TopLevelFunValueRefIndex,
     /// typecheck 已确认的 canonical call-argument 参数槽绑定。
     pub call_arg_bindings: CallArgBindingSiteIndex,
     /// typecheck 已确认并由 HIR lowering 消费的 copy-update aggregate/update 合同。

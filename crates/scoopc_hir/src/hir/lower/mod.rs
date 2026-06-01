@@ -47,8 +47,8 @@ use super::{
     Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
     FieldDecl, FieldOrigin, File, FunDecl, GenericClassDeclIndex, Item, MemberFunDecl, MemberRef,
     NominalDecl, NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param,
-    PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl,
-    ValDecl, ValueRef, WithUpdateSiteIndex,
+    PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TopLevelFunValueRefIndex,
+    TopLevelVarStorage, TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
 };
 
 use types::*;
@@ -64,6 +64,18 @@ fn collect_top_level_fun_call_sites(
         }
     }
     sites
+}
+
+fn collect_top_level_fun_value_refs(
+    files: &[(&SourceFile, &ast::File)],
+) -> TopLevelFunValueRefIndex {
+    let mut refs = HashMap::new();
+    for (source, file) in files {
+        for (span, binding) in file.top_level_fun_value_refs() {
+            refs.insert(CallSite::new(source.path().to_path_buf(), span), binding);
+        }
+    }
+    refs
 }
 
 fn collect_synthetic_named_intrinsic_call_sites(
@@ -550,6 +562,37 @@ fn collect_top_level_fun_call_sites_with_type_remap(
         binding.types_are_hir = true;
     }
     sites
+}
+
+fn collect_top_level_fun_value_refs_with_type_remap(
+    files: &[(&SourceFile, &ast::File)],
+    typecheck_types: Option<&TypeStore>,
+    types: &mut TypeStore,
+) -> TopLevelFunValueRefIndex {
+    let mut refs = collect_top_level_fun_value_refs(files);
+    let Some(typecheck_types) = typecheck_types else {
+        return refs;
+    };
+    for binding in refs.values_mut() {
+        binding.type_args = binding
+            .type_args
+            .iter()
+            .map(|&ty| types.re_intern_from(typecheck_types, ty))
+            .collect();
+        binding.eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                crate::ty::EffectRow::new(
+                    row.terms
+                        .iter()
+                        .map(|&ty| types.re_intern_from(typecheck_types, ty))
+                        .collect(),
+                )
+            })
+            .collect();
+    }
+    refs
 }
 
 fn collect_call_arg_bindings(files: &[(&SourceFile, &ast::File)]) -> CallArgBindingSiteIndex {

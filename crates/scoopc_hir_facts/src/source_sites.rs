@@ -15,6 +15,7 @@ pub struct SourceSiteFacts {
     pub function_effects: Vec<FunctionEffectContract>,
     pub call_sites: Vec<CallSiteContract>,
     pub call_site_instances: Vec<CallSiteInstanceFact>,
+    pub template_site_bindings: Vec<TemplateSiteBindingFact>,
     pub dispatch_candidates: Vec<DispatchCandidateFact>,
     pub argument_bindings: Vec<ArgumentBindingContract>,
     pub assignments: Vec<AssignmentContract>,
@@ -33,6 +34,7 @@ impl SourceSiteFacts {
         self.function_effects.is_empty()
             && self.call_sites.is_empty()
             && self.call_site_instances.is_empty()
+            && self.template_site_bindings.is_empty()
             && self.dispatch_candidates.is_empty()
             && self.argument_bindings.is_empty()
             && self.assignments.is_empty()
@@ -254,6 +256,23 @@ pub struct CallSiteInstanceFact {
     pub stable_instance_key: CanonicalTextKey,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
+}
+
+/// Source site whose generic binding is known before a concrete instance exists.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TemplateSiteBindingFact {
+    pub identity: SourceSiteIdentity,
+    pub kind: TemplateSiteBindingKind,
+    pub template_key: CanonicalTextKey,
+    pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
+}
+
+/// Source syntax family for a template-level generic binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum TemplateSiteBindingKind {
+    DirectCall,
+    FunValue,
 }
 
 /// Stable dispatch candidate identity published before materialization.

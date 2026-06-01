@@ -88,6 +88,18 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         compilation_unit,
         &HashMap::new(),
     );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            index,
+            &[(source, file)],
+            &HashMap::new(),
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        &[(source, file)],
+        &generic_template_inventory,
+    );
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -219,6 +231,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
             &member_funs,
         ),
     );
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs(&[(source, file)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
     let no_source_cone_overrides = HashMap::new();
@@ -238,6 +251,8 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         source_cone_order,
         stable_type_param_keys,
         generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -249,6 +264,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,
@@ -578,6 +594,18 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         compilation_unit,
         &source_cones,
     );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            index,
+            files_to_lower,
+            &source_cones,
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        files_to_lower,
+        &generic_template_inventory,
+    );
 
     let mut decls: Vec<Decl> = Vec::new();
     let mut items: Vec<Item> = Vec::new();
@@ -905,6 +933,11 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         Some(typecheck_types),
         &mut types,
     );
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs_with_type_remap(
+        files_to_lower,
+        Some(typecheck_types),
+        &mut types,
+    );
     let file_hir = File { decls, items };
     extend_top_level_fun_call_sites_without_overwriting(
         &mut top_level_fun_call_sites,
@@ -929,6 +962,8 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         source_cone_order,
         stable_type_param_keys,
         generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -940,6 +975,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,

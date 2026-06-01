@@ -3,42 +3,6 @@
 use super::*;
 
 impl MirInstanceMaterializer {
-    pub(super) fn resolve_request_template(
-        &self,
-        fqn: &str,
-        decl_file: &Path,
-        decl_span: Span,
-    ) -> Option<TemplateKey> {
-        self.request_templates
-            .get(&(fqn.to_string(), decl_file.to_path_buf(), decl_span))
-            .cloned()
-    }
-
-    pub(super) fn resolve_request_template_by_decl_site(
-        &self,
-        fqn: &str,
-        decl_file: &Path,
-        decl_span: Span,
-    ) -> Option<TemplateKey> {
-        fn span_contains(outer: Span, inner: Span) -> bool {
-            outer.start <= inner.start && inner.end <= outer.end
-        }
-
-        self.resolve_request_template(fqn, decl_file, decl_span)
-            .or_else(|| {
-                self.request_templates
-                    .iter()
-                    .find(|((request_fqn, request_file, request_span), template)| {
-                        request_fqn == fqn
-                            && request_file.as_path() == decl_file
-                            && (*request_span == decl_span
-                                || span_contains(template.decl_span, decl_span)
-                                || span_contains(decl_span, *request_span))
-                    })
-                    .map(|(_, template)| template.clone())
-            })
-    }
-
     pub(super) fn resolve_stable_request_template(
         &self,
         stable_template_key: &StableTemplateKey,
@@ -212,16 +176,7 @@ impl MirInstanceMaterializer {
                     },
                 ));
             };
-            let Some(template) = self
-                .resolve_stable_request_template(stable_template_key)
-                .or_else(|| {
-                    self.resolve_request_template_by_decl_site(
-                        &key.symbol.fqn,
-                        &key.symbol.decl_file,
-                        key.symbol.decl_span,
-                    )
-                })
-            else {
+            let Some(template) = self.resolve_stable_request_template(stable_template_key) else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: key.symbol.fqn.clone(),
@@ -236,7 +191,7 @@ impl MirInstanceMaterializer {
             if self
                 .roots
                 .get(&template)
-                .is_some_and(|root| root.eff_param_name.is_some())
+                .is_some_and(|root| !root.eff_param_names.is_empty())
                 && key.eff_args.is_empty()
             {
                 continue;

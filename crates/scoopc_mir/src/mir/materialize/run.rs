@@ -381,38 +381,38 @@ impl MirInstanceMaterializer {
             effect_params: HashMap::new(),
         };
 
-        match (&root.eff_param_name, instance.eff_args.as_slice()) {
-            (None, []) => {}
-            (None, eff_args) => {
+        if root.eff_param_names.is_empty() {
+            if !instance.eff_args.is_empty() {
                 return Err(materialize_err(
                     MirMaterializeError::EffectArgArityMismatch {
                         fqn: root.template.fqn.clone(),
                         expected: 0,
-                        found: eff_args.len(),
+                        found: instance.eff_args.len(),
                         call_site: None,
                         decl_span: root.template.decl_span.into(),
                     },
                 ));
             }
-            (Some(name), [row]) => {
-                substitution.effect_params.insert(name.clone(), row.clone());
-            }
-            (Some(name), []) => {
+        } else if instance.eff_args.is_empty() {
+            for name in &root.eff_param_names {
                 substitution
                     .effect_params
                     .insert(name.clone(), EffectRow::pure());
             }
-            (Some(_), eff_args) => {
-                return Err(materialize_err(
-                    MirMaterializeError::EffectArgArityMismatch {
-                        fqn: root.template.fqn.clone(),
-                        expected: 1,
-                        found: eff_args.len(),
-                        call_site: None,
-                        decl_span: root.template.decl_span.into(),
-                    },
-                ));
+        } else if root.eff_param_names.len() == instance.eff_args.len() {
+            for (name, row) in root.eff_param_names.iter().zip(&instance.eff_args) {
+                substitution.effect_params.insert(name.clone(), row.clone());
             }
+        } else {
+            return Err(materialize_err(
+                MirMaterializeError::EffectArgArityMismatch {
+                    fqn: root.template.fqn.clone(),
+                    expected: root.eff_param_names.len(),
+                    found: instance.eff_args.len(),
+                    call_site: None,
+                    decl_span: root.template.decl_span.into(),
+                },
+            ));
         }
 
         Ok(substitution)
@@ -432,8 +432,16 @@ impl MirInstanceMaterializer {
                 .collect(),
             effect_params: HashMap::new(),
         };
-        if let (Some(name), [row]) = (&signature.eff_param_name, instance.eff_args.as_slice()) {
-            substitution.effect_params.insert(name.clone(), row.clone());
+        if signature.eff_param_names.len() == instance.eff_args.len() {
+            for (name, row) in signature.eff_param_names.iter().zip(&instance.eff_args) {
+                substitution.effect_params.insert(name.clone(), row.clone());
+            }
+        } else if instance.eff_args.is_empty() {
+            for name in &signature.eff_param_names {
+                substitution
+                    .effect_params
+                    .insert(name.clone(), EffectRow::pure());
+            }
         }
         substitution
     }

@@ -118,6 +118,20 @@ fn fact_identities(facts: &HirFacts) -> Vec<&FactIdentity> {
             .iter()
             .map(|fact| &fact.identity),
     );
+    identities.extend(
+        facts
+            .declarations
+            .generic_templates
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .declarations
+            .callable_bodies
+            .iter()
+            .map(|fact| &fact.identity),
+    );
     identities.extend(facts.declarations.fields.iter().map(|fact| &fact.identity));
     identities.extend(
         facts
@@ -262,6 +276,13 @@ fn source_site_keys(facts: &HirFacts) -> Vec<SourceSiteKey> {
             .call_site_instances
             .iter()
             .map(|fact| source_site_key(&fact.identity, "call_instance", String::new())),
+    );
+    keys.extend(
+        facts
+            .source_sites
+            .template_site_bindings
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "template_site_binding", String::new())),
     );
     keys.extend(
         facts

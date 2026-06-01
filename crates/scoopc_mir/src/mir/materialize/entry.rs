@@ -60,18 +60,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         request_root_mode,
         opt_level,
     } = options;
-    let mut template_catalog = collect_generic_template_infos_with_source_cones(
-        &stable_cone_key,
-        source_cones,
-        index,
-        compilation_unit,
-    );
-    let callable_body_infos = collect_callable_body_infos(compilation_unit);
-    // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
-    // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
-    // `monomorph_requests` 决定初始请求种子，而不是把 template 提供者排除在外。
-    let (top_level_fun_value_refs, top_level_fun_call_bindings) =
-        collect_site_instance_bindings(compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         stable_cone_key.clone(),
         index,
@@ -85,7 +73,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
             .iter()
             .map(|(path, info)| (path.clone(), info.clone())),
     );
-    retag_generic_template_infos_with_hir_stable_keys(&mut template_catalog, &lowered_hir);
     let request_root_fun_keys =
         collect_request_root_fun_keys(&lowered_hir, request_source_paths, index, request_root_mode);
     let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();
@@ -124,20 +111,20 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         default_contract_source_path,
     )
     .map_err(crate::hir::HirLowerError::from)?;
+    let template_catalog = collect_generic_template_infos_from_hir_facts(&hir_facts)?;
+    let callable_body_infos = collect_callable_body_infos_from_hir_facts(&hir_facts);
     let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
         typecheck_types,
         monomorph_requests,
         &hir_facts,
-    )
-    .or_else(|_| {
-        stabilize_monomorph_requests(typecheck_types, monomorph_requests, &template_catalog)
-    })?;
+    )?;
     let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests_from_hir_facts(
         &lowered_hir,
         &hir_facts,
         &template_catalog,
     )?;
     let call_site_instance_facts = hir_facts.source_sites.call_site_instances.clone();
+    let template_site_binding_facts = hir_facts.source_sites.template_site_bindings.clone();
     let facts = super::super::MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = super::super::lower_hir_file_for_dump_with_facts(
         builtins,
@@ -162,6 +149,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 callable_body_infos,
                 callable_signatures,
                 call_site_instance_facts,
+                template_site_binding_facts,
                 known_receiver_subclasses,
                 direct_subclasses,
                 class_vtables,
@@ -170,8 +158,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 enum_layouts,
                 extern_funs,
                 native_callable_funs,
-                top_level_fun_value_refs,
-                top_level_fun_call_bindings,
                 lowered_top_level_fun_call_bindings,
                 ctor_call_sites,
                 top_level_vars,
@@ -300,6 +286,7 @@ fn containing_hir_fun_site(
         .map(|fun| (fun.source_path.clone(), fun.span))
 }
 
+#[cfg(test)]
 pub(super) fn stabilize_monomorph_requests(
     typecheck_types: &TypeStore,
     monomorph_requests: &[MonomorphRequest],
@@ -366,6 +353,7 @@ pub(super) fn stabilize_monomorph_requests(
         .collect()
 }
 
+#[cfg(test)]
 fn stable_template_key_by_containing_span(
     template_catalog: &[GenericTemplateInfo],
     key: &crate::monomorph::MonomorphKey,
@@ -403,41 +391,8 @@ pub(super) fn stabilize_monomorph_requests_from_hir_facts(
             if key.stable_template_key.is_some() && key.stable_instance_key.is_some() {
                 return Ok(request.clone());
             }
-            let Some(fact) = stable_call_site_instance_fact_for_request(hir_facts, request) else {
-                return Err(materialize_err(
-                    MirMaterializeError::MissingGenericTemplate {
-                        fqn: key.symbol.fqn.clone(),
-                        file: key.symbol.decl_file.display().to_string(),
-                        span: key.symbol.decl_span,
-                        call_file: Some(request.request_source_path.display().to_string()),
-                        call_site: Some(request.call_span),
-                    },
-                ));
-            };
-            let stable_template_key = StableTemplateKey::from_canonical_text(
-                fact.template_key.as_str(),
-            )
-            .map_err(|err| {
-                frontend_err(format!(
-                    "HIR call-site fact for `{}` has invalid stable template key: {err}",
-                    key.symbol.fqn
-                ))
-            })?;
-            let stable_instance_key = StableInstanceKey::from_canonical_text(
-                fact.stable_instance_key.as_str(),
-            )
-            .map_err(|err| {
-                frontend_err(format!(
-                    "HIR call-site fact for `{}` has invalid stable instance key: {err}",
-                    key.symbol.fqn
-                ))
-            })?;
-            if stable_instance_key.template() != &stable_template_key {
-                return Err(frontend_err(format!(
-                    "HIR call-site fact for `{}` has mismatched stable template/instance keys",
-                    key.symbol.fqn
-                )));
-            }
+            let (stable_template_key, stable_instance_key) =
+                stable_request_identity_from_hir_facts(typecheck_types, hir_facts, request)?;
             let mut request = request.clone();
             request.key = request
                 .key
@@ -445,6 +400,82 @@ pub(super) fn stabilize_monomorph_requests_from_hir_facts(
             Ok(request)
         })
         .collect()
+}
+
+fn stable_request_identity_from_hir_facts(
+    typecheck_types: &TypeStore,
+    hir_facts: &scoopc_hir::hir_facts::HirFacts,
+    request: &MonomorphRequest,
+) -> MaterializeResult<(StableTemplateKey, StableInstanceKey)> {
+    let key = &request.key;
+    if let Some(fact) = stable_call_site_instance_fact_for_request(hir_facts, request) {
+        let stable_template_key =
+            StableTemplateKey::from_canonical_text(fact.template_key.as_str()).map_err(|err| {
+                frontend_err(format!(
+                    "HIR call-site fact for `{}` has invalid stable template key: {err}",
+                    key.symbol.fqn
+                ))
+            })?;
+        let stable_instance_key = StableInstanceKey::from_canonical_text(
+            fact.stable_instance_key.as_str(),
+        )
+        .map_err(|err| {
+            frontend_err(format!(
+                "HIR call-site fact for `{}` has invalid stable instance key: {err}",
+                key.symbol.fqn
+            ))
+        })?;
+        if stable_instance_key.template() != &stable_template_key {
+            return Err(frontend_err(format!(
+                "HIR call-site fact for `{}` has mismatched stable template/instance keys",
+                key.symbol.fqn
+            )));
+        }
+        return Ok((stable_template_key, stable_instance_key));
+    }
+
+    let Some(template_fact) = hir_facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| {
+            fact.request_fqn == key.symbol.fqn
+                && fact.request_source_path == key.symbol.decl_file
+                && fact.request_span == key.symbol.decl_span
+        })
+    else {
+        return Err(materialize_err(
+            MirMaterializeError::MissingGenericTemplate {
+                fqn: key.symbol.fqn.clone(),
+                file: key.symbol.decl_file.display().to_string(),
+                span: key.symbol.decl_span,
+                call_file: Some(request.request_source_path.display().to_string()),
+                call_site: Some(request.call_span),
+            },
+        ));
+    };
+    let stable_template_key =
+        StableTemplateKey::from_canonical_text(template_fact.stable_template_key.as_str())
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR generic template fact for `{}` has invalid stable template key: {err}",
+                    key.symbol.fqn
+                ))
+            })?;
+    let stable_instance_key = StableInstanceKey::from_type_arguments(
+        stable_template_key.clone(),
+        typecheck_types,
+        &key.type_args,
+        &key.eff_args,
+        &NoTypeParamResolver,
+    )
+    .map_err(|err| {
+        frontend_err(format!(
+            "无法为 monomorph request `{}` 构造 stable instance key: {err}",
+            key.symbol.fqn
+        ))
+    })?;
+    Ok((stable_template_key, stable_instance_key))
 }
 
 fn stable_call_site_instance_fact_for_request<'a>(

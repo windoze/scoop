@@ -24,7 +24,9 @@ use std::path::PathBuf;
 
 use crate::ast;
 use crate::span::Span;
+use crate::stable_id::StableTemplateKey;
 use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
+use scoopc_ids::TemplateKey;
 
 pub(crate) use crate::ty::EFFECT_ROW_PARAM_DECL_FILE;
 pub use lower::GenericTemplateSymbolSuffixIndex;
@@ -1232,6 +1234,39 @@ pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
 /// - 主要供 generic MIR lowering / materialization / production reachability 在不回退到
 ///   backend 现场猜目标的前提下，恢复 operator overload、`compareTo` 等语法糖的真实 callee。
 pub type TopLevelFunCallSiteIndex = HashMap<CallSite, ast::TopLevelFunCallBinding>;
+
+/// 由 typecheck 确认的 generic function-value 绑定索引。
+pub type TopLevelFunValueRefIndex = HashMap<CallSite, ast::TopLevelFunValueRef>;
+
+/// HIR handoff 中 materializer-ready 的 generic template inventory。
+#[derive(Debug, Clone)]
+pub struct GenericTemplateInventory {
+    pub request_lookup_key: GenericTemplateRequestLookupKey,
+    pub template: TemplateKey,
+    pub stable_template_key: StableTemplateKey,
+    pub canonical_root_key: String,
+    pub owner_type_param_names: Vec<String>,
+    pub function_type_param_names: Vec<String>,
+    pub owner_eff_param_name: Option<String>,
+    pub function_eff_param_name: Option<String>,
+    pub signature_key: String,
+    pub has_body: bool,
+    pub body_key: Option<String>,
+}
+
+/// HIR handoff 中 materializer-ready 的 callable body inventory。
+#[derive(Debug, Clone)]
+pub struct CallableBodyInventory {
+    pub body_key: String,
+    pub request_lookup_key: GenericTemplateRequestLookupKey,
+    pub source_path: PathBuf,
+    pub fqn: String,
+    pub body_span: Span,
+    pub stable_template_key: Option<StableTemplateKey>,
+}
+
+/// Lookup payload preserved by HIR facts for request-to-template transport.
+pub type GenericTemplateRequestLookupKey = (String, PathBuf, Span);
 
 /// 由 typecheck 确认的 canonical call-argument 绑定索引：`source_path + expr span` → param slots。
 pub type CallArgBindingSiteIndex = HashMap<CallSite, ast::CallArgBinding>;

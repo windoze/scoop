@@ -14,7 +14,7 @@
 | T1-01R | [DONE] | Review T1-01 表示与稳定性 |
 | T1-02A | [DONE] | Stable request/direct-call identity transport 前置落地（MonomorphRequest stable key seed + `CallKind::Direct` stable instance carrier） |
 | T1-02B | [DONE] | HIR stable call-site facts + MIR Direct stable template carrier foundation |
-| T1-02C | [TODO] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
+| T1-02C | [DONE] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
 | T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
@@ -117,7 +117,7 @@
   - 补充 `stable_id` canonical text parse round-trip 单测，以及 HIR facts/MIR direct-call stable carrier 回归测试。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
-### [TODO] T1-02C：Materializer-ready template/body/site-binding inventory + non-concrete generic site facts
+### [DONE] T1-02C：Materializer-ready template/body/site-binding inventory + non-concrete generic site facts
 
 - 背景：执行 `T1-02` 的 fallback 删除时发现，`T1-02B` 已发布的 `CallSiteInstanceFact` 只覆盖 concrete stable instance；泛型函数体内的 owner/effect-param 调用（例如 `box.forward<eff E>()`）不能构造 concrete `StableInstanceKey`，仍必须靠旧 `(fqn, decl_file, decl_span)` site binding 承接。另一个阻塞是 materializer 的 template/body catalog 仍需 AST 侧声明参数清单（尤其 owner type/eff params 和未在签名中出现的参数），`LoweredHir`/`HirFacts` 尚未发布 materializer-ready inventory。
 - 必须实现的内容：
@@ -129,7 +129,14 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：materializer 不再扫描 AST/HIR 重建 template/body/site binding；owner/effect-param 非 concrete generic call site 由上游 fact 表达；当前 T1-02 的 fallback 删除不再被 template/body/site inventory 缺口阻塞。
 - 依赖：T1-02B
-- 完成记录：（待填）
+- 完成记录：
+  - HIR handoff 新增 materializer-ready generic template/body inventory：`LoweredHir` 携带 `generic_template_inventory` / `callable_body_inventory`，HIR facts 发布 `GenericTemplateFact` / `CallableBodyFact`，包含 stable template key、canonical root/body key、request lookup、owner/function type/effect 参数名、signature key 与 body identity。
+  - HIR source-site facts 新增 template-level site binding：非 concrete generic direct-call（如 `box.forward<eff E>()`）发布 `TemplateSiteBindingFact`，function-value generic binding 也通过 HIR side table/fact 发布；concrete call site 继续使用 `CallSiteInstanceFact`。
+  - materializer 主入口改为从 HIR facts 构造 template/body catalog、call-site instance bindings 与 template-level bindings；生产路径不再调用 `collect_generic_template_infos_with_source_cones`、`collect_callable_body_infos`、`collect_site_instance_bindings` 或 `stabilize_monomorph_requests` 的 AST/decl-site fallback。
+  - monomorph request stable identity 优先消费 concrete `CallSiteInstanceFact`；对无 call-site fact 的 concrete request，改用 HIR `GenericTemplateFact` 的精确 request lookup 构造 stable instance key，不再做 materializer 侧 span containment / decl-site fallback。
+  - materializer template/signature/root substitution 支持多个 effect 参数名，保留 owner effect args 与 function effect args 的顺序进入 canonical instance identity。
+  - 回归测试：新增 `hir_facts_publish_template_inventory_and_non_concrete_site_binding`，并保留 owner-specialized effect generic member materialization 覆盖。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 

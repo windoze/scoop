@@ -22,9 +22,10 @@ use scoopc_hir_facts::{
     HirFacts,
     common::FactIdentity,
     declarations::{
-        CallableDeclarationFact, DeclarationFacts, DispatchSlotFact, DispatchTableFact,
-        EnumVariantDeclarationFact, FieldDeclarationFact, FieldOwnerKind, NominalDeclarationFact,
-        NominalKind as HirFactNominalKind, TypeParameterFact, Variance as HirFactVariance,
+        CallableBodyFact, CallableDeclarationFact, DeclarationFacts, DispatchSlotFact,
+        DispatchTableFact, EnumVariantDeclarationFact, FieldDeclarationFact, FieldOwnerKind,
+        GenericTemplateFact, NominalDeclarationFact, NominalKind as HirFactNominalKind,
+        TypeParameterFact, Variance as HirFactVariance,
     },
     globals::{
         GlobalRootFact, GlobalRootKind, GlobalStoragePolicy, InitializerFact, InitializerFieldFact,
@@ -2106,6 +2107,9 @@ fn populate_source_site_facts(
         if let Some(instance_fact) = call_site_instance_fact(call_site, contract) {
             facts.call_site_instances.push(instance_fact);
         }
+        if let Some(binding_fact) = template_site_binding_fact(call_site, contract) {
+            facts.template_site_bindings.push(binding_fact);
+        }
         if let Some(candidate_fact) = dispatch_candidate_fact(call_site, contract) {
             facts.dispatch_candidates.push(candidate_fact);
         }
@@ -2118,6 +2122,18 @@ fn populate_source_site_facts(
                 });
         }
     }
+
+    facts
+        .template_site_bindings
+        .extend(template_value_binding_facts(lowered_hir));
+    facts.template_site_bindings.sort_by(|lhs, rhs| {
+        lhs.identity
+            .source_path
+            .cmp(&rhs.identity.source_path)
+            .then(lhs.identity.span.start.cmp(&rhs.identity.span.start))
+            .then(lhs.identity.span.end.cmp(&rhs.identity.span.end))
+            .then((lhs.kind as u8).cmp(&(rhs.kind as u8)))
+    });
 
     let mut assign_place_contracts = contracts.assign_place_contracts.iter().collect::<Vec<_>>();
     assign_place_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
@@ -2386,6 +2402,63 @@ fn call_site_instance_fact(
         type_args: function.type_args.clone(),
         eff_args: function.eff_args.clone(),
     })
+}
+
+fn template_site_binding_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::TemplateSiteBindingFact> {
+    let function = function_target_from_call_contract(contract)?;
+    if function.stable_instance_key.is_some()
+        || (function.type_args.is_empty() && function.eff_args.is_empty())
+    {
+        return None;
+    }
+    let template_key = function.stable_template_key.as_ref()?;
+    Some(hir_site_facts::TemplateSiteBindingFact {
+        identity: source_site_identity(call_site, "template_call_binding"),
+        kind: hir_site_facts::TemplateSiteBindingKind::DirectCall,
+        template_key: CanonicalTextKey::new(template_key.canonical_text()),
+        type_args: function.type_args.clone(),
+        eff_args: function.eff_args.clone(),
+    })
+}
+
+fn template_value_binding_facts(
+    lowered_hir: &LoweredHir,
+) -> Vec<hir_site_facts::TemplateSiteBindingFact> {
+    let templates_by_request = lowered_hir
+        .generic_template_inventory
+        .iter()
+        .map(|info| {
+            (
+                info.request_lookup_key.clone(),
+                info.stable_template_key.clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut out = Vec::new();
+    for (site, binding) in &lowered_hir.top_level_fun_value_refs {
+        if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+            continue;
+        }
+        let lookup = (
+            binding.fqn.clone(),
+            binding.decl_file.clone(),
+            binding.decl_span,
+        );
+        let Some(template_key) = templates_by_request.get(&lookup) else {
+            continue;
+        };
+        out.push(hir_site_facts::TemplateSiteBindingFact {
+            identity: source_site_identity(site, "template_value_binding"),
+            kind: hir_site_facts::TemplateSiteBindingKind::FunValue,
+            template_key: CanonicalTextKey::new(template_key.canonical_text()),
+            type_args: binding.type_args.clone(),
+            eff_args: binding.eff_args.clone(),
+        });
+    }
+    out
 }
 
 fn dispatch_candidate_fact(
@@ -2936,6 +3009,7 @@ fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     }
     collect_missing_nominal_side_table_facts(facts, lowered_hir);
     collect_callable_declaration_facts(facts, lowered_hir);
+    collect_materializer_inventory_facts(facts, lowered_hir);
     collect_layout_field_facts(facts, lowered_hir);
     collect_dispatch_declaration_facts(facts, lowered_hir);
 
@@ -2945,6 +3019,24 @@ fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     facts
         .callables
         .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts.generic_templates.sort_by(|lhs, rhs| {
+        lhs.template_source_path
+            .cmp(&rhs.template_source_path)
+            .then(
+                lhs.template_decl_span
+                    .start
+                    .cmp(&rhs.template_decl_span.start),
+            )
+            .then(lhs.template_decl_span.end.cmp(&rhs.template_decl_span.end))
+            .then(lhs.template_fqn.cmp(&rhs.template_fqn))
+    });
+    facts.callable_bodies.sort_by(|lhs, rhs| {
+        lhs.source_path
+            .cmp(&rhs.source_path)
+            .then(lhs.body_span.start.cmp(&rhs.body_span.start))
+            .then(lhs.body_span.end.cmp(&rhs.body_span.end))
+            .then(lhs.fqn.cmp(&rhs.fqn))
+    });
     facts.fields.sort_by(|lhs, rhs| {
         lhs.owner
             .as_str()
@@ -3136,6 +3228,65 @@ fn collect_callable_declaration_facts(facts: &mut DeclarationFacts, lowered_hir:
             .callables
             .push(callable_declaration_fact(lowered_hir, fun));
     }
+}
+
+fn collect_materializer_inventory_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    facts.generic_templates = lowered_hir
+        .generic_template_inventory
+        .iter()
+        .map(|info| GenericTemplateFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(format!(
+                    "generic_template_inventory:{}:{}:{}..{}",
+                    info.stable_template_key.canonical_text(),
+                    info.template.source_path.display(),
+                    info.template.decl_span.start,
+                    info.template.decl_span.end
+                )),
+                &info.template.fqn,
+                lowered_hir.stable_cone_key.clone(),
+                None,
+            ),
+            stable_template_key: CanonicalTextKey::new(info.stable_template_key.canonical_text()),
+            canonical_root_key: CanonicalTextKey::new(info.canonical_root_key.clone()),
+            template_fqn: info.template.fqn.clone(),
+            template_source_path: info.template.source_path.clone(),
+            template_decl_span: info.template.decl_span,
+            request_fqn: info.request_lookup_key.0.clone(),
+            request_source_path: info.request_lookup_key.1.clone(),
+            request_span: info.request_lookup_key.2,
+            owner_type_param_names: info.owner_type_param_names.clone(),
+            function_type_param_names: info.function_type_param_names.clone(),
+            owner_eff_param_name: info.owner_eff_param_name.clone(),
+            function_eff_param_name: info.function_eff_param_name.clone(),
+            signature_key: CanonicalTextKey::new(info.signature_key.clone()),
+            has_body: info.has_body,
+            body_key: info.body_key.clone().map(CanonicalTextKey::new),
+        })
+        .collect();
+    facts.callable_bodies = lowered_hir
+        .callable_body_inventory
+        .iter()
+        .map(|info| CallableBodyFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(info.body_key.clone()),
+                &info.fqn,
+                lowered_hir.stable_cone_key.clone(),
+                None,
+            ),
+            body_key: CanonicalTextKey::new(info.body_key.clone()),
+            request_fqn: info.request_lookup_key.0.clone(),
+            request_source_path: info.request_lookup_key.1.clone(),
+            request_span: info.request_lookup_key.2,
+            source_path: info.source_path.clone(),
+            fqn: info.fqn.clone(),
+            body_span: info.body_span,
+            stable_template_key: info
+                .stable_template_key
+                .as_ref()
+                .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        })
+        .collect();
 }
 
 fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {

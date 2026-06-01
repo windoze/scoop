@@ -58,6 +58,8 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) callable_signatures: Vec<CallableSignatureInfo>,
     pub(super) call_site_instance_facts:
         Vec<scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact>,
+    pub(super) template_site_binding_facts:
+        Vec<scoopc_hir::hir_facts::source_sites::TemplateSiteBindingFact>,
     pub(super) known_receiver_subclasses: super::super::KnownReceiverSubclassIndex,
     pub(super) direct_subclasses: HashMap<String, BTreeSet<String>>,
     pub(super) class_vtables: crate::vtable::ClassVtableIndex,
@@ -66,8 +68,6 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) enum_layouts: crate::hir::EnumLayoutIndex,
     pub(super) extern_funs: crate::hir::ExternFunIndex,
     pub(super) native_callable_funs: crate::hir::NativeCallableFunIndex,
-    pub(super) top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
-    pub(super) top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) lowered_top_level_fun_call_bindings:
         HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) ctor_call_sites: crate::hir::CtorCallSiteIndex,
@@ -424,6 +424,7 @@ pub(super) fn collect_dump_materialization_inputs(
     })
 }
 
+#[cfg(test)]
 pub(super) fn collect_site_instance_bindings(
     files_to_lower: &[(&SourceFile, &ast::File)],
 ) -> (

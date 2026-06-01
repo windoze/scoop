@@ -175,6 +175,18 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         &pairs,
         &HashMap::new(),
     );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            &index,
+            &[(source, &ast)],
+            &HashMap::new(),
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        &[(source, &ast)],
+        &generic_template_inventory,
+    );
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
@@ -332,6 +344,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         &file,
         &member_funs,
     ));
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs(&[(source, &ast)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     let stable_type_param_keys =
         collect_stable_type_param_keys(&[(source, &ast)], &stable_cone_key);
@@ -357,6 +370,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         source_cone_order,
         stable_type_param_keys,
         generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -368,6 +383,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,

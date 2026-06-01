@@ -221,6 +221,98 @@ fun entry(): Int {
     assert!(direct_call.1.is_some());
 }
 
+#[test]
+fn hir_facts_publish_template_inventory_and_non_concrete_site_binding() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/hir_fact_non_concrete_template_binding.scoop",
+        r#"
+package fixtures.materialize
+
+effect Boom {
+fun ping(): Unit
+}
+
+class Box<T>(val value: T) {
+fun <eff E = Pure> forward(): T / E {
+    return value
+}
+}
+
+fun <eff E = Pure> wrap(box: Box<Int>): Int / E {
+return box.forward<eff E>()
+}
+
+fun entry(): Int / Boom {
+return wrap<eff Boom>(Box(1))
+}
+"#,
+    );
+    let (files, index, env, typecheck_types, _) =
+        prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+    let compilation_unit = files
+        .iter()
+        .map(|(source, ast)| (source, ast))
+        .collect::<Vec<_>>();
+    let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+    let lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        stable_cone_key,
+        &index,
+        &compilation_unit,
+        &compilation_unit,
+        Some(&env),
+        &typecheck_types,
+    )
+    .unwrap();
+    let facts =
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+
+    let forward_template = facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| fact.template_fqn == "fixtures.materialize.Box.forward")
+        .expect("generic member template inventory should include Box.forward");
+    assert_eq!(
+        forward_template.owner_type_param_names,
+        vec!["T".to_string()]
+    );
+    assert!(forward_template.function_type_param_names.is_empty());
+    assert_eq!(forward_template.owner_eff_param_name, None);
+    assert_eq!(
+        forward_template.function_eff_param_name.as_deref(),
+        Some("E")
+    );
+    assert!(forward_template.has_body);
+    assert!(forward_template.body_key.is_some());
+
+    assert!(facts.declarations.callable_bodies.iter().any(|body| {
+        body.fqn == "fixtures.materialize.Box.forward"
+            && body.stable_template_key.as_ref() == Some(&forward_template.stable_template_key)
+    }));
+
+    let binding = facts
+        .source_sites
+        .template_site_bindings
+        .iter()
+        .find(|fact| fact.template_key == forward_template.stable_template_key)
+        .expect("non-concrete forward<eff E> call should publish template-level binding");
+    assert_eq!(
+        binding.kind,
+        scoopc_hir::hir_facts::source_sites::TemplateSiteBindingKind::DirectCall
+    );
+    assert_eq!(binding.type_args.len(), 1);
+    assert_eq!(binding.eff_args.len(), 1);
+    assert!(
+        facts
+            .source_sites
+            .call_site_instances
+            .iter()
+            .all(|fact| fact.template_key != forward_template.stable_template_key),
+        "non-concrete generic call site must not require a concrete StableInstanceKey"
+    );
+}
+
 fn test_span() -> Span {
     Span::new(10, 20)
 }
@@ -451,7 +543,7 @@ fn generic_materializer_for_body_with_template(
                 template: template.clone(),
                 stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                 type_param_names: Vec::new(),
-                eff_param_name: eff_param_name.clone(),
+                eff_param_names: eff_param_name.clone().into_iter().collect(),
                 signature_key: "fun||id||Unit".to_string(),
                 has_body: true,
             }],
@@ -465,6 +557,7 @@ fn generic_materializer_for_body_with_template(
                 has_generic_params_or_effect_param: false,
             }],
             call_site_instance_facts: Vec::new(),
+            template_site_binding_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -473,8 +566,6 @@ fn generic_materializer_for_body_with_template(
             enum_layouts: HashMap::new(),
             extern_funs: HashMap::new(),
             native_callable_funs: HashMap::new(),
-            top_level_fun_value_refs: HashMap::new(),
-            top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
@@ -2224,13 +2315,14 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
                 template: template.clone(),
                 stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                 type_param_names: Vec::new(),
-                eff_param_name: None,
+                eff_param_names: Vec::new(),
                 signature_key: "fun||id||Unit".to_string(),
                 has_body: true,
             }],
             callable_body_infos: Vec::new(),
             callable_signatures: Vec::new(),
             call_site_instance_facts: Vec::new(),
+            template_site_binding_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -2239,8 +2331,6 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             enum_layouts: HashMap::new(),
             extern_funs: HashMap::new(),
             native_callable_funs: HashMap::new(),
-            top_level_fun_value_refs: HashMap::new(),
-            top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
@@ -2319,7 +2409,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                 template: template.clone(),
                 stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                 type_param_names: Vec::new(),
-                eff_param_name: None,
+                eff_param_names: Vec::new(),
                 signature_key: "fun||id||Unit".to_string(),
                 has_body: true,
             }],
@@ -2350,6 +2440,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                     eff_args: Vec::new(),
                 },
             ],
+            template_site_binding_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -2358,8 +2449,6 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             enum_layouts: HashMap::new(),
             extern_funs: HashMap::new(),
             native_callable_funs: HashMap::new(),
-            top_level_fun_value_refs: HashMap::new(),
-            top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
@@ -3005,8 +3094,7 @@ return 0
         stabilize_monomorph_requests(&typecheck_types, &monomorph_requests, &template_infos)
             .unwrap();
     let callable_body_infos = collect_callable_body_infos(&compilation_unit);
-    let (top_level_fun_value_refs, top_level_fun_call_bindings) =
-        collect_site_instance_bindings(&compilation_unit);
+    let (_, top_level_fun_call_bindings) = collect_site_instance_bindings(&compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         stable_cone_key.clone(),
         &index,
@@ -3088,6 +3176,7 @@ return 0
             callable_body_infos,
             callable_signatures,
             call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
+            template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -3096,8 +3185,6 @@ return 0
             enum_layouts,
             extern_funs,
             native_callable_funs,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
@@ -3994,8 +4081,6 @@ println(holder.node.tag.score)
     );
 
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
-    let (top_level_fun_value_refs, top_level_fun_call_bindings) =
-        collect_site_instance_bindings(&compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         stable_cone_key.clone(),
         &inputs.index,
@@ -4086,6 +4171,7 @@ println(holder.node.tag.score)
             callable_body_infos,
             callable_signatures,
             call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
+            template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -4094,8 +4180,6 @@ println(holder.node.tag.score)
             enum_layouts,
             extern_funs,
             native_callable_funs,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
@@ -4471,8 +4555,7 @@ return read(ints) + read(texts)
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
-    let (top_level_fun_value_refs, top_level_fun_call_bindings) =
-        collect_site_instance_bindings(&compilation_unit);
+    let (_, top_level_fun_call_bindings) = collect_site_instance_bindings(&compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         stable_cone_key.clone(),
         &inputs.index,
@@ -4546,6 +4629,7 @@ return read(ints) + read(texts)
             callable_body_infos,
             callable_signatures,
             call_site_instance_facts: Vec::new(),
+            template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -4554,8 +4638,6 @@ return read(ints) + read(texts)
             enum_layouts,
             extern_funs,
             native_callable_funs,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
