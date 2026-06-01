@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | T2-01E | [DONE] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
 | T2-01F | [DONE] | Restore full fixture baseline observed during T2-01 validation |
-| T2-01 | [TODO] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
+| T2-01 | [DONE] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [TODO] | Review T2-01 |
 | T2-02 | [TODO] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [TODO] | Review T2-02 |
@@ -84,7 +84,7 @@
 - 依赖：T2-01E
 - 完成记录：2026-06-01 完成。恢复 T2-01 validation 期间观察到的完整 fixture baseline：修复 dependency cone artifact 读取失败的根因，移除 MIR metadata 默认字段上的 `skip_serializing_if`，避免这些字段经 LIR `lir_program.bin` bincode 持久化时发生字段错位，并新增 `mir_metadata_default_fields_are_bincode_stable` 回归测试覆盖 `TopLevelRef` / `DispatchMetadata` / `CallKind::Direct` 的空默认字段 roundtrip。同步 5 个已确认语义正确的 snapshot golden（`effect_lowered/handle_finally_boundary.scoop`、`effect_lowered/nested_handle_self_contained_vs_outward.scoop`、`mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_materialized/pass_pipeline_metadata.scoop`），反映当前常量 operand 不再强制落临时 local 后的 MIR/LIR 输出与 source-slice/state-id 更新。验证：7 个 T2-01E 记录的剩余 targeted fixtures 全部通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-01：HIR source-level effect facts + 统一 expression inference
+### [DONE] T2-01：HIR source-level effect facts + 统一 expression inference
 
 - 参考：`PLAN.md` §2.3/§3/§4；`EFFECT_INFER.md` §72-153；`FACT_GAPS.md` FG-06/09(source)。`crates/scoopc_hir/src/typecheck/expr/stmt.rs` `check_required_effects_for_fun_decl`、`stage.rs` `FunctionEffectContract`。
 - 必须实现的内容：
@@ -96,7 +96,7 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`；新增/更新 typecheck fixtures。
 - 完成条件：HIR 发布完整分层 source facts + canonical semantic facts；表达式 effect 无语法后门；hidden init effect 由 HIR fact 提供。
 - 依赖：T2-01F
-- 完成记录：2026-06-01 部分实现已落地：`HirFacts.source_sites` 新增 `CallableSourceEffectFacts`、`CanonicalSemanticOperationFact`、`HiddenInitializerEffectFact`，HIR `FunDecl` 保留显式 source row 元数据，HIR stage 基于 canonical call/perform/handle contracts 计算 direct/inferred/published source rows，并发布 hidden init summaries。新增 `tests/fixtures/typecheck/hir_source_effect_facts_polymorphic_ok.scoop`；同步 HIR golden 摘要计数。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets` 通过。完整 `python3 tools/run_fixtures.py` 已运行但未通过，发现 41 个 failures；已插入前置 `T2-01F`，因此本任务保持未完成，完成前必须先恢复完整 fixture baseline。
+- 完成记录：2026-06-01 完成。`HirFacts.source_sites` 已发布 `CallableSourceEffectFacts`、`CanonicalSemanticOperationFact`、`HiddenInitializerEffectFact`，HIR `FunDecl` 保留显式 source row 元数据，HIR stage 基于 canonical call/perform/handle contracts 统一计算 direct/inferred/published source rows，并发布 class ctor / object init / top-level init hidden summaries。新增 `tests/fixtures/typecheck/hir_source_effect_facts_polymorphic_ok.scoop`；同步 HIR golden 摘要计数。此前完整 fixture baseline 阻塞已由前置 `T2-01E` / `T2-01F` 修复。验证：`T2-01` 实现提交已运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 通过；`T2-01F` 恢复 baseline 后又运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 完整通过（1664 checks）。本次收口仅更新任务文档，代码自上述绿色验证后未改变，故复用该完整验证结果。
 
 ### [TODO] T2-01R：Review T2-01
 - 验证：`python3 tools/run_fixtures.py`
