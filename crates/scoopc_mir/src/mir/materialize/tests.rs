@@ -222,6 +222,191 @@ fun entry(): Int {
 }
 
 #[test]
+fn hir_facts_publish_stable_instance_for_generic_property_getter_direct_call() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/hir_fact_generic_getter_call_site_instance.scoop",
+        r#"
+package fixtures.materialize
+
+struct Box<T>(val value: T) {
+    val readBack: T
+        get() = this.value
+}
+
+fun entry(): Int {
+    return Box(41).readBack + 1
+}
+"#,
+    );
+    let (files, index, env, typecheck_types, _) =
+        prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+    let compilation_unit = files
+        .iter()
+        .map(|(source, ast)| (source, ast))
+        .collect::<Vec<_>>();
+    let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+    let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        stable_cone_key,
+        &index,
+        &compilation_unit,
+        &compilation_unit,
+        Some(&env),
+        &typecheck_types,
+    )
+    .unwrap();
+    let facts =
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+
+    let getter_template = facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| fact.template_fqn == "fixtures.materialize.Box.readBack")
+        .expect("generic property getter should publish template inventory");
+    let call_instance = facts
+        .source_sites
+        .call_site_instances
+        .iter()
+        .find(|fact| fact.template_key == getter_template.stable_template_key)
+        .expect("generic property getter call should publish a stable call-site instance fact");
+    assert_eq!(call_instance.type_args.len(), 1);
+    assert!(call_instance.eff_args.is_empty());
+
+    let mir_facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &facts);
+    let file = lowered_hir.file.clone();
+    let member_funs = lowered_hir.member_funs.clone();
+    let generic_file = lower_hir_file_for_dump_with_facts(
+        lowered_hir.builtins,
+        &mut lowered_hir.types,
+        &file,
+        &member_funs,
+        &mir_facts,
+    );
+    let entry_fun = generic_file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == "fixtures.materialize.entry" => Some(fun),
+            _ => None,
+        })
+        .expect("entry MIR should be lowered");
+    assert!(
+        has_direct_call_with_stable_carrier(entry_fun, "fixtures.materialize.Box.readBack", true,),
+        "generic property getter direct call should carry stable template and instance keys"
+    );
+}
+
+#[test]
+fn hir_facts_publish_stable_carriers_for_atomic_load_and_generic_intrinsic_helper() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/hir_fact_atomic_load_call_site_instance.scoop",
+        r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+class Node(val value: Int)
+
+fun entry(): Node {
+    val atomic = Atomic(Node(41))
+    return atomic.load()
+}
+"#,
+    );
+    let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+    let compilation_unit = inputs
+        .prepared_files
+        .iter()
+        .map(|file| (&file.source, &file.ast))
+        .collect::<Vec<_>>();
+    let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+    let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        stable_cone_key,
+        &inputs.index,
+        &compilation_unit,
+        &compilation_unit,
+        Some(&inputs.env),
+        &inputs.typecheck_types,
+    )
+    .unwrap();
+
+    let source_facts =
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let atomic_load_template = source_facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| fact.template_fqn == "scoop.core.Atomic.load")
+        .expect("sysroot Atomic.load should publish template inventory");
+    let atomic_load_instance = source_facts
+        .source_sites
+        .call_site_instances
+        .iter()
+        .find(|fact| fact.template_key == atomic_load_template.stable_template_key)
+        .expect("Atomic<Node>.load call should publish a stable call-site instance fact");
+    assert_eq!(atomic_load_instance.type_args.len(), 1);
+
+    let core_source_path = inputs
+        .prepared_files
+        .iter()
+        .find(|file| {
+            file.source
+                .path()
+                .file_name()
+                .is_some_and(|name| name == "core.scoop")
+        })
+        .expect("sysroot core.scoop should be part of materialization inputs")
+        .source
+        .path()
+        .to_path_buf();
+    let core_facts = scoopc_hir::stage::build_hir_facts_from_lowered_hir(
+        &lowered_hir,
+        core_source_path.as_path(),
+    )
+    .unwrap();
+    let atomic_ref_load_template = core_facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| fact.template_fqn == "scoop.unsafe.__atomicRefLoad")
+        .expect("sysroot __atomicRefLoad should publish template inventory");
+    let atomic_ref_load_binding = core_facts
+        .source_sites
+        .template_site_bindings
+        .iter()
+        .find(|fact| fact.template_key == atomic_ref_load_template.stable_template_key)
+        .expect(
+            "generic Atomic.load body should publish a template binding for __atomicRefLoad<T>",
+        );
+    assert_eq!(atomic_ref_load_binding.type_args.len(), 1);
+
+    let mir_facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &core_facts);
+    let file = lowered_hir.file.clone();
+    let member_funs = lowered_hir.member_funs.clone();
+    let generic_file = lower_hir_file_for_dump_with_facts(
+        lowered_hir.builtins,
+        &mut lowered_hir.types,
+        &file,
+        &member_funs,
+        &mir_facts,
+    );
+    let atomic_load_fun = generic_file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == "scoop.core.Atomic.load" => Some(fun),
+            _ => None,
+        })
+        .expect("generic Atomic.load MIR template should be lowered");
+    assert!(
+        has_direct_call_with_stable_carrier(atomic_load_fun, "scoop.unsafe.__atomicRefLoad", false,),
+        "generic intrinsic helper direct call should carry at least a stable template key"
+    );
+}
+
+#[test]
 fn hir_facts_publish_template_inventory_and_non_concrete_site_binding() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -372,6 +557,39 @@ fn direct_call_fqns(fun: &FunDecl) -> Vec<String> {
             _ => None,
         })
         .collect()
+}
+
+fn has_direct_call_with_stable_carrier(
+    fun: &FunDecl,
+    expected_callee_fqn: &str,
+    require_stable_instance: bool,
+) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            let StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        kind:
+                            CallKind::Direct {
+                                callee_fqn,
+                                stable_template_key,
+                                stable_instance_key,
+                            },
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                return false;
+            };
+            callee_fqn == expected_callee_fqn
+                && stable_template_key.is_some()
+                && (!require_stable_instance || stable_instance_key.is_some())
+        })
+    })
 }
 
 fn has_class_ctor_for_type(

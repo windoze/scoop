@@ -670,6 +670,19 @@ pub struct FunctionTargetContract {
     pub(crate) arg_binding: Option<CallArgBindingContract>,
 }
 
+struct SyntheticStableFunctionTarget {
+    fqn: String,
+    decl_file: PathBuf,
+    decl_span: Span,
+    abi_identity: CallableAbiIdentity,
+    stable_template_key: StableTemplateKey,
+    type_args: Vec<TypeId>,
+    eff_args: Vec<EffectRow>,
+    param_tys: Vec<TypeId>,
+    return_ty: Option<TypeId>,
+    arg_binding: Option<CallArgBindingContract>,
+}
+
 impl FunctionTargetContract {
     fn from_binding(
         types: &TypeStore,
@@ -747,6 +760,50 @@ impl FunctionTargetContract {
             stable_instance_key: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
+            arg_binding,
+        }
+    }
+
+    fn synthetic_with_stable_args(
+        types: &TypeStore,
+        target: SyntheticStableFunctionTarget,
+    ) -> Self {
+        let SyntheticStableFunctionTarget {
+            fqn,
+            decl_file,
+            decl_span,
+            abi_identity,
+            stable_template_key,
+            type_args,
+            eff_args,
+            param_tys,
+            return_ty,
+            arg_binding,
+        } = target;
+        let stable_instance_key = instance_args_are_concrete(types, &type_args, &eff_args)
+            .then(|| {
+                StableInstanceKey::from_type_arguments(
+                    stable_template_key.clone(),
+                    types,
+                    &type_args,
+                    &eff_args,
+                    &NoTypeParamResolver,
+                )
+                .ok()
+            })
+            .flatten();
+
+        Self {
+            fqn,
+            decl_file: Some(decl_file),
+            decl_span: Some(decl_span),
+            abi_identity,
+            param_tys,
+            return_ty,
+            stable_template_key: Some(stable_template_key),
+            stable_instance_key,
+            type_args,
+            eff_args,
             arg_binding,
         }
     }
@@ -4222,6 +4279,63 @@ impl<'a> ContractCollector<'a> {
             .map(|(_, stable)| stable.clone())
     }
 
+    fn synthetic_stable_member_target(
+        &self,
+        fqn: &str,
+        args: &[CallArg],
+        return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
+        arg_binding: Option<CallArgBindingContract>,
+    ) -> Option<FunctionTargetContract> {
+        let template_fqn = generic_template_base_fqn(fqn);
+        let receiver_ty = args.first().map(call_arg_value_ty)?;
+        let (owner_fqn, _) = self.member_binding_for_fqn(template_fqn)?;
+        let (receiver_fqn, owner_type_args, owner_eff_arg) =
+            match self.lowered_hir.types.kind(receiver_ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (
+                    nominal.fqn.as_str(),
+                    nominal.args.clone(),
+                    nominal.eff.clone(),
+                ),
+                _ => return None,
+            };
+        if receiver_fqn != owner_fqn {
+            return None;
+        }
+
+        let template = self
+            .lowered_hir
+            .generic_template_inventory
+            .iter()
+            .find(|template| {
+                template.template.fqn == template_fqn
+                    && template.owner_type_param_names.len() == owner_type_args.len()
+                    && template.function_type_param_names.is_empty()
+            })?;
+        let eff_args = match (&template.owner_eff_param_name, owner_eff_arg) {
+            (Some(_), Some(row)) => vec![row],
+            (Some(_), None) => return None,
+            (None, _) => Vec::new(),
+        };
+
+        Some(FunctionTargetContract::synthetic_with_stable_args(
+            &self.lowered_hir.types,
+            SyntheticStableFunctionTarget {
+                fqn: template_fqn.to_string(),
+                decl_file: template.template.source_path.clone(),
+                decl_span: template.template.decl_span,
+                abi_identity,
+                stable_template_key: template.stable_template_key.clone(),
+                type_args: owner_type_args,
+                eff_args,
+                param_tys: vec![receiver_ty],
+                return_ty: Some(return_ty),
+                arg_binding,
+            },
+        ))
+    }
+
     fn callable_abi_identity_for_fqn(&self, fqn: &str) -> CallableAbiIdentity {
         if let Some(extern_fun) = self.lowered_hir.extern_funs.get(fqn) {
             return extern_fun.callable_abi_identity();
@@ -4547,11 +4661,21 @@ impl<'a> ContractCollector<'a> {
         let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             let abi_identity = self.callable_abi_identity_for_fqn(fqn);
-            let function = FunctionTargetContract::synthetic_with_arg_binding(
-                fqn.clone(),
-                abi_identity,
-                arg_binding.clone(),
-            );
+            let function = self
+                .synthetic_stable_member_target(
+                    fqn,
+                    args,
+                    expr.ty,
+                    abi_identity,
+                    arg_binding.clone(),
+                )
+                .unwrap_or_else(|| {
+                    FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn.clone(),
+                        abi_identity,
+                        arg_binding.clone(),
+                    )
+                });
             if let Some((dispatch_kind, receiver_ty)) =
                 self.dispatch_kind_and_receiver_ty(source_path, expr.span)
             {
@@ -4910,6 +5034,13 @@ fn call_arg_value_ty(arg: &CallArg) -> TypeId {
         CallArg::Positional(expr) => expr.ty,
         CallArg::Named { value, .. } => value.ty,
     }
+}
+
+fn generic_template_base_fqn(fqn: &str) -> &str {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    base.split_once("$overload")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
 }
 
 fn receiver_ty_from_call_contract_source(

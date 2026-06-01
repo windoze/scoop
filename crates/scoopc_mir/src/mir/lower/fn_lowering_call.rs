@@ -134,7 +134,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Intrinsic { kind, function } => {
-                self.lower_intrinsic_call_expr(span, result, &kind, function.fqn(), args)
+                self.lower_intrinsic_call_expr(span, result, &kind, &function, args)
             }
             TypedCallSiteContract::EffectOp(_) | TypedCallSiteContract::ContinuationResume(_) => {
                 false
@@ -361,9 +361,10 @@ impl<'a> FnLowering<'a> {
         span: Span,
         result: LocalId,
         kind: &TypedIntrinsicKind,
-        callee_fqn: &str,
+        function: &FunctionTargetContract,
         args: &[hir::CallArg],
     ) -> bool {
+        let callee_fqn = function.fqn();
         let intrinsic_fqn = intrinsic_base_fqn(callee_fqn);
         match (kind, intrinsic_fqn) {
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.sizeOf") if name == "sizeOf" => {
@@ -436,7 +437,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             _ => {
-                self.lower_direct_call_expr(span, result, callee_fqn, args, None);
+                self.lower_direct_call_expr(span, result, callee_fqn, args, Some(function));
                 true
             }
         }

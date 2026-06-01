@@ -15,7 +15,7 @@
 | T1-02A | [DONE] | Stable request/direct-call identity transport 前置落地（MonomorphRequest stable key seed + `CallKind::Direct` stable instance carrier） |
 | T1-02B | [DONE] | HIR stable call-site facts + MIR Direct stable template carrier foundation |
 | T1-02C | [DONE] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
-| T1-02D | [TODO] | 补齐 generic owner member/property direct-call stable carrier（解除 T1-02 fallback 删除阻塞） |
+| T1-02D | [DONE] | 补齐 generic owner member/property direct-call stable carrier（解除 T1-02 fallback 删除阻塞） |
 | T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
@@ -139,7 +139,7 @@
   - 回归测试：新增 `hir_facts_publish_template_inventory_and_non_concrete_site_binding`，并保留 owner-specialized effect generic member materialization 覆盖。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
-### [TODO] T1-02D：补齐 generic owner member/property direct-call stable carrier
+### [DONE] T1-02D：补齐 generic owner member/property direct-call stable carrier
 
 - 背景：执行 `T1-02` 删除 materializer direct-call 推断时发现，`Atomic<T>.load()`、generic value-property getter（如 `Box<T>.readBack`）这类 generic owner member/property direct call 仍会在 materialized MIR 中以裸 `callee_fqn` 留下；一旦移除 materializer 的 receiver/result-type 推断，`cargo test --all --all-targets` 会出现 `missing_materialized_call_target`（例如 `scoop.core.Atomic.load`、`fixtures.t4010b1a.Box.readBack`）。这说明当前 HIR facts / MIR lowering 尚未为这些 call shape 发布并携带足够的 stable template/instance carrier。
 - 必须实现的内容：
@@ -151,7 +151,11 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：上述 call shape 的 direct MIR 携带上游 stable identity，删除 materializer direct-call 推断时不再触发 `missing_materialized_call_target`。
 - 依赖：T1-02C
-- 完成记录：（待填）
+- 完成记录：
+  - HIR stage 对 synthetic generic member/property direct call 增加 stable template/instance carrier 恢复：当 getter lowering 仍保留既有 materialized display FQN（如 `Box.readBack::<Int>`）时，typed contract 使用 template base FQN 发布 stable identity，避免下游只看到裸 `callee_fqn`。
+  - MIR intrinsic fallback 现在保留 `FunctionTargetContract`，因此 generic unsafe/sysroot helper（如 `__atomicRefLoad<T>`）降低为 `CallKind::Direct` 时携带 stable template carrier。
+  - 新增回归测试覆盖 generic property getter `Box<Int>.readBack` 的 `CallSiteInstanceFact` + MIR direct stable carrier，以及 `Atomic<Node>.load()` / `__atomicRefLoad<T>` 的 stable carrier 发布。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoopc_mir --lib hir_facts_publish_stable` 通过；`cargo test -p scoopc --lib via_mir_instance_collection_materializes_generic_value_property_getter_target` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 
