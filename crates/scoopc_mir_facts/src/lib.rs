@@ -7,20 +7,28 @@
 
 #![forbid(unsafe_code)]
 
+pub mod backend;
+pub mod boundary;
 pub mod common;
 pub mod dump;
+pub mod effects;
 pub mod families;
 pub mod metadata;
 pub mod pass_artifacts;
 pub mod pipeline;
+pub mod provenance;
 pub mod roots;
 pub mod snapshot;
 pub mod verify;
 
+use backend::MirBackendFacts;
+use boundary::MirBoundaryFacts;
+use effects::MirEffectFacts;
 use families::InstanceFamilyInventory;
 use metadata::MirMetadataFacts;
 use pass_artifacts::PassArtifactMetadata;
 use pipeline::MirPassPipelineMetadata;
+use provenance::MirProvenanceFacts;
 use roots::RootInventories;
 use snapshot::SnapshotBindings;
 
@@ -31,6 +39,10 @@ pub struct MirFacts {
     pub roots: RootInventories,
     pub snapshots: SnapshotBindings,
     pub families: InstanceFamilyInventory,
+    pub effects: MirEffectFacts,
+    pub provenance: MirProvenanceFacts,
+    pub boundary: MirBoundaryFacts,
+    pub backend: MirBackendFacts,
     pub pass_artifacts: PassArtifactMetadata,
     pub pass_pipeline: MirPassPipelineMetadata,
     pub metadata: MirMetadataFacts,
@@ -43,6 +55,10 @@ impl Default for MirFacts {
             roots: RootInventories::default(),
             snapshots: SnapshotBindings::default(),
             families: InstanceFamilyInventory::default(),
+            effects: MirEffectFacts::default(),
+            provenance: MirProvenanceFacts::default(),
+            boundary: MirBoundaryFacts::default(),
+            backend: MirBackendFacts::default(),
             pass_artifacts: PassArtifactMetadata::default(),
             pass_pipeline: MirPassPipelineMetadata::default(),
             metadata: MirMetadataFacts::default(),
@@ -61,6 +77,10 @@ impl MirFacts {
         self.roots.is_empty()
             && self.snapshots.is_empty()
             && self.families.is_empty()
+            && self.effects.is_empty()
+            && self.provenance.is_empty()
+            && self.boundary.is_empty()
+            && self.backend.is_empty()
             && self.pass_artifacts.is_empty()
             && self.pass_pipeline.is_empty()
             && self.metadata.is_empty()

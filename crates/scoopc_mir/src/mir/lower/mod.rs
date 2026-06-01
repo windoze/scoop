@@ -17,7 +17,10 @@ use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::stable_id::{NoTypeParamResolver, StableInstanceKey, StableTemplateKey};
+use crate::stable_id::{
+    EffectRowTemplate as StableEffectRowTemplate, EffectTerm as StableEffectTerm,
+    NoTypeParamResolver, StableDefKey, StableInstanceKey, StableTemplateKey, canonical_type_text,
+};
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,

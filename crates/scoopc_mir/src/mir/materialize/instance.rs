@@ -34,6 +34,51 @@ fn filter_materialized_decl_members(members: &[DeclMemberMetadata]) -> Vec<DeclM
         .collect()
 }
 
+fn materialized_callable_effect_template_from_hir_fact(
+    fact: scoopc_hir::hir_facts::source_sites::CallableSourceEffectFacts,
+) -> MaterializeResult<super::MaterializedCallableEffectTemplate> {
+    Ok(super::MaterializedCallableEffectTemplate {
+        fqn: fact.fqn,
+        declared_surface_row: fact
+            .declared_surface_row
+            .map(stable_effect_row_template_from_hir_fact)
+            .transpose()
+            .map_err(|error| frontend_err(format!("invalid declared effect row fact: {error}")))?,
+        actual_surface_row_template: stable_effect_row_template_from_hir_fact(
+            fact.inferred_surface_row_template,
+        )
+        .map_err(|error| frontend_err(format!("invalid actual effect row fact: {error}")))?,
+        published_surface_row_template: stable_effect_row_template_from_hir_fact(
+            fact.published_surface_row_template,
+        )
+        .map_err(|error| frontend_err(format!("invalid published effect row fact: {error}")))?,
+    })
+}
+
+fn stable_effect_row_template_from_hir_fact(
+    row: scoopc_hir::hir_facts::source_sites::EffectRowTemplate,
+) -> Result<EffectRowTemplate, crate::stable_id::CanonicalEncodingError> {
+    let terms = row
+        .terms
+        .into_iter()
+        .map(|term| match term {
+            scoopc_hir::hir_facts::source_sites::EffectRowTerm::Concrete { type_key } => {
+                Ok(crate::stable_id::EffectTerm::Concrete { type_key })
+            }
+            scoopc_hir::hir_facts::source_sites::EffectRowTerm::Param {
+                owner,
+                ordinal,
+                name,
+            } => Ok(crate::stable_id::EffectTerm::Param {
+                owner: crate::stable_id::StableDefKey::from_canonical_text(owner.as_str())?,
+                ordinal,
+                name,
+            }),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(EffectRowTemplate::new(terms, row.closed))
+}
+
 impl MirInstanceMaterializer {
     pub(super) fn new(
         generic_file: File,
@@ -48,6 +93,7 @@ impl MirInstanceMaterializer {
             template_infos,
             callable_body_infos,
             callable_signatures,
+            callable_effects,
             call_site_instance_facts,
             template_site_binding_facts,
             known_receiver_subclasses,
@@ -109,6 +155,10 @@ impl MirInstanceMaterializer {
                 return_ty: signature.return_ty,
             })
             .collect();
+        let source_callable_effects = callable_effects
+            .into_iter()
+            .map(materialized_callable_effect_template_from_hir_fact)
+            .collect::<MaterializeResult<Vec<_>>>()?;
         let callable_signatures = callable_signatures
             .into_iter()
             .map(|signature| (signature.template.clone(), signature))
@@ -372,6 +422,7 @@ impl MirInstanceMaterializer {
             templates_by_stable_key,
             roots,
             source_callable_signatures,
+            source_callable_effects,
             template_signatures,
             stable_template_keys,
             nongeneric_callable_stable_template_keys,

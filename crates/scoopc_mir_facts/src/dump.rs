@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 use scoopc_ids::StableCanonicalKey as _;
 
 use crate::MirFacts;
+use crate::effects::{CallSiteTarget, MirEffectEventKind};
 use crate::roots::{MirRootDetail, MirRootFact};
 
 /// Render a compact, stable summary of the MIR fact groups.
@@ -72,6 +73,110 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    if !facts.effects.is_empty() {
+        writeln!(
+            &mut out,
+            "  effects: callable_instances={}, sites={}, events={}, block_regions={}, call_targets={}, call_surfaces={}",
+            facts.effects.callable_instances.len(),
+            facts.effects.site_inventory.len(),
+            facts.effects.effect_events.len(),
+            facts.effects.block_regions.len(),
+            facts.effects.call_site_targets.len(),
+            facts.effects.call_site_surface_effects.len(),
+        )
+        .expect("writing to String cannot fail");
+        for instance in &facts.effects.callable_instances {
+            writeln!(
+                &mut out,
+                "    - instance_effect={} callable={} published={} step={}",
+                instance.instance.canonical_text(),
+                instance.callable.as_str(),
+                instance.published_surface_row.canonical_text(),
+                instance.step_effect_row.canonical_text(),
+            )
+            .expect("writing to String cannot fail");
+        }
+        for site in &facts.effects.site_inventory {
+            writeln!(
+                &mut out,
+                "    - site={} body={} kind={} block=bb{}{}",
+                site.site_id.as_u32(),
+                site.body.fqn,
+                site.kind.label(),
+                site.block.as_u32(),
+                site.result_local
+                    .map(|local| format!(" result=local{local}"))
+                    .unwrap_or_default(),
+            )
+            .expect("writing to String cannot fail");
+        }
+        for event in &facts.effects.effect_events {
+            writeln!(
+                &mut out,
+                "    - event={} body={} kind={} row={} cleanup={}",
+                event.site_id.as_u32(),
+                event.body.fqn,
+                event_kind_label(&event.kind),
+                event.effect_row.canonical_text(),
+                event.cleanup,
+            )
+            .expect("writing to String cannot fail");
+        }
+        for target in &facts.effects.call_site_targets {
+            writeln!(
+                &mut out,
+                "    - call_target={} body={} kind={} target={}",
+                target.site_id.as_u32(),
+                target.body.fqn,
+                target.call_kind.label(),
+                call_target_label(&target.target),
+            )
+            .expect("writing to String cannot fail");
+        }
+    }
+    if !facts.provenance.is_empty() {
+        writeln!(
+            &mut out,
+            "  provenance: callable_values={}, results={}",
+            facts.provenance.callable_values.len(),
+            facts.provenance.results.len(),
+        )
+        .expect("writing to String cannot fail");
+        for result in &facts.provenance.results {
+            writeln!(
+                &mut out,
+                "    - result={} callable={} overridden={}",
+                result.instance.canonical_text(),
+                result.callable.as_str(),
+                result.summary_overridden,
+            )
+            .expect("writing to String cannot fail");
+        }
+    }
+    if !facts.boundary.is_empty() {
+        writeln!(
+            &mut out,
+            "  boundary: source_contracts={}",
+            facts.boundary.source_contracts.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
+    if !facts.backend.is_empty() {
+        writeln!(
+            &mut out,
+            "  backend: source_signatures={}, enum_layouts={}, class_inits={}, vtables={}, interfaces={}, itables={}, extern_funs={}, native_callable_funs={}, global_inits={}",
+            facts.backend.source_signatures.len(),
+            facts.backend.enum_layouts.len(),
+            facts.backend.class_inits.len(),
+            facts.backend.vtables.len(),
+            facts.backend.interfaces.len(),
+            facts.backend.itables.len(),
+            facts.backend.extern_funs.len(),
+            facts.backend.native_callable_funs.len(),
+            facts.backend.global_inits.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
     writeln!(
         &mut out,
         "  pass_artifacts: revisions={}, callable_body_overrides={}, summaries={}, escape_facts={}",
@@ -120,6 +225,42 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
     write!(&mut out, "}}").expect("writing to String cannot fail");
 
     out
+}
+
+fn event_kind_label(kind: &MirEffectEventKind) -> String {
+    match kind {
+        MirEffectEventKind::Call { call_kind } => format!("call:{}", call_kind.label()),
+        MirEffectEventKind::ClassCtor { source_fqn } => format!("class_ctor:{source_fqn}"),
+        MirEffectEventKind::HiddenInitializer { source_fqn } => {
+            format!("hidden_initializer:{source_fqn}")
+        }
+        MirEffectEventKind::Perform { op_fqn } => format!("perform:{op_fqn}"),
+        MirEffectEventKind::Resume => "resume".to_string(),
+        MirEffectEventKind::Handle { handled_effects } => format!(
+            "handle:{}",
+            handled_effects
+                .iter()
+                .map(|key| key.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
+}
+
+fn call_target_label(target: &CallSiteTarget) -> String {
+    match target {
+        CallSiteTarget::KnownInstance { key } => format!("known:{}", key.as_str()),
+        CallSiteTarget::CandidateSet { keys } => format!(
+            "candidates:{}",
+            keys.iter()
+                .map(|key| key.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        CallSiteTarget::DirectFunction { fqn } => format!("direct:{fqn}"),
+        CallSiteTarget::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        CallSiteTarget::Dynamic => "dynamic".to_string(),
+    }
 }
 
 fn dump_root_group(out: &mut String, label: &str, roots: &[MirRootFact]) {

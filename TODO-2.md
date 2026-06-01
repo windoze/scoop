@@ -13,7 +13,7 @@
 | T2-01F | [DONE] | Restore full fixture baseline observed during T2-01 validation |
 | T2-01 | [DONE] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [DONE] | Review T2-01 |
-| T2-02 | [TODO] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
+| T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [TODO] | Review T2-02 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
@@ -103,7 +103,7 @@
 - 依赖：T2-01
 - 完成记录：2026-06-01 完成。Review T2-01 时发现 canonical semantic operation 发布存在一个非 `ExprKind::Call` 位点缺口：operator 等语义调用虽然已由 typecheck 写入 selected callable binding，但 HIR contract 收集只在显式 `Call` 表达式上发布 call-site contract，导致 `CanonicalSemanticOperationFact` 和 source `expr_surface_row` 会漏掉 operator callee 的 published row。已修复 HIR contract 收集对 unary/binary/member-access semantic call binding 的发布，并让 unary source surface row 消费对应 semantic core call；新增 `stage::tests::source_effect_facts_include_operator_semantic_bindings` 覆盖 private omitted-row 函数通过二元/一元 operator 推导并发布 `Log` effect。验证：`cargo fmt`；`cargo test -p scoopc_hir source_effect_facts_include_operator_semantic_bindings`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-02：MIR instance facts + effect-event/provenance + backend contracts 收口
+### [DONE] T2-02：MIR instance facts + effect-event/provenance + backend contracts 收口
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-08/10/12/13。
 - 必须实现的内容：
@@ -115,7 +115,7 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：MIR facts 自包含；instance 身份不再 eff 分叉；effect-event/provenance/boundary/backend contract 由 fact 提供。
 - 依赖：T2-01R
-- 完成记录：（待填）
+- 完成记录：2026-06-01 完成。扩展 `scoopc_mir_facts` 为自包含 MIR handoff：新增 effect/site/event/block-region/call-target/call-surface facts、callable/result provenance facts、boundary source contracts、backend contract facts，并在 materialized instance inventory 中发布稳定 `eff_args`。`MaterializedMir` 现在携带 HIR 已发布的 callable effect row 模板，MIR handoff 按实例 `eff_args` 发布 `CallableInstanceEffectFacts { declared_surface_row, actual_surface_row, published_surface_row, step_effect_row }`；MIR lowering 的 hidden initializer effects 改为搬运 HIR `HiddenInitializerEffectFact`，不再用 `HiddenInitEffectAnalyzer` 重新扫描 effect。`mir_stage` 在 P4-ready handoff 发布 site inventory、effect event stream、block region、call target/surface、callable value/result provenance、boundary source anchor/operand contract，以及 source signature/layout/vtable/itable/extern/native/global init backend facts。新增单测 `p4_ready_mir_facts_publish_self_contained_handoff_contracts` 覆盖 self-contained handoff 关键 fact group。验证：`cargo fmt`；`cargo check --all-targets`；`cargo test -p scoopc p4_ready_mir_facts_publish_self_contained_handoff_contracts`；`cargo test -p scoopc_mir_facts`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-02R：Review T2-02
 - 验证：`python3 tools/run_fixtures.py`

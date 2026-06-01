@@ -81,6 +81,84 @@ fn fact_identities(facts: &MirFacts) -> Vec<&FactIdentity> {
     );
     identities.extend(
         facts
+            .effects
+            .callable_instances
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .effects
+            .site_inventory
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .effects
+            .effect_events
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .effects
+            .block_regions
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .effects
+            .call_site_targets
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .effects
+            .call_site_surface_effects
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .provenance
+            .callable_values
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(facts.provenance.results.iter().map(|fact| &fact.identity));
+    identities.extend(
+        facts
+            .boundary
+            .source_contracts
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(
+        facts
+            .backend
+            .source_signatures
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(facts.backend.enum_layouts.iter().map(|fact| &fact.identity));
+    identities.extend(facts.backend.class_inits.iter().map(|fact| &fact.identity));
+    identities.extend(facts.backend.vtables.iter().map(|fact| &fact.identity));
+    identities.extend(facts.backend.interfaces.iter().map(|fact| &fact.identity));
+    identities.extend(facts.backend.itables.iter().map(|fact| &fact.identity));
+    identities.extend(facts.backend.extern_funs.iter().map(|fact| &fact.identity));
+    identities.extend(
+        facts
+            .backend
+            .native_callable_funs
+            .iter()
+            .map(|fact| &fact.identity),
+    );
+    identities.extend(facts.backend.global_inits.iter().map(|fact| &fact.identity));
+    identities.extend(
+        facts
             .metadata
             .nominal_direct_supertypes
             .iter()

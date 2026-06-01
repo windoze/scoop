@@ -11,7 +11,7 @@ impl MirLoweringFacts {
             .with_declaration_facts(&lowered.types, hir_facts)
             .with_source_site_facts(hir_facts)
             .with_continuation_identity_return_funs(lowered)
-            .with_class_ctor_hidden_effects(lowered);
+            .with_hidden_initializer_effects(lowered, hir_facts);
         facts
     }
 
@@ -285,34 +285,39 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_class_ctor_hidden_effects(
+    pub(in crate::mir::lower) fn with_hidden_initializer_effects(
         mut self,
         lowered: &hir::LoweredHir,
+        hir_facts: &HirFacts,
     ) -> Self {
-        let analyzer = HiddenInitEffectAnalyzer::new(lowered);
+        let hidden_effects = hidden_initializer_effect_rows(&lowered.types, hir_facts);
         for (site, info) in &self.class_ctor_call_sites {
-            let effects = analyzer.class_ctor_effect_row(&info.class_fqn, info.ctor_span);
+            let effects = hidden_effects
+                .class_ctor
+                .get(&(info.class_fqn.clone(), info.ctor_span))
+                .cloned()
+                .unwrap_or_else(EffectRow::pure);
             if !effects.is_pure() {
                 self.class_ctor_hidden_effects.insert(site.clone(), effects);
             }
         }
-        for object in lowered.object_inits.values() {
-            let effects = analyzer.object_init_effect_row(&object.fqn);
+        for (fqn, effects) in &hidden_effects.object_init {
             if effects.is_pure() {
                 continue;
             }
             self.top_level_ref_hidden_effects
-                .insert(object.fqn.clone(), effects.clone());
+                .insert(fqn.clone(), effects.clone());
+            let Some(object) = lowered.object_inits.get(fqn) else {
+                continue;
+            };
             for property_name in object.properties.keys() {
                 self.object_member_hidden_effects
-                    .insert(format!("{}.{}", object.fqn, property_name), effects.clone());
+                    .insert(format!("{fqn}.{property_name}"), effects.clone());
             }
         }
-        for value in lowered.top_level_immutable_values.values() {
-            let effects = analyzer.top_level_immutable_value_effect_row(&value.fqn);
+        for (fqn, effects) in hidden_effects.top_level_init {
             if !effects.is_pure() {
-                self.top_level_ref_hidden_effects
-                    .insert(value.fqn.clone(), effects);
+                self.top_level_ref_hidden_effects.insert(fqn, effects);
             }
         }
         self
@@ -500,6 +505,136 @@ impl MirLoweringFacts {
 
     pub(in crate::mir::lower) fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.when_pat_binding_tys.get(&span).copied()
+    }
+}
+
+#[derive(Default)]
+struct HiddenInitializerEffectRows {
+    class_ctor: HashMap<(String, Option<Span>), EffectRow>,
+    object_init: HashMap<String, EffectRow>,
+    top_level_init: HashMap<String, EffectRow>,
+}
+
+fn hidden_initializer_effect_rows(
+    types: &TypeStore,
+    hir_facts: &HirFacts,
+) -> HiddenInitializerEffectRows {
+    let mut rows = HiddenInitializerEffectRows::default();
+    for fact in &hir_facts.source_sites.hidden_initializers {
+        let row = hidden_initializer_effect_row(types, fact);
+        match fact.kind {
+            hir_site_facts::HiddenInitializerKind::ClassCtor => {
+                rows.class_ctor.insert((fact.fqn.clone(), fact.span), row);
+            }
+            hir_site_facts::HiddenInitializerKind::ObjectInit => {
+                rows.object_init.insert(fact.fqn.clone(), row);
+            }
+            hir_site_facts::HiddenInitializerKind::TopLevelInit => {
+                rows.top_level_init.insert(fact.fqn.clone(), row);
+            }
+        }
+    }
+    rows
+}
+
+fn hidden_initializer_effect_row(
+    types: &TypeStore,
+    fact: &hir_site_facts::HiddenInitializerEffectFact,
+) -> EffectRow {
+    stable_effect_row_template_from_hir_fact(&fact.effect_row)
+        .and_then(|row| {
+            row.to_effect_row_with(|type_key| {
+                find_canonical_type_in_store(types, type_key.as_str())
+            })
+        })
+        .expect("HIR hidden initializer effect fact must be concrete and localizable in MIR")
+}
+
+fn stable_effect_row_template_from_hir_fact(
+    row: &hir_site_facts::EffectRowTemplate,
+) -> Result<StableEffectRowTemplate, crate::stable_id::CanonicalEncodingError> {
+    let terms = row
+        .terms
+        .iter()
+        .map(|term| match term {
+            hir_site_facts::EffectRowTerm::Concrete { type_key } => {
+                Ok(StableEffectTerm::Concrete {
+                    type_key: type_key.clone(),
+                })
+            }
+            hir_site_facts::EffectRowTerm::Param {
+                owner,
+                ordinal,
+                name,
+            } => Ok(StableEffectTerm::Param {
+                owner: StableDefKey::from_canonical_text(owner.as_str())?,
+                ordinal: *ordinal,
+                name: name.clone(),
+            }),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(StableEffectRowTemplate::new(terms, row.closed))
+}
+
+fn find_canonical_type_in_store(types: &TypeStore, canonical: &str) -> Option<TypeId> {
+    types.iter_ids().find(|&ty| {
+        !type_contains_param(types, ty)
+            && canonical_type_text(types, ty, &NoTypeParamResolver)
+                .is_ok_and(|text| text == canonical)
+    })
+}
+
+fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    match types.kind(ty) {
+        TypeKind::Param(_) => true,
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            nominal
+                .args
+                .iter()
+                .any(|arg| type_contains_param(types, *arg))
+                || nominal.eff.as_ref().is_some_and(|row| {
+                    row.terms
+                        .iter()
+                        .any(|term| type_contains_param(types, *term))
+                })
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            fun.receiver
+                .is_some_and(|receiver| type_contains_param(types, receiver))
+                || fun
+                    .params
+                    .iter()
+                    .any(|param| type_contains_param(types, *param))
+                || type_contains_param(types, fun.return_ty)
+                || fun
+                    .effects
+                    .terms
+                    .iter()
+                    .any(|term| type_contains_param(types, *term))
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => union
+            .variants
+            .iter()
+            .any(|variant| type_contains_param(types, *variant)),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => type_contains_param(types, *inner),
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
+            .iter()
+            .any(|element| type_contains_param(types, *element)),
+        TypeKind::StarProjection(star) => type_contains_param(types, star.read_ty),
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(
+            ValueTypeKind::Unit
+            | ValueTypeKind::Nothing
+            | ValueTypeKind::Bool
+            | ValueTypeKind::Char
+            | ValueTypeKind::Float64
+            | ValueTypeKind::Float32
+            | ValueTypeKind::Int
+            | ValueTypeKind::UInt
+            | ValueTypeKind::IntN(_)
+            | ValueTypeKind::UIntN(_),
+        ) => false,
     }
 }
 

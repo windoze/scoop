@@ -75,6 +75,7 @@ pub struct MaterializedMir {
     pub(super) dispatch_devirtualization_facts: super::DispatchDevirtualizationFacts,
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
     pub(super) source_callable_signatures: Vec<MaterializedCallableSignature>,
+    pub(super) source_callable_effects: Vec<MaterializedCallableEffectTemplate>,
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +84,14 @@ pub struct MaterializedCallableSignature {
     pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct MaterializedCallableEffectTemplate {
+    pub fqn: String,
+    pub declared_surface_row: Option<EffectRowTemplate>,
+    pub actual_surface_row_template: EffectRowTemplate,
+    pub published_surface_row_template: EffectRowTemplate,
 }
 
 /// Data-only backend contracts captured at materialization time for LIR facts.
@@ -217,6 +226,10 @@ impl MaterializedMir {
 
     pub fn source_callable_signatures(&self) -> &[MaterializedCallableSignature] {
         &self.source_callable_signatures
+    }
+
+    pub fn source_callable_effects(&self) -> &[MaterializedCallableEffectTemplate] {
+        &self.source_callable_effects
     }
 }
 

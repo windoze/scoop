@@ -880,6 +880,7 @@ fn generic_materializer_for_body_with_template(
                 params: Vec::new(),
                 has_generic_params_or_effect_param: false,
             }],
+            callable_effects: Vec::new(),
             call_site_instance_facts: Vec::new(),
             template_site_binding_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
@@ -946,6 +947,7 @@ fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         dispatch_devirtualization_facts: DispatchDevirtualizationFacts::default(),
         caller_side_pass_candidates: Vec::new(),
         source_callable_signatures: Vec::new(),
+        source_callable_effects: Vec::new(),
     }
 }
 
@@ -2647,6 +2649,7 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             }],
             callable_body_infos: Vec::new(),
             callable_signatures: Vec::new(),
+            callable_effects: Vec::new(),
             call_site_instance_facts: Vec::new(),
             template_site_binding_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
@@ -2748,6 +2751,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                 params: Vec::new(),
                 has_generic_params_or_effect_param: false,
             }],
+            callable_effects: Vec::new(),
             call_site_instance_facts: vec![
                 scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact {
                     identity: scoopc_hir::hir_facts::source_sites::SourceSiteIdentity::new(
@@ -3501,6 +3505,7 @@ return 0
             template_infos,
             callable_body_infos,
             callable_signatures,
+            callable_effects: hir_facts.source_sites.callable_source_effects.clone(),
             call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
             template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,
@@ -4498,6 +4503,7 @@ println(holder.node.tag.score)
             template_infos: template_catalog,
             callable_body_infos,
             callable_signatures,
+            callable_effects: hir_facts.source_sites.callable_source_effects.clone(),
             call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
             template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,
@@ -4890,6 +4896,7 @@ return read(ints) + read(texts)
             template_infos: template_catalog,
             callable_body_infos,
             callable_signatures,
+            callable_effects: hir_facts.source_sites.callable_source_effects.clone(),
             call_site_instance_facts: Vec::new(),
             template_site_binding_facts: hir_facts.source_sites.template_site_bindings.clone(),
             known_receiver_subclasses,

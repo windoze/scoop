@@ -59,7 +59,8 @@ pub use escape::{
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
-    MaterializedMir, MirMaterializeError, materialize_for_dump, materialize_for_dump_with_opt_level,
+    MaterializedCallableEffectTemplate, MaterializedMir, MirMaterializeError, materialize_for_dump,
+    materialize_for_dump_with_opt_level,
 };
 pub use pass_view::MaterializedMirPassRunRecord;
 pub use pass_view::{

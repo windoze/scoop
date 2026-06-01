@@ -125,6 +125,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     )?;
     let call_site_instance_facts = hir_facts.source_sites.call_site_instances.clone();
     let template_site_binding_facts = hir_facts.source_sites.template_site_bindings.clone();
+    let callable_effects = hir_facts.source_sites.callable_source_effects.clone();
     let facts = super::super::MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = super::super::lower_hir_file_for_dump_with_facts(
         builtins,
@@ -148,6 +149,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 template_infos: template_catalog,
                 callable_body_infos,
                 callable_signatures,
+                callable_effects,
                 call_site_instance_facts,
                 template_site_binding_facts,
                 known_receiver_subclasses,

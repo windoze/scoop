@@ -310,6 +310,7 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) templates_by_stable_key: HashMap<StableTemplateKey, TemplateKey>,
     pub(super) roots: HashMap<TemplateKey, TemplateRootInfo>,
     pub(super) source_callable_signatures: Vec<super::MaterializedCallableSignature>,
+    pub(super) source_callable_effects: Vec<super::MaterializedCallableEffectTemplate>,
     pub(super) template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
     pub(super) stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) nongeneric_callable_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,

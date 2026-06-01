@@ -56,6 +56,8 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) template_infos: Vec<GenericTemplateInfo>,
     pub(super) callable_body_infos: Vec<CallableBodyInfo>,
     pub(super) callable_signatures: Vec<CallableSignatureInfo>,
+    pub(super) callable_effects:
+        Vec<scoopc_hir::hir_facts::source_sites::CallableSourceEffectFacts>,
     pub(super) call_site_instance_facts:
         Vec<scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact>,
     pub(super) template_site_binding_facts:

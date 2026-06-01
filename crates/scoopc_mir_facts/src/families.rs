@@ -4,6 +4,7 @@ use scoopc_ids::{CanonicalTextKey, StageArtifactKey};
 use scoopc_types::TypeId;
 
 use crate::common::{FactIdentity, MirBodyReference};
+use crate::effects::EffectRowTemplate;
 
 /// MIR-owned inventory for materialized instances and callable families.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -26,6 +27,7 @@ pub struct InstanceInventoryEntry {
     pub artifact: StageArtifactKey,
     pub callable: CanonicalTextKey,
     pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRowTemplate>,
     pub body: Option<MirBodyReference>,
 }
 
@@ -36,6 +38,7 @@ impl InstanceInventoryEntry {
         artifact: StageArtifactKey,
         callable: CanonicalTextKey,
         type_args: Vec<TypeId>,
+        eff_args: Vec<EffectRowTemplate>,
         body: Option<MirBodyReference>,
     ) -> Self {
         Self {
@@ -43,6 +46,7 @@ impl InstanceInventoryEntry {
             artifact,
             callable,
             type_args,
+            eff_args,
             body,
         }
     }
