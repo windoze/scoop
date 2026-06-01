@@ -6,6 +6,7 @@ use std::collections::btree_map::Entry;
 use std::path::{Path, PathBuf};
 
 use scoop_project_model::StableConeKey;
+use scoopc_hir::stage::HirSemanticArtifact;
 use scoopc_ids::{
     BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey, StageArtifactKey,
 };
@@ -93,6 +94,7 @@ struct PublishedSurfaceRows<'a> {
 pub struct DirectStyleMirStageOutput {
     lowered_mir: LoweredMir,
     mir_facts: MirFacts,
+    hir_semantic_artifact: Option<HirSemanticArtifact>,
 }
 
 /// P4-ready MIR stage handoff.
@@ -116,11 +118,28 @@ pub struct MirStageOutput {
 }
 
 impl DirectStyleMirStageOutput {
+    #[cfg(test)]
     pub(crate) fn new(
         lowered_mir: LoweredMir,
         stable_cone_key: StableConeKey,
         source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
         source_cone_order: &HashMap<StableConeKey, u32>,
+    ) -> Self {
+        Self::new_with_hir_semantic_artifact(
+            lowered_mir,
+            stable_cone_key,
+            source_cones,
+            source_cone_order,
+            None,
+        )
+    }
+
+    pub(crate) fn new_with_hir_semantic_artifact(
+        lowered_mir: LoweredMir,
+        stable_cone_key: StableConeKey,
+        source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+        source_cone_order: &HashMap<StableConeKey, u32>,
+        hir_semantic_artifact: Option<HirSemanticArtifact>,
     ) -> Self {
         let mir_facts = build_direct_style_mir_facts(
             &lowered_mir.file,
@@ -131,6 +150,7 @@ impl DirectStyleMirStageOutput {
         Self {
             lowered_mir,
             mir_facts,
+            hir_semantic_artifact,
         }
     }
 
@@ -149,6 +169,10 @@ impl DirectStyleMirStageOutput {
     /// Return MIR-owned facts published by this stage.
     pub fn mir_facts(&self) -> &MirFacts {
         &self.mir_facts
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.hir_semantic_artifact.as_ref()
     }
 
     /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
@@ -255,6 +279,10 @@ impl MirStageOutput {
     /// Return MIR-owned facts published by this P4-ready handoff.
     pub fn mir_facts(&self) -> &MirFacts {
         self.direct_style.mir_facts()
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.direct_style.hir_semantic_artifact()
     }
 
     /// Return the mandatory canonical materialized MIR snapshot handed to P4.
@@ -3549,6 +3577,7 @@ fn lower_mir_stage_unvalidated(
     hir_output: HirStageOutput,
 ) -> (DirectStyleMirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
+    let hir_semantic_artifact = hir_output.hir_semantic_artifact().cloned();
     let mut lowered_hir = hir_output.into_lowered_hir();
     let stable_cone_key = lowered_hir.stable_cone_key.clone();
     let builtins = lowered_hir.types.intern_builtins();
@@ -3562,11 +3591,12 @@ fn lower_mir_stage_unvalidated(
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        DirectStyleMirStageOutput::new(
+        DirectStyleMirStageOutput::new_with_hir_semantic_artifact(
             LoweredMir { file, types },
             stable_cone_key,
             &lowered_hir.source_cones,
             &lowered_hir.source_cone_order,
+            hir_semantic_artifact,
         ),
         builtins.unit,
         builtins.bool_,

@@ -81,6 +81,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         typed_hir_output.lowered_hir(),
         typed_hir_output.hir_facts(),
     );
+    let hir_semantic_artifact = typed_hir_output.hir_semantic_artifact().cloned();
     let mut lowered_hir = typed_hir_output.into_lowered_hir();
     let stable_cone_key = lowered_hir.stable_cone_key.clone();
     let builtins = lowered_hir.types.intern_builtins();
@@ -95,11 +96,12 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let materialized_mir =
         crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
             .expect("materialized MIR 应成功");
-    let mir_stage_output = DirectStyleMirStageOutput::new(
+    let mir_stage_output = DirectStyleMirStageOutput::new_with_hir_semantic_artifact(
         LoweredMir { file, types },
         stable_cone_key,
         &lowered_hir.source_cones,
         &lowered_hir.source_cone_order,
+        hir_semantic_artifact,
     )
     .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =

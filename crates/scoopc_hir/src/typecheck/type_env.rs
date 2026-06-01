@@ -478,7 +478,7 @@ impl TypeEnv {
     /// 用途（P10-T04-b）：cached dependency cone 的合成 `decl_file` 不会出现在
     /// `compilation_sources` 中，因此 `collect_from_file` 不会自动为其建立
     /// `FileTypeContext`；后续 type-lowering 在该 decl_file 上就拿不到 `pkg_prefix`/cone
-    /// 信息，跨 stage 重建 Index/TypeEnv 时尤其会出错。
+    /// 信息，artifact 消费时尤其会出错。
     ///
     /// 该方法允许调用方显式注入，约定与 [`Self::insert_external_source`] 一致：
     /// - 同一路径已存在时**保留**第一次注入的版本。

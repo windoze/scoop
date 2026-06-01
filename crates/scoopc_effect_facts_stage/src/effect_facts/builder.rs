@@ -5,8 +5,6 @@ use crate::mir::{
     BasicBlockId, FunDecl as MirFunDecl, InstanceKey, MaterializedMir, SiteId, TemplateKey,
 };
 use crate::resolve::{FunOverload, Index};
-use crate::session::Session;
-use crate::source::SourceFile;
 use crate::stable_id::{
     NoTypeParamResolver, StableCanonicalKey, StableConeKey, StableDefKey, StableDefNamespace,
     StableInstanceKey, StableTemplateKey, StableTypeParamKey, canonical_callable_signature_key,
@@ -16,6 +14,7 @@ use crate::ty::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, ValueTypeKind,
 };
 use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
+use scoopc_hir::stage::HirSemanticArtifact;
 use scoopc_mir_facts::{
     MirFacts, backend as mir_backend, boundary as mir_boundary, effects as mir_effects,
 };
@@ -33,12 +32,7 @@ use super::{
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
 #[derive(Debug)]
 pub struct MaterializedEffectFactsBuilder<'a> {
-    session: &'a Session,
-    source: &'a SourceFile,
-    compilation_sources: &'a [SourceFile],
-    /// P10-T04-b：cache-hit 的依赖 cone 不在 `compilation_sources` 中，重建 Index/TypeEnv
-    /// 时必须把这些 cached frontend imports 重放回去。
-    cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
+    frontend_artifact: &'a HirSemanticArtifact,
     materialized: &'a MaterializedMir,
     mir_facts: &'a MirFacts,
     type_context: &'a mut EffectOwnedTypeContext,
@@ -1399,10 +1393,10 @@ struct ConcreteEffectOpContract {
     resume_tuple_ty: TypeId,
 }
 
-/// Analysis-only context rebuilt from sources so P4 can interpret surface declarations.
+/// Analysis-only context borrowed from the HIR semantic artifact so P4 can interpret declarations.
 ///
-/// This is not a replacement owner for HIR/MIR facts: it is private builder state used to lower
-/// effect signatures and dispatch candidates into the effect-owned type context published on
+/// This is not a replacement owner for HIR/MIR facts: it is private builder state copied from the
+/// upstream artifact to lower effect signatures into the effect-owned type context published on
 /// `MaterializedEffectFacts`.
 #[derive(Debug)]
 struct EffectFactsTypeContext {
@@ -1474,37 +1468,13 @@ struct BodyFactsBuilder<'ctx, 'facts, 'pool> {
 
 impl<'a> MaterializedEffectFactsBuilder<'a> {
     pub fn from_materialized_snapshot(
-        session: &'a Session,
-        source: &'a SourceFile,
-        materialized: &'a MaterializedMir,
-        mir_facts: &'a MirFacts,
-        type_context: &'a mut EffectOwnedTypeContext,
-    ) -> Self {
-        Self::from_materialized_snapshot_in_compilation_unit(
-            session,
-            source,
-            std::slice::from_ref(source),
-            &[],
-            materialized,
-            mir_facts,
-            type_context,
-        )
-    }
-
-    pub fn from_materialized_snapshot_in_compilation_unit(
-        session: &'a Session,
-        source: &'a SourceFile,
-        compilation_sources: &'a [SourceFile],
-        cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
+        frontend_artifact: &'a HirSemanticArtifact,
         materialized: &'a MaterializedMir,
         mir_facts: &'a MirFacts,
         type_context: &'a mut EffectOwnedTypeContext,
     ) -> Self {
         Self {
-            session,
-            source,
-            compilation_sources,
-            cached_cone_imports,
+            frontend_artifact,
             materialized,
             mir_facts,
             type_context,
@@ -1525,13 +1495,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             let pass_view = self.materialized.pass_view();
             MirSnapshotBinding::from_pass_view(&pass_view)
         };
-        let type_ctx = EffectFactsTypeContext::build(
-            self.session,
-            self.source,
-            self.compilation_sources,
-            self.cached_cone_imports,
-            self.materialized.stable_cone_key().clone(),
-        )?;
+        let type_ctx = EffectFactsTypeContext::from_frontend_artifact(self.frontend_artifact);
         let compiler_generated_runtime_error_effect_ty =
             find_or_intern_raise_runtime_error_effect(self.type_context.types_mut());
         let mir_fact_index = MirFactIndex::new(self.materialized, self.mir_facts)?;
@@ -1615,71 +1579,12 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
 }
 
 impl EffectFactsTypeContext {
-    fn build(
-        session: &Session,
-        source: &SourceFile,
-        compilation_sources: &[SourceFile],
-        cached_cone_imports: &[scoopc_hir::cone_import::CachedConeImport],
-        stable_cone_key: StableConeKey,
-    ) -> Result<Self, EffectFactsError> {
-        let mut sources = compilation_sources.to_vec();
-        for support_source in crate::frontend::load_default_support_sources(session.options())
-            .map_err(|error| EffectFactsError::Frontend {
-                message: error.to_string(),
-            })?
-        {
-            let is_effect_facts_signature_support = support_source
-                .path()
-                .file_name()
-                .is_some_and(|name| name == "string.scoop");
-            if !is_effect_facts_signature_support {
-                continue;
-            }
-            if sources
-                .iter()
-                .any(|source| source.path() == support_source.path())
-            {
-                continue;
-            }
-            sources.push(support_source);
+    fn from_frontend_artifact(frontend_artifact: &HirSemanticArtifact) -> Self {
+        Self {
+            stable_cone_key: frontend_artifact.stable_cone_key().clone(),
+            index: frontend_artifact.index().clone(),
+            env: frontend_artifact.type_env().clone(),
         }
-        if !sources
-            .iter()
-            .any(|candidate| candidate.path() == source.path())
-        {
-            sources.push(source.clone());
-        }
-        let mut index = session.build_top_level_index(&sources)?;
-
-        let parsed_files = sources
-            .iter()
-            .map(|source| session.parse(source))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)
-            .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
-        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
-            env.extend_from_file(source, parsed, &index)
-                .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
-        }
-
-        // P10-T04-b：依赖 cone 在前端是 cache-hit 的话，它的源不在 `compilation_sources` 中，
-        // 重建 Index/TypeEnv 后必须把 cached frontend import 重放回这里，否则下游
-        // surface contract 推断会因为找不到依赖 cone 的 public API 而失败。
-        scoopc_hir::cone_import::inject_cached_cone_imports(
-            &mut index,
-            &mut env,
-            cached_cone_imports,
-        )
-        .map_err(|error| EffectFactsError::Frontend {
-            message: format!("注入 cached cone import 失败：{error}"),
-        })?;
-
-        Ok(Self {
-            stable_cone_key,
-            index,
-            env,
-        })
     }
 
     fn step_case_seeds(
@@ -2401,6 +2306,17 @@ mod tests {
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
+    }
+
+    fn frontend_artifact(
+        session: &Session,
+        source: &SourceFile,
+    ) -> scoopc_hir::stage::HirSemanticArtifact {
+        scoopc_hir::stage::run(session, source)
+            .unwrap()
+            .hir_semantic_artifact()
+            .expect("HIR stage 应发布 effect-facts 可消费的 semantic artifact")
+            .clone()
     }
 
     fn build_test_mir_facts(
@@ -3572,12 +3488,12 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
     ) {
         let session = session();
         let source = sample_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
         let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,
@@ -3615,12 +3531,12 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         crate::effect_facts::MaterializedEffectFacts,
     ) {
         let session = session();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
         let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,
@@ -4434,6 +4350,7 @@ fun pureHelper(): Unit {}
     fn materialized_effect_facts_builder_uses_canonical_pass_view_snapshot() {
         let session = session();
         let source = sample_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let removed_fqn = materialized
             .pass_view()
@@ -4450,8 +4367,7 @@ fun pureHelper(): Unit {}
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,
@@ -4655,6 +4571,7 @@ fun pureHelper(): Unit {}
     fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema() {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
         let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
@@ -4665,8 +4582,7 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,
@@ -4695,6 +4611,7 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
         let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
@@ -4705,8 +4622,7 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,
@@ -4736,6 +4652,7 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
         let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
@@ -4750,8 +4667,7 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
             &mir_facts,
             &mut type_context,

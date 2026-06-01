@@ -1323,15 +1323,21 @@ mod tests {
         config: EffectFactsSolverConfig,
     ) -> crate::effect_facts::MaterializedEffectFacts {
         let session = session();
+        let mir_stage_output =
+            load_direct_style_mir_stage_output_for_dump(&session, source).unwrap();
         let materialized =
             materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
-        let mut type_context =
-            crate::effect_facts::EffectOwnedTypeContext::from_mir_types(&materialized.types);
+        let mir_stage_output = mir_stage_output.with_materialized_mir(materialized);
+        let mut type_context = crate::effect_facts::EffectOwnedTypeContext::from_mir_types(
+            &mir_stage_output.materialized_mir().types,
+        );
         let seeded =
             crate::effect_facts::MaterializedEffectFactsBuilder::from_materialized_snapshot(
-                &session,
-                source,
-                &materialized,
+                mir_stage_output
+                    .hir_semantic_artifact()
+                    .expect("MIR handoff 应携带 HIR semantic artifact"),
+                mir_stage_output.materialized_mir(),
+                mir_stage_output.mir_facts(),
                 &mut type_context,
             )
             .build()

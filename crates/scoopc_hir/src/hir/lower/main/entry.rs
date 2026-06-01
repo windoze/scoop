@@ -417,10 +417,24 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 ///   resolution、effect payload binding 等 typed 事实的路径；
 /// - 但仍停留在 generic HIR/MIR template 边界：不会在这里额外 materialize
 ///   standalone generic fun 或 owner-specialized member fun 的 `::<...>` 实例。
+#[derive(Debug)]
+pub struct TypedHirLoweringOutput {
+    pub lowered_hir: LoweredHir,
+    pub index: Index,
+    pub type_env: crate::typecheck::TypeEnv,
+}
+
 pub fn lower_typed_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<LoweredHir, HirLowerError> {
+    Ok(lower_typed_for_dump_with_frontend_artifact(session, source)?.lowered_hir)
+}
+
+pub fn lower_typed_for_dump_with_frontend_artifact(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<TypedHirLoweringOutput, HirLowerError> {
     let mut ast = parse_file(source)?;
     let mut support_asts = load_dump_support_asts(session, source)?;
 
@@ -521,7 +535,7 @@ pub fn lower_typed_for_dump(
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
 
-    lower_for_compilation_unit_multi_files_internal(
+    let lowered_hir = lower_for_compilation_unit_multi_files_internal(
         &index,
         &compilation_unit,
         &files_to_lower,
@@ -531,5 +545,11 @@ pub fn lower_typed_for_dump(
         CompilationUnitLoweringOptions::generic_template_only(
             StableConeKey::for_virtual_source_path(source.path()),
         ),
-    )
+    )?;
+
+    Ok(TypedHirLoweringOutput {
+        lowered_hir,
+        index,
+        type_env: env,
+    })
 }

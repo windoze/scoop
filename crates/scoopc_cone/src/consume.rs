@@ -228,10 +228,8 @@ pub fn inject_cone_artifact_frontend_import(
 
 /// Build a neutral `CachedConeImport` payload from a per-cone artifact.
 ///
-/// This payload can be both injected directly into the consumer's `Index`/`TypeEnv`
-/// (as `inject_cone_artifact_frontend_import` does) and threaded through to downstream
-/// stages that rebuild `Index`/`TypeEnv` from `compilation_sources`, so they can
-/// replay the same injection (P10-T04-b).
+/// This payload is injected into the consumer's `Index`/`TypeEnv` by the frontend; downstream
+/// stages receive the resulting HIR semantic artifact instead of replaying this injection.
 pub fn build_cached_cone_import_from_artifact(
     decl_cone: ConeId,
     artifact: &ConeArtifact,

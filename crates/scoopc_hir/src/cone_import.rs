@@ -5,16 +5,16 @@
 //!   file_cone_infos, cone_kinds）
 //! - `TypeEnv`：type symbols / typealias RHS / 合成 SourceFile / `FileTypeContext`
 //!
-//! 历史上这些注入逻辑只发生在 `scoopc/frontend.rs` 这一处；但 `EffectFactsTypeContext::build`
-//! 等下游 stage 会从 `compilation_sources` 独立重建 `Index`/`TypeEnv`，看不到 cached dep。
-//! 本模块提供一个 **中性的** payload + helper，使得任何重建 Index/TypeEnv 的 stage 都能
-//! 重放这次注入，从而让 cached dep 在所有下游 stage 都可见。
+//! 这些注入逻辑发生在 frontend 构造 `Index`/`TypeEnv` 时；后续 stage 应通过 HIR semantic
+//! artifact 消费注入后的环境，而不是从 `compilation_sources` 独立重建并重放注入。
+//! 本模块仍提供一个 **中性的** payload + helper，供 frontend 和 `.cone` artifact 消费路径
+//! 共用同一套注入语义。
 //!
 //! 设计要点：
 //! - **中性**：不依赖 `scoopc_cone` 的任何 wire schema（ScoopIR / SymbolVisibilityFile / …）。
 //! - 数据本身使用 `ast::TypeRef` / `ast::EffectRowExpr` / `TypeSymbol` 等已经存在的中性类型。
 //! - 由 `scoopc_cone::consume` 把 `.cone` artifact 翻译成本模块的 `CachedConeImport`，
-//!   然后在所有需要重放的位置调用 `inject_cached_cone_imports`。
+//!   再由 frontend 注入当前编译单元的语义环境。
 
 use std::path::{Path, PathBuf};
 
@@ -31,8 +31,8 @@ use crate::typecheck::{FileTypeContext, TypeEnv, TypeSymbol};
 
 /// 一个 cached dep cone 在前端阶段产生的全部影响。
 ///
-/// 由 `scoopc_cone::consume` 在加载 artifact 时构造一次，然后随 `FrontendOutput`
-/// 透传给所有需要重建 Index/TypeEnv 的 stage（effect_facts/mir/rtti/...）。
+/// 由 `scoopc_cone::consume` 在加载 artifact 时构造一次，然后由 frontend 注入
+/// 当前编译单元的 `Index`/`TypeEnv`。
 #[derive(Debug, Clone)]
 pub struct CachedConeImport {
     /// 该 cone 在当前编译单元内的 `ConeId`（用于 internal 可见性过滤）。
@@ -492,8 +492,8 @@ mod tests {
             Visibility::Internal
         );
 
-        // FileTypeContext for synthetic decl file is now populated — this is the bit
-        // that previously was missing and caused EffectFactsTypeContext::build to fail.
+        // FileTypeContext for synthetic decl file is part of the frontend artifact consumed by
+        // later stages.
         let ctx = env
             .file_type_context(&import.decl_file)
             .expect("file_type_context for synthetic decl file");
@@ -508,9 +508,8 @@ mod tests {
 
     #[test]
     fn injected_symbols_carry_dep_cone_attribution_for_downstream_stages() {
-        // P10-T04-b regression: effect_facts / mir / cone scoopir-export 等下游 stage 在
-        // 重建 Index/TypeEnv 后会按 `decl_cone` / `decl_file` / `visibility` 做 surface
-        // contract 推断。本测试锁定注入后这些字段不会被退化为 consumer 自身或丢失。
+        // P10-T04-b regression: cached dep symbols in the frontend artifact must keep their
+        // original cone attribution for later stage consumers.
         let import = fixture_import();
         let mut index = Index::default();
         let mut env = TypeEnv::default();
@@ -528,8 +527,8 @@ mod tests {
         assert_eq!(token.decl_file, import.decl_file);
         assert_eq!(token.visibility, Visibility::Public);
 
-        // Public fun overload: 同上，effect_facts 的 surface_callable_contract 会按
-        // overload.symbol.decl_cone / decl_file 解析 callable owner。
+        // Public fun overload: 同上，callable surface consumers rely on the dep declaration
+        // attribution rather than treating it as consumer-owned.
         let make_token = &index.by_fqn["dep.make_token"].fun[0];
         assert_eq!(make_token.symbol.decl_cone, import.decl_cone);
         assert_eq!(make_token.symbol.decl_file, import.decl_file);
@@ -549,10 +548,8 @@ mod tests {
 
     #[test]
     fn injecting_into_already_typechecked_index_extends_dep_visibility() {
-        // 模拟 `EffectFactsTypeContext::build` 的实际场景：先从 compilation_sources 重建
-        // Index/TypeEnv（这里用 `Default` 占位 + 一个无关符号占位 consumer 已 typecheck 过的
-        // 状态），再 `inject_cached_cone_imports` 把 cached dep 重放进来。
-        // 注入后 dep 公共 fun / type 必须可见，且原有 consumer 符号不被破坏。
+        // 模拟 frontend 已有 consumer 符号后再注入 cached dep artifact。注入后 dep 公共
+        // fun / type 必须可见，且原有 consumer 符号不被破坏。
         let import = fixture_import();
         let mut index = Index::default();
         let mut env = TypeEnv::default();

@@ -546,7 +546,7 @@ impl NamespacedSymbols {
 }
 
 /// 一个编译单元（多个文件）的顶层符号索引。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Index {
     /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
     pub by_fqn: HashMap<String, NamespacedSymbols>,
@@ -689,8 +689,8 @@ impl Index {
     /// 把一个 “外部 cone” 的合成 `decl_file` 登记进 cone-mapping 表。
     ///
     /// 用途（P10-T04-b）：cached dependency cone artifact 经 `cone_import::inject_cached_cone_imports`
-    /// 重放时，需要让 `Index::cone_info_of_source(<synthetic decl file>)` / `Index::cone_kind(decl_cone)`
-    /// 返回正确的 cone metadata，否则下游 stage 重建 Index 时该合成文件被默认归属到
+    /// 注入时，需要让 `Index::cone_info_of_source(<synthetic decl file>)` / `Index::cone_kind(decl_cone)`
+    /// 返回正确的 cone metadata，否则后续 artifact 消费会把该合成文件默认归属到
     /// `ConeId::DEFAULT` / `ConeKind::Bin`，导致 `internal` 可见性等判断失真。
     ///
     /// first-write-wins：若 `decl_file` 已登记则保留旧值；若 `cone` 已登记不同 kind 则也保留旧值

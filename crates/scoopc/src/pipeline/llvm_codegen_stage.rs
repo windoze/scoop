@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::effect_facts_stage::MaterializedEffectFacts;
@@ -15,19 +15,17 @@ use crate::llvm::{
 };
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
+use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
-use scoopc_hir::cone_import::CachedConeImport;
+use crate::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
 use scoopc_lir_facts::{LirCallSiteKind, LirFacts};
 
-use super::{
-    HirStageOutput, LirStageOutput, LlvmArtifactKind,
-    build_effect_facts_stage_output_with_compilation_sources, mir_stage,
-};
+use super::{HirStageOutput, LirStageOutput, LlvmArtifactKind, mir_stage};
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -56,10 +54,6 @@ pub struct LlvmCodegenStageInput {
     entry_source_id: SourceId,
     entry_main_fqn: Option<String>,
     opt_level: OptLevel,
-    /// P10-T04-b：FrontendOutput 在前端被 cache-hit 注入过的依赖 cone import。
-    /// effect-facts stage 重建 Index/TypeEnv 时需要重放它们，否则 cached
-    /// dep 的 public API 在下游不可见。
-    cached_cone_imports: Vec<CachedConeImport>,
     /// P10-T04-c-2：LLVM ABI/layout materializer 直接消费的 cache-hit dep LIR handoff。
     cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
 }
@@ -73,7 +67,7 @@ impl LlvmCodegenStageInput {
         entry_main_fqn: Option<String>,
         opt_level: OptLevel,
     ) -> Self {
-        Self::with_cached_cone_imports(
+        Self::with_cached_dep_artifacts(
             lowered,
             abi_visibility_lowered,
             source_map,
@@ -81,19 +75,17 @@ impl LlvmCodegenStageInput {
             entry_main_fqn,
             opt_level,
             Vec::new(),
-            Vec::new(),
         )
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn with_cached_cone_imports(
+    pub fn with_cached_dep_artifacts(
         lowered: CodegenLoweringOutput,
         abi_visibility_lowered: Option<CodegenLoweringOutput>,
         source_map: SourceMap,
         entry_source_id: SourceId,
         entry_main_fqn: Option<String>,
         opt_level: OptLevel,
-        cached_cone_imports: Vec<CachedConeImport>,
         cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
     ) -> Self {
         Self {
@@ -103,7 +95,6 @@ impl LlvmCodegenStageInput {
             entry_source_id,
             entry_main_fqn,
             opt_level,
-            cached_cone_imports,
             cached_dep_artifacts,
         }
     }
@@ -365,31 +356,30 @@ impl LlvmLirRun {
 
 fn run_lir_stage_from_lowered_hir(
     session: &Session,
-    source_map: &SourceMap,
     entry_source: &SourceFile,
     lowered_hir: LoweredHir,
     materialized_mir: MaterializedMir,
-    cached_cone_imports: &[CachedConeImport],
+    frontend_index: Index,
+    type_env: TypeEnv,
     preserve_published_resume_shells: bool,
 ) -> Result<LlvmLirRun, LlvmEmitError> {
     let source_path = entry_source.path().to_path_buf();
     let base_hir = lowered_hir.clone();
-    let typed_hir_output = HirStageOutput::new(lowered_hir, &source_path)
-        .map_err(crate::hir::HirLowerError::from)
-        .map_err(|err| stage_error("HIR stage", err))?;
+    let typed_hir_output = HirStageOutput::new_with_frontend_artifact(
+        lowered_hir,
+        &source_path,
+        frontend_index,
+        type_env,
+    )
+    .map_err(crate::hir::HirLowerError::from)
+    .map_err(|err| stage_error("HIR stage", err))?;
     let hir_facts = typed_hir_output.hir_facts().clone();
     let mir_stage_output = mir_stage::run(typed_hir_output)
         .map_err(|err| stage_error("direct-style MIR", err))?
         .with_materialized_mir(materialized_mir);
-    let compilation_sources = source_map_compilation_sources(session, source_map);
-    let effect_facts_stage_output = build_effect_facts_stage_output_with_compilation_sources(
-        session,
-        entry_source,
-        &compilation_sources,
-        cached_cone_imports,
-        &mir_stage_output,
-    )
-    .map_err(|err| stage_error("effect facts", err))?;
+    let effect_facts_stage_output =
+        super::build_effect_facts_stage_output(session, entry_source, &mir_stage_output)
+            .map_err(|err| stage_error("effect facts", err))?;
     let opt_options = if preserve_published_resume_shells {
         LateLoweredOptOptions::preserve_published_resume_shells()
     } else {
@@ -416,20 +406,6 @@ fn run_lir_stage_from_lowered_hir(
     })
 }
 
-fn source_map_compilation_sources(session: &Session, source_map: &SourceMap) -> Vec<SourceFile> {
-    let sysroot_paths = session
-        .sysroot()
-        .files
-        .iter()
-        .map(|file| file.source.path().to_path_buf())
-        .collect::<HashSet<_>>();
-    source_map
-        .sources()
-        .filter(|source| !sysroot_paths.contains(source.path()))
-        .cloned()
-        .collect()
-}
-
 pub(crate) fn run(
     session: &Session,
     input: LlvmCodegenStageInput,
@@ -444,7 +420,6 @@ pub(crate) fn run(
         entry_source_id,
         entry_main_fqn,
         opt_level,
-        cached_cone_imports,
         cached_dep_artifacts,
     } = input;
     let entry_source =
@@ -456,28 +431,28 @@ pub(crate) fn run(
                     entry_source_id.as_usize()
                 ),
             })?;
-    let (lowered_hir, materialized_mir) = lowered.into_parts();
+    let (lowered_hir, materialized_mir, frontend_index, type_env) = lowered.into_parts();
     let primary_run = run_lir_stage_from_lowered_hir(
         session,
-        &source_map,
         entry_source,
         lowered_hir,
         materialized_mir,
-        &cached_cone_imports,
+        frontend_index,
+        type_env,
         false,
     )?;
     let (lir, lir_facts) = primary_run.output.into_parts();
     let base_context = primary_run.base_context;
     let abi_visibility_parts = abi_visibility_lowered
         .map(|lowered| {
-            let (lowered_hir, materialized_mir) = lowered.into_parts();
+            let (lowered_hir, materialized_mir, frontend_index, type_env) = lowered.into_parts();
             run_lir_stage_from_lowered_hir(
                 session,
-                &source_map,
                 entry_source,
                 lowered_hir,
                 materialized_mir,
-                &cached_cone_imports,
+                frontend_index,
+                type_env,
                 true,
             )
             .and_then(|run| {
@@ -1121,7 +1096,6 @@ fun main(): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
             Vec::new(),
-            Vec::new(),
         )?;
         Ok(std::fs::read_to_string(out).unwrap())
     }
@@ -1145,7 +1119,6 @@ fun main(): Int {
             entry_main_fqn,
             OptLevel::O0,
             LlvmArtifactKind::Object,
-            Vec::new(),
             Vec::new(),
         )?;
 
@@ -2182,7 +2155,6 @@ fun main(): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
             Vec::new(),
-            Vec::new(),
         )
         .unwrap();
         assert_eq!(test_stage_run_count(), 1);
@@ -2240,14 +2212,13 @@ fun main(): Int {
         let (session, source_map, entry_source_id, lowered) = sample_emit_args();
         let consumer_stage = super::run(
             &session,
-            LlvmCodegenStageInput::with_cached_cone_imports(
+            LlvmCodegenStageInput::with_cached_dep_artifacts(
                 lowered,
                 None,
                 source_map,
                 entry_source_id,
                 None,
                 OptLevel::O0,
-                Vec::new(),
                 vec![dep_handoff],
             ),
         )
@@ -2372,7 +2343,6 @@ fun main(): Int {
                 OptLevel::O0,
                 artifact,
                 Vec::new(),
-                Vec::new(),
             )
             .unwrap();
             let size = std::fs::metadata(&out).unwrap().len();
@@ -2400,7 +2370,6 @@ fun main(): Int {
             None,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
-            Vec::new(),
             Vec::new(),
         )
         .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");

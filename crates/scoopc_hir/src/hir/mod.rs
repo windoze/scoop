@@ -37,6 +37,7 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_with_explicit_mir_instances,
     lower_for_compilation_unit_multi_files_with_type_env,
     lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
+    lower_typed_for_dump_with_frontend_artifact,
 };
 pub use lower::{
     LoweringInputs, canonical_generic_fun_signature_key,

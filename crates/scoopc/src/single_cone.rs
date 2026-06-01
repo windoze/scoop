@@ -161,18 +161,16 @@ pub fn run_single_cone_artifact_compile(
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
     let entry_main_fqn = front.input().entry_main_fqn().map(str::to_owned);
 
-    let cached_cone_imports = front.cached_cone_imports().to_vec();
     let cached_dep_artifacts = front.cached_dep_artifacts().to_vec();
     let stage_output = run_llvm_codegen_stage(
         session,
-        LlvmCodegenStageInput::with_cached_cone_imports(
+        LlvmCodegenStageInput::with_cached_dep_artifacts(
             lowering,
             abi_visibility_lowering,
             source_map,
             entry_source_id,
             entry_main_fqn,
             opt_level,
-            cached_cone_imports,
             cached_dep_artifacts,
         ),
     )?;

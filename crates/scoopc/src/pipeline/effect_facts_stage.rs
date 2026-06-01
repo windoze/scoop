@@ -2,9 +2,6 @@ use crate::effect_facts_stage::{
     BodyEffectFacts, EffectFactsError, EffectOwnedTypeContext, MaterializedEffectFacts,
     MaterializedEffectFactsBuilder, MaterializedEffectFactsSolver, SiteEffectFacts,
 };
-use crate::session::Session;
-use crate::source::SourceFile;
-use scoopc_hir::cone_import::CachedConeImport;
 
 use super::MirStageOutput;
 
@@ -59,39 +56,23 @@ impl EffectFactsStageOutput {
     }
 }
 
-#[cfg(test)]
 pub(crate) fn run(
-    session: &Session,
-    source: &SourceFile,
     mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
-    run_with_compilation_sources(
-        session,
-        source,
-        std::slice::from_ref(source),
-        &[],
-        mir_stage_output,
-    )
-}
-
-pub(crate) fn run_with_compilation_sources(
-    session: &Session,
-    source: &SourceFile,
-    compilation_sources: &[SourceFile],
-    cached_cone_imports: &[CachedConeImport],
-    mir_stage_output: &MirStageOutput,
-) -> Result<EffectFactsStageOutput, EffectFactsError> {
+    let frontend_artifact =
+        mir_stage_output
+            .hir_semantic_artifact()
+            .ok_or_else(|| EffectFactsError::Frontend {
+                message: "P4 effect-facts stage 缺少 HIR semantic artifact".to_string(),
+            })?;
     let solver = MaterializedEffectFactsSolver::for_opt_level(
         mir_stage_output.materialized_mir().opt_level(),
     );
     let mut type_context =
         EffectOwnedTypeContext::from_mir_types(&mir_stage_output.materialized_mir().types);
     let seeded_facts = {
-        MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
-            session,
-            source,
-            compilation_sources,
-            cached_cone_imports,
+        MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            frontend_artifact,
             mir_stage_output.materialized_mir(),
             mir_stage_output.mir_facts(),
             &mut type_context,
@@ -117,11 +98,8 @@ pub(crate) fn run_with_compilation_sources(
         // step-schema 上界；solver 仍只会在真实 body/site outward 贡献存在时把它留进
         // resolved_outward_cases。
         let seeded_facts = {
-            MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
-                session,
-                source,
-                compilation_sources,
-                cached_cone_imports,
+            MaterializedEffectFactsBuilder::from_materialized_snapshot(
+                frontend_artifact,
                 mir_stage_output.materialized_mir(),
                 mir_stage_output.mir_facts(),
                 &mut type_context,
@@ -185,7 +163,7 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(session, source, &mir_stage_output).expect("fixture 应可通过 effect-facts stage")
+        super::run(&mir_stage_output).expect("fixture 应可通过 effect-facts stage")
     }
 
     fn run_stage_with_opt_level(
@@ -199,8 +177,7 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(&session, source, &mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage")
+        super::run(&mir_stage_output).expect("fixture 应可通过 effect-facts stage")
     }
 
     fn type_store_fingerprint(types: &crate::ty::TypeStore) -> Vec<String> {
@@ -383,8 +360,7 @@ fun callInterface(i: IFace): Int {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        let output = super::run(&session, &source, &mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage");
+        let output = super::run(&mir_stage_output).expect("fixture 应可通过 effect-facts stage");
 
         assert_eq!(mir_stage_output.file().items.len(), 2);
         assert_eq!(
@@ -434,8 +410,7 @@ fun callInterface(i: IFace): Int {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        let output = super::run(&session, &source, &mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage");
+        let output = super::run(&mir_stage_output).expect("fixture 应可通过 effect-facts stage");
 
         assert!(mir_stage_output.callable_body("sample.main").is_some());
         assert_eq!(
@@ -499,8 +474,8 @@ fun callInterface(i: IFace): Int {
             format!("{:?}", mir_stage_output.materialized_mir().pass_artifacts());
         let before_types = type_store_fingerprint(&mir_stage_output.materialized_mir().types);
 
-        let output = super::run(&session, &source, &mir_stage_output)
-            .expect("fixture 应可通过只读 effect-facts stage");
+        let output =
+            super::run(&mir_stage_output).expect("fixture 应可通过只读 effect-facts stage");
 
         assert_eq!(
             MirSnapshotBinding::from_pass_view(&mir_stage_output.materialized_pass_view()),
@@ -579,8 +554,7 @@ fun callInterface(i: IFace): Int {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        let output = super::run(&session, &source, &mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage");
+        let output = super::run(&mir_stage_output).expect("fixture 应可通过 effect-facts stage");
         let dump = output.stable_dump();
         let published = output
             .effect_facts()

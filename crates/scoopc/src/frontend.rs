@@ -385,8 +385,8 @@ pub struct FrontendOutput {
     type_env: TypeEnv,
     /// consumer 的所有 dep cone 注入 payload，按 DAG 顺序保留。
     ///
-    /// 下游 stage（effect_facts、MIR materialize、LIR codegen）若从 `compilation_sources`
-    /// 重建 `Index`/`TypeEnv`，可以再次注入这些 payload 以恢复 dep cone 的可见性。
+    /// 这些 payload 只在 frontend 构造 `Index`/`TypeEnv` 时注入；后续 stage 通过 HIR
+    /// semantic artifact 直接消费注入后的环境，不再重放注入。
     cached_cone_imports: Vec<CachedConeImport>,
     /// cache-hit dependency artifacts decoded for LLVM ABI/layout handoff.
     #[cfg(feature = "llvm")]
@@ -518,6 +518,8 @@ pub enum MirRequestRootMode {
 pub struct CodegenLoweringOutput {
     pub lowered_hir: hir::LoweredHir,
     pub materialized_mir: crate::mir::MaterializedMir,
+    pub frontend_index: Index,
+    pub type_env: TypeEnv,
 }
 
 #[cfg(feature = "llvm")]
@@ -534,8 +536,21 @@ impl CodegenLoweringOutput {
         self.materialized_mir.callable_view()
     }
 
-    pub fn into_parts(self) -> (hir::LoweredHir, crate::mir::MaterializedMir) {
-        (self.lowered_hir, self.materialized_mir)
+    pub fn frontend_index(&self) -> &Index {
+        &self.frontend_index
+    }
+
+    pub fn type_env(&self) -> &TypeEnv {
+        &self.type_env
+    }
+
+    pub fn into_parts(self) -> (hir::LoweredHir, crate::mir::MaterializedMir, Index, TypeEnv) {
+        (
+            self.lowered_hir,
+            self.materialized_mir,
+            self.frontend_index,
+            self.type_env,
+        )
     }
 }
 
@@ -846,7 +861,7 @@ pub fn run_frontend_with_artifact_cache(
     let mut final_index = None;
     let mut final_env = None;
     // consumer 在 frontend 阶段消费的所有 dep cone 注入 payload，按 dep DAG 顺序排列。
-    // 下游 stage 若从 `compilation_sources` 重建 `Index`/`TypeEnv`，可以重新注入这些 payload。
+    // 下游 stage 通过 HIR semantic artifact 消费注入后的环境，不再重放这些 payload。
     let mut consumer_cached_cone_imports: Vec<CachedConeImport> = Vec::new();
     #[cfg(feature = "llvm")]
     let mut consumer_cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff> = Vec::new();
@@ -1309,6 +1324,8 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
     Ok(CodegenLoweringOutput {
         lowered_hir,
         materialized_mir,
+        frontend_index: front.index.clone(),
+        type_env: front.type_env.clone(),
     })
 }
 
@@ -1852,8 +1869,8 @@ mod tests {
             "<cone:fixture-cache-dep@0.0.0>"
         );
 
-        // P10-T04-b: 验证 cached cone imports 沿 FrontendOutput 透传，下游 stage（effect_facts/mir）
-        // 重建 Index/TypeEnv 时可以重新注入。
+        // P10-T04-b: 验证 frontend 仍记录 cache-hit dep 的 import payload；下游通过
+        // HIR semantic artifact 消费注入后的环境，不再自行重放注入。
         assert_eq!(
             output.cached_cone_imports().len(),
             1,

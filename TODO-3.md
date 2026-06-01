@@ -9,7 +9,7 @@
 
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
-| T3-01 | [TODO] | P4 收口 Index/TypeEnv/dispatch tables 重建（FG-07） |
+| T3-01 | [DONE] | P4 收口 Index/TypeEnv/dispatch tables 重建（FG-07） |
 | T3-01R | [TODO] | Review T3-01 |
 | T3-02 | [TODO] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
 | T3-02R | [TODO] | Review T3-02 |
@@ -20,13 +20,13 @@
 
 ---
 
-### [TODO] T3-01：P4 收口前端环境重建（FG-07）
+### [DONE] T3-01：P4 收口前端环境重建（FG-07）
 
 - 必须实现的内容：把 P4 effect-facts 所需的 declaration/type environment、dispatch inventory（vtable/itable/direct subclass）、per-cone public API import 作为 HIR facts / per-cone artifact 显式传给 P4；删除 `effect_facts/builder.rs` 里重新 parse sources、`build_top_level_index`、`TypeEnv::from_sysroot`/`extend_from_file`、重收 vtable/itable/direct subclass 的逻辑；cached-dep API 走 artifact 而非重放注入。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：P4 不再重建前端环境/dispatch tables，纯消费上游 artifact。
 - 依赖：T2-03R
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。新增 HIR semantic artifact，携带 frontend 已构造并注入 cached dep public API 后的 `Index`/`TypeEnv`/`HirFacts`；MIR handoff 显式携带该 artifact，P4 effect-facts builder 改为消费 artifact，不再重新 parse sources、`build_top_level_index`、`TypeEnv::from_sysroot`/`extend_from_file` 或重放 cached cone imports。同步生产 LLVM/LIR pipeline 与相关测试 helper，使 cached-dep public API 通过 frontend artifact 进入 P4；保留 cached dep LIR artifact 仅用于 LLVM ABI/layout handoff。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-01R：Review T3-01
 - 验证：`python3 tools/run_fixtures.py`

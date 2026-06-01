@@ -11,6 +11,7 @@ use crate::hir::{
     ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
 use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
+use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -23,6 +24,8 @@ use crate::ty::{
     EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind,
     TypeParamType, TypeStore, ValueTypeKind,
 };
+use crate::typecheck::TypeEnv;
+use scoop_project_model::StableConeKey;
 use scoopc_hir_facts::{
     HirFacts,
     common::FactIdentity,
@@ -2019,6 +2022,47 @@ fn format_hir_fact_payload(
     let _ = writeln!(out, "{indent}],");
 }
 
+/// HIR 语义 artifact，供后续 stage 直接消费前端已经构造好的声明环境。
+#[derive(Debug, Clone)]
+pub struct HirSemanticArtifact {
+    stable_cone_key: StableConeKey,
+    index: Index,
+    type_env: TypeEnv,
+    hir_facts: HirFacts,
+}
+
+impl HirSemanticArtifact {
+    pub fn new(
+        stable_cone_key: StableConeKey,
+        index: Index,
+        type_env: TypeEnv,
+        hir_facts: HirFacts,
+    ) -> Self {
+        Self {
+            stable_cone_key,
+            index,
+            type_env,
+            hir_facts,
+        }
+    }
+
+    pub fn stable_cone_key(&self) -> &StableConeKey {
+        &self.stable_cone_key
+    }
+
+    pub fn index(&self) -> &Index {
+        &self.index
+    }
+
+    pub fn type_env(&self) -> &TypeEnv {
+        &self.type_env
+    }
+
+    pub fn hir_facts(&self) -> &HirFacts {
+        &self.hir_facts
+    }
+}
+
 /// HIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
@@ -2032,23 +2076,47 @@ fn format_hir_fact_payload(
 pub struct HirStageOutput {
     lowered_hir: LoweredHir,
     hir_facts: HirFacts,
+    semantic_artifact: Option<HirSemanticArtifact>,
     source_path: PathBuf,
 }
 
 impl HirStageOutput {
     pub fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
-        Self::new_checked(lowered_hir, source_path)
+        Self::new_checked(lowered_hir, source_path, None)
     }
 
-    fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+    pub fn new_with_frontend_artifact(
+        lowered_hir: LoweredHir,
+        source_path: &Path,
+        index: Index,
+        type_env: TypeEnv,
+    ) -> Result<Self, HirStageError> {
+        HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
+        Self::new_checked(lowered_hir, source_path, Some((index, type_env)))
+    }
+
+    fn new_checked(
+        mut lowered_hir: LoweredHir,
+        source_path: &Path,
+        frontend_artifact_parts: Option<(Index, TypeEnv)>,
+    ) -> Result<Self, HirStageError> {
         ensure_raise_runtime_error_effect(&mut lowered_hir.types);
         let collected_contracts =
             CollectedHirContracts::from_lowered_hir(&lowered_hir, source_path)?;
         let hir_facts = build_hir_facts(&lowered_hir, &collected_contracts, source_path)?;
+        let semantic_artifact = frontend_artifact_parts.map(|(index, type_env)| {
+            HirSemanticArtifact::new(
+                lowered_hir.stable_cone_key.clone(),
+                index,
+                type_env,
+                hir_facts.clone(),
+            )
+        });
         Ok(Self {
             lowered_hir,
             hir_facts,
+            semantic_artifact,
             source_path: source_path.to_path_buf(),
         })
     }
@@ -2067,6 +2135,10 @@ impl HirStageOutput {
 
     pub fn hir_facts(&self) -> &HirFacts {
         &self.hir_facts
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.semantic_artifact.as_ref()
     }
 
     pub fn source_path(&self) -> &Path {
@@ -2097,8 +2169,14 @@ impl HirStageOutput {
 }
 
 pub fn run(session: &Session, source: &SourceFile) -> Result<HirStageOutput, HirLowerError> {
-    let lowered_hir = crate::hir::lower_typed_for_dump(session, source)?;
-    HirStageOutput::new(lowered_hir, source.path()).map_err(HirLowerError::from)
+    let output = crate::hir::lower_typed_for_dump_with_frontend_artifact(session, source)?;
+    HirStageOutput::new_with_frontend_artifact(
+        output.lowered_hir,
+        source.path(),
+        output.index,
+        output.type_env,
+    )
+    .map_err(HirLowerError::from)
 }
 
 fn build_hir_facts(
