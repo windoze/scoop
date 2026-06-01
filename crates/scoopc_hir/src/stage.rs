@@ -2646,9 +2646,13 @@ impl<'a, 'b> SourceEffectComputer<'a, 'b> {
             ]),
             ExprKind::VarRef(_) => EffectRow::pure(),
             ExprKind::Block(block) => self.block_surface_row(block, source_path),
-            ExprKind::Unary { expr, .. }
-            | ExprKind::Cast { expr, .. }
-            | ExprKind::TypeCheck { expr, .. } => self.expr_surface_row(expr, source_path),
+            ExprKind::Unary { expr: operand, .. } => union_rows([
+                self.expr_surface_row(operand, source_path),
+                self.semantic_surface_row(source_path, expr.span),
+            ]),
+            ExprKind::Cast { expr, .. } | ExprKind::TypeCheck { expr, .. } => {
+                self.expr_surface_row(expr, source_path)
+            }
             ExprKind::Binary { lhs, rhs, .. } => union_rows([
                 self.expr_surface_row(lhs, source_path),
                 self.expr_surface_row(rhs, source_path),
@@ -6104,13 +6108,19 @@ impl<'a> ContractCollector<'a> {
                     }
                 }
             }
-            ExprKind::Unary { expr, .. }
-            | ExprKind::TypeCheck { expr, .. }
-            | ExprKind::Cast { expr, .. }
-            | ExprKind::MemberAccess { receiver: expr, .. } => {
-                self.collect_expr(source_path, expr)?;
+            ExprKind::Unary { expr: operand, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
+                self.collect_expr(source_path, operand)?;
+            }
+            ExprKind::TypeCheck { expr: operand, .. } | ExprKind::Cast { expr: operand, .. } => {
+                self.collect_expr(source_path, operand)?;
+            }
+            ExprKind::MemberAccess { receiver, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
+                self.collect_expr(source_path, receiver)?;
             }
             ExprKind::Binary { lhs, rhs, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
                 self.collect_expr(source_path, lhs)?;
                 self.collect_expr(source_path, rhs)?;
             }
@@ -6176,6 +6186,89 @@ impl<'a> ContractCollector<'a> {
             CallArg::Positional(expr) => self.collect_expr(source_path, expr)?,
             CallArg::Named { value, .. } => self.collect_expr(source_path, value)?,
         }
+        Ok(())
+    }
+
+    fn record_semantic_call_contract(
+        &mut self,
+        source_path: &Path,
+        span: Span,
+    ) -> Result<(), HirStageError> {
+        let call_site = self.call_site(source_path, span);
+        if self.call_site_contracts.contains_key(&call_site) {
+            return Ok(());
+        }
+        let Some(binding) = self.lowered_hir.top_level_fun_call_sites.get(&call_site) else {
+            return Ok(());
+        };
+
+        let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
+        let abi_identity = self.callable_abi_identity_for_binding(binding, source_path, span)?;
+        let stable_template_key = self.stable_template_key_for_binding(binding);
+        let function = FunctionTargetContract::from_binding(
+            &self.lowered_hir.types,
+            binding,
+            abi_identity,
+            stable_template_key,
+            arg_binding,
+        );
+        let contract = if binding.is_intrinsic {
+            TypedCallSiteContract::Intrinsic {
+                kind: TypedIntrinsicKind::from_call_binding(binding),
+                function,
+            }
+        } else if let Some((dispatch_kind, receiver_ty)) =
+            self.dispatch_kind_and_receiver_ty(source_path, span)
+        {
+            let (owner_fqn, member_name) =
+                self.member_binding_for_fqn(&binding.fqn).ok_or_else(|| {
+                    HirStageError::new(
+                        source_path.to_path_buf(),
+                        span,
+                        format!(
+                            "semantic dispatch call contract missing owner/member binding for `{}`",
+                            binding.fqn
+                        ),
+                        "typed HIR call contract",
+                    )
+                })?;
+            let member = MemberCallTargetContract::new(
+                owner_fqn,
+                member_name,
+                binding.fqn.clone(),
+                receiver_ty,
+                function,
+            );
+            match dispatch_kind {
+                DispatchCallKind::Virtual => TypedCallSiteContract::Virtual(member),
+                DispatchCallKind::Interface => TypedCallSiteContract::Interface(member),
+            }
+        } else if let Some((owner_fqn, member_name)) = self.member_binding_for_fqn(&binding.fqn) {
+            let receiver_ty = function.param_tys().first().copied().ok_or_else(|| {
+                HirStageError::new(
+                    source_path.to_path_buf(),
+                    span,
+                    format!(
+                        "semantic member call contract for `{}` is missing receiver type",
+                        binding.fqn
+                    ),
+                    "typed HIR call contract",
+                )
+            })?;
+            TypedCallSiteContract::MemberDirect(MemberCallTargetContract::new(
+                owner_fqn,
+                member_name,
+                binding.fqn.clone(),
+                receiver_ty,
+                function,
+            ))
+        } else {
+            TypedCallSiteContract::DirectTopLevel(function)
+        };
+
+        self.call_site_kinds
+            .insert(call_site.clone(), contract.kind());
+        self.call_site_contracts.insert(call_site, contract);
         Ok(())
     }
 
@@ -8234,5 +8327,89 @@ fn format_type_id_lossy(types: &TypeStore, ty: TypeId) -> String {
         types.display(ty).to_string()
     } else {
         format!("TypeId({})", ty.as_u32())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lower_stage(source_text: &str) -> HirStageOutput {
+        let session = Session::new().expect("create test session");
+        let source = SourceFile::new_virtual("<t2_01r_source_effect_facts>", source_text);
+        let lowered = crate::hir::lower_typed_for_dump(&session, &source)
+            .expect("test source should lower to typed HIR");
+        HirStageOutput::new(lowered, source.path()).expect("HIR facts should verify")
+    }
+
+    #[test]
+    fn source_effect_facts_include_operator_semantic_bindings() {
+        let output = lower_stage(
+            r#"
+package fixtures.t2_01r
+
+effect Log {
+    fun write(message: String): Unit
+}
+
+struct Box {
+    val value: Int
+
+    operator fun plus(other: Box): Box / Log {
+        return other
+    }
+
+    operator fun inv(): Box / Log {
+        return this
+    }
+}
+
+private fun viaOperators(a: Box, b: Box): Box {
+    val c: Box = a + b
+    val d: Box = ~a
+    return c
+}
+"#,
+        );
+        let facts = &output.hir_facts().source_sites;
+        let callable = facts
+            .callable_source_effects
+            .iter()
+            .find(|fact| fact.fqn == "fixtures.t2_01r.viaOperators")
+            .expect("viaOperators callable source effect fact should be published");
+
+        let inferred = callable.inferred_surface_row_template.canonical_text();
+        assert!(
+            inferred.contains("fixtures.t2_01r.Log"),
+            "operator call effects should flow into inferred surface row, got {inferred}"
+        );
+        let published = callable.published_surface_row_template.canonical_text();
+        assert!(
+            published.contains("fixtures.t2_01r.Log"),
+            "private omitted-row function should publish inferred operator effects, got {published}"
+        );
+
+        let semantic_targets = facts
+            .semantic_operations
+            .iter()
+            .filter_map(|fact| match &fact.kind {
+                hir_site_facts::CanonicalSemanticOperationKind::CoreCall { target, .. } => {
+                    target.as_ref().map(|target| target.as_str().to_string())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            semantic_targets
+                .iter()
+                .any(|target| target.contains("fixtures.t2_01r.Box.plus")),
+            "binary operator should publish a canonical semantic core call, got {semantic_targets:?}"
+        );
+        assert!(
+            semantic_targets
+                .iter()
+                .any(|target| target.contains("fixtures.t2_01r.Box.inv")),
+            "unary operator should publish a canonical semantic core call, got {semantic_targets:?}"
+        );
     }
 }

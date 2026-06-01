@@ -12,7 +12,7 @@
 | T2-01E | [DONE] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
 | T2-01F | [DONE] | Restore full fixture baseline observed during T2-01 validation |
 | T2-01 | [DONE] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
-| T2-01R | [TODO] | Review T2-01 |
+| T2-01R | [DONE] | Review T2-01 |
 | T2-02 | [TODO] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [TODO] | Review T2-02 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
@@ -98,10 +98,10 @@
 - 依赖：T2-01F
 - 完成记录：2026-06-01 完成。`HirFacts.source_sites` 已发布 `CallableSourceEffectFacts`、`CanonicalSemanticOperationFact`、`HiddenInitializerEffectFact`，HIR `FunDecl` 保留显式 source row 元数据，HIR stage 基于 canonical call/perform/handle contracts 统一计算 direct/inferred/published source rows，并发布 class ctor / object init / top-level init hidden summaries。新增 `tests/fixtures/typecheck/hir_source_effect_facts_polymorphic_ok.scoop`；同步 HIR golden 摘要计数。此前完整 fixture baseline 阻塞已由前置 `T2-01E` / `T2-01F` 修复。验证：`T2-01` 实现提交已运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 通过；`T2-01F` 恢复 baseline 后又运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py` 完整通过（1664 checks）。本次收口仅更新任务文档，代码自上述绿色验证后未改变，故复用该完整验证结果。
 
-### [TODO] T2-01R：Review T2-01
+### [DONE] T2-01R：Review T2-01
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T2-01
-- 完成记录：（待填）
+- 完成记录：2026-06-01 完成。Review T2-01 时发现 canonical semantic operation 发布存在一个非 `ExprKind::Call` 位点缺口：operator 等语义调用虽然已由 typecheck 写入 selected callable binding，但 HIR contract 收集只在显式 `Call` 表达式上发布 call-site contract，导致 `CanonicalSemanticOperationFact` 和 source `expr_surface_row` 会漏掉 operator callee 的 published row。已修复 HIR contract 收集对 unary/binary/member-access semantic call binding 的发布，并让 unary source surface row 消费对应 semantic core call；新增 `stage::tests::source_effect_facts_include_operator_semantic_bindings` 覆盖 private omitted-row 函数通过二元/一元 operator 推导并发布 `Log` effect。验证：`cargo fmt`；`cargo test -p scoopc_hir source_effect_facts_include_operator_semantic_bindings`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-02：MIR instance facts + effect-event/provenance + backend contracts 收口
 
