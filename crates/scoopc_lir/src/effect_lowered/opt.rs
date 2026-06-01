@@ -342,6 +342,7 @@ fn preserve_source_callable(
     callable: LateLoweredCallable,
     original: &LateLoweredCallable,
 ) -> LateLoweredCallable {
+    let callable = callable.with_source_kind(original.source_kind());
     if let Some(source_callable) = original.source_callable() {
         callable.with_source_callable(source_callable)
     } else {
@@ -1295,7 +1296,9 @@ mod tests {
         NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
     };
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
-    use scoopc_lir_facts::{LIR_OPT_PIPELINE_REVISION, LirOptPassKind, LirOptPassStatus};
+    use scoopc_lir_facts::{
+        LIR_OPT_PIPELINE_REVISION, LirCallableSourceKind, LirOptPassKind, LirOptPassStatus,
+    };
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -1632,7 +1635,8 @@ mod tests {
             )]),
             continuation_object_id,
             vec![interface_id],
-        );
+        )
+        .with_source_kind(LirCallableSourceKind::MemberOrSynthetic);
 
         LateLoweredProgram::new(
             vec![step_type],
@@ -1745,6 +1749,19 @@ mod tests {
             !continuation_object
                 .captures()
                 .contains(&LateLoweredContinuationCapture::State(StateId::new(3)))
+        );
+    }
+
+    #[test]
+    fn late_opt_preserves_callable_source_kind_metadata() {
+        let optimized = optimize_program(sample_opt_program());
+        let callable = optimized
+            .callable("sample.worker")
+            .expect("优化后应保留 sample.worker callable");
+
+        assert_eq!(
+            callable.source_kind(),
+            LirCallableSourceKind::MemberOrSynthetic
         );
     }
 

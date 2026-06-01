@@ -12,7 +12,7 @@
 | T3-01 | [DONE] | P4 收口 Index/TypeEnv/dispatch tables 重建（FG-07） |
 | T3-01R | [DONE] | Review T3-01 |
 | T3-02 | [DONE] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
-| T3-02R | [TODO] | Review T3-02 |
+| T3-02R | [DONE] | Review T3-02 |
 | T3-03 | [TODO] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
 | T3-03R | [TODO] | Review T3-03 |
 | T3-04 | [TODO] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
@@ -46,10 +46,10 @@
 - 依赖：T3-01R
 - 完成记录：2026-06-02 完成。`LateLoweredCallable` 现在发布 stable LIR callable key、body-version key 与 source kind，P5 在 opt 后统一挂载这些 identity；LIR facts builder 改为消费已发布 identity/source signatures，并从 MIR backend facts 合并 body-less/runtime callable signature，不再现场生成 `unpublished(...)`/`missing-owner` key。call-site target 解析改为 stable instance 驱动，未 lowering 的声明型目标使用 stable declaration key。plain local control owner schema 缺失改为 fail-fast，删除单候选反推。P5 现在为 plain call site、call boundary、control source-slice dynamic call 发布 `LateLoweredCallSiteMaterializedMetadata`，LIR facts builder 不再回扫 `MaterializedMir` source slice 恢复 dynamic-invoke metadata。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-02R：Review T3-02
+### [DONE] T3-02R：Review T3-02
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T3-02
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。审查 T3-02 的 LIR stable key/source signature/dynamic-invoke/boundary contract 变更后，发现 post-opt 重建 callable 时只保留了 `source_callable`，未保留新发布的 `source_kind`，会把 member/synthetic callable 的 LIR facts 误标成默认 `TopLevel`；已修复 opt helper 使 `source_kind` 与 source callable metadata 一并保留，并新增回归单测覆盖该路径。复查确认 `lir_facts_builder` 不再使用 `loose_instance_signature`、`unpublished(...)`、`missing-owner` 或 plain local control 单候选反推，dynamic-invoke/boundary metadata 由 P5 LIR 结构发布并序列化。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-03：P6 LLVM 纯消费 LIR facts
 
