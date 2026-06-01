@@ -1356,12 +1356,12 @@ fn call_site_surface_row(
     surface_rows: PublishedSurfaceRows<'_>,
 ) -> Option<FactEffectRowTemplate> {
     let types = &materialized.types;
-    if matches!(
-        kind,
-        MirCallKindNode::Closure { .. } | MirCallKindNode::FunValue { .. }
-    ) && let Some(row) = call_site_target_surface_row(target, pass_view, surface_rows, types)
-    {
-        return Some(row);
+    if let MirCallKindNode::Closure { callee, .. } | MirCallKindNode::FunValue { callee } = kind {
+        let target_row = call_site_target_surface_row(target, pass_view, surface_rows, types);
+        let function_ty_row = operand_function_effect_row(types, body, callee);
+        if let Some(row) = merge_optional_surface_rows([target_row, function_ty_row]) {
+            return Some(row);
+        }
     }
     match kind {
         MirCallKindNode::Direct { callee_fqn, .. } => {
@@ -1403,6 +1403,17 @@ fn call_site_surface_row(
                 })
         }
         MirCallKindNode::Resume { resume, .. } => Some(resume_effect_row(types, resume)),
+    }
+}
+
+fn merge_optional_surface_rows(
+    rows: impl IntoIterator<Item = Option<FactEffectRowTemplate>>,
+) -> Option<FactEffectRowTemplate> {
+    let rows = rows.into_iter().flatten().collect::<Vec<_>>();
+    if rows.is_empty() {
+        None
+    } else {
+        Some(merge_effect_rows(rows))
     }
 }
 

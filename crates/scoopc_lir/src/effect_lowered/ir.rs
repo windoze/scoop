@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteKind, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts,
-    ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan,
-    PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
+    CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallableAbiKind, CaseTag,
+    ClassCtorSiteEffectFacts, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
+    HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
@@ -2010,6 +2010,9 @@ fn build_surface_resume_dispatch_inventory(
                     else {
                         continue;
                     };
+                    let mut target_step_schemas = carrier_target_step_schemas.clone();
+                    target_step_schemas
+                        .extend(call_site_target_step_schemas(callables, lowering.facts()));
                     for composition in lowering.continuation_compositions() {
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
@@ -2019,7 +2022,7 @@ fn build_surface_resume_dispatch_inventory(
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
-                            &carrier_target_step_schemas,
+                            &target_step_schemas,
                             true,
                         );
                     }
@@ -2111,8 +2114,12 @@ fn register_call_boundary_callee_wrapper_projection(
             if method.reachability() != LateLoweredContinuationMethodReachability::Reachable
                 || method.resume_tuple_ty() != wrapper_contract.resume_tuple_ty()
                 || method.answer_ty() != wrapper_contract.answer_ty()
-                || method.surface_ty() != wrapper_contract.surface_ty()
                 || method.concrete_op_key() != wrapper_case.concrete_op_key()
+            {
+                continue;
+            }
+            if method.surface_ty() != wrapper_contract.surface_ty()
+                && !carrier_target_step_schemas.contains(&method.out_step_schema())
             {
                 continue;
             }
@@ -2185,6 +2192,26 @@ fn register_call_boundary_callee_wrapper_projection(
             projection,
         );
     }
+}
+
+fn call_site_target_step_schemas(
+    callables: &[LateLoweredCallable],
+    facts: &CallSiteEffectFacts,
+) -> BTreeSet<StepSchemaId> {
+    let target_instances = match facts.target() {
+        CallSiteTarget::KnownInstance(instance) => std::slice::from_ref(instance),
+        CallSiteTarget::CandidateSet(instances) => instances.as_slice(),
+        CallSiteTarget::DynamicFallback => return BTreeSet::new(),
+    };
+    target_instances
+        .iter()
+        .filter_map(|instance| {
+            callables
+                .iter()
+                .find(|callable| callable.instance_key() == instance)
+                .and_then(LateLoweredCallable::body_step_schema)
+        })
+        .collect()
 }
 
 fn build_call_boundary_resume_boundary_projection(

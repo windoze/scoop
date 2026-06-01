@@ -16,6 +16,7 @@
 | T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [DONE] | Review T2-02 |
 | T2-03A1 | [DONE] | MIR 发布 higher-order callable target/provenance facts，覆盖 closure/function-value/param/join |
+| T2-03A2a | [TODO] | 修复 escaped closure callee-suspend composed continuation resume route |
 | T2-03A2 | [TODO] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
@@ -142,6 +143,20 @@
 - 依赖：T2-02R
 - 完成记录：2026-06-02 完成。扩展 `scoopc_mir_facts` callable target/provenance schema：`CallSiteTarget` 现在能表达 `Param`、`Join { sources, requires_dynamic_fallback }` 与显式 `DynamicFallback { reason }`，`CallableValueProvenance` 支持 join sources；MIR fact verifier 拒绝空 `CandidateSet` / 空 join，stable dump 输出 callable value provenance 与 result provenance，并将 wire schema bump 到 `1.5`。MIR stage 新增 body-local callable provenance dataflow，从参数、`TopLevelRef`、closure carrier、direct-call result provenance 与 CFG join 发布稳定 callable-value facts，并为 higher-order `FunValue` call site 发布 authoritative target fact；closed 多来源 join 会收敛成 stable-key `CandidateSet`，param/open 来源保持显式 param/join/dynamic fallback，不把未知编码为空候选集合。新增测试 `mir_facts_round_trip_callable_join_target_and_provenance` 覆盖 schema/dump/bincode roundtrip，新增 `mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 覆盖 param-carried callable、closure carrier、direct-call result returning callable、join candidate set。验证：`cargo fmt` 通过；targeted tests `cargo test -p scoopc_mir_facts mir_facts_round_trip_callable_join_target_and_provenance`、`cargo test -p scoopc mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 已运行，剩余 2 个 failures 是下一任务 `T2-03A2` 已明确要求恢复的 p7 higher-order/closure continuation regressions；`python3 tools/run_fixtures.py` 已运行，剩余 22 个 failures 已补充登记到 `T2-03A2` 的必须处理清单，均属于后续 P4/P5 消费 published facts 与 fact-only continuation route 收口范围，本任务只发布 MIR facts，不恢复 P4 反向重建。
 
+### [TODO] T2-03A2a：修复 escaped closure callee-suspend composed continuation resume route
+
+- 背景：执行 `T2-03A2` 时，已修复 `choose(mode)()` closed `CandidateSet` 被 MIR `CallSiteSurfaceEffectFact` 发布为 `Pure` 的缺口，并让 callable-carrier dynamic invoke 接受 closed `CandidateSet`；`single_pipeline_runs_higher_order_function_value_handled_effect_cli` 已恢复通过。但 `single_pipeline_runs_indirect_perform_closure_resume_cli` 仍失败，输出停在 `body_done\n32`，未先恢复 closure resume tail 输出 `closure_resume\n32` 并返回 `42`。
+- 根因边界：这不是可忽略既有噪声；当前 P4 已消费 published per-site facts，剩余问题集中在 P5/LLVM composed continuation / callee-suspend resume route。修复不得把 P4 重新变成跨 body callable points-to solver，也不得禁用 fact-only call-site lowering、dynamic invoke、continuation wrapper/projection 校验或改变 fixture 形状。
+- 必须实现的内容：
+  1. 让 escaped continuation 保存的 composed callee continuation 在 `k.resume(...)` 时先恢复 closure/function-value callee suspend point，再把 callee completion 投影回 caller boundary result；不能把 resume payload 直接当作外层 call boundary complete。
+  2. 覆盖 `callIt(f)` param-carried callable、closure literal/closure carrier、direct/inlined call boundary 的同类路径；若需要额外 MIR published provenance 或 call-target substitution fact，必须在 MIR fact producer 发布并由 P4/P5 消费，不能在 P4 扫描 caller body 反解。
+  3. 保持 closed `CandidateSet` / `KnownInstance` / `DynamicFallback` target contract 强语义；未知/open-param 不得编码为空候选集合。
+  4. 增加或更新 LIR/LLVM 级回归，断言 composed resume route 使用 captured callee continuation，而不是直接写 caller boundary result。
+- 验证：`cargo fmt`；`cargo build -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop --processes 1`；相关 closure locals fixture；修复后继续运行 `T2-03A2` 要求的完整验证。
+- 完成条件：`single_pipeline_runs_indirect_perform_closure_resume_cli` 输出恢复为 `body_start\nclosure_enter\narm\nresult\n99\nclosure_resume\n32\nbody_done\n42\nafter_resume\n`；同类 closure locals fixture 不再跳过 callee resume tail；P4 无跨 body 反向重建。
+- 依赖：T2-03A1
+- 完成记录：（待填）
+
 ### [TODO] T2-03A2：P4 只消费 published higher-order call-site facts
 
 - 背景：当前修复尝试中，`mir_stage.rs` 对 callable provenance 的发布方向是正确的，但 `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs` 又新增了跨 body 反向解析：从 dynamic boundary carrier local 出发，扫描所有 body 的 `call_targets`，通过 `BoundarySourceContract.args` 追踪 param-carried callable，再把候选实例拼回 `CallSiteEffectFacts`。这虽然消费的是 MIR facts，不是 raw MIR shape，但本质上仍是 P4 在重建上游缺失的 callable target/provenance。
@@ -176,7 +191,7 @@
   5. 保持 P5 callee-suspend / cross-call continuation provenance 能为 function-value 和 closure indirect perform 恢复正确 route；不得通过禁用 fact-only call-site lowering、禁用 dynamic invoke、或绕过 continuation wrapper/projection 校验来通过 fixtures。
 - 验证：`cargo fmt`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli`；`cargo test -p scoop --test p7_default_pipeline`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：两个 p7 regressions 恢复通过；P4 代码中不存在 higher-order callable 的跨 body 反向重建；测试未通过空候选/弱断言掩盖 target contract 缺失；fact-only call-site lowering 保持开启。
-- 依赖：T2-03A1
+- 依赖：T2-03A2a
 - 完成记录：（待填）
 
 ### [TODO] T2-03：P4 纯消费上游 facts 产出 instance effect facts

@@ -70,10 +70,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             LirDynamicInvokeCarrierKind::ClosureObject | LirDynamicInvokeCarrierKind::FunPtr => {
                 if !matches!(
                     contract.call.target_mode,
-                    LirCallTargetMode::DynamicFallback | LirCallTargetMode::KnownInstance
+                    LirCallTargetMode::DynamicFallback
+                        | LirCallTargetMode::KnownInstance
+                        | LirCallTargetMode::CandidateSet
                 ) {
                     return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 callable-carrier lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
+                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 callable-carrier lowering 只能绑定 KnownInstance/CandidateSet/DynamicFallback，但实际 target_mode 为 {:?}",
                         contract.owner_callable.readable_path(),
                         site_id.as_u32(),
                         contract.call.target_mode,
