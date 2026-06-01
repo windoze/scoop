@@ -155,7 +155,9 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::EffectFactsStageOutput;
-    use crate::effect_facts_stage::{CanonicalMirQuerySurface, ImplPlan, MirSnapshotBinding};
+    use crate::effect_facts_stage::{
+        CallableAbiKind, CanonicalMirQuerySurface, ImplPlan, MirSnapshotBinding, SiteEffectFacts,
+    };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -597,6 +599,41 @@ fun callInterface(i: IFace): Int {
         assert!(dump.contains("nested_handle_classification:"));
         assert!(!published.step_schemas.is_empty());
         assert!(!published.continuation_schemas.is_empty());
+    }
+
+    #[test]
+    fn effect_facts_stage_publishes_plain_local_control_owner_schema() {
+        let output = run_stage(&session(), &dump_fixture_source());
+        let (handled_key, handled_facts) = output
+            .effect_facts()
+            .callable_facts()
+            .iter()
+            .find(|(key, _)| key.template.fqn == "sample.handled")
+            .expect("sample.handled 应发布 callable facts");
+        let handled_body = output
+            .effect_facts()
+            .body(handled_key)
+            .expect("sample.handled 应发布 body facts");
+
+        assert_eq!(handled_facts.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(handled_facts.body_step_schema().is_none());
+        assert!(
+            handled_body
+                .sites()
+                .values()
+                .any(|site| matches!(site, SiteEffectFacts::Handle(_))),
+            "fixture 应包含 self-contained handle，触发 plain local control"
+        );
+        let local_control_step = handled_body
+            .local_control_step_schema()
+            .expect("plain local-control body 必须由 P4 发布 owner StepSchema");
+        assert!(
+            output
+                .effect_facts()
+                .step_schemas()
+                .contains_key(&local_control_step),
+            "local_control_step_schema 必须引用 P4 发布的 StepSchema"
+        );
     }
 
     #[test]

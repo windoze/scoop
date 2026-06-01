@@ -19,7 +19,7 @@
 | T2-03A2a0 | [DONE] | 修复 composed resume 的 surface-resume owner dispatch target 发布/选择 |
 | T2-03A2a | [DONE] | 修复 escaped closure callee-suspend composed continuation resume route |
 | T2-03A2 | [DONE] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
-| T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
+| T2-03 | [DONE] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
 
 ---
@@ -209,7 +209,7 @@
 - 依赖：T2-03A2a
 - 完成记录：2026-06-02 完成。复核 P4 `BodyFactsBuilder` 当前只消费 MIR-published per-site target/provenance/surface facts，未保留 `parameter_candidate_instances` / `fact_target_includes_callable` / 扫描 `mir_fact_index.bodies` 反解 caller 参数的 higher-order 反向重建；`provenance_target_for_boundary` 仅消费当前 site/carrier local 已发布 provenance。修复 MIR fact 发布中 owner effect-param substitution 的完整性：`MaterializedCallableEffectTemplate` 携带 eff 参数声明顺序，MIR stage 在 callable rows、call-site surface/event rows 与 fallback function rows 中按 `InstanceKey.eff_args` 替换 effect row params，省略 eff args 时按 materializer 语义视为 Pure，避免 `ObservableProperty` / `VetoableProperty` 这类“type param + eff param” owner 把 `eff_param(...)` 泄漏给 P4；新增 `mir_callable_instance_effect_rows_substitute_owner_eff_param_after_type_params` 回归测试。恢复并验证 higher-order/function-value/closure continuation regressions；`effect_handle_return_from_function_any_boxing` 改为断言调用前后 heap object 增量为 1，避免 effect-step `main` 自身 frame/effect-context 基线污染原 boxed-return 保活断言。同步已确认语义正确的 effect facts、effect lowered、MIR metadata goldens，反映 DynamicFallback/has_suspend_boundary、Pure residual continuation surface row、call surface/provenance 发布数量变化。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --test p7_default_pipeline -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-03：P4 纯消费上游 facts 产出 instance effect facts
+### [DONE] T2-03：P4 纯消费上游 facts 产出 instance effect facts
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-08/09(发布)/11(必发)。
 - 必须实现的内容：
@@ -221,7 +221,7 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：P4 effect 求解纯消费上游 facts；local control schema 必发。
 - 依赖：T2-03A2
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。复核 P4 effect-facts builder/solver 生产路径已纯消费 MIR-published `MirEffectEventFact` / site inventory / block region / call target / call surface / boundary facts，未保留旧 `scan_block_sites` / `build_direct_like_call_site` / `union_candidate_rows` / 跨 body 参数反查路径；call-site target/surface 继续由上游 facts fail-fast 提供。补强 FG-11 local-control 必发 contract：`scoopc_effect_facts` verifier 现在会拒绝 Plain body 含本地 effect/control site 却缺少 `local_control_step_schema` 的 published product，并在 fact 类型注释中记录该 contract；新增产品层负例 `verifier_rejects_missing_plain_local_control_step_schema` 与 P4 stage 正例 `effect_facts_stage_publishes_plain_local_control_owner_schema`，覆盖 self-contained handle 的 Plain body 必须发布 owner StepSchema。验证：`cargo fmt`；targeted tests `cargo test -p scoopc_effect_facts verifier_rejects_missing_plain_local_control_step_schema`、`cargo test -p scoopc effect_facts_stage_publishes_plain_local_control_owner_schema` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-03R：Review T2-03
 - 验证：`python3 tools/run_fixtures.py`

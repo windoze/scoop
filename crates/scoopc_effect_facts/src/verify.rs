@@ -35,6 +35,9 @@ pub enum VerifyError {
     CallableAbiSchemaMismatch {
         callable: String,
     },
+    MissingLocalControlStepSchema {
+        body: String,
+    },
 }
 
 impl fmt::Display for VerifyError {
@@ -66,6 +69,10 @@ impl fmt::Display for VerifyError {
             Self::CallableAbiSchemaMismatch { callable } => write!(
                 f,
                 "callable `{callable}` has ABI/schema fields that disagree"
+            ),
+            Self::MissingLocalControlStepSchema { body } => write!(
+                f,
+                "body `{body}` has plain local effect/control but no local_control_step_schema"
             ),
         }
     }
@@ -166,6 +173,15 @@ fn verify_callables(facts: &EffectFacts) -> Result<()> {
 fn verify_bodies(facts: &EffectFacts) -> Result<()> {
     for (key, body) in &facts.bodies {
         let body_name = key.readable_path();
+        if facts.callables.get(key).is_some_and(|callable| {
+            matches!(callable.call_abi_kind(), CallableAbiKind::Plain)
+                && body_needs_plain_local_control(body)
+        }) && body.local_control_step_schema().is_none()
+        {
+            return Err(VerifyError::MissingLocalControlStepSchema {
+                body: body_name.to_string(),
+            });
+        }
         if let Some(schema) = body.local_control_step_schema() {
             verify_step_schema_exists(
                 facts,
@@ -195,6 +211,19 @@ fn verify_bodies(facts: &EffectFacts) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn body_needs_plain_local_control(body: &crate::facts::BodyEffectFacts) -> bool {
+    body.sites().values().any(|site| match site {
+        SiteEffectFacts::Call(call) => {
+            matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
+                && !call.resolved_cases().is_empty()
+        }
+        SiteEffectFacts::ClassCtor(class_ctor) => !class_ctor.emitted_cases().is_empty(),
+        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
+            true
+        }
+    })
 }
 
 fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: String) -> Result<()> {

@@ -493,6 +493,8 @@ impl BlockEffectFacts {
 pub struct BodyEffectFacts {
     blocks: BTreeMap<BodyBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
+    /// Owner step schema for plain bodies that still need local effect/control lowering.
+    /// Must be present when any site in a Plain body can suspend through local control.
     local_control_step_schema: Option<StepSchemaId>,
 }
 
