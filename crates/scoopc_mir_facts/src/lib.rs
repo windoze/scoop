@@ -133,6 +133,23 @@ mod tests {
     }
 
     #[test]
+    fn verifier_rejects_unsupported_schema_version() {
+        let mut facts = MirFacts::new();
+        facts.schema_version = scoopc_types::WireSchemaVersion::new(
+            scoopc_types::WIRE_SCHEMA_VERSION.major,
+            scoopc_types::WIRE_SCHEMA_VERSION.minor + 1,
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::UnsupportedSchemaVersion {
+                found: facts.schema_version,
+                expected: scoopc_types::WIRE_SCHEMA_VERSION,
+            }
+        );
+    }
+
+    #[test]
     fn verifier_rejects_duplicate_fact_identities() {
         let duplicate = root_fact("app.main", MirRootKind::CallableBody);
         let mut facts = MirFacts::new();

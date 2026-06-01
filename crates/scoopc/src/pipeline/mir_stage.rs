@@ -439,7 +439,7 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
     let source_effects = materialized
         .source_callable_effects()
         .iter()
-        .map(|effect| (effect.fqn.clone(), effect.clone()))
+        .map(|effect| (effect.template.clone(), effect.clone()))
         .collect::<HashMap<_, _>>();
     let pass_view = materialized.pass_view();
     let mut facts = MirEffectFacts::default();
@@ -451,7 +451,7 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
             materialized,
             family.key(),
             family.root_body(),
-            source_effects.get(&family.key().template.fqn),
+            source_effects.get(&family.key().template),
         );
         let mut step_rows = vec![published.clone()];
         for fun in family.callable_bodies() {
@@ -1281,13 +1281,14 @@ fn collect_mir_provenance_facts(materialized: &MaterializedMir) -> MirProvenance
                 .collect::<HashMap<_, _>>();
             for (block_index, block) in body.blocks.iter().enumerate() {
                 let block_id = BodyBlockId::from_raw(block_index as u32);
-                for stmt in &block.stmts {
+                for (statement_index, stmt) in block.stmts.iter().enumerate() {
                     let MirStatementKind::Assign { target, value } = &stmt.kind else {
                         continue;
                     };
                     let Some(provenance) = callable_value_provenance(
                         materialized,
                         body,
+                        target.as_u32(),
                         value,
                         &param_locals,
                         &pass_view,
@@ -1297,9 +1298,11 @@ fn collect_mir_provenance_facts(materialized: &MaterializedMir) -> MirProvenance
                     facts.callable_values.push(CallableValueProvenanceFact {
                         identity: FactIdentity::new(
                             CanonicalTextKey::new(format!(
-                                "mir_provenance:callable_value:{}:{}:local{}",
+                                "mir_provenance:callable_value:{}:{}:bb{}:stmt{}:local{}",
                                 instance_artifact.canonical_text(),
                                 fun.fqn,
+                                block_id.as_u32(),
+                                statement_index,
                                 target.as_u32()
                             )),
                             format!("callable value {} local{}", fun.fqn, target.as_u32()),
@@ -1334,6 +1337,7 @@ fn collect_mir_provenance_facts(materialized: &MaterializedMir) -> MirProvenance
 fn callable_value_provenance(
     materialized: &MaterializedMir,
     body: &crate::mir::Body,
+    target_local: u32,
     value: &MirRvalue,
     param_locals: &HashMap<u32, usize>,
     pass_view: &MaterializedMirPassView<'_>,
@@ -1350,17 +1354,21 @@ fn callable_value_provenance(
                 .map(|index| CallableValueProvenance::Param { index }),
             MirOperand::Const(_) => None,
         },
-        MirRvalue::TopLevelRef(top_level) => top_level
-            .stable_instance_key
-            .as_ref()
-            .map(|key| CallableValueProvenance::KnownInstance {
-                key: CanonicalTextKey::new(key.canonical_text()),
-            })
-            .or_else(|| {
-                Some(CallableValueProvenance::DirectFunction {
-                    fqn: top_level.fqn.clone(),
+        MirRvalue::TopLevelRef(top_level) => {
+            let target_ty = body.locals.get(target_local as usize)?.ty;
+            function_effect_row(&materialized.types, target_ty)?;
+            top_level
+                .stable_instance_key
+                .as_ref()
+                .map(|key| CallableValueProvenance::KnownInstance {
+                    key: CanonicalTextKey::new(key.canonical_text()),
                 })
-            }),
+                .or_else(|| {
+                    Some(CallableValueProvenance::DirectFunction {
+                        fqn: top_level.fqn.clone(),
+                    })
+                })
+        }
         MirRvalue::MakeClosure { fn_ptr, .. } => Some(CallableValueProvenance::KnownClosure {
             fn_ptr: fn_ptr.clone(),
         }),
@@ -2601,6 +2609,94 @@ mod tests {
         assert!(!facts.provenance.results.is_empty());
         assert!(!facts.boundary.source_contracts.is_empty());
         assert!(!facts.backend.source_signatures.is_empty());
+    }
+
+    #[test]
+    fn mir_callable_instance_effects_match_overload_template_identity() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_effect_overload_identity.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun choose(x: Any): Int / Pure {
+    return 0
+}
+
+fun choose(x: String): Int / (Raise<Int>) {
+    Raise.raise(1)
+    return 1
+}
+
+fun useAny(x: Any): Int / Pure {
+    return choose(x)
+}
+
+fun useString(): Int / (Raise<Int>) {
+    return choose("effectful")
+}
+
+fun root(): Int / (Raise<Int>) {
+    return useAny("plain") + useString()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let choose_rows = output
+            .mir_facts()
+            .effects
+            .callable_instances
+            .iter()
+            .filter(|fact| fact.callable.as_str().contains("sample.choose"))
+            .map(|fact| fact.published_surface_row.canonical_text())
+            .collect::<Vec<_>>();
+
+        assert_eq!(choose_rows.len(), 2, "expected both overload instances");
+        assert!(
+            choose_rows.iter().any(|row| row == "E()"),
+            "Any overload should keep its Pure row: {choose_rows:?}"
+        );
+        assert!(
+            choose_rows.iter().any(|row| row.contains("Raise")),
+            "String overload should keep its Raise row: {choose_rows:?}"
+        );
+    }
+
+    #[test]
+    fn mir_callable_value_provenance_does_not_relabel_top_level_values_as_functions() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_non_callable_top_level_value_provenance.scoop",
+            "package sample\nval Count: Int = 1\nfun root(): Int / Pure { return Count }\n",
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+
+        assert!(
+            output
+                .mir_facts()
+                .provenance
+                .callable_values
+                .iter()
+                .all(|fact| !matches!(
+                    &fact.provenance,
+                    scoopc_mir_facts::provenance::CallableValueProvenance::DirectFunction { fqn }
+                        if fqn == "sample.Count"
+                ))
+        );
     }
 
     #[test]

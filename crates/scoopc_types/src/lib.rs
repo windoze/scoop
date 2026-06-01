@@ -48,7 +48,9 @@ impl WireSchemaVersion {
 ///   通过 `ensure_compatible` 被显式拒绝。
 /// - 1.2：P10 final cleanup 后，LIR type-context facts 记录 portable `TypeStore`
 ///   wire format 已实现，不再携带 P7/P8 的 deferred 决策。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 2);
+/// - 1.3：MIR fact product 发布 self-contained handoff groups（effects/provenance/
+///   boundary/backend）及 instance `eff_args`。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 3);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

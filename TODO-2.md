@@ -14,7 +14,7 @@
 | T2-01 | [DONE] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [DONE] | Review T2-01 |
 | T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
-| T2-02R | [TODO] | Review T2-02 |
+| T2-02R | [DONE] | Review T2-02 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
 
@@ -117,10 +117,10 @@
 - 依赖：T2-01R
 - 完成记录：2026-06-01 完成。扩展 `scoopc_mir_facts` 为自包含 MIR handoff：新增 effect/site/event/block-region/call-target/call-surface facts、callable/result provenance facts、boundary source contracts、backend contract facts，并在 materialized instance inventory 中发布稳定 `eff_args`。`MaterializedMir` 现在携带 HIR 已发布的 callable effect row 模板，MIR handoff 按实例 `eff_args` 发布 `CallableInstanceEffectFacts { declared_surface_row, actual_surface_row, published_surface_row, step_effect_row }`；MIR lowering 的 hidden initializer effects 改为搬运 HIR `HiddenInitializerEffectFact`，不再用 `HiddenInitEffectAnalyzer` 重新扫描 effect。`mir_stage` 在 P4-ready handoff 发布 site inventory、effect event stream、block region、call target/surface、callable value/result provenance、boundary source anchor/operand contract，以及 source signature/layout/vtable/itable/extern/native/global init backend facts。新增单测 `p4_ready_mir_facts_publish_self_contained_handoff_contracts` 覆盖 self-contained handoff 关键 fact group。验证：`cargo fmt`；`cargo check --all-targets`；`cargo test -p scoopc p4_ready_mir_facts_publish_self_contained_handoff_contracts`；`cargo test -p scoopc_mir_facts`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-02R：Review T2-02
+### [DONE] T2-02R：Review T2-02
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T2-02
-- 完成记录：（待填）
+- 完成记录：2026-06-01 完成。Review T2-02 时修复三类 handoff correctness 问题：`MaterializedCallableEffectTemplate` 改为携带完整 `TemplateKey`，MIR instance effect rows 按 `(fqn, source_path, decl_span)` 精确匹配，避免 overload 共享 display FQN 时串用 source effect row；MIR fact verifier 增加 schema version 校验，并将 wire schema bump 到 `1.3` 覆盖新增 effects/provenance/boundary/backend handoff groups 与 instance `eff_args`；callable value provenance 只在目标 local 类型确为 function 时把 `TopLevelRef` 发布为 callable provenance，并把 block/statement 纳入 fact identity，避免普通 top-level value 被伪装成 `DirectFunction` 或重复 local identity。新增回归测试覆盖 overload effect identity、非 callable top-level value provenance、unsupported MIR fact schema version；`scoop run` 测试 helper 改为每次重建 `scoopc`，避免 schema bump 后 stale subprocess binary 写出旧 artifact。同步 `mir_materialized/pass_pipeline_metadata.mir` golden，使 materialized MIR dump 捕获 T2-02 发布的 handoff fact groups。验证：`cargo fmt`；targeted tests `cargo test -p scoopc_mir_facts verifier_rejects_unsupported_schema_version`、`cargo test -p scoopc mir_callable_instance_effects_match_overload_template_identity`、`cargo test -p scoopc mir_callable_value_provenance_does_not_relabel_top_level_values_as_functions`、`cargo test -p scoop run_builds_and_executes_minimal_main` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py tests/fixtures/mir_materialized/pass_pipeline_metadata.scoop` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-03：P4 纯消费上游 facts 产出 instance effect facts
 

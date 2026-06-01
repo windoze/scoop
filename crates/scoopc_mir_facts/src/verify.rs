@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt;
 
 use scoopc_ids::StableCanonicalKey as _;
+use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 
 use crate::MirFacts;
 use crate::common::FactIdentity;
@@ -15,6 +16,10 @@ pub type Result<T> = std::result::Result<T, VerifyError>;
 /// Structural errors detected before MIR facts are handed to later stages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerifyError {
+    UnsupportedSchemaVersion {
+        found: WireSchemaVersion,
+        expected: WireSchemaVersion,
+    },
     DuplicateFactIdentity(String),
     DuplicateArtifactKey(String),
     MissingCanonicalSnapshot(String),
@@ -23,6 +28,11 @@ pub enum VerifyError {
 impl fmt::Display for VerifyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnsupportedSchemaVersion { found, expected } => write!(
+                f,
+                "unsupported MIR fact schema version {}.{}, expected {}.{}",
+                found.major, found.minor, expected.major, expected.minor
+            ),
             Self::DuplicateFactIdentity(key) => write!(f, "duplicate MIR fact identity `{key}`"),
             Self::DuplicateArtifactKey(key) => write!(f, "duplicate MIR artifact key `{key}`"),
             Self::MissingCanonicalSnapshot(key) => {
@@ -39,9 +49,21 @@ impl Error for VerifyError {}
 
 /// Verify facts that are already grouped by the MIR stage.
 pub fn verify_mir_facts(facts: &MirFacts) -> Result<()> {
+    verify_schema_version(facts)?;
     verify_unique_fact_identities(facts)?;
     verify_unique_owned_artifact_keys(facts)?;
     verify_canonical_snapshot_binding(facts)?;
+    Ok(())
+}
+
+fn verify_schema_version(facts: &MirFacts) -> Result<()> {
+    if facts.schema_version != WIRE_SCHEMA_VERSION {
+        return Err(VerifyError::UnsupportedSchemaVersion {
+            found: facts.schema_version,
+            expected: WIRE_SCHEMA_VERSION,
+        });
+    }
+
     Ok(())
 }
 

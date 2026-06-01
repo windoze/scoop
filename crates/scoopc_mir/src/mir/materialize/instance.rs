@@ -38,7 +38,11 @@ fn materialized_callable_effect_template_from_hir_fact(
     fact: scoopc_hir::hir_facts::source_sites::CallableSourceEffectFacts,
 ) -> MaterializeResult<super::MaterializedCallableEffectTemplate> {
     Ok(super::MaterializedCallableEffectTemplate {
-        fqn: fact.fqn,
+        template: TemplateKey {
+            fqn: fact.fqn,
+            source_path: fact.source_path,
+            decl_span: fact.span,
+        },
         declared_surface_row: fact
             .declared_surface_row
             .map(stable_effect_row_template_from_hir_fact)
