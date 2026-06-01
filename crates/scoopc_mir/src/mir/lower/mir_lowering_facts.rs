@@ -21,27 +21,6 @@ impl MirLoweringFacts {
         hir_facts: &HirFacts,
     ) -> Self {
         let facts = HirFactResolver::new(types, hir_facts);
-        self.stable_templates_by_request.clear();
-        self.stable_templates_by_request_span.clear();
-        for fact in &hir_facts.declarations.generic_templates {
-            if let Ok(stable_template_key) =
-                StableTemplateKey::from_canonical_text(fact.stable_template_key.as_str())
-            {
-                self.stable_templates_by_request.insert(
-                    (
-                        fact.request_fqn.clone(),
-                        fact.request_source_path.clone(),
-                        fact.request_span,
-                    ),
-                    stable_template_key,
-                );
-                self.stable_templates_by_request_span.insert(
-                    (fact.request_fqn.clone(), fact.request_span),
-                    StableTemplateKey::from_canonical_text(fact.stable_template_key.as_str())
-                        .expect("stable template key parsed above"),
-                );
-            }
-        }
         self.member_value_tys.extend(facts.member_value_tys());
         self.nominal_kinds.extend(facts.nominal_kinds());
         self.enum_has_payload.extend(facts.enum_payload_kinds());
@@ -536,30 +515,7 @@ impl MirLoweringFacts {
         let stable_template_key = fact
             .stable_template_key
             .as_ref()
-            .and_then(|key| StableTemplateKey::from_canonical_text(key.as_str()).ok())
-            .or_else(|| {
-                let decl_span = fact.decl_span?;
-                if let Some(decl_file) = fact.decl_file.as_ref()
-                    && let Some(stable_template_key) = self.stable_templates_by_request.get(&(
-                        fact.fqn.clone(),
-                        decl_file.clone(),
-                        decl_span,
-                    ))
-                {
-                    return Some(stable_template_key.clone());
-                }
-                self.stable_templates_by_request
-                    .iter()
-                    .find_map(|((fqn, _, span), stable_template_key)| {
-                        (fqn == &fact.fqn && span == &decl_span)
-                            .then(|| stable_template_key.clone())
-                    })
-                    .or_else(|| {
-                        self.stable_templates_by_request_span
-                            .get(&(fact.fqn.clone(), decl_span))
-                            .cloned()
-                    })
-            });
+            .and_then(|key| StableTemplateKey::from_canonical_text(key.as_str()).ok());
         FunctionTargetContract {
             fqn: fact.fqn.clone(),
             decl_file: fact.decl_file.clone(),

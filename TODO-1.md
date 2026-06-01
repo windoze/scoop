@@ -17,7 +17,7 @@
 | T1-02C | [DONE] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
 | T1-02D | [DONE] | 补齐 generic owner member/property direct-call stable carrier（解除 T1-02 fallback 删除阻塞） |
 | T1-02 | [DONE] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
-| T1-02R | [TODO] | Review T1-02 上游 identity |
+| T1-02R | [DONE] | Review T1-02 上游 identity |
 
 ---
 
@@ -179,8 +179,13 @@
   - 回归覆盖：`scoopc_mir` 全量单元测试覆盖 generic direct/member/property/function-value/dispatch stable carrier；`scoopc` pipeline tests 覆盖 via-MIR/LLVM stage 对 sysroot generic helper request 的 stable identity 贯穿。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
-### [TODO] T1-02R：Review T1-02 上游 identity
+### [DONE] T1-02R：Review T1-02 上游 identity
 - 必须实现的内容：复核 request/MIR call/dispatch candidate 携带 stable key、owner eff 进入 canonical identity、上游重建点已删。
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T1-02
-- 完成记录：（待填）
+- 完成记录：
+  - Review 发现并删除两个仍会掩盖上游 stable carrier 缺口的下游补全路径：`stabilize_monomorph_requests_from_hir_facts` 不再通过 `LoweredHir` 的 `(fqn, decl_file, decl_span)` 反查 stable template；`MirLoweringFacts::function_contract_from_fact` 不再用 declaration fact 的 request span 为 `FunctionTarget` fact 补 stable template。
+  - 删除 fallback 后暴露并修复 HIR source-site fact 缺口：`ContractCollector` 现在遍历 object initializer 与已 typechecked/substituted 的 class initializer/ctor 表达式，覆盖 `StringBuilder.parts = mutableArrayNew<String>(...)` 这类 class initializer generic request。
+  - class initializer 中仍以 `UnresolvedIdent` 出现的唯一顶层 helper 调用由 HIR 上游合成 direct target；未定型 `Any` 的内部调用不发布 stable fact，若未来产生 monomorph request 将由 materializer fact-only 路径 fail-fast。
+  - 复核 MIR direct call / dispatch lowering：`CallKind::Direct` 与 `DispatchMetadata` 消费 HIR facts 中的 stable template/instance carrier、generic type/effect args 与 dispatch candidate stable keys；owner eff 继续通过 `StableInstanceKey` 的 `EffectRowTemplate` canonical identity 表达。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。

@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir::{
-    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, Decl,
-    DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
-    LoweredHir, Stmt, StmtKind, ValDecl, ValueRef,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, ClassCtor,
+    ClassInitStep, Decl, DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError,
+    HirStageError, Item, LoweredHir, MonoClassInit, ObjectInit, ObjectInitStep, Stmt, StmtKind,
+    ValDecl, ValueRef,
 };
 use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
 use crate::session::Session;
@@ -4296,6 +4297,9 @@ impl<'a> ContractCollector<'a> {
             self.collect_item(&item_path, item)?;
         }
 
+        self.collect_object_inits(None)?;
+        self.collect_class_inits(None)?;
+
         for member_fun in &self.lowered_hir.member_funs {
             self.record_function_effect_contract(member_fun);
             self.collect_fun(member_fun)?;
@@ -4327,6 +4331,9 @@ impl<'a> ContractCollector<'a> {
                 self.collect_item(source_path, item)?;
             }
         }
+
+        self.collect_object_inits(Some(source_path))?;
+        self.collect_class_inits(Some(source_path))?;
 
         for member_fun in &self.lowered_hir.member_funs {
             if member_fun.source_path != source_path {
@@ -4377,6 +4384,110 @@ impl<'a> ContractCollector<'a> {
                 }
             }
             Item::Todo { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn collect_object_inits(&mut self, only_path: Option<&Path>) -> Result<(), HirStageError> {
+        let mut object_inits = self
+            .lowered_hir
+            .object_inits
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        object_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for object in &object_inits {
+            if only_path.is_some_and(|path| object.source_path != path) {
+                continue;
+            }
+            self.collect_object_init(object)?;
+        }
+        Ok(())
+    }
+
+    fn collect_object_init(&mut self, object: &ObjectInit) -> Result<(), HirStageError> {
+        for step in &object.steps {
+            match step {
+                ObjectInitStep::PropertyInit { init, .. } => {
+                    self.collect_expr(&object.source_path, init)?;
+                }
+                ObjectInitStep::InitBlock { block } => {
+                    self.collect_block(&object.source_path, block)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_class_inits(&mut self, only_path: Option<&Path>) -> Result<(), HirStageError> {
+        let mut class_inits = self
+            .lowered_hir
+            .class_inits
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        class_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for class in &class_inits {
+            if only_path.is_some_and(|path| class.source_path != path) {
+                continue;
+            }
+            self.collect_class_init(class)?;
+        }
+        Ok(())
+    }
+
+    fn collect_class_init(&mut self, class: &MonoClassInit) -> Result<(), HirStageError> {
+        self.collect_class_init_parts(
+            &class.source_path,
+            &class.super_ctor_args,
+            &class.steps,
+            &class.ctors,
+        )
+    }
+
+    fn collect_class_init_parts<T>(
+        &mut self,
+        source_path: &Path,
+        super_ctor_args: &[CallArg],
+        steps: &[ClassInitStep],
+        ctors: &[ClassCtor<T>],
+    ) -> Result<(), HirStageError> {
+        for arg in super_ctor_args {
+            self.collect_call_arg_expr(source_path, arg)?;
+        }
+        for step in steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => {
+                    self.collect_expr(source_path, init)?;
+                }
+                ClassInitStep::InitBlock { block } => {
+                    self.collect_block(source_path, block)?;
+                }
+            }
+        }
+        for ctor in ctors {
+            self.collect_class_ctor(source_path, ctor)?;
+        }
+        Ok(())
+    }
+
+    fn collect_class_ctor<T>(
+        &mut self,
+        source_path: &Path,
+        ctor: &ClassCtor<T>,
+    ) -> Result<(), HirStageError> {
+        for param in &ctor.params {
+            if let Some(default_value) = &param.default_value {
+                self.collect_expr(source_path, default_value)?;
+            }
+        }
+        if let Some(delegation) = &ctor.delegation {
+            for arg in &delegation.args {
+                self.collect_call_arg_expr(source_path, arg)?;
+            }
+        }
+        if let Some(body) = &ctor.body {
+            self.collect_block(source_path, body)?;
         }
         Ok(())
     }
@@ -4464,6 +4575,32 @@ impl<'a> ContractCollector<'a> {
                 return None;
             }
             found = Some(fun);
+        }
+        found
+    }
+
+    fn unique_hir_fun_fqn_by_local_name(&self, name: &str) -> Option<String> {
+        let mut found = None::<String>;
+        for item in &self.lowered_hir.file.items {
+            let Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.fqn.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            if found.as_deref().is_some_and(|fqn| fqn != fun.fqn) {
+                return None;
+            }
+            found = Some(fun.fqn.clone());
+        }
+        for body in &self.lowered_hir.callable_body_inventory {
+            if body.fqn.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            if found.as_deref().is_some_and(|fqn| fqn != body.fqn) {
+                return None;
+            }
+            found = Some(body.fqn.clone());
         }
         found
     }
@@ -5060,6 +5197,26 @@ impl<'a> ContractCollector<'a> {
                     arg_binding,
                 ),
             })
+        } else if let ExprKind::UnresolvedIdent { name } = &callee.kind
+            && let Some(fqn) = self.unique_hir_fun_fqn_by_local_name(name)
+        {
+            let abi_identity = self.callable_abi_identity_for_fqn(&fqn);
+            let function = self
+                .synthetic_stable_top_level_target(
+                    &fqn,
+                    args,
+                    expr.ty,
+                    abi_identity,
+                    arg_binding.clone(),
+                )
+                .unwrap_or_else(|| {
+                    FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn.clone(),
+                        abi_identity,
+                        arg_binding.clone(),
+                    )
+                });
+            Some(TypedCallSiteContract::DirectTopLevel(function))
         } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunPtr {
                 callee_ty: callee.ty,
@@ -5140,15 +5297,42 @@ impl<'a> ContractCollector<'a> {
             return true;
         }
 
+        if self.unresolved_callee_is_nominal_type_ctor(name) {
+            return true;
+        }
+
         match self.lowered_hir.types.kind(expr.ty) {
+            // Some class-init internal helpers still arrive as unresolved/Any; they
+            // cannot publish stable targets, and generic requests still fail later.
+            TypeKind::Ref(RefTypeKind::Any) => true,
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                self.unresolved_callee_is_nominal_ctor(name, nominal)
+            }
             TypeKind::Value(ValueTypeKind::Option(_)) => true,
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
-                .lowered_hir
-                .nominal_kinds
-                .get(&nominal.fqn)
-                .is_some_and(|kind| *kind == ast::TypeKind::Enum),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                self.unresolved_callee_is_nominal_ctor(name, nominal)
+                    || self
+                        .lowered_hir
+                        .nominal_kinds
+                        .get(&nominal.fqn)
+                        .is_some_and(|kind| *kind == ast::TypeKind::Enum)
+            }
             _ => false,
         }
+    }
+
+    fn unresolved_callee_is_nominal_ctor(&self, name: &str, nominal: &NominalType) -> bool {
+        let Some(local_name) = nominal.fqn.rsplit('.').next() else {
+            return false;
+        };
+        local_name == name
+    }
+
+    fn unresolved_callee_is_nominal_type_ctor(&self, name: &str) -> bool {
+        self.lowered_hir.nominal_kinds.iter().any(|(fqn, kind)| {
+            matches!(kind, ast::TypeKind::Class | ast::TypeKind::Struct)
+                && fqn.rsplit('.').next() == Some(name)
+        })
     }
 
     fn unresolved_callee_is_enum_variant(&self, name: &str) -> bool {

@@ -4360,7 +4360,6 @@ println(holder.node.tag.score)
     let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
         &inputs.typecheck_types,
         &inputs.monomorph_requests,
-        &lowered_hir,
         &hir_facts,
     )
     .unwrap();
@@ -4753,7 +4752,6 @@ return read(ints) + read(texts)
     let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
         &inputs.typecheck_types,
         &inputs.monomorph_requests,
-        &lowered_hir,
         &hir_facts,
     )
     .unwrap();

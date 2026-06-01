@@ -434,8 +434,6 @@ pub struct MirLoweringFacts {
     call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
     template_value_bindings: HashMap<hir::CallSite, TemplateSiteBindingContract>,
     dispatch_candidate_keys: HashMap<hir::CallSite, Vec<StableInstanceKey>>,
-    stable_templates_by_request: HashMap<(String, PathBuf, Span), StableTemplateKey>,
-    stable_templates_by_request_span: HashMap<(String, Span), StableTemplateKey>,
     assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_call_sites: HashMap<hir::CallSite, hir::CtorCallInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
