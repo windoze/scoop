@@ -581,13 +581,15 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         // receiver 已作为显式参数降入 `params`，因此 HIR 的 function type 不再单独保留 receiver 位。
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -609,6 +611,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -699,6 +703,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -778,12 +784,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -809,6 +817,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -897,6 +907,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -1004,6 +1016,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -1080,12 +1094,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -1102,6 +1118,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -1176,12 +1194,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body = match &fun.body {
@@ -1202,6 +1222,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -1277,6 +1299,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,

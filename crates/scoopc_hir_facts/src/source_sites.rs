@@ -13,6 +13,9 @@ use crate::globals::GlobalStoragePolicy;
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct SourceSiteFacts {
     pub function_effects: Vec<FunctionEffectContract>,
+    pub callable_source_effects: Vec<CallableSourceEffectFacts>,
+    pub semantic_operations: Vec<CanonicalSemanticOperationFact>,
+    pub hidden_initializers: Vec<HiddenInitializerEffectFact>,
     pub call_sites: Vec<CallSiteContract>,
     pub call_site_instances: Vec<CallSiteInstanceFact>,
     pub template_site_bindings: Vec<TemplateSiteBindingFact>,
@@ -32,6 +35,9 @@ impl SourceSiteFacts {
     /// Return whether no source-site contracts have been published yet.
     pub fn is_empty(&self) -> bool {
         self.function_effects.is_empty()
+            && self.callable_source_effects.is_empty()
+            && self.semantic_operations.is_empty()
+            && self.hidden_initializers.is_empty()
             && self.call_sites.is_empty()
             && self.call_site_instances.is_empty()
             && self.template_site_bindings.is_empty()
@@ -95,6 +101,132 @@ impl SourceSiteFacts {
             _ => None,
         }
     }
+}
+
+/// Stable data-only effect row template published by HIR facts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct EffectRowTemplate {
+    pub terms: Vec<EffectRowTerm>,
+    pub closed: bool,
+}
+
+impl EffectRowTemplate {
+    /// Return the open empty row.
+    pub fn pure() -> Self {
+        Self {
+            terms: Vec::new(),
+            closed: false,
+        }
+    }
+
+    /// Render a deterministic compact form for dumps and diagnostics.
+    pub fn canonical_text(&self) -> String {
+        let mut text = format!(
+            "E({})",
+            self.terms
+                .iter()
+                .map(EffectRowTerm::canonical_text)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        if self.closed {
+            text.push('!');
+        }
+        text
+    }
+}
+
+/// One term inside a stable effect row template.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectRowTerm {
+    Concrete {
+        type_key: CanonicalTextKey,
+    },
+    Param {
+        owner: CanonicalTextKey,
+        ordinal: u32,
+        name: String,
+    },
+}
+
+impl EffectRowTerm {
+    fn canonical_text(&self) -> String {
+        match self {
+            Self::Concrete { type_key } => type_key.as_str().to_string(),
+            Self::Param {
+                owner,
+                ordinal,
+                name,
+            } => format!("eff_param({},{},{})", owner.as_str(), ordinal, name),
+        }
+    }
+}
+
+/// How HIR arrived at a callable's published source-level surface row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectInferenceStatus {
+    ExplicitContract,
+    InferredFromBody,
+    MissingBodyAssumedPure,
+}
+
+/// Source-level layered effect rows for one callable.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CallableSourceEffectFacts {
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub return_ty: TypeId,
+    pub declared_surface_row: Option<EffectRowTemplate>,
+    pub direct_effect_row: EffectRowTemplate,
+    pub inferred_surface_row_template: EffectRowTemplate,
+    pub published_surface_row_template: EffectRowTemplate,
+    pub row_is_closed: bool,
+    pub inference_status: EffectInferenceStatus,
+}
+
+/// Canonical core operation seen at a source expression site.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CanonicalSemanticOperationFact {
+    pub identity: SourceSiteIdentity,
+    pub kind: CanonicalSemanticOperationKind,
+    pub surface_row: EffectRowTemplate,
+}
+
+/// Normalized semantic operation families consumed by source effect inference.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CanonicalSemanticOperationKind {
+    CoreCall {
+        call_kind: CallSiteKind,
+        target: Option<CanonicalTextKey>,
+    },
+    CoreEffectOperation {
+        effect_ty: TypeId,
+        op_fqn: String,
+    },
+    CoreContinuationResume,
+    CoreConstructorInit {
+        owner_fqn: String,
+        ctor_span: Option<Span>,
+    },
+}
+
+/// Hidden initializer effect summary published before MIR lowering.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HiddenInitializerEffectFact {
+    pub kind: HiddenInitializerKind,
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub span: Option<Span>,
+    pub effect_row: EffectRowTemplate,
+}
+
+/// Hidden initializer family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum HiddenInitializerKind {
+    ClassCtor,
+    ObjectInit,
+    TopLevelInit,
 }
 
 /// Stable source-site identity scoped to a lowered body.

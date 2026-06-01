@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use crate::ast;
 use crate::span::Span;
 use crate::stable_id::StableTemplateKey;
-use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
+use crate::ty::{EffectRow, MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
 use scoopc_ids::TemplateKey;
 
 pub(crate) use crate::ty::EFFECT_ROW_PARAM_DECL_FILE;
@@ -292,6 +292,10 @@ pub struct FunDecl {
     pub source_path: PathBuf,
     /// 函数本身的类型（函数类型）。
     pub ty: TypeId,
+    /// Source-declared effect row, if the callable explicitly wrote one.
+    pub declared_effects: Option<EffectRow>,
+    /// Whether the source-declared row was closed (`/ Row!`).
+    pub effects_closed: bool,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub body: Option<Block>,

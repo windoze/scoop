@@ -7,18 +7,22 @@ use crate::ast;
 use crate::hir::{
     AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, ClassCtor,
     ClassInitStep, Decl, DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError,
-    HirStageError, Item, LoweredHir, MonoClassInit, ObjectInit, ObjectInitStep, Stmt, StmtKind,
-    ValDecl, ValueRef,
+    HirStageError, InterpolatedStringPart, Item, LoweredHir, MemberRef, MonoClassInit, ObjectInit,
+    ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
 use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    CanonicalTextKey, NoTypeParamResolver, SiteId, StableCanonicalKey, StableHashScope,
-    StableInstanceKey, StableTemplateKey, stable_hash64,
+    CanonicalEncodingError, CanonicalTextKey, EffectRowTemplate as StableEffectRowTemplate,
+    EffectTerm as StableEffectTerm, NoTypeParamResolver, SiteId, StableCanonicalKey, StableDefKey,
+    StableEffectParamKey, StableHashScope, StableInstanceKey, StableTemplateKey, stable_hash64,
 };
-use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind,
+    TypeParamType, TypeStore, ValueTypeKind,
+};
 use scoopc_hir_facts::{
     HirFacts,
     common::FactIdentity,
@@ -2103,7 +2107,7 @@ fn build_hir_facts(
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2115,7 +2119,7 @@ pub fn build_hir_declaration_facts_from_lowered_hir(
     let collected_contracts =
         CollectedHirContracts::from_lowered_hir_source_path(lowered_hir, source_path)?;
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2126,7 +2130,7 @@ pub fn build_hir_facts_from_lowered_hir(
 ) -> Result<HirFacts, HirStageError> {
     let collected_contracts = CollectedHirContracts::from_lowered_hir(lowered_hir, source_path)?;
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2149,7 +2153,7 @@ fn populate_source_site_facts(
     facts: &mut hir_site_facts::SourceSiteFacts,
     lowered_hir: &LoweredHir,
     contracts: &CollectedHirContracts,
-) {
+) -> Result<(), HirStageError> {
     facts.function_effects = contracts
         .function_effects
         .iter()
@@ -2262,6 +2266,1161 @@ fn populate_source_site_facts(
         .iter()
         .map(extern_global_contract_fact)
         .collect();
+
+    let source_effect_facts = SourceEffectFactBuilder::new(lowered_hir, contracts)?;
+    facts.callable_source_effects = source_effect_facts.callable_source_effects()?;
+    facts.semantic_operations = source_effect_facts.semantic_operations()?;
+    facts.hidden_initializers = source_effect_facts.hidden_initializers()?;
+
+    Ok(())
+}
+
+#[derive(Clone)]
+struct ComputedCallableEffect {
+    direct: EffectRow,
+    inferred: EffectRow,
+    published: EffectRow,
+    row_is_closed: bool,
+    status: hir_site_facts::EffectInferenceStatus,
+}
+
+struct SourceEffectFactBuilder<'a> {
+    lowered_hir: &'a LoweredHir,
+    contracts: &'a CollectedHirContracts,
+    functions: Vec<&'a FunDecl>,
+    functions_by_fqn: HashMap<String, &'a FunDecl>,
+    effect_param_keys: HashMap<TypeParamType, StableEffectParamKey>,
+}
+
+impl<'a> SourceEffectFactBuilder<'a> {
+    fn new(
+        lowered_hir: &'a LoweredHir,
+        contracts: &'a CollectedHirContracts,
+    ) -> Result<Self, HirStageError> {
+        let mut functions = Vec::new();
+        let mut functions_by_fqn = HashMap::new();
+        for item in &lowered_hir.file.items {
+            if let Item::Fun(fun) = item {
+                functions_by_fqn.insert(fun.fqn.clone(), fun);
+                functions.push(fun);
+            }
+        }
+        for fun in &lowered_hir.member_funs {
+            functions_by_fqn.insert(fun.fqn.clone(), fun);
+            functions.push(fun);
+        }
+
+        Ok(Self {
+            lowered_hir,
+            contracts,
+            functions,
+            functions_by_fqn,
+            effect_param_keys: stable_effect_param_keys(lowered_hir)?,
+        })
+    }
+
+    fn callable_source_effects(
+        &self,
+    ) -> Result<Vec<hir_site_facts::CallableSourceEffectFacts>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut facts = Vec::with_capacity(self.functions.len());
+        for fun in &self.functions {
+            let computed = computer.compute_callable(fun);
+            facts.push(hir_site_facts::CallableSourceEffectFacts {
+                fqn: fun.fqn.clone(),
+                source_path: fun.source_path.clone(),
+                span: fun.span,
+                return_ty: fun.return_ty,
+                declared_surface_row: fun
+                    .declared_effects
+                    .as_ref()
+                    .map(|row| self.effect_row_template(row, fun.effects_closed, fun))
+                    .transpose()?,
+                direct_effect_row: self.effect_row_template(&computed.direct, false, fun)?,
+                inferred_surface_row_template: self.effect_row_template(
+                    &computed.inferred,
+                    false,
+                    fun,
+                )?,
+                published_surface_row_template: self.effect_row_template(
+                    &computed.published,
+                    computed.row_is_closed,
+                    fun,
+                )?,
+                row_is_closed: computed.row_is_closed,
+                inference_status: computed.status,
+            });
+        }
+        facts.sort_by(|lhs, rhs| {
+            lhs.source_path
+                .cmp(&rhs.source_path)
+                .then(lhs.span.start.cmp(&rhs.span.start))
+                .then(lhs.fqn.cmp(&rhs.fqn))
+        });
+        Ok(facts)
+    }
+
+    fn semantic_operations(
+        &self,
+    ) -> Result<Vec<hir_site_facts::CanonicalSemanticOperationFact>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut call_sites = self
+            .contracts
+            .call_site_contracts
+            .iter()
+            .collect::<Vec<_>>();
+        call_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let mut facts = Vec::with_capacity(call_sites.len());
+        for (call_site, contract) in call_sites {
+            let surface = computer.call_contract_surface_row(contract);
+            facts.push(hir_site_facts::CanonicalSemanticOperationFact {
+                identity: source_site_identity(call_site, "semantic"),
+                kind: semantic_operation_kind(contract),
+                surface_row: self.effect_row_template_for_site(&surface, false, call_site)?,
+            });
+        }
+        Ok(facts)
+    }
+
+    fn hidden_initializers(
+        &self,
+    ) -> Result<Vec<hir_site_facts::HiddenInitializerEffectFact>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut facts = Vec::new();
+
+        let mut classes = self.lowered_hir.class_inits.values().collect::<Vec<_>>();
+        classes.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for class in classes {
+            if class.ctors.is_empty() {
+                let row = computer.class_ctor_effect_row(&class.fqn, None);
+                facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                    kind: hir_site_facts::HiddenInitializerKind::ClassCtor,
+                    fqn: class.fqn.clone(),
+                    source_path: class.source_path.clone(),
+                    span: None,
+                    effect_row: self.effect_row_template_for_parts(
+                        &row,
+                        false,
+                        &class.source_path,
+                        Span::new(0, 0),
+                        &class.fqn,
+                    )?,
+                });
+            }
+            for ctor in &class.ctors {
+                let row = computer.class_ctor_effect_row(&class.fqn, Some(ctor.span));
+                facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                    kind: hir_site_facts::HiddenInitializerKind::ClassCtor,
+                    fqn: class.fqn.clone(),
+                    source_path: class.source_path.clone(),
+                    span: Some(ctor.span),
+                    effect_row: self.effect_row_template_for_parts(
+                        &row,
+                        false,
+                        &class.source_path,
+                        ctor.span,
+                        &class.fqn,
+                    )?,
+                });
+            }
+        }
+
+        let mut objects = self.lowered_hir.object_inits.values().collect::<Vec<_>>();
+        objects.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for object in objects {
+            let row = computer.object_init_effect_row(&object.fqn);
+            facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                kind: hir_site_facts::HiddenInitializerKind::ObjectInit,
+                fqn: object.fqn.clone(),
+                source_path: object.source_path.clone(),
+                span: Some(object.span),
+                effect_row: self.effect_row_template_for_parts(
+                    &row,
+                    false,
+                    &object.source_path,
+                    object.span,
+                    &object.fqn,
+                )?,
+            });
+        }
+
+        let mut values = self
+            .lowered_hir
+            .top_level_immutable_values
+            .values()
+            .collect::<Vec<_>>();
+        values.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for value in values {
+            let row = computer.top_level_immutable_value_effect_row(&value.fqn);
+            facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                kind: hir_site_facts::HiddenInitializerKind::TopLevelInit,
+                fqn: value.fqn.clone(),
+                source_path: value.source_path.clone(),
+                span: Some(value.span),
+                effect_row: self.effect_row_template_for_parts(
+                    &row,
+                    false,
+                    &value.source_path,
+                    value.span,
+                    &value.fqn,
+                )?,
+            });
+        }
+
+        Ok(facts)
+    }
+
+    fn effect_row_template(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        fun: &FunDecl,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        self.effect_row_template_for_parts(row, closed, &fun.source_path, fun.span, &fun.fqn)
+    }
+
+    fn effect_row_template_for_site(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        call_site: &CallSite,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        self.effect_row_template_for_parts(
+            row,
+            closed,
+            &call_site.source_path,
+            call_site.span,
+            "source semantic operation",
+        )
+    }
+
+    fn effect_row_template_for_parts(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        source_path: &Path,
+        span: Span,
+        owner: &str,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        let template = StableEffectRowTemplate::from_effect_row(
+            &self.lowered_hir.types,
+            row,
+            &self.lowered_hir.stable_type_param_keys,
+            &self.effect_param_keys,
+            closed,
+        )
+        .map_err(|err| hir_stage_effect_template_error(source_path, span, owner, err))?;
+        Ok(effect_row_template_fact(&template))
+    }
+}
+
+struct SourceEffectComputer<'a, 'b> {
+    builder: &'a SourceEffectFactBuilder<'b>,
+    cache: HashMap<String, ComputedCallableEffect>,
+    visiting_callables: HashSet<String>,
+    visiting_hidden: HashSet<String>,
+}
+
+impl<'a, 'b> SourceEffectComputer<'a, 'b> {
+    fn new(builder: &'a SourceEffectFactBuilder<'b>) -> Self {
+        Self {
+            builder,
+            cache: HashMap::new(),
+            visiting_callables: HashSet::new(),
+            visiting_hidden: HashSet::new(),
+        }
+    }
+
+    fn compute_callable(&mut self, fun: &FunDecl) -> ComputedCallableEffect {
+        if let Some(cached) = self.cache.get(&fun.fqn).cloned() {
+            return cached;
+        }
+        if !self.visiting_callables.insert(fun.fqn.clone()) {
+            let fallback = fun
+                .declared_effects
+                .clone()
+                .or_else(|| {
+                    function_effect_contract(&self.builder.lowered_hir.types, fun.ty)
+                        .map(|row| row.0)
+                })
+                .unwrap_or_else(EffectRow::pure);
+            return ComputedCallableEffect {
+                direct: EffectRow::pure(),
+                inferred: fallback.clone(),
+                published: fallback,
+                row_is_closed: fun.effects_closed,
+                status: hir_site_facts::EffectInferenceStatus::ExplicitContract,
+            };
+        }
+
+        let direct = fun
+            .body
+            .as_ref()
+            .map(|body| self.block_direct_row(body, fun.source_path.as_path()))
+            .unwrap_or_else(EffectRow::pure);
+        let inferred = fun
+            .body
+            .as_ref()
+            .map(|body| self.block_surface_row(body, fun.source_path.as_path()))
+            .or_else(|| fun.declared_effects.clone())
+            .unwrap_or_else(EffectRow::pure);
+        let (published, row_is_closed, status) =
+            if let Some(declared) = fun.declared_effects.clone() {
+                (
+                    declared,
+                    fun.effects_closed,
+                    hir_site_facts::EffectInferenceStatus::ExplicitContract,
+                )
+            } else if fun.body.is_some() {
+                (
+                    inferred.clone(),
+                    false,
+                    hir_site_facts::EffectInferenceStatus::InferredFromBody,
+                )
+            } else {
+                (
+                    EffectRow::pure(),
+                    false,
+                    hir_site_facts::EffectInferenceStatus::MissingBodyAssumedPure,
+                )
+            };
+
+        let out = ComputedCallableEffect {
+            direct,
+            inferred,
+            published,
+            row_is_closed,
+            status,
+        };
+        self.visiting_callables.remove(&fun.fqn);
+        self.cache.insert(fun.fqn.clone(), out.clone());
+        out
+    }
+
+    fn block_surface_row(&mut self, block: &Block, source_path: &Path) -> EffectRow {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.stmt_surface_row(stmt, source_path).terms);
+        }
+        EffectRow::new(terms)
+    }
+
+    fn stmt_surface_row(&mut self, stmt: &Stmt, source_path: &Path) -> EffectRow {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.expr_surface_row(expr, source_path),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.expr_surface_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Assign { lhs, rhs, .. } => union_rows([
+                self.expr_surface_row(lhs, source_path),
+                self.expr_surface_row(rhs, source_path),
+            ]),
+            StmtKind::While { cond, body } => union_rows([
+                self.expr_surface_row(cond, source_path),
+                self.block_surface_row(body, source_path),
+            ]),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.expr_surface_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn expr_surface_row(&mut self, expr: &Expr, source_path: &Path) -> EffectRow {
+        match &expr.kind {
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::ClassLiteral(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Closure(_)
+            | ExprKind::Todo(_) => EffectRow::pure(),
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => union_rows([
+                self.object_init_effect_row(fqn),
+                self.top_level_immutable_value_effect_row(fqn),
+            ]),
+            ExprKind::VarRef(_) => EffectRow::pure(),
+            ExprKind::Block(block) => self.block_surface_row(block, source_path),
+            ExprKind::Unary { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::TypeCheck { expr, .. } => self.expr_surface_row(expr, source_path),
+            ExprKind::Binary { lhs, rhs, .. } => union_rows([
+                self.expr_surface_row(lhs, source_path),
+                self.expr_surface_row(rhs, source_path),
+                self.semantic_surface_row(source_path, expr.span),
+            ]),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let mut rows = vec![
+                    self.expr_surface_row(cond, source_path),
+                    self.expr_surface_row(then_branch, source_path),
+                ];
+                if let Some(else_branch) = else_branch.as_deref() {
+                    rows.push(self.expr_surface_row(else_branch, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::When { subject, arms } => {
+                let mut rows = vec![self.expr_surface_row(subject, source_path)];
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        rows.push(self.expr_surface_row(guard, source_path));
+                    }
+                    rows.push(self.expr_surface_row(&arm.body, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::MemberAccess { receiver, member } => {
+                let mut rows = vec![self.expr_surface_row(receiver, source_path)];
+                if let Some(MemberRef::Value { fqn, .. }) = member.resolved.as_ref()
+                    && let Some((owner_fqn, _)) = fqn.rsplit_once('.')
+                {
+                    rows.push(self.object_init_effect_row(owner_fqn));
+                }
+                rows.push(self.semantic_surface_row(source_path, expr.span));
+                union_rows(rows)
+            }
+            ExprKind::StructLit { fields, .. } => union_rows(
+                fields
+                    .iter()
+                    .map(|field| self.expr_surface_row(&field.value, source_path)),
+            ),
+            ExprKind::TupleLit { elements } => union_rows(
+                elements
+                    .iter()
+                    .map(|element| self.expr_surface_row(element, source_path)),
+            ),
+            ExprKind::InterpolatedString { parts, .. } => {
+                union_rows(parts.iter().filter_map(|part| {
+                    if let InterpolatedStringPart::Expr { expr } = part {
+                        Some(self.expr_surface_row(expr, source_path))
+                    } else {
+                        None
+                    }
+                }))
+            }
+            ExprKind::Call { callee, args } => {
+                let mut rows = vec![
+                    self.expr_surface_row(callee, source_path),
+                    self.call_args_surface_row(args, source_path),
+                    self.semantic_surface_row(source_path, expr.span),
+                ];
+                if let Some(info) = self
+                    .builder
+                    .lowered_hir
+                    .ctor_call_sites
+                    .get(&CallSite::new(source_path.to_path_buf(), expr.span))
+                {
+                    rows.push(self.class_ctor_effect_row(&info.class_fqn, info.ctor_span));
+                } else if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) =
+                    self.builder.lowered_hir.types.kind(callee.ty)
+                {
+                    rows.push(fun_ty.effects.clone());
+                }
+                union_rows(rows)
+            }
+            ExprKind::Perform {
+                effect_ty, args, ..
+            } => union_rows([
+                self.call_args_surface_row(args, source_path),
+                EffectRow::new(vec![*effect_ty]),
+            ]),
+            ExprKind::Handle(handle) => {
+                let handled = EffectRow::new(
+                    handle
+                        .arms
+                        .iter()
+                        .map(|arm| arm.op.effect_ty)
+                        .collect::<Vec<_>>(),
+                );
+                let body =
+                    subtract_row(self.block_surface_row(&handle.body, source_path), &handled);
+                let mut rows = vec![body];
+                for arm in &handle.arms {
+                    rows.push(self.expr_surface_row(&arm.body, source_path));
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    rows.push(self.block_surface_row(finally, source_path));
+                }
+                union_rows(rows)
+            }
+        }
+    }
+
+    fn block_direct_row(&mut self, block: &Block, source_path: &Path) -> EffectRow {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.stmt_direct_row(stmt, source_path).terms);
+        }
+        EffectRow::new(terms)
+    }
+
+    fn stmt_direct_row(&mut self, stmt: &Stmt, source_path: &Path) -> EffectRow {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.expr_direct_row(expr, source_path),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.expr_direct_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Assign { lhs, rhs, .. } => union_rows([
+                self.expr_direct_row(lhs, source_path),
+                self.expr_direct_row(rhs, source_path),
+            ]),
+            StmtKind::While { cond, body } => union_rows([
+                self.expr_direct_row(cond, source_path),
+                self.block_direct_row(body, source_path),
+            ]),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.expr_direct_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn expr_direct_row(&mut self, expr: &Expr, source_path: &Path) -> EffectRow {
+        match &expr.kind {
+            ExprKind::Perform {
+                effect_ty, args, ..
+            } => union_rows([
+                self.call_args_direct_row(args, source_path),
+                EffectRow::new(vec![*effect_ty]),
+            ]),
+            ExprKind::Closure(_) => EffectRow::pure(),
+            ExprKind::Block(block) => self.block_direct_row(block, source_path),
+            ExprKind::Unary { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::TypeCheck { expr, .. } => self.expr_direct_row(expr, source_path),
+            ExprKind::Binary { lhs, rhs, .. } => union_rows([
+                self.expr_direct_row(lhs, source_path),
+                self.expr_direct_row(rhs, source_path),
+            ]),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let mut rows = vec![
+                    self.expr_direct_row(cond, source_path),
+                    self.expr_direct_row(then_branch, source_path),
+                ];
+                if let Some(else_branch) = else_branch.as_deref() {
+                    rows.push(self.expr_direct_row(else_branch, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::When { subject, arms } => {
+                let mut rows = vec![self.expr_direct_row(subject, source_path)];
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        rows.push(self.expr_direct_row(guard, source_path));
+                    }
+                    rows.push(self.expr_direct_row(&arm.body, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::MemberAccess { receiver, .. } => self.expr_direct_row(receiver, source_path),
+            ExprKind::StructLit { fields, .. } => union_rows(
+                fields
+                    .iter()
+                    .map(|field| self.expr_direct_row(&field.value, source_path)),
+            ),
+            ExprKind::TupleLit { elements } => union_rows(
+                elements
+                    .iter()
+                    .map(|element| self.expr_direct_row(element, source_path)),
+            ),
+            ExprKind::InterpolatedString { parts, .. } => {
+                union_rows(parts.iter().filter_map(|part| {
+                    if let InterpolatedStringPart::Expr { expr } = part {
+                        Some(self.expr_direct_row(expr, source_path))
+                    } else {
+                        None
+                    }
+                }))
+            }
+            ExprKind::Call { callee, args } => union_rows([
+                self.expr_direct_row(callee, source_path),
+                self.call_args_direct_row(args, source_path),
+            ]),
+            ExprKind::Handle(handle) => {
+                let mut rows = vec![self.block_direct_row(&handle.body, source_path)];
+                for arm in &handle.arms {
+                    rows.push(self.expr_direct_row(&arm.body, source_path));
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    rows.push(self.block_direct_row(finally, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::ClassLiteral(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn call_args_surface_row(&mut self, args: &[CallArg], source_path: &Path) -> EffectRow {
+        union_rows(args.iter().map(|arg| match arg {
+            CallArg::Positional(expr) => self.expr_surface_row(expr, source_path),
+            CallArg::Named { value, .. } => self.expr_surface_row(value, source_path),
+        }))
+    }
+
+    fn call_args_direct_row(&mut self, args: &[CallArg], source_path: &Path) -> EffectRow {
+        union_rows(args.iter().map(|arg| match arg {
+            CallArg::Positional(expr) => self.expr_direct_row(expr, source_path),
+            CallArg::Named { value, .. } => self.expr_direct_row(value, source_path),
+        }))
+    }
+
+    fn semantic_surface_row(&mut self, source_path: &Path, span: Span) -> EffectRow {
+        let call_site = CallSite::new(source_path.to_path_buf(), span);
+        self.builder
+            .contracts
+            .call_site_contracts
+            .get(&call_site)
+            .map(|contract| self.call_contract_surface_row(contract))
+            .unwrap_or_else(EffectRow::pure)
+    }
+
+    fn call_contract_surface_row(&mut self, contract: &TypedCallSiteContract) -> EffectRow {
+        match contract {
+            TypedCallSiteContract::DirectTopLevel(function) => {
+                self.function_target_surface_row(function)
+            }
+            TypedCallSiteContract::MemberDirect(member)
+            | TypedCallSiteContract::Virtual(member)
+            | TypedCallSiteContract::Interface(member) => {
+                self.function_target_surface_row(member.function())
+            }
+            TypedCallSiteContract::Extension { function, .. }
+            | TypedCallSiteContract::Intrinsic { function, .. } => {
+                self.function_target_surface_row(function)
+            }
+            TypedCallSiteContract::Constructor(ctor) => {
+                self.class_ctor_effect_row(ctor.owner_fqn(), ctor.ctor_span())
+            }
+            TypedCallSiteContract::Closure { callee_ty, .. }
+            | TypedCallSiteContract::FunValue { callee_ty, .. }
+            | TypedCallSiteContract::FunPtr { callee_ty, .. } => {
+                self.function_type_surface_row(*callee_ty)
+            }
+            TypedCallSiteContract::EffectOp(perform) => EffectRow::new(vec![perform.effect_ty()]),
+            TypedCallSiteContract::ContinuationResume(resume) => {
+                let mut terms = resume.out_effects().terms.clone();
+                if let Some(effect) = resume.runtime_error_effect_ty() {
+                    terms.push(effect);
+                }
+                EffectRow::new(terms)
+            }
+        }
+    }
+
+    fn function_target_surface_row(&mut self, target: &FunctionTargetContract) -> EffectRow {
+        let row = if let Some(fun) = self.builder.functions_by_fqn.get(target.fqn()).copied() {
+            self.compute_callable(fun).published
+        } else {
+            self.function_row_for_fqn(target.fqn())
+                .unwrap_or_else(EffectRow::pure)
+        };
+        self.substitute_target_effect_args(row, target.eff_args())
+    }
+
+    fn function_row_for_fqn(&self, fqn: &str) -> Option<EffectRow> {
+        self.builder
+            .functions_by_fqn
+            .get(fqn)
+            .and_then(|fun| function_effect_contract(&self.builder.lowered_hir.types, fun.ty))
+            .map(|(row, _)| row)
+    }
+
+    fn function_type_surface_row(&self, ty: TypeId) -> EffectRow {
+        match self.builder.lowered_hir.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => fun_ty.effects.clone(),
+            _ => EffectRow::pure(),
+        }
+    }
+
+    fn substitute_target_effect_args(&self, row: EffectRow, eff_args: &[EffectRow]) -> EffectRow {
+        if eff_args.is_empty() || row.terms.is_empty() {
+            return row;
+        }
+        let mut markers = row
+            .terms
+            .iter()
+            .filter_map(|term| match self.builder.lowered_hir.types.kind(*term) {
+                TypeKind::Param(param)
+                    if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE =>
+                {
+                    Some((
+                        *term,
+                        self.builder
+                            .lowered_hir
+                            .stable_type_param_keys
+                            .get(param)
+                            .map(|key| key.index())
+                            .unwrap_or(usize::MAX),
+                    ))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        markers.sort_by(|lhs, rhs| lhs.1.cmp(&rhs.1).then(lhs.0.cmp(&rhs.0)));
+        markers.dedup_by_key(|(ty, _)| *ty);
+        let marker_to_arg = markers
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, (marker, _))| eff_args.get(idx).map(|row| (marker, row)))
+            .collect::<HashMap<_, _>>();
+
+        let mut terms = Vec::new();
+        for term in row.terms {
+            if let Some(arg_row) = marker_to_arg.get(&term) {
+                terms.extend(arg_row.terms.iter().copied());
+            } else {
+                terms.push(term);
+            }
+        }
+        EffectRow::new(terms)
+    }
+
+    fn class_ctor_effect_row(&mut self, class_fqn: &str, ctor_span: Option<Span>) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.class_ctor_effect_terms(class_fqn, ctor_span, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn object_init_effect_row(&mut self, object_fqn: &str) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.object_init_effect_terms(object_fqn, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn top_level_immutable_value_effect_row(&mut self, value_fqn: &str) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.top_level_immutable_value_effect_terms(value_fqn, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn class_ctor_effect_terms(
+        &mut self,
+        class_fqn: &str,
+        ctor_span: Option<Span>,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(class) = self.lookup_class_init(class_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("class:{}:{:?}", class.fqn, ctor_span);
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+            terms.extend(self.class_ctor_effect_terms(super_fqn, None, visiting));
+        }
+        terms.extend(self.scan_call_args_hidden(
+            &class.super_ctor_args,
+            class.source_path.as_path(),
+            visiting,
+        ));
+
+        let selected_ctor = ctor_span
+            .and_then(|span| class.ctors.iter().find(|ctor| ctor.span == span))
+            .or_else(|| {
+                if ctor_span.is_none() && class.ctors.len() == 1 {
+                    class.ctors.first()
+                } else {
+                    None
+                }
+            });
+        if let Some(ctor) = selected_ctor {
+            for param in &ctor.params {
+                if let Some(default_value) = param.default_value.as_ref() {
+                    terms.extend(self.scan_expr_hidden(
+                        default_value,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+            if let Some(delegation) = ctor.delegation.as_ref() {
+                terms.extend(self.scan_call_args_hidden(
+                    &delegation.args,
+                    class.source_path.as_path(),
+                    visiting,
+                ));
+            }
+        }
+
+        for step in &class.steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr_hidden(
+                        init,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+                ClassInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block_hidden(
+                        block,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+        }
+        if let Some(ctor) = selected_ctor
+            && let Some(body) = ctor.body.as_ref()
+        {
+            terms.extend(self.scan_block_hidden(body, class.source_path.as_path(), visiting));
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn object_init_effect_terms(
+        &mut self,
+        object_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(object_init) = self.builder.lowered_hir.object_inits.get(object_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("object:{object_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        for step in &object_init.steps {
+            match step {
+                ObjectInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr_hidden(
+                        init,
+                        object_init.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+                ObjectInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block_hidden(
+                        block,
+                        object_init.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn top_level_immutable_value_effect_terms(
+        &mut self,
+        value_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(value) = self
+            .builder
+            .lowered_hir
+            .top_level_immutable_values
+            .get(value_fqn)
+        else {
+            return Vec::new();
+        };
+        let key = format!("top-level-val:{value_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let terms = value
+            .init
+            .as_ref()
+            .map(|init| self.scan_expr_hidden(init, value.source_path.as_path(), visiting))
+            .unwrap_or_default();
+        visiting.remove(&key);
+        terms
+    }
+
+    fn lookup_class_init(&self, class_fqn: &str) -> Option<&'b MonoClassInit> {
+        self.builder
+            .lowered_hir
+            .class_inits
+            .values()
+            .find(|class| class.fqn == class_fqn)
+    }
+
+    fn scan_block_hidden(
+        &mut self,
+        block: &Block,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.scan_stmt_hidden(stmt, source_path, visiting));
+        }
+        terms
+    }
+
+    fn scan_stmt_hidden(
+        &mut self,
+        stmt: &Stmt,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.scan_expr_hidden(expr, source_path, visiting),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.scan_expr_hidden(expr, source_path, visiting))
+                .unwrap_or_default(),
+            StmtKind::Assign { lhs, rhs, .. } => {
+                let mut terms = self.scan_expr_hidden(lhs, source_path, visiting);
+                terms.extend(self.scan_expr_hidden(rhs, source_path, visiting));
+                terms
+            }
+            StmtKind::While { cond, body } => {
+                let mut terms = self.scan_expr_hidden(cond, source_path, visiting);
+                terms.extend(self.scan_block_hidden(body, source_path, visiting));
+                terms
+            }
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.scan_expr_hidden(expr, source_path, visiting))
+                .unwrap_or_default(),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => Vec::new(),
+        }
+    }
+
+    fn scan_expr_hidden(
+        &mut self,
+        expr: &Expr,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        self.expr_surface_row(expr, source_path)
+            .terms
+            .into_iter()
+            .chain(match &expr.kind {
+                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                    let mut terms = self.object_init_effect_terms(fqn, visiting);
+                    terms.extend(self.top_level_immutable_value_effect_terms(fqn, visiting));
+                    terms
+                }
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    fn scan_call_args_hidden(
+        &mut self,
+        args: &[CallArg],
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for arg in args {
+            match arg {
+                CallArg::Positional(expr) => {
+                    terms.extend(self.scan_expr_hidden(expr, source_path, visiting));
+                }
+                CallArg::Named { value, .. } => {
+                    terms.extend(self.scan_expr_hidden(value, source_path, visiting));
+                }
+            }
+        }
+        terms
+    }
+}
+
+fn union_rows(rows: impl IntoIterator<Item = EffectRow>) -> EffectRow {
+    EffectRow::new(rows.into_iter().flat_map(|row| row.terms).collect())
+}
+
+fn subtract_row(row: EffectRow, handled: &EffectRow) -> EffectRow {
+    EffectRow::new(
+        row.terms
+            .into_iter()
+            .filter(|term| !handled.terms.contains(term))
+            .collect(),
+    )
+}
+
+fn stable_effect_param_keys(
+    lowered_hir: &LoweredHir,
+) -> Result<HashMap<TypeParamType, StableEffectParamKey>, HirStageError> {
+    let mut out = HashMap::new();
+    for (param, key) in &lowered_hir.stable_type_param_keys {
+        if param.decl_file.as_os_str() != EFFECT_ROW_PARAM_DECL_FILE {
+            continue;
+        }
+        let owner = StableDefKey::from_canonical_text(key.owner_def_key()).map_err(|err| {
+            hir_stage_effect_template_error(Path::new("<hir>"), param.decl_span, &param.name, err)
+        })?;
+        let ordinal = u32::try_from(key.index()).unwrap_or(u32::MAX);
+        out.insert(
+            param.clone(),
+            StableEffectParamKey::new(owner, ordinal, param.name.clone()),
+        );
+    }
+    Ok(out)
+}
+
+fn effect_row_template_fact(
+    template: &StableEffectRowTemplate,
+) -> hir_site_facts::EffectRowTemplate {
+    hir_site_facts::EffectRowTemplate {
+        terms: template
+            .terms()
+            .iter()
+            .map(|term| match term {
+                StableEffectTerm::Concrete { type_key } => {
+                    hir_site_facts::EffectRowTerm::Concrete {
+                        type_key: type_key.clone(),
+                    }
+                }
+                StableEffectTerm::Param {
+                    owner,
+                    ordinal,
+                    name,
+                } => hir_site_facts::EffectRowTerm::Param {
+                    owner: CanonicalTextKey::new(owner.canonical_text()),
+                    ordinal: *ordinal,
+                    name: name.clone(),
+                },
+            })
+            .collect(),
+        closed: template.closed(),
+    }
+}
+
+fn hir_stage_effect_template_error(
+    source_path: &Path,
+    span: Span,
+    owner: &str,
+    err: CanonicalEncodingError,
+) -> HirStageError {
+    HirStageError::new(
+        source_path.to_path_buf(),
+        span,
+        format!("failed to publish HIR effect row template for `{owner}`: {err}"),
+        owner,
+    )
+}
+
+fn semantic_operation_kind(
+    contract: &TypedCallSiteContract,
+) -> hir_site_facts::CanonicalSemanticOperationKind {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::DirectTopLevel,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::MemberDirect(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::MemberDirect,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Extension { function, .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Extension,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::Constructor(ctor) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreConstructorInit {
+                owner_fqn: ctor.owner_fqn().to_string(),
+                ctor_span: ctor.ctor_span(),
+            }
+        }
+        TypedCallSiteContract::Closure { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Closure,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::FunValue { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::FunValue,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::FunPtr { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::FunPtr,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::Virtual(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::VirtualDispatch,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Interface(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::InterfaceDispatch,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Intrinsic { function, .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Intrinsic,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::EffectOp(perform) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreEffectOperation {
+                effect_ty: perform.effect_ty(),
+                op_fqn: perform.op_fqn().to_string(),
+            }
+        }
+        TypedCallSiteContract::ContinuationResume(_) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreContinuationResume
+        }
+    }
+}
+
+fn function_target_key(target: &FunctionTargetContract) -> Option<CanonicalTextKey> {
+    target
+        .stable_instance_key()
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .or_else(|| {
+            target
+                .stable_template_key()
+                .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        })
+        .or_else(|| Some(CanonicalTextKey::new(target.fqn())))
 }
 
 fn source_site_identity(call_site: &CallSite, role: &str) -> hir_site_facts::SourceSiteIdentity {

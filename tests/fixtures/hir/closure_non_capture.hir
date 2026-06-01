@@ -106,7 +106,7 @@ File {
 
 hir_facts {
   declarations: nominals=82, callables=1, fields=62, enum_variants=24, vtables=64, itables=37
-  source_sites: function_effects=1, calls=1, args=1, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
+  source_sites: function_effects=1, callable_source_effects=1, semantic_ops=1, hidden_initializers=21, calls=1, args=1, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
   globals: roots=1, object_inits=1, class_inits=30
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
   type_context: universe=hir-stage-type-store, type_params=93, source_cones=9

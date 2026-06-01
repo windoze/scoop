@@ -224,6 +224,36 @@ fn source_contract_keys(facts: &HirFacts) -> Vec<(&'static str, String)> {
             ),
         )
     }));
+    keys.extend(
+        facts
+            .source_sites
+            .callable_source_effects
+            .iter()
+            .map(|fact| {
+                (
+                    "callable-source-effect",
+                    format!(
+                        "{}:{}..{}:{}",
+                        fact.source_path.display(),
+                        fact.span.start,
+                        fact.span.end,
+                        fact.fqn
+                    ),
+                )
+            }),
+    );
+    keys.extend(facts.source_sites.hidden_initializers.iter().map(|fact| {
+        (
+            "hidden-initializer-effect",
+            format!(
+                "{}:{:?}:{:?}:{}",
+                fact.source_path.display(),
+                fact.kind,
+                fact.span,
+                fact.fqn
+            ),
+        )
+    }));
     keys.extend(facts.source_sites.top_level_init_roots.iter().map(|fact| {
         (
             "top-level-init-root",
@@ -269,6 +299,13 @@ fn source_site_keys(facts: &HirFacts) -> Vec<SourceSiteKey> {
             .call_sites
             .iter()
             .map(|fact| source_site_key(&fact.identity, "call", String::new())),
+    );
+    keys.extend(
+        facts
+            .source_sites
+            .semantic_operations
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "semantic_operation", String::new())),
     );
     keys.extend(
         facts
