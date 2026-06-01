@@ -507,6 +507,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 })?;
             match classification.kind() {
                 LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
                 | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
                     ..
                 }

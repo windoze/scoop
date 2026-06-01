@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 
 use scoopc_mir_facts::MirFacts;
@@ -15,12 +15,13 @@ use crate::ty::TypeStore;
 use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, augment_frame_for_handle_dispatch, build_callable_frame};
 use super::ir::{
-    ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody, LateLoweredClassCtorInitStep,
-    LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
-    LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
-    LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
-    LateLoweredStateGraph, class_ctor_source as source,
+    ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap,
+    LateLoweredCallSiteMaterializedKind, LateLoweredCallSiteMaterializedMetadata,
+    LateLoweredCallable, LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody,
+    LateLoweredClassCtorInitStep, LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall,
+    LateLoweredFrameSchema, LateLoweredPlainBodySlice, LateLoweredPlainCallSite,
+    LateLoweredPlainCallable, LateLoweredPlainLocalEffectControl, LateLoweredProgram,
+    LateLoweredResumeStateMap, LateLoweredStateGraph, class_ctor_source as source,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
@@ -85,6 +86,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
         for family in pass_view.instances() {
             let root_fqn = family.root_fqn().to_string();
+            let source_kind = callable_source_kind(materialized, &root_fqn);
             let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
                 if family.root_body().is_some() {
                     return Err(EffectLoweringError::MissingCallableFacts {
@@ -156,16 +158,15 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 if let Some(object) = plain.continuation_object {
                     continuation_objects.push(object);
                 }
-                let mut callable = LateLoweredCallable::new_plain(
+                let callable = LateLoweredCallable::new_plain(
                     root_fqn,
                     stable_instance_key,
                     body_version_key,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
                     plain.callable,
-                );
-                if let Some(fun) = source_fun {
-                    callable = callable.with_source_callable(fun);
-                }
+                )
+                .with_source_kind(source_kind)
+                .with_source_callable(plain_fun);
                 callables.push(callable);
                 continue;
             }
@@ -341,8 +342,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 continuation_object_id,
                 resume_packing_ids,
             )
+            .with_source_kind(source_kind)
             .with_source_statement_classifications(source_statement_classifications);
-            if let Some(fun) = root_source_body {
+            if let Some(fun) = root_source_body.or(materialized_signature) {
                 callable = callable.with_source_callable(fun);
             }
             callables.push(callable);
@@ -366,6 +368,40 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     materialized.file.items.iter().find_map(|item| match item {
         Item::Fun(fun) if fun.fqn == fqn => Some(fun),
         _ => None,
+    })
+}
+
+fn callable_source_kind(
+    materialized: &MaterializedMir,
+    root_fqn: &str,
+) -> scoopc_lir_facts::LirCallableSourceKind {
+    let base_fqn = callable_source_base_fqn(root_fqn);
+    if base_fqn.contains(".$lambda") || callable_owner_is_nominal_or_object(materialized, base_fqn)
+    {
+        scoopc_lir_facts::LirCallableSourceKind::MemberOrSynthetic
+    } else {
+        scoopc_lir_facts::LirCallableSourceKind::TopLevel
+    }
+}
+
+fn callable_source_base_fqn(root_fqn: &str) -> &str {
+    let base = root_fqn
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(root_fqn);
+    base.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
+fn callable_owner_is_nominal_or_object(materialized: &MaterializedMir, root_fqn: &str) -> bool {
+    let Some((owner_fqn, _name)) = root_fqn.rsplit_once('.') else {
+        return false;
+    };
+    materialized.file.items.iter().any(|item| match item {
+        Item::Metadata(crate::mir::MetadataRoot::Nominal(metadata)) => metadata.fqn == owner_fqn,
+        Item::Metadata(crate::mir::MetadataRoot::Object(metadata)) => metadata.fqn == owner_fqn,
+        _ => false,
     })
 }
 
@@ -720,7 +756,7 @@ fn build_plain_local_effect_control(
         return_ty,
     } = inputs;
     let step_schema_id =
-        discover_plain_local_effect_control_step_schema(root_fqn, body_facts, effect_facts)?;
+        require_plain_local_effect_control_step_schema(root_fqn, body_facts, effect_facts)?;
     let step_schema = effect_facts
         .step_schemas()
         .get(&step_schema_id)
@@ -857,90 +893,22 @@ fn plain_body_has_local_effect_control(body_facts: &crate::effect_facts::BodyEff
     })
 }
 
-fn discover_plain_local_effect_control_step_schema(
+fn require_plain_local_effect_control_step_schema(
     root_fqn: &str,
     body_facts: &crate::effect_facts::BodyEffectFacts,
-    effect_facts: &MaterializedEffectFacts,
+    _effect_facts: &MaterializedEffectFacts,
 ) -> Result<StepSchemaId, EffectLoweringError> {
     if let Some(step_schema) = body_facts.local_control_step_schema() {
         return Ok(step_schema);
     }
 
-    let mut candidates = BTreeSet::new();
-    for site in body_facts.sites().values() {
-        match site {
-            SiteEffectFacts::ClassCtor(facts) => {
-                if !facts.emitted_cases().is_empty() {
-                    candidates.insert(facts.emitted_cases().schema());
-                }
-            }
-            SiteEffectFacts::Perform(facts) => {
-                push_continuation_owner_step_schema(
-                    root_fqn,
-                    facts.captured_cont_schema(),
-                    effect_facts,
-                    &mut candidates,
-                )?;
-            }
-            SiteEffectFacts::Handle(facts) => {
-                for arm in facts.arm_facts() {
-                    push_continuation_owner_step_schema(
-                        root_fqn,
-                        arm.continuation_schema(),
-                        effect_facts,
-                        &mut candidates,
-                    )?;
-                }
-            }
-            SiteEffectFacts::Call(_) | SiteEffectFacts::Resume(_) => {}
-        }
-    }
-    match candidates.len() {
-        1 => Ok(*candidates.iter().next().expect("one candidate exists")),
-        0 => Err(
-            EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail:
-                    "plain body 含本地 effect/control，但 P4/P5 未发布可归属的 owner StepSchema"
-                        .to_string(),
-            },
-        ),
-        _ => Err(
-            EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail: format!(
-                    "plain body 本地 effect/control 对应多个 owner StepSchema：{}",
-                    candidates
-                        .iter()
-                        .map(|schema| format!("s{}", schema.as_u32()))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            },
-        ),
-    }
-}
-
-fn push_continuation_owner_step_schema(
-    root_fqn: &str,
-    continuation_schema: crate::effect_facts::ContinuationSchemaId,
-    effect_facts: &MaterializedEffectFacts,
-    candidates: &mut BTreeSet<StepSchemaId>,
-) -> Result<(), EffectLoweringError> {
-    let schema = effect_facts
-        .continuation_schemas()
-        .get(&continuation_schema)
-        .ok_or_else(
-            || EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail: format!(
-                    "本地 continuation schema k{} 缺少 authoritative schema contract",
-                    continuation_schema.as_u32()
-                ),
-            },
-        )?;
-    candidates.insert(schema.out_step_schema());
-    Ok(())
+    Err(
+        EffectLoweringError::InvalidPlainLocalEffectControlContract {
+            root_fqn: root_fqn.to_string(),
+            detail: "plain body 含本地 effect/control，但 P4 未发布 local_control_step_schema"
+                .to_string(),
+        },
+    )
 }
 
 fn plain_body_slices(body: &Body) -> Vec<LateLoweredPlainBodySlice> {
@@ -973,7 +941,13 @@ fn build_plain_call_sites(
         );
         for (statement_index, statement) in block.stmts.iter().enumerate() {
             let StatementKind::Assign {
-                value: Rvalue::Call { site_id, .. },
+                value:
+                    Rvalue::Call {
+                        site_id,
+                        kind,
+                        args,
+                        ..
+                    },
                 ..
             } = &statement.kind
             else {
@@ -993,11 +967,73 @@ fn build_plain_call_sites(
                 *site_id,
                 source_slice,
                 statement_index as u32,
+                call_site_materialized_metadata(body, kind, args.len()),
                 call_facts.clone(),
             ));
         }
     }
     Ok(call_sites)
+}
+
+fn call_site_materialized_metadata(
+    body: &Body,
+    kind: &crate::mir::CallKind,
+    arg_count: usize,
+) -> LateLoweredCallSiteMaterializedMetadata {
+    LateLoweredCallSiteMaterializedMetadata::new(
+        call_site_materialized_kind(kind),
+        arg_count,
+        call_carrier_source_ty(body, kind),
+    )
+}
+
+fn call_site_materialized_kind(kind: &crate::mir::CallKind) -> LateLoweredCallSiteMaterializedKind {
+    match kind {
+        crate::mir::CallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
+        crate::mir::CallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
+        crate::mir::CallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
+        crate::mir::CallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
+        crate::mir::CallKind::Virtual { dispatch, .. } => {
+            LateLoweredCallSiteMaterializedKind::Virtual {
+                owner_fqn: dispatch.owner_fqn.clone(),
+                member_name: dispatch.member_name.clone(),
+                member_fqn: dispatch.member_fqn.clone(),
+                receiver_ty: dispatch.receiver_ty,
+            }
+        }
+        crate::mir::CallKind::Interface { dispatch, .. } => {
+            LateLoweredCallSiteMaterializedKind::Interface {
+                owner_fqn: dispatch.owner_fqn.clone(),
+                member_name: dispatch.member_name.clone(),
+                member_fqn: dispatch.member_fqn.clone(),
+                receiver_ty: dispatch.receiver_ty,
+            }
+        }
+        crate::mir::CallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
+    }
+}
+
+fn call_carrier_source_ty(body: &Body, kind: &crate::mir::CallKind) -> Option<crate::ty::TypeId> {
+    match kind {
+        crate::mir::CallKind::Closure { callee, .. }
+        | crate::mir::CallKind::FunValue { callee }
+        | crate::mir::CallKind::FunPtr { callee } => operand_source_ty(body, callee),
+        crate::mir::CallKind::Virtual { receiver, dispatch }
+        | crate::mir::CallKind::Interface { receiver, dispatch } => {
+            operand_source_ty(body, receiver).or(Some(dispatch.receiver_ty))
+        }
+        crate::mir::CallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
+        crate::mir::CallKind::Direct { .. } => None,
+    }
+}
+
+fn operand_source_ty(body: &Body, operand: &crate::mir::Operand) -> Option<crate::ty::TypeId> {
+    match operand {
+        crate::mir::Operand::Local(local) => {
+            body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
+        }
+        crate::mir::Operand::Const(_) => None,
+    }
 }
 
 fn collect_program_dump_type_texts(

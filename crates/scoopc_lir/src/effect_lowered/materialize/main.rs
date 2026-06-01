@@ -206,6 +206,7 @@ pub(crate) fn materialize_boundary_map(
                     types,
                     nominal_direct_supertypes,
                 )?;
+                let metadata = materialized_call_site_metadata(root_fqn, body, site_id)?;
                 let consumed_runtime_error_case =
                     call_dispatch.consumed_runtime_error_case.map(|pending| {
                         let target_state = StateId::new(next_state_raw);
@@ -228,6 +229,7 @@ pub(crate) fn materialize_boundary_map(
                 LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                     facts,
                     result_local,
+                    metadata,
                     operand_contract,
                     call_dispatch.dispatch,
                     call_dispatch.continuation_compositions,

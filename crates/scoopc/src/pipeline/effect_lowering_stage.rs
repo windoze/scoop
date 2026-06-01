@@ -126,6 +126,7 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
             detail: error.to_string(),
         })?
         .into_parts();
+    let lir = super::lir_facts_builder::attach_lir_identity(lir, effect_facts.types())?;
     let lir_facts = super::lir_facts_builder::build_lir_facts(
         &lir,
         mir_stage_output.mir_facts(),

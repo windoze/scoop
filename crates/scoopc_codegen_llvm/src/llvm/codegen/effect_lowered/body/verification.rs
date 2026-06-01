@@ -100,6 +100,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         match kind {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+            | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
             | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => Ok(()),
             LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                 Err(frontend_error(format!(

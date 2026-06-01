@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | T3-01 | [DONE] | P4 收口 Index/TypeEnv/dispatch tables 重建（FG-07） |
 | T3-01R | [DONE] | Review T3-01 |
-| T3-02 | [TODO] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
+| T3-02 | [DONE] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
 | T3-02R | [TODO] | Review T3-02 |
 | T3-03 | [TODO] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
 | T3-03R | [TODO] | Review T3-03 |
@@ -33,7 +33,7 @@
 - 依赖：T3-01
 - 完成记录：2026-06-02 完成。审查 T3-01 变更后确认 P4 effect-facts 入口现在从 `MirStageOutput` 消费 `HirSemanticArtifact`，`MaterializedEffectFactsBuilder` 只克隆上游 artifact 中的 `Index`/`TypeEnv`，旧的 source parse、`build_top_level_index`、`TypeEnv::from_sysroot`/`extend_from_file` 与 cached import replay 路径已从 P4 builder 删除；未发现需要新增前置任务的阻塞问题。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-02：P5 LIR stable key + 自包含 source/dynamic-invoke/boundary contract
+### [DONE] T3-02：P5 LIR stable key + 自包含 source/dynamic-invoke/boundary contract
 
 - 参考：`FACT_GAPS.md` FG-14/15/12。
 - 必须实现的内容：
@@ -44,7 +44,7 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：LIR facts 自包含、stable key 驱动；无 loose-signature/unpublished/反推。
 - 依赖：T3-01R
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。`LateLoweredCallable` 现在发布 stable LIR callable key、body-version key 与 source kind，P5 在 opt 后统一挂载这些 identity；LIR facts builder 改为消费已发布 identity/source signatures，并从 MIR backend facts 合并 body-less/runtime callable signature，不再现场生成 `unpublished(...)`/`missing-owner` key。call-site target 解析改为 stable instance 驱动，未 lowering 的声明型目标使用 stable declaration key。plain local control owner schema 缺失改为 fail-fast，删除单候选反推。P5 现在为 plain call site、call boundary、control source-slice dynamic call 发布 `LateLoweredCallSiteMaterializedMetadata`，LIR facts builder 不再回扫 `MaterializedMir` source slice 恢复 dynamic-invoke metadata。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-02R：Review T3-02
 - 验证：`python3 tools/run_fixtures.py`

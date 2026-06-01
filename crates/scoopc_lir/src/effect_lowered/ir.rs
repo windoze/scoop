@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 
+use scoopc_ids::{BodyVersionKey, StableLirCallableKey};
+
 use crate::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallableAbiKind, CaseTag,
     ClassCtorSiteEffectFacts, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
@@ -97,6 +99,25 @@ impl LateLoweredProgram {
     ) -> Self {
         self.dump_type_texts = dump_type_texts;
         self.dump_body_labels = dump_body_labels;
+        self
+    }
+
+    pub fn with_lir_callable_identities(
+        mut self,
+        identities: HashMap<LateLoweredBodyVersionKey, (StableLirCallableKey, BodyVersionKey)>,
+    ) -> Self {
+        self.callables = self
+            .callables
+            .into_iter()
+            .map(|callable| {
+                let Some((callable_key, body_version_key)) =
+                    identities.get(callable.body_version_key()).cloned()
+                else {
+                    return callable;
+                };
+                callable.with_lir_identity(callable_key, body_version_key)
+            })
+            .collect();
         self
     }
 
@@ -674,10 +695,65 @@ pub struct LateLoweredPlainBodySlice {
 /// Plain body 不拥有 state-machine boundary map；因此普通 call / effect-step callee call 的 ABI
 /// 选择必须直接发布在 source-slice call contract 上，供 P6 按 ordinary call 或 Step dispatch 消费。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LateLoweredCallSiteMaterializedKind {
+    Direct,
+    Closure,
+    FunValue,
+    FunPtr,
+    Virtual {
+        owner_fqn: String,
+        member_name: String,
+        member_fqn: String,
+        receiver_ty: TypeId,
+    },
+    Interface {
+        owner_fqn: String,
+        member_name: String,
+        member_fqn: String,
+        receiver_ty: TypeId,
+    },
+    Resume,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredCallSiteMaterializedMetadata {
+    kind: LateLoweredCallSiteMaterializedKind,
+    arg_count: usize,
+    carrier_source_ty: Option<TypeId>,
+}
+
+impl LateLoweredCallSiteMaterializedMetadata {
+    pub fn new(
+        kind: LateLoweredCallSiteMaterializedKind,
+        arg_count: usize,
+        carrier_source_ty: Option<TypeId>,
+    ) -> Self {
+        Self {
+            kind,
+            arg_count,
+            carrier_source_ty,
+        }
+    }
+
+    pub fn kind(&self) -> &LateLoweredCallSiteMaterializedKind {
+        &self.kind
+    }
+
+    pub fn arg_count(&self) -> usize {
+        self.arg_count
+    }
+
+    pub fn carrier_source_ty(&self) -> Option<TypeId> {
+        self.carrier_source_ty
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainCallSite {
     site_id: SiteId,
     source_slice: LateLoweredPlainBodySlice,
     statement_index: u32,
+    metadata: LateLoweredCallSiteMaterializedMetadata,
     facts: CallSiteEffectFacts,
 }
 
@@ -759,12 +835,14 @@ impl LateLoweredPlainCallSite {
         site_id: SiteId,
         source_slice: LateLoweredPlainBodySlice,
         statement_index: u32,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
         facts: CallSiteEffectFacts,
     ) -> Self {
         Self {
             site_id,
             source_slice,
             statement_index,
+            metadata,
             facts,
         }
     }
@@ -779,6 +857,10 @@ impl LateLoweredPlainCallSite {
 
     pub fn statement_index(&self) -> u32 {
         self.statement_index
+    }
+
+    pub fn metadata(&self) -> &LateLoweredCallSiteMaterializedMetadata {
+        &self.metadata
     }
 
     pub fn facts(&self) -> &CallSiteEffectFacts {
@@ -976,6 +1058,11 @@ pub struct LateLoweredCallable {
     root_fqn: String,
     stable_instance_key: StableInstanceKey,
     body_version_key: LateLoweredBodyVersionKey,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lir_callable_key: Option<StableLirCallableKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lir_body_version_key: Option<BodyVersionKey>,
+    source_kind: scoopc_lir_facts::LirCallableSourceKind,
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
     source_callable: Option<LateLoweredSourceCallable>,
@@ -986,6 +1073,9 @@ impl PartialEq for LateLoweredCallable {
         self.root_fqn == other.root_fqn
             && self.stable_instance_key == other.stable_instance_key
             && self.body_version_key == other.body_version_key
+            && self.lir_callable_key == other.lir_callable_key
+            && self.lir_body_version_key == other.lir_body_version_key
+            && self.source_kind == other.source_kind
             && self.resolved_outward_cases == other.resolved_outward_cases
             && self.abi == other.abi
     }
@@ -1013,6 +1103,9 @@ impl LateLoweredCallable {
             root_fqn,
             stable_instance_key,
             body_version_key,
+            lir_callable_key: None,
+            lir_body_version_key: None,
+            source_kind: scoopc_lir_facts::LirCallableSourceKind::TopLevel,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::EffectStep(Box::new(LateLoweredEffectStepCallable::new(
                 step_schema,
@@ -1039,10 +1132,31 @@ impl LateLoweredCallable {
             root_fqn,
             stable_instance_key,
             body_version_key,
+            lir_callable_key: None,
+            lir_body_version_key: None,
+            source_kind: scoopc_lir_facts::LirCallableSourceKind::TopLevel,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
             source_callable: None,
         }
+    }
+
+    pub fn with_lir_identity(
+        mut self,
+        lir_callable_key: StableLirCallableKey,
+        lir_body_version_key: BodyVersionKey,
+    ) -> Self {
+        self.lir_callable_key = Some(lir_callable_key);
+        self.lir_body_version_key = Some(lir_body_version_key);
+        self
+    }
+
+    pub fn with_source_kind(
+        mut self,
+        source_kind: scoopc_lir_facts::LirCallableSourceKind,
+    ) -> Self {
+        self.source_kind = source_kind;
+        self
     }
 
     pub fn with_source_callable(mut self, source_callable: &LateLoweredSourceCallable) -> Self {
@@ -1081,6 +1195,18 @@ impl LateLoweredCallable {
 
     pub fn source_callable(&self) -> Option<&LateLoweredSourceCallable> {
         self.source_callable.as_ref()
+    }
+
+    pub fn source_kind(&self) -> scoopc_lir_facts::LirCallableSourceKind {
+        self.source_kind
+    }
+
+    pub fn lir_callable_key(&self) -> Option<&StableLirCallableKey> {
+        self.lir_callable_key.as_ref()
+    }
+
+    pub fn lir_body_version_key(&self) -> Option<&BodyVersionKey> {
+        self.lir_body_version_key.as_ref()
     }
 
     pub fn source_body(&self) -> Option<&LateLoweredSourceBody> {
@@ -3390,6 +3516,10 @@ pub enum LateLoweredSourceStatementClassificationKind {
         site_id: SiteId,
         state_id: StateId,
     },
+    DynamicInvokeCall {
+        site_id: SiteId,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
+    },
     ElidedUnreachable,
     Unsupported {
         reason: String,
@@ -4866,6 +4996,7 @@ impl LateLoweredResumeBoundaryOperandContract {
 pub struct LateLoweredCallBoundaryLowering {
     facts: CallSiteEffectFacts,
     result_local: LocalId,
+    metadata: LateLoweredCallSiteMaterializedMetadata,
     operand_contract: Box<LateLoweredCallBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
     continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
@@ -4876,6 +5007,7 @@ impl LateLoweredCallBoundaryLowering {
     pub fn new(
         facts: CallSiteEffectFacts,
         result_local: LocalId,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
         operand_contract: LateLoweredCallBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
         continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
@@ -4884,6 +5016,7 @@ impl LateLoweredCallBoundaryLowering {
         Self {
             facts,
             result_local,
+            metadata,
             operand_contract: Box::new(operand_contract),
             dispatch,
             continuation_compositions,
@@ -4897,6 +5030,10 @@ impl LateLoweredCallBoundaryLowering {
 
     pub fn result_local(&self) -> LocalId {
         self.result_local
+    }
+
+    pub fn metadata(&self) -> &LateLoweredCallSiteMaterializedMetadata {
+        &self.metadata
     }
 
     pub fn operand_contract(&self) -> &LateLoweredCallBoundaryOperandContract {

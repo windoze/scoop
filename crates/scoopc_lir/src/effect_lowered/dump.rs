@@ -1845,6 +1845,14 @@ fn render_source_statement_classification_kind(
             ctx.site_label(callable.body_version_key(), site_id),
             ctx.state_label(callable.body_version_key(), state_id),
         ),
+        LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { site_id, metadata } => {
+            format!(
+                "dynamic-invoke-call {} kind={:?} args={}",
+                ctx.site_label(callable.body_version_key(), site_id),
+                metadata.kind(),
+                metadata.arg_count(),
+            )
+        }
         LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {
             "elided-unreachable".to_string()
         }

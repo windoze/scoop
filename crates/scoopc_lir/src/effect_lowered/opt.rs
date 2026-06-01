@@ -1012,6 +1012,7 @@ fn rewrite_boundary_lowering(
             LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                 lowering.facts().clone(),
                 lowering.result_local(),
+                lowering.metadata().clone(),
                 lowering.operand_contract().clone(),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
                 lowering

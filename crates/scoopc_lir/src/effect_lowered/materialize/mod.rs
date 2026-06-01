@@ -19,7 +19,8 @@ use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
-    LateLoweredCallBoundaryOperandContract, LateLoweredClassCtorBoundaryLowering,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCallSiteMaterializedKind,
+    LateLoweredCallSiteMaterializedMetadata, LateLoweredClassCtorBoundaryLowering,
     LateLoweredCompleteStepDispatch, LateLoweredCompletionPayloadBinding,
     LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
@@ -180,6 +181,96 @@ pub(crate) struct LocalRuntimeErrorStateTarget {
     target_state: StateId,
     payload_tuple_ty: crate::ty::TypeId,
     terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
+}
+
+pub(crate) fn materialized_call_site_metadata(
+    root_fqn: &str,
+    body: &Body,
+    site_id: SiteId,
+) -> Result<LateLoweredCallSiteMaterializedMetadata, EffectLoweringError> {
+    for block in &body.blocks {
+        for statement in &block.stmts {
+            let StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        site_id: stmt_site_id,
+                        kind,
+                        args,
+                        ..
+                    },
+                ..
+            } = &statement.kind
+            else {
+                continue;
+            };
+            if *stmt_site_id == site_id {
+                return Ok(call_site_materialized_metadata(body, kind, args.len()));
+            }
+        }
+    }
+    Err(EffectLoweringError::InvalidBoundaryOperandContract {
+        root_fqn: root_fqn.to_string(),
+        site_id: site_id.as_u32(),
+        kind: "Call",
+        detail: format!(
+            "site{} 缺少 P5 call-site materialized metadata",
+            site_id.as_u32()
+        ),
+    })
+}
+
+fn call_site_materialized_metadata(
+    body: &Body,
+    kind: &CallKind,
+    arg_count: usize,
+) -> LateLoweredCallSiteMaterializedMetadata {
+    LateLoweredCallSiteMaterializedMetadata::new(
+        call_site_materialized_kind(kind),
+        arg_count,
+        call_carrier_source_ty(body, kind),
+    )
+}
+
+fn call_site_materialized_kind(kind: &CallKind) -> LateLoweredCallSiteMaterializedKind {
+    match kind {
+        CallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
+        CallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
+        CallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
+        CallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
+        CallKind::Virtual { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Virtual {
+            owner_fqn: dispatch.owner_fqn.clone(),
+            member_name: dispatch.member_name.clone(),
+            member_fqn: dispatch.member_fqn.clone(),
+            receiver_ty: dispatch.receiver_ty,
+        },
+        CallKind::Interface { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Interface {
+            owner_fqn: dispatch.owner_fqn.clone(),
+            member_name: dispatch.member_name.clone(),
+            member_fqn: dispatch.member_fqn.clone(),
+            receiver_ty: dispatch.receiver_ty,
+        },
+        CallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
+    }
+}
+
+fn call_carrier_source_ty(body: &Body, kind: &CallKind) -> Option<TypeId> {
+    match kind {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => operand_source_ty(body, callee),
+        CallKind::Virtual { receiver, dispatch } | CallKind::Interface { receiver, dispatch } => {
+            operand_source_ty(body, receiver).or(Some(dispatch.receiver_ty))
+        }
+        CallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
+        CallKind::Direct { .. } => None,
+    }
+}
+
+fn operand_source_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
+    match operand {
+        Operand::Local(local) => body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+        Operand::Const(_) => None,
+    }
 }
 
 pub(crate) struct CallBoundaryDispatchInputs<'a> {

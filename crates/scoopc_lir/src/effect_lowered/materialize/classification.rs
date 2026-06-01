@@ -319,7 +319,7 @@ pub(crate) fn classify_effect_neutral_source_statement(
             {
                 return LateLoweredSourceStatementClassificationKind::EffectNeutralValue;
             }
-            classify_effect_neutral_rvalue(value)
+            classify_effect_neutral_rvalue(body, value)
         }
         StatementKind::Todo(reason) => LateLoweredSourceStatementClassificationKind::Unsupported {
             reason: (*reason).to_string(),
@@ -328,6 +328,7 @@ pub(crate) fn classify_effect_neutral_source_statement(
 }
 
 pub(crate) fn classify_effect_neutral_rvalue(
+    body: &Body,
     value: &Rvalue,
 ) -> LateLoweredSourceStatementClassificationKind {
     match value {
@@ -344,7 +345,6 @@ pub(crate) fn classify_effect_neutral_rvalue(
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
-        | Rvalue::Call { .. }
         | Rvalue::MakeClosure { .. }
         | Rvalue::MakeTuple { .. }
         | Rvalue::StructLit { .. }
@@ -354,6 +354,18 @@ pub(crate) fn classify_effect_neutral_rvalue(
         | Rvalue::PatternExtract { .. } => {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
         }
+        Rvalue::Call {
+            site_id,
+            kind,
+            args,
+            ..
+        } if is_dynamic_call_kind(kind) => {
+            LateLoweredSourceStatementClassificationKind::DynamicInvokeCall {
+                site_id: *site_id,
+                metadata: call_site_materialized_metadata(body, kind, args.len()),
+            }
+        }
+        Rvalue::Call { .. } => LateLoweredSourceStatementClassificationKind::EffectNeutralValue,
         Rvalue::UnresolvedName { .. } => {
             LateLoweredSourceStatementClassificationKind::Unsupported {
                 reason: "unresolved name requires earlier lowering".to_string(),
@@ -395,6 +407,71 @@ pub(crate) fn local_is_only_value_member_namespace_receiver(body: &Body, local: 
         }
     }
     saw_value_member
+}
+
+fn call_site_materialized_metadata(
+    body: &Body,
+    kind: &CallKind,
+    arg_count: usize,
+) -> LateLoweredCallSiteMaterializedMetadata {
+    LateLoweredCallSiteMaterializedMetadata::new(
+        call_site_materialized_kind(kind),
+        arg_count,
+        call_carrier_source_ty(body, kind),
+    )
+}
+
+fn is_dynamic_call_kind(kind: &CallKind) -> bool {
+    matches!(
+        kind,
+        CallKind::Closure { .. }
+            | CallKind::FunValue { .. }
+            | CallKind::FunPtr { .. }
+            | CallKind::Virtual { .. }
+            | CallKind::Interface { .. }
+    )
+}
+
+fn call_site_materialized_kind(kind: &CallKind) -> LateLoweredCallSiteMaterializedKind {
+    match kind {
+        CallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
+        CallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
+        CallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
+        CallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
+        CallKind::Virtual { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Virtual {
+            owner_fqn: dispatch.owner_fqn.clone(),
+            member_name: dispatch.member_name.clone(),
+            member_fqn: dispatch.member_fqn.clone(),
+            receiver_ty: dispatch.receiver_ty,
+        },
+        CallKind::Interface { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Interface {
+            owner_fqn: dispatch.owner_fqn.clone(),
+            member_name: dispatch.member_name.clone(),
+            member_fqn: dispatch.member_fqn.clone(),
+            receiver_ty: dispatch.receiver_ty,
+        },
+        CallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
+    }
+}
+
+fn call_carrier_source_ty(body: &Body, kind: &CallKind) -> Option<TypeId> {
+    match kind {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => operand_source_ty(body, callee),
+        CallKind::Virtual { receiver, dispatch } | CallKind::Interface { receiver, dispatch } => {
+            operand_source_ty(body, receiver).or(Some(dispatch.receiver_ty))
+        }
+        CallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
+        CallKind::Direct { .. } => None,
+    }
+}
+
+fn operand_source_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
+    match operand {
+        Operand::Local(local) => body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+        Operand::Const(_) => None,
+    }
 }
 
 pub(crate) fn operand_mentions_local(operand: &Operand, local: LocalId) -> bool {

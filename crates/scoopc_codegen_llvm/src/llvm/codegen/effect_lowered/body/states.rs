@@ -322,6 +322,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     })?;
                 match classification.kind() {
                     LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                    | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
                     | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection { .. }
                     | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection { .. } => {
                         if !self.lower_published_call_statement(stmt)? {
