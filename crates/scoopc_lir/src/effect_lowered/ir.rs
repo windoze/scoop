@@ -2010,9 +2010,8 @@ fn build_surface_resume_dispatch_inventory(
                     else {
                         continue;
                     };
-                    let mut target_step_schemas = carrier_target_step_schemas.clone();
-                    target_step_schemas
-                        .extend(call_site_target_step_schemas(callables, lowering.facts()));
+                    let target_step_schemas =
+                        call_site_target_step_schemas(callables, lowering.facts());
                     for composition in lowering.continuation_compositions() {
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,

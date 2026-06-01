@@ -158,11 +158,21 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
             .expect("writing to String cannot fail");
         }
         for value in &facts.provenance.callable_values {
+            let location = value
+                .block
+                .map(|block| {
+                    value
+                        .statement_index
+                        .map(|statement| format!("bb{}:stmt{}", block.as_u32(), statement))
+                        .unwrap_or_else(|| format!("bb{}", block.as_u32()))
+                })
+                .unwrap_or_else(|| "param".to_string());
             writeln!(
                 &mut out,
-                "    - callable_value body={} local={} provenance={}",
+                "    - callable_value body={} local={} location={} provenance={}",
                 value.body.fqn,
                 value.local,
+                location,
                 callable_value_provenance_label(&value.provenance),
             )
             .expect("writing to String cannot fail");

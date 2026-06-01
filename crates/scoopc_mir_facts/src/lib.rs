@@ -101,7 +101,8 @@ impl MirFacts {
 mod tests {
     use scoop_project_model::{OptLevel, StableConeKey};
     use scoopc_ids::{
-        BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey as _, StageArtifactKey,
+        BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey as _,
+        StageArtifactKey,
     };
 
     use super::*;
@@ -110,6 +111,7 @@ mod tests {
     use crate::metadata::{MirNominalOwnerKind, NominalDirectSupertypesFact};
     use crate::provenance::{
         CallableValueProvenance, CallableValueProvenanceFact, CallableValueProvenanceSource,
+        ResultProvenance, ResultProvenanceFact,
     };
     use crate::roots::{MirItemReference, MirRootDetail, MirRootFact, MirRootKind};
     use crate::snapshot::MaterializedSnapshotBinding;
@@ -170,7 +172,8 @@ mod tests {
                 instance,
                 body,
                 local: 1,
-                block: None,
+                block: Some(BodyBlockId::from_raw(2)),
+                statement_index: Some(3),
                 site_id: None,
                 provenance: CallableValueProvenance::Join {
                     sources: vec![
@@ -185,6 +188,7 @@ mod tests {
         facts.verify().expect("joined callable facts should verify");
         let dump = facts.dump();
         assert!(dump.contains("target=join:closure:sample.root$closure|param:0 fallback=true"));
+        assert!(dump.contains("location=bb2:stmt3"));
         assert!(dump.contains("provenance=join:closure:sample.root$closure|param:0"));
 
         let bytes = bincode::serialize(&facts).expect("serialize MIR facts");
@@ -220,6 +224,56 @@ mod tests {
         assert_eq!(
             err,
             VerifyError::DuplicateFactIdentity("app.main".to_string())
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_empty_callable_value_provenance_join() {
+        let cone = StableConeKey::new("fixture", "0.0.0");
+        let instance = StageArtifactKey::new("mir", &cone, "materialized_instance", 0);
+        let identity = identity("mir_provenance:callable_value:empty_join");
+        let mut facts = MirFacts::new();
+        facts
+            .provenance
+            .callable_values
+            .push(CallableValueProvenanceFact {
+                identity: identity.clone(),
+                instance: instance.clone(),
+                body: body_ref(&instance, "sample.root"),
+                local: 0,
+                block: None,
+                statement_index: None,
+                site_id: None,
+                provenance: CallableValueProvenance::Join {
+                    sources: Vec::new(),
+                },
+            });
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::EmptyCallableValueProvenanceJoin(identity.canonical_text().to_string())
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_empty_result_provenance_join() {
+        let cone = StableConeKey::new("fixture", "0.0.0");
+        let instance = StageArtifactKey::new("mir", &cone, "materialized_instance", 0);
+        let identity = identity("mir_provenance:result:empty_join");
+        let mut facts = MirFacts::new();
+        facts.provenance.results.push(ResultProvenanceFact {
+            identity: identity.clone(),
+            instance,
+            callable: CanonicalTextKey::new("sample.root"),
+            provenance: ResultProvenance::Join {
+                sources: Vec::new(),
+            },
+            summary_overridden: false,
+        });
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::EmptyResultProvenanceJoin(identity.canonical_text().to_string())
         );
     }
 

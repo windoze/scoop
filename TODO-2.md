@@ -20,7 +20,7 @@
 | T2-03A2a | [DONE] | 修复 escaped closure callee-suspend composed continuation resume route |
 | T2-03A2 | [DONE] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
 | T2-03 | [DONE] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
-| T2-03R | [TODO] | Review T2-03 |
+| T2-03R | [DONE] | Review T2-03 |
 
 ---
 
@@ -223,7 +223,7 @@
 - 依赖：T2-03A2
 - 完成记录：2026-06-02 完成。复核 P4 effect-facts builder/solver 生产路径已纯消费 MIR-published `MirEffectEventFact` / site inventory / block region / call target / call surface / boundary facts，未保留旧 `scan_block_sites` / `build_direct_like_call_site` / `union_candidate_rows` / 跨 body 参数反查路径；call-site target/surface 继续由上游 facts fail-fast 提供。补强 FG-11 local-control 必发 contract：`scoopc_effect_facts` verifier 现在会拒绝 Plain body 含本地 effect/control site 却缺少 `local_control_step_schema` 的 published product，并在 fact 类型注释中记录该 contract；新增产品层负例 `verifier_rejects_missing_plain_local_control_step_schema` 与 P4 stage 正例 `effect_facts_stage_publishes_plain_local_control_owner_schema`，覆盖 self-contained handle 的 Plain body 必须发布 owner StepSchema。验证：`cargo fmt`；targeted tests `cargo test -p scoopc_effect_facts verifier_rejects_missing_plain_local_control_step_schema`、`cargo test -p scoopc effect_facts_stage_publishes_plain_local_control_owner_schema` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-03R：Review T2-03
+### [DONE] T2-03R：Review T2-03
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T2-03
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。Review T2-03 时修复多处 fact-only/self-contained 边界问题：P4 对 `CallSiteTarget::Dynamic` 不再通过 boundary carrier provenance 反推 `KnownInstance`，仅保留 native `FunPtr` 的 plain/precise dynamic fallback 语义；P4 缺 `SourceCallableSignatureFact` 改为 fail-fast，并在 MIR facts producer 中补齐 synthetic closure / monomorphized / sysroot root body source signatures，避免回退读取 `root_fun`；Virtual/Interface call-site surface row 优先使用同 site published target fact，保证 target 与 surface row 来源一致；effect facts verifier 拒绝空 `CandidateSet`、call-site ABI/schema 不一致和 target-mode drift，MIR facts verifier 拒绝空 callable/result provenance join；`CallableValueProvenanceFact` 结构化发布 `statement_index` 并将 wire schema bump 到 `1.6`；LIR call-boundary composed continuation wrapper target set 改为当前 call-site published target，避免被全程序其它 carrier call site 污染。同步 `mir_materialized/pass_pipeline_metadata.mir` golden 的 source signature 计数。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；targeted tests `cargo test -p scoopc_mir_facts -p scoopc_effect_facts`、`cargo test -p scoopc_effect_facts_stage funptr_call_sites_stay_plain_native_dynamic_fallbacks`、`cargo test -p scoop --test p7_default_pipeline -- --nocapture` 通过；`cargo build -p scoopc` 通过；`cargo test --all --all-targets` 完整通过；targeted fixture `python3 tools/run_fixtures.py tests/fixtures/mir_materialized/pass_pipeline_metadata.scoop` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。

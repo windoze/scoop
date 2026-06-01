@@ -54,7 +54,9 @@ impl WireSchemaVersion {
 ///   contract 与 result type，避免 P4 回扫 MIR shape。
 /// - 1.5：MIR callable target/provenance facts 支持 parameter-carried callable、join
 ///   sources 与显式 dynamic fallback 标记。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 5);
+/// - 1.6：MIR callable value provenance 结构化记录 statement index，并补强 fact verifier
+///   对空 provenance join 的拒绝。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 6);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

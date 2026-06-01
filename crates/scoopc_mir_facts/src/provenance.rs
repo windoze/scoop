@@ -26,6 +26,7 @@ pub struct CallableValueProvenanceFact {
     pub body: MirBodyReference,
     pub local: u32,
     pub block: Option<BodyBlockId>,
+    pub statement_index: Option<u32>,
     pub site_id: Option<SiteId>,
     pub provenance: CallableValueProvenance,
 }

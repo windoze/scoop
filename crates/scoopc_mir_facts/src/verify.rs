@@ -10,6 +10,7 @@ use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 use crate::MirFacts;
 use crate::common::FactIdentity;
 use crate::effects::CallSiteTarget;
+use crate::provenance::{CallableValueProvenance, ResultProvenance};
 
 /// Result type returned by MIR fact verification.
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -26,6 +27,8 @@ pub enum VerifyError {
     MissingCanonicalSnapshot(String),
     EmptyCallSiteCandidateSet(String),
     EmptyCallSiteTargetJoin(String),
+    EmptyCallableValueProvenanceJoin(String),
+    EmptyResultProvenanceJoin(String),
 }
 
 impl fmt::Display for VerifyError {
@@ -50,6 +53,13 @@ impl fmt::Display for VerifyError {
             Self::EmptyCallSiteTargetJoin(key) => {
                 write!(f, "call-site target `{key}` has an empty join source list")
             }
+            Self::EmptyCallableValueProvenanceJoin(key) => write!(
+                f,
+                "callable value provenance `{key}` has an empty join source list"
+            ),
+            Self::EmptyResultProvenanceJoin(key) => {
+                write!(f, "result provenance `{key}` has an empty join source list")
+            }
         }
     }
 }
@@ -63,6 +73,7 @@ pub fn verify_mir_facts(facts: &MirFacts) -> Result<()> {
     verify_unique_owned_artifact_keys(facts)?;
     verify_canonical_snapshot_binding(facts)?;
     verify_call_site_targets(facts)?;
+    verify_provenance(facts)?;
     Ok(())
 }
 
@@ -271,6 +282,26 @@ fn verify_call_site_targets(facts: &MirFacts) -> Result<()> {
                 ));
             }
             _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn verify_provenance(facts: &MirFacts) -> Result<()> {
+    for fact in &facts.provenance.callable_values {
+        if matches!(&fact.provenance, CallableValueProvenance::Join { sources } if sources.is_empty())
+        {
+            return Err(VerifyError::EmptyCallableValueProvenanceJoin(
+                fact.identity.canonical_text().to_string(),
+            ));
+        }
+    }
+    for fact in &facts.provenance.results {
+        if matches!(&fact.provenance, ResultProvenance::Join { sources } if sources.is_empty()) {
+            return Err(VerifyError::EmptyResultProvenanceJoin(
+                fact.identity.canonical_text().to_string(),
+            ));
         }
     }
 

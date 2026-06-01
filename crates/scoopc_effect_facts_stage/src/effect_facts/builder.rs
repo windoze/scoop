@@ -18,7 +18,6 @@ use crate::ty::{
 use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
 use scoopc_mir_facts::{
     MirFacts, backend as mir_backend, boundary as mir_boundary, effects as mir_effects,
-    provenance as mir_provenance,
 };
 
 use super::{
@@ -63,7 +62,6 @@ struct MirBodyFactBundle<'a> {
     call_targets: BTreeMap<SiteId, &'a mir_effects::CallSiteTargetFact>,
     call_surfaces: BTreeMap<SiteId, &'a mir_effects::CallSiteSurfaceEffectFact>,
     boundaries: BTreeMap<SiteId, &'a mir_boundary::BoundarySourceContract>,
-    callable_values_by_local: HashMap<u32, Vec<&'a mir_provenance::CallableValueProvenanceFact>>,
 }
 
 impl<'a> MirFactIndex<'a> {
@@ -147,16 +145,6 @@ impl<'a> MirFactIndex<'a> {
                 .boundaries
                 .insert(fact.site_id, fact);
         }
-        for fact in &mir_facts.provenance.callable_values {
-            let key = index.instance_for_artifact(&fact.instance)?.clone();
-            index
-                .body_mut(key, &fact.body.fqn)
-                .callable_values_by_local
-                .entry(fact.local)
-                .or_default()
-                .push(fact);
-        }
-
         Ok(index)
     }
 
@@ -815,7 +803,6 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
             types,
             kind,
             target,
-            boundary,
             invoke_args_tuple_ty,
             result_ty,
             &surface_row,
@@ -1024,7 +1011,6 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
         types: &mut TypeStore,
         kind: CallSiteKind,
         target: &mir_effects::CallSiteTargetFact,
-        boundary: &mir_boundary::BoundarySourceContract,
         invoke_args_tuple_ty: TypeId,
         result_ty: TypeId,
         surface_row: &EffectRow,
@@ -1042,6 +1028,16 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                 )
             }
             mir_effects::CallSiteTarget::CandidateSet { keys } => {
+                if keys.is_empty() {
+                    return Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.CandidateSet",
+                        detail: format!(
+                            "{} site{} published an empty candidate set",
+                            self.callable_fun.fqn,
+                            target.site_id.as_u32()
+                        ),
+                    });
+                }
                 let target_keys = keys
                     .iter()
                     .map(|key| self.mir_fact_index.instance_for_stable_text(key.as_str()))
@@ -1099,37 +1095,24 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                     )
                 }
             }
-            mir_effects::CallSiteTarget::Dynamic => {
-                if matches!(kind, CallSiteKind::FunPtr) {
-                    return Ok(CallSiteEffectFacts::new_plain(
-                        kind,
-                        CallSiteTarget::DynamicFallback,
-                        invoke_args_tuple_ty,
-                        CaseSet::new(self.callable_step_schema, Vec::new()),
-                        EffectPrecision::Precise,
-                    ));
-                }
-                if let Some(target_key) = self.provenance_target_for_boundary(boundary)? {
-                    self.call_site_for_known_instance(
-                        types,
-                        kind,
-                        target_key,
-                        invoke_args_tuple_ty,
-                        result_ty,
-                        surface_row,
-                    )
-                } else {
-                    self.call_site_for_surface_row(
-                        types,
-                        kind,
-                        CallSiteTarget::DynamicFallback,
-                        invoke_args_tuple_ty,
-                        result_ty,
-                        surface_row,
-                        EffectPrecision::SignatureFallback,
-                    )
-                }
+            mir_effects::CallSiteTarget::Dynamic if matches!(kind, CallSiteKind::FunPtr) => {
+                Ok(CallSiteEffectFacts::new_plain(
+                    kind,
+                    CallSiteTarget::DynamicFallback,
+                    invoke_args_tuple_ty,
+                    CaseSet::new(self.callable_step_schema, Vec::new()),
+                    EffectPrecision::Precise,
+                ))
             }
+            mir_effects::CallSiteTarget::Dynamic => self.call_site_for_surface_row(
+                types,
+                kind,
+                CallSiteTarget::DynamicFallback,
+                invoke_args_tuple_ty,
+                result_ty,
+                surface_row,
+                EffectPrecision::SignatureFallback,
+            ),
             mir_effects::CallSiteTarget::Param { .. }
             | mir_effects::CallSiteTarget::Join { .. }
             | mir_effects::CallSiteTarget::DynamicFallback { .. } => self
@@ -1249,46 +1232,6 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
             self.schema_pool.full_case_set(step_schema),
             precision,
         ))
-    }
-
-    fn provenance_target_for_boundary(
-        &self,
-        boundary: &mir_boundary::BoundarySourceContract,
-    ) -> Result<Option<InstanceKey>, EffectFactsError> {
-        let Some(mir_boundary::BoundaryOperandSource::Local { local, .. }) =
-            boundary.carrier.as_ref()
-        else {
-            return Ok(None);
-        };
-        let Some(facts) = self.mir_body_facts.callable_values_by_local.get(local) else {
-            return Ok(None);
-        };
-        let mut target: Option<InstanceKey> = None;
-        for fact in facts {
-            let candidate = match &fact.provenance {
-                mir_provenance::CallableValueProvenance::KnownInstance { key } => {
-                    Some(self.mir_fact_index.instance_for_stable_text(key.as_str())?)
-                }
-                mir_provenance::CallableValueProvenance::DirectFunction { fqn } => {
-                    self.mir_fact_index.instance_for_callable_fqn(fqn)
-                }
-                mir_provenance::CallableValueProvenance::KnownClosure { fn_ptr } => {
-                    self.mir_fact_index.instance_for_callable_fqn(fn_ptr)
-                }
-                mir_provenance::CallableValueProvenance::Join { .. } => None,
-                mir_provenance::CallableValueProvenance::Param { .. }
-                | mir_provenance::CallableValueProvenance::Unknown => None,
-            };
-            let Some(candidate) = candidate else {
-                continue;
-            };
-            match &target {
-                Some(existing) if existing != &candidate => return Ok(None),
-                Some(_) => {}
-                None => target = Some(candidate),
-            }
-        }
-        Ok(target)
     }
 
     fn invoke_args_tuple_ty_from_boundary(
@@ -2196,15 +2139,14 @@ fn collect_callable_seeds(
                 ),
             })?
             .canonical_text();
-        let (invoke_arg_components, complete_ty) = mir_fact_index
+        let signature = mir_fact_index
             .source_signature(&root_fun.fqn)
-            .map(|signature| (signature.param_tys.clone(), signature.return_ty))
-            .unwrap_or_else(|| {
-                (
-                    root_fun.params.iter().map(|param| param.ty).collect(),
-                    root_fun.return_ty,
-                )
-            });
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: root_fun.fqn.clone(),
+            })?;
+        let (invoke_arg_components, complete_ty) =
+            (signature.param_tys.clone(), signature.return_ty);
         seeds.push(CallableSeed {
             key: family_key,
             stable_instance_key_text,
@@ -2498,6 +2440,12 @@ mod tests {
                 return_ty: signature.return_ty,
             })
             .collect();
+        let mut seen_source_signatures = facts
+            .backend
+            .source_signatures
+            .iter()
+            .map(|signature| signature.fqn.clone())
+            .collect::<BTreeSet<_>>();
 
         let pass_view = materialized.pass_view();
         let mut effects = MirEffectFacts::default();
@@ -2506,6 +2454,23 @@ mod tests {
         for family in pass_view.instances() {
             let instance_artifact = test_instance_artifact(materialized, family.key());
             let root_body = family.root_body();
+            if let Some(root) = root_body
+                && seen_source_signatures.insert(root.fqn.clone())
+            {
+                facts
+                    .backend
+                    .source_signatures
+                    .push(SourceCallableSignatureFact {
+                        identity: test_identity(
+                            &cone,
+                            format!("test:source_signature:root:{}", root.fqn),
+                        ),
+                        fqn: root.fqn.clone(),
+                        param_names: root.params.iter().map(|param| param.name.clone()).collect(),
+                        param_tys: root.params.iter().map(|param| param.ty).collect(),
+                        return_ty: root.return_ty,
+                    });
+            }
             let published = root_body
                 .and_then(|fun| test_function_effect_row(&materialized.types, fun.ty))
                 .map(|(row, closed)| test_effect_row_template(&materialized.types, row, closed))

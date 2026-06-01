@@ -1507,6 +1507,10 @@ fn call_site_surface_row(
             operand_function_effect_row(types, body, callee, instance, eff_param_names)
         }
         MirCallKindNode::Virtual { dispatch, .. } | MirCallKindNode::Interface { dispatch, .. } => {
+            if let Some(row) = call_site_target_surface_row(target, pass_view, surface_rows, types)
+            {
+                return Some(row);
+            }
             let candidate_rows =
                 dispatch_candidate_fqns_for_surface(materialized, kind, explicit_arg_count)
                     .into_iter()
@@ -2503,6 +2507,7 @@ fn callable_value_provenance_fact(
         body: body_ref.clone(),
         local: publication.local,
         block: publication.block,
+        statement_index: publication.statement_index,
         site_id: publication.site_id,
         provenance: publication.provenance,
     }
@@ -2831,23 +2836,44 @@ fn const_value_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<T
 fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts {
     let cone = materialized.stable_cone_key().clone();
     let contracts = materialized.backend_contracts();
+    let mut source_signatures = materialized
+        .source_callable_signatures()
+        .iter()
+        .enumerate()
+        .map(|(index, signature)| SourceCallableSignatureFact {
+            identity: backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#{index}", signature.fqn),
+            ),
+            fqn: signature.fqn.clone(),
+            param_names: signature.param_names.clone(),
+            param_tys: signature.param_tys.clone(),
+            return_ty: signature.return_ty,
+        })
+        .collect::<Vec<_>>();
+    let mut seen_source_signatures = source_signatures
+        .iter()
+        .map(|signature| signature.fqn.clone())
+        .collect::<BTreeSet<_>>();
+    for family in materialized.pass_view().instances() {
+        let Some(root) = family.root_body() else {
+            continue;
+        };
+        if !seen_source_signatures.insert(root.fqn.clone()) {
+            continue;
+        }
+        source_signatures.push(SourceCallableSignatureFact {
+            identity: backend_identity(&cone, "source_signature", &format!("{}#root", root.fqn)),
+            fqn: root.fqn.clone(),
+            param_names: root.params.iter().map(|param| param.name.clone()).collect(),
+            param_tys: root.params.iter().map(|param| param.ty).collect(),
+            return_ty: root.return_ty,
+        });
+    }
+    source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
     let mut facts = MirBackendFacts {
-        source_signatures: materialized
-            .source_callable_signatures()
-            .iter()
-            .enumerate()
-            .map(|(index, signature)| SourceCallableSignatureFact {
-                identity: backend_identity(
-                    &cone,
-                    "source_signature",
-                    &format!("{}#{index}", signature.fqn),
-                ),
-                fqn: signature.fqn.clone(),
-                param_names: signature.param_names.clone(),
-                param_tys: signature.param_tys.clone(),
-                return_ty: signature.return_ty,
-            })
-            .collect(),
+        source_signatures,
         enum_layouts: contracts
             .enum_layouts
             .iter()

@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use crate::facts::{CallableAbiKind, SiteEffectFacts};
+use crate::facts::{CallSiteTarget, CallableAbiKind, SiteEffectFacts};
 use crate::schema::{CaseSet, CaseTag, ContinuationSchemaId, StepSchemaId};
 use crate::{EffectFacts, StepSchema};
 
@@ -34,6 +34,15 @@ pub enum VerifyError {
     },
     CallableAbiSchemaMismatch {
         callable: String,
+    },
+    CallSiteTargetModeMismatch {
+        context: String,
+    },
+    EmptyCallSiteCandidateSet {
+        context: String,
+    },
+    CallSiteAbiSchemaMismatch {
+        context: String,
     },
     MissingLocalControlStepSchema {
         body: String,
@@ -70,6 +79,16 @@ impl fmt::Display for VerifyError {
                 f,
                 "callable `{callable}` has ABI/schema fields that disagree"
             ),
+            Self::CallSiteTargetModeMismatch { context } => write!(
+                f,
+                "{context} has target_mode that does not match its target payload"
+            ),
+            Self::EmptyCallSiteCandidateSet { context } => {
+                write!(f, "{context} has an empty call target candidate set")
+            }
+            Self::CallSiteAbiSchemaMismatch { context } => {
+                write!(f, "{context} has ABI/schema fields that disagree")
+            }
             Self::MissingLocalControlStepSchema { body } => write!(
                 f,
                 "body `{body}` has plain local effect/control but no local_control_step_schema"
@@ -215,10 +234,7 @@ fn verify_bodies(facts: &EffectFacts) -> Result<()> {
 
 fn body_needs_plain_local_control(body: &crate::facts::BodyEffectFacts) -> bool {
     body.sites().values().any(|site| match site {
-        SiteEffectFacts::Call(call) => {
-            matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
-                && !call.resolved_cases().is_empty()
-        }
+        SiteEffectFacts::Call(call) => !call.resolved_cases().is_empty(),
         SiteEffectFacts::ClassCtor(class_ctor) => !class_ctor.emitted_cases().is_empty(),
         SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
             true
@@ -229,6 +245,7 @@ fn body_needs_plain_local_control(body: &crate::facts::BodyEffectFacts) -> bool 
 fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: String) -> Result<()> {
     match site {
         SiteEffectFacts::Call(call) => {
+            verify_call_site_shape(call, &context)?;
             if let Some(schema) = call.callee_step_schema() {
                 verify_step_schema_exists(facts, schema, format!("{context} callee_schema"))?;
             }
@@ -298,6 +315,41 @@ fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: Strin
                     arm.arm_outward_cases(),
                     format!("{context} arm {index} outward_cases"),
                 )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_call_site_shape(call: &crate::facts::CallSiteEffectFacts, context: &str) -> Result<()> {
+    if call.target_mode() != call.target().mode() {
+        return Err(VerifyError::CallSiteTargetModeMismatch {
+            context: context.to_string(),
+        });
+    }
+    if matches!(call.target(), CallSiteTarget::CandidateSet(keys) if keys.is_empty()) {
+        return Err(VerifyError::EmptyCallSiteCandidateSet {
+            context: context.to_string(),
+        });
+    }
+    match call.callee_abi_kind() {
+        CallableAbiKind::Plain => {
+            if call.callee_step_schema().is_some() || !call.resolved_cases().is_empty() {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
+            }
+        }
+        CallableAbiKind::EffectStep => {
+            let Some(schema) = call.callee_step_schema() else {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
+            };
+            if call.resolved_cases().schema() != schema {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
             }
         }
     }
