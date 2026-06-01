@@ -373,6 +373,95 @@ pub(super) fn collect_generic_template_infos_with_source_cones(
     out
 }
 
+#[cfg(test)]
+pub(super) fn collect_generic_template_infos_from_lowered_hir(
+    lowered_hir: &crate::hir::LoweredHir,
+) -> Vec<GenericTemplateInfo> {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered_hir.member_funs.iter())
+        .filter_map(|fun| generic_template_info_from_hir_fun(lowered_hir, fun))
+        .collect()
+}
+
+pub(super) fn retag_generic_template_infos_with_hir_stable_keys(
+    template_infos: &mut [GenericTemplateInfo],
+    lowered_hir: &crate::hir::LoweredHir,
+) {
+    fn span_contains(outer: Span, inner: Span) -> bool {
+        outer.start <= inner.start && inner.end <= outer.end
+    }
+
+    for info in template_infos {
+        let stable_template_key = lowered_hir
+            .generic_stable_template_keys
+            .get(&info.template)
+            .cloned()
+            .or_else(|| {
+                lowered_hir
+                    .generic_stable_template_keys
+                    .iter()
+                    .find(|(template, _)| {
+                        template.fqn == info.template.fqn
+                            && template.source_path == info.template.source_path
+                            && (span_contains(template.decl_span, info.template.decl_span)
+                                || span_contains(info.template.decl_span, template.decl_span))
+                    })
+                    .map(|(_, stable)| stable.clone())
+            });
+        if let Some(stable_template_key) = stable_template_key {
+            info.signature_key = stable_template_key.canonical_text();
+            info.stable_template_key = stable_template_key;
+        }
+    }
+}
+
+#[cfg(test)]
+fn generic_template_info_from_hir_fun(
+    lowered_hir: &crate::hir::LoweredHir,
+    fun: &crate::hir::FunDecl,
+) -> Option<GenericTemplateInfo> {
+    let template = TemplateKey {
+        fqn: fun.fqn.clone(),
+        source_path: fun.source_path.clone(),
+        decl_span: fun.span,
+    };
+    let stable_template_key = lowered_hir
+        .generic_stable_template_keys
+        .get(&template)
+        .cloned()?;
+    let mut type_param_names = Vec::new();
+    for param in &fun.params {
+        collect_type_param_names_in_type(&lowered_hir.types, param.ty, &mut type_param_names);
+    }
+    collect_type_param_names_in_type(&lowered_hir.types, fun.return_ty, &mut type_param_names);
+    let eff_param_name = hir_fun_effect_param_name(&lowered_hir.types, fun.ty);
+    Some(GenericTemplateInfo {
+        request_lookup_key: (fun.fqn.clone(), fun.source_path.clone(), fun.span),
+        template,
+        signature_key: stable_template_key.canonical_text(),
+        stable_template_key,
+        type_param_names,
+        eff_param_name,
+        has_body: fun.body.is_some(),
+    })
+}
+
+#[cfg(test)]
+fn hir_fun_effect_param_name(types: &TypeStore, fun_ty: TypeId) -> Option<String> {
+    let mut names = HashSet::new();
+    collect_effect_row_param_names_in_type(types, fun_ty, &mut names);
+    let mut names = names.into_iter().collect::<Vec<_>>();
+    names.sort();
+    names.into_iter().next()
+}
+
 pub(super) fn stable_template_key_for_template(
     stable_cone_key: &StableConeKey,
     template_fqn: &str,
@@ -555,6 +644,30 @@ pub(super) fn collect_callable_body_infos(
         }
     }
     out
+}
+
+#[cfg(test)]
+pub(super) fn collect_callable_body_infos_from_lowered_hir(
+    lowered_hir: &crate::hir::LoweredHir,
+) -> Vec<CallableBodyInfo> {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered_hir.member_funs.iter())
+        .filter_map(|fun| {
+            fun.body.as_ref().map(|_| CallableBodyInfo {
+                request_lookup_key: (fun.fqn.clone(), fun.source_path.clone(), fun.span),
+                source_path: fun.source_path.clone(),
+                fqn: fun.fqn.clone(),
+                body_span: fun.span,
+            })
+        })
+        .collect()
 }
 
 pub(super) fn load_dump_support_sources(session: &Session) -> MaterializeResult<Vec<SourceFile>> {

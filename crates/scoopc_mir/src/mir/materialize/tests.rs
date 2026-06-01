@@ -464,6 +464,7 @@ fn generic_materializer_for_body_with_template(
                 params: Vec::new(),
                 has_generic_params_or_effect_param: false,
             }],
+            call_site_instance_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -2229,6 +2230,7 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             }],
             callable_body_infos: Vec::new(),
             callable_signatures: Vec::new(),
+            call_site_instance_facts: Vec::new(),
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -2274,6 +2276,21 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
     let mut typecheck_types = TypeStore::new();
     let typecheck_builtins = typecheck_types.intern_builtins();
     let template = generic_template_key();
+    let missing_template = TemplateKey {
+        fqn: "fixtures.materialize.missing".to_string(),
+        source_path: test_source_path(),
+        decl_span: test_span(),
+    };
+    let missing_stable_template_key =
+        test_stable_template_key(&missing_template, "fun||missing||Int");
+    let missing_stable_instance_key = StableInstanceKey::from_type_arguments(
+        missing_stable_template_key.clone(),
+        &typecheck_types,
+        &[typecheck_builtins.int],
+        &[],
+        &NoTypeParamResolver,
+    )
+    .unwrap();
     let fun = FunDecl {
         span: template.decl_span,
         fqn: template.fqn.clone(),
@@ -2315,6 +2332,24 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                 params: Vec::new(),
                 has_generic_params_or_effect_param: false,
             }],
+            call_site_instance_facts: vec![
+                scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact {
+                    identity: scoopc_hir::hir_facts::source_sites::SourceSiteIdentity::new(
+                        CanonicalTextKey::new("test:missing-site"),
+                        SiteId::from_raw(0),
+                        test_source_path(),
+                        call_site,
+                    ),
+                    template_key: CanonicalTextKey::new(
+                        missing_stable_template_key.canonical_text(),
+                    ),
+                    stable_instance_key: CanonicalTextKey::new(
+                        missing_stable_instance_key.canonical_text(),
+                    ),
+                    type_args: vec![typecheck_builtins.int],
+                    eff_args: Vec::new(),
+                },
+            ],
             known_receiver_subclasses: HashSet::new(),
             direct_subclasses: HashMap::new(),
             class_vtables: HashMap::new(),
@@ -2324,21 +2359,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             extern_funs: HashMap::new(),
             native_callable_funs: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
-            top_level_fun_call_bindings: HashMap::from([(
-                (test_source_path(), call_site),
-                ast::TopLevelFunCallBinding {
-                    fqn: "fixtures.materialize.missing".to_string(),
-                    decl_file: test_source_path(),
-                    decl_span: test_span(),
-                    is_intrinsic: false,
-                    intrinsic_entry_name: None,
-                    param_tys: Vec::new(),
-                    return_ty: None,
-                    type_args: vec![typecheck_builtins.int],
-                    eff_args: Vec::new(),
-                    types_are_hir: false,
-                },
-            )]),
+            top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
@@ -3066,6 +3087,7 @@ return 0
             template_infos,
             callable_body_infos,
             callable_signatures,
+            call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -3972,15 +3994,6 @@ println(holder.node.tag.score)
     );
 
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
-    let template_catalog =
-        collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
-    let monomorph_requests = stabilize_monomorph_requests(
-        &inputs.typecheck_types,
-        &inputs.monomorph_requests,
-        &template_catalog,
-    )
-    .unwrap();
-    let callable_body_infos = collect_callable_body_infos(&compilation_unit);
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(&compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
@@ -4034,6 +4047,14 @@ println(holder.node.tag.score)
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
         scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let template_catalog = collect_generic_template_infos_from_lowered_hir(&lowered_hir);
+    let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
+        &inputs.typecheck_types,
+        &inputs.monomorph_requests,
+        &hir_facts,
+    )
+    .unwrap();
+    let callable_body_infos = collect_callable_body_infos_from_lowered_hir(&lowered_hir);
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -4064,6 +4085,7 @@ println(holder.node.tag.score)
             template_infos: template_catalog,
             callable_body_infos,
             callable_signatures,
+            call_site_instance_facts: hir_facts.source_sites.call_site_instances.clone(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -4449,15 +4471,6 @@ return read(ints) + read(texts)
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
     let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
-    let template_catalog =
-        collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
-    let monomorph_requests = stabilize_monomorph_requests(
-        &inputs.typecheck_types,
-        &inputs.monomorph_requests,
-        &template_catalog,
-    )
-    .unwrap();
-    let callable_body_infos = collect_callable_body_infos(&compilation_unit);
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(&compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
@@ -4494,6 +4507,14 @@ return read(ints) + read(texts)
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
         scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let template_catalog = collect_generic_template_infos_from_lowered_hir(&lowered_hir);
+    let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
+        &inputs.typecheck_types,
+        &inputs.monomorph_requests,
+        &hir_facts,
+    )
+    .unwrap();
+    let callable_body_infos = collect_callable_body_infos_from_lowered_hir(&lowered_hir);
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -4524,6 +4545,7 @@ return read(ints) + read(texts)
             template_infos: template_catalog,
             callable_body_infos,
             callable_signatures,
+            call_site_instance_facts: Vec::new(),
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,

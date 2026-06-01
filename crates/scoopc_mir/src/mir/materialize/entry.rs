@@ -60,14 +60,12 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         request_root_mode,
         opt_level,
     } = options;
-    let template_catalog = collect_generic_template_infos_with_source_cones(
+    let mut template_catalog = collect_generic_template_infos_with_source_cones(
         &stable_cone_key,
         source_cones,
         index,
         compilation_unit,
     );
-    let monomorph_requests =
-        stabilize_monomorph_requests(typecheck_types, monomorph_requests, &template_catalog)?;
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
@@ -87,6 +85,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
             .iter()
             .map(|(path, info)| (path.clone(), info.clone())),
     );
+    retag_generic_template_infos_with_hir_stable_keys(&mut template_catalog, &lowered_hir);
     let request_root_fun_keys =
         collect_request_root_fun_keys(&lowered_hir, request_source_paths, index, request_root_mode);
     let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();
@@ -99,11 +98,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
-    let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
-        &mut lowered_hir,
-        typecheck_types,
-        &top_level_fun_call_bindings,
-    );
     let known_receiver_subclasses =
         super::super::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
     let direct_subclasses =
@@ -130,6 +124,20 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         default_contract_source_path,
     )
     .map_err(crate::hir::HirLowerError::from)?;
+    let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
+        typecheck_types,
+        monomorph_requests,
+        &hir_facts,
+    )
+    .or_else(|_| {
+        stabilize_monomorph_requests(typecheck_types, monomorph_requests, &template_catalog)
+    })?;
+    let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests_from_hir_facts(
+        &lowered_hir,
+        &hir_facts,
+        &template_catalog,
+    )?;
+    let call_site_instance_facts = hir_facts.source_sites.call_site_instances.clone();
     let facts = super::super::MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = super::super::lower_hir_file_for_dump_with_facts(
         builtins,
@@ -153,6 +161,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 template_infos: template_catalog,
                 callable_body_infos,
                 callable_signatures,
+                call_site_instance_facts,
                 known_receiver_subclasses,
                 direct_subclasses,
                 class_vtables,
@@ -177,6 +186,118 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         },
         opt_level,
     )
+}
+
+fn collect_hir_direct_call_instance_requests_from_hir_facts(
+    lowered_hir: &crate::hir::LoweredHir,
+    hir_facts: &scoopc_hir::hir_facts::HirFacts,
+    template_catalog: &[GenericTemplateInfo],
+) -> MaterializeResult<HashMap<(PathBuf, Span), Vec<InstanceKey>>> {
+    let templates_by_stable_key = template_catalog
+        .iter()
+        .map(|info| (info.stable_template_key.clone(), info.template.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut out = HashMap::<(PathBuf, Span), Vec<InstanceKey>>::new();
+    for fact in &hir_facts.source_sites.call_site_instances {
+        let instance =
+            hir_call_site_instance_fact_key(&lowered_hir.types, &templates_by_stable_key, fact)?;
+        let Some(owner) =
+            containing_hir_fun_site(lowered_hir, &fact.identity.source_path, fact.identity.span)
+        else {
+            continue;
+        };
+        out.entry(owner).or_default().push(instance);
+    }
+    for instances in out.values_mut() {
+        instances.sort_by_key(|instance| {
+            (
+                instance.template.fqn.clone(),
+                instance.template.source_path.clone(),
+                instance.template.decl_span.start,
+                instance.template.decl_span.end,
+                instance
+                    .type_args
+                    .iter()
+                    .map(|ty| ty.as_u32())
+                    .collect::<Vec<_>>(),
+            )
+        });
+        instances.dedup();
+    }
+    Ok(out)
+}
+
+fn hir_call_site_instance_fact_key(
+    types: &TypeStore,
+    templates_by_stable_key: &HashMap<StableTemplateKey, TemplateKey>,
+    fact: &scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact,
+) -> MaterializeResult<InstanceKey> {
+    let stable_instance_key =
+        StableInstanceKey::from_canonical_text(fact.stable_instance_key.as_str())
+            .map_err(|err| frontend_err(format!("invalid HIR stable instance key: {err}")))?;
+    let Some(template) = templates_by_stable_key
+        .get(stable_instance_key.template())
+        .cloned()
+    else {
+        return Err(frontend_err(format!(
+            "HIR call-site instance references unpublished stable template `{}`",
+            stable_instance_key.template().canonical_text()
+        )));
+    };
+    let type_args = stable_instance_key
+        .canonical_type_args()
+        .iter()
+        .map(|canonical| {
+            find_canonical_type_in_store(types, canonical).ok_or_else(|| {
+                frontend_err(format!(
+                    "unable to localize HIR stable type argument `{canonical}`"
+                ))
+            })
+        })
+        .collect::<MaterializeResult<Vec<_>>>()?;
+    let eff_args = stable_instance_key
+        .effect_arg_templates()
+        .iter()
+        .map(|template| {
+            template
+                .to_effect_row_with(|type_key| {
+                    find_canonical_type_in_store(types, type_key.as_str())
+                })
+                .map_err(|err| {
+                    frontend_err(format!(
+                        "unable to localize HIR stable effect row `{template}`: {err}"
+                    ))
+                })
+        })
+        .collect::<MaterializeResult<Vec<_>>>()?;
+    Ok(InstanceKey {
+        template,
+        type_args,
+        eff_args,
+    })
+}
+
+fn containing_hir_fun_site(
+    lowered_hir: &crate::hir::LoweredHir,
+    source_path: &Path,
+    span: Span,
+) -> Option<(PathBuf, Span)> {
+    fn span_contains(outer: Span, inner: Span) -> bool {
+        outer.start <= inner.start && inner.end <= outer.end
+    }
+
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered_hir.member_funs.iter())
+        .filter(|fun| fun.source_path == source_path && span_contains(fun.span, span))
+        .min_by_key(|fun| fun.span.end.saturating_sub(fun.span.start))
+        .map(|fun| (fun.source_path.clone(), fun.span))
 }
 
 pub(super) fn stabilize_monomorph_requests(
@@ -264,7 +385,6 @@ fn stable_template_key_by_containing_span(
         .map(|info| info.stable_template_key.clone())
 }
 
-#[allow(dead_code)]
 pub(super) fn stabilize_monomorph_requests_from_hir_facts(
     typecheck_types: &TypeStore,
     monomorph_requests: &[MonomorphRequest],
@@ -327,34 +447,14 @@ pub(super) fn stabilize_monomorph_requests_from_hir_facts(
         .collect()
 }
 
-#[allow(dead_code)]
 fn stable_call_site_instance_fact_for_request<'a>(
     hir_facts: &'a scoopc_hir::hir_facts::HirFacts,
     request: &MonomorphRequest,
 ) -> Option<&'a scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact> {
-    fn spans_overlap(lhs: Span, rhs: Span) -> bool {
-        lhs.start <= rhs.end && rhs.start <= lhs.end
-    }
-
     hir_facts
         .source_sites
         .call_site_instances
         .iter()
         .filter(|fact| fact.identity.source_path == request.request_source_path)
-        .filter(|fact| fact.template_key.as_str().contains(&request.key.symbol.fqn))
-        .filter(|fact| {
-            fact.identity.span == request.call_span
-                || spans_overlap(fact.identity.span, request.call_span)
-        })
-        .min_by(|lhs, rhs| {
-            let lhs_exact = lhs.identity.span == request.call_span;
-            let rhs_exact = rhs.identity.span == request.call_span;
-            rhs_exact.cmp(&lhs_exact).then_with(|| {
-                lhs.identity
-                    .span
-                    .start
-                    .cmp(&rhs.identity.span.start)
-                    .then(lhs.identity.span.end.cmp(&rhs.identity.span.end))
-            })
-        })
+        .find(|fact| fact.identity.span == request.call_span)
 }

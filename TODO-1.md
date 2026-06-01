@@ -14,6 +14,7 @@
 | T1-01R | [DONE] | Review T1-01 表示与稳定性 |
 | T1-02A | [DONE] | Stable request/direct-call identity transport 前置落地（MonomorphRequest stable key seed + `CallKind::Direct` stable instance carrier） |
 | T1-02B | [DONE] | HIR stable call-site facts + MIR Direct stable template carrier foundation |
+| T1-02C | [TODO] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
 | T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
@@ -116,6 +117,20 @@
   - 补充 `stable_id` canonical text parse round-trip 单测，以及 HIR facts/MIR direct-call stable carrier 回归测试。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
+### [TODO] T1-02C：Materializer-ready template/body/site-binding inventory + non-concrete generic site facts
+
+- 背景：执行 `T1-02` 的 fallback 删除时发现，`T1-02B` 已发布的 `CallSiteInstanceFact` 只覆盖 concrete stable instance；泛型函数体内的 owner/effect-param 调用（例如 `box.forward<eff E>()`）不能构造 concrete `StableInstanceKey`，仍必须靠旧 `(fqn, decl_file, decl_span)` site binding 承接。另一个阻塞是 materializer 的 template/body catalog 仍需 AST 侧声明参数清单（尤其 owner type/eff params 和未在签名中出现的参数），`LoweredHir`/`HirFacts` 尚未发布 materializer-ready inventory。
+- 必须实现的内容：
+  1. HIR facts 或 HIR handoff side table 发布 materializer-ready `GenericTemplateFact` / `CallableBodyFact` / site-binding inventory，包含 stable template key、canonical body/root key、request lookup、declared owner+function type param names、owner/function eff param 名、signature key、has-body/body source identity。
+  2. 对非 concrete generic call site 发布 template-level site binding fact（可含 type/effect row 参数），不能要求先构造 `StableInstanceKey`；concrete call site 继续发布 `CallSiteInstanceFact`。
+  3. materializer template catalog、request/site binding、generic direct-call inventory 改为消费上述 facts/side-table；删除 `collect_generic_template_infos_with_source_cones`、`collect_callable_body_infos`、`collect_site_instance_bindings` direct-call 主路径以及 `stabilize_monomorph_requests` 的 decl-site fallback。
+  4. 保持 owner effect args 进入 canonical identity；不得恢复 blanket eff-aware mangle 或按名称特判 owner-eff。
+- 必须遵从的约束：不得把缺失 HIR fact 的路径继续用 `(fqn, file, span)` fallback 伪装为完成；旧 fallback 只能作为本任务完成前的过渡状态，完成本任务时必须删除或改为 fail-fast。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+- 完成条件：materializer 不再扫描 AST/HIR 重建 template/body/site binding；owner/effect-param 非 concrete generic call site 由上游 fact 表达；当前 T1-02 的 fallback 删除不再被 template/body/site inventory 缺口阻塞。
+- 依赖：T1-02B
+- 完成记录：（待填）
+
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-01/02/03/04/05/14。
@@ -128,7 +143,7 @@
 - 必须遵从的约束：owner-eff 泛型的必需基础（`is_generic` 含 `eff_param`、MIR `has_eff_param`、boundary upcast 的 args+eff 比较）按新表示重新落地；不恢复 blanket eff-aware mangle、不按名称特判。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（bypass 的 delegate 仍 SKIP）。
 - 完成条件：上游 request/IR/dispatch 携带 stable key + owner eff；materializer/dispatch 不再 span/FQN/receiver 重建。
-- 依赖：T1-02B
+- 依赖：T1-02C
 - 完成记录：（待填）
 
 ### [TODO] T1-02R：Review T1-02 上游 identity

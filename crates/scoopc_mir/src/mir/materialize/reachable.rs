@@ -2,6 +2,39 @@
 
 use super::*;
 
+fn map_hir_call_args_to_signature_params(
+    params: &[CallableSignatureParam],
+    args: &[crate::hir::CallArg],
+) -> Option<Vec<usize>> {
+    let mut used = vec![false; params.len()];
+    let mut next_pos = 0;
+    let mut out = Vec::with_capacity(args.len());
+
+    for arg in args {
+        let param_idx = match arg {
+            crate::hir::CallArg::Named { name, .. } => params
+                .iter()
+                .enumerate()
+                .find_map(|(idx, param)| (!used[idx] && param.name == *name).then_some(idx))?,
+            crate::hir::CallArg::Positional(_) => {
+                while used.get(next_pos).copied().unwrap_or(false) {
+                    next_pos += 1;
+                }
+                let idx = next_pos;
+                if idx >= params.len() {
+                    return None;
+                }
+                next_pos += 1;
+                idx
+            }
+        };
+        used[param_idx] = true;
+        out.push(param_idx);
+    }
+
+    Some(out)
+}
+
 impl MirInstanceMaterializer {
     pub(super) fn scan_materialized_family_reachable_calls(
         &mut self,

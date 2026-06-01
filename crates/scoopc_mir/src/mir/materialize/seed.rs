@@ -89,7 +89,7 @@ impl MirInstanceMaterializer {
         }))
     }
 
-    fn localize_stable_request_args(
+    pub(super) fn localize_stable_request_args(
         &mut self,
         typecheck_types: &TypeStore,
         key: &crate::monomorph::MonomorphKey,
@@ -212,7 +212,16 @@ impl MirInstanceMaterializer {
                     },
                 ));
             };
-            let Some(template) = self.resolve_stable_request_template(stable_template_key) else {
+            let Some(template) = self
+                .resolve_stable_request_template(stable_template_key)
+                .or_else(|| {
+                    self.resolve_request_template_by_decl_site(
+                        &key.symbol.fqn,
+                        &key.symbol.decl_file,
+                        key.symbol.decl_span,
+                    )
+                })
+            else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: key.symbol.fqn.clone(),

@@ -11,7 +11,7 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
-use scoopc_ids::{InstanceKey, TemplateKey};
+use scoopc_ids::{InstanceKey, StableCanonicalKey, TemplateKey};
 use thiserror::Error;
 
 use crate::ast;
@@ -458,6 +458,7 @@ fn frontend_err(message: impl Into<String>) -> Box<MirMaterializeError> {
 mod dispatch;
 mod entry;
 mod generic_mir;
+#[cfg(test)]
 mod hir_calls;
 mod inputs;
 mod instance;
@@ -474,8 +475,10 @@ mod validation;
 // functions that sibling submodules need to resolve via `use super::*;`.
 pub use entry::*;
 use generic_mir::*;
+#[cfg(test)]
 use hir_calls::*;
 use inputs::*;
+use seed::*;
 use templates::*;
 use utils::*;
 
