@@ -15,6 +15,7 @@
 | T2-01R | [DONE] | Review T2-01 |
 | T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [DONE] | Review T2-02 |
+| T2-03A | [TODO] | Restore higher-order function-value / closure continuation routes under P4 fact-only call-site facts |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
 
@@ -122,6 +123,21 @@
 - 依赖：T2-02
 - 完成记录：2026-06-01 完成。Review T2-02 时修复三类 handoff correctness 问题：`MaterializedCallableEffectTemplate` 改为携带完整 `TemplateKey`，MIR instance effect rows 按 `(fqn, source_path, decl_span)` 精确匹配，避免 overload 共享 display FQN 时串用 source effect row；MIR fact verifier 增加 schema version 校验，并将 wire schema bump 到 `1.3` 覆盖新增 effects/provenance/boundary/backend handoff groups 与 instance `eff_args`；callable value provenance 只在目标 local 类型确为 function 时把 `TopLevelRef` 发布为 callable provenance，并把 block/statement 纳入 fact identity，避免普通 top-level value 被伪装成 `DirectFunction` 或重复 local identity。新增回归测试覆盖 overload effect identity、非 callable top-level value provenance、unsupported MIR fact schema version；`scoop run` 测试 helper 改为每次重建 `scoopc`，避免 schema bump 后 stale subprocess binary 写出旧 artifact。同步 `mir_materialized/pass_pipeline_metadata.mir` golden，使 materialized MIR dump 捕获 T2-02 发布的 handoff fact groups。验证：`cargo fmt`；targeted tests `cargo test -p scoopc_mir_facts verifier_rejects_unsupported_schema_version`、`cargo test -p scoopc mir_callable_instance_effects_match_overload_template_identity`、`cargo test -p scoopc mir_callable_value_provenance_does_not_relabel_top_level_values_as_functions`、`cargo test -p scoop run_builds_and_executes_minimal_main` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py tests/fixtures/mir_materialized/pass_pipeline_metadata.scoop` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
+### [TODO] T2-03A：Restore higher-order function-value / closure continuation routes under P4 fact-only call-site facts
+
+- 背景：执行 `T2-03` 时，P4 已改为消费 MIR-published site/event/target/surface/provenance facts，并删除 P4 内部 MIR shape 扫描、dispatch union 与 callable-value 局部数据流恢复。`cargo test --all --all-targets` 随后暴露两个直接相关的 continuation 路由回归：
+  1. `single_pipeline_runs_higher_order_function_value_handled_effect_cli`：`tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop` 输出停在 `5\ncaught\n9\n` 且退出码为 `1`，未恢复到 `10`。
+  2. `single_pipeline_runs_indirect_perform_closure_resume_cli`：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop` resume 后未重新进入 closure resume 路径，输出缺少 `closure_resume` 且结果为 `32` 而不是 `42`。
+- 根因边界：这不是可忽略的既有噪声；它由当前 T2-03 的 fact-only 切换暴露/触发，说明 P4/P5 仍需要由 MIR facts 明确发布并消费 higher-order function-value / closure callable provenance 与跨 callable continuation route 所需的 call-site contract。不得恢复 P4 MIR 数据流扫描或用 fixture 形状绕过。
+- 必须实现的内容：
+  1. 扩展 MIR-published provenance/target facts，使 `choose(mode)()`、closure carrier、parameter-carried function value 等 higher-order call sites 能以 fact 形式表达足够的 callable/candidate provenance（包括多来源 join 或参数来源），供 P4 消费。
+  2. P4 只消费这些 facts 生成 `CallSiteEffectFacts`，不得回扫 `MaterializedMir` statements/terminators 或重做局部数据流。
+  3. 保持 P5 callee-suspend / cross-call continuation provenance 能为 function-value 和 closure indirect perform 恢复正确 route；不得通过禁用 fact-only call-site lowering 绕过。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+- 完成条件：上述两个 p7 regressions 恢复通过，且 P4 仍不恢复 MIR shape 扫描、dispatch union 或 callable-value 局部数据流恢复。
+- 依赖：T2-02R
+- 完成记录：（待填）
+
 ### [TODO] T2-03：P4 纯消费上游 facts 产出 instance effect facts
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-08/09(发布)/11(必发)。
@@ -133,7 +149,7 @@
 - 必须遵从的约束：P4 不再做 overload/数据流/effect 重建；env/dispatch table 重建（FG-07）留批 3，本任务先把 effect 求解改为消费 facts。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：P4 effect 求解纯消费上游 facts；local control schema 必发。
-- 依赖：T2-02R
+- 依赖：T2-03A
 - 完成记录：（待填）
 
 ### [TODO] T2-03R：Review T2-03

@@ -50,7 +50,9 @@ impl WireSchemaVersion {
 ///   wire format 已实现，不再携带 P7/P8 的 deferred 决策。
 /// - 1.3：MIR fact product 发布 self-contained handoff groups（effects/provenance/
 ///   boundary/backend）及 instance `eff_args`。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 3);
+/// - 1.4：MIR effect events/site inventory 携带 P4 所需的 typed perform/handle/resume
+///   contract 与 result type，避免 P4 回扫 MIR shape。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 4);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

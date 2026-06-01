@@ -50,7 +50,7 @@ pub enum BoundaryAnchor {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum BoundaryOperandSource {
     Local { local: u32, ty: Option<TypeId> },
-    Const { kind: String },
+    Const { kind: String, ty: Option<TypeId> },
 }
 
 /// Closure environment payload sources when a callable carrier is a known closure.

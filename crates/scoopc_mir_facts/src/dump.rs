@@ -234,13 +234,12 @@ fn event_kind_label(kind: &MirEffectEventKind) -> String {
         MirEffectEventKind::HiddenInitializer { source_fqn } => {
             format!("hidden_initializer:{source_fqn}")
         }
-        MirEffectEventKind::Perform { op_fqn } => format!("perform:{op_fqn}"),
-        MirEffectEventKind::Resume => "resume".to_string(),
-        MirEffectEventKind::Handle { handled_effects } => format!(
+        MirEffectEventKind::Perform { op } => format!("perform:{}", op.op_fqn),
+        MirEffectEventKind::Resume { .. } => "resume".to_string(),
+        MirEffectEventKind::Handle { arms, .. } => format!(
             "handle:{}",
-            handled_effects
-                .iter()
-                .map(|key| key.as_str())
+            arms.iter()
+                .map(|arm| arm.op_fqn.as_str())
                 .collect::<Vec<_>>()
                 .join(",")
         ),

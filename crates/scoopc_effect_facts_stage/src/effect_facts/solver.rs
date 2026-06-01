@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
-use crate::mir::{BasicBlockId, InstanceKey, SiteId};
+use crate::mir::{BasicBlockId, InstanceKey};
 use crate::opt::OptLevel;
 
 use super::{
@@ -1227,7 +1227,7 @@ fn subtract_case_set(source: &CaseSet, removed: &CaseSet) -> CaseSet {
     )
 }
 
-fn body_needs_plain_local_control(sites: &BTreeMap<SiteId, SiteEffectFacts>) -> bool {
+fn body_needs_plain_local_control(sites: &BTreeMap<crate::mir::SiteId, SiteEffectFacts>) -> bool {
     sites.values().any(|site| match site {
         SiteEffectFacts::Call(call) => {
             matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)

@@ -93,6 +93,7 @@ pub(crate) fn run_with_compilation_sources(
             compilation_sources,
             cached_cone_imports,
             mir_stage_output.materialized_mir(),
+            mir_stage_output.mir_facts(),
             &mut type_context,
         )
         .build()?
@@ -122,6 +123,7 @@ pub(crate) fn run_with_compilation_sources(
                 compilation_sources,
                 cached_cone_imports,
                 mir_stage_output.materialized_mir(),
+                mir_stage_output.mir_facts(),
                 &mut type_context,
             )
             .with_compiler_continuation_runtime_error_callables(

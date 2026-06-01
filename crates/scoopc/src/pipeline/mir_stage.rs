@@ -23,7 +23,7 @@ use scoopc_mir_facts::effects::{
     CallSiteSurfaceEffectFact, CallSiteTarget, CallSiteTargetFact, CallableInstanceEffectFacts,
     EffectRowTemplate as FactEffectRowTemplate, EffectRowTerm as FactEffectRowTerm,
     MirBlockEffectRegionFact, MirCallKind, MirEffectEventFact, MirEffectEventKind, MirEffectFacts,
-    MirSiteInventoryFact, MirSiteKind,
+    MirEffectOpSiteContract, MirSiteInventoryFact, MirSiteKind,
 };
 use scoopc_mir_facts::families::{
     CallableFamilyFact, InstanceFamilyInventory, InstanceInventoryEntry,
@@ -63,7 +63,7 @@ use crate::mir::{
 use crate::stable_id::{
     EffectRowTemplate as StableEffectRowTemplate, NoTypeParamResolver, StableEffectParamKey,
 };
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::HirStageOutput;
 
@@ -443,6 +443,19 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
         .collect::<HashMap<_, _>>();
     let pass_view = materialized.pass_view();
     let mut facts = MirEffectFacts::default();
+    let mut published_surface_by_fqn = HashMap::new();
+
+    for family in pass_view.instances() {
+        let (_, _, published) = callable_instance_rows(
+            materialized,
+            family.key(),
+            family.root_body(),
+            source_effects.get(&family.key().template),
+        );
+        for fqn in family.callable_fqns() {
+            published_surface_by_fqn.insert(fqn.to_string(), published.clone());
+        }
+    }
 
     for family in pass_view.instances() {
         let instance_artifact = materialized_instance_artifact(materialized, family.key());
@@ -456,7 +469,12 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
         let mut step_rows = vec![published.clone()];
         for fun in family.callable_bodies() {
             if let Some(body) = &fun.body {
-                step_rows.extend(body_local_effect_rows(&materialized.types, body));
+                step_rows.extend(body_local_effect_rows(
+                    materialized,
+                    body,
+                    &pass_view,
+                    &published_surface_by_fqn,
+                ));
             }
         }
         let step = merge_effect_rows(step_rows);
@@ -487,6 +505,7 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
                 &instance_artifact,
                 fun,
                 &pass_view,
+                &published_surface_by_fqn,
                 &mut facts,
             );
         }
@@ -595,6 +614,7 @@ fn collect_body_effect_facts(
     instance: &StageArtifactKey,
     fun: &MirFunDecl,
     pass_view: &MaterializedMirPassView<'_>,
+    published_surface_by_fqn: &HashMap<String, FactEffectRowTemplate>,
     facts: &mut MirEffectFacts,
 ) {
     let Some(body) = &fun.body else {
@@ -633,17 +653,31 @@ fn collect_body_effect_facts(
                         block_id,
                         Some(statement_index as u32),
                         Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
-                    if let Some(row) =
-                        call_site_surface_row(&materialized.types, body, kind, pass_view)
+                    let call_surface_row = call_site_surface_row(
+                        materialized,
+                        body,
+                        kind,
+                        pass_view,
+                        args.len(),
+                        published_surface_by_fqn,
+                    )
+                    .unwrap_or_else(FactEffectRowTemplate::pure);
+                    facts.call_site_surface_effects.push(call_site_surface_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        call_surface_row.clone(),
+                    ));
+                    if let Some((call_kind, target_fact)) =
+                        call_site_target(materialized, kind, args.len())
                     {
-                        facts.call_site_surface_effects.push(call_site_surface_fact(
-                            cone, instance, &body_ref, *site_id, row,
-                        ));
-                    }
-                    if let Some((call_kind, target_fact)) = call_site_target(kind) {
                         facts.call_site_targets.push(call_site_target_fact(
                             cone,
                             instance,
@@ -658,15 +692,14 @@ fn collect_body_effect_facts(
                             has_suspend_boundary |= !resume.out_effects.is_pure();
                             resume_effect_row(&materialized.types, resume)
                         }
-                        _ => call_site_surface_row(&materialized.types, body, kind, pass_view)
-                            .unwrap_or_else(FactEffectRowTemplate::pure),
+                        _ => call_surface_row,
                     };
                     facts.effect_events.push(effect_event_fact(
                         cone,
                         instance,
                         &body_ref,
                         *site_id,
-                        call_effect_event_kind(kind),
+                        call_effect_event_kind(&materialized.types, kind),
                         block_id,
                         Some(statement_index as u32),
                         row,
@@ -690,6 +723,9 @@ fn collect_body_effect_facts(
                         block_id,
                         Some(statement_index as u32),
                         Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
@@ -723,6 +759,9 @@ fn collect_body_effect_facts(
                         block_id,
                         Some(statement_index as u32),
                         Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
@@ -758,6 +797,9 @@ fn collect_body_effect_facts(
                         block_id,
                         Some(statement_index as u32),
                         Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
@@ -799,6 +841,7 @@ fn collect_body_effect_facts(
                     block_id,
                     None,
                     None,
+                    None,
                     Some(block.terminator.span),
                     block.is_cleanup,
                 ));
@@ -809,7 +852,7 @@ fn collect_body_effect_facts(
                     &body_ref,
                     *site_id,
                     MirEffectEventKind::Perform {
-                        op_fqn: op_fqn.clone(),
+                        op: perform_effect_op_contract(&materialized.types, op_fqn, metadata),
                     },
                     block_id,
                     None,
@@ -821,7 +864,16 @@ fn collect_body_effect_facts(
                     block.is_cleanup,
                 ));
             }
-            MirTerminatorKind::Handle { site_id, arms, .. } => {
+            MirTerminatorKind::Handle {
+                site_id,
+                metadata,
+                arms,
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => {
                 block_sites.entry(block_id).or_default().push(*site_id);
                 facts.site_inventory.push(site_inventory_fact(
                     cone,
@@ -830,6 +882,7 @@ fn collect_body_effect_facts(
                     *site_id,
                     MirSiteKind::Handle,
                     block_id,
+                    None,
                     None,
                     None,
                     Some(block.terminator.span),
@@ -847,13 +900,18 @@ fn collect_body_effect_facts(
                     &body_ref,
                     *site_id,
                     MirEffectEventKind::Handle {
-                        handled_effects: row
-                            .terms
+                        result_ty: metadata.result_ty,
+                        body_target: BodyBlockId::from_raw(body_target.as_u32()),
+                        arm_targets: arm_targets
                             .iter()
-                            .filter_map(|term| match term {
-                                FactEffectRowTerm::Concrete { type_key } => Some(type_key.clone()),
-                                FactEffectRowTerm::Param { .. } => None,
-                            })
+                            .map(|target| BodyBlockId::from_raw(target.as_u32()))
+                            .collect(),
+                        finally_target: finally_target
+                            .map(|target| BodyBlockId::from_raw(target.as_u32())),
+                        exit_target: BodyBlockId::from_raw(exit_target.as_u32()),
+                        arms: arms
+                            .iter()
+                            .map(|arm| handler_arm_effect_op_contract(&materialized.types, arm))
                             .collect(),
                     },
                     block_id,
@@ -908,6 +966,7 @@ fn site_inventory_fact(
     block: BodyBlockId,
     statement_index: Option<u32>,
     result_local: Option<u32>,
+    result_ty: Option<TypeId>,
     span: Option<crate::span::Span>,
     cleanup: bool,
 ) -> MirSiteInventoryFact {
@@ -930,6 +989,7 @@ fn site_inventory_fact(
         block,
         statement_index,
         result_local,
+        result_ty,
         span,
         cleanup,
     }
@@ -1024,7 +1084,7 @@ fn call_site_surface_fact(
     }
 }
 
-fn call_effect_event_kind(kind: &MirCallKindNode) -> MirEffectEventKind {
+fn call_effect_event_kind(types: &TypeStore, kind: &MirCallKindNode) -> MirEffectEventKind {
     match kind {
         MirCallKindNode::Direct { .. } => MirEffectEventKind::Call {
             call_kind: MirCallKind::Direct,
@@ -1044,11 +1104,20 @@ fn call_effect_event_kind(kind: &MirCallKindNode) -> MirEffectEventKind {
         MirCallKindNode::Interface { .. } => MirEffectEventKind::Call {
             call_kind: MirCallKind::Interface,
         },
-        MirCallKindNode::Resume { .. } => MirEffectEventKind::Resume,
+        MirCallKindNode::Resume { resume, .. } => MirEffectEventKind::Resume {
+            resume_tuple_ty: resume.resume_ty,
+            answer_ty: resume.answer_ty,
+            continuation_ty: resume.continuation_ty,
+            surface_row: effect_row_template(types, &resume.out_effects, false),
+        },
     }
 }
 
-fn call_site_target(kind: &MirCallKindNode) -> Option<(MirCallKind, CallSiteTarget)> {
+fn call_site_target(
+    materialized: &MaterializedMir,
+    kind: &MirCallKindNode,
+    explicit_arg_count: usize,
+) -> Option<(MirCallKind, CallSiteTarget)> {
     match kind {
         MirCallKindNode::Direct {
             callee_fqn,
@@ -1060,6 +1129,13 @@ fn call_site_target(kind: &MirCallKindNode) -> Option<(MirCallKind, CallSiteTarg
                 .as_ref()
                 .map(|key| CallSiteTarget::KnownInstance {
                     key: CanonicalTextKey::new(key.canonical_text()),
+                })
+                .or_else(|| {
+                    stable_key_for_callable(materialized, callee_fqn).map(|key| {
+                        CallSiteTarget::KnownInstance {
+                            key: CanonicalTextKey::new(key.canonical_text()),
+                        }
+                    })
                 })
                 .unwrap_or_else(|| CallSiteTarget::DirectFunction {
                     fqn: callee_fqn.clone(),
@@ -1076,46 +1152,203 @@ fn call_site_target(kind: &MirCallKindNode) -> Option<(MirCallKind, CallSiteTarg
         MirCallKindNode::Virtual { dispatch, .. } => Some((
             MirCallKind::Virtual,
             CallSiteTarget::CandidateSet {
-                keys: dispatch
-                    .stable_candidate_keys
-                    .iter()
-                    .map(|key| CanonicalTextKey::new(key.canonical_text()))
-                    .collect(),
+                keys: dispatch_candidate_keys(materialized, dispatch, explicit_arg_count, false),
             },
         )),
         MirCallKindNode::Interface { dispatch, .. } => Some((
             MirCallKind::Interface,
             CallSiteTarget::CandidateSet {
-                keys: dispatch
-                    .stable_candidate_keys
-                    .iter()
-                    .map(|key| CanonicalTextKey::new(key.canonical_text()))
-                    .collect(),
+                keys: dispatch_candidate_keys(materialized, dispatch, explicit_arg_count, true),
             },
         )),
         MirCallKindNode::Resume { .. } => None,
     }
 }
 
+fn stable_key_for_callable(
+    materialized: &MaterializedMir,
+    fqn: &str,
+) -> Option<crate::stable_id::StableInstanceKey> {
+    let owner = materialized.pass_view().owner_of_callable(fqn)?;
+    materialized.authoritative_stable_instance_key(owner)
+}
+
+fn dispatch_candidate_keys(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+    is_interface: bool,
+) -> Vec<CanonicalTextKey> {
+    let keys = dispatch
+        .stable_candidate_keys
+        .iter()
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .collect::<Vec<_>>();
+    if !keys.is_empty() {
+        return keys;
+    }
+
+    let candidate_fqns = if is_interface {
+        interface_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+    } else {
+        virtual_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+    };
+    let mut keys = candidate_fqns
+        .iter()
+        .filter_map(|fqn| stable_key_for_callable(materialized, fqn))
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .collect::<Vec<_>>();
+    keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    keys.dedup();
+    keys
+}
+
+fn dispatch_candidate_fqns_for_surface(
+    materialized: &MaterializedMir,
+    kind: &MirCallKindNode,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    match kind {
+        MirCallKindNode::Virtual { dispatch, .. } => {
+            virtual_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+        }
+        MirCallKindNode::Interface { dispatch, .. } => {
+            interface_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn virtual_dispatch_candidate_fqns(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(receiver_fqn) = nominal_type_fqn(&materialized.types, dispatch.receiver_ty) else {
+        return Vec::new();
+    };
+    let mut targets = BTreeSet::new();
+    for (class_fqn, slots) in &materialized.backend_contracts().class_vtables {
+        if class_fqn != receiver_fqn
+            && !class_is_known_subclass(materialized, class_fqn, receiver_fqn)
+        {
+            continue;
+        }
+        if let Some(slot) = slots.iter().find(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        }) {
+            targets.insert(slot.impl_member_fqn.clone());
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn interface_dispatch_candidate_fqns(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(interface) = materialized
+        .backend_contracts()
+        .interfaces
+        .get(&dispatch.owner_fqn)
+    else {
+        return Vec::new();
+    };
+    let Some(slot) = interface.method_slots.iter().find(|slot| {
+        slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+    }) else {
+        return Vec::new();
+    };
+    let mut targets = BTreeSet::new();
+    for entries in materialized.backend_contracts().class_itables.values() {
+        for entry in entries {
+            if entry.interface_fqn != dispatch.owner_fqn {
+                continue;
+            }
+            if let Some(target) = entry.method_impl_fqns.get(slot.slot as usize) {
+                targets.insert(target.clone());
+            }
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn class_is_known_subclass(
+    materialized: &MaterializedMir,
+    class_fqn: &str,
+    ancestor: &str,
+) -> bool {
+    let mut current = Some(class_fqn);
+    while let Some(fqn) = current {
+        if fqn == ancestor {
+            return true;
+        }
+        current = materialized
+            .backend_contracts()
+            .class_inits
+            .values()
+            .find(|init| init.fqn == fqn)
+            .and_then(|init| init.super_class_fqn.as_deref());
+    }
+    false
+}
+
+fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        _ => None,
+    }
+}
+
 fn call_site_surface_row(
-    types: &TypeStore,
+    materialized: &MaterializedMir,
     body: &crate::mir::Body,
     kind: &MirCallKindNode,
     pass_view: &MaterializedMirPassView<'_>,
+    explicit_arg_count: usize,
+    published_surface_by_fqn: &HashMap<String, FactEffectRowTemplate>,
 ) -> Option<FactEffectRowTemplate> {
+    let types = &materialized.types;
     match kind {
-        MirCallKindNode::Direct { callee_fqn, .. } => pass_view
-            .callable(callee_fqn)
-            .and_then(|fun| function_effect_row(types, fun.ty))
-            .map(|(row, closed)| effect_row_template(types, row, closed)),
+        MirCallKindNode::Direct { callee_fqn, .. } => published_surface_by_fqn
+            .get(callee_fqn)
+            .cloned()
+            .or_else(|| {
+                pass_view
+                    .callable(callee_fqn)
+                    .and_then(|fun| function_effect_row(types, fun.ty))
+                    .map(|(row, closed)| effect_row_template(types, row, closed))
+            }),
         MirCallKindNode::Closure { callee, .. }
         | MirCallKindNode::FunValue { callee }
         | MirCallKindNode::FunPtr { callee } => operand_function_effect_row(types, body, callee),
         MirCallKindNode::Virtual { dispatch, .. } | MirCallKindNode::Interface { dispatch, .. } => {
-            pass_view
-                .callable(&dispatch.member_fqn)
-                .and_then(|fun| function_effect_row(types, fun.ty))
-                .map(|(row, closed)| effect_row_template(types, row, closed))
+            let candidate_rows =
+                dispatch_candidate_fqns_for_surface(materialized, kind, explicit_arg_count)
+                    .into_iter()
+                    .filter_map(|fqn| {
+                        published_surface_by_fqn.get(&fqn).cloned().or_else(|| {
+                            pass_view
+                                .callable(&fqn)
+                                .and_then(|fun| function_effect_row(types, fun.ty))
+                                .map(|(row, closed)| effect_row_template(types, row, closed))
+                        })
+                    })
+                    .collect::<Vec<_>>();
+            if !candidate_rows.is_empty() {
+                return Some(merge_effect_rows(candidate_rows));
+            }
+            published_surface_by_fqn
+                .get(&dispatch.member_fqn)
+                .cloned()
+                .or_else(|| {
+                    pass_view
+                        .callable(&dispatch.member_fqn)
+                        .and_then(|fun| function_effect_row(types, fun.ty))
+                        .map(|(row, closed)| effect_row_template(types, row, closed))
+                })
         }
         MirCallKindNode::Resume { resume, .. } => Some(resume_effect_row(types, resume)),
     }
@@ -1151,10 +1384,67 @@ fn resume_effect_row(
     effect_row_template(types, &EffectRow::new(terms), false)
 }
 
-fn body_local_effect_rows(
+fn perform_effect_op_contract(
     types: &TypeStore,
+    op_fqn: &str,
+    metadata: &crate::mir::PerformMetadata,
+) -> MirEffectOpSiteContract {
+    MirEffectOpSiteContract {
+        op_fqn: op_fqn.to_string(),
+        effect_ty: metadata.effect_ty,
+        op_type_args: metadata.op_type_args.clone(),
+        payload_tuple_ty: fact_tuple_carrier_ty(
+            types,
+            metadata.payload_tuple_ty,
+            &metadata.payload_component_tys,
+        ),
+    }
+}
+
+fn handler_arm_effect_op_contract(
+    types: &TypeStore,
+    arm: &crate::mir::HandlerArm,
+) -> MirEffectOpSiteContract {
+    MirEffectOpSiteContract {
+        op_fqn: arm.op_fqn.clone(),
+        effect_ty: arm.handled_effect_ty,
+        op_type_args: arm.op_type_args.clone(),
+        payload_tuple_ty: fact_tuple_carrier_ty(
+            types,
+            arm.payload_tuple_ty,
+            &arm.payload_component_tys,
+        ),
+    }
+}
+
+fn fact_tuple_carrier_ty(
+    types: &TypeStore,
+    explicit: Option<TypeId>,
+    components: &[TypeId],
+) -> TypeId {
+    if let Some(ty) = explicit {
+        return ty;
+    }
+    match components {
+        [] => types
+            .builtins()
+            .expect("MIR fact publishing requires interned builtins")
+            .unit,
+        [single] => *single,
+        many => types
+            .iter_ids()
+            .find(|id| matches!(types.kind(*id), TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements == many))
+            .expect("MIR fact publishing requires tuple carrier type to exist"),
+    }
+}
+
+fn body_local_effect_rows(
+    materialized: &MaterializedMir,
     body: &crate::mir::Body,
+    pass_view: &MaterializedMirPassView<'_>,
+    published_surface_by_fqn: &HashMap<String, FactEffectRowTemplate>,
 ) -> Vec<FactEffectRowTemplate> {
+    let types = &materialized.types;
     let mut rows = Vec::new();
     for block in &body.blocks {
         for stmt in &block.stmts {
@@ -1175,6 +1465,18 @@ fn body_local_effect_rows(
                     kind: MirCallKindNode::Resume { resume, .. },
                     ..
                 } => rows.push(resume_effect_row(types, resume)),
+                MirRvalue::Call { kind, args, .. } => {
+                    if let Some(row) = call_site_surface_row(
+                        materialized,
+                        body,
+                        kind,
+                        pass_view,
+                        args.len(),
+                        published_surface_by_fqn,
+                    ) {
+                        rows.push(row);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1538,11 +1840,11 @@ fn collect_mir_boundary_facts(materialized: &MaterializedMir) -> MirBoundaryFact
                                 statement_index: statement_index as u32,
                             },
                             Some(target.as_u32()),
-                            call_carrier_source(body, kind),
+                            call_carrier_source(&materialized.types, body, kind),
                             args.iter()
-                                .map(|arg| operand_source(body, &arg.value))
+                                .map(|arg| operand_source(&materialized.types, body, &arg.value))
                                 .collect(),
-                            closure_env_decomposition(body, kind),
+                            closure_env_decomposition(&materialized.types, body, kind),
                         )),
                         MirRvalue::ClassCtor { site_id, args, .. } => {
                             facts.source_contracts.push(boundary_source_contract(
@@ -1558,7 +1860,9 @@ fn collect_mir_boundary_facts(materialized: &MaterializedMir) -> MirBoundaryFact
                                 Some(target.as_u32()),
                                 None,
                                 args.iter()
-                                    .map(|arg| operand_source(body, &arg.value))
+                                    .map(|arg| {
+                                        operand_source(&materialized.types, body, &arg.value)
+                                    })
                                     .collect(),
                                 None,
                             ));
@@ -1599,7 +1903,7 @@ fn collect_mir_boundary_facts(materialized: &MaterializedMir) -> MirBoundaryFact
                                     statement_index: statement_index as u32,
                                 },
                                 Some(target.as_u32()),
-                                Some(operand_source(body, receiver)),
+                                Some(operand_source(&materialized.types, body, receiver)),
                                 Vec::new(),
                                 None,
                             ));
@@ -1620,7 +1924,7 @@ fn collect_mir_boundary_facts(materialized: &MaterializedMir) -> MirBoundaryFact
                             None,
                             None,
                             args.iter()
-                                .map(|arg| operand_source(body, &arg.value))
+                                .map(|arg| operand_source(&materialized.types, body, &arg.value))
                                 .collect(),
                             None,
                         ));
@@ -1691,22 +1995,26 @@ fn boundary_source_contract(
 }
 
 fn call_carrier_source(
+    types: &TypeStore,
     body: &crate::mir::Body,
     kind: &MirCallKindNode,
 ) -> Option<BoundaryOperandSource> {
     match kind {
         MirCallKindNode::Closure { callee, .. }
         | MirCallKindNode::FunValue { callee }
-        | MirCallKindNode::FunPtr { callee } => Some(operand_source(body, callee)),
+        | MirCallKindNode::FunPtr { callee } => Some(operand_source(types, body, callee)),
         MirCallKindNode::Virtual { receiver, .. } | MirCallKindNode::Interface { receiver, .. } => {
-            Some(operand_source(body, receiver))
+            Some(operand_source(types, body, receiver))
         }
-        MirCallKindNode::Resume { continuation, .. } => Some(operand_source(body, continuation)),
+        MirCallKindNode::Resume { continuation, .. } => {
+            Some(operand_source(types, body, continuation))
+        }
         MirCallKindNode::Direct { .. } => None,
     }
 }
 
 fn closure_env_decomposition(
+    types: &TypeStore,
     body: &crate::mir::Body,
     kind: &MirCallKindNode,
 ) -> Option<ClosureEnvDecomposition> {
@@ -1728,7 +2036,7 @@ fn closure_env_decomposition(
             if target == local {
                 return Some(ClosureEnvDecomposition {
                     fn_ptr: fn_ptr.clone(),
-                    env: operand_source(body, env),
+                    env: operand_source(types, body, env),
                 });
             }
         }
@@ -1736,7 +2044,11 @@ fn closure_env_decomposition(
     None
 }
 
-fn operand_source(body: &crate::mir::Body, operand: &MirOperand) -> BoundaryOperandSource {
+fn operand_source(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    operand: &MirOperand,
+) -> BoundaryOperandSource {
     match operand {
         MirOperand::Local(local) => BoundaryOperandSource::Local {
             local: local.as_u32(),
@@ -1744,8 +2056,22 @@ fn operand_source(body: &crate::mir::Body, operand: &MirOperand) -> BoundaryOper
         },
         MirOperand::Const(value) => BoundaryOperandSource::Const {
             kind: format!("{value:?}"),
+            ty: const_value_ty(types, value),
         },
     }
+}
+
+fn const_value_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<TypeId> {
+    let builtins = types.builtins()?;
+    Some(match value {
+        crate::mir::ConstValue::Bool(_) => builtins.bool_,
+        crate::mir::ConstValue::Char => builtins.char_,
+        crate::mir::ConstValue::Unit => builtins.unit,
+        crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => builtins.int,
+        crate::mir::ConstValue::Float64 => builtins.float64,
+        crate::mir::ConstValue::Float32 => builtins.float32,
+        crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => builtins.string,
+    })
 }
 
 fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts {

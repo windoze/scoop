@@ -73,6 +73,18 @@ pub enum EffectFactsError {
     #[error("callable `{callable}` 的 step schema 中缺少 effect op `{op_fqn}` 对应的 case")]
     MissingCallableCase { callable: String, op_fqn: String },
 
+    #[error("MIR facts 缺少 P4 必需的 `{kind}` fact：{detail}")]
+    MissingMirFact { kind: &'static str, detail: String },
+
+    #[error("MIR facts 中的 stable instance key `{key}` 无法映射到当前 materialized snapshot")]
+    UnknownMirFactInstance { key: String },
+
+    #[error("MIR facts 中的 effect row term `{term}` 无法映射到当前 TypeStore")]
+    UnknownMirFactEffectTerm { term: String },
+
+    #[error("MIR facts 中出现 P4 当前不支持的非 concrete effect row term：{term}")]
+    UnsupportedMirFactEffectTerm { term: String },
+
     #[error("找不到 effect type `{effect_fqn}` 的声明头")]
     MissingEffectTypeSymbol { effect_fqn: String },
 

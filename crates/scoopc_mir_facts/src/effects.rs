@@ -2,6 +2,7 @@
 
 use scoopc_ids::{BodyBlockId, CanonicalTextKey, SiteId, StageArtifactKey};
 use scoopc_span::Span;
+use scoopc_types::TypeId;
 
 use crate::common::{FactIdentity, MirBodyReference};
 
@@ -163,6 +164,7 @@ pub struct MirSiteInventoryFact {
     pub block: BodyBlockId,
     pub statement_index: Option<u32>,
     pub result_local: Option<u32>,
+    pub result_ty: Option<TypeId>,
     pub span: Option<Span>,
     pub cleanup: bool,
 }
@@ -194,12 +196,31 @@ pub enum MirEffectEventKind {
         source_fqn: String,
     },
     Perform {
-        op_fqn: String,
+        op: MirEffectOpSiteContract,
     },
-    Resume,
+    Resume {
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        continuation_ty: TypeId,
+        surface_row: EffectRowTemplate,
+    },
     Handle {
-        handled_effects: Vec<CanonicalTextKey>,
+        result_ty: TypeId,
+        body_target: BodyBlockId,
+        arm_targets: Vec<BodyBlockId>,
+        finally_target: Option<BodyBlockId>,
+        exit_target: BodyBlockId,
+        arms: Vec<MirEffectOpSiteContract>,
     },
+}
+
+/// Typed effect-operation contract for one perform or handle arm site.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct MirEffectOpSiteContract {
+    pub op_fqn: String,
+    pub effect_ty: TypeId,
+    pub op_type_args: Vec<TypeId>,
+    pub payload_tuple_ty: TypeId,
 }
 
 /// Language-level call shape used by MIR facts.
