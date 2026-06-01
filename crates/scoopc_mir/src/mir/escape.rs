@@ -751,6 +751,7 @@ mod tests {
                             site_id: SiteId::from_raw(0),
                             kind: CallKind::Direct {
                                 callee_fqn: "fixtures.escape.consume".to_string(),
+                                stable_template_key: None,
                                 stable_instance_key: None,
                             },
                             args: vec![CallArg {

@@ -259,6 +259,20 @@ fn source_site_keys(facts: &HirFacts) -> Vec<SourceSiteKey> {
     keys.extend(
         facts
             .source_sites
+            .call_site_instances
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "call_instance", String::new())),
+    );
+    keys.extend(
+        facts
+            .source_sites
+            .dispatch_candidates
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "dispatch_candidate", String::new())),
+    );
+    keys.extend(
+        facts
+            .source_sites
             .argument_bindings
             .iter()
             .map(|fact| source_site_key(&fact.identity, "argument", String::new())),

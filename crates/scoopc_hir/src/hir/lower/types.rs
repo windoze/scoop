@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
+use scoopc_ids::TemplateKey;
 use thiserror::Error;
 
 use crate::ast;
@@ -15,7 +16,7 @@ use crate::cone::SourceConeInfo;
 use crate::parser::ParseError;
 use crate::resolve::ResolveError;
 use crate::span::Span;
-use crate::stable_id::{StableConeKey, StableTypeParamKey};
+use crate::stable_id::{StableConeKey, StableTemplateKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
 use crate::typecheck::{
     AnnotationError, ExprTypeError, PropertyDeclError, StructDeclError, TypeEnvError,
@@ -239,6 +240,8 @@ pub struct LoweredHir {
     pub source_cone_order: HashMap<StableConeKey, u32>,
     /// 声明级 type/effect 参数到 stable owner/index key 的 lowering 缓存。
     pub stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
+    /// Generic template declarations keyed by frontend template identity and tagged with semantic stable keys.
+    pub generic_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///
     /// 说明：

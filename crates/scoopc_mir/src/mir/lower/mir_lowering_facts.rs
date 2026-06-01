@@ -452,6 +452,14 @@ fn function_contract_from_fact(fact: &hir_site_facts::FunctionTarget) -> Functio
         abi_identity: callable_abi_from_fact(fact.abi),
         param_tys: fact.param_tys.clone(),
         return_ty: fact.return_ty,
+        stable_template_key: fact
+            .stable_template_key
+            .as_ref()
+            .and_then(|key| StableTemplateKey::from_canonical_text(key.as_str()).ok()),
+        stable_instance_key: fact
+            .stable_instance_key
+            .as_ref()
+            .and_then(|key| StableInstanceKey::from_canonical_text(key.as_str()).ok()),
         type_args: fact.type_args.clone(),
         eff_args: fact.eff_args.clone(),
         arg_binding: fact.arg_binding.as_ref().map(call_arg_binding_from_fact),

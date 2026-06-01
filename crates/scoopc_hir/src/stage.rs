@@ -14,7 +14,8 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    CanonicalTextKey, SiteId, StableHashScope, StableInstanceKey, stable_hash64,
+    CanonicalTextKey, NoTypeParamResolver, SiteId, StableCanonicalKey, StableHashScope,
+    StableInstanceKey, StableTemplateKey, stable_hash64,
 };
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::{
@@ -661,6 +662,7 @@ pub struct FunctionTargetContract {
     pub(crate) abi_identity: CallableAbiIdentity,
     pub(crate) param_tys: Vec<TypeId>,
     pub(crate) return_ty: Option<TypeId>,
+    pub(crate) stable_template_key: Option<StableTemplateKey>,
     pub(crate) stable_instance_key: Option<StableInstanceKey>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
@@ -672,8 +674,42 @@ impl FunctionTargetContract {
         types: &TypeStore,
         binding: &ast::TopLevelFunCallBinding,
         abi_identity: CallableAbiIdentity,
+        stable_template_key: Option<StableTemplateKey>,
         arg_binding: Option<CallArgBindingContract>,
     ) -> Self {
+        let type_args = binding
+            .type_args
+            .iter()
+            .copied()
+            .filter(|ty| type_id_in_store(types, *ty))
+            .collect::<Vec<_>>();
+        let eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                EffectRow::new(
+                    row.terms
+                        .iter()
+                        .copied()
+                        .filter(|ty| type_id_in_store(types, *ty))
+                        .collect(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let stable_instance_key = stable_template_key.as_ref().and_then(|template| {
+            instance_args_are_concrete(types, &type_args, &eff_args)
+                .then(|| {
+                    StableInstanceKey::from_type_arguments(
+                        template.clone(),
+                        types,
+                        &type_args,
+                        &eff_args,
+                        &NoTypeParamResolver,
+                    )
+                    .ok()
+                })
+                .flatten()
+        });
         Self {
             fqn: binding.fqn.clone(),
             decl_file: Some(binding.decl_file.clone()),
@@ -686,26 +722,10 @@ impl FunctionTargetContract {
                 .filter(|ty| type_id_in_store(types, *ty))
                 .collect(),
             return_ty: binding.return_ty.filter(|ty| type_id_in_store(types, *ty)),
-            stable_instance_key: None,
-            type_args: binding
-                .type_args
-                .iter()
-                .copied()
-                .filter(|ty| type_id_in_store(types, *ty))
-                .collect(),
-            eff_args: binding
-                .eff_args
-                .iter()
-                .map(|row| {
-                    EffectRow::new(
-                        row.terms
-                            .iter()
-                            .copied()
-                            .filter(|ty| type_id_in_store(types, *ty))
-                            .collect(),
-                    )
-                })
-                .collect(),
+            stable_template_key,
+            stable_instance_key,
+            type_args,
+            eff_args,
             arg_binding,
         }
     }
@@ -722,6 +742,7 @@ impl FunctionTargetContract {
             abi_identity,
             param_tys: Vec::new(),
             return_ty: None,
+            stable_template_key: None,
             stable_instance_key: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
@@ -753,6 +774,10 @@ impl FunctionTargetContract {
 
     pub fn return_ty(&self) -> Option<TypeId> {
         self.return_ty
+    }
+
+    pub fn stable_template_key(&self) -> Option<&StableTemplateKey> {
+        self.stable_template_key.as_ref()
     }
 
     pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
@@ -2078,6 +2103,12 @@ fn populate_source_site_facts(
         facts
             .call_sites
             .push(call_site_contract_fact(call_site, contract));
+        if let Some(instance_fact) = call_site_instance_fact(call_site, contract) {
+            facts.call_site_instances.push(instance_fact);
+        }
+        if let Some(candidate_fact) = dispatch_candidate_fact(call_site, contract) {
+            facts.dispatch_candidates.push(candidate_fact);
+        }
         if let Some(binding) = call_site_contract_arg_binding(contract) {
             facts
                 .argument_bindings
@@ -2341,12 +2372,77 @@ fn call_site_contract_arg_binding(
     }
 }
 
+fn call_site_instance_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::CallSiteInstanceFact> {
+    let function = function_target_from_call_contract(contract)?;
+    let template_key = function.stable_template_key.as_ref()?;
+    let stable_instance_key = function.stable_instance_key.as_ref()?;
+    Some(hir_site_facts::CallSiteInstanceFact {
+        identity: source_site_identity(call_site, "call_instance"),
+        template_key: CanonicalTextKey::new(template_key.canonical_text()),
+        stable_instance_key: CanonicalTextKey::new(stable_instance_key.canonical_text()),
+        type_args: function.type_args.clone(),
+        eff_args: function.eff_args.clone(),
+    })
+}
+
+fn dispatch_candidate_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::DispatchCandidateFact> {
+    let (dispatch_kind, member) = match contract {
+        TypedCallSiteContract::Virtual(member) => {
+            (hir_site_facts::CallSiteKind::VirtualDispatch, member)
+        }
+        TypedCallSiteContract::Interface(member) => {
+            (hir_site_facts::CallSiteKind::InterfaceDispatch, member)
+        }
+        _ => return None,
+    };
+    let stable_instance_key = member.function.stable_instance_key.as_ref()?;
+    Some(hir_site_facts::DispatchCandidateFact {
+        identity: source_site_identity(call_site, "dispatch_candidate"),
+        dispatch_kind,
+        receiver_ty: member.receiver_ty,
+        stable_instance_keys: vec![CanonicalTextKey::new(stable_instance_key.canonical_text())],
+    })
+}
+
+fn function_target_from_call_contract(
+    contract: &TypedCallSiteContract,
+) -> Option<&FunctionTargetContract> {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function)
+        | TypedCallSiteContract::Intrinsic { function, .. } => Some(function),
+        TypedCallSiteContract::MemberDirect(member)
+        | TypedCallSiteContract::Virtual(member)
+        | TypedCallSiteContract::Interface(member) => Some(member.function()),
+        TypedCallSiteContract::Extension { function, .. } => Some(function),
+        TypedCallSiteContract::Constructor(_)
+        | TypedCallSiteContract::Closure { .. }
+        | TypedCallSiteContract::FunValue { .. }
+        | TypedCallSiteContract::FunPtr { .. }
+        | TypedCallSiteContract::EffectOp(_)
+        | TypedCallSiteContract::ContinuationResume(_) => None,
+    }
+}
+
 fn function_target_fact(function: &FunctionTargetContract) -> hir_site_facts::FunctionTarget {
     hir_site_facts::FunctionTarget {
         fqn: function.fqn.clone(),
         decl_file: function.decl_file.clone(),
         decl_span: function.decl_span,
         abi: callable_abi_fact(function.abi_identity),
+        stable_template_key: function
+            .stable_template_key
+            .as_ref()
+            .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        stable_instance_key: function
+            .stable_instance_key
+            .as_ref()
+            .map(|key| CanonicalTextKey::new(key.canonical_text())),
         param_tys: function.param_tys.clone(),
         return_ty: function.return_ty,
         type_args: function.type_args.clone(),
@@ -3745,7 +3841,10 @@ impl<'a> ContractCollector<'a> {
 
     fn collect(mut self, source_path: &Path) -> Result<CollectedHirContracts, HirStageError> {
         for item in &self.lowered_hir.file.items {
-            self.collect_item(source_path, item)?;
+            let item_path = self
+                .item_source_path(source_path, item)
+                .unwrap_or_else(|| source_path.to_path_buf());
+            self.collect_item(&item_path, item)?;
         }
 
         for member_fun in &self.lowered_hir.member_funs {
@@ -3944,6 +4043,32 @@ impl<'a> ContractCollector<'a> {
             found_one = true;
         }
         false
+    }
+
+    fn stable_template_key_for_binding(
+        &self,
+        binding: &ast::TopLevelFunCallBinding,
+    ) -> Option<StableTemplateKey> {
+        fn span_contains(outer: Span, inner: Span) -> bool {
+            outer.start <= inner.start && inner.end <= outer.end
+        }
+
+        self.lowered_hir
+            .generic_stable_template_keys
+            .iter()
+            .filter(|(template, _)| {
+                template.fqn == binding.fqn
+                    && template.source_path == binding.decl_file
+                    && (template.decl_span == binding.decl_span
+                        || span_contains(template.decl_span, binding.decl_span))
+            })
+            .min_by(|(lhs, _), (rhs, _)| {
+                lhs.decl_span
+                    .start
+                    .cmp(&rhs.decl_span.start)
+                    .then(lhs.decl_span.end.cmp(&rhs.decl_span.end))
+            })
+            .map(|(_, stable)| stable.clone())
     }
 
     fn callable_abi_identity_for_fqn(&self, fqn: &str) -> CallableAbiIdentity {
@@ -4201,10 +4326,12 @@ impl<'a> ContractCollector<'a> {
             let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
             let abi_identity =
                 self.callable_abi_identity_for_binding(binding, source_path, expr.span)?;
+            let stable_template_key = self.stable_template_key_for_binding(binding);
             let function = FunctionTargetContract::from_binding(
                 &self.lowered_hir.types,
                 binding,
                 abi_identity,
+                stable_template_key,
                 arg_binding.clone(),
             );
 
@@ -4721,6 +4848,61 @@ fn is_funptr_ty(types: &TypeStore, ty: TypeId) -> bool {
 
 fn type_id_in_store(types: &TypeStore, ty: TypeId) -> bool {
     (ty.as_u32() as usize) < types.len()
+}
+
+fn instance_args_are_concrete(
+    types: &TypeStore,
+    type_args: &[TypeId],
+    eff_args: &[EffectRow],
+) -> bool {
+    type_args.iter().all(|&ty| !type_contains_param(types, ty))
+        && eff_args
+            .iter()
+            .all(|row| row.terms.iter().all(|&ty| !type_contains_param(types, ty)))
+}
+
+fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    let mut stack = vec![ty];
+    while let Some(id) = stack.pop() {
+        match types.kind(id) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied())
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied())
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+    false
 }
 
 fn function_effect_contract(types: &TypeStore, fun_ty: TypeId) -> Option<(EffectRow, bool)> {

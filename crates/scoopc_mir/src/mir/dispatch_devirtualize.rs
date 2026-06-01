@@ -400,6 +400,7 @@ fn rewrite_callable_body_once(
             *args = dispatch_direct_call_args(stmt.span, &receiver, args);
             *kind = CallKind::Direct {
                 callee_fqn: target_fqn,
+                stable_template_key: None,
                 stable_instance_key: None,
             };
             changed = true;

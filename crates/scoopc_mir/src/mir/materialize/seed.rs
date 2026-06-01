@@ -14,6 +14,31 @@ impl MirInstanceMaterializer {
             .cloned()
     }
 
+    pub(super) fn resolve_request_template_by_decl_site(
+        &self,
+        fqn: &str,
+        decl_file: &Path,
+        decl_span: Span,
+    ) -> Option<TemplateKey> {
+        fn span_contains(outer: Span, inner: Span) -> bool {
+            outer.start <= inner.start && inner.end <= outer.end
+        }
+
+        self.resolve_request_template(fqn, decl_file, decl_span)
+            .or_else(|| {
+                self.request_templates
+                    .iter()
+                    .find(|((request_fqn, request_file, request_span), template)| {
+                        request_fqn == fqn
+                            && request_file.as_path() == decl_file
+                            && (*request_span == decl_span
+                                || span_contains(template.decl_span, decl_span)
+                                || span_contains(decl_span, *request_span))
+                    })
+                    .map(|(_, template)| template.clone())
+            })
+    }
+
     pub(super) fn resolve_stable_request_template(
         &self,
         stable_template_key: &StableTemplateKey,
@@ -21,6 +46,47 @@ impl MirInstanceMaterializer {
         self.templates_by_stable_key
             .get(stable_template_key)
             .cloned()
+    }
+
+    pub(super) fn instance_key_from_stable_instance_key(
+        &self,
+        stable_instance_key: &StableInstanceKey,
+    ) -> MaterializeResult<Option<InstanceKey>> {
+        let Some(template) = self.resolve_stable_request_template(stable_instance_key.template())
+        else {
+            return Ok(None);
+        };
+        let type_args = stable_instance_key
+            .canonical_type_args()
+            .iter()
+            .map(|canonical| {
+                find_canonical_type_in_store(&self.types, canonical).ok_or_else(|| {
+                    frontend_err(format!(
+                        "无法在 materializer type store 中定位 stable type argument `{canonical}`"
+                    ))
+                })
+            })
+            .collect::<MaterializeResult<Vec<_>>>()?;
+        let eff_args = stable_instance_key
+            .effect_arg_templates()
+            .iter()
+            .map(|template| {
+                template
+                    .to_effect_row_with(|type_key| {
+                        find_canonical_type_in_store(&self.types, type_key.as_str())
+                    })
+                    .map_err(|err| {
+                        frontend_err(format!(
+                            "无法在 materializer type store 中定位 stable effect row `{template}`: {err}"
+                        ))
+                    })
+            })
+            .collect::<MaterializeResult<Vec<_>>>()?;
+        Ok(Some(InstanceKey {
+            template,
+            type_args,
+            eff_args,
+        }))
     }
 
     fn localize_stable_request_args(
@@ -252,7 +318,7 @@ impl MirInstanceMaterializer {
     }
 }
 
-fn find_canonical_type_in_store(types: &TypeStore, canonical: &str) -> Option<TypeId> {
+pub(super) fn find_canonical_type_in_store(types: &TypeStore, canonical: &str) -> Option<TypeId> {
     types.iter_ids().find(|&ty| {
         !type_contains_param(types, ty)
             && canonical_type_text(types, ty, &NoTypeParamResolver)

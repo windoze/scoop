@@ -14,6 +14,8 @@ use crate::globals::GlobalStoragePolicy;
 pub struct SourceSiteFacts {
     pub function_effects: Vec<FunctionEffectContract>,
     pub call_sites: Vec<CallSiteContract>,
+    pub call_site_instances: Vec<CallSiteInstanceFact>,
+    pub dispatch_candidates: Vec<DispatchCandidateFact>,
     pub argument_bindings: Vec<ArgumentBindingContract>,
     pub assignments: Vec<AssignmentContract>,
     pub with_updates: Vec<WithUpdateContract>,
@@ -30,6 +32,8 @@ impl SourceSiteFacts {
     pub fn is_empty(&self) -> bool {
         self.function_effects.is_empty()
             && self.call_sites.is_empty()
+            && self.call_site_instances.is_empty()
+            && self.dispatch_candidates.is_empty()
             && self.argument_bindings.is_empty()
             && self.assignments.is_empty()
             && self.with_updates.is_empty()
@@ -233,11 +237,32 @@ pub struct FunctionTarget {
     pub decl_file: Option<PathBuf>,
     pub decl_span: Option<Span>,
     pub abi: CallableAbi,
+    pub stable_template_key: Option<CanonicalTextKey>,
+    pub stable_instance_key: Option<CanonicalTextKey>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
     pub arg_binding: Option<CallArgBindingContract>,
+}
+
+/// Materializer-ready instance identity observed at a source call site.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CallSiteInstanceFact {
+    pub identity: SourceSiteIdentity,
+    pub template_key: CanonicalTextKey,
+    pub stable_instance_key: CanonicalTextKey,
+    pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
+}
+
+/// Stable dispatch candidate identity published before materialization.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DispatchCandidateFact {
+    pub identity: SourceSiteIdentity,
+    pub dispatch_kind: CallSiteKind,
+    pub receiver_ty: TypeId,
+    pub stable_instance_keys: Vec<CanonicalTextKey>,
 }
 
 /// Member call target identity and receiver type.

@@ -208,7 +208,11 @@ pub(super) fn stabilize_monomorph_requests(
                 key.symbol.decl_file.clone(),
                 key.symbol.decl_span,
             );
-            let Some(stable_template_key) = templates_by_request.get(&lookup_key).cloned() else {
+            let stable_template_key = templates_by_request
+                .get(&lookup_key)
+                .cloned()
+                .or_else(|| stable_template_key_by_containing_span(template_catalog, key));
+            let Some(stable_template_key) = stable_template_key else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: key.symbol.fqn.clone(),
@@ -239,4 +243,118 @@ pub(super) fn stabilize_monomorph_requests(
             Ok(request)
         })
         .collect()
+}
+
+fn stable_template_key_by_containing_span(
+    template_catalog: &[GenericTemplateInfo],
+    key: &crate::monomorph::MonomorphKey,
+) -> Option<StableTemplateKey> {
+    fn span_contains(outer: Span, inner: Span) -> bool {
+        outer.start <= inner.start && inner.end <= outer.end
+    }
+
+    template_catalog
+        .iter()
+        .find(|info| {
+            info.request_lookup_key.0 == key.symbol.fqn
+                && info.request_lookup_key.1 == key.symbol.decl_file
+                && (span_contains(info.template.decl_span, key.symbol.decl_span)
+                    || span_contains(key.symbol.decl_span, info.request_lookup_key.2))
+        })
+        .map(|info| info.stable_template_key.clone())
+}
+
+#[allow(dead_code)]
+pub(super) fn stabilize_monomorph_requests_from_hir_facts(
+    typecheck_types: &TypeStore,
+    monomorph_requests: &[MonomorphRequest],
+    hir_facts: &scoopc_hir::hir_facts::HirFacts,
+) -> MaterializeResult<Vec<MonomorphRequest>> {
+    monomorph_requests
+        .iter()
+        .map(|request| {
+            let key = &request.key;
+            if key.type_args.is_empty() && key.eff_args.is_empty() {
+                return Ok(request.clone());
+            }
+            if !instance_request_is_concrete(typecheck_types, &key.type_args, &key.eff_args) {
+                return Ok(request.clone());
+            }
+            if key.stable_template_key.is_some() && key.stable_instance_key.is_some() {
+                return Ok(request.clone());
+            }
+            let Some(fact) = stable_call_site_instance_fact_for_request(hir_facts, request) else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: key.symbol.fqn.clone(),
+                        file: key.symbol.decl_file.display().to_string(),
+                        span: key.symbol.decl_span,
+                        call_file: Some(request.request_source_path.display().to_string()),
+                        call_site: Some(request.call_span),
+                    },
+                ));
+            };
+            let stable_template_key = StableTemplateKey::from_canonical_text(
+                fact.template_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR call-site fact for `{}` has invalid stable template key: {err}",
+                    key.symbol.fqn
+                ))
+            })?;
+            let stable_instance_key = StableInstanceKey::from_canonical_text(
+                fact.stable_instance_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR call-site fact for `{}` has invalid stable instance key: {err}",
+                    key.symbol.fqn
+                ))
+            })?;
+            if stable_instance_key.template() != &stable_template_key {
+                return Err(frontend_err(format!(
+                    "HIR call-site fact for `{}` has mismatched stable template/instance keys",
+                    key.symbol.fqn
+                )));
+            }
+            let mut request = request.clone();
+            request.key = request
+                .key
+                .with_stable_identity(stable_template_key, stable_instance_key);
+            Ok(request)
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
+fn stable_call_site_instance_fact_for_request<'a>(
+    hir_facts: &'a scoopc_hir::hir_facts::HirFacts,
+    request: &MonomorphRequest,
+) -> Option<&'a scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact> {
+    fn spans_overlap(lhs: Span, rhs: Span) -> bool {
+        lhs.start <= rhs.end && rhs.start <= lhs.end
+    }
+
+    hir_facts
+        .source_sites
+        .call_site_instances
+        .iter()
+        .filter(|fact| fact.identity.source_path == request.request_source_path)
+        .filter(|fact| fact.template_key.as_str().contains(&request.key.symbol.fqn))
+        .filter(|fact| {
+            fact.identity.span == request.call_span
+                || spans_overlap(fact.identity.span, request.call_span)
+        })
+        .min_by(|lhs, rhs| {
+            let lhs_exact = lhs.identity.span == request.call_span;
+            let rhs_exact = rhs.identity.span == request.call_span;
+            rhs_exact.cmp(&lhs_exact).then_with(|| {
+                lhs.identity
+                    .span
+                    .start
+                    .cmp(&rhs.identity.span.start)
+                    .then(lhs.identity.span.end.cmp(&rhs.identity.span.end))
+            })
+        })
 }

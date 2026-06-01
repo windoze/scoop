@@ -1070,6 +1070,7 @@ impl MirInstanceMaterializer {
         match kind {
             CallKind::Direct {
                 callee_fqn,
+                stable_template_key,
                 stable_instance_key,
             } => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
@@ -1082,6 +1083,7 @@ impl MirInstanceMaterializer {
                 }
                 self.materialize_direct_call_target(
                     callee_fqn,
+                    stable_template_key,
                     stable_instance_key,
                     args,
                     direct_ctx,
@@ -1270,10 +1272,27 @@ impl MirInstanceMaterializer {
     pub(super) fn materialize_direct_call_target(
         &mut self,
         callee_fqn: &mut String,
+        stable_template_key: &mut Option<Box<StableTemplateKey>>,
         stable_instance_key: &mut Option<Box<StableInstanceKey>>,
         args: &[CallArg],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        if let Some(stable_key) = stable_instance_key.as_deref()
+            && let Some(instance_key) = self.instance_key_from_stable_instance_key(stable_key)?
+        {
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            if let Some(return_ty) = self.instance_return_ty(&instance_key)
+                && !type_contains_param(&self.types, return_ty)
+            {
+                self.materialized_direct_call_result_tys
+                    .insert(instance_fqn.clone(), return_ty);
+            }
+            *callee_fqn = instance_fqn;
+            *stable_template_key = Some(Box::new(stable_key.template().clone()));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
+
         if let Some(reachable_callee) = self.resolve_bound_non_generic_fun_call(
             ctx.template_source_path,
             ctx.call_span,
@@ -1313,7 +1332,9 @@ impl MirInstanceMaterializer {
                     .insert(instance_fqn.clone(), return_ty);
             }
             *callee_fqn = instance_fqn;
-            *stable_instance_key = Some(Box::new(self.stable_instance_key(&instance_key)));
+            let stable_key = self.stable_instance_key(&instance_key);
+            *stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *stable_instance_key = Some(Box::new(stable_key));
             self.enqueue(instance_key);
             return Ok(());
         }

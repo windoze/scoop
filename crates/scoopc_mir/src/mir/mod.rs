@@ -40,7 +40,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::span::Span;
-use crate::stable_id::{StableConeKey, StableInstanceKey};
+use crate::stable_id::{StableConeKey, StableInstanceKey, StableTemplateKey};
 use crate::ty::{EffectRow, MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
@@ -2653,6 +2653,8 @@ pub enum CallKind {
     Direct {
         callee_fqn: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        stable_template_key: Option<Box<StableTemplateKey>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         stable_instance_key: Option<Box<StableInstanceKey>>,
     },
     /// 已知调用的是某个 closure value。
@@ -4496,6 +4498,7 @@ mod tests {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "sample.helper".to_string(),
+                            stable_template_key: None,
                             stable_instance_key: None,
                         },
                         args: Vec::new(),

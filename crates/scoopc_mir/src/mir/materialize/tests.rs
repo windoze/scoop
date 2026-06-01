@@ -118,6 +118,109 @@ fn prepare_typechecked_compilation_unit_inputs(
     (files, index, env, types, monomorph_requests)
 }
 
+#[test]
+fn hir_facts_publish_stable_instance_for_generic_direct_call() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/hir_fact_stable_call_site_instance.scoop",
+        r#"
+package fixtures.materialize
+
+fun <T> id(value: T): T {
+    return value
+}
+
+fun entry(): Int {
+    return id<Int>(1)
+}
+"#,
+    );
+    let (files, index, env, typecheck_types, _) =
+        prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+    let compilation_unit = files
+        .iter()
+        .map(|(source, ast)| (source, ast))
+        .collect::<Vec<_>>();
+    let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+    let lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        stable_cone_key,
+        &index,
+        &compilation_unit,
+        &compilation_unit,
+        Some(&env),
+        &typecheck_types,
+    )
+    .unwrap();
+    let facts =
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+
+    let call_instance = facts
+        .source_sites
+        .call_site_instances
+        .iter()
+        .find(|fact| {
+            fact.template_key
+                .as_str()
+                .contains("fixtures.materialize.id")
+        })
+        .expect("generic direct call should publish a stable call-site instance fact");
+    assert_eq!(call_instance.type_args.len(), 1);
+    assert!(call_instance.eff_args.is_empty());
+    assert!(
+        call_instance
+            .stable_instance_key
+            .as_str()
+            .contains("fixtures.materialize.id"),
+        "stable instance key should preserve the selected callee identity"
+    );
+
+    let mut lowered_hir = lowered_hir;
+    let mir_facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &facts);
+    let file = lowered_hir.file.clone();
+    let member_funs = lowered_hir.member_funs.clone();
+    let generic_file = lower_hir_file_for_dump_with_facts(
+        lowered_hir.builtins,
+        &mut lowered_hir.types,
+        &file,
+        &member_funs,
+        &mir_facts,
+    );
+    let entry_fun = generic_file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == "fixtures.materialize.entry" => Some(fun),
+            _ => None,
+        })
+        .expect("entry MIR should be lowered");
+    let body = entry_fun.body.as_ref().expect("entry should have a body");
+    let direct_call = body
+        .blocks
+        .iter()
+        .flat_map(|block| block.stmts.iter())
+        .find_map(|stmt| match &stmt.kind {
+            StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        kind:
+                            CallKind::Direct {
+                                callee_fqn,
+                                stable_template_key,
+                                stable_instance_key,
+                            },
+                        ..
+                    },
+                ..
+            } if callee_fqn == "fixtures.materialize.id" => {
+                Some((stable_template_key, stable_instance_key))
+            }
+            _ => None,
+        })
+        .expect("generic direct call should lower to MIR Direct call");
+    assert!(direct_call.0.is_some());
+    assert!(direct_call.1.is_some());
+}
+
 fn test_span() -> Span {
     Span::new(10, 20)
 }
@@ -1295,6 +1398,7 @@ fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
                     site_id: SiteId::from_raw(0),
                     kind: CallKind::Direct {
                         callee_fqn: "fixtures.materialize.callee".to_string(),
+                        stable_template_key: None,
                         stable_instance_key: None,
                     },
                     args: vec![CallArg {
@@ -3049,6 +3153,7 @@ fn append_unreachable_id_call_to_main(generic_file: &mut File, builtins: Builtin
                     site_id: crate::mir::SiteId::from_raw(0),
                     kind: CallKind::Direct {
                         callee_fqn: "fixtures.materialize.id".to_string(),
+                        stable_template_key: None,
                         stable_instance_key: None,
                     },
                     args: vec![CallArg {

@@ -17,6 +17,7 @@ use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::{StableInstanceKey, StableTemplateKey};
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
@@ -234,6 +235,8 @@ pub struct FunctionTargetContract {
     pub(crate) abi_identity: hir::CallableAbiIdentity,
     pub(crate) param_tys: Vec<TypeId>,
     pub(crate) return_ty: Option<TypeId>,
+    pub(crate) stable_template_key: Option<StableTemplateKey>,
+    pub(crate) stable_instance_key: Option<StableInstanceKey>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -258,6 +261,14 @@ impl FunctionTargetContract {
 
     pub fn return_ty(&self) -> Option<TypeId> {
         self.return_ty
+    }
+
+    pub fn stable_template_key(&self) -> Option<&StableTemplateKey> {
+        self.stable_template_key.as_ref()
+    }
+
+    pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
+        self.stable_instance_key.as_ref()
     }
 
     pub fn arg_binding(&self) -> Option<&CallArgBindingContract> {

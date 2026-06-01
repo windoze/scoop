@@ -169,6 +169,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             &index,
             &pairs,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        &index,
+        &pairs,
+        &HashMap::new(),
+    );
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
@@ -350,6 +356,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
         member_funs,
         types,
         struct_layouts,

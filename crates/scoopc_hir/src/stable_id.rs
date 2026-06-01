@@ -106,6 +106,15 @@ impl StableDefKey {
     pub fn overload_signature_key(&self) -> Option<&str> {
         self.overload_signature_key.as_deref()
     }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_def_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "def".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
+    }
 }
 
 impl StableCanonicalKey for StableDefKey {
@@ -142,6 +151,15 @@ impl StableTemplateKey {
 
     pub fn def(&self) -> &StableDefKey {
         &self.def
+    }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_template_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "template".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
     }
 }
 
@@ -497,6 +515,15 @@ impl StableInstanceKey {
             .collect::<Result<Vec<_>, _>>()
             .expect("canonical effect arguments must be effect-row template text");
         Self::from_effect_arg_templates(template, canonical_type_args, effect_arg_templates)
+    }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_instance_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "instance".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
     }
 
     pub fn from_effect_arg_templates(
@@ -1032,6 +1059,8 @@ pub enum CanonicalEncodingError {
     MissingEffectParamKey { param_name: String },
     #[error("invalid effect row template canonical text `{text}`")]
     InvalidEffectRowTemplateText { text: String },
+    #[error("invalid stable {kind} key canonical text `{text}`")]
+    InvalidStableKeyText { kind: String, text: String },
     #[error("unresolved effect type key `{type_key}`")]
     UnresolvedEffectTypeKey { type_key: String },
     #[error("effect row template still contains unsubstituted effect parameter `{param_name}`")]
@@ -1385,6 +1414,34 @@ fn parse_stable_effect_param_key(text: &str) -> Option<StableEffectParamKey> {
         ordinal_text.parse().ok()?,
         (*name).to_string(),
     ))
+}
+
+fn parse_stable_instance_key(text: &str) -> Option<StableInstanceKey> {
+    let parts = parse_canonical_record(text, "instance")?;
+    let [template_text, type_args_text, effect_args_text] = parts.as_slice() else {
+        return None;
+    };
+    let canonical_type_args = parse_canonical_record(type_args_text, "list")?
+        .into_iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let canonical_effect_args = parse_canonical_record(effect_args_text, "list")?
+        .into_iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    Some(StableInstanceKey::from_canonical_args(
+        parse_stable_template_key(template_text)?,
+        canonical_type_args,
+        canonical_effect_args,
+    ))
+}
+
+fn parse_stable_template_key(text: &str) -> Option<StableTemplateKey> {
+    let parts = parse_canonical_record(text, "template")?;
+    let [def_text] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableTemplateKey::new(parse_stable_def_key(def_text)?))
 }
 
 fn parse_stable_def_key(text: &str) -> Option<StableDefKey> {
@@ -1761,6 +1818,31 @@ mod tests {
             vec!["E(N(pkg.Async))!".to_string()]
         );
         assert!(instance.canonical_text().contains("E(N(pkg.Async))!"));
+    }
+
+    #[test]
+    fn stable_template_and_instance_keys_parse_canonical_text() {
+        let template = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "demo.id",
+            "generic_fun",
+            Some("sig".to_string()),
+        ));
+        let instance = StableInstanceKey::from_canonical_args(
+            template.clone(),
+            vec!["V(Int)".to_string()],
+            vec![EffectRowTemplate::pure().canonical_text()],
+        );
+
+        assert_eq!(
+            StableTemplateKey::from_canonical_text(template.canonical_text()).unwrap(),
+            template
+        );
+        assert_eq!(
+            StableInstanceKey::from_canonical_text(instance.canonical_text()).unwrap(),
+            instance
+        );
     }
 
     #[test]

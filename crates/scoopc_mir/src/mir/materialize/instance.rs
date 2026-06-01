@@ -453,9 +453,11 @@ impl MirInstanceMaterializer {
             if binding.type_args.is_empty() && binding.eff_args.is_empty() {
                 continue;
             }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
-            else {
+            let Some(template) = self.resolve_request_template_by_decl_site(
+                &binding.fqn,
+                &binding.decl_file,
+                binding.decl_span,
+            ) else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: binding.fqn,
@@ -502,9 +504,11 @@ impl MirInstanceMaterializer {
             if binding.type_args.is_empty() && binding.eff_args.is_empty() {
                 continue;
             }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
-            else {
+            let Some(template) = self.resolve_request_template_by_decl_site(
+                &binding.fqn,
+                &binding.decl_file,
+                binding.decl_span,
+            ) else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: binding.fqn,
@@ -546,9 +550,11 @@ impl MirInstanceMaterializer {
             if binding.type_args.is_empty() && binding.eff_args.is_empty() {
                 continue;
             }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
-            else {
+            let Some(template) = self.resolve_request_template_by_decl_site(
+                &binding.fqn,
+                &binding.decl_file,
+                binding.decl_span,
+            ) else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: binding.fqn,
@@ -581,7 +587,7 @@ impl MirInstanceMaterializer {
             if key.type_args.is_empty() && key.eff_args.is_empty() {
                 continue;
             }
-            let Some(template) = self.resolve_request_template(
+            let Some(template) = self.resolve_request_template_by_decl_site(
                 &key.symbol.fqn,
                 &key.symbol.decl_file,
                 key.symbol.decl_span,

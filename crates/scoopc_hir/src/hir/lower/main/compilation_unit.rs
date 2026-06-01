@@ -82,6 +82,12 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
             index,
             compilation_unit,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        index,
+        compilation_unit,
+        &HashMap::new(),
+    );
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -231,6 +237,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
         member_funs,
         types,
         struct_layouts,
@@ -565,6 +572,12 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             compilation_unit,
             &source_cones,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        index,
+        compilation_unit,
+        &source_cones,
+    );
 
     let mut decls: Vec<Decl> = Vec::new();
     let mut items: Vec<Item> = Vec::new();
@@ -915,6 +928,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
         member_funs,
         types,
         struct_layouts,

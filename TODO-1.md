@@ -13,6 +13,7 @@
 | T1-01 | [DONE] | 稳定语义 identity key 体系 + `EffectRowTemplate` 基础设施 |
 | T1-01R | [DONE] | Review T1-01 表示与稳定性 |
 | T1-02A | [DONE] | Stable request/direct-call identity transport 前置落地（MonomorphRequest stable key seed + `CallKind::Direct` stable instance carrier） |
+| T1-02B | [DONE] | HIR stable call-site facts + MIR Direct stable template carrier foundation |
 | T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
@@ -95,6 +96,26 @@
   - `CallKind::Direct` 增加 boxed optional `StableInstanceKey` carrier；generic direct-call materialization 成功推导 concrete instance 后写入该 stable key。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
+### [DONE] T1-02B：HIR stable call-site facts + MIR Direct stable template carrier foundation
+
+- 背景：执行 `T1-02` 时确认完整删除 materializer fallback 仍依赖更完整的 HIR fact 覆盖；直接删除会让隐式泛型调用、sysroot intrinsic generic、部分跨文件 request-root 形态缺少替代 fact。先落地已可独立验证的上游 stable call-site fact 与 MIR direct-call carrier 基础，供后续 `T1-02` 完成纯消费删除。
+- 必须实现的内容：
+  1. HIR lowering 发布 generic template stable key side table，避免后续 call-site contract 只能拿 display/FQN 信息。
+  2. HIR `FunctionTarget` fact 携带 stable template/instance canonical key，并发布 `CallSiteInstanceFact` / `DispatchCandidateFact` 数据面。
+  3. MIR `CallKind::Direct` 补齐 stable template carrier；HIR→MIR direct-call lowering 能从 fact 写入 stable template + stable instance。
+  4. materializer direct-call rewrite 在 carrier 已存在时优先按 stable instance key enqueue/resolve；保留旧 fallback 仅作为 `T1-02` 剩余删除目标。
+- 必须遵从的约束：不恢复 blanket eff-aware mangle；不按 owner-eff 名称特判；不把旧 fallback 删除伪装为完成，剩余删除继续由 `T1-02` 跟踪。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
+- 完成条件：facts/carrier 基础可用，有回归测试证明 HIR call-site stable instance fact 与 MIR Direct stable carrier。
+- 依赖：T1-02A
+- 完成记录：
+  - `LoweredHir` 新增 `generic_stable_template_keys`，由 HIR lowering 从 compilation unit + source cone stable identity 构建 generic template stable key side table。
+  - `scoopc_hir_facts::source_sites::FunctionTarget` 新增 stable template/instance canonical key；`SourceSiteFacts` 新增 `CallSiteInstanceFact` 与 `DispatchCandidateFact` 发布面。
+  - `CallKind::Direct` 新增 optional `stable_template_key` carrier；MIR direct-call lowering 从 HIR facts 写入 stable template/instance keys。
+  - materializer direct-call rewrite 对已有 stable instance key 走 stable-key-first instance enqueue/resolve，并在推导 generic instance 后同步写回 stable template + stable instance carrier。
+  - 补充 `stable_id` canonical text parse round-trip 单测，以及 HIR facts/MIR direct-call stable carrier 回归测试。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
+
 ### [TODO] T1-02：上游 identity 贯穿（P2/P3）
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-01/02/03/04/05/14。
@@ -107,7 +128,7 @@
 - 必须遵从的约束：owner-eff 泛型的必需基础（`is_generic` 含 `eff_param`、MIR `has_eff_param`、boundary upcast 的 args+eff 比较）按新表示重新落地；不恢复 blanket eff-aware mangle、不按名称特判。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（bypass 的 delegate 仍 SKIP）。
 - 完成条件：上游 request/IR/dispatch 携带 stable key + owner eff；materializer/dispatch 不再 span/FQN/receiver 重建。
-- 依赖：T1-02A
+- 依赖：T1-02B
 - 完成记录：（待填）
 
 ### [TODO] T1-02R：Review T1-02 上游 identity

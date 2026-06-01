@@ -1014,6 +1014,92 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_sourc
     compilation_unit: &[(&SourceFile, &ast::File)],
     source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 ) -> GenericTemplateSymbolSuffixIndex {
+    let candidates = collect_template_symbol_candidates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
+
+    let canonical_templates = canonical_template_map(&candidates);
+    let mut canonical_stable_keys = HashMap::new();
+    let mut aliases = HashMap::new();
+    for candidate in candidates {
+        let group_key = (
+            candidate.template.fqn.clone(),
+            candidate.signature_key.clone(),
+        );
+        let canonical = canonical_templates
+            .get(&group_key)
+            .cloned()
+            .expect("every generic template candidate should resolve to a canonical template");
+        canonical_stable_keys
+            .entry(canonical.clone())
+            .or_insert_with(|| candidate.stable_template_key.clone());
+        aliases.insert(candidate.template, canonical);
+    }
+
+    let canonical_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
+    let mut out = HashMap::new();
+    for (template, canonical) in aliases {
+        out.insert(
+            template,
+            canonical_suffixes
+                .get(&canonical)
+                .cloned()
+                .unwrap_or_default(),
+        );
+    }
+    out
+}
+
+pub(in crate::hir::lower) fn collect_stable_template_keys_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<TemplateKey, StableTemplateKey> {
+    let candidates = collect_template_symbol_candidates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
+    let canonical_templates = canonical_template_map(&candidates);
+    let mut canonical_stable_keys = HashMap::new();
+    let mut aliases = HashMap::new();
+    for candidate in candidates {
+        let group_key = (
+            candidate.template.fqn.clone(),
+            candidate.signature_key.clone(),
+        );
+        let canonical = canonical_templates
+            .get(&group_key)
+            .cloned()
+            .expect("every generic template candidate should resolve to a canonical template");
+        canonical_stable_keys
+            .entry(canonical.clone())
+            .or_insert_with(|| candidate.stable_template_key.clone());
+        aliases.insert(candidate.template, canonical);
+    }
+
+    aliases
+        .into_iter()
+        .filter_map(|(template, canonical)| {
+            canonical_stable_keys
+                .get(&canonical)
+                .cloned()
+                .map(|stable| (template, stable))
+        })
+        .collect()
+}
+
+fn collect_template_symbol_candidates_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> Vec<TemplateSymbolCandidate> {
     let mut candidates = Vec::new();
 
     for (template, info) in collect_explicit_top_level_generic_fun_templates_with_source_cones(
@@ -1092,36 +1178,7 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_sourc
         });
     }
 
-    let canonical_templates = canonical_template_map(&candidates);
-    let mut canonical_stable_keys = HashMap::new();
-    let mut aliases = HashMap::new();
-    for candidate in candidates {
-        let group_key = (
-            candidate.template.fqn.clone(),
-            candidate.signature_key.clone(),
-        );
-        let canonical = canonical_templates
-            .get(&group_key)
-            .cloned()
-            .expect("every generic template candidate should resolve to a canonical template");
-        canonical_stable_keys
-            .entry(canonical.clone())
-            .or_insert_with(|| candidate.stable_template_key.clone());
-        aliases.insert(candidate.template, canonical);
-    }
-
-    let canonical_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
-    let mut out = HashMap::new();
-    for (template, canonical) in aliases {
-        out.insert(
-            template,
-            canonical_suffixes
-                .get(&canonical)
-                .cloned()
-                .unwrap_or_default(),
-        );
-    }
-    out
+    candidates
 }
 
 pub(in crate::hir::lower) fn virtual_stable_cone_key_for_compilation_unit(

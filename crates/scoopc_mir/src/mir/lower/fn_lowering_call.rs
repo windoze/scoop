@@ -196,7 +196,14 @@ impl<'a> FnLowering<'a> {
         let args = self.canonicalize_call_args_from_binding(args, arg_binding);
         let kind = CallKind::Direct {
             callee_fqn: callee_fqn.to_string(),
-            stable_instance_key: None,
+            stable_template_key: function
+                .and_then(FunctionTargetContract::stable_template_key)
+                .cloned()
+                .map(Box::new),
+            stable_instance_key: function
+                .and_then(FunctionTargetContract::stable_instance_key)
+                .cloned()
+                .map(Box::new),
         };
         let terminates_current_block = matches!(
             &kind,

@@ -360,6 +360,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             source_cones: HashMap::new(),
             source_cone_order: HashMap::from([(stable_cone_key.clone(), 0)]),
             stable_type_param_keys: HashMap::new(),
+            generic_stable_template_keys: HashMap::new(),
             member_funs: Vec::new(),
             types: types.clone(),
             struct_layouts: HashMap::new(),
