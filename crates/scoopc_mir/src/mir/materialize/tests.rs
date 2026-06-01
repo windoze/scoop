@@ -223,6 +223,90 @@ fun entry(): Int {
 }
 
 #[test]
+fn hir_facts_publish_stable_instance_for_generic_owner_member_dispatch() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/hir_fact_generic_owner_member_dispatch.scoop",
+        r#"
+class Box<T>() {
+    fun code(): Int { return 41 }
+}
+
+fun entry(): Int {
+    val box: Box<Int> = Box<Int>()
+    return box.code()
+}
+"#,
+    );
+    let hir_output = scoopc_hir::stage::run(&sess, &source).unwrap();
+    let facts = hir_output.hir_facts();
+
+    let member_template = facts
+        .declarations
+        .generic_templates
+        .iter()
+        .find(|fact| fact.template_fqn == "Box.code")
+        .expect("generic owner member should publish template inventory");
+    let call_instance = facts
+        .source_sites
+        .call_site_instances
+        .iter()
+        .find(|fact| fact.template_key == member_template.stable_template_key)
+        .expect("generic owner member dispatch should publish a stable call-site instance fact");
+    assert_eq!(call_instance.type_args.len(), 1);
+    assert!(call_instance.eff_args.is_empty());
+
+    let mir_facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), facts);
+    let mut lowered_hir = hir_output.into_lowered_hir();
+    let file = lowered_hir.file.clone();
+    let member_funs = lowered_hir.member_funs.clone();
+    let generic_file = lower_hir_file_for_dump_with_facts(
+        lowered_hir.builtins,
+        &mut lowered_hir.types,
+        &file,
+        &member_funs,
+        &mir_facts,
+    );
+    let entry_fun = generic_file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == "entry" => Some(fun),
+            _ => None,
+        })
+        .expect("entry MIR should be lowered");
+    let dispatch = entry_fun
+        .body
+        .as_ref()
+        .expect("entry should have a body")
+        .blocks
+        .iter()
+        .flat_map(|block| block.stmts.iter())
+        .find_map(|stmt| match &stmt.kind {
+            StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        kind: CallKind::Virtual { dispatch, .. },
+                        ..
+                    },
+                ..
+            } if dispatch.member_fqn == "Box.code" => Some(dispatch),
+            _ => None,
+        })
+        .expect("generic owner member call should lower through virtual dispatch");
+    assert!(
+        !dispatch.stable_candidate_keys.is_empty() || dispatch.stable_template_key.is_some(),
+        "generic owner member dispatch should carry stable materialization identity"
+    );
+
+    let materialized = materialize_for_dump(&sess, &source).unwrap();
+    assert!(materialized.file.items.iter().any(|item| matches!(
+        item,
+        Item::Fun(fun) if fun.fqn.starts_with("Box.code::<Int>")
+    )));
+}
+
+#[test]
 fn hir_facts_publish_stable_instance_for_generic_property_getter_direct_call() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -405,6 +489,26 @@ fun entry(): Node {
         has_direct_call_with_stable_carrier(atomic_load_fun, "scoop.unsafe.__atomicRefLoad", false,),
         "generic intrinsic helper direct call should carry at least a stable template key"
     );
+}
+
+#[test]
+fn materialize_for_dump_handles_generic_owner_member_call_inside_sysroot_template() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::load(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/sysroot_atomic_basic.scoop"),
+    )
+    .unwrap();
+
+    let materialized = materialize_for_dump(&sess, &source).unwrap();
+    assert!(materialized.file.items.iter().any(|item| matches!(
+        item,
+        Item::Fun(fun) if fun.fqn.starts_with("scoop.core.Atomic.load::<Node>")
+    )));
+    assert!(materialized.file.items.iter().any(|item| matches!(
+        item,
+        Item::Fun(fun) if fun.fqn.starts_with("scoop.core.Atomic.exchange::<Node>")
+    )));
 }
 
 #[test]

@@ -1343,8 +1343,15 @@ impl<'a> HirLowering<'a> {
         ret_ty: TypeId,
         intrinsic_entry_name: Option<&str>,
     ) -> Expr {
+        let binding_args = args.clone();
         let expr = self.call_top_level_fun(span, fqn, args, ret_ty);
-        self.record_synthetic_top_level_fun_call_binding(expr.span, fqn, intrinsic_entry_name);
+        self.record_synthetic_top_level_fun_call_binding(
+            expr.span,
+            fqn,
+            &binding_args,
+            ret_ty,
+            intrinsic_entry_name,
+        );
         expr
     }
 
@@ -1487,6 +1494,8 @@ impl<'a> HirLowering<'a> {
         &self,
         span: Span,
         fqn: &str,
+        args: &[Expr],
+        ret_ty: TypeId,
         intrinsic_entry_name: Option<&str>,
     ) {
         let mut bindings = self.file.top_level_fun_call_bindings();
@@ -1494,16 +1503,41 @@ impl<'a> HirLowering<'a> {
             return;
         }
 
-        let (decl_file, decl_span, is_intrinsic) = self
+        let (decl_file, decl_span, is_intrinsic, type_args, eff_args, param_tys, return_ty) = self
             .index
             .by_fqn
             .get(fqn)
             .and_then(|syms| syms.fun.first())
             .map(|fun| {
+                let (mut type_args, owner_eff) = fqn
+                    .rsplit_once('.')
+                    .and_then(|(owner_fqn, _)| args.first().map(|arg| (owner_fqn, arg.ty)))
+                    .and_then(
+                        |(owner_fqn, receiver_ty)| match self.types.kind(receiver_ty) {
+                            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                            | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                                if nominal.fqn == owner_fqn =>
+                            {
+                                Some((nominal.args.clone(), nominal.eff.clone()))
+                            }
+                            _ => None,
+                        },
+                    )
+                    .unwrap_or_else(|| (Vec::new(), None));
+                if !fun.sig.type_params.is_empty() {
+                    type_args.extend(std::iter::repeat_n(
+                        self.builtins.any,
+                        fun.sig.type_params.len(),
+                    ));
+                }
                 (
                     fun.symbol.decl_file.clone(),
                     fun.symbol.span,
                     fun.sig.builtin_flags.is_intrinsic,
+                    type_args,
+                    owner_eff.into_iter().collect::<Vec<_>>(),
+                    args.iter().map(|arg| arg.ty).collect::<Vec<_>>(),
+                    Some(ret_ty),
                 )
             })
             .unwrap_or_else(|| {
@@ -1511,6 +1545,10 @@ impl<'a> HirLowering<'a> {
                     self.source.path().to_path_buf(),
                     span,
                     intrinsic_entry_name.is_some(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
                 )
             });
 
@@ -1522,10 +1560,10 @@ impl<'a> HirLowering<'a> {
                 decl_span,
                 is_intrinsic,
                 intrinsic_entry_name: intrinsic_entry_name.map(str::to_string),
-                param_tys: Vec::new(),
-                return_ty: None,
-                type_args: Vec::new(),
-                eff_args: Vec::new(),
+                param_tys,
+                return_ty,
+                type_args,
+                eff_args,
                 types_are_hir: true,
             },
         );

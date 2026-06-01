@@ -3709,8 +3709,13 @@ fn dispatch_candidate_fact(
         ),
         _ => Vec::new(),
     };
+    let member_has_stable_identity = member.function.stable_template_key.as_ref().is_some();
+    let member_template_fqn = generic_template_base_fqn(member.function.fqn());
     let mut stable_instance_keys = candidate_fqns
         .iter()
+        .filter(|fqn| {
+            !member_has_stable_identity || generic_template_base_fqn(fqn) != member_template_fqn
+        })
         .flat_map(|fqn| dispatch_candidate_stable_instance_keys(lowered_hir, fqn))
         .map(|key| CanonicalTextKey::new(key.canonical_text()))
         .collect::<Vec<_>>();

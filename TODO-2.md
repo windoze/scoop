@@ -9,6 +9,7 @@
 
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
+| T2-01E | [TODO] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
 | T2-01F | [TODO] | Restore full fixture baseline observed during T2-01 validation |
 | T2-01 | [TODO] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [TODO] | Review T2-01 |
@@ -18,6 +19,20 @@
 | T2-03R | [TODO] | Review T2-03 |
 
 ---
+
+### [TODO] T2-01E：Fix effect-lowered GC handle token ABI regression exposed by T2-01F
+
+- 背景：恢复 `T2-01F` fixture baseline 时，泛型 member dispatch / synthetic array binding 等 failures 已定位并部分修复，但 GC handle 相关 fixtures 仍阻塞完整 baseline。当前 `dump-ir` 中 `GC.handleDrop(h)` 的 MIR metadata/transport 显示参数为 `scoop.core.GcHandle`，但 effect-lowered/LLVM codegen 路径仍把该参数 lowering 为 `Ref`，触发 `MIR GC.handleDrop lowering: argument is not a GcHandle struct`。
+- 必须处理的 failures：
+  1. `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+  2. `tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
+  3. `tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`
+  4. 继续复核 `T2-01F` 中列出的其他 `runtime_gc/gc_handle_*` fixtures，确保同一 GC handle token ABI root cause 被成组修复。
+- 要求：修复 effect-lowered/plain-call/codegen 对 object singleton GC intrinsic 的参数 carrier 与 local storage `CgTy` 推断，不能用 fixture-only special case 绕过；`GC.handleNew` / `GC.handleGet` / `GC.handleDrop` 的 token ABI 必须保持 `GcHandle.raw` 结构化 token 语义。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；上述 targeted fixtures；`python3 tools/run_fixtures.py`。
+- 完成条件：上述 GC handle/build/runtime failures 通过，且不再触发 `GC.handleDrop` argument `Ref`/`GcHandle` drift。
+- 依赖：T1-02R
+- 完成记录：（待填）
 
 ### [TODO] T2-01F：Restore full fixture baseline observed during T2-01 validation
 
@@ -66,7 +81,7 @@
   41. `tests/fixtures/run_pass_cone/explicit_sysroot_thread_dependency`
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：完整 fixture suite 通过，或任何仍无法同 invocation 修复的 failure 被拆成更精确且更早的 prerequisite task，并且 `T2-01` 仍依赖全部 prerequisite。
-- 依赖：T1-02R
+- 依赖：T2-01E
 - 完成记录：（待填）
 
 ### [TODO] T2-01：HIR source-level effect facts + 统一 expression inference
