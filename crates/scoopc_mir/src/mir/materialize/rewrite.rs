@@ -574,7 +574,7 @@ impl MirInstanceMaterializer {
         let selected_blocks = block_indices
             .map(|indices| indices.to_vec())
             .unwrap_or_else(|| (0..body.blocks.len()).collect());
-        let mut top_refs: HashMap<LocalId, String> = HashMap::new();
+        let mut top_refs: HashMap<LocalId, TopLevelRef> = HashMap::new();
         let mut patches: HashMap<LocalId, InstanceKey> = HashMap::new();
 
         for &block_idx in &selected_blocks {
@@ -586,34 +586,24 @@ impl MirInstanceMaterializer {
                     continue;
                 };
                 match value {
-                    Rvalue::TopLevelRef(top) if self.roots_by_fqn.contains_key(&top.fqn) => {
-                        top_refs.insert(*target, top.fqn.clone());
+                    Rvalue::TopLevelRef(top)
+                        if top.stable_template_key.is_some()
+                            || self.roots_by_fqn.contains_key(&top.fqn) =>
+                    {
+                        top_refs.insert(*target, top.clone());
                     }
                     Rvalue::Call {
                         kind:
                             CallKind::FunValue {
                                 callee: Operand::Local(callee),
                             },
-                        args,
                         ..
                     } => {
-                        let Some(callee_fqn) = top_refs.get(callee) else {
+                        let Some(top_ref) = top_refs.get(callee).cloned() else {
                             continue;
                         };
-                        let result_ty = ctx
-                            .locals
-                            .get(target.as_u32() as usize)
-                            .map(|local| local.ty);
-                        if let Some(instance_key) =
-                            self.infer_direct_call_instance(DirectCallInferenceInput {
-                                template_source_path: ctx.template_source_path,
-                                call_span: stmt.span,
-                                callee_fqn,
-                                args,
-                                result_ty,
-                                locals: ctx.locals,
-                                substitution: ctx.substitution,
-                            })
+                        if let Some(instance_key) = self
+                            .instance_key_from_top_level_ref_identity(&top_ref, ctx.substitution)?
                         {
                             patches.insert(*callee, instance_key);
                         }
@@ -858,12 +848,15 @@ impl MirInstanceMaterializer {
                 } else {
                     self.materialize_top_level_ref_target(
                         &mut top.fqn,
+                        &mut top.stable_template_key,
+                        &mut top.stable_instance_key,
+                        &top.generic_type_args,
+                        &top.generic_eff_args,
                         DirectCallRewriteContext {
                             template_source_path: ctx.template_source_path,
                             caller_fqn: ctx.instance_root_fqn,
                             block_id,
                             call_span: stmt_span,
-                            result_ty,
                             locals: ctx.locals,
                             substitution: ctx.substitution,
                         },
@@ -942,7 +935,7 @@ impl MirInstanceMaterializer {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
-                self.rewrite_call_kind(stmt_span, block_id, kind, args, result_ty, ctx)?;
+                self.rewrite_call_kind(stmt_span, block_id, kind, args, ctx)?;
                 self.rewrite_call_transport(transport, ctx.substitution);
             }
             Rvalue::EnumVariant {
@@ -1055,7 +1048,6 @@ impl MirInstanceMaterializer {
         block_id: BasicBlockId,
         kind: &mut CallKind,
         args: &mut [CallArg],
-        result_ty: Option<TypeId>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         let direct_ctx = DirectCallRewriteContext {
@@ -1063,7 +1055,6 @@ impl MirInstanceMaterializer {
             caller_fqn: ctx.instance_root_fqn,
             block_id,
             call_span,
-            result_ty,
             locals: ctx.locals,
             substitution: ctx.substitution,
         };
@@ -1072,6 +1063,8 @@ impl MirInstanceMaterializer {
                 callee_fqn,
                 stable_template_key,
                 stable_instance_key,
+                generic_type_args,
+                generic_eff_args,
             } => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
                     callee_fqn,
@@ -1083,8 +1076,12 @@ impl MirInstanceMaterializer {
                 }
                 self.materialize_direct_call_target(
                     callee_fqn,
-                    stable_template_key,
-                    stable_instance_key,
+                    DirectCallStableIdentity {
+                        stable_template_key,
+                        stable_instance_key,
+                        generic_type_args,
+                        generic_eff_args,
+                    },
                     args,
                     direct_ctx,
                 )?;
@@ -1176,6 +1173,47 @@ impl MirInstanceMaterializer {
         args: &[CallArg],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        if !dispatch.stable_candidate_keys.is_empty() {
+            let stable_candidate_count = dispatch.stable_candidate_keys.len();
+            for stable_key in &dispatch.stable_candidate_keys {
+                if let Some(instance_key) =
+                    self.instance_key_from_stable_instance_key(stable_key)?
+                {
+                    let instance_fqn = self.instance_display_fqn(&instance_key);
+                    self.record_dispatch_devirtualization_target(
+                        &instance_fqn,
+                        instance_fqn.clone(),
+                        ctx,
+                    );
+                    if stable_candidate_count == 1 {
+                        self.record_dispatch_devirtualization_target(
+                            &dispatch.member_fqn,
+                            instance_fqn.clone(),
+                            ctx,
+                        );
+                    }
+                    self.enqueue(instance_key);
+                }
+            }
+            return Ok(());
+        }
+        if let Some(stable_template_key) = dispatch.stable_template_key.as_deref()
+            && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                stable_template_key,
+                &dispatch.generic_type_args,
+                &dispatch.generic_eff_args,
+                ctx.substitution,
+            )?
+        {
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            self.record_dispatch_devirtualization_target(
+                &dispatch.member_fqn,
+                instance_fqn.clone(),
+                ctx,
+            );
+            self.enqueue(instance_key);
+            return Ok(());
+        }
         let candidates = match kind {
             crate::hir::DispatchCallKind::Virtual => self.virtual_dispatch_candidate_fqns(
                 dispatch.receiver_ty,
@@ -1195,26 +1233,6 @@ impl MirInstanceMaterializer {
 
         let direct_args = Self::dispatch_direct_call_args(ctx.call_span, receiver, args);
         for candidate_fqn in candidates {
-            if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
-                template_source_path: ctx.template_source_path,
-                call_span: ctx.call_span,
-                callee_fqn: &candidate_fqn,
-                args: &direct_args,
-                result_ty: ctx.result_ty,
-                locals: ctx.locals,
-                substitution: ctx.substitution,
-            }) {
-                let instance_fqn = self.instance_display_fqn(&instance_key);
-                self.record_dispatch_devirtualization_target(&candidate_fqn, instance_fqn, ctx);
-                self.enqueue(instance_key);
-                continue;
-            }
-            if let Some(instance_key) = self.explicit_dispatch_candidate_instance(&candidate_fqn) {
-                let instance_fqn = self.instance_display_fqn(&instance_key);
-                self.record_dispatch_devirtualization_target(&candidate_fqn, instance_fqn, ctx);
-                self.enqueue(instance_key);
-                continue;
-            }
             if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
                 ctx.template_source_path,
                 ctx.call_span,
@@ -1269,15 +1287,45 @@ impl MirInstanceMaterializer {
         direct_args
     }
 
+    pub(super) fn instance_key_from_stable_template_args(
+        &mut self,
+        stable_template_key: &StableTemplateKey,
+        type_args: &[TypeId],
+        eff_args: &[EffectRow],
+        substitution: &InstanceSubstitution,
+    ) -> MaterializeResult<Option<InstanceKey>> {
+        let Some(template) = self.resolve_stable_request_template(stable_template_key) else {
+            return Ok(None);
+        };
+        let type_args = type_args
+            .iter()
+            .copied()
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution))
+            .collect::<Vec<_>>();
+        let eff_args = eff_args
+            .iter()
+            .map(|row| {
+                substitute_type_and_effect_params_in_effect_row(&mut self.types, row, substitution)
+            })
+            .collect::<Vec<_>>();
+        if !instance_request_is_concrete(&self.types, &type_args, &eff_args) {
+            return Ok(None);
+        }
+        Ok(Some(InstanceKey {
+            template,
+            type_args,
+            eff_args,
+        }))
+    }
+
     pub(super) fn materialize_direct_call_target(
         &mut self,
         callee_fqn: &mut String,
-        stable_template_key: &mut Option<Box<StableTemplateKey>>,
-        stable_instance_key: &mut Option<Box<StableInstanceKey>>,
+        identity: DirectCallStableIdentity<'_>,
         args: &[CallArg],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
-        if let Some(stable_key) = stable_instance_key.as_deref()
+        if let Some(stable_key) = identity.stable_instance_key.as_deref()
             && let Some(instance_key) = self.instance_key_from_stable_instance_key(stable_key)?
         {
             let instance_fqn = self.instance_display_fqn(&instance_key);
@@ -1288,7 +1336,69 @@ impl MirInstanceMaterializer {
                     .insert(instance_fqn.clone(), return_ty);
             }
             *callee_fqn = instance_fqn;
-            *stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *identity.stable_template_key = Some(Box::new(stable_key.template().clone()));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
+
+        if let Some(stable_key) = identity.stable_template_key.as_deref()
+            && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                stable_key,
+                identity.generic_type_args,
+                identity.generic_eff_args,
+                ctx.substitution,
+            )?
+        {
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            if let Some(return_ty) = self.instance_return_ty(&instance_key)
+                && !type_contains_param(&self.types, return_ty)
+            {
+                self.materialized_direct_call_result_tys
+                    .insert(instance_fqn.clone(), return_ty);
+            }
+            *callee_fqn = instance_fqn;
+            let stable_key = self.stable_instance_key(&instance_key);
+            *identity.stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *identity.stable_instance_key = Some(Box::new(stable_key));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
+
+        let site_key = (ctx.template_source_path.to_path_buf(), ctx.call_span);
+        if let Some(binding) = self.call_bindings.get(&site_key).cloned()
+            && let Some(instance_key) =
+                self.instance_key_from_site_binding(&binding, ctx.substitution)
+        {
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            if let Some(return_ty) = self.instance_return_ty(&instance_key)
+                && !type_contains_param(&self.types, return_ty)
+            {
+                self.materialized_direct_call_result_tys
+                    .insert(instance_fqn.clone(), return_ty);
+            }
+            *callee_fqn = instance_fqn;
+            let stable_key = self.stable_instance_key(&instance_key);
+            *identity.stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *identity.stable_instance_key = Some(Box::new(stable_key));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
+        if let Some(binding) =
+            self.value_ref_binding_for_site(ctx.template_source_path, ctx.call_span)
+            && let Some(instance_key) =
+                self.instance_key_from_site_binding(&binding, ctx.substitution)
+        {
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            if let Some(return_ty) = self.instance_return_ty(&instance_key)
+                && !type_contains_param(&self.types, return_ty)
+            {
+                self.materialized_direct_call_result_tys
+                    .insert(instance_fqn.clone(), return_ty);
+            }
+            *callee_fqn = instance_fqn;
+            let stable_key = self.stable_instance_key(&instance_key);
+            *identity.stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *identity.stable_instance_key = Some(Box::new(stable_key));
             self.enqueue(instance_key);
             return Ok(());
         }
@@ -1312,30 +1422,6 @@ impl MirInstanceMaterializer {
             for instance in discovered {
                 self.enqueue(instance);
             }
-            return Ok(());
-        }
-
-        if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
-            template_source_path: ctx.template_source_path,
-            call_span: ctx.call_span,
-            callee_fqn,
-            args,
-            result_ty: ctx.result_ty,
-            locals: ctx.locals,
-            substitution: ctx.substitution,
-        }) {
-            let instance_fqn = self.instance_display_fqn(&instance_key);
-            if let Some(return_ty) = self.instance_return_ty(&instance_key)
-                && !type_contains_param(&self.types, return_ty)
-            {
-                self.materialized_direct_call_result_tys
-                    .insert(instance_fqn.clone(), return_ty);
-            }
-            *callee_fqn = instance_fqn;
-            let stable_key = self.stable_instance_key(&instance_key);
-            *stable_template_key = Some(Box::new(stable_key.template().clone()));
-            *stable_instance_key = Some(Box::new(stable_key));
-            self.enqueue(instance_key);
             return Ok(());
         }
         if is_canonical_array_member_intrinsic_fqn(callee_fqn) {
@@ -1379,24 +1465,45 @@ impl MirInstanceMaterializer {
     pub(super) fn materialize_top_level_ref_target(
         &mut self,
         fqn: &mut String,
+        stable_template_key: &mut Option<Box<StableTemplateKey>>,
+        stable_instance_key: &mut Option<Box<StableInstanceKey>>,
+        generic_type_args: &[TypeId],
+        generic_eff_args: &[EffectRow],
         ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        if let Some(stable_key) = stable_instance_key.as_deref()
+            && let Some(instance_key) = self.instance_key_from_stable_instance_key(stable_key)?
+        {
+            *fqn = self.instance_display_fqn(&instance_key);
+            *stable_template_key = Some(Box::new(stable_key.template().clone()));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
+        if let Some(stable_key) = stable_template_key.as_deref()
+            && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                stable_key,
+                generic_type_args,
+                generic_eff_args,
+                ctx.substitution,
+            )?
+        {
+            *fqn = self.instance_display_fqn(&instance_key);
+            let stable_key = self.stable_instance_key(&instance_key);
+            *stable_template_key = Some(Box::new(stable_key.template().clone()));
+            *stable_instance_key = Some(Box::new(stable_key));
+            self.enqueue(instance_key);
+            return Ok(());
+        }
         if let Some(binding) =
-            self.site_instance_binding_for_callee(ctx.template_source_path, ctx.call_span, fqn)
-            && let Some(instance_key) = self.instantiate_site_binding(&binding, ctx.substitution)
+            self.value_ref_binding_for_site(ctx.template_source_path, ctx.call_span)
+            && let Some(instance_key) =
+                self.instance_key_from_site_binding(&binding, ctx.substitution)
         {
             *fqn = self.instance_display_fqn(&instance_key);
             self.enqueue(instance_key);
             return Ok(());
         }
         if is_canonical_array_member_intrinsic_fqn(fqn) {
-            return Ok(());
-        }
-        if let Some(instance_key) =
-            self.infer_top_level_ref_instance_from_result_ty(fqn, ctx.result_ty)
-        {
-            *fqn = self.instance_display_fqn(&instance_key);
-            self.enqueue(instance_key);
             return Ok(());
         }
         if let Some(reachable_fun) = self.resolve_non_generic_top_level_ref_target(
@@ -1428,38 +1535,84 @@ impl MirInstanceMaterializer {
         Ok(())
     }
 
-    pub(super) fn infer_top_level_ref_instance_from_result_ty(
-        &self,
-        fqn: &str,
-        result_ty: Option<TypeId>,
-    ) -> Option<InstanceKey> {
-        let result_ty = result_ty?;
-        if type_contains_param(&self.types, result_ty) {
-            return None;
+    pub(super) fn instance_key_from_top_level_ref_identity(
+        &mut self,
+        top_ref: &TopLevelRef,
+        substitution: &InstanceSubstitution,
+    ) -> MaterializeResult<Option<InstanceKey>> {
+        if let Some(stable_key) = top_ref.stable_instance_key.as_deref() {
+            return self.instance_key_from_stable_instance_key(stable_key);
         }
-        let inferred = self
-            .roots_by_fqn
-            .get(fqn)?
+        let Some(stable_template_key) = top_ref.stable_template_key.as_deref() else {
+            return Ok(None);
+        };
+        self.instance_key_from_stable_template_args(
+            stable_template_key,
+            &top_ref.generic_type_args,
+            &top_ref.generic_eff_args,
+            substitution,
+        )
+    }
+
+    pub(super) fn instance_key_from_site_binding(
+        &mut self,
+        binding: &SiteInstanceBinding,
+        substitution: &InstanceSubstitution,
+    ) -> Option<InstanceKey> {
+        let type_args = binding
+            .type_args
             .iter()
-            .filter_map(|template| {
-                let signature = self.template_signatures.get(template)?;
-                if signature.type_param_names.is_empty() || !signature.eff_param_names.is_empty() {
-                    return None;
-                }
-                if !type_contains_param(&self.types, signature.fun_ty) {
-                    return None;
-                }
-                let mut bindings = HashMap::new();
-                collect_type_param_bindings(
-                    &self.types,
-                    signature.fun_ty,
-                    result_ty,
-                    &mut bindings,
-                );
-                self.instance_from_type_param_bindings(signature, bindings)
+            .copied()
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution))
+            .collect::<Vec<_>>();
+        let eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                substitute_type_and_effect_params_in_effect_row(&mut self.types, row, substitution)
             })
             .collect::<Vec<_>>();
-        self.select_unique_inferred_instance(inferred)
+        if (type_args.is_empty() && eff_args.is_empty())
+            || !instance_request_is_concrete(&self.types, &type_args, &eff_args)
+        {
+            return None;
+        }
+        Some(InstanceKey {
+            template: binding.template.clone(),
+            type_args,
+            eff_args,
+        })
+    }
+
+    pub(super) fn value_ref_binding_for_site(
+        &self,
+        template_source_path: &Path,
+        span: Span,
+    ) -> Option<SiteInstanceBinding> {
+        let exact_key = (template_source_path.to_path_buf(), span);
+        if let Some(binding) = self.value_ref_bindings.get(&exact_key) {
+            return Some(binding.clone());
+        }
+        let mut found: Option<(Span, &SiteInstanceBinding)> = None;
+        for ((source_path, binding_span), binding) in &self.value_ref_bindings {
+            if source_path != template_source_path
+                || binding_span.start > span.start
+                || span.end > binding_span.end
+            {
+                continue;
+            }
+            let Some((found_span, found_binding)) = found else {
+                found = Some((*binding_span, binding));
+                continue;
+            };
+            if found_binding != binding {
+                return None;
+            }
+            if binding_span.end - binding_span.start < found_span.end - found_span.start {
+                found = Some((*binding_span, binding));
+            }
+        }
+        found.map(|(_, binding)| binding.clone())
     }
 
     pub(super) fn instance_return_ty(&mut self, instance: &InstanceKey) -> Option<TypeId> {
@@ -1480,263 +1633,6 @@ impl MirInstanceMaterializer {
             signature.fun_ty,
             &substitution,
         ))
-    }
-
-    pub(super) fn template_receiver_matches(
-        &self,
-        template: TemplateKey,
-        receiver_ty: TypeId,
-    ) -> bool {
-        let Some(signature) = self.template_signatures.get(&template) else {
-            return false;
-        };
-        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(signature.fun_ty) else {
-            return false;
-        };
-        let Some(declared_receiver) = fun_ty.receiver else {
-            return false;
-        };
-        nominal_type_fqn(&self.types, declared_receiver)
-            == nominal_type_fqn(&self.types, receiver_ty)
-    }
-
-    pub(super) fn infer_direct_call_instance(
-        &mut self,
-        input: DirectCallInferenceInput<'_>,
-    ) -> Option<InstanceKey> {
-        let binding_template = if let Some(binding) = self.site_instance_binding_for_callee(
-            input.template_source_path,
-            input.call_span,
-            input.callee_fqn,
-        ) {
-            if let Some(instance_key) = self.instantiate_site_binding(&binding, input.substitution)
-            {
-                return Some(instance_key);
-            }
-            Some(binding.template)
-        } else {
-            None
-        };
-
-        let candidates = if let Some(template) = binding_template {
-            vec![template]
-        } else {
-            let mut candidates = self.roots_by_fqn.get(input.callee_fqn)?.clone();
-            if candidates.len() != 1
-                && let Some(receiver_arg) = input.args.first()
-                && let Some(receiver_ty) = operand_type(
-                    &self.types,
-                    self.builtins,
-                    input.locals,
-                    &receiver_arg.value,
-                )
-            {
-                let filtered = candidates
-                    .iter()
-                    .filter(|candidate| {
-                        self.template_receiver_matches((*candidate).clone(), receiver_ty)
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if filtered.len() == 1 {
-                    candidates = filtered;
-                }
-            }
-            candidates
-        };
-        self.infer_direct_call_instance_from_candidates(&candidates, &input)
-    }
-
-    pub(super) fn infer_direct_call_instance_from_candidates(
-        &self,
-        candidates: &[TemplateKey],
-        input: &DirectCallInferenceInput<'_>,
-    ) -> Option<InstanceKey> {
-        let inferred = candidates
-            .iter()
-            .filter_map(|candidate| self.infer_direct_call_instance_for_template(candidate, input))
-            .collect::<Vec<_>>();
-        self.select_unique_inferred_instance(inferred)
-    }
-
-    pub(super) fn infer_direct_call_instance_for_template(
-        &self,
-        template: &TemplateKey,
-        input: &DirectCallInferenceInput<'_>,
-    ) -> Option<InstanceKey> {
-        let signature = self.template_signatures.get(template)?;
-        if signature.type_param_names.is_empty() && signature.eff_param_names.is_empty() {
-            return None;
-        }
-        let mut param_type_param_names = Vec::new();
-        for param in &signature.params {
-            collect_type_param_names_in_type(&self.types, param.ty, &mut param_type_param_names);
-        }
-
-        let (arg_offset, arg_to_param) =
-            match map_call_args_to_signature_params(&signature.params, input.args) {
-                Some(mapping) => (0, mapping),
-                None if input.args.len() == signature.params.len() + 1 => {
-                    let mapping =
-                        map_call_args_to_signature_params(&signature.params, &input.args[1..])?;
-                    (1, mapping)
-                }
-                None => return None,
-            };
-        let mut bindings = HashMap::new();
-        if arg_offset == 1
-            && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(signature.fun_ty)
-            && let Some(receiver_ty) = fun_ty.receiver
-            && type_contains_param(&self.types, receiver_ty)
-            && let Some(receiver_arg) = input.args.first()
-            && let Some(concrete_receiver_ty) = operand_type(
-                &self.types,
-                self.builtins,
-                input.locals,
-                &receiver_arg.value,
-            )
-        {
-            collect_type_param_names_in_type(&self.types, receiver_ty, &mut param_type_param_names);
-            collect_type_param_bindings(
-                &self.types,
-                receiver_ty,
-                concrete_receiver_ty,
-                &mut bindings,
-            );
-        }
-        if arg_offset == 1
-            && let Some(receiver_arg) = input.args.first()
-            && let Some(concrete_receiver_ty) = operand_type(
-                &self.types,
-                self.builtins,
-                input.locals,
-                &receiver_arg.value,
-            )
-            && let TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
-                self.types.kind(concrete_receiver_ty)
-        {
-            for (name, ty) in signature
-                .type_param_names
-                .iter()
-                .zip(nominal.args.iter().copied())
-            {
-                if !type_contains_param(&self.types, ty) {
-                    bindings.entry(name.clone()).or_insert(ty);
-                }
-            }
-        }
-        for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
-            let param = signature.params.get(param_idx)?;
-            if !type_contains_param(&self.types, param.ty) {
-                continue;
-            }
-            let arg = input.args.get(arg_idx + arg_offset)?;
-            if let Some(concrete_ty) =
-                operand_type(&self.types, self.builtins, input.locals, &arg.value)
-            {
-                collect_type_param_bindings(&self.types, param.ty, concrete_ty, &mut bindings);
-            }
-        }
-        if let Some(result_ty) = input.result_ty
-            && type_contains_param(&self.types, signature.return_ty)
-            && !type_contains_param(&self.types, result_ty)
-        {
-            let param_type_param_names = param_type_param_names.into_iter().collect::<HashSet<_>>();
-            let mut result_bindings = HashMap::new();
-            collect_type_param_bindings(
-                &self.types,
-                signature.return_ty,
-                result_ty,
-                &mut result_bindings,
-            );
-            for (name, ty) in result_bindings {
-                if !param_type_param_names.contains(&name) || bindings.contains_key(&name) {
-                    bindings.entry(name).or_insert(ty);
-                }
-            }
-        }
-        self.instance_from_type_param_and_effect_bindings(signature, bindings, input.substitution)
-    }
-
-    fn instance_from_type_param_and_effect_bindings(
-        &self,
-        signature: &TemplateSignatureInfo,
-        bindings: HashMap<String, TypeId>,
-        substitution: &InstanceSubstitution,
-    ) -> Option<InstanceKey> {
-        let mut type_args = Vec::with_capacity(signature.type_param_names.len());
-        for name in &signature.type_param_names {
-            let ty = bindings.get(name).copied()?;
-            if type_contains_param(&self.types, ty) {
-                return None;
-            }
-            type_args.push(ty);
-        }
-        let eff_args = signature
-            .eff_param_names
-            .iter()
-            .map(|name| substitution.effect_params.get(name).cloned())
-            .collect::<Option<Vec<_>>>()?;
-        if type_args.is_empty() && eff_args.is_empty() {
-            return None;
-        }
-        Some(InstanceKey {
-            template: signature.template.clone(),
-            type_args,
-            eff_args,
-        })
-    }
-
-    pub(super) fn instance_from_type_param_bindings(
-        &self,
-        signature: &TemplateSignatureInfo,
-        bindings: HashMap<String, TypeId>,
-    ) -> Option<InstanceKey> {
-        if self
-            .roots
-            .get(&signature.template)
-            .is_some_and(|root| !root.eff_param_names.is_empty())
-        {
-            return None;
-        }
-        let mut ordered = Vec::with_capacity(signature.type_param_names.len());
-        for name in &signature.type_param_names {
-            let ty = bindings.get(name).copied()?;
-            if type_contains_param(&self.types, ty) {
-                return None;
-            }
-            ordered.push(ty);
-        }
-        if ordered.is_empty() {
-            return None;
-        }
-
-        Some(InstanceKey {
-            template: signature.template.clone(),
-            type_args: ordered,
-            eff_args: Vec::new(),
-        })
-    }
-
-    pub(super) fn select_unique_inferred_instance(
-        &self,
-        inferred: Vec<InstanceKey>,
-    ) -> Option<InstanceKey> {
-        match inferred.as_slice() {
-            [instance] => Some(instance.clone()),
-            [] => None,
-            _ => {
-                let body_instances = inferred
-                    .iter()
-                    .filter(|instance| self.roots.contains_key(&instance.template))
-                    .collect::<Vec<_>>();
-                match body_instances.as_slice() {
-                    [instance] => Some((*instance).clone()),
-                    _ => None,
-                }
-            }
-        }
     }
 
     #[cfg(test)]
@@ -1769,140 +1665,6 @@ impl MirInstanceMaterializer {
                 template_source_path,
                 enclosing_span,
             )
-        })
-    }
-
-    pub(super) fn site_instance_binding_for_callee(
-        &self,
-        template_source_path: &Path,
-        call_span: Span,
-        callee_fqn: &str,
-    ) -> Option<SiteInstanceBinding> {
-        self.lookup_site_instance_binding_for_callee_in(
-            &self.call_bindings,
-            template_source_path,
-            call_span,
-            callee_fqn,
-        )
-        .or_else(|| {
-            self.lookup_site_instance_binding_for_callee_in(
-                &self.value_ref_bindings,
-                template_source_path,
-                call_span,
-                callee_fqn,
-            )
-        })
-    }
-
-    fn lookup_site_instance_binding_for_callee_in(
-        &self,
-        bindings: &HashMap<SourceSiteKey, SiteInstanceBinding>,
-        template_source_path: &Path,
-        enclosing_span: Span,
-        callee_fqn: &str,
-    ) -> Option<SiteInstanceBinding> {
-        let exact_key = (template_source_path.to_path_buf(), enclosing_span);
-        if let Some(binding) = bindings.get(&exact_key)
-            && let Some(candidate) = self.site_instance_binding_candidate(binding, callee_fqn)
-        {
-            return Some(candidate);
-        }
-
-        let mut found: Option<(Span, SiteInstanceBinding)> = None;
-        for ((source_path, span), binding) in bindings {
-            if source_path != template_source_path
-                || span.start >= enclosing_span.end
-                || enclosing_span.start >= span.end
-            {
-                continue;
-            }
-            let Some(candidate) = self.site_instance_binding_candidate(binding, callee_fqn) else {
-                continue;
-            };
-            let Some((found_span, found_binding)) = found.as_ref() else {
-                found = Some((*span, candidate));
-                continue;
-            };
-            if found_binding != &candidate {
-                return None;
-            }
-            if span.end - span.start < found_span.end - found_span.start {
-                found = Some((*span, candidate));
-            }
-        }
-        found.map(|(_, binding)| binding)
-    }
-
-    fn site_instance_binding_candidate(
-        &self,
-        binding: &SiteInstanceBinding,
-        callee_fqn: &str,
-    ) -> Option<SiteInstanceBinding> {
-        if binding.template.fqn == callee_fqn
-            || callee_fqn
-                .strip_prefix(binding.template.fqn.as_str())
-                .is_some_and(|suffix| suffix.starts_with("::<"))
-        {
-            return Some(binding.clone());
-        }
-        let template = self.remap_site_binding_template(&binding.template, callee_fqn)?;
-        Some(SiteInstanceBinding {
-            template,
-            type_args: binding.type_args.clone(),
-            eff_args: binding.eff_args.clone(),
-        })
-    }
-
-    pub(super) fn remap_site_binding_template(
-        &self,
-        source_template: &TemplateKey,
-        target_fqn: &str,
-    ) -> Option<TemplateKey> {
-        let source_signature = self.template_signatures.get(source_template)?;
-        let candidates = self.roots_by_fqn.get(target_fqn)?;
-        let compatible = candidates
-            .iter()
-            .filter_map(|candidate| {
-                let signature = self.template_signatures.get(candidate)?;
-                (signature.params.len() == source_signature.params.len()
-                    && signature.type_param_names.len() == source_signature.type_param_names.len()
-                    && signature.eff_param_names.len() == source_signature.eff_param_names.len())
-                .then_some(candidate.clone())
-            })
-            .collect::<Vec<_>>();
-        match compatible.as_slice() {
-            [template] => Some(template.clone()),
-            _ => None,
-        }
-    }
-
-    pub(super) fn instantiate_site_binding(
-        &mut self,
-        binding: &SiteInstanceBinding,
-        substitution: &InstanceSubstitution,
-    ) -> Option<InstanceKey> {
-        let type_args = binding
-            .type_args
-            .iter()
-            .copied()
-            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution))
-            .collect::<Vec<_>>();
-        let eff_args = binding
-            .eff_args
-            .iter()
-            .map(|row| {
-                substitute_type_and_effect_params_in_effect_row(&mut self.types, row, substitution)
-            })
-            .collect::<Vec<_>>();
-        if (type_args.is_empty() && eff_args.is_empty())
-            || !instance_request_is_concrete(&self.types, &type_args, &eff_args)
-        {
-            return None;
-        }
-        Some(InstanceKey {
-            template: binding.template.clone(),
-            type_args,
-            eff_args,
         })
     }
 

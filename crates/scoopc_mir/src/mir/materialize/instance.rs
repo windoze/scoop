@@ -44,7 +44,7 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
             stable_cone_key,
-            typecheck_types,
+            typecheck_types: _typecheck_types,
             template_infos,
             callable_body_infos,
             callable_signatures,
@@ -230,7 +230,6 @@ impl MirInstanceMaterializer {
             template_signatures.insert(
                 canonical.clone(),
                 TemplateSignatureInfo {
-                    template: canonical.clone(),
                     type_param_names: candidate.type_param_names.clone(),
                     eff_param_names: candidate.eff_param_names.clone(),
                     fun_ty: candidate.root_fun.ty,
@@ -273,7 +272,6 @@ impl MirInstanceMaterializer {
             template_signatures.insert(
                 canonical.clone(),
                 TemplateSignatureInfo {
-                    template: canonical,
                     type_param_names: candidate.type_param_names,
                     eff_param_names: candidate.eff_param_names,
                     fun_ty: candidate.signature.fun_ty,
@@ -284,10 +282,15 @@ impl MirInstanceMaterializer {
         }
 
         let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
-        let templates_by_stable_key = stable_template_keys
+        let mut templates_by_stable_key = stable_template_keys
             .iter()
             .map(|(template, stable_key)| (stable_key.clone(), template.clone()))
             .collect::<HashMap<_, _>>();
+        templates_by_stable_key.extend(
+            nongeneric_callable_stable_template_keys
+                .iter()
+                .map(|(template, stable_key)| (stable_key.clone(), template.clone())),
+        );
         let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
         for template in template_signatures.keys() {
             roots_by_fqn
@@ -374,7 +377,6 @@ impl MirInstanceMaterializer {
             nongeneric_callable_stable_template_keys,
             template_symbol_suffixes,
             roots_by_fqn,
-            explicit_dispatch_candidate_instances: HashMap::new(),
             direct_call_bindings,
             ctor_call_sites,
             top_level_vars,
@@ -408,8 +410,6 @@ impl MirInstanceMaterializer {
             materialized: HashMap::new(),
             declaration_only_instances: HashSet::new(),
         };
-        materializer.explicit_dispatch_candidate_instances =
-            materializer.collect_explicit_dispatch_candidate_instances(typecheck_types);
         materializer.load_hir_call_site_instance_bindings(call_site_instance_facts)?;
         materializer.load_hir_template_site_bindings(template_site_binding_facts)?;
         Ok(materializer)

@@ -207,6 +207,7 @@ fun entry(): Int {
                                 callee_fqn,
                                 stable_template_key,
                                 stable_instance_key,
+                                ..
                             },
                         ..
                     },
@@ -577,6 +578,7 @@ fn has_direct_call_with_stable_carrier(
                                 callee_fqn,
                                 stable_template_key,
                                 stable_instance_key,
+                                ..
                             },
                         ..
                     },
@@ -1710,6 +1712,8 @@ fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
                         callee_fqn: "fixtures.materialize.callee".to_string(),
                         stable_template_key: None,
                         stable_instance_key: None,
+                        generic_type_args: Vec::new(),
+                        generic_eff_args: Vec::new(),
                     },
                     args: vec![CallArg {
                         span: test_span(),
@@ -3482,6 +3486,8 @@ fn append_unreachable_id_call_to_main(generic_file: &mut File, builtins: Builtin
                         callee_fqn: "fixtures.materialize.id".to_string(),
                         stable_template_key: None,
                         stable_instance_key: None,
+                        generic_type_args: Vec::new(),
+                        generic_eff_args: Vec::new(),
                     },
                     args: vec![CallArg {
                         span: call_span,
@@ -4354,6 +4360,7 @@ println(holder.node.tag.score)
     let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
         &inputs.typecheck_types,
         &inputs.monomorph_requests,
+        &lowered_hir,
         &hir_facts,
     )
     .unwrap();
@@ -4460,72 +4467,6 @@ println(holder.node.tag.score)
                 .is_some_and(|type_args| !type_args.contains(&builtins.any))
         }),
         "request root 的 println 调用命中的 binding 不应含 Any：{request_root_println_bindings:#?}"
-    );
-    let mut reachable_generic_calls = Vec::new();
-    let mut visited_non_generic = std::collections::HashSet::new();
-    let mut stack = materializer.request_root_funs.clone();
-    while let Some(reachable_fun) = stack.pop() {
-        let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);
-        if !visited_non_generic.insert(scan_key) {
-            continue;
-        }
-        let Some(body) = &reachable_fun.fun.body else {
-            continue;
-        };
-        for block in &body.blocks {
-            for stmt in &block.stmts {
-                let StatementKind::Assign {
-                    value:
-                        Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn, .. },
-                            args,
-                            ..
-                        },
-                    ..
-                } = &stmt.kind
-                else {
-                    continue;
-                };
-                if let Some(instance_key) =
-                    materializer.infer_direct_call_instance(DirectCallInferenceInput {
-                        template_source_path: &reachable_fun.source_path,
-                        call_span: stmt.span,
-                        callee_fqn,
-                        args,
-                        result_ty: None,
-                        locals: &body.locals,
-                        substitution: &InstanceSubstitution::default(),
-                    })
-                {
-                    reachable_generic_calls.push((
-                        reachable_fun.fun.fqn.clone(),
-                        reachable_fun.source_path.clone(),
-                        stmt.span,
-                        materializer.instance_display_fqn(&instance_key),
-                    ));
-                    continue;
-                }
-                if let Some(reachable_callee) = materializer.resolve_non_generic_direct_callee(
-                    &reachable_fun.source_path,
-                    stmt.span,
-                    callee_fqn,
-                    args,
-                    &body.locals,
-                ) {
-                    stack.push(reachable_callee);
-                }
-            }
-        }
-    }
-    let reachable_println_calls = reachable_generic_calls
-        .iter()
-        .filter(|(_, _, _, instance_fqn)| instance_fqn.starts_with("scoop.core.println::<"))
-        .collect::<Vec<_>>();
-    assert!(
-        !reachable_println_calls
-            .iter()
-            .any(|(_, _, _, instance_fqn)| instance_fqn == "scoop.core.println::<Any>"),
-        "request-root 可达扫描不应推导出 println::<Any>：{reachable_println_calls:#?}"
     );
     let mut initial_requests = materializer
         .seed_requests(&inputs.typecheck_types, &monomorph_requests)
@@ -4812,6 +4753,7 @@ return read(ints) + read(texts)
     let monomorph_requests = stabilize_monomorph_requests_from_hir_facts(
         &inputs.typecheck_types,
         &inputs.monomorph_requests,
+        &lowered_hir,
         &hir_facts,
     )
     .unwrap();
@@ -4872,7 +4814,7 @@ return read(ints) + read(texts)
     .unwrap();
     materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
 
-    let mut dispatch_candidates = materializer
+    let stable_dispatch_candidate_keys = materializer
         .request_root_funs
         .iter()
         .find_map(|reachable_fun| {
@@ -4883,7 +4825,6 @@ return read(ints) + read(texts)
                         value:
                             Rvalue::Call {
                                 kind: CallKind::Interface { dispatch, .. },
-                                args,
                                 ..
                             },
                         ..
@@ -4891,26 +4832,19 @@ return read(ints) + read(texts)
                     else {
                         return None;
                     };
-                    Some(materializer.interface_dispatch_candidate_fqns(
-                        dispatch.receiver_ty,
-                        &dispatch.owner_fqn,
-                        &dispatch.member_name,
-                        args.len(),
-                    ))
+                    Some(dispatch.stable_candidate_keys.clone())
                 })
             })
         })
         .unwrap_or_default();
-    dispatch_candidates.sort();
-    assert!(
-        dispatch_candidates.contains(&"fixtures.materialize.Box.m::<Int>".to_string())
-            && dispatch_candidates.contains(&"fixtures.materialize.Box.m::<String>".to_string()),
-        "interface dispatch candidate set 应至少包含 generic owner-specialized Box.m targets：{dispatch_candidates:#?}"
-    );
-
-    let mut resolved_instances = dispatch_candidates
+    let mut resolved_instances = stable_dispatch_candidate_keys
         .iter()
-        .filter_map(|candidate| materializer.explicit_dispatch_candidate_instance(candidate))
+        .filter_map(|candidate| {
+            materializer
+                .instance_key_from_stable_instance_key(candidate)
+                .ok()
+                .flatten()
+        })
         .map(|instance| materializer.instance_display_fqn(&instance))
         .collect::<Vec<_>>();
     resolved_instances.sort();
@@ -4920,12 +4854,7 @@ return read(ints) + read(texts)
             "fixtures.materialize.Box.m::<Int>".to_string(),
             "fixtures.materialize.Box.m::<String>".to_string(),
         ],
-        "explicit dispatch candidate 必须解析出 concrete Box.m instances；当前索引键 = {:#?}",
-        materializer
-            .explicit_dispatch_candidate_instances
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>()
+        "MIR dispatch carrier 必须携带可解析的 concrete Box.m stable candidate keys"
     );
 
     let initial_requests = materializer

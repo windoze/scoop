@@ -2426,6 +2426,7 @@ pub struct Statement {
     pub kind: StatementKind,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = ""))]
 pub enum StatementKind {
@@ -2475,6 +2476,14 @@ pub struct TopLevelRef {
     pub fqn: String,
     pub site_id: Option<SiteId>,
     pub hidden_effects: EffectRow,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stable_template_key: Option<Box<StableTemplateKey>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stable_instance_key: Option<Box<StableInstanceKey>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_type_args: Vec<TypeId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_eff_args: Vec<EffectRow>,
 }
 
 /// 成员访问在 MIR 上保留的最小语言级 metadata。
@@ -2600,6 +2609,14 @@ pub struct DispatchMetadata {
     pub member_fqn: String,
     pub member_decl_span: Option<Span>,
     pub receiver_ty: TypeId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stable_candidate_keys: Vec<StableInstanceKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stable_template_key: Option<Box<StableTemplateKey>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_type_args: Vec<TypeId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_eff_args: Vec<EffectRow>,
 }
 
 /// class constructor call 在 MIR 上发布的 selected ctor / ordered-args contract。
@@ -2656,6 +2673,10 @@ pub enum CallKind {
         stable_template_key: Option<Box<StableTemplateKey>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         stable_instance_key: Option<Box<StableInstanceKey>>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        generic_type_args: Vec<TypeId>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        generic_eff_args: Vec<EffectRow>,
     },
     /// 已知调用的是某个 closure value。
     ///
@@ -2876,6 +2897,7 @@ pub enum StoredContinuationRoutePublication {
 }
 
 /// 右值（最小 rvalue 模型）。
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = ""))]
 pub enum Rvalue {
@@ -4500,6 +4522,8 @@ mod tests {
                             callee_fqn: "sample.helper".to_string(),
                             stable_template_key: None,
                             stable_instance_key: None,
+                            generic_type_args: Vec::new(),
+                            generic_eff_args: Vec::new(),
                         },
                         args: Vec::new(),
                         transport: test_call_transport(builtins.unit),

@@ -16,7 +16,7 @@
 | T1-02B | [DONE] | HIR stable call-site facts + MIR Direct stable template carrier foundation |
 | T1-02C | [DONE] | Materializer-ready template/body/site-binding inventory + non-concrete generic site facts（阻塞 T1-02 fallback 删除） |
 | T1-02D | [DONE] | 补齐 generic owner member/property direct-call stable carrier（解除 T1-02 fallback 删除阻塞） |
-| T1-02 | [TODO] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
+| T1-02 | [DONE] | 上游 identity 贯穿（template-body-site inventory / generic direct-call inventory / dispatch candidate 携带 stable key + owner eff，并删除剩余 materializer/dispatch 下游重建） |
 | T1-02R | [TODO] | Review T1-02 上游 identity |
 
 ---
@@ -157,7 +157,7 @@
   - 新增回归测试覆盖 generic property getter `Box<Int>.readBack` 的 `CallSiteInstanceFact` + MIR direct stable carrier，以及 `Atomic<Node>.load()` / `__atomicRefLoad<T>` 的 stable carrier 发布。
   - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoopc_mir --lib hir_facts_publish_stable` 通过；`cargo test -p scoopc --lib via_mir_instance_collection_materializes_generic_value_property_getter_target` 通过；`cargo test --all --all-targets` 通过（仅 T1-00 已登记 owner-eff 单测 ignored）；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
-### [TODO] T1-02：上游 identity 贯穿（P2/P3）
+### [DONE] T1-02：上游 identity 贯穿（P2/P3）
 
 - 参考：`PLAN.md` §3；`FACT_GAPS.md` FG-01/02/03/04/05/14。
 - 必须实现的内容：
@@ -170,7 +170,14 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（bypass 的 delegate 仍 SKIP）。
 - 完成条件：上游 request/IR/dispatch 携带 stable key + owner eff；materializer/dispatch 不再 span/FQN/receiver 重建。
 - 依赖：T1-02D
-- 完成记录：（待填）
+- 完成记录：
+  - MIR direct-call / top-level function-value / dispatch metadata 现在携带 upstream stable template/instance carrier 与 generic type/effect args；非 concrete generic member/function-value site 可在 materialization 时由 carrier + 当前 instance substitution 生成 concrete `StableInstanceKey`。
+  - HIR/P3 facts 与 MIR lowering 补齐 generic dispatch candidate stable keys；generic owner member dispatch（含 owner type args 与 owner/function eff args）通过 stable key enqueue/materialize，不再依赖 materializer receiver/arg/result-type 推断。
+  - monomorph request stable identity 生成改为消费 HIR call-site/template-site facts 与 `LoweredHir` upstream side table；materializer 不再按 declaration `(fqn, decl_file, decl_span)` 匹配 `GenericTemplateFact`。
+  - 删除 production `infer_direct_call_instance` / explicit dispatch TypeStore 扫描 / FQN remap site-binding fallback；保留的 exact source-site binding 消费仅使用 upstream fact side table，不按 callee FQN 或 loose signature 重建。
+  - 调整 dispatch devirtualization site mapping，使 generic dispatch 的 pass rewrite 指向 canonical concrete instance，而不是 generic base FQN。
+  - 回归覆盖：`scoopc_mir` 全量单元测试覆盖 generic direct/member/property/function-value/dispatch stable carrier；`scoopc` pipeline tests 覆盖 via-MIR/LLVM stage 对 sysroot generic helper request 的 stable identity 贯穿。
+  - 验证：`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 通过（`fixtures: ok (1663)`）。
 
 ### [TODO] T1-02R：Review T1-02 上游 identity
 - 必须实现的内容：复核 request/MIR call/dispatch candidate 携带 stable key、owner eff 进入 canonical identity、上游重建点已删。

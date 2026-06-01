@@ -157,22 +157,49 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<()> {
         match value {
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn, .. },
+                kind:
+                    CallKind::Direct {
+                        callee_fqn,
+                        stable_template_key,
+                        stable_instance_key,
+                        generic_type_args,
+                        generic_eff_args,
+                    },
                 args,
                 ..
             } => {
                 self.reachable_request_call_sites
                     .insert((scan.template_source_path.to_path_buf(), scan.span));
-                if let Some(instance_key) =
-                    self.infer_direct_call_instance(DirectCallInferenceInput {
-                        template_source_path: scan.template_source_path,
-                        call_span: scan.span,
-                        callee_fqn,
-                        args,
-                        result_ty: scan.result_ty,
-                        locals: scan.locals,
-                        substitution: scan.substitution,
-                    })
+                if let Some(stable_key) = stable_instance_key.as_deref()
+                    && let Some(instance_key) =
+                        self.instance_key_from_stable_instance_key(stable_key)?
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
+                if let Some(stable_key) = stable_template_key.as_deref()
+                    && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                        stable_key,
+                        generic_type_args,
+                        generic_eff_args,
+                        scan.substitution,
+                    )?
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
+                let site_key = (scan.template_source_path.to_path_buf(), scan.span);
+                if let Some(binding) = self.call_bindings.get(&site_key).cloned()
+                    && let Some(instance_key) =
+                        self.instance_key_from_site_binding(&binding, scan.substitution)
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
+                if let Some(binding) =
+                    self.value_ref_binding_for_site(scan.template_source_path, scan.span)
+                    && let Some(instance_key) =
+                        self.instance_key_from_site_binding(&binding, scan.substitution)
                 {
                     out.push(instance_key);
                     return Ok(());
@@ -188,7 +215,7 @@ impl MirInstanceMaterializer {
                 }
             }
             Rvalue::Call {
-                kind: CallKind::Virtual { receiver, dispatch },
+                kind: CallKind::Virtual { dispatch, .. },
                 args,
                 ..
             } => {
@@ -199,16 +226,34 @@ impl MirInstanceMaterializer {
                     dispatch.receiver_ty,
                     scan.substitution,
                 );
+                if !dispatch.stable_candidate_keys.is_empty() {
+                    self.scan_reachable_stable_dispatch_candidates(
+                        &scan,
+                        &dispatch.stable_candidate_keys,
+                        out,
+                    )?;
+                    return Ok(());
+                }
+                if let Some(stable_template_key) = dispatch.stable_template_key.as_deref()
+                    && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                        stable_template_key,
+                        &dispatch.generic_type_args,
+                        &dispatch.generic_eff_args,
+                        scan.substitution,
+                    )?
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
                 let candidates = self.virtual_dispatch_candidate_fqns(
                     receiver_ty,
                     &dispatch.member_name,
                     args.len(),
                 );
-                let direct_args = dispatch_direct_call_args(scan.span, receiver, args);
-                self.scan_reachable_dispatch_candidates(&scan, &candidates, &direct_args, out)?;
+                self.scan_reachable_dispatch_candidates(&scan, &candidates, out)?;
             }
             Rvalue::Call {
-                kind: CallKind::Interface { receiver, dispatch },
+                kind: CallKind::Interface { dispatch, .. },
                 args,
                 ..
             } => {
@@ -219,14 +264,32 @@ impl MirInstanceMaterializer {
                     dispatch.receiver_ty,
                     scan.substitution,
                 );
+                if !dispatch.stable_candidate_keys.is_empty() {
+                    self.scan_reachable_stable_dispatch_candidates(
+                        &scan,
+                        &dispatch.stable_candidate_keys,
+                        out,
+                    )?;
+                    return Ok(());
+                }
+                if let Some(stable_template_key) = dispatch.stable_template_key.as_deref()
+                    && let Some(instance_key) = self.instance_key_from_stable_template_args(
+                        stable_template_key,
+                        &dispatch.generic_type_args,
+                        &dispatch.generic_eff_args,
+                        scan.substitution,
+                    )?
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
                 let candidates = self.interface_dispatch_candidate_fqns(
                     receiver_ty,
                     &dispatch.owner_fqn,
                     &dispatch.member_name,
                     args.len(),
                 );
-                let direct_args = dispatch_direct_call_args(scan.span, receiver, args);
-                self.scan_reachable_dispatch_candidates(&scan, &candidates, &direct_args, out)?;
+                self.scan_reachable_dispatch_candidates(&scan, &candidates, out)?;
             }
             Rvalue::ClassCtor {
                 class_fqn, ctor, ..
@@ -248,13 +311,19 @@ impl MirInstanceMaterializer {
                     self.scan_reachable_non_generic_fun(&reachable_closure, out)?;
                 }
             }
-            Rvalue::TopLevelRef(TopLevelRef { fqn, .. }) => {
+            Rvalue::TopLevelRef(top) => {
                 self.reachable_request_call_sites
                     .insert((scan.template_source_path.to_path_buf(), scan.span));
+                if let Some(instance_key) =
+                    self.instance_key_from_top_level_ref_identity(top, scan.substitution)?
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
                 self.scan_reachable_top_level_ref_fqn(
                     scan.template_source_path,
                     scan.span,
-                    fqn,
+                    &top.fqn,
                     out,
                 )?;
             }
@@ -377,12 +446,6 @@ impl MirInstanceMaterializer {
 
         for entry in entries {
             for impl_member_fqn in &entry.method_impl_fqns {
-                if let Some(instance) = self.explicit_dispatch_candidate_instance(impl_member_fqn) {
-                    if !out.contains(&instance) {
-                        out.push(instance);
-                    }
-                    continue;
-                }
                 let Some(templates) = self.roots_by_fqn.get(impl_member_fqn) else {
                     continue;
                 };
@@ -501,9 +564,9 @@ impl MirInstanceMaterializer {
         fqn: &str,
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
-        if let Some(binding) = self.site_instance_binding_for_callee(source_path, span, fqn)
+        if let Some(binding) = self.value_ref_binding_for_site(source_path, span)
             && let Some(instance_key) =
-                self.instantiate_site_binding(&binding, &InstanceSubstitution::default())
+                self.instance_key_from_site_binding(&binding, &InstanceSubstitution::default())
         {
             out.push(instance_key);
             return Ok(());
@@ -830,38 +893,9 @@ impl MirInstanceMaterializer {
         &mut self,
         scan: &ReachableRvalueScanContext<'_>,
         candidate_fqns: &[String],
-        direct_args: &[CallArg],
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
         for candidate_fqn in candidate_fqns {
-            if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
-                template_source_path: scan.template_source_path,
-                call_span: scan.span,
-                callee_fqn: candidate_fqn,
-                args: direct_args,
-                result_ty: scan.result_ty,
-                locals: scan.locals,
-                substitution: scan.substitution,
-            }) {
-                let instance_fqn = self.instance_display_fqn(&instance_key);
-                self.record_reachable_dispatch_devirtualization_target(
-                    scan,
-                    candidate_fqn,
-                    instance_fqn,
-                );
-                out.push(instance_key);
-                continue;
-            }
-            if let Some(instance_key) = self.explicit_dispatch_candidate_instance(candidate_fqn) {
-                let instance_fqn = self.instance_display_fqn(&instance_key);
-                self.record_reachable_dispatch_devirtualization_target(
-                    scan,
-                    candidate_fqn,
-                    instance_fqn,
-                );
-                out.push(instance_key);
-                continue;
-            }
             if let Some(reachable_fun) =
                 self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, candidate_fqn)
             {
@@ -876,6 +910,27 @@ impl MirInstanceMaterializer {
                 );
                 self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn scan_reachable_stable_dispatch_candidates(
+        &mut self,
+        scan: &ReachableRvalueScanContext<'_>,
+        stable_candidate_keys: &[StableInstanceKey],
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        for stable_key in stable_candidate_keys {
+            let Some(instance_key) = self.instance_key_from_stable_instance_key(stable_key)? else {
+                continue;
+            };
+            let instance_fqn = self.instance_display_fqn(&instance_key);
+            self.record_reachable_dispatch_devirtualization_target(
+                scan,
+                &instance_fqn,
+                instance_fqn.clone(),
+            );
+            out.push(instance_key);
         }
         Ok(())
     }
@@ -895,103 +950,6 @@ impl MirInstanceMaterializer {
             ),
             canonical_fqn,
         );
-    }
-
-    pub(super) fn collect_explicit_dispatch_candidate_instances(
-        &mut self,
-        typecheck_types: &TypeStore,
-    ) -> HashMap<String, Vec<InstanceKey>> {
-        let mut out = HashMap::<String, Vec<InstanceKey>>::new();
-        let all_type_ids = typecheck_types.iter_ids().collect::<Vec<_>>();
-
-        for templates in self.roots_by_fqn.values() {
-            for template in templates {
-                let Some(signature) = self.template_signatures.get(template) else {
-                    continue;
-                };
-                let root_eff_param = self
-                    .roots
-                    .get(template)
-                    .and_then(|root| root.eff_param_names.first());
-                if !signature.eff_param_names.is_empty() {
-                    continue;
-                }
-                let Some((owner_fqn, _)) = template.fqn.rsplit_once('.') else {
-                    continue;
-                };
-                let Some(receiver_param) = signature.params.first() else {
-                    continue;
-                };
-                if nominal_type_fqn(&self.types, receiver_param.ty) != Some(owner_fqn) {
-                    continue;
-                }
-
-                for ty_id in &all_type_ids {
-                    let nominal = match typecheck_types.kind(*ty_id) {
-                        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
-                            if nominal.fqn == owner_fqn =>
-                        {
-                            nominal
-                        }
-                        _ => continue,
-                    };
-                    if (nominal.args.is_empty() && nominal.eff.is_none())
-                        || nominal
-                            .args
-                            .iter()
-                            .any(|ty| type_contains_param(typecheck_types, *ty))
-                        || nominal.args.len() != signature.type_param_names.len()
-                    {
-                        continue;
-                    }
-                    let eff_args = if root_eff_param.is_some() {
-                        let Some(row) = nominal.eff.as_ref() else {
-                            continue;
-                        };
-                        vec![EffectRow::new(
-                            row.terms
-                                .iter()
-                                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                                .collect(),
-                        )]
-                    } else {
-                        Vec::new()
-                    };
-
-                    let instance = InstanceKey {
-                        template: template.clone(),
-                        type_args: nominal
-                            .args
-                            .iter()
-                            .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                            .collect(),
-                        eff_args,
-                    };
-                    let display_fqn = self.instance_display_fqn(&instance);
-                    let entry = out.entry(display_fqn).or_default();
-                    if !entry.contains(&instance) {
-                        entry.push(instance);
-                    }
-                }
-            }
-        }
-
-        out
-    }
-
-    pub(super) fn explicit_dispatch_candidate_instance(
-        &self,
-        candidate_fqn: &str,
-    ) -> Option<InstanceKey> {
-        match self
-            .explicit_dispatch_candidate_instances
-            .get(candidate_fqn)
-            .map(Vec::as_slice)
-        {
-            Some([instance]) => Some(instance.clone()),
-            _ => None,
-        }
     }
 
     pub(super) fn virtual_dispatch_candidate_fqns(
@@ -1078,19 +1036,4 @@ impl MirInstanceMaterializer {
         }
         seen
     }
-}
-
-fn dispatch_direct_call_args(
-    call_span: Span,
-    receiver: &Operand,
-    args: &[CallArg],
-) -> Vec<CallArg> {
-    let mut direct_args = Vec::with_capacity(args.len() + 1);
-    direct_args.push(CallArg {
-        span: call_span,
-        name: None,
-        value: receiver.clone(),
-    });
-    direct_args.extend(args.iter().cloned());
-    direct_args
 }

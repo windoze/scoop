@@ -64,7 +64,6 @@ pub(super) struct TemplateCatalogCandidate {
 
 #[derive(Clone)]
 pub(super) struct TemplateSignatureInfo {
-    pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
     pub(super) eff_param_names: Vec<String>,
     pub(super) fun_ty: TypeId,
@@ -316,7 +315,6 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) nongeneric_callable_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) template_symbol_suffixes: HashMap<TemplateKey, String>,
     pub(super) roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
-    pub(super) explicit_dispatch_candidate_instances: HashMap<String, Vec<InstanceKey>>,
     pub(super) direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub(super) top_level_vars: crate::hir::TopLevelVarIndex,
@@ -359,25 +357,21 @@ pub(super) struct ReachableRvalueScanContext<'a> {
     pub(super) substitution: &'a InstanceSubstitution,
 }
 
-pub(super) struct DirectCallInferenceInput<'a> {
-    pub(super) template_source_path: &'a Path,
-    pub(super) call_span: Span,
-    pub(super) callee_fqn: &'a str,
-    pub(super) args: &'a [CallArg],
-    pub(super) result_ty: Option<TypeId>,
-    pub(super) locals: &'a [LocalDecl],
-    pub(super) substitution: &'a InstanceSubstitution,
-}
-
 #[derive(Clone, Copy)]
 pub(super) struct DirectCallRewriteContext<'a> {
     pub(super) template_source_path: &'a Path,
     pub(super) caller_fqn: &'a str,
     pub(super) block_id: BasicBlockId,
     pub(super) call_span: Span,
-    pub(super) result_ty: Option<TypeId>,
     pub(super) locals: &'a [LocalDecl],
     pub(super) substitution: &'a InstanceSubstitution,
+}
+
+pub(super) struct DirectCallStableIdentity<'a> {
+    pub(super) stable_template_key: &'a mut Option<Box<StableTemplateKey>>,
+    pub(super) stable_instance_key: &'a mut Option<Box<StableInstanceKey>>,
+    pub(super) generic_type_args: &'a [TypeId],
+    pub(super) generic_eff_args: &'a [EffectRow],
 }
 
 pub(super) fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {

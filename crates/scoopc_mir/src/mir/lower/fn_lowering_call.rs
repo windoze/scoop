@@ -204,6 +204,14 @@ impl<'a> FnLowering<'a> {
                 .and_then(FunctionTargetContract::stable_instance_key)
                 .cloned()
                 .map(Box::new),
+            generic_type_args: function
+                .map(FunctionTargetContract::type_args)
+                .unwrap_or_default()
+                .to_vec(),
+            generic_eff_args: function
+                .map(FunctionTargetContract::eff_args)
+                .unwrap_or_default()
+                .to_vec(),
         };
         let terminates_current_block = matches!(
             &kind,
@@ -489,12 +497,39 @@ impl<'a> FnLowering<'a> {
         let Some(args) = self.lower_call_args_with_expected(call_args, &expected_tys) else {
             return;
         };
+        let mut stable_candidate_keys = self
+            .facts
+            .dispatch_candidate_keys(self.source_path.as_path(), span)
+            .to_vec();
+        if let Some(stable_key) = member.function().stable_instance_key() {
+            stable_candidate_keys.push(stable_key.clone());
+        } else if let Some(stable_template_key) = member.function().stable_template_key()
+            && let Ok(stable_key) = StableInstanceKey::from_type_arguments(
+                stable_template_key.clone(),
+                self.types,
+                member.function().type_args(),
+                member.function().eff_args(),
+                &NoTypeParamResolver,
+            )
+        {
+            stable_candidate_keys.push(stable_key);
+        }
+        stable_candidate_keys.sort_by_key(StableInstanceKey::canonical_text);
+        stable_candidate_keys.dedup();
         let dispatch = DispatchMetadata {
             owner_fqn: member.owner_fqn().to_string(),
             member_name: member.member_name().to_string(),
             member_fqn: member.member_fqn().to_string(),
             member_decl_span: member.function().decl_span(),
             receiver_ty: member.receiver_ty(),
+            stable_candidate_keys,
+            stable_template_key: member
+                .function()
+                .stable_template_key()
+                .cloned()
+                .map(Box::new),
+            generic_type_args: member.function().type_args().to_vec(),
+            generic_eff_args: member.function().eff_args().to_vec(),
         };
         let kind = match dispatch_kind {
             DispatchTargetKind::Virtual => CallKind::Virtual {

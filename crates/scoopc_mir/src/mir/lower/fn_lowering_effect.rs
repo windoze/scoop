@@ -599,6 +599,8 @@ impl<'a> FnLowering<'a> {
             callee_fqn: binding.to_string(),
             stable_template_key: None,
             stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let compare_args = vec![
             CallArg {
@@ -668,6 +670,8 @@ impl<'a> FnLowering<'a> {
             callee_fqn: "scoop.core.String.compareTo".to_string(),
             stable_template_key: None,
             stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let compare_args = vec![
             CallArg {
@@ -743,6 +747,8 @@ impl<'a> FnLowering<'a> {
             callee_fqn: format!("{owner_fqn}.{method}"),
             stable_template_key: None,
             stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![
             CallArg {
@@ -795,6 +801,8 @@ impl<'a> FnLowering<'a> {
             callee_fqn: format!("{owner_fqn}.{method}"),
             stable_template_key: None,
             stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![CallArg {
             span: operand.span,
@@ -935,6 +943,8 @@ impl<'a> FnLowering<'a> {
             callee_fqn: format!("scoop.core.Int.{method}"),
             stable_template_key: None,
             stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![
             CallArg {
@@ -989,6 +999,9 @@ impl<'a> FnLowering<'a> {
                 let tmp = self.push_temp_local(span, ty);
                 let hidden_effects = self.facts.top_level_ref_hidden_effects(fqn);
                 let site_id = (!hidden_effects.is_pure()).then(|| self.fresh_site_id());
+                let stable_binding = self
+                    .facts
+                    .template_value_binding(self.source_path.as_path(), span);
                 self.assign(
                     span,
                     tmp,
@@ -996,6 +1009,19 @@ impl<'a> FnLowering<'a> {
                         fqn: fqn.clone(),
                         site_id,
                         hidden_effects,
+                        stable_template_key: stable_binding
+                            .map(TemplateSiteBindingContract::stable_template_key)
+                            .cloned()
+                            .map(Box::new),
+                        stable_instance_key: None,
+                        generic_type_args: stable_binding
+                            .map(TemplateSiteBindingContract::type_args)
+                            .unwrap_or_default()
+                            .to_vec(),
+                        generic_eff_args: stable_binding
+                            .map(TemplateSiteBindingContract::eff_args)
+                            .unwrap_or_default()
+                            .to_vec(),
                     }),
                 );
                 tmp

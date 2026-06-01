@@ -8,8 +8,8 @@ impl MirLoweringFacts {
     pub fn from_hir_facts(lowered: &hir::LoweredHir, hir_facts: &HirFacts) -> Self {
         let mut facts = Self::default();
         facts = facts
-            .with_source_site_facts(hir_facts)
             .with_declaration_facts(&lowered.types, hir_facts)
+            .with_source_site_facts(hir_facts)
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
         facts
@@ -21,6 +21,27 @@ impl MirLoweringFacts {
         hir_facts: &HirFacts,
     ) -> Self {
         let facts = HirFactResolver::new(types, hir_facts);
+        self.stable_templates_by_request.clear();
+        self.stable_templates_by_request_span.clear();
+        for fact in &hir_facts.declarations.generic_templates {
+            if let Ok(stable_template_key) =
+                StableTemplateKey::from_canonical_text(fact.stable_template_key.as_str())
+            {
+                self.stable_templates_by_request.insert(
+                    (
+                        fact.request_fqn.clone(),
+                        fact.request_source_path.clone(),
+                        fact.request_span,
+                    ),
+                    stable_template_key,
+                );
+                self.stable_templates_by_request_span.insert(
+                    (fact.request_fqn.clone(), fact.request_span),
+                    StableTemplateKey::from_canonical_text(fact.stable_template_key.as_str())
+                        .expect("stable template key parsed above"),
+                );
+            }
+        }
         self.member_value_tys.extend(facts.member_value_tys());
         self.nominal_kinds.extend(facts.nominal_kinds());
         self.enum_has_payload.extend(facts.enum_payload_kinds());
@@ -50,6 +71,8 @@ impl MirLoweringFacts {
         self.perform_sites.clear();
         self.handle_sites.clear();
         self.call_sites.clear();
+        self.template_value_bindings.clear();
+        self.dispatch_candidate_keys.clear();
         self.assign_places.clear();
         self.call_arg_bindings.clear();
         self.class_ctor_call_sites.clear();
@@ -78,7 +101,7 @@ impl MirLoweringFacts {
                     );
                     self.call_sites.insert(
                         call_site.clone(),
-                        TypedCallSiteContract::Virtual(member_contract_from_fact(member)),
+                        TypedCallSiteContract::Virtual(self.member_contract_from_fact(member)),
                     );
                 }
                 hir_site_facts::CallSiteContractKind::Interface(member) => {
@@ -92,7 +115,7 @@ impl MirLoweringFacts {
                     );
                     self.call_sites.insert(
                         call_site.clone(),
-                        TypedCallSiteContract::Interface(member_contract_from_fact(member)),
+                        TypedCallSiteContract::Interface(self.member_contract_from_fact(member)),
                     );
                 }
                 hir_site_facts::CallSiteContractKind::DirectTopLevel(function) => {
@@ -100,9 +123,9 @@ impl MirLoweringFacts {
                         .insert(call_site.clone(), function.fqn.clone());
                     self.call_sites.insert(
                         call_site.clone(),
-                        TypedCallSiteContract::DirectTopLevel(function_contract_from_fact(
-                            function,
-                        )),
+                        TypedCallSiteContract::DirectTopLevel(
+                            self.function_contract_from_fact(function),
+                        ),
                     );
                 }
                 hir_site_facts::CallSiteContractKind::MemberDirect(member) => {
@@ -110,7 +133,7 @@ impl MirLoweringFacts {
                         .insert(call_site.clone(), member.function.fqn.clone());
                     self.call_sites.insert(
                         call_site.clone(),
-                        TypedCallSiteContract::MemberDirect(member_contract_from_fact(member)),
+                        TypedCallSiteContract::MemberDirect(self.member_contract_from_fact(member)),
                     );
                 }
                 hir_site_facts::CallSiteContractKind::Extension {
@@ -123,7 +146,7 @@ impl MirLoweringFacts {
                         call_site.clone(),
                         TypedCallSiteContract::Extension {
                             receiver_ty: *receiver_ty,
-                            function: function_contract_from_fact(function),
+                            function: self.function_contract_from_fact(function),
                         },
                     );
                 }
@@ -134,7 +157,7 @@ impl MirLoweringFacts {
                         call_site.clone(),
                         TypedCallSiteContract::Intrinsic {
                             kind: intrinsic_kind_from_fact(kind),
-                            function: function_contract_from_fact(function),
+                            function: self.function_contract_from_fact(function),
                         },
                     );
                 }
@@ -196,6 +219,26 @@ impl MirLoweringFacts {
                 hir_call_site(&fact.identity),
                 call_arg_binding_from_fact(&fact.binding),
             );
+        }
+        for fact in &hir_facts.source_sites.template_site_bindings {
+            if fact.kind != hir_site_facts::TemplateSiteBindingKind::FunValue {
+                continue;
+            }
+            if let Some(binding) = template_site_binding_from_fact(fact) {
+                self.template_value_bindings
+                    .insert(hir_call_site(&fact.identity), binding);
+            }
+        }
+        for fact in &hir_facts.source_sites.dispatch_candidates {
+            let keys = fact
+                .stable_instance_keys
+                .iter()
+                .filter_map(|key| StableInstanceKey::from_canonical_text(key.as_str()).ok())
+                .collect::<Vec<_>>();
+            if !keys.is_empty() {
+                self.dispatch_candidate_keys
+                    .insert(hir_call_site(&fact.identity), keys);
+            }
         }
         for fact in &hir_facts.source_sites.continuation_resumes {
             self.resume_sites.insert(
@@ -358,6 +401,47 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
+    pub(in crate::mir::lower) fn template_value_binding(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> Option<&TemplateSiteBindingContract> {
+        let key = hir::CallSite::new(source_path.to_path_buf(), span);
+        self.template_value_bindings.get(&key).or_else(|| {
+            let mut found: Option<(Span, &TemplateSiteBindingContract)> = None;
+            for (site, binding) in &self.template_value_bindings {
+                if site.source_path != source_path
+                    || site.span.start > span.start
+                    || span.end > site.span.end
+                {
+                    continue;
+                }
+                let Some((found_span, found_binding)) = found else {
+                    found = Some((site.span, binding));
+                    continue;
+                };
+                if found_binding != binding {
+                    return None;
+                }
+                if site.span.end - site.span.start < found_span.end - found_span.start {
+                    found = Some((site.span, binding));
+                }
+            }
+            found.map(|(_, binding)| binding)
+        })
+    }
+
+    pub(in crate::mir::lower) fn dispatch_candidate_keys(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> &[StableInstanceKey] {
+        self.dispatch_candidate_keys
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
     pub(in crate::mir::lower) fn top_level_fun_call_fqn(
         &self,
         source_path: &std::path::Path,
@@ -444,36 +528,79 @@ fn hir_call_site(identity: &hir_site_facts::SourceSiteIdentity) -> hir::CallSite
     hir::CallSite::new(identity.source_path.clone(), identity.span)
 }
 
-fn function_contract_from_fact(fact: &hir_site_facts::FunctionTarget) -> FunctionTargetContract {
-    FunctionTargetContract {
-        fqn: fact.fqn.clone(),
-        decl_file: fact.decl_file.clone(),
-        decl_span: fact.decl_span,
-        abi_identity: callable_abi_from_fact(fact.abi),
-        param_tys: fact.param_tys.clone(),
-        return_ty: fact.return_ty,
-        stable_template_key: fact
+impl MirLoweringFacts {
+    fn function_contract_from_fact(
+        &self,
+        fact: &hir_site_facts::FunctionTarget,
+    ) -> FunctionTargetContract {
+        let stable_template_key = fact
             .stable_template_key
             .as_ref()
-            .and_then(|key| StableTemplateKey::from_canonical_text(key.as_str()).ok()),
-        stable_instance_key: fact
-            .stable_instance_key
-            .as_ref()
-            .and_then(|key| StableInstanceKey::from_canonical_text(key.as_str()).ok()),
-        type_args: fact.type_args.clone(),
-        eff_args: fact.eff_args.clone(),
-        arg_binding: fact.arg_binding.as_ref().map(call_arg_binding_from_fact),
+            .and_then(|key| StableTemplateKey::from_canonical_text(key.as_str()).ok())
+            .or_else(|| {
+                let decl_span = fact.decl_span?;
+                if let Some(decl_file) = fact.decl_file.as_ref()
+                    && let Some(stable_template_key) = self.stable_templates_by_request.get(&(
+                        fact.fqn.clone(),
+                        decl_file.clone(),
+                        decl_span,
+                    ))
+                {
+                    return Some(stable_template_key.clone());
+                }
+                self.stable_templates_by_request
+                    .iter()
+                    .find_map(|((fqn, _, span), stable_template_key)| {
+                        (fqn == &fact.fqn && span == &decl_span)
+                            .then(|| stable_template_key.clone())
+                    })
+                    .or_else(|| {
+                        self.stable_templates_by_request_span
+                            .get(&(fact.fqn.clone(), decl_span))
+                            .cloned()
+                    })
+            });
+        FunctionTargetContract {
+            fqn: fact.fqn.clone(),
+            decl_file: fact.decl_file.clone(),
+            decl_span: fact.decl_span,
+            abi_identity: callable_abi_from_fact(fact.abi),
+            param_tys: fact.param_tys.clone(),
+            return_ty: fact.return_ty,
+            stable_template_key,
+            stable_instance_key: fact
+                .stable_instance_key
+                .as_ref()
+                .and_then(|key| StableInstanceKey::from_canonical_text(key.as_str()).ok()),
+            type_args: fact.type_args.clone(),
+            eff_args: fact.eff_args.clone(),
+            arg_binding: fact.arg_binding.as_ref().map(call_arg_binding_from_fact),
+        }
+    }
+
+    fn member_contract_from_fact(
+        &self,
+        fact: &hir_site_facts::MemberCallTarget,
+    ) -> MemberCallTargetContract {
+        MemberCallTargetContract {
+            owner_fqn: fact.owner_fqn.clone(),
+            member_name: fact.member_name.clone(),
+            member_fqn: fact.member_fqn.clone(),
+            receiver_ty: fact.receiver_ty,
+            function: self.function_contract_from_fact(&fact.function),
+        }
     }
 }
 
-fn member_contract_from_fact(fact: &hir_site_facts::MemberCallTarget) -> MemberCallTargetContract {
-    MemberCallTargetContract {
-        owner_fqn: fact.owner_fqn.clone(),
-        member_name: fact.member_name.clone(),
-        member_fqn: fact.member_fqn.clone(),
-        receiver_ty: fact.receiver_ty,
-        function: function_contract_from_fact(&fact.function),
-    }
+fn template_site_binding_from_fact(
+    fact: &hir_site_facts::TemplateSiteBindingFact,
+) -> Option<TemplateSiteBindingContract> {
+    Some(TemplateSiteBindingContract {
+        stable_template_key: StableTemplateKey::from_canonical_text(fact.template_key.as_str())
+            .ok()?,
+        type_args: fact.type_args.clone(),
+        eff_args: fact.eff_args.clone(),
+    })
 }
 
 fn constructor_contract_from_fact(

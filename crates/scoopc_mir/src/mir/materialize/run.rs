@@ -285,13 +285,7 @@ impl MirInstanceMaterializer {
     }
 
     fn collect_canonical_dispatch_targets_by_fqn(&self) -> HashMap<String, String> {
-        self.explicit_dispatch_candidate_instances
-            .iter()
-            .filter_map(|(candidate_fqn, instances)| match instances.as_slice() {
-                [instance] => Some((candidate_fqn.clone(), self.instance_display_fqn(instance))),
-                _ => None,
-            })
-            .collect()
+        HashMap::new()
     }
 
     pub(super) fn enqueue(&mut self, key: InstanceKey) {
