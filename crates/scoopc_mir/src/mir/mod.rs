@@ -2476,13 +2476,13 @@ pub struct TopLevelRef {
     pub fqn: String,
     pub site_id: Option<SiteId>,
     pub hidden_effects: EffectRow,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub stable_template_key: Option<Box<StableTemplateKey>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub stable_instance_key: Option<Box<StableInstanceKey>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub generic_type_args: Vec<TypeId>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub generic_eff_args: Vec<EffectRow>,
 }
 
@@ -2609,13 +2609,13 @@ pub struct DispatchMetadata {
     pub member_fqn: String,
     pub member_decl_span: Option<Span>,
     pub receiver_ty: TypeId,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub stable_candidate_keys: Vec<StableInstanceKey>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub stable_template_key: Option<Box<StableTemplateKey>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub generic_type_args: Vec<TypeId>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub generic_eff_args: Vec<EffectRow>,
 }
 
@@ -2669,13 +2669,13 @@ pub enum CallKind {
     /// 目标函数在 MIR 上已经静态唯一确定。
     Direct {
         callee_fqn: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         stable_template_key: Option<Box<StableTemplateKey>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         stable_instance_key: Option<Box<StableInstanceKey>>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[serde(default)]
         generic_type_args: Vec<TypeId>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[serde(default)]
         generic_eff_args: Vec<EffectRow>,
     },
     /// 已知调用的是某个 closure value。
@@ -3557,6 +3557,51 @@ mod tests {
         });
         body.start = bb;
         body
+    }
+
+    fn assert_bincode_round_trips<T>(value: &T)
+    where
+        T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug,
+    {
+        let bytes = bincode::serialize(value).expect("serialize MIR payload");
+        bincode::deserialize::<T>(&bytes).expect("deserialize MIR payload");
+    }
+
+    #[test]
+    fn mir_metadata_default_fields_are_bincode_stable() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let hidden_effects = EffectRow::pure();
+
+        assert_bincode_round_trips(&TopLevelRef {
+            fqn: "sample.value".to_string(),
+            site_id: None,
+            hidden_effects: hidden_effects.clone(),
+            stable_template_key: None,
+            stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
+        });
+
+        assert_bincode_round_trips(&DispatchMetadata {
+            owner_fqn: "sample.Box".to_string(),
+            member_name: "get".to_string(),
+            member_fqn: "sample.Box.get".to_string(),
+            member_decl_span: None,
+            receiver_ty: builtins.any,
+            stable_candidate_keys: Vec::new(),
+            stable_template_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
+        });
+
+        assert_bincode_round_trips(&CallKind::Direct {
+            callee_fqn: "sample.id".to_string(),
+            stable_template_key: None,
+            stable_instance_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
+        });
     }
 
     #[test]

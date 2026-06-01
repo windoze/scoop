@@ -420,14 +420,14 @@ LateLoweredProgram
       plain_source_slices:
         - bb#h10a58862b84c97429684e1ff604f6920 stmts[0..0] + term
         - bb#h8188b65e69e71921e88441a5ecf18664 stmts[0..2] + term
-        - bb#h74829b718343a8f02ea8f23bca3bf3ac stmts[0..3] + term
+        - bb#h74829b718343a8f02ea8f23bca3bf3ac stmts[0..2] + term
         - bb#h5b585dd4b93a9daf854267c49a92c2ab stmts[0..1] + term
         - bb#ha21910d6eedb7e142bf587f0e79fbf8b stmts[0..0] + term
         - bb#he0d2e2f408157f3942648540d1d9f0e3 stmts[0..2] + term
         - bb#h9330dfb98fa1cc27eeeafba8836d55df stmts[0..0] + term
         - bb#h1b4df7dcbf0a386d9c10dcb62df870cf stmts[0..1] + term
       plain_call_sites:
-        - site#h3f9b9afa7bfa7e13494180cbb59108a6 Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h74829b718343a8f02ea8f23bca3bf3ac stmt1 dispatch=PlainCall
+        - site#h3f9b9afa7bfa7e13494180cbb59108a6 Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h74829b718343a8f02ea8f23bca3bf3ac stmt0 dispatch=PlainCall
         - site#hd1a873d8c74723992c863cf11b5a9671 Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h5b585dd4b93a9daf854267c49a92c2ab stmt0 dispatch=PlainCall
         - site#hcb3b11323ca8249c98373446fa1ab101 Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h1b4df7dcbf0a386d9c10dcb62df870cf stmt0 dispatch=PlainCall
       plain_local_effect_control: step#hf0b914bb96aa628ce2a8f75d789f09f3 cont_obj#hd07b5e32d3e51cc976ce51142d73d196
@@ -437,7 +437,7 @@ LateLoweredProgram
         cleanup_state: state#h7b818cad0aac96e66c608f32cae1af7a
         drop_state: state#hf8e6fb9413b1ae679cd6e3d03a8cb2c8
         states:
-          - state#h13558099f2ad25e817d8b856b753bc73 Entry term=Handle(site#h2f9ea1648c6172889bef8c5bcde8018c body=state#heb9e6c7c9b84a777f8545fbb3eed493b arms=[state#hf64f3342af3e5cc7ddb2d9f8223ad32c] finally=state#h7b818cad0aac96e66c608f32cae1af7a exit=state#h9a4c0aad524749ab15faabb478d645a8 boundaries=[] drop=state#hf8e6fb9413b1ae679cd6e3d03a8cb2c8) successors=[state#heb9e6c7c9b84a777f8545fbb3eed493b, state#hf64f3342af3e5cc7ddb2d9f8223ad32c, state#h7b818cad0aac96e66c608f32cae1af7a]
+          - state#h13558099f2ad25e817d8b856b753bc73 Entry term=Handle(site#h2f9ea1648c6172889bef8c5bcde8018c body=state#heb9e6c7c9b84a777f8545fbb3eed493b arms=[state#hadfe00ecfd58efe0bdaa6adbcf12843c] finally=state#h7b818cad0aac96e66c608f32cae1af7a exit=state#h9a4c0aad524749ab15faabb478d645a8 boundaries=[] drop=state#hf8e6fb9413b1ae679cd6e3d03a8cb2c8) successors=[state#heb9e6c7c9b84a777f8545fbb3eed493b, state#hadfe00ecfd58efe0bdaa6adbcf12843c, state#h7b818cad0aac96e66c608f32cae1af7a]
             handle_contract:
               carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
               body_complete_target: state#h7b818cad0aac96e66c608f32cae1af7a
@@ -448,7 +448,7 @@ LateLoweredProgram
               body_outward_cases: []
               finally_outward_cases: []
               handled_arms:
-                - handled=case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next ordinal=0 -> state#hf64f3342af3e5cc7ddb2d9f8223ad32c payload_tuple_ty=Int outward=[]
+                - handled=case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next ordinal=0 -> state#hadfe00ecfd58efe0bdaa6adbcf12843c payload_tuple_ty=Int outward=[]
                   payload_binders:
                     - #0 local#h71769e598ab57c1faa371c1b7f27886e slot=<none>
                   continuation_binder: <none>
@@ -463,7 +463,7 @@ LateLoweredProgram
               state_regions:
                 - state#h13558099f2ad25e817d8b856b753bc73 => dispatch
                 - state#heb9e6c7c9b84a777f8545fbb3eed493b => body
-                - state#hf64f3342af3e5cc7ddb2d9f8223ad32c => arm(case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next, ordinal=0)
+                - state#hadfe00ecfd58efe0bdaa6adbcf12843c => arm(case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next, ordinal=0)
                 - state#h7b818cad0aac96e66c608f32cae1af7a => finally
                 - state#h9a4c0aad524749ab15faabb478d645a8 => exit
                 - state#hdc656c707f378e78b841c1cdb9b9965c => body
@@ -472,7 +472,7 @@ LateLoweredProgram
               boundary_routings:
                 - boundary#hdbe6c47271e49ab34a5fd1889d92e8c8 owner=state#heb9e6c7c9b84a777f8545fbb3eed493b region=body resume=state#hdc656c707f378e78b841c1cdb9b9965c
                   case_routings:
-                    - case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next => consume_to_arm(state#hf64f3342af3e5cc7ddb2d9f8223ad32c, ordinal=0, resume=state#hdc656c707f378e78b841c1cdb9b9965c)
+                    - case#hf37f30d1a37e73e616400fa0ee900084=fixtures.mir_lowered.Step.next => consume_to_arm(state#hadfe00ecfd58efe0bdaa6adbcf12843c, ordinal=0, resume=state#hdc656c707f378e78b841c1cdb9b9965c)
               outward_emissions:
                 <none>
             source_slices:
@@ -488,13 +488,12 @@ LateLoweredProgram
                 statement_classification:
                   - stmt0: effect-neutral-value
                   - stmt1: resume-payload-injection boundary#hdbe6c47271e49ab34a5fd1889d92e8c8 resume=state#hdc656c707f378e78b841c1cdb9b9965c local#h4246ec5599b276e95536f0cc83f7de60
-          - state#hf64f3342af3e5cc7ddb2d9f8223ad32c Segment term=Goto(state#h7b818cad0aac96e66c608f32cae1af7a) successors=[state#h7b818cad0aac96e66c608f32cae1af7a]
+          - state#hadfe00ecfd58efe0bdaa6adbcf12843c Segment term=Goto(state#h7b818cad0aac96e66c608f32cae1af7a) successors=[state#h7b818cad0aac96e66c608f32cae1af7a]
             source_slices:
-              - bb#h74829b718343a8f02ea8f23bca3bf3ac stmts[0..3] + term
+              - bb#h74829b718343a8f02ea8f23bca3bf3ac stmts[0..2] + term
                 statement_classification:
                   - stmt0: effect-neutral-value
                   - stmt1: effect-neutral-value
-                  - stmt2: effect-neutral-value
           - state#h7b818cad0aac96e66c608f32cae1af7a Cleanup term=Goto(state#h9a4c0aad524749ab15faabb478d645a8) successors=[state#h9a4c0aad524749ab15faabb478d645a8]
             source_slices:
               - bb#h5b585dd4b93a9daf854267c49a92c2ab stmts[0..1] + term

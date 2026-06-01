@@ -61,7 +61,7 @@ pub enum ConeArtifactError {
     },
     #[error("failed to encode cone artifact JSON manifest")]
     ManifestEncode(#[from] serde_json::Error),
-    #[error("failed to encode or decode cone artifact binary payload `{path}`")]
+    #[error("failed to encode or decode cone artifact binary payload `{path}`: {source}")]
     Binary {
         path: PathBuf,
         #[source]

@@ -10,7 +10,7 @@
 | 任务 | 状态 | 目标 |
 | --- | --- | --- |
 | T2-01E | [DONE] | Fix effect-lowered GC handle token ABI regression exposed by T2-01F |
-| T2-01F | [TODO] | Restore full fixture baseline observed during T2-01 validation |
+| T2-01F | [DONE] | Restore full fixture baseline observed during T2-01 validation |
 | T2-01 | [TODO] | HIR 分层 `CallableSourceEffectFacts` + 统一 expression inference + canonical semantic facts（含 hidden init） |
 | T2-01R | [TODO] | Review T2-01 |
 | T2-02 | [TODO] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
@@ -34,7 +34,7 @@
 - 依赖：T1-02R
 - 完成记录：2026-06-01 完成。修复 retained object-singleton `scoop.core.GC.*` intrinsic direct-call lowering 的显式参数类型推断：当 published function param list 含隐式 `GC` receiver 时，MIR lowering 会剥离该 receiver，再用真实显式参数推导 call arg carrier，避免 `GC.handleGet` / `GC.handleDrop` 的 `invoke_args_tuple_ty` 从 `scoop.core.GcHandle` 漂移到 `scoop.core.GC` / `Ref`。新增 effect-facts regression `gc_handle_intrinsic_call_sites_use_handle_token_carrier`，覆盖 `GC.handleGet` / `GC.handleDrop` 的 stable handle token carrier。验证：`cargo fmt`；`cargo test -p scoopc_effect_facts_stage gc_handle_intrinsic_call_sites_use_handle_token_carrier` 通过；`cargo build -p scoop -p scoopc` 通过；targeted fixtures `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`、`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop` 均通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 已完整运行，剩余 7 个 failures 均是本文件下一任务 `T2-01F` 已明确列出的 fixture baseline 修复项（`effect_lowered/handle_finally_boundary.scoop`、`effect_lowered/nested_handle_self_contained_vs_outward.scoop`、`mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_materialized/pass_pipeline_metadata.scoop`、`run_pass_cone/dependency_c_sources_extern_call`、`run_pass_cone/dependency_cxx_sources_extern_call_cpp_stdlib`），本任务要求的 GC handle/build/runtime failures 已恢复通过且不再触发 `GC.handleDrop`/`GC.handleGet` argument `Ref`/`GcHandle` drift。
 
-### [TODO] T2-01F：Restore full fixture baseline observed during T2-01 validation
+### [DONE] T2-01F：Restore full fixture baseline observed during T2-01 validation
 
 - 背景：执行 `T2-01` 实现与完整 fixture 验证时发现以下 exact failures。根据失败策略，这些不能作为既有噪声忽略；必须在 `T2-01` 标记完成前修复、同步 golden，或进一步证明并拆出更精确的前置任务。
 - 必须处理的 failures：
@@ -82,7 +82,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：完整 fixture suite 通过，或任何仍无法同 invocation 修复的 failure 被拆成更精确且更早的 prerequisite task，并且 `T2-01` 仍依赖全部 prerequisite。
 - 依赖：T2-01E
-- 完成记录：（待填）
+- 完成记录：2026-06-01 完成。恢复 T2-01 validation 期间观察到的完整 fixture baseline：修复 dependency cone artifact 读取失败的根因，移除 MIR metadata 默认字段上的 `skip_serializing_if`，避免这些字段经 LIR `lir_program.bin` bincode 持久化时发生字段错位，并新增 `mir_metadata_default_fields_are_bincode_stable` 回归测试覆盖 `TopLevelRef` / `DispatchMetadata` / `CallKind::Direct` 的空默认字段 roundtrip。同步 5 个已确认语义正确的 snapshot golden（`effect_lowered/handle_finally_boundary.scoop`、`effect_lowered/nested_handle_self_contained_vs_outward.scoop`、`mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_materialized/pass_pipeline_metadata.scoop`），反映当前常量 operand 不再强制落临时 local 后的 MIR/LIR 输出与 source-slice/state-id 更新。验证：7 个 T2-01E 记录的剩余 targeted fixtures 全部通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-01：HIR source-level effect facts + 统一 expression inference
 
