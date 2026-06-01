@@ -9,6 +9,7 @@ use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
 
 use crate::MirFacts;
 use crate::common::FactIdentity;
+use crate::effects::CallSiteTarget;
 
 /// Result type returned by MIR fact verification.
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -23,6 +24,8 @@ pub enum VerifyError {
     DuplicateFactIdentity(String),
     DuplicateArtifactKey(String),
     MissingCanonicalSnapshot(String),
+    EmptyCallSiteCandidateSet(String),
+    EmptyCallSiteTargetJoin(String),
 }
 
 impl fmt::Display for VerifyError {
@@ -41,6 +44,12 @@ impl fmt::Display for VerifyError {
                     "canonical MIR snapshot `{key}` is not present in snapshots"
                 )
             }
+            Self::EmptyCallSiteCandidateSet(key) => {
+                write!(f, "call-site target `{key}` has an empty candidate set")
+            }
+            Self::EmptyCallSiteTargetJoin(key) => {
+                write!(f, "call-site target `{key}` has an empty join source list")
+            }
         }
     }
 }
@@ -53,6 +62,7 @@ pub fn verify_mir_facts(facts: &MirFacts) -> Result<()> {
     verify_unique_fact_identities(facts)?;
     verify_unique_owned_artifact_keys(facts)?;
     verify_canonical_snapshot_binding(facts)?;
+    verify_call_site_targets(facts)?;
     Ok(())
 }
 
@@ -242,6 +252,26 @@ fn verify_canonical_snapshot_binding(facts: &MirFacts) -> Result<()> {
         .any(|snapshot| snapshot.key.canonical_text() == canonical_text);
     if !exists {
         return Err(VerifyError::MissingCanonicalSnapshot(canonical_text));
+    }
+
+    Ok(())
+}
+
+fn verify_call_site_targets(facts: &MirFacts) -> Result<()> {
+    for target in &facts.effects.call_site_targets {
+        match &target.target {
+            CallSiteTarget::CandidateSet { keys } if keys.is_empty() => {
+                return Err(VerifyError::EmptyCallSiteCandidateSet(
+                    target.identity.canonical_text().to_string(),
+                ));
+            }
+            CallSiteTarget::Join { sources, .. } if sources.is_empty() => {
+                return Err(VerifyError::EmptyCallSiteTargetJoin(
+                    target.identity.canonical_text().to_string(),
+                ));
+            }
+            _ => {}
+        }
     }
 
     Ok(())

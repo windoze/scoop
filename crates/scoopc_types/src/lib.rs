@@ -52,7 +52,9 @@ impl WireSchemaVersion {
 ///   boundary/backend）及 instance `eff_args`。
 /// - 1.4：MIR effect events/site inventory 携带 P4 所需的 typed perform/handle/resume
 ///   contract 与 result type，避免 P4 回扫 MIR shape。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 4);
+/// - 1.5：MIR callable target/provenance facts 支持 parameter-carried callable、join
+///   sources 与显式 dynamic fallback 标记。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 5);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

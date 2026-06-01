@@ -100,11 +100,17 @@ impl MirFacts {
 #[cfg(test)]
 mod tests {
     use scoop_project_model::{OptLevel, StableConeKey};
-    use scoopc_ids::{CanonicalTextKey, StableCanonicalKey as _, StageArtifactKey};
+    use scoopc_ids::{
+        BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey as _, StageArtifactKey,
+    };
 
     use super::*;
     use crate::common::FactIdentity;
+    use crate::effects::{CallSiteTarget, CallSiteTargetFact, CallSiteTargetSource, MirCallKind};
     use crate::metadata::{MirNominalOwnerKind, NominalDirectSupertypesFact};
+    use crate::provenance::{
+        CallableValueProvenance, CallableValueProvenanceFact, CallableValueProvenanceSource,
+    };
     use crate::roots::{MirItemReference, MirRootDetail, MirRootFact, MirRootKind};
     use crate::snapshot::MaterializedSnapshotBinding;
     use crate::verify::VerifyError;
@@ -129,6 +135,60 @@ mod tests {
         let decoded: MirFacts = bincode::deserialize(&bytes).expect("deserialize MIR facts");
 
         assert_eq!(decoded.schema_version, scoopc_types::WIRE_SCHEMA_VERSION);
+        assert_eq!(decoded, facts);
+    }
+
+    #[test]
+    fn mir_facts_round_trip_callable_join_target_and_provenance() {
+        let cone = StableConeKey::new("fixture", "0.0.0");
+        let instance = StageArtifactKey::new("mir", &cone, "materialized_instance", 0);
+        let body = body_ref(&instance, "sample.root");
+        let closure = "sample.root$closure";
+
+        let mut facts = MirFacts::new();
+        facts.effects.call_site_targets.push(CallSiteTargetFact {
+            identity: identity("mir_effect:call_target:sample.root:0"),
+            instance: instance.clone(),
+            body: body.clone(),
+            site_id: SiteId::from_raw(0),
+            call_kind: MirCallKind::FunValue,
+            target: CallSiteTarget::Join {
+                sources: vec![
+                    CallSiteTargetSource::KnownClosure {
+                        fn_ptr: closure.to_string(),
+                    },
+                    CallSiteTargetSource::Param { index: 0 },
+                ],
+                requires_dynamic_fallback: true,
+            },
+        });
+        facts
+            .provenance
+            .callable_values
+            .push(CallableValueProvenanceFact {
+                identity: identity("mir_provenance:callable_value:sample.root:local1"),
+                instance,
+                body,
+                local: 1,
+                block: None,
+                site_id: None,
+                provenance: CallableValueProvenance::Join {
+                    sources: vec![
+                        CallableValueProvenanceSource::KnownClosure {
+                            fn_ptr: closure.to_string(),
+                        },
+                        CallableValueProvenanceSource::Param { index: 0 },
+                    ],
+                },
+            });
+
+        facts.verify().expect("joined callable facts should verify");
+        let dump = facts.dump();
+        assert!(dump.contains("target=join:closure:sample.root$closure|param:0 fallback=true"));
+        assert!(dump.contains("provenance=join:closure:sample.root$closure|param:0"));
+
+        let bytes = bincode::serialize(&facts).expect("serialize MIR facts");
+        let decoded: MirFacts = bincode::deserialize(&bytes).expect("deserialize MIR facts");
         assert_eq!(decoded, facts);
     }
 
@@ -215,6 +275,16 @@ mod tests {
             key,
             MirItemReference::new(0),
             MirRootDetail::CallableBody,
+        )
+    }
+
+    fn body_ref(owner: &StageArtifactKey, fqn: &str) -> crate::common::MirBodyReference {
+        let owner_key = CanonicalTextKey::new(owner.canonical_text());
+        crate::common::MirBodyReference::new(
+            BodyVersionKey::new(&owner_key, "canonical_materialized_mir", 0),
+            owner_key,
+            fqn,
+            None,
         )
     }
 

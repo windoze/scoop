@@ -15,7 +15,7 @@
 | T2-01R | [DONE] | Review T2-01 |
 | T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [DONE] | Review T2-02 |
-| T2-03A1 | [TODO] | MIR 发布 higher-order callable target/provenance facts，覆盖 closure/function-value/param/join |
+| T2-03A1 | [DONE] | MIR 发布 higher-order callable target/provenance facts，覆盖 closure/function-value/param/join |
 | T2-03A2 | [TODO] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
@@ -124,7 +124,7 @@
 - 依赖：T2-02
 - 完成记录：2026-06-01 完成。Review T2-02 时修复三类 handoff correctness 问题：`MaterializedCallableEffectTemplate` 改为携带完整 `TemplateKey`，MIR instance effect rows 按 `(fqn, source_path, decl_span)` 精确匹配，避免 overload 共享 display FQN 时串用 source effect row；MIR fact verifier 增加 schema version 校验，并将 wire schema bump 到 `1.3` 覆盖新增 effects/provenance/boundary/backend handoff groups 与 instance `eff_args`；callable value provenance 只在目标 local 类型确为 function 时把 `TopLevelRef` 发布为 callable provenance，并把 block/statement 纳入 fact identity，避免普通 top-level value 被伪装成 `DirectFunction` 或重复 local identity。新增回归测试覆盖 overload effect identity、非 callable top-level value provenance、unsupported MIR fact schema version；`scoop run` 测试 helper 改为每次重建 `scoopc`，避免 schema bump 后 stale subprocess binary 写出旧 artifact。同步 `mir_materialized/pass_pipeline_metadata.mir` golden，使 materialized MIR dump 捕获 T2-02 发布的 handoff fact groups。验证：`cargo fmt`；targeted tests `cargo test -p scoopc_mir_facts verifier_rejects_unsupported_schema_version`、`cargo test -p scoopc mir_callable_instance_effects_match_overload_template_identity`、`cargo test -p scoopc mir_callable_value_provenance_does_not_relabel_top_level_values_as_functions`、`cargo test -p scoop run_builds_and_executes_minimal_main` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py tests/fixtures/mir_materialized/pass_pipeline_metadata.scoop` 通过；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
-### [TODO] T2-03A1：MIR 发布 higher-order callable target/provenance facts
+### [DONE] T2-03A1：MIR 发布 higher-order callable target/provenance facts
 
 - 背景：执行 `T2-03` 时，P4 已切换为消费 MIR-published site/event/target/surface/provenance facts，并删除 P4 内部 MIR shape 扫描、dispatch union 与 callable-value 局部数据流恢复。随后暴露两个 continuation 路由回归：
   1. `single_pipeline_runs_higher_order_function_value_handled_effect_cli`：`tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop` 输出停在 `5\ncaught\n9\n` 且退出码为 `1`，未恢复到 `10`。
@@ -140,11 +140,34 @@
 - 验证：`cargo fmt`；新增/更新 MIR facts 单测覆盖 param、join、closure、call-result provenance；`cargo test -p scoopc <新增测试名>`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`。
 - 完成条件：MIR published facts 能单独解释上述 two regressions 所需的 higher-order call-site target/provenance；fact verifier/schema/stable dump 同步；P4 仍未改动为下游重建。
 - 依赖：T2-02R
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。扩展 `scoopc_mir_facts` callable target/provenance schema：`CallSiteTarget` 现在能表达 `Param`、`Join { sources, requires_dynamic_fallback }` 与显式 `DynamicFallback { reason }`，`CallableValueProvenance` 支持 join sources；MIR fact verifier 拒绝空 `CandidateSet` / 空 join，stable dump 输出 callable value provenance 与 result provenance，并将 wire schema bump 到 `1.5`。MIR stage 新增 body-local callable provenance dataflow，从参数、`TopLevelRef`、closure carrier、direct-call result provenance 与 CFG join 发布稳定 callable-value facts，并为 higher-order `FunValue` call site 发布 authoritative target fact；closed 多来源 join 会收敛成 stable-key `CandidateSet`，param/open 来源保持显式 param/join/dynamic fallback，不把未知编码为空候选集合。新增测试 `mir_facts_round_trip_callable_join_target_and_provenance` 覆盖 schema/dump/bincode roundtrip，新增 `mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 覆盖 param-carried callable、closure carrier、direct-call result returning callable、join candidate set。验证：`cargo fmt` 通过；targeted tests `cargo test -p scoopc_mir_facts mir_facts_round_trip_callable_join_target_and_provenance`、`cargo test -p scoopc mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 已运行，剩余 2 个 failures 是下一任务 `T2-03A2` 已明确要求恢复的 p7 higher-order/closure continuation regressions；`python3 tools/run_fixtures.py` 已运行，剩余 22 个 failures 已补充登记到 `T2-03A2` 的必须处理清单，均属于后续 P4/P5 消费 published facts 与 fact-only continuation route 收口范围，本任务只发布 MIR facts，不恢复 P4 反向重建。
 
 ### [TODO] T2-03A2：P4 只消费 published higher-order call-site facts
 
 - 背景：当前修复尝试中，`mir_stage.rs` 对 callable provenance 的发布方向是正确的，但 `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs` 又新增了跨 body 反向解析：从 dynamic boundary carrier local 出发，扫描所有 body 的 `call_targets`，通过 `BoundarySourceContract.args` 追踪 param-carried callable，再把候选实例拼回 `CallSiteEffectFacts`。这虽然消费的是 MIR facts，不是 raw MIR shape，但本质上仍是 P4 在重建上游缺失的 callable target/provenance。
+- T2-03A1 验证期间观察到的完整 fixture failures 也归入本任务，完成前必须修复或同步为语义正确的 golden，不能留下未排期失败：
+  1. `tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+  2. `tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`
+  3. `tests/fixtures/effect_facts/handle_finally_boundary.scoop`
+  4. `tests/fixtures/effect_facts/handle_perform.scoop`
+  5. `tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`
+  6. `tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
+  7. `tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
+  8. `tests/fixtures/effect_lowered/effect_boundary_inside_expr_context.scoop`
+  9. `tests/fixtures/effect_lowered/handle_finally_boundary.scoop`
+  10. `tests/fixtures/effect_lowered/handle_perform.scoop`
+  11. `tests/fixtures/effect_lowered/nested_handle_self_contained_vs_outward.scoop`
+  12. `tests/fixtures/mir_materialized/pass_pipeline_metadata.scoop`
+  13. `tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`
+  14. `tests/fixtures/run-pass/continuation_resume_answer_replay_basic.scoop`
+  15. `tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.scoop`
+  16. `tests/fixtures/run-pass/delegated_property_observable_vetoable_concurrency_ok.scoop`
+  17. `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop`
+  18. `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  19. `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  20. `tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop`
+  21. `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`
+  22. `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_wrapper_member_direct.scoop`
 - 必须实现的内容：
   1. P4 `BodyFactsBuilder` 对 call-site target 的处理只读取 T2-03A1 发布的 per-site target/provenance/surface facts；允许做稳定 key 到 `InstanceKey` 的查表和 schema materialization，不允许做跨 body 参数反查或 points-to 求解。
   2. 删除或避免引入类似 `parameter_candidate_instances` / `fact_target_includes_callable` / “扫描 `mir_fact_index.bodies` 查 caller” 的逻辑。`provenance_target_for_boundary` 若保留，只能消费同一 site/local 已发布的 authoritative provenance，不得递归追 caller。

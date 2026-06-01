@@ -277,11 +277,47 @@ pub struct CallSiteTargetFact {
 /// Stable call-site target identity.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CallSiteTarget {
+    KnownInstance {
+        key: CanonicalTextKey,
+    },
+    CandidateSet {
+        keys: Vec<CanonicalTextKey>,
+    },
+    DirectFunction {
+        fqn: String,
+    },
+    KnownClosure {
+        fn_ptr: String,
+    },
+    Param {
+        index: usize,
+    },
+    Join {
+        sources: Vec<CallSiteTargetSource>,
+        requires_dynamic_fallback: bool,
+    },
+    DynamicFallback {
+        reason: DynamicFallbackReason,
+    },
+    Dynamic,
+}
+
+/// One provenance source for a joined callable call target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum CallSiteTargetSource {
     KnownInstance { key: CanonicalTextKey },
-    CandidateSet { keys: Vec<CanonicalTextKey> },
     DirectFunction { fqn: String },
     KnownClosure { fn_ptr: String },
-    Dynamic,
+    Param { index: usize },
+}
+
+/// Why an otherwise callable-shaped site still needs dynamic fallback handling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum DynamicFallbackReason {
+    UnknownCallable,
+    OpenParam,
+    NativeFunPtr,
+    EmptyCandidateSet,
 }
 
 /// Published surface row for one MIR call site.

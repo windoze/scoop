@@ -5,7 +5,11 @@ use std::fmt::Write as _;
 use scoopc_ids::StableCanonicalKey as _;
 
 use crate::MirFacts;
-use crate::effects::{CallSiteTarget, MirEffectEventKind};
+use crate::effects::{CallSiteTarget, CallSiteTargetSource, MirEffectEventKind};
+use crate::provenance::{
+    CallableValueProvenance, CallableValueProvenanceSource, ResultProvenance,
+    ResultProvenanceSource,
+};
 use crate::roots::{MirRootDetail, MirRootFact};
 
 /// Render a compact, stable summary of the MIR fact groups.
@@ -145,10 +149,21 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         for result in &facts.provenance.results {
             writeln!(
                 &mut out,
-                "    - result={} callable={} overridden={}",
+                "    - result={} callable={} provenance={} overridden={}",
                 result.instance.canonical_text(),
                 result.callable.as_str(),
+                result_provenance_label(&result.provenance),
                 result.summary_overridden,
+            )
+            .expect("writing to String cannot fail");
+        }
+        for value in &facts.provenance.callable_values {
+            writeln!(
+                &mut out,
+                "    - callable_value body={} local={} provenance={}",
+                value.body.fqn,
+                value.local,
+                callable_value_provenance_label(&value.provenance),
             )
             .expect("writing to String cannot fail");
         }
@@ -258,7 +273,87 @@ fn call_target_label(target: &CallSiteTarget) -> String {
         ),
         CallSiteTarget::DirectFunction { fqn } => format!("direct:{fqn}"),
         CallSiteTarget::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        CallSiteTarget::Param { index } => format!("param:{index}"),
+        CallSiteTarget::Join {
+            sources,
+            requires_dynamic_fallback,
+        } => format!(
+            "join:{} fallback={}",
+            sources
+                .iter()
+                .map(call_target_source_label)
+                .collect::<Vec<_>>()
+                .join("|"),
+            requires_dynamic_fallback,
+        ),
+        CallSiteTarget::DynamicFallback { reason } => format!("dynamic_fallback:{reason:?}"),
         CallSiteTarget::Dynamic => "dynamic".to_string(),
+    }
+}
+
+fn call_target_source_label(source: &CallSiteTargetSource) -> String {
+    match source {
+        CallSiteTargetSource::KnownInstance { key } => format!("known:{}", key.as_str()),
+        CallSiteTargetSource::DirectFunction { fqn } => format!("direct:{fqn}"),
+        CallSiteTargetSource::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        CallSiteTargetSource::Param { index } => format!("param:{index}"),
+    }
+}
+
+fn callable_value_provenance_label(provenance: &CallableValueProvenance) -> String {
+    match provenance {
+        CallableValueProvenance::DirectFunction { fqn } => format!("direct:{fqn}"),
+        CallableValueProvenance::KnownInstance { key } => format!("known:{}", key.as_str()),
+        CallableValueProvenance::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        CallableValueProvenance::Param { index } => format!("param:{index}"),
+        CallableValueProvenance::Join { sources } => format!(
+            "join:{}",
+            sources
+                .iter()
+                .map(callable_value_source_label)
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        CallableValueProvenance::Unknown => "unknown".to_string(),
+    }
+}
+
+fn callable_value_source_label(source: &CallableValueProvenanceSource) -> String {
+    match source {
+        CallableValueProvenanceSource::DirectFunction { fqn } => format!("direct:{fqn}"),
+        CallableValueProvenanceSource::KnownInstance { key } => format!("known:{}", key.as_str()),
+        CallableValueProvenanceSource::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        CallableValueProvenanceSource::Param { index } => format!("param:{index}"),
+    }
+}
+
+fn result_provenance_label(provenance: &ResultProvenance) -> String {
+    match provenance {
+        ResultProvenance::Unit => "unit".to_string(),
+        ResultProvenance::Param { index } => format!("param:{index}"),
+        ResultProvenance::DirectFunction { fqn } => format!("direct:{fqn}"),
+        ResultProvenance::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        ResultProvenance::TopLevelValue { fqn } => format!("top_level:{fqn}"),
+        ResultProvenance::PerformResult { op_fqn } => format!("perform:{op_fqn}"),
+        ResultProvenance::Join { sources } => format!(
+            "join:{}",
+            sources
+                .iter()
+                .map(result_provenance_source_label)
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        ResultProvenance::Unknown => "unknown".to_string(),
+    }
+}
+
+fn result_provenance_source_label(source: &ResultProvenanceSource) -> String {
+    match source {
+        ResultProvenanceSource::Param { index } => format!("param:{index}"),
+        ResultProvenanceSource::DirectFunction { fqn } => format!("direct:{fqn}"),
+        ResultProvenanceSource::KnownClosure { fn_ptr } => format!("closure:{fn_ptr}"),
+        ResultProvenanceSource::TopLevelValue { fqn } => format!("top_level:{fqn}"),
+        ResultProvenanceSource::PerformResult { op_fqn } => format!("perform:{op_fqn}"),
     }
 }
 

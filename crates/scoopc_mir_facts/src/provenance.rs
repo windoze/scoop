@@ -33,11 +33,31 @@ pub struct CallableValueProvenanceFact {
 /// Callable-value points-to family.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CallableValueProvenance {
+    DirectFunction {
+        fqn: String,
+    },
+    KnownInstance {
+        key: CanonicalTextKey,
+    },
+    KnownClosure {
+        fn_ptr: String,
+    },
+    Param {
+        index: usize,
+    },
+    Join {
+        sources: Vec<CallableValueProvenanceSource>,
+    },
+    Unknown,
+}
+
+/// One source inside joined callable-value provenance.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum CallableValueProvenanceSource {
     DirectFunction { fqn: String },
     KnownInstance { key: CanonicalTextKey },
     KnownClosure { fn_ptr: String },
     Param { index: usize },
-    Unknown,
 }
 
 /// Stable result provenance for one materialized instance summary.

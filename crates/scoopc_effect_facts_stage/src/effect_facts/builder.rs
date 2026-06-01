@@ -1130,6 +1130,18 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                     )
                 }
             }
+            mir_effects::CallSiteTarget::Param { .. }
+            | mir_effects::CallSiteTarget::Join { .. }
+            | mir_effects::CallSiteTarget::DynamicFallback { .. } => self
+                .call_site_for_surface_row(
+                    types,
+                    kind,
+                    CallSiteTarget::DynamicFallback,
+                    invoke_args_tuple_ty,
+                    result_ty,
+                    surface_row,
+                    EffectPrecision::SignatureFallback,
+                ),
         }
     }
 
@@ -1263,6 +1275,7 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                 mir_provenance::CallableValueProvenance::KnownClosure { fn_ptr } => {
                     self.mir_fact_index.instance_for_callable_fqn(fn_ptr)
                 }
+                mir_provenance::CallableValueProvenance::Join { .. } => None,
                 mir_provenance::CallableValueProvenance::Param { .. }
                 | mir_provenance::CallableValueProvenance::Unknown => None,
             };
