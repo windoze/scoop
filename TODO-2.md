@@ -18,7 +18,7 @@
 | T2-03A1 | [DONE] | MIR 发布 higher-order callable target/provenance facts，覆盖 closure/function-value/param/join |
 | T2-03A2a0 | [DONE] | 修复 composed resume 的 surface-resume owner dispatch target 发布/选择 |
 | T2-03A2a | [DONE] | 修复 escaped closure callee-suspend composed continuation resume route |
-| T2-03A2 | [TODO] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
+| T2-03A2 | [DONE] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
 | T2-03R | [TODO] | Review T2-03 |
 
@@ -172,7 +172,7 @@
 - 依赖：T2-03A2a0
 - 完成记录：2026-06-02 完成。复核最新 `[T2-03A2a0]` 实现后确认 current tree 已满足本任务 runtime route 要求：escaped closure 保存的 composed callee continuation 在 `k.resume(32)` 时会先按 captured closure continuation owner 恢复 callee suspend point，输出 `closure_resume\n32`，再把 callee completion 投影回 caller boundary result，最终输出 `body_done\n42`；同类 closure locals fixture 也恢复 callee resume tail 与 capture/local restore。当前任务未新增代码变更，仅做 `T2-03A2a` 状态收口；剩余完整 fixture failures 均为下一任务 `T2-03A2` 已显式列出的 P4 fact-only/snapshot/run-pass 收口项。验证：`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli -- --nocapture` 通过；targeted fixtures `python3 tools/run_fixtures.py tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop --processes 1`、`python3 tools/run_fixtures.py tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop --processes 1` 均通过；`cargo fmt` 通过；`cargo build -p scoopc` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop --test p7_default_pipeline` 通过；`cargo test --all --all-targets` 完整通过；`python3 tools/run_fixtures.py` 完整运行，剩余 15 个 failures 与下一任务 `T2-03A2` 清单一致（`effect_facts/dispatch_and_resume_call`、`dynamic_fallback_widening`、`handle_finally_boundary`、`handle_perform`、`nested_handle_self_contained_vs_outward`；`effect_lowered/dispatch_and_resume_call`、`dropped_continuation_abandons_remaining_work`、`effect_boundary_inside_expr_context`、`handle_finally_boundary`、`handle_perform`、`nested_handle_self_contained_vs_outward`；`mir_materialized/pass_pipeline_metadata`；`run-pass/delegated_property_observable_vetoable_basic`、`delegated_property_observable_vetoable_concurrency_ok`、`effect_handle_return_from_function_any_boxing`）。
 
-### [TODO] T2-03A2：P4 只消费 published higher-order call-site facts
+### [DONE] T2-03A2：P4 只消费 published higher-order call-site facts
 
 - 背景：当前修复尝试中，`mir_stage.rs` 对 callable provenance 的发布方向是正确的，但 `crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs` 又新增了跨 body 反向解析：从 dynamic boundary carrier local 出发，扫描所有 body 的 `call_targets`，通过 `BoundarySourceContract.args` 追踪 param-carried callable，再把候选实例拼回 `CallSiteEffectFacts`。这虽然消费的是 MIR facts，不是 raw MIR shape，但本质上仍是 P4 在重建上游缺失的 callable target/provenance。
 - T2-03A1 验证期间观察到的完整 fixture failures 也归入本任务，完成前必须修复或同步为语义正确的 golden，不能留下未排期失败：
@@ -207,7 +207,7 @@
 - 验证：`cargo fmt`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli`；`cargo test -p scoop --test p7_default_pipeline`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：两个 p7 regressions 恢复通过；P4 代码中不存在 higher-order callable 的跨 body 反向重建；测试未通过空候选/弱断言掩盖 target contract 缺失；fact-only call-site lowering 保持开启。
 - 依赖：T2-03A2a
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。复核 P4 `BodyFactsBuilder` 当前只消费 MIR-published per-site target/provenance/surface facts，未保留 `parameter_candidate_instances` / `fact_target_includes_callable` / 扫描 `mir_fact_index.bodies` 反解 caller 参数的 higher-order 反向重建；`provenance_target_for_boundary` 仅消费当前 site/carrier local 已发布 provenance。修复 MIR fact 发布中 owner effect-param substitution 的完整性：`MaterializedCallableEffectTemplate` 携带 eff 参数声明顺序，MIR stage 在 callable rows、call-site surface/event rows 与 fallback function rows 中按 `InstanceKey.eff_args` 替换 effect row params，省略 eff args 时按 materializer 语义视为 Pure，避免 `ObservableProperty` / `VetoableProperty` 这类“type param + eff param” owner 把 `eff_param(...)` 泄漏给 P4；新增 `mir_callable_instance_effect_rows_substitute_owner_eff_param_after_type_params` 回归测试。恢复并验证 higher-order/function-value/closure continuation regressions；`effect_handle_return_from_function_any_boxing` 改为断言调用前后 heap object 增量为 1，避免 effect-step `main` 自身 frame/effect-context 基线污染原 boxed-return 保活断言。同步已确认语义正确的 effect facts、effect lowered、MIR metadata goldens，反映 DynamicFallback/has_suspend_boundary、Pure residual continuation surface row、call surface/provenance 发布数量变化。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop --test p7_default_pipeline -- --nocapture`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py` 完整通过（1664 checks）。
 
 ### [TODO] T2-03：P4 纯消费上游 facts 产出 instance effect facts
 

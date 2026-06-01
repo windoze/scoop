@@ -53,7 +53,7 @@ body_facts:
       bb0:
         ambient_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
         outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
-        has_suspend_boundary: false
+        has_suspend_boundary: true
         has_handle_boundary: false
     sites:
       site0:

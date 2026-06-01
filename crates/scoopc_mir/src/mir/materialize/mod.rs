@@ -89,6 +89,7 @@ pub struct MaterializedCallableSignature {
 #[derive(Debug, Clone)]
 pub struct MaterializedCallableEffectTemplate {
     pub template: TemplateKey,
+    pub eff_param_names: Vec<String>,
     pub declared_surface_row: Option<EffectRowTemplate>,
     pub actual_surface_row_template: EffectRowTemplate,
     pub published_surface_row_template: EffectRowTemplate,

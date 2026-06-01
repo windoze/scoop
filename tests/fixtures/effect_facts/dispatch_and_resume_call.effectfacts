@@ -139,13 +139,13 @@ body_facts:
       site0:
         kind: Call
         call_kind: Interface
-        target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir.IFace.foo)
+        target_mode: DynamicFallback
+        target: DynamicFallback
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
-        precision: Precise
+        precision: SignatureFallback
   fixtures.mir.callVirtual:
     blocks:
       bb0:

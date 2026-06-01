@@ -64,7 +64,9 @@ use crate::mir::{
 use crate::stable_id::{
     EffectRowTemplate as StableEffectRowTemplate, NoTypeParamResolver, StableEffectParamKey,
 };
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    EFFECT_ROW_PARAM_DECL_FILE, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::HirStageOutput;
 
@@ -486,10 +488,15 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
             if let Some(body) = &fun.body {
                 step_rows.extend(body_local_effect_rows(
                     materialized,
+                    family.key(),
                     fun,
                     body,
                     &pass_view,
                     surface_rows,
+                    source_effects
+                        .get(&family.key().template)
+                        .map(|source| source.eff_param_names.as_slice())
+                        .unwrap_or(&[]),
                 ));
             }
         }
@@ -519,9 +526,14 @@ fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
                 materialized,
                 &cone,
                 &instance_artifact,
+                family.key(),
                 fun,
                 &pass_view,
                 surface_rows,
+                source_effects
+                    .get(&family.key().template)
+                    .map(|source| source.eff_param_names.as_slice())
+                    .unwrap_or(&[]),
                 &mut facts,
             );
         }
@@ -572,20 +584,34 @@ fn callable_instance_rows(
 ) {
     if let Some(source) = source {
         let bindings = effect_param_bindings(&materialized.types, source, &instance.eff_args);
-        let declared = source
-            .declared_surface_row
-            .as_ref()
-            .map(|row| fact_effect_row_template(&row.substitute(&bindings)));
-        let actual =
-            fact_effect_row_template(&source.actual_surface_row_template.substitute(&bindings));
-        let published =
-            fact_effect_row_template(&source.published_surface_row_template.substitute(&bindings));
+        let declared = source.declared_surface_row.as_ref().map(|row| {
+            substitute_fact_effect_row_template(
+                &materialized.types,
+                fact_effect_row_template(&row.substitute(&bindings)),
+                instance,
+                &source.eff_param_names,
+            )
+        });
+        let actual = substitute_fact_effect_row_template(
+            &materialized.types,
+            fact_effect_row_template(&source.actual_surface_row_template.substitute(&bindings)),
+            instance,
+            &source.eff_param_names,
+        );
+        let published = substitute_fact_effect_row_template(
+            &materialized.types,
+            fact_effect_row_template(&source.published_surface_row_template.substitute(&bindings)),
+            instance,
+            &source.eff_param_names,
+        );
         return (declared, actual, published);
     }
 
     let fallback = root_body
         .and_then(|fun| function_effect_row(&materialized.types, fun.ty))
-        .map(|(row, closed)| effect_row_template(&materialized.types, row, closed))
+        .map(|(row, closed)| {
+            effect_row_template_for_instance(&materialized.types, row, closed, instance, &[])
+        })
         .unwrap_or_else(FactEffectRowTemplate::pure);
     (Some(fallback.clone()), fallback.clone(), fallback)
 }
@@ -596,6 +622,50 @@ fn effect_param_bindings(
     eff_args: &[EffectRow],
 ) -> HashMap<StableEffectParamKey, StableEffectRowTemplate> {
     let mut out = HashMap::new();
+    let param_keys = source_effect_param_keys(source);
+    let default_pure = EffectRow::pure();
+
+    if source.eff_param_names.is_empty() {
+        if param_keys.len() == eff_args.len() {
+            let mut ordered_keys = param_keys;
+            ordered_keys.sort_by_key(|key| {
+                (
+                    key.ordinal(),
+                    key.owner().canonical_text(),
+                    key.name().to_string(),
+                )
+            });
+            for (param_key, row) in ordered_keys.into_iter().zip(eff_args) {
+                bind_effect_param(types, &mut out, param_key, Some(row));
+            }
+        } else {
+            for param_key in param_keys {
+                if let Ok(index) = usize::try_from(param_key.ordinal()) {
+                    bind_effect_param(
+                        types,
+                        &mut out,
+                        param_key,
+                        effect_arg_or_default(eff_args, index, &default_pure),
+                    );
+                }
+            }
+        }
+        return out;
+    }
+
+    for (index, name) in source.eff_param_names.iter().enumerate() {
+        let row = effect_arg_or_default(eff_args, index, &default_pure);
+        for param_key in param_keys.iter().filter(|key| key.name() == name) {
+            bind_effect_param(types, &mut out, param_key.clone(), row);
+        }
+    }
+    out
+}
+
+fn source_effect_param_keys(
+    source: &MaterializedCallableEffectTemplate,
+) -> Vec<StableEffectParamKey> {
+    let mut keys = Vec::new();
     for template in [
         source.declared_surface_row.as_ref(),
         Some(&source.actual_surface_row_template),
@@ -608,29 +678,49 @@ fn effect_param_bindings(
             let Some(param_key) = term.param_key() else {
                 continue;
             };
-            let Some(row) = eff_args.get(param_key.ordinal() as usize) else {
-                continue;
-            };
-            let row_template = StableEffectRowTemplate::from_concrete_effect_row(
-                types,
-                row,
-                &NoTypeParamResolver,
-                false,
-            )
-            .expect("materialized effect argument must have a stable row template");
-            out.entry(param_key).or_insert(row_template);
+            if !keys.contains(&param_key) {
+                keys.push(param_key);
+            }
         }
     }
-    out
+    keys
 }
 
+fn bind_effect_param(
+    types: &TypeStore,
+    out: &mut HashMap<StableEffectParamKey, StableEffectRowTemplate>,
+    param_key: StableEffectParamKey,
+    row: Option<&EffectRow>,
+) {
+    let Some(row) = row else {
+        return;
+    };
+    let row_template =
+        StableEffectRowTemplate::from_concrete_effect_row(types, row, &NoTypeParamResolver, false)
+            .expect("materialized effect argument must have a stable row template");
+    out.entry(param_key).or_insert(row_template);
+}
+
+fn effect_arg_or_default<'a>(
+    eff_args: &'a [EffectRow],
+    index: usize,
+    default_pure: &'a EffectRow,
+) -> Option<&'a EffectRow> {
+    eff_args
+        .get(index)
+        .or_else(|| eff_args.is_empty().then_some(default_pure))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn collect_body_effect_facts(
     materialized: &MaterializedMir,
     cone: &StableConeKey,
     instance: &StageArtifactKey,
+    instance_key: &InstanceKey,
     fun: &MirFunDecl,
     pass_view: &MaterializedMirPassView<'_>,
     surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
     facts: &mut MirEffectFacts,
 ) {
     let Some(body) = &fun.body else {
@@ -678,12 +768,14 @@ fn collect_body_effect_facts(
                     ));
                     let call_surface_row = call_site_surface_row(
                         materialized,
+                        instance_key,
                         body,
                         kind,
                         callable_provenance.call_targets.get(site_id),
                         pass_view,
                         args.len(),
                         surface_rows,
+                        eff_param_names,
                     )
                     .unwrap_or_else(FactEffectRowTemplate::pure);
                     facts.call_site_surface_effects.push(call_site_surface_fact(
@@ -708,7 +800,12 @@ fn collect_body_effect_facts(
                     let row = match kind {
                         MirCallKindNode::Resume { resume, .. } => {
                             has_suspend_boundary |= !resume.out_effects.is_pure();
-                            resume_effect_row(&materialized.types, resume)
+                            resume_effect_row(
+                                &materialized.types,
+                                resume,
+                                instance_key,
+                                eff_param_names,
+                            )
                         }
                         _ => call_surface_row,
                     };
@@ -747,7 +844,13 @@ fn collect_body_effect_facts(
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
-                    let row = effect_row_template(&materialized.types, hidden_effects, false);
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
                     has_suspend_boundary |= !row.terms.is_empty();
                     facts.effect_events.push(effect_event_fact(
                         cone,
@@ -783,8 +886,13 @@ fn collect_body_effect_facts(
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
-                    let row =
-                        effect_row_template(&materialized.types, &top_level.hidden_effects, false);
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        &top_level.hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
                     has_suspend_boundary |= !row.terms.is_empty();
                     facts.effect_events.push(effect_event_fact(
                         cone,
@@ -821,8 +929,13 @@ fn collect_body_effect_facts(
                         Some(stmt.span),
                         block.is_cleanup,
                     ));
-                    let row =
-                        effect_row_template(&materialized.types, &member.hidden_effects, false);
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        &member.hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
                     has_suspend_boundary |= !row.terms.is_empty();
                     facts.effect_events.push(effect_event_fact(
                         cone,
@@ -874,10 +987,12 @@ fn collect_body_effect_facts(
                     },
                     block_id,
                     None,
-                    effect_row_template(
+                    effect_row_template_for_instance(
                         &materialized.types,
                         &EffectRow::new(vec![metadata.effect_ty]),
                         false,
+                        instance_key,
+                        eff_param_names,
                     ),
                     block.is_cleanup,
                 ));
@@ -907,10 +1022,12 @@ fn collect_body_effect_facts(
                     block.is_cleanup,
                 ));
                 has_handle_boundary = true;
-                let row = effect_row_template(
+                let row = effect_row_template_for_instance(
                     &materialized.types,
                     &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
                     false,
+                    instance_key,
+                    eff_param_names,
                 );
                 facts.effect_events.push(effect_event_fact(
                     cone,
@@ -1346,19 +1463,23 @@ fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn call_site_surface_row(
     materialized: &MaterializedMir,
+    instance: &InstanceKey,
     body: &crate::mir::Body,
     kind: &MirCallKindNode,
     target: Option<&CallSiteTarget>,
     pass_view: &MaterializedMirPassView<'_>,
     explicit_arg_count: usize,
     surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
 ) -> Option<FactEffectRowTemplate> {
     let types = &materialized.types;
     if let MirCallKindNode::Closure { callee, .. } | MirCallKindNode::FunValue { callee } = kind {
         let target_row = call_site_target_surface_row(target, pass_view, surface_rows, types);
-        let function_ty_row = operand_function_effect_row(types, body, callee);
+        let function_ty_row =
+            operand_function_effect_row(types, body, callee, instance, eff_param_names);
         if let Some(row) = merge_optional_surface_rows([target_row, function_ty_row]) {
             return Some(row);
         }
@@ -1369,12 +1490,22 @@ fn call_site_surface_row(
                 pass_view
                     .callable(callee_fqn)
                     .and_then(|fun| function_effect_row(types, fun.ty))
-                    .map(|(row, closed)| effect_row_template(types, row, closed))
+                    .map(|(row, closed)| {
+                        effect_row_template_for_instance(
+                            types,
+                            row,
+                            closed,
+                            instance,
+                            eff_param_names,
+                        )
+                    })
             })
         }
         MirCallKindNode::Closure { callee, .. }
         | MirCallKindNode::FunValue { callee }
-        | MirCallKindNode::FunPtr { callee } => operand_function_effect_row(types, body, callee),
+        | MirCallKindNode::FunPtr { callee } => {
+            operand_function_effect_row(types, body, callee, instance, eff_param_names)
+        }
         MirCallKindNode::Virtual { dispatch, .. } | MirCallKindNode::Interface { dispatch, .. } => {
             let candidate_rows =
                 dispatch_candidate_fqns_for_surface(materialized, kind, explicit_arg_count)
@@ -1384,7 +1515,15 @@ fn call_site_surface_row(
                             pass_view
                                 .callable(&fqn)
                                 .and_then(|fun| function_effect_row(types, fun.ty))
-                                .map(|(row, closed)| effect_row_template(types, row, closed))
+                                .map(|(row, closed)| {
+                                    effect_row_template_for_instance(
+                                        types,
+                                        row,
+                                        closed,
+                                        instance,
+                                        eff_param_names,
+                                    )
+                                })
                         })
                     })
                     .collect::<Vec<_>>();
@@ -1399,10 +1538,20 @@ fn call_site_surface_row(
                     pass_view
                         .callable(&dispatch.member_fqn)
                         .and_then(|fun| function_effect_row(types, fun.ty))
-                        .map(|(row, closed)| effect_row_template(types, row, closed))
+                        .map(|(row, closed)| {
+                            effect_row_template_for_instance(
+                                types,
+                                row,
+                                closed,
+                                instance,
+                                eff_param_names,
+                            )
+                        })
                 })
         }
-        MirCallKindNode::Resume { resume, .. } => Some(resume_effect_row(types, resume)),
+        MirCallKindNode::Resume { resume, .. } => {
+            Some(resume_effect_row(types, resume, instance, eff_param_names))
+        }
     }
 }
 
@@ -1465,12 +1614,16 @@ fn operand_function_effect_row(
     types: &TypeStore,
     body: &crate::mir::Body,
     operand: &MirOperand,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
 ) -> Option<FactEffectRowTemplate> {
     let MirOperand::Local(local) = operand else {
         return None;
     };
     let ty = body.locals.get(local.as_u32() as usize)?.ty;
-    function_effect_row(types, ty).map(|(row, closed)| effect_row_template(types, row, closed))
+    function_effect_row(types, ty).map(|(row, closed)| {
+        effect_row_template_for_instance(types, row, closed, instance, eff_param_names)
+    })
 }
 
 fn function_effect_row(types: &TypeStore, ty: TypeId) -> Option<(&EffectRow, bool)> {
@@ -1483,12 +1636,20 @@ fn function_effect_row(types: &TypeStore, ty: TypeId) -> Option<(&EffectRow, boo
 fn resume_effect_row(
     types: &TypeStore,
     resume: &crate::mir::ResumeMetadata,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
 ) -> FactEffectRowTemplate {
     let mut terms = resume.out_effects.terms.clone();
     if let Some(runtime_error) = resume.runtime_error_effect_ty {
         terms.push(runtime_error);
     }
-    effect_row_template(types, &EffectRow::new(terms), false)
+    effect_row_template_for_instance(
+        types,
+        &EffectRow::new(terms),
+        false,
+        instance,
+        eff_param_names,
+    )
 }
 
 fn perform_effect_op_contract(
@@ -1547,10 +1708,12 @@ fn fact_tuple_carrier_ty(
 
 fn body_local_effect_rows(
     materialized: &MaterializedMir,
+    instance: &InstanceKey,
     fun: &MirFunDecl,
     body: &crate::mir::Body,
     pass_view: &MaterializedMirPassView<'_>,
     surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
 ) -> Vec<FactEffectRowTemplate> {
     let types = &materialized.types;
     let mut rows = Vec::new();
@@ -1562,18 +1725,36 @@ fn body_local_effect_rows(
             };
             match value {
                 MirRvalue::ClassCtor { hidden_effects, .. } => {
-                    rows.push(effect_row_template(types, hidden_effects, false));
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
                 }
                 MirRvalue::TopLevelRef(top_level) if !top_level.hidden_effects.is_pure() => {
-                    rows.push(effect_row_template(types, &top_level.hidden_effects, false));
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        &top_level.hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
                 }
                 MirRvalue::MemberAccess { member, .. } if !member.hidden_effects.is_pure() => {
-                    rows.push(effect_row_template(types, &member.hidden_effects, false));
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        &member.hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
                 }
                 MirRvalue::Call {
                     kind: MirCallKindNode::Resume { resume, .. },
                     ..
-                } => rows.push(resume_effect_row(types, resume)),
+                } => rows.push(resume_effect_row(types, resume, instance, eff_param_names)),
                 MirRvalue::Call {
                     site_id,
                     kind,
@@ -1582,12 +1763,14 @@ fn body_local_effect_rows(
                 } => {
                     if let Some(row) = call_site_surface_row(
                         materialized,
+                        instance,
                         body,
                         kind,
                         callable_provenance.call_targets.get(site_id),
                         pass_view,
                         args.len(),
                         surface_rows,
+                        eff_param_names,
                     ) {
                         rows.push(row);
                     }
@@ -1596,16 +1779,24 @@ fn body_local_effect_rows(
             }
         }
         match &block.terminator.kind {
-            MirTerminatorKind::Perform { metadata, .. } => rows.push(effect_row_template(
-                types,
-                &EffectRow::new(vec![metadata.effect_ty]),
-                false,
-            )),
-            MirTerminatorKind::Handle { arms, .. } => rows.push(effect_row_template(
-                types,
-                &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
-                false,
-            )),
+            MirTerminatorKind::Perform { metadata, .. } => {
+                rows.push(effect_row_template_for_instance(
+                    types,
+                    &EffectRow::new(vec![metadata.effect_ty]),
+                    false,
+                    instance,
+                    eff_param_names,
+                ));
+            }
+            MirTerminatorKind::Handle { arms, .. } => {
+                rows.push(effect_row_template_for_instance(
+                    types,
+                    &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
+                    false,
+                    instance,
+                    eff_param_names,
+                ));
+            }
             _ => {}
         }
     }
@@ -2107,6 +2298,82 @@ fn effect_arg_templates(types: &TypeStore, eff_args: &[EffectRow]) -> Vec<FactEf
         .iter()
         .map(|row| effect_row_template(types, row, false))
         .collect()
+}
+
+fn effect_row_template_for_instance(
+    types: &TypeStore,
+    row: &EffectRow,
+    closed: bool,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> FactEffectRowTemplate {
+    let row = substitute_effect_row_params(types, row, instance, eff_param_names);
+    let template = effect_row_template(types, &row, closed);
+    substitute_fact_effect_row_template(types, template, instance, eff_param_names)
+}
+
+fn substitute_fact_effect_row_template(
+    types: &TypeStore,
+    row: FactEffectRowTemplate,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> FactEffectRowTemplate {
+    let mut terms = Vec::new();
+    for term in row.terms {
+        let FactEffectRowTerm::Param { name, .. } = &term else {
+            terms.push(term);
+            continue;
+        };
+        if instance.eff_args.is_empty() {
+            continue;
+        }
+        let Some(arg) = effect_arg_for_param(instance, eff_param_names, name) else {
+            terms.push(term);
+            continue;
+        };
+        terms.extend(effect_row_template(types, arg, false).terms);
+    }
+    FactEffectRowTemplate::new(terms, row.closed)
+}
+
+fn substitute_effect_row_params(
+    types: &TypeStore,
+    row: &EffectRow,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> EffectRow {
+    let mut terms = Vec::new();
+    for term in &row.terms {
+        let TypeKind::Param(param) = types.kind(*term) else {
+            terms.push(*term);
+            continue;
+        };
+        if param.decl_file.as_os_str() != EFFECT_ROW_PARAM_DECL_FILE {
+            terms.push(*term);
+            continue;
+        }
+        if instance.eff_args.is_empty() {
+            continue;
+        }
+        let Some(arg) = effect_arg_for_param(instance, eff_param_names, &param.name) else {
+            terms.push(*term);
+            continue;
+        };
+        terms.extend(arg.terms.iter().copied());
+    }
+    EffectRow::new(terms)
+}
+
+fn effect_arg_for_param<'a>(
+    instance: &'a InstanceKey,
+    eff_param_names: &[String],
+    name: &str,
+) -> Option<&'a EffectRow> {
+    eff_param_names
+        .iter()
+        .position(|candidate| candidate == name)
+        .and_then(|index| instance.eff_args.get(index))
+        .or_else(|| (instance.eff_args.len() == 1).then(|| &instance.eff_args[0]))
 }
 
 fn effect_row_template(types: &TypeStore, row: &EffectRow, closed: bool) -> FactEffectRowTemplate {
@@ -3480,6 +3747,46 @@ fun root(): Int / (Raise<Int>) {
             choose_rows.iter().any(|row| row.contains("Raise")),
             "String overload should keep its Raise row: {choose_rows:?}"
         );
+    }
+
+    #[test]
+    fn mir_callable_instance_effect_rows_substitute_owner_eff_param_after_type_params() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_owner_eff_param_substitution.scoop",
+            r#"package sample
+import scoop.core.*
+
+class Holder<V, eff E = Pure>(val value: V, val action: () -> Unit / E) {
+    fun run(): Unit / E {
+        this.action()
+    }
+}
+
+fun main(): Unit {
+    val holder: Holder<Int, eff Pure> = Holder(1, { })
+    holder.run()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let holder_run = output
+            .mir_facts()
+            .effects
+            .callable_instances
+            .iter()
+            .find(|fact| fact.callable.as_str().contains("Holder.run"))
+            .expect("Holder.run instance effects should be published");
+
+        assert_eq!(holder_run.published_surface_row.canonical_text(), "E()");
+        assert_eq!(holder_run.step_effect_row.canonical_text(), "E()");
     }
 
     #[test]

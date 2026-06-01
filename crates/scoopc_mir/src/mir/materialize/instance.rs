@@ -36,13 +36,20 @@ fn filter_materialized_decl_members(members: &[DeclMemberMetadata]) -> Vec<DeclM
 
 fn materialized_callable_effect_template_from_hir_fact(
     fact: scoopc_hir::hir_facts::source_sites::CallableSourceEffectFacts,
+    eff_param_names_by_template: &HashMap<TemplateKey, Vec<String>>,
 ) -> MaterializeResult<super::MaterializedCallableEffectTemplate> {
+    let template = TemplateKey {
+        fqn: fact.fqn,
+        source_path: fact.source_path,
+        decl_span: fact.span,
+    };
+    let eff_param_names = eff_param_names_by_template
+        .get(&template)
+        .cloned()
+        .unwrap_or_default();
     Ok(super::MaterializedCallableEffectTemplate {
-        template: TemplateKey {
-            fqn: fact.fqn,
-            source_path: fact.source_path,
-            decl_span: fact.span,
-        },
+        template,
+        eff_param_names,
         declared_surface_row: fact
             .declared_surface_row
             .map(stable_effect_row_template_from_hir_fact)
@@ -159,9 +166,18 @@ impl MirInstanceMaterializer {
                 return_ty: signature.return_ty,
             })
             .collect();
+        let eff_param_names_by_template = template_infos
+            .iter()
+            .map(|info| (info.template.clone(), info.eff_param_names.clone()))
+            .collect::<HashMap<_, _>>();
         let source_callable_effects = callable_effects
             .into_iter()
-            .map(materialized_callable_effect_template_from_hir_fact)
+            .map(|fact| {
+                materialized_callable_effect_template_from_hir_fact(
+                    fact,
+                    &eff_param_names_by_template,
+                )
+            })
             .collect::<MaterializeResult<Vec<_>>>()?;
         let callable_signatures = callable_signatures
             .into_iter()
