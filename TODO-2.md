@@ -16,6 +16,7 @@
 | T2-02 | [DONE] | MIR `CallableInstanceEffectFacts` + effect-event/site-inventory/provenance facts + backend contracts 收口 |
 | T2-02R | [DONE] | Review T2-02 |
 | T2-03A1 | [DONE] | MIR 发布 higher-order callable target/provenance facts，覆盖 closure/function-value/param/join |
+| T2-03A2a0 | [TODO] | 修复 composed resume 的 surface-resume owner dispatch target 发布/选择 |
 | T2-03A2a | [TODO] | 修复 escaped closure callee-suspend composed continuation resume route |
 | T2-03A2 | [TODO] | P4 只消费 published call-site facts，移除 higher-order 下游反向重建 |
 | T2-03 | [TODO] | P4 纯消费上游 facts 产出 instance effect facts（local control 必发、call-site target/surface） |
@@ -143,6 +144,20 @@
 - 依赖：T2-02R
 - 完成记录：2026-06-02 完成。扩展 `scoopc_mir_facts` callable target/provenance schema：`CallSiteTarget` 现在能表达 `Param`、`Join { sources, requires_dynamic_fallback }` 与显式 `DynamicFallback { reason }`，`CallableValueProvenance` 支持 join sources；MIR fact verifier 拒绝空 `CandidateSet` / 空 join，stable dump 输出 callable value provenance 与 result provenance，并将 wire schema bump 到 `1.5`。MIR stage 新增 body-local callable provenance dataflow，从参数、`TopLevelRef`、closure carrier、direct-call result provenance 与 CFG join 发布稳定 callable-value facts，并为 higher-order `FunValue` call site 发布 authoritative target fact；closed 多来源 join 会收敛成 stable-key `CandidateSet`，param/open 来源保持显式 param/join/dynamic fallback，不把未知编码为空候选集合。新增测试 `mir_facts_round_trip_callable_join_target_and_provenance` 覆盖 schema/dump/bincode roundtrip，新增 `mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 覆盖 param-carried callable、closure carrier、direct-call result returning callable、join candidate set。验证：`cargo fmt` 通过；targeted tests `cargo test -p scoopc_mir_facts mir_facts_round_trip_callable_join_target_and_provenance`、`cargo test -p scoopc mir_higher_order_callable_targets_publish_param_join_and_closure_facts` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 已运行，剩余 2 个 failures 是下一任务 `T2-03A2` 已明确要求恢复的 p7 higher-order/closure continuation regressions；`python3 tools/run_fixtures.py` 已运行，剩余 22 个 failures 已补充登记到 `T2-03A2` 的必须处理清单，均属于后续 P4/P5 消费 published facts 与 fact-only continuation route 收口范围，本任务只发布 MIR facts，不恢复 P4 反向重建。
 
+### [TODO] T2-03A2a0：修复 composed resume 的 surface-resume owner dispatch target 发布/选择
+
+- 背景：执行 `T2-03A2a` 时确认 wrapper continuation 已捕获 callee continuation，但 composed resume 继续把 `resume(32)` 当作 caller boundary complete。进一步生成 LLVM IR 后发现：composed resume 对 LIR callee continuation 依赖 `surface_resume` / `surface_resume_outcome`，而这些 surface 函数在单 target 或 dynamic adapter fallback 下会静态/递归选择不匹配的 owner surface；例如 callIt wrapper resume 应先恢复 closure continuation，但 surface owner dispatch 会回到 caller/callIt owner，把 payload 直接投到 caller boundary result，或在尝试动态化后命中不自洽 target 而 trap。
+- 根因边界：这不是 P4 points-to 问题，也不能通过 P4 反向重建或 fixture 变形解决。缺口位于 P5/LLVM surface-resume dispatch ABI：published continuation schema / owner continuation object / owner trampoline target 必须能按实际 continuation object descriptor 选择正确 owner，且 composed resume 必须消费该 published dispatch contract，而不是在 composed route 私自猜测 owner。
+- 必须实现的内容：
+  1. 让 `codegen_surface_resume` / `codegen_surface_resume_outcome` / `codegen_continuation_drive_outcome` 对 composed route 所需的 continuation schema 发布并使用完整 owner target set；单 target fast path 只能在 target set 已证明闭合且实际 object descriptor 唯一时启用。
+  2. 修复 `codegen_dynamic_surface_resume_adapter` 的 candidate 到 owner target 映射，避免把某个 continuation object descriptor 映射到不接受该 descriptor 的 owner surface；必要时从 ABI dispatch target 中携带 owner trampoline symbol，而不是递归调用等价但不匹配的 surface symbol。
+  3. 保持 artifact self-contained：target set 必须来自 published LIR/ABI facts，不得在 P4 或 LLVM composed route 扫描 caller/callee body 反解。
+  4. 增加 LLVM/LIR 级回归，断言 `effect_escape_continuation_indirect_perform_closure.scoop` 的 composed resume 会先按 captured callee continuation object dispatch 到 closure resume owner，再把 complete 投影回 caller boundary result。
+- 验证：`cargo fmt`；`cargo build -p scoopc`；相关新增 targeted test；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli -- --nocapture`。
+- 完成条件：surface-resume owner dispatch 对 composed callee continuation target 自洽，`single_pipeline_runs_indirect_perform_closure_resume_cli` 不再把 resume payload 直接写入 caller boundary result。
+- 依赖：T2-03A1
+- 完成记录：（待填）
+
 ### [TODO] T2-03A2a：修复 escaped closure callee-suspend composed continuation resume route
 
 - 背景：执行 `T2-03A2` 时，已修复 `choose(mode)()` closed `CandidateSet` 被 MIR `CallSiteSurfaceEffectFact` 发布为 `Pure` 的缺口，并让 callable-carrier dynamic invoke 接受 closed `CandidateSet`；`single_pipeline_runs_higher_order_function_value_handled_effect_cli` 已恢复通过。但 `single_pipeline_runs_indirect_perform_closure_resume_cli` 仍失败，输出停在 `body_done\n32`，未先恢复 closure resume tail 输出 `closure_resume\n32` 并返回 `42`。
@@ -154,7 +169,7 @@
   4. 增加或更新 LIR/LLVM 级回归，断言 composed resume route 使用 captured callee continuation，而不是直接写 caller boundary result。
 - 验证：`cargo fmt`；`cargo build -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_indirect_perform_closure_resume_cli`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop --processes 1`；相关 closure locals fixture；修复后继续运行 `T2-03A2` 要求的完整验证。
 - 完成条件：`single_pipeline_runs_indirect_perform_closure_resume_cli` 输出恢复为 `body_start\nclosure_enter\narm\nresult\n99\nclosure_resume\n32\nbody_done\n42\nafter_resume\n`；同类 closure locals fixture 不再跳过 callee resume tail；P4 无跨 body 反向重建。
-- 依赖：T2-03A1
+- 依赖：T2-03A2a0
 - 完成记录：（待填）
 
 ### [TODO] T2-03A2：P4 只消费 published higher-order call-site facts
