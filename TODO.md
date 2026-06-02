@@ -19,7 +19,7 @@
 | 3 | [`TODO-3.md`](./TODO-3.md) | 下游纯消费 + 删 fallback / fail-fast（P4 env 收口 / P5 LIR stable key / P6 LLVM 纯消费 / verifier） | FG-07/09(删 fallback)/11(fail-fast)/14/16/17/18；cross-cutting #3/#4 | 进行中 |
 | 4 | [`TODO-4.md`](./TODO-4.md) | effect 语义收口（分层 row 契约 / dispatch ABI / 边界 / 递归 / inference 放宽）+ owner-eff 委托端到端 + 恢复 bypass + 全量回归 | EFFECT_INFER §5/§6/§7；承接 P5-T02B0/B/T03 | TODO |
 
-**当前活跃任务**：`TODO-3.md` → `T3-04R`（Review T3-04）。
+**当前活跃任务**：`TODO-3.md` → `T3-04D`（收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口）。
 
 ## 临时 bypass 登记
 

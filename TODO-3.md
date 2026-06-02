@@ -21,6 +21,7 @@
 | T3-04B0 | [DONE] | 贯穿 LIR-owned source call-site identity，解除 T3-04B 删除 P6 source-span side table 的结构阻塞 |
 | T3-04B | [DONE] | 收口 T3-04R 二次审查发现的 source-span / fallback / verifier / gate 残余缺口 |
 | T3-04C | [DONE] | 收口 T3-04R 三次审查发现的 intrinsic/root/declaration ABI/reflection/verifier/gate 残余缺口 |
+| T3-04D | [TODO] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -144,9 +145,24 @@
 - 依赖：T3-04B
 - 完成记录：2026-06-02 完成。LIR call-site contract 新增 target-bound binding，KnownInstance/CandidateSet/DynamicFallback 目标均由 verifier 校验 target key、source signature 与 ABI symbol 一致；删除 verifier 的 `body#declaration` / root-only ABI 逃逸。MIR backend facts 现在发布 named intrinsic callable metadata，LIR facts 消费该 upstream fact 与 source call-site metadata，不再从 source signature roots 或 LLVM root helper 推导 intrinsic；reflection type arguments 作为 LIR source contract 发布，LLVM 不再解析 source slice。declaration/layout ABI 发布改为 target-bound ABI fact，LLVM 缺 fact 时 fail-fast；layout/interface declaration targets 由 LIR facts 显式发布并验证。Dependency gate 增加 named intrinsic root fallback、reflection source text parsing、declaration ABI synthesis、verifier declaration escape 等守卫，并更新 MIR/LIR fact schema/golden。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
+### [TODO] T3-04D：收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口
+- 背景：执行 `T3-04R` 第四次审查时确认，`T3-04C` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
+- 必须实现的内容：
+  1. **删除 source-span call-site metadata 残留**：reflection intrinsic 类型实参、class ctor call metadata、source-body/direct-call/intrinsic metadata 不得再通过 `source_path + span`、HIR `source_sites`、`ctor_call_sites`、`current_call_site` 或等价 map 发布/查询；必须由 LIR-owned call-site identity/source contract 表达并由 verifier 校验，缺失 fail-fast。
+  2. **删除 declaration/layout/call target ABI 合成补洞**：`lir_facts_builder` 与 LLVM 不得通过 root FQN 扫描、declaration key、`body#declaration`、`AbiMangler.fun_symbol(...)`、`readable_path()` 或 source signature root 合成 ABI symbol；native/extern/declaration-only/layout/vtable/itable target 必须有 target-bound source signature + ABI symbol fact，缺失 fail-fast。
+  3. **删除 intrinsic root/FQN fallback**：MIR/LIR/P6 不得通过 `named_intrinsic_entry_name_for_root`、source signature root 扫描、semantic root fallback 或 callee FQN 推导 named intrinsic metadata；intrinsic callable facts 只能来自上游显式 metadata 或 LIR source call-site contract，缺 semantic root/entry contract 时 fail-fast。
+  4. **收紧 DynamicFallback 与 target verifier**：P4/P5/P6/verifier 不得把缺 callable facts、missing pure direct/bodyless target、空 target binding 或未发布 target 降级为 `DynamicFallback`/bodyless plain surface；effect facts product/verifier 与 LIR verifier 必须校验 KnownInstance、CandidateSet、DynamicFallback、dispatch/source-call/layout target 的 target key、source signature、ABI symbol 一致。
+  5. **删除 generic/overload/dispatch 文本恢复路径**：生产 P6/MIR 不得通过 `::<...>`、`$overload$`、`rsplit_once('.')`、method name/arity、`class_vtables`/`interfaces` side table 或 callable source span 恢复 generic concrete FQN、callable base/source id、dispatch owner/slot/target 或 ABI readable identity；必须消费已发布 facts。
+  6. **dependency gate tree-wide 锁定等价路径**：`tools/dependency_gate.py` 必须覆盖上述等价残留和重命名/移动后的 helper，尤其是 HIR source-sites span map、reflection source-span key、declaration ABI synthesis、intrinsic root fallback、generic/overload string parsing、dispatch side-table恢复、`readable_path()` root fallback 与 reachability 静默跳过 target。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
+- 完成条件：`T3-04` 的 fact-only/fail-fast 契约在 source call-site/reflection/class ctor/intrinsic/declaration ABI/layout/dispatch/reachability/verifier/gate 边界全部真实闭合，第四次审查列出的残留均删除或由 verifier/gate 锁定，且不得引入 fixture-only workaround。
+- 依赖：T3-04C
+- 完成记录：（待填）
+
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`
-- 依赖：T3-04C
+- 依赖：T3-04D
 - 阻塞记录：2026-06-02 二次审查发现 `T3-04A` 后仍残留 source-span intrinsic/direct-call side table、FQN/string/root/readable-path fallback、dispatch side-table 恢复、verifier 与 dependency gate 覆盖缺口；已新增前置任务 `T3-04B`，本 review 保持未完成。
 - 阻塞记录：2026-06-02 三次审查发现 `T3-04B` 后仍残留 intrinsic root fallback、reflection source-slice type argument parsing、declaration ABI symbol 补洞、verifier declaration target escape、generic/overload string parsing、dispatch/text 恢复路径与 dependency gate 覆盖缺口；已新增前置任务 `T3-04C`，本 review 保持未完成。
+- 阻塞记录：2026-06-02 四次审查发现 `T3-04C` 后仍残留 source-span call-site/reflection/class ctor metadata、declaration/layout/call target ABI 合成、intrinsic root/FQN fallback、DynamicFallback/bodyless target 放行、generic/overload/dispatch 文本恢复、reachability 静默跳过 target 与 dependency gate 覆盖缺口；已新增前置任务 `T3-04D`，本 review 保持未完成。
 - 完成记录：（待填）
