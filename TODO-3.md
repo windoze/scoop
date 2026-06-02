@@ -16,6 +16,7 @@
 | T3-03 | [DONE] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
 | T3-03R | [DONE] | Review T3-03 |
 | T3-04 | [DONE] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
+| T3-04A | [TODO] | 收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -77,7 +78,20 @@
 - 依赖：T3-03R
 - 完成记录：2026-06-02 完成。Effect/LIR verifier 现在拒绝 `SignatureFallback` 精度，P4 对缺 callable facts 的已知目标改为纯 bodyless direct/dynamic surface 或缺 fact 报错，不再把缺失目标发布成 signature fallback；LIR exact callee ABI symbol 不再静默生成兜底，known exact binding 继续由 verifier 校验 source signature/ABI symbol 一致性。LLVM 删除 T3-03 留下的 `direct_call_dispatch_fqn` / `published_dispatch_target_fqn` / `resolve_lir_root_for_hir_direct_call` 兼容解析，并增加 dependency gate 守卫；intrinsic/bodyless pure helper 调用改走集中 intrinsic metadata helper，缺普通 ABI fact 不再落到 callable ABI symbol fallback。Effect facts golden 已更新为 `Precise`/`Widened`，新增 LIR verifier 回归覆盖 signature fallback 拒绝。T1-00 owner-eff Rust ignore 仍按 TODO-4 `T4-04` 保留；两个 observable/vetoable delegate run-pass fixture 也显式登记为 `T4-04` 恢复范围。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
+### [TODO] T3-04A：收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口
+- 背景：执行 `T3-04R` 审查时确认 `T3-04` 仍未满足“P6 只消费 LIR facts / 缺 fact fail-fast / dependency gate 锁定”的完成条件，必须先补齐该前置缺口再完成 review。
+- 必须实现的内容：
+  1. **P6 direct-call/source-site side table 删除**：生产 LLVM codegen 不得再消费 `top_level_fun_call_sites`、`current_top_level_fun_call_binding`、`concrete_top_level_fun_call_fqn` 或同类 source-span binding side table 来恢复 direct-call concrete FQN、generic source signature、reflection type args、intrinsic entry 或 vtable/itable dispatch slot owner；这些信息必须由 HIR/MIR/LIR published facts 或 LIR call-site/source contract 表达，缺失时 fail-fast。
+  2. **intrinsic metadata fact 化**：删除 `published_named_intrinsic_entry_name_for_fqn` / `published_intrinsic_base_fqn` 这类包装 FQN fallback 的生产路径；named intrinsic entry/base/reflection type arguments 由上游 fact 明确发布并由 LLVM 消费，`scoopc_hir::intrinsics::fallback_named_intrinsic_entry_name_for_fqn` 不得被 P6/P4 生产路径当作替代 fact 使用。
+  3. **verifier 覆盖 unpublished target**：LIR verifier 对 `CandidateSet` 的每个 target 执行与 `KnownInstance` 同级的 published callable / ABI symbol / source signature 校验；dispatch layout facts 中的 vtable/itable impl target 也必须验证具备 source signature 与 ABI symbol，避免 LLVM 才发现坏 target。
+  4. **declaration-only ABI reachability**：LLVM reachability 必须能消费 declaration-only native/extern ABI symbol 或 exact callee binding，不能因 target 不在 `facts.callables` 而 panic，也不能静默跳过 candidate target。
+  5. **dependency gate 收紧**：`tools/dependency_gate.py` 增加结构守卫，覆盖上述 side table helper、intrinsic fallback helper及生产 LLVM 中的 FQN/string fallback；不得通过重命名 helper 绕过 gate。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
+- 完成条件：`T3-04` 的 fact-only/fail-fast 契约被真实锁住，P6 不再回看上述 source side table 或 FQN intrinsic fallback，相关 verifier/gate/回归测试覆盖新增缺口。
+- 依赖：T3-04
+- 完成记录：（待填）
+
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`
-- 依赖：T3-04
+- 依赖：T3-04A
 - 完成记录：（待填）
