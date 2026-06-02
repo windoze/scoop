@@ -104,11 +104,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "generic direct call `{fqn}` lacks published LIR source call-site contract"
             )));
         }
-        let concrete_fqn = source_site
-            .and_then(|site| site.contract.exact_callee.as_ref())
-            .map(|exact| exact.root_fqn.clone())
-            .or_else(|| instantiated_mir_callee_fqn(fqn, generic_type_args, mir_types))
-            .unwrap_or_else(|| fqn.to_string());
+        let concrete_fqn =
+            if let Some(exact) = source_site.and_then(|site| site.contract.exact_callee.as_ref()) {
+                exact.root_fqn.clone()
+            } else if !generic_type_args.is_empty() {
+                return Err(frontend_error(format!(
+                    "generic direct call `{fqn}` lacks published exact callee binding"
+                )));
+            } else {
+                fqn.to_string()
+            };
         let concrete_fqn = concrete_fqn.as_str();
         let semantic_root = source_site.and_then(|site| site.semantic_root_fqn.as_deref());
         let named_intrinsic_entry = if let Some(entry_name) = source_site
@@ -117,9 +122,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             Some(entry_name)
         } else {
-            self.published_named_intrinsic_entry_name_for_root(
+            self.published_named_intrinsic_entry_name_for_fact_root(
                 semantic_root.unwrap_or(concrete_fqn),
-            )?
+            )
             .map(str::to_string)
         };
         if let Some(entry_name) = named_intrinsic_entry
@@ -872,20 +877,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             slots,
         )
     }
-}
-
-fn instantiated_mir_callee_fqn(
-    fqn: &str,
-    generic_type_args: &[TypeId],
-    mir_types: &TypeStore,
-) -> Option<String> {
-    if generic_type_args.is_empty() {
-        return None;
-    }
-    let args = generic_type_args
-        .iter()
-        .map(|ty| mir_types.display(*ty).to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
-    Some(format!("{fqn}::<{args}>"))
 }

@@ -416,10 +416,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     "LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 LIR symbol facts"
                 ))
             })?;
-        Ok(symbol_facts
-            .exported_symbol
-            .clone()
-            .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable)))
+        symbol_facts.exported_symbol.clone().ok_or_else(|| {
+            frontend_error(format!(
+                "plain callable `{root_fqn}` 的 LIR symbol facts 缺少 exported ABI symbol"
+            ))
+        })
     }
 
     pub(super) fn materialize_callable_version_layout_index(

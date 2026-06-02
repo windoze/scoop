@@ -363,21 +363,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        let text = self.current_source_slice(span)?;
-        let Some(type_name) = text
-            .split_once('<')
-            .and_then(|(_, rest)| rest.split_once('>'))
-            .map(|(name, _)| name.trim())
-        else {
-            self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name);
-        };
-        Ok(self
-            .types
-            .iter_ids()
-            .find(|ty| self.types.display(*ty).to_string() == type_name)
-            .unwrap_or_else(|| {
-                self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
-            }))
+        if let Some(ty) = self.published_reflection_type_arg_for_current_call(span, name)? {
+            return Ok(ty);
+        }
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without a published MIR/LIR type-argument contract"
+            ),
+        })
     }
 
     fn array_elem_kind_for_type_id(&self, ty: TypeId) -> u64 {

@@ -14,7 +14,8 @@ use scoopc_mir_facts::MirFacts;
 use scoopc_mir_facts::backend::{
     ClassInitContractFact, EnumLayoutContractFact, ExternFunContractFact, GlobalInitContractFact,
     GlobalInitKind, GlobalStorageKind, InterfaceContractFact, ItableContractFact, MirBackendFacts,
-    NativeCallableFunContractFact, SourceCallableSignatureFact, VtableContractFact,
+    NamedIntrinsicCallableFact, NativeCallableFunContractFact, SourceCallableSignatureFact,
+    VtableContractFact,
 };
 use scoopc_mir_facts::boundary::{
     BoundaryAnchor, BoundaryOperandSource, BoundarySourceContract, ClosureEnvDecomposition,
@@ -2900,8 +2901,10 @@ fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts 
         });
     }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, &source_signatures);
     let mut facts = MirBackendFacts {
         source_signatures,
+        intrinsic_callables,
         enum_layouts: contracts
             .enum_layouts
             .iter()
@@ -3061,6 +3064,29 @@ fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts 
         .global_inits
         .sort_by(|left, right| left.fqn.cmp(&right.fqn));
     facts
+}
+
+fn collect_named_intrinsic_callable_facts(
+    cone: &StableConeKey,
+    source_signatures: &[SourceCallableSignatureFact],
+) -> Vec<NamedIntrinsicCallableFact> {
+    source_signatures
+        .iter()
+        .enumerate()
+        .filter_map(|(index, signature)| {
+            let entry_name =
+                scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(&signature.fqn)?;
+            Some(NamedIntrinsicCallableFact {
+                identity: backend_identity(
+                    cone,
+                    "named_intrinsic_callable",
+                    &format!("{}#{entry_name}#{index}", signature.identity.key.as_str()),
+                ),
+                root_fqn: signature.fqn.clone(),
+                named_entry_name: entry_name.to_string(),
+            })
+        })
+        .collect()
 }
 
 fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {

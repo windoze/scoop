@@ -161,7 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(fqn) = member_fun_fqn
             && let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_root(fqn)?
+                .published_named_intrinsic_entry_name_for_fact_root(fqn)
                 .map(str::to_string)
         {
             return self.try_codegen_named_intrinsic_hir_call(
@@ -1448,7 +1448,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             if let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_root(fqn)?
+                .published_named_intrinsic_entry_name_for_fact_root(fqn)
                 .map(str::to_string)
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
                     span,
@@ -1771,7 +1771,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let callable_fqn = fqn;
         if let Some(entry_name) = self
-            .published_named_intrinsic_entry_name_for_root(callable_fqn)?
+            .published_named_intrinsic_entry_name_for_fact_root(callable_fqn)
             .map(str::to_string)
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,

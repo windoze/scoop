@@ -1909,30 +1909,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(entry_name)
         } else if let Some(root_fqn) = source_intrinsic_root {
             self.codegen
-                .published_named_intrinsic_entry_name_for_root(root_fqn)?
+                .published_named_intrinsic_entry_name_for_fact_root(root_fqn)
                 .map(str::to_string)
         } else {
             self.codegen
-                .published_named_intrinsic_entry_name_for_root(callee_fqn)?
+                .published_named_intrinsic_entry_name_for_fact_root(callee_fqn)
                 .map(str::to_string)
         };
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
                 span,
                 &entry_name,
-                args,
-                self.body,
-                self.source_types,
-                transport.array.as_ref(),
-                self.slots,
-            )?
-        {
-            return Ok(value);
-        }
-        if let Some(entry_name) = crate::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
-            && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
-                span,
-                entry_name,
                 args,
                 self.body,
                 self.source_types,

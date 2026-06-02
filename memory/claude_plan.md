@@ -1,42 +1,39 @@
 # 当前执行计划
 
-说明：此文件记录可审阅的执行计划和进度，不包含隐藏推理过程。
+## 目标
 
-## 初始计划
+- 按 `TODO.md` 的顺序识别并完成第一个标题未带 `[DONE]` 的任务。
+- 本次调用只完成一个任务，完成后更新任务记录、验证、提交并停止。
 
-1. 读取 `TODO.md`，按文件顺序定位第一个标题未以 `[DONE]` 标记的任务。
-2. 检查该任务的要求、依赖、验证命令和完成记录，并查看最新提交是否明确提到与该任务直接相关的未完成事项。
-3. 读取任务相关代码、测试和文档，只收集完成当前任务所需的上下文。
-4. 如果发现当前任务被具体缺失功能、规格不匹配或未计划的失败测试阻塞，则在 `TODO.md` 中加入最小必要的前置任务，提交后停止。
-5. 否则实现当前任务，优先做最小且规格正确的修改。
-6. 运行格式化、lint、相关测试，以及任务要求的完整验证；发现失败时修复或按规则把未计划失败加入 `TODO.md`。
-7. 将当前任务标题标记为 `[DONE]`，更新完成记录；仅在阶段计划确有变化时更新 `PLAN.md`。
-8. 检查 `git status` 和变更内容，提交本次任务相关改动，然后停止，不继续下一个任务。
+## 步骤
+
+1. 读取 `TODO.md`，确认第一个未完成任务及其验证要求。
+2. 查看最近提交信息，判断是否有与该任务直接相关的未完成问题需要纳入范围。
+3. 根据任务内容读取相关代码、测试、文档，明确最小正确实现范围。
+4. 如果发现当前任务被未跟踪的具体前置问题阻塞，更新 `TODO.md` 加入最小前置任务，提交后停止。
+5. 否则实现当前任务，避免绕过规范或改变预期语义。
+6. 运行格式化、lint、相关测试，并按任务要求运行必要的完整验证。
+7. 若发现未安排的测试或 fixture 失败，修复它；若不能在当前任务内修复，则把最小修复任务插入 `TODO.md` 的正确位置并停止。
+8. 完成后在 `TODO.md` 中给任务标题加 `[DONE]`，更新 completion record。
+9. 提交所有本任务相关改动，提交信息包含任务编号和清晰描述。
 
 ## 当前状态
 
+- 初始计划已记录。
 - 已读取 `TODO.md` 与 `TODO-3.md`。
-- 第一个未完成任务是 `TODO-3.md` 的 `T3-04R：Review T3-04`，依赖 `T3-04B` 已标记完成。
-- 已检查最新提交和工作树：最新提交为 `[T3-04B] Close residual fact fallback gaps`，未发现提交信息中直接声明的新未完成事项；工作树中既有未跟踪 `FACT_REFACTOR.md`，本次未改动。
-- 已完成 T3-04R 定向审查，确认 `T3-04B` 后仍有阻塞级残留，不能完成 review。
+- 第一个未完成任务是 `TODO-3.md` 中的 `T3-04C`：收口 `T3-04R` 三次审查发现的 intrinsic/root/declaration ABI/reflection/verifier/gate 残余缺口。
+- 最近提交 `[T3-04R] Schedule intrinsic fallback follow-up` 与当前任务直接相关，纳入本任务范围。
+- 已开始实现：LIR call-site contract 增加 target-bound binding；LIR builder 删除 named intrinsic root/source-signature 扫描与 layout root ABI 补洞；LLVM intrinsic fact lookup 改为 fact-only；declaration ABI 合成改为 fail-fast；reflection HIR source-slice 解析改为缺契约报错。
+- `cargo test --all --all-targets` 首次运行发现 vtable layout target `scoop.core.Bool.toString` 缺 target-bound ABI fact；正在把 layout target ABI 发布改为基于 materialized stable instance 的显式 target binding。
+- 完整 fixture suite 首次运行发现 11 个 run-pass 目标失败，集中在 scalar/range/reflection intrinsic。已补充 MIR backend `intrinsic_callables` fact，由 LIR facts 消费该 upstream 显式 metadata，`run-pass/fun_call_add_basic.scoop` 已单独恢复通过。
+- T3-04C 实现已完成，最终验证通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/run_fixtures.py`（1664 checks）。
+- `TODO-3.md` 已将 `T3-04C` 标记为 `[DONE]`，`TODO.md` 当前活跃任务已推进到 `T3-04R`。
 
-## T3-04R 审查计划
+## T3-04C 执行计划
 
-1. 检查最新提交是否留下与 `T3-04R` 直接相关的未完成事项，并确认当前未提交改动范围。
-2. 搜索 P4/P5/P6 生产路径中的 source-span side table、FQN/string/root/readable-path fallback、intrinsic fallback、dispatch side-table 恢复、`unpublished(...)` / `missing-owner` / signature fallback 残留。
-3. 检查 verifier 与 dependency gate 是否覆盖上述边界，并阅读关键实现路径确认不是仅靠命名规避。
-4. 如发现阻塞缺口，优先修复；若无法在本任务内正确完成，则在 `TODO-3.md` 加入最小前置任务并提交后停止。
-5. 如未发现阻塞问题，按要求运行验证，更新 `TODO-3.md` / `TODO.md` 状态与完成记录，提交后停止。
-
-## 审查发现
-
-1. `lir_facts_builder` 与 LLVM 生产路径仍可通过 `named_intrinsic_entry_name_for_root`、source signature root 扫描或 source-body direct-call root 反推生成/消费 named intrinsic metadata。
-2. reflection intrinsic 的类型实参仍可在 P6 通过 `current_source_slice(span)` 解析 `<T>` 并按 display 文本查找 `TypeId`。
-3. declaration-only/native/extern ABI symbol 仍存在 root 扫描、declaration key 合成、`AbiMangler.fun_symbol(...)` 或 raw FQN symbol 补洞路径。
-4. LIR verifier 仍因 `body#declaration` 或 `symbol.callable.is_none()` 放行部分未发布 target，并且 `DynamicFallback` 拒绝范围不完整。
-5. dependency gate 尚未覆盖当前等价残留，例如 `named_intrinsic_entry_name_for_root`、reflection source-slice 解析、declaration ABI 合成、verifier declaration escape、部分 generic/overload 字符串解析与 dispatch/text 恢复路径。
-
-## 计划变更
-
-- 已在 `TODO-3.md` 插入最小前置任务 `T3-04C`，将 `T3-04R` 依赖更新为 `T3-04C`，并在 `TODO.md` 中把当前活跃任务改为 `T3-04C`。
-- 本次仅修改任务/进度文档，不修改代码；无需运行完整验证套件。
+1. 定位 residual fallback 相关实现：`lir_facts_builder`、LIR verifier、LLVM codegen intrinsic/reflection/declaration ABI/dispatch 生产路径，以及 `tools/dependency_gate.py`。
+2. 删除或替换 root/FQN/source-slice/text 恢复路径，使生产路径只消费显式发布的 LIR facts/source call-site contract，缺失时 fail-fast。
+3. 补齐 verifier：KnownInstance、CandidateSet、dispatch/source-call/declaration-only/native/extern target 均校验 target key、source signature、ABI symbol 一致。
+4. 补齐 dependency gate 和回归测试，锁定禁止的 helper/模式。
+5. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/run_fixtures.py`。
+6. 全部通过后更新 `TODO-3.md`、`TODO.md` 状态，提交并停止。

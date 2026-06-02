@@ -775,6 +775,15 @@ pub struct LirExactCalleeBinding {
     pub signature_key: String,
 }
 
+/// Published ABI/signature binding for any possible call-site target.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirCallTargetBinding {
+    pub target_callable_key: StableLirCallableKey,
+    pub root_fqn: String,
+    pub abi_symbol: String,
+    pub signature_key: String,
+}
+
 /// Stable revision for the current LIR optimization family contract.
 pub const LIR_OPT_PIPELINE_REVISION: u64 = 1;
 
@@ -874,6 +883,8 @@ pub struct LirCallSiteContract {
     pub kind: LirCallSiteKind,
     pub target_mode: LirCallTargetMode,
     pub target_callables: Vec<StableLirCallableKey>,
+    #[serde(default)]
+    pub target_bindings: Vec<LirCallTargetBinding>,
     pub exact_callee: Option<LirExactCalleeBinding>,
     pub callee_abi_kind: LirCallableAbiKind,
     pub invoke_args_tuple_ty: TypeId,
@@ -918,7 +929,27 @@ pub struct LirSourceCallSiteFacts {
     pub site_id: SiteId,
     pub semantic_root_fqn: Option<String>,
     pub named_entry_name: Option<String>,
+    #[serde(default)]
+    pub generic_type_args: Vec<TypeId>,
     pub contract: LirCallSiteContract,
+}
+
+/// Type arguments for reflection intrinsics that still lower from source initializer payloads.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirReflectionTypeArgFacts {
+    pub source_path: String,
+    pub span_start: usize,
+    pub span_end: usize,
+    pub intrinsic_name: String,
+    pub type_args: Vec<TypeId>,
+}
+
+pub fn lir_reflection_type_arg_key(
+    source_path: &str,
+    span_start: usize,
+    span_end: usize,
+) -> String {
+    format!("{source_path}:{span_start}..{span_end}")
 }
 
 /// Canonical dynamic callable surface for an effect-step callable.

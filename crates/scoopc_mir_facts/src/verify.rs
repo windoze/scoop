@@ -186,6 +186,13 @@ fn fact_identities(facts: &MirFacts) -> Vec<&FactIdentity> {
             .iter()
             .map(|fact| &fact.identity),
     );
+    identities.extend(
+        facts
+            .backend
+            .intrinsic_callables
+            .iter()
+            .map(|fact| &fact.identity),
+    );
     identities.extend(facts.backend.enum_layouts.iter().map(|fact| &fact.identity));
     identities.extend(facts.backend.class_inits.iter().map(|fact| &fact.identity));
     identities.extend(facts.backend.vtables.iter().map(|fact| &fact.identity));

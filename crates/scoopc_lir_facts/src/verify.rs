@@ -1493,24 +1493,17 @@ fn verify_call_site_contract(
                     reason: "target callable list does not match exact callee key",
                 });
             }
-            if exact.root_fqn.is_empty()
-                || exact.abi_symbol.is_empty()
-                || !facts.source_signatures.values().any(|signature| {
-                    signature.signature_key == exact.signature_key
-                        && signature.root_fqn == exact.root_fqn
-                })
-                || !facts.physical_layout.abi_symbols.values().any(|symbol| {
-                    symbol.symbol == exact.abi_symbol
-                        && symbol.root_fqn.as_deref() == Some(exact.root_fqn.as_str())
-                        && (symbol.callable.as_ref() == Some(&exact.target_callable_key)
-                            || symbol.callable.is_none())
-                })
+            let binding = target_binding(contract, &exact.target_callable_key, owner)?;
+            if binding.root_fqn != exact.root_fqn
+                || binding.abi_symbol != exact.abi_symbol
+                || binding.signature_key != exact.signature_key
             {
                 return Err(VerifyError::InvalidExactCalleeBinding {
                     callable: owner.to_string(),
-                    reason: "root, ABI symbol, or signature key is unpublished or inconsistent",
+                    reason: "exact callee binding drifts from target binding",
                 });
             }
+            verify_published_call_target(facts, &exact.target_callable_key, binding, owner)?;
         }
         LirCallTargetMode::CandidateSet => {
             if contract.exact_callee.is_some() {
@@ -1526,7 +1519,8 @@ fn verify_call_site_contract(
                 });
             }
             for target in &contract.target_callables {
-                verify_published_call_target(facts, target, owner)?;
+                let binding = target_binding(contract, target, owner)?;
+                verify_published_call_target(facts, target, binding, owner)?;
             }
         }
         LirCallTargetMode::DynamicFallback => {
@@ -1549,7 +1543,8 @@ fn verify_call_site_contract(
                 });
             }
             for target in &contract.target_callables {
-                verify_published_call_target(facts, target, owner)?;
+                let binding = target_binding(contract, target, owner)?;
+                verify_published_call_target(facts, target, binding, owner)?;
             }
         }
     }
@@ -1565,41 +1560,90 @@ fn is_bodyless_plain_call_surface(contract: &crate::LirCallSiteContract) -> bool
     ) && matches!(contract.callee_abi_kind, crate::LirCallableAbiKind::Plain)
         && matches!(contract.precision, LirEffectPrecision::Precise)
         && contract.target_callables.is_empty()
+        && contract.target_bindings.is_empty()
         && contract.callee_step_schema.is_none()
         && contract.resolved_cases.is_empty()
+}
+
+fn target_binding<'a>(
+    contract: &'a crate::LirCallSiteContract,
+    target: &StableLirCallableKey,
+    owner: &str,
+) -> Result<&'a crate::LirCallTargetBinding> {
+    contract
+        .target_bindings
+        .iter()
+        .find(|binding| binding.target_callable_key == *target)
+        .ok_or_else(|| VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "target callable lacks a published target binding",
+        })
 }
 
 fn verify_published_call_target(
     facts: &LirFacts,
     target: &StableLirCallableKey,
+    binding: &crate::LirCallTargetBinding,
     owner: &str,
 ) -> Result<()> {
-    let Some(root_fqn) = published_target_root_fqn(facts, target) else {
-        if target.canonical_text().contains("body#declaration") {
-            return Ok(());
-        }
+    if &binding.target_callable_key != target {
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
-            reason: "target callable is unpublished and has no reachable ABI root",
+            reason: "target binding key does not match target callable",
         });
-    };
-    if !root_has_published_source_and_abi(facts, root_fqn) {
+    }
+    if binding.root_fqn.is_empty()
+        || binding.abi_symbol.is_empty()
+        || !facts.source_signatures.values().any(|signature| {
+            signature.signature_key == binding.signature_key
+                && signature.root_fqn == binding.root_fqn
+        })
+        || !facts.physical_layout.abi_symbols.values().any(|symbol| {
+            symbol.symbol == binding.abi_symbol
+                && symbol.root_fqn.as_deref() == Some(binding.root_fqn.as_str())
+                && symbol.callable.as_ref() == Some(target)
+                && matches!(
+                    symbol.role.as_str(),
+                    "callable_export" | "native_callable" | "extern_callable"
+                )
+        })
+    {
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
-            reason: "target callable lacks a published source signature or ABI symbol",
+            reason: "target callable lacks a target-bound source signature or ABI symbol",
         });
     }
     Ok(())
 }
 
-fn published_target_root_fqn<'a>(
+fn verify_dispatch_target(
+    facts: &LirFacts,
+    target: &StableLirCallableKey,
+    owner: &str,
+) -> Result<()> {
+    let Some(root_fqn) = target_bound_root_fqn(facts, target) else {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "dispatch target callable is unpublished and has no target-bound ABI root",
+        });
+    };
+    if !target_has_published_source_and_abi(facts, target, root_fqn) {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "dispatch target callable lacks a target-bound source signature or ABI symbol",
+        });
+    }
+    Ok(())
+}
+
+fn target_bound_root_fqn<'a>(
     facts: &'a LirFacts,
-    target: &'a StableLirCallableKey,
+    target: &StableLirCallableKey,
 ) -> Option<&'a str> {
     if let Some(callable) = facts.callables.get(target) {
         return Some(callable.root_fqn());
     }
-    if let Some(root) = facts
+    facts
         .physical_layout
         .abi_symbols
         .values()
@@ -1608,10 +1652,23 @@ fn published_target_root_fqn<'a>(
                 .then_some(symbol.root_fqn.as_deref())
                 .flatten()
         })
-    {
-        return Some(root);
-    }
-    None
+}
+
+fn target_has_published_source_and_abi(
+    facts: &LirFacts,
+    target: &StableLirCallableKey,
+    root_fqn: &str,
+) -> bool {
+    !root_fqn.is_empty()
+        && facts.source_signatures.contains_key(root_fqn)
+        && facts.physical_layout.abi_symbols.values().any(|symbol| {
+            symbol.callable.as_ref() == Some(target)
+                && symbol.root_fqn.as_deref() == Some(root_fqn)
+                && matches!(
+                    symbol.role.as_str(),
+                    "callable_export" | "native_callable" | "extern_callable"
+                )
+        })
 }
 
 fn root_has_published_source_and_abi(facts: &LirFacts, root_fqn: &str) -> bool {
@@ -1734,7 +1791,7 @@ fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
             });
         }
         for target in &dispatch.candidate_targets {
-            verify_published_call_target(facts, target, &dispatch.member_fqn)?;
+            verify_dispatch_target(facts, target, &dispatch.member_fqn)?;
         }
     }
     Ok(())

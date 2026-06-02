@@ -343,6 +343,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
+    pub(in crate::llvm::codegen) fn published_reflection_type_arg_for_current_call(
+        &self,
+        span: crate::span::Span,
+        name: &'static str,
+    ) -> Result<Option<TypeId>, LlvmEmitError> {
+        let source = self.current_source()?;
+        let source_path = source.path().display().to_string();
+        let key = lir_reflection_type_arg_key(&source_path, span.start, span.end);
+        let Some(fact) = self.published_lir_facts.reflection_type_args.get(&key) else {
+            return Ok(None);
+        };
+        if fact.intrinsic_name != name || fact.type_args.len() != 1 {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "reflection intrinsic `{name}` at {span:?} has inconsistent published type-argument facts"
+                ),
+            });
+        }
+        Ok(fact.type_args.first().copied())
+    }
+
     pub(in crate::llvm::codegen) fn published_lir_exact_callee_root(
         &self,
         site_id: SiteId,

@@ -189,8 +189,9 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
     if !facts.backend.is_empty() {
         writeln!(
             &mut out,
-            "  backend: source_signatures={}, enum_layouts={}, class_inits={}, vtables={}, interfaces={}, itables={}, extern_funs={}, native_callable_funs={}, global_inits={}",
+            "  backend: source_signatures={}, intrinsic_callables={}, enum_layouts={}, class_inits={}, vtables={}, interfaces={}, itables={}, extern_funs={}, native_callable_funs={}, global_inits={}",
             facts.backend.source_signatures.len(),
+            facts.backend.intrinsic_callables.len(),
             facts.backend.enum_layouts.len(),
             facts.backend.class_inits.len(),
             facts.backend.vtables.len(),

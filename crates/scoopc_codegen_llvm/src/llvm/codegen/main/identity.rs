@@ -3,8 +3,6 @@
 #![allow(dead_code)]
 
 use super::*;
-use scoopc_ids::StableLirCallableKey;
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
         Self {
@@ -315,17 +313,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             return Ok(abi_symbol.symbol.clone());
         }
-        let declaration_key = StableLirCallableKey::new(
-            canonical_record("lir_callable_declaration", [callable_fqn.to_string()]),
-            callable_fqn,
-        );
-        let symbol = AbiMangler.fun_symbol(&declaration_key);
-        self.reserve_exported_abi_symbol(
-            &symbol,
-            &declaration_key,
-            format!("LIR declaration `{callable_fqn}` synthesized from source callable contract"),
-        )?;
-        Ok(symbol)
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LIR callable `{callable_fqn}` is missing a published target-bound ABI symbol fact"
+            ),
+        })
     }
 
     pub(in crate::llvm::codegen) fn enter_root_callable_identity(

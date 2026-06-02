@@ -32,6 +32,7 @@ pub struct LirFacts {
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
+    pub reflection_type_args: BTreeMap<String, LirReflectionTypeArgFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -52,6 +53,7 @@ pub struct LirFactGroups {
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
+    pub reflection_type_args: BTreeMap<String, LirReflectionTypeArgFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -76,6 +78,7 @@ impl LirFacts {
             source_signatures: BTreeMap::new(),
             intrinsic_callables: BTreeMap::new(),
             source_call_sites: BTreeMap::new(),
+            reflection_type_args: BTreeMap::new(),
             class_ctor_inits: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
@@ -112,6 +115,7 @@ impl LirFacts {
             source_signatures: groups.source_signatures,
             intrinsic_callables: groups.intrinsic_callables,
             source_call_sites: groups.source_call_sites,
+            reflection_type_args: groups.reflection_type_args,
             class_ctor_inits: groups.class_ctor_inits,
             callables: groups.callables,
             step_types: groups.step_types,
@@ -129,6 +133,7 @@ impl LirFacts {
             && self.source_signatures.is_empty()
             && self.intrinsic_callables.is_empty()
             && self.source_call_sites.is_empty()
+            && self.reflection_type_args.is_empty()
             && self.class_ctor_inits.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()
@@ -349,8 +354,18 @@ mod tests {
         }
     }
 
+    fn call_target_binding(root_fqn: &str, target: StableLirCallableKey) -> LirCallTargetBinding {
+        LirCallTargetBinding {
+            target_callable_key: target,
+            root_fqn: root_fqn.to_string(),
+            abi_symbol: format!("{}_abi", root_fqn.replace('.', "_")),
+            signature_key: format!("sig:{root_fqn}"),
+        }
+    }
+
     fn plain_callable_with_candidate(
         owner_fqn: &str,
+        target_root: &str,
         target: StableLirCallableKey,
     ) -> LirCallableFacts {
         let mut callable = plain_callable(owner_fqn);
@@ -369,7 +384,8 @@ mod tests {
             contract: LirCallSiteContract {
                 kind: LirCallSiteKind::Direct,
                 target_mode: LirCallTargetMode::CandidateSet,
-                target_callables: vec![target],
+                target_callables: vec![target.clone()],
+                target_bindings: vec![call_target_binding(target_root, target)],
                 exact_callee: None,
                 callee_abi_kind: LirCallableAbiKind::Plain,
                 invoke_args_tuple_ty: ty(1),
@@ -488,6 +504,7 @@ mod tests {
             kind: LirCallSiteKind::Closure,
             target_mode: LirCallTargetMode::DynamicFallback,
             target_callables: vec![callable_key.clone()],
+            target_bindings: Vec::new(),
             exact_callee: None,
             callee_abi_kind: LirCallableAbiKind::EffectStep,
             invoke_args_tuple_ty: ty(3),
@@ -839,6 +856,7 @@ mod tests {
                 kind: LirCallSiteKind::FunValue,
                 target_mode: LirCallTargetMode::DynamicFallback,
                 target_callables: Vec::new(),
+                target_bindings: Vec::new(),
                 exact_callee: None,
                 callee_abi_kind: LirCallableAbiKind::Plain,
                 invoke_args_tuple_ty: ty(2),
@@ -870,7 +888,7 @@ mod tests {
     fn verifier_rejects_candidate_target_without_published_abi_contract() {
         let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", target);
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -883,7 +901,7 @@ mod tests {
             facts.verify().unwrap_err(),
             VerifyError::InvalidExactCalleeBinding {
                 callable: "app.main".to_string(),
-                reason: "target callable is unpublished and has no reachable ABI root",
+                reason: "target callable lacks a target-bound source signature or ABI symbol",
             }
         );
     }
@@ -892,7 +910,7 @@ mod tests {
     fn verifier_accepts_declaration_only_candidate_target_with_abi_contract() {
         let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", target.clone());
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target.clone());
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -919,7 +937,7 @@ mod tests {
     fn verifier_rejects_candidate_target_with_unbound_declaration_abi_contract() {
         let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", target);
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -943,7 +961,7 @@ mod tests {
             facts.verify().unwrap_err(),
             VerifyError::InvalidExactCalleeBinding {
                 callable: "app.main".to_string(),
-                reason: "target callable is unpublished and has no reachable ABI root",
+                reason: "target callable lacks a target-bound source signature or ABI symbol",
             }
         );
     }

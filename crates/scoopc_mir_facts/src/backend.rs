@@ -10,6 +10,8 @@ use crate::common::FactIdentity;
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MirBackendFacts {
     pub source_signatures: Vec<SourceCallableSignatureFact>,
+    #[serde(default)]
+    pub intrinsic_callables: Vec<NamedIntrinsicCallableFact>,
     pub enum_layouts: Vec<EnumLayoutContractFact>,
     pub class_inits: Vec<ClassInitContractFact>,
     pub vtables: Vec<VtableContractFact>,
@@ -24,6 +26,7 @@ impl MirBackendFacts {
     /// Return whether no backend facts have been published yet.
     pub fn is_empty(&self) -> bool {
         self.source_signatures.is_empty()
+            && self.intrinsic_callables.is_empty()
             && self.enum_layouts.is_empty()
             && self.class_inits.is_empty()
             && self.vtables.is_empty()
@@ -33,6 +36,14 @@ impl MirBackendFacts {
             && self.native_callable_funs.is_empty()
             && self.global_inits.is_empty()
     }
+}
+
+/// Source callable explicitly classified as a named intrinsic by an upstream stage.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct NamedIntrinsicCallableFact {
+    pub identity: FactIdentity,
+    pub root_fqn: String,
+    pub named_entry_name: String,
 }
 
 /// Source signature for a callable published by MIR materialization.

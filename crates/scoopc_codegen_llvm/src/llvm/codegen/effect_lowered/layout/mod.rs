@@ -48,7 +48,7 @@ use scoopc_lir_facts::{
 };
 
 use super::super::types::IntTy;
-use super::super::{AbiMangler, CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
+use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
 use super::stable_naming;
 use super::types::{
     AbiProgramOrigin, AbiValue, CallBoundaryOperandLayout, CallableCarrierTargetLayout,

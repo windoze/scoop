@@ -60,10 +60,10 @@ use crate::effect_lowered::source as hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    AbiMangler, CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
-    StableConeKey, StableDefKey, StableDefNamespace, StableTypeParamKey,
-    canonical_callable_signature_key, canonical_record, canonical_type_text,
-    stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
+    CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey, StableConeKey,
+    StableDefKey, StableDefNamespace, StableTypeParamKey, canonical_callable_signature_key,
+    canonical_record, canonical_type_text, stable_rtti_derived_type_key, stable_rtti_type_id,
+    stable_rtti_type_id_for_type,
 };
 use crate::syntax::int_literal::parse_int_literal_checked;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
@@ -76,7 +76,7 @@ use scoopc_lir_facts::{
     LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirClassItableEntryFacts,
     LirDispatchContract, LirDispatchKey, LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts,
     LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy, LirSourceCallSiteFacts,
-    LirSourceCallSiteKey,
+    LirSourceCallSiteKey, lir_reflection_type_arg_key,
 };
 
 use super::LlvmEmitError;

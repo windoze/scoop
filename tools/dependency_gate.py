@@ -1236,6 +1236,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must use LIR source call-site facts instead of source-span instantiated FQN lookup",
                 ),
                 fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "direct call lowering must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "direct call lowering must not use static intrinsic root helper lookup",
+                ),
+                fp(
                     "published_named_intrinsic_entry_name_for_call_or_root",
                     "direct call lowering must not fall back from source-span intrinsic metadata to root lookup wrappers",
                 ),
@@ -1298,6 +1306,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "split_once(\"$overload",
                     "effect-lowered calls must not parse overload FQN text to recover callable roots",
                 ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "effect-lowered calls must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "effect-lowered calls must not use static intrinsic root helper lookup",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1341,6 +1357,18 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "split_once(\"$overload",
                     "MIR direct call lowering must not parse overload FQN text to recover callable roots",
                 ),
+                fp(
+                    "instantiated_mir_callee_fqn",
+                    "MIR direct call lowering must consume published exact callee facts instead of formatting generic callable FQNs",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "MIR direct call lowering must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "MIR direct call lowering must not use static intrinsic root helper lookup",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1372,6 +1400,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LIR facts builder must not use static intrinsic root inventories as facts",
                 ),
                 fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "LIR facts builder must not publish intrinsic metadata through static root helper lookup",
+                ),
+                fp(
+                    "source_signatures.keys()",
+                    "LIR facts builder must not scan source signature roots to invent intrinsic callable facts",
+                ),
+                fp(
                     "source_sites.call_site(",
                     "LIR facts builder must not recover call-site metadata by source path/span lookup",
                 ),
@@ -1390,6 +1426,33 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "insert_declaration_abi_symbol_if_missing",
                     "LIR facts builder must not synthesize declaration ABI symbols from root-only source signatures",
+                ),
+                fp(
+                    "insert_published_layout_target_abi_symbols",
+                    "LIR facts builder must not synthesize layout target ABI symbols from root-only layout scans",
+                ),
+                fp(
+                    "published_layout_target_roots",
+                    "LIR facts builder must not recover ABI targets from layout root scans",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&declaration_key)",
+                    "LIR facts builder must not synthesize declaration ABI symbols when target-bound ABI facts are missing",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR verifier fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_lir_facts/src/verify.rs",
+            (
+                fp(
+                    "body#declaration",
+                    "LIR verifier must not let declaration-body target keys escape target-bound ABI validation",
+                ),
+                fp(
+                    "symbol.callable.is_none()",
+                    "LIR verifier must not accept root-only ABI symbols for concrete call-site targets",
                 ),
             ),
         ),
@@ -1467,6 +1530,51 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "self.source_signatures.get",
                     "exported ABI identity must come from LIR callable symbol facts",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&declaration_key)",
+                    "exported ABI identity must fail fast instead of synthesizing declaration symbols",
+                ),
+                fp(
+                    "synthesized from source callable contract",
+                    "exported ABI identity must not report declaration symbol synthesis as a valid fallback",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM named intrinsic fact lookup",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/intrinsics/named.rs",
+            (
+                fp(
+                    "crate::intrinsics::named_intrinsic_entry_name_for_root",
+                    "LLVM intrinsic lookup must consume LIR intrinsic facts without static root fallback",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM reflection intrinsic source recovery",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/intrinsics/builtin.rs",
+            (
+                fp(
+                    "current_source_slice(span)",
+                    "reflection intrinsic lowering must consume published type-argument facts instead of parsing source text",
+                ),
+                fp(
+                    "split_once('<')",
+                    "reflection intrinsic lowering must not parse generic type arguments from source text",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM callable layout ABI fallback",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/callable.rs",
+            (
+                fp(
+                    "AbiMangler.fun_symbol",
+                    "callable layout materialization must consume exported ABI symbol facts instead of synthesizing them",
                 ),
             ),
         ),

@@ -958,18 +958,16 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_root(
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_fact_root(
         &self,
         root_fqn: &str,
-    ) -> Result<Option<&str>, LlvmEmitError> {
+    ) -> Option<&str> {
         if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn)
             && let Some(entry_name) = intrinsic.named_entry_name.as_deref()
         {
-            return Ok(Some(entry_name));
+            return Some(entry_name);
         }
-        Ok(crate::intrinsics::named_intrinsic_entry_name_for_root(
-            root_fqn,
-        ))
+        None
     }
 
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(
