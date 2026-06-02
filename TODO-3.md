@@ -18,6 +18,7 @@
 | T3-04 | [DONE] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
 | T3-04A0 | [DONE] | 发布 source-body legacy scalar/toString intrinsic call metadata，解除 T3-04A fixture 阻塞 |
 | T3-04A | [DONE] | 收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口 |
+| T3-04B0 | [TODO] | 贯穿 LIR-owned source call-site identity，解除 T3-04B 删除 P6 source-span side table 的结构阻塞 |
 | T3-04B | [TODO] | 收口 T3-04R 二次审查发现的 source-span / fallback / verifier / gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
@@ -101,6 +102,18 @@
 - 依赖：T3-04A0
 - 完成记录：2026-06-02 完成。LLVM stage 不再从 `top_level_fun_call_sites` 补 intrinsic/direct-call source side table；legacy scalar named intrinsic 的 P6 本地 FQN fallback 已删除，named intrinsic metadata 改由 LIR facts 发布 `intrinsic_callables` 并由 LLVM 消费。LIR ABI facts 现在为 declaration-only call targets 发布与 target key 绑定的 ABI fact，verifier/reachability 不再通过 `target.readable_path()` 兜底接受 unpublished target；补充 CandidateSet unbound declaration、itable layout target verifier 单测。Dependency gate 增加 `top_level_fun_call_sites`、legacy scalar FQN fallback、generic/overload string parsing 等守卫。同步 schema version 至 1.8，并修复 vtable lowering 在无 receiver direct-call 探测时应返回不匹配而非 panic。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
+### [TODO] T3-04B0：贯穿 LIR-owned source call-site identity，解除 T3-04B 删除 P6 source-span side table 的结构阻塞
+- 背景：执行 `T3-04B` 前置审查时确认，P6 的 HIR/source-body 调用 lowering 仍只拿到 `hir::Expr.span` / `CallSite` source path+span；`published_intrinsic_call_contract`、`published_instantiated_call_fqn`、reflection type args、generic concrete FQN 与 named intrinsic entry 若直接从 `LlvmIntrinsicCallContract` 删除，只能改成另一个 source-span map，仍违反 fact-only / fail-fast 契约。必须先把 upstream 已发布的 `SiteId` / call-site contract identity 贯穿到 LIR-owned source payload lowering，让 P6 能按 LIR call-site identity 消费 contract。
+- 必须实现的内容：
+  1. **source payload 携带 call-site identity**：HIR/MIR/LIR source-body lowering 中的 call-like source payload 必须携带已发布 `SiteId` 或等价 LIR call-site identity；P6 lowering 不得再只能依赖 `hir::Expr.span` 定位 call-site metadata。
+  2. **LIR call-site/source contract 发布完整 metadata**：generic concrete callable/root、reflection type args、named intrinsic entry、intrinsic base/root、call target key/source signature/ABI symbol 必须由 LIR call-site/source contract 或 LIR facts 明确发布；缺失时 builder/verifier fail-fast。
+  3. **P6 消费 identity 而非 span map**：`codegen_call_expr`、MIR/source-body direct call、reflection intrinsic、named intrinsic 与 dispatch source-body lowering 改为通过当前 LIR call-site identity 查询 contract；不得通过 `source_path+span`、仅 span 唯一匹配或 HIR facts side table 回看。
+  4. **回归覆盖**：新增 verifier/gate/fixture 或单测，覆盖 generic direct call、reflection intrinsic、legacy scalar named intrinsic 与 source-body direct call 在无 source-span contract 时仍从 LIR-owned identity 成功 lowering，缺 contract 时 fail-fast。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
+- 完成条件：P6 source-body/direct-call/intrinsic lowering 不再需要 `LlvmIntrinsicCallContract` 或任何 source-span contract lookup，即可让 `T3-04B` 安全删除剩余 fallback/gate 残余。
+- 依赖：T3-04A
+- 完成记录：（待填）
+
 ### [TODO] T3-04B：收口 T3-04R 二次审查发现的 source-span / fallback / verifier / gate 残余缺口
 - 背景：执行 `T3-04R` 二次审查时确认 `T3-04A` 后仍有生产路径不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。该缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
@@ -112,7 +125,8 @@
   6. **dependency gate 锁定上述边界**：`tools/dependency_gate.py` 增加覆盖 LIR facts builder、LLVM tree-wide generic/overload parsing、source-span contract lookup、intrinsic fallback/root wrapper、`readable_path()` root fallback、dispatch FQN parsing的结构守卫；不得只靠重命名 helper 绕过 gate。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
 - 完成条件：`T3-04` 的 fact-only/fail-fast 契约在 P4/P5/P6 均被真实锁住，审查中确认的 source-span side table、FQN/string/root/readable-path fallback、未发布 target verifier 缺口全部关闭，并有 gate/单测/fixture 覆盖防回归。
-- 依赖：T3-04A
+- 依赖：T3-04B0
+- 阻塞记录：2026-06-02 前置审查确认 P6 HIR/source-body 调用 lowering 缺少 LIR-owned call-site identity，直接删除 `LlvmIntrinsicCallContract` / `published_intrinsic_call_contract` / `published_instantiated_call_fqn` 只能退化成另一个 source-span map；已新增前置任务 `T3-04B0`。
 - 完成记录：（待填）
 
 ### [TODO] T3-04R：Review T3-04

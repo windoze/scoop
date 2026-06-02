@@ -1,40 +1,24 @@
-# 当前执行计划
+# 执行计划
 
-更新日期：2026-06-02
+本文件记录本次调用的可审计执行计划与进度更新。
 
-## 目标
+## 初始计划
 
-完成 `TODO.md` 中按顺序出现的第一个未完成任务，完成后停止，不继续处理后续任务。
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判断第一项未完成任务。
+2. 读取该任务相关上下文，包括 `PLAN.md`、任务描述中提到的文件、最近提交信息和必要的代码位置；仅处理与当前任务直接相关的问题。
+3. 若发现当前任务被具体前置缺陷阻塞，按要求在 `TODO.md` 中插入最小前置任务、更新依赖记录、提交并停止。
+4. 若不阻塞，则实现当前任务，优先做最小正确变更，避免绕过规范或夹带无关修改。
+5. 按要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，然后运行相关测试、完整 Rust 测试和完整 fixture 套件；若只改文档且已有可复用绿色结果，则记录跳过理由。
+6. 修复所有未被明确排期的失败测试或 fixture，或将其作为当前任务的前置事项写入 `TODO.md` 后提交并停止。
+7. 完成后在 `TODO.md` 的任务标题加 `[DONE]` 并更新完成记录；仅当阶段级计划改变时才更新 `PLAN.md`。
+8. 检查 git 状态和 diff，提交本次任务的所有相关变更，然后停止，不继续下一项任务。
 
-## 步骤
+## 进度
 
-1. 读取 `TODO.md`，按规则识别第一个标题未带 `[DONE]` 的任务。
-2. 检查该任务的依赖、完成要求和验证要求；必要时查看 `PLAN.md` 和最近提交，只限于判断当前任务相关上下文。
-3. 根据当前任务定位相关代码、测试或文档，确认应修改的最小范围。
-4. 实现当前任务；如果发现阻塞当前任务的缺失语言功能、规格不匹配或未安排失败测试，则按要求更新 `TODO.md` 插入最小前置任务并停止。
-5. 运行格式化、lint、相关测试，并在需要时运行完整测试和 fixture 套件。
-6. 将当前任务标题更新为 `[DONE]`，补全完成记录；仅当阶段级计划变化时才更新 `PLAN.md`。
-7. 检查工作区差异，提交本次任务相关改动，然后停止。
-
-## 当前状态
-
-已读取 `TODO.md` 与 `TODO-3.md`。首个未完成任务是 `T3-04R：Review T3-04`，依赖 `T3-04A` 已标记完成；本次只执行该 review 任务。
-
-## T3-04R 执行计划
-
-1. 查看最近提交，确认是否有与 `T3-04R` 直接相关的未完成问题。
-2. 审查 `T3-04`、`T3-04A0`、`T3-04A` 涉及的 fail-fast、fact-only、verifier、dependency gate 与 fixture 验证范围。
-3. 如发现影响 `T3-04` 完成条件的缺口，直接修复并补充测试；如发现必须前置处理的新阻塞，则更新 `TODO.md` 后停止。
-4. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，再运行 `python3 tools/run_fixtures.py`；若代码发生变化，再按需要运行完整 Rust 测试。
-5. 审查通过后，将 `T3-04R` 标题和任务索引标为 `[DONE]`，填写完成记录，并同步 `TODO.md` 主索引状态。
-6. 检查差异并提交本次任务全部相关改动，然后停止。
-
-## 审查阻塞记录
-
-`T3-04R` 二次审查发现 `T3-04A` 后仍存在阻塞 `T3-04` 完成条件的残余缺口：P6 source-span intrinsic/direct-call side table、intrinsic FQN/root fallback、dispatch FQN/side-table 恢复、`readable_path()` root fallback、P4/P5 verifier 发布目标校验缺口，以及 dependency gate 覆盖缺口。
-
-已将最小前置修复任务 `T3-04B` 插入 `TODO-3.md` 中 `T3-04R` 之前，并将 `T3-04R` 依赖更新为 `T3-04B`。本次不标记 `T3-04R` 为完成；接下来只验证文档/任务单更新并提交后停止。
-
-## 验证记录
-
-本次只修改 `TODO.md`、`TODO-3.md` 与 `memory/claude_plan.md`，未修改代码、测试或 fixture；因此跳过 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 与 `python3 tools/run_fixtures.py`。
+- 已创建初始执行计划，下一步读取 `TODO.md` 确认第一项未完成任务。
+- 已确认 `TODO.md` 指向批 3，第一项未完成任务为 `TODO-3.md` 的 `T3-04B`。
+- 当前任务范围：关闭 T3-04R 二次审查发现的 P6 source-span intrinsic/direct-call 回看、FQN/string/readable-path fallback、dispatch side-table 恢复、P4/P5 verifier 覆盖缺口，并补 dependency gate。
+- 代码审查发现 `T3-04B` 存在结构性前置阻塞：P6 的 HIR/source-body call lowering 当前只携带 `hir::Expr.span`，没有 LIR-owned `SiteId` / call-site identity；若直接删除 `LlvmIntrinsicCallContract`、`published_intrinsic_call_contract` 或 `published_instantiated_call_fqn`，只能换成另一个 source-span map，仍不满足 fact-only 契约。
+- 已在 `TODO-3.md` 中新增最小前置任务 `T3-04B0`，要求先贯穿 LIR-owned source call-site identity 并发布 generic/reflection/intrinsic/direct-call metadata；`T3-04B` 改为依赖 `T3-04B0`。`TODO.md` 的当前活跃任务同步更新为 `T3-04B0`。
+- 本次调用将按阻塞处理停止，不标记 `T3-04B` 完成；由于只修改任务文档和本进度文件，不运行编译/fixture 套件。
+- 验证：`git diff --check` 通过；未运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 或 `python3 tools/run_fixtures.py`，因为本次仅修改任务文档和进度记录。
