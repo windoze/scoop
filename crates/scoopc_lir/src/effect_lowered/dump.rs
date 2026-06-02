@@ -2767,6 +2767,9 @@ fn render_call_target(ctx: &DumpCtx<'_>, target: &crate::effect_facts::CallSiteT
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+        crate::effect_facts::CallSiteTarget::BodylessDirect { fqn } => {
+            format!("BodylessDirect({fqn})")
+        }
         crate::effect_facts::CallSiteTarget::DynamicFallback => "DynamicFallback".to_string(),
     }
 }

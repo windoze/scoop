@@ -18,6 +18,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
     /// - super ctor args 与 secondary ctor delegation args 同样优先走 `CtorCallInfo` 映射，
     ///   并按源码顺序求值。
+    #[allow(dead_code)]
     pub(in crate::llvm::codegen) fn codegen_class_ctor_call(
         &mut self,
         span: crate::span::Span,
@@ -231,6 +232,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    #[allow(dead_code)]
     pub(in crate::llvm::codegen) fn pick_class_ctor_by_target<'b>(
         &self,
         _at: crate::span::Span,

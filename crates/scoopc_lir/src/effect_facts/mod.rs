@@ -293,6 +293,9 @@ fn map_call_site_target(
                 CallSiteTarget::CandidateSet(instances)
             }
         }
+        scoopc_effect_facts::CallSiteTarget::BodylessDirect { fqn } => {
+            CallSiteTarget::BodylessDirect { fqn: fqn.clone() }
+        }
         scoopc_effect_facts::CallSiteTarget::DynamicFallback => CallSiteTarget::DynamicFallback,
     }
 }

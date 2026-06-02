@@ -1268,6 +1268,7 @@ fn record_call_target_types(
                 record_instance_key_types(out, types, instance);
             }
         }
+        crate::effect_facts::CallSiteTarget::BodylessDirect { .. } => {}
         crate::effect_facts::CallSiteTarget::DynamicFallback => {}
     }
 }

@@ -415,7 +415,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
     if let Some(selected) = selected_root.as_ref() {
         let _reachable_fqns =
-            collect_reachable_top_level_funs(selected.root_fqn, late_lowered_lir_facts);
+            collect_reachable_top_level_funs(selected.root_fqn, late_lowered_lir_facts)
+                .map_err(|message| LlvmEmitError::Frontend { message })?;
     }
 
     let abi_query = declare.materialize_program_abi(

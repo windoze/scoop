@@ -368,7 +368,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         Err(LlvmEmitError::Frontend {
             message: format!(
-                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without a published MIR/LIR type-argument contract"
+                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering; type arguments must be carried by MIR/LIR source-call-site identity"
             ),
         })
     }

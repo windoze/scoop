@@ -216,9 +216,9 @@ lir_facts {
   source_call_site_contracts=7
     - owner=fixtures.mir_lowered.main site=0 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.body_completes named_entry=<none> exact_callee=fixtures.mir_lowered.body_completes
     - owner=fixtures.mir_lowered.main site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.handled_raise named_entry=<none> exact_callee=fixtures.mir_lowered.handled_raise
-    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=scoop.core.Int.plus
     - owner=fixtures.mir_lowered.handled_raise site=2 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.handled_raise site=3 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=fixtures.mir_lowered.handled_raise site=3 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=scoop.core.Int.plus
     - owner=fixtures.mir_lowered.handled_raise site=4 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
     - owner=fixtures.mir_lowered.body_completes site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
   dispatch_contracts=0
@@ -435,7 +435,7 @@ LateLoweredProgram
         - bb#h9330dfb98fa1cc27eeeafba8836d55df stmts[0..0] + term
         - bb#h1b4df7dcbf0a386d9c10dcb62df870cf stmts[0..1] + term
       plain_call_sites:
-        - site#h3f9b9afa7bfa7e13494180cbb59108a6 Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h74829b718343a8f02ea8f23bca3bf3ac stmt0 dispatch=PlainCall
+        - site#h3f9b9afa7bfa7e13494180cbb59108a6 Direct target_mode=KnownInstance target=BodylessDirect(scoop.core.Int.plus) callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h74829b718343a8f02ea8f23bca3bf3ac stmt0 dispatch=PlainCall
         - site#hd1a873d8c74723992c863cf11b5a9671 Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h5b585dd4b93a9daf854267c49a92c2ab stmt0 dispatch=PlainCall
         - site#hcb3b11323ca8249c98373446fa1ab101 Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h1b4df7dcbf0a386d9c10dcb62df870cf stmt0 dispatch=PlainCall
       plain_local_effect_control: step#hf0b914bb96aa628ce2a8f75d789f09f3 cont_obj#hd07b5e32d3e51cc976ce51142d73d196
@@ -570,6 +570,6 @@ LateLoweredProgram
       plain_call_sites:
         - site#h85ef03daf7eb1579f68e120f063c8947 Direct target_mode=KnownInstance target=fixtures.mir_lowered.body_completes callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h42fd4054a942e61ff27e9918ef54be30 stmt0 dispatch=PlainCall
         - site#hdccb6f522571c213c6dd39d5ec86cb08 Direct target_mode=KnownInstance target=fixtures.mir_lowered.handled_raise callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h42fd4054a942e61ff27e9918ef54be30 stmt1 dispatch=PlainCall
-        - site#hba826e3a0b76f719a234b5cd01af3b2c Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h42fd4054a942e61ff27e9918ef54be30 stmt2 dispatch=PlainCall
+        - site#hba826e3a0b76f719a234b5cd01af3b2c Direct target_mode=KnownInstance target=BodylessDirect(scoop.core.Int.plus) callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h42fd4054a942e61ff27e9918ef54be30 stmt2 dispatch=PlainCall
       plain_local_effect_control: <none>
       effect_step_handoff: <none>

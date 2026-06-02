@@ -534,6 +534,7 @@ fn build_call_graph(
                                 }
                             }
                         }
+                        CallSiteTarget::BodylessDirect { .. } => {}
                         CallSiteTarget::DynamicFallback => {}
                     }
                 }
@@ -988,7 +989,10 @@ fn finalize_call_site_resolution(
     match call_facts.target() {
         CallSiteTarget::KnownInstance(target) => {
             let Some(index) = key_to_index.get(target) else {
-                return fallback_call_resolution(call_facts);
+                panic!(
+                    "effect facts solver received unpublished known-instance call target `{}`",
+                    target.template.fqn
+                );
             };
             let precision = if states[*index].widened {
                 EffectPrecision::Widened
@@ -1009,6 +1013,9 @@ fn finalize_call_site_resolution(
                 precision,
             }
         }
+        CallSiteTarget::BodylessDirect { .. } => {
+            plain_call_resolution(call_facts, call_facts.precision())
+        }
         CallSiteTarget::CandidateSet(targets) => {
             if matches!(call_facts.callee_abi_kind(), CallableAbiKind::Plain) {
                 return plain_call_resolution(call_facts, call_facts.precision());
@@ -1026,12 +1033,10 @@ fn finalize_call_site_resolution(
             let mut resolved_tags = BTreeSet::new();
             for target in targets {
                 let Some(index) = key_to_index.get(target) else {
-                    return CallResolution {
-                        callee_abi_kind: CallableAbiKind::EffectStep,
-                        callee_schema: Some(call_facts.callee_schema()),
-                        resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
-                        precision: EffectPrecision::Widened,
-                    };
+                    panic!(
+                        "effect facts solver received unpublished candidate call target `{}`",
+                        target.template.fqn
+                    );
                 };
                 let projected = schema_index.project_case_set(
                     &states[*index].resolved_outward_cases,
@@ -1074,15 +1079,6 @@ fn finalize_call_site_resolution(
                 precision: call_facts.precision(),
             },
         },
-    }
-}
-
-fn fallback_call_resolution(call_facts: &CallSiteEffectFacts) -> CallResolution {
-    CallResolution {
-        callee_abi_kind: call_facts.callee_abi_kind(),
-        callee_schema: call_facts.callee_step_schema(),
-        resolved_cases: call_facts.resolved_cases().clone(),
-        precision: call_facts.precision(),
     }
 }
 

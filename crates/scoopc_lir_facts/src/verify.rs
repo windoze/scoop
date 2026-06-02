@@ -1535,8 +1535,7 @@ fn verify_call_site_contract(
                 crate::LirCallSiteKind::Direct
                     | crate::LirCallSiteKind::Virtual
                     | crate::LirCallSiteKind::Interface
-            ) && !is_bodyless_plain_call_surface(contract)
-            {
+            ) {
                 return Err(VerifyError::InvalidExactCalleeBinding {
                     callable: owner.to_string(),
                     reason: "direct and dispatch call sites must not use dynamic fallback targets",
@@ -1549,20 +1548,6 @@ fn verify_call_site_contract(
         }
     }
     Ok(())
-}
-
-fn is_bodyless_plain_call_surface(contract: &crate::LirCallSiteContract) -> bool {
-    matches!(
-        contract.kind,
-        crate::LirCallSiteKind::Direct
-            | crate::LirCallSiteKind::Virtual
-            | crate::LirCallSiteKind::Interface
-    ) && matches!(contract.callee_abi_kind, crate::LirCallableAbiKind::Plain)
-        && matches!(contract.precision, LirEffectPrecision::Precise)
-        && contract.target_callables.is_empty()
-        && contract.target_bindings.is_empty()
-        && contract.callee_step_schema.is_none()
-        && contract.resolved_cases.is_empty()
 }
 
 fn target_binding<'a>(

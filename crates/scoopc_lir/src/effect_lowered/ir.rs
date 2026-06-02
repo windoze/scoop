@@ -2347,6 +2347,7 @@ fn call_site_target_step_schemas(
     let target_instances = match facts.target() {
         CallSiteTarget::KnownInstance(instance) => std::slice::from_ref(instance),
         CallSiteTarget::CandidateSet(instances) => instances.as_slice(),
+        CallSiteTarget::BodylessDirect { .. } => return BTreeSet::new(),
         CallSiteTarget::DynamicFallback => return BTreeSet::new(),
     };
     target_instances

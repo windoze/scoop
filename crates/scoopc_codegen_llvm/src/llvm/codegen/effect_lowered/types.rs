@@ -3467,6 +3467,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 }
                 Ok(CallTargetQuery::KnownInstance(layout))
             }
+            crate::effect_facts::CallSiteTarget::BodylessDirect { fqn } => {
+                Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI query received bodyless direct target `{fqn}` where a dynamic target layout was required"
+                    ),
+                })
+            }
             crate::effect_facts::CallSiteTarget::CandidateSet(_)
             | crate::effect_facts::CallSiteTarget::DynamicFallback => {
                 let layout = self.dynamic_invoke_layout(owner_step_schema, site_id).ok_or_else(

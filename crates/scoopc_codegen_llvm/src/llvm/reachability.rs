@@ -20,7 +20,7 @@ const RUNTIME_REQUIRED_CALLABLES: &[&str] = &[];
 pub(super) fn collect_reachable_top_level_funs(
     root_fqn: &str,
     lir_facts: &LirFacts,
-) -> Vec<String> {
+) -> Result<Vec<String>, String> {
     let mut collector = ReachabilityCollector::new(lir_facts);
     collector.seed_entry(root_fqn);
     collector.seed_global_init_roots();
@@ -61,14 +61,14 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
-    fn collect(mut self) -> Vec<String> {
+    fn collect(mut self) -> Result<Vec<String>, String> {
         while let Some(root_fqn) = self.queue.pop_front() {
             if !self.reachable.insert(root_fqn.clone()) {
                 continue;
             }
-            self.enqueue_callable_edges(&root_fqn);
+            self.enqueue_callable_edges(&root_fqn)?;
         }
-        self.reachable.into_iter().collect()
+        Ok(self.reachable.into_iter().collect())
     }
 
     fn seed_entry(&mut self, root_fqn: &str) {
@@ -116,23 +116,26 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
-    fn enqueue_callable_edges(&mut self, root_fqn: &str) {
-        let Some(edges) = self.callable_edges(root_fqn) else {
-            return;
+    fn enqueue_callable_edges(&mut self, root_fqn: &str) -> Result<(), String> {
+        let Some(edges) = self.callable_edges(root_fqn)? else {
+            return Ok(());
         };
         for contract in edges.call_contracts {
-            self.enqueue_call_contract_targets(&contract);
+            self.enqueue_call_contract_targets(&contract)?;
         }
         for key in edges.dynamic_keys {
-            self.enqueue_dynamic_invoke_targets(&key);
+            self.enqueue_dynamic_invoke_targets(&key)?;
         }
         for key in edges.dispatch_keys {
-            self.enqueue_dispatch_targets(&key);
+            self.enqueue_dispatch_targets(&key)?;
         }
+        Ok(())
     }
 
-    fn callable_edges(&self, root_fqn: &str) -> Option<CallableEdges> {
-        let callable = self.callable_by_root(root_fqn)?;
+    fn callable_edges(&self, root_fqn: &str) -> Result<Option<CallableEdges>, String> {
+        let Some(callable) = self.callable_by_root(root_fqn) else {
+            return Ok(None);
+        };
         let mut edges = CallableEdges::default();
         match &callable.contract {
             LirCallableContract::Plain(plain) => {
@@ -168,71 +171,73 @@ impl<'a> ReachabilityCollector<'a> {
             }
         }
 
-        edges.dynamic_keys.extend(
-            self.lir_facts
-                .dynamic_invokes
-                .iter()
-                .filter(|(_, dynamic)| {
-                    self.root_for_callable_key(&dynamic.owner_callable)
-                        .as_deref()
-                        == Some(root_fqn)
-                })
-                .map(|(key, _)| key.clone()),
-        );
-        edges.dispatch_keys.extend(
-            self.lir_facts
-                .dispatches
-                .iter()
-                .filter(|(_, dispatch)| {
-                    self.root_for_callable_key(&dispatch.owner_callable)
-                        .as_deref()
-                        == Some(root_fqn)
-                })
-                .map(|(key, _)| key.clone()),
-        );
-        Some(edges)
+        for (key, dynamic) in &self.lir_facts.dynamic_invokes {
+            if self.required_root_for_callable_key(&dynamic.owner_callable)? == root_fqn {
+                edges.dynamic_keys.push(key.clone());
+            }
+        }
+        for (key, dispatch) in &self.lir_facts.dispatches {
+            if self.required_root_for_callable_key(&dispatch.owner_callable)? == root_fqn {
+                edges.dispatch_keys.push(key.clone());
+            }
+        }
+        Ok(Some(edges))
     }
 
-    fn enqueue_dynamic_invoke_targets(&mut self, key: &LirDynamicInvokeKey) {
-        let Some(dynamic) = self.lir_facts.dynamic_invokes.get(key) else {
-            return;
-        };
+    fn enqueue_dynamic_invoke_targets(&mut self, key: &LirDynamicInvokeKey) -> Result<(), String> {
+        let dynamic = self.lir_facts.dynamic_invokes.get(key).ok_or_else(|| {
+            format!(
+                "dynamic invoke site{} is referenced but not published",
+                key.site_id.as_u32()
+            )
+        })?;
         let contract = dynamic.call.clone();
         let dispatch = dynamic.carrier.dispatch.clone();
-        self.enqueue_call_contract_targets(&contract);
+        self.enqueue_call_contract_targets(&contract)?;
         if let Some(dispatch) = dispatch.as_ref() {
-            self.enqueue_dispatch_targets(dispatch);
+            self.enqueue_dispatch_targets(dispatch)?;
         }
+        Ok(())
     }
 
-    fn enqueue_dispatch_targets(&mut self, key: &LirDispatchKey) {
-        let Some(dispatch) = self.lir_facts.dispatches.get(key) else {
-            return;
-        };
+    fn enqueue_dispatch_targets(&mut self, key: &LirDispatchKey) -> Result<(), String> {
+        let dispatch = self.lir_facts.dispatches.get(key).ok_or_else(|| {
+            format!(
+                "dispatch site{} is referenced but not published",
+                key.site_id.as_u32()
+            )
+        })?;
         let targets = dispatch.candidate_targets.clone();
         for target in &targets {
-            self.enqueue_required_callable_key(target);
+            self.enqueue_required_callable_key(target)?;
         }
+        Ok(())
     }
 
-    fn enqueue_call_contract_targets(&mut self, contract: &LirCallSiteContract) {
+    fn enqueue_call_contract_targets(
+        &mut self,
+        contract: &LirCallSiteContract,
+    ) -> Result<(), String> {
         if let Some(exact) = contract.exact_callee.as_ref() {
             self.enqueue_root(&exact.root_fqn);
-            return;
+            return Ok(());
         }
         for target in &contract.target_callables {
             match contract.target_mode {
                 LirCallTargetMode::KnownInstance
                 | LirCallTargetMode::CandidateSet
-                | LirCallTargetMode::DynamicFallback => self.enqueue_required_callable_key(target),
+                | LirCallTargetMode::DynamicFallback => {
+                    self.enqueue_required_callable_key(target)?
+                }
             }
         }
+        Ok(())
     }
 
-    fn enqueue_required_callable_key(&mut self, key: &StableLirCallableKey) {
-        if let Some(root) = self.root_for_callable_key(key) {
-            self.enqueue_root(&root);
-        }
+    fn enqueue_required_callable_key(&mut self, key: &StableLirCallableKey) -> Result<(), String> {
+        let root = self.required_root_for_callable_key(key)?;
+        self.enqueue_root(&root);
+        Ok(())
     }
 
     fn enqueue_root(&mut self, root_fqn: &str) {
@@ -252,6 +257,15 @@ impl<'a> ReachabilityCollector<'a> {
         self.callable_roots_by_key
             .get(key)
             .map(|root| (*root).to_string())
+    }
+
+    fn required_root_for_callable_key(&self, key: &StableLirCallableKey) -> Result<String, String> {
+        self.root_for_callable_key(key).ok_or_else(|| {
+            format!(
+                "call target `{}` is not published in LIR callable or target-bound ABI facts",
+                key.as_str()
+            )
+        })
     }
 }
 
@@ -437,7 +451,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts),
+            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
             vec![
                 "app.helper".to_string(),
                 "app.leaf".to_string(),
@@ -475,7 +489,7 @@ mod tests {
         );
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts),
+            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
             vec!["app.init_helper".to_string(), "app.main".to_string()]
         );
     }
@@ -550,20 +564,23 @@ mod tests {
         );
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts),
+            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
             vec!["app.impl".to_string(), "app.main".to_string()]
         );
     }
 
     #[test]
-    #[should_panic(expected = "without a published root")]
     fn reachability_rejects_unpublished_candidate_set_targets() {
         let facts = facts_with_callables(vec![plain_callable(
             "app.main",
             vec![callable_key("scoop.core.Bool.toString")],
         )]);
 
-        let _ = collect_reachable_top_level_funs("app.main", &facts);
+        assert!(
+            collect_reachable_top_level_funs("app.main", &facts)
+                .unwrap_err()
+                .contains("is not published")
+        );
     }
 
     #[test]
@@ -593,7 +610,7 @@ mod tests {
         );
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts),
+            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
             vec![
                 "app.main".to_string(),
                 "scoop.core.Bool.toString".to_string()
@@ -609,7 +626,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts),
+            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
             vec![
                 "app.main".to_string(),
                 "app.main$continuation_resume".to_string(),

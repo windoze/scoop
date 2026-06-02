@@ -1056,13 +1056,26 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                         surface_row,
                     )
                 } else {
-                    self.call_site_for_bodyless_direct_surface(
+                    if !surface_row.is_pure() {
+                        let _ = (types, kind, invoke_args_tuple_ty, result_ty);
+                        return Err(EffectFactsError::MissingMirFact {
+                            kind: "CallSiteTargetFact.DirectFunction",
+                            detail: format!(
+                                "{} direct call target `{fqn}` has no published stable callable target",
+                                self.callable_fun.fqn
+                            ),
+                        });
+                    }
+                    self.call_site_for_surface_row(
                         types,
                         kind,
-                        fqn,
+                        CallSiteTarget::BodylessDirect {
+                            fqn: fqn.to_string(),
+                        },
                         invoke_args_tuple_ty,
                         result_ty,
                         surface_row,
+                        EffectPrecision::Precise,
                     )
                 }
             }
@@ -1172,35 +1185,6 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
         }
     }
 
-    fn call_site_for_bodyless_direct_surface(
-        &mut self,
-        types: &mut TypeStore,
-        kind: CallSiteKind,
-        fqn: &str,
-        invoke_args_tuple_ty: TypeId,
-        result_ty: TypeId,
-        surface_row: &EffectRow,
-    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        if !surface_row.is_pure() {
-            return Err(EffectFactsError::MissingMirFact {
-                kind: "CallSiteTargetFact.DirectFunction",
-                detail: format!(
-                    "{} direct call target `{fqn}` has no stable callable instance for non-pure surface contract",
-                    self.callable_fun.fqn
-                ),
-            });
-        }
-        self.call_site_for_surface_row(
-            types,
-            kind,
-            CallSiteTarget::DynamicFallback,
-            invoke_args_tuple_ty,
-            result_ty,
-            surface_row,
-            EffectPrecision::Precise,
-        )
-    }
-
     fn call_site_for_known_instance(
         &mut self,
         _types: &mut TypeStore,
@@ -1235,15 +1219,12 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
             ));
         }
         if _surface_row.is_pure() {
-            let target = if !target_key.template.fqn.starts_with("scoop.delegates.") {
-                CallSiteTarget::DynamicFallback
-            } else {
-                CallSiteTarget::KnownInstance(target_key)
-            };
             return self.call_site_for_surface_row(
                 _types,
                 kind,
-                target,
+                CallSiteTarget::BodylessDirect {
+                    fqn: target_key.template.fqn.clone(),
+                },
                 invoke_args_tuple_ty,
                 _result_ty,
                 _surface_row,
@@ -1253,7 +1234,7 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
         Err(EffectFactsError::MissingMirFact {
             kind: "CallableInstanceEffectFacts",
             detail: format!(
-                "{} known call target `{}` has no callable effect facts for non-pure surface contract",
+                "{} known call target `{}` has no callable effect facts",
                 self.callable_fun.fqn, target_key.template.fqn
             ),
         })

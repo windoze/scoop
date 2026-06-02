@@ -351,6 +351,9 @@ fn map_call_site_target(
         crate::effect_facts_stage::CallSiteTarget::CandidateSet(instances) => {
             scoopc_lir::effect_facts::CallSiteTarget::CandidateSet(instances.clone())
         }
+        crate::effect_facts_stage::CallSiteTarget::BodylessDirect { fqn } => {
+            scoopc_lir::effect_facts::CallSiteTarget::BodylessDirect { fqn: fqn.clone() }
+        }
         crate::effect_facts_stage::CallSiteTarget::DynamicFallback => {
             scoopc_lir::effect_facts::CallSiteTarget::DynamicFallback
         }

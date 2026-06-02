@@ -4,7 +4,9 @@ use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use crate::facts::{CallSiteTarget, CallableAbiKind, EffectPrecision, SiteEffectFacts};
+use crate::facts::{
+    CallSiteKind, CallSiteTarget, CallableAbiKind, EffectPrecision, SiteEffectFacts,
+};
 use crate::schema::{CaseSet, CaseTag, ContinuationSchemaId, StepSchemaId};
 use crate::{EffectFacts, StepSchema};
 
@@ -251,7 +253,7 @@ fn body_needs_plain_local_control(body: &crate::facts::BodyEffectFacts) -> bool 
 fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: String) -> Result<()> {
     match site {
         SiteEffectFacts::Call(call) => {
-            verify_call_site_shape(call, &context)?;
+            verify_call_site_shape(facts, call, &context)?;
             if let Some(schema) = call.callee_step_schema() {
                 verify_step_schema_exists(facts, schema, format!("{context} callee_schema"))?;
             }
@@ -327,7 +329,11 @@ fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: Strin
     Ok(())
 }
 
-fn verify_call_site_shape(call: &crate::facts::CallSiteEffectFacts, context: &str) -> Result<()> {
+fn verify_call_site_shape(
+    _facts: &EffectFacts,
+    call: &crate::facts::CallSiteEffectFacts,
+    context: &str,
+) -> Result<()> {
     if call.target_mode() != call.target().mode() {
         return Err(VerifyError::CallSiteTargetModeMismatch {
             context: context.to_string(),
@@ -342,6 +348,28 @@ fn verify_call_site_shape(call: &crate::facts::CallSiteEffectFacts, context: &st
         return Err(VerifyError::InvalidCallSiteFallbackPrecision {
             context: context.to_string(),
         });
+    }
+    match call.target() {
+        CallSiteTarget::KnownInstance(_) | CallSiteTarget::CandidateSet(_) => {}
+        CallSiteTarget::BodylessDirect { fqn } => {
+            if fqn.is_empty() {
+                return Err(VerifyError::CallSiteTargetModeMismatch {
+                    context: format!("{context} bodyless direct target is empty"),
+                });
+            }
+        }
+        CallSiteTarget::DynamicFallback => {
+            if matches!(
+                call.kind(),
+                CallSiteKind::Direct | CallSiteKind::Virtual | CallSiteKind::Interface
+            ) {
+                return Err(VerifyError::CallSiteTargetModeMismatch {
+                    context: format!(
+                        "{context} direct/dispatch call must not use dynamic fallback"
+                    ),
+                });
+            }
+        }
     }
     match call.callee_abi_kind() {
         CallableAbiKind::Plain => {

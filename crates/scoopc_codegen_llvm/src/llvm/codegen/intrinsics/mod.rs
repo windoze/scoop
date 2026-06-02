@@ -7,6 +7,8 @@ mod builtin;
 mod named;
 mod sysroot;
 
+pub(in crate::llvm::codegen) use named::scalar_bodyless_intrinsic_entry_name;
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn panic_verified_intrinsic_contract(
         &self,

@@ -957,32 +957,96 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
     }
 }
 
+pub(in crate::llvm::codegen) fn scalar_bodyless_intrinsic_entry_name(
+    fqn: &str,
+) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return match method {
+            "plus" => Some("int_plus"),
+            "minus" => Some("int_minus"),
+            "times" => Some("int_times"),
+            "div" => Some("int_div"),
+            "rem" => Some("int_rem"),
+            "unaryMinus" => Some("int_unary_minus"),
+            "unaryPlus" => Some("int_unary_plus"),
+            "inc" => Some("int_inc"),
+            "dec" => Some("int_dec"),
+            "and" => Some("int_and"),
+            "or" => Some("int_or"),
+            "xor" => Some("int_xor"),
+            "inv" => Some("int_inv"),
+            "shl" => Some("int_shl"),
+            "shr" => Some("int_shr"),
+            "compareTo" => Some("int_compare_to"),
+            "lt" => Some("int_lt"),
+            "le" => Some("int_le"),
+            "gt" => Some("int_gt"),
+            "ge" => Some("int_ge"),
+            "equals" => Some("int_eq"),
+            "notEquals" => Some("int_ne"),
+            _ => None,
+        };
+    }
+    if matches!(owner, "scoop.core.Float32" | "scoop.core.Float64") {
+        return match method {
+            "plus" => Some("float_plus"),
+            "minus" => Some("float_minus"),
+            "times" => Some("float_times"),
+            "div" => Some("float_div"),
+            "unaryMinus" => Some("float_unary_minus"),
+            "compareTo" => Some("float_compare_to"),
+            "lt" => Some("float_lt"),
+            "le" => Some("float_le"),
+            "gt" => Some("float_gt"),
+            "ge" => Some("float_ge"),
+            "equals" => Some("float_eq"),
+            "notEquals" => Some("float_ne"),
+            _ => None,
+        };
+    }
+    if owner == "scoop.core.Bool" {
+        return match method {
+            "not" | "negate" => Some("bool_not"),
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "equals" => Some("bool_eq"),
+            "notEquals" => Some("bool_ne"),
+            _ => None,
+        };
+    }
+    if owner == "scoop.core.Char" {
+        return match method {
+            "toInt" => Some("char_to_int"),
+            "equals" => Some("char_eq"),
+            "notEquals" => Some("char_ne"),
+            _ => None,
+        };
+    }
+    None
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_fact_root(
-        &self,
-        root_fqn: &str,
-    ) -> Option<&str> {
-        if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn)
-            && let Some(entry_name) = intrinsic.named_entry_name.as_deref()
-        {
-            return Some(entry_name);
-        }
-        None
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        callee: &hir::Expr,
-        args: &[hir::CallArg],
-        entry_name: &str,
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let entry = self.published_named_intrinsic_entry(entry_name)?;
-        let call = self.lower_named_intrinsic_hir_call(span, callee_span, callee, args)?;
-        self.codegen_named_intrinsic_call(entry, call).map(Some)
-    }
-
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_top_level_call(
         &mut self,
         span: crate::span::Span,
@@ -1061,31 +1125,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "published named intrinsic entry `{entry_name}` is not present in the backend audit table"
                 ),
             }
-        })
-    }
-
-    fn lower_named_intrinsic_hir_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        callee: &hir::Expr,
-        args: &[hir::CallArg],
-    ) -> Result<LoweredNamedIntrinsicCall<'ctx>, LlvmEmitError> {
-        let mut operands = Vec::with_capacity(args.len() + 1);
-        if let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind {
-            operands.push(self.lower_named_intrinsic_hir_operand(receiver)?);
-        }
-        for arg in args {
-            let value = match arg {
-                hir::CallArg::Positional(value) | hir::CallArg::Named { value, .. } => value,
-            };
-            operands.push(self.lower_named_intrinsic_hir_operand(value)?);
-        }
-        Ok(LoweredNamedIntrinsicCall {
-            span,
-            callee_span,
-            operands,
-            array_element_source_ty: None,
         })
     }
 

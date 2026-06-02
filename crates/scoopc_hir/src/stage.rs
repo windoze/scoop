@@ -3780,7 +3780,8 @@ fn call_site_contract_arg_binding(
 fn intrinsic_call_site_fact(
     function: &FunctionTargetContract,
 ) -> Option<hir_site_facts::CallSiteContractKind> {
-    let entry_name = named_intrinsic_entry_name_for_root(&function.fqn)?;
+    let entry_name = named_intrinsic_entry_name_for_root(&function.fqn)
+        .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&function.fqn))?;
     let entry = named_intrinsic_audit_entry(entry_name)?;
     Some(hir_site_facts::CallSiteContractKind::Intrinsic {
         kind: hir_site_facts::IntrinsicKind::NamedTable {

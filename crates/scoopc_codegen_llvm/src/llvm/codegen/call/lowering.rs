@@ -159,20 +159,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let Some(fqn) = member_fun_fqn
-            && let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_fact_root(fqn)
-                .map(str::to_string)
-        {
-            return self.try_codegen_named_intrinsic_hir_call(
-                span,
-                callee.span,
-                callee,
-                args,
-                &entry_name,
-            );
-        }
-
         if member.name == "toInt" {
             let recv_ty = match &receiver.kind {
                 hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -1447,21 +1433,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            if let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_fact_root(fqn)
-                .map(str::to_string)
-                && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
+            let dispatch_fqn = fqn.as_str();
+
+            if let Some(entry_name) = scalar_bodyless_intrinsic_entry_name(dispatch_fqn)
+                && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                     span,
                     callee.span,
-                    callee,
                     args,
-                    &entry_name,
+                    entry_name,
                 )?
             {
                 return Ok(value);
             }
-
-            let dispatch_fqn = fqn.as_str();
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
                 return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
@@ -1738,7 +1721,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let call_site = self.current_call_site(span)?;
-        if let Some(site) = self.ctor_call_sites.get(&call_site).cloned() {
+        let ctor_site = self.ctor_call_sites.get(&call_site).cloned().or_else(|| {
+            let mut matches = self
+                .ctor_call_sites
+                .iter()
+                .filter(|(site, _)| site.span == span || site.span == callee.span)
+                .map(|(_, info)| info.clone())
+                .collect::<Vec<_>>();
+            (matches.len() == 1).then(|| matches.remove(0))
+        });
+        if let Some(site) = ctor_site {
+            return self.codegen_class_ctor_call(
+                span,
+                callee.span,
+                &site.class_fqn,
+                args,
+                &site,
+                result_ty,
+            );
+        }
+
+        let inferred_ctor_key = result_ty
+            .and_then(|result_ty| match self.types.kind(result_ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                    self.registered_class_instance_key(&nominal.fqn)
+                }
+                _ => None,
+            })
+            .or_else(|| match &callee.kind {
+                hir::ExprKind::UnresolvedIdent { name } => {
+                    let suffix = format!(".{name}");
+                    let matches = self
+                        .class_inits
+                        .keys()
+                        .filter(|key| key.as_str() == name || key.as_str().ends_with(&suffix))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    (matches.len() == 1).then(|| matches[0].clone())
+                }
+                _ => None,
+            });
+        if let Some(class_key) = inferred_ctor_key {
+            let class = self.class_init_layout(callee.span, &class_key)?;
+            let init_body = self.class_ctor_init_body_for_selected(callee.span, &class, None)?;
+            let mut arg_mapping = vec![None; init_body.params().len()];
+            let mut next_positional = 0usize;
+            for (arg_index, arg) in args.iter().enumerate() {
+                match arg {
+                    hir::CallArg::Positional(_) => {
+                        while next_positional < arg_mapping.len()
+                            && arg_mapping[next_positional].is_some()
+                        {
+                            next_positional += 1;
+                        }
+                        if next_positional < arg_mapping.len() {
+                            arg_mapping[next_positional] = Some(arg_index);
+                        }
+                    }
+                    hir::CallArg::Named { name, .. } => {
+                        if let Some(param_index) = init_body
+                            .params()
+                            .iter()
+                            .position(|param| param.name() == name)
+                        {
+                            arg_mapping[param_index] = Some(arg_index);
+                        }
+                    }
+                }
+            }
+            let site = hir::CtorCallInfo {
+                class_fqn: class.fqn.clone(),
+                ctor_span: None,
+                arg_mapping,
+            };
             return self.codegen_class_ctor_call(
                 span,
                 callee.span,
@@ -1752,7 +1807,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 panic!(
-                    "codegen_call_impl: typecheck accepted enum variant ctor without expected enum type"
+                    "codegen_call_impl: typecheck accepted enum variant ctor without expected enum type: name={name}, class_keys={:?}",
+                    self.class_inits
+                        .keys()
+                        .map(|key| key.as_str())
+                        .collect::<Vec<_>>()
                 );
             };
             return self.codegen_enum_variant_ctor_call(span, enum_ty, name, args);
@@ -1770,14 +1829,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let callable_fqn = fqn;
-        if let Some(entry_name) = self
-            .published_named_intrinsic_entry_name_for_fact_root(callable_fqn)
-            .map(str::to_string)
+        if let Some(entry_name) = scalar_bodyless_intrinsic_entry_name(callable_fqn)
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,
                 callee_span,
                 args,
-                &entry_name,
+                entry_name,
             )?
         {
             return Ok(value);

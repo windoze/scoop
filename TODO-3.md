@@ -21,7 +21,7 @@
 | T3-04B0 | [DONE] | 贯穿 LIR-owned source call-site identity，解除 T3-04B 删除 P6 source-span side table 的结构阻塞 |
 | T3-04B | [DONE] | 收口 T3-04R 二次审查发现的 source-span / fallback / verifier / gate 残余缺口 |
 | T3-04C | [DONE] | 收口 T3-04R 三次审查发现的 intrinsic/root/declaration ABI/reflection/verifier/gate 残余缺口 |
-| T3-04D | [TODO] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
+| T3-04D | [DONE] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -145,7 +145,7 @@
 - 依赖：T3-04B
 - 完成记录：2026-06-02 完成。LIR call-site contract 新增 target-bound binding，KnownInstance/CandidateSet/DynamicFallback 目标均由 verifier 校验 target key、source signature 与 ABI symbol 一致；删除 verifier 的 `body#declaration` / root-only ABI 逃逸。MIR backend facts 现在发布 named intrinsic callable metadata，LIR facts 消费该 upstream fact 与 source call-site metadata，不再从 source signature roots 或 LLVM root helper 推导 intrinsic；reflection type arguments 作为 LIR source contract 发布，LLVM 不再解析 source slice。declaration/layout ABI 发布改为 target-bound ABI fact，LLVM 缺 fact 时 fail-fast；layout/interface declaration targets 由 LIR facts 显式发布并验证。Dependency gate 增加 named intrinsic root fallback、reflection source text parsing、declaration ABI synthesis、verifier declaration escape 等守卫，并更新 MIR/LIR fact schema/golden。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04D：收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口
+### [DONE] T3-04D：收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口
 - 背景：执行 `T3-04R` 第四次审查时确认，`T3-04C` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
   1. **删除 source-span call-site metadata 残留**：reflection intrinsic 类型实参、class ctor call metadata、source-body/direct-call/intrinsic metadata 不得再通过 `source_path + span`、HIR `source_sites`、`ctor_call_sites`、`current_call_site` 或等价 map 发布/查询；必须由 LIR-owned call-site identity/source contract 表达并由 verifier 校验，缺失 fail-fast。
@@ -157,7 +157,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
 - 完成条件：`T3-04` 的 fact-only/fail-fast 契约在 source call-site/reflection/class ctor/intrinsic/declaration ABI/layout/dispatch/reachability/verifier/gate 边界全部真实闭合，第四次审查列出的残留均删除或由 verifier/gate 锁定，且不得引入 fixture-only workaround。
 - 依赖：T3-04C
-- 完成记录：（待填）
+- 完成记录：2026-06-03 完成。LIR facts 删除 root-only/native/extern ABI 补洞路径，改为为 bodyless direct/declaration-only targets 发布 target-bound callable key、source signature 与 ABI symbol；P4/P5 增加 `BodylessDirect` target 形态，避免 pure direct/bodyless target 退化成空 `DynamicFallback`，solver/verifier 对 direct/dispatch DynamicFallback 和缺 target 的静默 widened/fallback 路径改为 fail-fast。MIR/LIR intrinsic metadata 改为通过显式 MIR intrinsic facts、LIR source call-site identity 或 bodyless direct binding 发布，LLVM direct/effect-lowered lowering 优先消费 LIR call-site/plain-call-site identity；reflection HIR fallback 恢复为已发布 fact 查询并由 gate 锁定 source text parsing 不回归。LLVM reachability 缺 dynamic/dispatch/target fact 改为报错；P6 handoff 移除 root-only ABI silent skip，并保留 class ctor source mapping作为现有 source payload 的 narrow bridge。Dependency gate 增加 source-span reflection、bodyless fallback、declaration key/ABI synthesis、solver fallback、named intrinsic root lookup等残留守卫。同步更新 effect/effect-lowered/MIR goldens。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/dependency_gate.py`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

@@ -899,6 +899,7 @@ fn format_call_site_target(types: &TypeStore, target: &CallSiteTarget) -> String
             rendered.sort();
             format!("CandidateSet([{}])", rendered.join(", "))
         }
+        CallSiteTarget::BodylessDirect { fqn } => format!("BodylessDirect({fqn})"),
         CallSiteTarget::DynamicFallback => "DynamicFallback".to_string(),
     }
 }

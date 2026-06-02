@@ -24,6 +24,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId};
 use crate::llvm::LlvmEmitError;
+use crate::llvm::codegen::scalar_bodyless_intrinsic_entry_name;
 use crate::span::Span;
 use crate::stable_id::canonical_record;
 use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -764,7 +765,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 if let mir::Rvalue::Call {
                     site_id,
-                    kind: mir::CallKind::Direct { callee_fqn, .. },
+                    kind: mir::CallKind::Direct { .. },
                     args,
                     ..
                 } = value
@@ -783,10 +784,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                             root.starts_with("scoop.unsafe.__atomicInt")
                                 || root.starts_with("scoop.unsafe.__atomicRef")
                         })
-                        .unwrap_or_else(|| {
-                            callee_fqn.starts_with("scoop.unsafe.__atomicInt")
-                                || callee_fqn.starts_with("scoop.unsafe.__atomicRef")
-                        })
+                        .unwrap_or(false)
                     && matches!(
                         args.first(),
                         Some(mir::CallArg {
@@ -1782,18 +1780,33 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 site_id.as_u32()
             )));
         }
+        let plain_site = if source_site.is_none() {
+            self.codegen.published_lir_plain_call_site(site_id)
+        } else {
+            None
+        };
         let published_call_root = source_site
             .and_then(|site| site.contract.exact_callee.as_ref())
+            .or_else(|| plain_site.and_then(|site| site.contract.exact_callee.as_ref()))
             .map(|exact| exact.root_fqn.clone());
-        let published_semantic_root = source_site.and_then(|site| site.semantic_root_fqn.clone());
-        let published_named_entry = source_site.and_then(|site| site.named_entry_name.clone());
+        let published_semantic_root = source_site
+            .and_then(|site| site.semantic_root_fqn.clone())
+            .or_else(|| published_call_root.clone());
+        let published_named_entry = source_site
+            .and_then(|site| site.named_entry_name.clone())
+            .or_else(|| {
+                published_call_root.as_deref().and_then(|root| {
+                    self.codegen
+                        .published_lir_facts
+                        .intrinsic_callables
+                        .get(root)
+                        .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+                })
+            });
         let callee_fqn = published_call_root
             .as_deref()
             .unwrap_or(callee_fqn.as_str());
-        let source_intrinsic_root = published_semantic_root
-            .as_deref()
-            .or(published_call_root.as_deref())
-            .or(Some(callee_fqn));
+        let source_intrinsic_root = published_semantic_root.as_deref();
         match callee_fqn {
             "scoop.core.GC.handleNew" => {
                 return self.codegen.codegen_mir_sysroot_gc_handle_new(
@@ -1905,17 +1918,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let named_intrinsic_entry = if let Some(entry_name) = published_named_entry {
-            Some(entry_name)
-        } else if let Some(root_fqn) = source_intrinsic_root {
-            self.codegen
-                .published_named_intrinsic_entry_name_for_fact_root(root_fqn)
-                .map(str::to_string)
-        } else {
-            self.codegen
-                .published_named_intrinsic_entry_name_for_fact_root(callee_fqn)
-                .map(str::to_string)
-        };
+        let named_intrinsic_entry = published_named_entry
+            .or_else(|| scalar_bodyless_intrinsic_entry_name(callee_fqn).map(str::to_string));
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
                 span,

@@ -934,7 +934,6 @@ pub struct LirSourceCallSiteFacts {
     pub contract: LirCallSiteContract,
 }
 
-/// Type arguments for reflection intrinsics that still lower from source initializer payloads.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirReflectionTypeArgFacts {
     pub source_path: String,

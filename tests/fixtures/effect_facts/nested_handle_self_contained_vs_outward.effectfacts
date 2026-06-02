@@ -178,8 +178,8 @@ body_facts:
       site5:
         kind: Call
         call_kind: Direct
-        target_mode: DynamicFallback
-        target: DynamicFallback
+        target_mode: KnownInstance
+        target: BodylessDirect(scoop.core.Int.plus)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
@@ -254,8 +254,8 @@ body_facts:
       site3:
         kind: Call
         call_kind: Direct
-        target_mode: DynamicFallback
-        target: DynamicFallback
+        target_mode: KnownInstance
+        target: BodylessDirect(scoop.core.Int.plus)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>

@@ -325,8 +325,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: String,
         stable_owner_key: StableDefKey,
     ) {
+        self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
-        self.function_cx.current_lir_callable_key = None;
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = None;
         self.function_cx.next_stable_child_closure_index = 0;
@@ -339,12 +339,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         stable_owner_key: StableDefKey,
         stable_closure_path: &str,
     ) {
+        self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
-        self.function_cx.current_lir_callable_key = None;
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = Some(stable_closure_path.to_string());
         self.function_cx.next_stable_child_closure_index = 0;
         self.function_cx.stable_closure_paths.clear();
+    }
+
+    fn lir_callable_key_for_root(&self, root_fqn: &str) -> Option<StableLirCallableKey> {
+        self.published_lir_facts
+            .callables
+            .iter()
+            .find(|(_, callable)| callable.root_fqn() == root_fqn)
+            .map(|(key, _)| key.clone())
     }
 
     pub(in crate::llvm::codegen) fn current_stable_owner_key(

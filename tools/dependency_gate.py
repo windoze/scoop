@@ -1244,6 +1244,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must not use static intrinsic root helper lookup",
                 ),
                 fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "direct call lowering must not look up named intrinsic metadata by root/FQN",
+                ),
+                fp(
                     "published_named_intrinsic_entry_name_for_call_or_root",
                     "direct call lowering must not fall back from source-span intrinsic metadata to root lookup wrappers",
                 ),
@@ -1314,6 +1318,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "named_intrinsic_entry_name_for_root",
                     "effect-lowered calls must not use static intrinsic root helper lookup",
                 ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "effect-lowered calls must not look up named intrinsic metadata by root/FQN",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1369,6 +1377,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "named_intrinsic_entry_name_for_root",
                     "MIR direct call lowering must not use static intrinsic root helper lookup",
                 ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "MIR direct call lowering must not look up named intrinsic metadata by root/FQN",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1383,6 +1395,25 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "is_backend_intrinsic_bodyless_fqn",
                     "P4 fact builder must not keep task-private backend intrinsic bodyless FQN fallback helpers",
+                ),
+                fp(
+                    "call_site_for_bodyless_direct_surface",
+                    "P4 fact builder must not downgrade missing direct targets to bodyless DynamicFallback",
+                ),
+                fp(
+                    "target_key.template.fqn.starts_with(\"scoop.delegates.\")",
+                    "P4 fact builder must not special-case missing delegate callable facts",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "P4 solver target fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_effect_facts_stage/src/effect_facts/solver.rs",
+            (
+                fp(
+                    "fallback_call_resolution",
+                    "P4 solver must not silently reuse stale call facts when a target is unpublished",
                 ),
             ),
         ),
@@ -1412,6 +1443,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LIR facts builder must not recover call-site metadata by source path/span lookup",
                 ),
                 fp(
+                    "facts.source_sites.call_sites",
+                    "LIR facts builder must not scan HIR source-site call maps for backend metadata",
+                ),
+                fp(
+                    "hir_intrinsic_metadata_by_source_site",
+                    "LIR facts builder must not recover intrinsic metadata from source path/span maps",
+                ),
+                fp(
                     "target.readable_path().to_string()",
                     "LIR facts builder must not infer roots from target readable paths",
                 ),
@@ -1439,6 +1478,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "AbiMangler.fun_symbol(&declaration_key)",
                     "LIR facts builder must not synthesize declaration ABI symbols when target-bound ABI facts are missing",
                 ),
+                fp(
+                    "body#declaration",
+                    "LIR facts builder must not manufacture declaration callable keys for unpublished targets",
+                ),
+                fp(
+                    "declaration_lir_callable_key",
+                    "LIR facts builder must not manufacture declaration callable keys for unpublished targets",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&target_key)",
+                    "LIR facts builder must not synthesize ABI symbols for missing target-bound facts",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(target_callable_key)",
+                    "LIR facts builder must not synthesize ABI symbols for missing target-bound facts",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1453,6 +1508,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "symbol.callable.is_none()",
                     "LIR verifier must not accept root-only ABI symbols for concrete call-site targets",
+                ),
+                fp(
+                    "is_bodyless_plain_call_surface",
+                    "LIR verifier must not allow bodyless DynamicFallback escape hatches",
                 ),
             ),
         ),

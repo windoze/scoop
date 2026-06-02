@@ -325,22 +325,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    pub(in crate::llvm::codegen) fn required_lir_source_call_site(
+    pub(in crate::llvm::codegen) fn published_lir_plain_call_site(
         &self,
         site_id: SiteId,
-        context: &str,
-    ) -> Result<&LirSourceCallSiteFacts, LlvmEmitError> {
-        self.published_lir_source_call_site(site_id)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "{context}: missing LIR source call-site contract for owner `{}` site{}",
-                    self.function_cx
-                        .current_callable_fqn
-                        .as_deref()
-                        .unwrap_or("<unknown>"),
-                    site_id.as_u32()
-                ),
-            })
+    ) -> Option<&LirPlainCallSiteFacts> {
+        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        let callable = self
+            .shared
+            .published_lir_facts
+            .callables
+            .get(owner_callable)?;
+        let LirCallableContract::Plain(plain) = &callable.contract else {
+            return None;
+        };
+        plain.call_sites.iter().find(|site| site.site_id == site_id)
     }
 
     pub(in crate::llvm::codegen) fn published_reflection_type_arg_for_current_call(
@@ -362,6 +360,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         Ok(fact.type_args.first().copied())
+    }
+
+    pub(in crate::llvm::codegen) fn required_lir_source_call_site(
+        &self,
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirSourceCallSiteFacts, LlvmEmitError> {
+        self.published_lir_source_call_site(site_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR source call-site contract for owner `{}` site{}",
+                    self.function_cx
+                        .current_callable_fqn
+                        .as_deref()
+                        .unwrap_or("<unknown>"),
+                    site_id.as_u32()
+                ),
+            })
     }
 
     pub(in crate::llvm::codegen) fn published_lir_exact_callee_root(

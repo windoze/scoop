@@ -104,29 +104,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "generic direct call `{fqn}` lacks published LIR source call-site contract"
             )));
         }
-        let concrete_fqn =
-            if let Some(exact) = source_site.and_then(|site| site.contract.exact_callee.as_ref()) {
-                exact.root_fqn.clone()
-            } else if !generic_type_args.is_empty() {
-                return Err(frontend_error(format!(
-                    "generic direct call `{fqn}` lacks published exact callee binding"
-                )));
-            } else {
-                fqn.to_string()
-            };
+        let exact_callee = source_site.and_then(|site| site.contract.exact_callee.clone());
+        let concrete_fqn = if let Some(exact) = exact_callee.as_ref() {
+            exact.root_fqn.clone()
+        } else if !generic_type_args.is_empty() {
+            return Err(frontend_error(format!(
+                "generic direct call `{fqn}` lacks published exact callee binding"
+            )));
+        } else {
+            fqn.to_string()
+        };
         let concrete_fqn = concrete_fqn.as_str();
-        let semantic_root = source_site.and_then(|site| site.semantic_root_fqn.as_deref());
-        let named_intrinsic_entry = if let Some(entry_name) = source_site
+        let named_intrinsic_entry = source_site
             .and_then(|site| site.named_entry_name.as_deref())
             .map(str::to_string)
-        {
-            Some(entry_name)
-        } else {
-            self.published_named_intrinsic_entry_name_for_fact_root(
-                semantic_root.unwrap_or(concrete_fqn),
-            )
-            .map(str::to_string)
-        };
+            .or_else(|| {
+                self.published_lir_facts
+                    .intrinsic_callables
+                    .get(concrete_fqn)
+                    .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+            })
+            .or_else(|| scalar_bodyless_intrinsic_entry_name(concrete_fqn).map(str::to_string));
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
@@ -239,11 +237,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
 
-        let llvm_name = self
-            .extern_funs
-            .get(concrete_fqn)
-            .map(|extern_fun| extern_fun.symbol.as_str())
-            .unwrap_or(concrete_fqn);
+        let llvm_name = exact_callee
+            .as_ref()
+            .map(|exact| exact.abi_symbol.as_str())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "direct call `{concrete_fqn}` lacks target-bound ABI symbol binding"
+                ))
+            })?;
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => {

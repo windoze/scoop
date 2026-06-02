@@ -73,10 +73,11 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_lir_facts::{
-    LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirClassItableEntryFacts,
-    LirDispatchContract, LirDispatchKey, LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts,
-    LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy, LirSourceCallSiteFacts,
-    LirSourceCallSiteKey, lir_reflection_type_arg_key,
+    LirCallSiteKind, LirCallableContract, LirClassCtorDelegationKind, LirClassCtorInitKey,
+    LirClassItableEntryFacts, LirDispatchContract, LirDispatchKey, LirExternGlobalLinkage,
+    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirPlainCallSiteFacts, LirSourceCallSiteFacts, LirSourceCallSiteKey,
+    lir_reflection_type_arg_key,
 };
 
 use super::LlvmEmitError;
@@ -93,6 +94,8 @@ mod enum_lowering;
 mod expr;
 mod gc;
 mod intrinsics;
+
+pub(in crate::llvm::codegen) use intrinsics::scalar_bodyless_intrinsic_entry_name;
 mod layout;
 mod mir_body;
 mod object_init;

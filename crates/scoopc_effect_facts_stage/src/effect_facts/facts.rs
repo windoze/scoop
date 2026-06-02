@@ -166,6 +166,7 @@ pub enum CallTargetMode {
 pub enum CallSiteTarget {
     KnownInstance(InstanceKey),
     CandidateSet(Vec<InstanceKey>),
+    BodylessDirect { fqn: String },
     DynamicFallback,
 }
 
@@ -173,6 +174,7 @@ impl CallSiteTarget {
     pub fn mode(&self) -> CallTargetMode {
         match self {
             Self::KnownInstance(_) => CallTargetMode::KnownInstance,
+            Self::BodylessDirect { .. } => CallTargetMode::KnownInstance,
             Self::CandidateSet(_) => CallTargetMode::CandidateSet,
             Self::DynamicFallback => CallTargetMode::DynamicFallback,
         }

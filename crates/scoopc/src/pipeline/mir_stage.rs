@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_project_model::StableConeKey;
 use scoopc_hir::stage::HirSemanticArtifact;
+use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
 use scoopc_ids::{
     BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey, StageArtifactKey,
 };
@@ -258,7 +259,15 @@ impl MirStageOutput {
         mut direct_style: DirectStyleMirStageOutput,
         materialized_mir: MaterializedMir,
     ) -> Self {
-        publish_materialized_handoff_facts(&mut direct_style.mir_facts, &materialized_mir);
+        let hir_facts = direct_style
+            .hir_semantic_artifact
+            .as_ref()
+            .map(HirSemanticArtifact::hir_facts);
+        publish_materialized_handoff_facts(
+            &mut direct_style.mir_facts,
+            &materialized_mir,
+            hir_facts,
+        );
         direct_style
             .mir_facts
             .verify()
@@ -365,7 +374,11 @@ fn build_direct_style_mir_facts(
     facts
 }
 
-fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &MaterializedMir) {
+fn publish_materialized_handoff_facts(
+    facts: &mut MirFacts,
+    materialized: &MaterializedMir,
+    hir_facts: Option<&HirFacts>,
+) {
     let snapshot_key = canonical_snapshot_key(materialized);
     let canonical_body_fqns = canonical_materialized_body_fqns(materialized);
     facts.snapshots = SnapshotBindings {
@@ -385,7 +398,7 @@ fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &Mater
     facts.effects = collect_mir_effect_facts(materialized);
     facts.provenance = collect_mir_provenance_facts(materialized);
     facts.boundary = collect_mir_boundary_facts(materialized);
-    facts.backend = collect_mir_backend_facts(materialized);
+    facts.backend = collect_mir_backend_facts(materialized, hir_facts);
     facts.pass_artifacts = collect_pass_artifact_metadata(materialized, &snapshot_key);
     facts.pass_pipeline = collect_pass_pipeline_metadata(materialized, &snapshot_key);
 }
@@ -2862,7 +2875,10 @@ fn const_value_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<T
     })
 }
 
-fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts {
+fn collect_mir_backend_facts(
+    materialized: &MaterializedMir,
+    hir_facts: Option<&HirFacts>,
+) -> MirBackendFacts {
     let cone = materialized.stable_cone_key().clone();
     let contracts = materialized.backend_contracts();
     let mut source_signatures = materialized
@@ -2901,7 +2917,7 @@ fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts 
         });
     }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
-    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, &source_signatures);
+    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, hir_facts);
     let mut facts = MirBackendFacts {
         source_signatures,
         intrinsic_callables,
@@ -3068,25 +3084,39 @@ fn collect_mir_backend_facts(materialized: &MaterializedMir) -> MirBackendFacts 
 
 fn collect_named_intrinsic_callable_facts(
     cone: &StableConeKey,
-    source_signatures: &[SourceCallableSignatureFact],
+    hir_facts: Option<&HirFacts>,
 ) -> Vec<NamedIntrinsicCallableFact> {
-    source_signatures
-        .iter()
-        .enumerate()
-        .filter_map(|(index, signature)| {
-            let entry_name =
-                scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(&signature.fqn)?;
-            Some(NamedIntrinsicCallableFact {
-                identity: backend_identity(
-                    cone,
-                    "named_intrinsic_callable",
-                    &format!("{}#{entry_name}#{index}", signature.identity.key.as_str()),
+    let Some(hir_facts) = hir_facts else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
+    for fact in &hir_facts.source_sites.call_sites {
+        let hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } = &fact.contract
+        else {
+            continue;
+        };
+        let hir_site_facts::IntrinsicKind::NamedTable { entry_name, .. } = kind else {
+            continue;
+        };
+        if !seen.insert((function.fqn.clone(), entry_name.clone())) {
+            continue;
+        }
+        out.push(NamedIntrinsicCallableFact {
+            identity: backend_identity(
+                cone,
+                "named_intrinsic_callable",
+                &format!(
+                    "{}#site{}#{entry_name}",
+                    fact.identity.owner.as_str(),
+                    fact.identity.site.as_u32()
                 ),
-                root_fqn: signature.fqn.clone(),
-                named_entry_name: entry_name.to_string(),
-            })
-        })
-        .collect()
+            ),
+            root_fqn: function.fqn.clone(),
+            named_entry_name: entry_name.clone(),
+        });
+    }
+    out
 }
 
 fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {

@@ -207,8 +207,8 @@ lir_facts {
     - step#1 invoke_args=t2 complete=t5 continuation_obj=t508 cases=3
   dynamic_invoke_contracts=0
   source_call_site_contracts=2
-    - owner=sample.nested_self_contained site=3 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
-    - owner=sample.nested_may_suspend_outward site=5 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=sample.nested_self_contained site=3 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=scoop.core.Int.plus
+    - owner=sample.nested_may_suspend_outward site=5 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=scoop.core.Int.plus
   dispatch_contracts=0
   resume_packing_contracts=1
   continuation_object_contracts=2
@@ -587,7 +587,7 @@ LateLoweredProgram
         - bb#h0799b889531eed42e599efd549c9d995 stmts[0..3] + term
         - bb#h581d8a100d87a0d2805a22051b4e896a stmts[0..2] + term
       plain_call_sites:
-        - site#h52bddc7a8ac969d3450a2327042314c7 Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h0799b889531eed42e599efd549c9d995 stmt1 dispatch=PlainCall
+        - site#h52bddc7a8ac969d3450a2327042314c7 Direct target_mode=KnownInstance target=BodylessDirect(scoop.core.Int.plus) callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h0799b889531eed42e599efd549c9d995 stmt1 dispatch=PlainCall
       plain_local_effect_control: step#h532c086b46c619f575c82db36a021a6b cont_obj#hda60b62313f3bd0dabad1253336de1de
       state_graph:
         entry_state: state#hc66aeb65f50487a5d5550635bab090b2

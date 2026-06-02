@@ -221,9 +221,9 @@ lir_facts {
     - step#6 invoke_args=t5 complete=t2 continuation_obj=t523 cases=1
   dynamic_invoke_contracts=0
   source_call_site_contracts=1
-    - owner=fixtures.mir.callInterface site=0 kind=Interface target_mode=DynamicFallback semantic_root=<none> named_entry=<none> exact_callee=<none>
+    - owner=fixtures.mir.callInterface site=0 kind=Interface target_mode=KnownInstance semantic_root=fixtures.mir.IFace.foo named_entry=<none> exact_callee=fixtures.mir.IFace.foo
   dispatch_contracts=1
-    - owner=fixtures.mir.callInterface site=0 kind=Interface dispatch_owner=fixtures.mir.IFace member=foo slot=0 interface_id=Some(6556192965737064677) candidates=0
+    - owner=fixtures.mir.callInterface site=0 kind=Interface dispatch_owner=fixtures.mir.IFace member=foo slot=0 interface_id=Some(6556192965737064677) candidates=1
   resume_packing_contracts=3
   continuation_object_contracts=2
   surface_resume_dispatch_contracts=7
@@ -404,7 +404,7 @@ LateLoweredProgram
       plain_source_slices:
         - bb#h62c159584b0f3f457d1564bb65a3bd97 stmts[0..1] + term
       plain_call_sites:
-        - site#had4d9246bdf5c30b3864af4bc21bf5a4 Interface target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h62c159584b0f3f457d1564bb65a3bd97 stmt0 dispatch=PlainCall
+        - site#had4d9246bdf5c30b3864af4bc21bf5a4 Interface target_mode=KnownInstance target=BodylessDirect(fixtures.mir.IFace.foo) callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h62c159584b0f3f457d1564bb65a3bd97 stmt0 dispatch=PlainCall
       plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: fixtures.mir.callVirtual

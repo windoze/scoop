@@ -276,6 +276,9 @@ fn map_call_site_target(
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(published::CallSiteTarget::CandidateSet(stable_keys))
         }
+        CallSiteTarget::BodylessDirect { fqn } => {
+            Ok(published::CallSiteTarget::BodylessDirect { fqn: fqn.clone() })
+        }
         CallSiteTarget::DynamicFallback => Ok(published::CallSiteTarget::DynamicFallback),
     }
 }
