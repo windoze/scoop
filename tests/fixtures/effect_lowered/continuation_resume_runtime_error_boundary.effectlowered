@@ -206,6 +206,8 @@ lir_facts {
     - step#2 invoke_args=t5 complete=t2 continuation_obj=t511 cases=2
   dynamic_invoke_contracts=0
   source_call_site_contracts=0
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=2
   continuation_object_contracts=1

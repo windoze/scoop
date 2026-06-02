@@ -523,6 +523,46 @@ pub struct LirClassCtorInitFacts {
     pub steps: Vec<LirClassCtorInitStepFacts>,
 }
 
+/// Stable class-constructor call-site identity published for backend source payload lowering.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct LirClassCtorCallSiteKey {
+    pub source_site: SiteId,
+}
+
+/// Constructor target and argument mapping selected before backend lowering.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirClassCtorCallSiteFacts {
+    pub source_site: SiteId,
+    pub source_span_start: usize,
+    pub source_span_end: usize,
+    pub class_fqn: String,
+    pub target_init: LirClassCtorInitKey,
+    pub selected_ctor_span_start: Option<usize>,
+    pub selected_ctor_span_end: Option<usize>,
+    pub result_ty: TypeId,
+    pub arg_mapping: Vec<Option<usize>>,
+}
+
+/// Stable reflection intrinsic call-site identity published for backend source payload lowering.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct LirReflectionCallSiteKey {
+    pub source_site: SiteId,
+}
+
+/// Type arguments for reflection intrinsics keyed by published call-site identity.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirReflectionCallSiteFacts {
+    pub source_site: SiteId,
+    pub source_span_start: usize,
+    pub source_span_end: usize,
+    pub intrinsic_name: String,
+    pub type_args: Vec<TypeId>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableSymbolFacts {
     pub callable: StableLirCallableKey,
@@ -932,23 +972,6 @@ pub struct LirSourceCallSiteFacts {
     #[serde(default)]
     pub generic_type_args: Vec<TypeId>,
     pub contract: LirCallSiteContract,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LirReflectionTypeArgFacts {
-    pub source_path: String,
-    pub span_start: usize,
-    pub span_end: usize,
-    pub intrinsic_name: String,
-    pub type_args: Vec<TypeId>,
-}
-
-pub fn lir_reflection_type_arg_key(
-    source_path: &str,
-    span_start: usize,
-    span_end: usize,
-) -> String {
-    format!("{source_path}:{span_start}..{span_end}")
 }
 
 /// Canonical dynamic callable surface for an effect-step callable.

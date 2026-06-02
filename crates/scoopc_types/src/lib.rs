@@ -62,7 +62,7 @@ impl WireSchemaVersion {
 ///   intrinsic entry，不再在 P6 通过 legacy scalar FQN fallback 补洞。
 /// - 1.9：MIR/LIR facts 发布 named intrinsic callable 与 reflection type-argument
 ///   contracts，P6 不再从 root/FQN/source text 恢复 intrinsic metadata。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 9);
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 10);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

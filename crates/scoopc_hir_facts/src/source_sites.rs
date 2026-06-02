@@ -101,6 +101,26 @@ impl SourceSiteFacts {
             _ => None,
         }
     }
+
+    /// Iterate over constructor call contracts already published in HIR facts.
+    pub fn constructor_call_sites(&self) -> impl Iterator<Item = &CallSiteContract> {
+        self.call_sites
+            .iter()
+            .filter(|fact| matches!(fact.contract, CallSiteContractKind::Constructor(_)))
+    }
+
+    /// Iterate over reflection intrinsic call contracts already published in HIR facts.
+    pub fn reflection_call_sites(&self) -> impl Iterator<Item = &CallSiteContract> {
+        self.call_sites.iter().filter(|fact| {
+            matches!(
+                fact.contract,
+                CallSiteContractKind::Intrinsic {
+                    kind: IntrinsicKind::Reflection { .. },
+                    ..
+                }
+            )
+        })
+    }
 }
 
 /// Stable data-only effect row template published by HIR facts.

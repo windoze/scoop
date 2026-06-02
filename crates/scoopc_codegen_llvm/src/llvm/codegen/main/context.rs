@@ -341,15 +341,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plain.call_sites.iter().find(|site| site.site_id == site_id)
     }
 
+    pub(in crate::llvm::codegen) fn source_call_site_id(
+        &self,
+        span: crate::span::Span,
+        role: &str,
+    ) -> Result<SiteId, LlvmEmitError> {
+        let source = self.current_source()?;
+        let site_key = format!(
+            "{}:{}:{}..{}",
+            role,
+            source.path().display(),
+            span.start,
+            span.end
+        );
+        Ok(SiteId::from_raw(
+            stable_hash64(StableHashScope::DumpV0, &site_key) as u32,
+        ))
+    }
+
+    pub(in crate::llvm::codegen) fn published_class_ctor_call_site(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Option<&LirClassCtorCallSiteFacts>, LlvmEmitError> {
+        let source_site = self.source_call_site_id(span, "call")?;
+        Ok(self
+            .published_lir_facts
+            .class_ctor_call_sites
+            .get(&LirClassCtorCallSiteKey { source_site }))
+    }
+
     pub(in crate::llvm::codegen) fn published_reflection_type_arg_for_current_call(
         &self,
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<Option<TypeId>, LlvmEmitError> {
-        let source = self.current_source()?;
-        let source_path = source.path().display().to_string();
-        let key = lir_reflection_type_arg_key(&source_path, span.start, span.end);
-        let Some(fact) = self.published_lir_facts.reflection_type_args.get(&key) else {
+        let source_site = self.source_call_site_id(span, "call")?;
+        let Some(fact) = self
+            .published_lir_facts
+            .reflection_call_sites
+            .get(&LirReflectionCallSiteKey { source_site })
+        else {
             return Ok(None);
         };
         if fact.intrinsic_name != name || fact.type_args.len() != 1 {

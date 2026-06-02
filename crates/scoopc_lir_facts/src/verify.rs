@@ -231,6 +231,14 @@ pub enum VerifyError {
         key: String,
         reason: &'static str,
     },
+    InvalidClassCtorCallSite {
+        key: String,
+        reason: &'static str,
+    },
+    InvalidReflectionCallSite {
+        key: String,
+        reason: &'static str,
+    },
     InvalidTypeContextBridge {
         mode: &'static str,
     },
@@ -517,6 +525,12 @@ impl fmt::Display for VerifyError {
             Self::InvalidClassCtorInit { key, reason } => {
                 write!(f, "LIR class ctor init `{key}` is invalid: {reason}")
             }
+            Self::InvalidClassCtorCallSite { key, reason } => {
+                write!(f, "LIR class ctor call-site `{key}` is invalid: {reason}")
+            }
+            Self::InvalidReflectionCallSite { key, reason } => {
+                write!(f, "LIR reflection call-site `{key}` is invalid: {reason}")
+            }
             Self::InvalidTypeContextBridge { mode } => write!(
                 f,
                 "LIR type context bridge mode `{mode}` is inconsistent with published fingerprints"
@@ -606,6 +620,8 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_source_signature_contracts(facts)?;
     verify_intrinsic_callable_contracts(facts)?;
     verify_class_ctor_init_contracts(facts)?;
+    verify_class_ctor_call_site_contracts(facts)?;
+    verify_reflection_call_site_contracts(facts)?;
     verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
     verify_source_call_site_contracts(facts)?;
@@ -1350,6 +1366,76 @@ fn verify_class_ctor_init_contracts(facts: &LirFacts) -> Result<()> {
     Ok(())
 }
 
+fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, site) in &facts.class_ctor_call_sites {
+        let key_text = class_ctor_call_site_key_text(key);
+        if key.source_site != site.source_site {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "map key and payload identity differ",
+            });
+        }
+        if site.source_span_start > site.source_span_end {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "source span is reversed",
+            });
+        }
+        if site.selected_ctor_span_start.is_some() != site.selected_ctor_span_end.is_some() {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "selected ctor span endpoints are incomplete",
+            });
+        }
+        if site.class_fqn.is_empty() {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "class identity is empty",
+            });
+        }
+        if let Some(target_init) = facts.class_ctor_inits.get(&site.target_init) {
+            if target_init.class_fqn.is_empty() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "target init class identity is empty",
+                });
+            }
+            if site.arg_mapping.len() != target_init.params.len() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "argument mapping arity does not match target constructor params",
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_reflection_call_site_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, site) in &facts.reflection_call_sites {
+        let key_text = reflection_call_site_key_text(key);
+        if key.source_site != site.source_site {
+            return Err(VerifyError::InvalidReflectionCallSite {
+                key: key_text,
+                reason: "map key and payload identity differ",
+            });
+        }
+        if site.source_span_start > site.source_span_end {
+            return Err(VerifyError::InvalidReflectionCallSite {
+                key: key_text,
+                reason: "source span is reversed",
+            });
+        }
+        if site.intrinsic_name.is_empty() || site.type_args.len() != 1 {
+            return Err(VerifyError::InvalidReflectionCallSite {
+                key: key_text,
+                reason: "reflection intrinsic must publish exactly one type argument and a name",
+            });
+        }
+    }
+    Ok(())
+}
+
 fn callable_symbol_abi_kind(kind: crate::LirCallableKind) -> crate::LirCallableAbiKind {
     match kind {
         crate::LirCallableKind::Plain => crate::LirCallableAbiKind::Plain,
@@ -1839,6 +1925,14 @@ fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
         key.owner_callable.as_str(),
         key.site_id.as_u32()
     )
+}
+
+fn class_ctor_call_site_key_text(key: &crate::LirClassCtorCallSiteKey) -> String {
+    format!("site{}", key.source_site.as_u32())
+}
+
+fn reflection_call_site_key_text(key: &crate::LirReflectionCallSiteKey) -> String {
+    format!("site{}", key.source_site.as_u32())
 }
 
 fn dispatch_key_text(key: &crate::LirDispatchKey) -> String {

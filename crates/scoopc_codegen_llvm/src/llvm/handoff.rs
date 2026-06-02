@@ -95,7 +95,6 @@ pub struct LlvmStageBaseContext {
     class_inits: source_payload::ClassInitIndex,
     release_hooks: source_payload::ReleaseHookIndex,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-    ctor_call_sites: source_payload::CtorCallSiteIndex,
     effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
     continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
@@ -131,7 +130,6 @@ impl LlvmStageBaseContext {
         class_inits: source_payload::ClassInitIndex,
         release_hooks: source_payload::ReleaseHookIndex,
         class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-        ctor_call_sites: source_payload::CtorCallSiteIndex,
         effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
         continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
         when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
@@ -161,7 +159,6 @@ impl LlvmStageBaseContext {
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            ctor_call_sites,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,
@@ -226,10 +223,6 @@ impl LlvmStageBaseContext {
 
     pub fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
         &self.class_ctor_init_bodies
-    }
-
-    pub fn ctor_call_sites(&self) -> &source_payload::CtorCallSiteIndex {
-        &self.ctor_call_sites
     }
 
     pub fn effect_op_call_sites(&self) -> &source_payload::EffectOpCallSiteIndex {

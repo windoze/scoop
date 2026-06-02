@@ -204,7 +204,9 @@ lir_facts {
   dynamic_invoke_contracts=1
     - owner=sample.callValue site=0 kind=FunValue target_mode=DynamicFallback callee_step=Some(1) carrier=ClosureObject arg_count=0 targets=0
   source_call_site_contracts=1
-    - owner=sample.callValue site=0 kind=FunValue target_mode=DynamicFallback semantic_root=<none> named_entry=<none> exact_callee=<none>
+    - owner=sample.callValue site=0 kind=FunValue target_mode=DynamicFallback semantic_root=<none> named_entry=<none> generic_args=0 exact_callee=<none>
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=3
   continuation_object_contracts=1

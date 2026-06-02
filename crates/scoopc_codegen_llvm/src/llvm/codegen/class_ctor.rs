@@ -12,23 +12,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
     /// 当前阶段的约束：
-    /// - normal class ctor call 必须消费前端准备好的 `CtorCallInfo`；
-    /// - named/default args 的选择与顺序必须由 `CtorCallInfo.arg_mapping` 固化；
-    /// - backend 不再按参数个数或缺失 `CtorCallInfo` 猜测 ctor 目标；
+    /// - normal class ctor call 必须消费 LIR facts 发布的 ctor call-site contract；
+    /// - named/default args 的选择与顺序必须由 `arg_mapping` 固化；
+    /// - backend 不再按参数个数或缺失 call-site contract 猜测 ctor 目标；
     /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
     /// - super ctor args 与 secondary ctor delegation args 同样优先走 `CtorCallInfo` 映射，
     ///   并按源码顺序求值。
-    #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments, dead_code)]
     pub(in crate::llvm::codegen) fn codegen_class_ctor_call(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        _name: &str,
+        class_fqn: &str,
         args: &[hir::CallArg],
-        site: &hir::CtorCallInfo,
+        ctor_span: Option<crate::span::Span>,
+        arg_mapping: &[Option<usize>],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let base_fqn = site.class_fqn.as_str();
+        let base_fqn = class_fqn;
         let result_ty = result_ty.ok_or_else(|| LlvmEmitError::Frontend {
             message: format!("class ctor `{base_fqn}` reached LLVM without a typed result target"),
         })?;
@@ -72,7 +73,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let selected_ctor = self.pick_class_ctor_by_target(
             callee_span,
             &class,
-            site.ctor_span,
+            ctor_span,
             args.len(),
             None,
             "class ctor selected/ordered args contract",
@@ -147,7 +148,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callee_span,
             callee_span,
             args,
-            Some(site.arg_mapping.as_slice()),
+            Some(arg_mapping),
             ctor_params,
             "class ctor call arg eval",
         )?;

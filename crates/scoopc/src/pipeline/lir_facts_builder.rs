@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
+use scoopc_hir_facts::HirFacts;
 use scoopc_ids::{
     AbiMangler, BodyVersionKey, StableCanonicalKey, StableHashScope, StableLirCallableKey,
     StableSymbolKey, canonical_list, canonical_record, stable_hash128_hex,
@@ -108,6 +108,8 @@ pub(crate) fn build_lir_facts(
         &mut dispatches,
     )?;
     let source_call_sites = build_source_call_site_facts(&ctx, &callable_symbols)?;
+    let class_ctor_inits = build_class_ctor_init_facts(ctx.lir);
+    let class_ctor_call_sites = build_class_ctor_call_site_facts(&ctx, &class_ctor_inits);
     let source_signatures = build_source_signature_facts(
         ctx.lir,
         ctx.mir_facts,
@@ -132,8 +134,9 @@ pub(crate) fn build_lir_facts(
         source_signatures,
         intrinsic_callables,
         source_call_sites,
-        reflection_type_args: build_reflection_type_arg_facts(ctx.hir_facts),
-        class_ctor_inits: build_class_ctor_init_facts(ctx.lir),
+        class_ctor_call_sites,
+        reflection_call_sites: build_reflection_call_site_facts(&ctx),
+        class_ctor_inits,
         callables,
         step_types: build_step_type_facts(lir),
         dynamic_invokes,
@@ -1552,28 +1555,6 @@ fn build_intrinsic_callable_facts(
             intrinsic.named_entry_name.clone(),
         )?;
     }
-    for target in &mir_facts.effects.call_site_targets {
-        let scoopc_mir_facts::effects::CallSiteTarget::DirectFunction { fqn } = &target.target
-        else {
-            continue;
-        };
-        if let Some(entry_name) =
-            scoopc_hir::intrinsics::legacy_scalar_named_intrinsic_entry_name_for_fqn(fqn)
-        {
-            insert_intrinsic_callable_fact(&mut out, fqn.clone(), entry_name.to_string())?;
-        }
-    }
-    for signature in &mir_facts.backend.source_signatures {
-        if let Some(entry_name) =
-            scoopc_hir::intrinsics::legacy_scalar_named_intrinsic_entry_name_for_fqn(&signature.fqn)
-        {
-            insert_intrinsic_callable_fact(
-                &mut out,
-                signature.fqn.clone(),
-                entry_name.to_string(),
-            )?;
-        }
-    }
     for site in source_call_sites.values() {
         if let Some(entry_name) = site.named_entry_name.clone() {
             let root_fqn = site.semantic_root_fqn.clone().ok_or_else(|| {
@@ -1606,44 +1587,6 @@ fn insert_intrinsic_callable_fact(
         },
     );
     Ok(())
-}
-
-fn build_reflection_type_arg_facts(
-    hir_facts: Option<&HirFacts>,
-) -> BTreeMap<String, LirReflectionTypeArgFacts> {
-    let mut out = BTreeMap::new();
-    let Some(facts) = hir_facts else {
-        return out;
-    };
-    for site in &facts.source_sites.call_sites {
-        let hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } = &site.contract
-        else {
-            continue;
-        };
-        let hir_site_facts::IntrinsicKind::Reflection { name } = kind else {
-            continue;
-        };
-        if function.type_args.is_empty() {
-            continue;
-        }
-        let source_path = site.identity.source_path.display().to_string();
-        let key = lir_reflection_type_arg_key(
-            &source_path,
-            site.identity.span.start,
-            site.identity.span.end,
-        );
-        out.insert(
-            key,
-            LirReflectionTypeArgFacts {
-                source_path,
-                span_start: site.identity.span.start,
-                span_end: site.identity.span.end,
-                intrinsic_name: name.clone(),
-                type_args: function.type_args.clone(),
-            },
-        );
-    }
-    out
 }
 
 fn source_signature_facts_for_callable(
@@ -1778,6 +1721,88 @@ fn build_class_ctor_init_facts(
                 implicit_super,
                 delegation,
                 steps,
+            },
+        );
+    }
+    out
+}
+
+fn build_class_ctor_call_site_facts(
+    ctx: &LirFactsBuildContext<'_>,
+    class_ctor_inits: &BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
+) -> BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts> {
+    let mut out = BTreeMap::new();
+    let Some(hir_facts) = ctx.hir_facts else {
+        return out;
+    };
+    for site in hir_facts.source_sites.constructor_call_sites() {
+        let scoopc_hir_facts::source_sites::CallSiteContractKind::Constructor(contract) =
+            &site.contract
+        else {
+            unreachable!("constructor_call_sites must yield only constructor contracts")
+        };
+        let selected_ctor = contract.ctor_span.map(|span| (span.start, span.end));
+        let base_target_init = LirClassCtorInitKey::for_ctor(&contract.owner_fqn, selected_ctor);
+        let target_init = if class_ctor_inits.contains_key(&base_target_init) {
+            base_target_init
+        } else {
+            let result_class_fqn = ctx
+                .effect_facts
+                .types()
+                .display(contract.result_ty)
+                .to_string();
+            LirClassCtorInitKey::for_ctor(&result_class_fqn, selected_ctor)
+        };
+        let key = LirClassCtorCallSiteKey {
+            source_site: site.identity.site,
+        };
+        out.insert(
+            key,
+            LirClassCtorCallSiteFacts {
+                source_site: site.identity.site,
+                source_span_start: site.identity.span.start,
+                source_span_end: site.identity.span.end,
+                class_fqn: contract.owner_fqn.clone(),
+                target_init,
+                selected_ctor_span_start: contract.ctor_span.map(|span| span.start),
+                selected_ctor_span_end: contract.ctor_span.map(|span| span.end),
+                result_ty: contract.result_ty,
+                arg_mapping: contract.arg_mapping.clone(),
+            },
+        );
+    }
+    out
+}
+
+fn build_reflection_call_site_facts(
+    ctx: &LirFactsBuildContext<'_>,
+) -> BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts> {
+    let mut out = BTreeMap::new();
+    let Some(hir_facts) = ctx.hir_facts else {
+        return out;
+    };
+    for site in hir_facts.source_sites.reflection_call_sites() {
+        let scoopc_hir_facts::source_sites::CallSiteContractKind::Intrinsic { kind, function } =
+            &site.contract
+        else {
+            unreachable!("reflection_call_sites must yield only intrinsic contracts")
+        };
+        let scoopc_hir_facts::source_sites::IntrinsicKind::Reflection { name } = kind else {
+            unreachable!("reflection_call_sites must yield only reflection contracts")
+        };
+        if function.type_args.is_empty() {
+            continue;
+        }
+        out.insert(
+            LirReflectionCallSiteKey {
+                source_site: site.identity.site,
+            },
+            LirReflectionCallSiteFacts {
+                source_site: site.identity.site,
+                source_span_start: site.identity.span.start,
+                source_span_end: site.identity.span.end,
+                intrinsic_name: name.clone(),
+                type_args: function.type_args.clone(),
             },
         );
     }
@@ -2045,16 +2070,12 @@ fn source_body_call_site_metadata(
 }
 
 fn mir_intrinsic_entry_name<'a>(mir_facts: &'a MirFacts, root_fqn: &str) -> Option<&'a str> {
-    if let Some(entry) = mir_facts
+    mir_facts
         .backend
         .intrinsic_callables
         .iter()
         .find(|intrinsic| intrinsic.root_fqn == root_fqn)
         .map(|intrinsic| intrinsic.named_entry_name.as_str())
-    {
-        return Some(entry);
-    }
-    scoopc_hir::intrinsics::legacy_scalar_named_intrinsic_entry_name_for_fqn(root_fqn)
 }
 
 fn call_site_semantic_root_fqn(

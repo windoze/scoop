@@ -32,7 +32,8 @@ pub struct LirFacts {
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    pub reflection_type_args: BTreeMap<String, LirReflectionTypeArgFacts>,
+    pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
+    pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -53,7 +54,8 @@ pub struct LirFactGroups {
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    pub reflection_type_args: BTreeMap<String, LirReflectionTypeArgFacts>,
+    pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
+    pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -78,7 +80,8 @@ impl LirFacts {
             source_signatures: BTreeMap::new(),
             intrinsic_callables: BTreeMap::new(),
             source_call_sites: BTreeMap::new(),
-            reflection_type_args: BTreeMap::new(),
+            class_ctor_call_sites: BTreeMap::new(),
+            reflection_call_sites: BTreeMap::new(),
             class_ctor_inits: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
@@ -115,7 +118,8 @@ impl LirFacts {
             source_signatures: groups.source_signatures,
             intrinsic_callables: groups.intrinsic_callables,
             source_call_sites: groups.source_call_sites,
-            reflection_type_args: groups.reflection_type_args,
+            class_ctor_call_sites: groups.class_ctor_call_sites,
+            reflection_call_sites: groups.reflection_call_sites,
             class_ctor_inits: groups.class_ctor_inits,
             callables: groups.callables,
             step_types: groups.step_types,
@@ -133,7 +137,8 @@ impl LirFacts {
             && self.source_signatures.is_empty()
             && self.intrinsic_callables.is_empty()
             && self.source_call_sites.is_empty()
-            && self.reflection_type_args.is_empty()
+            && self.class_ctor_call_sites.is_empty()
+            && self.reflection_call_sites.is_empty()
             && self.class_ctor_inits.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()

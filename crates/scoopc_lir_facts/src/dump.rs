@@ -152,18 +152,56 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     for (key, site) in &facts.source_call_sites {
         writeln!(
             &mut out,
-            "    - owner={} site={} kind={:?} target_mode={:?} semantic_root={} named_entry={} exact_callee={}",
+            "    - owner={} site={} kind={:?} target_mode={:?} semantic_root={} named_entry={} generic_args={} exact_callee={}",
             key.owner_callable.readable_path(),
             key.site_id.as_u32(),
             site.contract.kind,
             site.contract.target_mode,
             site.semantic_root_fqn.as_deref().unwrap_or("<none>"),
             site.named_entry_name.as_deref().unwrap_or("<none>"),
+            site.generic_type_args.len(),
             site.contract
                 .exact_callee
                 .as_ref()
                 .map(|exact| exact.root_fqn.as_str())
                 .unwrap_or("<none>"),
+        )
+        .expect("writing to String cannot fail");
+    }
+    writeln!(
+        &mut out,
+        "  class_ctor_call_site_contracts={}",
+        facts.class_ctor_call_sites.len()
+    )
+    .expect("writing to String cannot fail");
+    for (key, site) in &facts.class_ctor_call_sites {
+        writeln!(
+            &mut out,
+            "    - site={} span={}..{} class={} target={} arg_slots={}",
+            key.source_site.as_u32(),
+            site.source_span_start,
+            site.source_span_end,
+            site.class_fqn,
+            site.target_init.as_str(),
+            site.arg_mapping.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
+    writeln!(
+        &mut out,
+        "  reflection_call_site_contracts={}",
+        facts.reflection_call_sites.len()
+    )
+    .expect("writing to String cannot fail");
+    for (key, site) in &facts.reflection_call_sites {
+        writeln!(
+            &mut out,
+            "    - site={} span={}..{} intrinsic={} type_args={}",
+            key.source_site.as_u32(),
+            site.source_span_start,
+            site.source_span_end,
+            site.intrinsic_name,
+            site.type_args.len(),
         )
         .expect("writing to String cannot fail");
     }

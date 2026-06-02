@@ -123,8 +123,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .intrinsic_callables
                     .get(concrete_fqn)
                     .and_then(|intrinsic| intrinsic.named_entry_name.clone())
-            })
-            .or_else(|| scalar_bodyless_intrinsic_entry_name(concrete_fqn).map(str::to_string));
+            });
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
@@ -334,24 +333,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call_at_site(
         &mut self,
         span: crate::span::Span,
-        class_layout_key: &hir::ClassInstanceKey,
-        args: &[crate::mir::CallArg],
-        slots: &[MirLocalSlot<'ctx>],
+        _class_layout_key: &hir::ClassInstanceKey,
+        _args: &[crate::mir::CallArg],
+        _slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let site = self
-            .ctor_call_sites
-            .get(&self.current_call_site(span)?)
-            .unwrap_or_else(|| panic!("codegen_mir_class_ctor_call_at_site: verifier accepted missing class ctor call site"));
-        self.codegen_mir_class_ctor_call(
-            span,
-            class_layout_key,
-            &crate::mir::ClassCtorCallMetadata {
-                selected_ctor_span: site.ctor_span,
-                ordered_param_count: site.arg_mapping.len(),
-            },
-            args,
-            slots,
-        )
+        Err(frontend_error(format!(
+            "direct class ctor call at {span:?} reached MIR direct-call lowering without Rvalue::ClassCtor metadata"
+        )))
     }
 
     pub(in crate::llvm::codegen) fn codegen_mir_closure_call(

@@ -209,14 +209,16 @@ lir_facts {
     - step#2 invoke_args=t2 complete=t5 continuation_obj=t508 cases=3
   dynamic_invoke_contracts=0
   source_call_site_contracts=8
-    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=3 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=6 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=7 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=11 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=12 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=15 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.main site=16 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=3 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=6 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=7 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=11 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=12 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=15 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=16 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=0
   continuation_object_contracts=1

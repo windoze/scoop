@@ -2917,7 +2917,8 @@ fn collect_mir_backend_facts(
         });
     }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
-    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, hir_facts);
+    let intrinsic_callables =
+        collect_named_intrinsic_callable_facts(&cone, materialized, hir_facts);
     let mut facts = MirBackendFacts {
         source_signatures,
         intrinsic_callables,
@@ -3084,39 +3085,96 @@ fn collect_mir_backend_facts(
 
 fn collect_named_intrinsic_callable_facts(
     cone: &StableConeKey,
+    materialized: &MaterializedMir,
     hir_facts: Option<&HirFacts>,
 ) -> Vec<NamedIntrinsicCallableFact> {
-    let Some(hir_facts) = hir_facts else {
-        return Vec::new();
-    };
     let mut out = Vec::new();
     let mut seen = BTreeSet::new();
-    for fact in &hir_facts.source_sites.call_sites {
-        let hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } = &fact.contract
-        else {
-            continue;
-        };
-        let hir_site_facts::IntrinsicKind::NamedTable { entry_name, .. } = kind else {
-            continue;
-        };
-        if !seen.insert((function.fqn.clone(), entry_name.clone())) {
-            continue;
-        }
-        out.push(NamedIntrinsicCallableFact {
-            identity: backend_identity(
+    if let Some(hir_facts) = hir_facts {
+        for fact in &hir_facts.source_sites.call_sites {
+            let hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } = &fact.contract
+            else {
+                continue;
+            };
+            let hir_site_facts::IntrinsicKind::NamedTable { entry_name, .. } = kind else {
+                continue;
+            };
+            insert_named_intrinsic_callable_fact(
                 cone,
-                "named_intrinsic_callable",
+                &mut out,
+                &mut seen,
+                function.fqn.clone(),
+                entry_name.clone(),
                 &format!(
                     "{}#site{}#{entry_name}",
                     fact.identity.owner.as_str(),
                     fact.identity.site.as_u32()
                 ),
-            ),
-            root_fqn: function.fqn.clone(),
-            named_entry_name: entry_name.clone(),
-        });
+            );
+        }
     }
+
+    for family in materialized.pass_view().instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let crate::mir::StatementKind::Assign {
+                        value:
+                            crate::mir::Rvalue::Call {
+                                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+                                ..
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    let Some(entry_name) =
+                        scoopc_hir::intrinsics::legacy_scalar_named_intrinsic_entry_name_for_fqn(
+                            callee_fqn,
+                        )
+                    else {
+                        continue;
+                    };
+                    insert_named_intrinsic_callable_fact(
+                        cone,
+                        &mut out,
+                        &mut seen,
+                        callee_fqn.clone(),
+                        entry_name.to_string(),
+                        &format!("{}#{}#{entry_name}", fun.fqn, stmt.span.start),
+                    );
+                }
+            }
+        }
+    }
+    out.sort_by(|left, right| {
+        left.root_fqn
+            .cmp(&right.root_fqn)
+            .then_with(|| left.named_entry_name.cmp(&right.named_entry_name))
+    });
     out
+}
+
+fn insert_named_intrinsic_callable_fact(
+    cone: &StableConeKey,
+    out: &mut Vec<NamedIntrinsicCallableFact>,
+    seen: &mut BTreeSet<(String, String)>,
+    root_fqn: String,
+    entry_name: String,
+    identity_key: &str,
+) {
+    if !seen.insert((root_fqn.clone(), entry_name.clone())) {
+        return;
+    }
+    out.push(NamedIntrinsicCallableFact {
+        identity: backend_identity(cone, "named_intrinsic_callable", identity_key),
+        root_fqn,
+        named_entry_name: entry_name,
+    });
 }
 
 fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {

@@ -884,6 +884,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LLVM stage handoff must not rebuild intrinsic/direct-call metadata from source-span top-level call binding side tables",
                 ),
                 fp(
+                    "ctor_call_sites",
+                    "LLVM stage handoff must not pass source-span class ctor call binding side tables into P6",
+                ),
+                fp(
                     "LlvmIntrinsicCallContract",
                     "LLVM stage handoff must not publish source-span intrinsic/direct-call contracts",
                 ),
@@ -947,6 +951,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LLVM handoff must not carry source-span intrinsic/direct-call side tables",
                 ),
                 fp(
+                    "ctor_call_sites",
+                    "LLVM handoff must not carry source-span class ctor call binding side tables",
+                ),
+                fp(
+                    "CtorCallSiteIndex",
+                    "LLVM handoff must not expose frontend class ctor call side-table types",
+                ),
+                fp(
                     "ClassVtableIndex",
                     "LLVM handoff must not expose source vtable side-table types",
                 ),
@@ -998,6 +1010,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "dispatch_call_contracts",
                     "emit handoff must not pass source-span dispatch side tables to codegen",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "emit handoff must not pass source-span class ctor call side tables to codegen",
                 ),
             ),
         ),
@@ -1086,6 +1102,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "intrinsic_call_contracts",
                     "LLVM production codegen context must not retain source-span intrinsic side tables",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "LLVM production codegen context must not retain source-span class ctor call side tables",
+                ),
+                fp(
+                    "CtorCallSiteIndex",
+                    "LLVM production codegen context must not expose frontend class ctor call side-table types",
                 ),
                 fp(
                     "class_vtables:",
@@ -1208,6 +1232,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
                 ),
                 fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "direct call lowering must use LIR class ctor call-site facts instead of source-span ctor side tables",
+                ),
+                fp(
                     "split(\"::<\")",
                     "direct call lowering must not parse generic FQN text to recover callable roots",
                 ),
@@ -1291,6 +1323,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "effect-lowered calls must use published named intrinsic metadata instead of local scalar FQN fallback",
                 ),
                 fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "effect-lowered calls must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
                     "intrinsic_base_fqn(",
                     "effect-lowered calls must not parse intrinsic base FQNs locally",
                 ),
@@ -1352,6 +1388,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "legacy_scalar_named_intrinsic_entry_name",
                     "MIR direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "MIR direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "MIR direct call lowering must use Rvalue::ClassCtor or LIR facts instead of source-span ctor side tables",
                 ),
                 fp(
                     "rsplit_once(\"::<\")",
@@ -1425,6 +1469,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "fallback_named_intrinsic_entry_name_for_fqn",
                     "LIR facts builder must consume explicitly published intrinsic metadata, not FQN fallback lookup",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name_for_fqn",
+                    "LIR facts builder must consume explicitly published scalar intrinsic metadata, not FQN fallback lookup",
                 ),
                 fp(
                     "known_named_intrinsic_roots",
@@ -1608,6 +1656,18 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "crate::intrinsics::named_intrinsic_entry_name_for_root",
                     "LLVM intrinsic lookup must consume LIR intrinsic facts without static root fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "LLVM intrinsic lookup must not restore local scalar FQN fallback helpers",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "LLVM intrinsic lookup must not parse generic FQN text for scalar metadata",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "LLVM intrinsic lookup must not parse overload FQN text for scalar metadata",
                 ),
             ),
         ),

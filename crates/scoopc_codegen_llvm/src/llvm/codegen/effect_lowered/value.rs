@@ -24,7 +24,6 @@ use crate::effect_lowered::ir::{
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId};
 use crate::llvm::LlvmEmitError;
-use crate::llvm::codegen::scalar_bodyless_intrinsic_entry_name;
 use crate::span::Span;
 use crate::stable_id::canonical_record;
 use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -1802,6 +1801,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         .get(root)
                         .and_then(|intrinsic| intrinsic.named_entry_name.clone())
                 })
+            })
+            .or_else(|| {
+                self.codegen
+                    .published_lir_facts
+                    .intrinsic_callables
+                    .get(callee_fqn.as_str())
+                    .and_then(|intrinsic| intrinsic.named_entry_name.clone())
             });
         let callee_fqn = published_call_root
             .as_deref()
@@ -1918,8 +1924,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let named_intrinsic_entry = published_named_entry
-            .or_else(|| scalar_bodyless_intrinsic_entry_name(callee_fqn).map(str::to_string));
+        let named_intrinsic_entry = published_named_entry;
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
                 span,

@@ -210,7 +210,9 @@ lir_facts {
   step_types=0
   dynamic_invoke_contracts=0
   source_call_site_contracts=1
-    - owner=a.callFn site=0 kind=FunValue target_mode=DynamicFallback semantic_root=<none> named_entry=<none> exact_callee=<none>
+    - owner=a.callFn site=0 kind=FunValue target_mode=DynamicFallback semantic_root=<none> named_entry=<none> generic_args=0 exact_callee=<none>
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=0
   continuation_object_contracts=0

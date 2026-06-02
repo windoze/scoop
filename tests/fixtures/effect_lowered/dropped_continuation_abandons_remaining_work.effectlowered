@@ -208,8 +208,10 @@ lir_facts {
     - step#1 invoke_args=t5 complete=t5 continuation_obj=t507 cases=3
   dynamic_invoke_contracts=0
   source_call_site_contracts=2
-    - owner=sample.helper site=2 kind=Direct target_mode=KnownInstance semantic_root=sample.cleanup named_entry=<none> exact_callee=sample.cleanup
-    - owner=sample.helper site=3 kind=Direct target_mode=KnownInstance semantic_root=sample.cleanup named_entry=<none> exact_callee=sample.cleanup
+    - owner=sample.helper site=2 kind=Direct target_mode=KnownInstance semantic_root=sample.cleanup named_entry=<none> generic_args=0 exact_callee=sample.cleanup
+    - owner=sample.helper site=3 kind=Direct target_mode=KnownInstance semantic_root=sample.cleanup named_entry=<none> generic_args=0 exact_callee=sample.cleanup
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=1
   continuation_object_contracts=1

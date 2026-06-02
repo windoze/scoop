@@ -291,7 +291,6 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         class_inits,
         release_hooks,
         class_ctor_init_bodies,
-        lowered_hir.ctor_call_sites,
         lowered_hir.effect_op_call_sites,
         lowered_hir.continuation_resume_call_sites,
         lowered_hir.when_pat_binding_tys,
