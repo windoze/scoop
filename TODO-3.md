@@ -24,7 +24,7 @@
 | T3-04D | [DONE] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
 | T3-04E | [DONE] | 收口 T3-04R 五次审查发现的 ctor/reflection source-span bridge、scalar intrinsic FQN fallback 与 gate 漏洞 |
 | T3-04F0 | [DONE] | 修复 T3-04F 收口后剩余 HIR/source-payload class ctor、reflection/atomic、MIR golden 与 runtime fixture 失败 |
-| T3-04F | [TODO] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
+| T3-04F | [DONE] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -183,7 +183,7 @@
 - 依赖：T3-04E
 - 完成记录：2026-06-03 完成。修复 T3-04F 主体改造后剩余 fixture/golden 失败：LLVM source/HIR class ctor lowering 现在用 monomorphic `TypeId` 推导已注册 `ClassInstanceKey`，不再从首个实参拼接 `scoop.core.Name<T>` 构造器 FQN，恢复 `AtomicValue<Pair>` 内部 `Atomic<Box<Pair>>` 初始化；反射 intrinsic 旧 HIR 路径删除 source text 解析，改为通过 `EffectAnalysisFacts` 消费 HIR 已发布的 reflection type-arg 合同，恢复顶层 initializer 中的 `kindOf<T>`/`descOf<T>`；同步刷新 `mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_lowered/generic_materialization.scoop` golden 中新增的 `target_init_class_fqn` 稳定输出。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04F：收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口
+### [DONE] T3-04F：收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口
 - 背景：执行 `T3-04R` 第六次审查时确认，`T3-04E` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
   1. **删除 P6 source-span call-site bridge**：LLVM/P6 生产路径不得再用 `current_call_site(span)`、`source_call_site_id(path+span)`、`published_class_ctor_call_site(span)`、`published_reflection_type_arg_for_current_call(span, ...)` 或等价 source path+span hash 查询 ctor/reflection/effect-op/continuation metadata；必须消费 LIR-owned call-site identity/source contract，缺失时 fail-fast。
@@ -196,7 +196,7 @@
 - 完成条件：上述残余生产路径全部删除或改为已发布 fact 消费；verifier/gate 对缺 target-bound fact、source-span bridge、ABI/source-signature synthesis、FQN/string fallback 与静默跳过 fail-fast；全量验证通过，且不得引入 fixture-only workaround。
 - 依赖：T3-04F0
 - 阻塞记录：2026-06-03 执行主体改造后，`cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过，但完整 fixture suite 仍有与本任务直接相关的 HIR/source-payload class ctor、reflection/atomic 与 MIR golden 残余失败；已新增前置任务 `T3-04F0`，本任务保持未完成。
-- 完成记录：（待填）
+- 完成记录：2026-06-03 完成。T3-04F 主体改造已删除 P6 `current_call_site(span)` / `source_call_site_id(path+span)` / ctor/reflection source-span bridge，class ctor、reflection 与 effect-op/continuation metadata 改由 LIR owner + `SiteId` / source contract 发布和消费，缺 contract fail-fast；LIR/MIR backend facts 改为发布 target-bound source signature、ABI symbol、ctor target init 与 bodyless/direct target identity，删除 declaration/bodyless ABI 与 source-signature 合成补洞；layout/dispatch/effect target verifier 改为校验 target callable key/source signature/ABI symbol 一致性，dependency gate 覆盖 source-span bridge、HIR source-site扫描、declaration ABI synthesis、scalar/generic/overload FQN fallback、dispatch side-table 与 reachability 静默跳过等残留。前置 `T3-04F0` 已修复主体改造后的 MIR golden、HIR/source-payload class ctor、reflection/atomic 与 runtime fixture 残余失败。本次收口仅更新任务记录，未改编译产物；验证复用最新 `[T3-04F0]` 提交记录中的 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`（1664 checks）全绿结果，并在本次额外重跑 `python3 tools/dependency_gate.py` 通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

@@ -37,3 +37,13 @@
 - 完整 fixture suite 随后暴露 `run-pass/reflection_kind_desc_basic`；顶层 reflection initializer 仍需要发布的类型实参事实。已扩展 `EffectAnalysisFacts`，从 HIR 已发布合同复制 reflection call metadata，并让 LLVM reflection lowering 消费该事实面。
 - 已重建并确认 `run-pass/reflection_kind_desc_basic.scoop` 单独通过。
 - 最终验证全部通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）。
+
+## 本次 T3-04F 收口
+
+- 已识别当前第一个未完成任务：`TODO-3.md` 的 `T3-04F`。
+- 最新提交为 `[T3-04F0] Fix residual fixture failures`，它是 `T3-04F` 的前置修复提交；当前收口复用其已通过的完整验证结果。
+- 工作区除本计划文件外存在未跟踪 `FACT_REFACTOR.md`，暂不修改。
+- 已定向检查 `T3-04F` 残留路径，并重跑 `python3 tools/dependency_gate.py` 通过。
+- 已将 `TODO-3.md` 中 `T3-04F` 标记为 `[DONE]` 并补充完成记录；已将 `TODO.md` 当前活跃任务更新为下一项 `T3-04R`，但不会执行下一项。
+- 因本次收口只修改任务记录和本文件，完整 Rust/fixture 验证复用最新 `[T3-04F0]` 提交记录中的全绿结果。
+- 已检查差异；下一步提交本次任务记录收口。
