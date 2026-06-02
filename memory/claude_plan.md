@@ -1,28 +1,39 @@
 # 执行计划
 
-## 当前状态
+## 当前目标
 
-- 已读取 `TODO.md` / `TODO-3.md`，首个未完成任务是 `T3-04F`。
-- 最新提交 `ca8af15a [T3-04R] Schedule sixth review follow-up` 直接对应本任务，应作为当前任务背景处理。
-- 工作区已有未跟踪 `FACT_REFACTOR.md`，当前不属于本任务，除非后续确认它与 `T3-04F` 直接相关，否则不修改。
-- 勘查确认仍存在：P6 `current_call_site`/`source_call_site_id` bridge、LIR ctor/reflection facts 从 HIR source-site helper 发布、LIR declaration/bodyless ABI 与 source-signature 合成、layout root-only verifier、MIR/P6 FQN/string fallback 以及 dependency gate 漏洞。
-- 当前编辑策略：先把 ctor/reflection call-site facts 收口到 LIR owner+`SiteId`，删除 P6 path/span 查询入口；随后收紧 ABI/source-signature 发布、layout/effect verifier 与 gate。
-- 已实现主体改造并验证：`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过。
-- 阻塞：完整 `python3 tools/run_fixtures.py` 仍有与本任务直接相关的剩余失败（HIR/source-payload ctor/reflection/atomic、MIR golden、少量 runtime/build residuals）。已在 `TODO-3.md` 插入前置任务 `T3-04F0`，`T3-04F` 保持未完成。
-- 本文件用于记录可公开的执行计划、关键进展和验证结果。
+- 以 `TODO.md` 作为任务顺序和完成状态的权威来源。
+- 只完成第一个未完成任务，然后停止。
+- 持续记录关键进展、计划变化、阻塞、验证结果和完成状态。
 
-## 步骤
+## 执行步骤
 
-1. 定位 `T3-04F` 指定的残余路径：P6 source-span bridge、LIR ctor/reflection HIR source-site 扫描、ABI/source-signature synthesis、layout/effect verifier root-only 校验、FQN/string/唯一候选 fallback 与 dependency gate 漏洞。
-2. 阅读相关实现和现有测试，确认每类残余是否仍存在，以及最小正确修复边界。
-3. 实现 fact-only / fail-fast 收口：删除或替换残余 source/path/span、FQN/string、root-only、合成 ABI/source-signature 和静默跳过路径。
-4. 补齐 verifier / dependency gate / 单测或 fixture，锁定新增契约。
-5. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，通过后运行完整 Rust 测试、build、dependency gate、spec fixtures check 和完整 fixture suite。
-6. 更新 `TODO-3.md` 与 `TODO.md` 状态和完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
-7. 检查 git status/diff/log，提交本次任务相关变更，然后停止。
+1. 先读取 `TODO.md`，找到标题未带 `[DONE]` 的第一个任务。
+2. 只检查与该任务相关的近期 git 上下文，包括最新提交是否记录了直接相关的未完成工作。
+3. 阅读该任务的细节、依赖、验证要求和相邻完成记录。
+4. 只检查正确完成该任务所需的代码、测试、fixture 和文档。
+5. 用最小且符合规格的改动完成任务，不引入 workaround。
+6. 先运行格式化，再运行 lint，再运行相关测试，代码变更后执行要求的全量验证。
+7. 若观察到未被计划覆盖的测试或 fixture 失败，先修复或补充最小前置任务，再标记当前任务完成。
+8. 在 `TODO.md` / 子计划中给完成任务标题加 `[DONE]`，并记录实现和验证结果。
+9. 更新本文件的最终状态和验证结果。
+10. 用带任务编号的清晰提交信息提交所有相关变更。
+11. 停止，不开始下一个任务。
 
-## 注意事项
+## 进度记录
 
-- 每次只完成 `TODO.md` 中的第一个未完成任务。
-- 不使用 workaround；遇到阻塞性 spec 或实现缺口时，先修复或插入前置任务并停止。
-- 不修改无关用户变更，不回退他人改动。
+- 已在任务发现前初始化本执行计划。
+- 已读取 `TODO.md` 和 `TODO-3.md`，确定第一个未完成任务为 `T3-04F0`。
+- `T3-04F0` 范围：修复 `T3-04F` 改造后遗留的 fixture、golden 与 runtime 失败，同时不削弱 fact-only 契约。
+- 最新提交 `[T3-04F] Schedule fixture follow-up` 与当前任务直接相关，作为本任务上下文处理。
+- 工作区检查发现本次修改了 `memory/claude_plan.md`，另有无关未跟踪 `FACT_REFACTOR.md`；该设计笔记不属于当前任务，未修改。
+- 首次完整 fixture suite 复现 4 个失败：`aggregate_transport`、`call_contracts`、`generic_materialization` 的 MIR golden mismatch，以及 `run-pass/sysroot_atomic_basic`。
+- MIR mismatch 来自新增构造器元数据 `target_init_class_fqn`，确认语义后应刷新 golden。
+- `sysroot_atomic_basic` 的根因是 `AtomicValue<Pair>` 构造时内部 `Atomic<Box<Pair>>` 初始化走了字符串拼接构造器 FQN，导致 result type 与 nominal owner 不匹配。
+- 已修改 `call/lowering.rs`：source class ctor 检测改用 monomorphic `TypeId` 推导已注册 `ClassInstanceKey`，并删除 `scoop.core.{name}<arg>` 字符串构造 fallback。
+- 已重建 `scoop` / `scoopc`，并确认 `run-pass/sysroot_atomic_basic.scoop` 单独通过。
+- 已刷新 3 个受影响的 MIR lowered golden，并确认 `aggregate_transport`、`call_contracts`、`generic_materialization` 单独通过。
+- `dependency_gate.py` 随后暴露 `intrinsics/builtin.rs` 中残余的 reflection HIR source-text fallback；已删除 `current_source_slice(span)` 类型实参解析，使旧 HIR reflection 路径不再解析源码文本。
+- 完整 fixture suite 随后暴露 `run-pass/reflection_kind_desc_basic`；顶层 reflection initializer 仍需要发布的类型实参事实。已扩展 `EffectAnalysisFacts`，从 HIR 已发布合同复制 reflection call metadata，并让 LLVM reflection lowering 消费该事实面。
+- 已重建并确认 `run-pass/reflection_kind_desc_basic.scoop` 单独通过。
+- 最终验证全部通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）。

@@ -58,6 +58,12 @@ fn signature_ty_contains_param(types: &TypeStore, ty: TypeId) -> bool {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn registered_class_instance_key_for_type(&self, ty: TypeId) -> Option<hir::ClassInstanceKey> {
+        let mono_ty = self.types.as_mono(ty).ok()?;
+        let key = hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)?;
+        self.class_inits.contains_key(&key).then_some(key)
+    }
+
     fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
         match self.types.kind(ty) {
             TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
@@ -1718,7 +1724,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(result_ty) = result_ty
             && let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty)
-            && self.registered_class_instance_key(&nominal.fqn).is_some()
+            && self
+                .registered_class_instance_key_for_type(result_ty)
+                .is_some()
         {
             let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
             return self.codegen_class_ctor_call(
@@ -1734,7 +1742,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(callee.ty)
-                && self.registered_class_instance_key(&nominal.fqn).is_some()
+                && self
+                    .registered_class_instance_key_for_type(callee.ty)
+                    .is_some()
             {
                 let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
                 return self.codegen_class_ctor_call(
@@ -1746,27 +1756,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     arg_mapping.as_slice(),
                     Some(callee.ty),
                 );
-            }
-            if let Some(hir::CallArg::Positional(first_arg)) = args.first() {
-                let candidate_fqn =
-                    format!("scoop.core.{name}<{}>", self.types.display(first_arg.ty));
-                if self.registered_class_instance_key(&candidate_fqn).is_some()
-                    && let Some(candidate_ty) = self
-                        .types
-                        .iter_ids()
-                        .find(|ty| self.types.display(*ty).to_string() == candidate_fqn)
-                {
-                    let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
-                    return self.codegen_class_ctor_call(
-                        span,
-                        callee.span,
-                        &candidate_fqn,
-                        args,
-                        None,
-                        arg_mapping.as_slice(),
-                        Some(candidate_ty),
-                    );
-                }
             }
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 panic!(

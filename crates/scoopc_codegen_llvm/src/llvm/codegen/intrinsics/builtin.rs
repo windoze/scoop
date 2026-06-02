@@ -363,22 +363,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        let text = self.current_source_slice(span)?;
-        if let Some(start) = text.find('<')
-            && let Some(end) = text[start + 1..].find('>')
+        let source = self.current_source()?;
+        if let Some(ty) =
+            self.shared
+                .effect_analysis_facts
+                .reflection_type_arg(source.path(), span, name)
         {
-            let wanted = text[start + 1..start + 1 + end].trim();
-            if let Some(ty) = self
-                .types
-                .iter_ids()
-                .find(|ty| self.types.display(*ty).to_string() == wanted)
-            {
-                return Ok(ty);
-            }
+            return Ok(ty);
         }
         Err(LlvmEmitError::Frontend {
             message: format!(
-                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering; type arguments must be carried by MIR/LIR source-call-site identity"
+                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without published type-argument facts"
             ),
         })
     }

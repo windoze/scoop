@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::effect_facts_stage::MaterializedEffectFacts;
 use crate::effect_lowered::ordinary_callee::{
     EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,
-    EffectFieldOwnerKind, EffectGlobalRootKind,
+    EffectFieldOwnerKind, EffectGlobalRootKind, EffectReflectionCall,
 };
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
@@ -192,6 +192,27 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
                 })
         })
         .collect();
+    let reflection_calls = facts
+        .source_sites
+        .call_sites
+        .iter()
+        .filter_map(|site| match &site.contract {
+            scoopc_hir_facts::source_sites::CallSiteContractKind::Intrinsic {
+                kind: scoopc_hir_facts::source_sites::IntrinsicKind::Reflection { name },
+                function,
+            } => Some((
+                crate::effect_lowered::source::CallSite::new(
+                    site.identity.source_path.clone(),
+                    site.identity.span,
+                ),
+                EffectReflectionCall {
+                    intrinsic_name: name.clone(),
+                    type_args: function.type_args.clone(),
+                },
+            )),
+            _ => None,
+        })
+        .collect();
     let continuation_resumes = facts
         .source_sites
         .continuation_resumes
@@ -213,6 +234,7 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
         callable_return_tys,
         nominal_supertypes,
         constructor_calls,
+        reflection_calls,
         continuation_resumes,
     )
 }
