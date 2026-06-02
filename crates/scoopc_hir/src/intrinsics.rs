@@ -394,6 +394,17 @@ pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static
     }
 }
 
+pub fn legacy_scalar_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    fallback_scalar_method_intrinsic_entry_name(base)
+}
+
 fn fallback_scalar_method_intrinsic_entry_name(base: &str) -> Option<&'static str> {
     let (owner, method) = base.rsplit_once('.')?;
     if scalar_owner_is_integer(owner) {
@@ -488,7 +499,7 @@ fn bool_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
         "xor" => Some("bool_xor"),
         "eq" | "equals" => Some("bool_eq"),
         "ne" | "notEquals" => Some("bool_ne"),
-        "not" => Some("bool_not"),
+        "not" | "negate" => Some("bool_not"),
         _ => None,
     }
 }

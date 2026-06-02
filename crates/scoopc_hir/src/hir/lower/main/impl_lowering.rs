@@ -32,6 +32,24 @@ impl<'a> HirLowering<'a> {
         "scoop.core.ToString.toString";
     pub(in crate::hir::lower) const PANIC_FQN: &'static str = "scoop.core.panic";
 
+    pub(in crate::hir::lower) fn builtin_to_string_method_fqn_for_ty(
+        &self,
+        ty: TypeId,
+    ) -> Option<&'static str> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
+            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                Some("scoop.core.String.toString")
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn new(
         source: &'a SourceFile,
         file: &'a ast::File,
@@ -1458,7 +1476,11 @@ impl<'a> HirLowering<'a> {
             }
             _ => (Vec::new(), None),
         };
-        if type_args.is_empty() && owner_eff.is_none() && overload.sig.type_params.is_empty() {
+        if type_args.is_empty()
+            && owner_eff.is_none()
+            && overload.sig.type_params.is_empty()
+            && self.builtin_to_string_method_fqn_for_ty(receiver_ty) != Some(fqn)
+        {
             return;
         }
         if !overload.sig.type_params.is_empty() {

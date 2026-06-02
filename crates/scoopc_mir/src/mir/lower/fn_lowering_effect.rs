@@ -1268,11 +1268,14 @@ impl<'a> FnLowering<'a> {
 
         // 3) else 分支：同上；若缺省 else，则使用 Unit 占位。
         self.current_bb = else_bb;
-        let else_value = else_branch
-            .map(|e| self.lower_expr_to_local(e))
-            .unwrap_or_else(|| self.emit_unit(span));
+        let else_value = else_branch.map(|e| self.lower_expr_to_local(e));
         if !self.current_is_terminated() {
-            self.assign_use_to_local(span, result, Operand::Local(else_value));
+            if let Some(else_value) = else_value {
+                self.assign_use_to_local(span, result, Operand::Local(else_value));
+            } else if ty == self.builtins.unit {
+                let unit = self.emit_unit(span);
+                self.assign_use_to_local(span, result, Operand::Local(unit));
+            }
             self.set_terminator(
                 self.current_bb,
                 span,

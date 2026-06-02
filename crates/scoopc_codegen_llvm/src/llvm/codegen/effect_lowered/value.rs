@@ -480,8 +480,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)
                     .map_err(|err| {
                         frontend_error(format!(
-                            "pure assignment local{} store failed: value_ty={:?} target_ty={:?}: {err}",
+                            "pure assignment local{} store failed for rvalue {:?}: value_ty={:?} target_ty={:?}: {err}",
                             target.as_u32(),
+                            rvalue,
                             value_ty,
                             slot.cg_ty,
                         ))
@@ -1709,6 +1710,25 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             | mir::CallKind::FunPtr { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
+                if let mir::CallKind::Interface { receiver, dispatch } = kind
+                    && dispatch.owner_fqn == "scoop.core.ToString"
+                    && dispatch.member_name == "toString"
+                    && let Some(callee_fqn) = self.builtin_to_string_impl_fqn_for_operand(receiver)
+                {
+                    let mut direct_args = Vec::with_capacity(args.len() + 1);
+                    direct_args.push(mir::CallArg {
+                        span,
+                        name: None,
+                        value: receiver.clone(),
+                    });
+                    direct_args.extend(args.iter().cloned());
+                    return self.lower_published_plain_direct_call(
+                        span,
+                        callee_fqn,
+                        &direct_args,
+                        target_cg,
+                    );
+                }
                 if let Some(receiver) = match kind {
                     mir::CallKind::Virtual { receiver, .. }
                     | mir::CallKind::Interface { receiver, .. } => Some(receiver),
@@ -1786,7 +1806,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_hash_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if callee_fqn == "scoop.core.ToString.toString" {
+        if callee_fqn == "scoop.core.ToString.toString"
+            && args.first().is_some_and(|arg| {
+                self.builtin_to_string_impl_fqn_for_operand(&arg.value)
+                    .is_some()
+            })
+        {
             return self.lower_to_string_intrinsic(span, args, target_cg);
         }
         if callee_fqn == "scoop.core.byteLength" {
@@ -2864,6 +2889,29 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "task transport operand source type is missing",
             )
         }))
+    }
+
+    fn builtin_to_string_impl_fqn_for_operand(
+        &self,
+        operand: &mir::Operand,
+    ) -> Option<&'static str> {
+        let ty = self.operand_source_ty(operand)?;
+        self.builtin_to_string_impl_fqn_for_ty(ty)
+    }
+
+    fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
+        match self.source_types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
+            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                Some("scoop.core.String.toString")
+            }
+            _ => None,
+        }
     }
 
     fn resolved_fun_value_callee_fqn(&self, callee: &mir::Operand) -> Option<&str> {

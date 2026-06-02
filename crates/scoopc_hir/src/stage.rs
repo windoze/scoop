@@ -10,7 +10,10 @@ use crate::hir::{
     HirStageError, InterpolatedStringPart, Item, LoweredHir, MemberRef, MonoClassInit, ObjectInit,
     ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
-use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
+use crate::intrinsics::{
+    NamedIntrinsicLoweringMode, legacy_scalar_named_intrinsic_entry_name_for_fqn,
+    named_intrinsic_audit_entry,
+};
 use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -558,7 +561,11 @@ pub enum IntrinsicRuntimeFallback {
 
 impl TypedIntrinsicKind {
     fn from_call_binding(binding: &ast::TopLevelFunCallBinding) -> Self {
-        let Some(entry_name) = binding.intrinsic_entry_name.as_deref() else {
+        let entry_name = binding
+            .intrinsic_entry_name
+            .as_deref()
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&binding.fqn));
+        let Some(entry_name) = entry_name else {
             return Self::from_fqn(&binding.fqn);
         };
         let entry = named_intrinsic_audit_entry(entry_name)

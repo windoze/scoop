@@ -1588,11 +1588,14 @@ impl<'a> HirLowering<'a> {
                 }
                 ast::InterpolatedStringPart::Expr { expr } => {
                     let lowered_expr = self.lower_expr(pkg_prefix, expr);
+                    let to_string_fqn = self
+                        .builtin_to_string_method_fqn_for_ty(lowered_expr.ty)
+                        .unwrap_or(Self::TO_STRING_INTERFACE_METHOD_FQN);
                     let to_string_call_span = self.fresh_synthetic_call_site_span(expr.span);
                     let to_string_call = self.lower_synthetic_member_call(
                         to_string_call_span,
                         lowered_expr,
-                        Self::TO_STRING_INTERFACE_METHOD_FQN,
+                        to_string_fqn,
                         Vec::new(),
                         self.builtins.string,
                     );

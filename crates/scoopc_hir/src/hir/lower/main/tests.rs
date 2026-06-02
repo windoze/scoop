@@ -645,7 +645,7 @@ fn add_call_synth_string_arg(stmt: &Stmt) -> Option<&str> {
     Some(value.as_str())
 }
 
-fn add_call_arg_is_to_string_call(stmt: &Stmt) -> bool {
+fn add_call_arg_is_concrete_int_to_string_call(stmt: &Stmt) -> bool {
     let StmtKind::Expr(Expr {
         kind: ExprKind::Call { args, .. },
         ..
@@ -666,7 +666,7 @@ fn add_call_arg_is_to_string_call(stmt: &Stmt) -> bool {
     let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
         return false;
     };
-    fqn == "scoop.core.ToString.toString"
+    fqn == "scoop.core.Int.toString"
 }
 
 fn block_contains_call_with_member_access_callee(block: &Block) -> bool {
@@ -790,20 +790,13 @@ fun main(): Int {
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[1]), Some("a"));
     assert!(
-        add_call_arg_is_to_string_call(&block.stmts[2]),
-        "expression part should call ToString.toString through canonical top-level callee"
+        add_call_arg_is_concrete_int_to_string_call(&block.stmts[2]),
+        "Int expression part should call the concrete builtin toString body"
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[3]), Some("b"));
     assert!(
         !block_contains_call_with_member_access_callee(block),
         "synthetic f-string lowering must not emit Call(MemberAccess(...))"
-    );
-    assert!(
-        lowered
-            .dispatch_call_sites
-            .values()
-            .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
-        "ToString.toString should be published as an interface dispatch call"
     );
 }
 
