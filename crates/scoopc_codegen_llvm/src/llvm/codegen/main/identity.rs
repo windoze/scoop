@@ -378,26 +378,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !source_fun.name.starts_with("$lambda") {
             panic!("stable_closure_key_for_lir_source_callable: callable is not a closure body")
         }
-        let mut owner_callable_fqn = callable_fqn;
-        while let Some((parent, _)) = owner_callable_fqn.rsplit_once(".$lambda") {
-            owner_callable_fqn = parent;
-        }
-        let owner_symbol = self
-            .lir_callable_symbol_facts(owner_callable_fqn)
+        let identity = self
+            .published_lir_facts
+            .physical_layout
+            .closure_identities
+            .values()
+            .find(|identity| identity.root_fqn == callable_fqn)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LIR callable symbol facts 缺少 closure `{callable_fqn}` owner `{owner_callable_fqn}` 的 stable identity"
+                    "LIR closure identity facts 缺少 closure `{callable_fqn}` 的 owner/lexical path"
                 ),
             })?;
-        let lexical_path = callable_fqn
-            .strip_prefix(owner_callable_fqn)
-            .and_then(|suffix| suffix.strip_prefix('.'))
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "LIR source closure `{callable_fqn}` 无法从 owner `{owner_callable_fqn}` 恢复 lexical path"
-                ),
-            })?;
-        Ok(StableClosureKey::new(&owner_symbol.callable, lexical_path))
+        Ok(StableClosureKey::new(
+            &identity.owner_callable,
+            identity.lexical_path.as_str(),
+        ))
     }
 
     pub(in crate::llvm::codegen) fn direct_hir_closure_callable_fqn(

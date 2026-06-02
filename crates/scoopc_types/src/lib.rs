@@ -56,7 +56,9 @@ impl WireSchemaVersion {
 ///   sources 与显式 dynamic fallback 标记。
 /// - 1.6：MIR callable value provenance 结构化记录 statement index，并补强 fact verifier
 ///   对空 provenance join 的拒绝。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 6);
+/// - 1.7：LIR facts 新增 exact callee binding、source signature keys、ABI/layout/
+///   closure identity contracts，避免 LLVM 回扫旧 side table。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 7);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

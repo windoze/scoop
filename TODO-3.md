@@ -14,7 +14,7 @@
 | T3-02 | [DONE] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
 | T3-02R | [DONE] | Review T3-02 |
 | T3-03 | [DONE] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
-| T3-03R | [TODO] | Review T3-03 |
+| T3-03R | [DONE] | Review T3-03 |
 | T3-04 | [TODO] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
 | T3-04R | [TODO] | Review T3-04 |
 
@@ -63,10 +63,10 @@
 - 依赖：T3-02R
 - 完成记录：2026-06-02 完成。LIR facts 现在发布 `LirExactCalleeBinding`（target callable key / root FQN / ABI symbol / signature key），并在 physical layout 中补充 `LirAbiSymbolFact`、`LirLayoutNameFact`、`LirClosureIdentityFact`；body-less native/extern backend contracts 也进入 ABI symbol facts。LLVM vtable/itable dispatch declaration 路径现在优先消费已发布 ABI symbol facts，避免只依赖 callable body symbol facts；既有 HIR/generic compatibility root 解析仍保留以维持现有 effect/interface 回归，剩余 compatibility fallback 的 fail-fast/verifier 收口由 T3-04 明确覆盖。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-03R：Review T3-03
+### [DONE] T3-03R：Review T3-03
 - 验证：`python3 tools/run_fixtures.py`
 - 依赖：T3-03
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。Review T3-03 后发现并修复 LIR fact 契约不完整问题：wire schema 升至 1.7；source signature 现在发布可解析 `signature_key`，`LirExactCalleeBinding.signature_key` 与 source signature 对齐；known-instance exact callee 缺失或漂移改由 LIR facts verifier 拒绝；ABI symbol facts 同时区分 managed `callable_export` 与 native/extern symbol，并补齐 declaration-only exact callee ABI symbol；layout facts 补发布 class vtable layout name；LLVM dispatch declaration 优先使用 managed callable export，closure identity lookup 改为消费 `LirClosureIdentityFact`。新增回归断言覆盖 exact callee/source signature/ABI symbol/layout name 发布。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04：verifier 禁回看 side table + fallback→fail-fast
 

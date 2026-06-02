@@ -383,6 +383,7 @@ pub struct LirExternCallableSignatureFacts {
 /// Source callable signature published for body-less/runtime/helper call targets.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirSourceCallableSignatureFacts {
+    pub signature_key: String,
     pub root_fqn: String,
     pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,

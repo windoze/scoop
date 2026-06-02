@@ -57,17 +57,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn));
         let llvm_name = symbol_facts
             .and_then(|facts| {
-                facts
-                    .native
-                    .as_ref()
-                    .map(|native| native.symbol.as_str())
-                    .or_else(|| {
-                        facts
-                            .extern_
-                            .as_ref()
-                            .map(|extern_| extern_.symbol.as_str())
-                    })
-                    .or(facts.exported_symbol.as_deref())
+                facts.exported_symbol.as_deref().or_else(|| {
+                    facts
+                        .native
+                        .as_ref()
+                        .map(|native| native.symbol.as_str())
+                        .or_else(|| {
+                            facts
+                                .extern_
+                                .as_ref()
+                                .map(|extern_| extern_.symbol.as_str())
+                        })
+                })
             })
             .or_else(|| abi_symbol_fact.map(|fact| fact.symbol.as_str()))
             .ok_or_else(|| LlvmEmitError::Frontend {
@@ -79,9 +80,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
-        let surface = if symbol_facts
-            .is_some_and(|facts| facts.native.is_some() || facts.extern_.is_some())
-            || abi_symbol_fact.is_some_and(|fact| {
+        let surface = if symbol_facts.is_none()
+            && abi_symbol_fact.is_some_and(|fact| {
                 matches!(fact.role.as_str(), "native_callable" | "extern_callable")
             }) {
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport

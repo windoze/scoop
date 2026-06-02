@@ -5,8 +5,8 @@ use std::error::Error;
 use std::fmt;
 
 use crate::{
-    LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts, LirFacts, LirGlobalRootKey,
-    LirGlobalRootKind, LirInitializerBodyKind, LirTypeContextBridgeMode,
+    LirCallTargetMode, LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts, LirFacts,
+    LirGlobalRootKey, LirGlobalRootKind, LirInitializerBodyKind, LirTypeContextBridgeMode,
 };
 
 /// Result type returned by LIR fact verification.
@@ -207,6 +207,22 @@ pub enum VerifyError {
     },
     InvalidSourceSignature {
         key: String,
+    },
+    InvalidAbiSymbol {
+        key: String,
+        reason: &'static str,
+    },
+    InvalidLayoutName {
+        key: String,
+        reason: &'static str,
+    },
+    InvalidClosureIdentity {
+        key: String,
+        reason: &'static str,
+    },
+    InvalidExactCalleeBinding {
+        callable: String,
+        reason: &'static str,
     },
     InvalidClassCtorInit {
         key: String,
@@ -478,6 +494,19 @@ impl fmt::Display for VerifyError {
                     "LIR source signature `{key}` has inconsistent identity or arity"
                 )
             }
+            Self::InvalidAbiSymbol { key, reason } => {
+                write!(f, "LIR ABI symbol `{key}` is invalid: {reason}")
+            }
+            Self::InvalidLayoutName { key, reason } => {
+                write!(f, "LIR layout name `{key}` is invalid: {reason}")
+            }
+            Self::InvalidClosureIdentity { key, reason } => {
+                write!(f, "LIR closure identity `{key}` is invalid: {reason}")
+            }
+            Self::InvalidExactCalleeBinding { callable, reason } => write!(
+                f,
+                "LIR callable `{callable}` has an invalid exact callee binding: {reason}"
+            ),
             Self::InvalidClassCtorInit { key, reason } => {
                 write!(f, "LIR class ctor init `{key}` is invalid: {reason}")
             }
@@ -1047,12 +1076,137 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             });
         }
     }
+    for (key, symbol) in &facts.physical_layout.abi_symbols {
+        if key != &symbol.key {
+            return Err(VerifyError::InvalidAbiSymbol {
+                key: key.clone(),
+                reason: "map key does not match embedded key",
+            });
+        }
+        if symbol.symbol.is_empty() || symbol.role.is_empty() {
+            return Err(VerifyError::InvalidAbiSymbol {
+                key: key.clone(),
+                reason: "symbol or role is empty",
+            });
+        }
+        if let Some(callable_key) = &symbol.callable {
+            if let Some(callable_symbol) = facts.physical_layout.callable_symbols.get(callable_key)
+            {
+                if symbol.root_fqn.as_deref() != Some(callable_symbol.root_fqn.as_str()) {
+                    return Err(VerifyError::InvalidAbiSymbol {
+                        key: key.clone(),
+                        reason: "root FQN drifts from callable symbol",
+                    });
+                }
+                match symbol.role.as_str() {
+                    "callable_export" => {
+                        if callable_symbol.exported_symbol.as_deref()
+                            != Some(symbol.symbol.as_str())
+                        {
+                            return Err(VerifyError::InvalidAbiSymbol {
+                                key: key.clone(),
+                                reason: "callable export symbol drifts from callable symbol facts",
+                            });
+                        }
+                    }
+                    "native_callable" => {
+                        if callable_symbol
+                            .native
+                            .as_ref()
+                            .map(|native| native.symbol.as_str())
+                            != Some(symbol.symbol.as_str())
+                        {
+                            return Err(VerifyError::InvalidAbiSymbol {
+                                key: key.clone(),
+                                reason: "native symbol drifts from callable symbol facts",
+                            });
+                        }
+                    }
+                    "extern_callable" => {
+                        if callable_symbol
+                            .extern_
+                            .as_ref()
+                            .map(|extern_| extern_.symbol.as_str())
+                            != Some(symbol.symbol.as_str())
+                        {
+                            return Err(VerifyError::InvalidAbiSymbol {
+                                key: key.clone(),
+                                reason: "extern symbol drifts from callable symbol facts",
+                            });
+                        }
+                    }
+                    _ => {
+                        return Err(VerifyError::InvalidAbiSymbol {
+                            key: key.clone(),
+                            reason: "unknown ABI symbol role",
+                        });
+                    }
+                }
+            } else if symbol.root_fqn.as_deref().unwrap_or_default().is_empty()
+                || !facts
+                    .source_signatures
+                    .contains_key(symbol.root_fqn.as_deref().unwrap_or_default())
+                || !matches!(
+                    symbol.role.as_str(),
+                    "callable_export" | "native_callable" | "extern_callable"
+                )
+            {
+                return Err(VerifyError::InvalidAbiSymbol {
+                    key: key.clone(),
+                    reason: "declaration ABI symbol lacks a published source signature",
+                });
+            }
+        } else if symbol.root_fqn.as_deref().unwrap_or_default().is_empty()
+            || !matches!(symbol.role.as_str(), "native_callable" | "extern_callable")
+        {
+            return Err(VerifyError::InvalidAbiSymbol {
+                key: key.clone(),
+                reason: "body-less ABI symbol must name a native/extern root",
+            });
+        } else if !facts
+            .source_signatures
+            .contains_key(symbol.root_fqn.as_deref().unwrap_or_default())
+        {
+            return Err(VerifyError::InvalidAbiSymbol {
+                key: key.clone(),
+                reason: "body-less ABI symbol lacks a published source signature",
+            });
+        }
+    }
+    for (key, layout) in &facts.physical_layout.layout_names {
+        if key != &layout.key || layout.family.is_empty() || layout.layout_name.is_empty() {
+            return Err(VerifyError::InvalidLayoutName {
+                key: key.clone(),
+                reason: "identity, family, or layout name is empty/inconsistent",
+            });
+        }
+    }
+    for (key, identity) in &facts.physical_layout.closure_identities {
+        if key != &identity.callable {
+            return Err(VerifyError::InvalidClosureIdentity {
+                key: key.as_str().to_string(),
+                reason: "map key does not match embedded callable key",
+            });
+        }
+        if identity.root_fqn.is_empty()
+            || identity.owner_root_fqn.is_empty()
+            || identity.lexical_path.is_empty()
+            || !facts.callables.contains_key(key)
+            || !facts.callables.contains_key(&identity.owner_callable)
+        {
+            return Err(VerifyError::InvalidClosureIdentity {
+                key: key.as_str().to_string(),
+                reason: "closure or owner identity is missing",
+            });
+        }
+    }
     Ok(())
 }
 
 fn verify_source_signature_contracts(facts: &LirFacts) -> Result<()> {
     for (key, signature) in &facts.source_signatures {
         if key != &signature.root_fqn
+            || signature.signature_key.is_empty()
             || signature.root_fqn.is_empty()
             || signature.param_names.len() != signature.param_tys.len()
         {
@@ -1196,6 +1350,9 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                         callable: callable.root_fqn().to_string(),
                     });
                 }
+                for site in &plain.call_sites {
+                    verify_call_site_contract(facts, callable.root_fqn(), &site.contract)?;
+                }
                 if let Some(control) = &plain.local_effect_control {
                     verify_control_body(facts, callable.root_fqn(), control)?;
                 }
@@ -1216,6 +1373,58 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                         step_schema: effect.dynamic_invoke_entry.step_schema.as_u32(),
                     });
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_call_site_contract(
+    facts: &LirFacts,
+    owner: &str,
+    contract: &crate::LirCallSiteContract,
+) -> Result<()> {
+    match contract.target_mode {
+        LirCallTargetMode::KnownInstance => {
+            let Some(exact) = &contract.exact_callee else {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "known-instance call is missing exact callee binding",
+                });
+            };
+            if contract.target_callables.as_slice()
+                != std::slice::from_ref(&exact.target_callable_key)
+            {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "target callable list does not match exact callee key",
+                });
+            }
+            if exact.root_fqn.is_empty()
+                || exact.abi_symbol.is_empty()
+                || !facts.source_signatures.values().any(|signature| {
+                    signature.signature_key == exact.signature_key
+                        && signature.root_fqn == exact.root_fqn
+                })
+                || !facts.physical_layout.abi_symbols.values().any(|symbol| {
+                    symbol.symbol == exact.abi_symbol
+                        && symbol.root_fqn.as_deref() == Some(exact.root_fqn.as_str())
+                        && (symbol.callable.as_ref() == Some(&exact.target_callable_key)
+                            || symbol.callable.is_none())
+                })
+            {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "root, ABI symbol, or signature key is unpublished or inconsistent",
+                });
+            }
+        }
+        LirCallTargetMode::CandidateSet | LirCallTargetMode::DynamicFallback => {
+            if contract.exact_callee.is_some() {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "non-known-instance call must not publish exact callee binding",
+                });
             }
         }
     }
@@ -1259,6 +1468,7 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
         if !facts.callables.contains_key(&key.owner_callable) {
             return Err(VerifyError::MissingDynamicInvokeOwner { key: key_text });
         }
+        verify_call_site_contract(facts, key.owner_callable.readable_path(), &contract.call)?;
         if let Some(step_schema) = contract.call.callee_step_schema
             && !facts.step_types.contains_key(&step_schema)
         {

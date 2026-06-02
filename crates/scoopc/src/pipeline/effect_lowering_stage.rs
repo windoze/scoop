@@ -496,8 +496,8 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use scoopc_lir_facts::{
-        LirCallSiteKind, LirCallableContract, LirCallableSymbolKind, LirGlobalRootKind,
-        LirGlobalStoragePolicy,
+        LirCallSiteKind, LirCallTargetMode, LirCallableContract, LirCallableSymbolKind,
+        LirGlobalRootKind, LirGlobalStoragePolicy,
     };
 
     fn session() -> Session {
@@ -790,6 +790,51 @@ fun main(): Int {
     }
 
     #[test]
+    fn effect_lowered_lir_facts_publish_exact_callee_binding() {
+        let output = run_sample();
+        let facts = output.lir_facts();
+        let main = facts
+            .callables
+            .values()
+            .find(|callable| callable.root_fqn() == "sample.main")
+            .expect("sample.main callable facts should be published");
+        let LirCallableContract::Plain(plain) = &main.contract else {
+            panic!("sample.main should publish a plain ABI contract");
+        };
+        let site = plain
+            .call_sites
+            .iter()
+            .find(|site| site.contract.target_mode == LirCallTargetMode::KnownInstance)
+            .expect("helper call should publish a known-instance call-site contract");
+        let exact = site
+            .contract
+            .exact_callee
+            .as_ref()
+            .expect("known-instance call should publish exact callee binding");
+
+        assert_eq!(exact.root_fqn, "sample.helper");
+        assert_eq!(
+            site.contract.target_callables.as_slice(),
+            std::slice::from_ref(&exact.target_callable_key)
+        );
+        let signature = facts
+            .source_signatures
+            .get(&exact.root_fqn)
+            .expect("exact callee root should resolve to a source signature");
+        assert_eq!(signature.signature_key, exact.signature_key);
+        let symbol = facts
+            .physical_layout
+            .callable_symbols
+            .get(&exact.target_callable_key)
+            .expect("exact callee should resolve to callable symbol facts");
+        assert_eq!(
+            symbol.exported_symbol.as_deref(),
+            Some(exact.abi_symbol.as_str())
+        );
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
     fn effect_lowered_stage_stable_dump_lists_post_opt_late_lowered_sections() {
         let session = session();
         let source = dump_fixture_source();
@@ -989,6 +1034,14 @@ fun main(): Int {
             .expect("callVirtual should publish callable symbol facts");
         assert_eq!(call_virtual.kind, LirCallableSymbolKind::ManagedOrdinary);
         assert_eq!(call_virtual.param_tys.len(), 1);
+        assert!(facts.physical_layout.layout_names.values().any(|layout| {
+            layout.family == "class_vtable" && layout.layout_name == "sample.Base"
+        }));
+        assert!(facts.physical_layout.abi_symbols.values().any(|symbol| {
+            symbol.role == "callable_export"
+                && symbol.callable.as_ref() == Some(&call_virtual.callable)
+                && Some(symbol.symbol.as_str()) == call_virtual.exported_symbol.as_deref()
+        }));
         assert!(!facts.type_context.primary_fingerprint.is_empty());
         assert_eq!(
             facts.type_context.stable_wire_format.decision,
