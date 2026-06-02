@@ -47,3 +47,13 @@
 - 已将 `TODO-3.md` 中 `T3-04F` 标记为 `[DONE]` 并补充完成记录；已将 `TODO.md` 当前活跃任务更新为下一项 `T3-04R`，但不会执行下一项。
 - 因本次收口只修改任务记录和本文件，完整 Rust/fixture 验证复用最新 `[T3-04F0]` 提交记录中的全绿结果。
 - 已检查差异；下一步提交本次任务记录收口。
+
+## 本次 T3-04R 审查
+
+- 已在执行项目命令前更新本文件，记录本次可审阅执行计划；不写入隐藏推理过程。
+- 已读取 `TODO.md` 和 `TODO-3.md`，确定第一个未完成任务为 `T3-04R`（Review T3-04）。
+- 最新提交为 `[T3-04F] Complete fallback closure record`，与 `T3-04R` 直接相关，因为该 review 依赖 `T3-04F`。
+- 审查发现 `T3-04F` 后仍有阻塞缺口：P6 HIR source-site bridge、reflection span lookup、class ctor fallback、LIR bodyless source-signature/ABI synthesis、effect target verifier 缺口、P6 generic/FQN/dispatch/value-box fallback，以及 dependency-gate 覆盖漏洞。
+- 已在 `TODO-3.md` 插入新的前置任务 `T3-04G`，将 `T3-04R` 依赖改为 `T3-04G`，并在 `TODO.md` 将当前活跃任务更新为 `T3-04G`。
+- `PLAN.md` 未更新，因为批次级计划、阶段依赖和完成标准没有变化。
+- 本次只修改任务记录和本计划文件，未改编译产物；不运行格式化、lint 或全量测试。
