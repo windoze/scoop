@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use crate::facts::{CallSiteTarget, CallableAbiKind, SiteEffectFacts};
+use crate::facts::{CallSiteTarget, CallableAbiKind, EffectPrecision, SiteEffectFacts};
 use crate::schema::{CaseSet, CaseTag, ContinuationSchemaId, StepSchemaId};
 use crate::{EffectFacts, StepSchema};
 
@@ -39,6 +39,9 @@ pub enum VerifyError {
         context: String,
     },
     EmptyCallSiteCandidateSet {
+        context: String,
+    },
+    InvalidCallSiteFallbackPrecision {
         context: String,
     },
     CallSiteAbiSchemaMismatch {
@@ -85,6 +88,9 @@ impl fmt::Display for VerifyError {
             ),
             Self::EmptyCallSiteCandidateSet { context } => {
                 write!(f, "{context} has an empty call target candidate set")
+            }
+            Self::InvalidCallSiteFallbackPrecision { context } => {
+                write!(f, "{context} still uses signature-fallback precision")
             }
             Self::CallSiteAbiSchemaMismatch { context } => {
                 write!(f, "{context} has ABI/schema fields that disagree")
@@ -329,6 +335,11 @@ fn verify_call_site_shape(call: &crate::facts::CallSiteEffectFacts, context: &st
     }
     if matches!(call.target(), CallSiteTarget::CandidateSet(keys) if keys.is_empty()) {
         return Err(VerifyError::EmptyCallSiteCandidateSet {
+            context: context.to_string(),
+        });
+    }
+    if matches!(call.precision(), EffectPrecision::SignatureFallback) {
+        return Err(VerifyError::InvalidCallSiteFallbackPrecision {
             context: context.to_string(),
         });
     }

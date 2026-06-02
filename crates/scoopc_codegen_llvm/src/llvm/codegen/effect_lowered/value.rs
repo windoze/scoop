@@ -65,15 +65,6 @@ fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
         .collect()
 }
 
-fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if let Some((base, _)) = fqn.rsplit_once("::<") {
-        return base;
-    }
-    fqn.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
-}
-
 fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
@@ -1801,8 +1792,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.panic" {
             return self.lower_panic_call(span, args);
         }
-        let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
-        if dispatch_fqn == "scoop.unsafe.invoke" {
+        if self.codegen.published_intrinsic_base_fqn(callee_fqn) == "scoop.unsafe.invoke" {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
                 args,
@@ -1841,19 +1831,18 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .current_top_level_fun_call_binding(span)?
             .and_then(|binding| binding.intrinsic_entry_name.clone());
-        if let Some(entry_name) = binding_entry_name
-            .as_deref()
-            .or_else(|| crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(callee_fqn))
-            && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
-                span,
-                entry_name,
-                args,
-                self.body,
-                self.source_types,
-                transport.array.as_ref(),
-                self.slots,
-            )?
-        {
+        if let Some(entry_name) = binding_entry_name.as_deref().or_else(|| {
+            self.codegen
+                .published_named_intrinsic_entry_name_for_fqn(callee_fqn)
+        }) && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
+            span,
+            entry_name,
+            args,
+            self.body,
+            self.source_types,
+            transport.array.as_ref(),
+            self.slots,
+        )? {
             return Ok(value);
         }
         if self

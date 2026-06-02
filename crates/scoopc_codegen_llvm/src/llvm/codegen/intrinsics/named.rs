@@ -958,6 +958,25 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_fqn(
+        &self,
+        fqn: &str,
+    ) -> Option<&'static str> {
+        crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn)
+    }
+
+    pub(in crate::llvm::codegen) fn published_intrinsic_base_fqn<'b>(
+        &self,
+        fqn: &'b str,
+    ) -> &'b str {
+        fqn.split("::<")
+            .next()
+            .unwrap_or(fqn)
+            .split("$overload")
+            .next()
+            .unwrap_or(fqn)
+    }
+
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(
         &mut self,
         span: crate::span::Span,
@@ -970,6 +989,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         };
         let call = self.lower_named_intrinsic_hir_call(span, callee_span, callee, args)?;
+        self.codegen_named_intrinsic_call(entry, call).map(Some)
+    }
+
+    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_top_level_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+        entry_name: &str,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
+            return Ok(None);
+        };
+        let mut operands = Vec::with_capacity(args.len());
+        for arg in args {
+            let value = match arg {
+                hir::CallArg::Positional(value) | hir::CallArg::Named { value, .. } => value,
+            };
+            operands.push(self.lower_named_intrinsic_hir_operand(value)?);
+        }
+        let call = LoweredNamedIntrinsicCall {
+            span,
+            callee_span,
+            operands,
+            array_element_source_ty: None,
+        };
         self.codegen_named_intrinsic_call(entry, call).map(Some)
     }
 

@@ -322,6 +322,12 @@ pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static
         "scoop.core.MutableArray.set" => Some("array_set_outofline"),
         "scoop.core.Array.__dataPtr" => Some("array_data_ptr_inline"),
         "scoop.core.MutableArray.__dataPtr" => Some("array_data_ptr_outofline"),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_cast" => Some("unsafe_mutable_array_cast"),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_erase" => Some("unsafe_mutable_array_erase"),
+        "scoop.unsafe.__scoop_unsafe_array_cast" => Some("unsafe_array_cast"),
+        "scoop.unsafe.__scoop_unsafe_value_to_word" => Some("unsafe_value_to_word"),
+        "scoop.unsafe.__scoop_unsafe_value_to_any" => Some("unsafe_value_to_any"),
+        "scoop.unsafe.__scoop_unsafe_value_slot" => Some("unsafe_value_slot"),
         _ => fallback_scalar_method_intrinsic_entry_name(base),
     }
 }

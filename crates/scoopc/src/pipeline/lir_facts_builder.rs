@@ -2124,7 +2124,7 @@ fn call_site_contract(
             .iter()
             .map(|case| LirCaseKey::new(case.as_u32()))
             .collect(),
-        precision: effect_precision(facts.precision()),
+        precision: effect_precision(facts.precision())?,
     })
 }
 
@@ -2160,7 +2160,11 @@ fn exact_callee_binding(
                     .get(root_fqn.as_str())
                     .map(|extern_fun| extern_fun.symbol.clone())
             })
-            .unwrap_or_else(|| AbiMangler.fun_symbol(target_callable_key))
+            .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "known call target `{root_fqn}` has no published callable body or native/extern ABI symbol"
+                ),
+            })?
     };
     Ok(Some(LirExactCalleeBinding {
         target_callable_key: target_callable_key.clone(),
@@ -2210,11 +2214,10 @@ fn target_callable_key(
         }
     })?;
     let stable_text = stable_key.canonical_text();
-    Ok(ctx
-        .callable_keys_by_stable_instance
-        .get(&stable_text)
-        .cloned()
-        .unwrap_or_else(|| declaration_lir_callable_key(stable_key)))
+    if let Some(key) = ctx.callable_keys_by_stable_instance.get(&stable_text) {
+        return Ok(key.clone());
+    }
+    Ok(declaration_lir_callable_key(stable_key))
 }
 
 fn declaration_lir_callable_key(
@@ -2592,11 +2595,13 @@ fn callable_abi_kind(kind: CallableAbiKind) -> LirCallableAbiKind {
     }
 }
 
-fn effect_precision(precision: EffectPrecision) -> LirEffectPrecision {
+fn effect_precision(precision: EffectPrecision) -> Result<LirEffectPrecision, EffectLoweringError> {
     match precision {
-        EffectPrecision::Precise => LirEffectPrecision::Precise,
-        EffectPrecision::Widened => LirEffectPrecision::Widened,
-        EffectPrecision::SignatureFallback => LirEffectPrecision::SignatureFallback,
+        EffectPrecision::Precise => Ok(LirEffectPrecision::Precise),
+        EffectPrecision::Widened => Ok(LirEffectPrecision::Widened),
+        EffectPrecision::SignatureFallback => Err(EffectLoweringError::InvalidLirFactsContract {
+            detail: "P5 received obsolete signature-fallback call precision".to_string(),
+        }),
     }
 }
 

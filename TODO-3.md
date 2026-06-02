@@ -15,7 +15,7 @@
 | T3-02R | [DONE] | Review T3-02 |
 | T3-03 | [DONE] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
 | T3-03R | [DONE] | Review T3-03 |
-| T3-04 | [TODO] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
+| T3-04 | [DONE] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -68,14 +68,14 @@
 - 依赖：T3-03
 - 完成记录：2026-06-02 完成。Review T3-03 后发现并修复 LIR fact 契约不完整问题：wire schema 升至 1.7；source signature 现在发布可解析 `signature_key`，`LirExactCalleeBinding.signature_key` 与 source signature 对齐；known-instance exact callee 缺失或漂移改由 LIR facts verifier 拒绝；ABI symbol facts 同时区分 managed `callable_export` 与 native/extern symbol，并补齐 declaration-only exact callee ABI symbol；layout facts 补发布 class vtable layout name；LLVM dispatch declaration 优先使用 managed callable export，closure identity lookup 改为消费 `LirClosureIdentityFact`。新增回归断言覆盖 exact callee/source signature/ABI symbol/layout name 发布。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04：verifier 禁回看 side table + fallback→fail-fast
+### [DONE] T3-04：verifier 禁回看 side table + fallback→fail-fast
 
 - 参考：`FACT_GAPS.md` Cross-Cutting #3/#4、Suggested Priorities #3。
 - 必须实现的内容：为每个 stage 定义 artifact-complete contract 并加 verifier，断言下游不消费更早 side table（grep/结构守卫测试）；把残留的 `DynamicFallback`/`SignatureFallback`/`unpublished(...)`/`missing-owner`/唯一候选推断逐一改为 verifier error 或在缺 fact 时 fail-fast；显式删除 T3-03 为保持现有 effect/interface 回归绿色而保留的 `direct_call_dispatch_fqn` / `published_dispatch_target_fqn` compatibility root 解析路径；恢复 T1-00 因 owner-eff 暂忽略的 Rust 单测（若其断言在新机制下成立）。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：跨阶段 fact 自包含被守卫锁定；fallback 改 fail-fast。
 - 依赖：T3-03R
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。Effect/LIR verifier 现在拒绝 `SignatureFallback` 精度，P4 对缺 callable facts 的已知目标改为纯 bodyless direct/dynamic surface 或缺 fact 报错，不再把缺失目标发布成 signature fallback；LIR exact callee ABI symbol 不再静默生成兜底，known exact binding 继续由 verifier 校验 source signature/ABI symbol 一致性。LLVM 删除 T3-03 留下的 `direct_call_dispatch_fqn` / `published_dispatch_target_fqn` / `resolve_lir_root_for_hir_direct_call` 兼容解析，并增加 dependency gate 守卫；intrinsic/bodyless pure helper 调用改走集中 intrinsic metadata helper，缺普通 ABI fact 不再落到 callable ABI symbol fallback。Effect facts golden 已更新为 `Precise`/`Widened`，新增 LIR verifier 回归覆盖 signature fallback 拒绝。T1-00 owner-eff Rust ignore 仍按 TODO-4 `T4-04` 保留；两个 observable/vetoable delegate run-pass fixture 也显式登记为 `T4-04` 恢复范围。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

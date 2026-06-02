@@ -1066,14 +1066,12 @@ fn finalize_call_site_resolution(
             }
         }
         CallSiteTarget::DynamicFallback => match call_facts.callee_abi_kind() {
-            CallableAbiKind::Plain => {
-                plain_call_resolution(call_facts, EffectPrecision::SignatureFallback)
-            }
+            CallableAbiKind::Plain => plain_call_resolution(call_facts, call_facts.precision()),
             CallableAbiKind::EffectStep => CallResolution {
                 callee_abi_kind: CallableAbiKind::EffectStep,
                 callee_schema: Some(call_facts.callee_schema()),
                 resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
-                precision: EffectPrecision::SignatureFallback,
+                precision: call_facts.precision(),
             },
         },
     }
@@ -1850,7 +1848,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             case_fqns(facts, dynamic_call.resolved_cases()),
             ["sample.Boom.hit".to_string()].into_iter().collect()
         );
-        assert_eq!(dynamic_call.precision(), EffectPrecision::SignatureFallback);
+        assert_eq!(dynamic_call.precision(), EffectPrecision::Widened);
     }
 
     #[test]
@@ -2012,7 +2010,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
         else {
             panic!("dynamic site 应产生 CallSiteEffectFacts");
         };
-        assert_eq!(dynamic_site.precision(), EffectPrecision::SignatureFallback);
+        assert_eq!(dynamic_site.precision(), EffectPrecision::Widened);
         assert_eq!(
             case_fqns(dynamic_facts, dynamic_site.resolved_cases()),
             ["sample.Alpha.go".to_string(), "sample.Beta.go".to_string()]

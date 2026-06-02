@@ -1048,6 +1048,44 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "dispatch_call_sites",
                     "dispatch kind must come from LIR facts or the explicit LLVM dispatch narrow contract",
                 ),
+                fp(
+                    "direct_call_dispatch_fqn",
+                    "direct call lowering must not recover callable roots by parsing FQN strings",
+                ),
+                fp(
+                    "resolve_lir_root_for_hir_direct_call",
+                    "direct call lowering must consume exact LIR callee bindings instead of FQN/signature fallback",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "direct call lowering must use published intrinsic facts instead of FQN fallback lookup",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM effect-lowered direct calls",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/value.rs",
+            (
+                fp(
+                    "direct_call_dispatch_fqn",
+                    "effect-lowered calls must not recover callable roots by parsing FQN strings",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "effect-lowered calls must use published intrinsic metadata instead of FQN fallback lookup",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM MIR direct call residuals",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "MIR direct call lowering must use published intrinsic metadata instead of FQN fallback lookup",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1143,6 +1181,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "HIR/materialized declaration source",
                     "dispatch target diagnostics must not expose HIR/materialized declaration fallback",
+                ),
+                fp(
+                    "published_dispatch_target_fqn",
+                    "dispatch target declaration must not recover generic target roots by scanning FQN prefixes",
                 ),
             ),
         ),
@@ -1284,7 +1326,12 @@ def source_tree_boundary_rules() -> tuple[SourceTreeBoundaryRule, ...]:
             "LLVM production direct MIR residuals outside LIR source-body helpers",
             "backend-boundary",
             "crates/scoopc_codegen_llvm/src/llvm",
-            ("/tests/", "tests.rs", "/codegen/mir_body/"),
+            (
+                "/tests/",
+                "tests.rs",
+                "/codegen/mir_body/",
+                "/codegen/main/immortal.rs",
+            ),
             (
                 fp(
                     "use crate::mir",

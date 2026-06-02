@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
-use scoopc_ids::StableLirCallableKey;
+use scoopc_ids::{StableCanonicalKey, StableLirCallableKey};
 use scoopc_lir_facts::{
     LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDispatchKey,
     LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
@@ -218,7 +218,10 @@ impl<'a> ReachabilityCollector<'a> {
         if let Some(root) = self.root_for_callable_key(key) {
             self.enqueue_root(root);
         } else {
-            self.enqueue_root(key.readable_path());
+            panic!(
+                "LIR reachability verifier accepted required callable key `{}` without a published root",
+                key.canonical_text()
+            );
         }
     }
 

@@ -13,15 +13,48 @@ use inkwell::values::{
 use crate::effect_lowered::source as hir;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
-/// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。
-fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if let Some((base, _)) = fqn.rsplit_once("::<") {
-        return base;
+fn signature_ty_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    let mut stack = vec![ty];
+    while let Some(ty) = stack.pop() {
+        match types.kind(ty) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                stack.extend(fun.receiver);
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied())
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied())
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_),
+            ) => {}
+        }
     }
-
-    fqn.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
+    false
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -128,15 +161,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(entry_name) = self
             .current_top_level_fun_call_binding(span)?
-            .filter(|binding| {
-                member_fun_fqn.is_none_or(|fqn| {
-                    direct_call_dispatch_fqn(&binding.fqn) == direct_call_dispatch_fqn(fqn)
-                })
-            })
+            .filter(|binding| member_fun_fqn.is_none_or(|fqn| binding.fqn == fqn))
             .and_then(|binding| binding.intrinsic_entry_name.clone())
             .or_else(|| {
                 member_fun_fqn
-                    .and_then(crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn)
+                    .and_then(|fqn| self.published_named_intrinsic_entry_name_for_fqn(fqn))
                     .map(str::to_string)
             })
         {
@@ -1443,7 +1472,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .current_top_level_fun_call_binding(span)?
                 .and_then(|binding| binding.intrinsic_entry_name.clone())
                 .or_else(|| {
-                    crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn)
+                    self.published_named_intrinsic_entry_name_for_fqn(fqn)
                         .map(str::to_string)
                 })
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
@@ -1458,7 +1487,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
-            let dispatch_fqn = direct_call_dispatch_fqn(&concrete_fqn);
+            let semantic_fqn = self
+                .current_top_level_fun_call_binding(span)?
+                .map(|binding| binding.fqn.clone())
+                .unwrap_or_else(|| concrete_fqn.clone());
+            let dispatch_fqn = semantic_fqn.as_str();
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
                 return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
@@ -1763,49 +1796,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         panic!("codegen_call_expr: call ABI verifier accepted unsupported callee form")
     }
 
-    fn resolve_lir_root_for_hir_direct_call(
-        &self,
-        requested_fqn: &str,
-        dispatch_fqn: &str,
-        args: &[hir::CallArg],
-        result_ty: Option<TypeId>,
-    ) -> Option<String> {
-        if self.lir_callable_symbol_facts(requested_fqn).is_some() {
-            return Some(requested_fqn.to_string());
-        }
-        if dispatch_fqn == requested_fqn || !requested_fqn.contains("::<") {
-            return None;
-        }
-
-        let matches = self
-            .published_lir_facts
-            .physical_layout
-            .callable_symbols
-            .values()
-            .filter_map(|symbol| {
-                let root_fqn = symbol.root_fqn.as_str();
-                if direct_call_dispatch_fqn(root_fqn) != dispatch_fqn {
-                    return None;
-                }
-                let signature = self.published_codegen_callable_signature(root_fqn)?;
-                if signature.param_tys.len() != args.len() {
-                    return None;
-                }
-                if let Some(result_ty) = result_ty
-                    && self.types.display(signature.return_ty).to_string()
-                        != self.types.display(result_ty).to_string()
-                {
-                    return None;
-                }
-                Some(root_fqn.to_string())
-            })
-            .collect::<Vec<_>>();
-        match matches.as_slice() {
-            [root] => Some(root.clone()),
-            _ => None,
-        }
-    }
-
     pub(in crate::llvm::codegen) fn codegen_top_level_fun_call_impl(
         &mut self,
         span: crate::span::Span,
@@ -1814,23 +1804,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let dispatch_fqn = direct_call_dispatch_fqn(fqn);
-        let resolved_lir_fqn =
-            self.resolve_lir_root_for_hir_direct_call(fqn, dispatch_fqn, args, result_ty);
-        let callable_fqn = resolved_lir_fqn.as_deref().unwrap_or(fqn);
+        let callable_fqn = fqn;
+        if let Some(entry_name) = self.published_named_intrinsic_entry_name_for_fqn(callable_fqn)
+            && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
+                span,
+                callee_span,
+                args,
+                entry_name,
+            )?
+        {
+            return Ok(value);
+        }
         let callable_abi = self.direct_call_abi_identity(callable_fqn);
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
+        let fallback_signature_fqn = self
+            .current_top_level_fun_call_binding(span)?
+            .map(|binding| binding.fqn.clone());
         let (
             signature_owner_fqn,
-            source_types,
+            mut source_types,
             mut param_names,
             mut source_param_tys,
-            source_return_ty,
+            mut source_return_ty,
         ) = self
             .published_callable_signature_with_names(callable_fqn)
             .map(|(source_types, param_names, param_tys, return_ty)| {
                 (
-                    callable_fqn,
+                    callable_fqn.to_string(),
                     source_types,
                     param_names,
                     param_tys,
@@ -1838,24 +1838,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )
             })
             .or_else(|| {
-                (dispatch_fqn != callable_fqn)
-                    .then(|| self.published_callable_signature_with_names(dispatch_fqn))
-                    .flatten()
-                    .map(|(source_types, param_names, param_tys, return_ty)| {
+                let fallback = fallback_signature_fqn.as_deref()?;
+                self.published_callable_signature_with_names(fallback).map(
+                    |(source_types, param_names, param_tys, return_ty)| {
                         (
-                            dispatch_fqn,
+                            fallback.to_string(),
                             source_types,
                             param_names,
                             param_tys,
                             return_ty,
                         )
-                    })
+                    },
+                )
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!("call callee `{callable_fqn}` 缺少 LIR callable signature facts"),
             })?;
+        if signature_owner_fqn != callable_fqn {
+            let original_source_types = source_types;
+            let arg_tys = args
+                .iter()
+                .map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => expr.ty,
+                    hir::CallArg::Named { value, .. } => value.ty,
+                })
+                .collect::<Vec<_>>();
+            if arg_tys.len() == source_param_tys.len()
+                && source_param_tys
+                    .iter()
+                    .any(|ty| signature_ty_contains_param(original_source_types, *ty))
+            {
+                source_param_tys = arg_tys;
+                source_types = self.types;
+            }
+            if signature_ty_contains_param(original_source_types, source_return_ty)
+                && let Some(result_ty) = result_ty
+            {
+                source_return_ty = result_ty;
+                source_types = self.types;
+            }
+        }
         if args.len() == source_param_tys.len() + 1
-            && signature_owner_fqn.rsplit_once('.').is_some()
+            && callable_fqn.rsplit_once('.').is_some()
             && let Some(receiver_ty) = args.first().map(|arg| match arg {
                 hir::CallArg::Positional(expr) => expr.ty,
                 hir::CallArg::Named { value, .. } => value.ty,
@@ -1953,26 +1977,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
 
-        let llvm_name = self
-            .extern_funs
-            .get(callable_fqn)
-            .map(|extern_fun| extern_fun.symbol.as_str())
-            .or_else(|| {
-                self.extern_funs
-                    .get(fqn)
-                    .map(|extern_fun| extern_fun.symbol.as_str())
-            })
-            .map(str::to_string)
-            .or_else(|| {
-                self.lir_callable_symbol_facts(callable_fqn)
-                    .map(|symbol_facts| {
-                        symbol_facts
-                            .exported_symbol
-                            .clone()
-                            .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable))
-                    })
-            })
-            .unwrap_or_else(|| callable_fqn.to_string());
+        let llvm_name = if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
+            extern_fun.symbol.clone()
+        } else {
+            self.lir_callable_symbol_facts(callable_fqn)
+                .and_then(|symbol_facts| symbol_facts.exported_symbol.clone())
+                .or_else(|| {
+                    self.lir_callable_symbol_facts(&signature_owner_fqn)
+                        .and_then(|symbol_facts| symbol_facts.exported_symbol.clone())
+                })
+                .unwrap_or_else(|| callable_fqn.to_string())
+        };
         let llvm_fun = match self.module.get_function(&llvm_name) {
             Some(function) => function,
             None => {
@@ -1984,7 +1999,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.declare_lir_plain_fun_with_symbol(
                     &llvm_name,
                     declaration_surface,
-                    signature_owner_fqn,
+                    &signature_owner_fqn,
                     &source_param_tys,
                     source_return_ty,
                     source_types,
@@ -2006,7 +2021,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ty) = hidden_sret_result_ty {
                     cg.add_sret_attribute_to_call(call_site, 0, result_ty);
                 }
-                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(signature_owner_fqn));
+                call_site
+                    .set_call_convention(cg.llvm_call_convention_for_fqn(&signature_owner_fqn));
                 Ok(call_site)
             })
         };
@@ -2119,7 +2135,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+        let dispatch_fqn = self
+            .current_top_level_fun_call_binding(span)?
+            .map(|binding| binding.fqn.clone())
+            .unwrap_or_else(|| fqn.to_string());
         let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
@@ -2155,11 +2174,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let signature = self
             .published_codegen_callable_signature(fqn)
-            .or_else(|| {
-                (dispatch_fqn != fqn)
-                    .then(|| self.published_codegen_callable_signature(dispatch_fqn))
-                    .flatten()
-            })
             .unwrap_or_else(|| {
                 panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing vtable LIR signature")
             });
@@ -2612,7 +2626,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+        let dispatch_fqn = self
+            .current_top_level_fun_call_binding(span)?
+            .map(|binding| binding.fqn.clone())
+            .unwrap_or_else(|| fqn.to_string());
         let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
@@ -2654,11 +2671,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let signature = self
             .published_codegen_callable_signature(fqn)
-            .or_else(|| {
-                (dispatch_fqn != fqn)
-                    .then(|| self.published_codegen_callable_signature(dispatch_fqn))
-                    .flatten()
-            })
             .unwrap_or_else(|| {
                 panic!("try_codegen_interface_itable_call_impl: call ABI verifier accepted missing itable LIR signature")
             });

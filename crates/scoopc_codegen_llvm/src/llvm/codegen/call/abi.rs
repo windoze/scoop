@@ -2,17 +2,6 @@
 
 use super::super::*;
 
-/// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。
-fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if let Some((base, _)) = fqn.rsplit_once("::<") {
-        return base;
-    }
-
-    fqn.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
-}
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn try_cg_ty_for_call_abi_type(&self, ty: TypeId) -> Option<CgTy> {
         self.try_cg_ty_of_type_id(ty)
@@ -324,16 +313,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> hir::CallableAbiIdentity {
-        let identity = self.direct_callable_abi_identity_for_fqn_impl(callable_fqn);
-        if identity != hir::CallableAbiIdentity::ManagedOrdinary {
-            return identity;
-        }
-
-        let dispatch_fqn = direct_call_dispatch_fqn(callable_fqn);
-        if dispatch_fqn == callable_fqn {
-            return identity;
-        }
-        self.direct_callable_abi_identity_for_fqn_impl(dispatch_fqn)
+        self.direct_callable_abi_identity_for_fqn_impl(callable_fqn)
     }
 
     pub(in crate::llvm::codegen) fn managed_callable_abi_identity_impl(
@@ -418,14 +398,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signature.param_names.clone(),
                 signature.param_tys.clone(),
                 signature.return_ty,
-            ));
-        }
-        if let Some(symbol) = self.lir_callable_symbol_facts(callable_fqn) {
-            return Some((
-                self.types,
-                symbol.param_names.clone(),
-                symbol.param_tys.clone(),
-                symbol.return_ty,
             ));
         }
         None

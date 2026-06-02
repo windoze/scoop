@@ -214,7 +214,7 @@ body_facts:
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise
       site4:
         kind: Call
         call_kind: Direct
@@ -262,4 +262,4 @@ body_facts:
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise

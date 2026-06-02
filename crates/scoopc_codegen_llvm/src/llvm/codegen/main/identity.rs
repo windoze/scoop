@@ -286,7 +286,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let symbol = symbol_facts
                 .exported_symbol
                 .clone()
-                .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable));
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LIR callable symbol facts for `{callable_fqn}` are missing exported ABI symbol"
+                    ),
+                })?;
             self.reserve_exported_abi_symbol(
                 &symbol,
                 &symbol_facts.callable,

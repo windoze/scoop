@@ -86,13 +86,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
         let binding_entry_name = self
             .current_top_level_fun_call_binding(span)?
-            .filter(|binding| {
-                mir_direct_call_base_fqn(&binding.fqn) == mir_direct_call_base_fqn(fqn)
-            })
+            .filter(|binding| binding.fqn == fqn)
             .and_then(|binding| binding.intrinsic_entry_name.clone());
         if let Some(entry_name) = binding_entry_name
             .as_deref()
-            .or_else(|| crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn))
+            .or_else(|| self.published_named_intrinsic_entry_name_for_fqn(fqn))
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
                 entry_name,

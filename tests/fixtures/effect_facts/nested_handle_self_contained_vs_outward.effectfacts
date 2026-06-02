@@ -184,7 +184,7 @@ body_facts:
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise
   sample.nested_self_contained:
     blocks:
       bb0:
@@ -260,4 +260,4 @@ body_facts:
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise

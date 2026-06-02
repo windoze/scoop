@@ -1056,14 +1056,13 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                         surface_row,
                     )
                 } else {
-                    self.call_site_for_surface_row(
+                    self.call_site_for_bodyless_direct_surface(
                         types,
                         kind,
-                        CallSiteTarget::DynamicFallback,
+                        fqn,
                         invoke_args_tuple_ty,
                         result_ty,
                         surface_row,
-                        EffectPrecision::SignatureFallback,
                     )
                 }
             }
@@ -1078,15 +1077,13 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                         surface_row,
                     )
                 } else {
-                    self.call_site_for_surface_row(
-                        types,
-                        kind,
-                        CallSiteTarget::DynamicFallback,
-                        invoke_args_tuple_ty,
-                        result_ty,
-                        surface_row,
-                        EffectPrecision::SignatureFallback,
-                    )
+                    Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.KnownClosure",
+                        detail: format!(
+                            "{} closure target `{fn_ptr}` has no stable callable instance",
+                            self.callable_fun.fqn
+                        ),
+                    })
                 }
             }
             mir_effects::CallSiteTarget::Dynamic if matches!(kind, CallSiteKind::FunPtr) => {
@@ -1105,31 +1102,113 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                 invoke_args_tuple_ty,
                 result_ty,
                 surface_row,
-                EffectPrecision::SignatureFallback,
+                Self::dynamic_surface_precision(surface_row),
             ),
             mir_effects::CallSiteTarget::Param { .. }
-            | mir_effects::CallSiteTarget::Join { .. }
-            | mir_effects::CallSiteTarget::DynamicFallback { .. } => self
-                .call_site_for_surface_row(
+            | mir_effects::CallSiteTarget::Join { .. } => self.call_site_for_surface_row(
+                types,
+                kind,
+                CallSiteTarget::DynamicFallback,
+                invoke_args_tuple_ty,
+                result_ty,
+                surface_row,
+                Self::dynamic_surface_precision(surface_row),
+            ),
+            mir_effects::CallSiteTarget::DynamicFallback { reason } => match reason {
+                mir_effects::DynamicFallbackReason::OpenParam => self.call_site_for_surface_row(
                     types,
                     kind,
                     CallSiteTarget::DynamicFallback,
                     invoke_args_tuple_ty,
                     result_ty,
                     surface_row,
-                    EffectPrecision::SignatureFallback,
+                    Self::dynamic_surface_precision(surface_row),
                 ),
+                mir_effects::DynamicFallbackReason::UnknownCallable
+                    if matches!(kind, CallSiteKind::Closure | CallSiteKind::FunValue) =>
+                {
+                    self.call_site_for_surface_row(
+                        types,
+                        kind,
+                        CallSiteTarget::DynamicFallback,
+                        invoke_args_tuple_ty,
+                        result_ty,
+                        surface_row,
+                        Self::dynamic_surface_precision(surface_row),
+                    )
+                }
+                mir_effects::DynamicFallbackReason::NativeFunPtr
+                    if matches!(kind, CallSiteKind::FunPtr) =>
+                {
+                    Ok(CallSiteEffectFacts::new_plain(
+                        kind,
+                        CallSiteTarget::DynamicFallback,
+                        invoke_args_tuple_ty,
+                        CaseSet::new(self.callable_step_schema, Vec::new()),
+                        EffectPrecision::Precise,
+                    ))
+                }
+                mir_effects::DynamicFallbackReason::UnknownCallable
+                | mir_effects::DynamicFallbackReason::EmptyCandidateSet
+                | mir_effects::DynamicFallbackReason::NativeFunPtr => {
+                    Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.DynamicFallback",
+                        detail: format!(
+                            "{} site{} published unsupported fallback reason {reason:?}",
+                            self.callable_fun.fqn,
+                            target.site_id.as_u32()
+                        ),
+                    })
+                }
+            },
         }
+    }
+
+    fn dynamic_surface_precision(surface_row: &EffectRow) -> EffectPrecision {
+        if surface_row.is_pure() {
+            EffectPrecision::Precise
+        } else {
+            EffectPrecision::Widened
+        }
+    }
+
+    fn call_site_for_bodyless_direct_surface(
+        &mut self,
+        types: &mut TypeStore,
+        kind: CallSiteKind,
+        fqn: &str,
+        invoke_args_tuple_ty: TypeId,
+        result_ty: TypeId,
+        surface_row: &EffectRow,
+    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
+        if !surface_row.is_pure() {
+            return Err(EffectFactsError::MissingMirFact {
+                kind: "CallSiteTargetFact.DirectFunction",
+                detail: format!(
+                    "{} direct call target `{fqn}` has no stable callable instance for non-pure surface contract",
+                    self.callable_fun.fqn
+                ),
+            });
+        }
+        self.call_site_for_surface_row(
+            types,
+            kind,
+            CallSiteTarget::DynamicFallback,
+            invoke_args_tuple_ty,
+            result_ty,
+            surface_row,
+            EffectPrecision::Precise,
+        )
     }
 
     fn call_site_for_known_instance(
         &mut self,
-        types: &mut TypeStore,
+        _types: &mut TypeStore,
         kind: CallSiteKind,
         target_key: InstanceKey,
         invoke_args_tuple_ty: TypeId,
-        result_ty: TypeId,
-        surface_row: &EffectRow,
+        _result_ty: TypeId,
+        _surface_row: &EffectRow,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
         if let Some(facts) = self.callable_facts.get(&target_key) {
             if matches!(facts.call_abi_kind(), CallableAbiKind::Plain) {
@@ -1155,15 +1234,31 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                 precision,
             ));
         }
-        self.call_site_for_surface_row(
-            types,
-            kind,
-            CallSiteTarget::KnownInstance(target_key),
-            invoke_args_tuple_ty,
-            result_ty,
-            surface_row,
-            EffectPrecision::SignatureFallback,
-        )
+        if _surface_row.is_pure() {
+            let target = if !target_key.template.fqn.starts_with("scoop.delegates.")
+                || is_backend_intrinsic_bodyless_fqn(&target_key.template.fqn)
+            {
+                CallSiteTarget::DynamicFallback
+            } else {
+                CallSiteTarget::KnownInstance(target_key)
+            };
+            return self.call_site_for_surface_row(
+                _types,
+                kind,
+                target,
+                invoke_args_tuple_ty,
+                _result_ty,
+                _surface_row,
+                EffectPrecision::Precise,
+            );
+        }
+        Err(EffectFactsError::MissingMirFact {
+            kind: "CallableInstanceEffectFacts",
+            detail: format!(
+                "{} known call target `{}` has no callable effect facts for non-pure surface contract",
+                self.callable_fun.fqn, target_key.template.fqn
+            ),
+        })
     }
 
     fn call_site_for_candidate_set(
@@ -1940,6 +2035,15 @@ impl EffectFactsTypeContext {
             resume_tuple_ty,
         })
     }
+}
+
+fn is_backend_intrinsic_bodyless_fqn(fqn: &str) -> bool {
+    crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn).is_some()
+        || fqn == "scoop.unsafe.invoke"
+        || fqn == "scoop.unsafe.funPtrToUIntPtr"
+        || fqn == "scoop.unsafe.uintPtrToFunPtr"
+        || fqn.starts_with("scoop.unsafe.__atomicInt")
+        || fqn.starts_with("scoop.unsafe.__atomicRef")
 }
 
 fn collect_body_concrete_effect_ops_from_facts(
@@ -3960,10 +4064,7 @@ fun pureHelper(): Unit {}
             fun_value_facts.target(),
             CallSiteTarget::DynamicFallback
         ));
-        assert_eq!(
-            fun_value_facts.precision(),
-            EffectPrecision::SignatureFallback
-        );
+        assert_eq!(fun_value_facts.precision(), EffectPrecision::Widened);
         assert_eq!(
             facts
                 .step_schemas()

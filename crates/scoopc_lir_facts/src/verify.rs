@@ -4,9 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use scoopc_ids::StableLirCallableKey;
+
 use crate::{
-    LirCallTargetMode, LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts, LirFacts,
-    LirGlobalRootKey, LirGlobalRootKind, LirInitializerBodyKind, LirTypeContextBridgeMode,
+    LirCallTargetMode, LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts,
+    LirEffectPrecision, LirFacts, LirGlobalRootKey, LirGlobalRootKind, LirInitializerBodyKind,
+    LirTypeContextBridgeMode,
 };
 
 /// Result type returned by LIR fact verification.
@@ -1384,6 +1387,12 @@ fn verify_call_site_contract(
     owner: &str,
     contract: &crate::LirCallSiteContract,
 ) -> Result<()> {
+    if matches!(contract.precision, LirEffectPrecision::SignatureFallback) {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "call-site still uses signature-fallback precision",
+        });
+    }
     match contract.target_mode {
         LirCallTargetMode::KnownInstance => {
             let Some(exact) = &contract.exact_callee else {
@@ -1419,16 +1428,72 @@ fn verify_call_site_contract(
                 });
             }
         }
-        LirCallTargetMode::CandidateSet | LirCallTargetMode::DynamicFallback => {
+        LirCallTargetMode::CandidateSet => {
             if contract.exact_callee.is_some() {
                 return Err(VerifyError::InvalidExactCalleeBinding {
                     callable: owner.to_string(),
                     reason: "non-known-instance call must not publish exact callee binding",
                 });
             }
+            if contract.target_callables.is_empty() {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "candidate-set call must publish at least one target callable",
+                });
+            }
+        }
+        LirCallTargetMode::DynamicFallback => {
+            if contract.exact_callee.is_some() {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "non-known-instance call must not publish exact callee binding",
+                });
+            }
+            if matches!(
+                contract.kind,
+                crate::LirCallSiteKind::Direct
+                    | crate::LirCallSiteKind::Virtual
+                    | crate::LirCallSiteKind::Interface
+            ) && !is_bodyless_plain_call_surface(contract)
+            {
+                return Err(VerifyError::InvalidExactCalleeBinding {
+                    callable: owner.to_string(),
+                    reason: "direct and dispatch call sites must not use dynamic fallback targets",
+                });
+            }
+            for target in &contract.target_callables {
+                if !target_has_published_contract(facts, target) {
+                    return Err(VerifyError::InvalidExactCalleeBinding {
+                        callable: owner.to_string(),
+                        reason: "dynamic target callable is unpublished and has no ABI fact",
+                    });
+                }
+            }
         }
     }
     Ok(())
+}
+
+fn is_bodyless_plain_call_surface(contract: &crate::LirCallSiteContract) -> bool {
+    matches!(
+        contract.kind,
+        crate::LirCallSiteKind::Direct
+            | crate::LirCallSiteKind::Virtual
+            | crate::LirCallSiteKind::Interface
+    ) && matches!(contract.callee_abi_kind, crate::LirCallableAbiKind::Plain)
+        && matches!(contract.precision, LirEffectPrecision::Precise)
+        && contract.target_callables.is_empty()
+        && contract.callee_step_schema.is_none()
+        && contract.resolved_cases.is_empty()
+}
+
+fn target_has_published_contract(facts: &LirFacts, target: &StableLirCallableKey) -> bool {
+    facts.callables.contains_key(target)
+        || facts
+            .physical_layout
+            .abi_symbols
+            .values()
+            .any(|symbol| symbol.callable.as_ref() == Some(target))
 }
 
 fn verify_control_body(

@@ -748,6 +748,54 @@ mod tests {
     }
 
     #[test]
+    fn verifier_rejects_signature_fallback_call_precision() {
+        let callable_key =
+            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main");
+        let mut callable = plain_callable("app.main");
+        let LirCallableContract::Plain(plain) = &mut callable.contract else {
+            panic!("fixture plain callable should have plain contract");
+        };
+        plain.call_sites.push(LirPlainCallSiteFacts {
+            site_id: scoopc_ids::SiteId::from_raw(1),
+            source_slice: LirSourceSliceKey {
+                block_id: LirBodyBlockKey::new(0),
+                start_statement_index: 0,
+                end_statement_index: 1,
+                includes_terminator: false,
+            },
+            statement_index: 0,
+            contract: LirCallSiteContract {
+                kind: LirCallSiteKind::FunValue,
+                target_mode: LirCallTargetMode::DynamicFallback,
+                target_callables: Vec::new(),
+                exact_callee: None,
+                callee_abi_kind: LirCallableAbiKind::Plain,
+                invoke_args_tuple_ty: ty(2),
+                callee_step_schema: None,
+                resolved_cases: Vec::new(),
+                precision: LirEffectPrecision::SignatureFallback,
+            },
+            dynamic_invoke: None,
+            dispatch: None,
+        });
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                callables: BTreeMap::from([(callable_key, callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidExactCalleeBinding {
+                callable: "app.main".to_string(),
+                reason: "call-site still uses signature-fallback precision",
+            }
+        );
+    }
+
+    #[test]
     fn verifier_and_dump_publish_global_init_contracts() {
         let base = global_root(
             "app.Base",

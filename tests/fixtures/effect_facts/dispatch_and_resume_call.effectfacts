@@ -145,7 +145,7 @@ body_facts:
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise
   fixtures.mir.callVirtual:
     blocks:
       bb0:
