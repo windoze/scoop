@@ -143,6 +143,30 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    writeln!(
+        &mut out,
+        "  source_call_site_contracts={}",
+        facts.source_call_sites.len()
+    )
+    .expect("writing to String cannot fail");
+    for (key, site) in &facts.source_call_sites {
+        writeln!(
+            &mut out,
+            "    - owner={} site={} kind={:?} target_mode={:?} semantic_root={} named_entry={} exact_callee={}",
+            key.owner_callable.readable_path(),
+            key.site_id.as_u32(),
+            site.contract.kind,
+            site.contract.target_mode,
+            site.semantic_root_fqn.as_deref().unwrap_or("<none>"),
+            site.named_entry_name.as_deref().unwrap_or("<none>"),
+            site.contract
+                .exact_callee
+                .as_ref()
+                .map(|exact| exact.root_fqn.as_str())
+                .unwrap_or("<none>"),
+        )
+        .expect("writing to String cannot fail");
+    }
     writeln!(&mut out, "  dispatch_contracts={}", facts.dispatches.len())
         .expect("writing to String cannot fail");
     for (key, dispatch) in &facts.dispatches {

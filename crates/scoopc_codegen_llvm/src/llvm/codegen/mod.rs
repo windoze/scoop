@@ -51,6 +51,7 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
+use scoopc_ids::{SiteId, StableLirCallableKey};
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
@@ -74,6 +75,7 @@ use crate::ty::{
 use scoopc_lir_facts::{
     LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage, LirFacts,
     LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirSourceCallSiteFacts, LirSourceCallSiteKey,
 };
 
 use super::LlvmEmitError;
@@ -551,6 +553,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
     current_callable_fqn: Option<String>,
+    current_lir_callable_key: Option<StableLirCallableKey>,
     current_stable_owner_key: Option<StableDefKey>,
     current_stable_closure_path_prefix: Option<String>,
     next_stable_child_closure_index: usize,

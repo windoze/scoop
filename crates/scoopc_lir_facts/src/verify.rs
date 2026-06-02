@@ -256,6 +256,10 @@ pub enum VerifyError {
     MissingDynamicInvokeOwner {
         key: String,
     },
+    InvalidSourceCallSite {
+        key: String,
+        reason: &'static str,
+    },
     MissingDynamicInvokeTargetStep {
         key: String,
         step_schema: u32,
@@ -556,6 +560,9 @@ impl fmt::Display for VerifyError {
                     "LIR dynamic invoke `{key}` references a missing owner callable"
                 )
             }
+            Self::InvalidSourceCallSite { key, reason } => {
+                write!(f, "LIR source call-site `{key}` is invalid: {reason}")
+            }
             Self::MissingDynamicInvokeTargetStep { key, step_schema } => write!(
                 f,
                 "LIR dynamic invoke `{key}` references missing target StepSchema s{step_schema}"
@@ -601,6 +608,7 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_class_ctor_init_contracts(facts)?;
     verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
+    verify_source_call_site_contracts(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
     verify_dispatch_contracts(facts)?;
     verify_continuation_objects(facts)?;
@@ -1624,6 +1632,46 @@ fn verify_control_body(
     Ok(())
 }
 
+fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, site) in &facts.source_call_sites {
+        let key_text = source_call_site_key_text(key);
+        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
+            return Err(VerifyError::InvalidSourceCallSite {
+                key: key_text,
+                reason: "map key and payload identity differ",
+            });
+        }
+        if !facts.callables.contains_key(&key.owner_callable) {
+            return Err(VerifyError::InvalidSourceCallSite {
+                key: key_text,
+                reason: "owner callable is not published",
+            });
+        }
+        if site
+            .semantic_root_fqn
+            .as_ref()
+            .is_some_and(|root| root.is_empty())
+        {
+            return Err(VerifyError::InvalidSourceCallSite {
+                key: key_text,
+                reason: "semantic root is empty",
+            });
+        }
+        if site
+            .named_entry_name
+            .as_ref()
+            .is_some_and(|entry| entry.is_empty())
+        {
+            return Err(VerifyError::InvalidSourceCallSite {
+                key: key_text,
+                reason: "named intrinsic entry is empty",
+            });
+        }
+        verify_call_site_contract(facts, key.owner_callable.readable_path(), &site.contract)?;
+    }
+    Ok(())
+}
+
 fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
     for (key, contract) in &facts.dynamic_invokes {
         let key_text = dynamic_key_text(key);
@@ -1689,6 +1737,14 @@ fn verify_surface_resume_dispatches(facts: &LirFacts) -> Result<()> {
 }
 
 fn dynamic_key_text(key: &crate::LirDynamicInvokeKey) -> String {
+    format!(
+        "{}:site{}",
+        key.owner_callable.as_str(),
+        key.site_id.as_u32()
+    )
+}
+
+fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
     format!(
         "{}:site{}",
         key.owner_callable.as_str(),

@@ -475,6 +475,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir_fun.span,
         )?;
         self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
+        self.function_cx.current_lir_callable_key = callable.lir_callable_key().cloned();
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;

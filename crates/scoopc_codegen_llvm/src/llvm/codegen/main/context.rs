@@ -311,6 +311,60 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(hir::CallSite::new(source.path().to_path_buf(), span))
     }
 
+    pub(in crate::llvm::codegen) fn published_lir_source_call_site(
+        &self,
+        site_id: SiteId,
+    ) -> Option<&LirSourceCallSiteFacts> {
+        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        self.shared
+            .published_lir_facts
+            .source_call_sites
+            .get(&LirSourceCallSiteKey {
+                owner_callable: owner_callable.clone(),
+                site_id,
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn required_lir_source_call_site(
+        &self,
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirSourceCallSiteFacts, LlvmEmitError> {
+        self.published_lir_source_call_site(site_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR source call-site contract for owner `{}` site{}",
+                    self.function_cx
+                        .current_callable_fqn
+                        .as_deref()
+                        .unwrap_or("<unknown>"),
+                    site_id.as_u32()
+                ),
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_exact_callee_root(
+        &self,
+        site_id: SiteId,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        Ok(self
+            .required_lir_source_call_site(site_id, "published_lir_exact_callee_root")?
+            .contract
+            .exact_callee
+            .as_ref()
+            .map(|exact| exact.root_fqn.as_str()))
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_source_semantic_root(
+        &self,
+        site_id: SiteId,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        Ok(self
+            .required_lir_source_call_site(site_id, "published_lir_source_semantic_root")?
+            .semantic_root_fqn
+            .as_deref())
+    }
+
     pub(in crate::llvm::codegen) fn published_intrinsic_call_contract(
         &self,
         span: crate::span::Span,

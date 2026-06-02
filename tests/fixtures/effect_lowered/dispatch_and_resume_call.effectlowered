@@ -220,6 +220,8 @@ lir_facts {
     - step#5 invoke_args=t5 complete=t2 continuation_obj=t521 cases=2
     - step#6 invoke_args=t5 complete=t2 continuation_obj=t523 cases=1
   dynamic_invoke_contracts=0
+  source_call_site_contracts=1
+    - owner=fixtures.mir.callInterface site=0 kind=Interface target_mode=DynamicFallback semantic_root=<none> named_entry=<none> exact_callee=<none>
   dispatch_contracts=1
     - owner=fixtures.mir.callInterface site=0 kind=Interface dispatch_owner=fixtures.mir.IFace member=foo slot=0 interface_id=Some(6556192965737064677) candidates=0
   resume_packing_contracts=3

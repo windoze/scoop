@@ -31,6 +31,7 @@ pub struct LirFacts {
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
+    pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -50,6 +51,7 @@ pub struct LirFactGroups {
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
+    pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -73,6 +75,7 @@ impl LirFacts {
             type_context: LirTypeContextFacts::default(),
             source_signatures: BTreeMap::new(),
             intrinsic_callables: BTreeMap::new(),
+            source_call_sites: BTreeMap::new(),
             class_ctor_inits: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
@@ -108,6 +111,7 @@ impl LirFacts {
             type_context: groups.type_context,
             source_signatures: groups.source_signatures,
             intrinsic_callables: groups.intrinsic_callables,
+            source_call_sites: groups.source_call_sites,
             class_ctor_inits: groups.class_ctor_inits,
             callables: groups.callables,
             step_types: groups.step_types,
@@ -124,6 +128,7 @@ impl LirFacts {
         self.callables.is_empty()
             && self.source_signatures.is_empty()
             && self.intrinsic_callables.is_empty()
+            && self.source_call_sites.is_empty()
             && self.class_ctor_inits.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()

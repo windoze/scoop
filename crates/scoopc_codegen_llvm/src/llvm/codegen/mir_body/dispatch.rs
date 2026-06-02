@@ -585,6 +585,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call(
         &mut self,
         span: crate::span::Span,
+        site_id: Option<crate::mir::SiteId>,
         fqn: &str,
         args: &[crate::mir::CallArg],
         body: &crate::mir::Body,
@@ -594,6 +595,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
             span,
+            site_id,
             fqn,
             &[],
             args,
@@ -609,6 +611,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call_with_type_args(
         &mut self,
         span: crate::span::Span,
+        site_id: crate::mir::SiteId,
         fqn: &str,
         generic_type_args: &[TypeId],
         args: &[crate::mir::CallArg],
@@ -619,6 +622,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
             span,
+            Some(site_id),
             fqn,
             generic_type_args,
             args,
@@ -634,6 +638,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_direct_call(
         &mut self,
         span: crate::span::Span,
+        site_id: Option<crate::mir::SiteId>,
         fqn: &str,
         args: &[crate::mir::CallArg],
         body: &crate::mir::Body,
@@ -643,6 +648,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
             span,
+            site_id,
             fqn,
             &[],
             args,

@@ -699,6 +699,15 @@ pub struct LirDynamicInvokeKey {
     pub site_id: SiteId,
 }
 
+/// Stable source call-site identity scoped by owner callable and MIR/LIR site id.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct LirSourceCallSiteKey {
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
+}
+
 /// Stable dispatch identity scoped by owner callable and source site.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
@@ -900,6 +909,16 @@ pub struct LirPlainCallableFacts {
     pub body_slices: Vec<LirPlainBodySliceFacts>,
     pub call_sites: Vec<LirPlainCallSiteFacts>,
     pub local_effect_control: Option<LirControlBodyFacts>,
+}
+
+/// Source-body call-site contract keyed by LIR-owned call-site identity.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirSourceCallSiteFacts {
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
+    pub semantic_root_fqn: Option<String>,
+    pub named_entry_name: Option<String>,
+    pub contract: LirCallSiteContract,
 }
 
 /// Canonical dynamic callable surface for an effect-step callable.

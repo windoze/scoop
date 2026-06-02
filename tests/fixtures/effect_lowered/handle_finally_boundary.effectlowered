@@ -213,6 +213,14 @@ lir_facts {
     - step#0 invoke_args=t2 complete=t5 continuation_obj=t503 cases=2
     - step#2 invoke_args=t2 complete=t5 continuation_obj=t506 cases=2
   dynamic_invoke_contracts=0
+  source_call_site_contracts=7
+    - owner=fixtures.mir_lowered.main site=0 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.body_completes named_entry=<none> exact_callee=fixtures.mir_lowered.body_completes
+    - owner=fixtures.mir_lowered.main site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.handled_raise named_entry=<none> exact_callee=fixtures.mir_lowered.handled_raise
+    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=fixtures.mir_lowered.handled_raise site=2 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.handled_raise site=3 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=fixtures.mir_lowered.handled_raise site=4 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.body_completes site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> exact_callee=fixtures.mir_lowered.cleanup
   dispatch_contracts=0
   resume_packing_contracts=0
   continuation_object_contracts=2

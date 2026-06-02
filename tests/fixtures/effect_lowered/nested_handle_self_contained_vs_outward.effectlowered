@@ -206,6 +206,9 @@ lir_facts {
     - step#0 invoke_args=t2 complete=t5 continuation_obj=t505 cases=3
     - step#1 invoke_args=t2 complete=t5 continuation_obj=t508 cases=3
   dynamic_invoke_contracts=0
+  source_call_site_contracts=2
+    - owner=sample.nested_self_contained site=3 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
+    - owner=sample.nested_may_suspend_outward site=5 kind=Direct target_mode=DynamicFallback semantic_root=scoop.core.Int.plus named_entry=int_plus exact_callee=<none>
   dispatch_contracts=0
   resume_packing_contracts=1
   continuation_object_contracts=2

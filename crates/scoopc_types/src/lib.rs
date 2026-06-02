@@ -60,7 +60,7 @@ impl WireSchemaVersion {
 ///   closure identity contracts，避免 LLVM 回扫旧 side table。
 /// - 1.8：LIR facts 发布 intrinsic callable metadata，LLVM 只消费 fact 化 named
 ///   intrinsic entry，不再在 P6 通过 legacy scalar FQN fallback 补洞。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 8);
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 9);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

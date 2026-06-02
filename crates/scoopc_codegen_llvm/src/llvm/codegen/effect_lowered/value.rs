@@ -1764,7 +1764,35 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 );
             }
         };
-        match callee_fqn.as_str() {
+        let source_site = self.codegen.published_lir_source_call_site(site_id);
+        let source_site_missing = source_site.is_none();
+        if source_site_missing
+            && matches!(
+                kind,
+                mir::CallKind::Direct {
+                    stable_template_key: Some(_),
+                    ..
+                }
+            )
+        {
+            return Err(frontend_error(format!(
+                "direct call site{} lacks published LIR source call-site contract",
+                site_id.as_u32()
+            )));
+        }
+        let published_call_root = source_site
+            .and_then(|site| site.contract.exact_callee.as_ref())
+            .map(|exact| exact.root_fqn.clone());
+        let published_semantic_root = source_site.and_then(|site| site.semantic_root_fqn.clone());
+        let published_named_entry = source_site.and_then(|site| site.named_entry_name.clone());
+        let callee_fqn = published_call_root
+            .as_deref()
+            .unwrap_or(callee_fqn.as_str());
+        let source_intrinsic_root = published_semantic_root
+            .as_deref()
+            .or(published_call_root.as_deref())
+            .or_else(|| self.plain_call_target_root_fqn(site_id));
+        match callee_fqn {
             "scoop.core.GC.handleNew" => {
                 return self.codegen.codegen_mir_sysroot_gc_handle_new(
                     span,
@@ -1800,10 +1828,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_gc_debug_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_to_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_to_int_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_hash_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_hash_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.ToString.toString"
@@ -1821,26 +1849,23 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return self.lower_core_string_get_byte_call(span, args, target_cg);
         }
         if matches!(
-            callee_fqn.as_str(),
+            callee_fqn,
             "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
         ) && let Some(value) =
             self.maybe_lower_float_ext_call(span, callee_fqn, args, target_cg)?
         {
             return Ok(value);
         }
-        if let Some(value) = self.lower_atomic_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_atomic_int_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_atomic_ref_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_atomic_ref_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.panic" {
             return self.lower_panic_call(span, args);
         }
-        let intrinsic_base_fqn = self
-            .codegen
-            .published_intrinsic_function_fqn_for_call(span)?
-            .or_else(|| self.plain_call_target_root_fqn(site_id));
+        let intrinsic_base_fqn = source_intrinsic_root;
         if intrinsic_base_fqn == Some("scoop.unsafe.invoke") {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
@@ -1855,6 +1880,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callable_abi.uses_native_abi() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
+                Some(site_id),
                 callee_fqn,
                 args,
                 self.body,
@@ -1867,6 +1893,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callable_abi.is_extern() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
+                Some(site_id),
                 callee_fqn,
                 args,
                 self.body,
@@ -1876,13 +1903,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let named_intrinsic_entry = self
-            .codegen
-            .published_named_intrinsic_entry_name_for_call(span, None)?
-            .map(str::to_string);
-        let named_intrinsic_entry = if named_intrinsic_entry.is_some() {
-            named_intrinsic_entry
-        } else if let Some(root_fqn) = self.plain_call_target_root_fqn(site_id) {
+        let named_intrinsic_entry = if let Some(entry_name) = published_named_entry {
+            Some(entry_name)
+        } else if let Some(root_fqn) = source_intrinsic_root {
             self.codegen
                 .published_named_intrinsic_entry_name_for_root(root_fqn)?
                 .map(str::to_string)
@@ -1980,18 +2003,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_int_intrinsic(
         &mut self,
-        span: Span,
-        _callee_fqn: &str,
+        _span: Span,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let atomic_word = super::super::types::IntTy {
             bits: self.codegen.host.word_bit_width(),
             signed: true,
         };
-        let Some(base_fqn) = self
-            .codegen
-            .published_intrinsic_function_fqn_for_call(span)?
-        else {
+        let Some(base_fqn) = base_fqn else {
             return Ok(None);
         };
         match base_fqn {
@@ -2111,14 +2131,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_ref_intrinsic(
         &mut self,
-        span: Span,
-        _callee_fqn: &str,
+        _span: Span,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(base_fqn) = self
-            .codegen
-            .published_intrinsic_function_fqn_for_call(span)?
-        else {
+        let Some(base_fqn) = base_fqn else {
             return Ok(None);
         };
         match base_fqn {
@@ -2211,13 +2228,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_to_int_intrinsic(
         &mut self,
         span: Span,
-        _callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(base_fqn) = self
-            .codegen
-            .published_intrinsic_function_fqn_for_call(span)?
-        else {
+        let Some(base_fqn) = base_fqn else {
             return Ok(None);
         };
         if !matches!(
@@ -2312,13 +2326,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_hash_intrinsic(
         &mut self,
         span: Span,
-        _callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(base_fqn) = self
-            .codegen
-            .published_intrinsic_function_fqn_for_call(span)?
-        else {
+        let Some(base_fqn) = base_fqn else {
             return Ok(None);
         };
         if base_fqn != "scoop.core.hash" {

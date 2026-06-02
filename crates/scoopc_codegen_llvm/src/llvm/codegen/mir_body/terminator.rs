@@ -378,11 +378,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span, value, *op, *target_ty, metadata, mir_types, slots, target_cg,
             ),
             crate::mir::Rvalue::Call {
+                site_id,
                 kind,
                 args,
                 transport,
-                ..
-            } => self.codegen_mir_call(span, kind, args, transport, body, mir_types, slots),
+            } => self.codegen_mir_call(
+                span, *site_id, kind, args, transport, body, mir_types, slots,
+            ),
             crate::mir::Rvalue::PatternMatch { subject, pattern } => {
                 self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
             }

@@ -979,22 +979,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn) {
             return Ok(intrinsic.named_entry_name.as_deref());
         }
-        let mut matches = self
-            .intrinsic_call_contracts
-            .values()
-            .filter(|contract| contract.function_fqn == root_fqn)
-            .filter_map(|contract| contract.named_entry_name.as_deref());
-        let Some(entry_name) = matches.next() else {
-            return Ok(None);
-        };
-        if matches.any(|candidate| candidate != entry_name) {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "intrinsic root `{root_fqn}` published conflicting named intrinsic entries"
-                ),
-            });
-        }
-        Ok(Some(entry_name))
+        Ok(None)
     }
 
     pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_call_or_root(

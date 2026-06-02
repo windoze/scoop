@@ -129,6 +129,9 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
     let lir = super::lir_facts_builder::attach_lir_identity(lir, effect_facts.types())?;
     let lir_facts = super::lir_facts_builder::build_lir_facts(
         &lir,
+        mir_stage_output
+            .hir_semantic_artifact()
+            .map(|artifact| artifact.hir_facts()),
         mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         &effect_facts,
@@ -497,7 +500,7 @@ mod tests {
     use crate::source::SourceFile;
     use scoopc_lir_facts::{
         LirCallSiteKind, LirCallTargetMode, LirCallableContract, LirCallableSymbolKind,
-        LirGlobalRootKind, LirGlobalStoragePolicy,
+        LirGlobalRootKind, LirGlobalStoragePolicy, LirSourceCallSiteKey,
     };
 
     fn session() -> Session {
@@ -793,10 +796,10 @@ fun main(): Int {
     fn effect_lowered_lir_facts_publish_exact_callee_binding() {
         let output = run_sample();
         let facts = output.lir_facts();
-        let main = facts
+        let (main_key, main) = facts
             .callables
-            .values()
-            .find(|callable| callable.root_fqn() == "sample.main")
+            .iter()
+            .find(|(_, callable)| callable.root_fqn() == "sample.main")
             .expect("sample.main callable facts should be published");
         let LirCallableContract::Plain(plain) = &main.contract else {
             panic!("sample.main should publish a plain ABI contract");
@@ -830,6 +833,21 @@ fun main(): Int {
         assert_eq!(
             symbol.exported_symbol.as_deref(),
             Some(exact.abi_symbol.as_str())
+        );
+        let source_site = facts
+            .source_call_sites
+            .get(&LirSourceCallSiteKey {
+                owner_callable: main_key.clone(),
+                site_id: site.site_id,
+            })
+            .expect("plain call-site should also publish an identity-keyed source contract");
+        assert_eq!(
+            source_site
+                .contract
+                .exact_callee
+                .as_ref()
+                .map(|exact| exact.root_fqn.as_str()),
+            Some("sample.helper")
         );
         assert!(facts.verify().is_ok());
     }

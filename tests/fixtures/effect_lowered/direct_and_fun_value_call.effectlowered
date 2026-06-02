@@ -209,6 +209,8 @@ lir_facts {
       plain_abi: function_ty=t501 params=2 return=t5 body_slices=1 call_sites=1
   step_types=0
   dynamic_invoke_contracts=0
+  source_call_site_contracts=1
+    - owner=a.callFn site=0 kind=FunValue target_mode=DynamicFallback semantic_root=<none> named_entry=<none> exact_callee=<none>
   dispatch_contracts=0
   resume_packing_contracts=0
   continuation_object_contracts=0

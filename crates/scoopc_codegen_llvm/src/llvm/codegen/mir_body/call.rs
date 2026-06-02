@@ -9,6 +9,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_call(
         &mut self,
         span: crate::span::Span,
+        site_id: crate::mir::SiteId,
         kind: &crate::mir::CallKind,
         args: &[crate::mir::CallArg],
         transport: &crate::mir::CallTransportMetadata,
@@ -27,6 +28,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 self.codegen_mir_direct_call_with_type_args(
                     span,
+                    site_id,
                     callee_fqn,
                     generic_type_args,
                     args,
@@ -86,6 +88,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call_with_policy(
         &mut self,
         span: crate::span::Span,
+        site_id: Option<crate::mir::SiteId>,
         fqn: &str,
         generic_type_args: &[TypeId],
         args: &[crate::mir::CallArg],
@@ -95,14 +98,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         require_plain_surface: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let concrete_fqn = self
-            .published_instantiated_call_fqn(span)?
+        let source_site = site_id.and_then(|site_id| self.published_lir_source_call_site(site_id));
+        if source_site.is_none() && site_id.is_some() && !generic_type_args.is_empty() {
+            return Err(frontend_error(format!(
+                "generic direct call `{fqn}` lacks published LIR source call-site contract"
+            )));
+        }
+        let concrete_fqn = source_site
+            .and_then(|site| site.contract.exact_callee.as_ref())
+            .map(|exact| exact.root_fqn.clone())
             .or_else(|| instantiated_mir_callee_fqn(fqn, generic_type_args, mir_types))
             .unwrap_or_else(|| fqn.to_string());
         let concrete_fqn = concrete_fqn.as_str();
-        if let Some(entry_name) = self
-            .published_named_intrinsic_entry_name_for_call_or_root(span, concrete_fqn, None)?
+        let semantic_root = source_site.and_then(|site| site.semantic_root_fqn.as_deref());
+        let named_intrinsic_entry = if let Some(entry_name) = source_site
+            .and_then(|site| site.named_entry_name.as_deref())
             .map(str::to_string)
+        {
+            Some(entry_name)
+        } else {
+            self.published_named_intrinsic_entry_name_for_root(
+                semantic_root.unwrap_or(concrete_fqn),
+            )?
+            .map(str::to_string)
+        };
+        if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
                 &entry_name,
