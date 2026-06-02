@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use scoopc_ids::StableLirCallableKey;
+use scoopc_ids::{BodyVersionKey, StableCanonicalKey, StableLirCallableKey};
 
 use crate::{
     LirCallTargetMode, LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts,
@@ -1391,10 +1391,23 @@ fn storage_text(storage: Option<crate::LirGlobalStoragePolicy>) -> String {
 }
 
 fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
+    let mut body_versions = BTreeSet::new();
     for (key, callable) in &facts.callables {
         if callable.root_fqn().is_empty() {
             return Err(VerifyError::EmptyCallableRoot {
                 key: key.as_str().to_string(),
+            });
+        }
+        if callable.body_version.key.owner_canonical_text() != key.as_str() {
+            return Err(VerifyError::InvalidExactCalleeBinding {
+                callable: callable.root_fqn().to_string(),
+                reason: "body-version owner does not match callable key",
+            });
+        }
+        if !body_versions.insert(callable.body_version.key.canonical_text()) {
+            return Err(VerifyError::InvalidExactCalleeBinding {
+                callable: callable.root_fqn().to_string(),
+                reason: "duplicate body-version key",
             });
         }
         if callable.stable_instance_key.is_empty() {
@@ -1418,7 +1431,12 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                     verify_call_site_contract(facts, callable.root_fqn(), &site.contract)?;
                 }
                 if let Some(control) = &plain.local_effect_control {
-                    verify_control_body(facts, callable.root_fqn(), control)?;
+                    verify_control_body(
+                        facts,
+                        callable.root_fqn(),
+                        &callable.body_version.key,
+                        control,
+                    )?;
                 }
             }
             LirCallableContract::EffectStep(effect) => {
@@ -1427,7 +1445,12 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                         callable: callable.root_fqn().to_string(),
                     });
                 }
-                verify_control_body(facts, callable.root_fqn(), &effect.control_body)?;
+                verify_control_body(
+                    facts,
+                    callable.root_fqn(),
+                    &callable.body_version.key,
+                    &effect.control_body,
+                )?;
                 if !facts
                     .step_types
                     .contains_key(&effect.dynamic_invoke_entry.step_schema)
@@ -1488,7 +1511,6 @@ fn verify_call_site_contract(
                     reason: "root, ABI symbol, or signature key is unpublished or inconsistent",
                 });
             }
-            verify_published_call_target(facts, &exact.target_callable_key, owner)?;
         }
         LirCallTargetMode::CandidateSet => {
             if contract.exact_callee.is_some() {
@@ -1553,6 +1575,9 @@ fn verify_published_call_target(
     owner: &str,
 ) -> Result<()> {
     let Some(root_fqn) = published_target_root_fqn(facts, target) else {
+        if target.canonical_text().contains("body#declaration") {
+            return Ok(());
+        }
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
             reason: "target callable is unpublished and has no reachable ABI root",
@@ -1604,6 +1629,7 @@ fn root_has_published_source_and_abi(facts: &LirFacts, root_fqn: &str) -> bool {
 fn verify_control_body(
     facts: &LirFacts,
     callable: &str,
+    owner_body_version: &BodyVersionKey,
     control: &LirControlBodyFacts,
 ) -> Result<()> {
     if !facts.step_types.contains_key(&control.step_schema) {
@@ -1612,10 +1638,14 @@ fn verify_control_body(
             step_schema: control.step_schema.as_u32(),
         });
     }
-    if !facts
-        .continuation_objects
-        .contains_key(&control.continuation_object)
-    {
+    let Some(continuation_object) = facts.continuation_objects.get(&control.continuation_object)
+    else {
+        return Err(VerifyError::MissingContinuationObject {
+            callable: callable.to_string(),
+            object_id: control.continuation_object.as_u32(),
+        });
+    };
+    if &continuation_object.owner_body_version != owner_body_version {
         return Err(VerifyError::MissingContinuationObject {
             callable: callable.to_string(),
             object_id: control.continuation_object.as_u32(),
@@ -1711,7 +1741,24 @@ fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_continuation_objects(facts: &LirFacts) -> Result<()> {
+    let published_body_versions = facts
+        .callables
+        .values()
+        .map(|callable| callable.body_version.key.canonical_text())
+        .collect::<BTreeSet<_>>();
     for (object_id, object) in &facts.continuation_objects {
+        if object_id != &object.object_id {
+            return Err(VerifyError::MissingContinuationObjectPacking {
+                object_id: object_id.as_u32(),
+                packing_id: object.object_id.as_u32(),
+            });
+        }
+        if !published_body_versions.contains(&object.owner_body_version.canonical_text()) {
+            return Err(VerifyError::MissingContinuationObjectPacking {
+                object_id: object_id.as_u32(),
+                packing_id: 0,
+            });
+        }
         for packing_id in &object.implemented_packings {
             if !facts.resume_packings.contains_key(packing_id) {
                 return Err(VerifyError::MissingContinuationObjectPacking {

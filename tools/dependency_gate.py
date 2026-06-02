@@ -884,6 +884,30 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LLVM stage handoff must not rebuild intrinsic/direct-call metadata from source-span top-level call binding side tables",
                 ),
                 fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM stage handoff must not publish source-span intrinsic/direct-call contracts",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM stage handoff must not key call contracts by source path and span",
+                ),
+                fp(
+                    "build_intrinsic_call_contracts",
+                    "LLVM stage handoff must not rebuild intrinsic metadata from HIR source-site spans",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM stage handoff must not carry source-span intrinsic/direct-call side tables",
+                ),
+                fp(
+                    "class_vtables",
+                    "LLVM stage handoff must not pass source vtable side tables into P6",
+                ),
+                fp(
+                    "class_itables",
+                    "LLVM stage handoff must not pass source itable side tables into P6",
+                ),
+                fp(
                     "build_dispatch_call_contracts",
                     "LLVM stage handoff must consume published LIR dispatch contracts instead of rebuilding a source-span dispatch table",
                 ),
@@ -909,6 +933,30 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "LlvmDispatchCallKey",
                     "LLVM handoff must not key dispatch lowering by source-span side-table identities",
+                ),
+                fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM handoff must not expose source-span intrinsic/direct-call contract types",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM handoff must not expose source path/span call contract keys",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM handoff must not carry source-span intrinsic/direct-call side tables",
+                ),
+                fp(
+                    "ClassVtableIndex",
+                    "LLVM handoff must not expose source vtable side-table types",
+                ),
+                fp(
+                    "InterfaceIndex",
+                    "LLVM handoff must not expose source interface side-table types",
+                ),
+                fp(
+                    "ClassItableIndex",
+                    "LLVM handoff must not expose source itable side-table types",
                 ),
             ),
         ),
@@ -1026,6 +1074,26 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "LlvmDispatchCallKey",
                     "LLVM production codegen context must not key dispatch lowering by source-span side-table identities",
+                ),
+                fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM production codegen context must not retain source-span intrinsic contracts",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM production codegen context must not retain source path/span call keys",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM production codegen context must not retain source-span intrinsic side tables",
+                ),
+                fp(
+                    "class_vtables:",
+                    "LLVM production codegen context must consume LIR physical layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "class_itables:",
+                    "LLVM production codegen context must consume LIR physical layout facts instead of source itable side tables",
                 ),
             ),
         ),
@@ -1155,6 +1223,30 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "split_once(\"$overload",
                     "direct call lowering must not parse overload FQN text to recover callable roots",
                 ),
+                fp(
+                    "try_codegen_class_vtable_call",
+                    "direct call lowering must not route source calls through backend vtable side-table fallback",
+                ),
+                fp(
+                    "try_codegen_interface_itable_call",
+                    "direct call lowering must not route source calls through backend itable side-table fallback",
+                ),
+                fp(
+                    "published_instantiated_call_fqn",
+                    "direct call lowering must use LIR source call-site facts instead of source-span instantiated FQN lookup",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_call_or_root",
+                    "direct call lowering must not fall back from source-span intrinsic metadata to root lookup wrappers",
+                ),
+                fp(
+                    "self.class_vtables",
+                    "direct call lowering must not consume source vtable side tables",
+                ),
+                fp(
+                    "self.interfaces",
+                    "direct call lowering must not consume source interface side tables",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1242,6 +1334,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "MIR direct call lowering must not parse generic FQN text to recover callable roots",
                 ),
                 fp(
+                    "published_instantiated_call_fqn",
+                    "MIR direct call lowering must use LIR source call-site facts instead of source-span instantiated FQN lookup",
+                ),
+                fp(
                     "split_once(\"$overload",
                     "MIR direct call lowering must not parse overload FQN text to recover callable roots",
                 ),
@@ -1259,6 +1355,41 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "is_backend_intrinsic_bodyless_fqn",
                     "P4 fact builder must not keep task-private backend intrinsic bodyless FQN fallback helpers",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR facts builder fallback residuals",
+            "fact-boundary",
+            "crates/scoopc/src/pipeline/lir_facts_builder.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "LIR facts builder must consume explicitly published intrinsic metadata, not FQN fallback lookup",
+                ),
+                fp(
+                    "known_named_intrinsic_roots",
+                    "LIR facts builder must not use static intrinsic root inventories as facts",
+                ),
+                fp(
+                    "source_sites.call_site(",
+                    "LIR facts builder must not recover call-site metadata by source path/span lookup",
+                ),
+                fp(
+                    "target.readable_path().to_string()",
+                    "LIR facts builder must not infer roots from target readable paths",
+                ),
+                fp(
+                    "target_callable_key.readable_path().to_string()",
+                    "LIR facts builder must not infer roots from callable-key readable paths",
+                ),
+                fp(
+                    "dispatch_layout_impl_roots",
+                    "LIR facts builder must not synthesize ABI symbols from root-only dispatch layout scans",
+                ),
+                fp(
+                    "insert_declaration_abi_symbol_if_missing",
+                    "LIR facts builder must not synthesize declaration ABI symbols from root-only source signatures",
                 ),
             ),
         ),
@@ -1360,6 +1491,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "published_dispatch_target_fqn",
                     "dispatch target declaration must not recover generic target roots by scanning FQN prefixes",
                 ),
+                fp(
+                    "self.class_vtables",
+                    "dispatch target declaration must consume LIR physical layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "self.class_itables",
+                    "dispatch target declaration must consume LIR physical layout facts instead of source itable side tables",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1374,6 +1513,49 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "declare_top_level_fun(",
                     "MIR dispatch helpers must not declare dispatch targets through HIR functions",
+                ),
+                fp(
+                    "self.class_vtables",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "self.interfaces",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source interface side tables",
+                ),
+                fp(
+                    "self.class_itables",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source itable side tables",
+                ),
+                fp(
+                    "rsplit_once('.')",
+                    "MIR dispatch helpers must not parse dispatch owner from FQN text",
+                ),
+                fp(
+                    "slot.name ==",
+                    "MIR dispatch helpers must not recover slots by method-name matching",
+                ),
+                fp(
+                    "params_len == explicit_arg_count",
+                    "MIR dispatch helpers must not recover slots by arity matching",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM dynamic-invoke target lookup",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/lookup.rs",
+            (
+                fp(
+                    "key.readable_path()",
+                    "dynamic-invoke target lookup must not infer roots from callable-key readable paths",
+                ),
+                fp(
+                    "contains_key(readable)",
+                    "dynamic-invoke target lookup must not validate readable-path root fallbacks",
+                ),
+                fp(
+                    "then(|| readable.to_string())",
+                    "dynamic-invoke target lookup must not return readable-path root fallbacks",
                 ),
             ),
         ),

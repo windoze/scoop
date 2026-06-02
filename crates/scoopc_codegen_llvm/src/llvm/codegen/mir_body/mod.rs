@@ -34,6 +34,7 @@ pub(in crate::llvm::codegen) enum PlainDispatchTarget {
         signature: CodegenCallableSignature,
     },
     Interface {
+        interface_fqn: String,
         interface_id: u64,
         slot: u32,
         receiver_ty: TypeId,

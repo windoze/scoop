@@ -41,7 +41,7 @@ pub use emit::{
 };
 pub use handoff::{
     CachedDepArtifactHandoff, LlvmArtifactKind, LlvmCallableSourceContract, LlvmCodegenStageOutput,
-    LlvmIntrinsicCallContract, LlvmSourceCallKey, LlvmStageBaseContext,
+    LlvmStageBaseContext,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 

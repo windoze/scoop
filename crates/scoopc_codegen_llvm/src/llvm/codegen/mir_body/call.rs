@@ -678,9 +678,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dynamic_call(
         &mut self,
         span: crate::span::Span,
+        site_id: Option<crate::mir::SiteId>,
         kind: &crate::mir::CallKind,
         args: &[crate::mir::CallArg],
         body: &crate::mir::Body,
@@ -688,7 +690,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_plain_dynamic_call_with_policy(
-            span, kind, args, body, mir_types, slots, true,
+            span, site_id, kind, args, body, mir_types, slots, true,
         )
     }
 
@@ -696,6 +698,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dynamic_call_with_policy(
         &mut self,
         span: crate::span::Span,
+        site_id: Option<crate::mir::SiteId>,
         kind: &crate::mir::CallKind,
         args: &[crate::mir::CallArg],
         body: &crate::mir::Body,
@@ -782,8 +785,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     (body, mir_types, slots),
                 )
             }
-            crate::mir::CallKind::Virtual { receiver, dispatch } => {
-                let target = self.resolve_plain_virtual_dispatch_target(dispatch, args.len())?;
+            crate::mir::CallKind::Virtual { receiver, .. } => {
+                let site_id = site_id.ok_or_else(|| {
+                    frontend_error("plain virtual dispatch missing LIR site id".to_string())
+                })?;
+                let target = self.resolve_plain_virtual_dispatch_target(site_id, args.len())?;
                 self.codegen_mir_plain_dispatch_call(
                     span,
                     receiver,
@@ -794,8 +800,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     allow_effect_typed_dispatch_signature,
                 )
             }
-            crate::mir::CallKind::Interface { receiver, dispatch } => {
-                let target = self.resolve_plain_interface_dispatch_target(dispatch, args.len())?;
+            crate::mir::CallKind::Interface { receiver, .. } => {
+                let site_id = site_id.ok_or_else(|| {
+                    frontend_error("plain interface dispatch missing LIR site id".to_string())
+                })?;
+                let target = self.resolve_plain_interface_dispatch_target(site_id, args.len())?;
                 self.codegen_mir_plain_dispatch_call(
                     span,
                     receiver,

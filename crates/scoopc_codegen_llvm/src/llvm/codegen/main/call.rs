@@ -205,26 +205,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_enter_native_for_extern_call_impl(at)
     }
 
-    pub(in crate::llvm::codegen) fn try_codegen_class_vtable_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        self.try_codegen_class_vtable_call_impl(span, callee_span, fqn, args)
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_interface_itable_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        self.try_codegen_interface_itable_call_impl(span, callee_span, fqn, args)
-    }
-
     pub(in crate::llvm::codegen) fn load_class_vtable_slot_fn_ptr_i8(
         &mut self,
         _at: crate::span::Span,

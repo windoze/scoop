@@ -365,46 +365,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .as_deref())
     }
 
-    pub(in crate::llvm::codegen) fn published_intrinsic_call_contract(
+    pub(in crate::llvm::codegen) fn published_lir_dispatch(
         &self,
-        span: crate::span::Span,
-    ) -> Result<Option<&crate::llvm::LlvmIntrinsicCallContract>, LlvmEmitError> {
-        let source = self.current_source()?;
-        let key = crate::llvm::LlvmSourceCallKey::new(source.path().to_path_buf(), span);
-        if let Some(contract) = self.intrinsic_call_contracts.get(&key) {
-            return Ok(Some(contract));
-        }
-        let mut matches = self
-            .intrinsic_call_contracts
-            .iter()
-            .filter(|(key, _)| key.span == span)
-            .map(|(_, contract)| contract);
-        let Some(contract) = matches.next() else {
-            return Ok(None);
-        };
-        if matches.next().is_some() {
-            return Ok(None);
-        }
-        Ok(Some(contract))
+        site_id: SiteId,
+    ) -> Option<&LirDispatchContract> {
+        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        self.shared
+            .published_lir_facts
+            .dispatches
+            .get(&LirDispatchKey {
+                owner_callable: owner_callable.clone(),
+                site_id,
+            })
     }
 
-    pub(in crate::llvm::codegen) fn published_instantiated_call_fqn(
+    pub(in crate::llvm::codegen) fn required_lir_dispatch(
         &self,
-        span: crate::span::Span,
-    ) -> Result<Option<String>, LlvmEmitError> {
-        let Some(contract) = self.published_intrinsic_call_contract(span)? else {
-            return Ok(None);
-        };
-        if contract.type_args.is_empty() {
-            return Ok(Some(contract.function_fqn.clone()));
-        }
-        let args = contract
-            .type_args
-            .iter()
-            .map(|ty| self.types.display(*ty).to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        Ok(Some(format!("{}::<{}>", contract.function_fqn, args)))
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirDispatchContract, LlvmEmitError> {
+        self.published_lir_dispatch(site_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR dispatch contract for owner `{}` site{}",
+                    self.function_cx
+                        .current_callable_fqn
+                        .as_deref()
+                        .unwrap_or("<unknown>"),
+                    site_id.as_u32()
+                ),
+            })
     }
 
     pub(in crate::llvm::codegen) fn source_id_for_path(

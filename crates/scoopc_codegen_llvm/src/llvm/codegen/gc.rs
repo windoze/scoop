@@ -1427,9 +1427,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
-        let Some(entries) = self.class_itables.get(class_fqn) else {
+        let Some(itable) = self
+            .published_lir_facts
+            .physical_layout
+            .class_itables
+            .get(class_fqn)
+        else {
             return Ok(None);
         };
+        let entries = itable.entries.as_slice();
         if entries.is_empty() {
             return Ok(None);
         }
@@ -1442,7 +1448,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         owner_key: &K,
-        entries: &[crate::itable::ClassItableEntry],
+        entries: &[LirClassItableEntryFacts],
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError>
     where
         K: StableCanonicalKey + ?Sized,
@@ -1649,7 +1655,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
-        let Some(slots) = self.class_vtables.get(class_fqn) else {
+        let Some(slots) = self
+            .published_lir_facts
+            .physical_layout
+            .class_vtables
+            .get(class_fqn)
+        else {
             return Ok(None);
         };
         if slots.is_empty() {

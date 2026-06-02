@@ -73,9 +73,10 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_lir_facts::{
-    LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage, LirFacts,
-    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
-    LirSourceCallSiteFacts, LirSourceCallSiteKey,
+    LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirClassItableEntryFacts,
+    LirDispatchContract, LirDispatchKey, LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts,
+    LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy, LirSourceCallSiteFacts,
+    LirSourceCallSiteKey,
 };
 
 use super::LlvmEmitError;
@@ -487,8 +488,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    intrinsic_call_contracts:
-        &'a HashMap<crate::llvm::LlvmSourceCallKey, crate::llvm::LlvmIntrinsicCallContract>,
     extern_funs: &'a hir::ExternFunIndex,
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
@@ -496,9 +495,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     release_hooks: &'a hir::ReleaseHookIndex,
     class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    class_vtables: &'a crate::vtable::ClassVtableIndex,
-    interfaces: &'a crate::itable::InterfaceIndex,
-    class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     #[allow(dead_code)]
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
@@ -828,16 +824,11 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    pub(super) intrinsic_call_contracts:
-        &'a HashMap<crate::llvm::LlvmSourceCallKey, crate::llvm::LlvmIntrinsicCallContract>,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) release_hooks: &'a hir::ReleaseHookIndex,
     pub(super) class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub(super) interfaces: &'a crate::itable::InterfaceIndex,
-    pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -886,15 +877,11 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            intrinsic_call_contracts,
             native_callable_funs,
             object_inits,
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
             ctor_call_sites,
             effect_op_call_sites,
             continuation_resume_call_sites,
@@ -929,16 +916,12 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            intrinsic_call_contracts,
             extern_funs,
             native_callable_funs,
             object_inits,
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
             ctor_call_sites,
             effect_op_call_sites,
             continuation_resume_call_sites,

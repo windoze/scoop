@@ -12,7 +12,7 @@ use crate::hir::{
 };
 use crate::intrinsics::{
     NamedIntrinsicLoweringMode, legacy_scalar_named_intrinsic_entry_name_for_fqn,
-    named_intrinsic_audit_entry,
+    named_intrinsic_audit_entry, named_intrinsic_entry_name_for_root,
 };
 use crate::resolve::Index;
 use crate::session::Session;
@@ -3682,19 +3682,23 @@ fn call_site_contract_kind_fact(
     contract: &TypedCallSiteContract,
 ) -> hir_site_facts::CallSiteContractKind {
     match contract {
-        TypedCallSiteContract::DirectTopLevel(function) => {
-            hir_site_facts::CallSiteContractKind::DirectTopLevel(function_target_fact(function))
-        }
-        TypedCallSiteContract::MemberDirect(member) => {
-            hir_site_facts::CallSiteContractKind::MemberDirect(member_call_target_fact(member))
-        }
+        TypedCallSiteContract::DirectTopLevel(function) => intrinsic_call_site_fact(function)
+            .unwrap_or_else(|| {
+                hir_site_facts::CallSiteContractKind::DirectTopLevel(function_target_fact(function))
+            }),
+        TypedCallSiteContract::MemberDirect(member) => intrinsic_call_site_fact(&member.function)
+            .unwrap_or_else(|| {
+                hir_site_facts::CallSiteContractKind::MemberDirect(member_call_target_fact(member))
+            }),
         TypedCallSiteContract::Extension {
             receiver_ty,
             function,
-        } => hir_site_facts::CallSiteContractKind::Extension {
-            receiver_ty: *receiver_ty,
-            function: function_target_fact(function),
-        },
+        } => intrinsic_call_site_fact(function).unwrap_or_else(|| {
+            hir_site_facts::CallSiteContractKind::Extension {
+                receiver_ty: *receiver_ty,
+                function: function_target_fact(function),
+            }
+        }),
         TypedCallSiteContract::Constructor(ctor) => {
             hir_site_facts::CallSiteContractKind::Constructor(constructor_call_target_fact(ctor))
         }
@@ -3771,6 +3775,23 @@ fn call_site_contract_arg_binding(
         | TypedCallSiteContract::EffectOp(_)
         | TypedCallSiteContract::ContinuationResume(_) => None,
     }
+}
+
+fn intrinsic_call_site_fact(
+    function: &FunctionTargetContract,
+) -> Option<hir_site_facts::CallSiteContractKind> {
+    let entry_name = named_intrinsic_entry_name_for_root(&function.fqn)?;
+    let entry = named_intrinsic_audit_entry(entry_name)?;
+    Some(hir_site_facts::CallSiteContractKind::Intrinsic {
+        kind: hir_site_facts::IntrinsicKind::NamedTable {
+            entry_name: entry_name.to_string(),
+            uses_runtime_call: matches!(
+                entry.lowering_mode,
+                NamedIntrinsicLoweringMode::RuntimeCall
+            ),
+        },
+        function: function_target_fact(function),
+    })
 }
 
 fn call_site_instance_fact(

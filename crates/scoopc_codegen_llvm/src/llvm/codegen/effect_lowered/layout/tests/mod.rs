@@ -181,9 +181,6 @@ fn with_inputs_query_result(
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
     let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -200,14 +197,10 @@ fn with_inputs_query_result(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        intrinsic_call_contracts: base.intrinsic_call_contracts(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
         release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
         continuation_resume_call_sites: base.continuation_resume_call_sites(),
@@ -256,9 +249,6 @@ fn with_inputs_query_result_and_cached_deps(
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
     let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -275,14 +265,10 @@ fn with_inputs_query_result_and_cached_deps(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        intrinsic_call_contracts: base.intrinsic_call_contracts(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
         release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
         continuation_resume_call_sites: base.continuation_resume_call_sites(),
@@ -332,9 +318,6 @@ fn with_inputs_query_result_for_source_types(
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
     let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -351,14 +334,10 @@ fn with_inputs_query_result_for_source_types(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        intrinsic_call_contracts: base.intrinsic_call_contracts(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
         release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
         continuation_resume_call_sites: base.continuation_resume_call_sites(),
@@ -407,9 +386,6 @@ fn with_inputs_query_result_and_codegen(
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
     let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -426,14 +402,10 @@ fn with_inputs_query_result_and_codegen(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        intrinsic_call_contracts: base.intrinsic_call_contracts(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
         release_hooks: &empty_release_hooks,
         class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
         continuation_resume_call_sites: base.continuation_resume_call_sites(),

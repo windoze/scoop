@@ -1,30 +1,29 @@
-# Claude Execution Plan
+# 执行计划
 
-## Scope
-- Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after that task is implemented, validated, documented in `TODO.md`, and committed.
+## 当前状态
 
-## Step-by-Step Plan
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Check recent git context only as needed for that task, including whether the latest commit mentions an unfinished issue directly relevant to it.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the smallest spec-correct change that fully satisfies the selected task.
-5. Add or update focused tests/fixtures required by the task.
-6. Run formatting first, then linting, then relevant and full validation as required by the task and repository policy.
-7. If validation exposes unscheduled failures, fix them if in scope or add the minimum prerequisite task(s) to `TODO.md` before marking the task complete.
-8. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record.
-9. Commit all intended changes with a task-scoped message.
-10. Stop without starting the next task.
+- 本次调用目标：按 `TODO.md` 顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 约束：不跳过 review 任务，不做开放式历史问题清扫；若发现阻塞当前任务的缺口，先修复或在 `TODO.md` 中插入最小 prerequisite 并提交后停止。
+- 测试策略：先格式化，再 clippy，再按任务要求和变更范围运行相关测试；若代码有变更且任务完成，按要求运行完整 Rust 测试与 fixture 套件，除非确认仅文档变更且可复用既有绿色结果。
 
-## Current Status
-- Identified first incomplete task: `TODO-3.md` `T3-04B0`.
-- Recent commit is directly relevant: `[T3-04B] Schedule source identity prerequisite`.
-- Current implementation gap: P6 still uses `LlvmIntrinsicCallContract` keyed by `source_path + span` for generic concrete FQN, reflection type args, and named intrinsic metadata.
-- Implementation direction: preserve MIR/LIR `SiteId` through P6 call lowering and add identity-based contract lookup from published LIR facts, replacing span lookup where source-body/MIR call lowering has a LIR-owned call-site identity.
-- Implemented first structural slice: LIR facts now publish `source_call_sites` keyed by `(StableLirCallableKey, SiteId)`, with verifier/dump support; P6 MIR/effect-lowered direct calls now receive `site_id` and prefer identity-keyed exact callee roots over span contracts.
-- Fixed generic intrinsic regression found by full tests: source call-site facts now publish a separate `semantic_root_fqn` from the MIR direct-call stable template key, so P6 intrinsic lowering can use the base root while exact callee binding still carries the concrete callable root.
-- Added named intrinsic metadata to LIR source call-site facts by correlating MIR `SiteId` with HIR source-site contracts during LIR fact construction; this restored named runtime/method intrinsic run-pass fixtures without relying on P6 source-span lookup.
-- Updated effect-lowered golden fixtures to include the new `source_call_site_contracts` dump section.
-- Final validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `cargo build -p scoop -p scoopc`, `python3 tools/dependency_gate.py`, and `python3 tools/run_fixtures.py`.
-- `TODO-3.md` now marks `T3-04B0` as `[DONE]`; `TODO.md` current active task now points to `T3-04B` for the next invocation.
+## 步骤
+
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录任务编号、要求、依赖、验证要求。
+2. 检查最新提交信息是否明确提到与该任务直接相关的未完成问题；仅在直接相关时纳入当前任务或加入 prerequisite。
+3. 按任务要求检查相关代码、测试、fixture 和文档，避免先做无关历史问题清扫。
+4. 若任务可直接完成，实施最小正确改动；若发现必须先修的具体 blocker，更新 `TODO.md` 插入最小 prerequisite，必要时更新 `PLAN.md`，提交后停止。
+5. 对改动运行格式化、lint、相关测试以及任务要求的完整验证；对任何未被明确排期的失败测试/fixture，修复或在 `TODO.md` 中排期到当前任务完成之前。
+6. 任务完成后，在 `TODO.md` 标题加 `[DONE]` 并更新 completion record；仅当阶段计划实际变化时更新 `PLAN.md`。
+7. 检查 git 状态与 diff，提交所有本次任务相关变更，提交信息使用任务编号开头。
+8. 停止，不继续下一个任务。
+
+## 进度记录
+
+- 已写入初始计划，下一步读取 `TODO.md` 定位第一个未完成任务。
+- 已读取 `TODO.md` 与 `TODO-3.md`：当前第一个未完成任务为 `T3-04B`（收口 source-span / fallback / verifier / gate 残余缺口），依赖 `T3-04B0` 已完成；下一步检查最新提交是否有与 `T3-04B` 直接相关的未完成问题。
+- 最新提交为 `[T3-04B0] Publish LIR source call-site identity`，未在提交说明中声明额外未完成问题；`T3-04B0` 是当前任务直接前置，继续执行 `T3-04B`。
+- 定向审查确认当前实现仍有四类 `T3-04B` 残留：P6 `LlvmIntrinsicCallContract` source-span handoff、LIR intrinsic/readable_path fallback、LLVM dispatch side table、verifier owner/target 校验不足。执行顺序调整为先删除 P6 source-span intrinsic handoff，再收口 LIR fact builder/verifier，最后更新 gate 与验证。
+- 已完成核心改动：删除 P6 source-span intrinsic handoff；LIR intrinsic facts 改为消费显式发布 metadata；P6 dispatch 改走 LIR `dispatches`/`physical_layout`；补充 LIR verifier 对 body-version/continuation owner 的自包含检查；dependency gate 已加入对应残留守卫并通过。
+- `cargo fmt`、`cargo clippy --all-targets -- -D warnings` 和 `python3 tools/dependency_gate.py` 已通过；下一步运行完整 Rust 测试与 fixture suite。
+- 完整 Rust 测试 `cargo test --all --all-targets` 已通过；下一步运行完整 fixture suite。
+- 完整 fixture suite `python3 tools/run_fixtures.py` 已通过（1664 checks）。`TODO-3.md` 已将 `T3-04B` 标记为 `[DONE]` 并写入完成记录，`TODO.md` 当前活跃任务已更新为后续 `T3-04R`；下一步检查 diff 并提交本次任务变更。

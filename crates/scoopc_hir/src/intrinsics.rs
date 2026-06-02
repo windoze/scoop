@@ -368,7 +368,7 @@ pub fn named_intrinsic_audit_entry(name: &str) -> Option<&'static NamedIntrinsic
         .find(|entry| entry.name == name)
 }
 
-pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+pub fn named_intrinsic_entry_name_for_root(fqn: &str) -> Option<&'static str> {
     let base = fqn
         .split("::<")
         .next()
@@ -392,6 +392,10 @@ pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static
         "scoop.unsafe.__scoop_unsafe_value_slot" => Some("unsafe_value_slot"),
         _ => fallback_scalar_method_intrinsic_entry_name(base),
     }
+}
+
+pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+    named_intrinsic_entry_name_for_root(fqn)
 }
 
 pub fn legacy_scalar_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {

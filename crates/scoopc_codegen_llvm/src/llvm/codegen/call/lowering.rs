@@ -161,7 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(fqn) = member_fun_fqn
             && let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_call_or_root(span, fqn, None)?
+                .published_named_intrinsic_entry_name_for_root(fqn)?
                 .map(str::to_string)
         {
             return self.try_codegen_named_intrinsic_hir_call(
@@ -1448,7 +1448,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             if let Some(entry_name) = self
-                .published_named_intrinsic_entry_name_for_call_or_root(span, fqn, None)?
+                .published_named_intrinsic_entry_name_for_root(fqn)?
                 .map(str::to_string)
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
                     span,
@@ -1461,14 +1461,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(value);
             }
 
-            let concrete_fqn = self
-                .published_instantiated_call_fqn(span)?
-                .unwrap_or_else(|| fqn.to_string());
-            let semantic_fqn = self
-                .published_intrinsic_function_fqn_for_call(span)?
-                .unwrap_or(concrete_fqn.as_str())
-                .to_string();
-            let dispatch_fqn = semantic_fqn.as_str();
+            let dispatch_fqn = fqn.as_str();
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
                 return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
@@ -1488,14 +1481,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(value);
             }
 
-            if let Some(value) = self.try_codegen_class_vtable_call(span, callee.span, fqn, args)? {
-                return Ok(value);
-            }
-            if let Some(value) =
-                self.try_codegen_interface_itable_call(span, callee.span, fqn, args)?
-            {
-                return Ok(value);
-            }
             if let Some(value) =
                 self.try_codegen_sysroot_gc_debug_intrinsics(span, dispatch_fqn, args)?
             {
@@ -1565,26 +1550,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
-            let intrinsic_base_fqn = self
-                .published_intrinsic_function_fqn_for_call(span)?
-                .map(str::to_string);
-            if let Some(base_fqn) = intrinsic_base_fqn.as_deref()
-                && base_fqn.starts_with("scoop.unsafe.__atomicInt")
-            {
+            if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
                 return self.codegen_sysroot_atomic_int_intrinsics(
                     span,
                     callee.span,
-                    base_fqn,
+                    dispatch_fqn,
                     args,
                 );
             }
-            if let Some(base_fqn) = intrinsic_base_fqn.as_deref()
-                && base_fqn.starts_with("scoop.unsafe.__atomicRef")
-            {
+            if dispatch_fqn.starts_with("scoop.unsafe.__atomicRef") {
                 return self.codegen_sysroot_atomic_ref_intrinsics(
                     span,
                     callee.span,
-                    base_fqn,
+                    dispatch_fqn,
                     args,
                 );
             }
@@ -1652,10 +1630,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
+            let callable_fqn = self
+                .concrete_hir_top_level_call_fqn(fqn, args, result_ty)
+                .unwrap_or_else(|| fqn.to_string());
             return self.codegen_top_level_fun_call(
                 span,
                 callee.span,
-                &concrete_fqn,
+                &callable_fqn,
                 args,
                 result_ty,
             );
@@ -1788,12 +1769,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let callable_fqn = self
-            .published_instantiated_call_fqn(span)?
-            .unwrap_or_else(|| fqn.to_string());
-        let callable_fqn = callable_fqn.as_str();
+        let callable_fqn = fqn;
         if let Some(entry_name) = self
-            .published_named_intrinsic_entry_name_for_call_or_root(span, callable_fqn, None)?
+            .published_named_intrinsic_entry_name_for_root(callable_fqn)?
             .map(str::to_string)
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,
@@ -1801,6 +1779,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 args,
                 &entry_name,
             )?
+        {
+            return Ok(value);
+        }
+        if (callable_fqn == "scoop.core.print" || callable_fqn == "scoop.core.println")
+            && let Some(value) =
+                self.try_codegen_sysroot_print_string_like(span, callable_fqn, args)?
         {
             return Ok(value);
         }
@@ -1826,29 +1810,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!("call callee `{callable_fqn}` 缺少 LIR callable signature facts"),
             })?;
-        if signature_owner_fqn != callable_fqn {
-            let original_source_types = source_types;
-            let arg_tys = args
+        let original_source_types = source_types;
+        let arg_tys = args
+            .iter()
+            .map(|arg| match arg {
+                hir::CallArg::Positional(expr) => expr.ty,
+                hir::CallArg::Named { value, .. } => value.ty,
+            })
+            .collect::<Vec<_>>();
+        if arg_tys.len() == source_param_tys.len()
+            && source_param_tys
                 .iter()
-                .map(|arg| match arg {
-                    hir::CallArg::Positional(expr) => expr.ty,
-                    hir::CallArg::Named { value, .. } => value.ty,
-                })
-                .collect::<Vec<_>>();
-            if arg_tys.len() == source_param_tys.len()
-                && source_param_tys
-                    .iter()
-                    .any(|ty| signature_ty_contains_param(original_source_types, *ty))
-            {
-                source_param_tys = arg_tys;
-                source_types = self.types;
-            }
-            if signature_ty_contains_param(original_source_types, source_return_ty)
-                && let Some(result_ty) = result_ty
-            {
-                source_return_ty = result_ty;
-                source_types = self.types;
-            }
+                .any(|ty| signature_ty_contains_param(original_source_types, *ty))
+        {
+            source_param_tys = arg_tys;
+            source_types = self.types;
+        }
+        if signature_ty_contains_param(original_source_types, source_return_ty)
+            && let Some(result_ty) = result_ty
+        {
+            source_return_ty = result_ty;
+            source_types = self.types;
         }
         if args.len() == source_param_tys.len() + 1
             && callable_fqn.rsplit_once('.').is_some()
@@ -2036,6 +2018,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn concrete_hir_top_level_call_fqn(
+        &self,
+        fqn: &str,
+        args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
+    ) -> Option<String> {
+        if matches!(fqn, "scoop.core.print" | "scoop.core.println") {
+            let arg_ty = args.first().map(|arg| match arg {
+                hir::CallArg::Positional(expr) => expr.ty,
+                hir::CallArg::Named { value, .. } => value.ty,
+            })?;
+            return Some(format!("{fqn}::<{}>", self.types.display(arg_ty)));
+        }
+        if fqn != "scoop.core.mutableArrayNew" {
+            let (source_types, _, param_tys, return_ty) =
+                self.published_callable_signature_with_names(fqn)?;
+            let has_type_param = param_tys
+                .iter()
+                .any(|ty| signature_ty_contains_param(source_types, *ty))
+                || signature_ty_contains_param(source_types, return_ty);
+            if !has_type_param {
+                return None;
+            }
+            let type_arg = args
+                .first()
+                .map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => expr.ty,
+                    hir::CallArg::Named { value, .. } => value.ty,
+                })
+                .or(result_ty)?;
+            return Some(format!("{fqn}::<{}>", self.types.display(type_arg)));
+        }
+        let result_ty = result_ty?;
+        let (TypeKind::Value(ValueTypeKind::Nominal(nominal))
+        | TypeKind::Ref(RefTypeKind::Nominal(nominal))) = self.types.kind(result_ty)
+        else {
+            return None;
+        };
+        if nominal.fqn != "scoop.core.MutableArray" || nominal.args.len() != 1 {
+            return None;
+        }
+        Some(format!("{fqn}::<{}>", self.types.display(nominal.args[0])))
+    }
+
     pub(in crate::llvm::codegen) fn emit_enter_native_for_extern_call_impl(
         &mut self,
         at: crate::span::Span,
@@ -2098,192 +2124,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(enter, &enter_args, "enter_native")?;
         Ok(())
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_class_vtable_call_impl(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = fqn.to_string();
-        let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
-            return Ok(None);
-        };
-
-        let Some(slots) = self.class_vtables.get(owner_fqn) else {
-            return Ok(None);
-        };
-        if slots.is_empty() {
-            return Ok(None);
-        }
-
-        let Some((receiver_arg, _)) = args.split_first() else {
-            return Ok(None);
-        };
-        let hir::CallArg::Positional(_receiver_expr) = receiver_arg else {
-            return Ok(None);
-        };
-        let explicit_params_len = args.len().saturating_sub(1) as u32;
-        let slot = slots
-            .iter()
-            .find(|slot| slot.name == method_name && slot.params_len == explicit_params_len)
-            .map(|slot| slot.slot);
-        let Some(slot) = slot else {
-            return Ok(None);
-        };
-
-        let signature = self
-            .published_codegen_callable_signature(fqn)
-            .unwrap_or_else(|| {
-                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing vtable LIR signature")
-            });
-        let uses_explicit_effect_hidden_abi =
-            self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
-
-        if args.len() != signature.param_tys.len() {
-            panic!(
-                "try_codegen_class_vtable_call_impl: call ABI verifier accepted vtable call arity mismatch"
-            );
-        }
-
-        let ret_cg =
-            self.try_cg_ty_of_type_id(signature.return_ty).unwrap_or_else(|| {
-                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted unsupported vtable return type")
-            });
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-            signature.param_tys.len()
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
-                    as usize,
-        );
-        if hidden_sret_result_ty.is_some() {
-            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
-        }
-        if uses_explicit_effect_hidden_abi {
-            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
-        }
-        for param_ty in &signature.param_tys {
-            llvm_param_tys.push(
-                self.ordinary_param_abi(callee_span, *param_ty)?
-                    .llvm_param_ty(),
-            );
-        }
-
-        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
-            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
-                self.context.void_type().fn_type(&llvm_param_tys, false)
-            }
-            (None, other) => self
-                .llvm_basic_type_of(callee_span, other)?
-                .fn_type(&llvm_param_tys, false),
-        };
-
-        let param_names = signature.param_names.clone();
-        let param_tys = signature.param_tys.clone();
-        let evaluated_args = self.codegen_bound_call_args(
-            BoundCallArgsSpec {
-                span,
-                callee_span,
-                kind: "vtable call arg binding",
-                abi_mode: CallArgAbiMode::Ordinary,
-            },
-            &param_names,
-            &param_tys,
-            args,
-        )?;
-        let receiver_ptr = evaluated_args.first().and_then(|arg| arg.pointer_value);
-        let Some(receiver_ptr) = receiver_ptr else {
-            self.release_evaluated_call_arg_roots(&evaluated_args);
-            return Ok(None);
-        };
-        let deferred_receiver =
-            self.defer_gc_ref_pointer(callee_span, "vtable_call_receiver", receiver_ptr)?;
-        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
-            evaluated_args.len()
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
-                    as usize,
-        );
-        let sret_result_slot = if hidden_sret_result_ty.is_some() {
-            let slot = self.create_entry_alloca(callee_span, "vtable_call_sret", ret_cg)?;
-            llvm_args.push(slot.into());
-            Some(slot)
-        } else {
-            None
-        };
-        let effect_outcome_slot = if uses_explicit_effect_hidden_abi {
-            let slot = self.alloc_effect_outcome_slot(span, "vtable_call")?;
-            llvm_args.push(self.current_effect_ctx_arg().into());
-            llvm_args.push(self.llvm_gc_i8_ptr_type().const_null().into());
-            llvm_args.push(slot.into());
-            Some(slot)
-        } else {
-            None
-        };
-        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
-
-        let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
-            callee_span,
-            "vtable_call_receiver_reload",
-            &deferred_receiver,
-        )?;
-        let fn_i8 = self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?;
-        let typed_fn_ptr = self.builder.build_pointer_cast(
-            fn_i8,
-            self.llvm_ptr_type(AddressSpace::default()),
-            "vtable_fn_typed",
-        )?;
-
-        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site = cg.builder.build_indirect_call(
-                llvm_fun_ty,
-                typed_fn_ptr,
-                &llvm_args,
-                "call_vtable",
-            )?;
-            if let Some(result_ty) = hidden_sret_result_ty {
-                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
-            }
-            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
-            Ok(call_site)
-        });
-        self.release_evaluated_call_arg_roots(&evaluated_args);
-        let call_site = call_site_result?;
-        if let Some(result_ptr) = sret_result_slot {
-            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "vtable_call_sret")?;
-        }
-        let deferred_direct_result = if sret_result_slot.is_none() {
-            self.defer_direct_call_result(span, ret_cg, call_site, "vtable_call_direct_result")?
-        } else {
-            None
-        };
-        if let Some(outcome_slot) = effect_outcome_slot {
-            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                outcome_slot,
-                "vtable_call_effect",
-            )?;
-        }
-
-        match ret_cg {
-            CgTy::Unit => Ok(Some(CgValue::unit())),
-            CgTy::Never => Ok(Some(CgValue::never())),
-            _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
-                self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "vtable_call_sret")?
-            } else {
-                self.materialize_deferred_cg_value(
-                    span,
-                    "vtable_call_direct_result_reload",
-                    deferred_direct_result.unwrap_or_else(|| {
-                        panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing deferred return value")
-                    }),
-                )?
-            })),
-        }
     }
 
     pub(in crate::llvm::codegen) fn codegen_funptr_value_call_impl(
@@ -2580,109 +2420,5 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_interface_itable_call_impl(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = fqn.to_string();
-        let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
-            return Ok(None);
-        };
-
-        let Some(iface) = self.interfaces.get(owner_fqn) else {
-            return Ok(None);
-        };
-        if args.is_empty() {
-            return Ok(None);
-        }
-
-        let Some((receiver_arg, _)) = args.split_first() else {
-            return Ok(None);
-        };
-        let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
-            return Ok(None);
-        };
-        let explicit_params_len = args.len().saturating_sub(1) as u32;
-        let mut candidates = iface
-            .method_slots
-            .iter()
-            .filter(|slot| slot.name == method_name && slot.params_len == explicit_params_len);
-        let Some(first) = candidates.next() else {
-            return Ok(None);
-        };
-        if candidates.next().is_some() {
-            panic!(
-                "try_codegen_interface_itable_call_impl: call ABI verifier accepted ambiguous itable slot"
-            );
-        }
-        let slot = first.slot;
-
-        let signature = self
-            .published_codegen_callable_signature(fqn)
-            .unwrap_or_else(|| {
-                panic!("try_codegen_interface_itable_call_impl: call ABI verifier accepted missing itable LIR signature")
-            });
-        let uses_explicit_effect_hidden_abi =
-            self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
-
-        if args.len() != signature.param_tys.len() {
-            panic!(
-                "try_codegen_interface_itable_call_impl: call ABI verifier accepted itable call arity mismatch"
-            );
-        }
-
-        let receiver_value = self.codegen_expr(receiver_expr)?;
-        let receiver_value = self.coerce_value(callee_span, receiver_value, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
-            panic!(
-                "try_codegen_interface_itable_call_impl: verifier accepted non-ref itable receiver"
-            );
-        };
-        let deferred_receiver =
-            self.defer_gc_ref_pointer(callee_span, "itable_call_receiver", receiver_ptr)?;
-
-        let explicit_param_names = signature.param_names[1..].to_vec();
-        let explicit_param_tys = signature.param_tys[1..].to_vec();
-        let evaluated_explicit_args = self.codegen_bound_call_args(
-            BoundCallArgsSpec {
-                span,
-                callee_span,
-                kind: "itable call arg binding",
-                abi_mode: CallArgAbiMode::Ordinary,
-            },
-            &explicit_param_names,
-            &explicit_param_tys,
-            &args[1..],
-        )?;
-        let explicit_args = evaluated_explicit_args
-            .iter()
-            .map(|arg| arg.value)
-            .collect::<Vec<_>>();
-
-        let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
-            callee_span,
-            "itable_call_receiver_reload",
-            &deferred_receiver,
-        )?;
-        let lookup =
-            self.lookup_interface_itable_slot(span, receiver_ptr, iface.interface_id, slot)?;
-        let result = self.emit_interface_dispatch_indirect_call(
-            span,
-            callee_span,
-            owner_fqn,
-            slot,
-            &signature,
-            uses_explicit_effect_hidden_abi,
-            receiver_ptr,
-            lookup,
-            &explicit_args,
-        )?;
-        self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
-        Ok(Some(result))
     }
 }

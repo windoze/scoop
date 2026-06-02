@@ -166,7 +166,10 @@ source_site_contracts {
     call_site_contracts: [
         CallSiteContract {
             span: 247..255,
-            kind: DirectTopLevel,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
             target_decl_span: None,
             target_type_args: [],

@@ -363,17 +363,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        let contract = self
-            .published_intrinsic_call_contract(span)?
+        let text = self.current_source_slice(span)?;
+        let Some(type_name) = text
+            .split_once('<')
+            .and_then(|(_, rest)| rest.split_once('>'))
+            .map(|(name, _)| name.trim())
+        else {
+            self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name);
+        };
+        Ok(self
+            .types
+            .iter_ids()
+            .find(|ty| self.types.display(*ty).to_string() == type_name)
             .unwrap_or_else(|| {
-                self.panic_verified_builtin_contract(
-                    "reflection_type_arg_for_current_call",
-                    "missing published reflection intrinsic call contract",
-                )
-            });
-        Ok(contract.type_args.first().copied().unwrap_or_else(|| {
-            self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
-        }))
+                self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
+            }))
     }
 
     fn array_elem_kind_for_type_id(&self, ty: TypeId) -> u64 {

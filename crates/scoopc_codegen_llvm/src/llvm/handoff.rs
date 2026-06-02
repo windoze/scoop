@@ -8,9 +8,8 @@ use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::ordinary_callee::EffectAnalysisFacts;
 use crate::effect_lowered::source as source_payload;
 use crate::source::{SourceId, SourceMap};
-use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
-use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
+use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoop_project_model::ConeId;
 use scoopc_lir_facts::{LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision};
 
@@ -92,14 +91,10 @@ pub struct LlvmStageBaseContext {
     enum_layouts: source_payload::EnumLayoutIndex,
     top_level_vars: source_payload::TopLevelVarIndex,
     top_level_immutable_values: source_payload::TopLevelImmutableValueIndex,
-    intrinsic_call_contracts: HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract>,
     object_inits: source_payload::ObjectInitIndex,
     class_inits: source_payload::ClassInitIndex,
     release_hooks: source_payload::ReleaseHookIndex,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-    class_vtables: source_payload::ClassVtableIndex,
-    interfaces: source_payload::InterfaceIndex,
-    class_itables: source_payload::ClassItableIndex,
     ctor_call_sites: source_payload::CtorCallSiteIndex,
     effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
     continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
@@ -117,29 +112,7 @@ pub struct LlvmStageBaseContext {
 #[derive(Debug, Clone)]
 pub struct LlvmCallableSourceContract {
     pub source_path: PathBuf,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LlvmSourceCallKey {
-    pub source_path: PathBuf,
-    pub span: Span,
-}
-
-impl LlvmSourceCallKey {
-    pub fn new(source_path: impl Into<PathBuf>, span: Span) -> Self {
-        Self {
-            source_path: source_path.into(),
-            span,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LlvmIntrinsicCallContract {
-    pub function_fqn: String,
-    pub type_args: Vec<TypeId>,
-    pub named_entry_name: Option<String>,
+    pub span: crate::span::Span,
 }
 
 impl LlvmStageBaseContext {
@@ -154,14 +127,10 @@ impl LlvmStageBaseContext {
         enum_layouts: source_payload::EnumLayoutIndex,
         top_level_vars: source_payload::TopLevelVarIndex,
         top_level_immutable_values: source_payload::TopLevelImmutableValueIndex,
-        intrinsic_call_contracts: HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract>,
         object_inits: source_payload::ObjectInitIndex,
         class_inits: source_payload::ClassInitIndex,
         release_hooks: source_payload::ReleaseHookIndex,
         class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-        class_vtables: source_payload::ClassVtableIndex,
-        interfaces: source_payload::InterfaceIndex,
-        class_itables: source_payload::ClassItableIndex,
         ctor_call_sites: source_payload::CtorCallSiteIndex,
         effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
         continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
@@ -188,14 +157,10 @@ impl LlvmStageBaseContext {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            intrinsic_call_contracts,
             object_inits,
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
             ctor_call_sites,
             effect_op_call_sites,
             continuation_resume_call_sites,
@@ -247,12 +212,6 @@ impl LlvmStageBaseContext {
         &self.top_level_immutable_values
     }
 
-    pub fn intrinsic_call_contracts(
-        &self,
-    ) -> &HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract> {
-        &self.intrinsic_call_contracts
-    }
-
     pub fn object_inits(&self) -> &source_payload::ObjectInitIndex {
         &self.object_inits
     }
@@ -267,18 +226,6 @@ impl LlvmStageBaseContext {
 
     pub fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
         &self.class_ctor_init_bodies
-    }
-
-    pub fn class_vtables(&self) -> &source_payload::ClassVtableIndex {
-        &self.class_vtables
-    }
-
-    pub fn interfaces(&self) -> &source_payload::InterfaceIndex {
-        &self.interfaces
-    }
-
-    pub fn class_itables(&self) -> &source_payload::ClassItableIndex {
-        &self.class_itables
     }
 
     pub fn ctor_call_sites(&self) -> &source_payload::CtorCallSiteIndex {

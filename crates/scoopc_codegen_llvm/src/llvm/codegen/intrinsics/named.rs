@@ -958,51 +958,18 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_call(
-        &self,
-        span: crate::span::Span,
-        expected_fqn: Option<&str>,
-    ) -> Result<Option<&str>, LlvmEmitError> {
-        let Some(contract) = self.published_intrinsic_call_contract(span)? else {
-            return Ok(None);
-        };
-        if expected_fqn.is_some_and(|fqn| fqn != contract.function_fqn) {
-            return Ok(None);
-        }
-        Ok(contract.named_entry_name.as_deref())
-    }
-
     pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_root(
         &self,
         root_fqn: &str,
     ) -> Result<Option<&str>, LlvmEmitError> {
-        if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn) {
-            return Ok(intrinsic.named_entry_name.as_deref());
-        }
-        Ok(None)
-    }
-
-    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_call_or_root(
-        &self,
-        span: crate::span::Span,
-        root_fqn: &str,
-        expected_fqn: Option<&str>,
-    ) -> Result<Option<&str>, LlvmEmitError> {
-        if let Some(entry_name) =
-            self.published_named_intrinsic_entry_name_for_call(span, expected_fqn)?
+        if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn)
+            && let Some(entry_name) = intrinsic.named_entry_name.as_deref()
         {
             return Ok(Some(entry_name));
         }
-        self.published_named_intrinsic_entry_name_for_root(root_fqn)
-    }
-
-    pub(in crate::llvm::codegen) fn published_intrinsic_function_fqn_for_call(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<Option<&str>, LlvmEmitError> {
-        Ok(self
-            .published_intrinsic_call_contract(span)?
-            .map(|contract| contract.function_fqn.as_str()))
+        Ok(crate::intrinsics::named_intrinsic_entry_name_for_root(
+            root_fqn,
+        ))
     }
 
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(

@@ -150,6 +150,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 .codegen
                 .codegen_mir_plain_dynamic_call(
                     stmt.span,
+                    Some(*site_id),
                     kind,
                     args,
                     self.body,

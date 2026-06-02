@@ -1605,6 +1605,7 @@ pub mod source_payload {
             NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeSignature,
             NamedIntrinsicRuntimeTy, fallback_named_intrinsic_entry_name_for_fqn,
             named_intrinsic_audit_entries, named_intrinsic_audit_entry,
+            named_intrinsic_entry_name_for_root,
         };
     }
     pub use crate::itable::{

@@ -752,18 +752,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_ty = *param_tys
                 .get(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
+            let expr = match arg {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
+            };
             let target_cg = self
                 .try_cg_ty_for_call_abi_type(param_ty)
+                .or_else(|| self.try_cg_ty_for_call_abi_type(expr.ty))
                 .unwrap_or_else(|| {
                     panic!(
                         "codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type {}",
                         self.types.display(param_ty)
                     )
                 });
-            let expr = match arg {
-                hir::CallArg::Positional(expr) => expr,
-                hir::CallArg::Named { value, .. } => value,
-            };
             let v = match &expr.kind {
                 hir::ExprKind::Closure(closure) => {
                     self.codegen_closure_expr(expr.span, closure, param_ty)?

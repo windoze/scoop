@@ -11,7 +11,7 @@ use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::{
     CachedDepArtifactHandoff, LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmEmitError,
-    LlvmIntrinsicCallContract, LlvmSourceCallKey, LlvmStageBaseContext,
+    LlvmStageBaseContext,
 };
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
@@ -23,7 +23,6 @@ use crate::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_hir_facts::source_sites::{CallSiteContractKind, IntrinsicKind};
 use scoopc_lir_facts::LirFacts;
 
 use super::{HirStageOutput, LirStageOutput, LlvmArtifactKind, mir_stage};
@@ -116,50 +115,6 @@ fn build_callable_source_contracts(
                     span: fun.span,
                 },
             )
-        })
-        .collect()
-}
-
-fn build_intrinsic_call_contracts(
-    facts: &HirFacts,
-) -> HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract> {
-    facts
-        .source_sites
-        .call_sites
-        .iter()
-        .filter_map(|site| {
-            let (function, named_entry_name) = match &site.contract {
-                CallSiteContractKind::DirectTopLevel(function)
-                | CallSiteContractKind::Extension { function, .. } => (function, None),
-                CallSiteContractKind::MemberDirect(member)
-                | CallSiteContractKind::Virtual(member)
-                | CallSiteContractKind::Interface(member) => (&member.function, None),
-                CallSiteContractKind::Intrinsic { kind, function } => {
-                    let entry_name = match kind {
-                        IntrinsicKind::NamedTable { entry_name, .. } => Some(entry_name.clone()),
-                        IntrinsicKind::Reflection { .. }
-                        | IntrinsicKind::Platform { .. }
-                        | IntrinsicKind::Gc { .. }
-                        | IntrinsicKind::Runtime { .. }
-                        | IntrinsicKind::Compiler { .. } => None,
-                    };
-                    (function, entry_name)
-                }
-                CallSiteContractKind::Constructor(_)
-                | CallSiteContractKind::Closure { .. }
-                | CallSiteContractKind::FunValue { .. }
-                | CallSiteContractKind::FunPtr { .. }
-                | CallSiteContractKind::EffectOp(_)
-                | CallSiteContractKind::ContinuationResume(_) => return None,
-            };
-            Some((
-                LlvmSourceCallKey::new(site.identity.source_path.clone(), site.identity.span),
-                LlvmIntrinsicCallContract {
-                    function_fqn: function.fqn.clone(),
-                    type_args: function.type_args.clone(),
-                    named_entry_name,
-                },
-            ))
         })
         .collect()
 }
@@ -311,18 +266,6 @@ fn build_llvm_stage_base_context_from_lowered_hir(
             .into_iter()
             .map(|body| (body.key().as_str().to_string(), body))
             .collect();
-    let mut class_vtables = contracts.class_vtables.clone();
-    for (key, value) in lowered_hir.class_vtables {
-        class_vtables.entry(key).or_insert(value);
-    }
-    let mut interfaces = contracts.interfaces.clone();
-    for (key, value) in lowered_hir.interfaces {
-        interfaces.entry(key).or_insert(value);
-    }
-    let mut class_itables = contracts.class_itables.clone();
-    for (key, value) in lowered_hir.class_itables {
-        class_itables.entry(key).or_insert(value);
-    }
     let mut extern_funs = contracts.extern_funs.clone();
     for (key, value) in lowered_hir.extern_funs {
         extern_funs.entry(key).or_insert(value);
@@ -333,7 +276,6 @@ fn build_llvm_stage_base_context_from_lowered_hir(
     }
     let callable_sources =
         build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-    let intrinsic_call_contracts = build_intrinsic_call_contracts(&hir_facts);
 
     LlvmStageBaseContext::new(
         lowered_hir.source_cones,
@@ -345,14 +287,10 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         enum_layouts,
         top_level_vars,
         top_level_immutable_values,
-        intrinsic_call_contracts,
         object_inits,
         class_inits,
         release_hooks,
         class_ctor_init_bodies,
-        class_vtables,
-        interfaces,
-        class_itables,
         lowered_hir.ctor_call_sites,
         lowered_hir.effect_op_call_sites,
         lowered_hir.continuation_resume_call_sites,

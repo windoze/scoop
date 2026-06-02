@@ -7,85 +7,106 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn resolve_plain_virtual_dispatch_target(
         &self,
-        dispatch: &crate::mir::DispatchMetadata,
+        site_id: crate::mir::SiteId,
         explicit_arg_count: usize,
     ) -> Result<PlainDispatchTarget, LlvmEmitError> {
-        let slots = self.class_vtables.get(&dispatch.owner_fqn).ok_or_else(|| {
-            frontend_error(format!(
-                "plain virtual call 缺少 `{}` 的 class vtable metadata",
-                dispatch.owner_fqn,
-            ))
-        })?;
-        let mut candidates = slots.iter().filter(|slot| {
-            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
-        });
-        let slot = candidates.next().ok_or_else(|| {
-            frontend_error(format!(
-                "plain virtual call 缺少 `{}`.`{}`/{} 的 vtable slot",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
-            ))
-        })?;
-        if candidates.next().is_some() {
+        let dispatch = self.required_lir_dispatch(site_id, "plain virtual dispatch")?;
+        if dispatch.kind != LirCallSiteKind::Virtual {
             return Err(frontend_error(format!(
-                "plain virtual call `{}`.`{}`/{} 的 vtable slot 多义",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+                "plain virtual call site{} published non-virtual dispatch contract",
+                site_id.as_u32()
             )));
         }
-        let signature = self
-            .published_codegen_callable_signature(&slot.impl_member_fqn)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "plain virtual call 缺少 target `{}` 的 LIR signature",
-                    slot.impl_member_fqn,
-                ))
-            })?;
+        if dispatch.explicit_arg_count != explicit_arg_count {
+            return Err(frontend_error(format!(
+                "plain virtual call site{} arity drift: LIR facts={}, MIR={}",
+                site_id.as_u32(),
+                dispatch.explicit_arg_count,
+                explicit_arg_count
+            )));
+        }
+        let signature = self.dispatch_callable_signature(dispatch)?;
         Ok(PlainDispatchTarget::Virtual {
-            slot: slot.slot,
+            slot: dispatch.method_slot,
             signature,
         })
     }
 
     pub(in crate::llvm::codegen) fn resolve_plain_interface_dispatch_target(
         &self,
-        dispatch: &crate::mir::DispatchMetadata,
+        site_id: crate::mir::SiteId,
         explicit_arg_count: usize,
     ) -> Result<PlainDispatchTarget, LlvmEmitError> {
-        let iface = self.interfaces.get(&dispatch.owner_fqn).ok_or_else(|| {
-            frontend_error(format!(
-                "plain interface call 缺少 `{}` 的 interface metadata",
-                dispatch.owner_fqn,
-            ))
-        })?;
-        let mut slots = iface.method_slots.iter().filter(|slot| {
-            slot.member_fqn == dispatch.member_fqn && slot.params_len == explicit_arg_count as u32
-        });
-        let slot = slots.next().ok_or_else(|| {
-            frontend_error(format!(
-                "plain interface call 缺少 `{}` 的 selected itable slot",
-                dispatch.member_fqn,
-            ))
-        })?;
-        if slots.next().is_some() {
+        let dispatch = self.required_lir_dispatch(site_id, "plain interface dispatch")?;
+        if dispatch.kind != LirCallSiteKind::Interface {
             return Err(frontend_error(format!(
-                "plain interface call `{}` 的 selected itable slot 多义",
-                dispatch.member_fqn,
+                "plain interface call site{} published non-interface dispatch contract",
+                site_id.as_u32()
             )));
         }
-
-        let signature = self
-            .published_codegen_callable_signature(&dispatch.member_fqn)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "plain interface call 缺少 `{}` 的 selected LIR signature",
-                    dispatch.member_fqn,
-                ))
-            })?;
+        if dispatch.explicit_arg_count != explicit_arg_count {
+            return Err(frontend_error(format!(
+                "plain interface call site{} arity drift: LIR facts={}, MIR={}",
+                site_id.as_u32(),
+                dispatch.explicit_arg_count,
+                explicit_arg_count
+            )));
+        }
+        let interface_id = dispatch.interface_id.ok_or_else(|| {
+            frontend_error(format!(
+                "plain interface call site{} missing published interface id",
+                site_id.as_u32()
+            ))
+        })?;
+        let signature = self.dispatch_callable_signature(dispatch)?;
         Ok(PlainDispatchTarget::Interface {
-            interface_id: iface.interface_id,
-            slot: slot.slot,
+            interface_fqn: dispatch.owner_fqn.clone(),
+            interface_id,
+            slot: dispatch.method_slot,
             receiver_ty: dispatch.receiver_ty,
             signature,
         })
+    }
+
+    fn dispatch_callable_signature(
+        &self,
+        dispatch: &LirDispatchContract,
+    ) -> Result<CodegenCallableSignature, LlvmEmitError> {
+        self.published_codegen_callable_signature(&dispatch.member_fqn)
+            .or_else(|| self.unique_dispatch_target_signature(dispatch))
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "plain dispatch call site{} 缺少 `{}` 的 LIR signature",
+                    dispatch.site_id.as_u32(),
+                    dispatch.member_fqn,
+                ))
+            })
+    }
+
+    fn unique_dispatch_target_signature(
+        &self,
+        dispatch: &LirDispatchContract,
+    ) -> Option<CodegenCallableSignature> {
+        let [target] = dispatch.candidate_targets.as_slice() else {
+            return None;
+        };
+        let root = self
+            .published_lir_facts
+            .callables
+            .get(target)
+            .map(|facts| facts.root_fqn())
+            .or_else(|| {
+                self.published_lir_facts
+                    .physical_layout
+                    .abi_symbols
+                    .values()
+                    .find_map(|symbol| {
+                        (symbol.callable.as_ref() == Some(target))
+                            .then_some(symbol.root_fqn.as_deref())
+                            .flatten()
+                    })
+            })?;
+        self.published_codegen_callable_signature(root)
     }
 
     pub(in crate::llvm::codegen) fn static_interface_receiver_owner_fqn(
@@ -118,8 +139,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Option<(TypeId, String)> {
         let (owner_fqn, source_ty) =
             self.static_interface_receiver_owner_fqn(mir_types, receiver_ty)?;
-        let entries = self.class_itables.get(&owner_fqn)?;
-        let entry = entries
+        let itable = self
+            .published_lir_facts
+            .physical_layout
+            .class_itables
+            .get(&owner_fqn)?;
+        let entry = itable
+            .entries
             .iter()
             .find(|entry| entry.interface_id == interface_id)?;
         let impl_fqn = entry.method_impl_fqns.get(slot as usize)?.clone();
@@ -296,6 +322,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let PlainDispatchTarget::Interface {
+            interface_fqn,
             interface_id,
             slot,
             receiver_ty,
@@ -317,11 +344,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             let signature = self.instantiate_interface_dispatch_signature(signature, *receiver_ty);
-            let interface_fqn = signature.fqn.rsplit_once('.').map(|(owner, _)| owner).unwrap_or_else(|| {
-                std::panic::panic_any(
-                    "codegen_mir_plain_dispatch_call: selected interface member must publish owner FQN",
-                )
-            });
             let receiver_value =
                 self.codegen_mir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;
             let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;

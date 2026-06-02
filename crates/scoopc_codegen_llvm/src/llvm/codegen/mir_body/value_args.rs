@@ -316,7 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_value_box_itable_entries<T: CodegenMonoInput>(
         &self,
         source_ty: T,
-    ) -> Result<Vec<crate::itable::ClassItableEntry>, LlvmEmitError> {
+    ) -> Result<Vec<LirClassItableEntryFacts>, LlvmEmitError> {
         let Some(source_ty) = source_ty.try_into_mono_type_id(self) else {
             return Ok(Vec::new());
         };
@@ -392,7 +392,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             iface.fqn
                         ))
                     })?;
-                Ok(crate::itable::ClassItableEntry {
+                Ok(LirClassItableEntryFacts {
                     interface_fqn: iface.fqn.clone(),
                     interface_id: iface.interface_id,
                     interface_type_name: interface_type_name.clone(),

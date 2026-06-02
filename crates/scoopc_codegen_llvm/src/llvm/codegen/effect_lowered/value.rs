@@ -175,18 +175,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .map(|callable| callable.root_fqn())
     }
 
-    fn plain_call_target_root_fqn(&self, site_id: mir::SiteId) -> Option<&'a str> {
-        let facts = self
-            .plain_call_sites?
-            .iter()
-            .find(|site| site.site_id() == site_id)?
-            .facts();
-        let crate::effect_facts::CallSiteTarget::KnownInstance(instance) = facts.target() else {
-            return None;
-        };
-        Some(instance.template.fqn.as_str())
-    }
-
     fn plain_call_param_names(&self, callee_fqn: &str, param_count: usize) -> Vec<String> {
         self.program
             .callable(callee_fqn)
@@ -776,15 +764,28 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 if let mir::Rvalue::Call {
                     site_id,
-                    kind: mir::CallKind::Direct { .. },
+                    kind: mir::CallKind::Direct { callee_fqn, .. },
                     args,
                     ..
                 } = value
                     && self
-                        .plain_call_target_root_fqn(*site_id)
-                        .is_some_and(|root| {
+                        .codegen
+                        .published_lir_source_call_site(*site_id)
+                        .and_then(|site| {
+                            site.semantic_root_fqn.as_deref().or_else(|| {
+                                site.contract
+                                    .exact_callee
+                                    .as_ref()
+                                    .map(|exact| exact.root_fqn.as_str())
+                            })
+                        })
+                        .map(|root| {
                             root.starts_with("scoop.unsafe.__atomicInt")
                                 || root.starts_with("scoop.unsafe.__atomicRef")
+                        })
+                        .unwrap_or_else(|| {
+                            callee_fqn.starts_with("scoop.unsafe.__atomicInt")
+                                || callee_fqn.starts_with("scoop.unsafe.__atomicRef")
                         })
                     && matches!(
                         args.first(),
@@ -1751,6 +1752,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 return self.codegen.codegen_mir_plain_dynamic_call(
                     span,
+                    Some(site_id),
                     kind,
                     args,
                     self.body,
@@ -1791,7 +1793,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let source_intrinsic_root = published_semantic_root
             .as_deref()
             .or(published_call_root.as_deref())
-            .or_else(|| self.plain_call_target_root_fqn(site_id));
+            .or(Some(callee_fqn));
         match callee_fqn {
             "scoop.core.GC.handleNew" => {
                 return self.codegen.codegen_mir_sysroot_gc_handle_new(
@@ -1927,6 +1929,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(value);
         }
+        if let Some(entry_name) = crate::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
+            && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                entry_name,
+                args,
+                self.body,
+                self.source_types,
+                transport.array.as_ref(),
+                self.slots,
+            )?
+        {
+            return Ok(value);
+        }
         if self
             .abi
             .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
@@ -1944,6 +1959,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
             return self.codegen.codegen_mir_plain_dynamic_call(
                 span,
+                None,
                 &mir::CallKind::FunValue {
                     callee: mir::Operand::Local(callee_local),
                 },
