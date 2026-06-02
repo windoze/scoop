@@ -257,25 +257,6 @@ impl<'a> ReachabilityCollector<'a> {
         self.callable_roots_by_key
             .get(key)
             .map(|root| (*root).to_string())
-            .or_else(|| self.declaration_root_for_callable_key(key))
-    }
-
-    fn declaration_root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {
-        let readable = key.readable_path();
-        let has_source_signature = self.lir_facts.source_signatures.contains_key(readable);
-        let has_abi_symbol = self
-            .lir_facts
-            .physical_layout
-            .abi_symbols
-            .values()
-            .any(|symbol| {
-                symbol.root_fqn.as_deref() == Some(readable)
-                    && matches!(
-                        symbol.role.as_str(),
-                        "callable_export" | "native_callable" | "extern_callable"
-                    )
-            });
-        (has_source_signature && has_abi_symbol).then(|| readable.to_string())
     }
 }
 
@@ -608,7 +589,7 @@ mod tests {
             scoopc_lir_facts::LirAbiSymbolFact {
                 key: "abi:scoop.core.Bool.toString".to_string(),
                 symbol: "scoop_core_Bool_toString".to_string(),
-                callable: None,
+                callable: Some(target),
                 root_fqn: Some("scoop.core.Bool.toString".to_string()),
                 role: "extern_callable".to_string(),
             },

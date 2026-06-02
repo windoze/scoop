@@ -17,7 +17,7 @@
 | T3-03R | [DONE] | Review T3-03 |
 | T3-04 | [DONE] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
 | T3-04A0 | [DONE] | 发布 source-body legacy scalar/toString intrinsic call metadata，解除 T3-04A fixture 阻塞 |
-| T3-04A | [TODO] | 收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口 |
+| T3-04A | [DONE] | 收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -87,7 +87,7 @@
 - 依赖：T3-04
 - 完成记录：2026-06-02 完成。HIR source-body f-string 对 builtin scalar/string 插值现在发布 concrete `Bool/Char/Int/Float/String.toString` 调用身份，并保留非 builtin receiver 的 `ToString.toString` 语义；legacy scalar `@Intrinsic` 无参标注在 HIR facts 中发布 named table entry（含 `Bool.negate` alias）。effect-lowered `ToString.toString` 只在 receiver source type 明确为 builtin scalar/string 时走对应 concrete toString/plain callable 路径，非 builtin receiver 回到已发布 plain callable，避免 `println<T: ToString>`/overlay body 被错误降成 Unit。同步修复缺省 `else` 且 then 分支已终止的 `if` lowering，不再向非 Unit 结果槽写入 Unit，并更新相关 MIR/effect-lowered golden。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04A：收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口
+### [DONE] T3-04A：收口 T3-04R 审查发现的 P6 side-table / intrinsic fallback / unpublished-target verifier 缺口
 - 背景：执行 `T3-04R` 审查时确认 `T3-04` 仍未满足“P6 只消费 LIR facts / 缺 fact fail-fast / dependency gate 锁定”的完成条件，必须先补齐该前置缺口再完成 review。
 - 必须实现的内容：
   1. **P6 direct-call/source-site side table 删除**：生产 LLVM codegen 不得再消费 `top_level_fun_call_sites`、`current_top_level_fun_call_binding`、`concrete_top_level_fun_call_fqn` 或同类 source-span binding side table 来恢复 direct-call concrete FQN、generic source signature、reflection type args、intrinsic entry 或 vtable/itable dispatch slot owner；这些信息必须由 HIR/MIR/LIR published facts 或 LIR call-site/source contract 表达，缺失时 fail-fast。
@@ -98,7 +98,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`。
 - 完成条件：`T3-04` 的 fact-only/fail-fast 契约被真实锁住，P6 不再回看上述 source side table 或 FQN intrinsic fallback，相关 verifier/gate/回归测试覆盖新增缺口。
 - 依赖：T3-04A0
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。LLVM stage 不再从 `top_level_fun_call_sites` 补 intrinsic/direct-call source side table；legacy scalar named intrinsic 的 P6 本地 FQN fallback 已删除，named intrinsic metadata 改由 LIR facts 发布 `intrinsic_callables` 并由 LLVM 消费。LIR ABI facts 现在为 declaration-only call targets 发布与 target key 绑定的 ABI fact，verifier/reachability 不再通过 `target.readable_path()` 兜底接受 unpublished target；补充 CandidateSet unbound declaration、itable layout target verifier 单测。Dependency gate 增加 `top_level_fun_call_sites`、legacy scalar FQN fallback、generic/overload string parsing 等守卫。同步 schema version 至 1.8，并修复 vtable lowering 在无 receiver direct-call 探测时应返回不匹配而非 panic。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

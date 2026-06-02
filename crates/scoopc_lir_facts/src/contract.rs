@@ -390,6 +390,13 @@ pub struct LirSourceCallableSignatureFacts {
     pub return_ty: TypeId,
 }
 
+/// Published intrinsic callable metadata consumed by backend lowering.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirIntrinsicCallableFact {
+    pub root_fqn: String,
+    pub named_entry_name: Option<String>,
+}
+
 /// Stable identity for a class constructor init body contract.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,

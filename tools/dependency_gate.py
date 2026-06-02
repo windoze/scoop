@@ -880,6 +880,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LLVM stage handoff must not pass source-span dispatch side tables into P6",
                 ),
                 fp(
+                    "top_level_fun_call_sites",
+                    "LLVM stage handoff must not rebuild intrinsic/direct-call metadata from source-span top-level call binding side tables",
+                ),
+                fp(
                     "build_dispatch_call_contracts",
                     "LLVM stage handoff must consume published LIR dispatch contracts instead of rebuilding a source-span dispatch table",
                 ),
@@ -1132,11 +1136,23 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
                 ),
                 fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
                     "split(\"::<\")",
                     "direct call lowering must not parse generic FQN text to recover callable roots",
                 ),
                 fp(
+                    "rsplit_once(\"::<\")",
+                    "direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
                     "split(\"$overload",
+                    "direct call lowering must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "split_once(\"$overload",
                     "direct call lowering must not parse overload FQN text to recover callable roots",
                 ),
             ),
@@ -1167,6 +1183,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "effect-lowered calls must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
                 ),
                 fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "effect-lowered calls must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
                     "intrinsic_base_fqn(",
                     "effect-lowered calls must not parse intrinsic base FQNs locally",
                 ),
@@ -1175,7 +1195,15 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "effect-lowered calls must not parse generic FQN text to recover callable roots",
                 ),
                 fp(
+                    "rsplit_once(\"::<\")",
+                    "effect-lowered calls must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
                     "split(\"$overload",
+                    "effect-lowered calls must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "split_once(\"$overload",
                     "effect-lowered calls must not parse overload FQN text to recover callable roots",
                 ),
             ),
@@ -1200,6 +1228,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "published_named_intrinsic_entry_name_for_fqn",
                     "MIR direct call lowering must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "MIR direct call lowering must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "MIR direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "rsplit_once(\"::<\")",
+                    "MIR direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "split_once(\"$overload",
+                    "MIR direct call lowering must not parse overload FQN text to recover callable roots",
                 ),
             ),
         ),

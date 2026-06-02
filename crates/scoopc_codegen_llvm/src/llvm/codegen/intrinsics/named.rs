@@ -972,6 +972,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(contract.named_entry_name.as_deref())
     }
 
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        if let Some(intrinsic) = self.published_lir_facts.intrinsic_callables.get(root_fqn) {
+            return Ok(intrinsic.named_entry_name.as_deref());
+        }
+        let mut matches = self
+            .intrinsic_call_contracts
+            .values()
+            .filter(|contract| contract.function_fqn == root_fqn)
+            .filter_map(|contract| contract.named_entry_name.as_deref());
+        let Some(entry_name) = matches.next() else {
+            return Ok(None);
+        };
+        if matches.any(|candidate| candidate != entry_name) {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "intrinsic root `{root_fqn}` published conflicting named intrinsic entries"
+                ),
+            });
+        }
+        Ok(Some(entry_name))
+    }
+
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_call_or_root(
+        &self,
+        span: crate::span::Span,
+        root_fqn: &str,
+        expected_fqn: Option<&str>,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        if let Some(entry_name) =
+            self.published_named_intrinsic_entry_name_for_call(span, expected_fqn)?
+        {
+            return Ok(Some(entry_name));
+        }
+        self.published_named_intrinsic_entry_name_for_root(root_fqn)
+    }
+
     pub(in crate::llvm::codegen) fn published_intrinsic_function_fqn_for_call(
         &self,
         span: crate::span::Span,

@@ -2248,6 +2248,18 @@ fn populate_source_site_facts(
     let mut call_site_contracts = contracts.call_site_contracts.iter().collect::<Vec<_>>();
     call_site_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
     for (call_site, contract) in call_site_contracts {
+        let intrinsic_contract = lowered_hir
+            .top_level_fun_call_sites
+            .get(call_site)
+            .filter(|binding| binding_publishes_intrinsic_metadata(binding))
+            .map(|binding| {
+                intrinsic_call_contract_from_existing_or_binding(
+                    &lowered_hir.types,
+                    contract,
+                    binding,
+                )
+            });
+        let contract = intrinsic_contract.as_ref().unwrap_or(contract);
         facts
             .call_sites
             .push(call_site_contract_fact(call_site, contract));
@@ -2268,6 +2280,28 @@ fn populate_source_site_facts(
                     binding: call_arg_binding_fact(binding),
                 });
         }
+    }
+
+    let mut published_call_sites = contracts
+        .call_site_contracts
+        .keys()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let mut intrinsic_bindings = lowered_hir
+        .top_level_fun_call_sites
+        .iter()
+        .filter(|(call_site, binding)| {
+            binding_publishes_intrinsic_metadata(binding)
+                && !published_call_sites.contains(*call_site)
+        })
+        .collect::<Vec<_>>();
+    intrinsic_bindings.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    for (call_site, binding) in intrinsic_bindings {
+        let contract = intrinsic_call_contract_from_binding(&lowered_hir.types, binding);
+        facts
+            .call_sites
+            .push(call_site_contract_fact(call_site, &contract));
+        published_call_sites.insert(call_site.clone());
     }
 
     facts
@@ -3510,6 +3544,51 @@ fn function_target_key(target: &FunctionTargetContract) -> Option<CanonicalTextK
                 .map(|key| CanonicalTextKey::new(key.canonical_text()))
         })
         .or_else(|| Some(CanonicalTextKey::new(target.fqn())))
+}
+
+fn intrinsic_call_contract_from_binding(
+    types: &TypeStore,
+    binding: &ast::TopLevelFunCallBinding,
+) -> TypedCallSiteContract {
+    let function = FunctionTargetContract::from_binding(
+        types,
+        binding,
+        CallableAbiIdentity::ManagedOrdinary,
+        None,
+        None,
+    );
+    TypedCallSiteContract::Intrinsic {
+        kind: TypedIntrinsicKind::from_call_binding(binding),
+        function,
+    }
+}
+
+fn intrinsic_call_contract_from_existing_or_binding(
+    types: &TypeStore,
+    contract: &TypedCallSiteContract,
+    binding: &ast::TopLevelFunCallBinding,
+) -> TypedCallSiteContract {
+    let function = function_target_from_call_contract(contract)
+        .cloned()
+        .unwrap_or_else(|| {
+            FunctionTargetContract::from_binding(
+                types,
+                binding,
+                CallableAbiIdentity::ManagedOrdinary,
+                None,
+                None,
+            )
+        });
+    TypedCallSiteContract::Intrinsic {
+        kind: TypedIntrinsicKind::from_call_binding(binding),
+        function,
+    }
+}
+
+fn binding_publishes_intrinsic_metadata(binding: &ast::TopLevelFunCallBinding) -> bool {
+    binding.is_intrinsic
+        || binding.intrinsic_entry_name.is_some()
+        || legacy_scalar_named_intrinsic_entry_name_for_fqn(&binding.fqn).is_some()
 }
 
 fn source_site_identity(call_site: &CallSite, role: &str) -> hir_site_facts::SourceSiteIdentity {

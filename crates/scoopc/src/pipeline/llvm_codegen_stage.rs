@@ -122,9 +122,8 @@ fn build_callable_source_contracts(
 
 fn build_intrinsic_call_contracts(
     facts: &HirFacts,
-    top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
 ) -> HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract> {
-    let mut out = facts
+    facts
         .source_sites
         .call_sites
         .iter()
@@ -162,16 +161,7 @@ fn build_intrinsic_call_contracts(
                 },
             ))
         })
-        .collect::<HashMap<_, _>>();
-    for (site, binding) in top_level_fun_call_sites {
-        out.entry(LlvmSourceCallKey::new(site.source_path.clone(), site.span))
-            .or_insert_with(|| LlvmIntrinsicCallContract {
-                function_fqn: binding.fqn.clone(),
-                type_args: binding.type_args.clone(),
-                named_entry_name: binding.intrinsic_entry_name.clone(),
-            });
-    }
-    out
+        .collect()
 }
 
 pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> EffectAnalysisFacts {
@@ -343,8 +333,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
     }
     let callable_sources =
         build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-    let intrinsic_call_contracts =
-        build_intrinsic_call_contracts(&hir_facts, &lowered_hir.top_level_fun_call_sites);
+    let intrinsic_call_contracts = build_intrinsic_call_contracts(&hir_facts);
 
     LlvmStageBaseContext::new(
         lowered_hir.source_cones,

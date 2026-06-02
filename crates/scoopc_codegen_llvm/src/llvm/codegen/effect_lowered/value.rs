@@ -1879,8 +1879,18 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let named_intrinsic_entry = self
             .codegen
             .published_named_intrinsic_entry_name_for_call(span, None)?
-            .map(str::to_string)
-            .or_else(|| legacy_scalar_named_intrinsic_entry_name(callee_fqn).map(str::to_string));
+            .map(str::to_string);
+        let named_intrinsic_entry = if named_intrinsic_entry.is_some() {
+            named_intrinsic_entry
+        } else if let Some(root_fqn) = self.plain_call_target_root_fqn(site_id) {
+            self.codegen
+                .published_named_intrinsic_entry_name_for_root(root_fqn)?
+                .map(str::to_string)
+        } else {
+            self.codegen
+                .published_named_intrinsic_entry_name_for_root(callee_fqn)?
+                .map(str::to_string)
+        };
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
                 span,
@@ -4251,101 +4261,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
-}
-
-fn legacy_scalar_named_intrinsic_entry_name(fqn: &str) -> Option<&'static str> {
-    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-    let (owner, method) = base.rsplit_once('.')?;
-    if owner == "scoop.core.Bool" {
-        return match method {
-            "and" => Some("bool_and"),
-            "or" => Some("bool_or"),
-            "xor" => Some("bool_xor"),
-            "eq" | "equals" => Some("bool_eq"),
-            "ne" | "notEquals" => Some("bool_ne"),
-            "not" | "negate" => Some("bool_not"),
-            _ => None,
-        };
-    }
-    if matches!(owner, "scoop.core.Float32" | "scoop.core.Float64") {
-        return match method {
-            "plus" => Some("float_plus"),
-            "minus" => Some("float_minus"),
-            "times" => Some("float_times"),
-            "div" => Some("float_div"),
-            "rem" => Some("float_rem"),
-            "unaryMinus" => Some("float_unary_minus"),
-            "unaryPlus" => Some("float_unary_plus"),
-            "lt" => Some("float_lt"),
-            "le" => Some("float_le"),
-            "gt" => Some("float_gt"),
-            "ge" => Some("float_ge"),
-            "eq" | "equals" => Some("float_eq"),
-            "ne" | "notEquals" => Some("float_ne"),
-            "compareTo" => Some("float_compare_to"),
-            "abs" => Some("float_abs"),
-            "isNaN" => Some("float_is_nan"),
-            "isInfinite" => Some("float_is_infinite"),
-            "hash" => Some("float_hash"),
-            _ => None,
-        };
-    }
-    if owner == "scoop.core.Char" {
-        return match method {
-            "toInt" => Some("char_to_int"),
-            "hash" => Some("char_hash"),
-            "compareTo" => Some("char_compare_to"),
-            "eq" | "equals" => Some("char_equals"),
-            "plus" | "plusInt" => Some("char_plus_int"),
-            "minus" | "minusInt" => Some("char_minus_int"),
-            "minusChar" => Some("char_minus_char"),
-            _ => None,
-        };
-    }
-    if !matches!(
-        owner,
-        "scoop.core.Int"
-            | "scoop.core.UInt"
-            | "scoop.core.Int8"
-            | "scoop.core.Int16"
-            | "scoop.core.Int32"
-            | "scoop.core.Int64"
-            | "scoop.core.UInt8"
-            | "scoop.core.UInt16"
-            | "scoop.core.UInt32"
-            | "scoop.core.UInt64"
-    ) {
-        return None;
-    }
-    match method {
-        "plus" => Some("int_plus"),
-        "minus" => Some("int_minus"),
-        "times" => Some("int_times"),
-        "div" => Some("int_div"),
-        "rem" => Some("int_rem"),
-        "unaryMinus" => Some("int_unary_minus"),
-        "unaryPlus" => Some("int_unary_plus"),
-        "inc" => Some("int_inc"),
-        "dec" => Some("int_dec"),
-        "and" => Some("int_and"),
-        "or" => Some("int_or"),
-        "xor" => Some("int_xor"),
-        "inv" => Some("int_inv"),
-        "shl" => Some("int_shl"),
-        "shr" => Some("int_shr"),
-        "ushr" => Some("int_ushr"),
-        "lt" => Some("int_lt"),
-        "le" => Some("int_le"),
-        "gt" => Some("int_gt"),
-        "ge" => Some("int_ge"),
-        "equals" => Some("int_eq"),
-        "notEquals" => Some("int_ne"),
-        "compareTo" => Some("int_compare_to"),
-        "hash" => Some("int_hash"),
-        "toString" => Some("int_to_string"),
-        "negate" => Some("bool_not"),
-        _ => None,
-    }
 }
 
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]

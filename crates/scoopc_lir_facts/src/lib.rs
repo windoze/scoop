@@ -30,6 +30,7 @@ pub struct LirFacts {
     pub physical_layout: LirPhysicalLayoutFacts,
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
+    pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -48,6 +49,7 @@ pub struct LirFactGroups {
     pub physical_layout: LirPhysicalLayoutFacts,
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
+    pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
@@ -70,6 +72,7 @@ impl LirFacts {
             physical_layout: LirPhysicalLayoutFacts::default(),
             type_context: LirTypeContextFacts::default(),
             source_signatures: BTreeMap::new(),
+            intrinsic_callables: BTreeMap::new(),
             class_ctor_inits: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
@@ -104,6 +107,7 @@ impl LirFacts {
             physical_layout: groups.physical_layout,
             type_context: groups.type_context,
             source_signatures: groups.source_signatures,
+            intrinsic_callables: groups.intrinsic_callables,
             class_ctor_inits: groups.class_ctor_inits,
             callables: groups.callables,
             step_types: groups.step_types,
@@ -119,6 +123,7 @@ impl LirFacts {
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
             && self.source_signatures.is_empty()
+            && self.intrinsic_callables.is_empty()
             && self.class_ctor_inits.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()
@@ -882,6 +887,33 @@ mod tests {
     fn verifier_accepts_declaration_only_candidate_target_with_abi_contract() {
         let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
+        let callable = plain_callable_with_candidate("app.main", target.clone());
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                source_signatures: BTreeMap::from([(
+                    "dep.extern_fun".to_string(),
+                    source_signature("dep.extern_fun"),
+                )]),
+                physical_layout: LirPhysicalLayoutFacts {
+                    abi_symbols: BTreeMap::from([(
+                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol("dep.extern_fun", Some(target)),
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                callables: BTreeMap::from([(owner, callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn verifier_rejects_candidate_target_with_unbound_declaration_abi_contract() {
+        let owner = callable_key("app.main");
+        let target = callable_key("dep.extern_fun");
         let callable = plain_callable_with_candidate("app.main", target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
@@ -902,7 +934,13 @@ mod tests {
             },
         );
 
-        assert!(facts.verify().is_ok());
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidExactCalleeBinding {
+                callable: "app.main".to_string(),
+                reason: "target callable is unpublished and has no reachable ABI root",
+            }
+        );
     }
 
     #[test]
@@ -955,6 +993,82 @@ mod tests {
                             has_receiver: true,
                             impl_member_fqn: "app.Class.run".to_string(),
                         }],
+                    )]),
+                    abi_symbols: BTreeMap::from([(
+                        "abi:app.Class.run".to_string(),
+                        abi_symbol("app.Class.run", None),
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn verifier_rejects_itable_target_without_source_signature_or_abi_symbol() {
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
+            LirFactGroups {
+                physical_layout: LirPhysicalLayoutFacts {
+                    class_itables: BTreeMap::from([(
+                        "app.Class".to_string(),
+                        LirClassItableFacts {
+                            class_fqn: "app.Class".to_string(),
+                            entries: vec![LirClassItableEntryFacts {
+                                interface_fqn: "app.Interface".to_string(),
+                                interface_id: 1,
+                                interface_type_name: "app.Interface".to_string(),
+                                interface_type_id: 2,
+                                runtime_match_type_names: Vec::new(),
+                                runtime_match_type_ids: Vec::new(),
+                                method_impl_fqns: vec!["app.Class.run".to_string()],
+                                method_receiver_type_ids: Vec::new(),
+                            }],
+                        },
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidAbiSymbol {
+                key: "app.Class.run".to_string(),
+                reason: "itable implementation target lacks a published source signature or ABI symbol",
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_accepts_itable_target_with_source_signature_and_abi_symbol() {
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
+            LirFactGroups {
+                source_signatures: BTreeMap::from([(
+                    "app.Class.run".to_string(),
+                    source_signature("app.Class.run"),
+                )]),
+                physical_layout: LirPhysicalLayoutFacts {
+                    class_itables: BTreeMap::from([(
+                        "app.Class".to_string(),
+                        LirClassItableFacts {
+                            class_fqn: "app.Class".to_string(),
+                            entries: vec![LirClassItableEntryFacts {
+                                interface_fqn: "app.Interface".to_string(),
+                                interface_id: 1,
+                                interface_type_name: "app.Interface".to_string(),
+                                interface_type_id: 2,
+                                runtime_match_type_names: Vec::new(),
+                                runtime_match_type_ids: Vec::new(),
+                                method_impl_fqns: vec!["app.Class.run".to_string()],
+                                method_receiver_type_ids: Vec::new(),
+                            }],
+                        },
                     )]),
                     abi_symbols: BTreeMap::from([(
                         "abi:app.Class.run".to_string(),

@@ -101,9 +101,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or_else(|| fqn.to_string());
         let concrete_fqn = concrete_fqn.as_str();
         if let Some(entry_name) = self
-            .published_named_intrinsic_entry_name_for_call(span, None)?
+            .published_named_intrinsic_entry_name_for_call_or_root(span, concrete_fqn, None)?
             .map(str::to_string)
-            .or_else(|| legacy_scalar_named_intrinsic_entry_name(concrete_fqn).map(str::to_string))
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
                 &entry_name,
@@ -860,63 +859,4 @@ fn instantiated_mir_callee_fqn(
         .collect::<Vec<_>>()
         .join(", ");
     Some(format!("{fqn}::<{args}>"))
-}
-
-fn legacy_scalar_named_intrinsic_entry_name(fqn: &str) -> Option<&'static str> {
-    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-    let (owner, method) = base.rsplit_once('.')?;
-    if owner == "scoop.core.Bool" {
-        return match method {
-            "and" => Some("bool_and"),
-            "or" => Some("bool_or"),
-            "xor" => Some("bool_xor"),
-            "eq" | "equals" => Some("bool_eq"),
-            "ne" | "notEquals" => Some("bool_ne"),
-            "not" | "negate" => Some("bool_not"),
-            _ => None,
-        };
-    }
-    if !matches!(
-        owner,
-        "scoop.core.Int"
-            | "scoop.core.UInt"
-            | "scoop.core.Int8"
-            | "scoop.core.Int16"
-            | "scoop.core.Int32"
-            | "scoop.core.Int64"
-            | "scoop.core.UInt8"
-            | "scoop.core.UInt16"
-            | "scoop.core.UInt32"
-            | "scoop.core.UInt64"
-    ) {
-        return None;
-    }
-    match method {
-        "plus" => Some("int_plus"),
-        "minus" => Some("int_minus"),
-        "times" => Some("int_times"),
-        "div" => Some("int_div"),
-        "rem" => Some("int_rem"),
-        "unaryMinus" => Some("int_unary_minus"),
-        "unaryPlus" => Some("int_unary_plus"),
-        "inc" => Some("int_inc"),
-        "dec" => Some("int_dec"),
-        "and" => Some("int_and"),
-        "or" => Some("int_or"),
-        "xor" => Some("int_xor"),
-        "inv" => Some("int_inv"),
-        "shl" => Some("int_shl"),
-        "shr" => Some("int_shr"),
-        "ushr" => Some("int_ushr"),
-        "lt" => Some("int_lt"),
-        "le" => Some("int_le"),
-        "gt" => Some("int_gt"),
-        "ge" => Some("int_ge"),
-        "eq" | "equals" => Some("int_eq"),
-        "ne" | "notEquals" => Some("int_ne"),
-        "compareTo" => Some("int_compare_to"),
-        "hash" => Some("int_hash"),
-        "toString" => Some("int_to_string"),
-        _ => None,
-    }
 }

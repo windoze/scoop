@@ -13,6 +13,7 @@ use scoopc_mir_facts::roots::{
     MirRootFact,
 };
 
+use scoopc_hir::intrinsics::fallback_named_intrinsic_entry_name_for_fqn;
 use scoopc_lir::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind,
     ConcreteOpKey, EffectPrecision, ImplPlan, MaterializedEffectFacts, SiteEffectFacts,
@@ -92,16 +93,24 @@ pub(crate) fn build_lir_facts(
     let mut dispatches = BTreeMap::new();
     let callables = build_callable_facts(&ctx, &mut dynamic_invokes, &mut dispatches)?;
     let source_signatures = build_source_signature_facts(ctx.lir, ctx.mir_facts)?;
+    let intrinsic_callables = build_intrinsic_callable_facts(
+        &source_signatures,
+        &callables,
+        &dynamic_invokes,
+        &dispatches,
+    );
     let groups = LirFactGroups {
         global_init: build_global_init_facts(&ctx)?,
         physical_layout: build_physical_layout_facts(
             &ctx,
             &callables,
             &dynamic_invokes,
+            &dispatches,
             &source_signatures,
         )?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
         source_signatures,
+        intrinsic_callables,
         class_ctor_inits: build_class_ctor_init_facts(ctx.lir),
         callables,
         step_types: build_step_type_facts(lir),
@@ -864,6 +873,7 @@ fn build_physical_layout_facts(
     ctx: &LirFactsBuildContext<'_>,
     callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
     source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
 ) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
@@ -944,6 +954,7 @@ fn build_physical_layout_facts(
         source_signatures,
         callables,
         dynamic_invokes,
+        dispatches,
     );
     facts.layout_names = build_layout_name_facts(&facts);
     facts.closure_identities = build_closure_identity_facts(ctx)?;
@@ -960,6 +971,7 @@ fn build_abi_symbol_facts(
     source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
     callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
 ) -> BTreeMap<String, LirAbiSymbolFact> {
     let mut out = BTreeMap::new();
     let callable_roots = callable_symbols
@@ -1053,11 +1065,61 @@ fn build_abi_symbol_facts(
             role,
         );
     }
+    for target in required_target_callables(callables, dynamic_invokes, dispatches) {
+        if callable_symbol_contains_canonical_key(callable_symbols, &target)
+            || out
+                .values()
+                .any(|fact| fact.callable.as_ref() == Some(&target))
+        {
+            continue;
+        }
+        let root_fqn = target.readable_path().to_string();
+        if root_fqn.is_empty() || !source_signatures.contains_key(root_fqn.as_str()) {
+            continue;
+        }
+        let (symbol, role) = if let Some(native) = native_callable_funs.get(root_fqn.as_str()) {
+            (native.symbol.clone(), "native_callable")
+        } else if let Some(extern_fun) = extern_funs.get(root_fqn.as_str()) {
+            (extern_fun.symbol.clone(), "extern_callable")
+        } else {
+            (AbiMangler.fun_symbol(&target), "callable_export")
+        };
+        insert_abi_symbol_fact(
+            &mut out,
+            target.canonical_text(),
+            symbol,
+            Some(target),
+            Some(root_fqn),
+            role,
+        );
+    }
     for root_fqn in dispatch_layout_impl_roots(class_vtables, class_itables) {
         insert_declaration_abi_symbol_if_missing(&mut out, root_fqn);
     }
     for root_fqn in source_signatures.keys() {
         insert_declaration_abi_symbol_if_missing(&mut out, root_fqn.clone());
+    }
+    out
+}
+
+fn required_target_callables(
+    callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
+) -> BTreeSet<StableLirCallableKey> {
+    let mut out = BTreeSet::new();
+    for callable in callables.values() {
+        if let LirCallableContract::Plain(plain) = &callable.contract {
+            for site in &plain.call_sites {
+                out.extend(site.contract.target_callables.iter().cloned());
+            }
+        }
+    }
+    for dynamic in dynamic_invokes.values() {
+        out.extend(dynamic.call.target_callables.iter().cloned());
+    }
+    for dispatch in dispatches.values() {
+        out.extend(dispatch.candidate_targets.iter().cloned());
     }
     out
 }
@@ -1412,6 +1474,161 @@ fn build_source_signature_facts(
         insert_source_signature_fact(&mut out, source_signature_facts_for_callable(callable)?)?;
     }
     Ok(out)
+}
+
+fn build_intrinsic_callable_facts(
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
+    callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
+) -> BTreeMap<String, LirIntrinsicCallableFact> {
+    let mut roots = source_signatures.keys().cloned().collect::<BTreeSet<_>>();
+    roots.extend(
+        required_target_callables(callables, dynamic_invokes, dispatches)
+            .into_iter()
+            .map(|target| target.readable_path().to_string()),
+    );
+    roots.extend(known_named_intrinsic_roots());
+    roots
+        .into_iter()
+        .filter_map(|root_fqn| {
+            fallback_named_intrinsic_entry_name_for_fqn(root_fqn.as_str()).map(|entry_name| {
+                (
+                    root_fqn.clone(),
+                    LirIntrinsicCallableFact {
+                        root_fqn: root_fqn.clone(),
+                        named_entry_name: Some(entry_name.to_string()),
+                    },
+                )
+            })
+        })
+        .collect()
+}
+
+fn known_named_intrinsic_roots() -> Vec<String> {
+    let mut roots = vec![
+        "scoop.core.Array.size".to_string(),
+        "scoop.core.MutableArray.size".to_string(),
+        "scoop.core.Array.get".to_string(),
+        "scoop.core.MutableArray.get".to_string(),
+        "scoop.core.MutableArray.set".to_string(),
+        "scoop.core.Array.__dataPtr".to_string(),
+        "scoop.core.MutableArray.__dataPtr".to_string(),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_cast".to_string(),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_erase".to_string(),
+        "scoop.unsafe.__scoop_unsafe_array_cast".to_string(),
+        "scoop.unsafe.__scoop_unsafe_value_to_word".to_string(),
+        "scoop.unsafe.__scoop_unsafe_value_to_any".to_string(),
+        "scoop.unsafe.__scoop_unsafe_value_slot".to_string(),
+    ];
+    let int_methods = [
+        "plus",
+        "minus",
+        "times",
+        "div",
+        "rem",
+        "unaryMinus",
+        "unaryPlus",
+        "inc",
+        "dec",
+        "and",
+        "or",
+        "xor",
+        "inv",
+        "shl",
+        "shr",
+        "ushr",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "eq",
+        "equals",
+        "ne",
+        "notEquals",
+        "compareTo",
+        "hash",
+    ];
+    let int_owners = [
+        "scoop.core.Int",
+        "scoop.core.UInt",
+        "scoop.core.Int8",
+        "scoop.core.Int16",
+        "scoop.core.Int32",
+        "scoop.core.Int64",
+        "scoop.core.UInt8",
+        "scoop.core.UInt16",
+        "scoop.core.UInt32",
+        "scoop.core.UInt64",
+    ];
+    for owner in int_owners {
+        roots.extend(
+            int_methods
+                .iter()
+                .map(move |method| format_intrinsic_root(owner, method)),
+        );
+    }
+    let float_methods = [
+        "plus",
+        "minus",
+        "times",
+        "div",
+        "rem",
+        "unaryMinus",
+        "unaryPlus",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "eq",
+        "equals",
+        "ne",
+        "notEquals",
+        "compareTo",
+        "abs",
+        "isNaN",
+        "isInfinite",
+        "hash",
+    ];
+    for owner in ["scoop.core.Float32", "scoop.core.Float64"] {
+        roots.extend(
+            float_methods
+                .iter()
+                .map(move |method| format_intrinsic_root(owner, method)),
+        );
+    }
+    for method in [
+        "and",
+        "or",
+        "xor",
+        "eq",
+        "equals",
+        "ne",
+        "notEquals",
+        "not",
+        "negate",
+    ] {
+        roots.push(format_intrinsic_root("scoop.core.Bool", method));
+    }
+    for method in [
+        "toInt",
+        "hash",
+        "compareTo",
+        "eq",
+        "equals",
+        "plus",
+        "plusInt",
+        "minus",
+        "minusInt",
+        "minusChar",
+    ] {
+        roots.push(format_intrinsic_root("scoop.core.Char", method));
+    }
+    roots
+}
+
+fn format_intrinsic_root(owner: &str, method: &str) -> String {
+    format!("{owner}.{method}")
 }
 
 fn source_signature_facts_for_callable(

@@ -1,29 +1,24 @@
-# Claude Plan
+# 执行计划
 
-## Scope
+本文件记录可检查的执行计划、关键决策和进度更新。不会记录隐藏推理细节，但会记录足够的依据、步骤和验证结果，便于审查。
 
-本文件记录本次调用的执行计划、关键进展和验证结果。为避免记录不可公开的内部推理，这里只写可审计的简明依据、决策和步骤。
+## 当前计划
 
-## Initial Plan
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 识别第一个未完成任务。
+2. 检查最近提交，仅在其明确提到与该任务直接相关的未完成问题时纳入当前任务或补充为前置任务。
+3. 阅读当前任务涉及的代码、文档和测试，确定最小正确实现范围。
+4. 实施当前任务；如果发现阻塞当前任务的缺失特性、规格不匹配或未排期失败，优先修复或在 `TODO.md` 中插入最小前置任务并停止。
+5. 运行格式化、lint、相关测试，并按要求运行完整测试/fixture 套件或记录可复用的绿色结果。
+6. 更新 `TODO.md`：将完成任务标题加 `[DONE]`，补全完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
+7. 检查 `git status`、`git diff`、近期提交，提交本次任务相关全部变更，然后停止。
 
-1. 读取 `TODO.md`，按文件顺序识别第一个标题未带 `[DONE]` 的任务，并确认其依赖、要求和验证项。
-2. 查看最新提交信息；只有当最新提交明确提到与当前任务直接相关的未完成问题时，才把它纳入当前任务或作为前置项记录到 `TODO.md`。
-3. 针对第一个未完成任务读取必要的相关代码、测试、规范和上下文，避免无关的历史问题扫查。
-4. 若任务可直接完成，做最小且完整的实现，并添加或更新最相关的测试/fixture。
-5. 按要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，然后运行相关测试；如代码变更需要完整验证，再运行 `cargo test --all --all-targets` 和 `python3 tools/run_fixtures.py`，两者使用足够长的超时。
-6. 如发现未被计划覆盖的失败测试/fixture，先修复；若不能在当前任务内合理修复，则在 `TODO.md` 中插入最小前置任务并停止。
-7. 完成后将当前任务标题标记为 `[DONE]`，补全完成记录；仅当阶段计划实际变化时才更新 `PLAN.md`。
-8. 检查工作区状态和差异，提交本次任务相关全部变更，提交信息使用任务编号和简洁说明。
-9. 提交后停止，不进入下一个任务。
-
-## Progress
+## 进度
 
 - 已创建初始执行计划，下一步读取 `TODO.md` 识别第一个未完成任务。
-- 已确认 `TODO.md` 指向 `TODO-3.md`，第一个未完成任务是 `T3-04A0`。
-- 最新提交 `550776e0 [T3-04A] Schedule source-body intrinsic metadata prerequisite` 与当前任务直接相关，说明 `T3-04A0` 是为解除 `T3-04A` fixture 阻塞而插入的前置任务；本次将直接执行该任务。
-- 复现代表 fixture：`intrinsic_sysroot_overlay_scalar_method_basic`、`fun_call_add_basic`、`cross_file_generic_top_level_val_basic` 当前通过；`cross_file_ctor_named_default_basic` 失败，输出 `:`/`:`，说明 class ctor source-body f-string 的 builtin `ToString.toString` metadata 不足，落到了接口默认实现。
-- 已开始实现：HIR facts 对 legacy scalar `@Intrinsic` 无参标注发布 named entry；随后发现单纯在 LLVM handoff 按 receiver type 选择 scalar toString runtime entry 会绕开 sysroot overlay body，因此改为上游发布 concrete source call 身份。
-- 显式重建 `scoop`/`scoopc` 后，`cross_file_ctor_named_default_basic` 与相关 scalar/toString/source-body 代表 fixture 已通过；后续进入 lint 与全量验证。
-- 全量 fixture 暴露 overlay `toString` 与 generic `println<T: ToString>` 相关失败；已调整方案，改为 HIR f-string 对 builtin scalar/string 直接发布 concrete `*.toString` source call，并保留 overlay body 语义。另修复无 `else` 的 `if` 在终止 then 分支场景下不再向非 Unit 结果槽写 Unit；effect-lowered `ToString.toString` 仅对 builtin receiver 使用 runtime/string intrinsic 快路，非 builtin receiver 回到已发布 plain callable。相关失败 fixture 已逐个通过。
-- 最终验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/run_fixtures.py`（1664 checks）。
-- 已将 `TODO-3.md` 的 `T3-04A0` 标记为 `[DONE]` 并补全完成记录；`TODO.md` 当前活跃任务已推进到下一项 `T3-04A`。下一步检查 diff/status 并提交。
+- 已读取 `TODO.md` / `TODO-3.md`，第一个未完成任务是 `T3-04A`。最近提交 `T3-04A0` 是其直接前置，已作为当前任务上下文处理。
+- 下一步聚焦 `T3-04A`：删除 P6 direct-call/source-site side table 与 intrinsic FQN fallback，补齐 unpublished target verifier、declaration-only ABI reachability 和 dependency gate 守卫。
+- 定向探索确认主要待改点在 `llvm_codegen_stage.rs` 的 intrinsic source-span handoff、LLVM codegen 的 intrinsic contract/context 访问、LIR verifier/ABI reachability 单测覆盖，以及 `tools/dependency_gate.py` 守卫加严。
+- 实施计划细化：先移除 `llvm_codegen_stage.rs` 对 `top_level_fun_call_sites` 的 intrinsic metadata 补洞；再删除 P6 三处 `legacy_scalar_named_intrinsic_entry_name` FQN fallback；随后让 LIR ABI facts 为 declaration-only call targets 发布与目标 key 绑定的 ABI fact，并移除 verifier 的 `target.readable_path()` 兜底。
+- 已移除 LLVM stage 的 `top_level_fun_call_sites` intrinsic 补洞和 P6 local legacy scalar intrinsic fallback；已改为为 declaration-only target 发布 target-key 绑定 ABI fact，并让 verifier/reachability 不再依赖 readable-path 兜底。
+- Fixture 失败定位为两类：旧 `target/debug` 二进制在 schema bump 后未重建，以及 LIR facts 尚未发布 root-level named intrinsic callable metadata。已将 intrinsic callable metadata 纳入 LIR facts，LLVM 从该 fact 查询 named entry；同时保留现有 source-site fact 查询并避免恢复 P6 本地 scalar FQN fallback。
+- 最终验证已完成：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/run_fixtures.py`（1664 checks）均通过。`TODO-3.md` 已标记 `T3-04A` 为完成，`TODO.md` 当前活跃任务推进到 `T3-04R`。

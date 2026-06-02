@@ -597,6 +597,7 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_global_init_contracts(facts)?;
     verify_physical_layout_contracts(facts)?;
     verify_source_signature_contracts(facts)?;
+    verify_intrinsic_callable_contracts(facts)?;
     verify_class_ctor_init_contracts(facts)?;
     verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
@@ -1256,6 +1257,21 @@ fn verify_source_signature_contracts(facts: &LirFacts) -> Result<()> {
     Ok(())
 }
 
+fn verify_intrinsic_callable_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, intrinsic) in &facts.intrinsic_callables {
+        if key != &intrinsic.root_fqn
+            || intrinsic.root_fqn.is_empty()
+            || intrinsic
+                .named_entry_name
+                .as_deref()
+                .is_some_and(str::is_empty)
+        {
+            return Err(VerifyError::InvalidSourceSignature { key: key.clone() });
+        }
+    }
+    Ok(())
+}
+
 fn verify_class_ctor_init_contracts(facts: &LirFacts) -> Result<()> {
     for (key, init) in &facts.class_ctor_inits {
         if key != &init.key {
@@ -1562,8 +1578,7 @@ fn published_target_root_fqn<'a>(
     {
         return Some(root);
     }
-    let readable = target.readable_path();
-    root_has_published_source_and_abi(facts, readable).then_some(readable)
+    None
 }
 
 fn root_has_published_source_and_abi(facts: &LirFacts, root_fqn: &str) -> bool {
