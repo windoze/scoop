@@ -23,6 +23,7 @@
 | T3-04C | [DONE] | 收口 T3-04R 三次审查发现的 intrinsic/root/declaration ABI/reflection/verifier/gate 残余缺口 |
 | T3-04D | [DONE] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
 | T3-04E | [DONE] | 收口 T3-04R 五次审查发现的 ctor/reflection source-span bridge、scalar intrinsic FQN fallback 与 gate 漏洞 |
+| T3-04F | [TODO] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -172,11 +173,26 @@
 - 依赖：T3-04D
 - 完成记录：2026-06-03 完成。P6 handoff/base context/codegen 已删除 `ctor_call_sites` / `CtorCallSiteIndex` 传递与查询，HIR/source payload class ctor lowering 改为消费 LIR facts 发布的 ctor call-site contract，缺 contract 时 fail-fast，不再用唯一 span、result type 或 unresolved name 推断 ctor metadata。Reflection 类型实参从旧 `source_path:span` 字符串 map 迁移为 `SiteId` keyed LIR reflection call-site facts，value-overload reflection 不发布空 type-arg fact。Scalar bodyless intrinsic metadata 从 MIR backend/LIR intrinsic facts 发布与消费，LLVM HIR/MIR/effect-lowered 路径删除 `scalar_bodyless_intrinsic_entry_name` 及 generic/overload/FQN 文本解析 fallback；pure source payload 也只从已发布 `intrinsic_callables` 精确读取 metadata。LIR verifier/dump/golden 与 dependency gate 同步补齐 ctor/reflection/scalar fallback 守卫，schema 升至 1.10。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
+### [TODO] T3-04F：收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口
+- 背景：执行 `T3-04R` 第六次审查时确认，`T3-04E` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
+- 必须实现的内容：
+  1. **删除 P6 source-span call-site bridge**：LLVM/P6 生产路径不得再用 `current_call_site(span)`、`source_call_site_id(path+span)`、`published_class_ctor_call_site(span)`、`published_reflection_type_arg_for_current_call(span, ...)` 或等价 source path+span hash 查询 ctor/reflection/effect-op/continuation metadata；必须消费 LIR-owned call-site identity/source contract，缺失时 fail-fast。
+  2. **class ctor/reflection facts 改为 LIR-owned 发布**：`lir_facts_builder` 不得通过 `hir_facts.source_sites.constructor_call_sites()` / `reflection_call_sites()` 或 `facts.source_sites.call_sites` 间接扫描发布 backend facts；class ctor target init 不得用 result type display 补洞，class ctor init body 不得回退到 LLVM base context 的 `lowered_hir.class_inits`。
+  3. **删除 ABI/source-signature 合成补洞**：LIR facts builder 不得用 `published_declaration_abi_symbol` / `AbiMangler.fun_symbol(...)`、root-only source signature、bodyless/direct synthesized key、空参数 `Unit` source signature、`readable_path()` 或 declaration key 来补齐缺失 target-bound ABI/source signature；native/extern/declaration/bodyless/layout target 缺已发布 fact 时 fail-fast。
+  4. **layout/dispatch/effect target verifier 改为 target-bound 校验**：physical layout vtable/itable target 必须携带 target callable key 或等价 stable target binding；LIR verifier 不得只按 root FQN 调 `root_has_published_source_and_abi`；effect facts verifier 对 `KnownInstance`、`CandidateSet`、`BodylessDirect`、`DynamicFallback` 等目标执行已发布 target/source signature/ABI 一致性校验。
+  5. **删除残余 FQN/string/唯一候选 fallback**：MIR/P6 不得通过 `legacy_scalar_named_intrinsic_entry_name_for_fqn`、`concrete_hir_top_level_call_fqn`、`::<...>` / `$overload$` / `rsplit_once('.')` 文本解析、root scan、唯一 candidate、`class_vtables`/`class_itables` side table 或 reachability 静默跳过来恢复 scalar intrinsic、generic direct call、dispatch、ABI 或 callable root。
+  6. **dependency gate 覆盖等价路径**：`tools/dependency_gate.py` 必须覆盖上述 helper 名称、包装函数、移动后的文件和等价重命名路径，尤其是 `source_call_site_id`、`constructor_call_sites()` / `reflection_call_sites()`、`published_declaration_abi_symbol`、MIR stage scalar intrinsic FQN fallback、generic/overload parsing helper、dispatch side-table 恢复与 reachability 静默跳过。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+- 完成条件：上述残余生产路径全部删除或改为已发布 fact 消费；verifier/gate 对缺 target-bound fact、source-span bridge、ABI/source-signature synthesis、FQN/string fallback 与静默跳过 fail-fast；全量验证通过，且不得引入 fixture-only workaround。
+- 依赖：T3-04E
+- 完成记录：（待填）
+
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`
-- 依赖：T3-04E
+- 依赖：T3-04F
 - 阻塞记录：2026-06-02 二次审查发现 `T3-04A` 后仍残留 source-span intrinsic/direct-call side table、FQN/string/root/readable-path fallback、dispatch side-table 恢复、verifier 与 dependency gate 覆盖缺口；已新增前置任务 `T3-04B`，本 review 保持未完成。
 - 阻塞记录：2026-06-02 三次审查发现 `T3-04B` 后仍残留 intrinsic root fallback、reflection source-slice type argument parsing、declaration ABI symbol 补洞、verifier declaration target escape、generic/overload string parsing、dispatch/text 恢复路径与 dependency gate 覆盖缺口；已新增前置任务 `T3-04C`，本 review 保持未完成。
 - 阻塞记录：2026-06-02 四次审查发现 `T3-04C` 后仍残留 source-span call-site/reflection/class ctor metadata、declaration/layout/call target ABI 合成、intrinsic root/FQN fallback、DynamicFallback/bodyless target 放行、generic/overload/dispatch 文本恢复、reachability 静默跳过 target 与 dependency gate 覆盖缺口；已新增前置任务 `T3-04D`，本 review 保持未完成。
 - 阻塞记录：2026-06-03 五次审查发现 `T3-04D` 后仍残留 P6 class ctor `ctor_call_sites` source-span bridge、reflection type args `source_path:span` facts、scalar bodyless intrinsic FQN/overload 文本 fallback，且 `python3 tools/dependency_gate.py` 当前失败于 `lir_facts_builder.rs` 扫描 `facts.source_sites.call_sites`；已新增前置任务 `T3-04E`，本 review 保持未完成。
+- 阻塞记录：2026-06-03 六次审查发现 `T3-04E` 后仍残留 P6 `current_call_site(span)` / `source_call_site_id(path+span)` bridge、LIR ctor/reflection facts 从 HIR source-site helper 发布、declaration/bodyless ABI 与 source-signature 合成、layout root-only target 校验、effect target verifier 缺发布校验、MIR/P6 FQN/string fallback 与 dependency gate 漏洞；已新增前置任务 `T3-04F`，本 review 保持未完成。
 - 完成记录：（待填）
