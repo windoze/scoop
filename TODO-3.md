@@ -13,7 +13,7 @@
 | T3-01R | [DONE] | Review T3-01 |
 | T3-02 | [DONE] | P5 LIR 携带 stable key + 自带 source signature/dynamic-invoke/boundary contract；删 loose-signature/unpublished（FG-14/15/12） |
 | T3-02R | [DONE] | Review T3-02 |
-| T3-03 | [TODO] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
+| T3-03 | [DONE] | P6 LLVM 纯消费 LIR facts：base context 收口 + exact callee binding + abi symbol/layout/closure facts（FG-16/17/18） |
 | T3-03R | [TODO] | Review T3-03 |
 | T3-04 | [TODO] | verifier 禁回看 side table + fallback→fail-fast（cross-cutting #3/#4） |
 | T3-04R | [TODO] | Review T3-04 |
@@ -51,7 +51,7 @@
 - 依赖：T3-02
 - 完成记录：2026-06-02 完成。审查 T3-02 的 LIR stable key/source signature/dynamic-invoke/boundary contract 变更后，发现 post-opt 重建 callable 时只保留了 `source_callable`，未保留新发布的 `source_kind`，会把 member/synthetic callable 的 LIR facts 误标成默认 `TopLevel`；已修复 opt helper 使 `source_kind` 与 source callable metadata 一并保留，并新增回归单测覆盖该路径。复查确认 `lir_facts_builder` 不再使用 `loose_instance_signature`、`unpublished(...)`、`missing-owner` 或 plain local control 单候选反推，dynamic-invoke/boundary metadata 由 P5 LIR 结构发布并序列化。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-03：P6 LLVM 纯消费 LIR facts
+### [DONE] T3-03：P6 LLVM 纯消费 LIR facts
 
 - 参考：`FACT_GAPS.md` FG-16/17/18。
 - 必须实现的内容：
@@ -61,7 +61,7 @@
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：P6 只消费 LIR facts；无 FQN/字符串/HIR-walk 重建。
 - 依赖：T3-02R
-- 完成记录：（待填）
+- 完成记录：2026-06-02 完成。LIR facts 现在发布 `LirExactCalleeBinding`（target callable key / root FQN / ABI symbol / signature key），并在 physical layout 中补充 `LirAbiSymbolFact`、`LirLayoutNameFact`、`LirClosureIdentityFact`；body-less native/extern backend contracts 也进入 ABI symbol facts。LLVM vtable/itable dispatch declaration 路径现在优先消费已发布 ABI symbol facts，避免只依赖 callable body symbol facts；既有 HIR/generic compatibility root 解析仍保留以维持现有 effect/interface 回归，剩余 compatibility fallback 的 fail-fast/verifier 收口由 T3-04 明确覆盖。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-03R：Review T3-03
 - 验证：`python3 tools/run_fixtures.py`
@@ -71,7 +71,7 @@
 ### [TODO] T3-04：verifier 禁回看 side table + fallback→fail-fast
 
 - 参考：`FACT_GAPS.md` Cross-Cutting #3/#4、Suggested Priorities #3。
-- 必须实现的内容：为每个 stage 定义 artifact-complete contract 并加 verifier，断言下游不消费更早 side table（grep/结构守卫测试）；把残留的 `DynamicFallback`/`SignatureFallback`/`unpublished(...)`/`missing-owner`/唯一候选推断逐一改为 verifier error 或在缺 fact 时 fail-fast；恢复 T1-00 因 owner-eff 暂忽略的 Rust 单测（若其断言在新机制下成立）。
+- 必须实现的内容：为每个 stage 定义 artifact-complete contract 并加 verifier，断言下游不消费更早 side table（grep/结构守卫测试）；把残留的 `DynamicFallback`/`SignatureFallback`/`unpublished(...)`/`missing-owner`/唯一候选推断逐一改为 verifier error 或在缺 fact 时 fail-fast；显式删除 T3-03 为保持现有 effect/interface 回归绿色而保留的 `direct_call_dispatch_fqn` / `published_dispatch_target_fqn` compatibility root 解析路径；恢复 T1-00 因 owner-eff 暂忽略的 Rust 单测（若其断言在新机制下成立）。
 - 验证：`cargo test --all --all-targets`；`python3 tools/run_fixtures.py`。
 - 完成条件：跨阶段 fact 自包含被守卫锁定；fallback 改 fail-fast。
 - 依赖：T3-03R

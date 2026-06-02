@@ -530,6 +530,34 @@ pub struct LirCallableSymbolFacts {
     pub extern_: Option<LirExternCallableSignatureFacts>,
 }
 
+/// ABI-visible symbol published by LIR facts for backend consumers.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirAbiSymbolFact {
+    pub key: String,
+    pub symbol: String,
+    pub callable: Option<StableLirCallableKey>,
+    pub root_fqn: Option<String>,
+    pub role: String,
+}
+
+/// Backend-visible layout name published before LLVM materialization.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirLayoutNameFact {
+    pub key: String,
+    pub family: String,
+    pub layout_name: String,
+}
+
+/// Stable closure owner/lexical-path identity consumed by backends.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirClosureIdentityFact {
+    pub callable: StableLirCallableKey,
+    pub root_fqn: String,
+    pub owner_callable: StableLirCallableKey,
+    pub owner_root_fqn: String,
+    pub lexical_path: String,
+}
+
 /// Physical ABI/layout contracts that LLVM may map to backend-private LLVM types.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPhysicalLayoutFacts {
@@ -539,6 +567,10 @@ pub struct LirPhysicalLayoutFacts {
     pub interfaces: std::collections::BTreeMap<String, LirInterfaceLayoutFacts>,
     pub class_itables: std::collections::BTreeMap<String, LirClassItableFacts>,
     pub callable_symbols: std::collections::BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    pub abi_symbols: std::collections::BTreeMap<String, LirAbiSymbolFact>,
+    pub layout_names: std::collections::BTreeMap<String, LirLayoutNameFact>,
+    pub closure_identities:
+        std::collections::BTreeMap<StableLirCallableKey, LirClosureIdentityFact>,
 }
 
 impl LirPhysicalLayoutFacts {
@@ -549,6 +581,9 @@ impl LirPhysicalLayoutFacts {
             && self.interfaces.is_empty()
             && self.class_itables.is_empty()
             && self.callable_symbols.is_empty()
+            && self.abi_symbols.is_empty()
+            && self.layout_names.is_empty()
+            && self.closure_identities.is_empty()
     }
 }
 
@@ -714,6 +749,15 @@ pub enum LirCallableAbiKind {
     EffectStep,
 }
 
+/// Exact callable selected for a call site before LLVM lowering.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirExactCalleeBinding {
+    pub target_callable_key: StableLirCallableKey,
+    pub root_fqn: String,
+    pub abi_symbol: String,
+    pub signature_key: String,
+}
+
 /// Stable revision for the current LIR optimization family contract.
 pub const LIR_OPT_PIPELINE_REVISION: u64 = 1;
 
@@ -813,6 +857,7 @@ pub struct LirCallSiteContract {
     pub kind: LirCallSiteKind,
     pub target_mode: LirCallTargetMode,
     pub target_callables: Vec<StableLirCallableKey>,
+    pub exact_callee: Option<LirExactCalleeBinding>,
     pub callee_abi_kind: LirCallableAbiKind,
     pub invoke_args_tuple_ty: TypeId,
     pub callee_step_schema: Option<LirStepSchemaKey>,

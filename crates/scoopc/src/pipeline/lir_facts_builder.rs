@@ -926,7 +926,163 @@ fn build_physical_layout_facts(
         );
     }
     facts.callable_symbols = build_callable_symbol_facts(ctx)?;
+    facts.abi_symbols = build_abi_symbol_facts(
+        &facts.callable_symbols,
+        &contracts.native_callable_funs,
+        &contracts.extern_funs,
+    );
+    facts.layout_names = build_layout_name_facts(&facts);
+    facts.closure_identities = build_closure_identity_facts(ctx)?;
     Ok(facts)
+}
+
+fn build_abi_symbol_facts(
+    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    native_callable_funs: &crate::hir::NativeCallableFunIndex,
+    extern_funs: &crate::hir::ExternFunIndex,
+) -> BTreeMap<String, LirAbiSymbolFact> {
+    let mut out = BTreeMap::new();
+    for (key, symbol) in callable_symbols {
+        let (role, abi_symbol) = if let Some(native) = &symbol.native {
+            ("native_callable", native.symbol.clone())
+        } else if let Some(extern_) = &symbol.extern_ {
+            ("extern_callable", extern_.symbol.clone())
+        } else if let Some(exported) = &symbol.exported_symbol {
+            ("callable_export", exported.clone())
+        } else {
+            continue;
+        };
+        insert_abi_symbol_fact(
+            &mut out,
+            key.canonical_text(),
+            abi_symbol,
+            Some(key.clone()),
+            Some(symbol.root_fqn.clone()),
+            role,
+        );
+    }
+    for (root_fqn, native) in native_callable_funs {
+        insert_abi_symbol_fact(
+            &mut out,
+            root_fqn.clone(),
+            native.symbol.clone(),
+            None,
+            Some(root_fqn.clone()),
+            "native_callable",
+        );
+    }
+    for (root_fqn, extern_fun) in extern_funs {
+        insert_abi_symbol_fact(
+            &mut out,
+            root_fqn.clone(),
+            extern_fun.symbol.clone(),
+            None,
+            Some(root_fqn.clone()),
+            "extern_callable",
+        );
+    }
+    out
+}
+
+fn insert_abi_symbol_fact(
+    out: &mut BTreeMap<String, LirAbiSymbolFact>,
+    identity: String,
+    symbol: String,
+    callable: Option<StableLirCallableKey>,
+    root_fqn: Option<String>,
+    role: &str,
+) {
+    let fact_key = canonical_record("abi_symbol", [identity, role.to_string()]);
+    out.insert(
+        fact_key.clone(),
+        LirAbiSymbolFact {
+            key: fact_key,
+            symbol,
+            callable,
+            root_fqn,
+            role: role.to_string(),
+        },
+    );
+}
+
+fn build_layout_name_facts(facts: &LirPhysicalLayoutFacts) -> BTreeMap<String, LirLayoutNameFact> {
+    let mut out = BTreeMap::new();
+    for key in facts.classes.keys() {
+        insert_layout_name_fact(&mut out, "class", key);
+    }
+    for key in facts.enums.keys() {
+        insert_layout_name_fact(&mut out, "enum", key);
+    }
+    for key in facts.interfaces.keys() {
+        insert_layout_name_fact(&mut out, "interface", key);
+    }
+    for key in facts.class_itables.keys() {
+        insert_layout_name_fact(&mut out, "class_itable", key);
+    }
+    out
+}
+
+fn insert_layout_name_fact(out: &mut BTreeMap<String, LirLayoutNameFact>, family: &str, key: &str) {
+    let fact_key = canonical_record("layout_name", [family.to_string(), key.to_string()]);
+    out.insert(
+        fact_key.clone(),
+        LirLayoutNameFact {
+            key: fact_key,
+            family: family.to_string(),
+            layout_name: key.to_string(),
+        },
+    );
+}
+
+fn build_closure_identity_facts(
+    ctx: &LirFactsBuildContext<'_>,
+) -> Result<BTreeMap<StableLirCallableKey, LirClosureIdentityFact>, EffectLoweringError> {
+    let mut out = BTreeMap::new();
+    for callable in ctx.lir.callables() {
+        if !callable
+            .source_callable()
+            .is_some_and(|source| source.name.starts_with("$lambda"))
+        {
+            continue;
+        }
+        let (owner_root_fqn, lexical_path) = closure_owner_and_lexical_path(callable.root_fqn())
+            .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "closure callable `{}` 缺少可发布的 owner lexical path",
+                    callable.root_fqn()
+                ),
+            })?;
+        let owner = ctx
+            .lir
+            .callables()
+            .iter()
+            .find(|candidate| candidate.root_fqn() == owner_root_fqn)
+            .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "closure callable `{}` 的 owner `{owner_root_fqn}` 未发布 LIR callable identity",
+                    callable.root_fqn()
+                ),
+            })?;
+        let key = published_callable_key(callable)?.clone();
+        out.insert(
+            key.clone(),
+            LirClosureIdentityFact {
+                callable: key,
+                root_fqn: callable.root_fqn().to_string(),
+                owner_callable: published_callable_key(owner)?.clone(),
+                owner_root_fqn: owner_root_fqn.to_string(),
+                lexical_path: lexical_path.to_string(),
+            },
+        );
+    }
+    Ok(out)
+}
+
+fn closure_owner_and_lexical_path(root_fqn: &str) -> Option<(&str, &str)> {
+    let lambda_start = root_fqn.find(".$lambda")?;
+    let owner = &root_fqn[..lambda_start];
+    let lexical_path = &root_fqn[lambda_start + 1..];
+    (!owner.is_empty() && !lexical_path.is_empty()).then_some((owner, lexical_path))
 }
 
 fn insert_class_layout_fact(
@@ -1850,10 +2006,13 @@ fn call_site_contract(
     ctx: &LirFactsBuildContext<'_>,
     facts: &CallSiteEffectFacts,
 ) -> Result<LirCallSiteContract, EffectLoweringError> {
+    let target_callables = target_callables(ctx, facts.target())?;
+    let exact_callee = exact_callee_binding(ctx, facts.target_mode(), &target_callables)?;
     Ok(LirCallSiteContract {
         kind: call_site_kind(facts.kind()),
         target_mode: target_mode(facts.target_mode()),
-        target_callables: target_callables(ctx, facts.target())?,
+        target_callables,
+        exact_callee,
         callee_abi_kind: callable_abi_kind(facts.callee_abi_kind()),
         invoke_args_tuple_ty: facts.invoke_args_tuple_ty(),
         callee_step_schema: facts
@@ -1867,6 +2026,55 @@ fn call_site_contract(
             .collect(),
         precision: effect_precision(facts.precision()),
     })
+}
+
+fn exact_callee_binding(
+    ctx: &LirFactsBuildContext<'_>,
+    target_mode: CallTargetMode,
+    target_callables: &[StableLirCallableKey],
+) -> Result<Option<LirExactCalleeBinding>, EffectLoweringError> {
+    if target_mode != CallTargetMode::KnownInstance {
+        return Ok(None);
+    }
+    let [target_callable_key] = target_callables else {
+        return Ok(None);
+    };
+    let root_fqn = published_callable_for_lir_key(ctx, target_callable_key)?
+        .map(|callable| callable.root_fqn().to_string())
+        .unwrap_or_else(|| target_callable_key.readable_path().to_string());
+    let contracts = ctx.materialized.backend_contracts();
+    let abi_symbol = contracts
+        .native_callable_funs
+        .get(root_fqn.as_str())
+        .map(|native| native.symbol.clone())
+        .or_else(|| {
+            contracts
+                .extern_funs
+                .get(root_fqn.as_str())
+                .map(|extern_fun| extern_fun.symbol.clone())
+        })
+        .unwrap_or_else(|| AbiMangler.fun_symbol(target_callable_key));
+    Ok(Some(LirExactCalleeBinding {
+        target_callable_key: target_callable_key.clone(),
+        root_fqn,
+        abi_symbol,
+        signature_key: canonical_record(
+            "callable_signature",
+            [target_callable_key.canonical_text()],
+        ),
+    }))
+}
+
+fn published_callable_for_lir_key<'a>(
+    ctx: &'a LirFactsBuildContext<'_>,
+    key: &StableLirCallableKey,
+) -> Result<Option<&'a LateLoweredCallable>, EffectLoweringError> {
+    for callable in ctx.lir.callables() {
+        if published_callable_key(callable)? == key {
+            return Ok(Some(callable));
+        }
+    }
+    Ok(None)
 }
 
 fn target_callables(

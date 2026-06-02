@@ -417,6 +417,7 @@ mod tests {
             kind: LirCallSiteKind::Closure,
             target_mode: LirCallTargetMode::DynamicFallback,
             target_callables: vec![callable_key.clone()],
+            exact_callee: None,
             callee_abi_kind: LirCallableAbiKind::EffectStep,
             invoke_args_tuple_ty: ty(3),
             callee_step_schema: Some(step_schema),

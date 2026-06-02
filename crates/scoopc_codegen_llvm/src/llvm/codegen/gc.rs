@@ -49,7 +49,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             })?;
         let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
-        let extern_fun = self.extern_funs.get(callable_fqn);
+        let abi_symbol_fact = self
+            .published_lir_facts
+            .physical_layout
+            .abi_symbols
+            .values()
+            .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn));
         let llvm_name = symbol_facts
             .and_then(|facts| {
                 facts
@@ -62,22 +67,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .as_ref()
                             .map(|extern_| extern_.symbol.as_str())
                     })
+                    .or(facts.exported_symbol.as_deref())
             })
-            .or_else(|| extern_fun.map(|extern_fun| extern_fun.symbol.as_str()))
-            .unwrap_or(callable_fqn);
-        if let Some(existing) = self.module.get_function(llvm_name) {
+            .or_else(|| abi_symbol_fact.map(|fact| fact.symbol.as_str()))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{callable_fqn}` 的 LIR callable ABI symbol fact 缺少 symbol"
+                ),
+            })?
+            .to_string();
+        if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
         let surface = if symbol_facts
             .is_some_and(|facts| facts.native.is_some() || facts.extern_.is_some())
-            || extern_fun.is_some()
-        {
+            || abi_symbol_fact.is_some_and(|fact| {
+                matches!(fact.role.as_str(), "native_callable" | "extern_callable")
+            }) {
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
         } else {
             LlvmFunctionDeclarationSurface::ExportedAbi
         };
         self.declare_lir_plain_fun_with_symbol(
-            llvm_name,
+            &llvm_name,
             surface,
             &signature.fqn,
             &signature.param_tys,
