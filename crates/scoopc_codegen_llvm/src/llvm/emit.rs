@@ -394,8 +394,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             class_inits: base_context.class_inits(),
             release_hooks: base_context.release_hooks(),
             class_ctor_init_bodies: base_context.class_ctor_init_bodies(),
-            effect_op_call_sites: base_context.effect_op_call_sites(),
-            continuation_resume_call_sites: base_context.continuation_resume_call_sites(),
             when_pat_binding_tys: base_context.when_pat_binding_tys(),
             nominal_kinds: base_context.nominal_kinds(),
             interior_mutable_nominals: base_context.interior_mutable_nominals(),

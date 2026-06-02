@@ -392,6 +392,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             iface.fqn
                         ))
                     })?;
+                let method_impl_targets = method_impl_fqns
+                    .iter()
+                    .map(|impl_fqn| {
+                        self.published_lir_facts
+                            .physical_layout
+                            .abi_symbols
+                            .values()
+                            .find_map(|fact| {
+                                (fact.root_fqn.as_deref() == Some(impl_fqn.as_str()))
+                                    .then(|| fact.callable.clone())
+                                    .flatten()
+                            })
+                    })
+                    .collect::<Vec<_>>();
                 Ok(LirClassItableEntryFacts {
                     interface_fqn: iface.fqn.clone(),
                     interface_id: iface.interface_id,
@@ -400,6 +414,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     runtime_match_type_names: vec![interface_type_name],
                     runtime_match_type_ids: vec![interface_type_id],
                     method_impl_fqns,
+                    method_impl_targets,
                     method_receiver_type_ids,
                 })
             })

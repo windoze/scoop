@@ -303,6 +303,7 @@ pub struct LirClassVtableSlotFacts {
     pub params_len: u32,
     pub has_receiver: bool,
     pub impl_member_fqn: String,
+    pub impl_member_target: StableLirCallableKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -332,6 +333,7 @@ pub struct LirClassItableEntryFacts {
     pub runtime_match_type_names: Vec<String>,
     pub runtime_match_type_ids: Vec<u64>,
     pub method_impl_fqns: Vec<String>,
+    pub method_impl_targets: Vec<Option<StableLirCallableKey>>,
     pub method_receiver_type_ids: Vec<u64>,
 }
 
@@ -528,15 +530,15 @@ pub struct LirClassCtorInitFacts {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirClassCtorCallSiteKey {
-    pub source_site: SiteId,
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
 }
 
 /// Constructor target and argument mapping selected before backend lowering.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorCallSiteFacts {
-    pub source_site: SiteId,
-    pub source_span_start: usize,
-    pub source_span_end: usize,
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
     pub class_fqn: String,
     pub target_init: LirClassCtorInitKey,
     pub selected_ctor_span_start: Option<usize>,
@@ -550,15 +552,15 @@ pub struct LirClassCtorCallSiteFacts {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirReflectionCallSiteKey {
-    pub source_site: SiteId,
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
 }
 
 /// Type arguments for reflection intrinsics keyed by published call-site identity.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirReflectionCallSiteFacts {
-    pub source_site: SiteId,
-    pub source_span_start: usize,
-    pub source_span_end: usize,
+    pub owner_callable: StableLirCallableKey,
+    pub site_id: SiteId,
     pub intrinsic_name: String,
     pub type_args: Vec<TypeId>,
 }

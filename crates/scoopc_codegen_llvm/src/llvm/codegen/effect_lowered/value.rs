@@ -650,6 +650,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 )
             }
             mir::Rvalue::ClassCtor {
+                site_id,
                 class_fqn,
                 ctor,
                 args,
@@ -658,6 +659,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 let class_layout_key = self.class_ctor_layout_key(span, class_fqn, target_local)?;
                 self.codegen.codegen_mir_class_ctor_call(
                     span,
+                    *site_id,
                     &class_layout_key,
                     ctor,
                     args,

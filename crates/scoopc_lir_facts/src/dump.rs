@@ -177,10 +177,9 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     for (key, site) in &facts.class_ctor_call_sites {
         writeln!(
             &mut out,
-            "    - site={} span={}..{} class={} target={} arg_slots={}",
-            key.source_site.as_u32(),
-            site.source_span_start,
-            site.source_span_end,
+            "    - owner={} site={} class={} target={} arg_slots={}",
+            key.owner_callable.readable_path(),
+            key.site_id.as_u32(),
             site.class_fqn,
             site.target_init.as_str(),
             site.arg_mapping.len(),
@@ -196,10 +195,9 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     for (key, site) in &facts.reflection_call_sites {
         writeln!(
             &mut out,
-            "    - site={} span={}..{} intrinsic={} type_args={}",
-            key.source_site.as_u32(),
-            site.source_span_start,
-            site.source_span_end,
+            "    - owner={} site={} intrinsic={} type_args={}",
+            key.owner_callable.readable_path(),
+            key.site_id.as_u32(),
             site.intrinsic_name,
             site.type_args.len(),
         )

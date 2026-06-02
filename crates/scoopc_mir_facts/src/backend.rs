@@ -1,6 +1,6 @@
 //! Backend-facing MIR contracts published as facts instead of side-table-only data.
 
-use scoopc_ids::StageArtifactKey;
+use scoopc_ids::{StableLirCallableKey, StageArtifactKey};
 use scoopc_span::Span;
 use scoopc_types::TypeId;
 
@@ -51,6 +51,12 @@ pub struct NamedIntrinsicCallableFact {
 pub struct SourceCallableSignatureFact {
     pub identity: FactIdentity,
     pub fqn: String,
+    #[serde(default)]
+    pub target_callable_key: Option<StableLirCallableKey>,
+    #[serde(default)]
+    pub abi_symbol: Option<String>,
+    #[serde(default)]
+    pub abi_role: Option<String>,
     pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,

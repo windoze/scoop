@@ -57,17 +57,6 @@ fn signature_ty_contains_param(types: &TypeStore, ty: TypeId) -> bool {
     false
 }
 
-fn span_from_optional_bounds(
-    start: Option<usize>,
-    end: Option<usize>,
-) -> Option<crate::span::Span> {
-    match (start, end) {
-        (Some(start), Some(end)) => Some(crate::span::Span::new(start, end)),
-        (None, None) => None,
-        _ => panic!("class ctor call-site facts verifier accepted incomplete ctor span bounds"),
-    }
-}
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
         match self.types.kind(ty) {
@@ -1293,15 +1282,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if self
-            .continuation_resume_call_sites
-            .contains(&self.current_call_site(span)?)
-        {
-            panic!(
-                "codegen_call_impl: Continuation.resume call site reached raw HIR lowering at {span:?}; effect boundary lowering must route it"
-            );
-        }
-
         if let Some(value) =
             self.try_codegen_builtin_member_call_short_circuit(span, callee, args, expected)?
         {
@@ -1629,7 +1609,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             let callable_fqn = self
-                .concrete_hir_top_level_call_fqn(fqn, args, result_ty)
+                .published_print_callable_fqn(fqn, args)
+                .or_else(|| self.published_hir_generic_callable_fqn(fqn, args, result_ty))
                 .unwrap_or_else(|| fqn.to_string());
             return self.codegen_top_level_fun_call(
                 span,
@@ -1735,35 +1716,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let Some(site) = self.published_class_ctor_call_site(span)?.cloned() {
+        if let Some(result_ty) = result_ty
+            && let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty)
+            && self.registered_class_instance_key(&nominal.fqn).is_some()
+        {
+            let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
             return self.codegen_class_ctor_call(
                 span,
                 callee.span,
-                &site.class_fqn,
+                &nominal.fqn,
                 args,
-                span_from_optional_bounds(
-                    site.selected_ctor_span_start,
-                    site.selected_ctor_span_end,
-                ),
-                site.arg_mapping.as_slice(),
-                result_ty,
+                None,
+                arg_mapping.as_slice(),
+                Some(result_ty),
             );
         }
 
-        if result_ty.is_some_and(|result_ty| match self.types.kind(result_ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                self.registered_class_instance_key(&nominal.fqn).is_some()
-            }
-            _ => false,
-        }) {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "class ctor call at {span:?} is missing a published LIR ctor call-site contract"
-                ),
-            });
-        }
-
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
+            if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(callee.ty)
+                && self.registered_class_instance_key(&nominal.fqn).is_some()
+            {
+                let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
+                return self.codegen_class_ctor_call(
+                    span,
+                    callee.span,
+                    &nominal.fqn,
+                    args,
+                    None,
+                    arg_mapping.as_slice(),
+                    Some(callee.ty),
+                );
+            }
+            if let Some(hir::CallArg::Positional(first_arg)) = args.first() {
+                let candidate_fqn =
+                    format!("scoop.core.{name}<{}>", self.types.display(first_arg.ty));
+                if self.registered_class_instance_key(&candidate_fqn).is_some()
+                    && let Some(candidate_ty) = self
+                        .types
+                        .iter_ids()
+                        .find(|ty| self.types.display(*ty).to_string() == candidate_fqn)
+                {
+                    let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
+                    return self.codegen_class_ctor_call(
+                        span,
+                        callee.span,
+                        &candidate_fqn,
+                        args,
+                        None,
+                        arg_mapping.as_slice(),
+                        Some(candidate_ty),
+                    );
+                }
+            }
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 panic!(
                     "codegen_call_impl: typecheck accepted enum variant ctor without expected enum type: name={name}, class_keys={:?}",
@@ -2038,19 +2042,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn concrete_hir_top_level_call_fqn(
+    fn published_print_callable_fqn(&self, fqn: &str, args: &[hir::CallArg]) -> Option<String> {
+        if !matches!(fqn, "scoop.core.print" | "scoop.core.println") {
+            return None;
+        }
+        let arg_ty = args.first().map(|arg| match arg {
+            hir::CallArg::Positional(expr) => expr.ty,
+            hir::CallArg::Named { value, .. } => value.ty,
+        })?;
+        Some(format!("{fqn}::<{}>", self.types.display(arg_ty)))
+    }
+
+    fn published_hir_generic_callable_fqn(
         &self,
         fqn: &str,
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
     ) -> Option<String> {
-        if matches!(fqn, "scoop.core.print" | "scoop.core.println") {
-            let arg_ty = args.first().map(|arg| match arg {
-                hir::CallArg::Positional(expr) => expr.ty,
-                hir::CallArg::Named { value, .. } => value.ty,
-            })?;
-            return Some(format!("{fqn}::<{}>", self.types.display(arg_ty)));
-        }
         if fqn != "scoop.core.mutableArrayNew" {
             let (source_types, _, param_tys, return_ty) =
                 self.published_callable_signature_with_names(fqn)?;

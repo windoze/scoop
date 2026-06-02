@@ -973,6 +973,7 @@ mod tests {
 
     #[test]
     fn verifier_rejects_vtable_target_without_source_signature_or_abi_symbol() {
+        let target = callable_key("app.Class.run");
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0),
             LirFactGroups {
@@ -985,6 +986,7 @@ mod tests {
                             params_len: 0,
                             has_receiver: true,
                             impl_member_fqn: "app.Class.run".to_string(),
+                            impl_member_target: target,
                         }],
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -997,13 +999,14 @@ mod tests {
             facts.verify().unwrap_err(),
             VerifyError::InvalidAbiSymbol {
                 key: "app.Class.run".to_string(),
-                reason: "vtable implementation target lacks a published source signature or ABI symbol",
+                reason: "vtable implementation target lacks a target-bound source signature or ABI symbol",
             }
         );
     }
 
     #[test]
     fn verifier_accepts_vtable_target_with_source_signature_and_abi_symbol() {
+        let target = callable_key("app.Class.run");
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0),
             LirFactGroups {
@@ -1020,11 +1023,12 @@ mod tests {
                             params_len: 0,
                             has_receiver: true,
                             impl_member_fqn: "app.Class.run".to_string(),
+                            impl_member_target: target.clone(),
                         }],
                     )]),
                     abi_symbols: BTreeMap::from([(
                         "abi:app.Class.run".to_string(),
-                        abi_symbol("app.Class.run", None),
+                        abi_symbol("app.Class.run", Some(target)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },
@@ -1037,6 +1041,7 @@ mod tests {
 
     #[test]
     fn verifier_rejects_itable_target_without_source_signature_or_abi_symbol() {
+        let target = callable_key("app.Class.run");
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
             LirFactGroups {
@@ -1053,6 +1058,7 @@ mod tests {
                                 runtime_match_type_names: Vec::new(),
                                 runtime_match_type_ids: Vec::new(),
                                 method_impl_fqns: vec!["app.Class.run".to_string()],
+                                method_impl_targets: vec![Some(target)],
                                 method_receiver_type_ids: Vec::new(),
                             }],
                         },
@@ -1067,13 +1073,14 @@ mod tests {
             facts.verify().unwrap_err(),
             VerifyError::InvalidAbiSymbol {
                 key: "app.Class.run".to_string(),
-                reason: "itable implementation target lacks a published source signature or ABI symbol",
+                reason: "itable implementation target lacks a target-bound source signature or ABI symbol",
             }
         );
     }
 
     #[test]
     fn verifier_accepts_itable_target_with_source_signature_and_abi_symbol() {
+        let target = callable_key("app.Class.run");
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
             LirFactGroups {
@@ -1094,13 +1101,14 @@ mod tests {
                                 runtime_match_type_names: Vec::new(),
                                 runtime_match_type_ids: Vec::new(),
                                 method_impl_fqns: vec!["app.Class.run".to_string()],
+                                method_impl_targets: vec![Some(target.clone())],
                                 method_receiver_type_ids: Vec::new(),
                             }],
                         },
                     )]),
                     abi_symbols: BTreeMap::from([(
                         "abi:app.Class.run".to_string(),
-                        abi_symbol("app.Class.run", None),
+                        abi_symbol("app.Class.run", Some(target)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },

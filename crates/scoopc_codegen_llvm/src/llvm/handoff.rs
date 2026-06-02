@@ -95,8 +95,6 @@ pub struct LlvmStageBaseContext {
     class_inits: source_payload::ClassInitIndex,
     release_hooks: source_payload::ReleaseHookIndex,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-    effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
-    continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
     nominal_kinds: source_payload::NominalKindIndex,
     interior_mutable_nominals: source_payload::InteriorMutableIndex,
@@ -130,8 +128,6 @@ impl LlvmStageBaseContext {
         class_inits: source_payload::ClassInitIndex,
         release_hooks: source_payload::ReleaseHookIndex,
         class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
-        effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
-        continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
         when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
         nominal_kinds: source_payload::NominalKindIndex,
         interior_mutable_nominals: source_payload::InteriorMutableIndex,
@@ -159,8 +155,6 @@ impl LlvmStageBaseContext {
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            effect_op_call_sites,
-            continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,
@@ -223,16 +217,6 @@ impl LlvmStageBaseContext {
 
     pub fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
         &self.class_ctor_init_bodies
-    }
-
-    pub fn effect_op_call_sites(&self) -> &source_payload::EffectOpCallSiteIndex {
-        &self.effect_op_call_sites
-    }
-
-    pub fn continuation_resume_call_sites(
-        &self,
-    ) -> &source_payload::ContinuationResumeCallSiteIndex {
-        &self.continuation_resume_call_sites
     }
 
     pub fn when_pat_binding_tys(&self) -> &source_payload::WhenPatBindingTypeIndex {

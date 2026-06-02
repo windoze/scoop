@@ -303,14 +303,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .expect("current source id must be registered before LLVM codegen"))
     }
 
-    pub(in crate::llvm::codegen) fn current_call_site(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<hir::CallSite, LlvmEmitError> {
-        let source = self.current_source()?;
-        Ok(hir::CallSite::new(source.path().to_path_buf(), span))
-    }
-
     pub(in crate::llvm::codegen) fn published_lir_source_call_site(
         &self,
         site_id: SiteId,
@@ -341,56 +333,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plain.call_sites.iter().find(|site| site.site_id == site_id)
     }
 
-    pub(in crate::llvm::codegen) fn source_call_site_id(
+    pub(in crate::llvm::codegen) fn required_lir_class_ctor_call_site(
         &self,
-        span: crate::span::Span,
-        role: &str,
-    ) -> Result<SiteId, LlvmEmitError> {
-        let source = self.current_source()?;
-        let site_key = format!(
-            "{}:{}:{}..{}",
-            role,
-            source.path().display(),
-            span.start,
-            span.end
-        );
-        Ok(SiteId::from_raw(
-            stable_hash64(StableHashScope::DumpV0, &site_key) as u32,
-        ))
-    }
-
-    pub(in crate::llvm::codegen) fn published_class_ctor_call_site(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<Option<&LirClassCtorCallSiteFacts>, LlvmEmitError> {
-        let source_site = self.source_call_site_id(span, "call")?;
-        Ok(self
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirClassCtorCallSiteFacts, LlvmEmitError> {
+        let owner_callable = self
+            .function_cx
+            .current_lir_callable_key
+            .as_ref()
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing current LIR callable identity for class ctor site{}",
+                    site_id.as_u32()
+                ),
+            })?;
+        self.shared
             .published_lir_facts
             .class_ctor_call_sites
-            .get(&LirClassCtorCallSiteKey { source_site }))
-    }
-
-    pub(in crate::llvm::codegen) fn published_reflection_type_arg_for_current_call(
-        &self,
-        span: crate::span::Span,
-        name: &'static str,
-    ) -> Result<Option<TypeId>, LlvmEmitError> {
-        let source_site = self.source_call_site_id(span, "call")?;
-        let Some(fact) = self
-            .published_lir_facts
-            .reflection_call_sites
-            .get(&LirReflectionCallSiteKey { source_site })
-        else {
-            return Ok(None);
-        };
-        if fact.intrinsic_name != name || fact.type_args.len() != 1 {
-            return Err(LlvmEmitError::Frontend {
+            .get(&LirClassCtorCallSiteKey {
+                owner_callable: owner_callable.clone(),
+                site_id,
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "reflection intrinsic `{name}` at {span:?} has inconsistent published type-argument facts"
+                    "{context}: missing LIR class ctor call-site contract for owner `{}` site{}",
+                    owner_callable.readable_path(),
+                    site_id.as_u32()
                 ),
-            });
-        }
-        Ok(fact.type_args.first().copied())
+            })
     }
 
     pub(in crate::llvm::codegen) fn required_lir_source_call_site(

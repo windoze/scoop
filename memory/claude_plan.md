@@ -1,35 +1,28 @@
-执行计划（2026-06-03）
+# 执行计划
 
-说明：本文件记录可公开的执行计划与进展；不会记录私有推理链路。
+## 当前状态
 
-1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
-2. 读取该任务相关的上下文、依赖、验证要求，以及必要的 `PLAN.md` 内容。
-3. 检查最近提交是否明确提到与当前任务直接相关的未完成问题；若有，将其纳入当前任务或按要求补入 `TODO.md`。
-4. 实现第一个未完成任务；若发现阻塞当前任务的缺失特性、规格不匹配或测试失败，优先修复，或把最小必要前置任务插入 `TODO.md` 后停止。
-5. 先运行格式化与 lint：`cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`。
-6. 在 lint 通过后运行当前任务要求的测试；若需要全量验证，运行 `cargo test --all --all-targets` 与 `python3 tools/run_fixtures.py`，并设置足够超时。
-7. 验证通过后，在 `TODO.md` 中将当前任务标题加 `[DONE]`，更新完成记录；仅当阶段级计划变化时才更新 `PLAN.md`。
-8. 更新本文件记录关键进展与最终验证结果。
-9. 检查 git 状态与 diff，提交本次任务相关的全部变更。
-10. 提交后停止，不继续下一个任务。
+- 已读取 `TODO.md` / `TODO-3.md`，首个未完成任务是 `T3-04F`。
+- 最新提交 `ca8af15a [T3-04R] Schedule sixth review follow-up` 直接对应本任务，应作为当前任务背景处理。
+- 工作区已有未跟踪 `FACT_REFACTOR.md`，当前不属于本任务，除非后续确认它与 `T3-04F` 直接相关，否则不修改。
+- 勘查确认仍存在：P6 `current_call_site`/`source_call_site_id` bridge、LIR ctor/reflection facts 从 HIR source-site helper 发布、LIR declaration/bodyless ABI 与 source-signature 合成、layout root-only verifier、MIR/P6 FQN/string fallback 以及 dependency gate 漏洞。
+- 当前编辑策略：先把 ctor/reflection call-site facts 收口到 LIR owner+`SiteId`，删除 P6 path/span 查询入口；随后收紧 ABI/source-signature 发布、layout/effect verifier 与 gate。
+- 已实现主体改造并验证：`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过。
+- 阻塞：完整 `python3 tools/run_fixtures.py` 仍有与本任务直接相关的剩余失败（HIR/source-payload ctor/reflection/atomic、MIR golden、少量 runtime/build residuals）。已在 `TODO-3.md` 插入前置任务 `T3-04F0`，`T3-04F` 保持未完成。
+- 本文件用于记录可公开的执行计划、关键进展和验证结果。
 
-当前任务：`TODO-3.md` 的 `T3-04R：Review T3-04`。
+## 步骤
 
-任务执行计划更新：
+1. 定位 `T3-04F` 指定的残余路径：P6 source-span bridge、LIR ctor/reflection HIR source-site 扫描、ABI/source-signature synthesis、layout/effect verifier root-only 校验、FQN/string/唯一候选 fallback 与 dependency gate 漏洞。
+2. 阅读相关实现和现有测试，确认每类残余是否仍存在，以及最小正确修复边界。
+3. 实现 fact-only / fail-fast 收口：删除或替换残余 source/path/span、FQN/string、root-only、合成 ABI/source-signature 和静默跳过路径。
+4. 补齐 verifier / dependency gate / 单测或 fixture，锁定新增契约。
+5. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，通过后运行完整 Rust 测试、build、dependency gate、spec fixtures check 和完整 fixture suite。
+6. 更新 `TODO-3.md` 与 `TODO.md` 状态和完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+7. 检查 git status/diff/log，提交本次任务相关变更，然后停止。
 
-1. 检查 git 状态与最新提交，确认是否有直接指向 T3-04R/T3-04E 的未完成问题。
-2. 审查 T3-04、T3-04A0、T3-04A、T3-04B0、T3-04B、T3-04C、T3-04D、T3-04E 的完成记录对应实现，重点检查 P4/P5/P6 是否仍存在 side-table 回看、FQN/string fallback、unpublished/missing-owner、source-span bridge、未发布 target 放行或 gate 漏洞。
-3. 若审查发现阻塞完成条件的问题，按要求新增最小前置任务并停止；若未发现阻塞问题，运行验证。
-4. 验证顺序：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
-5. 验证通过后，将 `T3-04R` 标记为 `[DONE]`，同步 `TODO.md` 中 `TODO-3.md` 状态为 `DONE` 并更新当前活跃任务，记录完成说明。
-6. 提交本次任务相关变更后停止。
+## 注意事项
 
-审查进展更新：
-
-1. 已确认 `T3-04E` 后仍存在阻塞 `T3-04R` 完成的问题：P6 仍有 `current_call_site(span)` / `source_call_site_id(path+span)` 查询；class ctor/reflection facts 仍由 HIR source-site helper 发布；LIR facts builder 仍能合成 declaration/bodyless ABI symbol 与空 source signature；layout verifier 仍按 root FQN 校验 target；effect facts verifier 未校验 target 是否已发布；dependency gate 未覆盖这些等价路径。
-2. 当前 review 不能标记 `[DONE]`。下一步是在 `TODO-3.md` 中新增 `T3-04F`，作为 `T3-04R` 的前置任务，记录上述六次审查阻塞项。
-3. 本次只做任务拆分与阻塞记录，不修改生产代码；验证将按文档/任务清单变更处理。
-
-任务拆分更新：已新增 `T3-04F` 并把 `T3-04R` 依赖改为 `T3-04F`；`TODO.md` 当前活跃任务同步为 `T3-04F`。本次停止在任务拆分，不继续修复 `T3-04F`。
-
-验证记录：本次只修改 `TODO.md`、`TODO-3.md` 与 `memory/claude_plan.md`，未修改编译产物或测试代码；已运行 `git diff --check -- TODO.md TODO-3.md memory/claude_plan.md`，无空白错误。未运行 cargo/test/fixture suite。
+- 每次只完成 `TODO.md` 中的第一个未完成任务。
+- 不使用 workaround；遇到阻塞性 spec 或实现缺口时，先修复或插入前置任务并停止。
+- 不修改无关用户变更，不回退他人改动。

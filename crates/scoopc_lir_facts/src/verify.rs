@@ -1230,10 +1230,14 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
     }
     for (class_fqn, slots) in &facts.physical_layout.class_vtables {
         for slot in slots {
-            if !root_has_published_source_and_abi(facts, &slot.impl_member_fqn) {
+            if !target_has_published_source_and_abi(
+                facts,
+                &slot.impl_member_target,
+                &slot.impl_member_fqn,
+            ) {
                 return Err(VerifyError::InvalidAbiSymbol {
                     key: slot.impl_member_fqn.clone(),
-                    reason: "vtable implementation target lacks a published source signature or ABI symbol",
+                    reason: "vtable implementation target lacks a target-bound source signature or ABI symbol",
                 });
             }
             if class_fqn.is_empty() {
@@ -1252,14 +1256,36 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             });
         }
         for entry in &itable.entries {
-            for impl_fqn in &entry.method_impl_fqns {
+            if entry.method_impl_fqns.len() != entry.method_impl_targets.len() {
+                return Err(VerifyError::InvalidAbiSymbol {
+                    key: entry.interface_fqn.clone(),
+                    reason: "itable implementation target bindings do not match implementation roots",
+                });
+            }
+            for (impl_fqn, impl_target) in entry
+                .method_impl_fqns
+                .iter()
+                .zip(entry.method_impl_targets.iter())
+            {
                 if impl_fqn.is_empty() {
+                    if impl_target.is_some() {
+                        return Err(VerifyError::InvalidAbiSymbol {
+                            key: entry.interface_fqn.clone(),
+                            reason: "empty itable slot must not publish a target binding",
+                        });
+                    }
                     continue;
                 }
-                if !root_has_published_source_and_abi(facts, impl_fqn) {
+                let Some(impl_target) = impl_target else {
                     return Err(VerifyError::InvalidAbiSymbol {
                         key: impl_fqn.clone(),
-                        reason: "itable implementation target lacks a published source signature or ABI symbol",
+                        reason: "itable implementation target lacks a target callable binding",
+                    });
+                };
+                if !target_has_published_source_and_abi(facts, impl_target, impl_fqn) {
+                    return Err(VerifyError::InvalidAbiSymbol {
+                        key: impl_fqn.clone(),
+                        reason: "itable implementation target lacks a target-bound source signature or ABI symbol",
                     });
                 }
             }
@@ -1369,16 +1395,10 @@ fn verify_class_ctor_init_contracts(facts: &LirFacts) -> Result<()> {
 fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
     for (key, site) in &facts.class_ctor_call_sites {
         let key_text = class_ctor_call_site_key_text(key);
-        if key.source_site != site.source_site {
+        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
             return Err(VerifyError::InvalidClassCtorCallSite {
                 key: key_text,
                 reason: "map key and payload identity differ",
-            });
-        }
-        if site.source_span_start > site.source_span_end {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "source span is reversed",
             });
         }
         if site.selected_ctor_span_start.is_some() != site.selected_ctor_span_end.is_some() {
@@ -1393,19 +1413,23 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "class identity is empty",
             });
         }
-        if let Some(target_init) = facts.class_ctor_inits.get(&site.target_init) {
-            if target_init.class_fqn.is_empty() {
-                return Err(VerifyError::InvalidClassCtorCallSite {
-                    key: key_text,
-                    reason: "target init class identity is empty",
-                });
-            }
-            if site.arg_mapping.len() != target_init.params.len() {
-                return Err(VerifyError::InvalidClassCtorCallSite {
-                    key: key_text,
-                    reason: "argument mapping arity does not match target constructor params",
-                });
-            }
+        let Some(target_init) = facts.class_ctor_inits.get(&site.target_init) else {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "target constructor init body is unpublished",
+            });
+        };
+        if target_init.class_fqn.is_empty() {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "target init class identity is empty",
+            });
+        }
+        if site.arg_mapping.len() != target_init.params.len() {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "argument mapping arity does not match target constructor params",
+            });
         }
     }
     Ok(())
@@ -1414,16 +1438,10 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
 fn verify_reflection_call_site_contracts(facts: &LirFacts) -> Result<()> {
     for (key, site) in &facts.reflection_call_sites {
         let key_text = reflection_call_site_key_text(key);
-        if key.source_site != site.source_site {
+        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
             return Err(VerifyError::InvalidReflectionCallSite {
                 key: key_text,
                 reason: "map key and payload identity differ",
-            });
-        }
-        if site.source_span_start > site.source_span_end {
-            return Err(VerifyError::InvalidReflectionCallSite {
-                key: key_text,
-                reason: "source span is reversed",
             });
         }
         if site.intrinsic_name.is_empty() || site.type_args.len() != 1 {
@@ -1742,18 +1760,6 @@ fn target_has_published_source_and_abi(
         })
 }
 
-fn root_has_published_source_and_abi(facts: &LirFacts, root_fqn: &str) -> bool {
-    !root_fqn.is_empty()
-        && facts.source_signatures.contains_key(root_fqn)
-        && facts.physical_layout.abi_symbols.values().any(|symbol| {
-            symbol.root_fqn.as_deref() == Some(root_fqn)
-                && matches!(
-                    symbol.role.as_str(),
-                    "callable_export" | "native_callable" | "extern_callable"
-                )
-        })
-}
-
 fn verify_control_body(
     facts: &LirFacts,
     callable: &str,
@@ -1928,11 +1934,19 @@ fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
 }
 
 fn class_ctor_call_site_key_text(key: &crate::LirClassCtorCallSiteKey) -> String {
-    format!("site{}", key.source_site.as_u32())
+    format!(
+        "{}:site{}",
+        key.owner_callable.as_str(),
+        key.site_id.as_u32()
+    )
 }
 
 fn reflection_call_site_key_text(key: &crate::LirReflectionCallSiteKey) -> String {
-    format!("site{}", key.source_site.as_u32())
+    format!(
+        "{}:site{}",
+        key.owner_callable.as_str(),
+        key.site_id.as_u32()
+    )
 }
 
 fn dispatch_key_text(key: &crate::LirDispatchKey) -> String {

@@ -172,6 +172,28 @@ impl<'a> MirFactIndex<'a> {
         self.source_signatures.get(fqn).copied()
     }
 
+    fn bodyless_direct_signature(&self, fqn: &str) -> Result<(), EffectFactsError> {
+        let Some(signature) = self.source_signature(fqn) else {
+            return Ok(());
+        };
+        if signature.target_callable_key.is_none()
+            || signature
+                .abi_symbol
+                .as_deref()
+                .unwrap_or_default()
+                .is_empty()
+            || signature.abi_role.as_deref().unwrap_or_default().is_empty()
+        {
+            return Err(EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: format!(
+                    "bodyless direct target `{fqn}` lacks target-bound callable/ABI publication"
+                ),
+            });
+        }
+        Ok(())
+    }
+
     fn instance_for_stable_text(&self, text: &str) -> Result<InstanceKey, EffectFactsError> {
         self.instance_by_stable_text
             .get(text)
@@ -1066,6 +1088,7 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
                             ),
                         });
                     }
+                    self.mir_fact_index.bodyless_direct_signature(fqn)?;
                     self.call_site_for_surface_row(
                         types,
                         kind,
@@ -1219,6 +1242,8 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
             ));
         }
         if _surface_row.is_pure() {
+            self.mir_fact_index
+                .bodyless_direct_signature(&target_key.template.fqn)?;
             return self.call_site_for_surface_row(
                 _types,
                 kind,
@@ -2397,8 +2422,8 @@ mod tests {
         materialized: &crate::mir::MaterializedMir,
     ) -> scoopc_mir_facts::MirFacts {
         use scoopc_ids::{
-            BodyBlockId, BodyVersionKey, CanonicalTextKey, StableCanonicalKey as _,
-            StageArtifactKey,
+            AbiMangler, BodyBlockId, BodyVersionKey, CanonicalTextKey, StableCanonicalKey as _,
+            StableLirCallableKey, StageArtifactKey,
         };
         use scoopc_mir_facts::backend::SourceCallableSignatureFact;
         use scoopc_mir_facts::boundary::{
@@ -2419,15 +2444,21 @@ mod tests {
             .source_callable_signatures()
             .iter()
             .enumerate()
-            .map(|(index, signature)| SourceCallableSignatureFact {
-                identity: test_identity(
-                    &cone,
-                    format!("test:source_signature:{index}:{}", signature.fqn),
-                ),
-                fqn: signature.fqn.clone(),
-                param_names: signature.param_names.clone(),
-                param_tys: signature.param_tys.clone(),
-                return_ty: signature.return_ty,
+            .map(|(index, signature)| {
+                let target_key = test_lir_callable_key(&signature.fqn);
+                SourceCallableSignatureFact {
+                    identity: test_identity(
+                        &cone,
+                        format!("test:source_signature:{index}:{}", signature.fqn),
+                    ),
+                    fqn: signature.fqn.clone(),
+                    target_callable_key: Some(target_key.clone()),
+                    abi_symbol: Some(AbiMangler.fun_symbol(&target_key)),
+                    abi_role: Some("callable_export".to_string()),
+                    param_names: signature.param_names.clone(),
+                    param_tys: signature.param_tys.clone(),
+                    return_ty: signature.return_ty,
+                }
             })
             .collect();
         let mut seen_source_signatures = facts
@@ -2447,19 +2478,22 @@ mod tests {
             if let Some(root) = root_body
                 && seen_source_signatures.insert(root.fqn.clone())
             {
-                facts
-                    .backend
-                    .source_signatures
-                    .push(SourceCallableSignatureFact {
+                facts.backend.source_signatures.push({
+                    let target_key = test_lir_callable_key(&root.fqn);
+                    SourceCallableSignatureFact {
                         identity: test_identity(
                             &cone,
                             format!("test:source_signature:root:{}", root.fqn),
                         ),
                         fqn: root.fqn.clone(),
+                        target_callable_key: Some(target_key.clone()),
+                        abi_symbol: Some(AbiMangler.fun_symbol(&target_key)),
+                        abi_role: Some("callable_export".to_string()),
                         param_names: root.params.iter().map(|param| param.name.clone()).collect(),
                         param_tys: root.params.iter().map(|param| param.ty).collect(),
                         return_ty: root.return_ty,
-                    });
+                    }
+                });
             }
             let published = root_body
                 .and_then(|fun| test_function_effect_row(&materialized.types, fun.ty))
@@ -2938,6 +2972,10 @@ mod tests {
 
         fn test_identity(cone: &crate::stable_id::StableConeKey, key: String) -> FactIdentity {
             FactIdentity::new(CanonicalTextKey::new(key.clone()), key, cone.clone(), None)
+        }
+
+        fn test_lir_callable_key(fqn: &str) -> StableLirCallableKey {
+            StableLirCallableKey::new(format!("test_lir_callable({fqn})"), fqn.to_string())
         }
 
         fn test_instance_artifact(

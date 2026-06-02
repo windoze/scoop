@@ -663,6 +663,7 @@ impl MirLoweringFacts {
                 .stable_instance_key
                 .as_ref()
                 .and_then(|key| StableInstanceKey::from_canonical_text(key.as_str()).ok()),
+            intrinsic_entry_name: fact.intrinsic_entry_name.clone(),
             type_args: fact.type_args.clone(),
             eff_args: fact.eff_args.clone(),
             arg_binding: fact.arg_binding.as_ref().map(call_arg_binding_from_fact),

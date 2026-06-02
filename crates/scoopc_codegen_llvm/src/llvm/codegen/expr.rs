@@ -302,69 +302,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "hir_perform_payload",
                 )
                 .map(Some),
-            many => {
-                let call_site = self.current_call_site(span)?;
-                let payload_tuple_ty = self
-                    .effect_op_call_sites
-                    .get(&call_site)
-                    .and_then(|info| info.payload_tuple_ty)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_hir_perform_payload_transport: effect op contract accepted missing payload tuple type at {span:?}"
-                        )
-                    });
-                let tuple = self.build_tuple_payload_value(span, payload_tuple_ty, many)?;
-                if tuple.ty == CgTy::Never {
-                    return Ok(None);
-                }
-                self.encode_effect_transport_value(
-                    span,
-                    Some(payload_tuple_ty),
-                    tuple,
-                    "hir_perform_payload",
-                )
-                .map(Some)
-            }
+            [_first, _second, ..] => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "perform payload at {span:?} reached legacy HIR lowering with multiple payload values; payload tuple metadata must be carried by MIR/LIR site identity"
+                ),
+            }),
         }
-    }
-
-    fn build_tuple_payload_value(
-        &mut self,
-        span: crate::span::Span,
-        tuple_ty: TypeId,
-        values: &[(TypeId, CgValue<'ctx>)],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let CgTy::Tuple(tuple_cg) = self.try_cg_ty_of_type_id(tuple_ty).unwrap_or_else(|| {
-            panic!(
-                "build_tuple_payload_value: type verifier accepted non-codegen perform payload tuple type at {span:?}"
-            )
-        }) else {
-            panic!(
-                "build_tuple_payload_value: perform payload tuple contract accepted non-tuple type at {span:?}"
-            );
-        };
-        let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_cg)?;
-        let mut agg = llvm_tuple_ty.get_undef();
-        for (idx, (_source_ty, value)) in values.iter().enumerate() {
-            if value.ty == CgTy::Never {
-                return Ok(CgValue::never());
-            }
-            let raw = match value.ty {
-                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => value.value.unwrap_or_else(|| {
-                    panic!(
-                        "build_tuple_payload_value: value verifier accepted missing perform payload tuple value at {span:?}"
-                    )
-                }),
-            };
-            agg = self
-                .builder
-                .build_insert_value(agg, raw, idx as u32, &format!("perform_payload_{idx}"))?
-                .into_struct_value();
-        }
-        Ok(CgValue {
-            ty: CgTy::Tuple(tuple_cg),
-            value: Some(agg.into()),
-        })
     }
 }

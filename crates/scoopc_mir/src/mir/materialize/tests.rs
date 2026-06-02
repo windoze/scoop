@@ -1818,6 +1818,7 @@ fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
                         callee_fqn: "fixtures.materialize.callee".to_string(),
                         stable_template_key: None,
                         stable_instance_key: None,
+                        intrinsic_entry_name: None,
                         generic_type_args: Vec::new(),
                         generic_eff_args: Vec::new(),
                     },
@@ -1918,6 +1919,7 @@ fn materialized_mir_class_ctor_contract_rejects_selected_ctor_drift() {
                     site_id: SiteId::from_raw(0),
                     class_fqn: class_fqn.to_string(),
                     ctor: ClassCtorCallMetadata {
+                        target_init_class_fqn: class_fqn.to_string(),
                         selected_ctor_span: Some(Span::new(30, 40)),
                         ordered_param_count: 0,
                     },
@@ -2006,6 +2008,7 @@ fn materialized_mir_class_ctor_contract_rejects_result_nominal_mismatch() {
                     site_id: SiteId::from_raw(0),
                     class_fqn: class_fqn.to_string(),
                     ctor: ClassCtorCallMetadata {
+                        target_init_class_fqn: class_fqn.to_string(),
                         selected_ctor_span: None,
                         ordered_param_count: 0,
                     },
@@ -3595,6 +3598,7 @@ fn append_unreachable_id_call_to_main(generic_file: &mut File, builtins: Builtin
                         callee_fqn: "fixtures.materialize.id".to_string(),
                         stable_template_key: None,
                         stable_instance_key: None,
+                        intrinsic_entry_name: None,
                         generic_type_args: Vec::new(),
                         generic_eff_args: Vec::new(),
                     },

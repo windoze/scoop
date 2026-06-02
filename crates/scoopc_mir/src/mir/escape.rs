@@ -753,6 +753,7 @@ mod tests {
                                 callee_fqn: "fixtures.escape.consume".to_string(),
                                 stable_template_key: None,
                                 stable_instance_key: None,
+                                intrinsic_entry_name: None,
                                 generic_type_args: Vec::new(),
                                 generic_eff_args: Vec::new(),
                             },

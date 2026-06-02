@@ -266,6 +266,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
         }
 
+        let matching = class
+            .ctors
+            .iter()
+            .filter(|ctor| {
+                ctor.params.len() >= arg_count
+                    && ctor.params[arg_count..]
+                        .iter()
+                        .all(|param| param.has_default)
+            })
+            .collect::<Vec<_>>();
+        if matching.len() == 1 {
+            return Ok(Some(matching[0]));
+        }
+
         panic!("pick_class_ctor_by_target: verifier accepted {kind}")
     }
 
@@ -282,7 +296,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.class_ctor_init_body_for_key(at, &key)
     }
 
-    fn class_ctor_init_body_for_key(
+    pub(in crate::llvm::codegen) fn class_ctor_init_body_for_key(
         &self,
         _at: crate::span::Span,
         key: &LirClassCtorInitKey,

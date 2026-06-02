@@ -162,6 +162,7 @@ impl MirInstanceMaterializer {
                         callee_fqn,
                         stable_template_key,
                         stable_instance_key,
+                        intrinsic_entry_name: _,
                         generic_type_args,
                         generic_eff_args,
                     },

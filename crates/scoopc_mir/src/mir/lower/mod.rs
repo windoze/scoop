@@ -241,6 +241,7 @@ pub struct FunctionTargetContract {
     pub(crate) return_ty: Option<TypeId>,
     pub(crate) stable_template_key: Option<StableTemplateKey>,
     pub(crate) stable_instance_key: Option<StableInstanceKey>,
+    pub(crate) intrinsic_entry_name: Option<String>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -277,6 +278,10 @@ impl FunctionTargetContract {
 
     pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
         self.stable_instance_key.as_ref()
+    }
+
+    pub fn intrinsic_entry_name(&self) -> Option<&str> {
+        self.intrinsic_entry_name.as_deref()
     }
 
     pub fn arg_binding(&self) -> Option<&CallArgBindingContract> {

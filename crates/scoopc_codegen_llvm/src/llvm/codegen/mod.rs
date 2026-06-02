@@ -61,9 +61,9 @@ use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
     CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey, StableConeKey,
-    StableDefKey, StableDefNamespace, StableHashScope, StableTypeParamKey,
-    canonical_callable_signature_key, canonical_record, canonical_type_text, stable_hash64,
-    stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
+    StableDefKey, StableDefNamespace, StableTypeParamKey, canonical_callable_signature_key,
+    canonical_record, canonical_type_text, stable_rtti_derived_type_key, stable_rtti_type_id,
+    stable_rtti_type_id_for_type,
 };
 use crate::syntax::int_literal::parse_int_literal_checked;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
@@ -76,8 +76,8 @@ use scoopc_lir_facts::{
     LirCallSiteKind, LirCallableContract, LirClassCtorCallSiteFacts, LirClassCtorCallSiteKey,
     LirClassCtorDelegationKind, LirClassCtorInitKey, LirClassItableEntryFacts, LirDispatchContract,
     LirDispatchKey, LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts, LirGlobalRootKey,
-    LirGlobalRootKind, LirGlobalStoragePolicy, LirPlainCallSiteFacts, LirReflectionCallSiteKey,
-    LirSourceCallSiteFacts, LirSourceCallSiteKey,
+    LirGlobalRootKind, LirGlobalStoragePolicy, LirPlainCallSiteFacts, LirSourceCallSiteFacts,
+    LirSourceCallSiteKey,
 };
 
 use super::LlvmEmitError;
@@ -496,9 +496,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     release_hooks: &'a hir::ReleaseHookIndex,
     class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    #[allow(dead_code)]
-    effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
     interior_mutable_nominals: &'a hir::InteriorMutableIndex,
@@ -829,8 +826,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) release_hooks: &'a hir::ReleaseHookIndex,
     pub(super) class_ctor_init_bodies:
         &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) interior_mutable_nominals: &'a hir::InteriorMutableIndex,
@@ -881,8 +876,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            effect_op_call_sites,
-            continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,
@@ -920,8 +913,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             class_inits,
             release_hooks,
             class_ctor_init_bodies,
-            effect_op_call_sites,
-            continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,

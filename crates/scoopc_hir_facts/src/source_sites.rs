@@ -121,6 +121,43 @@ impl SourceSiteFacts {
             )
         })
     }
+
+    /// Iterate over source-callable roots explicitly classified as named intrinsics.
+    pub fn named_intrinsic_callables(
+        &self,
+    ) -> impl Iterator<Item = (&SourceSiteIdentity, &String, &FunctionTarget)> {
+        self.call_sites.iter().filter_map(|fact| {
+            let CallSiteContractKind::Intrinsic {
+                kind: IntrinsicKind::NamedTable { entry_name, .. },
+                function,
+            } = &fact.contract
+            else {
+                return None;
+            };
+            Some((&fact.identity, entry_name, function))
+        })
+    }
+
+    /// Iterate over all function targets explicitly published at call sites.
+    pub fn function_targets(&self) -> impl Iterator<Item = (&SourceSiteIdentity, &FunctionTarget)> {
+        self.call_sites.iter().filter_map(|fact| {
+            let function = match &fact.contract {
+                CallSiteContractKind::DirectTopLevel(function)
+                | CallSiteContractKind::Extension { function, .. }
+                | CallSiteContractKind::Intrinsic { function, .. } => function,
+                CallSiteContractKind::MemberDirect(member)
+                | CallSiteContractKind::Virtual(member)
+                | CallSiteContractKind::Interface(member) => &member.function,
+                CallSiteContractKind::Constructor(_)
+                | CallSiteContractKind::Closure { .. }
+                | CallSiteContractKind::FunValue { .. }
+                | CallSiteContractKind::FunPtr { .. }
+                | CallSiteContractKind::EffectOp(_)
+                | CallSiteContractKind::ContinuationResume(_) => return None,
+            };
+            Some((&fact.identity, function))
+        })
+    }
 }
 
 /// Stable data-only effect row template published by HIR facts.
@@ -393,6 +430,8 @@ pub struct FunctionTarget {
     pub abi: CallableAbi,
     pub stable_template_key: Option<CanonicalTextKey>,
     pub stable_instance_key: Option<CanonicalTextKey>,
+    #[serde(default)]
+    pub intrinsic_entry_name: Option<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,

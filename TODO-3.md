@@ -23,6 +23,7 @@
 | T3-04C | [DONE] | 收口 T3-04R 三次审查发现的 intrinsic/root/declaration ABI/reflection/verifier/gate 残余缺口 |
 | T3-04D | [DONE] | 收口 T3-04R 四次审查发现的 source-span / ABI / intrinsic / dispatch / verifier / gate 残余缺口 |
 | T3-04E | [DONE] | 收口 T3-04R 五次审查发现的 ctor/reflection source-span bridge、scalar intrinsic FQN fallback 与 gate 漏洞 |
+| T3-04F0 | [TODO] | 修复 T3-04F 收口后剩余 HIR/source-payload class ctor、reflection/atomic、MIR golden 与 runtime fixture 失败 |
 | T3-04F | [TODO] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
@@ -173,6 +174,15 @@
 - 依赖：T3-04D
 - 完成记录：2026-06-03 完成。P6 handoff/base context/codegen 已删除 `ctor_call_sites` / `CtorCallSiteIndex` 传递与查询，HIR/source payload class ctor lowering 改为消费 LIR facts 发布的 ctor call-site contract，缺 contract 时 fail-fast，不再用唯一 span、result type 或 unresolved name 推断 ctor metadata。Reflection 类型实参从旧 `source_path:span` 字符串 map 迁移为 `SiteId` keyed LIR reflection call-site facts，value-overload reflection 不发布空 type-arg fact。Scalar bodyless intrinsic metadata 从 MIR backend/LIR intrinsic facts 发布与消费，LLVM HIR/MIR/effect-lowered 路径删除 `scalar_bodyless_intrinsic_entry_name` 及 generic/overload/FQN 文本解析 fallback；pure source payload 也只从已发布 `intrinsic_callables` 精确读取 metadata。LIR verifier/dump/golden 与 dependency gate 同步补齐 ctor/reflection/scalar fallback 守卫，schema 升至 1.10。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
+### [TODO] T3-04F0：修复 T3-04F 收口后剩余 HIR/source-payload class ctor、reflection/atomic、MIR golden 与 runtime fixture 失败
+- 背景：执行 `T3-04F` 时已完成 P6 source-span bridge 删除、LIR owner+`SiteId` ctor facts、target-bound ABI/source signature 发布与 gate/verifier 收紧的主体改造；`cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 已通过。但完整 fixture suite 仍有少量与本次收口直接相关的失败，不能把 `T3-04F` 标记完成。
+- 必须实现的内容：修复完整 fixture suite 当前剩余失败，不得通过放宽 fixture 或绕过 fact-only 契约解决；重点覆盖 HIR/class-ctor source payload 中未携带 LIR call-site identity 时的正确发布/消费、generic/alias ctor target init identity、reflection/atomic 旧 HIR lowering 残留、以及 MIR golden 因新增 metadata 后的稳定输出更新。
+- 当前已观察失败：`mir_lowered/aggregate_transport.scoop`、`mir_lowered/call_contracts.scoop`、`mir_lowered/generic_materialization.scoop` golden mismatch；`run-pass/sysroot_atomic_basic.scoop`；以及完整 suite 中仍需复核的 runtime/build residuals。重跑完整 fixture suite 获取最新失败清单后逐一修复。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+- 完成条件：完整 Rust 测试、dependency gate、spec fixture check 与完整 fixture suite 全部通过；`T3-04F` 不再被剩余 fixture/golden 失败阻塞。
+- 依赖：T3-04E
+- 完成记录：（待填）
+
 ### [TODO] T3-04F：收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口
 - 背景：执行 `T3-04R` 第六次审查时确认，`T3-04E` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
@@ -184,7 +194,8 @@
   6. **dependency gate 覆盖等价路径**：`tools/dependency_gate.py` 必须覆盖上述 helper 名称、包装函数、移动后的文件和等价重命名路径，尤其是 `source_call_site_id`、`constructor_call_sites()` / `reflection_call_sites()`、`published_declaration_abi_symbol`、MIR stage scalar intrinsic FQN fallback、generic/overload parsing helper、dispatch side-table 恢复与 reachability 静默跳过。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 - 完成条件：上述残余生产路径全部删除或改为已发布 fact 消费；verifier/gate 对缺 target-bound fact、source-span bridge、ABI/source-signature synthesis、FQN/string fallback 与静默跳过 fail-fast；全量验证通过，且不得引入 fixture-only workaround。
-- 依赖：T3-04E
+- 依赖：T3-04F0
+- 阻塞记录：2026-06-03 执行主体改造后，`cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过，但完整 fixture suite 仍有与本任务直接相关的 HIR/source-payload class ctor、reflection/atomic 与 MIR golden 残余失败；已新增前置任务 `T3-04F0`，本任务保持未完成。
 - 完成记录：（待填）
 
 ### [TODO] T3-04R：Review T3-04

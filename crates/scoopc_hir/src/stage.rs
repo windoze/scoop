@@ -4169,6 +4169,9 @@ fn function_target_fact(function: &FunctionTargetContract) -> hir_site_facts::Fu
             .stable_instance_key
             .as_ref()
             .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        intrinsic_entry_name: named_intrinsic_entry_name_for_root(&function.fqn)
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&function.fqn))
+            .map(str::to_string),
         param_tys: function.param_tys.clone(),
         return_ty: function.return_ty,
         type_args: function.type_args.clone(),

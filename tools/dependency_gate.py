@@ -1122,6 +1122,33 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
             ),
         ),
         SourceBoundaryRule(
+            "LLVM source call-site bridge residuals",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/main/context.rs",
+            (
+                fp(
+                    "current_call_site(",
+                    "LLVM codegen must not rebuild HIR call-site identities from current source path and span",
+                ),
+                fp(
+                    "source_call_site_id",
+                    "LLVM codegen must consume LIR-owned SiteId facts instead of hashing source path/span",
+                ),
+                fp(
+                    "published_class_ctor_call_site",
+                    "class ctor metadata must be queried by LIR owner+SiteId, not source span",
+                ),
+                fp(
+                    "published_reflection_type_arg_for_current_call",
+                    "reflection metadata must be queried by LIR owner+SiteId, not source span",
+                ),
+                fp(
+                    "LirReflectionCallSiteKey { source_site",
+                    "reflection call-site facts must not be keyed by raw source-site hashes in LLVM",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
             "LLVM legacy HIR function declarations",
             "backend-boundary",
             "crates/scoopc_codegen_llvm/src/llvm/codegen/main/declare.rs",
@@ -1218,6 +1245,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "concrete_top_level_fun_call_fqn",
                     "direct call lowering must consume published exact callee facts instead of rebuilding concrete FQNs",
+                ),
+                fp(
+                    "concrete_hir_top_level_call_fqn",
+                    "direct call lowering must not synthesize generic concrete FQNs from HIR arguments or result types",
                 ),
                 fp(
                     "published_named_intrinsic_entry_name_for_fqn",
@@ -1495,6 +1526,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LIR facts builder must not scan HIR source-site call maps for backend metadata",
                 ),
                 fp(
+                    "constructor_call_sites()",
+                    "LIR facts builder must publish ctor call-sites from LIR-owned SiteId facts, not HIR source-site helpers",
+                ),
+                fp(
+                    "reflection_call_sites()",
+                    "LIR facts builder must publish reflection metadata from LIR-owned SiteId facts, not HIR source-site helpers",
+                ),
+                fp(
                     "hir_intrinsic_metadata_by_source_site",
                     "LIR facts builder must not recover intrinsic metadata from source path/span maps",
                 ),
@@ -1542,6 +1581,33 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "AbiMangler.fun_symbol(target_callable_key)",
                     "LIR facts builder must not synthesize ABI symbols for missing target-bound facts",
                 ),
+                fp(
+                    "published_declaration_abi_symbol",
+                    "LIR facts builder must consume upstream ABI symbol facts instead of declaration ABI synthesis helpers",
+                ),
+                fp(
+                    "source_signature_target_key",
+                    "LIR facts builder must consume upstream target callable keys instead of deriving them from source signatures",
+                ),
+                fp(
+                    "bodyless_direct_target_key",
+                    "LIR facts builder must consume upstream bodyless target keys instead of synthesizing them locally",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "MIR backend fact fallback residuals",
+            "fact-boundary",
+            "crates/scoopc/src/pipeline/mir_stage.rs",
+            (
+                fp(
+                    "facts.source_sites.call_sites",
+                    "MIR backend facts must not recover backend metadata by scanning HIR source-site call maps",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name_for_fqn",
+                    "MIR backend facts must consume explicit intrinsic metadata instead of scalar FQN fallback lookup",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1560,6 +1626,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "is_bodyless_plain_call_surface",
                     "LIR verifier must not allow bodyless DynamicFallback escape hatches",
+                ),
+                fp(
+                    "root_has_published_source_and_abi",
+                    "LIR verifier must validate layout/dispatch targets by target callable key, not root-only ABI presence",
                 ),
             ),
         ),

@@ -953,6 +953,7 @@ impl MirInstanceMaterializer {
             }
             Rvalue::ClassCtor {
                 class_fqn,
+                ctor,
                 args,
                 hidden_effects,
                 ..
@@ -961,6 +962,7 @@ impl MirInstanceMaterializer {
                     && let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty)
                 {
                     *class_fqn = nominal.fqn.clone();
+                    ctor.target_init_class_fqn = self.types.display(result_ty).to_string();
                 }
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
@@ -1063,6 +1065,7 @@ impl MirInstanceMaterializer {
                 callee_fqn,
                 stable_template_key,
                 stable_instance_key,
+                intrinsic_entry_name: _,
                 generic_type_args,
                 generic_eff_args,
             } => {

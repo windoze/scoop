@@ -577,7 +577,7 @@ impl<'a> FnLowering<'a> {
             )),
         };
         let args = [hir::CallArg::Positional(message)];
-        self.lower_direct_call_expr(span, result, "scoop.core.panic", &args, None);
+        self.lower_direct_call_expr(span, result, "scoop.core.panic", &args, None, None);
     }
 
     pub(in crate::mir::lower) fn lower_member_access_expr(

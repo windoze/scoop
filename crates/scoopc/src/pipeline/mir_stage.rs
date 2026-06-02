@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 
 use scoop_project_model::StableConeKey;
 use scoopc_hir::stage::HirSemanticArtifact;
-use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
+use scoopc_hir_facts::HirFacts;
 use scoopc_ids::{
-    BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey, StageArtifactKey,
+    AbiMangler, BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey,
+    StableLirCallableKey, StageArtifactKey, canonical_record,
 };
 use scoopc_mir_facts::MirFacts;
 use scoopc_mir_facts::backend::{
@@ -2875,6 +2876,17 @@ fn const_value_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<T
     })
 }
 
+fn mir_call_arg_ty(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    value: &crate::mir::Operand,
+) -> Option<TypeId> {
+    match value {
+        crate::mir::Operand::Local(local) => body.locals.get(local.as_u32() as usize).map(|l| l.ty),
+        crate::mir::Operand::Const(value) => const_value_ty(types, value),
+    }
+}
+
 fn collect_mir_backend_facts(
     materialized: &MaterializedMir,
     hir_facts: Option<&HirFacts>,
@@ -2885,16 +2897,28 @@ fn collect_mir_backend_facts(
         .source_callable_signatures()
         .iter()
         .enumerate()
-        .map(|(index, signature)| SourceCallableSignatureFact {
-            identity: backend_identity(
+        .map(|(index, signature)| {
+            let identity = backend_identity(
                 &cone,
                 "source_signature",
                 &format!("{}#{index}", signature.fqn),
-            ),
-            fqn: signature.fqn.clone(),
-            param_names: signature.param_names.clone(),
-            param_tys: signature.param_tys.clone(),
-            return_ty: signature.return_ty,
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &identity,
+                &signature.fqn,
+            );
+            SourceCallableSignatureFact {
+                identity,
+                fqn: signature.fqn.clone(),
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names: signature.param_names.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            }
         })
         .collect::<Vec<_>>();
     let mut seen_source_signatures = source_signatures
@@ -2908,13 +2932,209 @@ fn collect_mir_backend_facts(
         if !seen_source_signatures.insert(root.fqn.clone()) {
             continue;
         }
+        let identity = backend_identity(&cone, "source_signature", &format!("{}#root", root.fqn));
+        let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+            &contracts.native_callable_funs,
+            &contracts.extern_funs,
+            &identity,
+            &root.fqn,
+        );
         source_signatures.push(SourceCallableSignatureFact {
-            identity: backend_identity(&cone, "source_signature", &format!("{}#root", root.fqn)),
+            identity,
             fqn: root.fqn.clone(),
+            target_callable_key: Some(target_callable_key),
+            abi_symbol: Some(abi_symbol),
+            abi_role: Some(abi_role),
             param_names: root.params.iter().map(|param| param.name.clone()).collect(),
             param_tys: root.params.iter().map(|param| param.ty).collect(),
             return_ty: root.return_ty,
         });
+    }
+    if let Some(hir_facts) = hir_facts {
+        for (identity, function) in hir_facts.source_sites.function_targets() {
+            if !bodyless_signature_root(&function.fqn) {
+                continue;
+            }
+            if !seen_source_signatures.insert(function.fqn.clone()) {
+                continue;
+            }
+            let Some(return_ty) = function.return_ty else {
+                continue;
+            };
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#hir-site{}", function.fqn, identity.site.as_u32()),
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &fact_identity,
+                &function.fqn,
+            );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: function.fqn.clone(),
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names: (0..function.param_tys.len())
+                    .map(|index| format!("arg{index}"))
+                    .collect(),
+                param_tys: function.param_tys.clone(),
+                return_ty,
+            });
+        }
+        for (identity, _entry_name, function) in hir_facts.source_sites.named_intrinsic_callables()
+        {
+            if !seen_source_signatures.insert(function.fqn.clone()) {
+                continue;
+            }
+            let Some(return_ty) = function.return_ty else {
+                continue;
+            };
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#intrinsic-site{}", function.fqn, identity.site.as_u32()),
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &fact_identity,
+                &function.fqn,
+            );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: function.fqn.clone(),
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names: (0..function.param_tys.len())
+                    .map(|index| format!("arg{index}"))
+                    .collect(),
+                param_tys: function.param_tys.clone(),
+                return_ty,
+            });
+        }
+    }
+    for family in materialized.pass_view().instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                        continue;
+                    };
+                    let crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+                        args,
+                        ..
+                    } = value
+                    else {
+                        continue;
+                    };
+                    if !bodyless_signature_root(callee_fqn) {
+                        continue;
+                    }
+                    if !seen_source_signatures.insert(callee_fqn.clone()) {
+                        continue;
+                    }
+                    let Some(param_tys) = args
+                        .iter()
+                        .map(|arg| mir_call_arg_ty(&materialized.types, body, &arg.value))
+                        .collect::<Option<Vec<_>>>()
+                    else {
+                        continue;
+                    };
+                    let return_ty = body.locals[target.as_u32() as usize].ty;
+                    let fact_identity = backend_identity(
+                        &cone,
+                        "source_signature",
+                        &format!("{}#call-site{}", callee_fqn, stmt.span.start),
+                    );
+                    let (target_callable_key, abi_symbol, abi_role) =
+                        source_signature_target_publication(
+                            &contracts.native_callable_funs,
+                            &contracts.extern_funs,
+                            &fact_identity,
+                            callee_fqn,
+                        );
+                    source_signatures.push(SourceCallableSignatureFact {
+                        identity: fact_identity,
+                        fqn: callee_fqn.clone(),
+                        target_callable_key: Some(target_callable_key),
+                        abi_symbol: Some(abi_symbol),
+                        abi_role: Some(abi_role),
+                        param_names: (0..param_tys.len())
+                            .map(|index| format!("arg{index}"))
+                            .collect(),
+                        param_tys,
+                        return_ty,
+                    });
+                }
+            }
+        }
+    }
+    for item in &materialized.file.items {
+        let crate::mir::Item::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                let crate::mir::Rvalue::Call {
+                    kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+                    args,
+                    ..
+                } = value
+                else {
+                    continue;
+                };
+                if !seen_source_signatures.insert(callee_fqn.clone()) {
+                    continue;
+                }
+                let Some(param_tys) = args
+                    .iter()
+                    .map(|arg| mir_call_arg_ty(&materialized.types, body, &arg.value))
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    continue;
+                };
+                let return_ty = body.locals[target.as_u32() as usize].ty;
+                let fact_identity = backend_identity(
+                    &cone,
+                    "source_signature",
+                    &format!("{}#raw-call-site{}", callee_fqn, stmt.span.start),
+                );
+                let (target_callable_key, abi_symbol, abi_role) =
+                    source_signature_target_publication(
+                        &contracts.native_callable_funs,
+                        &contracts.extern_funs,
+                        &fact_identity,
+                        callee_fqn,
+                    );
+                source_signatures.push(SourceCallableSignatureFact {
+                    identity: fact_identity,
+                    fqn: callee_fqn.clone(),
+                    target_callable_key: Some(target_callable_key),
+                    abi_symbol: Some(abi_symbol),
+                    abi_role: Some(abi_role),
+                    param_names: (0..param_tys.len())
+                        .map(|index| format!("arg{index}"))
+                        .collect(),
+                    param_tys,
+                    return_ty,
+                });
+            }
+        }
     }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
     let intrinsic_callables =
@@ -3083,37 +3303,86 @@ fn collect_mir_backend_facts(
     facts
 }
 
+fn source_signature_target_publication(
+    native_callable_funs: &crate::hir::NativeCallableFunIndex,
+    extern_funs: &crate::hir::ExternFunIndex,
+    identity: &FactIdentity,
+    fqn: &str,
+) -> (StableLirCallableKey, String, String) {
+    let target_callable_key = StableLirCallableKey::new(
+        canonical_record(
+            "lir_callable_declaration",
+            [identity.canonical_text().to_string()],
+        ),
+        fqn.to_string(),
+    );
+    if let Some(native) = native_callable_funs.get(fqn) {
+        return (
+            target_callable_key,
+            native.symbol.clone(),
+            "native_callable".to_string(),
+        );
+    }
+    if let Some(extern_fun) = extern_funs.get(fqn) {
+        return (
+            target_callable_key,
+            extern_fun.symbol.clone(),
+            "extern_callable".to_string(),
+        );
+    }
+    let abi_symbol = AbiMangler.fun_symbol(&target_callable_key);
+    (
+        target_callable_key,
+        abi_symbol,
+        "callable_export".to_string(),
+    )
+}
+
+fn bodyless_signature_root(fqn: &str) -> bool {
+    fqn.starts_with("scoop.core.Int.")
+        || fqn.starts_with("scoop.core.UInt")
+        || fqn.starts_with("scoop.core.Float")
+        || fqn.starts_with("scoop.core.Bool.")
+        || fqn.starts_with("scoop.core.Char.")
+        || matches!(
+            fqn,
+            "scoop.core.byteLength"
+                | "scoop.core.getByte"
+                | "scoop.core.GC.handleNew"
+                | "scoop.core.GC.handleGet"
+                | "scoop.core.GC.handleDrop"
+                | "scoop.core.GC.pin"
+                | "scoop.core.GC.unpin"
+        )
+}
+
 fn collect_named_intrinsic_callable_facts(
     cone: &StableConeKey,
     materialized: &MaterializedMir,
     hir_facts: Option<&HirFacts>,
 ) -> Vec<NamedIntrinsicCallableFact> {
-    let mut out = Vec::new();
+    let mut out: Vec<NamedIntrinsicCallableFact> = Vec::new();
     let mut seen = BTreeSet::new();
     if let Some(hir_facts) = hir_facts {
-        for fact in &hir_facts.source_sites.call_sites {
-            let hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } = &fact.contract
-            else {
+        for (identity, entry_name, function) in hir_facts.source_sites.named_intrinsic_callables() {
+            if !seen.insert((function.fqn.clone(), entry_name.clone())) {
                 continue;
-            };
-            let hir_site_facts::IntrinsicKind::NamedTable { entry_name, .. } = kind else {
-                continue;
-            };
-            insert_named_intrinsic_callable_fact(
-                cone,
-                &mut out,
-                &mut seen,
-                function.fqn.clone(),
-                entry_name.clone(),
-                &format!(
-                    "{}#site{}#{entry_name}",
-                    fact.identity.owner.as_str(),
-                    fact.identity.site.as_u32()
+            }
+            out.push(NamedIntrinsicCallableFact {
+                identity: backend_identity(
+                    cone,
+                    "named_intrinsic_callable",
+                    &format!(
+                        "{}#site{}#{entry_name}",
+                        identity.owner.as_str(),
+                        identity.site.as_u32()
+                    ),
                 ),
-            );
+                root_fqn: function.fqn.clone(),
+                named_entry_name: entry_name.clone(),
+            });
         }
     }
-
     for family in materialized.pass_view().instances() {
         for fun in family.callable_bodies() {
             let Some(body) = &fun.body else {
@@ -3124,7 +3393,13 @@ fn collect_named_intrinsic_callable_facts(
                     let crate::mir::StatementKind::Assign {
                         value:
                             crate::mir::Rvalue::Call {
-                                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+                                site_id,
+                                kind:
+                                    crate::mir::CallKind::Direct {
+                                        callee_fqn,
+                                        intrinsic_entry_name: Some(entry_name),
+                                        ..
+                                    },
                                 ..
                             },
                         ..
@@ -3132,21 +3407,18 @@ fn collect_named_intrinsic_callable_facts(
                     else {
                         continue;
                     };
-                    let Some(entry_name) =
-                        scoopc_hir::intrinsics::legacy_scalar_named_intrinsic_entry_name_for_fqn(
-                            callee_fqn,
-                        )
-                    else {
+                    if !seen.insert((callee_fqn.clone(), entry_name.clone())) {
                         continue;
-                    };
-                    insert_named_intrinsic_callable_fact(
-                        cone,
-                        &mut out,
-                        &mut seen,
-                        callee_fqn.clone(),
-                        entry_name.to_string(),
-                        &format!("{}#{}#{entry_name}", fun.fqn, stmt.span.start),
-                    );
+                    }
+                    out.push(NamedIntrinsicCallableFact {
+                        identity: backend_identity(
+                            cone,
+                            "named_intrinsic_callable",
+                            &format!("{}#site{}#{entry_name}", fun.fqn, site_id.as_u32()),
+                        ),
+                        root_fqn: callee_fqn.clone(),
+                        named_entry_name: entry_name.clone(),
+                    });
                 }
             }
         }
@@ -3157,24 +3429,6 @@ fn collect_named_intrinsic_callable_facts(
             .then_with(|| left.named_entry_name.cmp(&right.named_entry_name))
     });
     out
-}
-
-fn insert_named_intrinsic_callable_fact(
-    cone: &StableConeKey,
-    out: &mut Vec<NamedIntrinsicCallableFact>,
-    seen: &mut BTreeSet<(String, String)>,
-    root_fqn: String,
-    entry_name: String,
-    identity_key: &str,
-) {
-    if !seen.insert((root_fqn.clone(), entry_name.clone())) {
-        return;
-    }
-    out.push(NamedIntrinsicCallableFact {
-        identity: backend_identity(cone, "named_intrinsic_callable", identity_key),
-        root_fqn,
-        named_entry_name: entry_name,
-    });
 }
 
 fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {

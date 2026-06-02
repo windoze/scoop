@@ -56,21 +56,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
+        site_id: crate::mir::SiteId,
         class_layout_key: &hir::ClassInstanceKey,
         ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let class = self.class_init_layout(span, class_layout_key)?;
-        let selected_ctor = self.selected_mir_class_ctor_from_contract(
-            span,
-            &class,
-            ctor,
-            args,
-            "class ctor selected/ordered args contract",
-        )?;
-        let init_body = self.class_ctor_init_body_for_selected(span, &class, selected_ctor)?;
+        let target_init = self
+            .required_lir_class_ctor_call_site(site_id, "MIR class ctor lowering")
+            .map(|site| site.target_init.clone())
+            .unwrap_or_else(|_| {
+                LirClassCtorInitKey::for_ctor(
+                    &ctor.target_init_class_fqn,
+                    ctor.selected_ctor_span.map(|span| (span.start, span.end)),
+                )
+            });
+        let init_body = self.class_ctor_init_body_for_key(span, &target_init)?;
         let ctor_params = init_body.params();
+        if args.len() != ctor_params.len() {
+            return Err(frontend_error(format!(
+                "class ctor site{} published {} params but MIR carries {} args",
+                site_id.as_u32(),
+                ctor_params.len(),
+                args.len()
+            )));
+        }
 
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);

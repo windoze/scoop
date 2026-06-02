@@ -2624,6 +2624,8 @@ pub struct DispatchMetadata {
 /// class constructor call 在 MIR 上发布的 selected ctor / ordered-args contract。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorCallMetadata {
+    #[serde(default)]
+    pub target_init_class_fqn: String,
     pub selected_ctor_span: Option<Span>,
     pub ordered_param_count: usize,
 }
@@ -2675,6 +2677,8 @@ pub enum CallKind {
         stable_template_key: Option<Box<StableTemplateKey>>,
         #[serde(default)]
         stable_instance_key: Option<Box<StableInstanceKey>>,
+        #[serde(default)]
+        intrinsic_entry_name: Option<String>,
         #[serde(default)]
         generic_type_args: Vec<TypeId>,
         #[serde(default)]
@@ -3516,6 +3520,7 @@ mod tests {
             site_id: SiteId::from_raw(0),
             class_fqn: class_fqn.to_string(),
             ctor: ClassCtorCallMetadata {
+                target_init_class_fqn: class_fqn.to_string(),
                 selected_ctor_span: None,
                 ordered_param_count: 0,
             },
@@ -3601,6 +3606,7 @@ mod tests {
             callee_fqn: "sample.id".to_string(),
             stable_template_key: None,
             stable_instance_key: None,
+            intrinsic_entry_name: None,
             generic_type_args: Vec::new(),
             generic_eff_args: Vec::new(),
         });
@@ -4569,6 +4575,7 @@ mod tests {
                             callee_fqn: "sample.helper".to_string(),
                             stable_template_key: None,
                             stable_instance_key: None,
+                            intrinsic_entry_name: None,
                             generic_type_args: Vec::new(),
                             generic_eff_args: Vec::new(),
                         },

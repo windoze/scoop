@@ -363,8 +363,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        if let Some(ty) = self.published_reflection_type_arg_for_current_call(span, name)? {
-            return Ok(ty);
+        let text = self.current_source_slice(span)?;
+        if let Some(start) = text.find('<')
+            && let Some(end) = text[start + 1..].find('>')
+        {
+            let wanted = text[start + 1..start + 1 + end].trim();
+            if let Some(ty) = self
+                .types
+                .iter_ids()
+                .find(|ty| self.types.display(*ty).to_string() == wanted)
+            {
+                return Ok(ty);
+            }
         }
         Err(LlvmEmitError::Frontend {
             message: format!(

@@ -28,6 +28,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                             cg.with_ordinary_effect_propagation_suppressed(|cg| {
                                 cg.codegen_mir_class_ctor_call(
                                     *span,
+                                    site_id,
                                     &class_layout_key,
                                     ctor,
                                     &args,
