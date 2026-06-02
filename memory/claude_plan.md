@@ -1,29 +1,42 @@
-# 执行计划
+# 当前执行计划
+
+说明：此文件记录可审阅的执行计划和进度，不包含隐藏推理过程。
+
+## 初始计划
+
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未以 `[DONE]` 标记的任务。
+2. 检查该任务的要求、依赖、验证命令和完成记录，并查看最新提交是否明确提到与该任务直接相关的未完成事项。
+3. 读取任务相关代码、测试和文档，只收集完成当前任务所需的上下文。
+4. 如果发现当前任务被具体缺失功能、规格不匹配或未计划的失败测试阻塞，则在 `TODO.md` 中加入最小必要的前置任务，提交后停止。
+5. 否则实现当前任务，优先做最小且规格正确的修改。
+6. 运行格式化、lint、相关测试，以及任务要求的完整验证；发现失败时修复或按规则把未计划失败加入 `TODO.md`。
+7. 将当前任务标题标记为 `[DONE]`，更新完成记录；仅在阶段计划确有变化时更新 `PLAN.md`。
+8. 检查 `git status` 和变更内容，提交本次任务相关改动，然后停止，不继续下一个任务。
 
 ## 当前状态
 
-- 本次调用目标：按 `TODO.md` 顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 约束：不跳过 review 任务，不做开放式历史问题清扫；若发现阻塞当前任务的缺口，先修复或在 `TODO.md` 中插入最小 prerequisite 并提交后停止。
-- 测试策略：先格式化，再 clippy，再按任务要求和变更范围运行相关测试；若代码有变更且任务完成，按要求运行完整 Rust 测试与 fixture 套件，除非确认仅文档变更且可复用既有绿色结果。
+- 已读取 `TODO.md` 与 `TODO-3.md`。
+- 第一个未完成任务是 `TODO-3.md` 的 `T3-04R：Review T3-04`，依赖 `T3-04B` 已标记完成。
+- 已检查最新提交和工作树：最新提交为 `[T3-04B] Close residual fact fallback gaps`，未发现提交信息中直接声明的新未完成事项；工作树中既有未跟踪 `FACT_REFACTOR.md`，本次未改动。
+- 已完成 T3-04R 定向审查，确认 `T3-04B` 后仍有阻塞级残留，不能完成 review。
 
-## 步骤
+## T3-04R 审查计划
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录任务编号、要求、依赖、验证要求。
-2. 检查最新提交信息是否明确提到与该任务直接相关的未完成问题；仅在直接相关时纳入当前任务或加入 prerequisite。
-3. 按任务要求检查相关代码、测试、fixture 和文档，避免先做无关历史问题清扫。
-4. 若任务可直接完成，实施最小正确改动；若发现必须先修的具体 blocker，更新 `TODO.md` 插入最小 prerequisite，必要时更新 `PLAN.md`，提交后停止。
-5. 对改动运行格式化、lint、相关测试以及任务要求的完整验证；对任何未被明确排期的失败测试/fixture，修复或在 `TODO.md` 中排期到当前任务完成之前。
-6. 任务完成后，在 `TODO.md` 标题加 `[DONE]` 并更新 completion record；仅当阶段计划实际变化时更新 `PLAN.md`。
-7. 检查 git 状态与 diff，提交所有本次任务相关变更，提交信息使用任务编号开头。
-8. 停止，不继续下一个任务。
+1. 检查最新提交是否留下与 `T3-04R` 直接相关的未完成事项，并确认当前未提交改动范围。
+2. 搜索 P4/P5/P6 生产路径中的 source-span side table、FQN/string/root/readable-path fallback、intrinsic fallback、dispatch side-table 恢复、`unpublished(...)` / `missing-owner` / signature fallback 残留。
+3. 检查 verifier 与 dependency gate 是否覆盖上述边界，并阅读关键实现路径确认不是仅靠命名规避。
+4. 如发现阻塞缺口，优先修复；若无法在本任务内正确完成，则在 `TODO-3.md` 加入最小前置任务并提交后停止。
+5. 如未发现阻塞问题，按要求运行验证，更新 `TODO-3.md` / `TODO.md` 状态与完成记录，提交后停止。
 
-## 进度记录
+## 审查发现
 
-- 已写入初始计划，下一步读取 `TODO.md` 定位第一个未完成任务。
-- 已读取 `TODO.md` 与 `TODO-3.md`：当前第一个未完成任务为 `T3-04B`（收口 source-span / fallback / verifier / gate 残余缺口），依赖 `T3-04B0` 已完成；下一步检查最新提交是否有与 `T3-04B` 直接相关的未完成问题。
-- 最新提交为 `[T3-04B0] Publish LIR source call-site identity`，未在提交说明中声明额外未完成问题；`T3-04B0` 是当前任务直接前置，继续执行 `T3-04B`。
-- 定向审查确认当前实现仍有四类 `T3-04B` 残留：P6 `LlvmIntrinsicCallContract` source-span handoff、LIR intrinsic/readable_path fallback、LLVM dispatch side table、verifier owner/target 校验不足。执行顺序调整为先删除 P6 source-span intrinsic handoff，再收口 LIR fact builder/verifier，最后更新 gate 与验证。
-- 已完成核心改动：删除 P6 source-span intrinsic handoff；LIR intrinsic facts 改为消费显式发布 metadata；P6 dispatch 改走 LIR `dispatches`/`physical_layout`；补充 LIR verifier 对 body-version/continuation owner 的自包含检查；dependency gate 已加入对应残留守卫并通过。
-- `cargo fmt`、`cargo clippy --all-targets -- -D warnings` 和 `python3 tools/dependency_gate.py` 已通过；下一步运行完整 Rust 测试与 fixture suite。
-- 完整 Rust 测试 `cargo test --all --all-targets` 已通过；下一步运行完整 fixture suite。
-- 完整 fixture suite `python3 tools/run_fixtures.py` 已通过（1664 checks）。`TODO-3.md` 已将 `T3-04B` 标记为 `[DONE]` 并写入完成记录，`TODO.md` 当前活跃任务已更新为后续 `T3-04R`；下一步检查 diff 并提交本次任务变更。
+1. `lir_facts_builder` 与 LLVM 生产路径仍可通过 `named_intrinsic_entry_name_for_root`、source signature root 扫描或 source-body direct-call root 反推生成/消费 named intrinsic metadata。
+2. reflection intrinsic 的类型实参仍可在 P6 通过 `current_source_slice(span)` 解析 `<T>` 并按 display 文本查找 `TypeId`。
+3. declaration-only/native/extern ABI symbol 仍存在 root 扫描、declaration key 合成、`AbiMangler.fun_symbol(...)` 或 raw FQN symbol 补洞路径。
+4. LIR verifier 仍因 `body#declaration` 或 `symbol.callable.is_none()` 放行部分未发布 target，并且 `DynamicFallback` 拒绝范围不完整。
+5. dependency gate 尚未覆盖当前等价残留，例如 `named_intrinsic_entry_name_for_root`、reflection source-slice 解析、declaration ABI 合成、verifier declaration escape、部分 generic/overload 字符串解析与 dispatch/text 恢复路径。
+
+## 计划变更
+
+- 已在 `TODO-3.md` 插入最小前置任务 `T3-04C`，将 `T3-04R` 依赖更新为 `T3-04C`，并在 `TODO.md` 中把当前活跃任务改为 `T3-04C`。
+- 本次仅修改任务/进度文档，不修改代码；无需运行完整验证套件。
