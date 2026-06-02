@@ -143,10 +143,26 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .target_callables
             .iter()
             .map(|key| {
-                self.lir_facts
-                    .callables
-                    .get(key)
-                    .map(|facts| facts.root_fqn.clone())
+                self.lir_facts.callables.get(key).map(|facts| facts.root_fqn.clone())
+                    .or_else(|| {
+                        self.lir_facts.physical_layout.abi_symbols.values().find_map(|symbol| {
+                            (symbol.callable.as_ref() == Some(key))
+                                .then(|| symbol.root_fqn.clone())
+                                .flatten()
+                        })
+                    })
+                    .or_else(|| {
+                        let readable = key.readable_path();
+                        let has_source_signature = self.lir_facts.source_signatures.contains_key(readable);
+                        let has_abi_symbol = self.lir_facts.physical_layout.abi_symbols.values().any(|symbol| {
+                            symbol.root_fqn.as_deref() == Some(readable)
+                                && matches!(
+                                    symbol.role.as_str(),
+                                    "callable_export" | "native_callable" | "extern_callable"
+                                )
+                        });
+                        (has_source_signature && has_abi_symbol).then(|| readable.to_string())
+                    })
                     .ok_or_else(|| {
                         frontend_error(format!(
                             "LLVM ABI materialization 的 dynamic-invoke contract 引用了缺失的 target callable `{}`",

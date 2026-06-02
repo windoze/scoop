@@ -1235,9 +1235,7 @@ impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
             ));
         }
         if _surface_row.is_pure() {
-            let target = if !target_key.template.fqn.starts_with("scoop.delegates.")
-                || is_backend_intrinsic_bodyless_fqn(&target_key.template.fqn)
-            {
+            let target = if !target_key.template.fqn.starts_with("scoop.delegates.") {
                 CallSiteTarget::DynamicFallback
             } else {
                 CallSiteTarget::KnownInstance(target_key)
@@ -2035,15 +2033,6 @@ impl EffectFactsTypeContext {
             resume_tuple_ty,
         })
     }
-}
-
-fn is_backend_intrinsic_bodyless_fqn(fqn: &str) -> bool {
-    crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn).is_some()
-        || fqn == "scoop.unsafe.invoke"
-        || fqn == "scoop.unsafe.funPtrToUIntPtr"
-        || fqn == "scoop.unsafe.uintPtrToFunPtr"
-        || fqn.starts_with("scoop.unsafe.__atomicInt")
-        || fqn.starts_with("scoop.unsafe.__atomicRef")
 }
 
 fn collect_body_concrete_effect_ops_from_facts(

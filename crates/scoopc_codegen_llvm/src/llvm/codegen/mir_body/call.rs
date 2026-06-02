@@ -17,12 +17,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
-            crate::mir::CallKind::Direct { callee_fqn, .. } => {
+            crate::mir::CallKind::Direct {
+                callee_fqn,
+                generic_type_args,
+                ..
+            } => {
                 if let Some(class_key) = self.registered_class_instance_key(callee_fqn) {
                     return self.codegen_mir_class_ctor_call_at_site(span, &class_key, args, slots);
                 }
-                self.codegen_mir_direct_call(
-                    span, callee_fqn, args, body, mir_types, transport, slots,
+                self.codegen_mir_direct_call_with_type_args(
+                    span,
+                    callee_fqn,
+                    generic_type_args,
+                    args,
+                    body,
+                    mir_types,
+                    transport,
+                    slots,
                 )
             }
             crate::mir::CallKind::Closure { callee, fn_ptr } => {
@@ -76,6 +87,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         fqn: &str,
+        generic_type_args: &[TypeId],
         args: &[crate::mir::CallArg],
         transport: &crate::mir::CallTransportMetadata,
         body: &crate::mir::Body,
@@ -83,17 +95,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         require_plain_surface: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
-        let binding_entry_name = self
-            .current_top_level_fun_call_binding(span)?
-            .filter(|binding| binding.fqn == fqn)
-            .and_then(|binding| binding.intrinsic_entry_name.clone());
-        if let Some(entry_name) = binding_entry_name
-            .as_deref()
-            .or_else(|| self.published_named_intrinsic_entry_name_for_fqn(fqn))
+        let concrete_fqn = self
+            .published_instantiated_call_fqn(span)?
+            .or_else(|| instantiated_mir_callee_fqn(fqn, generic_type_args, mir_types))
+            .unwrap_or_else(|| fqn.to_string());
+        let concrete_fqn = concrete_fqn.as_str();
+        if let Some(entry_name) = self
+            .published_named_intrinsic_entry_name_for_call(span, None)?
+            .map(str::to_string)
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name(concrete_fqn).map(str::to_string))
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
-                entry_name,
+                &entry_name,
                 args,
                 body,
                 mir_types,
@@ -103,7 +116,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(value);
         }
-        let callable_abi = self.direct_call_abi_identity(&concrete_fqn);
+        let callable_abi = self.direct_call_abi_identity(concrete_fqn);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         if require_plain_surface && uses_effect_step_surface {
             return Err(frontend_error(format!(
@@ -113,7 +126,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let uses_explicit_effect_hidden_abi = !require_plain_surface && uses_effect_step_surface;
         let (source_types, param_names, source_param_tys, source_return_ty) = self
-            .published_callable_signature_with_names(&concrete_fqn)
+            .published_callable_signature_with_names(concrete_fqn)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!("direct call `{concrete_fqn}` 缺少 LIR callable signature facts"),
             })?;
@@ -142,7 +155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let native_abi = if callable_abi.uses_native_abi() {
             Some(self.classify_direct_extern_native_callable(
                 span,
-                &concrete_fqn,
+                concrete_fqn,
                 &param_tys,
                 return_ty_for_codegen,
             )?)
@@ -204,9 +217,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let llvm_name = self
             .extern_funs
-            .get(&concrete_fqn)
+            .get(concrete_fqn)
             .map(|extern_fun| extern_fun.symbol.as_str())
-            .unwrap_or(concrete_fqn.as_str());
+            .unwrap_or(concrete_fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => {
@@ -218,7 +231,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.declare_lir_plain_fun_with_symbol(
                     llvm_name,
                     declaration_surface,
-                    &concrete_fqn,
+                    concrete_fqn,
                     &source_param_tys,
                     source_return_ty,
                     source_types,
@@ -241,7 +254,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ty) = hidden_sret_result_ty {
                     cg.add_sret_attribute_to_call(call_site, 0, result_ty);
                 }
-                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&concrete_fqn));
+                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(concrete_fqn));
                 Ok(call_site)
             })
         };
@@ -830,5 +843,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             args,
             slots,
         )
+    }
+}
+
+fn instantiated_mir_callee_fqn(
+    fqn: &str,
+    generic_type_args: &[TypeId],
+    mir_types: &TypeStore,
+) -> Option<String> {
+    if generic_type_args.is_empty() {
+        return None;
+    }
+    let args = generic_type_args
+        .iter()
+        .map(|ty| mir_types.display(*ty).to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(format!("{fqn}::<{args}>"))
+}
+
+fn legacy_scalar_named_intrinsic_entry_name(fqn: &str) -> Option<&'static str> {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if owner == "scoop.core.Bool" {
+        return match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "eq" | "equals" => Some("bool_eq"),
+            "ne" | "notEquals" => Some("bool_ne"),
+            "not" | "negate" => Some("bool_not"),
+            _ => None,
+        };
+    }
+    if !matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return None;
+    }
+    match method {
+        "plus" => Some("int_plus"),
+        "minus" => Some("int_minus"),
+        "times" => Some("int_times"),
+        "div" => Some("int_div"),
+        "rem" => Some("int_rem"),
+        "unaryMinus" => Some("int_unary_minus"),
+        "unaryPlus" => Some("int_unary_plus"),
+        "inc" => Some("int_inc"),
+        "dec" => Some("int_dec"),
+        "and" => Some("int_and"),
+        "or" => Some("int_or"),
+        "xor" => Some("int_xor"),
+        "inv" => Some("int_inv"),
+        "shl" => Some("int_shl"),
+        "shr" => Some("int_shr"),
+        "ushr" => Some("int_ushr"),
+        "lt" => Some("int_lt"),
+        "le" => Some("int_le"),
+        "gt" => Some("int_gt"),
+        "ge" => Some("int_ge"),
+        "eq" | "equals" => Some("int_eq"),
+        "ne" | "notEquals" => Some("int_ne"),
+        "compareTo" => Some("int_compare_to"),
+        "hash" => Some("int_hash"),
+        "toString" => Some("int_to_string"),
+        _ => None,
     }
 }

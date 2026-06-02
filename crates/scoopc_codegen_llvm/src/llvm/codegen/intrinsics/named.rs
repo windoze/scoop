@@ -958,23 +958,27 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_fqn(
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name_for_call(
         &self,
-        fqn: &str,
-    ) -> Option<&'static str> {
-        crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn)
+        span: crate::span::Span,
+        expected_fqn: Option<&str>,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        let Some(contract) = self.published_intrinsic_call_contract(span)? else {
+            return Ok(None);
+        };
+        if expected_fqn.is_some_and(|fqn| fqn != contract.function_fqn) {
+            return Ok(None);
+        }
+        Ok(contract.named_entry_name.as_deref())
     }
 
-    pub(in crate::llvm::codegen) fn published_intrinsic_base_fqn<'b>(
+    pub(in crate::llvm::codegen) fn published_intrinsic_function_fqn_for_call(
         &self,
-        fqn: &'b str,
-    ) -> &'b str {
-        fqn.split("::<")
-            .next()
-            .unwrap_or(fqn)
-            .split("$overload")
-            .next()
-            .unwrap_or(fqn)
+        span: crate::span::Span,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        Ok(self
+            .published_intrinsic_call_contract(span)?
+            .map(|contract| contract.function_fqn.as_str()))
     }
 
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(
@@ -985,9 +989,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         entry_name: &str,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
-            return Ok(None);
-        };
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
         let call = self.lower_named_intrinsic_hir_call(span, callee_span, callee, args)?;
         self.codegen_named_intrinsic_call(entry, call).map(Some)
     }
@@ -999,9 +1001,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         entry_name: &str,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
-            return Ok(None);
-        };
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
         let mut operands = Vec::with_capacity(args.len());
         for arg in args {
             let value = match arg {
@@ -1029,9 +1029,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         array_transport: Option<&mir::ArrayElementTransportMetadata>,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
-            return Ok(None);
-        };
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
         let call = self.lower_named_intrinsic_mir_call(
             span,
             args,
@@ -1062,6 +1060,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_named_runtime_intrinsic_call(entry, call)
             }
         }
+    }
+
+    fn published_named_intrinsic_entry(
+        &self,
+        entry_name: &str,
+    ) -> Result<&'static NamedIntrinsicAuditEntry, LlvmEmitError> {
+        named_intrinsic_audit_entry(entry_name).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "published named intrinsic entry `{entry_name}` is not present in the backend audit table"
+                ),
+            }
+        })
     }
 
     fn lower_named_intrinsic_hir_call(

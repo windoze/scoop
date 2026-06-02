@@ -1102,26 +1102,3 @@ pub(super) fn class_init_order_fixture_codegen_accepts_materialized_generic_sysr
         "class/object/init helper 中的 concrete generic direct call 应继续复用 materialized generic sysroot direct-call lowering\n{ir}"
     );
 }
-
-#[test]
-pub(super) fn class_init_order_fixture_collects_class_init_println_call_bindings() {
-    let session = Session::new().unwrap();
-    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop")
-        .canonicalize()
-        .unwrap();
-    let source = SourceFile::load(&fixture).unwrap();
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
-    let println_bindings = codegen_unit
-        .lowering
-        .lowered_hir
-        .top_level_fun_call_sites
-        .values()
-        .filter(|binding| binding.fqn == "scoop.core.println")
-        .count();
-
-    assert_eq!(
-        println_bindings, 14,
-        "class init / ctor / main 中的 println call-site binding 都应被前端记录"
-    );
-}

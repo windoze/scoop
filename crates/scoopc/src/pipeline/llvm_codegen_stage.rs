@@ -10,8 +10,8 @@ use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::{
-    CachedDepArtifactHandoff, LlvmCallableSourceContract, LlvmCodegenStageOutput,
-    LlvmDispatchCallKey, LlvmEmitError, LlvmStageBaseContext,
+    CachedDepArtifactHandoff, LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmEmitError,
+    LlvmIntrinsicCallContract, LlvmSourceCallKey, LlvmStageBaseContext,
 };
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
@@ -23,7 +23,8 @@ use crate::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_lir_facts::{LirCallSiteKind, LirFacts};
+use scoopc_hir_facts::source_sites::{CallSiteContractKind, IntrinsicKind};
+use scoopc_lir_facts::LirFacts;
 
 use super::{HirStageOutput, LirStageOutput, LlvmArtifactKind, mir_stage};
 
@@ -119,22 +120,58 @@ fn build_callable_source_contracts(
         .collect()
 }
 
-fn build_dispatch_call_contracts(
-    dispatch_call_sites: hir::DispatchCallSiteIndex,
-) -> HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
-    dispatch_call_sites
-        .into_iter()
-        .map(|(site, kind)| {
-            let kind = match kind {
-                hir::DispatchCallKind::Virtual => LirCallSiteKind::Virtual,
-                hir::DispatchCallKind::Interface => LirCallSiteKind::Interface,
+fn build_intrinsic_call_contracts(
+    facts: &HirFacts,
+    top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
+) -> HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract> {
+    let mut out = facts
+        .source_sites
+        .call_sites
+        .iter()
+        .filter_map(|site| {
+            let (function, named_entry_name) = match &site.contract {
+                CallSiteContractKind::DirectTopLevel(function)
+                | CallSiteContractKind::Extension { function, .. } => (function, None),
+                CallSiteContractKind::MemberDirect(member)
+                | CallSiteContractKind::Virtual(member)
+                | CallSiteContractKind::Interface(member) => (&member.function, None),
+                CallSiteContractKind::Intrinsic { kind, function } => {
+                    let entry_name = match kind {
+                        IntrinsicKind::NamedTable { entry_name, .. } => Some(entry_name.clone()),
+                        IntrinsicKind::Reflection { .. }
+                        | IntrinsicKind::Platform { .. }
+                        | IntrinsicKind::Gc { .. }
+                        | IntrinsicKind::Runtime { .. }
+                        | IntrinsicKind::Compiler { .. } => None,
+                    };
+                    (function, entry_name)
+                }
+                CallSiteContractKind::Constructor(_)
+                | CallSiteContractKind::Closure { .. }
+                | CallSiteContractKind::FunValue { .. }
+                | CallSiteContractKind::FunPtr { .. }
+                | CallSiteContractKind::EffectOp(_)
+                | CallSiteContractKind::ContinuationResume(_) => return None,
             };
-            (
-                LlvmDispatchCallKey::new(site.source_path, site.span, site.receiver_ty),
-                kind,
-            )
+            Some((
+                LlvmSourceCallKey::new(site.identity.source_path.clone(), site.identity.span),
+                LlvmIntrinsicCallContract {
+                    function_fqn: function.fqn.clone(),
+                    type_args: function.type_args.clone(),
+                    named_entry_name,
+                },
+            ))
         })
-        .collect()
+        .collect::<HashMap<_, _>>();
+    for (site, binding) in top_level_fun_call_sites {
+        out.entry(LlvmSourceCallKey::new(site.source_path.clone(), site.span))
+            .or_insert_with(|| LlvmIntrinsicCallContract {
+                function_fqn: binding.fqn.clone(),
+                type_args: binding.type_args.clone(),
+                named_entry_name: binding.intrinsic_entry_name.clone(),
+            });
+    }
+    out
 }
 
 pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> EffectAnalysisFacts {
@@ -306,7 +343,8 @@ fn build_llvm_stage_base_context_from_lowered_hir(
     }
     let callable_sources =
         build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-    let dispatch_call_contracts = build_dispatch_call_contracts(lowered_hir.dispatch_call_sites);
+    let intrinsic_call_contracts =
+        build_intrinsic_call_contracts(&hir_facts, &lowered_hir.top_level_fun_call_sites);
 
     LlvmStageBaseContext::new(
         lowered_hir.source_cones,
@@ -318,7 +356,7 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         enum_layouts,
         top_level_vars,
         top_level_immutable_values,
-        lowered_hir.top_level_fun_call_sites,
+        intrinsic_call_contracts,
         object_inits,
         class_inits,
         release_hooks,
@@ -327,7 +365,6 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         interfaces,
         class_itables,
         lowered_hir.ctor_call_sites,
-        dispatch_call_contracts,
         lowered_hir.effect_op_call_sites,
         lowered_hir.continuation_resume_call_sites,
         lowered_hir.when_pat_binding_tys,

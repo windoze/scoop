@@ -311,117 +311,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(hir::CallSite::new(source.path().to_path_buf(), span))
     }
 
-    pub(in crate::llvm::codegen) fn current_top_level_fun_call_binding(
+    pub(in crate::llvm::codegen) fn published_intrinsic_call_contract(
         &self,
         span: crate::span::Span,
-    ) -> Result<Option<&ast::TopLevelFunCallBinding>, LlvmEmitError> {
-        let call_site = self.current_call_site(span)?;
-        Ok(self.top_level_fun_call_sites.get(&call_site))
+    ) -> Result<Option<&crate::llvm::LlvmIntrinsicCallContract>, LlvmEmitError> {
+        let source = self.current_source()?;
+        let key = crate::llvm::LlvmSourceCallKey::new(source.path().to_path_buf(), span);
+        if let Some(contract) = self.intrinsic_call_contracts.get(&key) {
+            return Ok(Some(contract));
+        }
+        let mut matches = self
+            .intrinsic_call_contracts
+            .iter()
+            .filter(|(key, _)| key.span == span)
+            .map(|(_, contract)| contract);
+        let Some(contract) = matches.next() else {
+            return Ok(None);
+        };
+        if matches.next().is_some() {
+            return Ok(None);
+        }
+        Ok(Some(contract))
     }
 
-    pub(in crate::llvm::codegen) fn concrete_top_level_fun_call_fqn(
+    pub(in crate::llvm::codegen) fn published_instantiated_call_fqn(
         &self,
         span: crate::span::Span,
-        fallback_fqn: &str,
-    ) -> Result<String, LlvmEmitError> {
-        fn callable_dispatch_base_fqn(fqn: &str) -> &str {
-            let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-            base.split_once("$overload$")
-                .map(|(base, _)| base)
-                .unwrap_or(base)
-        }
-
-        fn callable_fqn_specificity(fqn: &str) -> u8 {
-            u8::from(fqn.contains("$overload$")) + u8::from(fqn.contains("::<"))
-        }
-
-        fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
-            let mut stack = vec![ty];
-            while let Some(id) = stack.pop() {
-                match types.kind(id) {
-                    TypeKind::Param(_) => return true,
-                    TypeKind::StarProjection(star) => stack.push(star.read_ty),
-                    TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                    | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                        stack.extend(nominal.args.iter().copied());
-                        if let Some(eff) = &nominal.eff {
-                            stack.extend(eff.terms.iter().copied());
-                        }
-                    }
-                    TypeKind::Ref(RefTypeKind::Function(fun)) => {
-                        if let Some(receiver) = fun.receiver {
-                            stack.push(receiver);
-                        }
-                        stack.extend(fun.params.iter().copied());
-                        stack.push(fun.return_ty);
-                        stack.extend(fun.effects.terms.iter().copied());
-                    }
-                    TypeKind::Ref(RefTypeKind::Union(union)) => {
-                        stack.extend(union.variants.iter().copied());
-                    }
-                    TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
-                    TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
-                        stack.extend(elements.iter().copied());
-                    }
-                    TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
-                    | TypeKind::Value(
-                        ValueTypeKind::Unit
-                        | ValueTypeKind::Nothing
-                        | ValueTypeKind::Bool
-                        | ValueTypeKind::Char
-                        | ValueTypeKind::Float64
-                        | ValueTypeKind::Float32
-                        | ValueTypeKind::Int
-                        | ValueTypeKind::UInt
-                        | ValueTypeKind::IntN(_)
-                        | ValueTypeKind::UIntN(_),
-                    ) => {}
-                }
-            }
-            false
-        }
-
-        let Some(binding) = self.current_top_level_fun_call_binding(span)? else {
-            return Ok(fallback_fqn.to_string());
+    ) -> Result<Option<String>, LlvmEmitError> {
+        let Some(contract) = self.published_intrinsic_call_contract(span)? else {
+            return Ok(None);
         };
-        let binding_fqn = if binding.type_args.is_empty() {
-            binding.fqn.clone()
-        } else {
-            let args = binding
-                .type_args
-                .iter()
-                .map(|ty| self.types.display(*ty).to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{}::<{}>", binding.fqn, args)
-        };
-        let binding_contains_unresolved_params = binding
+        if contract.type_args.is_empty() {
+            return Ok(Some(contract.function_fqn.clone()));
+        }
+        let args = contract
             .type_args
             .iter()
-            .any(|&ty| type_contains_param(self.types, ty))
-            || binding.eff_args.iter().any(|row| {
-                row.terms
-                    .iter()
-                    .any(|&ty| type_contains_param(self.types, ty))
-            });
-        if binding_contains_unresolved_params && callable_fqn_specificity(fallback_fqn) > 0 {
-            return Ok(fallback_fqn.to_string());
-        }
-        let fallback_base = callable_dispatch_base_fqn(fallback_fqn);
-        let binding_base = callable_dispatch_base_fqn(&binding_fqn);
-        if binding_base == fallback_base
-            && callable_fqn_specificity(binding_fqn.as_str())
-                < callable_fqn_specificity(fallback_fqn)
-        {
-            return Ok(fallback_fqn.to_string());
-        }
-        // materialized MIR 已经可以把 where-bound/interface dispatch 等 source-level binding
-        // 具体化为不同 base 的 direct callee；此时必须信任 MIR 中的 fallback target，不能再按
-        // 原始 source-span side table 回退到抽象接口/trait base FQN。
-        if binding_base != fallback_base {
-            return Ok(fallback_fqn.to_string());
-        }
-        Ok(binding_fqn)
+            .map(|ty| self.types.display(*ty).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        Ok(Some(format!("{}::<{}>", contract.function_fqn, args)))
     }
 
     pub(in crate::llvm::codegen) fn source_id_for_path(

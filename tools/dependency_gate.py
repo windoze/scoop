@@ -875,6 +875,37 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "precheck_when_pattern_integer_literals",
                     "LLVM stage must not traverse HIR patterns for literal validation",
                 ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM stage handoff must not pass source-span dispatch side tables into P6",
+                ),
+                fp(
+                    "build_dispatch_call_contracts",
+                    "LLVM stage handoff must consume published LIR dispatch contracts instead of rebuilding a source-span dispatch table",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM codegen handoff",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/handoff.rs",
+            (
+                fp(
+                    "top_level_fun_call_sites",
+                    "LLVM handoff must not carry source-span top-level call binding side tables",
+                ),
+                fp(
+                    "TopLevelFunCallSiteIndex",
+                    "LLVM handoff must not expose frontend top-level call binding side-table types",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM handoff must not carry source-span dispatch side tables",
+                ),
+                fp(
+                    "LlvmDispatchCallKey",
+                    "LLVM handoff must not key dispatch lowering by source-span side-table identities",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -908,6 +939,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 ),
                 fp("crate::hir", "emit handoff must not traverse HIR APIs"),
                 fp("crate::mir", "emit handoff must not traverse raw MIR APIs"),
+                fp(
+                    "top_level_fun_call_sites",
+                    "emit handoff must not pass source-span top-level call binding side tables to codegen",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "emit handoff must not pass source-span dispatch side tables to codegen",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -967,6 +1006,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "MaterializedEffectFacts",
                     "LLVM production codegen context must not save full materialized effect-facts wrappers",
+                ),
+                fp(
+                    "top_level_fun_call_sites",
+                    "LLVM production codegen context must not save source-span top-level call binding side tables",
+                ),
+                fp(
+                    "TopLevelFunCallSiteIndex",
+                    "LLVM production codegen context must not expose frontend top-level call binding side-table types",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM production codegen context must not save source-span dispatch side tables",
+                ),
+                fp(
+                    "LlvmDispatchCallKey",
+                    "LLVM production codegen context must not key dispatch lowering by source-span side-table identities",
                 ),
             ),
         ),
@@ -1060,6 +1115,30 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "fallback_named_intrinsic_entry_name_for_fqn",
                     "direct call lowering must use published intrinsic facts instead of FQN fallback lookup",
                 ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "direct call lowering must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "concrete_top_level_fun_call_fqn",
+                    "direct call lowering must consume published exact callee facts instead of rebuilding concrete FQNs",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "direct call lowering must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "direct call lowering must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "direct call lowering must not parse overload FQN text to recover callable roots",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1075,6 +1154,30 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "fallback_named_intrinsic_entry_name_for_fqn",
                     "effect-lowered calls must use published intrinsic metadata instead of FQN fallback lookup",
                 ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "effect-lowered calls must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "effect-lowered calls must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "effect-lowered calls must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "intrinsic_base_fqn(",
+                    "effect-lowered calls must not parse intrinsic base FQNs locally",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "effect-lowered calls must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "effect-lowered calls must not parse overload FQN text to recover callable roots",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1085,6 +1188,33 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "fallback_named_intrinsic_entry_name_for_fqn",
                     "MIR direct call lowering must use published intrinsic metadata instead of FQN fallback lookup",
+                ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "MIR direct call lowering must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "concrete_top_level_fun_call_fqn",
+                    "MIR direct call lowering must consume published exact callee facts instead of rebuilding concrete FQNs",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "MIR direct call lowering must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "P4 intrinsic fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "P4 fact builder must not classify backend bodyless intrinsics through FQN fallback lookup",
+                ),
+                fp(
+                    "is_backend_intrinsic_bodyless_fqn",
+                    "P4 fact builder must not keep task-private backend intrinsic bodyless FQN fallback helpers",
                 ),
             ),
         ),

@@ -1203,6 +1203,43 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             });
         }
     }
+    for (class_fqn, slots) in &facts.physical_layout.class_vtables {
+        for slot in slots {
+            if !root_has_published_source_and_abi(facts, &slot.impl_member_fqn) {
+                return Err(VerifyError::InvalidAbiSymbol {
+                    key: slot.impl_member_fqn.clone(),
+                    reason: "vtable implementation target lacks a published source signature or ABI symbol",
+                });
+            }
+            if class_fqn.is_empty() {
+                return Err(VerifyError::InvalidLayoutName {
+                    key: class_fqn.clone(),
+                    reason: "class vtable owner is empty",
+                });
+            }
+        }
+    }
+    for (class_fqn, itable) in &facts.physical_layout.class_itables {
+        if class_fqn != &itable.class_fqn || class_fqn.is_empty() {
+            return Err(VerifyError::InvalidLayoutName {
+                key: class_fqn.clone(),
+                reason: "class itable owner is empty or inconsistent",
+            });
+        }
+        for entry in &itable.entries {
+            for impl_fqn in &entry.method_impl_fqns {
+                if impl_fqn.is_empty() {
+                    continue;
+                }
+                if !root_has_published_source_and_abi(facts, impl_fqn) {
+                    return Err(VerifyError::InvalidAbiSymbol {
+                        key: impl_fqn.clone(),
+                        reason: "itable implementation target lacks a published source signature or ABI symbol",
+                    });
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1427,6 +1464,7 @@ fn verify_call_site_contract(
                     reason: "root, ABI symbol, or signature key is unpublished or inconsistent",
                 });
             }
+            verify_published_call_target(facts, &exact.target_callable_key, owner)?;
         }
         LirCallTargetMode::CandidateSet => {
             if contract.exact_callee.is_some() {
@@ -1440,6 +1478,9 @@ fn verify_call_site_contract(
                     callable: owner.to_string(),
                     reason: "candidate-set call must publish at least one target callable",
                 });
+            }
+            for target in &contract.target_callables {
+                verify_published_call_target(facts, target, owner)?;
             }
         }
         LirCallTargetMode::DynamicFallback => {
@@ -1462,12 +1503,7 @@ fn verify_call_site_contract(
                 });
             }
             for target in &contract.target_callables {
-                if !target_has_published_contract(facts, target) {
-                    return Err(VerifyError::InvalidExactCalleeBinding {
-                        callable: owner.to_string(),
-                        reason: "dynamic target callable is unpublished and has no ABI fact",
-                    });
-                }
+                verify_published_call_target(facts, target, owner)?;
             }
         }
     }
@@ -1487,13 +1523,59 @@ fn is_bodyless_plain_call_surface(contract: &crate::LirCallSiteContract) -> bool
         && contract.resolved_cases.is_empty()
 }
 
-fn target_has_published_contract(facts: &LirFacts, target: &StableLirCallableKey) -> bool {
-    facts.callables.contains_key(target)
-        || facts
-            .physical_layout
-            .abi_symbols
-            .values()
-            .any(|symbol| symbol.callable.as_ref() == Some(target))
+fn verify_published_call_target(
+    facts: &LirFacts,
+    target: &StableLirCallableKey,
+    owner: &str,
+) -> Result<()> {
+    let Some(root_fqn) = published_target_root_fqn(facts, target) else {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "target callable is unpublished and has no reachable ABI root",
+        });
+    };
+    if !root_has_published_source_and_abi(facts, root_fqn) {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "target callable lacks a published source signature or ABI symbol",
+        });
+    }
+    Ok(())
+}
+
+fn published_target_root_fqn<'a>(
+    facts: &'a LirFacts,
+    target: &'a StableLirCallableKey,
+) -> Option<&'a str> {
+    if let Some(callable) = facts.callables.get(target) {
+        return Some(callable.root_fqn());
+    }
+    if let Some(root) = facts
+        .physical_layout
+        .abi_symbols
+        .values()
+        .find_map(|symbol| {
+            (symbol.callable.as_ref() == Some(target))
+                .then_some(symbol.root_fqn.as_deref())
+                .flatten()
+        })
+    {
+        return Some(root);
+    }
+    let readable = target.readable_path();
+    root_has_published_source_and_abi(facts, readable).then_some(readable)
+}
+
+fn root_has_published_source_and_abi(facts: &LirFacts, root_fqn: &str) -> bool {
+    !root_fqn.is_empty()
+        && facts.source_signatures.contains_key(root_fqn)
+        && facts.physical_layout.abi_symbols.values().any(|symbol| {
+            symbol.root_fqn.as_deref() == Some(root_fqn)
+                && matches!(
+                    symbol.role.as_str(),
+                    "callable_export" | "native_callable" | "extern_callable"
+                )
+        })
 }
 
 fn verify_control_body(
@@ -1552,11 +1634,14 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
-    for key in facts.dispatches.keys() {
+    for (key, dispatch) in &facts.dispatches {
         if !facts.callables.contains_key(&key.owner_callable) {
             return Err(VerifyError::MissingDispatchOwner {
                 key: dispatch_key_text(key),
             });
+        }
+        for target in &dispatch.candidate_targets {
+            verify_published_call_target(facts, target, &dispatch.member_fqn)?;
         }
     }
     Ok(())

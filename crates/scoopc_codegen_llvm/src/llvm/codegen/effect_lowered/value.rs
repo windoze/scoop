@@ -175,6 +175,18 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .map(|callable| callable.root_fqn())
     }
 
+    fn plain_call_target_root_fqn(&self, site_id: mir::SiteId) -> Option<&'a str> {
+        let facts = self
+            .plain_call_sites?
+            .iter()
+            .find(|site| site.site_id() == site_id)?
+            .facts();
+        let crate::effect_facts::CallSiteTarget::KnownInstance(instance) = facts.target() else {
+            return None;
+        };
+        Some(instance.template.fqn.as_str())
+    }
+
     fn plain_call_param_names(&self, callee_fqn: &str, param_count: usize) -> Vec<String> {
         self.program
             .callable(callee_fqn)
@@ -762,12 +774,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     continue;
                 }
                 if let mir::Rvalue::Call {
-                    kind: mir::CallKind::Direct { callee_fqn, .. },
+                    site_id,
+                    kind: mir::CallKind::Direct { .. },
                     args,
                     ..
                 } = value
-                    && (callee_fqn.starts_with("scoop.unsafe.__atomicInt")
-                        || callee_fqn.starts_with("scoop.unsafe.__atomicRef"))
+                    && self
+                        .plain_call_target_root_fqn(*site_id)
+                        .is_some_and(|root| {
+                            root.starts_with("scoop.unsafe.__atomicInt")
+                                || root.starts_with("scoop.unsafe.__atomicRef")
+                        })
                     && matches!(
                         args.first(),
                         Some(mir::CallArg {
@@ -1769,6 +1786,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_hash_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
+        if callee_fqn == "scoop.core.ToString.toString" {
+            return self.lower_to_string_intrinsic(span, args, target_cg);
+        }
         if callee_fqn == "scoop.core.byteLength" {
             return self.lower_core_string_byte_length_call(span, args, target_cg);
         }
@@ -1792,7 +1812,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.panic" {
             return self.lower_panic_call(span, args);
         }
-        if self.codegen.published_intrinsic_base_fqn(callee_fqn) == "scoop.unsafe.invoke" {
+        let intrinsic_base_fqn = self
+            .codegen
+            .published_intrinsic_function_fqn_for_call(span)?
+            .or_else(|| self.plain_call_target_root_fqn(site_id));
+        if intrinsic_base_fqn == Some("scoop.unsafe.invoke") {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
                 args,
@@ -1827,22 +1851,22 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let binding_entry_name = self
+        let named_intrinsic_entry = self
             .codegen
-            .current_top_level_fun_call_binding(span)?
-            .and_then(|binding| binding.intrinsic_entry_name.clone());
-        if let Some(entry_name) = binding_entry_name.as_deref().or_else(|| {
-            self.codegen
-                .published_named_intrinsic_entry_name_for_fqn(callee_fqn)
-        }) && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
-            span,
-            entry_name,
-            args,
-            self.body,
-            self.source_types,
-            transport.array.as_ref(),
-            self.slots,
-        )? {
+            .published_named_intrinsic_entry_name_for_call(span, None)?
+            .map(str::to_string)
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name(callee_fqn).map(str::to_string));
+        if let Some(entry_name) = named_intrinsic_entry
+            && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                &entry_name,
+                args,
+                self.body,
+                self.source_types,
+                transport.array.as_ref(),
+                self.slots,
+            )?
+        {
             return Ok(value);
         }
         if self
@@ -1921,15 +1945,21 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_int_intrinsic(
         &mut self,
-        _span: Span,
-        callee_fqn: &str,
+        span: Span,
+        _callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let atomic_word = super::super::types::IntTy {
             bits: self.codegen.host.word_bit_width(),
             signed: true,
         };
-        match callee_fqn {
+        let Some(base_fqn) = self
+            .codegen
+            .published_intrinsic_function_fqn_for_call(span)?
+        else {
+            return Ok(None);
+        };
+        match base_fqn {
             "scoop.unsafe.__atomicIntLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     self.codegen.panic_verified_intrinsic_contract(
@@ -2046,11 +2076,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_ref_intrinsic(
         &mut self,
-        _span: Span,
-        callee_fqn: &str,
+        span: Span,
+        _callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        match intrinsic_base_fqn(callee_fqn) {
+        let Some(base_fqn) = self
+            .codegen
+            .published_intrinsic_function_fqn_for_call(span)?
+        else {
+            return Ok(None);
+        };
+        match base_fqn {
             "scoop.unsafe.__atomicRefLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     self.codegen.panic_verified_intrinsic_contract(
@@ -2140,11 +2176,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_to_int_intrinsic(
         &mut self,
         span: Span,
-        callee_fqn: &str,
+        _callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(base_fqn) = self
+            .codegen
+            .published_intrinsic_function_fqn_for_call(span)?
+        else {
+            return Ok(None);
+        };
         if !matches!(
-            intrinsic_base_fqn(callee_fqn),
+            base_fqn,
             "scoop.core.toInt" | "scoop.core.Float64.toInt" | "scoop.core.Float32.toInt"
         ) {
             return Ok(None);
@@ -2235,10 +2277,16 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_hash_intrinsic(
         &mut self,
         span: Span,
-        callee_fqn: &str,
+        _callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if intrinsic_base_fqn(callee_fqn) != "scoop.core.hash" {
+        let Some(base_fqn) = self
+            .codegen
+            .published_intrinsic_function_fqn_for_call(span)?
+        else {
+            return Ok(None);
+        };
+        if base_fqn != "scoop.core.hash" {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
@@ -2314,6 +2362,61 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 ),
             },
         }
+    }
+
+    fn lower_to_string_intrinsic(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(arg) = args.first() else {
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered toString intrinsic",
+                "missing receiver",
+            );
+        };
+        let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+        let entry_name = match self.source_types.kind(value_ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => "bool_to_string",
+            TypeKind::Value(ValueTypeKind::Char) => "char_to_string",
+            TypeKind::Value(
+                ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_),
+            ) => "int_to_string",
+            TypeKind::Value(ValueTypeKind::Float64) => "float64_to_string",
+            TypeKind::Value(ValueTypeKind::Float32) => "float32_to_string",
+            TypeKind::Ref(RefTypeKind::String) => {
+                let value = self.codegen.codegen_mir_operand_expected(
+                    arg.span,
+                    &arg.value,
+                    self.slots,
+                    Some(CgTy::String),
+                )?;
+                return self.codegen.coerce_value(span, value, target_cg);
+            }
+            _ => return Ok(CgValue::unit()),
+        };
+        let value = self
+            .codegen
+            .try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                entry_name,
+                args,
+                self.body,
+                self.source_types,
+                None,
+                self.slots,
+            )?
+            .unwrap_or_else(|| {
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect-lowered toString intrinsic",
+                    "missing runtime intrinsic entry",
+                )
+            });
+        self.codegen.coerce_value(span, value, target_cg)
     }
 
     fn lower_panic_call(
@@ -4102,13 +4205,99 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
-fn intrinsic_base_fqn(fqn: &str) -> &str {
-    fqn.split("::<")
-        .next()
-        .unwrap_or(fqn)
-        .split("$overload")
-        .next()
-        .unwrap_or(fqn)
+fn legacy_scalar_named_intrinsic_entry_name(fqn: &str) -> Option<&'static str> {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if owner == "scoop.core.Bool" {
+        return match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "eq" | "equals" => Some("bool_eq"),
+            "ne" | "notEquals" => Some("bool_ne"),
+            "not" | "negate" => Some("bool_not"),
+            _ => None,
+        };
+    }
+    if matches!(owner, "scoop.core.Float32" | "scoop.core.Float64") {
+        return match method {
+            "plus" => Some("float_plus"),
+            "minus" => Some("float_minus"),
+            "times" => Some("float_times"),
+            "div" => Some("float_div"),
+            "rem" => Some("float_rem"),
+            "unaryMinus" => Some("float_unary_minus"),
+            "unaryPlus" => Some("float_unary_plus"),
+            "lt" => Some("float_lt"),
+            "le" => Some("float_le"),
+            "gt" => Some("float_gt"),
+            "ge" => Some("float_ge"),
+            "eq" | "equals" => Some("float_eq"),
+            "ne" | "notEquals" => Some("float_ne"),
+            "compareTo" => Some("float_compare_to"),
+            "abs" => Some("float_abs"),
+            "isNaN" => Some("float_is_nan"),
+            "isInfinite" => Some("float_is_infinite"),
+            "hash" => Some("float_hash"),
+            _ => None,
+        };
+    }
+    if owner == "scoop.core.Char" {
+        return match method {
+            "toInt" => Some("char_to_int"),
+            "hash" => Some("char_hash"),
+            "compareTo" => Some("char_compare_to"),
+            "eq" | "equals" => Some("char_equals"),
+            "plus" | "plusInt" => Some("char_plus_int"),
+            "minus" | "minusInt" => Some("char_minus_int"),
+            "minusChar" => Some("char_minus_char"),
+            _ => None,
+        };
+    }
+    if !matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return None;
+    }
+    match method {
+        "plus" => Some("int_plus"),
+        "minus" => Some("int_minus"),
+        "times" => Some("int_times"),
+        "div" => Some("int_div"),
+        "rem" => Some("int_rem"),
+        "unaryMinus" => Some("int_unary_minus"),
+        "unaryPlus" => Some("int_unary_plus"),
+        "inc" => Some("int_inc"),
+        "dec" => Some("int_dec"),
+        "and" => Some("int_and"),
+        "or" => Some("int_or"),
+        "xor" => Some("int_xor"),
+        "inv" => Some("int_inv"),
+        "shl" => Some("int_shl"),
+        "shr" => Some("int_shr"),
+        "ushr" => Some("int_ushr"),
+        "lt" => Some("int_lt"),
+        "le" => Some("int_le"),
+        "gt" => Some("int_gt"),
+        "ge" => Some("int_ge"),
+        "equals" => Some("int_eq"),
+        "notEquals" => Some("int_ne"),
+        "compareTo" => Some("int_compare_to"),
+        "hash" => Some("int_hash"),
+        "toString" => Some("int_to_string"),
+        "negate" => Some("bool_not"),
+        _ => None,
+    }
 }
 
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]

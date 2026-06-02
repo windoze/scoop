@@ -91,11 +91,17 @@ pub(crate) fn build_lir_facts(
     let mut dynamic_invokes = BTreeMap::new();
     let mut dispatches = BTreeMap::new();
     let callables = build_callable_facts(&ctx, &mut dynamic_invokes, &mut dispatches)?;
+    let source_signatures = build_source_signature_facts(ctx.lir, ctx.mir_facts)?;
     let groups = LirFactGroups {
         global_init: build_global_init_facts(&ctx)?,
-        physical_layout: build_physical_layout_facts(&ctx, &callables, &dynamic_invokes)?,
+        physical_layout: build_physical_layout_facts(
+            &ctx,
+            &callables,
+            &dynamic_invokes,
+            &source_signatures,
+        )?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
-        source_signatures: build_source_signature_facts(ctx.lir, ctx.mir_facts)?,
+        source_signatures,
         class_ctor_inits: build_class_ctor_init_facts(ctx.lir),
         callables,
         step_types: build_step_type_facts(lir),
@@ -858,6 +864,7 @@ fn build_physical_layout_facts(
     ctx: &LirFactsBuildContext<'_>,
     callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
 ) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
     let mut facts = LirPhysicalLayoutFacts::default();
@@ -932,6 +939,9 @@ fn build_physical_layout_facts(
         &facts.callable_symbols,
         &contracts.native_callable_funs,
         &contracts.extern_funs,
+        &contracts.class_vtables,
+        &contracts.class_itables,
+        source_signatures,
         callables,
         dynamic_invokes,
     );
@@ -940,10 +950,14 @@ fn build_physical_layout_facts(
     Ok(facts)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_abi_symbol_facts(
     callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
     native_callable_funs: &crate::hir::NativeCallableFunIndex,
     extern_funs: &crate::hir::ExternFunIndex,
+    class_vtables: &crate::vtable::ClassVtableIndex,
+    class_itables: &crate::itable::ClassItableIndex,
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
     callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
 ) -> BTreeMap<String, LirAbiSymbolFact> {
@@ -1039,7 +1053,58 @@ fn build_abi_symbol_facts(
             role,
         );
     }
+    for root_fqn in dispatch_layout_impl_roots(class_vtables, class_itables) {
+        insert_declaration_abi_symbol_if_missing(&mut out, root_fqn);
+    }
+    for root_fqn in source_signatures.keys() {
+        insert_declaration_abi_symbol_if_missing(&mut out, root_fqn.clone());
+    }
     out
+}
+
+fn insert_declaration_abi_symbol_if_missing(
+    out: &mut BTreeMap<String, LirAbiSymbolFact>,
+    root_fqn: String,
+) {
+    if root_fqn.is_empty()
+        || out
+            .values()
+            .any(|fact| fact.root_fqn.as_deref() == Some(root_fqn.as_str()))
+    {
+        return;
+    }
+    let declaration_key = StableLirCallableKey::new(
+        canonical_record("lir_callable_declaration", [root_fqn.clone()]),
+        root_fqn.clone(),
+    );
+    insert_abi_symbol_fact(
+        out,
+        declaration_key.canonical_text(),
+        AbiMangler.fun_symbol(&declaration_key),
+        Some(declaration_key),
+        Some(root_fqn),
+        "callable_export",
+    );
+}
+
+fn dispatch_layout_impl_roots(
+    class_vtables: &crate::vtable::ClassVtableIndex,
+    class_itables: &crate::itable::ClassItableIndex,
+) -> BTreeSet<String> {
+    let mut roots = BTreeSet::new();
+    for slot in class_vtables.values().flat_map(|slots| slots.iter()) {
+        if !slot.impl_member_fqn.is_empty() {
+            roots.insert(slot.impl_member_fqn.clone());
+        }
+    }
+    for entry in class_itables.values().flat_map(|entries| entries.iter()) {
+        for impl_fqn in &entry.method_impl_fqns {
+            if !impl_fqn.is_empty() {
+                roots.insert(impl_fqn.clone());
+            }
+        }
+    }
+    roots
 }
 
 fn callable_symbol_contains_canonical_key(

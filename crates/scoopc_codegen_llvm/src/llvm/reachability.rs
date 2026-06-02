@@ -39,11 +39,19 @@ struct ReachabilityCollector<'a> {
 
 impl<'a> ReachabilityCollector<'a> {
     fn new(lir_facts: &'a LirFacts) -> Self {
-        let callable_roots_by_key = lir_facts
+        let mut callable_roots_by_key: HashMap<&'a StableLirCallableKey, &'a str> = lir_facts
             .callables
             .iter()
             .map(|(key, facts)| (key, facts.root_fqn()))
             .collect();
+        for symbol in lir_facts.physical_layout.abi_symbols.values() {
+            let (Some(callable), Some(root_fqn)) =
+                (symbol.callable.as_ref(), symbol.root_fqn.as_deref())
+            else {
+                continue;
+            };
+            callable_roots_by_key.entry(callable).or_insert(root_fqn);
+        }
         Self {
             lir_facts,
             callable_roots_by_key,
@@ -165,7 +173,9 @@ impl<'a> ReachabilityCollector<'a> {
                 .dynamic_invokes
                 .iter()
                 .filter(|(_, dynamic)| {
-                    self.root_for_callable_key(&dynamic.owner_callable) == Some(root_fqn)
+                    self.root_for_callable_key(&dynamic.owner_callable)
+                        .as_deref()
+                        == Some(root_fqn)
                 })
                 .map(|(key, _)| key.clone()),
         );
@@ -174,7 +184,9 @@ impl<'a> ReachabilityCollector<'a> {
                 .dispatches
                 .iter()
                 .filter(|(_, dispatch)| {
-                    self.root_for_callable_key(&dispatch.owner_callable) == Some(root_fqn)
+                    self.root_for_callable_key(&dispatch.owner_callable)
+                        .as_deref()
+                        == Some(root_fqn)
                 })
                 .map(|(key, _)| key.clone()),
         );
@@ -199,35 +211,32 @@ impl<'a> ReachabilityCollector<'a> {
         };
         let targets = dispatch.candidate_targets.clone();
         for target in &targets {
-            self.enqueue_published_callable_key(target);
+            self.enqueue_required_callable_key(target);
         }
     }
 
     fn enqueue_call_contract_targets(&mut self, contract: &LirCallSiteContract) {
+        if let Some(exact) = contract.exact_callee.as_ref() {
+            self.enqueue_root(&exact.root_fqn);
+            return;
+        }
         for target in &contract.target_callables {
             match contract.target_mode {
-                LirCallTargetMode::KnownInstance => self.enqueue_required_callable_key(target),
-                LirCallTargetMode::CandidateSet | LirCallTargetMode::DynamicFallback => {
-                    self.enqueue_published_callable_key(target);
-                }
+                LirCallTargetMode::KnownInstance
+                | LirCallTargetMode::CandidateSet
+                | LirCallTargetMode::DynamicFallback => self.enqueue_required_callable_key(target),
             }
         }
     }
 
     fn enqueue_required_callable_key(&mut self, key: &StableLirCallableKey) {
         if let Some(root) = self.root_for_callable_key(key) {
-            self.enqueue_root(root);
+            self.enqueue_root(&root);
         } else {
             panic!(
                 "LIR reachability verifier accepted required callable key `{}` without a published root",
                 key.canonical_text()
             );
-        }
-    }
-
-    fn enqueue_published_callable_key(&mut self, key: &StableLirCallableKey) {
-        if let Some(root) = self.root_for_callable_key(key) {
-            self.enqueue_root(root);
         }
     }
 
@@ -244,8 +253,29 @@ impl<'a> ReachabilityCollector<'a> {
             .find(|callable| callable.root_fqn() == root_fqn)
     }
 
-    fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<&'a str> {
-        self.callable_roots_by_key.get(key).copied()
+    fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {
+        self.callable_roots_by_key
+            .get(key)
+            .map(|root| (*root).to_string())
+            .or_else(|| self.declaration_root_for_callable_key(key))
+    }
+
+    fn declaration_root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {
+        let readable = key.readable_path();
+        let has_source_signature = self.lir_facts.source_signatures.contains_key(readable);
+        let has_abi_symbol = self
+            .lir_facts
+            .physical_layout
+            .abi_symbols
+            .values()
+            .any(|symbol| {
+                symbol.root_fqn.as_deref() == Some(readable)
+                    && matches!(
+                        symbol.role.as_str(),
+                        "callable_export" | "native_callable" | "extern_callable"
+                    )
+            });
+        (has_source_signature && has_abi_symbol).then(|| readable.to_string())
     }
 }
 
@@ -270,8 +300,8 @@ mod tests {
         LirDynamicInvokeKey, LirDynamicInvokeSource, LirEffectPrecision,
         LirEffectStepCallableFacts, LirFactGroups, LirFrameSchemaFacts, LirGlobalInitFacts,
         LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirPlainCallSiteFacts,
-        LirPlainCallableFacts, LirResumeStateMapFacts, LirSourceSliceKey, LirStageSummary,
-        LirStateGraphFacts, LirStateKey, LirStepSchemaKey,
+        LirPlainCallableFacts, LirResumeStateMapFacts, LirSourceCallableSignatureFacts,
+        LirSourceSliceKey, LirStageSummary, LirStateGraphFacts, LirStateKey, LirStepSchemaKey,
     };
     use scoopc_types::{TypeId, TypeStore};
 
@@ -548,15 +578,48 @@ mod tests {
     }
 
     #[test]
-    fn reachability_ignores_unpublished_candidate_set_targets() {
+    #[should_panic(expected = "without a published root")]
+    fn reachability_rejects_unpublished_candidate_set_targets() {
         let facts = facts_with_callables(vec![plain_callable(
             "app.main",
             vec![callable_key("scoop.core.Bool.toString")],
         )]);
 
+        let _ = collect_reachable_top_level_funs("app.main", &facts);
+    }
+
+    #[test]
+    fn reachability_includes_declaration_only_candidate_set_targets() {
+        let target = callable_key("scoop.core.Bool.toString");
+        let mut facts =
+            facts_with_callables(vec![plain_callable("app.main", vec![target.clone()])]);
+        facts.source_signatures.insert(
+            "scoop.core.Bool.toString".to_string(),
+            LirSourceCallableSignatureFacts {
+                signature_key: "sig:scoop.core.Bool.toString".to_string(),
+                root_fqn: "scoop.core.Bool.toString".to_string(),
+                param_names: Vec::new(),
+                param_tys: Vec::new(),
+                return_ty: ty(2),
+            },
+        );
+        facts.physical_layout.abi_symbols.insert(
+            "abi:scoop.core.Bool.toString".to_string(),
+            scoopc_lir_facts::LirAbiSymbolFact {
+                key: "abi:scoop.core.Bool.toString".to_string(),
+                symbol: "scoop_core_Bool_toString".to_string(),
+                callable: None,
+                root_fqn: Some("scoop.core.Bool.toString".to_string()),
+                role: "extern_callable".to_string(),
+            },
+        );
+
         assert_eq!(
             collect_reachable_top_level_funs("app.main", &facts),
-            vec!["app.main".to_string()]
+            vec![
+                "app.main".to_string(),
+                "scoop.core.Bool.toString".to_string()
+            ]
         );
     }
 

@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use super::*;
+use scoopc_ids::StableLirCallableKey;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
@@ -298,11 +299,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             return Ok(symbol);
         }
-        Err(LlvmEmitError::Frontend {
-            message: format!(
-                "LIR callable symbol facts 缺少 exported callable `{callable_fqn}` 的 ABI identity"
-            ),
-        })
+        if let Some(abi_symbol) = self
+            .published_lir_facts
+            .physical_layout
+            .abi_symbols
+            .values()
+            .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn))
+        {
+            if let Some(callable) = abi_symbol.callable.as_ref() {
+                self.reserve_exported_abi_symbol(
+                    &abi_symbol.symbol,
+                    callable,
+                    format!("LIR declaration `{callable_fqn}` via ABI symbol facts"),
+                )?;
+            }
+            return Ok(abi_symbol.symbol.clone());
+        }
+        let declaration_key = StableLirCallableKey::new(
+            canonical_record("lir_callable_declaration", [callable_fqn.to_string()]),
+            callable_fqn,
+        );
+        let symbol = AbiMangler.fun_symbol(&declaration_key);
+        self.reserve_exported_abi_symbol(
+            &symbol,
+            &declaration_key,
+            format!("LIR declaration `{callable_fqn}` synthesized from source callable contract"),
+        )?;
+        Ok(symbol)
     }
 
     pub(in crate::llvm::codegen) fn enter_root_callable_identity(

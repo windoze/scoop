@@ -363,15 +363,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        let binding = self
-            .current_top_level_fun_call_binding(span)?
+        let contract = self
+            .published_intrinsic_call_contract(span)?
             .unwrap_or_else(|| {
                 self.panic_verified_builtin_contract(
                     "reflection_type_arg_for_current_call",
-                    "missing reflection intrinsic call binding",
+                    "missing published reflection intrinsic call contract",
                 )
             });
-        Ok(binding.type_args.first().copied().unwrap_or_else(|| {
+        Ok(contract.type_args.first().copied().unwrap_or_else(|| {
             self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
         }))
     }

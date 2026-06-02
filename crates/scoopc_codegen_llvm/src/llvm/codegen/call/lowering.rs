@@ -160,14 +160,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some(entry_name) = self
-            .current_top_level_fun_call_binding(span)?
-            .filter(|binding| member_fun_fqn.is_none_or(|fqn| binding.fqn == fqn))
-            .and_then(|binding| binding.intrinsic_entry_name.clone())
-            .or_else(|| {
-                member_fun_fqn
-                    .and_then(|fqn| self.published_named_intrinsic_entry_name_for_fqn(fqn))
-                    .map(str::to_string)
-            })
+            .published_named_intrinsic_entry_name_for_call(span, None)?
+            .map(str::to_string)
         {
             return self.try_codegen_named_intrinsic_hir_call(
                 span,
@@ -646,22 +640,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn dispatch_call_kind_for_receiver(
-        &self,
-        span: crate::span::Span,
-        receiver_ty: TypeId,
-    ) -> Result<Option<LirCallSiteKind>, LlvmEmitError> {
-        let source = self.current_source()?;
-        Ok(self
-            .dispatch_call_contracts
-            .get(&crate::llvm::LlvmDispatchCallKey::new(
-                source.path().to_path_buf(),
-                span,
-                receiver_ty,
-            ))
-            .copied())
-    }
-
     pub(in crate::llvm::codegen) fn ordinary_effect_propagation_enabled(&self) -> bool {
         self.function_cx.current_fun_return_ty.is_some()
     }
@@ -1469,12 +1447,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             if let Some(entry_name) = self
-                .current_top_level_fun_call_binding(span)?
-                .and_then(|binding| binding.intrinsic_entry_name.clone())
-                .or_else(|| {
-                    self.published_named_intrinsic_entry_name_for_fqn(fqn)
-                        .map(str::to_string)
-                })
+                .published_named_intrinsic_entry_name_for_call(span, None)?
+                .map(str::to_string)
+                .or_else(|| legacy_scalar_named_intrinsic_entry_name(fqn).map(str::to_string))
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
                     span,
                     callee.span,
@@ -1486,11 +1461,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(value);
             }
 
-            let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
+            let concrete_fqn = self
+                .published_instantiated_call_fqn(span)?
+                .unwrap_or_else(|| fqn.to_string());
             let semantic_fqn = self
-                .current_top_level_fun_call_binding(span)?
-                .map(|binding| binding.fqn.clone())
-                .unwrap_or_else(|| concrete_fqn.clone());
+                .published_intrinsic_function_fqn_for_call(span)?
+                .unwrap_or(concrete_fqn.as_str())
+                .to_string();
             let dispatch_fqn = semantic_fqn.as_str();
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
@@ -1588,19 +1565,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
-            if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
+            let intrinsic_base_fqn = self
+                .published_intrinsic_function_fqn_for_call(span)?
+                .map(str::to_string);
+            if let Some(base_fqn) = intrinsic_base_fqn.as_deref()
+                && base_fqn.starts_with("scoop.unsafe.__atomicInt")
+            {
                 return self.codegen_sysroot_atomic_int_intrinsics(
                     span,
                     callee.span,
-                    dispatch_fqn,
+                    base_fqn,
                     args,
                 );
             }
-            if dispatch_fqn.starts_with("scoop.unsafe.__atomicRef") {
+            if let Some(base_fqn) = intrinsic_base_fqn.as_deref()
+                && base_fqn.starts_with("scoop.unsafe.__atomicRef")
+            {
                 return self.codegen_sysroot_atomic_ref_intrinsics(
                     span,
                     callee.span,
-                    dispatch_fqn,
+                    base_fqn,
                     args,
                 );
             }
@@ -1804,22 +1788,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let callable_fqn = fqn;
-        if let Some(entry_name) = self.published_named_intrinsic_entry_name_for_fqn(callable_fqn)
+        let callable_fqn = self
+            .published_instantiated_call_fqn(span)?
+            .unwrap_or_else(|| fqn.to_string());
+        let callable_fqn = callable_fqn.as_str();
+        if let Some(entry_name) = self
+            .published_named_intrinsic_entry_name_for_call(span, None)?
+            .map(str::to_string)
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name(callable_fqn).map(str::to_string))
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,
                 callee_span,
                 args,
-                entry_name,
+                &entry_name,
             )?
         {
             return Ok(value);
         }
         let callable_abi = self.direct_call_abi_identity(callable_fqn);
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let fallback_signature_fqn = self
-            .current_top_level_fun_call_binding(span)?
-            .map(|binding| binding.fqn.clone());
         let (
             signature_owner_fqn,
             mut source_types,
@@ -1835,20 +1822,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     param_names,
                     param_tys,
                     return_ty,
-                )
-            })
-            .or_else(|| {
-                let fallback = fallback_signature_fqn.as_deref()?;
-                self.published_callable_signature_with_names(fallback).map(
-                    |(source_types, param_names, param_tys, return_ty)| {
-                        (
-                            fallback.to_string(),
-                            source_types,
-                            param_names,
-                            param_tys,
-                            return_ty,
-                        )
-                    },
                 )
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
@@ -2135,10 +2108,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = self
-            .current_top_level_fun_call_binding(span)?
-            .map(|binding| binding.fqn.clone())
-            .unwrap_or_else(|| fqn.to_string());
+        let dispatch_fqn = fqn.to_string();
         let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
@@ -2153,16 +2123,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some((receiver_arg, _)) = args.split_first() else {
             return Ok(None);
         };
-        let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
+        let hir::CallArg::Positional(_receiver_expr) = receiver_arg else {
             return Ok(None);
         };
-        if !matches!(
-            self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
-            Some(LirCallSiteKind::Virtual)
-        ) {
-            return Ok(None);
-        }
-
         let explicit_params_len = args.len().saturating_sub(1) as u32;
         let slot = slots
             .iter()
@@ -2626,10 +2589,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let dispatch_fqn = self
-            .current_top_level_fun_call_binding(span)?
-            .map(|binding| binding.fqn.clone())
-            .unwrap_or_else(|| fqn.to_string());
+        let dispatch_fqn = fqn.to_string();
         let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
@@ -2647,13 +2607,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
             return Ok(None);
         };
-        if !matches!(
-            self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
-            Some(LirCallSiteKind::Interface)
-        ) {
-            return Ok(None);
-        }
-
         let explicit_params_len = args.len().saturating_sub(1) as u32;
         let mut candidates = iface
             .method_slots
@@ -2731,5 +2684,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
         Ok(Some(result))
+    }
+}
+
+fn legacy_scalar_named_intrinsic_entry_name(fqn: &str) -> Option<&'static str> {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if owner == "scoop.core.Bool" {
+        return match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "eq" | "equals" => Some("bool_eq"),
+            "ne" | "notEquals" => Some("bool_ne"),
+            "not" | "negate" => Some("bool_not"),
+            _ => None,
+        };
+    }
+    if !matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return None;
+    }
+    match method {
+        "plus" => Some("int_plus"),
+        "minus" => Some("int_minus"),
+        "times" => Some("int_times"),
+        "div" => Some("int_div"),
+        "rem" => Some("int_rem"),
+        "unaryMinus" => Some("int_unary_minus"),
+        "unaryPlus" => Some("int_unary_plus"),
+        "inc" => Some("int_inc"),
+        "dec" => Some("int_dec"),
+        "and" => Some("int_and"),
+        "or" => Some("int_or"),
+        "xor" => Some("int_xor"),
+        "inv" => Some("int_inv"),
+        "shl" => Some("int_shl"),
+        "shr" => Some("int_shr"),
+        "ushr" => Some("int_ushr"),
+        "lt" => Some("int_lt"),
+        "le" => Some("int_le"),
+        "gt" => Some("int_gt"),
+        "ge" => Some("int_ge"),
+        "eq" | "equals" => Some("int_eq"),
+        "ne" | "notEquals" => Some("int_ne"),
+        "compareTo" => Some("int_compare_to"),
+        "hash" => Some("int_hash"),
+        "toString" => Some("int_to_string"),
+        _ => None,
     }
 }

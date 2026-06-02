@@ -12,9 +12,7 @@ use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeId, TypeParamType, TypeStore};
 use scoop_project_model::ConeId;
-use scoopc_lir_facts::{
-    LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
-};
+use scoopc_lir_facts::{LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision};
 
 use super::LlvmEmitError;
 
@@ -94,7 +92,7 @@ pub struct LlvmStageBaseContext {
     enum_layouts: source_payload::EnumLayoutIndex,
     top_level_vars: source_payload::TopLevelVarIndex,
     top_level_immutable_values: source_payload::TopLevelImmutableValueIndex,
-    top_level_fun_call_sites: source_payload::TopLevelFunCallSiteIndex,
+    intrinsic_call_contracts: HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract>,
     object_inits: source_payload::ObjectInitIndex,
     class_inits: source_payload::ClassInitIndex,
     release_hooks: source_payload::ReleaseHookIndex,
@@ -103,7 +101,6 @@ pub struct LlvmStageBaseContext {
     interfaces: source_payload::InterfaceIndex,
     class_itables: source_payload::ClassItableIndex,
     ctor_call_sites: source_payload::CtorCallSiteIndex,
-    dispatch_call_contracts: HashMap<LlvmDispatchCallKey, LirCallSiteKind>,
     effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
     continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
@@ -124,20 +121,25 @@ pub struct LlvmCallableSourceContract {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LlvmDispatchCallKey {
+pub struct LlvmSourceCallKey {
     pub source_path: PathBuf,
     pub span: Span,
-    pub receiver_ty: TypeId,
 }
 
-impl LlvmDispatchCallKey {
-    pub fn new(source_path: impl Into<PathBuf>, span: Span, receiver_ty: TypeId) -> Self {
+impl LlvmSourceCallKey {
+    pub fn new(source_path: impl Into<PathBuf>, span: Span) -> Self {
         Self {
             source_path: source_path.into(),
             span,
-            receiver_ty,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct LlvmIntrinsicCallContract {
+    pub function_fqn: String,
+    pub type_args: Vec<TypeId>,
+    pub named_entry_name: Option<String>,
 }
 
 impl LlvmStageBaseContext {
@@ -152,7 +154,7 @@ impl LlvmStageBaseContext {
         enum_layouts: source_payload::EnumLayoutIndex,
         top_level_vars: source_payload::TopLevelVarIndex,
         top_level_immutable_values: source_payload::TopLevelImmutableValueIndex,
-        top_level_fun_call_sites: source_payload::TopLevelFunCallSiteIndex,
+        intrinsic_call_contracts: HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract>,
         object_inits: source_payload::ObjectInitIndex,
         class_inits: source_payload::ClassInitIndex,
         release_hooks: source_payload::ReleaseHookIndex,
@@ -161,7 +163,6 @@ impl LlvmStageBaseContext {
         interfaces: source_payload::InterfaceIndex,
         class_itables: source_payload::ClassItableIndex,
         ctor_call_sites: source_payload::CtorCallSiteIndex,
-        dispatch_call_contracts: HashMap<LlvmDispatchCallKey, LirCallSiteKind>,
         effect_op_call_sites: source_payload::EffectOpCallSiteIndex,
         continuation_resume_call_sites: source_payload::ContinuationResumeCallSiteIndex,
         when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
@@ -187,7 +188,7 @@ impl LlvmStageBaseContext {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            top_level_fun_call_sites,
+            intrinsic_call_contracts,
             object_inits,
             class_inits,
             release_hooks,
@@ -196,7 +197,6 @@ impl LlvmStageBaseContext {
             interfaces,
             class_itables,
             ctor_call_sites,
-            dispatch_call_contracts,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,
@@ -247,8 +247,10 @@ impl LlvmStageBaseContext {
         &self.top_level_immutable_values
     }
 
-    pub fn top_level_fun_call_sites(&self) -> &source_payload::TopLevelFunCallSiteIndex {
-        &self.top_level_fun_call_sites
+    pub fn intrinsic_call_contracts(
+        &self,
+    ) -> &HashMap<LlvmSourceCallKey, LlvmIntrinsicCallContract> {
+        &self.intrinsic_call_contracts
     }
 
     pub fn object_inits(&self) -> &source_payload::ObjectInitIndex {
@@ -281,10 +283,6 @@ impl LlvmStageBaseContext {
 
     pub fn ctor_call_sites(&self) -> &source_payload::CtorCallSiteIndex {
         &self.ctor_call_sites
-    }
-
-    pub fn dispatch_call_contracts(&self) -> &HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
-        &self.dispatch_call_contracts
     }
 
     pub fn effect_op_call_sites(&self) -> &source_payload::EffectOpCallSiteIndex {

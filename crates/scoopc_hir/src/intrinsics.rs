@@ -81,6 +81,33 @@ const DUMMY_RUNTIME_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRu
     params: EMPTY_RUNTIME_PARAMS,
     return_ty: NamedIntrinsicRuntimeTy::WordInt,
 };
+const INT_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I64];
+const INT_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: INT_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const BOOL_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I64];
+const BOOL_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: BOOL_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const CHAR_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I32];
+const CHAR_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: CHAR_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const FLOAT64_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::Float64];
+const FLOAT64_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature =
+    NamedIntrinsicRuntimeSignature {
+        params: FLOAT64_TO_STRING_PARAMS,
+        return_ty: NamedIntrinsicRuntimeTy::StringRef,
+    };
+const FLOAT32_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::Float32];
+const FLOAT32_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature =
+    NamedIntrinsicRuntimeSignature {
+        params: FLOAT32_TO_STRING_PARAMS,
+        return_ty: NamedIntrinsicRuntimeTy::StringRef,
+    };
 
 const fn ir_emission_entry(name: &'static str) -> NamedIntrinsicAuditEntry {
     NamedIntrinsicAuditEntry {
@@ -261,6 +288,41 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         runtime_reason: Some(
             "test-only validation entry: published behavior depends on an external runtime-managed counter, so the runtime boundary itself is part of the contract and must remain a RuntimeCall",
         ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "int_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_int_to_string"),
+        runtime_signature: Some(INT_TO_STRING_SIGNATURE),
+        runtime_reason: Some("integer toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "bool_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_bool_to_string"),
+        runtime_signature: Some(BOOL_TO_STRING_SIGNATURE),
+        runtime_reason: Some("bool toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "char_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_char_to_string"),
+        runtime_signature: Some(CHAR_TO_STRING_SIGNATURE),
+        runtime_reason: Some("char toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "float64_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_float64_to_string"),
+        runtime_signature: Some(FLOAT64_TO_STRING_SIGNATURE),
+        runtime_reason: Some("Float64 toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "float32_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_float32_to_string"),
+        runtime_signature: Some(FLOAT32_TO_STRING_SIGNATURE),
+        runtime_reason: Some("Float32 toString intrinsic"),
     },
     NamedIntrinsicAuditEntry {
         name: "write_barrier",

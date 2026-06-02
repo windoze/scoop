@@ -72,8 +72,8 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_lir_facts::{
-    LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage,
-    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage, LirFacts,
+    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
 };
 
 use super::LlvmEmitError;
@@ -485,7 +485,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
+    intrinsic_call_contracts:
+        &'a HashMap<crate::llvm::LlvmSourceCallKey, crate::llvm::LlvmIntrinsicCallContract>,
     extern_funs: &'a hir::ExternFunIndex,
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
@@ -497,7 +498,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    dispatch_call_contracts: &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
     #[allow(dead_code)]
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -825,7 +825,8 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
+    pub(super) intrinsic_call_contracts:
+        &'a HashMap<crate::llvm::LlvmSourceCallKey, crate::llvm::LlvmIntrinsicCallContract>,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) release_hooks: &'a hir::ReleaseHookIndex,
@@ -835,8 +836,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    pub(super) dispatch_call_contracts:
-        &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
@@ -884,7 +883,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            top_level_fun_call_sites,
+            intrinsic_call_contracts,
             native_callable_funs,
             object_inits,
             class_inits,
@@ -894,7 +893,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
-            dispatch_call_contracts,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,
@@ -928,7 +926,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            top_level_fun_call_sites,
+            intrinsic_call_contracts,
             extern_funs,
             native_callable_funs,
             object_inits,
@@ -939,7 +937,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
-            dispatch_call_contracts,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,

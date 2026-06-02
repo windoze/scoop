@@ -593,7 +593,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
-            span, fqn, args, transport, body, mir_types, slots, false,
+            span,
+            fqn,
+            &[],
+            args,
+            transport,
+            body,
+            mir_types,
+            slots,
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_mir_direct_call_with_type_args(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        generic_type_args: &[TypeId],
+        args: &[crate::mir::CallArg],
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        transport: &crate::mir::CallTransportMetadata,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_direct_call_with_policy(
+            span,
+            fqn,
+            generic_type_args,
+            args,
+            transport,
+            body,
+            mir_types,
+            slots,
+            false,
         )
     }
 
@@ -609,7 +642,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
-            span, fqn, args, transport, body, mir_types, slots, true,
+            span,
+            fqn,
+            &[],
+            args,
+            transport,
+            body,
+            mir_types,
+            slots,
+            true,
         )
     }
     pub(in crate::llvm::codegen) fn selected_mir_class_ctor_from_contract<'b>(
