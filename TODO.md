@@ -99,7 +99,7 @@ pub struct CodegenInput {
 - 验收：`build_lir_artifact` 编译通过、可单测产出 `LirArtifact`。
 - 完成记录（2026-06-03）：在 `llvm_codegen_stage.rs` 抽出 `pub(crate) fn build_lir_artifact(...) -> Result<LirArtifact, LlvmEmitError>`，复用原 LIR 准备流水线并组装 `cone/program/facts/base_context/mir/object_files`；`MaterializedMir` 在构建 base context 时改为借用，随后移动进 `LirArtifact`，避免重复构建和额外 clone；当前 codegen `run` 改为消费该 artifact 后再拆回既有 `LlvmCodegenStageOutput`，保持行为等价；新增单测验证 `LirArtifact` 的 cone、base context、空 object files、callable payload 与 type-context 一致性。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-02-R：Review T1-02
+### [DONE] T1-02-R：Review T1-02
 - **关注点**：
   - `build_lir_artifact` 是现 `run_lir_stage_from_lowered_hir` 步骤 1–6 的**忠实搬迁**——逻辑零改动，仅重新打包成 `LirArtifact`（逐行对照 :293 原实现）。
   - `materialized_mir` 所有权：现同时进 `base_context` 与 `LirArtifact.mir`；确认无**重复构建**、clone 仅一次且语义不变。
@@ -108,6 +108,7 @@ pub struct CodegenInput {
 - **确认验证**：
   - 全套基线（§4）绿；尤其 `python3 tools/run_fixtures.py` 仍 ok 1664（行为应与重构前**逐位等价**，因为是同一流水线换包装）。
   - 抽样 diff：对 1 个 fixture 比对重构前后产出的 LLVM IR/可执行行为应一致。
+- 完成记录（2026-06-03）：逐项复核 T1-02 实现，确认 `build_lir_artifact` 忠实搬迁原 `run_lir_stage_from_lowered_hir` 步骤 1-6；`MaterializedMir` 未重复构建且未额外 clone，先借给 base context 再移动进 `LirArtifact.mir`；`cone` 取自 `materialized_mir.stable_cone_key()`，`object_files` 为空，`verify_lir_type_context(..., "primary")` 保留；`abi_visibility` 通过 `preserve_published_resume_shells=true` 走同一构建函数并保留 ABI visibility type-context 校验。抽样对比 `tests/fixtures/umb_fix/P5-T02-immortal/pos_string_literal_immortal_ir.scoop`，用 `HEAD^` 与当前版本分别 emit LLVM IR，`diff -u` 无差异，SHA-256 均为 `529ed3daec679f67f965836ed47b12723d3a6762a01ea10f855f970e0b25ffc1`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-03：依赖 handoff → `LirArtifact` 适配
 - 新增 `fn lir_artifact_from_dep(dep: CachedDepArtifactHandoff) -> LirArtifact`：`cone = stable_cone_key`、`program = lir`、`facts = lir_facts`、`object_files = object_files`；`base_context` 由 `type_store` 重建（复用现有依赖 base-context 构建路径；定位 `handoff.rs` 中消费 dep 的现有逻辑并改为产出 `LlvmStageBaseContext`），`mir` 对依赖不需要（设计上依赖 LIR 不应再 overlay 回 MIR——若现状仍需，记为 P2 风险并临时携带空/占位）。

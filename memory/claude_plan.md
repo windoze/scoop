@@ -2,7 +2,30 @@
 
 说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
-## 本轮任务：T1-02
+## 本轮任务：T1-02-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
+3. 复核 `T1-02` 的实现是否忠实搬迁原 `run_lir_stage_from_lowered_hir` 步骤 1-6。
+4. 审查 `MaterializedMir` 所有权流向，确认无重复构建、无额外 clone，且同一份 MIR 能同时支撑 base context 与 `LirArtifact.mir`。
+5. 确认 `cone`、`object_files`、`verify_lir_type_context(..., "primary")` 与 `abi_visibility` 的 `preserve_published_resume_shells=true` 路径符合任务要求。
+6. 用一个 fixture 对比 `HEAD^` 与当前版本产出的 LLVM IR，确认重构前后等价。
+7. 按顺序运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、完整 Rust 测试、build、dependency gate、spec fixtures 和完整 fixture suite。
+8. 成功后更新 `TODO.md`，给 `T1-02-R` 标题加 `[DONE]` 并填写完成记录。
+9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+## 本轮进度记录
+
+- 已确认第一个未完成任务为 `T1-02-R：Review T1-02`。
+- 最近提交 `fb12b99e [T1-02] Extract LIR artifact builder` 是本 review 的直接对象，未提到额外未完成前置项。
+- 已逐项复核 `build_lir_artifact`、`LirArtifact` 拆包使用点和 `abi_visibility` 路径，未发现需要代码修正的问题。
+- 已确认 `MaterializedMir` 未重复构建且未额外 clone；实现先借给 base context，再移动进 `LirArtifact.mir`。
+- 已确认 `cone` 取自 `materialized_mir.stable_cone_key()`、`object_files` 为空、`verify_lir_type_context(..., "primary")` 保留，ABI visibility 仍走 `preserve_published_resume_shells=true` 并保留 ABI visibility type-context 校验。
+- 已完成抽样 IR 对比：`tests/fixtures/umb_fix/P5-T02-immortal/pos_string_literal_immortal_ir.scoop` 在 `HEAD^` 与当前版本的 LLVM IR `diff -u` 无差异，SHA-256 均为 `529ed3daec679f67f965836ed47b12723d3a6762a01ea10f855f970e0b25ffc1`。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-02-R` 标记为 `[DONE]` 并填写完成记录。
+
+## 上一轮记录：T1-02
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -16,7 +39,7 @@
 10. 成功后更新 `TODO.md`，给 `T1-02` 标题加 `[DONE]` 并填写完成记录。
 11. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-## 本轮进度记录
+上一轮进度：
 
 - 已确认第一个未完成任务为 `T1-02：抽出独立 LIR 阶段函数 build_lir_artifact`。
 - 最近提交 `d329bf5b [T1-01-R] Review LIR artifact handoff types` 是已完成 review，不包含与 `T1-02` 直接相关的未完成前置项。
@@ -28,7 +51,7 @@
 - 已更新 `TODO.md`，将 `T1-02` 标记为 `[DONE]` 并填写完成记录。
 - 提交前检查已完成；下一步暂存本任务文件并创建提交。
 
-## 上一轮记录：T1-01-R
+## 更早记录：T1-01-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -38,7 +61,7 @@
 6. 成功后更新 `TODO.md`，给 `T1-01-R` 标题加 `[DONE]` 并填写完成记录。
 7. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-上一轮进度：
+更早进度：
 
 - 已确认第一个未完成任务为 `T1-01-R：Review T1-01`。
 - 最近提交 `d268ad5b Add per-task review tasks to P1 TODO` 未提到与 `T1-01-R` 直接相关的未完成实现问题。
@@ -49,7 +72,7 @@
 - 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo build -p scoopc --no-default-features`；`cargo test --all --all-targets`；`cargo test -p scoopc --all-targets --no-default-features`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 - 已更新 `TODO.md`，将 `T1-01-R` 标记为 `[DONE]` 并填写完成记录。
 
-## 更早记录：T1-01
+## 最早记录：T1-01
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判定第一个未完成任务。
 2. 查看最近提交信息，只在其明确提到与当前任务直接相关的未完成事项时纳入当前任务或作为 `TODO.md` 前置项。
@@ -59,7 +82,7 @@
 6. 更新 `TODO.md`：完成时给任务标题加 `[DONE]` 并填写 completion record；只有阶段级计划变化时才更新 `PLAN.md`。
 7. 检查工作区差异，提交本次任务相关全部变更，然后停止，不继续下一个任务。
 
-更早进度：
+最早进度：
 
 - 已创建初始计划文件，下一步读取任务列表并定位第一个未完成任务。
 - 已确认第一个未完成任务为 `T1-01：新增 LirArtifact / CodegenInput 类型`。
