@@ -158,10 +158,11 @@ pub struct CodegenInput {
   - `cargo build -p scoop -p scoopc` 通过；单 cone 与多 cone fixture 端到端均跑通。
 - 完成记录（2026-06-04）：复核 `pipeline::build_llvm_codegen_input`、`build_single_file_stage_output`、`emit_production_llvm_artifact_to_file` 与 `single_cone::build_single_cone_artifact` 调用链，确认三个调用点均在进入 codegen 前先构建主 cone `LirArtifact`，可选 ABI shell 走同一 `build_lir_artifact(..., true)` 路径，cached dep 经 `lir_artifact_from_dep` 统一转换为 `deps` 后再组装 `CodegenInput`；`build_lir_artifact`、`lir_artifact_from_dep`、`run_llvm_codegen_stage` 和 `emit_artifact_to_file` 的错误均通过 `?` 传播为 `LlvmEmitError`，未发现吞错或回退路径。确认 `LlvmCodegenStageInput` 在 `crates/` 中无残留。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-05 完成记录中的绿色全量基线（run_fixtures ok 1664）。
 
-### [TODO] T1-06：`entry` 改为解析引用
+### [DONE] T1-06：`entry` 改为解析引用
 - 定义 `EntryRef`：在 LIR 阶段把 `entry_source_id + entry_main_fqn` 解析成对 `LirArtifact.program` 内某 callable 的引用（过渡期可用 `StableLirCallableKey`；P2 换 `LirCallableId`）。解析失败 = 错误（缺入口是合法输入错误，应在此报，而非后端 panic）。
 - 把 `CodegenInput.entry` 占位换成 `EntryRef`；codegen emit 用它而非字符串 fqn 比对。
 - 验收：codegen 中入口选择不再用 `entry_main_fqn` 字符串扫描。
+- 完成记录（2026-06-04）：新增 LLVM handoff `EntryRef` / `EntryMainArgShape`，`pipeline::build_llvm_codegen_input` 在 LIR artifact 构建后把默认 `main` 或显式 entry fqn 解析为 `StableLirCallableKey`，并校验该 key 落到 primary `LirArtifact.program` 内的 callable；`CodegenInput.entry` 改为 `Option<EntryRef>`，lib-mode emit 可保持无入口，main emit 缺入口时报干净诊断。LLVM main emit API 与 `LlvmCodegenStageOutput` 改为传递 `EntryRef`，入口 callable body 查找改用 stable LIR callable key，不再在 codegen emit 阶段按 `entry_main_fqn` 字符串扫描；保留 root fqn 仅作 ABI 查询和诊断显示。新增单测覆盖默认 main 解析、显式 entry 解析、显式入口不存在诊断。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，旧 `select_entry_main` / emit 入口字符串扫描 helper 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-06-R：Review T1-06
 - **关注点**：

@@ -7,12 +7,60 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ordinary_callee::EffectAnalysisFacts;
 use crate::effect_lowered::source as source_payload;
 use crate::source::{SourceId, SourceMap};
-use crate::stable_id::{StableConeKey, StableTypeParamKey};
+use crate::stable_id::{StableConeKey, StableLirCallableKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoop_project_model::ConeId;
 use scoopc_lir_facts::{LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision};
 
 use super::LlvmEmitError;
+
+/// Source-level entry main argument shape resolved before LLVM emit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryMainArgShape {
+    None,
+    ArrayString,
+}
+
+/// Resolved executable entry callable carried across the LIR/codegen boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntryRef {
+    source_id: SourceId,
+    callable: StableLirCallableKey,
+    root_fqn: String,
+    arg_shape: EntryMainArgShape,
+}
+
+impl EntryRef {
+    pub fn new(
+        source_id: SourceId,
+        callable: StableLirCallableKey,
+        root_fqn: impl Into<String>,
+        arg_shape: EntryMainArgShape,
+    ) -> Self {
+        Self {
+            source_id,
+            callable,
+            root_fqn: root_fqn.into(),
+            arg_shape,
+        }
+    }
+
+    pub fn source_id(&self) -> SourceId {
+        self.source_id
+    }
+
+    pub fn callable(&self) -> &StableLirCallableKey {
+        &self.callable
+    }
+
+    pub fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub fn arg_shape(&self) -> EntryMainArgShape {
+        self.arg_shape
+    }
+}
 
 /// Deserialized cached dependency cone payload handed to the LLVM stage.
 ///
@@ -440,7 +488,7 @@ fn type_store_fingerprint(types: &TypeStore) -> String {
 pub struct LlvmCodegenStageOutput {
     source_map: SourceMap,
     entry_source_id: SourceId,
-    entry_main_fqn: Option<String>,
+    entry: Option<EntryRef>,
     opt_level: crate::opt::OptLevel,
     base_context: LlvmStageBaseContext,
     lir: LateLoweredProgram,
@@ -456,7 +504,7 @@ impl LlvmCodegenStageOutput {
     pub fn new(
         source_map: SourceMap,
         entry_source_id: SourceId,
-        entry_main_fqn: Option<String>,
+        entry: Option<EntryRef>,
         opt_level: crate::opt::OptLevel,
         base_context: LlvmStageBaseContext,
         lir: LateLoweredProgram,
@@ -469,7 +517,7 @@ impl LlvmCodegenStageOutput {
         Self {
             source_map,
             entry_source_id,
-            entry_main_fqn,
+            entry,
             opt_level,
             base_context,
             lir,
@@ -489,8 +537,8 @@ impl LlvmCodegenStageOutput {
         self.entry_source_id
     }
 
-    pub fn entry_main_fqn(&self) -> Option<&str> {
-        self.entry_main_fqn.as_deref()
+    pub fn entry_ref(&self) -> Option<&EntryRef> {
+        self.entry.as_ref()
     }
 
     pub fn opt_level(&self) -> crate::opt::OptLevel {

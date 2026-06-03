@@ -28,12 +28,10 @@ pub(crate) fn run(
         abi_shell,
         deps,
         entry,
+        entry_source_id,
         source_map,
         opt_level,
     } = input;
-    let (entry_source_id, entry_main_fqn) = entry.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM codegen input 缺少已解析的入口引用".to_string(),
-    })?;
     let LirArtifact {
         program: lir,
         facts: lir_facts,
@@ -67,7 +65,7 @@ pub(crate) fn run(
     Ok(LlvmCodegenStageOutput::new(
         source_map,
         entry_source_id,
-        entry_main_fqn,
+        entry,
         opt_level,
         base_context,
         lir,
@@ -113,7 +111,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Object => crate::llvm::emit_main_obj_to_file_from_stage_output(
@@ -121,7 +119,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Asm => crate::llvm::emit_main_asm_to_file_from_stage_output(
@@ -129,7 +127,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
     }
@@ -689,13 +687,13 @@ fun main(): Int {
     fn emit_ir_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
-        entry_main_fqn: Option<&str>,
+        entry_fqn: Option<&str>,
     ) -> Result<String, LlvmEmitError> {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
         let (session, input) =
-            codegen_input_for_source(source, entry_main_fqn.map(str::to_owned), Vec::new());
+            codegen_input_for_source(source, entry_fqn.map(str::to_owned), Vec::new());
         super::emit_artifact_to_file(&session, input, &out, LlvmArtifactKind::LlvmIr)?;
         Ok(std::fs::read_to_string(out).unwrap())
     }
@@ -703,13 +701,13 @@ fun main(): Int {
     fn emit_object_external_symbols_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
-        entry_main_fqn: Option<&str>,
+        entry_fqn: Option<&str>,
     ) -> Result<Vec<String>, LlvmEmitError> {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
         let (session, input) =
-            codegen_input_for_source(source, entry_main_fqn.map(str::to_owned), Vec::new());
+            codegen_input_for_source(source, entry_fqn.map(str::to_owned), Vec::new());
         super::emit_artifact_to_file(&session, input, &out, LlvmArtifactKind::Object)?;
 
         let bytes = std::fs::read(&out).unwrap();
@@ -901,9 +899,17 @@ fun main(): Int {
 
     fn codegen_input_for_source(
         source: SourceFile,
-        entry_main_fqn: Option<String>,
+        entry_fqn: Option<String>,
         cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
     ) -> (Session, CodegenInput) {
+        try_codegen_input_for_source(source, entry_fqn, cached_dep_artifacts).unwrap()
+    }
+
+    fn try_codegen_input_for_source(
+        source: SourceFile,
+        entry_fqn: Option<String>,
+        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
+    ) -> Result<(Session, CodegenInput), LlvmEmitError> {
         let session = session_for_source(&source);
         let context =
             crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
@@ -918,18 +924,18 @@ fun main(): Int {
         .unwrap();
         let (source_map, entry_source_id) =
             crate::frontend::build_source_map(&session, front.input());
-        let input = pipeline::build_llvm_codegen_input(
+        pipeline::build_llvm_codegen_input(
             &session,
             source_map,
             entry_source_id,
             primary,
             None,
-            entry_main_fqn,
+            entry_fqn,
+            true,
             OptLevel::O0,
             cached_dep_artifacts,
         )
-        .unwrap();
-        (session, input)
+        .map(|input| (session, input))
     }
 
     fn codegen_input_for_source_with_abi_visibility(source: SourceFile) -> (Session, CodegenInput) {
@@ -961,6 +967,7 @@ fun main(): Int {
             primary,
             Some(abi_visibility),
             None,
+            true,
             OptLevel::O0,
             Vec::new(),
         )
@@ -1042,6 +1049,60 @@ fun main(): Int {
             .base_context
             .verify_lir_type_context(&artifact.facts, "cached dep unit test")
             .expect("cached dep LIR facts should match the rebuilt base context");
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_resolves_default_main_entry_ref() {
+        let _guard = test_lock();
+        let (_session, input) = codegen_input_for_source(sample_source(), None, Vec::new());
+        let entry = input.entry.as_ref().expect("default main should resolve");
+
+        assert_eq!(entry.root_fqn(), "sample.main");
+        assert!(
+            input
+                .program
+                .program
+                .callable_by_lir_key(entry.callable())
+                .is_some(),
+            "EntryRef should point at a callable inside the primary LIR program"
+        );
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_resolves_explicit_entry_ref() {
+        let _guard = test_lock();
+        let (_session, input) = codegen_input_for_source(
+            unhandled_outward_entry_source(),
+            Some("sample.effectEntry".to_string()),
+            Vec::new(),
+        );
+        let entry = input.entry.as_ref().expect("explicit entry should resolve");
+
+        assert_eq!(entry.root_fqn(), "sample.effectEntry");
+        assert!(
+            input
+                .program
+                .program
+                .callable_by_lir_key(entry.callable())
+                .is_some(),
+            "explicit EntryRef should point at a callable inside the primary LIR program"
+        );
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_reports_missing_explicit_entry() {
+        let _guard = test_lock();
+        let err = try_codegen_input_for_source(
+            sample_source(),
+            Some("sample.missingEntry".to_string()),
+            Vec::new(),
+        )
+        .expect_err("missing explicit entry should be rejected before LLVM emit");
+
+        assert!(
+            err.to_string().contains("sample.missingEntry"),
+            "diagnostic should name the missing entry, got: {err}"
+        );
     }
 
     #[test]
@@ -1701,7 +1762,7 @@ fun main() {
             stage_output.source_map(),
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         )
         .unwrap();
@@ -1827,7 +1888,7 @@ fun main(): Int {
             consumer_stage.source_map(),
             consumer_stage.entry_source_id(),
             StageEmitInput::from_stage_output(&consumer_stage),
-            consumer_stage.entry_main_fqn(),
+            consumer_stage.entry_ref(),
             consumer_stage.opt_level(),
         )
         .expect("cached dep ABI materialization 应成功");

@@ -213,26 +213,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Emits the C `main` exit path through the stage-owned direct-entry ABI.
     pub(crate) fn codegen_stage_main_exit_code(
         &mut self,
-        entry_root_fqn: &str,
+        entry: &EntryRef,
         entry_argv_array: Option<PointerValue<'ctx>>,
         source_types: &TypeStore,
         program: &LateLoweredProgram,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let mut entry_callables = program
-            .callables()
-            .iter()
-            .filter(|callable| callable.root_fqn() == entry_root_fqn);
-        let callable = entry_callables.next().ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM main wrapper 缺少入口 `{}` 的 callable body",
-                entry_root_fqn
-            ))
-        })?;
-        if entry_callables.next().is_some() {
+        let entry_root_fqn = entry.root_fqn();
+        let callable = program
+            .callable_by_lir_key(entry.callable())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM main wrapper 缺少入口 `{}` 的 callable body（key={})",
+                    entry_root_fqn,
+                    entry.callable().as_str()
+                ))
+            })?;
+        if callable.root_fqn() != entry_root_fqn {
             return Err(frontend_error(format!(
-                "LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
-                entry_root_fqn
+                "LLVM main wrapper 入口 `{}` 的 EntryRef 与 LIR body `{}` 不一致",
+                entry_root_fqn,
+                callable.root_fqn()
             )));
         }
         if callable.plain_abi().is_some() {

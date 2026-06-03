@@ -3,12 +3,15 @@
 use std::path::PathBuf;
 
 use crate::effect_lowered::LateLoweredProgram;
-use crate::llvm::{CachedDepArtifactHandoff, LlvmEmitError, LlvmStageBaseContext};
+use crate::llvm::{
+    CachedDepArtifactHandoff, EntryMainArgShape, EntryRef, LlvmEmitError, LlvmStageBaseContext,
+};
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
 use crate::source::{SourceId, SourceMap};
 use crate::stable_id::StableConeKey;
-use scoopc_lir_facts::LirFacts;
+use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
 /// A cone-level LIR artifact that carries the current transitional LIR payload.
 #[derive(Debug)]
@@ -29,10 +32,117 @@ pub struct CodegenInput {
     pub program: LirArtifact,
     pub abi_shell: Option<LirArtifact>,
     pub deps: Vec<LirArtifact>,
-    /// Temporary entry placeholder; T1-06 replaces this with a resolved LIR entry ref.
-    pub entry: Option<(SourceId, Option<String>)>,
+    /// Main-mode entry callable resolved at the LIR boundary; lib-mode emits may leave this empty.
+    pub entry: Option<EntryRef>,
+    pub entry_source_id: SourceId,
     pub source_map: SourceMap,
     pub opt_level: OptLevel,
+}
+
+pub fn resolve_entry_ref(
+    entry_source_id: SourceId,
+    artifact: &LirArtifact,
+    entry_main_fqn: Option<&str>,
+    entry_required: bool,
+) -> Result<Option<EntryRef>, LlvmEmitError> {
+    if !entry_required && entry_main_fqn.is_none() {
+        return Ok(None);
+    }
+
+    let mut candidates = artifact
+        .facts
+        .callables
+        .iter()
+        .filter(|(_, callable)| callable.is_top_level_source_callable())
+        .filter(|(_, callable)| match entry_main_fqn {
+            Some(entry_main_fqn) => callable.root_fqn() == entry_main_fqn,
+            None => callable_source_name(callable.root_fqn()) == "main",
+        })
+        .filter_map(|(key, callable)| {
+            classify_entry_main_arg_shape(artifact.base_context.types(), callable)
+                .map(|arg_shape| (key, callable, arg_shape))
+        })
+        .collect::<Vec<_>>();
+
+    match candidates.len() {
+        0 => {
+            if let Some(entry_main_fqn) = entry_main_fqn {
+                return Err(LlvmEmitError::Frontend {
+                    message: format!("LLVM LIR stage 找不到合法入口 callable `{entry_main_fqn}`"),
+                });
+            }
+            Err(LlvmEmitError::MissingEntryMain)
+        }
+        1 => {
+            let (key, callable, arg_shape) = candidates.pop().expect("len checked above");
+            let program_callable = artifact.program.callable_by_lir_key(key).ok_or_else(|| {
+                LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM LIR stage 入口 `{}` 缺少 matching LIR callable body（key={})",
+                        callable.root_fqn(),
+                        key.as_str()
+                    ),
+                }
+            })?;
+            if program_callable.root_fqn() != callable.root_fqn() {
+                return Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM LIR stage 入口 `{}` 的 facts/body root 不一致（body `{}`）",
+                        callable.root_fqn(),
+                        program_callable.root_fqn()
+                    ),
+                });
+            }
+            Ok(Some(EntryRef::new(
+                entry_source_id,
+                key.clone(),
+                callable.root_fqn().to_string(),
+                arg_shape,
+            )))
+        }
+        count => Err(LlvmEmitError::AmbiguousEntryMain {
+            entry: entry_main_fqn.unwrap_or("main").to_string(),
+            count,
+        }),
+    }
+}
+
+fn classify_entry_main_arg_shape(
+    types: &crate::ty::TypeStore,
+    callable: &LirCallableFacts,
+) -> Option<EntryMainArgShape> {
+    if !matches!(
+        types.kind(callable.return_ty),
+        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Int)
+    ) {
+        return None;
+    }
+
+    match callable.param_tys.as_slice() {
+        [] => Some(EntryMainArgShape::None),
+        [param_ty] => match types.kind(*param_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Array"
+                    && nominal.args.len() == 1
+                    && matches!(
+                        types.kind(nominal.args[0]),
+                        TypeKind::Ref(RefTypeKind::String)
+                    )
+                    && nominal.eff.is_none() =>
+            {
+                Some(EntryMainArgShape::ArrayString)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn callable_source_name(root_fqn: &str) -> &str {
+    root_fqn
+        .rsplit_once('.')
+        .map(|(_, name)| name)
+        .unwrap_or(root_fqn)
 }
 
 /// Convert a cached dependency handoff into the same LIR artifact shape used by the primary cone.

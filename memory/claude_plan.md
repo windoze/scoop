@@ -18,7 +18,30 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-05-R
+## 当前记录：T1-06
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前任务直接相关的未完成事项。
+3. 定位现有 `entry_source_id` / `entry_main_fqn` 到 LLVM codegen 的数据流，以及入口选择的字符串扫描位置。
+4. 在 LIR/codegen handoff 中新增解析后的入口引用，并在 LIR artifact 构建边界解析默认 main 或显式 entry fqn。
+5. 修改 LLVM main emit 路径，使其消费解析后的 entry callable key，而不是在 codegen emit 阶段按字符串重新扫描。
+6. 补充默认 main、显式 entry、入口不存在诊断测试。
+7. 按顺序运行格式化、lint、完整 Rust 测试、build、dependency gate、spec fixture check 和完整 fixture suite。
+8. 成功后更新 `TODO.md`，给 `T1-06` 标题加 `[DONE]` 并填写完成记录。
+9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-06：entry 改为解析引用`。
+- 最新提交 `bf74da2b [T1-05-R] Review codegen caller wiring` 未明确指出与 T1-06 直接相关的未完成阻塞。
+- 已定位现有入口选择：`scoopc_codegen_llvm/src/llvm/emit.rs` 通过 `entry_main_fqn` 或默认 `main` 扫描 `LirFacts.callables`，并在 codegen emit 阶段完成选择与参数形态分类。
+- 已完成代码修改：`EntryRef` / `EntryMainArgShape` 放入 LLVM handoff；入口解析前移到 `build_llvm_codegen_input`；main emit 改为接收 `EntryRef`，并通过 stable callable key 查找 LIR body；补充默认 main、显式 entry、显式入口缺失的单测。
+- 验证已完成：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 验收 grep 已完成：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中；旧 emit 入口字符串扫描 helper 零命中。
+- 已更新 `TODO.md`，将 `T1-06` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-06 记录置顶。
+
+## 先前记录：T1-05-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。

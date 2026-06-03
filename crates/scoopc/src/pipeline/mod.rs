@@ -202,6 +202,7 @@ pub(crate) fn build_llvm_codegen_input(
     lowered: crate::frontend::CodegenLoweringOutput,
     abi_visibility_lowered: Option<crate::frontend::CodegenLoweringOutput>,
     entry_main_fqn: Option<String>,
+    entry_required: bool,
     opt_level: OptLevel,
     cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
 ) -> Result<CodegenInput, crate::llvm::LlvmEmitError> {
@@ -222,11 +223,18 @@ pub(crate) fn build_llvm_codegen_input(
         .into_iter()
         .map(lir_artifact::lir_artifact_from_dep)
         .collect::<Result<Vec<_>, _>>()?;
+    let entry = lir_artifact::resolve_entry_ref(
+        entry_source_id,
+        &program,
+        entry_main_fqn.as_deref(),
+        entry_required,
+    )?;
     Ok(CodegenInput {
         program,
         abi_shell,
         deps,
-        entry: Some((entry_source_id, entry_main_fqn)),
+        entry,
+        entry_source_id,
         source_map,
         opt_level,
     })
@@ -275,6 +283,7 @@ fn build_single_file_stage_output(
         lowering,
         abi_visibility_lowering,
         None,
+        true,
         opt_level,
         Vec::new(),
     )?;
@@ -297,7 +306,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Object => crate::llvm::emit_main_obj_to_file_from_stage_output(
@@ -305,7 +314,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Asm => crate::llvm::emit_main_asm_to_file_from_stage_output(
@@ -313,7 +322,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
     }
@@ -329,7 +338,7 @@ pub fn emit_minimal_main_ir(
         stage_output.source_map(),
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
-        None,
+        stage_output.entry_ref(),
         stage_output.opt_level(),
     )
 }
@@ -369,7 +378,7 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
         output,
-        None,
+        stage_output.entry_ref(),
         opt_level,
     )
 }
@@ -396,7 +405,7 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
         output,
-        None,
+        stage_output.entry_ref(),
         opt_level,
     )
 }
@@ -493,6 +502,7 @@ pub fn emit_production_llvm_artifact_to_file(
         lowered,
         abi_visibility_lowered,
         entry_main_fqn.map(str::to_owned),
+        true,
         opt_level,
         cached_dep_artifacts,
     )?;

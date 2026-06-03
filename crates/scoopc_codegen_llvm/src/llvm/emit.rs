@@ -15,14 +15,13 @@ use inkwell::targets::{FileType, TargetData};
 
 use crate::opt::OptLevel;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
-use scoopc_lir_facts::{LirCallableFacts, LirFacts};
+use scoopc_lir_facts::LirFacts;
 
 use super::pipeline::run_pass_pipeline;
 use super::reachability::collect_reachable_top_level_funs;
 use super::{
-    LlvmCodegenStageOutput, LlvmDepLirArtifactHandoff, LlvmEmitError, LlvmStageBaseContext,
-    codegen, configure_llvm_global_options_once, target,
+    EntryMainArgShape, EntryRef, LlvmCodegenStageOutput, LlvmDepLirArtifactHandoff, LlvmEmitError,
+    LlvmStageBaseContext, codegen, configure_llvm_global_options_once, target,
 };
 
 struct LoweredCodegenEntry<'a> {
@@ -121,7 +120,7 @@ pub fn build_main_module_from_stage_output<'ctx>(
     entry_source_id: SourceId,
     context: &'ctx Context,
     stage_input: StageEmitInput<'_>,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     build_main_module_from_codegen_entry(
         source_map,
@@ -136,7 +135,7 @@ pub fn build_main_module_from_stage_output<'ctx>(
             stage_input.abi_visibility_types,
             stage_input.cached_dep_artifacts,
         ),
-        entry_main_fqn,
+        entry,
     )
 }
 
@@ -145,7 +144,7 @@ pub fn emit_main_ir_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     stage_input: StageEmitInput<'_>,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
     opt_level: OptLevel,
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
@@ -154,7 +153,7 @@ pub fn emit_main_ir_from_stage_output(
         entry_source_id,
         &context,
         stage_input,
-        entry_main_fqn,
+        entry,
     )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
@@ -168,16 +167,11 @@ pub fn emit_main_ir_to_file_from_stage_output(
     entry_source_id: SourceId,
     stage_input: StageEmitInput<'_>,
     output: &Path,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
-    let ir = emit_main_ir_from_stage_output(
-        source_map,
-        entry_source_id,
-        stage_input,
-        entry_main_fqn,
-        opt_level,
-    )?;
+    let ir =
+        emit_main_ir_from_stage_output(source_map, entry_source_id, stage_input, entry, opt_level)?;
     std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
         path: output.to_path_buf(),
         source: e,
@@ -191,7 +185,7 @@ pub fn emit_main_obj_to_file_from_stage_output(
     entry_source_id: SourceId,
     stage_input: StageEmitInput<'_>,
     output: &Path,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
@@ -206,7 +200,7 @@ pub fn emit_main_obj_to_file_from_stage_output(
         entry_source_id,
         &context,
         stage_input,
-        entry_main_fqn,
+        entry,
     )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
@@ -283,7 +277,7 @@ pub fn emit_main_asm_to_file_from_stage_output(
     entry_source_id: SourceId,
     stage_input: StageEmitInput<'_>,
     output: &Path,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
@@ -298,7 +292,7 @@ pub fn emit_main_asm_to_file_from_stage_output(
         entry_source_id,
         &context,
         stage_input,
-        entry_main_fqn,
+        entry,
     )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
@@ -317,14 +311,14 @@ fn build_main_module_from_codegen_entry<'ctx>(
     entry_source_id: SourceId,
     context: &'ctx Context,
     codegen_entry: LoweredCodegenEntry<'_>,
-    entry_main_fqn: Option<&str>,
+    entry: Option<&EntryRef>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     build_module_from_codegen_entry_with_root_selector(
         source_map,
         entry_source_id,
         context,
         codegen_entry,
-        RootCallableSelector::EntryMain { entry_main_fqn },
+        RootCallableSelector::EntryMain { entry },
     )
 }
 
@@ -410,7 +404,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
     if let Some(selected) = selected_root.as_ref() {
         let _reachable_fqns =
-            collect_reachable_top_level_funs(selected.root_fqn, late_lowered_lir_facts)
+            collect_reachable_top_level_funs(selected.entry.root_fqn(), late_lowered_lir_facts)
                 .map_err(|message| LlvmEmitError::Frontend { message })?;
     }
 
@@ -445,20 +439,30 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         && let Some(arg_shape) = selected_root.entry_main_arg_shape
     {
         let root_callable = late_lowered_program
-            .callable(selected_root.root_fqn)
+            .callable_by_lir_key(selected_root.entry.callable())
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
-                    selected_root.root_fqn
+                    "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body（key={})",
+                    selected_root.entry.root_fqn(),
+                    selected_root.entry.callable().as_str()
                 ),
             })?;
+        if root_callable.root_fqn() != selected_root.entry.root_fqn() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM stage handoff 入口 `{}` 的 EntryRef 与 LIR body `{}` 不一致",
+                    selected_root.entry.root_fqn(),
+                    root_callable.root_fqn()
+                ),
+            });
+        }
         let root_source =
             root_callable
                 .source_callable()
                 .ok_or_else(|| LlvmEmitError::Frontend {
                     message: format!(
                         "LLVM stage handoff 入口 callable `{}` 缺少 LIR-owned source body contract",
-                        selected_root.root_fqn
+                        selected_root.entry.root_fqn()
                     ),
                 })?;
         let i32_type = context.i32_type();
@@ -517,7 +521,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         };
 
         let exit_code = main_codegen.codegen_stage_main_exit_code(
-            selected_root.root_fqn,
+            selected_root.entry,
             entry_argv_array,
             late_lowered_types,
             late_lowered_program,
@@ -542,116 +546,32 @@ fn entry_source(source_map: &SourceMap, entry_source_id: SourceId) -> &SourceFil
 }
 
 #[derive(Clone, Copy)]
-enum EntryMainArgShape {
-    None,
-    ArrayString,
-}
-
-#[derive(Clone, Copy)]
-struct SelectedEntryMain<'a> {
-    root_fqn: &'a str,
-    arg_shape: EntryMainArgShape,
-}
-
-#[derive(Clone, Copy)]
 struct SelectedRootCallable<'a> {
-    root_fqn: &'a str,
+    entry: &'a EntryRef,
     entry_main_arg_shape: Option<EntryMainArgShape>,
 }
 
 #[derive(Clone, Copy)]
 enum RootCallableSelector<'a> {
-    EntryMain { entry_main_fqn: Option<&'a str> },
+    EntryMain { entry: Option<&'a EntryRef> },
     LibMode,
 }
 
-fn classify_entry_main_arg_shape(
-    types: &crate::ty::TypeStore,
-    callable: &LirCallableFacts,
-) -> Option<EntryMainArgShape> {
-    if !matches!(
-        types.kind(callable.return_ty),
-        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Int)
-    ) {
-        return None;
-    }
-
-    match callable.param_tys.as_slice() {
-        [] => Some(EntryMainArgShape::None),
-        [param_ty] => match types.kind(*param_ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                if nominal.fqn == "scoop.core.Array"
-                    && nominal.args.len() == 1
-                    && matches!(
-                        types.kind(nominal.args[0]),
-                        TypeKind::Ref(RefTypeKind::String)
-                    )
-                    && nominal.eff.is_none() =>
-            {
-                Some(EntryMainArgShape::ArrayString)
-            }
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn select_entry_main<'a>(
-    lir_facts: &'a LirFacts,
-    types: &crate::ty::TypeStore,
-    entry_main_fqn: Option<&str>,
-) -> Result<SelectedEntryMain<'a>, LlvmEmitError> {
-    let mut candidates = lir_facts
-        .callables
-        .values()
-        .filter(|callable| callable.is_top_level_source_callable())
-        .filter(|fun| {
-            if let Some(entry_main_fqn) = entry_main_fqn {
-                fun.root_fqn() == entry_main_fqn
-            } else {
-                callable_source_name(fun.root_fqn()) == "main"
-            }
-        })
-        .filter_map(|fun| {
-            classify_entry_main_arg_shape(types, fun).map(|arg_shape| SelectedEntryMain {
-                root_fqn: fun.root_fqn(),
-                arg_shape,
-            })
-        })
-        .collect::<Vec<_>>();
-
-    match candidates.len() {
-        0 => Err(LlvmEmitError::MissingEntryMain),
-        1 => Ok(candidates.pop().expect("len checked above")),
-        count => Err(LlvmEmitError::AmbiguousEntryMain {
-            entry: entry_main_fqn.unwrap_or("main").to_string(),
-            count,
-        }),
-    }
-}
-
 fn select_root_callable<'a>(
-    lir_facts: &'a LirFacts,
-    types: &crate::ty::TypeStore,
-    selector: RootCallableSelector<'_>,
+    _lir_facts: &LirFacts,
+    _types: &crate::ty::TypeStore,
+    selector: RootCallableSelector<'a>,
 ) -> Result<Option<SelectedRootCallable<'a>>, LlvmEmitError> {
     match selector {
-        RootCallableSelector::EntryMain { entry_main_fqn } => {
-            let selected_main = select_entry_main(lir_facts, types, entry_main_fqn)?;
-            Ok(Some(SelectedRootCallable {
-                root_fqn: selected_main.root_fqn,
-                entry_main_arg_shape: Some(selected_main.arg_shape),
-            }))
-        }
+        RootCallableSelector::EntryMain { entry } => entry
+            .map(|entry| SelectedRootCallable {
+                entry,
+                entry_main_arg_shape: Some(entry.arg_shape()),
+            })
+            .ok_or(LlvmEmitError::MissingEntryMain)
+            .map(Some),
         RootCallableSelector::LibMode => Ok(None),
     }
-}
-
-fn callable_source_name(root_fqn: &str) -> &str {
-    root_fqn
-        .rsplit_once('.')
-        .map(|(_, name)| name)
-        .unwrap_or(root_fqn)
 }
 
 fn module_name_from_path(path: &Path) -> String {

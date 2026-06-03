@@ -169,6 +169,7 @@ pub fn run_single_cone_artifact_compile(
         lowering,
         abi_visibility_lowering,
         entry_main_fqn,
+        is_bin_consumer,
         opt_level,
         cached_dep_artifacts,
     )?;
@@ -186,7 +187,7 @@ pub fn run_single_cone_artifact_compile(
             stage_output.entry_source_id(),
             stage_input,
             &obj_path,
-            front.input().entry_main_fqn(),
+            stage_output.entry_ref(),
             opt_level,
         )?;
     } else {
