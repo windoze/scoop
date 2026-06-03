@@ -50,10 +50,17 @@ pub struct LirCallableHash(/* 定长 hash */);
 
 ## 3. P2a — 身份地基
 
-### [TODO] T2-01：引入 `LirCallableId` / `LirCallableHash`
+### [DONE] T2-01：引入 `LirCallableId` / `LirCallableHash`
 - 在 `scoopc_ids`（或 lir crate）定义 `LirCallableId(u32)`、`LirCallableHash`（从 `StableLirCallableKey::canonical_text` 派生，定长）。`StableLirCallableKey` 保留；`readable_path` 标注「仅调试」。
 - 在 LIR 阶段边界建一次 `HashMap<&StableLirCallableKey, LirCallableId>`（= `program.callables` 索引）与反查；这是**唯一**「按 stable key 解析」的可失败点。
 - 验收：编译通过；建立映射的单测。
+
+完成记录（2026-06-04）：
+- `scoopc_ids` 新增 `LirCallableId` 与定长 128-bit `LirCallableHash`，hash 从 `StableLirCallableKey::canonical_text` 派生；`readable_path` 文档明确为诊断/符号标签用途。
+- `scoopc_lir` 新增 `LirCallableIndex`，按 `LateLoweredProgram.callables` 顺序建立 stable key → `LirCallableId`、id → key、id → hash 的边界索引；缺失 key、重复 key、未知 key/id 都返回显式错误。
+- `LirArtifact::new` 在 LLVM LIR handoff 边界构建 callable 索引；入口解析先由 stable key 解析为 `LirCallableId`，再按 id 访问 `program.callables`。
+- 新增单测覆盖 id/hash 稳定性、key 命中、key 未命中、id 未命中与重复 key 错误。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-01-R：Review T2-01
 - 关注点：`LirCallableId` 语义 = `program.callables` 下标（与 arena 一致，无第二套编号）；`LirCallableHash` 派生确定、稳定、可序列化；map 构建是唯一 fallible 解析点。

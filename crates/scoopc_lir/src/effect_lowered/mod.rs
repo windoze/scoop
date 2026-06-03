@@ -28,7 +28,7 @@ pub use dump::render_late_lowered_program;
 pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
-    LateLoweredSourceCallable,
+    LateLoweredSourceCallable, LirCallableIndex, LirCallableIndexError,
 };
 pub use ir::{mir_source, source};
 pub use opt::{LateLoweredOptOptions, run_lir_opt_pipeline};

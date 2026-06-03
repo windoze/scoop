@@ -1,5 +1,37 @@
 # 当前执行计划
 
+## 约束说明
+
+- 本文件记录可审阅的执行计划与进度，不记录私有推理细节。
+- `TODO.md` 是任务顺序与完成状态的唯一依据。
+- 本次只完成第一个未标记 `[DONE]` 的任务；完成后提交并停止。
+
+## 初始计划
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 找到第一个未完成任务。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
+3. 阅读当前任务相关代码、测试、文档，只围绕该任务建立上下文。
+4. 如果发现阻塞当前任务的缺失特性、规格不一致或失败测试，优先修复；若不能在本次完成，则在 `TODO.md` 中加入最小前置任务并提交后停止。
+5. 实现当前任务所需的最小正确改动，不引入规避性实现。
+6. 运行格式化、lint、相关测试；必要时运行完整测试和 fixture 套件。
+7. 将任务标题加上 `[DONE]`，更新完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
+8. 检查 git diff/status，提交本次任务相关全部变更，然后停止。
+
+## 进度
+
+- 已创建本执行计划，下一步读取 `TODO.md` 识别第一个未完成任务。
+- 已读取 `TODO.md`；第一个未完成任务是 `T2-01：引入 LirCallableId / LirCallableHash`。
+- 下一步检查最新提交与工作区状态，然后只围绕 `T2-01` 阅读相关代码并实施。
+- 已确认最新提交与工作区无直接阻塞事项。
+- 已实现初版：`scoopc_ids` 新增 `LirCallableId` / `LirCallableHash`；`scoopc_lir` 新增 `LirCallableIndex`；`LirArtifact` 构造时建立 callable id 索引，入口解析经索引从 stable key 转为 id。
+- 已运行 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`；修正新增索引代码中的 clippy 警告后通过。
+- 已运行并通过 `TODO.md` §9 基线：`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+- 下一步更新 `TODO.md`，将 `T2-01` 标记为 `[DONE]` 并记录完成内容与验证命令。
+- 已更新 `TODO.md`，将 `T2-01` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T2-01 记录置顶。
+
+## 历史记录（保留）
+
 说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
 ## 约束

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
-use scoopc_ids::{BodyVersionKey, StableLirCallableKey};
+use scoopc_ids::{BodyVersionKey, LirCallableHash, LirCallableId, StableLirCallableKey};
 
 use crate::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallableAbiKind, CaseTag,
@@ -212,6 +212,14 @@ impl LateLoweredProgram {
         &self.callables
     }
 
+    pub fn callable_by_id(&self, id: LirCallableId) -> Option<&LateLoweredCallable> {
+        self.callables.get(id.as_usize())
+    }
+
+    pub fn callable_index(&self) -> Result<LirCallableIndex, LirCallableIndexError> {
+        LirCallableIndex::from_program(self)
+    }
+
     pub fn with_class_ctor_init_bodies(
         mut self,
         class_ctor_init_bodies: Vec<LateLoweredClassCtorInitBody>,
@@ -312,6 +320,117 @@ impl LateLoweredProgram {
     pub fn stable_dump(&self) -> String {
         super::dump::render_late_lowered_program(self)
     }
+}
+
+/// Artifact-local callable index built once at the LIR handoff boundary.
+#[derive(Debug, Clone)]
+pub struct LirCallableIndex {
+    key_to_id: HashMap<StableLirCallableKey, LirCallableId>,
+    key_by_id: Vec<StableLirCallableKey>,
+    hash_by_id: Vec<LirCallableHash>,
+}
+
+impl LirCallableIndex {
+    pub fn from_program(program: &LateLoweredProgram) -> Result<Self, LirCallableIndexError> {
+        let mut keys = Vec::with_capacity(program.callables().len());
+        for (index, callable) in program.callables().iter().enumerate() {
+            let Some(key) = callable.lir_callable_key() else {
+                return Err(LirCallableIndexError::MissingPublishedKey {
+                    index,
+                    root_fqn: callable.root_fqn().to_string(),
+                });
+            };
+            keys.push(key.clone());
+        }
+        Self::from_published_keys(keys)
+    }
+
+    pub fn from_published_keys<I>(keys: I) -> Result<Self, LirCallableIndexError>
+    where
+        I: IntoIterator<Item = StableLirCallableKey>,
+    {
+        let key_by_id = keys.into_iter().collect::<Vec<_>>();
+        let mut key_to_id = HashMap::with_capacity(key_by_id.len());
+        let mut hash_by_id = Vec::with_capacity(key_by_id.len());
+        for (index, key) in key_by_id.iter().enumerate() {
+            let Some(id) = LirCallableId::from_index(index) else {
+                return Err(LirCallableIndexError::TooManyCallables {
+                    count: key_by_id.len(),
+                });
+            };
+            if let Some(first) = key_to_id.get(key).copied() {
+                return Err(LirCallableIndexError::DuplicatePublishedKey {
+                    key: key.clone(),
+                    first,
+                    duplicate: id,
+                });
+            }
+            key_to_id.insert(key.clone(), id);
+            hash_by_id.push(LirCallableHash::from_stable_key(key));
+        }
+        Ok(Self {
+            key_to_id,
+            key_by_id,
+            hash_by_id,
+        })
+    }
+
+    pub fn id_for_key(
+        &self,
+        key: &StableLirCallableKey,
+    ) -> Result<LirCallableId, LirCallableIndexError> {
+        self.key_to_id
+            .get(key)
+            .copied()
+            .ok_or_else(|| LirCallableIndexError::UnknownPublishedKey { key: key.clone() })
+    }
+
+    pub fn key_for_id(
+        &self,
+        id: LirCallableId,
+    ) -> Result<&StableLirCallableKey, LirCallableIndexError> {
+        self.key_by_id
+            .get(id.as_usize())
+            .ok_or(LirCallableIndexError::UnknownCallableId {
+                id,
+                len: self.key_by_id.len(),
+            })
+    }
+
+    pub fn hash_for_id(&self, id: LirCallableId) -> Result<LirCallableHash, LirCallableIndexError> {
+        self.hash_by_id.get(id.as_usize()).copied().ok_or(
+            LirCallableIndexError::UnknownCallableId {
+                id,
+                len: self.hash_by_id.len(),
+            },
+        )
+    }
+
+    pub fn len(&self) -> usize {
+        self.key_by_id.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_by_id.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum LirCallableIndexError {
+    #[error("LIR callable at index {index} (`{root_fqn}`) has no stable LIR callable key")]
+    MissingPublishedKey { index: usize, root_fqn: String },
+    #[error("LIR callable count {count} exceeds the u32 id space")]
+    TooManyCallables { count: usize },
+    #[error("stable LIR callable key `{key:?}` appears at both {first:?} and {duplicate:?}")]
+    DuplicatePublishedKey {
+        key: StableLirCallableKey,
+        first: LirCallableId,
+        duplicate: LirCallableId,
+    },
+    #[error("stable LIR callable key `{key:?}` is not present in this artifact")]
+    UnknownPublishedKey { key: StableLirCallableKey },
+    #[error("LIR callable id {id:?} is outside this artifact's callable table of length {len}")]
+    UnknownCallableId { id: LirCallableId, len: usize },
 }
 
 /// callable surface instance 在 P5 中对应的具体 body 版本 identity。
@@ -5863,6 +5982,62 @@ mod wire_tests {
         assert!(decoded.is_empty());
         assert!(decoded.class_ctor_init_bodies.is_empty());
         assert!(decoded.dump_type_texts.is_empty());
+    }
+
+    #[test]
+    fn lir_callable_index_maps_keys_to_program_indices() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let beta = StableLirCallableKey::new("lir_callable(beta)", "pkg.beta");
+        let index = LirCallableIndex::from_published_keys(vec![alpha.clone(), beta.clone()])
+            .expect("unique callable keys build an index");
+
+        let alpha_id = LirCallableId::from_raw(0);
+        let beta_id = LirCallableId::from_raw(1);
+
+        assert_eq!(index.len(), 2);
+        assert_eq!(index.id_for_key(&alpha), Ok(alpha_id));
+        assert_eq!(index.id_for_key(&beta), Ok(beta_id));
+        assert_eq!(index.key_for_id(beta_id), Ok(&beta));
+        assert_eq!(
+            index.hash_for_id(alpha_id),
+            Ok(LirCallableHash::from_stable_key(&alpha))
+        );
+    }
+
+    #[test]
+    fn lir_callable_index_reports_misses_without_panicking() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let missing = StableLirCallableKey::new("lir_callable(missing)", "pkg.missing");
+        let index = LirCallableIndex::from_published_keys(vec![alpha.clone()])
+            .expect("unique callable keys build an index");
+
+        assert_eq!(
+            index.id_for_key(&missing),
+            Err(LirCallableIndexError::UnknownPublishedKey { key: missing })
+        );
+        assert_eq!(
+            index.key_for_id(LirCallableId::from_raw(7)),
+            Err(LirCallableIndexError::UnknownCallableId {
+                id: LirCallableId::from_raw(7),
+                len: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn lir_callable_index_rejects_duplicate_published_keys() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let error = LirCallableIndex::from_published_keys(vec![alpha.clone(), alpha.clone()])
+            .expect_err("duplicate callable keys are rejected");
+
+        assert_eq!(
+            error,
+            LirCallableIndexError::DuplicatePublishedKey {
+                key: alpha,
+                first: LirCallableId::from_raw(0),
+                duplicate: LirCallableId::from_raw(1),
+            }
+        );
     }
 }
 

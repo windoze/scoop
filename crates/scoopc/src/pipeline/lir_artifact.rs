@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::effect_lowered::LateLoweredProgram;
+use crate::effect_lowered::{LateLoweredProgram, LirCallableIndex, LirCallableIndexError};
 use crate::llvm::{
     CachedDepArtifactHandoff, EntryMainArgShape, EntryRef, LlvmEmitError, LlvmStageBaseContext,
 };
@@ -18,12 +18,36 @@ use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 pub struct LirArtifact {
     pub cone: StableConeKey,
     pub program: LateLoweredProgram,
+    pub callable_index: LirCallableIndex,
     /// Transitional flat facts carried until P2 folds them into the LIR program.
     pub facts: LirFacts,
     pub base_context: LlvmStageBaseContext,
     /// Transitional MIR overlay fallback retained only for the primary cone until P2 lifts source bodies into LIR.
     pub mir: Option<MaterializedMir>,
     pub object_files: Vec<PathBuf>,
+}
+
+impl LirArtifact {
+    pub fn new(
+        cone: StableConeKey,
+        program: LateLoweredProgram,
+        facts: LirFacts,
+        base_context: LlvmStageBaseContext,
+        mir: Option<MaterializedMir>,
+        object_files: Vec<PathBuf>,
+    ) -> Result<Self, LlvmEmitError> {
+        let callable_index =
+            LirCallableIndex::from_program(&program).map_err(lir_callable_index_emit_error)?;
+        Ok(Self {
+            cone,
+            program,
+            callable_index,
+            facts,
+            base_context,
+            mir,
+            object_files,
+        })
+    }
 }
 
 /// Complete LLVM codegen input after LIR-stage construction.
@@ -75,15 +99,21 @@ pub fn resolve_entry_ref(
         }
         1 => {
             let (key, callable, arg_shape) = candidates.pop().expect("len checked above");
-            let program_callable = artifact.program.callable_by_lir_key(key).ok_or_else(|| {
-                LlvmEmitError::Frontend {
-                    message: format!(
-                        "LLVM LIR stage 入口 `{}` 缺少 matching LIR callable body（key={})",
-                        callable.root_fqn(),
-                        key.as_str()
-                    ),
-                }
-            })?;
+            let callable_id = artifact
+                .callable_index
+                .id_for_key(key)
+                .map_err(lir_callable_index_emit_error)?;
+            let program_callable =
+                artifact
+                    .program
+                    .callable_by_id(callable_id)
+                    .ok_or_else(|| LlvmEmitError::Frontend {
+                        message: format!(
+                            "LLVM LIR stage 入口 `{}` 缺少 matching LIR callable body（key={})",
+                            callable.root_fqn(),
+                            key.as_str()
+                        ),
+                    })?;
             if program_callable.root_fqn() != callable.root_fqn() {
                 return Err(LlvmEmitError::Frontend {
                     message: format!(
@@ -150,12 +180,11 @@ pub fn lir_artifact_from_dep(dep: CachedDepArtifactHandoff) -> Result<LirArtifac
     let (_cone_id, cone, program, facts, type_store, object_files) = dep.into_parts();
     let base_context =
         LlvmStageBaseContext::from_cached_dep_type_store(cone.clone(), &facts, type_store)?;
-    Ok(LirArtifact {
-        cone,
-        program,
-        facts,
-        base_context,
-        mir: None,
-        object_files,
-    })
+    LirArtifact::new(cone, program, facts, base_context, None, object_files)
+}
+
+fn lir_callable_index_emit_error(error: LirCallableIndexError) -> LlvmEmitError {
+    LlvmEmitError::Frontend {
+        message: format!("LLVM LIR stage callable id map 无效：{error}"),
+    }
 }

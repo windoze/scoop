@@ -242,14 +242,14 @@ pub(crate) fn build_lir_artifact(
     );
     base_context.verify_lir_type_context(output.lir_facts(), "primary")?;
     let (program, facts) = output.into_parts();
-    Ok(LirArtifact {
+    LirArtifact::new(
         cone,
         program,
         facts,
         base_context,
-        mir: Some(materialized_mir),
-        object_files: Vec::new(),
-    })
+        Some(materialized_mir),
+        Vec::new(),
+    )
 }
 
 fn stage_error(stage: &'static str, error: impl std::fmt::Display) -> LlvmEmitError {
