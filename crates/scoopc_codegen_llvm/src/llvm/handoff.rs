@@ -93,6 +93,54 @@ impl CachedDepArtifactHandoff {
     }
 }
 
+/// Dependency LIR payload consumed by LLVM codegen after pipeline-level LIR adaptation.
+#[derive(Debug, Clone)]
+pub struct LlvmDepLirArtifactHandoff {
+    stable_cone_key: StableConeKey,
+    lir: LateLoweredProgram,
+    lir_facts: LirFacts,
+    type_store: TypeStore,
+    object_files: Vec<PathBuf>,
+}
+
+impl LlvmDepLirArtifactHandoff {
+    pub fn new(
+        stable_cone_key: StableConeKey,
+        lir: LateLoweredProgram,
+        lir_facts: LirFacts,
+        type_store: TypeStore,
+        object_files: Vec<PathBuf>,
+    ) -> Self {
+        Self {
+            stable_cone_key,
+            lir,
+            lir_facts,
+            type_store,
+            object_files,
+        }
+    }
+
+    pub fn stable_cone_key(&self) -> &StableConeKey {
+        &self.stable_cone_key
+    }
+
+    pub fn lir(&self) -> &LateLoweredProgram {
+        &self.lir
+    }
+
+    pub fn lir_facts(&self) -> &LirFacts {
+        &self.lir_facts
+    }
+
+    pub fn type_store(&self) -> &TypeStore {
+        &self.type_store
+    }
+
+    pub fn object_files(&self) -> &[PathBuf] {
+        &self.object_files
+    }
+}
+
 /// LLVM/backend 仍需的显式 base context。
 ///
 /// `LirFacts.type_context.owner` 指向这个 context：per-cone artifacts 通过
@@ -400,7 +448,7 @@ pub struct LlvmCodegenStageOutput {
     abi_visibility_lir: Option<LateLoweredProgram>,
     abi_visibility_lir_facts: Option<LirFacts>,
     abi_visibility_types: Option<TypeStore>,
-    cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
+    cached_dep_artifacts: Vec<LlvmDepLirArtifactHandoff>,
 }
 
 impl LlvmCodegenStageOutput {
@@ -416,7 +464,7 @@ impl LlvmCodegenStageOutput {
         abi_visibility_lir: Option<LateLoweredProgram>,
         abi_visibility_lir_facts: Option<LirFacts>,
         abi_visibility_types: Option<TypeStore>,
-        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
+        cached_dep_artifacts: Vec<LlvmDepLirArtifactHandoff>,
     ) -> Self {
         Self {
             source_map,
@@ -473,7 +521,7 @@ impl LlvmCodegenStageOutput {
         self.abi_visibility_types.as_ref()
     }
 
-    pub fn cached_dep_artifacts(&self) -> &[CachedDepArtifactHandoff] {
+    pub fn cached_dep_artifacts(&self) -> &[LlvmDepLirArtifactHandoff] {
         &self.cached_dep_artifacts
     }
 }

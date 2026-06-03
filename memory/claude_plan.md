@@ -2,7 +2,30 @@
 
 说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
-## 本轮任务：T1-03-R
+## 约束
+
+- 只处理 `TODO.md` 中第一个未完成任务；完成后停止。
+- `TODO.md` 是任务顺序、验收和完成记录的权威来源。
+- 不把隐藏推理写入文件；本文件记录可公开的计划、决策和进度。
+
+## 初始步骤
+
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
+2. 如最新提交明确提到与该任务直接相关的未完成问题，纳入当前任务或在 `TODO.md` 中补为前置任务。
+3. 读取任务涉及的代码、测试、文档和完成要求。
+4. 若没有必须前置的阻塞问题，按任务要求实现最小正确改动。
+5. 按要求运行格式化、lint、相关测试和必要的完整验证。
+6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
+7. 检查改动并提交一次清晰的 Git commit，然后停止。
+
+## 进度
+
+- 2026-06-04：已创建执行计划文件，下一步读取 `TODO.md` 定位第一个未完成任务。
+- 2026-06-04：已定位第一个未完成任务为 `T1-04：codegen run 改吃 CodegenInput`；最新提交为 `T1-03-R`，工作区仅有本计划文件改动。
+- 2026-06-04：已将 LIR artifact 构建逻辑迁出 `llvm_codegen_stage.rs`，删除旧 `LlvmCodegenStageInput`，并把 codegen `run` 改为接收 `CodegenInput`。
+- 2026-06-04：验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`（fixtures: ok 1664）。`TODO.md` 已将 T1-04 标记为 `[DONE]` 并记录完成情况。
+
+## 先前记录：T1-03-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -15,7 +38,7 @@
 9. 成功后更新 `TODO.md`，给 `T1-03-R` 标题加 `[DONE]` 并填写完成记录。
 10. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-## 本轮进度记录
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-03-R：Review T1-03`。
 - 最近提交 `f69bbb88 [T1-03] Adapt cached deps to LIR artifacts` 是本 review 的直接对象，未显示额外未完成前置项。

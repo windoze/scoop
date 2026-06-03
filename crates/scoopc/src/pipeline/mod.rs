@@ -16,6 +16,8 @@ mod hir_via_mir_tests;
 pub mod lir_artifact;
 pub(crate) mod lir_facts_builder;
 #[cfg(feature = "llvm")]
+mod lir_stage;
+#[cfg(feature = "llvm")]
 mod llvm_codegen_stage;
 mod mir_stage;
 
@@ -29,7 +31,7 @@ pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
 #[cfg(feature = "llvm")]
 pub use lir_artifact::{CodegenInput, LirArtifact};
 #[cfg(feature = "llvm")]
-pub use llvm_codegen_stage::LlvmCodegenStageInput;
+pub(crate) use lir_stage::build_lir_artifact;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 #[cfg(feature = "llvm")]
 pub use scoopc_codegen_llvm::llvm::{
@@ -186,9 +188,48 @@ pub fn materialize_direct_style_mir_for_dump(
 #[cfg(feature = "llvm")]
 pub(crate) fn run_llvm_codegen_stage(
     session: &Session,
-    input: LlvmCodegenStageInput,
+    input: CodegenInput,
 ) -> Result<LlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::run(session, input)
+}
+
+#[cfg(feature = "llvm")]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_llvm_codegen_input(
+    session: &Session,
+    source_map: SourceMap,
+    entry_source_id: SourceId,
+    lowered: crate::frontend::CodegenLoweringOutput,
+    abi_visibility_lowered: Option<crate::frontend::CodegenLoweringOutput>,
+    entry_main_fqn: Option<String>,
+    opt_level: OptLevel,
+    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
+) -> Result<CodegenInput, crate::llvm::LlvmEmitError> {
+    let entry_source =
+        source_map
+            .source(entry_source_id)
+            .ok_or_else(|| crate::llvm::LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM LIR stage 找不到入口源文件（source_id={})",
+                    entry_source_id.as_usize()
+                ),
+            })?;
+    let program = build_lir_artifact(session, entry_source, lowered, false)?;
+    let abi_shell = abi_visibility_lowered
+        .map(|lowered| build_lir_artifact(session, entry_source, lowered, true))
+        .transpose()?;
+    let deps = cached_dep_artifacts
+        .into_iter()
+        .map(lir_artifact::lir_artifact_from_dep)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(CodegenInput {
+        program,
+        abi_shell,
+        deps,
+        entry: Some((entry_source_id, entry_main_fqn)),
+        source_map,
+        opt_level,
+    })
 }
 
 #[cfg(feature = "llvm")]
@@ -227,17 +268,17 @@ fn build_single_file_stage_output(
     .map_err(frontend_error)?;
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
 
-    run_llvm_codegen_stage(
+    let input = build_llvm_codegen_input(
         session,
-        LlvmCodegenStageInput::new(
-            lowering,
-            abi_visibility_lowering,
-            source_map,
-            entry_source_id,
-            None,
-            opt_level,
-        ),
-    )
+        source_map,
+        entry_source_id,
+        lowering,
+        abi_visibility_lowering,
+        None,
+        opt_level,
+        Vec::new(),
+    )?;
+    run_llvm_codegen_stage(session, input)
 }
 
 #[cfg(feature = "llvm")]
@@ -445,20 +486,17 @@ pub fn emit_production_llvm_artifact_to_file(
     artifact: LlvmArtifactKind,
     cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
-    llvm_codegen_stage::emit_artifact_to_file(
+    let input = build_llvm_codegen_input(
         session,
-        llvm_codegen_stage::LlvmCodegenStageInput::with_cached_dep_artifacts(
-            lowered,
-            abi_visibility_lowered,
-            source_map.clone(),
-            entry_source_id,
-            entry_main_fqn.map(str::to_owned),
-            opt_level,
-            cached_dep_artifacts,
-        ),
-        output,
-        artifact,
-    )
+        source_map.clone(),
+        entry_source_id,
+        lowered,
+        abi_visibility_lowered,
+        entry_main_fqn.map(str::to_owned),
+        opt_level,
+        cached_dep_artifacts,
+    )?;
+    llvm_codegen_stage::emit_artifact_to_file(session, input, output, artifact)
 }
 
 #[cfg(test)]

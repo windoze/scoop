@@ -21,8 +21,8 @@ use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 use super::pipeline::run_pass_pipeline;
 use super::reachability::collect_reachable_top_level_funs;
 use super::{
-    CachedDepArtifactHandoff, LlvmCodegenStageOutput, LlvmEmitError, LlvmStageBaseContext, codegen,
-    configure_llvm_global_options_once, target,
+    LlvmCodegenStageOutput, LlvmDepLirArtifactHandoff, LlvmEmitError, LlvmStageBaseContext,
+    codegen, configure_llvm_global_options_once, target,
 };
 
 struct LoweredCodegenEntry<'a> {
@@ -33,7 +33,7 @@ struct LoweredCodegenEntry<'a> {
     abi_program: &'a crate::effect_lowered::LateLoweredProgram,
     abi_lir_facts: &'a scoopc_lir_facts::LirFacts,
     abi_types: &'a crate::ty::TypeStore,
-    cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
+    cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
 }
 
 #[derive(Clone, Copy)]
@@ -44,7 +44,7 @@ pub struct StageEmitInput<'a> {
     abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     abi_visibility_lir_facts: Option<&'a LirFacts>,
     abi_visibility_types: Option<&'a crate::ty::TypeStore>,
-    cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
+    cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
 }
 
 impl<'a> StageEmitInput<'a> {
@@ -55,7 +55,7 @@ impl<'a> StageEmitInput<'a> {
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
         abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
-        cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
+        cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
     ) -> Self {
         let has_abi_visibility = abi_visibility_lir.is_some();
         assert_eq!(
@@ -100,7 +100,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
         abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
-        cached_dep_artifacts: &'a [CachedDepArtifactHandoff],
+        cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
     ) -> Self {
         Self {
             base_context,

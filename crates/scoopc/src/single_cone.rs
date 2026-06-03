@@ -26,7 +26,7 @@ use crate::frontend::{
     run_frontend_with_artifact_cache,
 };
 use crate::opt::OptLevel;
-use crate::pipeline::{LlvmCodegenStageInput, run_llvm_codegen_stage};
+use crate::pipeline::{build_llvm_codegen_input, run_llvm_codegen_stage};
 use crate::session::{Session, SessionOptions};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -162,18 +162,17 @@ pub fn run_single_cone_artifact_compile(
     let entry_main_fqn = front.input().entry_main_fqn().map(str::to_owned);
 
     let cached_dep_artifacts = front.cached_dep_artifacts().to_vec();
-    let stage_output = run_llvm_codegen_stage(
+    let codegen_input = build_llvm_codegen_input(
         session,
-        LlvmCodegenStageInput::with_cached_dep_artifacts(
-            lowering,
-            abi_visibility_lowering,
-            source_map,
-            entry_source_id,
-            entry_main_fqn,
-            opt_level,
-            cached_dep_artifacts,
-        ),
+        source_map,
+        entry_source_id,
+        lowering,
+        abi_visibility_lowering,
+        entry_main_fqn,
+        opt_level,
+        cached_dep_artifacts,
     )?;
+    let stage_output = run_llvm_codegen_stage(session, codegen_input)?;
 
     // 把 dep 自己的 LLVM object 写到 artifact `objs/` 目录里，待 consumer link 拉起。
     std::fs::create_dir_all(output_dir).into_diagnostic()?;

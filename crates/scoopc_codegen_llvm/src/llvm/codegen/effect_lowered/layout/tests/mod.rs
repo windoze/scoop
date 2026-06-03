@@ -226,7 +226,7 @@ fn with_inputs_query_result(
 fn with_inputs_query_result_and_cached_deps(
     inputs: FixtureAbiInputs,
     rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
-    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
+    cached_dep_artifacts: Vec<crate::llvm::LlvmDepLirArtifactHandoff>,
     check: impl for<'ctx> FnOnce(
         &FixtureAbiInputs,
         Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,

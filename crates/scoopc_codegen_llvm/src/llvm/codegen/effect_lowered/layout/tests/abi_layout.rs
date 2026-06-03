@@ -68,8 +68,7 @@ public fun dependencyValue(): Int {
 }
 "#,
     ));
-    let dep_handoff = crate::llvm::CachedDepArtifactHandoff::new(
-        crate::cone::ConeId::new(42),
+    let dep_handoff = crate::llvm::LlvmDepLirArtifactHandoff::new(
         dep.base_context.stable_cone_key().clone(),
         dep.abi_visibility_program.clone(),
         dep.abi_visibility_lir_facts.clone(),

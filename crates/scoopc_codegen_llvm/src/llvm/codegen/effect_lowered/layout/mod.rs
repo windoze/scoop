@@ -75,7 +75,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
-        cached_dep_artifacts: &'a [crate::llvm::CachedDepArtifactHandoff],
+        cached_dep_artifacts: &'a [crate::llvm::LlvmDepLirArtifactHandoff],
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
         let primary_stable_cone_key = self.stable_cone_key;
         let saved_lir_facts = self.active_lir_facts;
@@ -111,8 +111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.active_lir_facts = saved_lir_facts;
             let dep_query = dep_query?;
             let label = format!(
-                "cached dep cone {} ({}@{})",
-                dep.cone_id().as_u32(),
+                "cached dep cone {}@{}",
                 dep.stable_cone_key().name(),
                 dep.stable_cone_key().version()
             );
