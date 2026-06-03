@@ -1947,13 +1947,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_name = if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
             extern_fun.symbol.clone()
         } else {
-            self.lir_callable_symbol_facts(callable_fqn)
-                .and_then(|symbol_facts| symbol_facts.exported_symbol.clone())
-                .or_else(|| {
-                    self.lir_callable_symbol_facts(&signature_owner_fqn)
-                        .and_then(|symbol_facts| symbol_facts.exported_symbol.clone())
-                })
-                .unwrap_or_else(|| callable_fqn.to_string())
+            self.exported_abi_symbol_for_lir_callable(&signature_owner_fqn)?
         };
         let llvm_fun = match self.module.get_function(&llvm_name) {
             Some(function) => function,

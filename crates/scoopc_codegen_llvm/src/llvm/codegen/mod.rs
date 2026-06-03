@@ -1107,16 +1107,8 @@ fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
     ptr.as_value_ref() as usize
 }
 
-// Walk HIR in lexical order so materialized-MIR closure helpers can recover the
-// same `$lambdaN.$lambdaM` path without reusing `ClosureId` or old symbol text.
 fn callable_export_readable_path(owner_path: &str) -> &str {
-    let base = owner_path
-        .rsplit_once("::<")
-        .map(|(base, _)| base)
-        .unwrap_or(owner_path);
-    base.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(base)
+    owner_path
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

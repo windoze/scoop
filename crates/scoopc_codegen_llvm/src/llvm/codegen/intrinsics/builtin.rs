@@ -373,7 +373,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         Err(LlvmEmitError::Frontend {
             message: format!(
-                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without published type-argument facts"
+                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without LIR-owned call-site facts"
             ),
         })
     }

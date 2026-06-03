@@ -646,15 +646,10 @@ fn select_root_callable<'a>(
 }
 
 fn callable_source_name(root_fqn: &str) -> &str {
-    let base = root_fqn
-        .rsplit_once("::<")
-        .map(|(base, _)| base)
-        .unwrap_or(root_fqn);
-    let base = base
-        .split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(base);
-    base.rsplit_once('.').map(|(_, name)| name).unwrap_or(base)
+    root_fqn
+        .rsplit_once('.')
+        .map(|(_, name)| name)
+        .unwrap_or(root_fqn)
 }
 
 fn module_name_from_path(path: &Path) -> String {

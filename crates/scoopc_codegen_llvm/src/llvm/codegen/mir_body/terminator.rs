@@ -175,19 +175,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
                 let slot = self.mir_local_slot(stmt.span, slots, *target)?;
-                let target_source_ty = body
-                    .locals
-                    .get(target.as_u32() as usize)
-                    .map(|local| local.ty);
-                let value = self.codegen_mir_rvalue(
-                    stmt.span,
-                    value,
-                    body,
-                    mir_types,
-                    slots,
-                    slot.cg_ty,
-                    target_source_ty,
-                )?;
+                let value =
+                    self.codegen_mir_rvalue(stmt.span, value, body, mir_types, slots, slot.cg_ty)?;
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
                 Ok(())
             }
@@ -343,7 +332,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
-        target_source_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match value {
             crate::mir::Rvalue::Use(operand) => {
@@ -499,7 +487,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ..
             } => {
                 let class_layout_key =
-                    self.mir_class_ctor_layout_key(span, class_fqn, mir_types, target_source_ty)?;
+                    self.mir_class_ctor_layout_key(span, *site_id, class_fqn, mir_types)?;
                 self.codegen_mir_class_ctor_call(
                     span,
                     *site_id,

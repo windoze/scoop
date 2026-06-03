@@ -114,7 +114,6 @@ pub(crate) fn build_lir_facts(
         &callables,
         &source_call_sites,
         &dynamic_invokes,
-        ctx.effect_facts.types(),
     )?;
     let intrinsic_callables = build_intrinsic_callable_facts(ctx.mir_facts, &source_call_sites)?;
     let groups = LirFactGroups {
@@ -1224,12 +1223,6 @@ fn build_abi_symbol_facts(
         }) {
             continue;
         }
-        if !bodyless_signature_root(&signature.fqn)
-            && !native_callable_funs.contains_key(signature.fqn.as_str())
-            && !extern_funs.contains_key(signature.fqn.as_str())
-        {
-            continue;
-        }
         let (target_key, symbol, role) = published_source_signature_target(signature)?;
         if let Some(native) = native_callable_funs.get(signature.fqn.as_str())
             && (role != "native_callable" || symbol != native.symbol)
@@ -1555,7 +1548,6 @@ fn build_source_signature_facts(
     callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    types: &TypeStore,
 ) -> Result<BTreeMap<String, LirSourceCallableSignatureFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for signature in &mir_facts.backend.source_signatures {
@@ -1573,27 +1565,14 @@ fn build_source_signature_facts(
     for callable in lir.callables() {
         insert_source_signature_fact(&mut out, source_signature_facts_for_callable(callable)?)?;
     }
-    let unit_ty = types
-        .builtins()
-        .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
-            detail: "bodyless direct source signature publication requires builtin types"
-                .to_string(),
-        })?
-        .unit;
     for binding in published_call_target_bindings(callables, source_call_sites, dynamic_invokes) {
         if out.contains_key(binding.root_fqn.as_str()) {
             continue;
         }
-        insert_source_signature_fact(
-            &mut out,
-            LirSourceCallableSignatureFacts {
-                signature_key: source_callable_signature_key(&binding.root_fqn),
-                root_fqn: binding.root_fqn.clone(),
-                param_names: Vec::new(),
-                param_tys: Vec::new(),
-                return_ty: unit_ty,
-            },
-        )?;
+        return invalid_lir_facts(format!(
+            "call target `{}` lacks an upstream source signature fact",
+            binding.root_fqn
+        ));
     }
     Ok(out)
 }
@@ -1792,58 +1771,96 @@ fn build_class_ctor_call_site_facts(
         let Some(body) = callable.source_body() else {
             continue;
         };
-        for block in &body.blocks {
-            for stmt in &block.stmts {
-                let scoopc_lir::mir::StatementKind::Assign { target, value } = &stmt.kind else {
-                    continue;
-                };
-                let scoopc_lir::mir::Rvalue::ClassCtor {
-                    site_id,
-                    class_fqn,
-                    ctor,
-                    ..
-                } = value
-                else {
-                    continue;
-                };
-                let selected_ctor = ctor.selected_ctor_span.map(|span| (span.start, span.end));
-                let target_init_class_fqn = if ctor.target_init_class_fqn.is_empty() {
-                    class_fqn.as_str()
-                } else {
-                    ctor.target_init_class_fqn.as_str()
-                };
-                let target_init =
-                    LirClassCtorInitKey::for_ctor(target_init_class_fqn, selected_ctor);
-                if !class_ctor_inits.contains_key(&target_init) {
-                    return invalid_lir_facts(format!(
-                        "class ctor call owner `{}` site{} targets unpublished init `{}`",
-                        owner_key.readable_path(),
-                        site_id.as_u32(),
-                        target_init.as_str()
-                    ));
-                }
-                let result_ty = body.locals[target.as_u32() as usize].ty;
-                let key = LirClassCtorCallSiteKey {
-                    owner_callable: owner_key.clone(),
-                    site_id: *site_id,
-                };
-                out.insert(
-                    key,
-                    LirClassCtorCallSiteFacts {
-                        owner_callable: owner_key.clone(),
-                        site_id: *site_id,
-                        class_fqn: class_fqn.clone(),
-                        target_init,
-                        selected_ctor_span_start: ctor.selected_ctor_span.map(|span| span.start),
-                        selected_ctor_span_end: ctor.selected_ctor_span.map(|span| span.end),
-                        result_ty,
-                        arg_mapping: (0..ctor.ordered_param_count).map(Some).collect(),
-                    },
-                );
-            }
+        insert_class_ctor_call_site_facts_for_body(&mut out, class_ctor_inits, &owner_key, body)?;
+    }
+    for family in ctx.materialized.pass_view().instances() {
+        let stable_key = ctx
+            .materialized
+            .authoritative_stable_instance_key(family.key())
+            .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "class ctor facts owner `{}` lacks stable instance identity",
+                    family.root_fqn()
+                ),
+            })?;
+        let Some(owner_key) = ctx
+            .callable_keys_by_stable_instance
+            .get(&stable_key.canonical_text())
+            .cloned()
+        else {
+            continue;
+        };
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            insert_class_ctor_call_site_facts_for_body(
+                &mut out,
+                class_ctor_inits,
+                &owner_key,
+                body,
+            )?;
         }
     }
     Ok(out)
+}
+
+fn insert_class_ctor_call_site_facts_for_body(
+    out: &mut BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
+    class_ctor_inits: &BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
+    owner_key: &StableLirCallableKey,
+    body: &crate::mir::Body,
+) -> Result<(), EffectLoweringError> {
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            let crate::mir::Rvalue::ClassCtor {
+                site_id,
+                class_fqn,
+                ctor,
+                ..
+            } = value
+            else {
+                continue;
+            };
+            let selected_ctor = ctor.selected_ctor_span.map(|span| (span.start, span.end));
+            if ctor.target_init_class_fqn.is_empty() {
+                return invalid_lir_facts(format!(
+                    "class ctor call owner `{}` site{} lacks published target init class identity",
+                    owner_key.readable_path(),
+                    site_id.as_u32()
+                ));
+            }
+            let target_init =
+                LirClassCtorInitKey::for_ctor(&ctor.target_init_class_fqn, selected_ctor);
+            if !class_ctor_inits.contains_key(&target_init) {
+                return invalid_lir_facts(format!(
+                    "class ctor call owner `{}` site{} targets unpublished init `{}`",
+                    owner_key.readable_path(),
+                    site_id.as_u32(),
+                    target_init.as_str()
+                ));
+            }
+            let result_ty = body.locals[target.as_u32() as usize].ty;
+            let key = LirClassCtorCallSiteKey {
+                owner_callable: owner_key.clone(),
+                site_id: *site_id,
+            };
+            out.entry(key).or_insert_with(|| LirClassCtorCallSiteFacts {
+                owner_callable: owner_key.clone(),
+                site_id: *site_id,
+                class_fqn: class_fqn.clone(),
+                target_init,
+                selected_ctor_span_start: ctor.selected_ctor_span.map(|span| span.start),
+                selected_ctor_span_end: ctor.selected_ctor_span.map(|span| span.end),
+                result_ty,
+                arg_mapping: (0..ctor.ordered_param_count).map(Some).collect(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn build_reflection_call_site_facts(
@@ -2805,15 +2822,12 @@ fn bodyless_direct_target_binding(
     root_fqn: &str,
     target_callable_key: &StableLirCallableKey,
 ) -> Result<LirCallTargetBinding, EffectLoweringError> {
-    let (published_key, abi_symbol) =
-        if let Some(signature) = mir_source_signature(ctx.mir_facts, root_fqn) {
-            let (published_key, abi_symbol, _role) = published_source_signature_target(signature)?;
-            (published_key, abi_symbol)
-        } else {
-            let published_key = bodyless_target_key_from_root(root_fqn);
-            let abi_symbol = AbiMangler.fun_symbol(&published_key);
-            (published_key, abi_symbol)
-        };
+    let Some(signature) = mir_source_signature(ctx.mir_facts, root_fqn) else {
+        return invalid_lir_facts(format!(
+            "bodyless direct target `{root_fqn}` lacks an upstream source signature fact"
+        ));
+    };
+    let (published_key, abi_symbol, _role) = published_source_signature_target(signature)?;
     if published_key.canonical_text() != target_callable_key.canonical_text() {
         return invalid_lir_facts(format!(
             "bodyless direct target `{root_fqn}` key disagrees with published source signature target"
@@ -2907,35 +2921,12 @@ fn published_bodyless_target_key(
     root_fqn: &str,
 ) -> Result<StableLirCallableKey, EffectLoweringError> {
     let Some(signature) = mir_source_signature(mir_facts, root_fqn) else {
-        return Ok(bodyless_target_key_from_root(root_fqn));
+        return invalid_lir_facts(format!(
+            "bodyless direct target `{root_fqn}` lacks an upstream source signature fact"
+        ));
     };
     let (target_key, _abi_symbol, _role) = published_source_signature_target(signature)?;
     Ok(target_key)
-}
-
-fn bodyless_target_key_from_root(root_fqn: &str) -> StableLirCallableKey {
-    StableLirCallableKey::new(
-        canonical_record("lir_callable_bodyless_target", [root_fqn.to_string()]),
-        root_fqn.to_string(),
-    )
-}
-
-fn bodyless_signature_root(fqn: &str) -> bool {
-    fqn.starts_with("scoop.core.Int.")
-        || fqn.starts_with("scoop.core.UInt")
-        || fqn.starts_with("scoop.core.Float")
-        || fqn.starts_with("scoop.core.Bool.")
-        || fqn.starts_with("scoop.core.Char.")
-        || matches!(
-            fqn,
-            "scoop.core.byteLength"
-                | "scoop.core.getByte"
-                | "scoop.core.GC.handleNew"
-                | "scoop.core.GC.handleGet"
-                | "scoop.core.GC.handleDrop"
-                | "scoop.core.GC.pin"
-                | "scoop.core.GC.unpin"
-        )
 }
 
 fn target_callable_key(

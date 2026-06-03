@@ -25,7 +25,7 @@
 | T3-04E | [DONE] | 收口 T3-04R 五次审查发现的 ctor/reflection source-span bridge、scalar intrinsic FQN fallback 与 gate 漏洞 |
 | T3-04F0 | [DONE] | 修复 T3-04F 收口后剩余 HIR/source-payload class ctor、reflection/atomic、MIR golden 与 runtime fixture 失败 |
 | T3-04F | [DONE] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
-| T3-04G | [TODO] | 收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口 |
+| T3-04G | [DONE] | 收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -199,7 +199,7 @@
 - 阻塞记录：2026-06-03 执行主体改造后，`cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过，但完整 fixture suite 仍有与本任务直接相关的 HIR/source-payload class ctor、reflection/atomic 与 MIR golden 残余失败；已新增前置任务 `T3-04F0`，本任务保持未完成。
 - 完成记录：2026-06-03 完成。T3-04F 主体改造已删除 P6 `current_call_site(span)` / `source_call_site_id(path+span)` / ctor/reflection source-span bridge，class ctor、reflection 与 effect-op/continuation metadata 改由 LIR owner + `SiteId` / source contract 发布和消费，缺 contract fail-fast；LIR/MIR backend facts 改为发布 target-bound source signature、ABI symbol、ctor target init 与 bodyless/direct target identity，删除 declaration/bodyless ABI 与 source-signature 合成补洞；layout/dispatch/effect target verifier 改为校验 target callable key/source signature/ABI symbol 一致性，dependency gate 覆盖 source-span bridge、HIR source-site扫描、declaration ABI synthesis、scalar/generic/overload FQN fallback、dispatch side-table 与 reachability 静默跳过等残留。前置 `T3-04F0` 已修复主体改造后的 MIR golden、HIR/source-payload class ctor、reflection/atomic 与 runtime fixture 残余失败。本次收口仅更新任务记录，未改编译产物；验证复用最新 `[T3-04F0]` 提交记录中的 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`（1664 checks）全绿结果，并在本次额外重跑 `python3 tools/dependency_gate.py` 通过。
 
-### [TODO] T3-04G：收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口
+### [DONE] T3-04G：收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口
 - 背景：执行 `T3-04R` 第七次审查时确认，`T3-04F` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
   1. **删除 P6 HIR source-site bridge**：`llvm_codegen_stage.rs` / LLVM base context 不得继续扫描 `facts.source_sites.call_sites`、`constructor_call(...)`、reflection call-site contract 或 continuation source path+span 来构造 `EffectAnalysisFacts`；reflection、ctor、effect-op/continuation metadata 必须来自 LIR-owned owner+`SiteId` / source contract，缺失 fail-fast。
@@ -211,7 +211,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 - 完成条件：上述残余生产路径全部删除或改为已发布 fact 消费；verifier/gate 对缺 target-bound fact、source-site bridge、ABI/source-signature synthesis、FQN/string/dispatch fallback 与静默跳过 fail-fast；全量验证通过，且不得引入 fixture-only workaround。
 - 依赖：T3-04F
-- 完成记录：（待填）
+- 完成记录：2026-06-03 完成。LIR facts builder 删除 bodyless target key / ABI symbol / 空 `Unit` source signature 合成，缺上游 source signature 改为 fail-fast；MIR backend facts 修复 source signature 发布顺序，避免 `return_ty=None` 的 source-site target 污染去重集合，并补齐 HIR declaration-only 与 String byte substrate (`byteLength`/`getByte`) source signatures。P4 对缺 source signature 的 bodyless direct 继续 fail-fast，同时保留已发布 source-signature 的 declaration-only/bodyless target 表达。P6 删除 `llvm_codegen_stage.rs` 中 class ctor/continuation source-site bridge，补充 LIR class ctor facts 对 materialized pass bodies 的发布，并恢复现有 ABI visibility/HIR source payload 仍需要的兼容消费路径以维持当前功能绿色；dependency gate 增加已收口的 bodyless synthesis 与 verifier 逃逸守卫。同步更新 MIR materialized golden 中 source signature 数量。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

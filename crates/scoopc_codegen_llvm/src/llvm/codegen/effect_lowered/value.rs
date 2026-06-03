@@ -656,7 +656,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 args,
                 ..
             } => {
-                let class_layout_key = self.class_ctor_layout_key(span, class_fqn, target_local)?;
+                let class_layout_key =
+                    self.class_ctor_layout_key(span, *site_id, class_fqn, target_local)?;
                 self.codegen.codegen_mir_class_ctor_call(
                     span,
                     *site_id,
@@ -886,28 +887,44 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn class_ctor_layout_key(
         &self,
         span: Span,
+        site_id: mir::SiteId,
         class_fqn: &str,
         target_local: Option<LocalId>,
     ) -> Result<crate::effect_lowered::source::ClassInstanceKey, LlvmEmitError> {
-        let Some(target_ty) = target_local
-            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
-            .map(|local| local.ty)
-        else {
-            return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local missing typed nominal result (target_local={target_local:?})"
-            )));
+        let target_ty = if let Ok(site) = self
+            .codegen
+            .required_lir_class_ctor_call_site(site_id, "effect-lowered class ctor layout")
+        {
+            if site.class_fqn != class_fqn {
+                return Err(frontend_error(format!(
+                    "class ctor site{} LIR class `{}` disagrees with MIR class `{class_fqn}`",
+                    site_id.as_u32(),
+                    site.class_fqn
+                )));
+            }
+            site.result_ty
+        } else {
+            target_local
+                .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+                .map(|local| local.ty)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "class ctor `{class_fqn}` at {span:?} target local missing typed nominal result (target_local={target_local:?})"
+                    ))
+                })?
         };
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
             return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local {:?} has non-nominal result type t{}",
-                target_local,
+                "class ctor `{class_fqn}` at {span:?} site{} has non-nominal LIR result type t{}",
+                site_id.as_u32(),
                 target_ty.as_u32()
             )));
         };
         if nominal.fqn != class_fqn {
             return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local {:?} has mismatched nominal `{}`",
-                target_local, nominal.fqn
+                "class ctor `{class_fqn}` at {span:?} site{} has mismatched LIR nominal `{}`",
+                site_id.as_u32(),
+                nominal.fqn
             )));
         }
 

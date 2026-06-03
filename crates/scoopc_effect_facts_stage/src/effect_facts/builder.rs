@@ -174,7 +174,12 @@ impl<'a> MirFactIndex<'a> {
 
     fn bodyless_direct_signature(&self, fqn: &str) -> Result<(), EffectFactsError> {
         let Some(signature) = self.source_signature(fqn) else {
-            return Ok(());
+            return Err(EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: format!(
+                    "bodyless direct target `{fqn}` lacks an upstream source signature fact"
+                ),
+            });
         };
         if signature.target_callable_key.is_none()
             || signature

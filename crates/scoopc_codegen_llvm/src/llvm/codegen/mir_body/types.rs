@@ -141,7 +141,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Some(CgTy::Ref);
                 }
                 if matches!(
-                    mir_direct_call_base_fqn(callee_fqn),
+                    callee_fqn.as_str(),
                     "scoop.core.size" | "scoop.core.Array.size" | "scoop.core.MutableArray.size"
                 ) {
                     return Some(CgTy::Int(IntTy {
@@ -769,18 +769,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_class_ctor_layout_key(
         &self,
         span: crate::span::Span,
+        site_id: crate::mir::SiteId,
         class_fqn: &str,
         mir_types: &TypeStore,
-        target_source_ty: Option<TypeId>,
     ) -> Result<hir::ClassInstanceKey, LlvmEmitError> {
-        let Some(target_source_ty) = target_source_ty else {
+        let site = self.required_lir_class_ctor_call_site(site_id, "MIR class ctor layout")?;
+        if site.class_fqn != class_fqn {
             return Err(frontend_error(format!(
-                "MIR class ctor `{class_fqn}` at {span:?} target local missing typed nominal result"
+                "MIR class ctor site{} LIR class `{}` disagrees with MIR class `{class_fqn}`",
+                site_id.as_u32(),
+                site.class_fqn
             )));
-        };
+        }
+        let target_source_ty = site.result_ty;
         let Some(codegen_ty) = self.equivalent_codegen_type_id(mir_types, target_source_ty) else {
             return Err(frontend_error(format!(
-                "MIR class ctor `{class_fqn}` at {span:?} result type t{} has no codegen TypeStore equivalent",
+                "MIR class ctor `{class_fqn}` at {span:?} site{} LIR result type t{} has no codegen TypeStore equivalent",
+                site_id.as_u32(),
                 target_source_ty.as_u32()
             )));
         };

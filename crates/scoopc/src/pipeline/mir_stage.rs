@@ -2951,16 +2951,49 @@ fn collect_mir_backend_facts(
         });
     }
     if let Some(hir_facts) = hir_facts {
+        for callable in &hir_facts.declarations.callables {
+            let fqn = callable.identity.display_name.clone();
+            if !seen_source_signatures.insert(fqn.clone()) {
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#hir-declaration", fqn),
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &fact_identity,
+                &fqn,
+            );
+            let mut param_tys = Vec::with_capacity(
+                callable.parameter_tys.len() + usize::from(callable.receiver_ty.is_some()),
+            );
+            if let Some(receiver_ty) = callable.receiver_ty {
+                param_tys.push(receiver_ty);
+            }
+            param_tys.extend(callable.parameter_tys.iter().copied());
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn,
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names: (0..param_tys.len())
+                    .map(|index| format!("arg{index}"))
+                    .collect(),
+                param_tys,
+                return_ty: callable.return_ty,
+            });
+        }
         for (identity, function) in hir_facts.source_sites.function_targets() {
-            if !bodyless_signature_root(&function.fqn) {
-                continue;
-            }
-            if !seen_source_signatures.insert(function.fqn.clone()) {
-                continue;
-            }
             let Some(return_ty) = function.return_ty else {
                 continue;
             };
+            if !seen_source_signatures.insert(function.fqn.clone()) {
+                continue;
+            }
             let fact_identity = backend_identity(
                 &cone,
                 "source_signature",
@@ -2987,12 +3020,12 @@ fn collect_mir_backend_facts(
         }
         for (identity, _entry_name, function) in hir_facts.source_sites.named_intrinsic_callables()
         {
-            if !seen_source_signatures.insert(function.fqn.clone()) {
-                continue;
-            }
             let Some(return_ty) = function.return_ty else {
                 continue;
             };
+            if !seen_source_signatures.insert(function.fqn.clone()) {
+                continue;
+            }
             let fact_identity = backend_identity(
                 &cone,
                 "source_signature",
@@ -3018,6 +3051,82 @@ fn collect_mir_backend_facts(
             });
         }
     }
+    if let Some((string_ty, int_ty)) = builtin_string_substrate_types(&materialized.types)
+        .or_else(|| infer_string_substrate_types_from_signatures(&source_signatures))
+    {
+        for (fqn, param_names, param_tys, return_ty) in [
+            (
+                "scoop.core.byteLength",
+                vec!["value".to_string()],
+                vec![string_ty],
+                int_ty,
+            ),
+            (
+                "scoop.core.getByte",
+                vec!["value".to_string(), "index".to_string()],
+                vec![string_ty, int_ty],
+                int_ty,
+            ),
+        ] {
+            if !seen_source_signatures.insert(fqn.to_string()) {
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#builtin-string-substrate", fqn),
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &fact_identity,
+                fqn,
+            );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: fqn.to_string(),
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names,
+                param_tys,
+                return_ty,
+            });
+        }
+    }
+    let alias_sources = source_signatures.clone();
+    for signature in alias_sources {
+        for alias_fqn in backend_source_signature_aliases(&signature.fqn) {
+            if !seen_source_signatures.insert((*alias_fqn).to_string()) {
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!(
+                    "{}#alias-for-{}",
+                    alias_fqn,
+                    signature.identity.canonical_text()
+                ),
+            );
+            let (target_callable_key, abi_symbol, abi_role) = source_signature_target_publication(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &fact_identity,
+                alias_fqn,
+            );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: (*alias_fqn).to_string(),
+                target_callable_key: Some(target_callable_key),
+                abi_symbol: Some(abi_symbol),
+                abi_role: Some(abi_role),
+                param_names: signature.param_names.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            });
+        }
+    }
     for family in materialized.pass_view().instances() {
         for fun in family.callable_bodies() {
             let Some(body) = &fun.body else {
@@ -3036,9 +3145,6 @@ fn collect_mir_backend_facts(
                     else {
                         continue;
                     };
-                    if !bodyless_signature_root(callee_fqn) {
-                        continue;
-                    }
                     if !seen_source_signatures.insert(callee_fqn.clone()) {
                         continue;
                     }
@@ -3338,22 +3444,82 @@ fn source_signature_target_publication(
     )
 }
 
-fn bodyless_signature_root(fqn: &str) -> bool {
-    fqn.starts_with("scoop.core.Int.")
-        || fqn.starts_with("scoop.core.UInt")
-        || fqn.starts_with("scoop.core.Float")
-        || fqn.starts_with("scoop.core.Bool.")
-        || fqn.starts_with("scoop.core.Char.")
-        || matches!(
-            fqn,
-            "scoop.core.byteLength"
-                | "scoop.core.getByte"
-                | "scoop.core.GC.handleNew"
-                | "scoop.core.GC.handleGet"
-                | "scoop.core.GC.handleDrop"
-                | "scoop.core.GC.pin"
-                | "scoop.core.GC.unpin"
-        )
+fn backend_source_signature_aliases(fqn: &str) -> &'static [&'static str] {
+    match fqn {
+        // `String.length()` is the source-level method contract; backend lowering
+        // calls the byte-level substrate with the same receiver/return signature.
+        "scoop.core.String.length" => &["scoop.core.byteLength"],
+        _ => &[],
+    }
+}
+
+fn builtin_string_substrate_types(types: &TypeStore) -> Option<(TypeId, TypeId)> {
+    let mut string_ty = None;
+    let mut int_ty = None;
+    for ty in types.iter_ids() {
+        match types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::String) => string_ty = Some(ty),
+            TypeKind::Value(ValueTypeKind::Int) => int_ty = Some(ty),
+            _ => {}
+        }
+        let display = types.display(ty).to_string();
+        if display == "String" {
+            string_ty.get_or_insert(ty);
+        } else if display == "Int" {
+            int_ty.get_or_insert(ty);
+        }
+    }
+    Some((string_ty?, int_ty?))
+}
+
+fn infer_string_substrate_types_from_signatures(
+    signatures: &[SourceCallableSignatureFact],
+) -> Option<(TypeId, TypeId)> {
+    let string_ty = signatures
+        .iter()
+        .find(|signature| signature.fqn == "scoop.core.String.toString")
+        .map(|signature| signature.return_ty)
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.core.String."))
+                .and_then(|signature| signature.param_tys.first().copied())
+        })
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.lang.string."))
+                .and_then(|signature| {
+                    signature
+                        .param_tys
+                        .first()
+                        .copied()
+                        .or(Some(signature.return_ty))
+                })
+        })
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.contains("String"))
+                .and_then(|signature| {
+                    signature
+                        .param_tys
+                        .first()
+                        .copied()
+                        .or(Some(signature.return_ty))
+                })
+        })?;
+    let int_ty = signatures
+        .iter()
+        .find(|signature| signature.fqn == "scoop.core.Int.plus")
+        .map(|signature| signature.return_ty)
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.core.Int."))
+                .map(|signature| signature.return_ty)
+        })?;
+    Some((string_ty, int_ty))
 }
 
 fn collect_named_intrinsic_callable_facts(

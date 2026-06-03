@@ -1593,6 +1593,26 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "bodyless_direct_target_key",
                     "LIR facts builder must consume upstream bodyless target keys instead of synthesizing them locally",
                 ),
+                fp(
+                    "bodyless_target_key_from_root",
+                    "LIR facts builder must not synthesize bodyless target keys from root FQNs",
+                ),
+                fp(
+                    "bodyless_signature_root(",
+                    "LIR facts builder must not use static bodyless root inventories as source-signature facts",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&published_key)",
+                    "LIR facts builder must not synthesize ABI symbols for bodyless target bindings",
+                ),
+                fp(
+                    "bodyless direct source signature publication requires builtin types",
+                    "LIR facts builder must fail fast instead of synthesizing empty Unit source signatures",
+                ),
+                fp(
+                    "return_ty: unit_ty",
+                    "LIR facts builder must fail fast instead of synthesizing empty Unit source signatures",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1607,6 +1627,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "legacy_scalar_named_intrinsic_entry_name_for_fqn",
                     "MIR backend facts must consume explicit intrinsic metadata instead of scalar FQN fallback lookup",
+                ),
+                fp(
+                    "bodyless_signature_root(",
+                    "MIR backend facts must publish source signatures from explicit call contracts, not static bodyless root inventories",
                 ),
             ),
         ),

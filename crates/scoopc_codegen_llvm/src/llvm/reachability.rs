@@ -134,7 +134,12 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn callable_edges(&self, root_fqn: &str) -> Result<Option<CallableEdges>, String> {
         let Some(callable) = self.callable_by_root(root_fqn) else {
-            return Ok(None);
+            if self.root_has_published_declaration(root_fqn) {
+                return Ok(None);
+            }
+            return Err(format!(
+                "reachable root `{root_fqn}` is missing LIR callable and target-bound declaration facts"
+            ));
         };
         let mut edges = CallableEdges::default();
         match &callable.contract {
@@ -257,6 +262,28 @@ impl<'a> ReachabilityCollector<'a> {
         self.callable_roots_by_key
             .get(key)
             .map(|root| (*root).to_string())
+    }
+
+    fn root_has_published_declaration(&self, root_fqn: &str) -> bool {
+        self.lir_facts
+            .global_init
+            .roots
+            .values()
+            .any(|root| root.root.as_str() == root_fqn)
+            || self.lir_facts.source_signatures.contains_key(root_fqn)
+                && self
+                    .lir_facts
+                    .physical_layout
+                    .abi_symbols
+                    .values()
+                    .any(|symbol| {
+                        symbol.root_fqn.as_deref() == Some(root_fqn)
+                            && symbol.callable.is_some()
+                            && matches!(
+                                symbol.role.as_str(),
+                                "callable_export" | "native_callable" | "extern_callable"
+                            )
+                    })
     }
 
     fn required_root_for_callable_key(&self, key: &StableLirCallableKey) -> Result<String, String> {

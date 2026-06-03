@@ -214,13 +214,6 @@ fn mir_empty_return_contract_is_lowerable(
     std::panic::panic_any("MIR verifier must reject non-Unit empty returns before LLVM codegen")
 }
 
-fn mir_direct_call_base_fqn(fqn: &str) -> &str {
-    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-    base.split_once("$overload")
-        .map(|(base, _)| base)
-        .unwrap_or(base)
-}
-
 #[derive(Clone, Copy)]
 pub(in crate::llvm::codegen) struct MirMemberPlace<'ctx> {
     ptr: PointerValue<'ctx>,

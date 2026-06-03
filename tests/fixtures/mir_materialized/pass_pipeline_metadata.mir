@@ -171,7 +171,7 @@ mir_facts {
     - result=stage_artifact(3:mir;215:instance(183:template(169:def(39:cone(22:pass_pipeline_metadata;5:0.0.0);3:fun;30:fixtures.mir_materialized.wrap;20:non_generic_callable;54:callable_sig(1:0;1:0;1:0;25:F(-;[V(Int)]->V(Int)/E()))));6:list();6:list());21:materialized_instance;1:0) callable=fixtures.mir_materialized.wrap provenance=param:0 overridden=true
     - result=stage_artifact(3:mir;221:instance(189:template(175:def(39:cone(22:pass_pipeline_metadata;5:0.0.0);3:fun;36:fixtures.mir_materialized.applyLocal;20:non_generic_callable;54:callable_sig(1:0;1:0;1:0;25:F(-;[V(Int)]->V(Int)/E()))));6:list();6:list());21:materialized_instance;1:0) callable=fixtures.mir_materialized.applyLocal provenance=unknown overridden=true
   boundary: source_contracts=4
-  backend: source_signatures=507, intrinsic_callables=1, enum_layouts=5, class_inits=32, vtables=64, interfaces=11, itables=64, extern_funs=35, native_callable_funs=0, global_inits=4
+  backend: source_signatures=509, intrinsic_callables=1, enum_layouts=5, class_inits=32, vtables=64, interfaces=11, itables=64, extern_funs=35, native_callable_funs=0, global_inits=4
   pass_artifacts: revisions=6, callable_body_overrides=3, summaries=8, escape_facts=0
     - revision=stage_artifact(3:mir;105:stage_artifact(3:mir;39:cone(22:pass_pipeline_metadata;5:0.0.0);33:canonical_materialized_snapshot@2;1:0);24:canonical_pass_artifacts;1:0) pass=canonical-pass-artifacts index=0
     - revision=stage_artifact(3:mir;105:stage_artifact(3:mir;39:cone(22:pass_pipeline_metadata;5:0.0.0);33:canonical_materialized_snapshot@2;1:0);24:canonical_pass_artifacts;1:1) pass=devirtualization index=1

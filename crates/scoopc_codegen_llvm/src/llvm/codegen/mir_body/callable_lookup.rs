@@ -7,15 +7,9 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn has_lir_source_instances_for_template(
         &self,
-        fqn: &str,
+        _fqn: &str,
     ) -> bool {
-        self.published_late_lowered_program()
-            .is_some_and(|program| {
-                program.callables().iter().any(|callable| {
-                    mir_direct_call_base_fqn(callable.root_fqn()) == fqn
-                        && callable.root_fqn() != fqn
-                })
-            })
+        false
     }
 
     pub(in crate::llvm::codegen) fn lir_source_callable(
@@ -84,12 +78,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut owner_fqn = fqn;
         loop {
             if let Some(source) = self.callable_sources.get(owner_fqn) {
-                return self.source_id_for_path(source.source_path.as_path(), span);
-            }
-            let base = mir_direct_call_base_fqn(owner_fqn);
-            if base != owner_fqn
-                && let Some(source) = self.callable_sources.get(base)
-            {
                 return self.source_id_for_path(source.source_path.as_path(), span);
             }
             let Some((parent, _)) = owner_fqn.rsplit_once(".$lambda") else {

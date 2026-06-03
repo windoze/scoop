@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::effect_facts_stage::MaterializedEffectFacts;
 use crate::effect_lowered::ordinary_callee::{
-    EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,
-    EffectFieldOwnerKind, EffectGlobalRootKind, EffectReflectionCall,
+    EffectAnalysisFacts, EffectFieldFact, EffectFieldOwnerKind, EffectGlobalRootKind,
+    EffectReflectionCall,
 };
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
@@ -171,27 +171,6 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
             )
         })
         .collect();
-    let constructor_calls = facts
-        .source_sites
-        .call_sites
-        .iter()
-        .filter_map(|site| {
-            facts
-                .source_sites
-                .constructor_call(site.identity.source_path.as_path(), site.identity.span)
-                .map(|target| {
-                    (
-                        crate::effect_lowered::source::CallSite::new(
-                            site.identity.source_path.clone(),
-                            site.identity.span,
-                        ),
-                        EffectConstructorCall {
-                            owner_fqn: target.owner_fqn.clone(),
-                        },
-                    )
-                })
-        })
-        .collect();
     let reflection_calls = facts
         .source_sites
         .call_sites
@@ -213,29 +192,15 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
             _ => None,
         })
         .collect();
-    let continuation_resumes = facts
-        .source_sites
-        .continuation_resumes
-        .iter()
-        .map(|resume| {
-            (
-                crate::effect_lowered::source::CallSite::new(
-                    resume.identity.source_path.clone(),
-                    resume.identity.span,
-                ),
-                EffectContinuationResume::new(resume.resumes_outward()),
-            )
-        })
-        .collect();
 
     EffectAnalysisFacts::from_parts(
         global_roots,
         fields,
         callable_return_tys,
         nominal_supertypes,
-        constructor_calls,
+        HashMap::new(),
         reflection_calls,
-        continuation_resumes,
+        HashMap::new(),
     )
 }
 

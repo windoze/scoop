@@ -301,20 +301,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _at: crate::span::Span,
         key: &LirClassCtorInitKey,
     ) -> Result<LateLoweredClassCtorInitBody, LlvmEmitError> {
-        if self.published_lir_facts.class_ctor_inits.contains_key(key) {
-            let program =
-                self.published_late_lowered_program()
-                    .ok_or_else(|| LlvmEmitError::Frontend {
-                        message: "class ctor init contract requires published LateLoweredProgram"
-                            .to_string(),
-                    })?;
-            if let Some(body) = program.class_ctor_init_body(key) {
-                return Ok(body.clone());
-            }
-        }
-        self.class_ctor_init_bodies
-            .get(key.as_str())
+        let program =
+            self.published_late_lowered_program()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: "class ctor init contract requires published LateLoweredProgram"
+                        .to_string(),
+                })?;
+        program
+            .class_ctor_init_body(key)
             .cloned()
+            .or_else(|| self.class_ctor_init_bodies.get(key.as_str()).cloned())
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "class ctor init body `{}` is missing from LIR facts and LLVM base context",
