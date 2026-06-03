@@ -325,7 +325,7 @@ pub(crate) fn build_lir_artifact(
         program,
         facts,
         base_context,
-        mir: materialized_mir,
+        mir: Some(materialized_mir),
         object_files: Vec::new(),
     })
 }
@@ -1316,7 +1316,11 @@ fun main(): Int {
         let artifact = super::build_lir_artifact(&session, entry_source, lowered, false)
             .expect("LIR artifact construction should succeed");
 
-        assert_eq!(&artifact.cone, artifact.mir.stable_cone_key());
+        let mir = artifact
+            .mir
+            .as_ref()
+            .expect("primary LIR artifact should retain the MIR overlay");
+        assert_eq!(&artifact.cone, mir.stable_cone_key());
         assert_eq!(&artifact.cone, artifact.base_context.stable_cone_key());
         assert!(artifact.object_files.is_empty());
         assert!(artifact.program.callable("sample.main").is_some());
@@ -1324,6 +1328,46 @@ fun main(): Int {
             .base_context
             .verify_lir_type_context(&artifact.facts, "unit test")
             .expect("LIR facts should reference the artifact base context type store");
+    }
+
+    #[test]
+    fn cached_dep_handoff_converts_to_lir_artifact() {
+        let _guard = test_lock();
+        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
+        let dep_stage = super::run(
+            &session,
+            LlvmCodegenStageInput::new(
+                lowered,
+                None,
+                source_map,
+                entry_source_id,
+                None,
+                OptLevel::O0,
+            ),
+        )
+        .expect("dep LLVM stage should succeed");
+        let object_files = vec![PathBuf::from("/tmp/scoop_cached_dep.o")];
+        let dep_handoff = CachedDepArtifactHandoff::new(
+            crate::cone::ConeId::new(7),
+            dep_stage.base_context().stable_cone_key().clone(),
+            dep_stage.lir().clone(),
+            dep_stage.lir_facts().clone(),
+            dep_stage.base_context().types().clone(),
+            object_files.clone(),
+        );
+
+        let artifact = pipeline::lir_artifact::lir_artifact_from_dep(dep_handoff)
+            .expect("cached dep handoff should convert to LIR artifact");
+
+        assert_eq!(&artifact.cone, dep_stage.base_context().stable_cone_key());
+        assert_eq!(&artifact.cone, artifact.base_context.stable_cone_key());
+        assert!(artifact.program.callable("sample.main").is_some());
+        assert!(artifact.mir.is_none());
+        assert_eq!(artifact.object_files, object_files);
+        artifact
+            .base_context
+            .verify_lir_type_context(&artifact.facts, "cached dep unit test")
+            .expect("cached dep LIR facts should match the rebuilt base context");
     }
 
     #[test]

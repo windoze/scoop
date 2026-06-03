@@ -71,6 +71,26 @@ impl CachedDepArtifactHandoff {
     pub fn object_files(&self) -> &[PathBuf] {
         &self.object_files
     }
+
+    pub fn into_parts(
+        self,
+    ) -> (
+        ConeId,
+        StableConeKey,
+        LateLoweredProgram,
+        LirFacts,
+        TypeStore,
+        Vec<PathBuf>,
+    ) {
+        (
+            self.cone_id,
+            self.stable_cone_key,
+            self.lir,
+            self.lir_facts,
+            self.type_store,
+            self.object_files,
+        )
+    }
 }
 
 /// LLVM/backend 仍需的显式 base context。
@@ -158,6 +178,46 @@ impl LlvmStageBaseContext {
             native_callable_funs,
             effect_analysis_facts: Rc::new(effect_analysis_facts),
         }
+    }
+
+    /// Rebuild the narrow base context available for a cached dependency cone.
+    pub fn from_cached_dep_type_store(
+        stable_cone_key: StableConeKey,
+        facts: &LirFacts,
+        types: TypeStore,
+    ) -> Result<Self, LlvmEmitError> {
+        Self::verify_lir_type_store_owner(&types, facts, "cached dependency")?;
+        let builtins = types.builtins().ok_or_else(|| LlvmEmitError::Frontend {
+            message: format!(
+                "cached dependency cone {}@{} TypeStore 缺少 builtin 类型",
+                stable_cone_key.name(),
+                stable_cone_key.version()
+            ),
+        })?;
+
+        Ok(Self {
+            source_cones: HashMap::new(),
+            stable_type_param_keys: HashMap::new(),
+            types,
+            stable_cone_key,
+            materialized_type_fingerprint: facts.type_context.materialized_fingerprint.clone(),
+            effect_type_fingerprint: facts.type_context.effect_facts_fingerprint.clone(),
+            struct_layouts: source_payload::StructLayoutIndex::default(),
+            enum_layouts: source_payload::EnumLayoutIndex::default(),
+            top_level_vars: source_payload::TopLevelVarIndex::default(),
+            top_level_immutable_values: source_payload::TopLevelImmutableValueIndex::default(),
+            object_inits: source_payload::ObjectInitIndex::default(),
+            class_inits: source_payload::ClassInitIndex::default(),
+            release_hooks: source_payload::ReleaseHookIndex::default(),
+            when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex::default(),
+            nominal_kinds: source_payload::NominalKindIndex::default(),
+            interior_mutable_nominals: source_payload::InteriorMutableIndex::default(),
+            builtins,
+            callable_sources: HashMap::new(),
+            extern_funs: source_payload::ExternFunIndex::default(),
+            native_callable_funs: source_payload::NativeCallableFunIndex::default(),
+            effect_analysis_facts: Rc::new(EffectAnalysisFacts::default()),
+        })
     }
 
     pub fn into_type_store(self) -> TypeStore {
