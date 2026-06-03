@@ -55,6 +55,7 @@ use scoopc_ids::{SiteId, StableLirCallableKey};
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
+use crate::effect_lowered::ir::LateLoweredClassCtorSourceCallContract;
 use crate::effect_lowered::ordinary_callee::{CalleeSuspendPlan, EffectAnalysisFacts};
 use crate::effect_lowered::source as hir;
 use crate::llvm::target::HostTargetInfo;
@@ -545,6 +546,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     current_callable_fqn: Option<String>,
     current_lir_callable_key: Option<StableLirCallableKey>,
     current_stable_owner_key: Option<StableDefKey>,
+    current_class_ctor_source_call_contracts: Vec<LateLoweredClassCtorSourceCallContract>,
     current_stable_closure_path_prefix: Option<String>,
     next_stable_child_closure_index: usize,
     stable_closure_paths: HashMap<hir::ClosureId, String>,

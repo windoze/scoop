@@ -1275,6 +1275,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must use LIR class ctor call-site facts instead of source-span ctor side tables",
                 ),
                 fp(
+                    "registered_class_instance_key_for_type",
+                    "direct call lowering must not trigger class ctor lowering from result/unresolved callee types",
+                ),
+                fp(
+                    "let arg_mapping = (0..args.len()).map(Some).collect",
+                    "direct call lowering must consume published class ctor arg mapping instead of synthesizing positional mappings",
+                ),
+                fp(
                     "split(\"::<\")",
                     "direct call lowering must not parse generic FQN text to recover callable roots",
                 ),
@@ -2036,8 +2044,24 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "class ctor lowering must consume exact LIR ctor call-site facts instead of span/arg-count selection",
                 ),
                 fp(
+                    "select_class_ctor_from_source_payload",
+                    "class ctor lowering must consume published source contracts instead of source-payload span/arg-count selection",
+                ),
+                fp(
+                    "class_ctor_init_body_for_source_selection",
+                    "class ctor init lookup must use exact published init keys instead of reconstructing keys from selected source ctors",
+                ),
+                fp(
                     "unique_class_ctor_init_body_by_span_suffix",
                     "class ctor init lookup must not recover init bodies by span suffix",
+                ),
+                fp(
+                    "same_span_class_ctor_init_body",
+                    "class ctor init lookup must not recover init bodies by span suffix",
+                ),
+                fp(
+                    "rsplit_once('@')",
+                    "class ctor init lookup must not parse init-key span suffixes",
                 ),
             ),
         ),

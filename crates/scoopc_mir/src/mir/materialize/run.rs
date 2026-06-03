@@ -244,6 +244,7 @@ impl MirInstanceMaterializer {
         let backend_contracts = MaterializedBackendContracts {
             enum_layouts: self.enum_layouts.clone(),
             class_inits: self.class_inits.clone(),
+            ctor_call_sites: self.ctor_call_sites.clone(),
             class_vtables: self.class_vtables.clone(),
             interfaces: self.interfaces.clone(),
             class_itables: self.class_itables.clone(),

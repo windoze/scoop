@@ -165,6 +165,7 @@ fn optimize_program_body(
             optimized_callables,
         )
         .with_class_ctor_init_bodies(program.class_ctor_init_bodies().cloned().collect())
+        .with_source_class_ctor_calls(program.source_class_ctor_calls().to_vec())
         .with_stable_instance_keys(program.stable_instance_keys().clone())
         .with_dump_metadata(
             program.dump_type_texts().clone(),
@@ -229,6 +230,7 @@ fn optimize_program_body(
         callables,
     )
     .with_class_ctor_init_bodies(program.class_ctor_init_bodies().cloned().collect())
+    .with_source_class_ctor_calls(program.source_class_ctor_calls().to_vec())
     .with_stable_instance_keys(program.stable_instance_keys().clone())
     .with_dump_metadata(
         program.dump_type_texts().clone(),

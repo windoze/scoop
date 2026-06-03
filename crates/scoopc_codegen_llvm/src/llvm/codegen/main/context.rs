@@ -373,6 +373,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
+    pub(in crate::llvm::codegen) fn current_class_ctor_source_call_contract(
+        &self,
+        span: crate::span::Span,
+    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
+        self.function_cx
+            .current_class_ctor_source_call_contracts
+            .iter()
+            .find(|contract| contract.call_span() == span)
+            .or_else(|| {
+                let source = self.source_map.source(self.current_source_id)?;
+                self.shared
+                    .published_late_lowered_program
+                    .and_then(|program| program.source_class_ctor_call(source.path(), span))
+            })
+    }
+
     pub(in crate::llvm::codegen) fn required_lir_source_call_site(
         &self,
         site_id: SiteId,

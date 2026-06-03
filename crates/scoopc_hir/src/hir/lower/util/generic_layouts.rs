@@ -1178,116 +1178,123 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
         return HashMap::new();
     }
 
-    // 2) 扫描 TypeStore 中的具体实例化（class 是 ref type → RefTypeKind::Nominal）
+    // 2) 扫描 TypeStore 中的具体实例化（class 是 ref type → RefTypeKind::Nominal）。
+    // 实例化一个 generic class 的字段/ctor 参数可能继续创建新的 nested generic class
+    // TypeId（如 AtomicValue<Pair> -> Atomic<Box<Pair>>），因此这里跑到 fixed point。
     let mut out: ClassInitIndex = HashMap::new();
-    let concrete_type_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
-    for ty_id in concrete_type_ids {
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
-            continue;
-        };
-        if nominal.args.is_empty() {
-            continue;
-        }
-        if nominal
-            .args
-            .iter()
-            .any(|&arg| type_contains_param(types, arg))
-        {
-            continue;
-        }
-
-        let Some((source, decl)) = generic_classes.get(&nominal.fqn) else {
-            continue;
-        };
-
-        let Some(class_key) = types
-            .as_mono(ty_id)
-            .ok()
-            .and_then(|mono_ty| crate::hir::ClassInstanceKey::from_mono_nominal(types, mono_ty))
-        else {
-            continue;
-        };
-        if out.contains_key(&class_key) {
-            continue;
-        }
-
-        // base GenericClassDecl 必须存在
-        let Some(base_decl) = base_generic_class_decls.get(&nominal.fqn) else {
-            continue;
-        };
-
-        let type_params = &decl.type_params;
-        if type_params.len() != nominal.args.len() {
-            continue;
-        }
-
-        // 构建 type param name → concrete TypeId 映射
-        let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
-        for (idx, p) in type_params.iter().enumerate() {
-            let name = p.name.text(source).to_string();
-            param_map.insert(name, nominal.args[idx]);
-        }
-        let mut eff_map: HashMap<String, EffectRow> = HashMap::new();
-        if let Some(eff_param) = decl.eff_param.as_ref()
-            && let Some(eff) = nominal.eff.clone()
-        {
-            eff_map.insert(eff_param.name.text(source).to_string(), eff);
-        }
-
-        // 替换字段类型（仍然是 TypeId 形态）：必须递归穿透 nominal args / Option / function
-        // 等嵌套位置，否则 `__TaskState<T>`、`Option<T>` 这类字段会把 `TypeKind::Param`
-        // 残留到后端。
-        let fields: Vec<ClassField<TypeId>> = base_decl
-            .fields
-            .iter()
-            .map(|f| ClassField {
-                fqn: f.fqn.clone(),
-                name: f.name.clone(),
-                mutable: f.mutable,
-                ty: substitute_type_params_and_eff(types, f.ty, &param_map, &eff_map),
-            })
-            .collect();
-
-        let field_indices = base_decl.field_indices.clone();
-
-        // 替换 ctor 参数类型（仍然是 TypeId 形态）
-        let ctors: Vec<ClassCtor<TypeId>> = base_decl
-            .ctors
-            .iter()
-            .cloned()
-            .map(|ctor| substitute_class_ctor_type_params(types, ctor, &param_map, &eff_map))
-            .collect();
-
-        // 先建一个 substituted 的 GenericClassDecl，再立即升级为 MonoClassInit。
-        // 失败说明 monomorph driver 漏过了 Param 残留——以明确 diag 终止 codegen。
-        let substituted = GenericClassDecl {
-            fqn: class_key.as_str().to_string(),
-            source_path: base_decl.source_path.clone(),
-            super_class_fqn: base_decl.super_class_fqn.clone(),
-            super_ctor_args_span: base_decl.super_ctor_args_span,
-            super_ctor_call: base_decl.super_ctor_call.clone(),
-            super_ctor_args: substitute_call_args_type_params(
-                types,
-                base_decl.super_ctor_args.clone(),
-                &param_map,
-                &eff_map,
-            ),
-            this_id: base_decl.this_id,
-            fields,
-            field_indices,
-            steps: substitute_class_init_steps(types, &base_decl.steps, &param_map, &eff_map),
-            ctors,
-        };
-
-        match crate::hir::MonoClassInit::from_generic_decl(&substituted, types) {
-            Ok(mono) => {
-                out.insert(mono.key(), mono);
+    loop {
+        let mut inserted_any = false;
+        let concrete_type_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
+        for ty_id in concrete_type_ids {
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
+                continue;
+            };
+            if nominal.args.is_empty() {
+                continue;
             }
-            Err(diag) => {
-                panic!(
-                    "monomorph driver leak: generic class instantiation `{class_key}` still contains `Param` after substitution: {diag}"
-                );
+            if nominal
+                .args
+                .iter()
+                .any(|&arg| type_contains_param(types, arg))
+            {
+                continue;
             }
+
+            let Some((source, decl)) = generic_classes.get(&nominal.fqn) else {
+                continue;
+            };
+
+            let Some(class_key) = types.as_mono(ty_id).ok().and_then(|mono_ty| {
+                crate::hir::ClassInstanceKey::from_mono_nominal(types, mono_ty)
+            }) else {
+                continue;
+            };
+            if out.contains_key(&class_key) {
+                continue;
+            }
+
+            // base GenericClassDecl 必须存在
+            let Some(base_decl) = base_generic_class_decls.get(&nominal.fqn) else {
+                continue;
+            };
+
+            let type_params = &decl.type_params;
+            if type_params.len() != nominal.args.len() {
+                continue;
+            }
+
+            // 构建 type param name → concrete TypeId 映射
+            let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
+            for (idx, p) in type_params.iter().enumerate() {
+                let name = p.name.text(source).to_string();
+                param_map.insert(name, nominal.args[idx]);
+            }
+            let mut eff_map: HashMap<String, EffectRow> = HashMap::new();
+            if let Some(eff_param) = decl.eff_param.as_ref()
+                && let Some(eff) = nominal.eff.clone()
+            {
+                eff_map.insert(eff_param.name.text(source).to_string(), eff);
+            }
+
+            // 替换字段类型（仍然是 TypeId 形态）：必须递归穿透 nominal args / Option / function
+            // 等嵌套位置，否则 `__TaskState<T>`、`Option<T>` 这类字段会把 `TypeKind::Param`
+            // 残留到后端。
+            let fields: Vec<ClassField<TypeId>> = base_decl
+                .fields
+                .iter()
+                .map(|f| ClassField {
+                    fqn: f.fqn.clone(),
+                    name: f.name.clone(),
+                    mutable: f.mutable,
+                    ty: substitute_type_params_and_eff(types, f.ty, &param_map, &eff_map),
+                })
+                .collect();
+
+            let field_indices = base_decl.field_indices.clone();
+
+            // 替换 ctor 参数类型（仍然是 TypeId 形态）
+            let ctors: Vec<ClassCtor<TypeId>> = base_decl
+                .ctors
+                .iter()
+                .cloned()
+                .map(|ctor| substitute_class_ctor_type_params(types, ctor, &param_map, &eff_map))
+                .collect();
+
+            // 先建一个 substituted 的 GenericClassDecl，再立即升级为 MonoClassInit。
+            // 失败说明 monomorph driver 漏过了 Param 残留——以明确 diag 终止 codegen。
+            let substituted = GenericClassDecl {
+                fqn: class_key.as_str().to_string(),
+                source_path: base_decl.source_path.clone(),
+                super_class_fqn: base_decl.super_class_fqn.clone(),
+                super_ctor_args_span: base_decl.super_ctor_args_span,
+                super_ctor_call: base_decl.super_ctor_call.clone(),
+                super_ctor_args: substitute_call_args_type_params(
+                    types,
+                    base_decl.super_ctor_args.clone(),
+                    &param_map,
+                    &eff_map,
+                ),
+                this_id: base_decl.this_id,
+                fields,
+                field_indices,
+                steps: substitute_class_init_steps(types, &base_decl.steps, &param_map, &eff_map),
+                ctors,
+            };
+
+            match crate::hir::MonoClassInit::from_generic_decl(&substituted, types) {
+                Ok(mono) => {
+                    out.insert(mono.key(), mono);
+                    inserted_any = true;
+                }
+                Err(diag) => {
+                    panic!(
+                        "monomorph driver leak: generic class instantiation `{class_key}` still contains `Param` after substitution: {diag}"
+                    );
+                }
+            }
+        }
+        if !inserted_any {
+            break;
         }
     }
 

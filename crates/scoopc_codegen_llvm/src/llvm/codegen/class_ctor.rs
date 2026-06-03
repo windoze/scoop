@@ -23,16 +23,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        class_fqn: &str,
         args: &[hir::CallArg],
-        ctor_span: Option<crate::span::Span>,
-        arg_mapping: &[Option<usize>],
-        result_ty: Option<TypeId>,
+        contract: &LateLoweredClassCtorSourceCallContract,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let result_ty = result_ty.ok_or_else(|| LlvmEmitError::Frontend {
-            message: format!("class ctor `{class_fqn}` reached LLVM without a typed result target"),
-        })?;
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty) else {
+        let class_fqn = contract.class_fqn();
+        let result_ty = contract.result_ty();
+        let TypeKind::Ref(RefTypeKind::Nominal(_)) = self.types.kind(result_ty) else {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "class ctor `{class_fqn}` result type t{} is not a nominal class reference",
@@ -40,14 +36,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             });
         };
-        if nominal.fqn != class_fqn {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "class ctor `{class_fqn}` result type resolves to mismatched nominal `{}`",
-                    nominal.fqn
-                ),
-            });
-        }
         let mono_result_ty =
             self.types
                 .as_mono(result_ty)
@@ -68,14 +56,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         let class = self.class_init_layout(callee_span, &class_key)?;
-        let selected_ctor = self.select_class_ctor_from_source_payload(
-            &class,
-            ctor_span,
-            args.len(),
-            "class ctor source payload contract",
-        )?;
-        let init_body =
-            self.class_ctor_init_body_for_source_selection(callee_span, &class, selected_ctor)?;
+        if class.fqn != class_fqn {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor source contract for `{class_fqn}` resolved to class layout `{}`",
+                    class.fqn
+                ),
+            });
+        }
+        let init_body = self
+            .class_ctor_init_body_for_key(callee_span, contract.target())
+            .map_err(|err| match err {
+                LlvmEmitError::Frontend { message } => LlvmEmitError::Frontend {
+                    message: format!(
+                        "class ctor source contract for `{class_fqn}` targets missing init `{}`: {message}",
+                        contract.target().as_str()
+                    ),
+                },
+                other => other,
+            })?;
+        if init_body.class_fqn() != class.fqn {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor source contract for `{class_fqn}` targets init body for `{}`",
+                    init_body.class_fqn()
+                ),
+            });
+        }
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
@@ -125,7 +132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callee_span,
             callee_span,
             args,
-            Some(arg_mapping),
+            Some(contract.arg_mapping()),
             init_body.params(),
             "class ctor call arg eval",
         )?;
@@ -154,60 +161,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn select_class_ctor_from_source_payload<'b>(
-        &self,
-        class: &'b hir::MonoClassInit,
-        target_ctor_span: Option<crate::span::Span>,
-        arg_count: usize,
-        kind: &'static str,
-    ) -> Result<Option<&'b hir::ClassCtor<MonoTypeId>>, LlvmEmitError> {
-        if let Some(target_span) = target_ctor_span {
-            let matching = class
-                .ctors
-                .iter()
-                .filter(|ctor| ctor.span == target_span)
-                .collect::<Vec<_>>();
-            if matching.len() != 1 {
-                panic!("select_class_ctor_from_source_payload: verifier accepted {kind}");
-            }
-            return Ok(Some(matching[0]));
-        }
-        if class.ctors.is_empty() {
-            return if arg_count == 0 {
-                Ok(None)
-            } else {
-                panic!("select_class_ctor_from_source_payload: verifier accepted {kind}")
-            };
-        }
-        let matching = class
-            .ctors
-            .iter()
-            .filter(|ctor| {
-                ctor.params.len() >= arg_count
-                    && ctor.params[arg_count..]
-                        .iter()
-                        .all(|param| param.has_default)
-            })
-            .collect::<Vec<_>>();
-        if matching.len() == 1 {
-            return Ok(Some(matching[0]));
-        }
-        panic!("select_class_ctor_from_source_payload: verifier accepted {kind}")
-    }
-
-    fn class_ctor_init_body_for_source_selection(
-        &self,
-        at: crate::span::Span,
-        class: &hir::MonoClassInit,
-        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
-    ) -> Result<LateLoweredClassCtorInitBody, LlvmEmitError> {
-        let key = LirClassCtorInitKey::for_ctor(
-            class.fqn.as_str(),
-            ctor.map(|ctor| (ctor.span.start, ctor.span.end)),
-        );
-        self.class_ctor_init_body_for_key(at, &key)
-    }
-
     pub(in crate::llvm::codegen) fn class_ctor_init_body_for_key(
         &self,
         _at: crate::span::Span,
@@ -222,32 +175,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program
             .class_ctor_init_body(key)
             .cloned()
-            .or_else(|| self.same_span_class_ctor_init_body(program, key))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "class ctor init body `{}` is missing from the published LateLoweredProgram",
                     key.as_str()
                 ),
             })
-    }
-
-    fn same_span_class_ctor_init_body(
-        &self,
-        program: &crate::effect_lowered::LateLoweredProgram,
-        key: &LirClassCtorInitKey,
-    ) -> Option<LateLoweredClassCtorInitBody> {
-        let (_, suffix) = key.as_str().rsplit_once('@')?;
-        let mut matches = program
-            .class_ctor_init_bodies()
-            .filter(|body| {
-                body.key()
-                    .as_str()
-                    .rsplit_once('@')
-                    .is_some_and(|(_, body_suffix)| body_suffix == suffix)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        (matches.len() == 1).then(|| matches.remove(0))
     }
 
     fn codegen_class_ctor_eval_args(
@@ -645,6 +578,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_source_id = self.current_source_id;
         let saved_callable_fqn = self.function_cx.current_callable_fqn.clone();
         let saved_stable_owner_key = self.function_cx.current_stable_owner_key.clone();
+        let saved_class_ctor_source_call_contracts = self
+            .function_cx
+            .current_class_ctor_source_call_contracts
+            .clone();
         let saved_stable_closure_path_prefix =
             self.function_cx.current_stable_closure_path_prefix.clone();
         let saved_next_stable_child_closure_index =
@@ -660,6 +597,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_key.as_str(),
             "class_init",
         ));
+        self.function_cx.current_class_ctor_source_call_contracts =
+            init_body.source_ctor_calls().to_vec();
         self.function_cx.current_stable_closure_path_prefix =
             Some(format!("{}.$init", class_key.as_str()));
         self.function_cx.next_stable_child_closure_index = 0;
@@ -769,6 +708,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id = saved_source_id;
         self.function_cx.current_callable_fqn = saved_callable_fqn;
         self.function_cx.current_stable_owner_key = saved_stable_owner_key;
+        self.function_cx.current_class_ctor_source_call_contracts =
+            saved_class_ctor_source_call_contracts;
         self.function_cx.current_stable_closure_path_prefix = saved_stable_closure_path_prefix;
         self.function_cx.next_stable_child_closure_index = saved_next_stable_child_closure_index;
         self.function_cx.stable_closure_paths = saved_stable_closure_paths;

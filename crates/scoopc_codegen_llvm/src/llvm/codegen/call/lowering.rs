@@ -67,10 +67,12 @@ fn hir_arg_tys(args: &[hir::CallArg]) -> Vec<TypeId> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn registered_class_instance_key_for_type(&self, ty: TypeId) -> Option<hir::ClassInstanceKey> {
-        let mono_ty = self.types.as_mono(ty).ok()?;
-        let key = hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)?;
-        self.class_inits.contains_key(&key).then_some(key)
+    fn type_resolves_to_published_class_init(&self, ty: TypeId) -> bool {
+        let Ok(mono_ty) = self.types.as_mono(ty) else {
+            return false;
+        };
+        hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)
+            .is_some_and(|key| self.class_inits.contains_key(&key))
     }
 
     fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
@@ -1728,40 +1730,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let Some(result_ty) = result_ty
-            && let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty)
-            && self
-                .registered_class_instance_key_for_type(result_ty)
-                .is_some()
-        {
-            let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
-            return self.codegen_class_ctor_call(
-                span,
-                callee.span,
-                &nominal.fqn,
-                args,
-                None,
-                arg_mapping.as_slice(),
-                Some(result_ty),
-            );
+        if let Some(contract) = self.current_class_ctor_source_call_contract(span).cloned() {
+            return self.codegen_class_ctor_call(span, callee.span, args, &contract);
         }
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
-            if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(callee.ty)
-                && self
-                    .registered_class_instance_key_for_type(callee.ty)
-                    .is_some()
+            if result_ty
+                .or(Some(callee.ty))
+                .is_some_and(|ty| self.type_resolves_to_published_class_init(ty))
             {
-                let arg_mapping = (0..args.len()).map(Some).collect::<Vec<_>>();
-                return self.codegen_class_ctor_call(
-                    span,
-                    callee.span,
-                    &nominal.fqn,
-                    args,
-                    None,
-                    arg_mapping.as_slice(),
-                    Some(callee.ty),
-                );
+                return Err(LlvmEmitError::Frontend {
+                    message: format!(
+                        "class ctor call `{name}` at {span:?} reached LLVM without a LIR source contract"
+                    ),
+                });
             }
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 panic!(

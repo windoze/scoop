@@ -100,6 +100,7 @@ pub struct MaterializedCallableEffectTemplate {
 pub struct MaterializedBackendContracts {
     pub enum_layouts: crate::hir::EnumLayoutIndex,
     pub class_inits: crate::hir::ClassInitIndex,
+    pub ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub class_vtables: crate::vtable::ClassVtableIndex,
     pub interfaces: crate::itable::InterfaceIndex,
     pub class_itables: crate::itable::ClassItableIndex,

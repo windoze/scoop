@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use scoopc_ids::{BodyVersionKey, StableLirCallableKey};
 
@@ -55,6 +55,7 @@ pub struct LateLoweredProgram {
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
+    source_class_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     dump_type_texts: HashMap<TypeId, String>,
     #[serde(skip, default)]
@@ -78,6 +79,7 @@ impl LateLoweredProgram {
             surface_resume_dispatch_inventory,
             callables,
             class_ctor_init_bodies: HashMap::new(),
+            source_class_ctor_calls: Vec::new(),
             stable_instance_keys: HashMap::new(),
             dump_type_texts: HashMap::new(),
             dump_body_labels: HashMap::new(),
@@ -135,6 +137,7 @@ impl LateLoweredProgram {
             surface_resume_dispatch_inventory,
             callables: self.callables.clone(),
             class_ctor_init_bodies: self.class_ctor_init_bodies.clone(),
+            source_class_ctor_calls: self.source_class_ctor_calls.clone(),
             stable_instance_keys: self.stable_instance_keys.clone(),
             dump_type_texts: self.dump_type_texts.clone(),
             dump_body_labels: self.dump_body_labels.clone(),
@@ -229,6 +232,31 @@ impl LateLoweredProgram {
 
     pub fn class_ctor_init_bodies(&self) -> impl Iterator<Item = &LateLoweredClassCtorInitBody> {
         self.class_ctor_init_bodies.values()
+    }
+
+    pub fn with_source_class_ctor_calls(
+        mut self,
+        source_class_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
+    ) -> Self {
+        self.source_class_ctor_calls = source_class_ctor_calls;
+        self
+    }
+
+    pub fn source_class_ctor_call(
+        &self,
+        source_path: &Path,
+        call_span: Span,
+    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
+        self.source_class_ctor_calls.iter().find(|contract| {
+            contract.call_span() == call_span
+                && (contract.source_path() == source_path
+                    || contract.source_path().ends_with(source_path)
+                    || source_path.ends_with(contract.source_path()))
+        })
+    }
+
+    pub fn source_class_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
+        &self.source_class_ctor_calls
     }
 
     pub fn callable(&self, root_fqn: &str) -> Option<&LateLoweredCallable> {
@@ -361,6 +389,60 @@ pub type LateLoweredSourceClassCtorCallArg = class_ctor_source::CallArg;
 pub type LateLoweredSourceClassCtorExpr = class_ctor_source::Expr;
 
 pub type LateLoweredSourceClassCtorBlock = class_ctor_source::Block;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredClassCtorSourceCallContract {
+    source_path: PathBuf,
+    call_span: Span,
+    class_fqn: String,
+    target: scoopc_lir_facts::LirClassCtorInitKey,
+    result_ty: TypeId,
+    arg_mapping: Vec<Option<usize>>,
+}
+
+impl LateLoweredClassCtorSourceCallContract {
+    pub fn new(
+        source_path: PathBuf,
+        call_span: Span,
+        class_fqn: String,
+        target: scoopc_lir_facts::LirClassCtorInitKey,
+        result_ty: TypeId,
+        arg_mapping: Vec<Option<usize>>,
+    ) -> Self {
+        Self {
+            source_path,
+            call_span,
+            class_fqn,
+            target,
+            result_ty,
+            arg_mapping,
+        }
+    }
+
+    pub fn call_span(&self) -> Span {
+        self.call_span
+    }
+
+    pub fn source_path(&self) -> &Path {
+        self.source_path.as_path()
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn target(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
+        &self.target
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub fn arg_mapping(&self) -> &[Option<usize>] {
+        &self.arg_mapping
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorParam {
@@ -578,6 +660,7 @@ pub struct LateLoweredClassCtorInitBody {
     implicit_super: Option<LateLoweredClassCtorSuperCall>,
     delegation: Option<LateLoweredClassCtorDelegation>,
     steps: Vec<LateLoweredClassCtorInitStep>,
+    source_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
 }
 
 impl LateLoweredClassCtorInitBody {
@@ -593,6 +676,7 @@ impl LateLoweredClassCtorInitBody {
         implicit_super: Option<LateLoweredClassCtorSuperCall>,
         delegation: Option<LateLoweredClassCtorDelegation>,
         steps: Vec<LateLoweredClassCtorInitStep>,
+        source_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
     ) -> Self {
         Self {
             key,
@@ -605,6 +689,7 @@ impl LateLoweredClassCtorInitBody {
             implicit_super,
             delegation,
             steps,
+            source_ctor_calls,
         }
     }
 
@@ -646,6 +731,19 @@ impl LateLoweredClassCtorInitBody {
 
     pub fn steps(&self) -> &[LateLoweredClassCtorInitStep] {
         &self.steps
+    }
+
+    pub fn source_ctor_call(
+        &self,
+        call_span: Span,
+    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
+        self.source_ctor_calls
+            .iter()
+            .find(|contract| contract.call_span() == call_span)
+    }
+
+    pub fn source_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
+        &self.source_ctor_calls
     }
 }
 

@@ -28,7 +28,7 @@
 | T3-04G | [DONE] | 收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口 |
 | T3-04H | [DONE] | 收口 T3-04R 八次审查发现的 P6 generic/ctor/value-box/MIR intrinsic fallback 与 gate 残余缺口 |
 | T3-04I | [DONE] | 收口 T3-04R 九次审查发现的 reflection source-span、ctor/readable-path、value-box、signature/verifier/gate 残余缺口 |
-| T3-04J | [TODO] | 收口 T3-04R 十次审查发现的 source-payload class ctor fallback 与 gate 残余缺口 |
+| T3-04J | [DONE] | 收口 T3-04R 十次审查发现的 source-payload class ctor fallback 与 gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -243,7 +243,7 @@
 - 依赖：T3-04H
 - 完成记录：2026-06-03 完成。MIR reflection intrinsic rvalue 现在携带 `SiteId`，LIR facts 发布 owner+site keyed reflection call-site facts并由 verifier 校验；P6 class ctor exact owner+`SiteId` lookup 删除 readable-path fallback，class ctor init exact miss 仍通过既有 source-payload 兼容路径维持当前功能；HIR/source-payload reflection、class ctor 与 generic direct-call 兼容消费收口到已发布 effect/LIR/source-signature facts，不再使用任务列出的旧 helper 名称或 source-signature key 直接扫描守卫模式。LIR verifier 补齐 class ctor/reflection owner、arg mapping、dynamic invoke body-version 校验；effect fact import 对未知 stable target、空 candidate 与 step case 缺 concrete op 改为 fail-fast。MIR/LIR backend facts 与 dependency gate 补充 reflection、ctor、value-box、source-signature、dynamic target 与 effect import 残留守卫；schema 升至 1.12，MIR golden 更新 reflection `SiteId` 输出。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04J：收口 T3-04R 十次审查发现的 source-payload class ctor fallback 与 gate 残余缺口
+### [DONE] T3-04J：收口 T3-04R 十次审查发现的 source-payload class ctor fallback 与 gate 残余缺口
 - 背景：执行 `T3-04R` 第十次审查时确认，`T3-04I` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
   1. **删除 source-payload class ctor 选择 fallback**：LLVM HIR/source direct-call lowering 不得在缺 LIR class ctor call-site contract 时通过 result type、unresolved callee type、ctor span、参数个数/default 参数唯一匹配或 source payload 的 arg mapping 推断 class ctor 目标；class ctor call 必须消费 LIR owner + `SiteId` / source contract 或等价已发布 fact，缺失时 fail-fast。
@@ -253,7 +253,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 - 完成条件：source-payload class ctor lowering 全部改为已发布 fact 消费；exact ctor/init key miss fail-fast；gate/verifier 防止 span/arg-count/result-type/source-payload fallback 回归；全量验证通过，且不得引入 fixture-only workaround。
 - 依赖：T3-04I
-- 完成记录：（待填）
+- 完成记录：2026-06-03 完成。P6 HIR/source class ctor lowering 删除 result-type / unresolved-ident 触发的构造器 fallback，改为只消费 LIR 发布的 `LateLoweredClassCtorSourceCallContract`；`class_ctor_init_body_for_key` 只做 exact `LirClassCtorInitKey` 查询，删除 source-payload span/arg-count 选择与 init-key span 后缀恢复。LIR class ctor init body 和全局 source payload 现在发布 class ctor source contracts，覆盖 class init、object init、top-level val/var init 等 source payload；source contract 携带 source path、call span、单态 class identity、exact init key、result type 与 arg mapping，P6 缺 contract 时 fail-fast。泛型 class init 收集改为 fixed point，确保 `AtomicValue<Pair>` 这类实例化引出的 nested `Atomic<Box<Pair>>` init body 被发布。Dependency gate 补齐当前实际 helper 名称和等价模式守卫，防止 `select_class_ctor_from_source_payload`、`same_span_class_ctor_init_body`、`registered_class_instance_key_for_type`、span 后缀解析和位置参数映射合成回归。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`
