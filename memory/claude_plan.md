@@ -2,7 +2,30 @@
 
 说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
-## 本轮任务：T1-03
+## 本轮任务：T1-03-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
+3. 复核 `T1-03` 的 cached dependency handoff 到 `LirArtifact` 的适配实现。
+4. 对照现有 `CachedDepArtifactHandoff` 消费路径，确认 dependency `base_context` 重建没有引入 recompute/fallback。
+5. 确认 dependency artifact 不携带 MIR overlay，也没有静默放入占位 MIR。
+6. 确认 `cone/program/facts/object_files` 映射无丢失。
+7. 用带依赖 cone 的 fixture 验证编译、链接、运行路径保持既有行为。
+8. 按顺序运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、完整 Rust 测试、build、dependency gate、spec fixtures 和完整 fixture suite。
+9. 成功后更新 `TODO.md`，给 `T1-03-R` 标题加 `[DONE]` 并填写完成记录。
+10. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+## 本轮进度记录
+
+- 已确认第一个未完成任务为 `T1-03-R：Review T1-03`。
+- 最近提交 `f69bbb88 [T1-03] Adapt cached deps to LIR artifacts` 是本 review 的直接对象，未显示额外未完成前置项。
+- 已复核 `lir_artifact_from_dep` 与 `LlvmStageBaseContext::from_cached_dep_type_store`：cached dependency handoff 的 `cone/program/facts/object_files` 直接映射进 `LirArtifact`，base context 只从现有 cached dep `TypeStore` 与 `LirFacts` owner/fingerprint 契约重建。
+- 已确认 dependency artifact 的 `mir` 明确为 `None`，没有静默塞占位 MIR；现有 cached dep ABI materialization 仍只消费 LIR/facts/type store/object files。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-03-R` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-03-R 记录置顶。
+
+## 上一轮记录：T1-03
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -15,7 +38,7 @@
 9. 成功后更新 `TODO.md`，给 `T1-03` 标题加 `[DONE]` 并填写完成记录。
 10. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-## 本轮进度记录
+上一轮进度：
 
 - 已确认第一个未完成任务为 `T1-03：依赖 handoff → LirArtifact 适配`。
 - 最近提交 `bfcc25ea [T1-02-R] Review LIR artifact builder` 未显示需要优先处理的 T1-03 直接未完成问题。
@@ -26,7 +49,7 @@
 - 已更新 `TODO.md`，将 `T1-03` 标记为 `[DONE]` 并填写完成记录。
 - 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-03 记录置顶。
 
-## 上一轮记录：T1-02-R
+## 更早记录：T1-02-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -38,7 +61,7 @@
 8. 成功后更新 `TODO.md`，给 `T1-02-R` 标题加 `[DONE]` 并填写完成记录。
 9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-上一轮进度：
+更早进度：
 
 - 已确认第一个未完成任务为 `T1-02-R：Review T1-02`。
 - 最近提交 `fb12b99e [T1-02] Extract LIR artifact builder` 是本 review 的直接对象，未提到额外未完成前置项。

@@ -115,7 +115,7 @@ pub struct CodegenInput {
 - 验收：依赖 cone 能转成 `LirArtifact`。
 - 完成记录（2026-06-04）：新增公开适配函数 `pipeline::lir_artifact::lir_artifact_from_dep(...) -> Result<LirArtifact, LlvmEmitError>`，将 cached dependency handoff 的 `cone/program/facts/object_files` 直接映射进 `LirArtifact`；`LlvmStageBaseContext::from_cached_dep_type_store(...)` 复用现有 cached dep 消费所需的 `TypeStore` + `LirFacts` owner 校验来重建依赖 base context；`LirArtifact.mir` 改为 `Option<MaterializedMir>`，主 cone 为 `Some`，cached dep 明确为 `None`，未静默放入占位 MIR。新增单测覆盖 cached dep handoff 到 `LirArtifact` 的转换、object files 保留、base context type-context 校验和 dep MIR 缺席。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-03-R：Review T1-03
+### [DONE] T1-03-R：Review T1-03
 - **关注点**：
   - 依赖 `base_context` 重建**复用现有 dep 消费路径**，未引入新的 recompute/fallback（对照 `handoff.rs` 中原消费 `CachedDepArtifactHandoff` 的逻辑）。
   - `mir` 字段对依赖的处置：确认依赖 LIR **不再 overlay 回 MIR**；若现状仍需 MIR，必须**显式登记为 P2 风险**（注释 + 备注），**不得**静默塞占位掩盖。
@@ -123,6 +123,7 @@ pub struct CodegenInput {
 - **确认验证**：
   - 用一个**带依赖 cone** 的 fixture（多 cone 编译）走通：编译 + 链接 + 运行结果与重构前一致。
   - `cargo test --all` 中跨 cone/dep 相关用例绿。
+- 完成记录（2026-06-04）：复核 `lir_artifact_from_dep` 与 `LlvmStageBaseContext::from_cached_dep_type_store`，确认 cached dependency handoff 的 `cone/program/facts/object_files` 字段直接映射到 `LirArtifact`，依赖 base context 只从现有 cached dep `TypeStore` + `LirFacts` owner/fingerprint 契约重建，未引入 recompute/fallback；依赖 artifact 的 `mir` 明确为 `None`，没有静默塞占位 MIR，现有 cached dep ABI materialization 仍只消费 LIR/facts/type store/object files。带依赖 cone fixture `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 编译、链接、运行通过并输出既有期望 `42`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-04：codegen `run` 改吃 `CodegenInput`
 - 改 `fn run` 签名为 `run(session, input: CodegenInput)`；删除其内部对 `run_lir_stage_from_lowered_hir` 的调用（已移至 T1-02）。
