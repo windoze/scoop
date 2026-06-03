@@ -1711,12 +1711,10 @@ fn verify_published_call_target(
             reason: "target binding key does not match target callable",
         });
     }
+    let signature = facts.source_signatures.get(&binding.root_fqn);
     if binding.root_fqn.is_empty()
         || binding.abi_symbol.is_empty()
-        || !facts.source_signatures.values().any(|signature| {
-            signature.signature_key == binding.signature_key
-                && signature.root_fqn == binding.root_fqn
-        })
+        || signature.is_none_or(|signature| signature.signature_key != binding.signature_key)
         || !facts.physical_layout.abi_symbols.values().any(|symbol| {
             symbol.symbol == binding.abi_symbol
                 && symbol.root_fqn.as_deref() == Some(binding.root_fqn.as_str())

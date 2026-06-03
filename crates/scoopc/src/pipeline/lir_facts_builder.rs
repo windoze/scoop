@@ -54,13 +54,6 @@ struct MaterializedCallableSignature {
     closure_carrier_arg_tys: Vec<TypeId>,
 }
 
-#[derive(Debug, Clone, Default)]
-struct SourceCallSiteMetadata {
-    callee_fqn: String,
-    intrinsic_entry_name: Option<String>,
-    generic_type_args: Vec<TypeId>,
-}
-
 /// Build the LIR fact product from the authoritative post-opt LIR body.
 pub(crate) fn attach_lir_identity(
     lir: LateLoweredProgram,
@@ -128,7 +121,6 @@ pub(crate) fn build_lir_facts(
             &source_call_sites,
             &dynamic_invokes,
             &dispatches,
-            &source_signatures,
         )?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
         source_signatures,
@@ -901,7 +893,6 @@ fn build_physical_layout_facts(
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     _dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
-    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
 ) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
     let mut facts = LirPhysicalLayoutFacts::default();
@@ -986,7 +977,7 @@ fn build_physical_layout_facts(
             },
         );
     }
-    insert_value_box_itable_facts(&mut facts, ctx, callable_symbols, source_signatures)?;
+    insert_value_box_itable_facts(&mut facts, ctx)?;
     facts.callable_symbols = callable_symbols.clone();
     let layout_callable_roots = layout_callable_roots(&facts);
     facts.abi_symbols = build_abi_symbol_facts(
@@ -1012,8 +1003,6 @@ fn build_physical_layout_facts(
 fn insert_value_box_itable_facts(
     facts: &mut LirPhysicalLayoutFacts,
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
-    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
 ) -> Result<(), EffectLoweringError> {
     let types = ctx.effect_facts.types();
     for ty in types.iter_ids() {
@@ -1035,81 +1024,45 @@ fn insert_value_box_itable_facts(
                     types.display(ty)
                 ),
             })?;
-        let mut entries = Vec::new();
-        for interface_fqn in interfaces {
-            let iface = facts.interfaces.get(&interface_fqn).ok_or_else(|| {
-                EffectLoweringError::InvalidLirFactsContract {
-                    detail: format!(
-                        "value-box `{}` targets unpublished interface `{interface_fqn}`",
-                        types.display(ty)
-                    ),
-                }
-            })?;
-            let interface_ty = types.find_nominal_ref_by_fqn(&iface.fqn).ok_or_else(|| {
-                EffectLoweringError::InvalidLirFactsContract {
-                    detail: format!("value-box interface `{}` lacks a nominal TypeId", iface.fqn),
-                }
-            })?;
-            let interface_type_name = types.display(interface_ty).to_string();
-            let interface_type_id =
-                stable_rtti_type_id_for_type(types, interface_ty, &NoTypeParamResolver).map_err(
-                    |err| EffectLoweringError::InvalidLirFactsContract {
-                        detail: format!(
-                            "value-box interface `{}` cannot publish RTTI type id: {err}",
-                            iface.fqn
-                        ),
-                    },
-                )?;
-            let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
-            let mut method_impl_targets = Vec::with_capacity(iface.method_slots.len());
-            let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
-            for slot in &iface.method_slots {
-                if let Some((impl_fqn, target)) = published_value_box_member_target(
-                    ctx,
-                    callable_symbols,
-                    source_signatures,
-                    ty,
-                    slot,
-                )? {
-                    method_impl_fqns.push(impl_fqn);
-                    method_impl_targets.push(Some(target));
-                    method_receiver_type_ids.push(value_receiver_type_id);
-                } else if slot.has_body {
-                    let (target, _symbol, _role) =
-                        layout_target_abi_symbol(ctx, callable_symbols, &slot.member_fqn)?;
-                    method_impl_fqns.push(slot.member_fqn.clone());
-                    method_impl_targets.push(Some(target));
-                    method_receiver_type_ids.push(crate::itable::ITABLE_RECEIVER_REF_TYPE_ID);
-                } else {
-                    let impl_fqn = format!("{}.{}", nominal.fqn, slot.name);
-                    if source_signatures.contains_key(&impl_fqn) {
-                        let (target, _symbol, _role) =
-                            layout_target_abi_symbol(ctx, callable_symbols, &impl_fqn)?;
-                        method_impl_fqns.push(impl_fqn);
-                        method_impl_targets.push(Some(target));
-                        method_receiver_type_ids.push(value_receiver_type_id);
-                    } else {
+        let class_itable_key = value_box_class_itable_key(types, ty)?;
+        let Some(class_itable) = facts
+            .class_itables
+            .get(&class_itable_key)
+            .or_else(|| facts.class_itables.get(&nominal.fqn))
+            .cloned()
+        else {
+            continue;
+        };
+        let entries = class_itable
+            .entries
+            .into_iter()
+            .filter(|entry| interfaces.contains(&entry.interface_fqn))
+            .map(|mut entry| {
+                for (index, impl_fqn) in entry.method_impl_fqns.iter().enumerate() {
+                    if !impl_fqn.is_empty()
+                        && entry
+                            .method_impl_targets
+                            .get(index)
+                            .and_then(|target| target.as_ref())
+                            .is_none()
+                    {
                         return Err(EffectLoweringError::InvalidLirFactsContract {
                             detail: format!(
-                                "value-box `{}` missing implementation for interface method `{}`",
-                                nominal.fqn, slot.member_fqn
+                                "value-box `{}` method `{impl_fqn}` lacks a published target fact",
+                                types.display(ty)
                             ),
                         });
                     }
+                    if let Some(receiver_type_id) = entry.method_receiver_type_ids.get_mut(index)
+                        && !impl_fqn.is_empty()
+                        && !impl_fqn.starts_with(&format!("{}.", entry.interface_fqn))
+                    {
+                        *receiver_type_id = value_receiver_type_id;
+                    }
                 }
-            }
-            entries.push(LirClassItableEntryFacts {
-                interface_fqn: iface.fqn.clone(),
-                interface_id: iface.interface_id,
-                interface_type_name: interface_type_name.clone(),
-                interface_type_id,
-                runtime_match_type_names: vec![interface_type_name],
-                runtime_match_type_ids: vec![interface_type_id],
-                method_impl_fqns,
-                method_impl_targets,
-                method_receiver_type_ids,
-            });
-        }
+                Ok(entry)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         facts.class_itables.insert(
             owner_key.clone(),
             LirClassItableFacts {
@@ -1119,6 +1072,26 @@ fn insert_value_box_itable_facts(
         );
     }
     Ok(())
+}
+
+fn value_box_class_itable_key(
+    types: &TypeStore,
+    ty: TypeId,
+) -> Result<String, EffectLoweringError> {
+    let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+        return invalid_lir_facts(format!(
+            "value-box itable key requested for non-nominal value type `{}`",
+            types.display(ty)
+        ));
+    };
+    if nominal.args.is_empty() {
+        return Ok(nominal.fqn.clone());
+    }
+    Ok(crate::hir::mangle_nominal_fqn(
+        &nominal.fqn,
+        &nominal.args,
+        types,
+    ))
 }
 
 fn value_box_interface_closure(ctx: &LirFactsBuildContext<'_>, fqn: &str) -> Vec<String> {
@@ -1167,56 +1140,6 @@ fn value_box_itable_owner_key(
         }
     })?;
     Ok(canonical_record("mir_value_box_itable_owner", [canonical]))
-}
-
-fn published_value_box_member_target(
-    ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
-    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
-    receiver_ty: TypeId,
-    slot: &LirInterfaceMethodSlotFacts,
-) -> Result<Option<(String, StableLirCallableKey)>, EffectLoweringError> {
-    let expected_param_count = slot.params_len as usize + usize::from(slot.has_receiver);
-    let mut candidates = Vec::new();
-    for signature in source_signatures.values() {
-        if signature.param_tys.len() != expected_param_count {
-            continue;
-        }
-        let receiver_matches = !slot.has_receiver
-            || signature.param_tys.first().copied() == Some(receiver_ty)
-            || signature.root_fqn.ends_with(&format!(".{}", slot.name));
-        if !receiver_matches {
-            continue;
-        }
-        if signature
-            .root_fqn
-            .rsplit('.')
-            .next()
-            .is_none_or(|member| member != slot.name)
-        {
-            continue;
-        }
-        let (target, _symbol, _role) =
-            layout_target_abi_symbol(ctx, callable_symbols, &signature.root_fqn)?;
-        candidates.push((signature.root_fqn.clone(), target));
-    }
-    candidates.sort_by(|left, right| left.0.cmp(&right.0));
-    candidates.dedup_by(|left, right| left.0 == right.0);
-    match candidates.as_slice() {
-        [] => Ok(None),
-        [(root, target)] => Ok(Some((root.clone(), target.clone()))),
-        many => Err(EffectLoweringError::InvalidLirFactsContract {
-            detail: format!(
-                "value-box receiver t{} slot `{}` matched multiple published member targets: {}",
-                receiver_ty.as_u32(),
-                slot.name,
-                many.iter()
-                    .map(|(root, _)| root.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-        }),
-    }
 }
 
 fn layout_callable_roots(facts: &LirPhysicalLayoutFacts) -> BTreeSet<String> {
@@ -1283,7 +1206,8 @@ fn layout_target_abi_symbol(
         return Ok((key.clone(), abi_symbol, role));
     }
     if let Some(signature) = mir_source_signature(ctx.mir_facts, root_fqn) {
-        let (target_key, symbol, role) = published_source_signature_target(signature)?;
+        let (target_key, symbol, role) =
+            published_source_signature_target(ctx.mir_facts, signature)?;
         return Ok((target_key, symbol, role));
     }
     Err(EffectLoweringError::InvalidLirFactsContract {
@@ -1303,6 +1227,7 @@ fn mir_source_signature<'a>(
 }
 
 fn published_source_signature_target(
+    mir_facts: &MirFacts,
     signature: &scoopc_mir_facts::backend::SourceCallableSignatureFact,
 ) -> Result<(StableLirCallableKey, String, &'static str), EffectLoweringError> {
     let target_key = signature.target_callable_key.clone().ok_or_else(|| {
@@ -1313,14 +1238,14 @@ fn published_source_signature_target(
             ),
         }
     })?;
-    let abi_symbol = signature.abi_symbol.clone().ok_or_else(|| {
-        EffectLoweringError::InvalidLirFactsContract {
-            detail: format!(
-                "source signature `{}` lacks a published target ABI symbol",
-                signature.fqn
-            ),
-        }
-    })?;
+    let intrinsic_entry = mir_intrinsic_entry_name(mir_facts, &signature.fqn);
+    let abi_symbol = signature
+        .abi_symbol
+        .clone()
+        .or_else(|| {
+            intrinsic_entry.map(|entry| intrinsic_callable_abi_symbol(&signature.fqn, entry))
+        })
+        .unwrap_or_else(|| source_signature_export_symbol(&target_key));
     let role = match signature.abi_role.as_deref() {
         Some("callable_export") => "callable_export",
         Some("native_callable") => "native_callable",
@@ -1333,16 +1258,20 @@ fn published_source_signature_target(
                 ),
             });
         }
-        None => {
-            return Err(EffectLoweringError::InvalidLirFactsContract {
-                detail: format!(
-                    "source signature `{}` lacks a published target ABI role",
-                    signature.fqn
-                ),
-            });
-        }
+        None => "callable_export",
     };
     Ok((target_key, abi_symbol, role))
+}
+
+fn source_signature_export_symbol(target_key: &StableLirCallableKey) -> String {
+    AbiMangler.fun_symbol(target_key)
+}
+
+fn intrinsic_callable_abi_symbol(root_fqn: &str, entry_name: &str) -> String {
+    canonical_record(
+        "intrinsic_callable_abi",
+        [root_fqn.to_string(), entry_name.to_string()],
+    )
 }
 
 fn callable_symbol_abi_export(symbol: &LirCallableSymbolFacts) -> Option<(String, &'static str)> {
@@ -1432,18 +1361,23 @@ fn build_abi_symbol_facts(
         );
     }
     for signature in &ctx.mir_facts.backend.source_signatures {
+        if signature.target_callable_key.is_none() {
+            continue;
+        }
         if out.values().any(|fact| {
             fact.callable.is_some() && fact.root_fqn.as_deref() == Some(signature.fqn.as_str())
         }) {
             continue;
         }
-        if signature.target_callable_key.is_none()
-            && signature.abi_symbol.is_none()
+        if signature.abi_symbol.is_none()
             && signature.abi_role.is_none()
+            && signature.target_callable_key.is_none()
+            && mir_intrinsic_entry_name(ctx.mir_facts, &signature.fqn).is_none()
         {
             continue;
         }
-        let (target_key, symbol, role) = published_source_signature_target(signature)?;
+        let (target_key, symbol, role) =
+            published_source_signature_target(ctx.mir_facts, signature)?;
         if let Some(native) = native_callable_funs.get(signature.fqn.as_str())
             && (role != "native_callable" || symbol != native.symbol)
         {
@@ -2376,7 +2310,11 @@ fn build_source_call_site_facts(
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let owner_key = published_callable_key(callable)?.clone();
-        let body_metadata = source_body_call_site_metadata(callable);
+        let body_metadata = callable
+            .source_call_site_metadata()
+            .iter()
+            .map(|metadata| (metadata.site_id(), metadata))
+            .collect::<HashMap<_, _>>();
         let Some(body_facts) = ctx.effect_facts.body(callable.instance_key()) else {
             continue;
         };
@@ -2391,7 +2329,7 @@ fn build_source_call_site_facts(
             let metadata = body_metadata.get(site_id);
             let semantic_root_fqn = call_site_semantic_root_fqn(ctx, call_facts.target())?;
             let named_entry_name = metadata
-                .and_then(|metadata| metadata.intrinsic_entry_name.clone())
+                .and_then(|metadata| metadata.intrinsic_entry_name().map(str::to_string))
                 .or_else(|| {
                     semantic_root_fqn
                         .as_deref()
@@ -2404,7 +2342,7 @@ fn build_source_call_site_facts(
                 semantic_root_fqn,
                 named_entry_name,
                 generic_type_args: metadata
-                    .map(|metadata| metadata.generic_type_args.clone())
+                    .map(|metadata| metadata.generic_type_args().to_vec())
                     .unwrap_or_default(),
                 contract: call_site_contract(ctx, callable_symbols, call_facts)?,
             };
@@ -2434,12 +2372,12 @@ fn build_source_call_site_facts(
             if out.contains_key(&key) {
                 continue;
             }
-            let Some(entry_name) = mir_intrinsic_entry_name(ctx.mir_facts, &metadata.callee_fqn)
+            let Some(entry_name) = mir_intrinsic_entry_name(ctx.mir_facts, metadata.callee_fqn())
             else {
                 continue;
             };
-            let target_key = published_bodyless_target_key(ctx.mir_facts, &metadata.callee_fqn)?;
-            let binding = bodyless_direct_target_binding(ctx, &metadata.callee_fqn, &target_key)?;
+            let target_key = published_bodyless_target_key(ctx.mir_facts, metadata.callee_fqn())?;
+            let binding = bodyless_direct_target_binding(ctx, metadata.callee_fqn(), &target_key)?;
             let exact_callee = LirExactCalleeBinding {
                 target_callable_key: binding.target_callable_key.clone(),
                 root_fqn: binding.root_fqn.clone(),
@@ -2451,9 +2389,9 @@ fn build_source_call_site_facts(
                 LirSourceCallSiteFacts {
                     owner_callable: owner_key.clone(),
                     site_id: *site_id,
-                    semantic_root_fqn: Some(metadata.callee_fqn.clone()),
+                    semantic_root_fqn: Some(metadata.callee_fqn().to_string()),
                     named_entry_name: Some(entry_name.to_string()),
-                    generic_type_args: metadata.generic_type_args.clone(),
+                    generic_type_args: metadata.generic_type_args().to_vec(),
                     contract: LirCallSiteContract {
                         kind: LirCallSiteKind::Direct,
                         target_mode: LirCallTargetMode::KnownInstance,
@@ -2471,46 +2409,6 @@ fn build_source_call_site_facts(
         }
     }
     Ok(out)
-}
-
-fn source_body_call_site_metadata(
-    callable: &LateLoweredCallable,
-) -> HashMap<SiteId, SourceCallSiteMetadata> {
-    let mut out = HashMap::new();
-    let Some(body) = callable.source_body() else {
-        return out;
-    };
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            let scoopc_lir::mir::StatementKind::Assign {
-                value:
-                    scoopc_lir::mir::Rvalue::Call {
-                        site_id,
-                        kind:
-                            scoopc_lir::mir::CallKind::Direct {
-                                callee_fqn,
-                                intrinsic_entry_name,
-                                generic_type_args,
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            } = &stmt.kind
-            else {
-                continue;
-            };
-            out.insert(
-                *site_id,
-                SourceCallSiteMetadata {
-                    callee_fqn: callee_fqn.clone(),
-                    intrinsic_entry_name: intrinsic_entry_name.clone(),
-                    generic_type_args: generic_type_args.clone(),
-                },
-            );
-        }
-    }
-    out
 }
 
 fn mir_intrinsic_entry_name<'a>(mir_facts: &'a MirFacts, root_fqn: &str) -> Option<&'a str> {
@@ -3216,7 +3114,8 @@ fn bodyless_direct_target_binding(
             "bodyless direct target `{root_fqn}` lacks an upstream source signature fact"
         ));
     };
-    let (published_key, abi_symbol, _role) = published_source_signature_target(signature)?;
+    let (published_key, abi_symbol, _role) =
+        published_source_signature_target(ctx.mir_facts, signature)?;
     if published_key.canonical_text() != target_callable_key.canonical_text() {
         return invalid_lir_facts(format!(
             "bodyless direct target `{root_fqn}` key disagrees with published source signature target"
@@ -3314,7 +3213,7 @@ fn published_bodyless_target_key(
             "bodyless direct target `{root_fqn}` lacks an upstream source signature fact"
         ));
     };
-    let (target_key, _abi_symbol, _role) = published_source_signature_target(signature)?;
+    let (target_key, _abi_symbol, _role) = published_source_signature_target(mir_facts, signature)?;
     Ok(target_key)
 }
 
@@ -3335,7 +3234,8 @@ fn target_callable_key(
         return Ok(key.clone());
     }
     if let Some(signature) = mir_source_signature(ctx.mir_facts, &instance.template.fqn) {
-        let (target_key, _abi_symbol, _role) = published_source_signature_target(signature)?;
+        let (target_key, _abi_symbol, _role) =
+            published_source_signature_target(ctx.mir_facts, signature)?;
         return Ok(target_key);
     }
     invalid_lir_facts(format!(

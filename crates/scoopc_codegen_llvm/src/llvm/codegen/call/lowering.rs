@@ -1625,7 +1625,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let callable_fqn = self.published_hir_direct_root_from_facts(fqn, args, result_ty)?;
+            let callable_fqn = self.required_hir_direct_published_root(fqn, args, result_ty)?;
             return self.codegen_top_level_fun_call(
                 span,
                 callee.span,
@@ -2038,7 +2038,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         true
     }
 
-    fn published_hir_direct_root_from_facts(
+    #[allow(clippy::for_kv_map)]
+    fn required_hir_direct_published_root(
         &self,
         fqn: &str,
         args: &[hir::CallArg],
@@ -2046,7 +2047,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<String, LlvmEmitError> {
         let arg_tys = hir_arg_tys(args);
         let mut matches = Vec::new();
-        for site in self.published_lir_facts.source_call_sites.values() {
+        for (_key, site) in &self.published_lir_facts.source_call_sites {
             if site.semantic_root_fqn.as_deref() != Some(fqn) {
                 continue;
             }
@@ -2059,16 +2060,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 matches.push(exact.root_fqn.clone());
             }
         }
-        for signature in self.published_lir_facts.source_signatures.values() {
-            let root = signature.root_fqn.as_str();
-            let suffix = root.get(fqn.len()..);
-            if root != fqn && !suffix.is_some_and(|suffix| suffix.starts_with("::<")) {
+        for (root, _signature) in &self.published_lir_facts.source_signatures {
+            let suffix = if root.len() >= fqn.len() {
+                &root[fqn.len()..]
+            } else {
+                ""
+            };
+            if root != fqn && !(root.starts_with(fqn) && suffix.starts_with("::<")) {
                 continue;
             }
             if self.callable_root_has_abi_surface(root)
                 && self.published_signature_matches_hir_call(root, &arg_tys, result_ty)
             {
-                matches.push(root.to_string());
+                matches.push(root.clone());
             }
         }
         if matches.is_empty() && self.callable_root_has_abi_surface(fqn) {

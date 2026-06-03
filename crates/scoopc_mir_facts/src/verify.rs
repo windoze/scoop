@@ -29,6 +29,8 @@ pub enum VerifyError {
     EmptyCallSiteTargetJoin(String),
     EmptyCallableValueProvenanceJoin(String),
     EmptyResultProvenanceJoin(String),
+    InvalidBackendSourceSignature(String),
+    InvalidBackendIntrinsicCallable(String),
 }
 
 impl fmt::Display for VerifyError {
@@ -60,6 +62,18 @@ impl fmt::Display for VerifyError {
             Self::EmptyResultProvenanceJoin(key) => {
                 write!(f, "result provenance `{key}` has an empty join source list")
             }
+            Self::InvalidBackendSourceSignature(key) => {
+                write!(
+                    f,
+                    "backend source signature `{key}` has incomplete target publication"
+                )
+            }
+            Self::InvalidBackendIntrinsicCallable(key) => {
+                write!(
+                    f,
+                    "backend intrinsic callable `{key}` is incomplete or duplicated"
+                )
+            }
         }
     }
 }
@@ -73,6 +87,7 @@ pub fn verify_mir_facts(facts: &MirFacts) -> Result<()> {
     verify_unique_owned_artifact_keys(facts)?;
     verify_canonical_snapshot_binding(facts)?;
     verify_call_site_targets(facts)?;
+    verify_backend_publications(facts)?;
     verify_provenance(facts)?;
     Ok(())
 }
@@ -289,6 +304,43 @@ fn verify_call_site_targets(facts: &MirFacts) -> Result<()> {
                 ));
             }
             _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn verify_backend_publications(facts: &MirFacts) -> Result<()> {
+    for signature in &facts.backend.source_signatures {
+        if signature.fqn.is_empty() {
+            return Err(VerifyError::InvalidBackendSourceSignature(
+                signature.identity.canonical_text().to_string(),
+            ));
+        }
+        let has_abi = signature.abi_symbol.is_some() || signature.abi_role.is_some();
+        if has_abi
+            && (signature.target_callable_key.is_none()
+                || signature.abi_symbol.as_deref().is_none_or(str::is_empty)
+                || signature.abi_role.as_deref().is_none_or(str::is_empty))
+        {
+            return Err(VerifyError::InvalidBackendSourceSignature(
+                signature.identity.canonical_text().to_string(),
+            ));
+        }
+    }
+
+    let mut intrinsic_roots = HashSet::new();
+    for intrinsic in &facts.backend.intrinsic_callables {
+        if intrinsic.root_fqn.is_empty()
+            || intrinsic.named_entry_name.is_empty()
+            || !intrinsic_roots.insert((
+                intrinsic.root_fqn.clone(),
+                intrinsic.named_entry_name.clone(),
+            ))
+        {
+            return Err(VerifyError::InvalidBackendIntrinsicCallable(
+                intrinsic.identity.canonical_text().to_string(),
+            ));
         }
     }
 

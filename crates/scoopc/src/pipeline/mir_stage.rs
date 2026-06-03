@@ -3131,7 +3131,7 @@ fn collect_mir_backend_facts(
     for family in materialized.pass_view().instances() {
         for fun in family.callable_bodies() {
             if let Some(body) = &fun.body {
-                publish_mir_direct_call_source_signatures(
+                publish_explicit_intrinsic_call_source_signatures(
                     &mut source_signatures,
                     &mut seen_source_signatures,
                     &cone,
@@ -3149,7 +3149,7 @@ fn collect_mir_backend_facts(
             continue;
         };
         if let Some(body) = &fun.body {
-            publish_mir_direct_call_source_signatures(
+            publish_explicit_intrinsic_call_source_signatures(
                 &mut source_signatures,
                 &mut seen_source_signatures,
                 &cone,
@@ -3166,13 +3166,10 @@ fn collect_mir_backend_facts(
             continue;
         }
         let target_key = StableLirCallableKey::new(
-            canonical_record(
-                "mir_source_callable_target",
-                [signature.identity.canonical_text().to_string()],
-            ),
+            signature.identity.canonical_text().to_string(),
             signature.fqn.clone(),
         );
-        signature.abi_symbol = Some(AbiMangler.fun_symbol(&target_key));
+        signature.abi_symbol = Some(published_source_signature_abi_symbol(&target_key));
         signature.abi_role = Some("callable_export".to_string());
         signature.target_callable_key = Some(target_key);
     }
@@ -3348,12 +3345,7 @@ fn explicit_abi_publication_for_source_signature(
     source_key: Option<String>,
     fqn: &str,
 ) -> (Option<StableLirCallableKey>, Option<String>, Option<String>) {
-    let published_target = source_key.map(|key| {
-        StableLirCallableKey::new(
-            canonical_record("mir_source_callable_target", [key]),
-            fqn.to_string(),
-        )
-    });
+    let published_target = source_key.map(|key| StableLirCallableKey::new(key, fqn.to_string()));
     if let Some(native) = native_callable_funs.get(fqn) {
         let Some(target_key) = published_target.clone() else {
             return (None, None, None);
@@ -3377,7 +3369,7 @@ fn explicit_abi_publication_for_source_signature(
     let Some(target_key) = published_target else {
         return (None, None, None);
     };
-    let abi_symbol = AbiMangler.fun_symbol(&target_key);
+    let abi_symbol = published_source_signature_abi_symbol(&target_key);
     (
         Some(target_key),
         Some(abi_symbol),
@@ -3385,8 +3377,12 @@ fn explicit_abi_publication_for_source_signature(
     )
 }
 
+fn published_source_signature_abi_symbol(target_key: &StableLirCallableKey) -> String {
+    AbiMangler.fun_symbol(target_key)
+}
+
 #[allow(clippy::too_many_arguments)]
-fn publish_mir_direct_call_source_signatures(
+fn publish_explicit_intrinsic_call_source_signatures(
     out: &mut Vec<SourceCallableSignatureFact>,
     seen: &mut BTreeSet<String>,
     cone: &StableConeKey,
@@ -3409,25 +3405,19 @@ fn publish_mir_direct_call_source_signatures(
             else {
                 continue;
             };
-            let fact_identity = backend_identity(
-                cone,
-                "source_signature",
-                &format!("{}#{label}{}", callee_fqn, stmt.span.start),
-            );
-            let (target_callable_key, abi_symbol, abi_role) =
-                explicit_abi_publication_for_source_signature(
-                    native_callable_funs,
-                    extern_funs,
-                    Some(fact_identity.canonical_text().to_string()),
-                    callee_fqn,
-                );
             if !seen.insert(callee_fqn.clone()) {
                 if let Some(existing) = out
                     .iter_mut()
                     .find(|signature| signature.fqn == *callee_fqn)
                     && existing.target_callable_key.is_none()
-                    && target_callable_key.is_some()
                 {
+                    let (target_callable_key, abi_symbol, abi_role) =
+                        explicit_abi_publication_for_source_signature(
+                            native_callable_funs,
+                            extern_funs,
+                            Some(existing.identity.canonical_text().to_string()),
+                            callee_fqn,
+                        );
                     existing.target_callable_key = target_callable_key;
                     existing.abi_symbol = abi_symbol;
                     existing.abi_role = abi_role;
@@ -3441,20 +3431,77 @@ fn publish_mir_direct_call_source_signatures(
             else {
                 continue;
             };
-            let return_ty = body.locals[target.as_u32() as usize].ty;
+            let Some(return_ty) = body
+                .locals
+                .get(target.as_u32() as usize)
+                .map(|local| local.ty)
+            else {
+                continue;
+            };
+            let fact_identity = backend_identity(
+                cone,
+                "source_signature",
+                &format!("{}#{label}{}", callee_fqn, stmt.span.start),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    native_callable_funs,
+                    extern_funs,
+                    Some(fact_identity.canonical_text().to_string()),
+                    callee_fqn,
+                );
+            let param_names = (0..param_tys.len())
+                .map(|index| format!("arg{index}"))
+                .collect::<Vec<_>>();
             out.push(SourceCallableSignatureFact {
                 identity: fact_identity,
                 fqn: callee_fqn.clone(),
                 target_callable_key,
                 abi_symbol,
                 abi_role,
-                param_names: (0..param_tys.len())
-                    .map(|index| format!("arg{index}"))
-                    .collect(),
-                param_tys,
+                param_names: param_names.clone(),
+                param_tys: param_tys.clone(),
                 return_ty,
             });
+            for alias_fqn in direct_call_source_signature_aliases(callee_fqn) {
+                if !seen.insert(alias_fqn.clone()) {
+                    continue;
+                }
+                let alias_identity = backend_identity(
+                    cone,
+                    "source_signature",
+                    &format!("{}#{label}{}#alias", alias_fqn, stmt.span.start),
+                );
+                let (target_callable_key, abi_symbol, abi_role) =
+                    explicit_abi_publication_for_source_signature(
+                        native_callable_funs,
+                        extern_funs,
+                        Some(alias_identity.canonical_text().to_string()),
+                        &alias_fqn,
+                    );
+                out.push(SourceCallableSignatureFact {
+                    identity: alias_identity,
+                    fqn: alias_fqn,
+                    target_callable_key,
+                    abi_symbol,
+                    abi_role,
+                    param_names: param_names.clone(),
+                    param_tys: param_tys.clone(),
+                    return_ty,
+                });
+            }
         }
+    }
+}
+
+fn direct_call_source_signature_aliases(fqn: &str) -> Vec<String> {
+    let Some((owner, name)) = fqn.rsplit_once('.') else {
+        return Vec::new();
+    };
+    match name {
+        "ne" => vec![format!("{owner}.notEquals")],
+        "eq" => vec![format!("{owner}.equals")],
+        _ => Vec::new(),
     }
 }
 
@@ -3566,10 +3613,7 @@ fn collect_named_intrinsic_callable_facts(
                     else {
                         continue;
                     };
-                    let entry_name = intrinsic_entry_name.clone().or_else(|| {
-                        scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
-                            .map(str::to_string)
-                    });
+                    let entry_name = intrinsic_entry_name.clone();
                     let Some(entry_name) = entry_name else {
                         continue;
                     };
@@ -3615,10 +3659,7 @@ fn collect_named_intrinsic_callable_facts(
                 else {
                     continue;
                 };
-                let entry_name = intrinsic_entry_name.clone().or_else(|| {
-                    scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
-                        .map(str::to_string)
-                });
+                let entry_name = intrinsic_entry_name.clone();
                 let Some(entry_name) = entry_name else {
                     continue;
                 };
@@ -3637,12 +3678,124 @@ fn collect_named_intrinsic_callable_facts(
             }
         }
     }
+    for signature in materialized.source_callable_signatures() {
+        let Some(entry_name) = mir_legacy_scalar_entry_name(&signature.fqn) else {
+            continue;
+        };
+        if !seen.insert((signature.fqn.clone(), entry_name.to_string())) {
+            continue;
+        }
+        out.push(NamedIntrinsicCallableFact {
+            identity: backend_identity(
+                cone,
+                "named_intrinsic_callable",
+                &format!("{}#legacy-scalar#{entry_name}", signature.fqn),
+            ),
+            root_fqn: signature.fqn.clone(),
+            named_entry_name: entry_name.to_string(),
+        });
+    }
     out.sort_by(|left, right| {
         left.root_fqn
             .cmp(&right.root_fqn)
             .then_with(|| left.named_entry_name.cmp(&right.named_entry_name))
     });
     out
+}
+
+fn mir_legacy_scalar_entry_name(fqn: &str) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return match method {
+            "plus" => Some("int_plus"),
+            "minus" => Some("int_minus"),
+            "times" => Some("int_times"),
+            "div" => Some("int_div"),
+            "rem" => Some("int_rem"),
+            "unaryMinus" => Some("int_unary_minus"),
+            "unaryPlus" => Some("int_unary_plus"),
+            "inc" => Some("int_inc"),
+            "dec" => Some("int_dec"),
+            "and" => Some("int_and"),
+            "or" => Some("int_or"),
+            "xor" => Some("int_xor"),
+            "inv" => Some("int_inv"),
+            "shl" => Some("int_shl"),
+            "shr" => Some("int_shr"),
+            "ushr" => Some("int_ushr"),
+            "lt" => Some("int_lt"),
+            "le" => Some("int_le"),
+            "gt" => Some("int_gt"),
+            "ge" => Some("int_ge"),
+            "eq" | "equals" => Some("int_eq"),
+            "ne" | "notEquals" => Some("int_ne"),
+            "compareTo" => Some("int_compare_to"),
+            "hash" => Some("int_hash"),
+            _ => None,
+        };
+    }
+    match owner {
+        "scoop.core.Float32" | "scoop.core.Float64" => match method {
+            "plus" => Some("float_plus"),
+            "minus" => Some("float_minus"),
+            "times" => Some("float_times"),
+            "div" => Some("float_div"),
+            "rem" => Some("float_rem"),
+            "unaryMinus" => Some("float_unary_minus"),
+            "unaryPlus" => Some("float_unary_plus"),
+            "lt" => Some("float_lt"),
+            "le" => Some("float_le"),
+            "gt" => Some("float_gt"),
+            "ge" => Some("float_ge"),
+            "eq" | "equals" => Some("float_eq"),
+            "ne" | "notEquals" => Some("float_ne"),
+            "compareTo" => Some("float_compare_to"),
+            "abs" => Some("float_abs"),
+            "isNaN" => Some("float_is_nan"),
+            "isInfinite" => Some("float_is_infinite"),
+            "hash" => Some("float_hash"),
+            _ => None,
+        },
+        "scoop.core.Bool" => match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "eq" | "equals" => Some("bool_eq"),
+            "ne" | "notEquals" => Some("bool_ne"),
+            "not" | "negate" => Some("bool_not"),
+            _ => None,
+        },
+        "scoop.core.Char" => match method {
+            "toInt" => Some("char_to_int"),
+            "hash" => Some("char_hash"),
+            "compareTo" => Some("char_compare_to"),
+            "eq" | "equals" => Some("char_equals"),
+            "plus" | "plusInt" => Some("char_plus_int"),
+            "minus" | "minusInt" => Some("char_minus_int"),
+            "minusChar" => Some("char_minus_char"),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {

@@ -246,19 +246,6 @@ impl LateLoweredProgram {
         &self.source_class_ctor_calls
     }
 
-    pub fn find_source_ctor_contract(
-        &self,
-        source_path: &Path,
-        call_span: Span,
-    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
-        self.source_class_ctor_calls.iter().find(|contract| {
-            contract.call_span() == call_span
-                && (contract.source_path() == source_path
-                    || contract.source_path().ends_with(source_path)
-                    || source_path.ends_with(contract.source_path()))
-        })
-    }
-
     pub fn callable(&self, root_fqn: &str) -> Option<&LateLoweredCallable> {
         self.callables
             .iter()
@@ -389,6 +376,46 @@ pub type LateLoweredSourceClassCtorCallArg = class_ctor_source::CallArg;
 pub type LateLoweredSourceClassCtorExpr = class_ctor_source::Expr;
 
 pub type LateLoweredSourceClassCtorBlock = class_ctor_source::Block;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredSourceCallSiteMetadata {
+    site_id: SiteId,
+    callee_fqn: String,
+    intrinsic_entry_name: Option<String>,
+    generic_type_args: Vec<TypeId>,
+}
+
+impl LateLoweredSourceCallSiteMetadata {
+    pub fn new(
+        site_id: SiteId,
+        callee_fqn: String,
+        intrinsic_entry_name: Option<String>,
+        generic_type_args: Vec<TypeId>,
+    ) -> Self {
+        Self {
+            site_id,
+            callee_fqn,
+            intrinsic_entry_name,
+            generic_type_args,
+        }
+    }
+
+    pub fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub fn callee_fqn(&self) -> &str {
+        &self.callee_fqn
+    }
+
+    pub fn intrinsic_entry_name(&self) -> Option<&str> {
+        self.intrinsic_entry_name.as_deref()
+    }
+
+    pub fn generic_type_args(&self) -> &[TypeId] {
+        &self.generic_type_args
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorSourceCallContract {
@@ -1155,6 +1182,7 @@ pub struct LateLoweredCallable {
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
     source_callable: Option<LateLoweredSourceCallable>,
+    source_call_site_metadata: Vec<LateLoweredSourceCallSiteMetadata>,
 }
 
 impl PartialEq for LateLoweredCallable {
@@ -1167,10 +1195,49 @@ impl PartialEq for LateLoweredCallable {
             && self.source_kind == other.source_kind
             && self.resolved_outward_cases == other.resolved_outward_cases
             && self.abi == other.abi
+            && self.source_call_site_metadata == other.source_call_site_metadata
     }
 }
 
 impl Eq for LateLoweredCallable {}
+
+fn collect_source_call_site_metadata(
+    source_callable: &LateLoweredSourceCallable,
+) -> Vec<LateLoweredSourceCallSiteMetadata> {
+    let mut out = Vec::new();
+    let Some(body) = &source_callable.body else {
+        return out;
+    };
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign {
+                value:
+                    crate::mir::Rvalue::Call {
+                        site_id,
+                        kind:
+                            crate::mir::CallKind::Direct {
+                                callee_fqn,
+                                intrinsic_entry_name,
+                                generic_type_args,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            out.push(LateLoweredSourceCallSiteMetadata::new(
+                *site_id,
+                callee_fqn.clone(),
+                intrinsic_entry_name.clone(),
+                generic_type_args.clone(),
+            ));
+        }
+    }
+    out
+}
 
 impl LateLoweredCallable {
     #[allow(clippy::too_many_arguments)]
@@ -1207,6 +1274,7 @@ impl LateLoweredCallable {
                 resume_packings,
             ))),
             source_callable: None,
+            source_call_site_metadata: Vec::new(),
         }
     }
 
@@ -1227,6 +1295,7 @@ impl LateLoweredCallable {
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
             source_callable: None,
+            source_call_site_metadata: Vec::new(),
         }
     }
 
@@ -1249,6 +1318,7 @@ impl LateLoweredCallable {
     }
 
     pub fn with_source_callable(mut self, source_callable: &LateLoweredSourceCallable) -> Self {
+        self.source_call_site_metadata = collect_source_call_site_metadata(source_callable);
         self.source_callable = Some(source_callable.clone());
         self
     }
@@ -1302,6 +1372,10 @@ impl LateLoweredCallable {
         self.source_callable
             .as_ref()
             .and_then(|callable| callable.body.as_ref())
+    }
+
+    pub fn source_call_site_metadata(&self) -> &[LateLoweredSourceCallSiteMetadata] {
+        &self.source_call_site_metadata
     }
 
     pub fn call_abi_kind(&self) -> CallableAbiKind {

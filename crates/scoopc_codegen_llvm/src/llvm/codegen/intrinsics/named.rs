@@ -17,7 +17,7 @@ use super::super::*;
 use crate::effect_lowered::mir_source as mir;
 use crate::intrinsics::{
     NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeTy,
-    named_intrinsic_audit_entry, named_intrinsic_entry_name_for_root as root_intrinsic_entry,
+    named_intrinsic_audit_entry,
 };
 use crate::ty::{RefTypeKind, TypeId, TypeKind};
 
@@ -966,7 +966,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .intrinsic_callables
             .get(root)
             .and_then(|intrinsic| intrinsic.named_entry_name.clone())
-            .or_else(|| root_intrinsic_entry(root).map(str::to_string))
     }
 
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_top_level_call(

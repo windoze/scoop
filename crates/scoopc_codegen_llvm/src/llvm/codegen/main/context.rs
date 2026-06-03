@@ -387,7 +387,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(self
                 .shared
                 .published_late_lowered_program
-                .and_then(|program| program.find_source_ctor_contract(source.path(), span))
+                .and_then(|program| {
+                    program.source_class_ctor_calls().iter().find(|contract| {
+                        contract.call_span() == span
+                            && (contract.source_path() == source.path()
+                                || contract.source_path().ends_with(source.path())
+                                || source.path().ends_with(contract.source_path()))
+                    })
+                })
                 .cloned());
         };
         if contract.call_span() != span {
@@ -395,7 +402,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(self
                 .shared
                 .published_late_lowered_program
-                .and_then(|program| program.find_source_ctor_contract(source.path(), span))
+                .and_then(|program| {
+                    program.source_class_ctor_calls().iter().find(|contract| {
+                        contract.call_span() == span
+                            && (contract.source_path() == source.path()
+                                || contract.source_path().ends_with(source.path())
+                                || source.path().ends_with(contract.source_path()))
+                    })
+                })
                 .cloned());
         }
         self.function_cx.next_class_ctor_source_contract += 1;
