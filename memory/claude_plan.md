@@ -32,4 +32,5 @@
 - `cargo clippy --all-targets -- -D warnings` 首次运行发现 `callable_id` helper 可见性不足；已将其调整为 layout 子模块可见。
 - 验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、T2-02 targeted grep、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
 - 已更新 `TODO.md`，将 `T2-02-R` 标记为 `[DONE]` 并记录 review 修正与验证结果。
-- 下一步检查 git diff/status，确认只包含本任务相关变更，然后提交。
+- 已提交代码、TODO 和计划记录，提交为 `e1195bdc [T2-02-R] Review LIR callable id lookups`。
+- 当前任务已完成；停止前只需确认最终工作区状态。
