@@ -12,6 +12,8 @@ mod hir_golden_tests;
 mod hir_preflight;
 #[cfg(test)]
 mod hir_via_mir_tests;
+#[cfg(feature = "llvm")]
+pub mod lir_artifact;
 pub(crate) mod lir_facts_builder;
 #[cfg(feature = "llvm")]
 mod llvm_codegen_stage;
@@ -24,6 +26,8 @@ use crate::source::SourceFile;
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
+#[cfg(feature = "llvm")]
+pub use lir_artifact::{CodegenInput, LirArtifact};
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::LlvmCodegenStageInput;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};

@@ -1,24 +1,23 @@
-# 执行计划
+# 当前执行计划
 
-## 当前目标
+说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
-- 按 `TODO.md` 的顺序识别第一个标题未带 `[DONE]` 的任务。
-- 完成且只完成该任务；如遇到阻塞当前任务的缺口，则按要求把最小前置任务写入 `TODO.md` 并停止。
+## 初始计划
 
-## 步骤
-
-1. 读取 `TODO.md`，定位第一个未完成任务，并检查该任务的依赖、验证要求和完成记录。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只处理会阻塞当前任务的问题。
-3. 阅读当前任务相关代码、测试、fixture 和文档，确认需要修改的最小范围。
-4. 实现任务要求，避免 workaround、fixture-only hack 或偏离规格的替代方案。
-5. 按要求运行格式化、lint、相关测试，并在需要时运行完整测试和 fixture 套件。
-6. 将任务标题在 `TODO.md` 中标记为 `[DONE]`，更新完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 检查 git diff/status，提交本次任务相关全部变更，然后停止。
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判定第一个未完成任务。
+2. 查看最近提交信息，只在其明确提到与当前任务直接相关的未完成事项时纳入当前任务或作为 `TODO.md` 前置项。
+3. 阅读当前任务关联的规格、代码和测试，确认要求、依赖与验证命令。
+4. 完整实现第一个未完成任务；如发现阻塞当前任务的缺失特性、规格不匹配或测试失败，优先修复，或在 `TODO.md` 插入最小前置任务后停止。
+5. 运行格式化、lint 和相关测试；若代码发生变更，再按要求运行完整测试与 fixture 套件。
+6. 更新 `TODO.md`：完成时给任务标题加 `[DONE]` 并填写 completion record；只有阶段级计划变化时才更新 `PLAN.md`。
+7. 检查工作区差异，提交本次任务相关全部变更，然后停止，不继续下一个任务。
 
 ## 进度记录
 
-- 已创建初始执行计划，下一步读取 `TODO.md` 定位首个未完成任务。
-- 已读取 `TODO.md` / `TODO-3.md`，当前首个未完成任务为 `T3-04R：Review T3-04`，依赖 `T3-04L`。下一步检查最近提交并审查 T3-04 fact-only/fail-fast/gate 残余。
-- 最近提交为 `[T3-04L] Close twelfth fact-only gaps`，未在标题中声明新的未完成问题。当前工作区除本计划文件外有未跟踪 `FACT_REFACTOR.md`，先视为非本次变更。下一步进行 targeted review。
-- Targeted review 已确认 `T3-04L` 后仍有阻塞 `T3-04R` 的事实自包含缺口，包括 P6 path/span 与 root scan fallback、MIR/LIR fact 合成、dispatch/value-box 文本恢复、verifier/gate 漏锁。已在 `TODO-3.md` 插入最小前置任务 `T3-04M`，并把 `T3-04R` 依赖更新为 `T3-04M`。
-- 本次只修改任务记录和计划记录，未改编译产物；完整 fmt/clippy/test/fixture 验证按文档-only 变更跳过。已运行 `git diff --check -- TODO.md TODO-3.md memory/claude_plan.md` 通过。
+- 已创建初始计划文件，下一步读取任务列表并定位第一个未完成任务。
+- 已确认第一个未完成任务为 `T1-01：新增 LirArtifact / CodegenInput 类型`。
+- 最近提交 `d5e0b0ad Pivot to structural fact refactor; archive fact-unify plan` 未明确提到与 T1-01 直接相关的未完成修复。
+- 当前任务执行策略：只新增过渡类型与模块导出，保持行为不变；随后按基线运行格式化、lint、测试与 fixture 验证。
+- 已新增 `crates/scoopc/src/pipeline/lir_artifact.rs`，并在 `pipeline/mod.rs` 中按 `llvm` feature 导出 `CodegenInput` 与 `LirArtifact`。
+- 验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 T1-01 标记为 `[DONE]` 并填写完成记录；下一步检查 diff 并提交。
