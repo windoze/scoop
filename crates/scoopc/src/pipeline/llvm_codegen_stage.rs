@@ -192,7 +192,6 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
             _ => None,
         })
         .collect();
-
     EffectAnalysisFacts::from_parts(
         global_roots,
         fields,

@@ -1218,7 +1218,7 @@ pub(super) fn validate_materialized_rvalue(
                 transport,
             )
         }
-        Rvalue::SizeOf { value_ty } => validate_materialized_type(
+        Rvalue::SizeOf { value_ty, .. } => validate_materialized_type(
             materialized,
             MaterializedValidationContext {
                 fqn,
@@ -1228,7 +1228,7 @@ pub(super) fn validate_materialized_rvalue(
             },
             *value_ty,
         ),
-        Rvalue::KindOf { value_ty } => validate_materialized_type(
+        Rvalue::KindOf { value_ty, .. } => validate_materialized_type(
             materialized,
             MaterializedValidationContext {
                 fqn,
@@ -1238,7 +1238,7 @@ pub(super) fn validate_materialized_rvalue(
             },
             *value_ty,
         ),
-        Rvalue::AlignOf { value_ty } => validate_materialized_type(
+        Rvalue::AlignOf { value_ty, .. } => validate_materialized_type(
             materialized,
             MaterializedValidationContext {
                 fqn,
@@ -1248,7 +1248,7 @@ pub(super) fn validate_materialized_rvalue(
             },
             *value_ty,
         ),
-        Rvalue::DescOf { value_ty } => validate_materialized_type(
+        Rvalue::DescOf { value_ty, .. } => validate_materialized_type(
             materialized,
             MaterializedValidationContext {
                 fqn,

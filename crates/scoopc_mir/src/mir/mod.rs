@@ -2974,18 +2974,22 @@ pub enum Rvalue {
     },
     /// 编译期 `sizeOf(value)` intrinsic；`value` 本身不求值，只消费静态类型。
     SizeOf {
+        site_id: SiteId,
         value_ty: TypeId,
     },
     /// 编译期 `kindOf<T>()` intrinsic；泛型实例 materialize 后按具体类型求值。
     KindOf {
+        site_id: SiteId,
         value_ty: TypeId,
     },
     /// 编译期 `alignOf<T>()` intrinsic；`value` 本身不求值，只消费静态类型。
     AlignOf {
+        site_id: SiteId,
         value_ty: TypeId,
     },
     /// 编译期 `descOf<T>()` intrinsic；非 composite 类型在 codegen 阶段 materialize 为 0。
     DescOf {
+        site_id: SiteId,
         value_ty: TypeId,
     },
     /// Runtime class literal / type metadata value primitive.

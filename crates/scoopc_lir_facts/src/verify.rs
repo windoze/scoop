@@ -1401,6 +1401,12 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "map key and payload identity differ",
             });
         }
+        if !facts.callables.contains_key(&key.owner_callable) {
+            return Err(VerifyError::InvalidClassCtorCallSite {
+                key: key_text,
+                reason: "owner callable is not published",
+            });
+        }
         if site.selected_ctor_span_start.is_some() != site.selected_ctor_span_end.is_some() {
             return Err(VerifyError::InvalidClassCtorCallSite {
                 key: key_text,
@@ -1431,6 +1437,15 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "argument mapping arity does not match target constructor params",
             });
         }
+        let mut mapped_args = BTreeSet::new();
+        for arg_idx in site.arg_mapping.iter().flatten().copied() {
+            if !mapped_args.insert(arg_idx) {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "argument mapping reuses a source argument",
+                });
+            }
+        }
     }
     Ok(())
 }
@@ -1444,10 +1459,25 @@ fn verify_reflection_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "map key and payload identity differ",
             });
         }
+        if !facts.callables.contains_key(&key.owner_callable) {
+            return Err(VerifyError::InvalidReflectionCallSite {
+                key: key_text,
+                reason: "owner callable is not published",
+            });
+        }
         if site.intrinsic_name.is_empty() || site.type_args.len() != 1 {
             return Err(VerifyError::InvalidReflectionCallSite {
                 key: key_text,
                 reason: "reflection intrinsic must publish exactly one type argument and a name",
+            });
+        }
+        if !matches!(
+            site.intrinsic_name.as_str(),
+            "sizeOf" | "alignOf" | "kindOf" | "descOf"
+        ) {
+            return Err(VerifyError::InvalidReflectionCallSite {
+                key: key_text,
+                reason: "unknown reflection intrinsic name",
             });
         }
     }
@@ -1855,6 +1885,25 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
             && !facts.dispatches.contains_key(dispatch_key)
         {
             return Err(VerifyError::MissingDynamicInvokeDispatch { key: key_text });
+        }
+        if contract.target_body_versions.len() != contract.call.target_callables.len() {
+            return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                key: key_text,
+                step_schema: 0,
+            });
+        }
+        for (target, body_version) in contract
+            .call
+            .target_callables
+            .iter()
+            .zip(contract.target_body_versions.iter())
+        {
+            if body_version.owner_canonical_text() != target.as_str() {
+                return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                    key: key_text,
+                    step_schema: 0,
+                });
+            }
         }
     }
     Ok(())

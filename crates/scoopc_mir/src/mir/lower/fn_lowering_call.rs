@@ -463,14 +463,16 @@ impl<'a> FnLowering<'a> {
                             })
                     })
                     .expect("typed sizeOf intrinsic must publish a value or type argument");
-                self.assign(span, result, Rvalue::SizeOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::SizeOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.alignOf")
                 if name == "alignOf" =>
             {
                 let value_ty = self.reflection_type_arg_for_call(span, "alignOf");
-                self.assign(span, result, Rvalue::AlignOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::AlignOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.nameOf") if name == "nameOf" => {
@@ -497,12 +499,14 @@ impl<'a> FnLowering<'a> {
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.kindOf") if name == "kindOf" => {
                 let value_ty = self.reflection_type_arg_for_call(span, "kindOf");
-                self.assign(span, result, Rvalue::KindOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::KindOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.descOf") if name == "descOf" => {
                 let value_ty = self.reflection_type_arg_for_call(span, "descOf");
-                self.assign(span, result, Rvalue::DescOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::DescOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Platform { name }, "scoop.core.getPlatform")

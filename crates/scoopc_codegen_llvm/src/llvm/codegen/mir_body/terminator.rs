@@ -391,16 +391,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
                 }
             }
-            crate::mir::Rvalue::SizeOf { value_ty } => {
+            crate::mir::Rvalue::SizeOf { value_ty, .. } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::KindOf { value_ty } => {
+            crate::mir::Rvalue::KindOf { value_ty, .. } => {
                 self.codegen_mir_kind_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::AlignOf { value_ty } => {
+            crate::mir::Rvalue::AlignOf { value_ty, .. } => {
                 self.codegen_mir_align_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::DescOf { value_ty } => {
+            crate::mir::Rvalue::DescOf { value_ty, .. } => {
                 self.codegen_mir_desc_of(span, mir_types, *value_ty)
             }
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
@@ -565,16 +565,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
                 }
             }
-            crate::mir::Rvalue::SizeOf { value_ty } => {
+            crate::mir::Rvalue::SizeOf { value_ty, .. } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::KindOf { value_ty } => {
+            crate::mir::Rvalue::KindOf { value_ty, .. } => {
                 self.codegen_mir_kind_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::AlignOf { value_ty } => {
+            crate::mir::Rvalue::AlignOf { value_ty, .. } => {
                 self.codegen_mir_align_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::DescOf { value_ty } => {
+            crate::mir::Rvalue::DescOf { value_ty, .. } => {
                 self.codegen_mir_desc_of(span, mir_types, *value_ty)
             }
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {

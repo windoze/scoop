@@ -263,7 +263,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // still consume the value expression's static type without evaluating the value.
         let (source_ty, type_span) = match args {
             [] => (
-                self.reflection_type_arg_for_current_call(span, "sizeOf")?,
+                self.fail_legacy_hir_reflection_intrinsic(span, "sizeOf")?,
                 span,
             ),
             [hir::CallArg::Positional(expr)] => (expr.ty, expr.span),
@@ -293,7 +293,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let source_ty = self.reflection_type_arg_for_current_call(span, "alignOf")?;
+        let source_ty = self.fail_legacy_hir_reflection_intrinsic(span, "alignOf")?;
         let arg_cg = self.cg_ty_of_type_id(source_ty, "alignOf reflection type argument");
         let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
         let align = self.abi_align_bytes_of_basic_type(llvm_ty);
@@ -309,7 +309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let source_ty = self.reflection_type_arg_for_current_call(span, "kindOf")?;
+        let source_ty = self.fail_legacy_hir_reflection_intrinsic(span, "kindOf")?;
         let kind = self.array_elem_kind_for_type_id(source_ty);
         let value_word = IntTy {
             bits: self.host.word_bit_width(),
@@ -327,7 +327,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: self.host.word_bit_width(),
             signed: false,
         };
-        let source_ty = self.reflection_type_arg_for_current_call(span, "descOf")?;
+        let source_ty = self.fail_legacy_hir_reflection_intrinsic(span, "descOf")?;
         let raw = if self.array_elem_kind_for_type_id(source_ty) == 3 {
             let body_fqn = self
                 .function_cx
@@ -358,7 +358,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::int(raw, value_word))
     }
 
-    fn reflection_type_arg_for_current_call(
+    fn fail_legacy_hir_reflection_intrinsic(
         &self,
         span: crate::span::Span,
         name: &'static str,
@@ -367,13 +367,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(ty) =
             self.shared
                 .effect_analysis_facts
-                .reflection_type_arg(source.path(), span, name)
+                .legacy_reflection_arg_ty(source.path(), span, name)
         {
             return Ok(ty);
         }
         Err(LlvmEmitError::Frontend {
             message: format!(
-                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without LIR-owned call-site facts"
+                "reflection intrinsic `{name}` at {span:?} reached legacy HIR lowering without an owner+SiteId LIR reflection fact"
             ),
         })
     }

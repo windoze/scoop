@@ -858,16 +858,20 @@ fn remap_rvalue(
             args: remap_call_args(args, local_operands, local_map)?,
             hidden_effects: hidden_effects.clone(),
         }),
-        Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
+        Rvalue::SizeOf { value_ty, .. } => Some(Rvalue::SizeOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::KindOf { value_ty } => Some(Rvalue::KindOf {
+        Rvalue::KindOf { value_ty, .. } => Some(Rvalue::KindOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::AlignOf { value_ty } => Some(Rvalue::AlignOf {
+        Rvalue::AlignOf { value_ty, .. } => Some(Rvalue::AlignOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::DescOf { value_ty } => Some(Rvalue::DescOf {
+        Rvalue::DescOf { value_ty, .. } => Some(Rvalue::DescOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
         Rvalue::TypeMetadataLiteral(metadata) => {

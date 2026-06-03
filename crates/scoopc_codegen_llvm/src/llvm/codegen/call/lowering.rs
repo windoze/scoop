@@ -57,11 +57,13 @@ fn signature_ty_contains_param(types: &TypeStore, ty: TypeId) -> bool {
     false
 }
 
-fn published_root_matches_hir_callee(root: &str, fqn: &str) -> bool {
-    root == fqn
-        || root
-            .strip_prefix(fqn)
-            .is_some_and(|suffix| suffix.starts_with("::<"))
+fn hir_arg_tys(args: &[hir::CallArg]) -> Vec<TypeId> {
+    args.iter()
+        .map(|arg| match arg {
+            hir::CallArg::Positional(expr) => expr.ty,
+            hir::CallArg::Named { value, .. } => value.ty,
+        })
+        .collect()
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -1621,8 +1623,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let callable_fqn =
-                self.published_direct_callable_root_for_hir_call(fqn, args, result_ty)?;
+            let callable_fqn = self.unique_published_hir_direct_exact_root(fqn, args, result_ty)?;
             return self.codegen_top_level_fun_call(
                 span,
                 callee.span,
@@ -1786,11 +1787,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let callable_fqn = fqn;
-        if let Some(entry_name) = self
-            .published_lir_facts
-            .intrinsic_callables
-            .get(callable_fqn)
-            .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+        if let Some(entry_name) = self.published_or_builtin_named_intrinsic_entry_name(callable_fqn)
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,
                 callee_span,
@@ -2030,53 +2027,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn published_direct_callable_root_for_hir_call(
-        &self,
-        fqn: &str,
-        args: &[hir::CallArg],
-        result_ty: Option<TypeId>,
-    ) -> Result<String, LlvmEmitError> {
-        let arg_tys = args
-            .iter()
-            .map(|arg| match arg {
-                hir::CallArg::Positional(expr) => expr.ty,
-                hir::CallArg::Named { value, .. } => value.ty,
-            })
-            .collect::<Vec<_>>();
-        let mut matches = Vec::new();
-        if self.callable_root_has_abi_surface(fqn)
-            && self.published_signature_matches_hir_call(fqn, &arg_tys, result_ty)
-        {
-            matches.push(fqn.to_string());
-        }
-        matches.extend(
-            self.published_lir_facts
-                .source_signatures
-                .keys()
-                .filter(|root| published_root_matches_hir_callee(root, fqn))
-                .filter(|root| self.callable_root_has_abi_surface(root))
-                .filter(|root| self.published_signature_matches_hir_call(root, &arg_tys, result_ty))
-                .cloned(),
-        );
-        matches.sort();
-        matches.dedup();
-        match matches.as_slice() {
-            [root] => Ok(root.clone()),
-            [] if self.callable_sources.contains_key(fqn) => Ok(fqn.to_string()),
-            [] => Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "HIR direct call `{fqn}` lacks a published exact callable/signature/ABI fact"
-                ),
-            }),
-            many => Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "HIR direct call `{fqn}` matched multiple published callable facts: {}",
-                    many.join(", ")
-                ),
-            }),
-        }
-    }
-
     fn published_signature_matches_hir_call(
         &self,
         root: &str,
@@ -2106,8 +2056,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         true
     }
 
+    #[allow(clippy::for_kv_map)]
+    fn unique_published_hir_direct_exact_root(
+        &self,
+        fqn: &str,
+        args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
+    ) -> Result<String, LlvmEmitError> {
+        let arg_tys = hir_arg_tys(args);
+        let mut matches = Vec::new();
+        for site in self.published_lir_facts.source_call_sites.values() {
+            if site.semantic_root_fqn.as_deref() != Some(fqn) {
+                continue;
+            }
+            let Some(exact) = &site.contract.exact_callee else {
+                continue;
+            };
+            if self.callable_root_has_abi_surface(&exact.root_fqn)
+                && self.published_signature_matches_hir_call(&exact.root_fqn, &arg_tys, result_ty)
+            {
+                matches.push(exact.root_fqn.clone());
+            }
+        }
+        for (root, _) in &self.published_lir_facts.source_signatures {
+            let suffix = root.get(fqn.len()..);
+            if root != fqn && !suffix.is_some_and(|suffix| suffix.starts_with("::<")) {
+                continue;
+            }
+            if self.callable_root_has_abi_surface(root)
+                && self.published_signature_matches_hir_call(root, &arg_tys, result_ty)
+            {
+                matches.push(root.clone());
+            }
+        }
+        if matches.is_empty() && self.callable_root_has_abi_surface(fqn) {
+            matches.push(fqn.to_string());
+        }
+        matches.sort();
+        matches.dedup();
+        match matches.as_slice() {
+            [root] => Ok(root.clone()),
+            [] => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` lacks an exact published callable/signature/ABI fact"
+                ),
+            }),
+            many => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` matched multiple exact published callable facts: {}",
+                    many.join(", ")
+                ),
+            }),
+        }
+    }
+
     fn callable_root_has_abi_surface(&self, root: &str) -> bool {
-        self.extern_funs.contains_key(root)
+        self.published_or_builtin_named_intrinsic_entry_name(root)
+            .is_some()
+            || self.extern_funs.contains_key(root)
             || self.exported_abi_symbol_for_lir_callable(root).is_ok()
     }
 

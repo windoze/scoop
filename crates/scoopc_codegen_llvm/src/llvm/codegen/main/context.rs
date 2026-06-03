@@ -358,22 +358,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             })?;
         let lir_facts = self.active_lir_facts();
-        if let Some(site) = lir_facts
+        lir_facts
             .class_ctor_call_sites
             .get(&LirClassCtorCallSiteKey {
                 owner_callable: owner_callable.clone(),
                 site_id,
-            })
-        {
-            return Ok(site);
-        }
-        lir_facts
-            .class_ctor_call_sites
-            .iter()
-            .find_map(|(key, site)| {
-                (key.site_id == site_id
-                    && key.owner_callable.readable_path() == owner_callable.readable_path())
-                .then_some(site)
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(

@@ -1143,6 +1143,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "reflection metadata must be queried by LIR owner+SiteId, not source span",
                 ),
                 fp(
+                    "key.owner_callable.readable_path() == owner_callable.readable_path()",
+                    "class ctor call-site lookup must fail fast on exact owner+SiteId misses instead of readable-path matching",
+                ),
+                fp(
                     "LirReflectionCallSiteKey { source_site",
                     "reflection call-site facts must not be keyed by raw source-site hashes in LLVM",
                 ),
@@ -1337,6 +1341,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "format!(\"{fqn}::<",
                     "direct call lowering must not format generic concrete FQNs in P6",
+                ),
+                fp(
+                    "published_root_matches_hir_callee",
+                    "direct call lowering must not match generic callees by root string prefixes",
+                ),
+                fp(
+                    "source_signatures.keys()",
+                    "direct call lowering must not scan source signature roots to recover concrete callees",
+                ),
+                fp(
+                    "Ok(fqn.to_string())",
+                    "direct call lowering must fail fast instead of accepting the source FQN without exact facts",
+                ),
+                fp(
+                    "strip_prefix(fqn)",
+                    "direct call lowering must not parse concrete generic roots from source FQN prefixes",
                 ),
             ),
         ),
@@ -1629,6 +1649,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "return_ty: unit_ty",
                     "LIR facts builder must fail fast instead of synthesizing empty Unit source signatures",
                 ),
+                fp(
+                    "value_box_member_impl_root",
+                    "LIR value-box layout must consume published target facts instead of assembling member roots from text",
+                ),
+                fp(
+                    "format!(\"{nominal_fqn}.{slot_name}\")",
+                    "LIR value-box layout must not assemble member roots from nominal/member text",
+                ),
+                fp(
+                    "format!(\"{base}::<",
+                    "LIR value-box layout must not instantiate generic member roots from display text",
+                ),
+                fp(
+                    "filter_map(|target| ctx.body_versions_by_key.get(target).cloned())",
+                    "LIR dynamic-invoke facts must fail fast when a target body-version fact is missing",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1647,6 +1683,49 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "bodyless_signature_root(",
                     "MIR backend facts must publish source signatures from explicit call contracts, not static bodyless root inventories",
+                ),
+                fp(
+                    "source_signature_target_publication",
+                    "MIR backend facts must not synthesize target-bound source signature or ABI publications locally",
+                ),
+                fp(
+                    "hir_facts.source_sites.function_targets()",
+                    "MIR backend facts must not scan HIR source-site function target maps",
+                ),
+                fp(
+                    "named_intrinsic_callables()",
+                    "MIR backend facts must not scan HIR source-site named intrinsic callables",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&target_callable_key)",
+                    "MIR backend facts must not synthesize target ABI symbols from locally created target keys",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR effect fact import fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_lir/src/effect_facts/mod.rs",
+            (
+                fp(
+                    "filter_map(|(key, facts)|",
+                    "effect fact import must fail fast instead of dropping callables with unknown stable keys",
+                ),
+                fp(
+                    "filter_map(|(key, body)|",
+                    "effect fact import must fail fast instead of dropping bodies with unknown stable keys",
+                ),
+                fp(
+                    "filter_map(|case|",
+                    "effect fact import must fail fast instead of dropping step cases with unknown concrete op keys",
+                ),
+                fp(
+                    "unwrap_or(CallSiteTarget::DynamicFallback)",
+                    "effect fact import must fail fast instead of downgrading unknown known-instance targets to DynamicFallback",
+                ),
+                fp(
+                    "filter_map(|key| instance_for_stable_key",
+                    "effect fact import must fail fast instead of dropping unknown candidate targets",
                 ),
             ),
         ),
@@ -1793,6 +1872,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "split_once('<')",
                     "reflection intrinsic lowering must not parse generic type arguments from source text",
+                ),
+                fp(
+                    "reflection_type_arg_for_current_call",
+                    "reflection intrinsic lowering must not query type arguments by current source path/span",
+                ),
+                fp(
+                    "reflection_type_arg(source.path()",
+                    "reflection intrinsic lowering must not query type arguments by source path/span",
                 ),
             ),
         ),
@@ -1943,6 +2030,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "class_ctor_init_bodies.get",
                     "class ctor init body lookup must not fall back to LLVM base-context side tables",
+                ),
+                fp(
+                    "pick_class_ctor_by_target",
+                    "class ctor lowering must consume exact LIR ctor call-site facts instead of span/arg-count selection",
+                ),
+                fp(
+                    "unique_class_ctor_init_body_by_span_suffix",
+                    "class ctor init lookup must not recover init bodies by span suffix",
                 ),
             ),
         ),

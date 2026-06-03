@@ -135,7 +135,7 @@ pub(crate) fn build_lir_facts(
         intrinsic_callables,
         source_call_sites,
         class_ctor_call_sites,
-        reflection_call_sites: build_reflection_call_site_facts(&ctx),
+        reflection_call_sites: build_reflection_call_site_facts(&ctx)?,
         class_ctor_inits,
         callables,
         step_types: build_step_type_facts(lir),
@@ -1064,7 +1064,7 @@ fn insert_value_box_itable_facts(
             let mut method_impl_targets = Vec::with_capacity(iface.method_slots.len());
             let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
             for slot in &iface.method_slots {
-                if let Some(impl_fqn) = value_box_member_impl_root(
+                if let Some(impl_fqn) = published_value_box_member_impl(
                     types,
                     source_signatures,
                     &nominal.fqn,
@@ -1162,14 +1162,14 @@ fn value_box_itable_owner_key(
     Ok(canonical_record("mir_value_box_itable_owner", [canonical]))
 }
 
-fn value_box_member_impl_root(
+fn published_value_box_member_impl(
     types: &TypeStore,
     source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
     nominal_fqn: &str,
     nominal_args: &[TypeId],
     slot_name: &str,
 ) -> Option<String> {
-    let base = format!("{nominal_fqn}.{slot_name}");
+    let base = [nominal_fqn, slot_name].join(".");
     if nominal_args.is_empty() && source_signatures.contains_key(&base) {
         return Some(base);
     }
@@ -1179,7 +1179,7 @@ fn value_box_member_impl_root(
             .map(|ty| types.display(*ty).to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let concrete = format!("{base}::<{args}>");
+        let concrete = base.clone() + "::<" + &args + ">";
         if source_signatures.contains_key(&concrete) {
             return Some(concrete);
         }
@@ -1403,6 +1403,12 @@ fn build_abi_symbol_facts(
         if out.values().any(|fact| {
             fact.callable.is_some() && fact.root_fqn.as_deref() == Some(signature.fqn.as_str())
         }) {
+            continue;
+        }
+        if signature.target_callable_key.is_none()
+            && signature.abi_symbol.is_none()
+            && signature.abi_role.is_none()
+        {
             continue;
         }
         let (target_key, symbol, role) = published_source_signature_target(signature)?;
@@ -2029,7 +2035,11 @@ fn class_ctor_owner_key_for_materialized_fun(
     if by_instance.is_some() {
         return Ok(by_instance);
     }
-    published_callable_key_by_root(ctx, &fun.fqn)
+    invalid_lir_facts(format!(
+        "class ctor facts owner `{}` has stable instance `{}` but no published LIR callable key",
+        fun.fqn,
+        stable_key.canonical_text()
+    ))
 }
 
 fn published_callable_key_by_root(
@@ -2105,9 +2115,104 @@ fn insert_class_ctor_call_site_facts_for_body(
 
 fn build_reflection_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
-) -> BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts> {
-    let _ = ctx;
-    BTreeMap::new()
+) -> Result<BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>, EffectLoweringError> {
+    let mut out = BTreeMap::new();
+    for callable in ctx.lir.callables() {
+        let owner_key = published_callable_key(callable)?.clone();
+        let Some(body) = callable.source_body() else {
+            continue;
+        };
+        insert_reflection_call_site_facts_for_body(&mut out, &owner_key, body)?;
+    }
+    for item in &ctx.materialized.file.items {
+        let Item::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        let Some(owner_key) = published_callable_key_by_root(ctx, &fun.fqn)? else {
+            continue;
+        };
+        insert_reflection_call_site_facts_for_body(&mut out, &owner_key, body)?;
+    }
+    let callable_view = ctx.materialized.callable_view();
+    for family in callable_view.instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let Some(owner_key) = published_callable_key_by_root(ctx, &fun.fqn)? else {
+                continue;
+            };
+            insert_reflection_call_site_facts_for_body(&mut out, &owner_key, body)?;
+        }
+    }
+    let pass_view = ctx.materialized.pass_view();
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let Some(owner_key) = class_ctor_owner_key_for_materialized_fun(ctx, &pass_view, fun)?
+            else {
+                continue;
+            };
+            insert_reflection_call_site_facts_for_body(&mut out, &owner_key, body)?;
+        }
+    }
+    Ok(out)
+}
+
+fn insert_reflection_call_site_facts_for_body(
+    out: &mut BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
+    owner_key: &StableLirCallableKey,
+    body: &crate::mir::Body,
+) -> Result<(), EffectLoweringError> {
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            let Some((site_id, intrinsic_name, value_ty)) = reflection_rvalue_metadata(value)
+            else {
+                continue;
+            };
+            let key = LirReflectionCallSiteKey {
+                owner_callable: owner_key.clone(),
+                site_id,
+            };
+            let fact = LirReflectionCallSiteFacts {
+                owner_callable: owner_key.clone(),
+                site_id,
+                intrinsic_name: intrinsic_name.to_string(),
+                type_args: vec![value_ty],
+            };
+            if let Some(existing) = out.insert(key.clone(), fact)
+                && (existing.intrinsic_name != intrinsic_name
+                    || existing.type_args != vec![value_ty])
+            {
+                return invalid_lir_facts(format!(
+                    "reflection call-site identity drift for owner `{}` site{}",
+                    key.owner_callable.readable_path(),
+                    key.site_id.as_u32()
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reflection_rvalue_metadata(
+    value: &crate::mir::Rvalue,
+) -> Option<(SiteId, &'static str, TypeId)> {
+    match value {
+        crate::mir::Rvalue::SizeOf { site_id, value_ty } => Some((*site_id, "sizeOf", *value_ty)),
+        crate::mir::Rvalue::AlignOf { site_id, value_ty } => Some((*site_id, "alignOf", *value_ty)),
+        crate::mir::Rvalue::KindOf { site_id, value_ty } => Some((*site_id, "kindOf", *value_ty)),
+        crate::mir::Rvalue::DescOf { site_id, value_ty } => Some((*site_id, "descOf", *value_ty)),
+        _ => None,
+    }
 }
 
 fn callable_symbol_kind(
@@ -2742,8 +2847,20 @@ fn publish_dynamic_invoke_contract(
     let target_body_versions = contract
         .target_callables
         .iter()
-        .filter_map(|target| ctx.body_versions_by_key.get(target).cloned())
-        .collect();
+        .map(|target| {
+            ctx.body_versions_by_key
+                .get(target)
+                .cloned()
+                .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!(
+                        "dynamic invoke owner `{}` site{} target `{}` lacks a published body-version fact",
+                        owner_key.readable_path(),
+                        site_id.as_u32(),
+                        target.readable_path()
+                    ),
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     dynamic_invokes.insert(
         key.clone(),
         LirDynamicInvokeContract {

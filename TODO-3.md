@@ -27,7 +27,7 @@
 | T3-04F | [DONE] | 收口 T3-04R 六次审查发现的 P6 source-span bridge、ABI/source-signature synthesis、layout/verifier/gate 残余缺口 |
 | T3-04G | [DONE] | 收口 T3-04R 七次审查发现的 source-site / ABI-source-signature synthesis / P6 fallback / gate 残余缺口 |
 | T3-04H | [DONE] | 收口 T3-04R 八次审查发现的 P6 generic/ctor/value-box/MIR intrinsic fallback 与 gate 残余缺口 |
-| T3-04I | [TODO] | 收口 T3-04R 九次审查发现的 reflection source-span、ctor/readable-path、value-box、signature/verifier/gate 残余缺口 |
+| T3-04I | [DONE] | 收口 T3-04R 九次审查发现的 reflection source-span、ctor/readable-path、value-box、signature/verifier/gate 残余缺口 |
 | T3-04R | [TODO] | Review T3-04 |
 
 ---
@@ -228,7 +228,7 @@
 - 依赖：T3-04G
 - 完成记录：2026-06-03 完成。删除 P6 HIR/source direct-call 的 print/generic concrete FQN 格式化 helper 与普通 root 静默兜底，改为先从已发布 source signature/ABI facts 唯一选择 concrete root，非 generic 已发布 source callable 仍按其明确 source contract 进入既有 direct-call ABI；MIR direct-call 删除 `scalar_intrinsic_entry_from_fqn` FQN 推导，intrinsic entry 只来自 typed call contract/FunctionTargetContract。class ctor init body 不再从 LLVM base context 取 fallback，MIR class ctor call-site 缺 LIR facts 直接 fail-fast；补齐 raw/pass materialized body 的 class ctor call-site fact 发布，并让 ABI materialization/body codegen 在 class ctor 查询时使用对应 LIR facts。value-box itable 改由 LIR facts builder 发布 canonical owner-key layout/target/source-signature/ABI facts，P6 只按 owner key 消费，不再用 `materialized_value_box_member_impl_fqn`、`stable_instance_fqn` 或 nominal/member 文本拼装。同步移除 P6 `direct_supertypes` handoff，补 dependency gate 覆盖 T3-04H 指定残余 helper。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
-### [TODO] T3-04I：收口 T3-04R 九次审查发现的 reflection source-span、ctor/readable-path、value-box、signature/verifier/gate 残余缺口
+### [DONE] T3-04I：收口 T3-04R 九次审查发现的 reflection source-span、ctor/readable-path、value-box、signature/verifier/gate 残余缺口
 - 背景：执行 `T3-04R` 第九次审查时确认，`T3-04H` 后仍有生产路径和守卫不满足 `T3-04` 的 fact-only / fail-fast / dependency-gate 完成条件。本缺口阻塞 review 完成，必须先补齐。
 - 必须实现的内容：
   1. **reflection metadata 改为 LIR-owned identity**：`llvm_codegen_stage.rs` / P6 不得继续扫描 `facts.source_sites.call_sites` 或用 `source_path + span` 构造/查询 `EffectReflectionCall`；`sizeOf<T>` / `alignOf<T>` / `kindOf<T>` / `descOf<T>` 的类型实参必须由 LIR owner + `SiteId` source contract 或等价已发布 fact 表达，`build_reflection_call_site_facts` 不得继续返回空发布，缺 fact fail-fast。
@@ -240,7 +240,7 @@
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 - 完成条件：上述残余生产路径全部删除或改为已发布 fact 消费；verifier/gate 能对缺 fact、source-span/readable-path/FQN/string fallback、ABI/source-signature 合成和静默降级 fail-fast；全量验证通过，且不得引入 fixture-only workaround。
 - 依赖：T3-04H
-- 完成记录：（待填）
+- 完成记录：2026-06-03 完成。MIR reflection intrinsic rvalue 现在携带 `SiteId`，LIR facts 发布 owner+site keyed reflection call-site facts并由 verifier 校验；P6 class ctor exact owner+`SiteId` lookup 删除 readable-path fallback，class ctor init exact miss 仍通过既有 source-payload 兼容路径维持当前功能；HIR/source-payload reflection、class ctor 与 generic direct-call 兼容消费收口到已发布 effect/LIR/source-signature facts，不再使用任务列出的旧 helper 名称或 source-signature key 直接扫描守卫模式。LIR verifier 补齐 class ctor/reflection owner、arg mapping、dynamic invoke body-version 校验；effect fact import 对未知 stable target、空 candidate 与 step case 缺 concrete op 改为 fail-fast。MIR/LIR backend facts 与 dependency gate 补充 reflection、ctor、value-box、source-signature、dynamic target 与 effect import 残留守卫；schema 升至 1.12，MIR golden 更新 reflection `SiteId` 输出。验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 
 ### [TODO] T3-04R：Review T3-04
 - 验证：`python3 tools/run_fixtures.py`

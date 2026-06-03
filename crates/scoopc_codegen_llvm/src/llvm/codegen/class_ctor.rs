@@ -29,22 +29,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         arg_mapping: &[Option<usize>],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let base_fqn = class_fqn;
         let result_ty = result_ty.ok_or_else(|| LlvmEmitError::Frontend {
-            message: format!("class ctor `{base_fqn}` reached LLVM without a typed result target"),
+            message: format!("class ctor `{class_fqn}` reached LLVM without a typed result target"),
         })?;
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty) else {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "class ctor `{base_fqn}` result type t{} is not a nominal class reference",
+                    "class ctor `{class_fqn}` result type t{} is not a nominal class reference",
                     result_ty.as_u32()
                 ),
             });
         };
-        if nominal.fqn != base_fqn {
+        if nominal.fqn != class_fqn {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "class ctor `{base_fqn}` result type resolves to mismatched nominal `{}`",
+                    "class ctor `{class_fqn}` result type resolves to mismatched nominal `{}`",
                     nominal.fqn
                 ),
             });
@@ -54,7 +53,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .as_mono(result_ty)
                 .map_err(|leak| LlvmEmitError::Frontend {
                     message: format!(
-                        "class ctor `{base_fqn}` result type t{} is not fully monomorphic: {:?}",
+                        "class ctor `{class_fqn}` result type t{} is not fully monomorphic: {:?}",
                         result_ty.as_u32(),
                         leak.leak_path
                     ),
@@ -64,30 +63,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !self.class_inits.contains_key(&class_key) {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "class ctor `{base_fqn}` resolved to missing class layout key `{class_key}`"
+                    "class ctor `{class_fqn}` resolved to missing class layout key `{class_key}`"
                 ),
             });
         }
         let class = self.class_init_layout(callee_span, &class_key)?;
-
-        let selected_ctor = self.pick_class_ctor_by_target(
-            callee_span,
+        let selected_ctor = self.select_class_ctor_from_source_payload(
             &class,
             ctor_span,
             args.len(),
-            None,
-            "class ctor selected/ordered args contract",
+            "class ctor source payload contract",
         )?;
         let init_body =
-            self.class_ctor_init_body_for_selected(callee_span, &class, selected_ctor)?;
-        let ctor_params = init_body.params();
-        // 4) 分配对象（header 由 runtime 初始化）；payload 先清零，避免读取未初始化字段导致的非确定性。
+            self.class_ctor_init_body_for_source_selection(callee_span, &class, selected_ctor)?;
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
-
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-
-        // 分配点统一走 typed alloc：在 runtime 内部写入对象头 `type_desc`。
         let type_desc = self.get_or_create_class_type_desc_global(span, &class_key)?;
         let type_desc_i8 = self.builder.build_pointer_cast(
             type_desc.as_pointer_value(),
@@ -103,29 +94,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let raw = self.expect_basic_value(call, "scoop_alloc_typed class allocation");
         let obj_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed class allocation");
-
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
-
         let payload_ptr =
             self.builder
                 .build_struct_gep(obj_ty, typed_obj, 1, "class_payload_gep")?;
         let payload_ty = self.llvm_class_payload_type(span, &class)?;
         let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
         if payload_size_bytes > 0 {
-            let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
             let payload_i8 = self
                 .builder
-                .build_bit_cast(payload_ptr, i8_ptr_ty, "class_payload_i8")?
+                .build_bit_cast(payload_ptr, self.llvm_gc_i8_ptr_type(), "class_payload_i8")?
                 .into_pointer_value();
             let size_ty = self.llvm_ptr_sized_int_type(None);
             let size_v = size_ty.const_int(payload_size_bytes, false);
             let zero = self.context.i8_type().const_int(0, false);
             let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
         }
-
         let deferred_obj = self.defer_gc_sensitive_cg_value(
             span,
             "class_ctor_obj_root",
@@ -134,31 +121,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value: Some(obj_ptr.into()),
             },
         )?;
-
-        // 6) 执行构造调用：支持 super ctor args + secondary ctor delegation（T1327c）。
-        //
-        // 语义（Kotlin-like，Appendix B.2.2）：
-        // - 调用点先按源码顺序求值 ctor 实参；
-        // - 进入 ctor 后：
-        //   - 若是 `: this(...)`，先执行被委托 ctor，再执行当前 ctor body；
-        //   - 否则先执行 super ctor call，再执行本类的参数属性赋值、property initializer、init blocks，
-        //     最后执行 secondary ctor body（若有）。
-
         let evaluated_args = self.codegen_class_ctor_eval_args(
             callee_span,
             callee_span,
             args,
             Some(arg_mapping),
-            ctor_params,
+            init_body.params(),
             "class ctor call arg eval",
         )?;
-
         let current_obj = self.reload_deferred_gc_ref_without_clearing(
             span,
             "class_ctor_obj_before_invoke",
             &deferred_obj,
         )?;
-
         self.codegen_class_ctor_invoke(
             span,
             callee_span,
@@ -167,105 +142,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             evaluated_args.as_slice(),
             current_obj,
         )?;
-
         self.emit_ordinary_call_effect_propagation_check(span, "class_ctor_call_effect")?;
-
-        if !self.ordinary_effect_propagation_enabled()
-            && let Some(outcome_ptr) = self.function_cx.current_effect_outcome_ptr
-        {
-            let current_fn = self.expect_current_function("class ctor call current function");
-            let active_bb = self
-                .context
-                .append_basic_block(current_fn, "class_ctor_call_active");
-            let inactive_bb = self
-                .context
-                .append_basic_block(current_fn, "class_ctor_call_inactive");
-            let merge_bb = self
-                .context
-                .append_basic_block(current_fn, "class_ctor_call_merge");
-            let is_propagating =
-                self.effect_outcome_is_propagating(span, outcome_ptr, "class_ctor_call_effect")?;
-            self.builder
-                .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
-
-            self.builder.position_at_end(active_bb);
-            self.clear_deferred_cg_value_root_homes(
-                span,
-                "class_ctor_obj_active_drop",
-                &deferred_obj,
-            )?;
-            let active_bb_end = self.expect_insert_block("class ctor call active branch");
-            self.builder.build_unconditional_branch(merge_bb)?;
-
-            self.builder.position_at_end(inactive_bb);
-            let current_obj = self.reload_deferred_gc_ref_without_clearing(
-                span,
-                "class_ctor_obj_return",
-                &deferred_obj,
-            )?;
-            let inactive_bb_end = self.expect_insert_block("class ctor call inactive branch");
-            self.builder.build_unconditional_branch(merge_bb)?;
-
-            self.builder.position_at_end(merge_bb);
-            let result_phi = self
-                .builder
-                .build_phi(self.llvm_gc_i8_ptr_type(), "class_ctor_call_result")?;
-            result_phi.add_incoming(&[
-                (&self.llvm_gc_i8_ptr_type().const_null(), active_bb_end),
-                (&current_obj, inactive_bb_end),
-            ]);
-
-            return Ok(CgValue {
-                ty: CgTy::Ref,
-                value: Some(result_phi.as_basic_value()),
-            });
-        }
-
         let current_obj = self.reload_deferred_gc_ref_without_clearing(
             span,
             "class_ctor_obj_return",
             &deferred_obj,
         )?;
-
         Ok(CgValue {
             ty: CgTy::Ref,
             value: Some(current_obj.into()),
         })
     }
 
-    #[allow(dead_code)]
-    pub(in crate::llvm::codegen) fn pick_class_ctor_by_target<'b>(
+    fn select_class_ctor_from_source_payload<'b>(
         &self,
-        _at: crate::span::Span,
         class: &'b hir::MonoClassInit,
         target_ctor_span: Option<crate::span::Span>,
         arg_count: usize,
-        exclude_ctor_span: Option<crate::span::Span>,
         kind: &'static str,
     ) -> Result<Option<&'b hir::ClassCtor<MonoTypeId>>, LlvmEmitError> {
         if let Some(target_span) = target_ctor_span {
-            let mut matching: Vec<&hir::ClassCtor<MonoTypeId>> = class
+            let matching = class
                 .ctors
                 .iter()
                 .filter(|ctor| ctor.span == target_span)
-                .collect();
-            if let Some(exclude) = exclude_ctor_span {
-                matching.retain(|ctor| ctor.span != exclude);
-            }
+                .collect::<Vec<_>>();
             if matching.len() != 1 {
-                panic!("pick_class_ctor_by_target: verifier accepted {kind}");
+                panic!("select_class_ctor_from_source_payload: verifier accepted {kind}");
             }
             return Ok(Some(matching[0]));
         }
-
         if class.ctors.is_empty() {
             return if arg_count == 0 {
                 Ok(None)
             } else {
-                panic!("pick_class_ctor_by_target: verifier accepted {kind}")
+                panic!("select_class_ctor_from_source_payload: verifier accepted {kind}")
             };
         }
-
         let matching = class
             .ctors
             .iter()
@@ -279,11 +192,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if matching.len() == 1 {
             return Ok(Some(matching[0]));
         }
-
-        panic!("pick_class_ctor_by_target: verifier accepted {kind}")
+        panic!("select_class_ctor_from_source_payload: verifier accepted {kind}")
     }
 
-    pub(in crate::llvm::codegen) fn class_ctor_init_body_for_selected(
+    fn class_ctor_init_body_for_source_selection(
         &self,
         at: crate::span::Span,
         class: &hir::MonoClassInit,
@@ -310,7 +222,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program
             .class_ctor_init_body(key)
             .cloned()
-            .or_else(|| self.unique_class_ctor_init_body_by_span_suffix(program, key))
+            .or_else(|| self.same_span_class_ctor_init_body(program, key))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "class ctor init body `{}` is missing from the published LateLoweredProgram",
@@ -319,7 +231,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    fn unique_class_ctor_init_body_by_span_suffix(
+    fn same_span_class_ctor_init_body(
         &self,
         program: &crate::effect_lowered::LateLoweredProgram,
         key: &LirClassCtorInitKey,
