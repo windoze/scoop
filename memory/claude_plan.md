@@ -1,3 +1,41 @@
+# Claude 执行计划
+
+Date: 2026-06-04
+
+## 范围
+
+- 以 `TODO.md` 作为权威任务来源。
+- 只完成第一个未完成任务，然后停止。
+- 持续记录当前计划、关键进度和阻塞事项。
+- 记录可审计的简要依据与决策，不写入隐藏推理链。
+
+## 初始计划
+
+1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务。
+2. 只检查最新提交中与该任务直接相关的未完成事项。
+3. 阅读所选任务的细节、依赖、验证要求和邻近完成记录。
+4. 只检查完成该任务所需的代码、fixture、文档和测试。
+5. 若无具体前置阻塞，则完整实现当前任务。
+6. 先运行格式化，再运行 lint，然后运行相关测试；若代码变更，继续运行完整验证。
+7. 标记完成前，处理所有观察到且未被明确排期的测试或 fixture 问题。
+8. 更新 `TODO.md`，给任务标题加 `[DONE]` 并填写完成记录。
+9. 仅当阶段级顺序或完成标准变化时更新 `PLAN.md`。
+10. 用带任务标识的描述性提交信息提交所有相关变更。
+11. 不开始下一个任务，直接停止。
+
+## 进度记录
+
+- 已在读取任务文件或运行项目命令前创建本计划记录。
+- 已读取 `TODO.md`；第一个未完成任务是 `T2-01-R：Review T2-01`。
+- Review 范围：确认 `LirCallableId` 是 `program.callables` 下标，`LirCallableHash` 确定、稳定、可序列化，callable key 解析集中在 LIR 边界，测试覆盖命中、未命中和错误路径。
+- Review 发现：`StableLirCallableKey` 仍按 `canonical_text` 与 `readable_path` 一起派生 equality/hash/order，但 T2-01 要求 live identity 只能使用 canonical text；这会隐藏重复 canonical key，或在仅 debug path 不同时造成 lookup miss。
+- 计划调整：为 `StableLirCallableKey` 实现 canonical-text-only 的比较、hash 和排序，并补充测试覆盖 canonical-only 身份、`LirCallableIndex` 的不同 debug path 命中和重复检测。
+- 已完成修正：`StableLirCallableKey` 现在只按 canonical text 比较、hash 和排序；测试覆盖 key identity、hash/order 集合去重、alternate debug path lookup 以及重复 canonical key。
+- 验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、两个在完整套件中因锁等待看似较慢的 LLVM 单测隔离运行、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+- 已更新 `TODO.md`，将 `T2-01-R` 标记为 `[DONE]` 并填写完成记录。阶段级顺序未变化，因此无需更新 `PLAN.md`。
+
+## 历史记录
+
 # 当前执行计划
 
 ## 约束说明

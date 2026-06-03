@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use scoopc_span::Span;
@@ -328,12 +329,36 @@ impl StableSymbolKey for StableEffectInstanceKey {
 /// debug-only readable path so it remains independent of MIR/LIR implementation
 /// types. Identity comparisons, hashes, and live lookups must use
 /// `canonical_text`; `readable_path` is only for diagnostics and symbol labels.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StableLirCallableKey {
     canonical_text: String,
     readable_path: String,
+}
+
+impl PartialEq for StableLirCallableKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.canonical_text == other.canonical_text
+    }
+}
+
+impl Eq for StableLirCallableKey {}
+
+impl Hash for StableLirCallableKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.canonical_text.hash(state);
+    }
+}
+
+impl PartialOrd for StableLirCallableKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StableLirCallableKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.canonical_text.cmp(&other.canonical_text)
+    }
 }
 
 impl StableLirCallableKey {
@@ -742,6 +767,8 @@ fn sanitize_symbol_component(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeSet, HashSet};
+
     use super::*;
 
     #[test]
@@ -774,6 +801,27 @@ mod tests {
         assert_ne!(first_hash, LirCallableHash::from_stable_key(&other));
         assert_eq!(first_hash.as_bytes().len(), 16);
         assert_eq!(first_hash.to_hex().len(), 32);
+    }
+
+    #[test]
+    fn stable_lir_callable_key_identity_uses_canonical_text_only() {
+        let canonical = "lir_callable(3:foo)";
+        let first = StableLirCallableKey::new(canonical, "pkg.first");
+        let renamed = StableLirCallableKey::new(canonical, "pkg.renamed");
+        let other = StableLirCallableKey::new("lir_callable(3:bar)", "pkg.first");
+
+        assert_eq!(first, renamed);
+        assert_ne!(first, other);
+
+        let mut hash_keys = HashSet::new();
+        assert!(hash_keys.insert(first.clone()));
+        assert!(!hash_keys.insert(renamed.clone()));
+        assert!(hash_keys.insert(other.clone()));
+
+        let mut ordered_keys = BTreeSet::new();
+        assert!(ordered_keys.insert(first));
+        assert!(!ordered_keys.insert(renamed));
+        assert!(ordered_keys.insert(other));
     }
 
     #[test]

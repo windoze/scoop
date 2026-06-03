@@ -62,9 +62,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 新增单测覆盖 id/hash 稳定性、key 命中、key 未命中、id 未命中与重复 key 错误。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-01-R：Review T2-01
+### [DONE] T2-01-R：Review T2-01
 - 关注点：`LirCallableId` 语义 = `program.callables` 下标（与 arena 一致，无第二套编号）；`LirCallableHash` 派生确定、稳定、可序列化；map 构建是唯一 fallible 解析点。
 - 确认：`cargo build`/`clippy -D warnings`；单测覆盖「key→id 命中/未命中（未命中=错误而非 panic）」。
+
+完成记录（2026-06-04）：
+- Review 发现 `StableLirCallableKey` 虽已标注 `readable_path` 仅用于诊断，但派生的 `Eq`/`Hash`/`Ord` 仍把 `readable_path` 纳入身份；这会让相同 canonical text、不同 debug path 的 callable key 逃过重复检测或在 live lookup 中 miss。
+- 修正 `StableLirCallableKey` 的 `PartialEq`/`Eq`/`Hash`/`PartialOrd`/`Ord` 为 canonical-text-only，保持 `readable_path` 仅用于诊断和符号标签。
+- 补充单测覆盖 stable key canonical-only identity、hash/order 集合去重、`LirCallableIndex` 用不同 debug path 命中同一 `LirCallableId`、以及同 canonical 不同 debug path 的重复 key 错误。
+- Review 确认 `LirCallableId` 仍按 `LateLoweredProgram.callables` 下标寻址，`LirCallableHash` 从 canonical text 派生且为固定 128-bit 可序列化句柄，`LirCallableIndex` 在 LIR handoff 边界构建并对缺 key、重复 key、未知 key/id 返回显式错误。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo test -p scoopc pipeline::llvm_codegen_stage::tests::llvm_function_abi_entry_shells_use_direct_entry -- --exact`；`cargo test -p scoopc pipeline::llvm_codegen_stage::tests::llvm_value_boxing_transport -- --exact`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-02：`callables` 容器改为按 `LirCallableId` 寻址
 - `LateLoweredProgram.callables: Vec<LateLoweredCallable>` 已是 Vec → 直接以下标为 `LirCallableId`。把 `LirFacts.callables: BTreeMap<StableLirCallableKey, LirCallableFacts>`（`lib.rs:38/60`）与 `callable_symbols`/`closure_identity`（`contract.rs:619/623`）的查找改为经 `LirCallableId`（过渡期保留 stable key 字段，仅切换 live 访问路径）。

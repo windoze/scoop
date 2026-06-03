@@ -5987,6 +5987,8 @@ mod wire_tests {
     #[test]
     fn lir_callable_index_maps_keys_to_program_indices() {
         let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let alpha_with_different_debug_path =
+            StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha.renamed");
         let beta = StableLirCallableKey::new("lir_callable(beta)", "pkg.beta");
         let index = LirCallableIndex::from_published_keys(vec![alpha.clone(), beta.clone()])
             .expect("unique callable keys build an index");
@@ -5996,6 +5998,10 @@ mod wire_tests {
 
         assert_eq!(index.len(), 2);
         assert_eq!(index.id_for_key(&alpha), Ok(alpha_id));
+        assert_eq!(
+            index.id_for_key(&alpha_with_different_debug_path),
+            Ok(alpha_id)
+        );
         assert_eq!(index.id_for_key(&beta), Ok(beta_id));
         assert_eq!(index.key_for_id(beta_id), Ok(&beta));
         assert_eq!(
@@ -6027,17 +6033,30 @@ mod wire_tests {
     #[test]
     fn lir_callable_index_rejects_duplicate_published_keys() {
         let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
-        let error = LirCallableIndex::from_published_keys(vec![alpha.clone(), alpha.clone()])
-            .expect_err("duplicate callable keys are rejected");
+        let alpha_with_different_debug_path =
+            StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha.renamed");
+        let error = LirCallableIndex::from_published_keys(vec![
+            alpha,
+            alpha_with_different_debug_path.clone(),
+        ])
+        .expect_err("duplicate callable keys are rejected");
 
-        assert_eq!(
-            error,
+        match error {
             LirCallableIndexError::DuplicatePublishedKey {
-                key: alpha,
-                first: LirCallableId::from_raw(0),
-                duplicate: LirCallableId::from_raw(1),
+                key,
+                first,
+                duplicate,
+            } => {
+                assert_eq!(key.as_str(), alpha_with_different_debug_path.as_str());
+                assert_eq!(
+                    key.readable_path(),
+                    alpha_with_different_debug_path.readable_path()
+                );
+                assert_eq!(first, LirCallableId::from_raw(0));
+                assert_eq!(duplicate, LirCallableId::from_raw(1));
             }
-        );
+            other => panic!("expected duplicate-key error, got {other:?}"),
+        }
     }
 }
 
