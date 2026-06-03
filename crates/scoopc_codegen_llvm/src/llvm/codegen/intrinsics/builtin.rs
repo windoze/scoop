@@ -364,10 +364,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
         let source = self.current_source()?;
-        if let Some(ty) =
-            self.shared
-                .effect_analysis_facts
-                .legacy_reflection_arg_ty(source.path(), span, name)
+        if let Some(ty) = self
+            .shared
+            .effect_analysis_facts
+            .reflection_arg_ty_by_source(source.path(), span, name)
         {
             return Ok(ty);
         }

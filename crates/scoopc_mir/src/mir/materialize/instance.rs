@@ -157,6 +157,8 @@ impl MirInstanceMaterializer {
             .iter()
             .map(|signature| super::MaterializedCallableSignature {
                 fqn: signature.template.fqn.clone(),
+                stable_template_key: signature.stable_template_key.clone(),
+                has_generic_params_or_effect_param: signature.has_generic_params_or_effect_param,
                 param_names: signature
                     .params
                     .iter()

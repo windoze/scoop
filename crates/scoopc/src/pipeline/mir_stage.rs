@@ -67,6 +67,7 @@ use crate::mir::{
 };
 use crate::stable_id::{
     EffectRowTemplate as StableEffectRowTemplate, NoTypeParamResolver, StableEffectParamKey,
+    StableTemplateKey,
 };
 use crate::ty::{
     EFFECT_ROW_PARAM_DECL_FILE, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
@@ -1338,35 +1339,41 @@ fn static_call_site_target(
             reason: DynamicFallbackReason::NativeFunPtr,
         }),
         MirCallKindNode::Virtual { dispatch, .. } => Some(dispatch_target_or_declared_member(
-            materialized,
             dispatch,
-            dispatch_candidate_keys(materialized, dispatch, explicit_arg_count, false),
+            dispatch_candidate_targets(materialized, dispatch, explicit_arg_count, false),
         )),
         MirCallKindNode::Interface { dispatch, .. } => Some(dispatch_target_or_declared_member(
-            materialized,
             dispatch,
-            dispatch_candidate_keys(materialized, dispatch, explicit_arg_count, true),
+            dispatch_candidate_targets(materialized, dispatch, explicit_arg_count, true),
         )),
         MirCallKindNode::Resume { .. } => None,
     }
 }
 
 fn dispatch_target_or_declared_member(
-    materialized: &MaterializedMir,
     dispatch: &crate::mir::DispatchMetadata,
-    keys: Vec<CanonicalTextKey>,
+    targets: DispatchCandidateTargets,
 ) -> CallSiteTarget {
-    if keys.is_empty() {
-        stable_key_for_callable(materialized, &dispatch.member_fqn)
-            .map(|key| CallSiteTarget::KnownInstance {
-                key: CanonicalTextKey::new(key.canonical_text()),
-            })
-            .unwrap_or_else(|| CallSiteTarget::DirectFunction {
-                fqn: dispatch.member_fqn.clone(),
-            })
-    } else {
-        CallSiteTarget::CandidateSet { keys }
+    match (targets.keys.is_empty(), targets.bodyless_roots.as_slice()) {
+        (false, []) => CallSiteTarget::CandidateSet { keys: targets.keys },
+        (true, [root]) => CallSiteTarget::DirectFunction { fqn: root.clone() },
+        (true, []) => CallSiteTarget::DirectFunction {
+            fqn: dispatch.member_fqn.clone(),
+        },
+        (true, bodyless) => {
+            panic!(
+                "dispatch target `{}` has multiple bodyless targets without instance candidates: {}",
+                dispatch.member_fqn,
+                bodyless.join(", ")
+            )
+        }
+        (false, _) => CallSiteTarget::CandidateSet { keys: targets.keys },
     }
+}
+
+struct DispatchCandidateTargets {
+    keys: Vec<CanonicalTextKey>,
+    bodyless_roots: Vec<String>,
 }
 
 fn stable_key_for_callable(
@@ -1377,19 +1384,22 @@ fn stable_key_for_callable(
     materialized.authoritative_stable_instance_key(owner)
 }
 
-fn dispatch_candidate_keys(
+fn dispatch_candidate_targets(
     materialized: &MaterializedMir,
     dispatch: &crate::mir::DispatchMetadata,
     explicit_arg_count: usize,
     is_interface: bool,
-) -> Vec<CanonicalTextKey> {
+) -> DispatchCandidateTargets {
     let keys = dispatch
         .stable_candidate_keys
         .iter()
         .map(|key| CanonicalTextKey::new(key.canonical_text()))
         .collect::<Vec<_>>();
     if !keys.is_empty() {
-        return keys;
+        return DispatchCandidateTargets {
+            keys,
+            bodyless_roots: Vec::new(),
+        };
     }
 
     let candidate_fqns = if is_interface {
@@ -1397,14 +1407,34 @@ fn dispatch_candidate_keys(
     } else {
         virtual_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
     };
-    let mut keys = candidate_fqns
-        .iter()
-        .filter_map(|fqn| stable_key_for_callable(materialized, fqn))
-        .map(|key| CanonicalTextKey::new(key.canonical_text()))
-        .collect::<Vec<_>>();
+    let mut keys = Vec::new();
+    let mut bodyless_roots = Vec::new();
+    for fqn in candidate_fqns {
+        if let Some(key) = stable_key_for_callable(materialized, &fqn) {
+            keys.push(CanonicalTextKey::new(key.canonical_text()));
+        } else if materialized_source_signature_has_target(materialized, &fqn) {
+            bodyless_roots.push(fqn);
+        } else {
+            panic!(
+                "dispatch candidate `{fqn}` lacks a published stable callable or source target key"
+            )
+        }
+    }
     keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
     keys.dedup();
-    keys
+    bodyless_roots.sort();
+    bodyless_roots.dedup();
+    DispatchCandidateTargets {
+        keys,
+        bodyless_roots,
+    }
+}
+
+fn materialized_source_signature_has_target(materialized: &MaterializedMir, fqn: &str) -> bool {
+    materialized
+        .source_callable_signatures()
+        .iter()
+        .any(|signature| signature.fqn == fqn)
 }
 
 fn dispatch_candidate_fqns_for_surface(
@@ -2904,10 +2934,13 @@ fn collect_mir_backend_facts(
                 &format!("{}#{index}", signature.fqn),
             );
             let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
+                explicit_abi_publication_for_source_signature(
                     &contracts.native_callable_funs,
                     &contracts.extern_funs,
-                    &identity,
+                    signature
+                        .stable_template_key
+                        .as_ref()
+                        .map(StableTemplateKey::canonical_text),
                     &signature.fqn,
                 );
             SourceCallableSignatureFact {
@@ -2935,10 +2968,10 @@ fn collect_mir_backend_facts(
         }
         let identity = backend_identity(&cone, "source_signature", &format!("{}#root", root.fqn));
         let (target_callable_key, abi_symbol, abi_role) =
-            source_signature_target_from_abi_contracts(
+            explicit_abi_publication_for_source_signature(
                 &contracts.native_callable_funs,
                 &contracts.extern_funs,
-                &identity,
+                None,
                 &root.fqn,
             );
         source_signatures.push(SourceCallableSignatureFact {
@@ -2953,9 +2986,39 @@ fn collect_mir_backend_facts(
         });
     }
     if let Some(hir_facts) = hir_facts {
+        let stable_template_by_fqn = hir_facts
+            .declarations
+            .generic_templates
+            .iter()
+            .filter_map(|template| {
+                StableTemplateKey::from_canonical_text(template.stable_template_key.as_str())
+                    .ok()
+                    .map(|key| (template.template_fqn.clone(), key))
+            })
+            .collect::<HashMap<_, _>>();
         for callable in &hir_facts.declarations.callables {
             let fqn = callable.identity.display_name.clone();
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    stable_template_by_fqn
+                        .get(&fqn)
+                        .map(StableTemplateKey::canonical_text)
+                        .or_else(|| Some(callable.identity.canonical_text().to_string())),
+                    &fqn,
+                );
             if !seen_source_signatures.insert(fqn.clone()) {
+                if let Some(existing) = source_signatures
+                    .iter_mut()
+                    .find(|signature| signature.fqn == fqn)
+                    && existing.target_callable_key.is_none()
+                    && target_callable_key.is_some()
+                {
+                    existing.target_callable_key = target_callable_key;
+                    existing.abi_symbol = abi_symbol;
+                    existing.abi_role = abi_role;
+                }
                 continue;
             }
             let fact_identity = backend_identity(
@@ -2963,13 +3026,6 @@ fn collect_mir_backend_facts(
                 "source_signature",
                 &format!("{}#hir-declaration", fqn),
             );
-            let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
-                    &contracts.native_callable_funs,
-                    &contracts.extern_funs,
-                    &fact_identity,
-                    &fqn,
-                );
             let mut param_tys = Vec::with_capacity(
                 callable.parameter_tys.len() + usize::from(callable.receiver_ty.is_some()),
             );
@@ -2988,42 +3044,6 @@ fn collect_mir_backend_facts(
                     .collect(),
                 param_tys,
                 return_ty: callable.return_ty,
-            });
-        }
-        let site_contracts = &hir_facts.source_sites;
-        for site in &site_contracts.call_sites {
-            let Some((function, _named_entry)) = source_site_callable_target(&site.contract) else {
-                continue;
-            };
-            let Some(return_ty) = function.return_ty else {
-                continue;
-            };
-            if !seen_source_signatures.insert(function.fqn.clone()) {
-                continue;
-            }
-            let fact_identity = backend_identity(
-                &cone,
-                "source_signature",
-                &format!("{}#site{}", function.fqn, site.identity.site.as_u32()),
-            );
-            let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
-                    &contracts.native_callable_funs,
-                    &contracts.extern_funs,
-                    &fact_identity,
-                    &function.fqn,
-                );
-            source_signatures.push(SourceCallableSignatureFact {
-                identity: fact_identity,
-                fqn: function.fqn.clone(),
-                target_callable_key,
-                abi_symbol,
-                abi_role,
-                param_names: (0..function.param_tys.len())
-                    .map(|index| format!("arg{index}"))
-                    .collect(),
-                param_tys: function.param_tys.clone(),
-                return_ty,
             });
         }
     }
@@ -3053,10 +3073,13 @@ fn collect_mir_backend_facts(
                 &format!("{}#builtin-string-substrate", fqn),
             );
             let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
+                explicit_abi_publication_for_source_signature(
                     &contracts.native_callable_funs,
                     &contracts.extern_funs,
-                    &fact_identity,
+                    Some(canonical_record(
+                        "builtin_string_substrate",
+                        [fqn.to_string()],
+                    )),
                     fqn,
                 );
             source_signatures.push(SourceCallableSignatureFact {
@@ -3087,10 +3110,10 @@ fn collect_mir_backend_facts(
                 ),
             );
             let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
+                explicit_abi_publication_for_source_signature(
                     &contracts.native_callable_funs,
                     &contracts.extern_funs,
-                    &fact_identity,
+                    None,
                     alias_fqn,
                 );
             source_signatures.push(SourceCallableSignatureFact {
@@ -3108,7 +3131,7 @@ fn collect_mir_backend_facts(
     for family in materialized.pass_view().instances() {
         for fun in family.callable_bodies() {
             if let Some(body) = &fun.body {
-                collect_direct_call_source_signature_facts(
+                publish_mir_direct_call_source_signatures(
                     &mut source_signatures,
                     &mut seen_source_signatures,
                     &cone,
@@ -3126,7 +3149,7 @@ fn collect_mir_backend_facts(
             continue;
         };
         if let Some(body) = &fun.body {
-            collect_direct_call_source_signature_facts(
+            publish_mir_direct_call_source_signatures(
                 &mut source_signatures,
                 &mut seen_source_signatures,
                 &cone,
@@ -3138,9 +3161,23 @@ fn collect_mir_backend_facts(
             );
         }
     }
+    for signature in &mut source_signatures {
+        if signature.target_callable_key.is_some() {
+            continue;
+        }
+        let target_key = StableLirCallableKey::new(
+            canonical_record(
+                "mir_source_callable_target",
+                [signature.identity.canonical_text().to_string()],
+            ),
+            signature.fqn.clone(),
+        );
+        signature.abi_symbol = Some(AbiMangler.fun_symbol(&target_key));
+        signature.abi_role = Some("callable_export".to_string());
+        signature.target_callable_key = Some(target_key);
+    }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
-    let intrinsic_callables =
-        collect_named_intrinsic_callable_facts(&cone, materialized, hir_facts);
+    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, materialized);
     let mut facts = MirBackendFacts {
         source_signatures,
         intrinsic_callables,
@@ -3305,46 +3342,51 @@ fn collect_mir_backend_facts(
     facts
 }
 
-fn source_signature_target_from_abi_contracts(
+fn explicit_abi_publication_for_source_signature(
     native_callable_funs: &crate::hir::NativeCallableFunIndex,
     extern_funs: &crate::hir::ExternFunIndex,
-    identity: &FactIdentity,
+    source_key: Option<String>,
     fqn: &str,
 ) -> (Option<StableLirCallableKey>, Option<String>, Option<String>) {
-    let target_callable_key = || {
+    let published_target = source_key.map(|key| {
         StableLirCallableKey::new(
-            canonical_record(
-                "lir_callable_declaration",
-                [identity.canonical_text().to_string()],
-            ),
+            canonical_record("mir_source_callable_target", [key]),
             fqn.to_string(),
         )
-    };
+    });
     if let Some(native) = native_callable_funs.get(fqn) {
+        let Some(target_key) = published_target.clone() else {
+            return (None, None, None);
+        };
         return (
-            Some(target_callable_key()),
+            Some(target_key),
             Some(native.symbol.clone()),
             Some("native_callable".to_string()),
         );
     }
     if let Some(extern_fun) = extern_funs.get(fqn) {
+        let Some(target_key) = published_target.clone() else {
+            return (None, None, None);
+        };
         return (
-            Some(target_callable_key()),
+            Some(target_key),
             Some(extern_fun.symbol.clone()),
             Some("extern_callable".to_string()),
         );
     }
-    let declaration_key = target_callable_key();
-    let abi_symbol = AbiMangler.fun_symbol(&declaration_key);
+    let Some(target_key) = published_target else {
+        return (None, None, None);
+    };
+    let abi_symbol = AbiMangler.fun_symbol(&target_key);
     (
-        Some(declaration_key),
+        Some(target_key),
         Some(abi_symbol),
         Some("callable_export".to_string()),
     )
 }
 
 #[allow(clippy::too_many_arguments)]
-fn collect_direct_call_source_signature_facts(
+fn publish_mir_direct_call_source_signatures(
     out: &mut Vec<SourceCallableSignatureFact>,
     seen: &mut BTreeSet<String>,
     cone: &StableConeKey,
@@ -3367,7 +3409,29 @@ fn collect_direct_call_source_signature_facts(
             else {
                 continue;
             };
+            let fact_identity = backend_identity(
+                cone,
+                "source_signature",
+                &format!("{}#{label}{}", callee_fqn, stmt.span.start),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    native_callable_funs,
+                    extern_funs,
+                    Some(fact_identity.canonical_text().to_string()),
+                    callee_fqn,
+                );
             if !seen.insert(callee_fqn.clone()) {
+                if let Some(existing) = out
+                    .iter_mut()
+                    .find(|signature| signature.fqn == *callee_fqn)
+                    && existing.target_callable_key.is_none()
+                    && target_callable_key.is_some()
+                {
+                    existing.target_callable_key = target_callable_key;
+                    existing.abi_symbol = abi_symbol;
+                    existing.abi_role = abi_role;
+                }
                 continue;
             }
             let Some(param_tys) = args
@@ -3378,18 +3442,6 @@ fn collect_direct_call_source_signature_facts(
                 continue;
             };
             let return_ty = body.locals[target.as_u32() as usize].ty;
-            let fact_identity = backend_identity(
-                cone,
-                "source_signature",
-                &format!("{}#{label}{}", callee_fqn, stmt.span.start),
-            );
-            let (target_callable_key, abi_symbol, abi_role) =
-                source_signature_target_from_abi_contracts(
-                    native_callable_funs,
-                    extern_funs,
-                    &fact_identity,
-                    callee_fqn,
-                );
             out.push(SourceCallableSignatureFact {
                 identity: fact_identity,
                 fqn: callee_fqn.clone(),
@@ -3484,91 +3536,12 @@ fn infer_string_substrate_types_from_signatures(
     Some((string_ty, int_ty))
 }
 
-fn source_site_callable_target(
-    contract: &scoopc_hir_facts::source_sites::CallSiteContractKind,
-) -> Option<(
-    &scoopc_hir_facts::source_sites::FunctionTarget,
-    Option<&String>,
-)> {
-    use scoopc_hir_facts::source_sites::{CallSiteContractKind, IntrinsicKind};
-
-    match contract {
-        CallSiteContractKind::DirectTopLevel(function)
-        | CallSiteContractKind::Extension { function, .. } => Some((function, None)),
-        CallSiteContractKind::Intrinsic { kind, function } => {
-            let named_entry = match kind {
-                IntrinsicKind::NamedTable { entry_name, .. } => Some(entry_name),
-                _ => function.intrinsic_entry_name.as_ref(),
-            };
-            Some((function, named_entry))
-        }
-        CallSiteContractKind::MemberDirect(member)
-        | CallSiteContractKind::Virtual(member)
-        | CallSiteContractKind::Interface(member) => Some((&member.function, None)),
-        CallSiteContractKind::Constructor(_)
-        | CallSiteContractKind::Closure { .. }
-        | CallSiteContractKind::FunValue { .. }
-        | CallSiteContractKind::FunPtr { .. }
-        | CallSiteContractKind::EffectOp(_)
-        | CallSiteContractKind::ContinuationResume(_) => None,
-    }
-}
-
 fn collect_named_intrinsic_callable_facts(
     cone: &StableConeKey,
     materialized: &MaterializedMir,
-    hir_facts: Option<&HirFacts>,
 ) -> Vec<NamedIntrinsicCallableFact> {
     let mut out: Vec<NamedIntrinsicCallableFact> = Vec::new();
     let mut seen = BTreeSet::new();
-    if let Some(hir_facts) = hir_facts {
-        for callable in &hir_facts.declarations.callables {
-            let fqn = callable.identity.display_name.clone();
-            let Some(entry_name) =
-                scoopc_hir::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(&fqn)
-            else {
-                continue;
-            };
-            if !seen.insert((fqn.clone(), entry_name.to_string())) {
-                continue;
-            }
-            out.push(NamedIntrinsicCallableFact {
-                identity: backend_identity(
-                    cone,
-                    "named_intrinsic_callable",
-                    &format!(
-                        "{}#declaration#{entry_name}",
-                        callable.identity.canonical_text()
-                    ),
-                ),
-                root_fqn: fqn,
-                named_entry_name: entry_name.to_string(),
-            });
-        }
-        let site_contracts = &hir_facts.source_sites;
-        for site in &site_contracts.call_sites {
-            let Some((function, Some(entry_name))) = source_site_callable_target(&site.contract)
-            else {
-                continue;
-            };
-            if !seen.insert((function.fqn.clone(), entry_name.clone())) {
-                continue;
-            }
-            out.push(NamedIntrinsicCallableFact {
-                identity: backend_identity(
-                    cone,
-                    "named_intrinsic_callable",
-                    &format!(
-                        "{}#site{}#{entry_name}",
-                        site.identity.owner.as_str(),
-                        site.identity.site.as_u32()
-                    ),
-                ),
-                root_fqn: function.fqn.clone(),
-                named_entry_name: entry_name.clone(),
-            });
-        }
-    }
     for family in materialized.pass_view().instances() {
         for fun in family.callable_bodies() {
             let Some(body) = &fun.body else {
@@ -3594,10 +3567,8 @@ fn collect_named_intrinsic_callable_facts(
                         continue;
                     };
                     let entry_name = intrinsic_entry_name.clone().or_else(|| {
-                        scoopc_hir::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(
-                            callee_fqn,
-                        )
-                        .map(str::to_string)
+                        scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
+                            .map(str::to_string)
                     });
                     let Some(entry_name) = entry_name else {
                         continue;
@@ -3615,6 +3586,54 @@ fn collect_named_intrinsic_callable_facts(
                         named_entry_name: entry_name.clone(),
                     });
                 }
+            }
+        }
+    }
+    for item in &materialized.file.items {
+        let crate::mir::Item::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign {
+                    value:
+                        crate::mir::Rvalue::Call {
+                            site_id,
+                            kind:
+                                crate::mir::CallKind::Direct {
+                                    callee_fqn,
+                                    intrinsic_entry_name,
+                                    ..
+                                },
+                            ..
+                        },
+                    ..
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                let entry_name = intrinsic_entry_name.clone().or_else(|| {
+                    scoopc_hir::intrinsics::named_intrinsic_entry_name_for_root(callee_fqn)
+                        .map(str::to_string)
+                });
+                let Some(entry_name) = entry_name else {
+                    continue;
+                };
+                if !seen.insert((callee_fqn.clone(), entry_name.clone())) {
+                    continue;
+                }
+                out.push(NamedIntrinsicCallableFact {
+                    identity: backend_identity(
+                        cone,
+                        "named_intrinsic_callable",
+                        &format!("{}#raw-site{}#{entry_name}", fun.fqn, site_id.as_u32()),
+                    ),
+                    root_fqn: callee_fqn.clone(),
+                    named_entry_name: entry_name.clone(),
+                });
             }
         }
     }

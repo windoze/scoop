@@ -1064,15 +1064,13 @@ fn insert_value_box_itable_facts(
             let mut method_impl_targets = Vec::with_capacity(iface.method_slots.len());
             let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
             for slot in &iface.method_slots {
-                if let Some(impl_fqn) = published_value_box_member_impl(
-                    types,
+                if let Some((impl_fqn, target)) = published_value_box_member_target(
+                    ctx,
+                    callable_symbols,
                     source_signatures,
-                    &nominal.fqn,
-                    &nominal.args,
-                    &slot.name,
-                ) {
-                    let (target, _symbol, _role) =
-                        layout_target_abi_symbol(ctx, callable_symbols, &impl_fqn)?;
+                    ty,
+                    slot,
+                )? {
                     method_impl_fqns.push(impl_fqn);
                     method_impl_targets.push(Some(target));
                     method_receiver_type_ids.push(value_receiver_type_id);
@@ -1083,12 +1081,21 @@ fn insert_value_box_itable_facts(
                     method_impl_targets.push(Some(target));
                     method_receiver_type_ids.push(crate::itable::ITABLE_RECEIVER_REF_TYPE_ID);
                 } else {
-                    return Err(EffectLoweringError::InvalidLirFactsContract {
-                        detail: format!(
-                            "value-box `{}` missing implementation for interface method `{}`",
-                            nominal.fqn, slot.member_fqn
-                        ),
-                    });
+                    let impl_fqn = format!("{}.{}", nominal.fqn, slot.name);
+                    if source_signatures.contains_key(&impl_fqn) {
+                        let (target, _symbol, _role) =
+                            layout_target_abi_symbol(ctx, callable_symbols, &impl_fqn)?;
+                        method_impl_fqns.push(impl_fqn);
+                        method_impl_targets.push(Some(target));
+                        method_receiver_type_ids.push(value_receiver_type_id);
+                    } else {
+                        return Err(EffectLoweringError::InvalidLirFactsContract {
+                            detail: format!(
+                                "value-box `{}` missing implementation for interface method `{}`",
+                                nominal.fqn, slot.member_fqn
+                            ),
+                        });
+                    }
                 }
             }
             entries.push(LirClassItableEntryFacts {
@@ -1162,29 +1169,54 @@ fn value_box_itable_owner_key(
     Ok(canonical_record("mir_value_box_itable_owner", [canonical]))
 }
 
-fn published_value_box_member_impl(
-    types: &TypeStore,
+fn published_value_box_member_target(
+    ctx: &LirFactsBuildContext<'_>,
+    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
     source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
-    nominal_fqn: &str,
-    nominal_args: &[TypeId],
-    slot_name: &str,
-) -> Option<String> {
-    let base = [nominal_fqn, slot_name].join(".");
-    if nominal_args.is_empty() && source_signatures.contains_key(&base) {
-        return Some(base);
-    }
-    if !nominal_args.is_empty() {
-        let args = nominal_args
-            .iter()
-            .map(|ty| types.display(*ty).to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        let concrete = base.clone() + "::<" + &args + ">";
-        if source_signatures.contains_key(&concrete) {
-            return Some(concrete);
+    receiver_ty: TypeId,
+    slot: &LirInterfaceMethodSlotFacts,
+) -> Result<Option<(String, StableLirCallableKey)>, EffectLoweringError> {
+    let expected_param_count = slot.params_len as usize + usize::from(slot.has_receiver);
+    let mut candidates = Vec::new();
+    for signature in source_signatures.values() {
+        if signature.param_tys.len() != expected_param_count {
+            continue;
         }
+        let receiver_matches = !slot.has_receiver
+            || signature.param_tys.first().copied() == Some(receiver_ty)
+            || signature.root_fqn.ends_with(&format!(".{}", slot.name));
+        if !receiver_matches {
+            continue;
+        }
+        if signature
+            .root_fqn
+            .rsplit('.')
+            .next()
+            .is_none_or(|member| member != slot.name)
+        {
+            continue;
+        }
+        let (target, _symbol, _role) =
+            layout_target_abi_symbol(ctx, callable_symbols, &signature.root_fqn)?;
+        candidates.push((signature.root_fqn.clone(), target));
     }
-    source_signatures.contains_key(&base).then_some(base)
+    candidates.sort_by(|left, right| left.0.cmp(&right.0));
+    candidates.dedup_by(|left, right| left.0 == right.0);
+    match candidates.as_slice() {
+        [] => Ok(None),
+        [(root, target)] => Ok(Some((root.clone(), target.clone()))),
+        many => Err(EffectLoweringError::InvalidLirFactsContract {
+            detail: format!(
+                "value-box receiver t{} slot `{}` matched multiple published member targets: {}",
+                receiver_ty.as_u32(),
+                slot.name,
+                many.iter()
+                    .map(|(root, _)| root.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }),
+    }
 }
 
 fn layout_callable_roots(facts: &LirPhysicalLayoutFacts) -> BTreeSet<String> {

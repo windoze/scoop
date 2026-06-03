@@ -578,10 +578,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_source_id = self.current_source_id;
         let saved_callable_fqn = self.function_cx.current_callable_fqn.clone();
         let saved_stable_owner_key = self.function_cx.current_stable_owner_key.clone();
-        let saved_class_ctor_source_call_contracts = self
-            .function_cx
-            .current_class_ctor_source_call_contracts
-            .clone();
+        let saved_class_ctor_source_contracts =
+            self.function_cx.active_class_ctor_source_contracts.clone();
+        let saved_next_class_ctor_source_contract =
+            self.function_cx.next_class_ctor_source_contract;
         let saved_stable_closure_path_prefix =
             self.function_cx.current_stable_closure_path_prefix.clone();
         let saved_next_stable_child_closure_index =
@@ -597,8 +597,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_key.as_str(),
             "class_init",
         ));
-        self.function_cx.current_class_ctor_source_call_contracts =
+        self.function_cx.active_class_ctor_source_contracts =
             init_body.source_ctor_calls().to_vec();
+        self.function_cx.next_class_ctor_source_contract = 0;
         self.function_cx.current_stable_closure_path_prefix =
             Some(format!("{}.$init", class_key.as_str()));
         self.function_cx.next_stable_child_closure_index = 0;
@@ -708,8 +709,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id = saved_source_id;
         self.function_cx.current_callable_fqn = saved_callable_fqn;
         self.function_cx.current_stable_owner_key = saved_stable_owner_key;
-        self.function_cx.current_class_ctor_source_call_contracts =
-            saved_class_ctor_source_call_contracts;
+        self.function_cx.active_class_ctor_source_contracts = saved_class_ctor_source_contracts;
+        self.function_cx.next_class_ctor_source_contract = saved_next_class_ctor_source_contract;
         self.function_cx.current_stable_closure_path_prefix = saved_stable_closure_path_prefix;
         self.function_cx.next_stable_child_closure_index = saved_next_stable_child_closure_index;
         self.function_cx.stable_closure_paths = saved_stable_closure_paths;

@@ -1813,20 +1813,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let published_named_entry = source_site
             .and_then(|site| site.named_entry_name.clone())
             .or_else(|| {
-                published_call_root.as_deref().and_then(|root| {
-                    self.codegen
-                        .published_lir_facts
-                        .intrinsic_callables
-                        .get(root)
-                        .and_then(|intrinsic| intrinsic.named_entry_name.clone())
-                })
+                published_call_root
+                    .as_deref()
+                    .and_then(|root| self.codegen.published_named_intrinsic_entry_name(root))
             })
             .or_else(|| {
                 self.codegen
-                    .published_lir_facts
-                    .intrinsic_callables
-                    .get(callee_fqn.as_str())
-                    .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+                    .published_named_intrinsic_entry_name(callee_fqn)
             });
         let callee_fqn = published_call_root
             .as_deref()

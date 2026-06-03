@@ -1625,7 +1625,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let callable_fqn = self.unique_published_hir_direct_exact_root(fqn, args, result_ty)?;
+            let callable_fqn = self.published_hir_direct_root_from_facts(fqn, args, result_ty)?;
             return self.codegen_top_level_fun_call(
                 span,
                 callee.span,
@@ -1730,7 +1730,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let Some(contract) = self.current_class_ctor_source_call_contract(span).cloned() {
+        if let Some(contract) = self.next_class_ctor_source_contract(span)? {
             return self.codegen_class_ctor_call(span, callee.span, args, &contract);
         }
 
@@ -1769,7 +1769,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let callable_fqn = fqn;
-        if let Some(entry_name) = self.published_or_builtin_named_intrinsic_entry_name(callable_fqn)
+        if let Some(entry_name) = self.published_named_intrinsic_entry_name(callable_fqn)
             && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                 span,
                 callee_span,
@@ -2038,8 +2038,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         true
     }
 
-    #[allow(clippy::for_kv_map)]
-    fn unique_published_hir_direct_exact_root(
+    fn published_hir_direct_root_from_facts(
         &self,
         fqn: &str,
         args: &[hir::CallArg],
@@ -2060,7 +2059,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 matches.push(exact.root_fqn.clone());
             }
         }
-        for (root, _) in &self.published_lir_facts.source_signatures {
+        for signature in self.published_lir_facts.source_signatures.values() {
+            let root = signature.root_fqn.as_str();
             let suffix = root.get(fqn.len()..);
             if root != fqn && !suffix.is_some_and(|suffix| suffix.starts_with("::<")) {
                 continue;
@@ -2068,11 +2068,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if self.callable_root_has_abi_surface(root)
                 && self.published_signature_matches_hir_call(root, &arg_tys, result_ty)
             {
-                matches.push(root.clone());
+                matches.push(root.to_string());
             }
         }
         if matches.is_empty() && self.callable_root_has_abi_surface(fqn) {
-            matches.push(fqn.to_string());
+            matches.push(String::from(fqn));
         }
         matches.sort();
         matches.dedup();
@@ -2093,8 +2093,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn callable_root_has_abi_surface(&self, root: &str) -> bool {
-        self.published_or_builtin_named_intrinsic_entry_name(root)
-            .is_some()
+        self.published_named_intrinsic_entry_name(root).is_some()
             || self.extern_funs.contains_key(root)
             || self.exported_abi_symbol_for_lir_callable(root).is_ok()
     }

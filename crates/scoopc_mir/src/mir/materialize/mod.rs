@@ -81,6 +81,8 @@ pub struct MaterializedMir {
 #[derive(Debug, Clone)]
 pub struct MaterializedCallableSignature {
     pub fqn: String,
+    pub stable_template_key: Option<StableTemplateKey>,
+    pub has_generic_params_or_effect_param: bool,
     pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,

@@ -118,12 +118,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let named_intrinsic_entry = source_site
             .and_then(|site| site.named_entry_name.as_deref())
             .map(str::to_string)
-            .or_else(|| {
-                self.published_lir_facts
-                    .intrinsic_callables
-                    .get(concrete_fqn)
-                    .and_then(|intrinsic| intrinsic.named_entry_name.clone())
-            });
+            .or_else(|| self.published_named_intrinsic_entry_name(concrete_fqn));
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,

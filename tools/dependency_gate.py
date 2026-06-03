@@ -1139,8 +1139,20 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "class ctor metadata must be queried by LIR owner+SiteId, not source span",
                 ),
                 fp(
+                    "current_class_ctor_source_call_contract",
+                    "class ctor source payload lowering must not look up contracts by current source span",
+                ),
+                fp(
+                    "source_class_ctor_call(",
+                    "class ctor source payload lowering must not query LateLoweredProgram by source path/span",
+                ),
+                fp(
                     "published_reflection_type_arg_for_current_call",
                     "reflection metadata must be queried by LIR owner+SiteId, not source span",
+                ),
+                fp(
+                    "legacy_reflection_arg_ty",
+                    "reflection metadata must not fall back to legacy source path/span analysis facts",
                 ),
                 fp(
                     "key.owner_callable.readable_path() == owner_callable.readable_path()",
@@ -1355,6 +1367,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "direct call lowering must not match generic callees by root string prefixes",
                 ),
                 fp(
+                    "unique_published_hir_direct_exact_root",
+                    "direct call lowering must not scan source-call/signature facts to recover generic direct roots",
+                ),
+                fp(
                     "source_signatures.keys()",
                     "direct call lowering must not scan source signature roots to recover concrete callees",
                 ),
@@ -1566,6 +1582,14 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LIR facts builder must not recover call-site metadata by source path/span lookup",
                 ),
                 fp(
+                    "class_ctor_source_selection",
+                    "LIR class ctor source contracts must consume published ctor facts, not synthesize selections",
+                ),
+                fp(
+                    "synthesize_class_ctor_arg_mapping",
+                    "LIR class ctor source contracts must not synthesize named/default argument mappings",
+                ),
+                fp(
                     "facts.source_sites.call_sites",
                     "LIR facts builder must not scan HIR source-site call maps for backend metadata",
                 ),
@@ -1662,6 +1686,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LIR value-box layout must consume published target facts instead of assembling member roots from text",
                 ),
                 fp(
+                    "published_value_box_member_impl",
+                    "LIR value-box layout must consume published target facts instead of helper-based member root assembly",
+                ),
+                fp(
                     "format!(\"{nominal_fqn}.{slot_name}\")",
                     "LIR value-box layout must not assemble member roots from nominal/member text",
                 ),
@@ -1683,6 +1711,18 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "facts.source_sites.call_sites",
                     "MIR backend facts must not recover backend metadata by scanning HIR source-site call maps",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "MIR backend facts must consume explicit intrinsic metadata instead of FQN fallback lookup",
+                ),
+                fp(
+                    "source_signature_target_from_abi_contracts",
+                    "MIR backend facts must not synthesize target-bound source signature or ABI publications locally",
+                ),
+                fp(
+                    "collect_direct_call_source_signature_facts",
+                    "MIR backend facts must not scan MIR calls to synthesize source signature facts",
                 ),
                 fp(
                     "legacy_scalar_named_intrinsic_entry_name_for_fqn",
@@ -1855,6 +1895,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "LLVM intrinsic lookup must consume LIR intrinsic facts without static root fallback",
                 ),
                 fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "LLVM intrinsic lookup must consume LIR intrinsic facts without FQN fallback",
+                ),
+                fp(
                     "scalar_bodyless_intrinsic_entry_name",
                     "LLVM intrinsic lookup must not restore local scalar FQN fallback helpers",
                 ),
@@ -1888,6 +1932,10 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "reflection_type_arg(source.path()",
                     "reflection intrinsic lowering must not query type arguments by source path/span",
+                ),
+                fp(
+                    "legacy_reflection_arg_ty",
+                    "reflection intrinsic lowering must not query legacy source path/span reflection analysis facts",
                 ),
             ),
         ),

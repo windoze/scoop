@@ -169,7 +169,7 @@ impl EffectAnalysisFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
-    pub fn legacy_reflection_arg_ty(
+    pub fn reflection_arg_ty_by_source(
         &self,
         source_path: &Path,
         span: Span,

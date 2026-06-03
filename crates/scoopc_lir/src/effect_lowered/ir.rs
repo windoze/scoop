@@ -242,7 +242,11 @@ impl LateLoweredProgram {
         self
     }
 
-    pub fn source_class_ctor_call(
+    pub fn source_class_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
+        &self.source_class_ctor_calls
+    }
+
+    pub fn find_source_ctor_contract(
         &self,
         source_path: &Path,
         call_span: Span,
@@ -253,10 +257,6 @@ impl LateLoweredProgram {
                     || contract.source_path().ends_with(source_path)
                     || source_path.ends_with(contract.source_path()))
         })
-    }
-
-    pub fn source_class_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
-        &self.source_class_ctor_calls
     }
 
     pub fn callable(&self, root_fqn: &str) -> Option<&LateLoweredCallable> {
@@ -731,15 +731,6 @@ impl LateLoweredClassCtorInitBody {
 
     pub fn steps(&self) -> &[LateLoweredClassCtorInitStep] {
         &self.steps
-    }
-
-    pub fn source_ctor_call(
-        &self,
-        call_span: Span,
-    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
-        self.source_ctor_calls
-            .iter()
-            .find(|contract| contract.call_span() == call_span)
     }
 
     pub fn source_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {

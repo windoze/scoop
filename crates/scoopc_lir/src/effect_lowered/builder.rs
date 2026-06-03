@@ -853,7 +853,7 @@ struct ClassCtorSourceSelection {
     arg_expected: Vec<Option<TypeId>>,
 }
 
-fn class_ctor_source_selection(
+fn ctor_source_contract_selection(
     class_index: &[&source::MonoClassInit],
     types: &TypeStore,
     result_ty: TypeId,
@@ -869,7 +869,6 @@ fn class_ctor_source_selection(
             arg_expected,
         });
     }
-
     let target_class_fqn = types.display(result_ty).to_string();
     let class = class_index
         .iter()
@@ -885,9 +884,7 @@ fn class_ctor_source_selection(
     let mut matches = class
         .ctors
         .iter()
-        .filter_map(|ctor| {
-            synthesize_class_ctor_arg_mapping(ctor, args).map(|mapping| (ctor, mapping))
-        })
+        .filter_map(|ctor| derive_ctor_arg_mapping(ctor, args).map(|mapping| (ctor, mapping)))
         .collect::<Vec<_>>();
     if matches.len() != 1 {
         return None;
@@ -911,7 +908,7 @@ fn class_ctor_source_selection(
     })
 }
 
-fn synthesize_class_ctor_arg_mapping(
+fn derive_ctor_arg_mapping(
     ctor: &source::ClassCtor<crate::ty::MonoTypeId>,
     args: &[source::CallArg],
 ) -> Option<Vec<Option<usize>>> {
@@ -1001,7 +998,7 @@ fn collect_class_ctor_source_call_contracts_from_expr(
     if let ExprKind::Call { args, .. } = &expr.kind {
         let site = crate::mir::source_payload::CallSite::new(source_path.to_path_buf(), expr.span);
         let result_ty = expected_ty.unwrap_or(expr.ty);
-        if let Some(selection) = class_ctor_source_selection(
+        if let Some(selection) = ctor_source_contract_selection(
             class_index,
             types,
             result_ty,
@@ -1203,7 +1200,7 @@ fn collect_class_ctor_source_call_contracts_from_expr(
             );
             let site =
                 crate::mir::source_payload::CallSite::new(source_path.to_path_buf(), expr.span);
-            let arg_expected = class_ctor_source_selection(
+            let arg_expected = ctor_source_contract_selection(
                 class_index,
                 types,
                 expected_ty.unwrap_or(expr.ty),

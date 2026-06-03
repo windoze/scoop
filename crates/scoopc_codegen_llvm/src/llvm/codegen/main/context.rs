@@ -373,20 +373,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    pub(in crate::llvm::codegen) fn current_class_ctor_source_call_contract(
-        &self,
+    pub(in crate::llvm::codegen) fn next_class_ctor_source_contract(
+        &mut self,
         span: crate::span::Span,
-    ) -> Option<&LateLoweredClassCtorSourceCallContract> {
-        self.function_cx
-            .current_class_ctor_source_call_contracts
-            .iter()
-            .find(|contract| contract.call_span() == span)
-            .or_else(|| {
-                let source = self.source_map.source(self.current_source_id)?;
-                self.shared
-                    .published_late_lowered_program
-                    .and_then(|program| program.source_class_ctor_call(source.path(), span))
-            })
+    ) -> Result<Option<LateLoweredClassCtorSourceCallContract>, LlvmEmitError> {
+        let index = self.function_cx.next_class_ctor_source_contract;
+        let Some(contract) = self
+            .function_cx
+            .active_class_ctor_source_contracts
+            .get(index)
+        else {
+            let source = self.current_source()?;
+            return Ok(self
+                .shared
+                .published_late_lowered_program
+                .and_then(|program| program.find_source_ctor_contract(source.path(), span))
+                .cloned());
+        };
+        if contract.call_span() != span {
+            let source = self.current_source()?;
+            return Ok(self
+                .shared
+                .published_late_lowered_program
+                .and_then(|program| program.find_source_ctor_contract(source.path(), span))
+                .cloned());
+        }
+        self.function_cx.next_class_ctor_source_contract += 1;
+        Ok(Some(contract.clone()))
     }
 
     pub(in crate::llvm::codegen) fn required_lir_source_call_site(

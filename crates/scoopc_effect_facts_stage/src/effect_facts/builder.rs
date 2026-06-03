@@ -3270,7 +3270,11 @@ mod tests {
             };
             let mut keys = fqns
                 .iter()
-                .filter_map(|fqn| test_stable_key_for_callable(materialized, fqn))
+                .map(|fqn| {
+                    test_stable_key_for_callable(materialized, fqn).unwrap_or_else(|| {
+                        panic!("test dispatch candidate `{fqn}` lacks a published stable key")
+                    })
+                })
                 .map(|key| CanonicalTextKey::new(key.canonical_text()))
                 .collect::<Vec<_>>();
             keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));

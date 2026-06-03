@@ -17,7 +17,7 @@ use super::super::*;
 use crate::effect_lowered::mir_source as mir;
 use crate::intrinsics::{
     NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeTy,
-    fallback_named_intrinsic_entry_name_for_fqn, named_intrinsic_audit_entry,
+    named_intrinsic_audit_entry, named_intrinsic_entry_name_for_root as root_intrinsic_entry,
 };
 use crate::ty::{RefTypeKind, TypeId, TypeKind};
 
@@ -958,7 +958,7 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn published_or_builtin_named_intrinsic_entry_name(
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name(
         &self,
         root: &str,
     ) -> Option<String> {
@@ -966,7 +966,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .intrinsic_callables
             .get(root)
             .and_then(|intrinsic| intrinsic.named_entry_name.clone())
-            .or_else(|| fallback_named_intrinsic_entry_name_for_fqn(root).map(str::to_string))
+            .or_else(|| root_intrinsic_entry(root).map(str::to_string))
     }
 
     pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_top_level_call(
