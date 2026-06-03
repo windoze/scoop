@@ -81,7 +81,7 @@ pub struct CodegenInput {
 - 验收：编译通过；尚无行为变化。
 - 完成记录（2026-06-03）：新增 `pipeline/lir_artifact.rs`，定义 `LirArtifact` 与 `CodegenInput` 过渡类型；在 `pipeline/mod.rs` 按 `llvm` feature 导出模块与类型，未改变运行行为。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-01-R：Review T1-01
+### [DONE] T1-01-R：Review T1-01
 - **关注点**：
   - `LirArtifact`/`CodegenInput` 字段与 §2 / FACT_REFACTOR §14.3 一致；过渡字段（`mir`、`facts`）有注释标明 P2 移除；未提前引入 arena/句柄全集。
   - 类型**单一定义**（无重复 def）；`llvm` feature 门控正确，非 llvm 构建不破。
@@ -90,6 +90,7 @@ pub struct CodegenInput {
   - `cargo build -p scoop -p scoopc` + `cargo clippy --all-targets -- -D warnings` 通过。
   - `grep -rn "LirArtifact\|CodegenInput" crates/` 确认目前仅定义/导出，未被 `run`/调用方消费（行为未变）。
   - 复核 T1-01 完成记录里的 fixtures 数（ok 1664）与基线一致。
+- 完成记录（2026-06-03）：复核 `LirArtifact` / `CodegenInput` 字段与过渡形态一致，补充 `facts`、`mir`、`entry` 过渡字段说明；确认精确匹配 `LirArtifact` / `CodegenInput` 仅出现在类型定义与 `pipeline` re-export，尚未接入运行路径。审查中发现 no-default 构建下现有 LLVM-only 路径未完整门控，已将 `single_cone`、LLVM artifact emission helper、LLVM-only frontend helpers/tests 正确挂到 `llvm` feature，确保非 LLVM 构建不破。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo build -p scoopc --no-default-features`；`cargo test --all --all-targets`；`cargo test -p scoopc --all-targets --no-default-features`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-02：抽出独立 LIR 阶段函数 `build_lir_artifact`
 - 在 `llvm_codegen_stage.rs`（或迁到 `pipeline/lir_stage.rs`）新增 `pub(crate) fn build_lir_artifact(session, entry_source, lowered: CodegenLoweringOutput, preserve_published_resume_shells: bool) -> Result<LirArtifact, LlvmEmitError>`：

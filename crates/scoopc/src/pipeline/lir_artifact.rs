@@ -15,8 +15,10 @@ use scoopc_lir_facts::LirFacts;
 pub struct LirArtifact {
     pub cone: StableConeKey,
     pub program: LateLoweredProgram,
+    /// Transitional flat facts carried until P2 folds them into the LIR program.
     pub facts: LirFacts,
     pub base_context: LlvmStageBaseContext,
+    /// Transitional MIR overlay fallback retained until P2 lifts source bodies into LIR.
     pub mir: MaterializedMir,
     pub object_files: Vec<PathBuf>,
 }
@@ -27,6 +29,7 @@ pub struct CodegenInput {
     pub program: LirArtifact,
     pub abi_shell: Option<LirArtifact>,
     pub deps: Vec<LirArtifact>,
+    /// Temporary entry placeholder; T1-06 replaces this with a resolved LIR entry ref.
     pub entry: Option<(SourceId, Option<String>)>,
     pub source_map: SourceMap,
     pub opt_level: OptLevel,

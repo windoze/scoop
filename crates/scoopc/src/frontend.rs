@@ -682,6 +682,7 @@ pub(crate) fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectIn
     prepare_virtual_cone_input_with_options(source, &SessionOptions::new())
 }
 
+#[cfg(any(test, feature = "llvm"))]
 pub(crate) fn prepare_virtual_cone_input_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
@@ -705,6 +706,7 @@ pub(crate) fn prepare_virtual_cone_input_with_options(
     ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
 
+#[cfg(feature = "llvm")]
 pub(crate) fn prepare_virtual_cone_context_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
@@ -1202,7 +1204,10 @@ pub fn run_frontend_with_artifact_cache(
     let mut index =
         final_index.ok_or_else(|| miette::miette!("内部错误：consumer cone 未运行 frontend"))?;
     select_cone_entry_main(&mut input, &asts, &mut index)?;
+    #[cfg(feature = "llvm")]
     let env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
+    #[cfg(not(feature = "llvm"))]
+    let _env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
 
     // P10-T04-c：subprocess single-cone artifact 模式下，consumer 自己就是 artifact target。
     // 把 consumer 的 skeleton 从 published_artifacts 摘出来交还给调用方，由 subprocess 跑完
@@ -1513,6 +1518,7 @@ mod tests {
     use super::*;
     use crate::parser::parse_file;
     use crate::resolve::IndexedFile;
+    #[cfg(feature = "llvm")]
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn bin_manifest(name: &str) -> ConeManifest {
@@ -1743,6 +1749,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     #[test]
     fn downstream_frontend_uses_dependency_artifact_imports() {
         let dep_id = ConeId::new(2);
@@ -1800,6 +1807,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     #[test]
     fn dependency_frontend_cache_hit_uses_artifact_without_reading_source() {
         // P10-T04-c-3：fingerprint 命中时 dep cone 必须完全由 artifact 供给，不能再 parse
@@ -1968,6 +1976,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     fn cached_dependency_graph(dep_id: ConeId, dep_text: &str) -> SourceConeGraph {
         let dep = SourceFile::new_virtual("/tmp/scoop-cache-dep/src/lib.scoop", dep_text);
         let consumer = SourceFile::new_virtual(
@@ -2005,6 +2014,7 @@ mod tests {
         .unwrap()
     }
 
+    #[cfg(feature = "llvm")]
     fn unique_temp_dir(prefix: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
