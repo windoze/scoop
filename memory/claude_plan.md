@@ -18,7 +18,29 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-07
+## 当前记录：T1-07-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
+3. 对照 P1 完成标志复核 LIR/codegen handoff：`llvm_codegen_stage::run` 输入、主/依赖 cone 的 `LirArtifact` 统一、独立 LIR 阶段、范围纪律和 fallback 风险。
+4. 运行验收 grep，确认旧 codegen input/helper 与入口字符串扫描无残留。
+5. 用代表 fixture 对比 P1 前后 LLVM IR 与可执行输出，确认行为等价。
+6. 按顺序运行完整验证基线：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+7. 成功后更新 `TODO.md`，给 `T1-07-R` 标题加 `[DONE]` 并填写完成记录；更新 `PLAN.md` §3，将 P1 标记为 DONE 并记录 P2 承接的过渡项。
+8. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-07-R：Review P1（整体阶段验收）`。
+- 最新提交 `6f4a1f2f [T1-07] Validate LIR codegen handoff closure` 未明确指出需插入的未完成前置项。
+- 已完成只读边界复核：`llvm_codegen_stage::run` 接收 `CodegenInput`；主 cone、ABI shell、依赖 cone 均在 codegen 前经 `LirArtifact`/`CodegenInput` handoff；`build_lir_artifact` 位于独立 LIR 阶段；未发现新增 fallback 或后端入口字符串扫描。
+- 验收 grep 通过：`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中；旧 `LlvmCodegenStageInput|LlvmLirRun|into_abi_visibility_parts|run_lir_stage_from_lowered_hir` 零命中；`entry_main_fqn|select_entry_main` 在 `crates/scoopc_codegen_llvm/` 与 `llvm_codegen_stage.rs` 零命中。
+- 代表对比通过：P1 前提交 `d5e0b0ad` 与当前版本的 `tests/fixtures/build/emit_llvm_basic.scoop` LLVM IR 无 diff，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`；`tests/fixtures/run_pass_cone/source_path_dependency_public_call` 可执行输出无 diff，stdout 为 `42`，SHA-256 均为 `084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0`。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-07-R` 标记为 `[DONE]` 并填写完成记录；已更新 `PLAN.md` §3，将 P1 标记为 DONE 并记录 P2 承接的 `LirArtifact.program`/`facts`/`mir` 与依赖 overlay 风险。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-07-R 记录置顶。
+
+## 先前记录：T1-07
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最近提交是否明确留下与当前任务直接相关的未完成事项。

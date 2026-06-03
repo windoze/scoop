@@ -179,7 +179,7 @@ pub struct CodegenInput {
 - 自检：`grep -n` 确认 `llvm_codegen_stage.rs` 无 `lowered_hir|materialized_mir|frontend_index|type_env`；`CachedDepArtifactHandoff` 仅在 T1-03 适配处出现。
 - 完成记录（2026-06-04）：完成 P1 收口验证。自检通过：`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env` 零命中；`CachedDepArtifactHandoff` 在生产链路中只作为 cached dep → `LirArtifact` 适配输入及其上游 cache handoff 类型存在，LLVM codegen 生产路径消费 `CodegenInput` / `LirArtifact` / `LlvmDepLirArtifactHandoff`，`llvm_codegen_stage.rs` 中相关命中仅为测试 helper 与回归用例。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-07-R：Review P1（整体阶段验收）
+### [DONE] T1-07-R：Review P1（整体阶段验收）
 - **关注点（对照 §0 完成标志）**：
   - `llvm_codegen_stage::run` 输入中**不再出现** `lowered_hir`/`materialized_mir`/`frontend_index`/`type_env`。
   - 主 cone 与依赖 cone **统一为 `LirArtifact`**；codegen 只 walk LIR + 诊断/入口/选项。
@@ -190,6 +190,7 @@ pub struct CodegenInput {
   - §4 全套基线绿（含 `dependency_gate.py`、`spec_fixtures.py check`、`run_fixtures.py` ok 1664）。
   - 对若干代表 fixture diff 重构前后的可执行行为/LLVM IR，确认等价。
   - 在 PLAN.md §3 把 P1 标记为 DONE，并记录遗留给 P2 的 transitional 项（`LirArtifact.mir`、`facts`、依赖 overlay 风险）。
+- 完成记录（2026-06-04）：完成 P1 整体阶段 review。确认 `llvm_codegen_stage::run` 只接收 `CodegenInput`；`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，旧 `LlvmCodegenStageInput|LlvmLirRun|into_abi_visibility_parts|run_lir_stage_from_lowered_hir` 零命中；`entry_main_fqn|select_entry_main` 在 `crates/scoopc_codegen_llvm/` 与 `llvm_codegen_stage.rs` 零命中。确认主 cone、ABI shell、依赖 cone 均在 codegen 前经 `LirArtifact`/`CodegenInput` handoff，`build_lir_artifact` 位于独立 LIR 阶段，codegen 不重新运行 HIR/MIR/effect lowering；未发现新增 fallback 或后端入口字符串扫描。代表对比通过：以 P1 前提交 `d5e0b0ad` 与当前版本对比 `tests/fixtures/build/emit_llvm_basic.scoop` 的 LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`；对比 `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 的可执行输出，`diff -u` 无差异，stdout 为 `42`，SHA-256 均为 `084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0`。已在 `PLAN.md` §3 将 P1 标记为 DONE，并记录 P2 承接的 `LirArtifact.program`/`facts`/`mir` 与依赖 overlay 风险。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ## 4. 验证基线（每任务收尾）
 

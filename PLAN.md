@@ -24,14 +24,16 @@
 
 | 阶段 | 范围 | 产出 / 契约 | 状态 |
 |---|---|---|---|
-| **P1** | **LIR↔codegen handoff** | 抽出独立 LIR 阶段；定义自包含 `LirArtifact` + `CodegenInput`；codegen 只 walk LIR；删去 codegen 对 HIR/MIR/Index/TypeEnv 的直接消费；主/依赖 cone 对称（FACT_REFACTOR §14） | **进行中**（见 `TODO.md`） |
-| P2 | LIR 内部重设计 | `LirProgram` arena + 定型句柄 + 自包含指令（lift MIR、消除 overlay）；折叠 `LirFacts` 平表；身份用 §2.7 模式（FACT_REFACTOR §13） | 待 P1 |
+| **P1** | **LIR↔codegen handoff** | 抽出独立 LIR 阶段；定义自包含 `LirArtifact` + `CodegenInput`；codegen 只 walk LIR；删去 codegen 对 HIR/MIR/Index/TypeEnv 的直接消费；主/依赖 cone 对称（FACT_REFACTOR §14） | **DONE**（T1-07-R；全套基线 ok 1664） |
+| P2 | LIR 内部重设计 | `LirProgram` arena + 定型句柄 + 自包含指令（lift MIR、消除 overlay）；折叠 `LirFacts` 平表；身份用 §2.7 模式（FACT_REFACTOR §13） | 可启动（承接 P1 过渡项） |
 | P3 | effect-facts / effect-lowering（P4/P5） | 阶段专属树 + 引用闭合；删 `MirFactIndex` 式 join | 待 P2 |
 | P4 | MIR / materialize | MIR 树 + 解析句柄；monomorphization 实例由消费 cone 拥有 | 待 P3 |
 | P5 | HIR / typecheck | 三相（检查树→totality gate→hole-free HIR）；DefId 句柄；desugar 边界（FACT_REFACTOR §4–§9） | 待 P4 |
 | P6 | 跨 cone 接口面 | 每阶段一等 interface artifact（FACT_REFACTOR §2.4） | 贯穿各阶段 |
 
 > 每阶段完成条件统一：升级 shim 接旧管线 → 全套 fixture 端到端绿 → 该段消费侧无字符串 live key / 无缺-fact fallback → 提交。
+
+P1 收口后留给 P2 的过渡项：`LirArtifact.program` 仍是现有 `LateLoweredProgram`，`LirArtifact.facts` 仍携带平表 `LirFacts`，主 cone 的 `LirArtifact.mir` 仍以 `Some(MaterializedMir)` 作为 source-body overlay 后备；依赖 cone 的 `mir` 保持 `None`，不得回退到依赖 MIR overlay，若 P2 发现依赖仍需 MIR，应作为阻塞修复而不是引入占位。
 
 ## 4. 验证基线（每个任务收尾跑）
 
