@@ -1,35 +1,24 @@
-# 当前执行计划
+# 执行计划
 
-## 约束
+## 当前目标
 
-- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
-- 只完成第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
-- 如遇阻塞当前任务的缺失特性、规格不符或未安排的失败测试，先修复；若无法在本次完成，则在 `TODO.md` 中加入最小必要前置任务并提交后停止。
-- 仅在阶段级计划变化时更新 `PLAN.md`。
-- 不还原或覆盖非本次产生的用户改动。
+- 按 `TODO.md` 的顺序识别第一个标题未带 `[DONE]` 的任务。
+- 完成且只完成该任务；如遇到阻塞当前任务的缺口，则按要求把最小前置任务写入 `TODO.md` 并停止。
 
 ## 步骤
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；如有，将其纳入当前任务或作为前置任务写入 `TODO.md`。
-3. 根据任务要求检查相关实现、规格、测试和 fixture。
-4. 用最小正确变更完成当前任务；若发现当前任务被具体缺失能力阻塞，则更新 `TODO.md` 的依赖顺序并停止。
-5. 运行格式化、lint、相关测试；需要时运行完整测试和 fixture 套件。
-6. 将任务标题标记为 `[DONE]`，更新完成记录和验证记录。
-7. 检查 git 状态与 diff，提交本次所有相关变更。
-8. 停止，不处理下一个任务。
+1. 读取 `TODO.md`，定位第一个未完成任务，并检查该任务的依赖、验证要求和完成记录。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只处理会阻塞当前任务的问题。
+3. 阅读当前任务相关代码、测试、fixture 和文档，确认需要修改的最小范围。
+4. 实现任务要求，避免 workaround、fixture-only hack 或偏离规格的替代方案。
+5. 按要求运行格式化、lint、相关测试，并在需要时运行完整测试和 fixture 套件。
+6. 将任务标题在 `TODO.md` 中标记为 `[DONE]`，更新完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 检查 git diff/status，提交本次任务相关全部变更，然后停止。
 
-## 进度
+## 进度记录
 
-- 已创建初始计划。
-- 已读取 `TODO.md` / `TODO-3.md`，第一个未完成任务是 `T3-04L`：收口 T3-04R 十二次审查发现的 P6/LIR/MIR fact-only、verifier 与 gate 残余缺口。
-- 最近提交为 `[T3-04R] Add T3-04L review prerequisite`，与当前任务直接相关；当前任务本体已覆盖该未完成问题。
-- 已按 `T3-04L` 列出的 helper/模式搜索 P6、MIR、LIR、effect verifier 和 `dependency_gate.py` 的残余 fallback。
-- 已删除 P6 class ctor 的 `source_path+span` 回退、HIR direct-call 的 source-call/source-signature root 扫描、named intrinsic 的静态 root fallback。
-- 已把 LIR source call-site metadata 提升到 `LateLoweredCallable` 携带，避免 LIR facts builder 直接扫描 source body 恢复 metadata。
-- 已删除 MIR backend 对 direct-call source signature 的 MIR body 扫描发布、缺 target 的 `mir_source_callable_target` 补造和 `AbiMangler.fun_symbol(&target_key)` ABI 合成，并删除 named intrinsic root helper合成。
-- 已将 value-box itable 生成改为消费已发布 class itable target facts，不再扫描 source signatures 或拼装 `nominal.slot`。
-- 已补齐 MIR/LIR verifier 与 dependency gate 守卫，并修复验证暴露的 source-signature/ABI、scalar intrinsic alias、class ctor source contract 和 value-box itable边界问题。
-- 已更新 `TODO-3.md` 将 `T3-04L` 标记为 `[DONE]`，并将 `TODO.md` 当前活跃任务推进到 `T3-04R`。
-- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）。
-- 下一步检查 git diff/status，并提交本次变更。
+- 已创建初始执行计划，下一步读取 `TODO.md` 定位首个未完成任务。
+- 已读取 `TODO.md` / `TODO-3.md`，当前首个未完成任务为 `T3-04R：Review T3-04`，依赖 `T3-04L`。下一步检查最近提交并审查 T3-04 fact-only/fail-fast/gate 残余。
+- 最近提交为 `[T3-04L] Close twelfth fact-only gaps`，未在标题中声明新的未完成问题。当前工作区除本计划文件外有未跟踪 `FACT_REFACTOR.md`，先视为非本次变更。下一步进行 targeted review。
+- Targeted review 已确认 `T3-04L` 后仍有阻塞 `T3-04R` 的事实自包含缺口，包括 P6 path/span 与 root scan fallback、MIR/LIR fact 合成、dispatch/value-box 文本恢复、verifier/gate 漏锁。已在 `TODO-3.md` 插入最小前置任务 `T3-04M`，并把 `T3-04R` 依赖更新为 `T3-04M`。
+- 本次只修改任务记录和计划记录，未改编译产物；完整 fmt/clippy/test/fixture 验证按文档-only 变更跳过。已运行 `git diff --check -- TODO.md TODO-3.md memory/claude_plan.md` 通过。
