@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
-use scoopc_ids::StableLirCallableKey;
+use scoopc_ids::{LirCallableId, StableLirCallableKey};
 use scoopc_lir_facts::{
     LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDispatchKey,
     LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
@@ -32,6 +32,7 @@ pub(super) fn collect_reachable_top_level_funs(
 struct ReachabilityCollector<'a> {
     lir_facts: &'a LirFacts,
     callable_roots_by_key: HashMap<&'a str, &'a str>,
+    callable_ids_by_root: HashMap<&'a str, LirCallableId>,
     queue: VecDeque<String>,
     seen: HashSet<String>,
     reachable: BTreeSet<String>,
@@ -39,16 +40,14 @@ struct ReachabilityCollector<'a> {
 
 impl<'a> ReachabilityCollector<'a> {
     fn new(lir_facts: &'a LirFacts) -> Self {
-        let mut callable_roots_by_key: HashMap<&'a str, &'a str> = lir_facts
-            .callables
-            .values()
-            .map(|facts| {
-                (
-                    facts.body_version.key.owner_canonical_text(),
-                    facts.root_fqn(),
-                )
-            })
-            .collect();
+        let mut callable_roots_by_key: HashMap<&'a str, &'a str> = HashMap::new();
+        let mut callable_ids_by_root: HashMap<&'a str, LirCallableId> = HashMap::new();
+        for (id, facts) in &lir_facts.callables {
+            callable_roots_by_key
+                .entry(facts.body_version.key.owner_canonical_text())
+                .or_insert(facts.root_fqn());
+            callable_ids_by_root.entry(facts.root_fqn()).or_insert(*id);
+        }
         for symbol in lir_facts.physical_layout.abi_symbols.values() {
             let (Some(callable), Some(root_fqn)) =
                 (symbol.callable.as_ref(), symbol.root_fqn.as_deref())
@@ -62,6 +61,7 @@ impl<'a> ReachabilityCollector<'a> {
         Self {
             lir_facts,
             callable_roots_by_key,
+            callable_ids_by_root,
             queue: VecDeque::new(),
             seen: HashSet::new(),
             reachable: BTreeSet::new(),
@@ -107,10 +107,9 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn seed_published_lir_callables(&mut self) {
         let roots = self
-            .lir_facts
-            .callables
-            .values()
-            .map(|callable| callable.root_fqn().to_string())
+            .callable_ids_by_root
+            .keys()
+            .map(|root| (*root).to_string())
             .collect::<Vec<_>>();
         for root in roots {
             self.enqueue_root(&root);
@@ -259,10 +258,8 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn callable_by_root(&self, root_fqn: &str) -> Option<&'a LirCallableFacts> {
-        self.lir_facts
-            .callables
-            .values()
-            .find(|callable| callable.root_fqn() == root_fqn)
+        let id = self.callable_ids_by_root.get(root_fqn)?;
+        self.lir_facts.callables.get(id)
     }
 
     fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {

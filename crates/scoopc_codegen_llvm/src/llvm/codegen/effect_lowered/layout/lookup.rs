@@ -90,7 +90,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         })
     }
 
-    fn callable_id(&self, callable: &LateLoweredCallable) -> Result<LirCallableId, LlvmEmitError> {
+    pub(super) fn callable_id(
+        &self,
+        callable: &LateLoweredCallable,
+    ) -> Result<LirCallableId, LlvmEmitError> {
         self.program
             .callables()
             .iter()

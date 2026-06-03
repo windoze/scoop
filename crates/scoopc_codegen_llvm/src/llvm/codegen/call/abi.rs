@@ -330,28 +330,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.managed_callable_abi_identity_impl(!fun_ty.effects.is_pure())
     }
 
+    fn published_lir_callable_facts_by_root(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<&'a scoopc_lir_facts::LirCallableFacts> {
+        let callable_id = self.lir_callable_id_for_root(callable_fqn)?;
+        self.published_lir_facts.callables.get(&callable_id)
+    }
+
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
     /// 其遗留声明入口就必须预留显式 hidden ABI，而不能再从 HIR `effectful` 布尔值反推。
     pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_impl(
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_lir_facts.callables.values().any(|callable| {
-            callable.root_fqn == callable_fqn
-                && matches!(
+        self.published_lir_callable_facts_by_root(callable_fqn)
+            .is_some_and(|callable| {
+                matches!(
                     callable.kind(),
                     scoopc_lir_facts::LirCallableKind::EffectStep
                 )
-        })
+            })
     }
 
     pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_impl(
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_lir_facts.callables.values().any(|callable| {
-            callable.root_fqn == callable_fqn && callable.body_version.needs_reentry
-        })
+        self.published_lir_callable_facts_by_root(callable_fqn)
+            .is_some_and(|callable| callable.body_version.needs_reentry)
     }
 
     pub(in crate::llvm::codegen) fn published_callable_signature_impl(
@@ -380,11 +387,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some((source_types, param_tys, return_ty)) =
             self.published_callable_signature_impl(callable_fqn)
         {
-            let callable_facts = self
-                .published_lir_facts
-                .callables
-                .values()
-                .find(|callable| callable.root_fqn == callable_fqn)?;
+            let callable_facts = self.published_lir_callable_facts_by_root(callable_fqn)?;
             return Some((
                 source_types,
                 callable_facts.param_names.clone(),

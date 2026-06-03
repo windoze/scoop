@@ -365,7 +365,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )
         } else {
             (
-                self.exported_plain_callable_symbol(callable.root_fqn())?,
+                self.exported_plain_callable_symbol(callable)?,
                 LlvmFunctionDeclarationSurface::ExportedAbi,
                 false,
             )
@@ -404,21 +404,27 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         ))
     }
 
-    fn exported_plain_callable_symbol(&self, root_fqn: &str) -> Result<String, LlvmEmitError> {
+    fn exported_plain_callable_symbol(
+        &self,
+        callable: &LateLoweredCallable,
+    ) -> Result<String, LlvmEmitError> {
+        let id = self.callable_id(callable)?;
         let symbol_facts = self
             .lir_facts
             .physical_layout
             .callable_symbols
-            .values()
-            .find(|symbol| symbol.root_fqn == root_fqn)
+            .get(&id)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 LIR symbol facts"
+                    "LLVM ABI materialization 缺少 plain callable `{}` 的 LIR symbol facts（id={:?}）",
+                    callable.root_fqn(),
+                    id
                 ))
             })?;
         symbol_facts.exported_symbol.clone().ok_or_else(|| {
             frontend_error(format!(
-                "plain callable `{root_fqn}` 的 LIR symbol facts 缺少 exported ABI symbol"
+                "plain callable `{}` 的 LIR symbol facts 缺少 exported ABI symbol",
+                callable.root_fqn()
             ))
         })
     }

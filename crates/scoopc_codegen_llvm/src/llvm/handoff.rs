@@ -7,9 +7,10 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ordinary_callee::EffectAnalysisFacts;
 use crate::effect_lowered::source as source_payload;
 use crate::source::{SourceId, SourceMap};
-use crate::stable_id::{StableConeKey, StableLirCallableKey, StableTypeParamKey};
+use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoop_project_model::ConeId;
+use scoopc_ids::LirCallableId;
 use scoopc_lir_facts::{LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision};
 
 use super::LlvmEmitError;
@@ -25,7 +26,7 @@ pub enum EntryMainArgShape {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntryRef {
     source_id: SourceId,
-    callable: StableLirCallableKey,
+    callable_id: LirCallableId,
     root_fqn: String,
     arg_shape: EntryMainArgShape,
 }
@@ -33,13 +34,13 @@ pub struct EntryRef {
 impl EntryRef {
     pub fn new(
         source_id: SourceId,
-        callable: StableLirCallableKey,
+        callable_id: LirCallableId,
         root_fqn: impl Into<String>,
         arg_shape: EntryMainArgShape,
     ) -> Self {
         Self {
             source_id,
-            callable,
+            callable_id,
             root_fqn: root_fqn.into(),
             arg_shape,
         }
@@ -49,8 +50,8 @@ impl EntryRef {
         self.source_id
     }
 
-    pub fn callable(&self) -> &StableLirCallableKey {
-        &self.callable
+    pub fn callable_id(&self) -> LirCallableId {
+        self.callable_id
     }
 
     pub fn root_fqn(&self) -> &str {

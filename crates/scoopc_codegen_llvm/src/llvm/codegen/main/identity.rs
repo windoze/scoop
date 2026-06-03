@@ -270,11 +270,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<&'a scoopc_lir_facts::LirCallableSymbolFacts> {
+        let callable_id = self.lir_callable_id_for_root(callable_fqn)?;
         self.published_lir_facts
             .physical_layout
             .callable_symbols
-            .values()
-            .find(|symbol| symbol.root_fqn == callable_fqn)
+            .get(&callable_id)
     }
 
     pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable(

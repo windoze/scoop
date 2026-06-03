@@ -1062,7 +1062,7 @@ fun main(): Int {
             input
                 .program
                 .program
-                .callable_by_lir_key(entry.callable())
+                .callable_by_id(entry.callable_id())
                 .is_some(),
             "EntryRef should point at a callable inside the primary LIR program"
         );
@@ -1083,7 +1083,7 @@ fun main(): Int {
             input
                 .program
                 .program
-                .callable_by_lir_key(entry.callable())
+                .callable_by_id(entry.callable_id())
                 .is_some(),
             "explicit EntryRef should point at a callable inside the primary LIR program"
         );

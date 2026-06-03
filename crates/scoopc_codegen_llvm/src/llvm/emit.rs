@@ -439,12 +439,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         && let Some(arg_shape) = selected_root.entry_main_arg_shape
     {
         let root_callable = late_lowered_program
-            .callable_by_lir_key(selected_root.entry.callable())
+            .callable_by_id(selected_root.entry.callable_id())
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body（key={})",
+                    "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body（id={:?})",
                     selected_root.entry.root_fqn(),
-                    selected_root.entry.callable().as_str()
+                    selected_root.entry.callable_id()
                 ),
             })?;
         if root_callable.root_fqn() != selected_root.entry.root_fqn() {

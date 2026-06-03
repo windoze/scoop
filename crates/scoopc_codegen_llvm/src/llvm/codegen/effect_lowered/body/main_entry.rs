@@ -220,15 +220,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let entry_root_fqn = entry.root_fqn();
-        let callable = program
-            .callable_by_lir_key(entry.callable())
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "LLVM main wrapper 缺少入口 `{}` 的 callable body（key={})",
-                    entry_root_fqn,
-                    entry.callable().as_str()
-                ))
-            })?;
+        let callable = program.callable_by_id(entry.callable_id()).ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM main wrapper 缺少入口 `{}` 的 callable body（id={:?})",
+                entry_root_fqn,
+                entry.callable_id()
+            ))
+        })?;
         if callable.root_fqn() != entry_root_fqn {
             return Err(frontend_error(format!(
                 "LLVM main wrapper 入口 `{}` 的 EntryRef 与 LIR body `{}` 不一致",

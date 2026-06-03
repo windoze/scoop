@@ -1238,11 +1238,17 @@ fn layout_target_abi_symbol(
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     root_fqn: &str,
 ) -> Result<(StableLirCallableKey, String, &'static str), EffectLoweringError> {
-    if let Some(symbol) = callable_symbols
-        .iter()
-        .find(|(_, symbol)| symbol.root_fqn == root_fqn)
-        .map(|(_, symbol)| symbol)
-    {
+    if let Some(key) = published_callable_key_by_root(ctx, root_fqn)? {
+        let id = ctx.callable_ids_by_key.get(&key).copied().ok_or_else(|| {
+            EffectLoweringError::InvalidLirFactsContract {
+                detail: format!("layout target `{root_fqn}` lacks a LirCallableId"),
+            }
+        })?;
+        let symbol = callable_symbols.get(&id).ok_or_else(|| {
+            EffectLoweringError::InvalidLirFactsContract {
+                detail: format!("layout target `{root_fqn}` lacks callable symbol facts"),
+            }
+        })?;
         let (abi_symbol, role) = callable_symbol_abi_export(symbol).ok_or_else(|| {
             EffectLoweringError::InvalidLirFactsContract {
                 detail: format!("layout target `{root_fqn}` lacks a published callable ABI symbol"),
@@ -1378,6 +1384,7 @@ fn build_abi_symbol_facts(
     }
     for binding in published_call_target_bindings(callables, source_call_sites, dynamic_invokes) {
         let role = if callable_symbol_contains_canonical_key(
+            ctx,
             callable_symbols,
             &binding.target_callable_key,
         ) {
@@ -1453,13 +1460,16 @@ fn build_abi_symbol_facts(
 }
 
 fn callable_symbol_contains_canonical_key(
+    ctx: &LirFactsBuildContext<'_>,
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     key: &StableLirCallableKey,
 ) -> bool {
-    let canonical = key.canonical_text();
+    let Some(id) = ctx.callable_ids_by_key.get(key) else {
+        return false;
+    };
     callable_symbols
-        .values()
-        .any(|published| published.callable.canonical_text() == canonical)
+        .get(id)
+        .is_some_and(|published| published.callable.canonical_text() == key.canonical_text())
 }
 
 fn published_call_target_bindings<'a>(

@@ -84,9 +84,15 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 更新 10 个 `effect_lowered` golden，反映 callable dump 中的 `LirCallableId` 和 id 顺序。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-02-R：Review T2-02
+### [DONE] T2-02-R：Review T2-02
 - 关注点：所有 callable 查找走 `LirCallableId`；map 仅在边界构建处出现；无新增 string 查找。
 - 确认：`grep -rn "callables.*get(.*StableLirCallableKey\|by.*fqn" crates/scoopc_codegen_llvm` 在 callable 查找路径零命中；全套基线绿。
+
+完成记录（2026-06-04）：
+- Review 发现 `EntryRef` 仍携带 `StableLirCallableKey`，LLVM emit/main wrapper 通过 `callable_by_lir_key` 做入口 body lookup；已改为在 LIR 边界保存 `LirCallableId`，后续入口路径全部用 `callable_by_id`。
+- Review 发现 codegen 与 LIR facts builder 仍有按 root FQN 扫描 `callables` / `callable_symbols` 的 T2-02 相关查找；已改为先解析 `LirCallableId` 再对 id-keyed map `.get(&id)`。
+- 确认 `crates/scoopc_codegen_llvm` 中 `callables.get(...StableLirCallableKey)`、`callable_by_lir_key`、`callable_symbols.values()/iter()` lookup 路径零命中；剩余 `StableLirCallableKey` 使用为 T2-03/T2-05 仍要迁移的跨引用/site owner 过渡字段或测试构造。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-03：迁移跨引用字段到 `LirCallableId`
 - `contract.rs` 的 `owner_callable`/`callable`/`target_callable_key`/`candidate_targets`/`method_impl_targets`/`impl_member_target`（约 30 处）改为 `LirCallableId`（跨 cone 引用用 `LirCallableHash`，经 `LirArtifact.deps` 解析为本地 `LirCallableId`）。`ir.rs:1184` `lir_callable_key` 同步。

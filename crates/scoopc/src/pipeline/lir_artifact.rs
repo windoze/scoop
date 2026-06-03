@@ -99,19 +99,15 @@ pub fn resolve_entry_ref(
         }
         1 => {
             let (callable_id, callable, arg_shape) = candidates.pop().expect("len checked above");
-            let key = artifact
-                .callable_index
-                .key_for_id(callable_id)
-                .map_err(lir_callable_index_emit_error)?;
             let program_callable =
                 artifact
                     .program
                     .callable_by_id(callable_id)
                     .ok_or_else(|| LlvmEmitError::Frontend {
                         message: format!(
-                            "LLVM LIR stage 入口 `{}` 缺少 matching LIR callable body（key={})",
+                            "LLVM LIR stage 入口 `{}` 缺少 matching LIR callable body（id={:?})",
                             callable.root_fqn(),
-                            key.as_str()
+                            callable_id
                         ),
                     })?;
             if program_callable.root_fqn() != callable.root_fqn() {
@@ -125,7 +121,7 @@ pub fn resolve_entry_ref(
             }
             Ok(Some(EntryRef::new(
                 entry_source_id,
-                key.clone(),
+                callable_id,
                 callable.root_fqn().to_string(),
                 arg_shape,
             )))
