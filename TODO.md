@@ -132,7 +132,7 @@ pub struct CodegenInput {
 - 验收：codegen 阶段源码中**不再出现** `lowered_hir`/`frontend_index`/`type_env`/`CodegenLoweringOutput`。
 - 完成记录（2026-06-04）：将 LIR artifact 构建逻辑从 `llvm_codegen_stage.rs` 迁至独立 `pipeline/lir_stage.rs`，`llvm_codegen_stage::run` 改为直接消费 `CodegenInput` 的 `program` / `abi_shell` / `deps` / `entry` / `source_map` / `opt_level`；删除旧 `LlvmCodegenStageInput`，并移除 codegen stage 内部对 frontend lowering / HIR / MIR materialization 输入的依赖。依赖 artifact 在进入 LLVM stage output 前转为 codegen-owned `LlvmDepLirArtifactHandoff`，避免从 `LirArtifact` 回造旧 cached-dep handoff。为保持构建闭环，`pipeline::build_llvm_codegen_input` 负责在 codegen 前构建主 cone / ABI shell LIR artifact 并适配 cached deps；`pipeline` 与 `single_cone` 调用点已改为组装 `CodegenInput` 后调用 codegen。验收 grep 通过：`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，仓库内对 `LlvmCodegenStageInput|LlvmLirRun|into_abi_visibility_parts|run_lir_stage_from_lowered_hir` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-04-R：Review T1-04（本阶段核心 review）
+### [DONE] T1-04-R：Review T1-04（本阶段核心 review）
 - **关注点**：
   - emit 行为与重构前**等价**：`input.program` 的 `program/facts/base_context/mir` + `deps` + `abi_shell` 喂入路径，对应原 `(lir, lir_facts)+base_context+cached_dep_artifacts`，无遗漏分支（尤其 abi_shell ↔ 原 abi_visibility_lowered）。
   - **删除彻底**：`LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir` 全部移除，无 dead code / 无 `#[allow(dead_code)]` 掩盖。
@@ -141,6 +141,7 @@ pub struct CodegenInput {
   - `grep -nE "lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput" crates/scoopc/src/pipeline/llvm_codegen_stage.rs` **零命中**。
   - 全套基线绿；run_fixtures ok 1664。
   - 抽样 diff LLVM IR：codegen 改造前后对同一输入产出一致。
+- 完成记录（2026-06-04）：复核 T1-04 后的 `llvm_codegen_stage::run`，确认其只消费 `CodegenInput` 中的 `program` / `abi_shell` / `deps` / `entry` / `source_map` / `opt_level`，主 cone 的 `program/facts/base_context`、ABI shell 的 `program/facts/type_store`、依赖 cone 的 `LlvmDepLirArtifactHandoff` 输入路径与 T1-04 前 emit handoff 等价；`LirArtifact.mir` 未被 codegen 重新读取。确认 `LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir` 全部移除，`llvm_codegen_stage.rs` 无 `#[allow(dead_code)]` 掩盖；`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，仓库内对旧 helper/type 名称零命中。抽样对比 `tests/fixtures/build/emit_llvm_basic.scoop`，用 T1-04 前提交 `ea60a3e6` 与当前版本分别 emit LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-05：调用方串新阶段
 - `pipeline/mod.rs:183` `run_llvm_codegen_stage` 及其调用点（:226 / :446）、`single_cone.rs:165`：在调 codegen 前先 `build_lir_artifact`（主 + 可选 abi_shell）、把 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转成 `deps`，组装 `CodegenInput` 再调 `run`。

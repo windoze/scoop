@@ -18,14 +18,36 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 进度
+## 当前记录：T1-04-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
+3. 对照 T1-04-R 清单复核 `llvm_codegen_stage::run` 的 `CodegenInput` 消费路径、ABI shell 路径和 dependency handoff 路径。
+4. 确认旧输入类型和旧 helper 删除彻底，且没有用 dead-code allow 掩盖残留。
+5. 确认 `llvm_codegen_stage.rs` 不再包含前端 lowering 相关字段或类型名。
+6. 按顺序运行格式化、lint、完整 Rust 测试、build、dependency gate、spec fixture check 和完整 fixture suite。
+7. 用临时 worktree 对比 T1-04 前后同一 fixture 生成的 LLVM IR。
+8. 成功后更新 `TODO.md`，给 `T1-04-R` 标题加 `[DONE]` 并填写完成记录。
+9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-04-R：Review T1-04（本阶段核心 review）`。
+- 最近提交 `f8beb084 [T1-04] Feed codegen from LIR artifacts` 未在提交正文中声明未完成事项。
+- 已按 T1-04-R 清单检查 `llvm_codegen_stage.rs`、`lir_stage.rs`、`lir_artifact.rs`、`pipeline/mod.rs`、`single_cone.rs` 与 LLVM handoff/emit 路径；未发现旧输入类型、旧 helper、dead-code allow 或 codegen 阶段前端字段残留。
+- 已完成验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py` 全部通过。
+- 已用临时 worktree 对比 T1-04 前后 `tests/fixtures/build/emit_llvm_basic.scoop` 的 LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`。
+- 已更新 `TODO.md`，将 `T1-04-R` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-04-R 记录置顶。
+
+## 先前记录：T1-04
 
 - 2026-06-04：已创建执行计划文件，下一步读取 `TODO.md` 定位第一个未完成任务。
 - 2026-06-04：已定位第一个未完成任务为 `T1-04：codegen run 改吃 CodegenInput`；最新提交为 `T1-03-R`，工作区仅有本计划文件改动。
 - 2026-06-04：已将 LIR artifact 构建逻辑迁出 `llvm_codegen_stage.rs`，删除旧 `LlvmCodegenStageInput`，并把 codegen `run` 改为接收 `CodegenInput`。
 - 2026-06-04：验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`（fixtures: ok 1664）。`TODO.md` 已将 T1-04 标记为 `[DONE]` 并记录完成情况。
 
-## 先前记录：T1-03-R
+## 更早记录：T1-03-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -38,7 +60,7 @@
 9. 成功后更新 `TODO.md`，给 `T1-03-R` 标题加 `[DONE]` 并填写完成记录。
 10. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-先前进度：
+更早进度：
 
 - 已确认第一个未完成任务为 `T1-03-R：Review T1-03`。
 - 最近提交 `f69bbb88 [T1-03] Adapt cached deps to LIR artifacts` 是本 review 的直接对象，未显示额外未完成前置项。
@@ -48,7 +70,7 @@
 - 已更新 `TODO.md`，将 `T1-03-R` 标记为 `[DONE]` 并填写完成记录。
 - 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-03-R 记录置顶。
 
-## 上一轮记录：T1-03
+## 更早记录：T1-03
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -61,7 +83,7 @@
 9. 成功后更新 `TODO.md`，给 `T1-03` 标题加 `[DONE]` 并填写完成记录。
 10. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-上一轮进度：
+更早进度：
 
 - 已确认第一个未完成任务为 `T1-03：依赖 handoff → LirArtifact 适配`。
 - 最近提交 `bfcc25ea [T1-02-R] Review LIR artifact builder` 未显示需要优先处理的 T1-03 直接未完成问题。
