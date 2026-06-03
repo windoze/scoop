@@ -50,3 +50,11 @@
 - 最新验证结果：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（1664 checks）均通过。
 - 已将 `TODO-3.md` 的 `T3-04G` 标记为 `[DONE]` 并填写完成记录；已将 `TODO.md` 当前活跃任务推进到下一项 `T3-04R`，但本次不会执行该 review。
 - 下一步检查 git diff 并提交本次任务变更。
+
+## 本轮 T3-04R 第八次审查进度
+- 已定位本轮首个未完成任务为 `TODO-3.md` 的 `T3-04R`，依赖 `T3-04G` 已标记完成。
+- 最新提交 `6517049c [T3-04G] Close seventh fallback gaps` 与本轮 review 直接相关；未跟踪 `FACT_REFACTOR.md` 继续视为既有用户文件，不触碰。
+- 审查发现 `T3-04G` 后仍有直接阻塞 `T3-04R` 完成的残余：P6 `published_print_callable_fqn` / `published_hir_generic_callable_fqn` concrete FQN 合成与 `fqn.to_string()` 兜底、class ctor init body base-context fallback、MIR `scalar_intrinsic_entry_from_fqn` FQN 推导、value-box/member dispatch 文本恢复路径，以及 dependency gate 对这些实际 helper 的漏检。
+- 已在 `TODO-3.md` 中新增最小前置任务 `T3-04H`，将 `T3-04R` 依赖改为 `T3-04H`，并追加八次审查阻塞记录。
+- 已在 `TODO.md` 中把当前活跃任务改为 `TODO-3.md` → `T3-04H`。
+- 本轮只修改任务清单和进度记录，未修改编译产物；因此不运行 `cargo`/fixture 全量验证，沿用最近 `T3-04G` 提交记录中的全量绿色结果作为代码基线。
