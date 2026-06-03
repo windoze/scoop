@@ -799,17 +799,11 @@ fun main(): Int {
     fn effect_lowered_lir_facts_publish_exact_callee_binding() {
         let output = run_sample();
         let facts = output.lir_facts();
-        let (_main_id, main) = facts
+        let (main_id, main) = facts
             .callables
             .iter()
             .find(|(_, callable)| callable.root_fqn() == "sample.main")
             .expect("sample.main callable facts should be published");
-        let main_key = output
-            .lir()
-            .callable("sample.main")
-            .and_then(|callable| callable.lir_callable_key())
-            .cloned()
-            .expect("sample.main should publish a stable LIR key");
         let LirCallableContract::Plain(plain) = &main.contract else {
             panic!("sample.main should publish a plain ABI contract");
         };
@@ -827,25 +821,21 @@ fun main(): Int {
         assert_eq!(exact.root_fqn, "sample.helper");
         assert_eq!(
             site.contract.target_callables.as_slice(),
-            std::slice::from_ref(&exact.target_callable_key)
+            std::slice::from_ref(&exact.target_callable)
         );
         let signature = facts
             .source_signatures
             .get(&exact.root_fqn)
             .expect("exact callee root should resolve to a source signature");
         assert_eq!(signature.signature_key, exact.signature_key);
-        let (target_id, _) = facts
-            .callables
-            .iter()
-            .find(|(_, callable)| {
-                callable.body_version.key.owner_canonical_text()
-                    == exact.target_callable_key.as_str()
-            })
-            .expect("exact callee should resolve to callable facts");
+        let target_id = exact
+            .target_callable
+            .local_id()
+            .expect("exact callee should resolve to a local callable id");
         let symbol = facts
             .physical_layout
             .callable_symbols
-            .get(target_id)
+            .get(&target_id)
             .expect("exact callee should resolve to callable symbol facts");
         assert_eq!(
             symbol.exported_symbol.as_deref(),
@@ -854,7 +844,7 @@ fun main(): Int {
         let source_site = facts
             .source_call_sites
             .get(&LirSourceCallSiteKey {
-                owner_callable: main_key,
+                owner_callable: *main_id,
                 site_id: site.site_id,
             })
             .expect("plain call-site should also publish an identity-keyed source contract");
@@ -1074,7 +1064,10 @@ fun main(): Int {
         }));
         assert!(facts.physical_layout.abi_symbols.values().any(|symbol| {
             symbol.role == "callable_export"
-                && symbol.callable.as_ref() == Some(&call_virtual.callable)
+                && symbol.callable
+                    == Some(scoopc_lir_facts::LirCallableRef::Local(
+                        call_virtual.callable,
+                    ))
                 && Some(symbol.symbol.as_str()) == call_virtual.exported_symbol.as_deref()
         }));
         assert!(!facts.type_context.primary_fingerprint.is_empty());

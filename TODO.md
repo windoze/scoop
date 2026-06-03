@@ -94,9 +94,17 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 确认 `crates/scoopc_codegen_llvm` 中 `callables.get(...StableLirCallableKey)`、`callable_by_lir_key`、`callable_symbols.values()/iter()` lookup 路径零命中；剩余 `StableLirCallableKey` 使用为 T2-03/T2-05 仍要迁移的跨引用/site owner 过渡字段或测试构造。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-03：迁移跨引用字段到 `LirCallableId`
+### [DONE] T2-03：迁移跨引用字段到 `LirCallableId`
 - `contract.rs` 的 `owner_callable`/`callable`/`target_callable_key`/`candidate_targets`/`method_impl_targets`/`impl_member_target`（约 30 处）改为 `LirCallableId`（跨 cone 引用用 `LirCallableHash`，经 `LirArtifact.deps` 解析为本地 `LirCallableId`）。`ir.rs:1184` `lir_callable_key` 同步。
 - 验收：139 处 `StableLirCallableKey` 使用降到「仅稳定身份来源 + 边界 map + 调试」。
+
+完成记录（2026-06-04）：
+- `scoopc_lir_facts::contract` 中的 live callable owner/target/payload 字段迁移为本 cone `LirCallableId`；跨 cone / bodyless declaration 目标使用新增 `LirCallableRef::ExternalHash(LirCallableHash)` 表示。
+- `LirCallSiteContract`、dynamic invoke、dispatch、class ctor/reflection/source call-site key、vtable/itable target、ABI symbol、closure identity 与 callable symbol facts 全部改为 id/hash 句柄，不再携带 `StableLirCallableKey` 作为 live 关联字段。
+- `lir_facts_builder` 在构造边界把 stable key 解析为本地 id 或 hash 引用；`LirCallableIndex` 增加 hash→id 解析，`LirArtifact` 暴露 hash 解析入口。
+- LLVM reachability、ABI/layout lookup、dispatch、closure identity、source/class-ctor call-site lookup 改为 id/hash 路径；修复 ABI visibility program 与 primary facts id 顺序不同导致的 current callable id 错配。
+- 更新 effect-lowered goldens，反映 callable symbol / source-site dump 中的 id-based 引用与 id 顺序。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-03-R：Review T2-03
 - 关注点：跨 cone 引用用 hash、本 cone 用 id，无混用；`candidate_targets`/`method_impl_targets` 等列表全句柄；无悬空（构造时即解析）。

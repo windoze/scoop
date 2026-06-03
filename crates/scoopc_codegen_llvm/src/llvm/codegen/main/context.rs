@@ -316,12 +316,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirSourceCallSiteFacts> {
-        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        let owner_callable = self.current_published_lir_callable_id()?;
         self.shared
             .published_lir_facts
             .source_call_sites
             .get(&LirSourceCallSiteKey {
-                owner_callable: owner_callable.clone(),
+                owner_callable,
                 site_id,
             })
     }
@@ -330,7 +330,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirPlainCallSiteFacts> {
-        let owner_callable = self.function_cx.current_lir_callable_id?;
+        let owner_callable = self.current_published_lir_callable_id()?;
         let callable = self
             .shared
             .published_lir_facts
@@ -347,27 +347,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         site_id: SiteId,
         context: &str,
     ) -> Result<&LirClassCtorCallSiteFacts, LlvmEmitError> {
-        let owner_callable = self
-            .function_cx
-            .current_lir_callable_key
-            .as_ref()
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "{context}: missing current LIR callable identity for class ctor site{}",
-                    site_id.as_u32()
-                ),
-            })?;
+        let owner_callable =
+            self.current_active_lir_callable_id()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "{context}: missing current LIR callable identity for class ctor site{}",
+                        site_id.as_u32()
+                    ),
+                })?;
         let lir_facts = self.active_lir_facts();
         lir_facts
             .class_ctor_call_sites
             .get(&LirClassCtorCallSiteKey {
-                owner_callable: owner_callable.clone(),
+                owner_callable,
                 site_id,
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "{context}: missing LIR class ctor call-site contract for owner `{}` site{}",
-                    owner_callable.readable_path(),
+                    "{context}: missing LIR class ctor call-site contract for owner `{:?}` site{}",
+                    owner_callable,
                     site_id.as_u32()
                 ),
             })
@@ -460,14 +458,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirDispatchContract> {
-        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        let owner_callable = self.current_published_lir_callable_id()?;
         self.shared
             .published_lir_facts
             .dispatches
             .get(&LirDispatchKey {
-                owner_callable: owner_callable.clone(),
+                owner_callable,
                 site_id,
             })
+    }
+
+    fn current_published_lir_callable_id(&self) -> Option<LirCallableId> {
+        self.current_lir_callable_id_in_facts(self.shared.published_lir_facts)
+            .or(self.function_cx.current_lir_callable_id)
+    }
+
+    fn current_active_lir_callable_id(&self) -> Option<LirCallableId> {
+        self.current_lir_callable_id_in_facts(self.active_lir_facts())
+            .or_else(|| self.current_published_lir_callable_id())
+    }
+
+    fn current_lir_callable_id_in_facts(
+        &self,
+        facts: &scoopc_lir_facts::LirFacts,
+    ) -> Option<LirCallableId> {
+        let root = self.function_cx.current_callable_fqn.as_deref()?;
+        facts
+            .callables
+            .iter()
+            .find_map(|(id, callable)| (callable.root_fqn() == root).then_some(*id))
     }
 
     pub(in crate::llvm::codegen) fn required_lir_dispatch(

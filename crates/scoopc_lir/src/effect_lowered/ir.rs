@@ -326,6 +326,7 @@ impl LateLoweredProgram {
 #[derive(Debug, Clone)]
 pub struct LirCallableIndex {
     key_to_id: HashMap<StableLirCallableKey, LirCallableId>,
+    hash_to_id: HashMap<LirCallableHash, LirCallableId>,
     key_by_id: Vec<StableLirCallableKey>,
     hash_by_id: Vec<LirCallableHash>,
 }
@@ -351,6 +352,7 @@ impl LirCallableIndex {
     {
         let key_by_id = keys.into_iter().collect::<Vec<_>>();
         let mut key_to_id = HashMap::with_capacity(key_by_id.len());
+        let mut hash_to_id = HashMap::with_capacity(key_by_id.len());
         let mut hash_by_id = Vec::with_capacity(key_by_id.len());
         for (index, key) in key_by_id.iter().enumerate() {
             let Some(id) = LirCallableId::from_index(index) else {
@@ -365,11 +367,20 @@ impl LirCallableIndex {
                     duplicate: id,
                 });
             }
+            let hash = LirCallableHash::from_stable_key(key);
             key_to_id.insert(key.clone(), id);
-            hash_by_id.push(LirCallableHash::from_stable_key(key));
+            if let Some(first) = hash_to_id.insert(hash, id) {
+                return Err(LirCallableIndexError::DuplicatePublishedHash {
+                    hash,
+                    first,
+                    duplicate: id,
+                });
+            }
+            hash_by_id.push(hash);
         }
         Ok(Self {
             key_to_id,
+            hash_to_id,
             key_by_id,
             hash_by_id,
         })
@@ -406,6 +417,16 @@ impl LirCallableIndex {
         )
     }
 
+    pub fn id_for_hash(
+        &self,
+        hash: LirCallableHash,
+    ) -> Result<LirCallableId, LirCallableIndexError> {
+        self.hash_to_id
+            .get(&hash)
+            .copied()
+            .ok_or(LirCallableIndexError::UnknownPublishedHash { hash })
+    }
+
     pub fn len(&self) -> usize {
         self.key_by_id.len()
     }
@@ -427,8 +448,16 @@ pub enum LirCallableIndexError {
         first: LirCallableId,
         duplicate: LirCallableId,
     },
+    #[error("stable LIR callable hash `{hash:?}` appears at both {first:?} and {duplicate:?}")]
+    DuplicatePublishedHash {
+        hash: LirCallableHash,
+        first: LirCallableId,
+        duplicate: LirCallableId,
+    },
     #[error("stable LIR callable key `{key:?}` is not present in this artifact")]
     UnknownPublishedKey { key: StableLirCallableKey },
+    #[error("stable LIR callable hash `{hash:?}` is not present in this artifact")]
+    UnknownPublishedHash { hash: LirCallableHash },
     #[error("LIR callable id {id:?} is outside this artifact's callable table of length {len}")]
     UnknownCallableId { id: LirCallableId, len: usize },
 }

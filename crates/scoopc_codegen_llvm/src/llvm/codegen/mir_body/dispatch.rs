@@ -96,7 +96,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .abi_symbols
             .values()
             .find_map(|symbol| {
-                (symbol.callable.as_ref() == Some(target))
+                (symbol.callable == Some(*target))
                     .then_some(symbol.root_fqn.as_deref())
                     .flatten()
             })?;

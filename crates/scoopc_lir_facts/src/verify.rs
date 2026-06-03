@@ -4,12 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use scoopc_ids::{BodyVersionKey, LirCallableId, StableCanonicalKey, StableLirCallableKey};
+use scoopc_ids::{BodyVersionKey, LirCallableId, StableCanonicalKey};
 
 use crate::{
-    LirCallTargetMode, LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts,
-    LirEffectPrecision, LirFacts, LirGlobalRootKey, LirGlobalRootKind, LirInitializerBodyKind,
-    LirTypeContextBridgeMode,
+    LirCallTargetMode, LirCallableContract, LirCallableRef, LirConeInitRoutineKey,
+    LirControlBodyFacts, LirEffectPrecision, LirFacts, LirGlobalRootKey, LirGlobalRootKind,
+    LirInitializerBodyKind, LirTypeContextBridgeMode,
 };
 
 /// Result type returned by LIR fact verification.
@@ -1073,29 +1073,19 @@ fn callable_id_text(id: LirCallableId) -> String {
     format!("{:?}", id)
 }
 
-fn callable_for_key<'a>(
-    facts: &'a LirFacts,
-    key: &StableLirCallableKey,
-) -> Option<&'a crate::LirCallableFacts> {
-    facts
-        .callables
-        .values()
-        .find(|callable| callable.body_version.key.owner_canonical_text() == key.as_str())
+fn callable_for_id(facts: &LirFacts, id: LirCallableId) -> Option<&crate::LirCallableFacts> {
+    facts.callables.get(&id)
 }
 
-fn has_callable_key(facts: &LirFacts, key: &StableLirCallableKey) -> bool {
-    callable_for_key(facts, key).is_some()
+fn has_callable_id(facts: &LirFacts, id: LirCallableId) -> bool {
+    callable_for_id(facts, id).is_some()
 }
 
-fn callable_symbol_for_key<'a>(
-    facts: &'a LirFacts,
-    key: &StableLirCallableKey,
-) -> Option<&'a crate::LirCallableSymbolFacts> {
-    facts
-        .physical_layout
-        .callable_symbols
-        .values()
-        .find(|symbol| symbol.callable.as_str() == key.as_str())
+fn callable_symbol_for_id(
+    facts: &LirFacts,
+    id: LirCallableId,
+) -> Option<&crate::LirCallableSymbolFacts> {
+    facts.physical_layout.callable_symbols.get(&id)
 }
 
 fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
@@ -1114,13 +1104,13 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
         let Some(callable) = facts.callables.get(key) else {
             return Err(VerifyError::MismatchedCallableSymbolKey {
                 key: key_text,
-                callable: symbol.callable.as_str().to_string(),
+                callable: callable_id_text(symbol.callable),
             });
         };
-        if callable.body_version.key.owner_canonical_text() != symbol.callable.as_str() {
+        if symbol.callable != *key {
             return Err(VerifyError::MismatchedCallableSymbolKey {
                 key: key_text,
-                callable: symbol.callable.as_str().to_string(),
+                callable: callable_id_text(symbol.callable),
             });
         }
         if symbol.root_fqn.is_empty() {
@@ -1148,8 +1138,10 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "symbol or role is empty",
             });
         }
-        if let Some(callable_key) = &symbol.callable {
-            if let Some(callable_symbol) = callable_symbol_for_key(facts, callable_key) {
+        if let Some(callable_ref) = symbol.callable {
+            if let LirCallableRef::Local(callable_id) = callable_ref
+                && let Some(callable_symbol) = callable_symbol_for_id(facts, callable_id)
+            {
                 if symbol.root_fqn.as_deref() != Some(callable_symbol.root_fqn.as_str()) {
                     return Err(VerifyError::InvalidAbiSymbol {
                         key: key.clone(),
@@ -1241,22 +1233,22 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
     }
     for (key, identity) in &facts.physical_layout.closure_identities {
         let key_text = callable_id_text(*key);
-        let Some(callable) = facts.callables.get(key) else {
+        if !facts.callables.contains_key(key) {
             return Err(VerifyError::InvalidClosureIdentity {
                 key: key_text,
                 reason: "closure identity references missing callable id",
             });
-        };
-        if callable.body_version.key.owner_canonical_text() != identity.callable.as_str() {
+        }
+        if identity.callable != *key {
             return Err(VerifyError::InvalidClosureIdentity {
                 key: key_text,
-                reason: "map key does not match embedded callable key",
+                reason: "map key does not match embedded callable id",
             });
         }
         if identity.root_fqn.is_empty()
             || identity.owner_root_fqn.is_empty()
             || identity.lexical_path.is_empty()
-            || !has_callable_key(facts, &identity.owner_callable)
+            || !has_callable_id(facts, identity.owner_callable)
         {
             return Err(VerifyError::InvalidClosureIdentity {
                 key: key_text,
@@ -1268,7 +1260,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
         for slot in slots {
             if !target_has_published_source_and_abi(
                 facts,
-                &slot.impl_member_target,
+                slot.impl_member_target,
                 &slot.impl_member_fqn,
             ) {
                 return Err(VerifyError::InvalidAbiSymbol {
@@ -1318,7 +1310,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                         reason: "itable implementation target lacks a target callable binding",
                     });
                 };
-                if !target_has_published_source_and_abi(facts, impl_target, impl_fqn) {
+                if !target_has_published_source_and_abi(facts, *impl_target, impl_fqn) {
                     return Err(VerifyError::InvalidAbiSymbol {
                         key: impl_fqn.clone(),
                         reason: "itable implementation target lacks a target-bound source signature or ABI symbol",
@@ -1437,7 +1429,7 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "map key and payload identity differ",
             });
         }
-        if !has_callable_key(facts, &key.owner_callable) {
+        if !has_callable_id(facts, key.owner_callable) {
             return Err(VerifyError::InvalidClassCtorCallSite {
                 key: key_text,
                 reason: "owner callable is not published",
@@ -1495,7 +1487,7 @@ fn verify_reflection_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "map key and payload identity differ",
             });
         }
-        if !has_callable_key(facts, &key.owner_callable) {
+        if !has_callable_id(facts, key.owner_callable) {
             return Err(VerifyError::InvalidReflectionCallSite {
                 key: key_text,
                 reason: "owner callable is not published",
@@ -1652,15 +1644,14 @@ fn verify_call_site_contract(
                     reason: "known-instance call is missing exact callee binding",
                 });
             };
-            if contract.target_callables.as_slice()
-                != std::slice::from_ref(&exact.target_callable_key)
+            if contract.target_callables.as_slice() != std::slice::from_ref(&exact.target_callable)
             {
                 return Err(VerifyError::InvalidExactCalleeBinding {
                     callable: owner.to_string(),
                     reason: "target callable list does not match exact callee key",
                 });
             }
-            let binding = target_binding(contract, &exact.target_callable_key, owner)?;
+            let binding = target_binding(contract, &exact.target_callable, owner)?;
             if binding.root_fqn != exact.root_fqn
                 || binding.abi_symbol != exact.abi_symbol
                 || binding.signature_key != exact.signature_key
@@ -1670,7 +1661,7 @@ fn verify_call_site_contract(
                     reason: "exact callee binding drifts from target binding",
                 });
             }
-            verify_published_call_target(facts, &exact.target_callable_key, binding, owner)?;
+            verify_published_call_target(facts, exact.target_callable, binding, owner)?;
         }
         LirCallTargetMode::CandidateSet => {
             if contract.exact_callee.is_some() {
@@ -1687,7 +1678,7 @@ fn verify_call_site_contract(
             }
             for target in &contract.target_callables {
                 let binding = target_binding(contract, target, owner)?;
-                verify_published_call_target(facts, target, binding, owner)?;
+                verify_published_call_target(facts, *target, binding, owner)?;
             }
         }
         LirCallTargetMode::DynamicFallback => {
@@ -1710,7 +1701,7 @@ fn verify_call_site_contract(
             }
             for target in &contract.target_callables {
                 let binding = target_binding(contract, target, owner)?;
-                verify_published_call_target(facts, target, binding, owner)?;
+                verify_published_call_target(facts, *target, binding, owner)?;
             }
         }
     }
@@ -1719,13 +1710,13 @@ fn verify_call_site_contract(
 
 fn target_binding<'a>(
     contract: &'a crate::LirCallSiteContract,
-    target: &StableLirCallableKey,
+    target: &LirCallableRef,
     owner: &str,
 ) -> Result<&'a crate::LirCallTargetBinding> {
     contract
         .target_bindings
         .iter()
-        .find(|binding| binding.target_callable_key == *target)
+        .find(|binding| binding.target_callable == *target)
         .ok_or_else(|| VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
             reason: "target callable lacks a published target binding",
@@ -1734,11 +1725,11 @@ fn target_binding<'a>(
 
 fn verify_published_call_target(
     facts: &LirFacts,
-    target: &StableLirCallableKey,
+    target: LirCallableRef,
     binding: &crate::LirCallTargetBinding,
     owner: &str,
 ) -> Result<()> {
-    if &binding.target_callable_key != target {
+    if binding.target_callable != target {
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
             reason: "target binding key does not match target callable",
@@ -1751,7 +1742,7 @@ fn verify_published_call_target(
         || !facts.physical_layout.abi_symbols.values().any(|symbol| {
             symbol.symbol == binding.abi_symbol
                 && symbol.root_fqn.as_deref() == Some(binding.root_fqn.as_str())
-                && symbol.callable.as_ref() == Some(target)
+                && symbol.callable == Some(target)
                 && matches!(
                     symbol.role.as_str(),
                     "callable_export" | "native_callable" | "extern_callable"
@@ -1766,11 +1757,7 @@ fn verify_published_call_target(
     Ok(())
 }
 
-fn verify_dispatch_target(
-    facts: &LirFacts,
-    target: &StableLirCallableKey,
-    owner: &str,
-) -> Result<()> {
+fn verify_dispatch_target(facts: &LirFacts, target: LirCallableRef, owner: &str) -> Result<()> {
     let Some(root_fqn) = target_bound_root_fqn(facts, target) else {
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
@@ -1786,11 +1773,10 @@ fn verify_dispatch_target(
     Ok(())
 }
 
-fn target_bound_root_fqn<'a>(
-    facts: &'a LirFacts,
-    target: &StableLirCallableKey,
-) -> Option<&'a str> {
-    if let Some(callable) = callable_for_key(facts, target) {
+fn target_bound_root_fqn(facts: &LirFacts, target: LirCallableRef) -> Option<&str> {
+    if let LirCallableRef::Local(id) = target
+        && let Some(callable) = callable_for_id(facts, id)
+    {
         return Some(callable.root_fqn());
     }
     facts
@@ -1798,7 +1784,7 @@ fn target_bound_root_fqn<'a>(
         .abi_symbols
         .values()
         .find_map(|symbol| {
-            (symbol.callable.as_ref() == Some(target))
+            (symbol.callable == Some(target))
                 .then_some(symbol.root_fqn.as_deref())
                 .flatten()
         })
@@ -1806,13 +1792,13 @@ fn target_bound_root_fqn<'a>(
 
 fn target_has_published_source_and_abi(
     facts: &LirFacts,
-    target: &StableLirCallableKey,
+    target: LirCallableRef,
     root_fqn: &str,
 ) -> bool {
     !root_fqn.is_empty()
         && facts.source_signatures.contains_key(root_fqn)
         && facts.physical_layout.abi_symbols.values().any(|symbol| {
-            symbol.callable.as_ref() == Some(target)
+            symbol.callable == Some(target)
                 && symbol.root_fqn.as_deref() == Some(root_fqn)
                 && matches!(
                     symbol.role.as_str(),
@@ -1866,7 +1852,7 @@ fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "map key and payload identity differ",
             });
         }
-        if !has_callable_key(facts, &key.owner_callable) {
+        if !has_callable_id(facts, key.owner_callable) {
             return Err(VerifyError::InvalidSourceCallSite {
                 key: key_text,
                 reason: "owner callable is not published",
@@ -1892,7 +1878,7 @@ fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
                 reason: "named intrinsic entry is empty",
             });
         }
-        verify_call_site_contract(facts, key.owner_callable.readable_path(), &site.contract)?;
+        verify_call_site_contract(facts, &callable_id_text(key.owner_callable), &site.contract)?;
     }
     Ok(())
 }
@@ -1900,10 +1886,10 @@ fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
 fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
     for (key, contract) in &facts.dynamic_invokes {
         let key_text = dynamic_key_text(key);
-        if !has_callable_key(facts, &key.owner_callable) {
+        if !has_callable_id(facts, key.owner_callable) {
             return Err(VerifyError::MissingDynamicInvokeOwner { key: key_text });
         }
-        verify_call_site_contract(facts, key.owner_callable.readable_path(), &contract.call)?;
+        verify_call_site_contract(facts, &callable_id_text(key.owner_callable), &contract.call)?;
         if let Some(step_schema) = contract.call.callee_step_schema
             && !facts.step_types.contains_key(&step_schema)
         {
@@ -1929,7 +1915,21 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
             .iter()
             .zip(contract.target_body_versions.iter())
         {
-            if body_version.owner_canonical_text() != target.as_str() {
+            let Some(target_id) = target.local_id() else {
+                return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                    key: key_text,
+                    step_schema: 0,
+                });
+            };
+            let Some(callable) = facts.callables.get(&target_id) else {
+                return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                    key: key_text,
+                    step_schema: 0,
+                });
+            };
+            if body_version.owner_canonical_text()
+                != callable.body_version.key.owner_canonical_text()
+            {
                 return Err(VerifyError::MissingDynamicInvokeTargetStep {
                     key: key_text,
                     step_schema: 0,
@@ -1942,13 +1942,13 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
 
 fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
     for (key, dispatch) in &facts.dispatches {
-        if !has_callable_key(facts, &key.owner_callable) {
+        if !has_callable_id(facts, key.owner_callable) {
             return Err(VerifyError::MissingDispatchOwner {
                 key: dispatch_key_text(key),
             });
         }
         for target in &dispatch.candidate_targets {
-            verify_dispatch_target(facts, target, &dispatch.member_fqn)?;
+            verify_dispatch_target(facts, *target, &dispatch.member_fqn)?;
         }
     }
     Ok(())
@@ -2000,7 +2000,7 @@ fn verify_surface_resume_dispatches(facts: &LirFacts) -> Result<()> {
 fn dynamic_key_text(key: &crate::LirDynamicInvokeKey) -> String {
     format!(
         "{}:site{}",
-        key.owner_callable.as_str(),
+        callable_id_text(key.owner_callable),
         key.site_id.as_u32()
     )
 }
@@ -2008,7 +2008,7 @@ fn dynamic_key_text(key: &crate::LirDynamicInvokeKey) -> String {
 fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
     format!(
         "{}:site{}",
-        key.owner_callable.as_str(),
+        callable_id_text(key.owner_callable),
         key.site_id.as_u32()
     )
 }
@@ -2016,7 +2016,7 @@ fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
 fn class_ctor_call_site_key_text(key: &crate::LirClassCtorCallSiteKey) -> String {
     format!(
         "{}:site{}",
-        key.owner_callable.as_str(),
+        callable_id_text(key.owner_callable),
         key.site_id.as_u32()
     )
 }
@@ -2024,7 +2024,7 @@ fn class_ctor_call_site_key_text(key: &crate::LirClassCtorCallSiteKey) -> String
 fn reflection_call_site_key_text(key: &crate::LirReflectionCallSiteKey) -> String {
     format!(
         "{}:site{}",
-        key.owner_callable.as_str(),
+        callable_id_text(key.owner_callable),
         key.site_id.as_u32()
     )
 }
@@ -2032,7 +2032,7 @@ fn reflection_call_site_key_text(key: &crate::LirReflectionCallSiteKey) -> Strin
 fn dispatch_key_text(key: &crate::LirDispatchKey) -> String {
     format!(
         "{}:site{}",
-        key.owner_callable.as_str(),
+        callable_id_text(key.owner_callable),
         key.site_id.as_u32()
     )
 }

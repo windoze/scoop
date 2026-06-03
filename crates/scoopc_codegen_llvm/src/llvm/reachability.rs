@@ -2,10 +2,10 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
-use scoopc_ids::{LirCallableId, StableLirCallableKey};
+use scoopc_ids::LirCallableId;
 use scoopc_lir_facts::{
-    LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDispatchKey,
-    LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
+    LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirCallableRef,
+    LirDispatchKey, LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
 };
 
 /// Runtime helpers whose source callables may need legacy declarations until
@@ -31,7 +31,7 @@ pub(super) fn collect_reachable_top_level_funs(
 
 struct ReachabilityCollector<'a> {
     lir_facts: &'a LirFacts,
-    callable_roots_by_key: HashMap<&'a str, &'a str>,
+    callable_roots_by_id: HashMap<LirCallableId, &'a str>,
     callable_ids_by_root: HashMap<&'a str, LirCallableId>,
     queue: VecDeque<String>,
     seen: HashSet<String>,
@@ -40,27 +40,15 @@ struct ReachabilityCollector<'a> {
 
 impl<'a> ReachabilityCollector<'a> {
     fn new(lir_facts: &'a LirFacts) -> Self {
-        let mut callable_roots_by_key: HashMap<&'a str, &'a str> = HashMap::new();
+        let mut callable_roots_by_id: HashMap<LirCallableId, &'a str> = HashMap::new();
         let mut callable_ids_by_root: HashMap<&'a str, LirCallableId> = HashMap::new();
         for (id, facts) in &lir_facts.callables {
-            callable_roots_by_key
-                .entry(facts.body_version.key.owner_canonical_text())
-                .or_insert(facts.root_fqn());
+            callable_roots_by_id.entry(*id).or_insert(facts.root_fqn());
             callable_ids_by_root.entry(facts.root_fqn()).or_insert(*id);
-        }
-        for symbol in lir_facts.physical_layout.abi_symbols.values() {
-            let (Some(callable), Some(root_fqn)) =
-                (symbol.callable.as_ref(), symbol.root_fqn.as_deref())
-            else {
-                continue;
-            };
-            callable_roots_by_key
-                .entry(callable.as_str())
-                .or_insert(root_fqn);
         }
         Self {
             lir_facts,
-            callable_roots_by_key,
+            callable_roots_by_id,
             callable_ids_by_root,
             queue: VecDeque::new(),
             seen: HashSet::new(),
@@ -183,12 +171,17 @@ impl<'a> ReachabilityCollector<'a> {
         }
 
         for (key, dynamic) in &self.lir_facts.dynamic_invokes {
-            if self.required_root_for_callable_key(&dynamic.owner_callable)? == root_fqn {
+            if self.required_root_for_callable_ref(LirCallableRef::Local(dynamic.owner_callable))?
+                == root_fqn
+            {
                 edges.dynamic_keys.push(key.clone());
             }
         }
         for (key, dispatch) in &self.lir_facts.dispatches {
-            if self.required_root_for_callable_key(&dispatch.owner_callable)? == root_fqn {
+            if self
+                .required_root_for_callable_ref(LirCallableRef::Local(dispatch.owner_callable))?
+                == root_fqn
+            {
                 edges.dispatch_keys.push(key.clone());
             }
         }
@@ -220,7 +213,7 @@ impl<'a> ReachabilityCollector<'a> {
         })?;
         let targets = dispatch.candidate_targets.clone();
         for target in &targets {
-            self.enqueue_required_callable_key(target)?;
+            self.enqueue_required_callable_ref(*target)?;
         }
         Ok(())
     }
@@ -238,15 +231,15 @@ impl<'a> ReachabilityCollector<'a> {
                 LirCallTargetMode::KnownInstance
                 | LirCallTargetMode::CandidateSet
                 | LirCallTargetMode::DynamicFallback => {
-                    self.enqueue_required_callable_key(target)?
+                    self.enqueue_required_callable_ref(*target)?
                 }
             }
         }
         Ok(())
     }
 
-    fn enqueue_required_callable_key(&mut self, key: &StableLirCallableKey) -> Result<(), String> {
-        let root = self.required_root_for_callable_key(key)?;
+    fn enqueue_required_callable_ref(&mut self, target: LirCallableRef) -> Result<(), String> {
+        let root = self.required_root_for_callable_ref(target)?;
         self.enqueue_root(&root);
         Ok(())
     }
@@ -262,10 +255,21 @@ impl<'a> ReachabilityCollector<'a> {
         self.lir_facts.callables.get(id)
     }
 
-    fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {
-        self.callable_roots_by_key
-            .get(key.as_str())
-            .map(|root| (*root).to_string())
+    fn root_for_callable_ref(&self, target: LirCallableRef) -> Option<String> {
+        if let LirCallableRef::Local(id) = target
+            && let Some(root) = self.callable_roots_by_id.get(&id)
+        {
+            return Some((*root).to_string());
+        }
+        self.lir_facts
+            .physical_layout
+            .abi_symbols
+            .values()
+            .find_map(|symbol| {
+                (symbol.callable == Some(target))
+                    .then(|| symbol.root_fqn.clone())
+                    .flatten()
+            })
     }
 
     fn root_has_published_declaration(&self, root_fqn: &str) -> bool {
@@ -290,11 +294,11 @@ impl<'a> ReachabilityCollector<'a> {
                     })
     }
 
-    fn required_root_for_callable_key(&self, key: &StableLirCallableKey) -> Result<String, String> {
-        self.root_for_callable_key(key).ok_or_else(|| {
+    fn required_root_for_callable_ref(&self, target: LirCallableRef) -> Result<String, String> {
+        self.root_for_callable_ref(target).ok_or_else(|| {
             format!(
                 "call target `{}` is not published in LIR callable or target-bound ABI facts",
-                key.as_str()
+                target.display_text()
             )
         })
     }

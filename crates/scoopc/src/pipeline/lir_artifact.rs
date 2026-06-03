@@ -11,6 +11,7 @@ use crate::opt::OptLevel;
 use crate::source::{SourceId, SourceMap};
 use crate::stable_id::StableConeKey;
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+use scoopc_ids::{LirCallableHash, LirCallableId};
 use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
 /// A cone-level LIR artifact that carries the current transitional LIR payload.
@@ -47,6 +48,15 @@ impl LirArtifact {
             mir,
             object_files,
         })
+    }
+
+    pub fn callable_id_for_hash(
+        &self,
+        hash: LirCallableHash,
+    ) -> Result<LirCallableId, LlvmEmitError> {
+        self.callable_index
+            .id_for_hash(hash)
+            .map_err(lir_callable_index_emit_error)
     }
 }
 

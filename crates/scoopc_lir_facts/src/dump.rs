@@ -133,7 +133,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} target_mode={:?} callee_step={:?} carrier={:?} arg_count={} targets={}",
-            key.owner_callable.readable_path(),
+            callable_owner_label(facts, key.owner_callable),
             key.site_id.as_u32(),
             contract.call.kind,
             contract.call.target_mode,
@@ -154,7 +154,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} target_mode={:?} semantic_root={} named_entry={} generic_args={} exact_callee={}",
-            key.owner_callable.readable_path(),
+            callable_owner_label(facts, key.owner_callable),
             key.site_id.as_u32(),
             site.contract.kind,
             site.contract.target_mode,
@@ -179,7 +179,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         writeln!(
             &mut out,
             "    - owner={} site={} class={} target={} arg_slots={}",
-            key.owner_callable.readable_path(),
+            callable_owner_label(facts, key.owner_callable),
             key.site_id.as_u32(),
             site.class_fqn,
             site.target_init.as_str(),
@@ -197,7 +197,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         writeln!(
             &mut out,
             "    - owner={} site={} intrinsic={} type_args={}",
-            key.owner_callable.readable_path(),
+            callable_owner_label(facts, key.owner_callable),
             key.site_id.as_u32(),
             site.intrinsic_name,
             site.type_args.len(),
@@ -210,7 +210,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} dispatch_owner={} member={} slot={} interface_id={:?} candidates={}",
-            key.owner_callable.readable_path(),
+            callable_owner_label(facts, key.owner_callable),
             key.site_id.as_u32(),
             dispatch.kind,
             dispatch.owner_fqn,
@@ -242,6 +242,14 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     write!(&mut out, "}}").expect("writing to String cannot fail");
 
     out
+}
+
+fn callable_owner_label(facts: &LirFacts, id: scoopc_ids::LirCallableId) -> String {
+    facts
+        .callables
+        .get(&id)
+        .map(|callable| callable.root_fqn().to_string())
+        .unwrap_or_else(|| format!("{id:?}"))
 }
 
 fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
@@ -424,9 +432,9 @@ fn dump_physical_layout_facts(out: &mut String, facts: &LirFacts) {
     for (id, symbol) in &facts.physical_layout.callable_symbols {
         writeln!(
             out,
-            "    - callable_symbol={:?} key={} root={} kind={} abi={:?} exported={}",
+            "    - callable_symbol={:?} key={:?} root={} kind={} abi={:?} exported={}",
             id,
-            symbol.callable.as_str(),
+            symbol.callable,
             symbol.root_fqn,
             symbol.kind.stable_name(),
             symbol.abi_kind,

@@ -282,7 +282,9 @@ mod tests {
     use super::*;
     use crate::verify::VerifyError;
     use scoop_project_model::StableConeKey;
-    use scoopc_ids::{BodyVersionKey, LirCallableId, SiteId, StableLirCallableKey};
+    use scoopc_ids::{
+        BodyVersionKey, LirCallableHash, LirCallableId, SiteId, StableLirCallableKey,
+    };
     use scoopc_types::{TypeId, TypeStore};
 
     fn ty(raw: u32) -> TypeId {
@@ -339,6 +341,10 @@ mod tests {
         )
     }
 
+    fn callable_ref_for_key(key: &StableLirCallableKey) -> LirCallableRef {
+        LirCallableRef::external_hash(LirCallableHash::from_stable_key(key))
+    }
+
     fn source_signature(root_fqn: &str) -> LirSourceCallableSignatureFacts {
         LirSourceCallableSignatureFacts {
             signature_key: format!("sig:{root_fqn}"),
@@ -349,7 +355,7 @@ mod tests {
         }
     }
 
-    fn abi_symbol(root_fqn: &str, callable: Option<StableLirCallableKey>) -> LirAbiSymbolFact {
+    fn abi_symbol(root_fqn: &str, callable: Option<LirCallableRef>) -> LirAbiSymbolFact {
         LirAbiSymbolFact {
             key: format!("abi:{root_fqn}"),
             symbol: format!("{}_abi", root_fqn.replace('.', "_")),
@@ -359,9 +365,9 @@ mod tests {
         }
     }
 
-    fn call_target_binding(root_fqn: &str, target: StableLirCallableKey) -> LirCallTargetBinding {
+    fn call_target_binding(root_fqn: &str, target: LirCallableRef) -> LirCallTargetBinding {
         LirCallTargetBinding {
-            target_callable_key: target,
+            target_callable: target,
             root_fqn: root_fqn.to_string(),
             abi_symbol: format!("{}_abi", root_fqn.replace('.', "_")),
             signature_key: format!("sig:{root_fqn}"),
@@ -371,7 +377,7 @@ mod tests {
     fn plain_callable_with_candidate(
         owner_fqn: &str,
         target_root: &str,
-        target: StableLirCallableKey,
+        target: LirCallableRef,
     ) -> LirCallableFacts {
         let mut callable = plain_callable(owner_fqn);
         let LirCallableContract::Plain(plain) = &mut callable.contract else {
@@ -389,7 +395,7 @@ mod tests {
             contract: LirCallSiteContract {
                 kind: LirCallSiteKind::Direct,
                 target_mode: LirCallTargetMode::CandidateSet,
-                target_callables: vec![target.clone()],
+                target_callables: vec![target],
                 target_bindings: vec![call_target_binding(target_root, target)],
                 exact_callee: None,
                 callee_abi_kind: LirCallableAbiKind::Plain,
@@ -501,14 +507,16 @@ mod tests {
         let resume_state = LirStateKey::new(8);
         let boundary = LirBoundaryKey::new(9);
         let frame_slot = LirFrameSlotKey::new(10);
+        let callable_id = LirCallableId::from_raw(0);
+        let callable_ref = LirCallableRef::local(callable_id);
         let dynamic_invoke = LirDynamicInvokeKey {
-            owner_callable: callable_key.clone(),
+            owner_callable: callable_id,
             site_id: scoopc_ids::SiteId::from_raw(11),
         };
         let call_contract = LirCallSiteContract {
             kind: LirCallSiteKind::Closure,
             target_mode: LirCallTargetMode::DynamicFallback,
-            target_callables: vec![callable_key.clone()],
+            target_callables: vec![callable_ref],
             target_bindings: Vec::new(),
             exact_callee: None,
             callee_abi_kind: LirCallableAbiKind::EffectStep,
@@ -574,7 +582,7 @@ mod tests {
 
         let mut groups = LirFactGroups::default();
         groups.callables.insert(
-            LirCallableId::from_raw(0),
+            callable_id,
             LirCallableFacts {
                 root_fqn: "app.main".to_string(),
                 stable_instance_key: callable_key.as_str().to_string(),
@@ -620,7 +628,7 @@ mod tests {
         groups.dynamic_invokes.insert(
             dynamic_invoke.clone(),
             LirDynamicInvokeContract {
-                owner_callable: callable_key,
+                owner_callable: callable_id,
                 owner_step_schema: Some(step_schema),
                 site_id: dynamic_invoke.site_id,
                 source: LirDynamicInvokeSource::Boundary {
@@ -887,7 +895,8 @@ mod tests {
     #[test]
     fn verifier_rejects_candidate_target_without_published_abi_contract() {
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
+        let target_ref = callable_ref_for_key(&target);
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -908,7 +917,8 @@ mod tests {
     #[test]
     fn verifier_accepts_declaration_only_candidate_target_with_abi_contract() {
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target.clone());
+        let target_ref = callable_ref_for_key(&target);
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -919,7 +929,7 @@ mod tests {
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
                         "abi:dep.extern_fun".to_string(),
-                        abi_symbol("dep.extern_fun", Some(target)),
+                        abi_symbol("dep.extern_fun", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },
@@ -934,7 +944,8 @@ mod tests {
     #[test]
     fn verifier_rejects_candidate_target_with_unbound_declaration_abi_contract() {
         let target = callable_key("dep.extern_fun");
-        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
+        let target_ref = callable_ref_for_key(&target);
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
@@ -966,6 +977,7 @@ mod tests {
     #[test]
     fn verifier_rejects_vtable_target_without_source_signature_or_abi_symbol() {
         let target = callable_key("app.Class.run");
+        let target_ref = callable_ref_for_key(&target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0),
             LirFactGroups {
@@ -978,7 +990,7 @@ mod tests {
                             params_len: 0,
                             has_receiver: true,
                             impl_member_fqn: "app.Class.run".to_string(),
-                            impl_member_target: target,
+                            impl_member_target: target_ref,
                         }],
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -999,6 +1011,7 @@ mod tests {
     #[test]
     fn verifier_accepts_vtable_target_with_source_signature_and_abi_symbol() {
         let target = callable_key("app.Class.run");
+        let target_ref = callable_ref_for_key(&target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0),
             LirFactGroups {
@@ -1015,12 +1028,12 @@ mod tests {
                             params_len: 0,
                             has_receiver: true,
                             impl_member_fqn: "app.Class.run".to_string(),
-                            impl_member_target: target.clone(),
+                            impl_member_target: target_ref,
                         }],
                     )]),
                     abi_symbols: BTreeMap::from([(
                         "abi:app.Class.run".to_string(),
-                        abi_symbol("app.Class.run", Some(target)),
+                        abi_symbol("app.Class.run", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },
@@ -1034,6 +1047,7 @@ mod tests {
     #[test]
     fn verifier_rejects_itable_target_without_source_signature_or_abi_symbol() {
         let target = callable_key("app.Class.run");
+        let target_ref = callable_ref_for_key(&target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
             LirFactGroups {
@@ -1050,7 +1064,7 @@ mod tests {
                                 runtime_match_type_names: Vec::new(),
                                 runtime_match_type_ids: Vec::new(),
                                 method_impl_fqns: vec!["app.Class.run".to_string()],
-                                method_impl_targets: vec![Some(target)],
+                                method_impl_targets: vec![Some(target_ref)],
                                 method_receiver_type_ids: Vec::new(),
                             }],
                         },
@@ -1073,6 +1087,7 @@ mod tests {
     #[test]
     fn verifier_accepts_itable_target_with_source_signature_and_abi_symbol() {
         let target = callable_key("app.Class.run");
+        let target_ref = callable_ref_for_key(&target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_layout_counts(0, 0, 0, 1, 0),
             LirFactGroups {
@@ -1093,14 +1108,14 @@ mod tests {
                                 runtime_match_type_names: Vec::new(),
                                 runtime_match_type_ids: Vec::new(),
                                 method_impl_fqns: vec!["app.Class.run".to_string()],
-                                method_impl_targets: vec![Some(target.clone())],
+                                method_impl_targets: vec![Some(target_ref)],
                                 method_receiver_type_ids: Vec::new(),
                             }],
                         },
                     )]),
                     abi_symbols: BTreeMap::from([(
                         "abi:app.Class.run".to_string(),
-                        abi_symbol("app.Class.run", Some(target)),
+                        abi_symbol("app.Class.run", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },

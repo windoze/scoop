@@ -164,7 +164,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if args.len() != param_tys.len() {
             panic!(
-                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted direct call arity mismatch"
+                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted direct call arity mismatch for `{concrete_fqn}`: args={}, params={}",
+                args.len(),
+                param_tys.len()
             );
         }
 

@@ -1,7 +1,7 @@
 //! Backend-neutral contracts published next to the LIR body.
 
 use scoop_project_model::StableConeKey;
-use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
+use scoopc_ids::{BodyVersionKey, LirCallableHash, LirCallableId, SiteId};
 use scoopc_types::TypeId;
 
 macro_rules! id_key {
@@ -44,6 +44,43 @@ id_key!(/// Stable local identity scoped to one source body.
     LirLocalKey);
 id_key!(/// Stable per-cone init routine identity scoped to one LIR fact product.
     LirConeInitRoutineKey);
+
+/// Callable target reference published in LIR facts.
+///
+/// Intra-artifact references use the `LateLoweredProgram.callables` index. A
+/// hash is retained only for references that must cross a cone/artifact boundary
+/// before the receiving side resolves them to its own local `LirCallableId`.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub enum LirCallableRef {
+    Local(LirCallableId),
+    ExternalHash(LirCallableHash),
+}
+
+impl LirCallableRef {
+    pub const fn local(id: LirCallableId) -> Self {
+        Self::Local(id)
+    }
+
+    pub const fn external_hash(hash: LirCallableHash) -> Self {
+        Self::ExternalHash(hash)
+    }
+
+    pub const fn local_id(self) -> Option<LirCallableId> {
+        match self {
+            Self::Local(id) => Some(id),
+            Self::ExternalHash(_) => None,
+        }
+    }
+
+    pub fn display_text(self) -> String {
+        match self {
+            Self::Local(id) => format!("{id:?}"),
+            Self::ExternalHash(hash) => format!("{hash:?}"),
+        }
+    }
+}
 
 /// Stable global/init root identity published by LIR facts.
 #[derive(
@@ -303,7 +340,7 @@ pub struct LirClassVtableSlotFacts {
     pub params_len: u32,
     pub has_receiver: bool,
     pub impl_member_fqn: String,
-    pub impl_member_target: StableLirCallableKey,
+    pub impl_member_target: LirCallableRef,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -333,7 +370,7 @@ pub struct LirClassItableEntryFacts {
     pub runtime_match_type_names: Vec<String>,
     pub runtime_match_type_ids: Vec<u64>,
     pub method_impl_fqns: Vec<String>,
-    pub method_impl_targets: Vec<Option<StableLirCallableKey>>,
+    pub method_impl_targets: Vec<Option<LirCallableRef>>,
     pub method_receiver_type_ids: Vec<u64>,
 }
 
@@ -530,14 +567,14 @@ pub struct LirClassCtorInitFacts {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirClassCtorCallSiteKey {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
 }
 
 /// Constructor target and argument mapping selected before backend lowering.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorCallSiteFacts {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
     pub class_fqn: String,
     pub target_init: LirClassCtorInitKey,
@@ -552,14 +589,14 @@ pub struct LirClassCtorCallSiteFacts {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirReflectionCallSiteKey {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
 }
 
 /// Type arguments for reflection intrinsics keyed by published call-site identity.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirReflectionCallSiteFacts {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
     pub intrinsic_name: String,
     pub type_args: Vec<TypeId>,
@@ -567,7 +604,7 @@ pub struct LirReflectionCallSiteFacts {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableSymbolFacts {
-    pub callable: StableLirCallableKey,
+    pub callable: LirCallableId,
     pub root_fqn: String,
     pub stable_instance_key: String,
     pub exported_symbol: Option<String>,
@@ -585,7 +622,7 @@ pub struct LirCallableSymbolFacts {
 pub struct LirAbiSymbolFact {
     pub key: String,
     pub symbol: String,
-    pub callable: Option<StableLirCallableKey>,
+    pub callable: Option<LirCallableRef>,
     pub root_fqn: Option<String>,
     pub role: String,
 }
@@ -601,9 +638,9 @@ pub struct LirLayoutNameFact {
 /// Stable closure owner/lexical-path identity consumed by backends.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClosureIdentityFact {
-    pub callable: StableLirCallableKey,
+    pub callable: LirCallableId,
     pub root_fqn: String,
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub owner_root_fqn: String,
     pub lexical_path: String,
 }
@@ -616,12 +653,10 @@ pub struct LirPhysicalLayoutFacts {
     pub class_vtables: std::collections::BTreeMap<String, Vec<LirClassVtableSlotFacts>>,
     pub interfaces: std::collections::BTreeMap<String, LirInterfaceLayoutFacts>,
     pub class_itables: std::collections::BTreeMap<String, LirClassItableFacts>,
-    pub callable_symbols:
-        std::collections::BTreeMap<scoopc_ids::LirCallableId, LirCallableSymbolFacts>,
+    pub callable_symbols: std::collections::BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     pub abi_symbols: std::collections::BTreeMap<String, LirAbiSymbolFact>,
     pub layout_names: std::collections::BTreeMap<String, LirLayoutNameFact>,
-    pub closure_identities:
-        std::collections::BTreeMap<scoopc_ids::LirCallableId, LirClosureIdentityFact>,
+    pub closure_identities: std::collections::BTreeMap<LirCallableId, LirClosureIdentityFact>,
 }
 
 impl LirPhysicalLayoutFacts {
@@ -738,7 +773,7 @@ pub struct LirSourceSliceKey {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirDynamicInvokeKey {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
 }
 
@@ -747,7 +782,7 @@ pub struct LirDynamicInvokeKey {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirSourceCallSiteKey {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
 }
 
@@ -756,7 +791,7 @@ pub struct LirSourceCallSiteKey {
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct LirDispatchKey {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
 }
 
@@ -812,7 +847,7 @@ pub enum LirCallableAbiKind {
 /// Exact callable selected for a call site before LLVM lowering.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirExactCalleeBinding {
-    pub target_callable_key: StableLirCallableKey,
+    pub target_callable: LirCallableRef,
     pub root_fqn: String,
     pub abi_symbol: String,
     pub signature_key: String,
@@ -821,7 +856,7 @@ pub struct LirExactCalleeBinding {
 /// Published ABI/signature binding for any possible call-site target.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallTargetBinding {
-    pub target_callable_key: StableLirCallableKey,
+    pub target_callable: LirCallableRef,
     pub root_fqn: String,
     pub abi_symbol: String,
     pub signature_key: String,
@@ -925,7 +960,7 @@ pub enum LirEffectPrecision {
 pub struct LirCallSiteContract {
     pub kind: LirCallSiteKind,
     pub target_mode: LirCallTargetMode,
-    pub target_callables: Vec<StableLirCallableKey>,
+    pub target_callables: Vec<LirCallableRef>,
     #[serde(default)]
     pub target_bindings: Vec<LirCallTargetBinding>,
     pub exact_callee: Option<LirExactCalleeBinding>,
@@ -968,7 +1003,7 @@ pub struct LirPlainCallableFacts {
 /// Source-body call-site contract keyed by LIR-owned call-site identity.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirSourceCallSiteFacts {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
     pub semantic_root_fqn: Option<String>,
     pub named_entry_name: Option<String>,
@@ -1185,7 +1220,7 @@ pub struct LirDynamicInvokeCarrierContract {
 /// Backend-neutral dynamic-invoke contract for a call site.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDynamicInvokeContract {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub owner_step_schema: Option<LirStepSchemaKey>,
     pub site_id: SiteId,
     pub source: LirDynamicInvokeSource,
@@ -1198,7 +1233,7 @@ pub struct LirDynamicInvokeContract {
 /// Dispatch owner/slot selection published before backend layout.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDispatchContract {
-    pub owner_callable: StableLirCallableKey,
+    pub owner_callable: LirCallableId,
     pub site_id: SiteId,
     pub kind: LirCallSiteKind,
     pub owner_fqn: String,
@@ -1208,7 +1243,7 @@ pub struct LirDispatchContract {
     pub explicit_arg_count: usize,
     pub method_slot: u32,
     pub interface_id: Option<u64>,
-    pub candidate_targets: Vec<StableLirCallableKey>,
+    pub candidate_targets: Vec<LirCallableRef>,
 }
 
 /// Effect-family resume packing helper.

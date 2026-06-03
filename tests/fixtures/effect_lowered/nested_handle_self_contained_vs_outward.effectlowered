@@ -193,8 +193,8 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable0 key=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hc1ee9a7757c5427e310e1a96a6cc8c3d) root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h94135633e13b4485a38fb4cc90256ad4
-    - callable_symbol=lir_callable1 key=lir_callable(224:instance(192:template(178:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hd9d49681793dd1cf2ef3c60199416bea) root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h722537244fb9938c77c7ef25189ae185
+    - callable_symbol=lir_callable0 key=lir_callable0 root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h94135633e13b4485a38fb4cc90256ad4
+    - callable_symbol=lir_callable1 key=lir_callable1 root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h722537244fb9938c77c7ef25189ae185
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=513 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=2
     - callable=sample.nested_may_suspend_outward kind=EffectStep control_body=true id=lir_callable0 key=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hc1ee9a7757c5427e310e1a96a6cc8c3d)
@@ -207,8 +207,8 @@ lir_facts {
     - step#1 invoke_args=t2 complete=t5 continuation_obj=t508 cases=3
   dynamic_invoke_contracts=0
   source_call_site_contracts=2
-    - owner=sample.nested_self_contained site=3 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
     - owner=sample.nested_may_suspend_outward site=5 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
+    - owner=sample.nested_self_contained site=3 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
   class_ctor_call_site_contracts=0
   reflection_call_site_contracts=0
   dispatch_contracts=0

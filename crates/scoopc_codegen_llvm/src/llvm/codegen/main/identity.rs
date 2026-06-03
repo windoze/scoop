@@ -295,7 +295,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
             self.reserve_exported_abi_symbol(
                 &symbol,
-                &symbol_facts.callable,
+                &self.lir_callable_ref_stable_key(scoopc_lir_facts::LirCallableRef::Local(
+                    symbol_facts.callable,
+                ))?,
                 format!("LIR callable `{callable_fqn}` via callable symbol facts"),
             )?;
             return Ok(symbol);
@@ -310,7 +312,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(callable) = abi_symbol.callable.as_ref() {
                 self.reserve_exported_abi_symbol(
                     &abi_symbol.symbol,
-                    callable,
+                    &self.lir_callable_ref_stable_key(*callable)?,
                     format!("LIR declaration `{callable_fqn}` via ABI symbol facts"),
                 )?;
             }
@@ -356,15 +358,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         root_fqn: &str,
     ) -> Option<LirCallableId> {
-        self.published_late_lowered_program()?
-            .callables()
+        self.published_lir_facts
+            .callables
             .iter()
-            .enumerate()
-            .find_map(|(index, callable)| {
-                (callable.root_fqn() == root_fqn)
-                    .then(|| LirCallableId::from_index(index))
-                    .flatten()
-            })
+            .find_map(|(id, callable)| (callable.root_fqn() == root_fqn).then_some(*id))
     }
 
     fn lir_callable_key_for_root(&self, root_fqn: &str) -> Option<StableLirCallableKey> {
@@ -372,6 +369,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .callable(root_fqn)?
             .lir_callable_key()
             .cloned()
+    }
+
+    fn lir_callable_ref_stable_key(
+        &self,
+        callable: scoopc_lir_facts::LirCallableRef,
+    ) -> Result<scoopc_ids::CanonicalTextKey, LlvmEmitError> {
+        let canonical = match callable {
+            scoopc_lir_facts::LirCallableRef::Local(id) => self
+                .published_lir_facts
+                .callables
+                .get(&id)
+                .map(|facts| facts.body_version.key.owner_canonical_text().to_string())
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LIR callable ref {id:?} is missing callable facts for ABI symbol reservation"
+                    ),
+                })?,
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                format!("lir_callable_hash#h{}", hash.to_hex())
+            }
+        };
+        Ok(scoopc_ids::CanonicalTextKey::new(canonical))
     }
 
     pub(in crate::llvm::codegen) fn current_stable_owner_key(
@@ -432,20 +451,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     message: "LIR closure identity lookup requires a published LIR program"
                         .to_string(),
                 })?;
-        let callable_id = program
-            .callables()
-            .iter()
-            .enumerate()
-            .find_map(|(index, callable)| {
-                (callable.root_fqn() == callable_fqn)
-                    .then(|| scoopc_ids::LirCallableId::from_index(index))
-                    .flatten()
-            })
-            .ok_or_else(|| LlvmEmitError::Frontend {
+        let callable_id = self.lir_callable_id_for_root(callable_fqn).ok_or_else(|| {
+            LlvmEmitError::Frontend {
                 message: format!(
                     "LIR closure identity facts 无法为 closure `{callable_fqn}` 解析 LirCallableId"
                 ),
-            })?;
+            }
+        })?;
         let identity = self
             .published_lir_facts
             .physical_layout
@@ -456,8 +468,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "LIR closure identity facts 缺少 closure `{callable_fqn}` 的 owner/lexical path"
                 ),
             })?;
+        let owner_key = program
+            .callable(identity.owner_root_fqn.as_str())
+            .and_then(|callable| callable.lir_callable_key())
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "LIR closure identity facts 缺少 owner `{}` 的 stable callable key",
+                    identity.owner_root_fqn
+                ),
+            })?;
         Ok(StableClosureKey::new(
-            &identity.owner_callable,
+            owner_key,
             identity.lexical_path.as_str(),
         ))
     }

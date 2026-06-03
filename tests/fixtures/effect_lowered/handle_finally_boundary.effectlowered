@@ -193,10 +193,10 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable0 key=lir_callable(215:instance(183:template(169:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;35:fixtures.mir_lowered.body_completes;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h511353c1dcc0f52acb923e5d9323c6bc) root=fixtures.mir_lowered.body_completes kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_body_completes__hd72b0fa6cb489a0e9e1e0ba2a0a5e5cd
-    - callable_symbol=lir_callable1 key=lir_callable(209:instance(177:template(163:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;28:fixtures.mir_lowered.cleanup;20:non_generic_callable;49:callable_sig(1:0;1:0;1:0;20:F(-;[]->V(Unit)/E()))));6:list();6:list());38:body#h6f2f41537f0afabbca2d5b28071e16a6) root=fixtures.mir_lowered.cleanup kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_cleanup__h999453d0b82f9f3548cab60b5561135d
-    - callable_symbol=lir_callable2 key=lir_callable(214:instance(182:template(168:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;34:fixtures.mir_lowered.handled_raise;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h00f6d810d76c07b833781a8aabdf4215) root=fixtures.mir_lowered.handled_raise kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_handled_raise__h4b1f8da7404f3b140b5fb94e382c65aa
-    - callable_symbol=lir_callable3 key=lir_callable(205:instance(173:template(159:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h567b5aae41499c1009198c7bf6b2efb3) root=fixtures.mir_lowered.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_main__hc610518bd9cb9305310fea1d88759906
+    - callable_symbol=lir_callable0 key=lir_callable0 root=fixtures.mir_lowered.body_completes kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_body_completes__hd72b0fa6cb489a0e9e1e0ba2a0a5e5cd
+    - callable_symbol=lir_callable1 key=lir_callable1 root=fixtures.mir_lowered.cleanup kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_cleanup__h999453d0b82f9f3548cab60b5561135d
+    - callable_symbol=lir_callable2 key=lir_callable2 root=fixtures.mir_lowered.handled_raise kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_handled_raise__h4b1f8da7404f3b140b5fb94e382c65aa
+    - callable_symbol=lir_callable3 key=lir_callable3 root=fixtures.mir_lowered.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_lowered_main__hc610518bd9cb9305310fea1d88759906
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=512 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=4
     - callable=fixtures.mir_lowered.body_completes kind=Plain control_body=true id=lir_callable0 key=lir_callable(215:instance(183:template(169:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;35:fixtures.mir_lowered.body_completes;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#h511353c1dcc0f52acb923e5d9323c6bc)
@@ -214,13 +214,13 @@ lir_facts {
     - step#2 invoke_args=t2 complete=t5 continuation_obj=t506 cases=2
   dynamic_invoke_contracts=0
   source_call_site_contracts=7
-    - owner=fixtures.mir_lowered.main site=0 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.body_completes named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.body_completes
-    - owner=fixtures.mir_lowered.main site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.handled_raise named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.handled_raise
-    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
+    - owner=fixtures.mir_lowered.body_completes site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
     - owner=fixtures.mir_lowered.handled_raise site=2 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
     - owner=fixtures.mir_lowered.handled_raise site=3 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
     - owner=fixtures.mir_lowered.handled_raise site=4 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
-    - owner=fixtures.mir_lowered.body_completes site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.cleanup named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.cleanup
+    - owner=fixtures.mir_lowered.main site=0 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.body_completes named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.body_completes
+    - owner=fixtures.mir_lowered.main site=1 kind=Direct target_mode=KnownInstance semantic_root=fixtures.mir_lowered.handled_raise named_entry=<none> generic_args=0 exact_callee=fixtures.mir_lowered.handled_raise
+    - owner=fixtures.mir_lowered.main site=2 kind=Direct target_mode=KnownInstance semantic_root=scoop.core.Int.plus named_entry=int_plus generic_args=0 exact_callee=scoop.core.Int.plus
   class_ctor_call_site_contracts=0
   reflection_call_site_contracts=0
   dispatch_contracts=0
