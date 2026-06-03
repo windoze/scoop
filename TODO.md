@@ -143,9 +143,10 @@ pub struct CodegenInput {
   - 抽样 diff LLVM IR：codegen 改造前后对同一输入产出一致。
 - 完成记录（2026-06-04）：复核 T1-04 后的 `llvm_codegen_stage::run`，确认其只消费 `CodegenInput` 中的 `program` / `abi_shell` / `deps` / `entry` / `source_map` / `opt_level`，主 cone 的 `program/facts/base_context`、ABI shell 的 `program/facts/type_store`、依赖 cone 的 `LlvmDepLirArtifactHandoff` 输入路径与 T1-04 前 emit handoff 等价；`LirArtifact.mir` 未被 codegen 重新读取。确认 `LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir` 全部移除，`llvm_codegen_stage.rs` 无 `#[allow(dead_code)]` 掩盖；`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，仓库内对旧 helper/type 名称零命中。抽样对比 `tests/fixtures/build/emit_llvm_basic.scoop`，用 T1-04 前提交 `ea60a3e6` 与当前版本分别 emit LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-05：调用方串新阶段
+### [DONE] T1-05：调用方串新阶段
 - `pipeline/mod.rs:183` `run_llvm_codegen_stage` 及其调用点（:226 / :446）、`single_cone.rs:165`：在调 codegen 前先 `build_lir_artifact`（主 + 可选 abi_shell）、把 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转成 `deps`，组装 `CodegenInput` 再调 `run`。
 - 验收：`cargo build -p scoop -p scoopc` 通过；端到端可编译运行。
+- 完成记录（2026-06-04）：确认调用方已串接新 LIR 阶段：`pipeline::build_llvm_codegen_input` 在 codegen 前构建主 cone 与可选 ABI shell 的 `LirArtifact`，并将 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转为统一的 `deps`；`pipeline/mod.rs` 的 single-file 与 production artifact 路径、`single_cone.rs` 的 artifact compile 路径均先组装 `CodegenInput` 再调用 `run_llvm_codegen_stage` / `llvm_codegen_stage::emit_artifact_to_file`。验收 grep 通过：`LlvmCodegenStageInput` 无残留，`llvm_codegen_stage.rs` 对 `lowered_hir|frontend_index|type_env|CodegenLoweringOutput` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-05-R：Review T1-05
 - **关注点**：

@@ -18,7 +18,29 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-04-R
+## 当前记录：T1-05
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最新提交是否明确留下与当前任务直接相关的未完成事项。
+3. 对照 T1-05 清单复核 `pipeline/mod.rs` 与 `single_cone.rs` 的调用路径。
+4. 确认调用方在 codegen 前先构建主 cone / ABI shell `LirArtifact`，并把 cached deps 转为统一的 `deps`。
+5. 确认旧 `LlvmCodegenStageInput` 构造无残留，错误传播不被吞掉。
+6. 按顺序运行格式化、lint、完整 Rust 测试、build、dependency gate、spec fixture check 和完整 fixture suite。
+7. 成功后更新 `TODO.md`，给 `T1-05` 标题加 `[DONE]` 并填写完成记录。
+8. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-05：调用方串新阶段`。
+- 最近提交 `c35ca3b7 [T1-04-R] Review codegen LIR artifact handoff` 未在提交摘要中声明与 T1-05 直接相关的未完成问题。
+- 已确认 `pipeline::build_llvm_codegen_input` 在 codegen 前构建主 cone / ABI shell `LirArtifact`，并把 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转为统一 `deps`。
+- 已确认 `pipeline/mod.rs` 的 single-file 与 production artifact 路径、`single_cone.rs` 的 artifact compile 路径均先组装 `CodegenInput` 再调用 `run_llvm_codegen_stage` / `llvm_codegen_stage::emit_artifact_to_file`。
+- 验收搜索通过：`LlvmCodegenStageInput` 无残留；`llvm_codegen_stage.rs` 对 `lowered_hir|frontend_index|type_env|CodegenLoweringOutput` 零命中。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-05` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-05 记录置顶。
+
+## 先前记录：T1-04-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
