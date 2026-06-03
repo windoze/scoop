@@ -616,11 +616,12 @@ pub struct LirPhysicalLayoutFacts {
     pub class_vtables: std::collections::BTreeMap<String, Vec<LirClassVtableSlotFacts>>,
     pub interfaces: std::collections::BTreeMap<String, LirInterfaceLayoutFacts>,
     pub class_itables: std::collections::BTreeMap<String, LirClassItableFacts>,
-    pub callable_symbols: std::collections::BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    pub callable_symbols:
+        std::collections::BTreeMap<scoopc_ids::LirCallableId, LirCallableSymbolFacts>,
     pub abi_symbols: std::collections::BTreeMap<String, LirAbiSymbolFact>,
     pub layout_names: std::collections::BTreeMap<String, LirLayoutNameFact>,
     pub closure_identities:
-        std::collections::BTreeMap<StableLirCallableKey, LirClosureIdentityFact>,
+        std::collections::BTreeMap<scoopc_ids::LirCallableId, LirClosureIdentityFact>,
 }
 
 impl LirPhysicalLayoutFacts {

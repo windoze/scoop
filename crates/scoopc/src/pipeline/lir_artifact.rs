@@ -82,9 +82,9 @@ pub fn resolve_entry_ref(
             Some(entry_main_fqn) => callable.root_fqn() == entry_main_fqn,
             None => callable_source_name(callable.root_fqn()) == "main",
         })
-        .filter_map(|(key, callable)| {
+        .filter_map(|(callable_id, callable)| {
             classify_entry_main_arg_shape(artifact.base_context.types(), callable)
-                .map(|arg_shape| (key, callable, arg_shape))
+                .map(|arg_shape| (*callable_id, callable, arg_shape))
         })
         .collect::<Vec<_>>();
 
@@ -98,10 +98,10 @@ pub fn resolve_entry_ref(
             Err(LlvmEmitError::MissingEntryMain)
         }
         1 => {
-            let (key, callable, arg_shape) = candidates.pop().expect("len checked above");
-            let callable_id = artifact
+            let (callable_id, callable, arg_shape) = candidates.pop().expect("len checked above");
+            let key = artifact
                 .callable_index
-                .id_for_key(key)
+                .key_for_id(callable_id)
                 .map_err(lir_callable_index_emit_error)?;
             let program_callable =
                 artifact

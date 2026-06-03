@@ -328,6 +328,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: String,
         stable_owner_key: StableDefKey,
     ) {
+        self.function_cx.current_lir_callable_id = self.lir_callable_id_for_root(&callable_fqn);
         self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
@@ -342,6 +343,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         stable_owner_key: StableDefKey,
         stable_closure_path: &str,
     ) {
+        self.function_cx.current_lir_callable_id = self.lir_callable_id_for_root(&callable_fqn);
         self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
@@ -350,12 +352,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.stable_closure_paths.clear();
     }
 
-    fn lir_callable_key_for_root(&self, root_fqn: &str) -> Option<StableLirCallableKey> {
-        self.published_lir_facts
-            .callables
+    pub(in crate::llvm::codegen) fn lir_callable_id_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<LirCallableId> {
+        self.published_late_lowered_program()?
+            .callables()
             .iter()
-            .find(|(_, callable)| callable.root_fqn() == root_fqn)
-            .map(|(key, _)| key.clone())
+            .enumerate()
+            .find_map(|(index, callable)| {
+                (callable.root_fqn() == root_fqn)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    fn lir_callable_key_for_root(&self, root_fqn: &str) -> Option<StableLirCallableKey> {
+        self.published_late_lowered_program()?
+            .callable(root_fqn)?
+            .lir_callable_key()
+            .cloned()
     }
 
     pub(in crate::llvm::codegen) fn current_stable_owner_key(
@@ -410,12 +426,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !source_fun.name.starts_with("$lambda") {
             panic!("stable_closure_key_for_lir_source_callable: callable is not a closure body")
         }
+        let program =
+            self.published_late_lowered_program()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: "LIR closure identity lookup requires a published LIR program"
+                        .to_string(),
+                })?;
+        let callable_id = program
+            .callables()
+            .iter()
+            .enumerate()
+            .find_map(|(index, callable)| {
+                (callable.root_fqn() == callable_fqn)
+                    .then(|| scoopc_ids::LirCallableId::from_index(index))
+                    .flatten()
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "LIR closure identity facts 无法为 closure `{callable_fqn}` 解析 LirCallableId"
+                ),
+            })?;
         let identity = self
             .published_lir_facts
             .physical_layout
             .closure_identities
-            .values()
-            .find(|identity| identity.root_fqn == callable_fqn)
+            .get(&callable_id)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LIR closure identity facts 缺少 closure `{callable_fqn}` 的 owner/lexical path"

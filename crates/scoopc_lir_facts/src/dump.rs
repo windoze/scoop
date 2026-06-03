@@ -58,14 +58,15 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     dump_type_context_facts(&mut out, facts);
     writeln!(&mut out, "  callables={}", facts.callables.len())
         .expect("writing to String cannot fail");
-    for (key, callable) in &facts.callables {
+    for (id, callable) in &facts.callables {
         writeln!(
             &mut out,
-            "    - callable={} kind={:?} control_body={} key={}",
+            "    - callable={} kind={:?} control_body={} id={:?} key={}",
             callable.root_fqn(),
             callable.kind(),
             callable.has_control_body(),
-            key.as_str(),
+            id,
+            callable.body_version.key.owner_canonical_text(),
         )
         .expect("writing to String cannot fail");
         match &callable.contract {
@@ -420,11 +421,12 @@ fn dump_physical_layout_facts(out: &mut String, facts: &LirFacts) {
         )
         .expect("writing to String cannot fail");
     }
-    for (key, symbol) in &facts.physical_layout.callable_symbols {
+    for (id, symbol) in &facts.physical_layout.callable_symbols {
         writeln!(
             out,
-            "    - callable_symbol={} root={} kind={} abi={:?} exported={}",
-            key.as_str(),
+            "    - callable_symbol={:?} key={} root={} kind={} abi={:?} exported={}",
+            id,
+            symbol.callable.as_str(),
             symbol.root_fqn,
             symbol.kind.stable_name(),
             symbol.abi_kind,

@@ -51,7 +51,7 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
-use scoopc_ids::{SiteId, StableLirCallableKey};
+use scoopc_ids::{LirCallableId, SiteId, StableLirCallableKey};
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
@@ -544,6 +544,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
     current_callable_fqn: Option<String>,
+    current_lir_callable_id: Option<LirCallableId>,
     current_lir_callable_key: Option<StableLirCallableKey>,
     current_stable_owner_key: Option<StableDefKey>,
     active_class_ctor_source_contracts: Vec<LateLoweredClassCtorSourceCallContract>,

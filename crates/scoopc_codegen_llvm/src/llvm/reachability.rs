@@ -31,7 +31,7 @@ pub(super) fn collect_reachable_top_level_funs(
 
 struct ReachabilityCollector<'a> {
     lir_facts: &'a LirFacts,
-    callable_roots_by_key: HashMap<&'a StableLirCallableKey, &'a str>,
+    callable_roots_by_key: HashMap<&'a str, &'a str>,
     queue: VecDeque<String>,
     seen: HashSet<String>,
     reachable: BTreeSet<String>,
@@ -39,10 +39,15 @@ struct ReachabilityCollector<'a> {
 
 impl<'a> ReachabilityCollector<'a> {
     fn new(lir_facts: &'a LirFacts) -> Self {
-        let mut callable_roots_by_key: HashMap<&'a StableLirCallableKey, &'a str> = lir_facts
+        let mut callable_roots_by_key: HashMap<&'a str, &'a str> = lir_facts
             .callables
-            .iter()
-            .map(|(key, facts)| (key, facts.root_fqn()))
+            .values()
+            .map(|facts| {
+                (
+                    facts.body_version.key.owner_canonical_text(),
+                    facts.root_fqn(),
+                )
+            })
             .collect();
         for symbol in lir_facts.physical_layout.abi_symbols.values() {
             let (Some(callable), Some(root_fqn)) =
@@ -50,7 +55,9 @@ impl<'a> ReachabilityCollector<'a> {
             else {
                 continue;
             };
-            callable_roots_by_key.entry(callable).or_insert(root_fqn);
+            callable_roots_by_key
+                .entry(callable.as_str())
+                .or_insert(root_fqn);
         }
         Self {
             lir_facts,
@@ -260,7 +267,7 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<String> {
         self.callable_roots_by_key
-            .get(key)
+            .get(key.as_str())
             .map(|root| (*root).to_string())
     }
 
@@ -307,7 +314,7 @@ struct CallableEdges {
 mod tests {
     use super::*;
     use scoop_project_model::{OptLevel, StableConeKey};
-    use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
+    use scoopc_ids::{BodyVersionKey, LirCallableId, SiteId, StableLirCallableKey};
     use scoopc_lir_facts::{
         LirBodyVersionFacts, LirBoundaryMapFacts, LirCallSiteContract, LirCallSiteKind,
         LirCallTargetMode, LirCallableAbiKind, LirCallableContract,
@@ -457,8 +464,11 @@ mod tests {
 
     fn facts_with_callables(callables: Vec<LirCallableFacts>) -> LirFacts {
         let mut map = std::collections::BTreeMap::new();
-        for callable in callables {
-            map.insert(callable_key(callable.root_fqn()), callable);
+        for (index, callable) in callables.into_iter().enumerate() {
+            map.insert(
+                LirCallableId::from_index(index).expect("test callable id fits"),
+                callable,
+            );
         }
         LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(map.len(), 0, 0, 0, 0),

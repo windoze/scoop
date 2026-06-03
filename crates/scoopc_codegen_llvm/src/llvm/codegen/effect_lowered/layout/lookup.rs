@@ -78,13 +78,32 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         root_fqn: &str,
     ) -> Result<&LirCallableFacts, LlvmEmitError> {
-        self.lir_facts
-            .callables
-            .values()
-            .find(|facts| facts.root_fqn() == root_fqn)
+        let callable = self.program.callable(root_fqn).ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR body"
+            ))
+        })?;
+        self.callable_facts(callable).map_err(|_| {
+            frontend_error(format!(
+                "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR facts"
+            ))
+        })
+    }
+
+    fn callable_id(&self, callable: &LateLoweredCallable) -> Result<LirCallableId, LlvmEmitError> {
+        self.program
+            .callables()
+            .iter()
+            .enumerate()
+            .find_map(|(index, candidate)| {
+                std::ptr::eq(candidate, callable)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR facts"
+                    "LLVM ABI materialization 无法为 callable `{}` 解析 LirCallableId",
+                    callable.root_fqn()
                 ))
             })
     }
@@ -93,7 +112,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         callable: &LateLoweredCallable,
     ) -> Result<&LirCallableFacts, LlvmEmitError> {
-        self.callable_facts_for_root(callable.root_fqn())
+        let id = self.callable_id(callable)?;
+        self.lir_facts.callables.get(&id).ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 缺少 callable `{}` 的 LIR facts（id={:?}）",
+                callable.root_fqn(),
+                id
+            ))
+        })
     }
 
     pub(super) fn plain_callable_facts(
@@ -143,13 +169,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .target_callables
             .iter()
             .map(|key| {
-                self.lir_facts.callables.get(key).map(|facts| facts.root_fqn.clone())
-                    .or_else(|| {
-                        self.lir_facts.physical_layout.abi_symbols.values().find_map(|symbol| {
-                            (symbol.callable.as_ref() == Some(key))
-                                .then(|| symbol.root_fqn.clone())
-                                .flatten()
-                        })
+                self.lir_facts
+                    .physical_layout
+                    .abi_symbols
+                    .values()
+                    .find_map(|symbol| {
+                        (symbol.callable.as_ref() == Some(key))
+                            .then(|| symbol.root_fqn.clone())
+                            .flatten()
                     })
                     .ok_or_else(|| {
                         frontend_error(format!(

@@ -92,19 +92,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let root = self
             .published_lir_facts
-            .callables
-            .get(target)
-            .map(|facts| facts.root_fqn())
-            .or_else(|| {
-                self.published_lir_facts
-                    .physical_layout
-                    .abi_symbols
-                    .values()
-                    .find_map(|symbol| {
-                        (symbol.callable.as_ref() == Some(target))
-                            .then_some(symbol.root_fqn.as_deref())
-                            .flatten()
-                    })
+            .physical_layout
+            .abi_symbols
+            .values()
+            .find_map(|symbol| {
+                (symbol.callable.as_ref() == Some(target))
+                    .then_some(symbol.root_fqn.as_deref())
+                    .flatten()
             })?;
         self.published_codegen_callable_signature(root)
     }

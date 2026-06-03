@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use scoopc_ids::{
-    AbiMangler, BodyVersionKey, StableCanonicalKey, StableHashScope, StableLirCallableKey,
-    StableSymbolKey, canonical_list, canonical_record, stable_hash128_hex,
+    AbiMangler, BodyVersionKey, LirCallableId, StableCanonicalKey, StableHashScope,
+    StableLirCallableKey, StableSymbolKey, canonical_list, canonical_record, stable_hash128_hex,
 };
 use scoopc_lir_facts::*;
 use scoopc_mir_facts::MirFacts;
@@ -42,6 +42,7 @@ struct LirFactsBuildContext<'a> {
     materialized: &'a MaterializedMir,
     effect_facts: &'a MaterializedEffectFacts,
     callable_keys_by_stable_instance: HashMap<String, StableLirCallableKey>,
+    callable_ids_by_key: HashMap<StableLirCallableKey, LirCallableId>,
     body_versions_by_key: HashMap<StableLirCallableKey, BodyVersionKey>,
 }
 
@@ -82,6 +83,7 @@ pub(crate) fn build_lir_facts(
     opt_pipeline: LirOptPipelineFacts,
 ) -> Result<LirFacts, EffectLoweringError> {
     let callable_keys_by_stable_instance = callable_key_index(lir)?;
+    let callable_ids_by_key = callable_id_index(lir)?;
     let body_versions_by_key = body_version_index(lir)?;
     let ctx = LirFactsBuildContext {
         lir,
@@ -89,6 +91,7 @@ pub(crate) fn build_lir_facts(
         materialized,
         effect_facts,
         callable_keys_by_stable_instance,
+        callable_ids_by_key,
         body_versions_by_key,
     };
 
@@ -181,6 +184,31 @@ fn callable_key_index(
             return Err(EffectLoweringError::InvalidLirFactsContract {
                 detail: format!(
                     "stable instance `{stable_instance}` maps to multiple LIR callable keys"
+                ),
+            });
+        }
+    }
+    Ok(out)
+}
+
+fn callable_id_index(
+    lir: &LateLoweredProgram,
+) -> Result<HashMap<StableLirCallableKey, LirCallableId>, EffectLoweringError> {
+    let mut out = HashMap::new();
+    for (index, callable) in lir.callables().iter().enumerate() {
+        let id = LirCallableId::from_index(index).ok_or_else(|| {
+            EffectLoweringError::InvalidLirFactsContract {
+                detail: "LIR callable inventory exceeds LirCallableId range".to_string(),
+            }
+        })?;
+        let key = published_callable_key(callable)?.clone();
+        if let Some(existing) = out.insert(key.clone(), id) {
+            return Err(EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "LIR callable key `{}` maps to multiple ids: {:?} and {:?}",
+                    key.as_str(),
+                    existing,
+                    id
                 ),
             });
         }
@@ -449,6 +477,22 @@ fn published_callable_key(
                 callable.root_fqn()
             ),
         })
+}
+
+fn published_callable_id(
+    ctx: &LirFactsBuildContext<'_>,
+    callable: &LateLoweredCallable,
+) -> Result<LirCallableId, EffectLoweringError> {
+    let key = published_callable_key(callable)?;
+    ctx.callable_ids_by_key.get(key).copied().ok_or_else(|| {
+        EffectLoweringError::InvalidLirFactsContract {
+            detail: format!(
+                "callable `{}` has stable key `{}` but no LirCallableId",
+                callable.root_fqn(),
+                key.as_str()
+            ),
+        }
+    })
 }
 
 fn published_body_version_key(
@@ -888,8 +932,8 @@ fn global_dependency_kind(kind: MirInitializerDependencyKind) -> LirGlobalDepend
 
 fn build_physical_layout_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callables: &BTreeMap<LirCallableId, LirCallableFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     _dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
@@ -1166,7 +1210,7 @@ fn layout_callable_roots(facts: &LirPhysicalLayoutFacts) -> BTreeSet<String> {
 fn insert_layout_target_bound_abi_symbols(
     out: &mut BTreeMap<String, LirAbiSymbolFact>,
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     layout_roots: BTreeSet<String>,
 ) -> Result<(), EffectLoweringError> {
     for root_fqn in layout_roots {
@@ -1191,19 +1235,20 @@ fn insert_layout_target_bound_abi_symbols(
 
 fn layout_target_abi_symbol(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     root_fqn: &str,
 ) -> Result<(StableLirCallableKey, String, &'static str), EffectLoweringError> {
-    if let Some((key, symbol)) = callable_symbols
+    if let Some(symbol) = callable_symbols
         .iter()
         .find(|(_, symbol)| symbol.root_fqn == root_fqn)
+        .map(|(_, symbol)| symbol)
     {
         let (abi_symbol, role) = callable_symbol_abi_export(symbol).ok_or_else(|| {
             EffectLoweringError::InvalidLirFactsContract {
                 detail: format!("layout target `{root_fqn}` lacks a published callable ABI symbol"),
             }
         })?;
-        return Ok((key.clone(), abi_symbol, role));
+        return Ok((symbol.callable.clone(), abi_symbol, role));
     }
     if let Some(signature) = mir_source_signature(ctx.mir_facts, root_fqn) {
         let (target_key, symbol, role) =
@@ -1290,15 +1335,16 @@ fn callable_symbol_abi_export(symbol: &LirCallableSymbolFacts) -> Option<(String
 #[allow(clippy::too_many_arguments)]
 fn build_abi_symbol_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     native_callable_funs: &crate::hir::NativeCallableFunIndex,
     extern_funs: &crate::hir::ExternFunIndex,
-    callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    callables: &BTreeMap<LirCallableId, LirCallableFacts>,
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
 ) -> Result<BTreeMap<String, LirAbiSymbolFact>, EffectLoweringError> {
     let mut out = BTreeMap::new();
-    for (key, symbol) in callable_symbols {
+    for symbol in callable_symbols.values() {
+        let key = &symbol.callable;
         if let Some(exported) = &symbol.exported_symbol {
             insert_abi_symbol_fact(
                 &mut out,
@@ -1407,17 +1453,17 @@ fn build_abi_symbol_facts(
 }
 
 fn callable_symbol_contains_canonical_key(
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     key: &StableLirCallableKey,
 ) -> bool {
     let canonical = key.canonical_text();
     callable_symbols
-        .keys()
-        .any(|published| published.canonical_text() == canonical)
+        .values()
+        .any(|published| published.callable.canonical_text() == canonical)
 }
 
 fn published_call_target_bindings<'a>(
-    callables: &'a BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    callables: &'a BTreeMap<LirCallableId, LirCallableFacts>,
     source_call_sites: &'a BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &'a BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
 ) -> Vec<&'a LirCallTargetBinding> {
@@ -1500,7 +1546,7 @@ fn insert_layout_name_fact(out: &mut BTreeMap<String, LirLayoutNameFact>, family
 
 fn build_closure_identity_facts(
     ctx: &LirFactsBuildContext<'_>,
-) -> Result<BTreeMap<StableLirCallableKey, LirClosureIdentityFact>, EffectLoweringError> {
+) -> Result<BTreeMap<LirCallableId, LirClosureIdentityFact>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         if !callable
@@ -1526,10 +1572,11 @@ fn build_closure_identity_facts(
                     "closure callable `{}` 的 owner `{owner_root_fqn}` 未发布 LIR callable identity",
                     callable.root_fqn()
                 ),
-            })?;
+        })?;
         let key = published_callable_key(callable)?.clone();
+        let id = published_callable_id(ctx, callable)?;
         out.insert(
-            key.clone(),
+            id,
             LirClosureIdentityFact {
                 callable: key,
                 root_fqn: callable.root_fqn().to_string(),
@@ -1647,11 +1694,12 @@ fn lir_nominal_layout_key(fqn: &str, args: &[TypeId], types: &TypeStore) -> Stri
 
 fn build_callable_symbol_facts(
     ctx: &LirFactsBuildContext<'_>,
-) -> Result<BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>, EffectLoweringError> {
+) -> Result<BTreeMap<LirCallableId, LirCallableSymbolFacts>, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let key = published_callable_key(callable)?.clone();
+        let id = published_callable_id(ctx, callable)?;
         let signature = callable_signature(callable)?;
         let native = contracts
             .native_callable_funs
@@ -1677,7 +1725,7 @@ fn build_callable_symbol_facts(
             });
         let exported_symbol = Some(AbiMangler.fun_symbol(&key));
         out.insert(
-            key.clone(),
+            id,
             LirCallableSymbolFacts {
                 callable: key,
                 root_fqn: callable.root_fqn().to_string(),
@@ -1699,7 +1747,7 @@ fn build_callable_symbol_facts(
 fn build_source_signature_facts(
     lir: &LateLoweredProgram,
     mir_facts: &MirFacts,
-    callables: &BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    callables: &BTreeMap<LirCallableId, LirCallableFacts>,
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
 ) -> Result<BTreeMap<String, LirSourceCallableSignatureFacts>, EffectLoweringError> {
@@ -2249,13 +2297,14 @@ fn invalid_lir_facts<T>(detail: String) -> Result<T, EffectLoweringError> {
 
 fn build_callable_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
-) -> Result<BTreeMap<StableLirCallableKey, LirCallableFacts>, EffectLoweringError> {
+) -> Result<BTreeMap<LirCallableId, LirCallableFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let key = published_callable_key(callable)?.clone();
+        let id = published_callable_id(ctx, callable)?;
         let contract = match callable.abi() {
             scoopc_lir::effect_lowered::ir::LateLoweredCallableAbi::Plain(plain) => {
                 LirCallableContract::Plain(Box::new(build_plain_callable_facts(
@@ -2282,7 +2331,7 @@ fn build_callable_facts(
         };
         let signature = callable_signature(callable)?;
         out.insert(
-            key.clone(),
+            id,
             LirCallableFacts {
                 root_fqn: callable.root_fqn().to_string(),
                 stable_instance_key: callable.stable_instance_key().canonical_text(),
@@ -2305,7 +2354,7 @@ fn build_callable_facts(
 
 fn build_source_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
 ) -> Result<BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
@@ -2452,7 +2501,7 @@ fn call_target_root_fqn(
 
 fn build_plain_callable_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
     plain: &LateLoweredPlainCallable,
@@ -2523,7 +2572,7 @@ fn build_plain_callable_facts(
 
 fn build_effect_step_callable_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
     effect: &LateLoweredEffectStepCallable,
@@ -2558,7 +2607,7 @@ fn build_effect_step_callable_facts(
 
 fn build_plain_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
     site: &LateLoweredPlainCallSite,
@@ -2604,7 +2653,7 @@ fn build_plain_call_site_facts(
 #[allow(clippy::too_many_arguments)]
 fn build_control_body_facts(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
     step_schema: scoopc_lir::effect_facts::StepSchemaId,
@@ -2690,7 +2739,7 @@ fn build_control_body_facts(
 #[allow(clippy::too_many_arguments)]
 fn publish_source_slice_dynamic_invokes(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
     owner_step_schema: scoopc_lir::effect_facts::StepSchemaId,
@@ -2976,7 +3025,7 @@ fn is_dynamic_call_metadata(metadata: &LateLoweredCallSiteMaterializedMetadata) 
 
 fn call_site_contract(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     facts: &CallSiteEffectFacts,
 ) -> Result<LirCallSiteContract, EffectLoweringError> {
     let target_callables = target_callables(ctx, facts.target())?;
@@ -3052,7 +3101,7 @@ fn exact_callee_binding(
 
 fn call_target_bindings(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     target: &CallSiteTarget,
     target_callables: &[StableLirCallableKey],
 ) -> Result<Vec<LirCallTargetBinding>, EffectLoweringError> {
@@ -3131,7 +3180,7 @@ fn bodyless_direct_target_binding(
 
 fn call_target_binding(
     ctx: &LirFactsBuildContext<'_>,
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     instance: &InstanceKey,
     target_callable_key: &StableLirCallableKey,
 ) -> Result<LirCallTargetBinding, EffectLoweringError> {
@@ -3141,6 +3190,7 @@ fn call_target_binding(
         .unwrap_or_else(|| instance.template.fqn.clone());
     let abi_symbol = if published_callable.is_some() {
         call_target_abi_symbol(
+            ctx,
             callable_symbols,
             target_callable_key,
             &root_fqn,
@@ -3158,12 +3208,20 @@ fn call_target_binding(
 }
 
 fn call_target_abi_symbol(
-    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    ctx: &LirFactsBuildContext<'_>,
+    callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     target_callable_key: &StableLirCallableKey,
     root_fqn: &str,
     published_callable: Option<&LateLoweredCallable>,
 ) -> Result<String, EffectLoweringError> {
-    if let Some(symbol) = callable_symbols.get(target_callable_key)
+    let id = ctx
+        .callable_ids_by_key
+        .get(target_callable_key)
+        .copied()
+        .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+            detail: format!("call target `{root_fqn}` lacks a LirCallableId"),
+        })?;
+    if let Some(symbol) = callable_symbols.get(&id)
         && let Some((abi_symbol, _role)) = callable_symbol_abi_export(symbol)
     {
         return Ok(abi_symbol);

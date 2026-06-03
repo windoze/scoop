@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 
 use scoop_project_model::OptLevel;
-use scoopc_ids::StableLirCallableKey;
+use scoopc_ids::LirCallableId;
 
 pub mod contract;
 pub mod dump;
@@ -35,7 +35,7 @@ pub struct LirFacts {
     pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
     pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
-    pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    pub callables: BTreeMap<LirCallableId, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
@@ -57,7 +57,7 @@ pub struct LirFactGroups {
     pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
     pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
-    pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    pub callables: BTreeMap<LirCallableId, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
@@ -282,7 +282,7 @@ mod tests {
     use super::*;
     use crate::verify::VerifyError;
     use scoop_project_model::StableConeKey;
-    use scoopc_ids::{BodyVersionKey, SiteId};
+    use scoopc_ids::{BodyVersionKey, LirCallableId, SiteId, StableLirCallableKey};
     use scoopc_types::{TypeId, TypeStore};
 
     fn ty(raw: u32) -> TypeId {
@@ -574,7 +574,7 @@ mod tests {
 
         let mut groups = LirFactGroups::default();
         groups.callables.insert(
-            callable_key.clone(),
+            LirCallableId::from_raw(0),
             LirCallableFacts {
                 root_fqn: "app.main".to_string(),
                 stable_instance_key: callable_key.as_str().to_string(),
@@ -709,10 +709,7 @@ mod tests {
     #[test]
     fn verifier_rejects_summary_callable_count_mismatch() {
         let mut callables = BTreeMap::new();
-        callables.insert(
-            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main"),
-            plain_callable("app.main"),
-        );
+        callables.insert(LirCallableId::from_raw(0), plain_callable("app.main"));
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0),
             LirFactGroups {
@@ -738,7 +735,7 @@ mod tests {
         let object_id = LirContinuationObjectKey::new(0);
         let mut callables = BTreeMap::new();
         callables.insert(
-            callable_key.clone(),
+            LirCallableId::from_raw(0),
             LirCallableFacts {
                 root_fqn: "app.main".to_string(),
                 stable_instance_key: callable_key.as_str().to_string(),
@@ -842,8 +839,6 @@ mod tests {
 
     #[test]
     fn verifier_rejects_signature_fallback_call_precision() {
-        let callable_key =
-            StableLirCallableKey::new("lir_callable(instance(app.main),body#hfixture)", "app.main");
         let mut callable = plain_callable("app.main");
         let LirCallableContract::Plain(plain) = &mut callable.contract else {
             panic!("fixture plain callable should have plain contract");
@@ -875,7 +870,7 @@ mod tests {
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
-                callables: BTreeMap::from([(callable_key, callable)]),
+                callables: BTreeMap::from([(LirCallableId::from_raw(0), callable)]),
                 ..LirFactGroups::default()
             },
         );
@@ -891,13 +886,12 @@ mod tests {
 
     #[test]
     fn verifier_rejects_candidate_target_without_published_abi_contract() {
-        let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
         let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
         let facts = LirFacts::from_parts(
             LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
             LirFactGroups {
-                callables: BTreeMap::from([(owner, callable)]),
+                callables: BTreeMap::from([(LirCallableId::from_raw(0), callable)]),
                 ..LirFactGroups::default()
             },
         );
@@ -913,7 +907,6 @@ mod tests {
 
     #[test]
     fn verifier_accepts_declaration_only_candidate_target_with_abi_contract() {
-        let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
         let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target.clone());
         let facts = LirFacts::from_parts(
@@ -930,7 +923,7 @@ mod tests {
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },
-                callables: BTreeMap::from([(owner, callable)]),
+                callables: BTreeMap::from([(LirCallableId::from_raw(0), callable)]),
                 ..LirFactGroups::default()
             },
         );
@@ -940,7 +933,6 @@ mod tests {
 
     #[test]
     fn verifier_rejects_candidate_target_with_unbound_declaration_abi_contract() {
-        let owner = callable_key("app.main");
         let target = callable_key("dep.extern_fun");
         let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target);
         let facts = LirFacts::from_parts(
@@ -957,7 +949,7 @@ mod tests {
                     )]),
                     ..LirPhysicalLayoutFacts::default()
                 },
-                callables: BTreeMap::from([(owner, callable)]),
+                callables: BTreeMap::from([(LirCallableId::from_raw(0), callable)]),
                 ..LirFactGroups::default()
             },
         );

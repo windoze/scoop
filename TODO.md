@@ -73,9 +73,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - Review 确认 `LirCallableId` 仍按 `LateLoweredProgram.callables` 下标寻址，`LirCallableHash` 从 canonical text 派生且为固定 128-bit 可序列化句柄，`LirCallableIndex` 在 LIR handoff 边界构建并对缺 key、重复 key、未知 key/id 返回显式错误。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo test -p scoopc pipeline::llvm_codegen_stage::tests::llvm_function_abi_entry_shells_use_direct_entry -- --exact`；`cargo test -p scoopc pipeline::llvm_codegen_stage::tests::llvm_value_boxing_transport -- --exact`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-02：`callables` 容器改为按 `LirCallableId` 寻址
+### [DONE] T2-02：`callables` 容器改为按 `LirCallableId` 寻址
 - `LateLoweredProgram.callables: Vec<LateLoweredCallable>` 已是 Vec → 直接以下标为 `LirCallableId`。把 `LirFacts.callables: BTreeMap<StableLirCallableKey, LirCallableFacts>`（`lib.rs:38/60`）与 `callable_symbols`/`closure_identity`（`contract.rs:619/623`）的查找改为经 `LirCallableId`（过渡期保留 stable key 字段，仅切换 live 访问路径）。
 - 验收：codegen/消费侧不再用 `StableLirCallableKey` 做 callable 查找。
+
+完成记录（2026-06-04）：
+- `LirFacts.callables`、`LirPhysicalLayoutFacts.callable_symbols`、`closure_identities` 改为 `BTreeMap<LirCallableId, _>`；payload 中的 stable key / body-version owner 保留给过渡期调试与 T2-03 跨引用迁移。
+- `lir_facts_builder` 在 LIR 边界按 `LateLoweredProgram.callables` 下标建立 id map，并用 id 发布 callable facts、callable symbol facts 和 closure identity facts。
+- LIR facts verifier/dump、LLVM 入口解析、ABI layout callable facts lookup、closure identity lookup、reachability 与相关测试改为 id 键访问；`crates/scoopc_codegen_llvm` 中 `callables.get(` 仅剩 `get(&id)`，`callable_symbols.get(` 零命中。
+- 更新 10 个 `effect_lowered` golden，反映 callable dump 中的 `LirCallableId` 和 id 顺序。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-02-R：Review T2-02
 - 关注点：所有 callable 查找走 `LirCallableId`；map 仅在边界构建处出现；无新增 string 查找。

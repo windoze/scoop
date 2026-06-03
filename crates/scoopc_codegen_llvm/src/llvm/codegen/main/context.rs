@@ -330,12 +330,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirPlainCallSiteFacts> {
-        let owner_callable = self.function_cx.current_lir_callable_key.as_ref()?;
+        let owner_callable = self.function_cx.current_lir_callable_id?;
         let callable = self
             .shared
             .published_lir_facts
             .callables
-            .get(owner_callable)?;
+            .get(&owner_callable)?;
         let LirCallableContract::Plain(plain) = &callable.contract else {
             return None;
         };

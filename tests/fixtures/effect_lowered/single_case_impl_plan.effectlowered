@@ -193,10 +193,10 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058) root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__hed58d665920cc5194786c13c460921eb
+    - callable_symbol=lir_callable0 key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058) root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__hed58d665920cc5194786c13c460921eb
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=509 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=1
-    - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058)
+    - callable=sample.leaf kind=EffectStep control_body=true id=lir_callable0 key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=4 boundaries=1 continuation_object=cont_obj#0
   step_types=1
     - step#0 invoke_args=t2 complete=t2 continuation_obj=t504 cases=2

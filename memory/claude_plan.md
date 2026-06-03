@@ -25,6 +25,16 @@ Date: 2026-06-04
 
 ## 进度记录
 
+- 已在读取任务文件或运行项目命令前创建本次 T2-02 执行计划记录；记录可审计计划与进度，不记录私密推理链。
+- 已读取 `TODO.md`；第一个未完成任务是 `T2-02：callables 容器改为按 LirCallableId 寻址`。
+- 最新提交 `b33a42e3 [T2-01-R] Review LIR callable identities` 未发现直接阻塞 `T2-02` 的未完成事项。
+- 实现策略：将 `LirFacts.callables`、`LirPhysicalLayoutFacts.callable_symbols`、`closure_identities` 的 map key 改为 `LirCallableId`；stable key 保留在 payload/body-version 中，跨引用字段留给 T2-03。
+- 已完成实现：`lir_facts_builder` 按 `LateLoweredProgram.callables` 下标发布 id-keyed facts；verifier/dump、LLVM 入口解析、layout lookup、closure identity、reachability 与相关测试改为 id 访问。
+- 首次完整 fixture 运行发现 10 个 `effect_lowered` golden 因 callable dump 改为 id 键而不匹配；已重新生成对应 golden 并重跑完整 fixture 套件通过。
+- 验收 grep：`crates/scoopc_codegen_llvm` 中 `callables.get(` 仅剩 `self.lir_facts.callables.get(&id)`；`callable_symbols.get(` 零命中。
+- 验证已通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+- 已更新 `TODO.md`，将 `T2-02` 标记为 `[DONE]` 并填写完成记录。阶段级顺序未变化，因此无需更新 `PLAN.md`。
+
 - 已在读取任务文件或运行项目命令前创建本计划记录。
 - 已读取 `TODO.md`；第一个未完成任务是 `T2-01-R：Review T2-01`。
 - Review 范围：确认 `LirCallableId` 是 `program.callables` 下标，`LirCallableHash` 确定、稳定、可序列化，callable key 解析集中在 LIR 边界，测试覆盖命中、未命中和错误路径。

@@ -42,6 +42,7 @@ use crate::effect_lowered::mir_source::{BasicBlockId, InstanceKey, SiteId};
 use crate::llvm::LlvmEmitError;
 use crate::stable_id::{StableConeKey, canonical_record};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_ids::LirCallableId;
 use scoopc_lir_facts::{
     LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDynamicInvokeCarrierKind,
     LirDynamicInvokeContract, LirFacts,
