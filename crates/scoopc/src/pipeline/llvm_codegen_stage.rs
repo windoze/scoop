@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::effect_facts_stage::MaterializedEffectFacts;
+use crate::effect_lowered::LateLoweredOptOptions;
 use crate::effect_lowered::ordinary_callee::{
     EffectAnalysisFacts, EffectFieldFact, EffectFieldOwnerKind, EffectGlobalRootKind,
     EffectReflectionCall,
 };
-use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::{
@@ -15,17 +15,13 @@ use crate::llvm::{
 };
 use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
-use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::ty::TypeStore;
-use crate::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_lir_facts::LirFacts;
 
-use super::{HirStageOutput, LirStageOutput, LlvmArtifactKind, mir_stage};
+use super::{HirStageOutput, LirArtifact, LlvmArtifactKind, mir_stage};
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -206,7 +202,7 @@ pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> E
 fn build_llvm_stage_base_context_from_lowered_hir(
     lowered_hir: LoweredHir,
     hir_facts: HirFacts,
-    materialized_mir: MaterializedMir,
+    materialized_mir: &MaterializedMir,
     effect_facts: MaterializedEffectFacts,
 ) -> LlvmStageBaseContext {
     let top_level_funs: Vec<hir::FunDecl> = lowered_hir
@@ -278,27 +274,13 @@ fn build_llvm_stage_base_context_from_lowered_hir(
     )
 }
 
-struct LlvmLirRun {
-    output: LirStageOutput,
-    base_context: LlvmStageBaseContext,
-}
-
-impl LlvmLirRun {
-    fn into_abi_visibility_parts(self) -> (LateLoweredProgram, LirFacts, TypeStore) {
-        let (program, facts) = self.output.into_parts();
-        (program, facts, self.base_context.into_type_store())
-    }
-}
-
-fn run_lir_stage_from_lowered_hir(
+pub(crate) fn build_lir_artifact(
     session: &Session,
     entry_source: &SourceFile,
-    lowered_hir: LoweredHir,
-    materialized_mir: MaterializedMir,
-    frontend_index: Index,
-    type_env: TypeEnv,
+    lowered: CodegenLoweringOutput,
     preserve_published_resume_shells: bool,
-) -> Result<LlvmLirRun, LlvmEmitError> {
+) -> Result<LirArtifact, LlvmEmitError> {
+    let (lowered_hir, materialized_mir, frontend_index, type_env) = lowered.into_parts();
     let source_path = entry_source.path().to_path_buf();
     let base_hir = lowered_hir.clone();
     let typed_hir_output = HirStageOutput::new_with_frontend_artifact(
@@ -328,17 +310,23 @@ fn run_lir_stage_from_lowered_hir(
     )
     .map_err(|err| stage_error("late lowering", err))?;
     let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
+    let cone = materialized_mir.stable_cone_key().clone();
     let effect_facts = effect_facts_stage_output.into_effect_facts();
     let base_context = build_llvm_stage_base_context_from_lowered_hir(
         base_hir,
         hir_facts,
-        materialized_mir,
+        &materialized_mir,
         effect_facts,
     );
     base_context.verify_lir_type_context(output.lir_facts(), "primary")?;
-    Ok(LlvmLirRun {
-        output,
+    let (program, facts) = output.into_parts();
+    Ok(LirArtifact {
+        cone,
+        program,
+        facts,
         base_context,
+        mir: materialized_mir,
+        object_files: Vec::new(),
     })
 }
 
@@ -367,34 +355,24 @@ pub(crate) fn run(
                     entry_source_id.as_usize()
                 ),
             })?;
-    let (lowered_hir, materialized_mir, frontend_index, type_env) = lowered.into_parts();
-    let primary_run = run_lir_stage_from_lowered_hir(
-        session,
-        entry_source,
-        lowered_hir,
-        materialized_mir,
-        frontend_index,
-        type_env,
-        false,
-    )?;
-    let (lir, lir_facts) = primary_run.output.into_parts();
-    let base_context = primary_run.base_context;
+    let primary_artifact = build_lir_artifact(session, entry_source, lowered, false)?;
+    let LirArtifact {
+        program: lir,
+        facts: lir_facts,
+        base_context,
+        ..
+    } = primary_artifact;
     let abi_visibility_parts = abi_visibility_lowered
         .map(|lowered| {
-            let (lowered_hir, materialized_mir, frontend_index, type_env) = lowered.into_parts();
-            run_lir_stage_from_lowered_hir(
-                session,
-                entry_source,
-                lowered_hir,
-                materialized_mir,
-                frontend_index,
-                type_env,
-                true,
-            )
-            .and_then(|run| {
-                run.base_context
-                    .verify_lir_type_context(run.output.lir_facts(), "ABI visibility")?;
-                Ok(run.into_abi_visibility_parts())
+            build_lir_artifact(session, entry_source, lowered, true).and_then(|artifact| {
+                let LirArtifact {
+                    program,
+                    facts,
+                    base_context,
+                    ..
+                } = artifact;
+                base_context.verify_lir_type_context(&facts, "ABI visibility")?;
+                Ok((program, facts, base_context.into_type_store()))
             })
         })
         .transpose()?;
@@ -1325,6 +1303,27 @@ fun main(): Int {
         crate::frontend::CodegenLoweringOutput,
     ) {
         emit_args_for_source(effectful_source())
+    }
+
+    #[test]
+    fn build_lir_artifact_produces_self_contained_handoff() {
+        let _guard = test_lock();
+        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
+        let entry_source = source_map
+            .source(entry_source_id)
+            .expect("sample source map should contain the entry source");
+
+        let artifact = super::build_lir_artifact(&session, entry_source, lowered, false)
+            .expect("LIR artifact construction should succeed");
+
+        assert_eq!(&artifact.cone, artifact.mir.stable_cone_key());
+        assert_eq!(&artifact.cone, artifact.base_context.stable_cone_key());
+        assert!(artifact.object_files.is_empty());
+        assert!(artifact.program.callable("sample.main").is_some());
+        artifact
+            .base_context
+            .verify_lir_type_context(&artifact.facts, "unit test")
+            .expect("LIR facts should reference the artifact base context type store");
     }
 
     #[test]

@@ -2,7 +2,33 @@
 
 说明：本文件记录可审计的执行计划、关键决策和进度更新，不包含隐藏推理过程。
 
-## 本轮任务：T1-01-R
+## 本轮任务：T1-02
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
+3. 阅读 `T1-02` 的任务要求，确认需抽出 `build_lir_artifact` 且保持现有 codegen 行为等价。
+4. 对照 `llvm_codegen_stage.rs` 当前 LIR 准备流水线和 `LirArtifact` 定义，做最小重构。
+5. 新增 `pub(crate) fn build_lir_artifact(...) -> Result<LirArtifact, LlvmEmitError>`，复用原步骤 1-6，组装 `cone/program/facts/base_context/mir/object_files`。
+6. 调整 `MaterializedMir` 所有权，使其构建 `LlvmStageBaseContext` 时只被借用，随后移动进 `LirArtifact`，避免重复构建和不必要 clone。
+7. 让当前 `run` 路径通过 `build_lir_artifact` 产物拆回既有 `LlvmCodegenStageOutput`，不改变 emit 行为。
+8. 添加单测验证 `build_lir_artifact` 能产出自包含 `LirArtifact`。
+9. 按顺序运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、完整 Rust 测试、build、dependency gate、spec fixtures 和完整 fixture suite。
+10. 成功后更新 `TODO.md`，给 `T1-02` 标题加 `[DONE]` 并填写完成记录。
+11. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+## 本轮进度记录
+
+- 已确认第一个未完成任务为 `T1-02：抽出独立 LIR 阶段函数 build_lir_artifact`。
+- 最近提交 `d329bf5b [T1-01-R] Review LIR artifact handoff types` 是已完成 review，不包含与 `T1-02` 直接相关的未完成前置项。
+- 已实现 `build_lir_artifact`，其复用原 LIR 准备流水线并组装 `LirArtifact`。
+- 已将 `build_llvm_stage_base_context_from_lowered_hir` 改为借用 `MaterializedMir`，随后将同一份 MIR 移入 `LirArtifact.mir`。
+- 已让当前 `run` 路径消费 `build_lir_artifact` 结果后拆回既有 stage output，保持后续 emit 输入等价。
+- 已新增 `build_lir_artifact_produces_self_contained_handoff` 单测，验证 cone、base context、空 object files、callable payload 与 type-context 一致性。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-02` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查已完成；下一步暂存本任务文件并创建提交。
+
+## 上一轮记录：T1-01-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 仅检查与所选任务直接相关的最近提交信息，不做开放式历史问题排查。
@@ -12,7 +38,7 @@
 6. 成功后更新 `TODO.md`，给 `T1-01-R` 标题加 `[DONE]` 并填写完成记录。
 7. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-## 本轮进度记录
+上一轮进度：
 
 - 已确认第一个未完成任务为 `T1-01-R：Review T1-01`。
 - 最近提交 `d268ad5b Add per-task review tasks to P1 TODO` 未提到与 `T1-01-R` 直接相关的未完成实现问题。
@@ -23,7 +49,7 @@
 - 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo build -p scoopc --no-default-features`；`cargo test --all --all-targets`；`cargo test -p scoopc --all-targets --no-default-features`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 - 已更新 `TODO.md`，将 `T1-01-R` 标记为 `[DONE]` 并填写完成记录。
 
-## 上一轮记录：T1-01
+## 更早记录：T1-01
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判定第一个未完成任务。
 2. 查看最近提交信息，只在其明确提到与当前任务直接相关的未完成事项时纳入当前任务或作为 `TODO.md` 前置项。
@@ -33,7 +59,7 @@
 6. 更新 `TODO.md`：完成时给任务标题加 `[DONE]` 并填写 completion record；只有阶段级计划变化时才更新 `PLAN.md`。
 7. 检查工作区差异，提交本次任务相关全部变更，然后停止，不继续下一个任务。
 
-上一轮进度：
+更早进度：
 
 - 已创建初始计划文件，下一步读取任务列表并定位第一个未完成任务。
 - 已确认第一个未完成任务为 `T1-01：新增 LirArtifact / CodegenInput 类型`。

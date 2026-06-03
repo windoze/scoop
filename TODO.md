@@ -92,11 +92,12 @@ pub struct CodegenInput {
   - 复核 T1-01 完成记录里的 fixtures 数（ok 1664）与基线一致。
 - 完成记录（2026-06-03）：复核 `LirArtifact` / `CodegenInput` 字段与过渡形态一致，补充 `facts`、`mir`、`entry` 过渡字段说明；确认精确匹配 `LirArtifact` / `CodegenInput` 仅出现在类型定义与 `pipeline` re-export，尚未接入运行路径。审查中发现 no-default 构建下现有 LLVM-only 路径未完整门控，已将 `single_cone`、LLVM artifact emission helper、LLVM-only frontend helpers/tests 正确挂到 `llvm` feature，确保非 LLVM 构建不破。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo build -p scoopc --no-default-features`；`cargo test --all --all-targets`；`cargo test -p scoopc --all-targets --no-default-features`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-02：抽出独立 LIR 阶段函数 `build_lir_artifact`
+### [DONE] T1-02：抽出独立 LIR 阶段函数 `build_lir_artifact`
 - 在 `llvm_codegen_stage.rs`（或迁到 `pipeline/lir_stage.rs`）新增 `pub(crate) fn build_lir_artifact(session, entry_source, lowered: CodegenLoweringOutput, preserve_published_resume_shells: bool) -> Result<LirArtifact, LlvmEmitError>`：
   - 内部 = 现 `run_lir_stage_from_lowered_hir` 的步骤 1–6，外加把 `(LateLoweredProgram, LirFacts)`、`base_context`、`materialized_mir`、`cone`(取自 `materialized_mir.stable_cone_key()`) 组装成 `LirArtifact`，`object_files` 置空。
   - 注意 `materialized_mir` 当前在步骤 5 被 `into_parts()` 消费，需调整所有权使其能同时进 `base_context` 与 `LirArtifact.mir`（`MaterializedMir` 必要时 `clone`，过渡期可接受）。
 - 验收：`build_lir_artifact` 编译通过、可单测产出 `LirArtifact`。
+- 完成记录（2026-06-03）：在 `llvm_codegen_stage.rs` 抽出 `pub(crate) fn build_lir_artifact(...) -> Result<LirArtifact, LlvmEmitError>`，复用原 LIR 准备流水线并组装 `cone/program/facts/base_context/mir/object_files`；`MaterializedMir` 在构建 base context 时改为借用，随后移动进 `LirArtifact`，避免重复构建和额外 clone；当前 codegen `run` 改为消费该 artifact 后再拆回既有 `LlvmCodegenStageOutput`，保持行为等价；新增单测验证 `LirArtifact` 的 cone、base context、空 object files、callable payload 与 type-context 一致性。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-02-R：Review T1-02
 - **关注点**：
