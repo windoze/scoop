@@ -213,11 +213,26 @@ fn build_single_file_stage_output(
         crate::frontend::MirRequestRootMode::EntryMain,
     )
     .map_err(frontend_error)?;
+    let abi_visibility_lowering = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        &front,
+        opt_level,
+        crate::frontend::MirRequestRootMode::RequestSources,
+    )
+    .map(Some)
+    .map_err(frontend_error)?;
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
 
     run_llvm_codegen_stage(
         session,
-        LlvmCodegenStageInput::new(lowering, None, source_map, entry_source_id, None, opt_level),
+        LlvmCodegenStageInput::new(
+            lowering,
+            abi_visibility_lowering,
+            source_map,
+            entry_source_id,
+            None,
+            opt_level,
+        ),
     )
 }
 

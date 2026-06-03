@@ -58,20 +58,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         site_id: crate::mir::SiteId,
         class_layout_key: &hir::ClassInstanceKey,
-        ctor: &crate::mir::ClassCtorCallMetadata,
+        _ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let class = self.class_init_layout(span, class_layout_key)?;
         let target_init = self
-            .required_lir_class_ctor_call_site(site_id, "MIR class ctor lowering")
-            .map(|site| site.target_init.clone())
-            .unwrap_or_else(|_| {
-                LirClassCtorInitKey::for_ctor(
-                    &ctor.target_init_class_fqn,
-                    ctor.selected_ctor_span.map(|span| (span.start, span.end)),
-                )
-            });
+            .required_lir_class_ctor_call_site(site_id, "MIR class ctor lowering")?
+            .target_init
+            .clone();
         let init_body = self.class_ctor_init_body_for_key(span, &target_init)?;
         let ctor_params = init_body.params();
         if args.len() != ctor_params.len() {

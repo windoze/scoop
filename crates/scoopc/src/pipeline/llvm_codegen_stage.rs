@@ -244,15 +244,6 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         class_inits.entry(key).or_insert(value);
     }
     let release_hooks = lowered_hir.release_hooks;
-    let class_init_payloads = class_inits
-        .values()
-        .map(crate::mir::MonoClassInit::from_hir)
-        .collect::<Vec<_>>();
-    let class_ctor_init_bodies =
-        crate::effect_lowered::builder::build_class_ctor_init_bodies(class_init_payloads.iter())
-            .into_iter()
-            .map(|body| (body.key().as_str().to_string(), body))
-            .collect();
     let mut extern_funs = contracts.extern_funs.clone();
     for (key, value) in lowered_hir.extern_funs {
         extern_funs.entry(key).or_insert(value);
@@ -277,11 +268,9 @@ fn build_llvm_stage_base_context_from_lowered_hir(
         object_inits,
         class_inits,
         release_hooks,
-        class_ctor_init_bodies,
         lowered_hir.when_pat_binding_tys,
         lowered_hir.nominal_kinds,
         lowered_hir.interior_mutable_nominals,
-        lowered_hir.direct_supertypes,
         lowered_hir.builtins,
         callable_sources,
         extern_funs,

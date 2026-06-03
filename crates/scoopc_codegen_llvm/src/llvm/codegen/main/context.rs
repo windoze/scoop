@@ -5,6 +5,15 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn active_lir_facts(&self) -> &LirFacts {
+        self.active_lir_facts
+            .unwrap_or(self.shared.published_lir_facts)
+    }
+
+    pub(in crate::llvm) fn set_active_lir_facts(&mut self, facts: Option<&'a LirFacts>) {
+        self.active_lir_facts = facts;
+    }
+
     /// Return the active LLVM insertion block, or panic with a named compiler invariant.
     pub(in crate::llvm::codegen) fn expect_insert_block(
         &self,
@@ -348,19 +357,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     site_id.as_u32()
                 ),
             })?;
-        if let Some(site) =
-            self.shared
-                .published_lir_facts
-                .class_ctor_call_sites
-                .get(&LirClassCtorCallSiteKey {
-                    owner_callable: owner_callable.clone(),
-                    site_id,
-                })
+        let lir_facts = self.active_lir_facts();
+        if let Some(site) = lir_facts
+            .class_ctor_call_sites
+            .get(&LirClassCtorCallSiteKey {
+                owner_callable: owner_callable.clone(),
+                site_id,
+            })
         {
             return Ok(site);
         }
-        self.shared
-            .published_lir_facts
+        lir_facts
             .class_ctor_call_sites
             .iter()
             .find_map(|(key, site)| {

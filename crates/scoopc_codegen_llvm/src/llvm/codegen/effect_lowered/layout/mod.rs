@@ -78,26 +78,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         cached_dep_artifacts: &'a [crate::llvm::CachedDepArtifactHandoff],
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
         let primary_stable_cone_key = self.stable_cone_key;
-        let mut query = ProgramAbiMaterializer::new(
-            self,
-            AbiProgramOrigin::Primary,
-            primary_stable_cone_key,
-            program,
-            lir_facts,
-            source_types,
-        )?
-        .materialize()?;
+        let saved_lir_facts = self.active_lir_facts;
+        self.active_lir_facts = Some(lir_facts);
+        let query = (|| {
+            ProgramAbiMaterializer::new(
+                self,
+                AbiProgramOrigin::Primary,
+                primary_stable_cone_key,
+                program,
+                lir_facts,
+                source_types,
+            )?
+            .materialize()
+        })();
+        self.active_lir_facts = saved_lir_facts;
+        let mut query = query?;
         for (index, dep) in cached_dep_artifacts.iter().enumerate() {
             let dep_origin = AbiProgramOrigin::CachedDep(index as u32);
-            let dep_query = ProgramAbiMaterializer::new(
-                self,
-                dep_origin,
-                dep.stable_cone_key(),
-                dep.lir(),
-                dep.lir_facts(),
-                dep.type_store(),
-            )?
-            .materialize()?;
+            let saved_lir_facts = self.active_lir_facts;
+            self.active_lir_facts = Some(dep.lir_facts());
+            let dep_query = (|| {
+                ProgramAbiMaterializer::new(
+                    self,
+                    dep_origin,
+                    dep.stable_cone_key(),
+                    dep.lir(),
+                    dep.lir_facts(),
+                    dep.type_store(),
+                )?
+                .materialize()
+            })();
+            self.active_lir_facts = saved_lir_facts;
+            let dep_query = dep_query?;
             let label = format!(
                 "cached dep cone {} ({}@{})",
                 dep.cone_id().as_u32(),

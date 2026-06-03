@@ -7,6 +7,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
         Self {
             shared,
+            active_lir_facts: None,
             current_source_id: shared.entry_source_id,
             function_cx: FunctionBodyCodegenCx::default(),
             effect_cx: EffectLoweringCodegenCx::default(),
@@ -15,7 +16,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
     pub(in crate::llvm::codegen) fn fresh_child_codegen(&self) -> Self {
-        Self::new(self.shared)
+        let mut child = Self::new(self.shared);
+        child.active_lir_facts = self.active_lir_facts;
+        child
     }
 
     pub(in crate::llvm::codegen) fn source_cone_info_for_path(

@@ -373,7 +373,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
     // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
-    let unit_codegen =
+    let make_unit_codegen = |published_lir_facts| {
         codegen::CompilationUnitCodegenCx::new(codegen::CompilationUnitCodegenInputs {
             context,
             module: &module,
@@ -393,22 +393,20 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             object_inits: base_context.object_inits(),
             class_inits: base_context.class_inits(),
             release_hooks: base_context.release_hooks(),
-            class_ctor_init_bodies: base_context.class_ctor_init_bodies(),
             when_pat_binding_tys: base_context.when_pat_binding_tys(),
             nominal_kinds: base_context.nominal_kinds(),
             interior_mutable_nominals: base_context.interior_mutable_nominals(),
-            direct_supertypes: base_context.direct_supertypes(),
             builtins: base_context.builtins(),
             callable_sources: base_context.callable_sources(),
             extern_funs: base_context.extern_funs(),
             native_callable_funs: base_context.native_callable_funs(),
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts: late_lowered_lir_facts,
+            published_lir_facts,
             effect_analysis_facts: base_context.effect_analysis_facts(),
             effect_op_tags: Rc::clone(&effect_op_tags),
-        });
-    let mut declare = unit_codegen.fresh_main_codegen();
+        })
+    };
 
     if let Some(selected) = selected_root.as_ref() {
         let _reachable_fqns =
@@ -416,12 +414,15 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
                 .map_err(|message| LlvmEmitError::Frontend { message })?;
     }
 
+    let unit_codegen = make_unit_codegen(late_lowered_lir_facts);
+    let mut declare = unit_codegen.fresh_main_codegen();
     let abi_query = declare.materialize_program_abi(
         abi_program,
         abi_lir_facts,
         abi_types,
         cached_dep_artifacts,
     )?;
+    declare.set_active_lir_facts(Some(abi_lir_facts));
     declare.codegen_program_bodies(
         late_lowered_program,
         abi_program,
@@ -429,6 +430,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_types,
         &abi_query,
     )?;
+    declare.set_active_lir_facts(None);
     declare.codegen_native_callable_body_symbols(&abi_query)?;
     let cone_init_plans = unit_codegen.cone_init_routine_plans();
     let cone_init_routines = declare.ensure_cone_init_routines_defined(&cone_init_plans)?;

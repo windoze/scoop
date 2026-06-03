@@ -57,6 +57,13 @@ fn signature_ty_contains_param(types: &TypeStore, ty: TypeId) -> bool {
     false
 }
 
+fn published_root_matches_hir_callee(root: &str, fqn: &str) -> bool {
+    root == fqn
+        || root
+            .strip_prefix(fqn)
+            .is_some_and(|suffix| suffix.starts_with("::<"))
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn registered_class_instance_key_for_type(&self, ty: TypeId) -> Option<hir::ClassInstanceKey> {
         let mono_ty = self.types.as_mono(ty).ok()?;
@@ -1614,10 +1621,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let callable_fqn = self
-                .published_print_callable_fqn(fqn, args)
-                .or_else(|| self.published_hir_generic_callable_fqn(fqn, args, result_ty))
-                .unwrap_or_else(|| fqn.to_string());
+            let callable_fqn =
+                self.published_direct_callable_root_for_hir_call(fqn, args, result_ty)?;
             return self.codegen_top_level_fun_call(
                 span,
                 callee.span,
@@ -2025,52 +2030,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn published_print_callable_fqn(&self, fqn: &str, args: &[hir::CallArg]) -> Option<String> {
-        if !matches!(fqn, "scoop.core.print" | "scoop.core.println") {
-            return None;
-        }
-        let arg_ty = args.first().map(|arg| match arg {
-            hir::CallArg::Positional(expr) => expr.ty,
-            hir::CallArg::Named { value, .. } => value.ty,
-        })?;
-        Some(format!("{fqn}::<{}>", self.types.display(arg_ty)))
-    }
-
-    fn published_hir_generic_callable_fqn(
+    fn published_direct_callable_root_for_hir_call(
         &self,
         fqn: &str,
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
-    ) -> Option<String> {
-        if fqn != "scoop.core.mutableArrayNew" {
-            let (source_types, _, param_tys, return_ty) =
-                self.published_callable_signature_with_names(fqn)?;
-            let has_type_param = param_tys
-                .iter()
-                .any(|ty| signature_ty_contains_param(source_types, *ty))
-                || signature_ty_contains_param(source_types, return_ty);
-            if !has_type_param {
-                return None;
-            }
-            let type_arg = args
-                .first()
-                .map(|arg| match arg {
-                    hir::CallArg::Positional(expr) => expr.ty,
-                    hir::CallArg::Named { value, .. } => value.ty,
-                })
-                .or(result_ty)?;
-            return Some(format!("{fqn}::<{}>", self.types.display(type_arg)));
+    ) -> Result<String, LlvmEmitError> {
+        let arg_tys = args
+            .iter()
+            .map(|arg| match arg {
+                hir::CallArg::Positional(expr) => expr.ty,
+                hir::CallArg::Named { value, .. } => value.ty,
+            })
+            .collect::<Vec<_>>();
+        let mut matches = Vec::new();
+        if self.callable_root_has_abi_surface(fqn)
+            && self.published_signature_matches_hir_call(fqn, &arg_tys, result_ty)
+        {
+            matches.push(fqn.to_string());
         }
-        let result_ty = result_ty?;
-        let (TypeKind::Value(ValueTypeKind::Nominal(nominal))
-        | TypeKind::Ref(RefTypeKind::Nominal(nominal))) = self.types.kind(result_ty)
+        matches.extend(
+            self.published_lir_facts
+                .source_signatures
+                .keys()
+                .filter(|root| published_root_matches_hir_callee(root, fqn))
+                .filter(|root| self.callable_root_has_abi_surface(root))
+                .filter(|root| self.published_signature_matches_hir_call(root, &arg_tys, result_ty))
+                .cloned(),
+        );
+        matches.sort();
+        matches.dedup();
+        match matches.as_slice() {
+            [root] => Ok(root.clone()),
+            [] if self.callable_sources.contains_key(fqn) => Ok(fqn.to_string()),
+            [] => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` lacks a published exact callable/signature/ABI fact"
+                ),
+            }),
+            many => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` matched multiple published callable facts: {}",
+                    many.join(", ")
+                ),
+            }),
+        }
+    }
+
+    fn published_signature_matches_hir_call(
+        &self,
+        root: &str,
+        arg_tys: &[TypeId],
+        result_ty: Option<TypeId>,
+    ) -> bool {
+        let Some((source_types, _, param_tys, return_ty)) =
+            self.published_callable_signature_with_names(root)
         else {
-            return None;
+            return false;
         };
-        if nominal.fqn != "scoop.core.MutableArray" || nominal.args.len() != 1 {
-            return None;
+        if param_tys.len() != arg_tys.len() {
+            return false;
         }
-        Some(format!("{fqn}::<{}>", self.types.display(nominal.args[0])))
+        if param_tys
+            .iter()
+            .zip(arg_tys.iter())
+            .any(|(param_ty, arg_ty)| {
+                self.equivalent_codegen_type_id(source_types, *param_ty) != Some(*arg_ty)
+            })
+        {
+            return false;
+        }
+        if let Some(result_ty) = result_ty {
+            return self.equivalent_codegen_type_id(source_types, return_ty) == Some(result_ty);
+        }
+        true
+    }
+
+    fn callable_root_has_abi_surface(&self, root: &str) -> bool {
+        self.extern_funs.contains_key(root)
+            || self.exported_abi_symbol_for_lir_callable(root).is_ok()
     }
 
     pub(in crate::llvm::codegen) fn emit_enter_native_for_extern_call_impl(

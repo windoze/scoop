@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::cone::SourceConeInfo;
 use crate::effect_lowered::LateLoweredProgram;
-use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::ordinary_callee::EffectAnalysisFacts;
 use crate::effect_lowered::source as source_payload;
 use crate::source::{SourceId, SourceMap};
@@ -94,11 +93,9 @@ pub struct LlvmStageBaseContext {
     object_inits: source_payload::ObjectInitIndex,
     class_inits: source_payload::ClassInitIndex,
     release_hooks: source_payload::ReleaseHookIndex,
-    class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
     nominal_kinds: source_payload::NominalKindIndex,
     interior_mutable_nominals: source_payload::InteriorMutableIndex,
-    direct_supertypes: source_payload::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: HashMap<String, LlvmCallableSourceContract>,
     extern_funs: source_payload::ExternFunIndex,
@@ -127,11 +124,9 @@ impl LlvmStageBaseContext {
         object_inits: source_payload::ObjectInitIndex,
         class_inits: source_payload::ClassInitIndex,
         release_hooks: source_payload::ReleaseHookIndex,
-        class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
         when_pat_binding_tys: source_payload::WhenPatBindingTypeIndex,
         nominal_kinds: source_payload::NominalKindIndex,
         interior_mutable_nominals: source_payload::InteriorMutableIndex,
-        direct_supertypes: source_payload::DirectSupertypesIndex,
         builtins: BuiltinTypes,
         callable_sources: HashMap<String, LlvmCallableSourceContract>,
         extern_funs: source_payload::ExternFunIndex,
@@ -154,11 +149,9 @@ impl LlvmStageBaseContext {
             object_inits,
             class_inits,
             release_hooks,
-            class_ctor_init_bodies,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,
-            direct_supertypes,
             builtins,
             callable_sources,
             extern_funs,
@@ -215,10 +208,6 @@ impl LlvmStageBaseContext {
         &self.release_hooks
     }
 
-    pub fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
-        &self.class_ctor_init_bodies
-    }
-
     pub fn when_pat_binding_tys(&self) -> &source_payload::WhenPatBindingTypeIndex {
         &self.when_pat_binding_tys
     }
@@ -233,10 +222,6 @@ impl LlvmStageBaseContext {
 
     pub fn nominal_is_interior_mutable(&self, fqn: &str) -> bool {
         self.interior_mutable_nominals.contains(fqn)
-    }
-
-    pub fn direct_supertypes(&self) -> &source_payload::DirectSupertypesIndex {
-        &self.direct_supertypes
     }
 
     pub fn builtins(&self) -> BuiltinTypes {

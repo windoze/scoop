@@ -1322,6 +1322,22 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "self.interfaces",
                     "direct call lowering must not consume source interface side tables",
                 ),
+                fp(
+                    "published_print_callable_fqn",
+                    "direct call lowering must consume published exact callee facts instead of synthesizing print concrete FQNs",
+                ),
+                fp(
+                    "published_hir_generic_callable_fqn",
+                    "direct call lowering must consume published exact callee facts instead of synthesizing generic concrete FQNs",
+                ),
+                fp(
+                    "unwrap_or_else(|| fqn.to_string())",
+                    "direct call lowering must fail fast when exact callee facts are missing instead of falling back to the source FQN",
+                ),
+                fp(
+                    "format!(\"{fqn}::<",
+                    "direct call lowering must not format generic concrete FQNs in P6",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1919,6 +1935,48 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "codegen_block_value(body)",
                     "class ctor body emission must not directly lower a ctor HIR body",
+                ),
+                fp(
+                    "self.class_ctor_init_bodies",
+                    "class ctor init body lookup must consume the published LateLoweredProgram, not LLVM base-context fallback bodies",
+                ),
+                fp(
+                    "class_ctor_init_bodies.get",
+                    "class ctor init body lookup must not fall back to LLVM base-context side tables",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "MIR direct scalar intrinsic fallback",
+            "fact-boundary",
+            "crates/scoopc_mir/src/mir/lower/fn_lowering_call.rs",
+            (
+                fp(
+                    "scalar_intrinsic_entry_from_fqn",
+                    "MIR direct-call lowering must consume published intrinsic metadata instead of deriving scalar intrinsic entries from FQN text",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM value-box itable fallback",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/value_args.rs",
+            (
+                fp(
+                    "materialized_value_box_member_impl_fqn",
+                    "value-box itable materialization must consume published LIR layout facts instead of synthesizing member implementation FQNs",
+                ),
+                fp(
+                    "stable_instance_fqn",
+                    "value-box itable materialization must not instantiate generic member FQNs in P6",
+                ),
+                fp(
+                    "format!(\"{}.{}\", nominal.fqn, slot.name)",
+                    "value-box itable materialization must not assemble member implementation roots from nominal/member text",
+                ),
+                fp(
+                    "abi_symbols.values().find_map",
+                    "value-box itable materialization must consume target-bound layout facts instead of scanning ABI symbols by root text",
                 ),
             ),
         ),

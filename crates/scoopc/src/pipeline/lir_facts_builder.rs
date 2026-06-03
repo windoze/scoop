@@ -30,7 +30,10 @@ use scoopc_lir::effect_lowered::ir::{
 };
 use scoopc_lir::mir::{FunDecl, InstanceKey, Item, MaterializedMir, SiteId};
 use scoopc_lir::opt::OptLevel;
-use scoopc_lir::stable_id::{NoTypeParamResolver, canonical_effect_row_text, canonical_type_text};
+use scoopc_lir::stable_id::{
+    NoTypeParamResolver, canonical_effect_row_text, canonical_type_text,
+    stable_rtti_type_id_for_type,
+};
 use scoopc_lir::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 struct LirFactsBuildContext<'a> {
@@ -898,7 +901,7 @@ fn build_physical_layout_facts(
     source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     _dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
-    _source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
 ) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
     let mut facts = LirPhysicalLayoutFacts::default();
@@ -983,6 +986,7 @@ fn build_physical_layout_facts(
             },
         );
     }
+    insert_value_box_itable_facts(&mut facts, ctx, callable_symbols, source_signatures)?;
     facts.callable_symbols = callable_symbols.clone();
     let layout_callable_roots = layout_callable_roots(&facts);
     facts.abi_symbols = build_abi_symbol_facts(
@@ -1003,6 +1007,184 @@ fn build_physical_layout_facts(
     facts.layout_names = build_layout_name_facts(&facts);
     facts.closure_identities = build_closure_identity_facts(ctx)?;
     Ok(facts)
+}
+
+fn insert_value_box_itable_facts(
+    facts: &mut LirPhysicalLayoutFacts,
+    ctx: &LirFactsBuildContext<'_>,
+    callable_symbols: &BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
+) -> Result<(), EffectLoweringError> {
+    let types = ctx.effect_facts.types();
+    for ty in types.iter_ids() {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+            continue;
+        };
+        let interfaces = value_box_interface_closure(ctx, &nominal.fqn);
+        if interfaces.is_empty() {
+            continue;
+        }
+        let owner_key = value_box_itable_owner_key(types, ty)?;
+        if facts.class_itables.contains_key(&owner_key) {
+            continue;
+        }
+        let value_receiver_type_id = stable_rtti_type_id_for_type(types, ty, &NoTypeParamResolver)
+            .map_err(|err| EffectLoweringError::InvalidLirFactsContract {
+                detail: format!(
+                    "value-box `{}` cannot publish receiver RTTI type id: {err}",
+                    types.display(ty)
+                ),
+            })?;
+        let mut entries = Vec::new();
+        for interface_fqn in interfaces {
+            let iface = facts.interfaces.get(&interface_fqn).ok_or_else(|| {
+                EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!(
+                        "value-box `{}` targets unpublished interface `{interface_fqn}`",
+                        types.display(ty)
+                    ),
+                }
+            })?;
+            let interface_ty = types.find_nominal_ref_by_fqn(&iface.fqn).ok_or_else(|| {
+                EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!("value-box interface `{}` lacks a nominal TypeId", iface.fqn),
+                }
+            })?;
+            let interface_type_name = types.display(interface_ty).to_string();
+            let interface_type_id =
+                stable_rtti_type_id_for_type(types, interface_ty, &NoTypeParamResolver).map_err(
+                    |err| EffectLoweringError::InvalidLirFactsContract {
+                        detail: format!(
+                            "value-box interface `{}` cannot publish RTTI type id: {err}",
+                            iface.fqn
+                        ),
+                    },
+                )?;
+            let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
+            let mut method_impl_targets = Vec::with_capacity(iface.method_slots.len());
+            let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
+            for slot in &iface.method_slots {
+                if let Some(impl_fqn) = value_box_member_impl_root(
+                    types,
+                    source_signatures,
+                    &nominal.fqn,
+                    &nominal.args,
+                    &slot.name,
+                ) {
+                    let (target, _symbol, _role) =
+                        layout_target_abi_symbol(ctx, callable_symbols, &impl_fqn)?;
+                    method_impl_fqns.push(impl_fqn);
+                    method_impl_targets.push(Some(target));
+                    method_receiver_type_ids.push(value_receiver_type_id);
+                } else if slot.has_body {
+                    let (target, _symbol, _role) =
+                        layout_target_abi_symbol(ctx, callable_symbols, &slot.member_fqn)?;
+                    method_impl_fqns.push(slot.member_fqn.clone());
+                    method_impl_targets.push(Some(target));
+                    method_receiver_type_ids.push(crate::itable::ITABLE_RECEIVER_REF_TYPE_ID);
+                } else {
+                    return Err(EffectLoweringError::InvalidLirFactsContract {
+                        detail: format!(
+                            "value-box `{}` missing implementation for interface method `{}`",
+                            nominal.fqn, slot.member_fqn
+                        ),
+                    });
+                }
+            }
+            entries.push(LirClassItableEntryFacts {
+                interface_fqn: iface.fqn.clone(),
+                interface_id: iface.interface_id,
+                interface_type_name: interface_type_name.clone(),
+                interface_type_id,
+                runtime_match_type_names: vec![interface_type_name],
+                runtime_match_type_ids: vec![interface_type_id],
+                method_impl_fqns,
+                method_impl_targets,
+                method_receiver_type_ids,
+            });
+        }
+        facts.class_itables.insert(
+            owner_key.clone(),
+            LirClassItableFacts {
+                class_fqn: owner_key,
+                entries,
+            },
+        );
+    }
+    Ok(())
+}
+
+fn value_box_interface_closure(ctx: &LirFactsBuildContext<'_>, fqn: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut visiting = BTreeSet::new();
+    collect_value_box_interfaces(ctx, fqn, &mut out, &mut visiting);
+    out
+}
+
+fn collect_value_box_interfaces(
+    ctx: &LirFactsBuildContext<'_>,
+    fqn: &str,
+    out: &mut Vec<String>,
+    visiting: &mut BTreeSet<String>,
+) {
+    if !visiting.insert(fqn.to_string()) {
+        return;
+    }
+    if let Some(supertypes) = ctx.mir_facts.metadata.direct_supertypes(fqn) {
+        for super_fqn in supertypes {
+            if ctx
+                .materialized
+                .backend_contracts()
+                .interfaces
+                .contains_key(super_fqn)
+                && !out.contains(super_fqn)
+            {
+                out.push(super_fqn.clone());
+            }
+            collect_value_box_interfaces(ctx, super_fqn, out, visiting);
+        }
+    }
+    visiting.remove(fqn);
+}
+
+fn value_box_itable_owner_key(
+    types: &TypeStore,
+    ty: TypeId,
+) -> Result<String, EffectLoweringError> {
+    let canonical = canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|err| {
+        EffectLoweringError::InvalidLirFactsContract {
+            detail: format!(
+                "value-box `{}` cannot publish canonical owner key: {err}",
+                types.display(ty)
+            ),
+        }
+    })?;
+    Ok(canonical_record("mir_value_box_itable_owner", [canonical]))
+}
+
+fn value_box_member_impl_root(
+    types: &TypeStore,
+    source_signatures: &BTreeMap<String, LirSourceCallableSignatureFacts>,
+    nominal_fqn: &str,
+    nominal_args: &[TypeId],
+    slot_name: &str,
+) -> Option<String> {
+    let base = format!("{nominal_fqn}.{slot_name}");
+    if nominal_args.is_empty() && source_signatures.contains_key(&base) {
+        return Some(base);
+    }
+    if !nominal_args.is_empty() {
+        let args = nominal_args
+            .iter()
+            .map(|ty| types.display(*ty).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let concrete = format!("{base}::<{args}>");
+        if source_signatures.contains_key(&concrete) {
+            return Some(concrete);
+        }
+    }
+    source_signatures.contains_key(&base).then_some(base)
 }
 
 fn layout_callable_roots(facts: &LirPhysicalLayoutFacts) -> BTreeSet<String> {
@@ -1773,25 +1955,43 @@ fn build_class_ctor_call_site_facts(
         };
         insert_class_ctor_call_site_facts_for_body(&mut out, class_ctor_inits, &owner_key, body)?;
     }
-    for family in ctx.materialized.pass_view().instances() {
-        let stable_key = ctx
-            .materialized
-            .authoritative_stable_instance_key(family.key())
-            .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
-                detail: format!(
-                    "class ctor facts owner `{}` lacks stable instance identity",
-                    family.root_fqn()
-                ),
-            })?;
-        let Some(owner_key) = ctx
-            .callable_keys_by_stable_instance
-            .get(&stable_key.canonical_text())
-            .cloned()
-        else {
+    for item in &ctx.materialized.file.items {
+        let Item::Fun(fun) = item else {
             continue;
         };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        let Some(owner_key) = published_callable_key_by_root(ctx, &fun.fqn)? else {
+            continue;
+        };
+        insert_class_ctor_call_site_facts_for_body(&mut out, class_ctor_inits, &owner_key, body)?;
+    }
+    let callable_view = ctx.materialized.callable_view();
+    for family in callable_view.instances() {
         for fun in family.callable_bodies() {
             let Some(body) = &fun.body else {
+                continue;
+            };
+            let Some(owner_key) = published_callable_key_by_root(ctx, &fun.fqn)? else {
+                continue;
+            };
+            insert_class_ctor_call_site_facts_for_body(
+                &mut out,
+                class_ctor_inits,
+                &owner_key,
+                body,
+            )?;
+        }
+    }
+    let pass_view = ctx.materialized.pass_view();
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let Some(owner_key) = class_ctor_owner_key_for_materialized_fun(ctx, &pass_view, fun)?
+            else {
                 continue;
             };
             insert_class_ctor_call_site_facts_for_body(
@@ -1803,6 +2003,46 @@ fn build_class_ctor_call_site_facts(
         }
     }
     Ok(out)
+}
+
+fn class_ctor_owner_key_for_materialized_fun(
+    ctx: &LirFactsBuildContext<'_>,
+    pass_view: &crate::mir::MaterializedMirPassView<'_>,
+    fun: &FunDecl,
+) -> Result<Option<StableLirCallableKey>, EffectLoweringError> {
+    let Some(owner_instance) = pass_view.owner_of_callable(&fun.fqn) else {
+        return published_callable_key_by_root(ctx, &fun.fqn);
+    };
+    let stable_key = ctx
+        .materialized
+        .authoritative_stable_instance_key(owner_instance)
+        .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+            detail: format!(
+                "class ctor facts owner `{}` lacks stable instance identity",
+                fun.fqn
+            ),
+        })?;
+    let by_instance = ctx
+        .callable_keys_by_stable_instance
+        .get(&stable_key.canonical_text())
+        .cloned();
+    if by_instance.is_some() {
+        return Ok(by_instance);
+    }
+    published_callable_key_by_root(ctx, &fun.fqn)
+}
+
+fn published_callable_key_by_root(
+    ctx: &LirFactsBuildContext<'_>,
+    root_fqn: &str,
+) -> Result<Option<StableLirCallableKey>, EffectLoweringError> {
+    ctx.lir
+        .callables()
+        .iter()
+        .find(|callable| callable.root_fqn() == root_fqn)
+        .map(published_callable_key)
+        .transpose()
+        .map(|key| key.cloned())
 }
 
 fn insert_class_ctor_call_site_facts_for_body(

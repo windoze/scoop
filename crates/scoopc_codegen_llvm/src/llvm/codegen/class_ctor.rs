@@ -310,13 +310,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program
             .class_ctor_init_body(key)
             .cloned()
-            .or_else(|| self.class_ctor_init_bodies.get(key.as_str()).cloned())
+            .or_else(|| self.unique_class_ctor_init_body_by_span_suffix(program, key))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "class ctor init body `{}` is missing from LIR facts and LLVM base context",
+                    "class ctor init body `{}` is missing from the published LateLoweredProgram",
                     key.as_str()
                 ),
             })
+    }
+
+    fn unique_class_ctor_init_body_by_span_suffix(
+        &self,
+        program: &crate::effect_lowered::LateLoweredProgram,
+        key: &LirClassCtorInitKey,
+    ) -> Option<LateLoweredClassCtorInitBody> {
+        let (_, suffix) = key.as_str().rsplit_once('@')?;
+        let mut matches = program
+            .class_ctor_init_bodies()
+            .filter(|body| {
+                body.key()
+                    .as_str()
+                    .rsplit_once('@')
+                    .is_some_and(|(_, body_suffix)| body_suffix == suffix)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (matches.len() == 1).then(|| matches.remove(0))
     }
 
     fn codegen_class_ctor_eval_args(
