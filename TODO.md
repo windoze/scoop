@@ -174,10 +174,10 @@ pub struct CodegenInput {
   - fixture：显式 entry-point + 默认 main 均产出正确可执行；故意「入口不存在」用例**报诊断而非崩溃**。
 - 完成记录（2026-06-04）：复核 T1-06 实现，确认入口解析在 `pipeline::build_llvm_codegen_input` 构建主 `LirArtifact` 后、进入 LLVM emit 前完成；`resolve_entry_ref` 以 `StableLirCallableKey` 校验入口确实落在 primary `LirArtifact.program` 的 callable body 上，缺显式入口返回带入口名的 `LlvmEmitError::Frontend`，缺默认入口返回 `MissingEntryMain`，未发现 panic/unwrap 路径。确认 LLVM emit/main wrapper 通过 `EntryRef.callable()` 查 body；`root_fqn` 只保留为 ABI 查询、reachability seed、诊断与 handoff 一致性校验，未恢复 `entry_main_fqn` 字符串扫描。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，`select_entry_main` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoopc --all-targets build_llvm_codegen_input_`（3 passed）；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_selects_correct_main --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_missing_main_is_error --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-06 完成记录中的绿色全量基线（run_fixtures ok 1664）。
 
-### [TODO] T1-07：验证与收口
+### [DONE] T1-07：验证与收口
 - 跑 §4 全部基线（fmt / clippy -D warnings / test --all / build / dependency_gate / spec_fixtures / run_fixtures，run_fixtures 约 1664 checks 全过）。
 - 自检：`grep -n` 确认 `llvm_codegen_stage.rs` 无 `lowered_hir|materialized_mir|frontend_index|type_env`；`CachedDepArtifactHandoff` 仅在 T1-03 适配处出现。
-- 完成记录：（待填，附验证结果）。
+- 完成记录（2026-06-04）：完成 P1 收口验证。自检通过：`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env` 零命中；`CachedDepArtifactHandoff` 在生产链路中只作为 cached dep → `LirArtifact` 适配输入及其上游 cache handoff 类型存在，LLVM codegen 生产路径消费 `CodegenInput` / `LirArtifact` / `LlvmDepLirArtifactHandoff`，`llvm_codegen_stage.rs` 中相关命中仅为测试 helper 与回归用例。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
 ### [TODO] T1-07-R：Review P1（整体阶段验收）
 - **关注点（对照 §0 完成标志）**：

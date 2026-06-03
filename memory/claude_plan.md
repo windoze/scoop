@@ -18,7 +18,28 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-06-R
+## 当前记录：T1-07
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前任务直接相关的未完成事项。
+3. 执行 T1-07 的收口自检：确认 `llvm_codegen_stage.rs` 不再出现 `lowered_hir|materialized_mir|frontend_index|type_env`，并检查 `CachedDepArtifactHandoff` 的剩余使用边界。
+4. 按顺序运行完整验证基线：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+5. 成功后更新 `TODO.md`，给 `T1-07` 标题加 `[DONE]` 并填写完成记录。
+6. 不更新 `PLAN.md`，因为阶段级 P1 DONE 标记属于后续 `T1-07-R`。
+7. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-07：验证与收口`。
+- 最新提交 `bf6c8b16 [T1-06-R] Review codegen entry refs` 未明确指出与 T1-07 直接相关的未完成阻塞。
+- 自检通过：`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env` 零命中。
+- `CachedDepArtifactHandoff` 仍作为 cached dep 到 `LirArtifact` 的适配输入及上游 cache handoff 类型存在；LLVM codegen 生产路径消费 `CodegenInput` / `LirArtifact` / `LlvmDepLirArtifactHandoff`，`llvm_codegen_stage.rs` 中相关命中仅为测试 helper 与回归用例。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+- 已更新 `TODO.md`，将 `T1-07` 标记为 `[DONE]` 并填写完成记录。
+- `PLAN.md` 未改动：阶段级完成标记和 P2 遗留项登记保留给 `T1-07-R`。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-07 记录置顶。
+
+## 先前记录：T1-06-R
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
@@ -29,7 +50,7 @@
 7. 成功后更新 `TODO.md`，给 `T1-06-R` 标题加 `[DONE]` 并填写完成记录。
 8. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-当前进度：
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-06-R：Review T1-06`。
 - 最新提交 `544090d5 [T1-06] Resolve codegen entry refs` 是本 review 的直接对象，未在提交摘要中声明额外未完成事项。
