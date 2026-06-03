@@ -1,198 +1,143 @@
-# TODO — P1：LIR↔codegen handoff（抽出独立 LIR 阶段）
+# TODO — P2：LIR 内部重设计（自包含 `LirProgram`）
 
-> 计划：[`PLAN.md`](./PLAN.md) §3 P1；设计与契约：[`FACT_REFACTOR.md`](./FACT_REFACTOR.md) §12（codegen 输入需求）/§13（新 LIR 草案）/§14（handoff 契约）。
-> 路线：strangler + 后→前。本阶段**只动 LIR↔codegen 边界与阶段切分**，不碰 LIR 内部表示。
+> 计划：[`PLAN.md`](./PLAN.md)；设计：[`FACT_REFACTOR.md`](./FACT_REFACTOR.md) §13/§2.7/§14。
+> 三个子阶段按序：**P2a 身份地基 → P2b 折叠 facts → P2c lift 指令/消 overlay**。每任务后跟一个 review；每任务收尾跑 §9 基线。
 
-## 0. 目标与非目标
+## 0. 非目标 / 范围纪律
 
-**目标**：把「effect-facts + LIR lowering + base-context 构建」从 LLVM codegen 阶段**抽出**为独立的 LIR 阶段，产出自包含的 `LirArtifact`；codegen 收缩为「消费 `CodegenInput` → emit」。主 cone 与依赖 cone 拿到**同一类型** `LirArtifact`。codegen 不再直接消费 `LoweredHir`/`MaterializedMir`/`Index`/`TypeEnv`。
+- 不动 P3+（effect-facts/MIR/HIR）；P2 只重塑 LIR 内部表示与其消费（codegen）。
+- P2a 不改 facts 结构、不 lift 指令；P2b 不 lift 指令；三者解耦推进，各自全套 fixture 绿后再进下一子阶段。
+- 不新增任何字符串 live key / 缺-fact fallback（违反即 review 打回）。
 
-**非目标（本阶段明确不做，留给 P2+）**：
-- 不重设计 LIR 内部（`LateLoweredProgram`/`LirFacts` 维持现状，作为 `LirArtifact` 的内部字段被包进来）。
-- 不消除 LIR-overlay：`LateLoweredProgram` 仍切片回 `mir::Body`（`ir.rs` `LateLoweredSourceBody = crate::mir::Body`），故 `LirArtifact` **暂时**携带 `MaterializedMir` 作为 overlay 后备（P2 lift 指令后删除）。
-- 不引入 arena / 定型句柄全集（仅按需引入 `entry` 的解析引用）。
-- 不删 `LirFacts` 平表、不动 `dependency_gate.py` 黑名单（P2+ 随结构消失再清）。
+## 1. 代码地图（按符号定位，勿全库搜索）
 
-> 判定本阶段完成的标志：`llvm_codegen_stage::run` 的输入里**不再出现** `lowered_hir`/`materialized_mir`/`frontend_index`/`type_env`；主/依赖 cone 统一为 `LirArtifact`；全套验证基线绿。
+**handoff/容器**：
+- `crates/scoopc/src/pipeline/lir_artifact.rs`：`LirArtifact { cone, program: LateLoweredProgram, facts: LirFacts /*P2b 删*/, base_context, mir: Option<MaterializedMir> /*P2c 删*/, object_files }`、`CodegenInput`。
+- `crates/scoopc_lir/src/effect_lowered/ir.rs`：`pub struct LateLoweredProgram`（字段：`step_types`/`resume_packings`/`continuation_objects`/`surface_resume_dispatch_inventory`/`callables: Vec<LateLoweredCallable>`/`class_ctor_init_bodies: HashMap<String,_>`/`source_class_ctor_calls`/`stable_instance_keys`/`dump_*`）；`type LateLoweredSourceBody = crate::mir::Body`(:343)；`struct LateLoweredStateSlice { block_id, start_statement_index, end_statement_index, includes_terminator }`(:3591)；`LateLoweredCallable.lir_callable_key: Option<StableLirCallableKey>`(:1184)。
 
-## 1. 代码地图（直接按符号定位，勿全库搜索）
+**身份（P2a）**：
+- `crates/scoopc_ids/src/lib.rs:260`：`struct StableLirCallableKey { canonical_text: String, readable_path: String }`（+ `StableCanonicalKey`/`StableSymbolKey` impl）。
+- 生产代码 139 处使用；集中在 `crates/scoopc_lir_facts/src/contract.rs`（~30 处：`owner_callable`/`callable`/`target_callable_key`/`candidate_targets`/`method_impl_targets`/`impl_member_target`，及 `callable_symbols: BTreeMap<StableLirCallableKey,_>`(:619)、`closure_identity: BTreeMap<StableLirCallableKey,_>`(:623)）；`lib.rs:38/60` `callables: BTreeMap<StableLirCallableKey, LirCallableFacts>`；`ir.rs:1184/1310/1369`。
 
-**入口与当前流程** — `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`：
-- `struct LlvmCodegenStageInput { lowered: CodegenLoweringOutput, abi_visibility_lowered: Option<CodegenLoweringOutput>, source_map: SourceMap, entry_source_id: SourceId, entry_main_fqn: Option<String>, opt_level: OptLevel, cached_dep_artifacts: Vec<CachedDepArtifactHandoff> }`；构造器 `new(...)`、`with_cached_dep_artifacts(...)`。
-- `fn run(session, input) -> Result<LlvmCodegenStageOutput, LlvmEmitError>`（约 :345）：解构 input → `lowered.into_parts()` 得 `(lowered_hir, materialized_mir, frontend_index, type_env)` → 调 `run_lir_stage_from_lowered_hir(...)` → `primary_run.output.into_parts()` 得 `(lir, lir_facts)` → 对 `abi_visibility_lowered` 再跑一次 → 之后（约 :399 起）用 `lir + lir_facts + base_context + cached_dep_artifacts` 实际 emit。
-- `fn run_lir_stage_from_lowered_hir(...) -> Result<LlvmLirRun, LlvmEmitError>`（:293）：**这就是要抽出的整段后端流水线**——
-  1. `HirStageOutput::new_with_frontend_artifact(lowered_hir, &source_path, frontend_index, type_env)`；
-  2. `mir_stage::run(typed_hir_output)?.with_materialized_mir(materialized_mir)`；
-  3. `super::build_effect_facts_stage_output(session, entry_source, &mir_stage_output)?`；
-  4. `super::effect_lowering_stage::build_lir_stage_output_from_stage_outputs(&mir_stage_output, &effect_facts_stage_output, opt_options)?`；
-  5. `build_llvm_stage_base_context_from_lowered_hir(base_hir, hir_facts, materialized_mir, effect_facts)`；
-  6. `base_context.verify_lir_type_context(output.lir_facts(), "primary")?`；
-  7. 返回 `LlvmLirRun { output: LirStageOutput, base_context: LlvmStageBaseContext }`。
-- `struct LlvmLirRun { output: LirStageOutput, base_context: LlvmStageBaseContext }`（:281）；`fn into_abi_visibility_parts(self) -> (LateLoweredProgram, LirFacts, TypeStore)`（:287）。
-- `fn build_llvm_stage_base_context_from_lowered_hir(lowered_hir, hir_facts, materialized_mir, effect_facts) -> LlvmStageBaseContext`（:206）。
+**facts（P2b）** — `crates/scoopc_lir_facts/src/lib.rs:24` `struct LirFacts` 18 组。Fold map：
+| 组 | 现 key | 归属节点 |
+|---|---|---|
+| `callables` | StableLirCallableKey | **callable 节点**（主锚） |
+| `source_call_sites`/`class_ctor_call_sites`/`reflection_call_sites` | (owner_callable, site_id) | callable 体内 **call-site 节点** |
+| `dynamic_invokes`/`dispatches` | (owner_callable, site_id) | callable 体内 **invoke/dispatch 节点** |
+| `global_init` | LirGlobalRootKey(FQN) | **global root 节点** |
+| `physical_layout`(classes/enums/abi_symbols/vtables/itables) | String | **nominal 节点** |
+| `source_signatures`/`intrinsic_callables` | String(FQN) | **callable 节点**（key→句柄） |
+| `class_ctor_inits` | String | class ctor init 节点 |
+| `continuation_objects` | id | effect-step callable 的 control body |
+| `summary`/`opt_pipeline`/`type_context`/`step_types`/`resume_packings`/`surface_resume_dispatches` | — | **保留 program 级字段**（程序全局） |
+- 消费点（改 walk）：`call/abi.rs:339/352/395`、`effect_lowered/layout/lookup.rs:128/146`、`effect_lowered/layout/dynamic_invoke.rs:16`、`pipeline/llvm_codegen_stage` emit、`mod.rs:927`。
 
-**lowered 包** — `crates/scoopc/src/frontend.rs`：
-- `struct CodegenLoweringOutput { lowered_hir: hir::LoweredHir, materialized_mir: crate::mir::MaterializedMir, frontend_index: Index, type_env: TypeEnv }`；`into_parts()`。
+**MIR 指令集（P2c lift 来源）** — `crates/scoopc_mir/src/mir/mod.rs`：`Body`(:2057, `locals`/`blocks`/`start`)、`BasicBlock`(`stmts`/`terminator`/`is_cleanup`)、`StatementKind`(:2424, `Nop`/`Assign`/`StoreMember`/`StoreTopLevelVar`/`Todo`)、`Rvalue`(:2909, 24 变体)、`TerminatorKind`(:3060, `Return`/`ResumeUnwind`/`Goto`/`CondBr`/`Unreachable`/`Perform`/`Handle`/`Todo`)、`Operand`(:2468, `Local`/`Const`)、`ConstValue`、`CallKind`(:2672, `Direct`/`Closure`/`FunValue`/`FunPtr`/`Virtual`/`Interface`/`Resume`)、`MemberTarget`/`DispatchMetadata`/`TopLevelRef`/`PerformMetadata`、transport（`mir/transport.rs`）。**字符串 FQN 引用 11 处**（`CallKind::Direct.callee_fqn`、`Closure.fn_ptr`、`Perform.op_fqn`、`TopLevelRef.fqn`、`StoreTopLevelVar.fqn`、`DispatchMetadata.owner_fqn/member_fqn`、`MemberTarget::*.fqn`、`ClassCtor.class_fqn`、`PerformResult.op_fqn`、GC intrinsic）→ 全转句柄。
+- codegen MIR-body walker（P2c 改走 LIR 指令）：`crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/mod.rs`（stmt :318、rvalue :363、terminator :425、callkind :347）。
 
-**依赖 handoff 与 base context** — `crates/scoopc_codegen_llvm/src/llvm/handoff.rs`：
-- `struct CachedDepArtifactHandoff { cone_id: ConeId, stable_cone_key: StableConeKey, lir: LateLoweredProgram, lir_facts: LirFacts, type_store: TypeStore, object_files: Vec<PathBuf> }`。
-- `struct LlvmStageBaseContext`（含 `new(...)`、`into_type_store()`、`verify_lir_type_context(&LirFacts, &str)`、`types()`）。
-
-**调用方**（改这里来串新阶段）：
-- `crates/scoopc/src/pipeline/mod.rs`：`pub(crate) fn run_llvm_codegen_stage(...)`（:183）；构造 `LlvmCodegenStageInput::new(...)`（:226）与 `::with_cached_dep_artifacts(...)`（:446）。`build_effect_facts_stage_output`（:105）、`build_lir_stage_output`（:121）也在此。
-- `crates/scoopc/src/single_cone.rs:165`：`run_llvm_codegen_stage(session, LlvmCodegenStageInput::with_cached_dep_artifacts(...))`。
-- `crates/scoopc/src/pipeline/effect_lowering_stage.rs`：`build_lir_stage_output_from_stage_outputs(...)`、`struct LirStageOutput`（`into_parts() -> (LateLoweredProgram, LirFacts)`、`lir_facts()`）。
-
-**LIR/facts/ids 定义**（本阶段只引用，不改内部）：
-- `crates/scoopc_lir/src/effect_lowered/ir.rs`：`LateLoweredProgram`；`type LateLoweredSourceBody = crate::mir::Body`（:350，overlay 证据）。
-- `crates/scoopc_lir_facts/src/lib.rs`：`struct LirFacts`。
-- `crates/scoopc_ids/src/lib.rs`：`StableConeKey`、`StableLirCallableKey { canonical_text, readable_path }`、`CanonicalTextKey`。
-
-## 2. 目标类型（本阶段过渡形态）
-
-放在新文件 `crates/scoopc/src/pipeline/lir_artifact.rs`（或 codegen crate 的 handoff 模块，二选一，保持单一定义）：
+## 2. 身份类型（P2a 目标）
 
 ```rust
-/// 一个 cone 在 LIR 阶段的自包含产物。过渡期内部仍是现有 LIR 表示。
-pub struct LirArtifact {
-    pub cone: StableConeKey,
-    pub program: LateLoweredProgram,        // P2 替换为新 LirProgram
-    pub facts: LirFacts,                    // P2 折叠进 program
-    pub base_context: LlvmStageBaseContext, // 类型/布局上下文（含 TypeStore）
-    pub mir: MaterializedMir,               // 过渡：overlay 后备，P2 lift 指令后删除
-    pub object_files: Vec<PathBuf>,         // 依赖链接产物；主 cone 为空
-}
-
-/// codegen 的全部输入——只有 LIR + 诊断/入口/选项。
-pub struct CodegenInput {
-    pub program: LirArtifact,
-    pub abi_shell: Option<LirArtifact>,     // 原 abi_visibility_lowered 的产物
-    pub deps: Vec<LirArtifact>,             // 依赖 cone，与 main 同类型
-    pub entry: Option<EntryRef>,            // 见 T1-06；替 entry_source_id+entry_main_fqn
-    pub source_map: SourceMap,              // 仅诊断锚点
-    pub opt_level: OptLevel,
-}
+// = program.callables 的下标；artifact 内 live 引用一律用它（§2.7）
+pub struct LirCallableId(u32);
+// 跨 cone / 序列化 / map key 的紧凑身份（从 StableLirCallableKey.canonical_text 派生）
+pub struct LirCallableHash(/* 定长 hash */);
+// StableLirCallableKey 保留为「稳定身份来源」，readable_path 仅调试
 ```
 
-## 3. 任务（按序执行；每个收尾跑 §4 基线）
+---
 
-### [DONE] T1-01：新增 `LirArtifact` / `CodegenInput` 类型
-- 新建 `crates/scoopc/src/pipeline/lir_artifact.rs`，定义上述两个 struct（`entry` 字段先用 `Option<(SourceId, Option<String>)>` 占位，T1-06 再换 `EntryRef`）。在 `pipeline/mod.rs` `pub mod lir_artifact;` 并按需 re-export。
-- 验收：编译通过；尚无行为变化。
-- 完成记录（2026-06-03）：新增 `pipeline/lir_artifact.rs`，定义 `LirArtifact` 与 `CodegenInput` 过渡类型；在 `pipeline/mod.rs` 按 `llvm` feature 导出模块与类型，未改变运行行为。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+## 3. P2a — 身份地基
 
-### [DONE] T1-01-R：Review T1-01
-- **关注点**：
-  - `LirArtifact`/`CodegenInput` 字段与 §2 / FACT_REFACTOR §14.3 一致；过渡字段（`mir`、`facts`）有注释标明 P2 移除；未提前引入 arena/句柄全集。
-  - 类型**单一定义**（无重复 def）；`llvm` feature 门控正确，非 llvm 构建不破。
-  - **零行为变化**：新类型尚未接入任何运行路径。
-- **确认验证**：
-  - `cargo build -p scoop -p scoopc` + `cargo clippy --all-targets -- -D warnings` 通过。
-  - `grep -rn "LirArtifact\|CodegenInput" crates/` 确认目前仅定义/导出，未被 `run`/调用方消费（行为未变）。
-  - 复核 T1-01 完成记录里的 fixtures 数（ok 1664）与基线一致。
-- 完成记录（2026-06-03）：复核 `LirArtifact` / `CodegenInput` 字段与过渡形态一致，补充 `facts`、`mir`、`entry` 过渡字段说明；确认精确匹配 `LirArtifact` / `CodegenInput` 仅出现在类型定义与 `pipeline` re-export，尚未接入运行路径。审查中发现 no-default 构建下现有 LLVM-only 路径未完整门控，已将 `single_cone`、LLVM artifact emission helper、LLVM-only frontend helpers/tests 正确挂到 `llvm` feature，确保非 LLVM 构建不破。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo build -p scoopc --no-default-features`；`cargo test --all --all-targets`；`cargo test -p scoopc --all-targets --no-default-features`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-01：引入 `LirCallableId` / `LirCallableHash`
+- 在 `scoopc_ids`（或 lir crate）定义 `LirCallableId(u32)`、`LirCallableHash`（从 `StableLirCallableKey::canonical_text` 派生，定长）。`StableLirCallableKey` 保留；`readable_path` 标注「仅调试」。
+- 在 LIR 阶段边界建一次 `HashMap<&StableLirCallableKey, LirCallableId>`（= `program.callables` 索引）与反查；这是**唯一**「按 stable key 解析」的可失败点。
+- 验收：编译通过；建立映射的单测。
 
-### [DONE] T1-02：抽出独立 LIR 阶段函数 `build_lir_artifact`
-- 在 `llvm_codegen_stage.rs`（或迁到 `pipeline/lir_stage.rs`）新增 `pub(crate) fn build_lir_artifact(session, entry_source, lowered: CodegenLoweringOutput, preserve_published_resume_shells: bool) -> Result<LirArtifact, LlvmEmitError>`：
-  - 内部 = 现 `run_lir_stage_from_lowered_hir` 的步骤 1–6，外加把 `(LateLoweredProgram, LirFacts)`、`base_context`、`materialized_mir`、`cone`(取自 `materialized_mir.stable_cone_key()`) 组装成 `LirArtifact`，`object_files` 置空。
-  - 注意 `materialized_mir` 当前在步骤 5 被 `into_parts()` 消费，需调整所有权使其能同时进 `base_context` 与 `LirArtifact.mir`（`MaterializedMir` 必要时 `clone`，过渡期可接受）。
-- 验收：`build_lir_artifact` 编译通过、可单测产出 `LirArtifact`。
-- 完成记录（2026-06-03）：在 `llvm_codegen_stage.rs` 抽出 `pub(crate) fn build_lir_artifact(...) -> Result<LirArtifact, LlvmEmitError>`，复用原 LIR 准备流水线并组装 `cone/program/facts/base_context/mir/object_files`；`MaterializedMir` 在构建 base context 时改为借用，随后移动进 `LirArtifact`，避免重复构建和额外 clone；当前 codegen `run` 改为消费该 artifact 后再拆回既有 `LlvmCodegenStageOutput`，保持行为等价；新增单测验证 `LirArtifact` 的 cone、base context、空 object files、callable payload 与 type-context 一致性。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-01-R：Review T2-01
+- 关注点：`LirCallableId` 语义 = `program.callables` 下标（与 arena 一致，无第二套编号）；`LirCallableHash` 派生确定、稳定、可序列化；map 构建是唯一 fallible 解析点。
+- 确认：`cargo build`/`clippy -D warnings`；单测覆盖「key→id 命中/未命中（未命中=错误而非 panic）」。
 
-### [DONE] T1-02-R：Review T1-02
-- **关注点**：
-  - `build_lir_artifact` 是现 `run_lir_stage_from_lowered_hir` 步骤 1–6 的**忠实搬迁**——逻辑零改动，仅重新打包成 `LirArtifact`（逐行对照 :293 原实现）。
-  - `materialized_mir` 所有权：现同时进 `base_context` 与 `LirArtifact.mir`；确认无**重复构建**、clone 仅一次且语义不变。
-  - `cone` 取自 `materialized_mir.stable_cone_key()`；`verify_lir_type_context(..., "primary")` 仍被调用；`object_files` 置空。
-  - `abi_visibility` 路径（`preserve_published_resume_shells=true`）仍能经同一函数产出，未丢分支。
-- **确认验证**：
-  - 全套基线（§4）绿；尤其 `python3 tools/run_fixtures.py` 仍 ok 1664（行为应与重构前**逐位等价**，因为是同一流水线换包装）。
-  - 抽样 diff：对 1 个 fixture 比对重构前后产出的 LLVM IR/可执行行为应一致。
-- 完成记录（2026-06-03）：逐项复核 T1-02 实现，确认 `build_lir_artifact` 忠实搬迁原 `run_lir_stage_from_lowered_hir` 步骤 1-6；`MaterializedMir` 未重复构建且未额外 clone，先借给 base context 再移动进 `LirArtifact.mir`；`cone` 取自 `materialized_mir.stable_cone_key()`，`object_files` 为空，`verify_lir_type_context(..., "primary")` 保留；`abi_visibility` 通过 `preserve_published_resume_shells=true` 走同一构建函数并保留 ABI visibility type-context 校验。抽样对比 `tests/fixtures/umb_fix/P5-T02-immortal/pos_string_literal_immortal_ir.scoop`，用 `HEAD^` 与当前版本分别 emit LLVM IR，`diff -u` 无差异，SHA-256 均为 `529ed3daec679f67f965836ed47b12723d3a6762a01ea10f855f970e0b25ffc1`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-02：`callables` 容器改为按 `LirCallableId` 寻址
+- `LateLoweredProgram.callables: Vec<LateLoweredCallable>` 已是 Vec → 直接以下标为 `LirCallableId`。把 `LirFacts.callables: BTreeMap<StableLirCallableKey, LirCallableFacts>`（`lib.rs:38/60`）与 `callable_symbols`/`closure_identity`（`contract.rs:619/623`）的查找改为经 `LirCallableId`（过渡期保留 stable key 字段，仅切换 live 访问路径）。
+- 验收：codegen/消费侧不再用 `StableLirCallableKey` 做 callable 查找。
 
-### [DONE] T1-03：依赖 handoff → `LirArtifact` 适配
-- 新增 `fn lir_artifact_from_dep(dep: CachedDepArtifactHandoff) -> Result<LirArtifact, LlvmEmitError>`：`cone = stable_cone_key`、`program = lir`、`facts = lir_facts`、`object_files = object_files`；`base_context` 由 `type_store` 重建（复用现有依赖 base-context 构建路径；定位 `handoff.rs` 中消费 dep 的现有逻辑并改为产出 `LlvmStageBaseContext`），`mir` 对依赖不需要（设计上依赖 LIR 不应再 overlay 回 MIR——若现状仍需，记为 P2 风险并临时携带空/占位）。
-- 验收：依赖 cone 能转成 `LirArtifact`。
-- 完成记录（2026-06-04）：新增公开适配函数 `pipeline::lir_artifact::lir_artifact_from_dep(...) -> Result<LirArtifact, LlvmEmitError>`，将 cached dependency handoff 的 `cone/program/facts/object_files` 直接映射进 `LirArtifact`；`LlvmStageBaseContext::from_cached_dep_type_store(...)` 复用现有 cached dep 消费所需的 `TypeStore` + `LirFacts` owner 校验来重建依赖 base context；`LirArtifact.mir` 改为 `Option<MaterializedMir>`，主 cone 为 `Some`，cached dep 明确为 `None`，未静默放入占位 MIR。新增单测覆盖 cached dep handoff 到 `LirArtifact` 的转换、object files 保留、base context type-context 校验和 dep MIR 缺席。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-02-R：Review T2-02
+- 关注点：所有 callable 查找走 `LirCallableId`；map 仅在边界构建处出现；无新增 string 查找。
+- 确认：`grep -rn "callables.*get(.*StableLirCallableKey\|by.*fqn" crates/scoopc_codegen_llvm` 在 callable 查找路径零命中；全套基线绿。
 
-### [DONE] T1-03-R：Review T1-03
-- **关注点**：
-  - 依赖 `base_context` 重建**复用现有 dep 消费路径**，未引入新的 recompute/fallback（对照 `handoff.rs` 中原消费 `CachedDepArtifactHandoff` 的逻辑）。
-  - `mir` 字段对依赖的处置：确认依赖 LIR **不再 overlay 回 MIR**；若现状仍需 MIR，必须**显式登记为 P2 风险**（注释 + 备注），**不得**静默塞占位掩盖。
-  - `cone/program/facts/object_files` 字段映射正确无丢。
-- **确认验证**：
-  - 用一个**带依赖 cone** 的 fixture（多 cone 编译）走通：编译 + 链接 + 运行结果与重构前一致。
-  - `cargo test --all` 中跨 cone/dep 相关用例绿。
-- 完成记录（2026-06-04）：复核 `lir_artifact_from_dep` 与 `LlvmStageBaseContext::from_cached_dep_type_store`，确认 cached dependency handoff 的 `cone/program/facts/object_files` 字段直接映射到 `LirArtifact`，依赖 base context 只从现有 cached dep `TypeStore` + `LirFacts` owner/fingerprint 契约重建，未引入 recompute/fallback；依赖 artifact 的 `mir` 明确为 `None`，没有静默塞占位 MIR，现有 cached dep ABI materialization 仍只消费 LIR/facts/type store/object files。带依赖 cone fixture `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 编译、链接、运行通过并输出既有期望 `42`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-03：迁移跨引用字段到 `LirCallableId`
+- `contract.rs` 的 `owner_callable`/`callable`/`target_callable_key`/`candidate_targets`/`method_impl_targets`/`impl_member_target`（约 30 处）改为 `LirCallableId`（跨 cone 引用用 `LirCallableHash`，经 `LirArtifact.deps` 解析为本地 `LirCallableId`）。`ir.rs:1184` `lir_callable_key` 同步。
+- 验收：139 处 `StableLirCallableKey` 使用降到「仅稳定身份来源 + 边界 map + 调试」。
 
-### [DONE] T1-04：codegen `run` 改吃 `CodegenInput`
-- 改 `fn run` 签名为 `run(session, input: CodegenInput)`；删除其内部对 `run_lir_stage_from_lowered_hir` 的调用（已移至 T1-02）。
-- emit 段（现 :399 之后）改为消费 `input.program`（`LirArtifact`）的 `program/facts/base_context/mir` + `input.deps` + `input.abi_shell`，逻辑等价于现有「`(lir, lir_facts) + base_context + cached_dep_artifacts`」。
-- 删除 `LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir`（其职责已拆到 T1-02 / `CodegenInput`）。
-- 验收：codegen 阶段源码中**不再出现** `lowered_hir`/`frontend_index`/`type_env`/`CodegenLoweringOutput`。
-- 完成记录（2026-06-04）：将 LIR artifact 构建逻辑从 `llvm_codegen_stage.rs` 迁至独立 `pipeline/lir_stage.rs`，`llvm_codegen_stage::run` 改为直接消费 `CodegenInput` 的 `program` / `abi_shell` / `deps` / `entry` / `source_map` / `opt_level`；删除旧 `LlvmCodegenStageInput`，并移除 codegen stage 内部对 frontend lowering / HIR / MIR materialization 输入的依赖。依赖 artifact 在进入 LLVM stage output 前转为 codegen-owned `LlvmDepLirArtifactHandoff`，避免从 `LirArtifact` 回造旧 cached-dep handoff。为保持构建闭环，`pipeline::build_llvm_codegen_input` 负责在 codegen 前构建主 cone / ABI shell LIR artifact 并适配 cached deps；`pipeline` 与 `single_cone` 调用点已改为组装 `CodegenInput` 后调用 codegen。验收 grep 通过：`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，仓库内对 `LlvmCodegenStageInput|LlvmLirRun|into_abi_visibility_parts|run_lir_stage_from_lowered_hir` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-03-R：Review T2-03
+- 关注点：跨 cone 引用用 hash、本 cone 用 id，无混用；`candidate_targets`/`method_impl_targets` 等列表全句柄；无悬空（构造时即解析）。
+- 确认：`grep -c "StableLirCallableKey" crates/`（生产）显著下降且剩余均为身份来源/边界/调试；全套基线绿。
 
-### [DONE] T1-04-R：Review T1-04（本阶段核心 review）
-- **关注点**：
-  - emit 行为与重构前**等价**：`input.program` 的 `program/facts/base_context/mir` + `deps` + `abi_shell` 喂入路径，对应原 `(lir, lir_facts)+base_context+cached_dep_artifacts`，无遗漏分支（尤其 abi_shell ↔ 原 abi_visibility_lowered）。
-  - **删除彻底**：`LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir` 全部移除，无 dead code / 无 `#[allow(dead_code)]` 掩盖。
-  - **斩断前端漏（§3.3）**：这是本阶段最关键验收。
-- **确认验证**：
-  - `grep -nE "lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput" crates/scoopc/src/pipeline/llvm_codegen_stage.rs` **零命中**。
-  - 全套基线绿；run_fixtures ok 1664。
-  - 抽样 diff LLVM IR：codegen 改造前后对同一输入产出一致。
-- 完成记录（2026-06-04）：复核 T1-04 后的 `llvm_codegen_stage::run`，确认其只消费 `CodegenInput` 中的 `program` / `abi_shell` / `deps` / `entry` / `source_map` / `opt_level`，主 cone 的 `program/facts/base_context`、ABI shell 的 `program/facts/type_store`、依赖 cone 的 `LlvmDepLirArtifactHandoff` 输入路径与 T1-04 前 emit handoff 等价；`LirArtifact.mir` 未被 codegen 重新读取。确认 `LlvmCodegenStageInput`、`LlvmLirRun`、`into_abi_visibility_parts`、`run_lir_stage_from_lowered_hir` 全部移除，`llvm_codegen_stage.rs` 无 `#[allow(dead_code)]` 掩盖；`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，仓库内对旧 helper/type 名称零命中。抽样对比 `tests/fixtures/build/emit_llvm_basic.scoop`，用 T1-04 前提交 `ea60a3e6` 与当前版本分别 emit LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+---
 
-### [DONE] T1-05：调用方串新阶段
-- `pipeline/mod.rs:183` `run_llvm_codegen_stage` 及其调用点（:226 / :446）、`single_cone.rs:165`：在调 codegen 前先 `build_lir_artifact`（主 + 可选 abi_shell）、把 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转成 `deps`，组装 `CodegenInput` 再调 `run`。
-- 验收：`cargo build -p scoop -p scoopc` 通过；端到端可编译运行。
-- 完成记录（2026-06-04）：确认调用方已串接新 LIR 阶段：`pipeline::build_llvm_codegen_input` 在 codegen 前构建主 cone 与可选 ABI shell 的 `LirArtifact`，并将 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转为统一的 `deps`；`pipeline/mod.rs` 的 single-file 与 production artifact 路径、`single_cone.rs` 的 artifact compile 路径均先组装 `CodegenInput` 再调用 `run_llvm_codegen_stage` / `llvm_codegen_stage::emit_artifact_to_file`。验收 grep 通过：`LlvmCodegenStageInput` 无残留，`llvm_codegen_stage.rs` 对 `lowered_hir|frontend_index|type_env|CodegenLoweringOutput` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+## 4. P2b — 折叠 `LirFacts` 进节点
 
-### [DONE] T1-05-R：Review T1-05
-- **关注点**：
-  - **三个调用点全改**：`pipeline/mod.rs:226`、`pipeline/mod.rs:446`、`single_cone.rs:165`；无残留构造旧 `LlvmCodegenStageInput` 处。
-  - 顺序正确：先 `build_lir_artifact`（主 + 可选 abi_shell），dep 经 `lir_artifact_from_dep` 转 `deps`，再组 `CodegenInput` 调 `run`。
-  - 错误传播路径（`LlvmEmitError`）未被吞。
-- **确认验证**：
-  - `grep -rn "LlvmCodegenStageInput" crates/` 仅余定义即将删（或已删）痕迹，无新构造。
-  - `cargo build -p scoop -p scoopc` 通过；单 cone 与多 cone fixture 端到端均跑通。
-- 完成记录（2026-06-04）：复核 `pipeline::build_llvm_codegen_input`、`build_single_file_stage_output`、`emit_production_llvm_artifact_to_file` 与 `single_cone::build_single_cone_artifact` 调用链，确认三个调用点均在进入 codegen 前先构建主 cone `LirArtifact`，可选 ABI shell 走同一 `build_lir_artifact(..., true)` 路径，cached dep 经 `lir_artifact_from_dep` 统一转换为 `deps` 后再组装 `CodegenInput`；`build_lir_artifact`、`lir_artifact_from_dep`、`run_llvm_codegen_stage` 和 `emit_artifact_to_file` 的错误均通过 `?` 传播为 `LlvmEmitError`，未发现吞错或回退路径。确认 `LlvmCodegenStageInput` 在 `crates/` 中无残留。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-05 完成记录中的绿色全量基线（run_fixtures ok 1664）。
+### [TODO] T2-04：per-callable fact 挂到 callable 节点
+- 把 `callables`/`source_signatures`/`intrinsic_callables` 的 value 内容并入 `LateLoweredCallable`（或其旁挂结构）。string key（FQN）→ `LirCallableId`。
+- 验收：消费侧从「`source_signatures.get(fqn)`」（`call/abi.rs:395`）变为 callable 节点字段访问。
 
-### [DONE] T1-06：`entry` 改为解析引用
-- 定义 `EntryRef`：在 LIR 阶段把 `entry_source_id + entry_main_fqn` 解析成对 `LirArtifact.program` 内某 callable 的引用（过渡期可用 `StableLirCallableKey`；P2 换 `LirCallableId`）。解析失败 = 错误（缺入口是合法输入错误，应在此报，而非后端 panic）。
-- 把 `CodegenInput.entry` 占位换成 `EntryRef`；codegen emit 用它而非字符串 fqn 比对。
-- 验收：codegen 中入口选择不再用 `entry_main_fqn` 字符串扫描。
-- 完成记录（2026-06-04）：新增 LLVM handoff `EntryRef` / `EntryMainArgShape`，`pipeline::build_llvm_codegen_input` 在 LIR artifact 构建后把默认 `main` 或显式 entry fqn 解析为 `StableLirCallableKey`，并校验该 key 落到 primary `LirArtifact.program` 内的 callable；`CodegenInput.entry` 改为 `Option<EntryRef>`，lib-mode emit 可保持无入口，main emit 缺入口时报干净诊断。LLVM main emit API 与 `LlvmCodegenStageOutput` 改为传递 `EntryRef`，入口 callable body 查找改用 stable LIR callable key，不再在 codegen emit 阶段按 `entry_main_fqn` 字符串扫描；保留 root fqn 仅作 ABI 查询和诊断显示。新增单测覆盖默认 main 解析、显式 entry 解析、显式入口不存在诊断。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，旧 `select_entry_main` / emit 入口字符串扫描 helper 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-04-R：Review T2-04
+- 关注点：facts 真正成为节点拥有的数据（非旁表 join）；FQN key 全转句柄；无缺-fact fallback 复活。
+- 确认：`call/abi.rs` 无 `source_signatures`/`intrinsic_callables` map 查找；基线绿。
 
-### [DONE] T1-06-R：Review T1-06
-- **关注点**：
-  - `entry` 解析发生在 **LIR 阶段边界**；解析失败 = **干净的输入错误诊断**（缺入口是合法用户错误），**不是 panic / 不是后端 unwrap**。
-  - codegen emit 不再有 `entry_main_fqn` 字符串扫描 / fqn 比对。
-  - `EntryRef` 正确落到 `program.callables`：覆盖「显式 entry-point override」与「默认 `main`」两条路径。
-- **确认验证**：
-  - `grep -n "entry_main_fqn" crates/scoopc_codegen_llvm/ crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 在 emit 路径零命中。
-  - fixture：显式 entry-point + 默认 main 均产出正确可执行；故意「入口不存在」用例**报诊断而非崩溃**。
-- 完成记录（2026-06-04）：复核 T1-06 实现，确认入口解析在 `pipeline::build_llvm_codegen_input` 构建主 `LirArtifact` 后、进入 LLVM emit 前完成；`resolve_entry_ref` 以 `StableLirCallableKey` 校验入口确实落在 primary `LirArtifact.program` 的 callable body 上，缺显式入口返回带入口名的 `LlvmEmitError::Frontend`，缺默认入口返回 `MissingEntryMain`，未发现 panic/unwrap 路径。确认 LLVM emit/main wrapper 通过 `EntryRef.callable()` 查 body；`root_fqn` 只保留为 ABI 查询、reachability seed、诊断与 handoff 一致性校验，未恢复 `entry_main_fqn` 字符串扫描。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，`select_entry_main` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoopc --all-targets build_llvm_codegen_input_`（3 passed）；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_selects_correct_main --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_missing_main_is_error --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-06 完成记录中的绿色全量基线（run_fixtures ok 1664）。
+### [TODO] T2-05：per-call-site / dispatch fact 挂到体内节点
+- `source_call_sites`/`class_ctor_call_sites`/`reflection_call_sites`/`dynamic_invokes`/`dispatches`（key=(owner_callable, site_id)）改为挂在对应 callable 体内的 site 节点上。
+- 验收：`effect_lowered/layout/lookup.rs:128`、`dynamic_invoke.rs:16` 等改为 walk 节点，不再 `(owner,site)`→get。
 
-### [DONE] T1-07：验证与收口
-- 跑 §4 全部基线（fmt / clippy -D warnings / test --all / build / dependency_gate / spec_fixtures / run_fixtures，run_fixtures 约 1664 checks 全过）。
-- 自检：`grep -n` 确认 `llvm_codegen_stage.rs` 无 `lowered_hir|materialized_mir|frontend_index|type_env`；`CachedDepArtifactHandoff` 仅在 T1-03 适配处出现。
-- 完成记录（2026-06-04）：完成 P1 收口验证。自检通过：`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env` 零命中；`CachedDepArtifactHandoff` 在生产链路中只作为 cached dep → `LirArtifact` 适配输入及其上游 cache handoff 类型存在，LLVM codegen 生产路径消费 `CodegenInput` / `LirArtifact` / `LlvmDepLirArtifactHandoff`，`llvm_codegen_stage.rs` 中相关命中仅为测试 helper 与回归用例。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-05-R：Review T2-05
+- 关注点：site 数据归 site 节点所有；`(owner_callable, site_id)` 复合 key 消失；空候选/缺 contract 由结构保证不可表示。
+- 确认：相关 `.get(key)` 站点清零；基线绿。
 
-### [DONE] T1-07-R：Review P1（整体阶段验收）
-- **关注点（对照 §0 完成标志）**：
-  - `llvm_codegen_stage::run` 输入中**不再出现** `lowered_hir`/`materialized_mir`/`frontend_index`/`type_env`。
-  - 主 cone 与依赖 cone **统一为 `LirArtifact`**；codegen 只 walk LIR + 诊断/入口/选项。
-  - LIR 阶段已**独立于 codegen**（`build_lir_artifact` 在 codegen 之外、之前）。
-  - **范围纪律**：未越界做 P2（无 arena/句柄重设计、未删 LirFacts 平表、未动 `dependency_gate.py` 黑名单）；过渡字段 `mir`/`facts` 注释清楚、登记为 P2 待移除。
-  - **无新增 fallback / 字符串 live key**（不能因重构顺手引入新回退路径）。
-- **确认验证**：
-  - §4 全套基线绿（含 `dependency_gate.py`、`spec_fixtures.py check`、`run_fixtures.py` ok 1664）。
-  - 对若干代表 fixture diff 重构前后的可执行行为/LLVM IR，确认等价。
-  - 在 PLAN.md §3 把 P1 标记为 DONE，并记录遗留给 P2 的 transitional 项（`LirArtifact.mir`、`facts`、依赖 overlay 风险）。
-- 完成记录（2026-06-04）：完成 P1 整体阶段 review。确认 `llvm_codegen_stage::run` 只接收 `CodegenInput`；`llvm_codegen_stage.rs` 对 `lowered_hir|materialized_mir|frontend_index|type_env|CodegenLoweringOutput` 零命中，旧 `LlvmCodegenStageInput|LlvmLirRun|into_abi_visibility_parts|run_lir_stage_from_lowered_hir` 零命中；`entry_main_fqn|select_entry_main` 在 `crates/scoopc_codegen_llvm/` 与 `llvm_codegen_stage.rs` 零命中。确认主 cone、ABI shell、依赖 cone 均在 codegen 前经 `LirArtifact`/`CodegenInput` handoff，`build_lir_artifact` 位于独立 LIR 阶段，codegen 不重新运行 HIR/MIR/effect lowering；未发现新增 fallback 或后端入口字符串扫描。代表对比通过：以 P1 前提交 `d5e0b0ad` 与当前版本对比 `tests/fixtures/build/emit_llvm_basic.scoop` 的 LLVM IR，`diff -u` 无差异，SHA-256 均为 `7d8aea309a3754ead6bea4d74d127c9be8b1e3a940bb8caaea3caa02524c0523`；对比 `tests/fixtures/run_pass_cone/source_path_dependency_public_call` 的可执行输出，`diff -u` 无差异，stdout 为 `42`，SHA-256 均为 `084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0`。已在 `PLAN.md` §3 将 P1 标记为 DONE，并记录 P2 承接的 `LirArtifact.program`/`facts`/`mir` 与依赖 overlay 风险。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
+### [TODO] T2-06：layout / global-init fact 归位 + 删 `LirArtifact.facts`
+- `physical_layout`（classes/enums/vtables/itables/abi_symbols）挂到 nominal 节点；`global_init` 挂到 global root 节点；`class_ctor_inits` 同理。
+- `summary`/`opt_pipeline`/`type_context`/`step_types`/`resume_packings`/`surface_resume_dispatches` 留作 `program` 级字段。
+- 删除 `LirArtifact.facts`、`LirFacts` 顶层平表容器（其内容已分散归位）。
+- 验收：`LirArtifact` 无 `facts` 字段；codegen 不再消费 `LirFacts`。
 
-## 4. 验证基线（每任务收尾）
+### [TODO] T2-06-R：Review T2-06
+- 关注点：layout 按 nominal 句柄索引（不再 String map）；程序级组判定正确（确实全局才留 program 字段）；`LirFacts` 彻底退场或仅剩序列化外壳。
+- 确认：`grep -rn "LirFacts" crates/scoopc_codegen_llvm` 零（或仅 dep 反序列化）；基线绿（含 dependency_gate）。
+
+---
+
+## 5. P2c — lift 指令、消除 overlay
+
+### [TODO] T2-07：定义 LIR 自有指令集
+- 按 §1 的 MIR 清单定义 LIR 指令：statement（assign/store-member/store-global）、rvalue（24 变体的 LIR 对应，引用全句柄化：callee→`LirCallableId`、global→句柄、member/dispatch→句柄、type→`TypeId`）、terminator（含 effect 的 Perform/Handle/Resume 控制，复用现 `LateLoweredStateTerminator` 体系）、operand（local/const）。
+- 句柄化 §1 列出的 11 处字符串 FQN。
+- 验收：类型定义编译通过；与现 `LateLoweredState`/`StateTerminator` 体系衔接清楚。
+
+### [TODO] T2-07-R：Review T2-07
+- 关注点：覆盖 MIR 全部 statement/rvalue/terminator/callkind（无遗漏变体）；所有体内引用为句柄/TypeId，无 String FQN；effect 控制（Perform/Handle/Resume/Suspend）保真。
+- 确认：逐项对照 §1 清单打勾；编译 + clippy。
+
+### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
+- 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。
+- 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
+
+### [TODO] T2-08-R：Review T2-08
+- 关注点：lift 忠实（每条 MIR stmt/term 有对应 LIR 指令，语义不变）；state 拥有指令、无回指 MIR；transport metadata 一并 lift。
+- 确认：MIR golden / fixture 行为不变；基线绿。
+
+### [TODO] T2-09：codegen 改走 LIR 指令 + 删 `LirArtifact.mir`
+- `codegen/mir_body/mod.rs` 的 stmt/rvalue/terminator/callkind walker 改为 walk LIR 指令；删 `LirArtifact.mir: Option<MaterializedMir>`。
+- 验收：codegen 无 `crate::mir::Body` 消费；`LirArtifact = { cone, program, base_context→并入 program, object_files }`。
+
+### [TODO] T2-09-R：Review P2c / P2 整体阶段验收
+- 关注点（对照 PLAN §3 完成标志）：`LirArtifact` 无 `mir`/`facts`；无 overlay（无 `LateLoweredSourceBody`/`StateSlice`）；无字符串 live key（callable 引用全 `LirCallableId`/`LirCallableHash`）；codegen 单结构 walk。
+- 范围纪律：未越界改 P3+；无新增 fallback。
+- 确认：`grep -nE "LateLoweredSourceBody|LateLoweredStateSlice|LirArtifact.*mir|LirArtifact.*facts" crates/` 仅余历史/注释；§9 全套基线绿；抽样 diff 可执行行为等价；在 PLAN.md 标记 P2 DONE。
+
+---
+
+## 9. 验证基线（每任务收尾）
 
 ```
 cargo fmt
@@ -204,8 +149,8 @@ python3 tools/spec_fixtures.py check
 python3 tools/run_fixtures.py
 ```
 
-## 5. 风险 / 备注
+## 10. 风险 / 备注
 
-- `MaterializedMir` 过渡期在 `LirArtifact` 内被携带（overlay 后备），可能引发 clone 开销；可接受，P2 lift 指令后移除。
-- 依赖 cone 的 `base_context` 重建路径若与主 cone 不同，T1-03 需对齐现有依赖消费逻辑（先定位 `handoff.rs` 里消费 `CachedDepArtifactHandoff` 的现有代码，照其所需字段产出 `LlvmStageBaseContext`）。
-- 若发现 codegen emit 仍在某处直接读 `Index`/`TypeEnv`（§3.3 残留漏），记录具体位置，本阶段把该需求改为从 `base_context` 取；确无法满足的，登记为 P2 阻塞而非临时回看。
+- **P2c 最大**：指令 lift + 双侧（lowering 产出、codegen 消费）改造，建议在 T2-08/09 间保持小步、每步全 fixture 验。
+- `base_context`（类型/布局）并入 `program` 的时机：P2b 处理 layout 时一并规划，避免 P2c 收尾还遗留独立 base_context。
+- 跨 cone：`LirCallableHash` 在 `deps` 间解析为本地 `LirCallableId` 的路径在 T2-03 落地，P2c 不应再引入新的跨 cone 字符串匹配。
