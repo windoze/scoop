@@ -148,7 +148,7 @@ pub struct CodegenInput {
 - 验收：`cargo build -p scoop -p scoopc` 通过；端到端可编译运行。
 - 完成记录（2026-06-04）：确认调用方已串接新 LIR 阶段：`pipeline::build_llvm_codegen_input` 在 codegen 前构建主 cone 与可选 ABI shell 的 `LirArtifact`，并将 `cached_dep_artifacts` 经 `lir_artifact_from_dep` 转为统一的 `deps`；`pipeline/mod.rs` 的 single-file 与 production artifact 路径、`single_cone.rs` 的 artifact compile 路径均先组装 `CodegenInput` 再调用 `run_llvm_codegen_stage` / `llvm_codegen_stage::emit_artifact_to_file`。验收 grep 通过：`LlvmCodegenStageInput` 无残留，`llvm_codegen_stage.rs` 对 `lowered_hir|frontend_index|type_env|CodegenLoweringOutput` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-05-R：Review T1-05
+### [DONE] T1-05-R：Review T1-05
 - **关注点**：
   - **三个调用点全改**：`pipeline/mod.rs:226`、`pipeline/mod.rs:446`、`single_cone.rs:165`；无残留构造旧 `LlvmCodegenStageInput` 处。
   - 顺序正确：先 `build_lir_artifact`（主 + 可选 abi_shell），dep 经 `lir_artifact_from_dep` 转 `deps`，再组 `CodegenInput` 调 `run`。
@@ -156,6 +156,7 @@ pub struct CodegenInput {
 - **确认验证**：
   - `grep -rn "LlvmCodegenStageInput" crates/` 仅余定义即将删（或已删）痕迹，无新构造。
   - `cargo build -p scoop -p scoopc` 通过；单 cone 与多 cone fixture 端到端均跑通。
+- 完成记录（2026-06-04）：复核 `pipeline::build_llvm_codegen_input`、`build_single_file_stage_output`、`emit_production_llvm_artifact_to_file` 与 `single_cone::build_single_cone_artifact` 调用链，确认三个调用点均在进入 codegen 前先构建主 cone `LirArtifact`，可选 ABI shell 走同一 `build_lir_artifact(..., true)` 路径，cached dep 经 `lir_artifact_from_dep` 统一转换为 `deps` 后再组装 `CodegenInput`；`build_lir_artifact`、`lir_artifact_from_dep`、`run_llvm_codegen_stage` 和 `emit_artifact_to_file` 的错误均通过 `?` 传播为 `LlvmEmitError`，未发现吞错或回退路径。确认 `LlvmCodegenStageInput` 在 `crates/` 中无残留。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-05 完成记录中的绿色全量基线（run_fixtures ok 1664）。
 
 ### [TODO] T1-06：`entry` 改为解析引用
 - 定义 `EntryRef`：在 LIR 阶段把 `entry_source_id + entry_main_fqn` 解析成对 `LirArtifact.program` 内某 callable 的引用（过渡期可用 `StableLirCallableKey`；P2 换 `LirCallableId`）。解析失败 = 错误（缺入口是合法输入错误，应在此报，而非后端 panic）。

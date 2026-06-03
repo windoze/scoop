@@ -18,7 +18,29 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-05
+## 当前记录：T1-05-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
+3. 对照 T1-05-R 清单复核三个调用点是否都先构建 LIR artifact，再组装 `CodegenInput` 调用 codegen。
+4. 确认 cached dep 经 `lir_artifact_from_dep` 统一进入 `deps`，旧 `LlvmCodegenStageInput` 无残留，错误传播不被吞掉。
+5. 运行格式化、lint、构建、单 cone fixture、多 cone fixture、dependency gate 和 spec fixture check；若无代码变更，复用 T1-05 的全量 test/fixture 绿色基线。
+6. 成功后更新 `TODO.md`，给 `T1-05-R` 标题加 `[DONE]` 并填写完成记录。
+7. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-05-R：Review T1-05`。
+- 最近提交 `3b2f14a5 [T1-05] Wire LIR artifacts into codegen callers` 是本 review 的直接对象，未在提交摘要中声明额外未完成事项。
+- 已复核 `pipeline/mod.rs`、`single_cone.rs`、`lir_stage.rs`、`lir_artifact.rs` 和 `llvm_codegen_stage.rs`，确认三个调用路径均先组装 `CodegenInput` 再进入 codegen。
+- 已确认主 cone 与可选 ABI shell 通过 `build_lir_artifact` 构建，cached dep 通过 `lir_artifact_from_dep` 进入 `deps`，相关错误均通过 `?` 传播为 `LlvmEmitError`。
+- 验收搜索通过：`LlvmCodegenStageInput` 在 `crates/` 中无残留。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/source_path_dependency_public_call --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
+- 提交前确认无代码文件变更；全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 复用 T1-05 的绿色基线，因为本 review 仅修改任务记录和进度文档。
+- 已更新 `TODO.md`，将 `T1-05-R` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-05-R 记录置顶。
+
+## 先前记录：T1-05
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最新提交是否明确留下与当前任务直接相关的未完成事项。
@@ -29,7 +51,7 @@
 7. 成功后更新 `TODO.md`，给 `T1-05` 标题加 `[DONE]` 并填写完成记录。
 8. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-当前进度：
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-05：调用方串新阶段`。
 - 最近提交 `c35ca3b7 [T1-04-R] Review codegen LIR artifact handoff` 未在提交摘要中声明与 T1-05 直接相关的未完成问题。
@@ -52,7 +74,7 @@
 8. 成功后更新 `TODO.md`，给 `T1-04-R` 标题加 `[DONE]` 并填写完成记录。
 9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-当前进度：
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-04-R：Review T1-04（本阶段核心 review）`。
 - 最近提交 `f8beb084 [T1-04] Feed codegen from LIR artifacts` 未在提交正文中声明未完成事项。
