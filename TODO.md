@@ -106,9 +106,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 更新 effect-lowered goldens，反映 callable symbol / source-site dump 中的 id-based 引用与 id 顺序。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-03-R：Review T2-03
+### [DONE] T2-03-R：Review T2-03
 - 关注点：跨 cone 引用用 hash、本 cone 用 id，无混用；`candidate_targets`/`method_impl_targets` 等列表全句柄；无悬空（构造时即解析）。
 - 确认：`grep -c "StableLirCallableKey" crates/`（生产）显著下降且剩余均为身份来源/边界/调试；全套基线绿。
+
+完成记录（2026-06-04）：
+- Review 确认 `LirCallSiteContract`、dynamic invoke、dispatch、vtable/itable target、source/class-ctor/reflection call-site key 等 live owner/target 字段使用 `LirCallableId` 或 `LirCallableRef::{Local, ExternalHash}`；`contract.rs` 不再携带 `StableLirCallableKey` 作为 live 关联字段。
+- Review 发现 codegen 仍保留未使用的 `current_lir_callable_key` 状态和 stable-key root lookup helper；已删除该状态、相关赋值，以及未使用的 `LateLoweredProgram::callable_by_lir_key`，当前 codegen callable 上下文仅保留 `LirCallableId` 路径。
+- Review 发现 verifier/reachability 对缺失的 `LirCallableRef::Local` 仍可落入 declaration ABI 兜底；已改为本地 id 必须解析到 callable inventory，只有 `ExternalHash` 可走 declaration ABI 解析，并补充 dangling local call-target / ABI-symbol 回归测试。
+- 确认 `current_lir_callable_key`、`lir_callable_key_for_root`、`callable_by_lir_key` 在 `crates/` 零命中；`crates/scoopc_codegen_llvm/src/llvm/codegen` 中 `StableLirCallableKey` 零命中；`rg "StableLirCallableKey" crates --glob "*.rs" | wc -l` 为 90（含测试/身份来源/边界/调试）。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ---
 

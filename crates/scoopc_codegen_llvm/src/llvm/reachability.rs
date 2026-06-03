@@ -256,20 +256,22 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn root_for_callable_ref(&self, target: LirCallableRef) -> Option<String> {
-        if let LirCallableRef::Local(id) = target
-            && let Some(root) = self.callable_roots_by_id.get(&id)
-        {
-            return Some((*root).to_string());
+        match target {
+            LirCallableRef::Local(id) => self
+                .callable_roots_by_id
+                .get(&id)
+                .map(|root| (*root).to_string()),
+            LirCallableRef::ExternalHash(_) => self
+                .lir_facts
+                .physical_layout
+                .abi_symbols
+                .values()
+                .find_map(|symbol| {
+                    (symbol.callable == Some(target))
+                        .then(|| symbol.root_fqn.clone())
+                        .flatten()
+                }),
         }
-        self.lir_facts
-            .physical_layout
-            .abi_symbols
-            .values()
-            .find_map(|symbol| {
-                (symbol.callable == Some(target))
-                    .then(|| symbol.root_fqn.clone())
-                    .flatten()
-            })
     }
 
     fn root_has_published_declaration(&self, root_fqn: &str) -> bool {

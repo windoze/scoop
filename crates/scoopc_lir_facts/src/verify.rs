@@ -1139,72 +1139,86 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             });
         }
         if let Some(callable_ref) = symbol.callable {
-            if let LirCallableRef::Local(callable_id) = callable_ref
-                && let Some(callable_symbol) = callable_symbol_for_id(facts, callable_id)
-            {
-                if symbol.root_fqn.as_deref() != Some(callable_symbol.root_fqn.as_str()) {
-                    return Err(VerifyError::InvalidAbiSymbol {
-                        key: key.clone(),
-                        reason: "root FQN drifts from callable symbol",
-                    });
-                }
-                match symbol.role.as_str() {
-                    "callable_export" => {
-                        if callable_symbol.exported_symbol.as_deref()
-                            != Some(symbol.symbol.as_str())
-                        {
-                            return Err(VerifyError::InvalidAbiSymbol {
-                                key: key.clone(),
-                                reason: "callable export symbol drifts from callable symbol facts",
-                            });
-                        }
-                    }
-                    "native_callable" => {
-                        if callable_symbol
-                            .native
-                            .as_ref()
-                            .map(|native| native.symbol.as_str())
-                            != Some(symbol.symbol.as_str())
-                        {
-                            return Err(VerifyError::InvalidAbiSymbol {
-                                key: key.clone(),
-                                reason: "native symbol drifts from callable symbol facts",
-                            });
-                        }
-                    }
-                    "extern_callable" => {
-                        if callable_symbol
-                            .extern_
-                            .as_ref()
-                            .map(|extern_| extern_.symbol.as_str())
-                            != Some(symbol.symbol.as_str())
-                        {
-                            return Err(VerifyError::InvalidAbiSymbol {
-                                key: key.clone(),
-                                reason: "extern symbol drifts from callable symbol facts",
-                            });
-                        }
-                    }
-                    _ => {
+            match callable_ref {
+                LirCallableRef::Local(callable_id) => {
+                    let Some(callable_symbol) = callable_symbol_for_id(facts, callable_id) else {
+                        let reason = if has_callable_id(facts, callable_id) {
+                            "local callable ref lacks callable symbol facts"
+                        } else {
+                            "local callable ref references missing callable"
+                        };
                         return Err(VerifyError::InvalidAbiSymbol {
                             key: key.clone(),
-                            reason: "unknown ABI symbol role",
+                            reason,
+                        });
+                    };
+                    if symbol.root_fqn.as_deref() != Some(callable_symbol.root_fqn.as_str()) {
+                        return Err(VerifyError::InvalidAbiSymbol {
+                            key: key.clone(),
+                            reason: "root FQN drifts from callable symbol",
+                        });
+                    }
+                    match symbol.role.as_str() {
+                        "callable_export" => {
+                            if callable_symbol.exported_symbol.as_deref()
+                                != Some(symbol.symbol.as_str())
+                            {
+                                return Err(VerifyError::InvalidAbiSymbol {
+                                    key: key.clone(),
+                                    reason: "callable export symbol drifts from callable symbol facts",
+                                });
+                            }
+                        }
+                        "native_callable" => {
+                            if callable_symbol
+                                .native
+                                .as_ref()
+                                .map(|native| native.symbol.as_str())
+                                != Some(symbol.symbol.as_str())
+                            {
+                                return Err(VerifyError::InvalidAbiSymbol {
+                                    key: key.clone(),
+                                    reason: "native symbol drifts from callable symbol facts",
+                                });
+                            }
+                        }
+                        "extern_callable" => {
+                            if callable_symbol
+                                .extern_
+                                .as_ref()
+                                .map(|extern_| extern_.symbol.as_str())
+                                != Some(symbol.symbol.as_str())
+                            {
+                                return Err(VerifyError::InvalidAbiSymbol {
+                                    key: key.clone(),
+                                    reason: "extern symbol drifts from callable symbol facts",
+                                });
+                            }
+                        }
+                        _ => {
+                            return Err(VerifyError::InvalidAbiSymbol {
+                                key: key.clone(),
+                                reason: "unknown ABI symbol role",
+                            });
+                        }
+                    }
+                }
+                LirCallableRef::ExternalHash(_) => {
+                    if symbol.root_fqn.as_deref().unwrap_or_default().is_empty()
+                        || !facts
+                            .source_signatures
+                            .contains_key(symbol.root_fqn.as_deref().unwrap_or_default())
+                        || !matches!(
+                            symbol.role.as_str(),
+                            "callable_export" | "native_callable" | "extern_callable"
+                        )
+                    {
+                        return Err(VerifyError::InvalidAbiSymbol {
+                            key: key.clone(),
+                            reason: "declaration ABI symbol lacks a published source signature",
                         });
                     }
                 }
-            } else if symbol.root_fqn.as_deref().unwrap_or_default().is_empty()
-                || !facts
-                    .source_signatures
-                    .contains_key(symbol.root_fqn.as_deref().unwrap_or_default())
-                || !matches!(
-                    symbol.role.as_str(),
-                    "callable_export" | "native_callable" | "extern_callable"
-                )
-            {
-                return Err(VerifyError::InvalidAbiSymbol {
-                    key: key.clone(),
-                    reason: "declaration ABI symbol lacks a published source signature",
-                });
             }
         } else if symbol.root_fqn.as_deref().unwrap_or_default().is_empty()
             || !matches!(symbol.role.as_str(), "native_callable" | "extern_callable")
@@ -1729,6 +1743,14 @@ fn verify_published_call_target(
     binding: &crate::LirCallTargetBinding,
     owner: &str,
 ) -> Result<()> {
+    if let LirCallableRef::Local(id) = target
+        && !has_callable_id(facts, id)
+    {
+        return Err(VerifyError::InvalidExactCalleeBinding {
+            callable: owner.to_string(),
+            reason: "target local callable is missing from callable inventory",
+        });
+    }
     if binding.target_callable != target {
         return Err(VerifyError::InvalidExactCalleeBinding {
             callable: owner.to_string(),
@@ -1774,20 +1796,20 @@ fn verify_dispatch_target(facts: &LirFacts, target: LirCallableRef, owner: &str)
 }
 
 fn target_bound_root_fqn(facts: &LirFacts, target: LirCallableRef) -> Option<&str> {
-    if let LirCallableRef::Local(id) = target
-        && let Some(callable) = callable_for_id(facts, id)
-    {
-        return Some(callable.root_fqn());
+    match target {
+        LirCallableRef::Local(id) => callable_for_id(facts, id).map(|callable| callable.root_fqn()),
+        LirCallableRef::ExternalHash(_) => {
+            facts
+                .physical_layout
+                .abi_symbols
+                .values()
+                .find_map(|symbol| {
+                    (symbol.callable == Some(target))
+                        .then_some(symbol.root_fqn.as_deref())
+                        .flatten()
+                })
+        }
     }
-    facts
-        .physical_layout
-        .abi_symbols
-        .values()
-        .find_map(|symbol| {
-            (symbol.callable == Some(target))
-                .then_some(symbol.root_fqn.as_deref())
-                .flatten()
-        })
 }
 
 fn target_has_published_source_and_abi(

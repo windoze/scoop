@@ -260,12 +260,6 @@ impl LateLoweredProgram {
             .find(|callable| callable.root_fqn() == root_fqn)
     }
 
-    pub fn callable_by_lir_key(&self, key: &StableLirCallableKey) -> Option<&LateLoweredCallable> {
-        self.callables
-            .iter()
-            .find(|callable| callable.lir_callable_key() == Some(key))
-    }
-
     pub fn callable_by_version_key(
         &self,
         version_key: &LateLoweredBodyVersionKey,

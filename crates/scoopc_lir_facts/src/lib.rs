@@ -942,6 +942,57 @@ mod tests {
     }
 
     #[test]
+    fn verifier_rejects_dangling_local_candidate_target() {
+        let target_ref = LirCallableRef::local(LirCallableId::from_raw(99));
+        let callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                callables: BTreeMap::from([(LirCallableId::from_raw(0), callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidExactCalleeBinding {
+                callable: "app.main".to_string(),
+                reason: "target local callable is missing from callable inventory",
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_abi_symbol_with_dangling_local_callable_ref() {
+        let target_ref = LirCallableRef::local(LirCallableId::from_raw(99));
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0),
+            LirFactGroups {
+                source_signatures: BTreeMap::from([(
+                    "dep.extern_fun".to_string(),
+                    source_signature("dep.extern_fun"),
+                )]),
+                physical_layout: LirPhysicalLayoutFacts {
+                    abi_symbols: BTreeMap::from([(
+                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol("dep.extern_fun", Some(target_ref)),
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidAbiSymbol {
+                key: "abi:dep.extern_fun".to_string(),
+                reason: "local callable ref references missing callable",
+            }
+        );
+    }
+
+    #[test]
     fn verifier_rejects_candidate_target_with_unbound_declaration_abi_contract() {
         let target = callable_key("dep.extern_fun");
         let target_ref = callable_ref_for_key(&target);

@@ -87,7 +87,6 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         };
         codegen.function_cx.current_lir_callable_id =
             codegen.lir_callable_id_for_root(callable.root_fqn());
-        codegen.function_cx.current_lir_callable_key = callable.lir_callable_key().cloned();
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "body lowering 缺少 callable `{}` 的 ABI frame layout s{}",

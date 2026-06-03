@@ -476,7 +476,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
         self.function_cx.current_lir_callable_id =
             self.lir_callable_id_for_root(callable.root_fqn());
-        self.function_cx.current_lir_callable_key = callable.lir_callable_key().cloned();
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;

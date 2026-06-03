@@ -331,7 +331,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         stable_owner_key: StableDefKey,
     ) {
         self.function_cx.current_lir_callable_id = self.lir_callable_id_for_root(&callable_fqn);
-        self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = None;
@@ -346,7 +345,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         stable_closure_path: &str,
     ) {
         self.function_cx.current_lir_callable_id = self.lir_callable_id_for_root(&callable_fqn);
-        self.function_cx.current_lir_callable_key = self.lir_callable_key_for_root(&callable_fqn);
         self.function_cx.current_callable_fqn = Some(callable_fqn);
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = Some(stable_closure_path.to_string());
@@ -362,13 +360,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .callables
             .iter()
             .find_map(|(id, callable)| (callable.root_fqn() == root_fqn).then_some(*id))
-    }
-
-    fn lir_callable_key_for_root(&self, root_fqn: &str) -> Option<StableLirCallableKey> {
-        self.published_late_lowered_program()?
-            .callable(root_fqn)?
-            .lir_callable_key()
-            .cloned()
     }
 
     fn lir_callable_ref_stable_key(
