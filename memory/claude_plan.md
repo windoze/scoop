@@ -18,7 +18,30 @@
 6. 更新 `TODO.md` 的任务标题与完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
 7. 检查改动并提交一次清晰的 Git commit，然后停止。
 
-## 当前记录：T1-06
+## 当前记录：T1-06-R
+
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
+2. 检查最近提交是否明确留下与当前 review 任务直接相关的未完成事项。
+3. 对照 T1-06-R 清单复核入口解析是否发生在 LIR/codegen 边界，且失败为干净诊断。
+4. 确认 LLVM emit/main wrapper 不再按 `entry_main_fqn` 扫描入口，改为消费 `EntryRef` 的 stable callable key。
+5. 确认默认 `main`、显式 entry override、入口不存在三类路径均有验证覆盖。
+6. 运行格式化、lint、构建、相关单测、入口 fixture、dependency gate 和 spec fixture check；若无代码变更，复用 T1-06 的全量 test/fixture 绿色基线。
+7. 成功后更新 `TODO.md`，给 `T1-06-R` 标题加 `[DONE]` 并填写完成记录。
+8. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
+
+当前进度：
+
+- 已确认第一个未完成任务为 `T1-06-R：Review T1-06`。
+- 最新提交 `544090d5 [T1-06] Resolve codegen entry refs` 是本 review 的直接对象，未在提交摘要中声明额外未完成事项。
+- 已复核 `pipeline/lir_artifact.rs`、`pipeline/mod.rs`、`llvm_codegen_stage.rs`、LLVM `handoff.rs`、`emit.rs` 和 `main_entry.rs`，确认入口解析在主 `LirArtifact` 构建后、进入 LLVM emit 前完成。
+- 已确认 `resolve_entry_ref` 用 `StableLirCallableKey` 校验入口落到 primary LIR program 的 callable body；缺显式入口返回带入口名的 `LlvmEmitError::Frontend`，缺默认入口返回 `MissingEntryMain`，未发现 panic/unwrap 路径。
+- 已确认 LLVM emit/main wrapper 通过 `EntryRef.callable()` 查找 LIR body；`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，`select_entry_main` 零命中。
+- 验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoopc --all-targets build_llvm_codegen_input_`（3 passed）；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_selects_correct_main --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_missing_main_is_error --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
+- 全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-06 完成记录中的绿色全量基线（run_fixtures ok 1664）。
+- 已更新 `TODO.md`，将 `T1-06-R` 标记为 `[DONE]` 并填写完成记录。
+- 提交前检查发现本文件曾覆盖旧记录，已恢复历史记录并把 T1-06-R 记录置顶。
+
+## 先前记录：T1-06
 
 1. 读取 `TODO.md`，按标题是否带 `[DONE]` 选择第一个未完成任务。
 2. 检查最近提交是否明确留下与当前任务直接相关的未完成事项。
@@ -30,7 +53,7 @@
 8. 成功后更新 `TODO.md`，给 `T1-06` 标题加 `[DONE]` 并填写完成记录。
 9. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-当前进度：
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-06：entry 改为解析引用`。
 - 最新提交 `bf74da2b [T1-05-R] Review codegen caller wiring` 未明确指出与 T1-06 直接相关的未完成阻塞。
@@ -51,7 +74,7 @@
 6. 成功后更新 `TODO.md`，给 `T1-05-R` 标题加 `[DONE]` 并填写完成记录。
 7. 检查 git 状态、diff 和近期提交，提交本任务相关变更，然后停止。
 
-当前进度：
+先前进度：
 
 - 已确认第一个未完成任务为 `T1-05-R：Review T1-05`。
 - 最近提交 `3b2f14a5 [T1-05] Wire LIR artifacts into codegen callers` 是本 review 的直接对象，未在提交摘要中声明额外未完成事项。

@@ -164,7 +164,7 @@ pub struct CodegenInput {
 - 验收：codegen 中入口选择不再用 `entry_main_fqn` 字符串扫描。
 - 完成记录（2026-06-04）：新增 LLVM handoff `EntryRef` / `EntryMainArgShape`，`pipeline::build_llvm_codegen_input` 在 LIR artifact 构建后把默认 `main` 或显式 entry fqn 解析为 `StableLirCallableKey`，并校验该 key 落到 primary `LirArtifact.program` 内的 callable；`CodegenInput.entry` 改为 `Option<EntryRef>`，lib-mode emit 可保持无入口，main emit 缺入口时报干净诊断。LLVM main emit API 与 `LlvmCodegenStageOutput` 改为传递 `EntryRef`，入口 callable body 查找改用 stable LIR callable key，不再在 codegen emit 阶段按 `entry_main_fqn` 字符串扫描；保留 root fqn 仅作 ABI 查询和诊断显示。新增单测覆盖默认 main 解析、显式 entry 解析、显式入口不存在诊断。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，旧 `select_entry_main` / emit 入口字符串扫描 helper 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`（fixtures: ok 1664）。
 
-### [TODO] T1-06-R：Review T1-06
+### [DONE] T1-06-R：Review T1-06
 - **关注点**：
   - `entry` 解析发生在 **LIR 阶段边界**；解析失败 = **干净的输入错误诊断**（缺入口是合法用户错误），**不是 panic / 不是后端 unwrap**。
   - codegen emit 不再有 `entry_main_fqn` 字符串扫描 / fqn 比对。
@@ -172,6 +172,7 @@ pub struct CodegenInput {
 - **确认验证**：
   - `grep -n "entry_main_fqn" crates/scoopc_codegen_llvm/ crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 在 emit 路径零命中。
   - fixture：显式 entry-point + 默认 main 均产出正确可执行；故意「入口不存在」用例**报诊断而非崩溃**。
+- 完成记录（2026-06-04）：复核 T1-06 实现，确认入口解析在 `pipeline::build_llvm_codegen_input` 构建主 `LirArtifact` 后、进入 LLVM emit 前完成；`resolve_entry_ref` 以 `StableLirCallableKey` 校验入口确实落在 primary `LirArtifact.program` 的 callable body 上，缺显式入口返回带入口名的 `LlvmEmitError::Frontend`，缺默认入口返回 `MissingEntryMain`，未发现 panic/unwrap 路径。确认 LLVM emit/main wrapper 通过 `EntryRef.callable()` 查 body；`root_fqn` 只保留为 ABI 查询、reachability seed、诊断与 handoff 一致性校验，未恢复 `entry_main_fqn` 字符串扫描。验收 grep 通过：`entry_main_fqn` 在 `crates/scoopc_codegen_llvm/` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 零命中，`select_entry_main` 零命中。验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoopc --all-targets build_llvm_codegen_input_`（3 passed）；`python3 tools/run_fixtures.py tests/fixtures/run-pass/minimal_main.scoop --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_selects_correct_main --exit-on-failure`（fixtures: ok 1）；`python3 tools/run_fixtures.py tests/fixtures/run_pass_cone/entry_package_missing_main_is_error --exit-on-failure`（fixtures: ok 1）；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。全量 `cargo test --all --all-targets` 与全量 `python3 tools/run_fixtures.py` 未重跑：本 review 未修改代码文件，复用 T1-06 完成记录中的绿色全量基线（run_fixtures ok 1664）。
 
 ### [TODO] T1-07：验证与收口
 - 跑 §4 全部基线（fmt / clippy -D warnings / test --all / build / dependency_gate / spec_fixtures / run_fixtures，run_fixtures 约 1664 checks 全过）。
