@@ -12,9 +12,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .or(self.shared.published_late_lowered_program)
     }
 
-    pub(in crate::llvm::codegen) fn active_lir_facts(&self) -> &LirFacts {
-        self.active_lir_facts
-            .unwrap_or(self.shared.published_lir_facts)
+    pub(in crate::llvm::codegen) fn expect_active_lir_program(
+        &self,
+        context: &str,
+    ) -> &'a crate::effect_lowered::LateLoweredProgram {
+        self.active_lir_program()
+            .unwrap_or_else(|| panic!("{context}: missing active LIR program"))
     }
 
     pub(in crate::llvm) fn set_active_lir_program(
@@ -22,10 +25,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     ) {
         self.active_lir_program = program;
-    }
-
-    pub(in crate::llvm) fn set_active_lir_facts(&mut self, facts: Option<&'a LirFacts>) {
-        self.active_lir_facts = facts;
     }
 
     /// Return the active LLVM insertion block, or panic with a named compiler invariant.
@@ -546,8 +545,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fqn: &str,
     ) -> Option<&LirGlobalRootFacts> {
-        self.published_lir_facts
-            .global_init
+        self.active_lir_program()?
+            .global_init()
             .roots
             .get(&LirGlobalRootKey::new(fqn))
     }

@@ -105,15 +105,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let known_fun_effects = self
-            .published_lir_facts
-            .callables
-            .values()
-            .map(|callable| {
-                (
-                    callable.root_fqn.clone(),
-                    callable.body_version.needs_reentry
-                        || !callable.resolved_outward_cases.is_empty(),
-                )
+            .expect_active_lir_program("ensure_known_fun_body_may_outward_effect_cache")
+            .callables()
+            .iter()
+            .filter_map(|callable| {
+                callable.published_callable_facts().map(|facts| {
+                    (
+                        facts.root_fqn.clone(),
+                        facts.body_version.needs_reentry
+                            || !facts.resolved_outward_cases.is_empty(),
+                    )
+                })
             })
             .collect();
         *self.shared_caches.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);

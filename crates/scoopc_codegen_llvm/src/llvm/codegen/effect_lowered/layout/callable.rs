@@ -410,8 +410,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<String, LlvmEmitError> {
         let id = self.callable_id(callable)?;
         let symbol_facts = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .callable_symbols
             .get(&id)
             .ok_or_else(|| {

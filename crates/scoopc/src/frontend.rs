@@ -807,7 +807,6 @@ fn build_cached_dep_artifact_handoff(
         dep_id,
         artifact.manifest.stable_cone_key(),
         artifact.lir_program.clone(),
-        artifact.lir_facts.clone(),
         artifact.type_store.clone(),
         object_files,
     ))
@@ -1133,7 +1132,6 @@ pub fn run_frontend_with_artifact_cache(
                 scoopc_hir_facts::HirFacts::new(),
                 scoopc_mir_facts::MirFacts::new(),
                 scoopc_effect_facts::EffectFacts::new(),
-                scoopc_lir_facts::LirFacts::new(crate::opt::OptLevel::O0),
                 scoopc_lir::LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
                 TypeStore::new(),
                 frontend_import,

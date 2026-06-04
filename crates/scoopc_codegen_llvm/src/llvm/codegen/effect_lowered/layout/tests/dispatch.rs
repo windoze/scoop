@@ -23,10 +23,9 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
                 .target_callables
                 .iter()
                 .map(|key| {
-                    inputs
-                        .abi_visibility_lir_facts
-                        .callables
-                        .get(key)
+                    key.local_id()
+                        .and_then(|id| inputs.abi_visibility_program.callable_by_id(id))
+                        .and_then(LateLoweredCallable::published_callable_facts)
                         .expect("target callable facts 应存在")
                 })
                 .collect::<Vec<_>>();

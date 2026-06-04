@@ -34,28 +34,26 @@ pub(crate) fn run(
     } = input;
     let LirArtifact {
         program: lir,
-        facts: lir_facts,
         base_context,
         ..
     } = program;
-    base_context.verify_lir_type_context(&lir_facts, "primary")?;
+    base_context.verify_lir_type_context(&lir, "primary")?;
     let abi_visibility_parts = abi_shell
         .map(|artifact| {
             let LirArtifact {
                 program,
-                facts,
                 base_context,
                 ..
             } = artifact;
-            base_context.verify_lir_type_context(&facts, "ABI visibility")?;
-            Ok::<_, LlvmEmitError>((program, facts, base_context.into_type_store()))
+            base_context.verify_lir_type_context(&program, "ABI visibility")?;
+            Ok::<_, LlvmEmitError>((program, base_context.into_type_store()))
         })
         .transpose()?;
-    let (abi_visibility_lir, abi_visibility_lir_facts, abi_visibility_types) =
-        if let Some((program, facts, types)) = abi_visibility_parts {
-            (Some(program), Some(facts), Some(types))
+    let (abi_visibility_lir, abi_visibility_types) =
+        if let Some((program, types)) = abi_visibility_parts {
+            (Some(program), Some(types))
         } else {
-            (None, None, None)
+            (None, None)
         };
     let dep_artifacts = deps
         .into_iter()
@@ -69,9 +67,7 @@ pub(crate) fn run(
         opt_level,
         base_context,
         lir,
-        lir_facts,
         abi_visibility_lir,
-        abi_visibility_lir_facts,
         abi_visibility_types,
         dep_artifacts,
     ))
@@ -83,16 +79,14 @@ fn dep_handoff_from_lir_artifact(
     let LirArtifact {
         cone,
         program,
-        facts,
         base_context,
         object_files,
         ..
     } = artifact;
-    base_context.verify_lir_type_context(&facts, "dependency")?;
+    base_context.verify_lir_type_context(&program, "dependency")?;
     Ok(LlvmDepLirArtifactHandoff::new(
         cone,
         program,
-        facts,
         base_context.into_type_store(),
         object_files,
     ))
@@ -1018,8 +1012,8 @@ fun main(): Int {
         assert!(artifact.program.callable("sample.main").is_some());
         artifact
             .base_context
-            .verify_lir_type_context(&artifact.facts, "unit test")
-            .expect("LIR facts should reference the artifact base context type store");
+            .verify_lir_type_context(&artifact.program, "unit test")
+            .expect("LIR program should reference the artifact base context type store");
     }
 
     #[test]
@@ -1032,7 +1026,6 @@ fun main(): Int {
             crate::cone::ConeId::new(7),
             dep_stage.base_context().stable_cone_key().clone(),
             dep_stage.lir().clone(),
-            dep_stage.lir_facts().clone(),
             dep_stage.base_context().types().clone(),
             object_files.clone(),
         );
@@ -1047,8 +1040,8 @@ fun main(): Int {
         assert_eq!(artifact.object_files, object_files);
         artifact
             .base_context
-            .verify_lir_type_context(&artifact.facts, "cached dep unit test")
-            .expect("cached dep LIR facts should match the rebuilt base context");
+            .verify_lir_type_context(&artifact.program, "cached dep unit test")
+            .expect("cached dep LIR program should match the rebuilt base context");
     }
 
     #[test]
@@ -1744,8 +1737,8 @@ fun main() {
             .expect("sample main callable should exist");
         assert!(
             stage_output
-                .lir_facts()
-                .physical_layout
+                .lir()
+                .physical_layout()
                 .callable_symbols
                 .values()
                 .any(|facts| facts.root_fqn == main_callable.root_fqn()
@@ -1805,21 +1798,20 @@ fun main(): Int {
         let (session, input) = codegen_input_for_source_with_abi_visibility(sample_source());
 
         let stage_output = super::run(&session, input).unwrap();
-        let abi_lir_facts = stage_output
-            .abi_visibility_lir_facts()
-            .expect("ABI visibility LIR facts should be present with ABI LIR");
         let abi_types = stage_output
             .abi_visibility_types()
             .expect("ABI visibility TypeStore owner should be present with ABI LIR");
+        let abi_lir = stage_output
+            .abi_visibility_lir()
+            .expect("ABI visibility LIR should be present");
 
-        assert!(stage_output.abi_visibility_lir().is_some());
         stage_output
             .base_context()
-            .verify_lir_type_context(stage_output.lir_facts(), "primary")
+            .verify_lir_type_context(stage_output.lir(), "primary")
             .unwrap();
         crate::llvm::LlvmStageBaseContext::verify_lir_type_store_owner(
             abi_types,
-            abi_lir_facts,
+            abi_lir,
             "ABI visibility",
         )
         .unwrap();
@@ -1865,8 +1857,8 @@ fun main(): Int {
         let (dep_session, dep_input) = codegen_input_for_source(dep_source, None, Vec::new());
         let dep_stage = super::run(&dep_session, dep_input).expect("dep LLVM stage 应成功");
         let dep_symbol = dep_stage
-            .lir_facts()
-            .physical_layout
+            .lir()
+            .physical_layout()
             .callable_symbols
             .values()
             .find(|symbol| symbol.root_fqn == "dep.dependencyValue")
@@ -1876,7 +1868,6 @@ fun main(): Int {
             crate::cone::ConeId::new(42),
             dep_stage.base_context().stable_cone_key().clone(),
             dep_stage.lir().clone(),
-            dep_stage.lir_facts().clone(),
             dep_stage.base_context().types().clone(),
             Vec::new(),
         );

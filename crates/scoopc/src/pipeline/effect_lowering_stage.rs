@@ -5,7 +5,6 @@ use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
     run_lir_opt_pipeline,
 };
-use scoopc_lir_facts::LirFacts;
 
 use super::{EffectFactsStageOutput, MirStageOutput};
 
@@ -41,7 +40,7 @@ impl EffectLoweringStageInput {
 /// - 输入必须显式区分 P3 的 `MirStageOutput` 与 P4 的 `EffectFactsStageOutput`；
 /// - stage 只消费 canonical MIR snapshot + `MaterializedEffectFacts`，不回 HIR/typecheck；
 /// - `lir()` / `program()` 返回独立的 `LateLoweredProgram`，它现在是正式 LIR 本体；
-/// - `lir_facts()` 返回独立 `scoopc_lir_facts::LirFacts` 数据产品；
+/// - `lir_facts()` 返回从 `LateLoweredProgram` 生成的兼容 dump/测试快照；
 /// - 输出不再保存 `EffectFactsStageOutput` 或 `MirStageOutput` wrapper；
 /// - 对外暴露的输出不会混有“部分 callable 已 lowered、部分仍停留在 direct-style”的半成品状态；
 /// - P6 只应把这份输出翻译到 LLVM，而不是再重做高层 effect lowering 设计；
@@ -56,20 +55,19 @@ impl EffectLoweringStageInput {
 #[derive(Debug)]
 pub struct LirStageOutput {
     lir: LateLoweredProgram,
-    lir_facts: LirFacts,
 }
 
 impl LirStageOutput {
-    fn new(lir: LateLoweredProgram, lir_facts: LirFacts) -> Self {
-        Self { lir, lir_facts }
+    fn new(lir: LateLoweredProgram) -> Self {
+        Self { lir }
     }
 
     pub fn lir(&self) -> &LateLoweredProgram {
         &self.lir
     }
 
-    pub fn lir_facts(&self) -> &LirFacts {
-        &self.lir_facts
+    pub fn lir_facts(&self) -> scoopc_lir_facts::LirFacts {
+        self.lir.published_lir_facts_snapshot()
     }
 
     pub fn program(&self) -> &LateLoweredProgram {
@@ -81,8 +79,8 @@ impl LirStageOutput {
         render_stage_output(self)
     }
 
-    pub fn into_parts(self) -> (LateLoweredProgram, LirFacts) {
-        (self.lir, self.lir_facts)
+    pub fn into_program(self) -> LateLoweredProgram {
+        self.lir
     }
 }
 
@@ -139,7 +137,7 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
         opt_pipeline,
     )?;
     let lir = super::lir_facts_builder::attach_per_callable_lir_facts(lir, &lir_facts)?;
-    Ok(LirStageOutput::new(lir, lir_facts))
+    Ok(LirStageOutput::new(lir))
 }
 
 fn convert_stage_effect_facts_to_lir(

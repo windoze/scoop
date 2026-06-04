@@ -18,7 +18,6 @@ pub const CONE_ARTIFACT_MANIFEST_FILE_NAME: &str = "manifest.json";
 pub const CONE_ARTIFACT_HIR_FACTS_FILE_NAME: &str = "hir_facts.bin";
 pub const CONE_ARTIFACT_MIR_FACTS_FILE_NAME: &str = "mir_facts.bin";
 pub const CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME: &str = "effect_facts.bin";
-pub const CONE_ARTIFACT_LIR_FACTS_FILE_NAME: &str = "lir_facts.bin";
 pub const CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME: &str = "lir_program.bin";
 pub const CONE_ARTIFACT_TYPE_STORE_FILE_NAME: &str = "type_store.bin";
 pub const CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME: &str = "frontend_import.json";
@@ -116,7 +115,6 @@ pub struct ConeArtifactSchemaVersions {
     pub hir_facts: WireSchemaVersion,
     pub mir_facts: WireSchemaVersion,
     pub effect_facts: WireSchemaVersion,
-    pub lir_facts: WireSchemaVersion,
     pub lir_program: WireSchemaVersion,
     pub type_store: WireSchemaVersion,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -129,7 +127,6 @@ impl ConeArtifactSchemaVersions {
             hir_facts: WIRE_SCHEMA_VERSION,
             mir_facts: WIRE_SCHEMA_VERSION,
             effect_facts: WIRE_SCHEMA_VERSION,
-            lir_facts: WIRE_SCHEMA_VERSION,
             lir_program: WIRE_SCHEMA_VERSION,
             type_store: WIRE_SCHEMA_VERSION,
             frontend_import: Some(WIRE_SCHEMA_VERSION),

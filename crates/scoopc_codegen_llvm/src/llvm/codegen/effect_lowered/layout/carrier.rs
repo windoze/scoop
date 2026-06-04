@@ -34,24 +34,24 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let plain_closure_targets = plain_callable_roots.clone();
         // Vtable/itable carrier publication consumes the LIR physical layout inventory.
         let class_vtable_targets = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let plain_class_vtable_targets = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let mut interface_itable_targets = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .class_itables
             .values()
             .flat_map(|entries| {
@@ -66,8 +66,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .cloned()
             .collect::<BTreeSet<String>>();
         let mut plain_interface_itable_targets = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .class_itables
             .values()
             .flat_map(|entries| {

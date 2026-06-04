@@ -45,7 +45,7 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_ids::LirCallableId;
 use scoopc_lir_facts::{
     LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDynamicInvokeCarrierKind,
-    LirDynamicInvokeContract, LirFacts,
+    LirDynamicInvokeContract,
 };
 
 use super::super::types::IntTy;
@@ -74,48 +74,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn materialize_program_abi(
         &mut self,
         program: &'a LateLoweredProgram,
-        lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
         cached_dep_artifacts: &'a [crate::llvm::LlvmDepLirArtifactHandoff],
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
         let primary_stable_cone_key = self.stable_cone_key;
         let saved_lir_program = self.active_lir_program;
-        let saved_lir_facts = self.active_lir_facts;
         self.active_lir_program = Some(program);
-        self.active_lir_facts = Some(lir_facts);
         let query = (|| {
             ProgramAbiMaterializer::new(
                 self,
                 AbiProgramOrigin::Primary,
                 primary_stable_cone_key,
                 program,
-                lir_facts,
                 source_types,
             )?
             .materialize()
         })();
         self.active_lir_program = saved_lir_program;
-        self.active_lir_facts = saved_lir_facts;
         let mut query = query?;
         for (index, dep) in cached_dep_artifacts.iter().enumerate() {
             let dep_origin = AbiProgramOrigin::CachedDep(index as u32);
             let saved_lir_program = self.active_lir_program;
-            let saved_lir_facts = self.active_lir_facts;
             self.active_lir_program = Some(dep.lir());
-            self.active_lir_facts = Some(dep.lir_facts());
             let dep_query = (|| {
                 ProgramAbiMaterializer::new(
                     self,
                     dep_origin,
                     dep.stable_cone_key(),
                     dep.lir(),
-                    dep.lir_facts(),
                     dep.type_store(),
                 )?
                 .materialize()
             })();
             self.active_lir_program = saved_lir_program;
-            self.active_lir_facts = saved_lir_facts;
             let dep_query = dep_query?;
             let label = format!(
                 "cached dep cone {}@{}",
@@ -212,7 +203,6 @@ struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     origin: AbiProgramOrigin,
     stable_cone_key: &'a StableConeKey,
     program: &'a LateLoweredProgram,
-    lir_facts: &'a LirFacts,
     source_types: &'a TypeStore,
     source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
 }

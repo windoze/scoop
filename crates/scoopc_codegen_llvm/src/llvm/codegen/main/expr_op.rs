@@ -324,8 +324,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
                 // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
                 if self
-                    .published_lir_facts
-                    .physical_layout
+                    .expect_active_lir_program("codegen_ref_is_instance_of_nonnull")
+                    .physical_layout()
                     .interfaces
                     .contains_key(&nominal.fqn)
                 {

@@ -166,11 +166,19 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 确认剩余 `(StepSchemaId, SiteId)` / `AbiProgramOrigin` `.get(...)` 为 LLVM ABI layout 内部 cache，不是旧 `LirFacts` 顶层 `(owner_callable, site_id)` fact lookup。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-06：layout / global-init fact 归位 + 删 `LirArtifact.facts`
+### [DONE] T2-06：layout / global-init fact 归位 + 删 `LirArtifact.facts`
 - `physical_layout`（classes/enums/vtables/itables/abi_symbols）挂到 nominal 节点；`global_init` 挂到 global root 节点；`class_ctor_inits` 同理。
 - `summary`/`opt_pipeline`/`type_context`/`step_types`/`resume_packings`/`surface_resume_dispatches` 留作 `program` 级字段。
 - 删除 `LirArtifact.facts`、`LirFacts` 顶层平表容器（其内容已分散归位）。
 - 验收：`LirArtifact` 无 `facts` 字段；codegen 不再消费 `LirFacts`。
+
+完成记录（2026-06-04）：
+- `LateLoweredProgram` 新增 program-owned summary/opt-pipeline/type-context/global-init/physical-layout payload，并把 step/resume/continuation/surface-resume fact 快照作为 program 内兼容数据；`class_ctor_inits` 挂回 `LateLoweredClassCtorInitBody` 节点。
+- `LirArtifact` 删除 `facts` 字段；LLVM stage output、cached dependency handoff、artifact handoff 与 `StageEmitInput` 改为只携带 LIR program + TypeStore/base context。
+- LLVM codegen/reachability/ABI materializer 改从 active `LateLoweredProgram` 读取 global init、physical layout、callable symbols、ABI symbols、closure identity、class vtable/itable 与 type context；`crates/scoopc_codegen_llvm/src` 中 `LirFacts` 类型零命中。
+- Cone artifact manifest/schema 与持久化布局删除 `lir_facts.bin`；artifact cache handoff 依赖 program 内 payload，不再反序列化独立 LIR facts。
+- `LirStageOutput::lir_facts()` 保留为 dump/测试兼容快照生成器，不再作为阶段 handoff 独立平表容器保存。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-06-R：Review T2-06
 - 关注点：layout 按 nominal 句柄索引（不再 String map）；程序级组判定正确（确实全局才留 program 字段）；`LirFacts` 彻底退场或仅剩序列化外壳。

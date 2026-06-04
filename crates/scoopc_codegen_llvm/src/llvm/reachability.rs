@@ -6,7 +6,7 @@ use scoopc_ids::LirCallableId;
 use scoopc_lir::effect_lowered::LateLoweredProgram;
 use scoopc_lir_facts::{
     LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirCallableRef,
-    LirDispatchContract, LirDynamicInvokeContract, LirFacts, LirGlobalRootKind,
+    LirDispatchContract, LirDynamicInvokeContract, LirGlobalRootKind,
 };
 
 /// Runtime helpers whose source callables may need legacy declarations until
@@ -21,9 +21,8 @@ const RUNTIME_REQUIRED_CALLABLES: &[&str] = &[];
 pub(super) fn collect_reachable_top_level_funs(
     root_fqn: &str,
     lir: &LateLoweredProgram,
-    lir_facts: &LirFacts,
 ) -> Result<Vec<String>, String> {
-    let mut collector = ReachabilityCollector::new(lir, lir_facts);
+    let mut collector = ReachabilityCollector::new(lir);
     collector.seed_entry(root_fqn);
     collector.seed_global_init_roots();
     collector.seed_published_lir_callables();
@@ -33,7 +32,6 @@ pub(super) fn collect_reachable_top_level_funs(
 
 struct ReachabilityCollector<'a> {
     lir: &'a LateLoweredProgram,
-    lir_facts: &'a LirFacts,
     callable_roots_by_id: HashMap<LirCallableId, &'a str>,
     callable_ids_by_root: HashMap<&'a str, LirCallableId>,
     queue: VecDeque<String>,
@@ -42,7 +40,7 @@ struct ReachabilityCollector<'a> {
 }
 
 impl<'a> ReachabilityCollector<'a> {
-    fn new(lir: &'a LateLoweredProgram, lir_facts: &'a LirFacts) -> Self {
+    fn new(lir: &'a LateLoweredProgram) -> Self {
         let mut callable_roots_by_id: HashMap<LirCallableId, &'a str> = HashMap::new();
         let mut callable_ids_by_root: HashMap<&'a str, LirCallableId> = HashMap::new();
         for (index, callable) in lir.callables().iter().enumerate() {
@@ -58,7 +56,6 @@ impl<'a> ReachabilityCollector<'a> {
         }
         Self {
             lir,
-            lir_facts,
             callable_roots_by_id,
             callable_ids_by_root,
             queue: VecDeque::new(),
@@ -83,7 +80,7 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn seed_global_init_roots(&mut self) {
         let mut roots = Vec::new();
-        for root in self.lir_facts.global_init.roots.values() {
+        for root in self.lir.global_init().roots.values() {
             match root.kind {
                 LirGlobalRootKind::TopLevelImmutableVal
                 | LirGlobalRootKind::TopLevelMutableVar
@@ -94,7 +91,7 @@ impl<'a> ReachabilityCollector<'a> {
                 roots.push(dependency.target.as_str().to_string());
             }
         }
-        for routine in self.lir_facts.global_init.cone_init_routines.values() {
+        for routine in self.lir.global_init().cone_init_routines.values() {
             for root in &routine.roots {
                 roots.push(root.as_str().to_string());
             }
@@ -263,8 +260,8 @@ impl<'a> ReachabilityCollector<'a> {
                 .get(&id)
                 .map(|root| (*root).to_string()),
             LirCallableRef::ExternalHash(_) => self
-                .lir_facts
-                .physical_layout
+                .lir
+                .physical_layout()
                 .abi_symbols
                 .values()
                 .find_map(|symbol| {
@@ -276,15 +273,15 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn root_has_published_declaration(&self, root_fqn: &str) -> bool {
-        self.lir_facts
-            .global_init
+        self.lir
+            .global_init()
             .roots
             .values()
             .any(|root| root.root.as_str() == root_fqn)
             || (self.lir.source_signature(root_fqn).is_some()
                 && self
-                    .lir_facts
-                    .physical_layout
+                    .lir
+                    .physical_layout()
                     .abi_symbols
                     .values()
                     .any(|symbol| {
@@ -317,21 +314,33 @@ struct CallableEdges {
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
-    use scoop_project_model::{OptLevel, StableConeKey};
+    use scoop_project_model::StableConeKey;
     use scoopc_ids::{
         BodyVersionKey, LirCallableHash, LirCallableId, SiteId, StableLirCallableKey,
     };
+    use scoopc_lir::effect_facts::ImplPlan;
+    use scoopc_lir::effect_lowered::ir::{
+        LateLoweredBodyVersionKey, LateLoweredCallable, LateLoweredCallableDeclaration,
+        LateLoweredPlainCallable,
+    };
+    use scoopc_lir::mir_source::{InstanceKey, TemplateKey};
+    use scoopc_lir::span::Span;
+    use scoopc_lir::stable_id::{
+        StableConeKey as LirStableConeKey, StableDefKey, StableDefNamespace, StableInstanceKey,
+        StableTemplateKey,
+    };
+    use scoopc_lir::ty::EffectRow;
     use scoopc_lir_facts::{
         LirBodyVersionFacts, LirBoundaryMapFacts, LirCallSiteContract, LirCallSiteKind,
         LirCallTargetMode, LirCallableAbiKind, LirCallableContract,
         LirCallableDynamicInvokeEntryFacts, LirCallableFacts, LirCallableRef,
         LirCallableSourceKind, LirContinuationObjectKey, LirControlBodyFacts, LirDispatchContract,
         LirDynamicInvokeCarrierContract, LirDynamicInvokeCarrierKind, LirDynamicInvokeContract,
-        LirDynamicInvokeSource, LirEffectPrecision, LirEffectStepCallableFacts, LirFactGroups,
+        LirDynamicInvokeSource, LirEffectPrecision, LirEffectStepCallableFacts,
         LirFrameSchemaFacts, LirGlobalInitFacts, LirGlobalRootFacts, LirGlobalRootKey,
         LirGlobalRootKind, LirPlainCallSiteFacts, LirPlainCallableFacts, LirResumeStateMapFacts,
-        LirSourceCallableSignatureFacts, LirSourceSliceKey, LirStageSummary, LirStateGraphFacts,
-        LirStateKey, LirStepSchemaKey,
+        LirSourceCallableSignatureFacts, LirSourceSliceKey, LirStateGraphFacts, LirStateKey,
+        LirStepSchemaKey,
     };
     use scoopc_types::{TypeId, TypeStore};
 
@@ -475,26 +484,76 @@ mod tests {
         }
     }
 
-    fn facts_with_callables(callables: Vec<LirCallableFacts>) -> LirFacts {
+    fn dummy_lir_callable(root_fqn: &str) -> LateLoweredCallable {
+        let span = Span::new(0, 1);
+        let template = TemplateKey {
+            fqn: root_fqn.to_string(),
+            source_path: std::path::PathBuf::from("fixture.scoop"),
+            decl_span: span,
+        };
+        let instance = InstanceKey {
+            template,
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+        };
+        let stable_template = StableTemplateKey::new(StableDefKey::new(
+            LirStableConeKey::new("fixture", "0.0.0"),
+            StableDefNamespace::Fun,
+            root_fqn,
+            "fun",
+            None,
+        ));
+        let stable_instance =
+            StableInstanceKey::from_canonical_args(stable_template, Vec::new(), Vec::new());
+        let body_version_key =
+            LateLoweredBodyVersionKey::new(instance, EffectRow::pure(), ImplPlan::NoOutward, false);
+        let plain =
+            LateLoweredPlainCallable::new(ty(1), Vec::new(), ty(2), Vec::new(), Vec::new(), None);
+        LateLoweredCallable::new_plain(
+            root_fqn.to_string(),
+            stable_instance,
+            body_version_key,
+            Vec::new(),
+            plain,
+        )
+    }
+
+    fn program_with_callables(callables: Vec<LirCallableFacts>) -> LateLoweredProgram {
         let mut map = std::collections::BTreeMap::new();
+        let mut lir_callables = Vec::new();
         for (index, callable) in callables.into_iter().enumerate() {
+            lir_callables.push(dummy_lir_callable(&callable.root_fqn));
             map.insert(
                 LirCallableId::from_index(index).expect("test callable id fits"),
                 callable,
             );
         }
-        LirFacts::from_parts(
-            LirStageSummary::new(OptLevel::O0).with_counts(map.len(), 0, 0, 0, 0),
-            LirFactGroups {
-                callables: map,
-                ..LirFactGroups::default()
-            },
-        )
+        let summary = scoopc_lir_facts::LirStageSummary::new(scoop_project_model::OptLevel::O0)
+            .with_counts(map.len(), 0, 0, 0, 0);
+        LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), lir_callables)
+            .with_published_callable_fact_payloads(
+                map,
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                Vec::new(),
+            )
+            .with_published_program_fact_payloads(
+                summary,
+                scoopc_lir_facts::LirOptPipelineFacts::default(),
+                LirGlobalInitFacts::default(),
+                scoopc_lir_facts::LirPhysicalLayoutFacts::default(),
+                scoopc_lir_facts::LirTypeContextFacts::default(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+            )
     }
 
     #[test]
     fn reachability_uses_lir_callable_edges() {
-        let facts = facts_with_callables(vec![
+        let program = program_with_callables(vec![
             plain_callable(
                 "app.main",
                 vec![LirCallableRef::local(LirCallableId::from_raw(1))],
@@ -507,7 +566,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
+            collect_reachable_top_level_funs("app.main", &program).unwrap(),
             vec![
                 "app.helper".to_string(),
                 "app.leaf".to_string(),
@@ -518,9 +577,9 @@ mod tests {
 
     #[test]
     fn reachability_seeds_global_init_roots() {
-        let mut facts = facts_with_callables(vec![plain_callable("app.init_helper", Vec::new())]);
-        facts.global_init = LirGlobalInitFacts::default();
-        facts.global_init.roots.insert(
+        let program = program_with_callables(vec![plain_callable("app.init_helper", Vec::new())]);
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(
             LirGlobalRootKey::new("app.init_helper"),
             LirGlobalRootFacts {
                 root: LirGlobalRootKey::new("app.init_helper"),
@@ -543,19 +602,32 @@ mod tests {
                 }),
             },
         );
+        let summary = *program.stage_summary();
+        let opt_pipeline = program.opt_pipeline().clone();
+        let physical_layout = program.physical_layout().clone();
+        let type_context = program.type_context().clone();
+        let program = program.with_published_program_fact_payloads(
+            summary,
+            opt_pipeline,
+            global_init,
+            physical_layout,
+            type_context,
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+        );
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
+            collect_reachable_top_level_funs("app.main", &program).unwrap(),
             vec!["app.init_helper".to_string(), "app.main".to_string()]
         );
     }
 
     #[test]
     fn reachability_uses_lir_dynamic_and_dispatch_targets() {
-        let mut facts = facts_with_callables(vec![
-            plain_callable("app.main", Vec::new()),
-            plain_callable("app.impl", Vec::new()),
-        ]);
+        let mut main = plain_callable("app.main", Vec::new());
         let target = LirCallableRef::local(LirCallableId::from_raw(1));
         let source_slice = LirSourceSliceKey {
             block_id: scoopc_lir_facts::LirBodyBlockKey::new(0),
@@ -605,10 +677,6 @@ mod tests {
             arg_count: 0,
             target_body_versions: Vec::new(),
         };
-        let main = facts
-            .callables
-            .get_mut(&LirCallableId::from_raw(0))
-            .expect("main callable facts exist");
         let LirCallableContract::Plain(plain) = &mut main.contract else {
             panic!("main should be plain");
         };
@@ -620,9 +688,10 @@ mod tests {
             dynamic_invoke: Some(dynamic),
             dispatch: Some(dispatch),
         });
+        let program = program_with_callables(vec![main, plain_callable("app.impl", Vec::new())]);
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
+            collect_reachable_top_level_funs("app.main", &program).unwrap(),
             vec!["app.impl".to_string(), "app.main".to_string()]
         );
     }
@@ -630,7 +699,7 @@ mod tests {
     #[test]
     fn reachability_rejects_unpublished_candidate_set_targets() {
         let target = callable_key("scoop.core.Bool.toString");
-        let facts = facts_with_callables(vec![plain_callable(
+        let program = program_with_callables(vec![plain_callable(
             "app.main",
             vec![LirCallableRef::external_hash(
                 LirCallableHash::from_stable_key(&target),
@@ -638,7 +707,7 @@ mod tests {
         )]);
 
         assert!(
-            collect_reachable_top_level_funs("app.main", &facts)
+            collect_reachable_top_level_funs("app.main", &program)
                 .unwrap_err()
                 .contains("is not published")
         );
@@ -648,18 +717,20 @@ mod tests {
     fn reachability_includes_declaration_only_candidate_set_targets() {
         let target = callable_key("scoop.core.Bool.toString");
         let target_ref = LirCallableRef::external_hash(LirCallableHash::from_stable_key(&target));
-        let mut facts = facts_with_callables(vec![plain_callable("app.main", vec![target_ref])]);
-        facts.source_signatures.insert(
+        let program = program_with_callables(vec![plain_callable("app.main", vec![target_ref])]);
+        let declaration = LateLoweredCallableDeclaration::new(
             "scoop.core.Bool.toString".to_string(),
-            LirSourceCallableSignatureFacts {
+            Some(LirSourceCallableSignatureFacts {
                 signature_key: "sig:scoop.core.Bool.toString".to_string(),
                 root_fqn: "scoop.core.Bool.toString".to_string(),
                 param_names: Vec::new(),
                 param_tys: Vec::new(),
                 return_ty: ty(2),
-            },
+            }),
+            None,
         );
-        facts.physical_layout.abi_symbols.insert(
+        let mut physical_layout = program.physical_layout().clone();
+        physical_layout.abi_symbols.insert(
             "abi:scoop.core.Bool.toString".to_string(),
             scoopc_lir_facts::LirAbiSymbolFact {
                 key: "abi:scoop.core.Bool.toString".to_string(),
@@ -669,9 +740,43 @@ mod tests {
                 role: "extern_callable".to_string(),
             },
         );
+        let callable_payloads = program
+            .callables()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, callable)| {
+                let id = LirCallableId::from_index(index)?;
+                callable
+                    .published_callable_facts()
+                    .map(|facts| (id, facts.clone()))
+            })
+            .collect();
+        let summary = *program.stage_summary();
+        let opt_pipeline = program.opt_pipeline().clone();
+        let global_init = program.global_init().clone();
+        let type_context = program.type_context().clone();
+        let program = program
+            .with_published_callable_fact_payloads(
+                callable_payloads,
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                vec![declaration],
+            )
+            .with_published_program_fact_payloads(
+                summary,
+                opt_pipeline,
+                global_init,
+                physical_layout,
+                type_context,
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+                std::collections::BTreeMap::new(),
+            );
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
+            collect_reachable_top_level_funs("app.main", &program).unwrap(),
             vec![
                 "app.main".to_string(),
                 "scoop.core.Bool.toString".to_string()
@@ -681,13 +786,13 @@ mod tests {
 
     #[test]
     fn reachability_seeds_published_continuation_resume_callable() {
-        let facts = facts_with_callables(vec![
+        let program = program_with_callables(vec![
             plain_callable("app.main", Vec::new()),
             effect_step_callable("app.main$continuation_resume"),
         ]);
 
         assert_eq!(
-            collect_reachable_top_level_funs("app.main", &facts).unwrap(),
+            collect_reachable_top_level_funs("app.main", &program).unwrap(),
             vec![
                 "app.main".to_string(),
                 "app.main$continuation_resume".to_string(),

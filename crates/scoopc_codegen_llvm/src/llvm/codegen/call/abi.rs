@@ -945,7 +945,6 @@ mod tests {
             std::collections::BTreeMap::new(),
             vec![declaration],
         );
-        let lir_facts = LirFacts::new(crate::opt::OptLevel::O0);
         let context = Context::create();
         let module = context.create_module("declaration_signature_test");
         let builder = context.create_builder();
@@ -1002,7 +1001,6 @@ mod tests {
             callable_sources: &callable_sources,
             published_late_lowered_program: Some(&program),
             published_late_lowered_types: Some(&source_types),
-            published_lir_facts: &lir_facts,
             effect_analysis_facts,
             effect_op_tags,
         });

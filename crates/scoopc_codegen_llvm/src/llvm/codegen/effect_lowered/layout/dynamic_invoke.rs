@@ -2,7 +2,7 @@
 //!
 //! Dynamic invocations cover closure / virtual / interface dispatch where the
 //! callee identity is decided at runtime. The backend-neutral contract is now
-//! read from `LirFacts`; this module only turns that contract into LLVM function
+//! read from the LIR program; this module only turns that contract into LLVM function
 //! and carrier layouts.
 
 use super::*;

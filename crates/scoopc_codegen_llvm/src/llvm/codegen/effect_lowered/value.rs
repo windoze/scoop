@@ -871,8 +871,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return false;
         };
         self.codegen
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("static_enum_unit_variant_value")
+            .physical_layout()
             .enums
             .get(owner_fqn)
             .and_then(|layout| {

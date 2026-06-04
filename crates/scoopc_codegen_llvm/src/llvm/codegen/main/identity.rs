@@ -8,7 +8,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Self {
             shared,
             active_lir_program: None,
-            active_lir_facts: None,
             current_source_id: shared.entry_source_id,
             function_cx: FunctionBodyCodegenCx::default(),
             effect_cx: EffectLoweringCodegenCx::default(),
@@ -19,7 +18,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn fresh_child_codegen(&self) -> Self {
         let mut child = Self::new(self.shared);
         child.active_lir_program = self.active_lir_program;
-        child.active_lir_facts = self.active_lir_facts;
         child
     }
 
@@ -273,8 +271,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: &str,
     ) -> Option<&'a scoopc_lir_facts::LirCallableSymbolFacts> {
         let callable_id = self.lir_callable_id_for_root(callable_fqn)?;
-        self.published_lir_facts
-            .physical_layout
+        self.active_lir_program()?
+            .physical_layout()
             .callable_symbols
             .get(&callable_id)
     }
@@ -305,11 +303,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(symbol);
         }
         if let Some(abi_symbol) = self
-            .published_lir_facts
-            .physical_layout
-            .abi_symbols
-            .values()
-            .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn))
+            .active_lir_program()
+            .and_then(|program| program.abi_symbol_for_root(callable_fqn))
         {
             if let Some(callable) = abi_symbol.callable.as_ref() {
                 self.reserve_exported_abi_symbol(
@@ -449,8 +444,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         })?;
         let identity = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("stable_closure_key_for_lir_source_callable")
+            .physical_layout()
             .closure_identities
             .get(&callable_id)
             .ok_or_else(|| LlvmEmitError::Frontend {

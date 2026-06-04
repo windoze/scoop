@@ -53,6 +53,32 @@ pub struct LateLoweredProgram {
     resume_packings: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
+    #[serde(default)]
+    stage_summary: scoopc_lir_facts::LirStageSummary,
+    #[serde(default)]
+    opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts,
+    #[serde(default)]
+    global_init: scoopc_lir_facts::LirGlobalInitFacts,
+    #[serde(default)]
+    physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts,
+    #[serde(default)]
+    type_context: scoopc_lir_facts::LirTypeContextFacts,
+    #[serde(default)]
+    step_type_facts:
+        BTreeMap<scoopc_lir_facts::LirStepSchemaKey, scoopc_lir_facts::LirStepTypeFacts>,
+    #[serde(default)]
+    resume_packing_facts:
+        BTreeMap<scoopc_lir_facts::LirResumePackingKey, scoopc_lir_facts::LirResumePackingFacts>,
+    #[serde(default)]
+    continuation_object_facts: BTreeMap<
+        scoopc_lir_facts::LirContinuationObjectKey,
+        scoopc_lir_facts::LirContinuationObjectFacts,
+    >,
+    #[serde(default)]
+    surface_resume_dispatch_facts: BTreeMap<
+        scoopc_lir_facts::LirContinuationSchemaKey,
+        scoopc_lir_facts::LirSurfaceResumeDispatchFacts,
+    >,
     callables: Vec<LateLoweredCallable>,
     #[serde(default)]
     callable_declarations: Vec<LateLoweredCallableDeclaration>,
@@ -79,6 +105,15 @@ impl LateLoweredProgram {
             resume_packings,
             continuation_objects,
             surface_resume_dispatch_inventory,
+            stage_summary: scoopc_lir_facts::LirStageSummary::default(),
+            opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts::default(),
+            global_init: scoopc_lir_facts::LirGlobalInitFacts::default(),
+            physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts::default(),
+            type_context: scoopc_lir_facts::LirTypeContextFacts::default(),
+            step_type_facts: BTreeMap::new(),
+            resume_packing_facts: BTreeMap::new(),
+            continuation_object_facts: BTreeMap::new(),
+            surface_resume_dispatch_facts: BTreeMap::new(),
             callables,
             callable_declarations: Vec::new(),
             class_ctor_init_bodies: HashMap::new(),
@@ -138,6 +173,15 @@ impl LateLoweredProgram {
             resume_packings: self.resume_packings.clone(),
             continuation_objects: self.continuation_objects.clone(),
             surface_resume_dispatch_inventory,
+            stage_summary: self.stage_summary,
+            opt_pipeline: self.opt_pipeline.clone(),
+            global_init: self.global_init.clone(),
+            physical_layout: self.physical_layout.clone(),
+            type_context: self.type_context.clone(),
+            step_type_facts: self.step_type_facts.clone(),
+            resume_packing_facts: self.resume_packing_facts.clone(),
+            continuation_object_facts: self.continuation_object_facts.clone(),
+            surface_resume_dispatch_facts: self.surface_resume_dispatch_facts.clone(),
             callables: self.callables.clone(),
             callable_declarations: self.callable_declarations.clone(),
             class_ctor_init_bodies: self.class_ctor_init_bodies.clone(),
@@ -210,6 +254,53 @@ impl LateLoweredProgram {
         self.surface_resume_dispatch_inventory
             .iter()
             .find(|entry| entry.continuation_schema() == continuation_schema)
+    }
+
+    pub fn stage_summary(&self) -> &scoopc_lir_facts::LirStageSummary {
+        &self.stage_summary
+    }
+
+    pub fn opt_pipeline(&self) -> &scoopc_lir_facts::LirOptPipelineFacts {
+        &self.opt_pipeline
+    }
+
+    pub fn global_init(&self) -> &scoopc_lir_facts::LirGlobalInitFacts {
+        &self.global_init
+    }
+
+    pub fn physical_layout(&self) -> &scoopc_lir_facts::LirPhysicalLayoutFacts {
+        &self.physical_layout
+    }
+
+    pub fn type_context(&self) -> &scoopc_lir_facts::LirTypeContextFacts {
+        &self.type_context
+    }
+
+    pub fn abi_symbol_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirAbiSymbolFact> {
+        self.physical_layout
+            .abi_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn.as_deref() == Some(root_fqn))
+    }
+
+    pub fn root_for_callable_ref(&self, target: scoopc_lir_facts::LirCallableRef) -> Option<&str> {
+        match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                self.callable_by_id(id).map(LateLoweredCallable::root_fqn)
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(_) => self
+                .physical_layout
+                .abi_symbols
+                .values()
+                .find_map(|symbol| {
+                    (symbol.callable == Some(target))
+                        .then_some(symbol.root_fqn.as_deref())
+                        .flatten()
+                }),
+        }
     }
 
     pub fn callables(&self) -> &[LateLoweredCallable] {
@@ -326,6 +417,93 @@ impl LateLoweredProgram {
         }
         self.callable_declarations = callable_declarations;
         self
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_published_program_fact_payloads(
+        mut self,
+        summary: scoopc_lir_facts::LirStageSummary,
+        opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts,
+        global_init: scoopc_lir_facts::LirGlobalInitFacts,
+        physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts,
+        type_context: scoopc_lir_facts::LirTypeContextFacts,
+        step_type_facts: BTreeMap<
+            scoopc_lir_facts::LirStepSchemaKey,
+            scoopc_lir_facts::LirStepTypeFacts,
+        >,
+        resume_packing_facts: BTreeMap<
+            scoopc_lir_facts::LirResumePackingKey,
+            scoopc_lir_facts::LirResumePackingFacts,
+        >,
+        continuation_object_facts: BTreeMap<
+            scoopc_lir_facts::LirContinuationObjectKey,
+            scoopc_lir_facts::LirContinuationObjectFacts,
+        >,
+        surface_resume_dispatch_facts: BTreeMap<
+            scoopc_lir_facts::LirContinuationSchemaKey,
+            scoopc_lir_facts::LirSurfaceResumeDispatchFacts,
+        >,
+        mut class_ctor_inits: BTreeMap<
+            scoopc_lir_facts::LirClassCtorInitKey,
+            scoopc_lir_facts::LirClassCtorInitFacts,
+        >,
+    ) -> Self {
+        self.stage_summary = summary;
+        self.opt_pipeline = opt_pipeline;
+        self.global_init = global_init;
+        self.physical_layout = physical_layout;
+        self.type_context = type_context;
+        self.step_type_facts = step_type_facts;
+        self.resume_packing_facts = resume_packing_facts;
+        self.continuation_object_facts = continuation_object_facts;
+        self.surface_resume_dispatch_facts = surface_resume_dispatch_facts;
+        for init_body in self.class_ctor_init_bodies.values_mut() {
+            init_body.attach_published_init_facts(class_ctor_inits.remove(init_body.key()));
+        }
+        self
+    }
+
+    pub fn published_lir_facts_snapshot(&self) -> scoopc_lir_facts::LirFacts {
+        let groups = scoopc_lir_facts::LirFactGroups {
+            global_init: self.global_init.clone(),
+            physical_layout: self.physical_layout.clone(),
+            type_context: self.type_context.clone(),
+            source_signatures: self
+                .source_signatures()
+                .map(|signature| (signature.root_fqn.clone(), signature.clone()))
+                .collect(),
+            intrinsic_callables: self
+                .intrinsic_callables()
+                .map(|intrinsic| (intrinsic.root_fqn.clone(), intrinsic.clone()))
+                .collect(),
+            class_ctor_inits: self
+                .class_ctor_init_bodies()
+                .filter_map(|body| {
+                    body.published_init_facts()
+                        .map(|facts| (facts.key.clone(), facts.clone()))
+                })
+                .collect(),
+            callables: self
+                .callables()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, callable)| {
+                    let id = LirCallableId::from_index(index)?;
+                    callable
+                        .published_callable_facts()
+                        .map(|facts| (id, facts.clone()))
+                })
+                .collect(),
+            step_types: self.step_type_facts.clone(),
+            resume_packings: self.resume_packing_facts.clone(),
+            continuation_objects: self.continuation_object_facts.clone(),
+            surface_resume_dispatches: self.surface_resume_dispatch_facts.clone(),
+        };
+        scoopc_lir_facts::LirFacts::from_parts_with_opt_pipeline(
+            self.stage_summary,
+            self.opt_pipeline.clone(),
+            groups,
+        )
     }
 
     pub fn callable_index(&self) -> Result<LirCallableIndex, LirCallableIndexError> {
@@ -948,6 +1126,8 @@ pub struct LateLoweredClassCtorInitBody {
     delegation: Option<LateLoweredClassCtorDelegation>,
     steps: Vec<LateLoweredClassCtorInitStep>,
     source_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
+    #[serde(default)]
+    published_init_facts: Option<Box<scoopc_lir_facts::LirClassCtorInitFacts>>,
 }
 
 impl LateLoweredClassCtorInitBody {
@@ -977,7 +1157,15 @@ impl LateLoweredClassCtorInitBody {
             delegation,
             steps,
             source_ctor_calls,
+            published_init_facts: None,
         }
+    }
+
+    fn attach_published_init_facts(
+        &mut self,
+        facts: Option<scoopc_lir_facts::LirClassCtorInitFacts>,
+    ) {
+        self.published_init_facts = facts.map(Box::new);
     }
 
     pub fn key(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
@@ -1022,6 +1210,10 @@ impl LateLoweredClassCtorInitBody {
 
     pub fn source_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
         &self.source_ctor_calls
+    }
+
+    pub fn published_init_facts(&self) -> Option<&scoopc_lir_facts::LirClassCtorInitFacts> {
+        self.published_init_facts.as_deref()
     }
 }
 

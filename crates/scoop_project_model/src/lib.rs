@@ -21,12 +21,12 @@ pub mod sysroot;
 pub use artifact_metadata::{
     CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
     CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
-    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
-    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifactFingerprints, ConeArtifactManifest,
-    ConeArtifactMetadataError, ConeArtifactSchemaVersions, compute_outputs_fingerprint,
-    read_manifest_and_inputs_fingerprint, validate_object_file_name,
+    CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
+    CONE_ARTIFACT_MIR_FACTS_FILE_NAME, CONE_ARTIFACT_OBJS_DIR_NAME,
+    CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_TYPE_STORE_FILE_NAME,
+    ConeArtifactFingerprints, ConeArtifactManifest, ConeArtifactMetadataError,
+    ConeArtifactSchemaVersions, compute_outputs_fingerprint, read_manifest_and_inputs_fingerprint,
+    validate_object_file_name,
 };
 pub use graph::{
     CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,

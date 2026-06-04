@@ -12,8 +12,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         layout_key: &crate::effect_lowered::source::ClassInstanceKey,
     ) -> Option<&scoopc_lir_facts::LirClassLayoutFacts> {
-        self.lir_facts
-            .physical_layout
+        self.program
+            .physical_layout()
             .classes
             .get(layout_key.as_str())
     }
@@ -22,7 +22,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         layout_key: &str,
     ) -> Option<&scoopc_lir_facts::LirEnumLayoutFacts> {
-        self.lir_facts.physical_layout.enums.get(layout_key)
+        self.program.physical_layout().enums.get(layout_key)
     }
 
     pub(super) fn physical_enum_layout_for_option(
@@ -162,8 +162,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .target_callables
             .iter()
             .map(|key| {
-                self.lir_facts
-                    .physical_layout
+                self.program
+                    .physical_layout()
                     .abi_symbols
                     .values()
                     .find_map(|symbol| {

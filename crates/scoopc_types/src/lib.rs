@@ -68,7 +68,9 @@ impl WireSchemaVersion {
 ///   intrinsic callable metadata，供 P2b 逐步移除平行 facts 表。
 /// - 1.14：LIR callable/body site 节点携带 source/class-ctor/reflection call-site 与
 ///   dynamic/dispatch contracts，移除这些 payload 的顶层平表发布。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 14);
+/// - 1.15：LIR program 携带 stage summary、opt/type context、global init 与 physical
+///   layout payload，LLVM handoff 不再携带独立 `LirFacts`。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 15);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

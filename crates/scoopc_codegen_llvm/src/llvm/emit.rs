@@ -15,7 +15,6 @@ use inkwell::targets::{FileType, TargetData};
 
 use crate::opt::OptLevel;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use scoopc_lir_facts::LirFacts;
 
 use super::pipeline::run_pass_pipeline;
 use super::reachability::collect_reachable_top_level_funs;
@@ -27,10 +26,8 @@ use super::{
 struct LoweredCodegenEntry<'a> {
     base_context: &'a LlvmStageBaseContext,
     late_lowered_program: &'a crate::effect_lowered::LateLoweredProgram,
-    late_lowered_lir_facts: &'a scoopc_lir_facts::LirFacts,
     late_lowered_types: &'a crate::ty::TypeStore,
     abi_program: &'a crate::effect_lowered::LateLoweredProgram,
-    abi_lir_facts: &'a scoopc_lir_facts::LirFacts,
     abi_types: &'a crate::ty::TypeStore,
     cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
 }
@@ -39,9 +36,7 @@ struct LoweredCodegenEntry<'a> {
 pub struct StageEmitInput<'a> {
     base_context: &'a LlvmStageBaseContext,
     lir: &'a crate::effect_lowered::LateLoweredProgram,
-    lir_facts: &'a LirFacts,
     abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    abi_visibility_lir_facts: Option<&'a LirFacts>,
     abi_visibility_types: Option<&'a crate::ty::TypeStore>,
     cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
 }
@@ -50,18 +45,11 @@ impl<'a> StageEmitInput<'a> {
     pub fn new(
         base_context: &'a LlvmStageBaseContext,
         lir: &'a crate::effect_lowered::LateLoweredProgram,
-        lir_facts: &'a LirFacts,
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-        abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
         cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
     ) -> Self {
         let has_abi_visibility = abi_visibility_lir.is_some();
-        assert_eq!(
-            has_abi_visibility,
-            abi_visibility_lir_facts.is_some(),
-            "ABI visibility LIR and LIR facts must be provided together"
-        );
         assert_eq!(
             has_abi_visibility,
             abi_visibility_types.is_some(),
@@ -70,9 +58,7 @@ impl<'a> StageEmitInput<'a> {
         Self {
             base_context,
             lir,
-            lir_facts,
             abi_visibility_lir,
-            abi_visibility_lir_facts,
             abi_visibility_types,
             cached_dep_artifacts,
         }
@@ -82,9 +68,7 @@ impl<'a> StageEmitInput<'a> {
         Self::new(
             output.base_context(),
             output.lir(),
-            output.lir_facts(),
             output.abi_visibility_lir(),
-            output.abi_visibility_lir_facts(),
             output.abi_visibility_types(),
             output.cached_dep_artifacts(),
         )
@@ -95,19 +79,15 @@ impl<'a> LoweredCodegenEntry<'a> {
     fn from_stage_output(
         base_context: &'a LlvmStageBaseContext,
         lir: &'a crate::effect_lowered::LateLoweredProgram,
-        lir_facts: &'a LirFacts,
         abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-        abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
         cached_dep_artifacts: &'a [LlvmDepLirArtifactHandoff],
     ) -> Self {
         Self {
             base_context,
             late_lowered_program: lir,
-            late_lowered_lir_facts: lir_facts,
             late_lowered_types: base_context.types(),
             abi_program: abi_visibility_lir.unwrap_or(lir),
-            abi_lir_facts: abi_visibility_lir_facts.unwrap_or(lir_facts),
             abi_types: abi_visibility_types.unwrap_or_else(|| base_context.types()),
             cached_dep_artifacts,
         }
@@ -129,9 +109,7 @@ pub fn build_main_module_from_stage_output<'ctx>(
         LoweredCodegenEntry::from_stage_output(
             stage_input.base_context,
             stage_input.lir,
-            stage_input.lir_facts,
             stage_input.abi_visibility_lir,
-            stage_input.abi_visibility_lir_facts,
             stage_input.abi_visibility_types,
             stage_input.cached_dep_artifacts,
         ),
@@ -232,9 +210,7 @@ pub fn build_lib_module_from_stage_output<'ctx>(
         LoweredCodegenEntry::from_stage_output(
             stage_input.base_context,
             stage_input.lir,
-            stage_input.lir_facts,
             stage_input.abi_visibility_lir,
-            stage_input.abi_visibility_lir_facts,
             stage_input.abi_visibility_types,
             stage_input.cached_dep_artifacts,
         ),
@@ -334,10 +310,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let LoweredCodegenEntry {
         base_context,
         late_lowered_program,
-        late_lowered_lir_facts,
         late_lowered_types,
         abi_program,
-        abi_lir_facts,
         abi_types,
         cached_dep_artifacts,
     } = codegen_entry;
@@ -350,15 +324,14 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    base_context.verify_lir_type_context(late_lowered_lir_facts, "primary")?;
-    LlvmStageBaseContext::verify_lir_type_store_owner(abi_types, abi_lir_facts, "ABI visibility")?;
+    base_context.verify_lir_type_context(late_lowered_program, "primary")?;
+    LlvmStageBaseContext::verify_lir_type_store_owner(abi_types, abi_program, "ABI visibility")?;
 
     // Lib mode（subprocess single-cone artifact emit）跳过 entry main 选择：dep cone artifact
     // 只发布 callable bodies，不需要 `fun main`。EntryMain 选择失败仍按 `MissingEntryMain`
     // 早期报错，避免无声跳过 Bin 入口。
     let is_lib_mode = matches!(root_selector, RootCallableSelector::LibMode);
-    let selected_root =
-        select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
+    let selected_root = select_root_callable(late_lowered_types, root_selector)?;
     let builder = context.create_builder();
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
     let published_late_lowered_program = Some(abi_program);
@@ -367,7 +340,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
     // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
-    let make_unit_codegen = |published_lir_facts| {
+    let make_unit_codegen = || {
         codegen::CompilationUnitCodegenCx::new(codegen::CompilationUnitCodegenInputs {
             context,
             module: &module,
@@ -396,31 +369,22 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             native_callable_funs: base_context.native_callable_funs(),
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts,
             effect_analysis_facts: base_context.effect_analysis_facts(),
             effect_op_tags: Rc::clone(&effect_op_tags),
         })
     };
 
     if let Some(selected) = selected_root.as_ref() {
-        let _reachable_fqns = collect_reachable_top_level_funs(
-            selected.entry.root_fqn(),
-            late_lowered_program,
-            late_lowered_lir_facts,
-        )
-        .map_err(|message| LlvmEmitError::Frontend { message })?;
+        let _reachable_fqns =
+            collect_reachable_top_level_funs(selected.entry.root_fqn(), late_lowered_program)
+                .map_err(|message| LlvmEmitError::Frontend { message })?;
     }
 
-    let unit_codegen = make_unit_codegen(late_lowered_lir_facts);
+    let unit_codegen = make_unit_codegen();
     let mut declare = unit_codegen.fresh_main_codegen();
-    let abi_query = declare.materialize_program_abi(
-        abi_program,
-        abi_lir_facts,
-        abi_types,
-        cached_dep_artifacts,
-    )?;
+    let abi_query =
+        declare.materialize_program_abi(abi_program, abi_types, cached_dep_artifacts)?;
     declare.set_active_lir_program(Some(abi_program));
-    declare.set_active_lir_facts(Some(abi_lir_facts));
     declare.codegen_program_bodies(
         late_lowered_program,
         abi_program,
@@ -428,7 +392,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_types,
         &abi_query,
     )?;
-    declare.set_active_lir_facts(None);
     declare.set_active_lir_program(None);
     declare.codegen_native_callable_body_symbols(&abi_query)?;
     let cone_init_plans = unit_codegen.cone_init_routine_plans();
@@ -563,7 +526,6 @@ enum RootCallableSelector<'a> {
 }
 
 fn select_root_callable<'a>(
-    _lir_facts: &LirFacts,
     _types: &crate::ty::TypeStore,
     selector: RootCallableSelector<'a>,
 ) -> Result<Option<SelectedRootCallable<'a>>, LlvmEmitError> {

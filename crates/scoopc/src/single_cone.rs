@@ -215,9 +215,8 @@ pub fn run_single_cone_artifact_compile(
         }
     }
 
-    // 把空 skeleton 升级成包含真实 LIR program / LIR facts / object 的完整 artifact。
+    // 把空 skeleton 升级成包含真实 LIR program / object 的完整 artifact。
     skeleton.lir_program = stage_output.lir().clone();
-    skeleton.lir_facts = stage_output.lir_facts().clone();
     skeleton.type_store = stage_output.base_context().types().clone();
     skeleton.manifest.extern_libs = extern_libs;
     skeleton.objects = vec![

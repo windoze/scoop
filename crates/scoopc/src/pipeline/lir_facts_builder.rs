@@ -243,12 +243,25 @@ pub(crate) fn attach_per_callable_lir_facts(
         })
         .collect();
 
-    Ok(lir.with_published_callable_fact_payloads(
-        facts.callables.clone(),
-        source_signatures_by_id,
-        intrinsic_callables_by_id,
-        declarations,
-    ))
+    Ok(lir
+        .with_published_callable_fact_payloads(
+            facts.callables.clone(),
+            source_signatures_by_id,
+            intrinsic_callables_by_id,
+            declarations,
+        )
+        .with_published_program_fact_payloads(
+            facts.summary,
+            facts.opt_pipeline.clone(),
+            facts.global_init.clone(),
+            facts.physical_layout.clone(),
+            facts.type_context.clone(),
+            facts.step_types.clone(),
+            facts.resume_packings.clone(),
+            facts.continuation_objects.clone(),
+            facts.surface_resume_dispatches.clone(),
+            facts.class_ctor_inits.clone(),
+        ))
 }
 
 fn local_callable_id_for_published_root(

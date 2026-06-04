@@ -305,8 +305,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         owner_key: &CanonicalTextKey,
     ) -> Vec<LirClassItableEntryFacts> {
         let key = owner_key.canonical_text();
-        self.published_lir_facts
-            .physical_layout
+        self.expect_active_lir_program("mir_value_box_itable_entries_for_owner")
+            .physical_layout()
             .class_itables
             .get(&key)
             .map(|itable| itable.entries.clone())

@@ -76,8 +76,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         }
         let enum_layout = self
             .codegen
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("runtime_error_unit_variant_payload")
+            .physical_layout()
             .enums
             .get("scoop.core.RuntimeError")
             .unwrap_or_else(|| {

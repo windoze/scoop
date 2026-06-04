@@ -12,7 +12,7 @@ use crate::source::{SourceId, SourceMap};
 use crate::stable_id::StableConeKey;
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 use scoopc_ids::{LirCallableHash, LirCallableId};
-use scoopc_lir_facts::{LirCallableFacts, LirFacts};
+use scoopc_lir_facts::LirCallableFacts;
 
 /// A cone-level LIR artifact that carries the current transitional LIR payload.
 #[derive(Debug)]
@@ -20,8 +20,6 @@ pub struct LirArtifact {
     pub cone: StableConeKey,
     pub program: LateLoweredProgram,
     pub callable_index: LirCallableIndex,
-    /// Transitional flat facts carried until P2 folds them into the LIR program.
-    pub facts: LirFacts,
     pub base_context: LlvmStageBaseContext,
     /// Transitional MIR overlay fallback retained only for the primary cone until P2 lifts source bodies into LIR.
     pub mir: Option<MaterializedMir>,
@@ -32,7 +30,6 @@ impl LirArtifact {
     pub fn new(
         cone: StableConeKey,
         program: LateLoweredProgram,
-        facts: LirFacts,
         base_context: LlvmStageBaseContext,
         mir: Option<MaterializedMir>,
         object_files: Vec<PathBuf>,
@@ -43,7 +40,6 @@ impl LirArtifact {
             cone,
             program,
             callable_index,
-            facts,
             base_context,
             mir,
             object_files,
@@ -189,10 +185,10 @@ fn callable_source_name(root_fqn: &str) -> &str {
 
 /// Convert a cached dependency handoff into the same LIR artifact shape used by the primary cone.
 pub fn lir_artifact_from_dep(dep: CachedDepArtifactHandoff) -> Result<LirArtifact, LlvmEmitError> {
-    let (_cone_id, cone, program, facts, type_store, object_files) = dep.into_parts();
+    let (_cone_id, cone, program, type_store, object_files) = dep.into_parts();
     let base_context =
-        LlvmStageBaseContext::from_cached_dep_type_store(cone.clone(), &facts, type_store)?;
-    LirArtifact::new(cone, program, facts, base_context, None, object_files)
+        LlvmStageBaseContext::from_cached_dep_type_store(cone.clone(), &program, type_store)?;
+    LirArtifact::new(cone, program, base_context, None, object_files)
 }
 
 fn lir_callable_index_emit_error(error: LirCallableIndexError) -> LlvmEmitError {

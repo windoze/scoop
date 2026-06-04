@@ -240,12 +240,11 @@ pub(crate) fn build_lir_artifact(
         &materialized_mir,
         effect_facts,
     );
-    base_context.verify_lir_type_context(output.lir_facts(), "primary")?;
-    let (program, facts) = output.into_parts();
+    base_context.verify_lir_type_context(output.lir(), "primary")?;
+    let program = output.into_program();
     LirArtifact::new(
         cone,
         program,
-        facts,
         base_context,
         Some(materialized_mir),
         Vec::new(),

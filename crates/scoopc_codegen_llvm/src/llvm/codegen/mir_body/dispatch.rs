@@ -91,8 +91,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         };
         let root = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("unique_dispatch_target_signature")
+            .physical_layout()
             .abi_symbols
             .values()
             .find_map(|symbol| {
@@ -134,8 +134,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (owner_fqn, source_ty) =
             self.static_interface_receiver_owner_fqn(mir_types, receiver_ty)?;
         let itable = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("static_interface_dispatch_impl")
+            .physical_layout()
             .class_itables
             .get(&owner_fqn)?;
         let entry = itable

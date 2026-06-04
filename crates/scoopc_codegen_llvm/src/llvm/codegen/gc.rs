@@ -17,8 +17,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
         let abi_symbol_fact = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("declare_dispatch_target_fun")
+            .physical_layout()
             .abi_symbols
             .values()
             .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn));
@@ -1428,8 +1428,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
         let Some(itable) = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("get_or_create_class_itable_global")
+            .physical_layout()
             .class_itables
             .get(class_fqn)
         else {
@@ -1656,8 +1656,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
         let Some(slots) = self
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("get_or_create_class_vtable_global")
+            .physical_layout()
             .class_vtables
             .get(class_fqn)
         else {

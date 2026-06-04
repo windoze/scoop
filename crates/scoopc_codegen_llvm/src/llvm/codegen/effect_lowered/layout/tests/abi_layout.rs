@@ -71,7 +71,6 @@ public fun dependencyValue(): Int {
     let dep_handoff = crate::llvm::LlvmDepLirArtifactHandoff::new(
         dep.base_context.stable_cone_key().clone(),
         dep.abi_visibility_program.clone(),
-        dep.abi_visibility_lir_facts.clone(),
         dep.primary_types().clone(),
         Vec::new(),
     );

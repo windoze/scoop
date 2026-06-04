@@ -629,11 +629,10 @@ fn ir_type_to_type_ref(synth: &mut SyntheticSourceBuilder, ty: &IrType) -> ast::
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use scoop_project_model::{OptLevel, StableConeKey};
+    use scoop_project_model::StableConeKey;
     use scoopc_effect_facts::EffectFacts;
     use scoopc_hir_facts::HirFacts;
     use scoopc_lir::LateLoweredProgram;
-    use scoopc_lir_facts::LirFacts;
     use scoopc_mir_facts::MirFacts;
 
     use super::*;
@@ -722,7 +721,6 @@ mod tests {
                 HirFacts::new(),
                 MirFacts::new(),
                 EffectFacts::new(),
-                LirFacts::new(OptLevel::O0),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
                 scoopc_types::TypeStore::new(),
             ),

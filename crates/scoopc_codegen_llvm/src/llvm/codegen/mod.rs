@@ -76,7 +76,7 @@ use crate::ty::{
 use scoopc_lir_facts::{
     LirCallSiteKind, LirCallableContract, LirClassCtorCallSiteFacts, LirClassCtorDelegationKind,
     LirClassCtorInitKey, LirClassItableEntryFacts, LirDispatchContract, LirExternGlobalLinkage,
-    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
     LirPlainCallSiteFacts, LirSourceCallSiteFacts,
 };
 
@@ -506,8 +506,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     /// TypeStore owner for `published_late_lowered_program`.
     published_late_lowered_types: Option<&'a TypeStore>,
-    /// LIR-owned backend-neutral contracts for global init/storage and callable ABI.
-    published_lir_facts: &'a LirFacts,
     /// Narrow source/semantic facts used by remaining LIR-owned source payload lowering.
     effect_analysis_facts: Rc<EffectAnalysisFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -612,7 +610,6 @@ struct EffectLoweringCodegenCx<'ctx> {
 pub(crate) struct MainCodegen<'a, 'ctx> {
     shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
     active_lir_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    active_lir_facts: Option<&'a LirFacts>,
     current_source_id: SourceId,
     function_cx: FunctionBodyCodegenCx<'ctx>,
     effect_cx: EffectLoweringCodegenCx<'ctx>,
@@ -835,7 +832,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) published_late_lowered_types: Option<&'a TypeStore>,
-    pub(super) published_lir_facts: &'a LirFacts,
     pub(super) effect_analysis_facts: Rc<EffectAnalysisFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -881,7 +877,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             extern_funs,
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts,
             effect_analysis_facts,
             effect_op_tags,
         } = inputs;
@@ -915,7 +910,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             callable_sources,
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts,
             effect_analysis_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -924,7 +918,10 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
     }
 
     pub(super) fn cone_init_routine_plans(&self) -> Vec<ConeInitRoutinePlan> {
-        let global_init = &self.published_lir_facts.global_init;
+        let global_init = self
+            .published_late_lowered_program
+            .expect("cone init planning requires published LIR program")
+            .global_init();
         global_init
             .final_entry_order
             .routines

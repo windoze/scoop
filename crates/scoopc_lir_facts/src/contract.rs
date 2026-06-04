@@ -902,6 +902,12 @@ impl LirOptPipelineFacts {
     }
 }
 
+impl Default for LirOptPipelineFacts {
+    fn default() -> Self {
+        Self::empty(0)
+    }
+}
+
 /// Precision of a published call-site effect/control contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirEffectPrecision {

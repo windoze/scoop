@@ -4,8 +4,8 @@
 //! `build/<profile>/cones/<cone-name>@<version>/`. The root contains a JSON
 //! manifest with cone identity, compiler version, and schema versions for every
 //! persisted product. Stage products are stored next to it as bincode payloads:
-//! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_facts.bin`,
-//! `lir_program.bin`, and `type_store.bin`; frontend import metadata is stored as
+//! `hir_facts.bin`, `mir_facts.bin`, `effect_facts.bin`, `lir_program.bin`,
+//! and `type_store.bin`; frontend import metadata is stored as
 //! `frontend_import.json` because it reuses the existing JSON-oriented `.cone`
 //! API schemas. Object files live under `objs/`, while
 //! `inputs.fingerprint` and `outputs.fingerprint` record cache identity.
@@ -21,11 +21,11 @@ use std::path::{Path, PathBuf};
 pub use scoop_project_model::{
     CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
     CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
-    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
-    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifactFingerprints, ConeArtifactManifest,
-    ConeArtifactSchemaVersions, compute_outputs_fingerprint, validate_object_file_name,
+    CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
+    CONE_ARTIFACT_MIR_FACTS_FILE_NAME, CONE_ARTIFACT_OBJS_DIR_NAME,
+    CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_TYPE_STORE_FILE_NAME,
+    ConeArtifactFingerprints, ConeArtifactManifest, ConeArtifactSchemaVersions,
+    compute_outputs_fingerprint, validate_object_file_name,
 };
 use scoop_project_model::{ConeKind, ConeManifest, StableConeKey};
 use scoopc_ast as ast;
@@ -35,7 +35,6 @@ use scoopc_hir::session::Session;
 use scoopc_hir::typecheck::TypeEnv;
 use scoopc_hir_facts::HirFacts;
 use scoopc_lir::LateLoweredProgram;
-use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
 use scoopc_source::SourceFile;
 use scoopc_types::TypeStore;
@@ -139,7 +138,6 @@ pub struct ConeArtifactStageProducts {
     pub hir_facts: HirFacts,
     pub mir_facts: MirFacts,
     pub effect_facts: EffectFacts,
-    pub lir_facts: LirFacts,
     pub lir_program: LateLoweredProgram,
     pub type_store: TypeStore,
 }
@@ -150,7 +148,6 @@ impl ConeArtifactStageProducts {
         hir_facts: HirFacts,
         mir_facts: MirFacts,
         effect_facts: EffectFacts,
-        lir_facts: LirFacts,
         lir_program: LateLoweredProgram,
         type_store: TypeStore,
     ) -> Self {
@@ -158,7 +155,6 @@ impl ConeArtifactStageProducts {
             hir_facts,
             mir_facts,
             effect_facts,
-            lir_facts,
             lir_program,
             type_store,
         }
@@ -215,7 +211,6 @@ pub struct ConeArtifact {
     pub hir_facts: HirFacts,
     pub mir_facts: MirFacts,
     pub effect_facts: EffectFacts,
-    pub lir_facts: LirFacts,
     pub lir_program: LateLoweredProgram,
     pub type_store: TypeStore,
     pub frontend_import: ConeArtifactFrontendImport,
@@ -233,7 +228,6 @@ impl ConeArtifact {
         hir_facts: HirFacts,
         mir_facts: MirFacts,
         effect_facts: EffectFacts,
-        lir_facts: LirFacts,
         lir_program: LateLoweredProgram,
         type_store: TypeStore,
         frontend_import: ConeArtifactFrontendImport,
@@ -245,7 +239,6 @@ impl ConeArtifact {
                 hir_facts,
                 mir_facts,
                 effect_facts,
-                lir_facts,
                 lir_program,
                 type_store,
             ),
@@ -273,7 +266,6 @@ impl ConeArtifact {
             hir_facts: products.hir_facts,
             mir_facts: products.mir_facts,
             effect_facts: products.effect_facts,
-            lir_facts: products.lir_facts,
             lir_program: products.lir_program,
             type_store: products.type_store,
             frontend_import,
@@ -308,10 +300,6 @@ impl ConeArtifact {
         write_bincode(
             &dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME),
             &self.effect_facts,
-        )?;
-        write_bincode(
-            &dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME),
-            &self.lir_facts,
         )?;
         write_bincode(
             &dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME),
@@ -382,7 +370,6 @@ impl ConeArtifact {
             hir_facts: read_bincode(&dir.join(CONE_ARTIFACT_HIR_FACTS_FILE_NAME))?,
             mir_facts: read_bincode(&dir.join(CONE_ARTIFACT_MIR_FACTS_FILE_NAME))?,
             effect_facts: read_bincode(&dir.join(CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME))?,
-            lir_facts: read_bincode(&dir.join(CONE_ARTIFACT_LIR_FACTS_FILE_NAME))?,
             lir_program: read_bincode(&dir.join(CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME))?,
             type_store: read_bincode(&dir.join(CONE_ARTIFACT_TYPE_STORE_FILE_NAME))?,
             frontend_import: read_json(&frontend_import_path)?,
@@ -504,7 +491,6 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use scoop_project_model::OptLevel;
     use scoopc_lir::LateLoweredProgram;
     use scoopc_types::{WIRE_SCHEMA_VERSION, WireSchemaVersion};
     use tempfile::tempdir;
@@ -529,7 +515,6 @@ mod tests {
         assert_eq!(decoded.hir_facts, artifact.hir_facts);
         assert_eq!(decoded.mir_facts, artifact.mir_facts);
         assert_eq!(decoded.effect_facts, artifact.effect_facts);
-        assert_eq!(decoded.lir_facts, artifact.lir_facts);
         assert!(decoded.lir_program.is_empty());
         assert_eq!(decoded.type_store, artifact.type_store);
         assert_eq!(decoded.frontend_import, artifact.frontend_import);
@@ -542,7 +527,6 @@ mod tests {
             CONE_ARTIFACT_HIR_FACTS_FILE_NAME,
             CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
             CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME,
-            CONE_ARTIFACT_LIR_FACTS_FILE_NAME,
             CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
             CONE_ARTIFACT_TYPE_STORE_FILE_NAME,
             CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
@@ -656,7 +640,6 @@ mod tests {
                 HirFacts::new(),
                 MirFacts::new(),
                 EffectFacts::new(),
-                LirFacts::new(OptLevel::O2),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
                 TypeStore::new(),
             ),

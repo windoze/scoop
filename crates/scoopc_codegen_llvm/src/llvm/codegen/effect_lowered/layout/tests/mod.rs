@@ -46,7 +46,6 @@ struct FixtureAbiInputs {
     base_context: LlvmStageBaseContext,
     lir_stage_output: LirStageOutput,
     abi_visibility_program: LateLoweredProgram,
-    abi_visibility_lir_facts: scoopc_lir_facts::LirFacts,
 }
 
 impl FixtureAbiInputs {
@@ -124,6 +123,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     .into_parts();
     let abi_visibility_lir_facts = crate::pipeline::lir_facts_builder::build_lir_facts(
         &abi_visibility_program,
+        None,
         mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
@@ -131,6 +131,11 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         abi_visibility_opt_pipeline,
     )
     .expect("ABI visibility LIR facts 应成功");
+    let abi_visibility_program = crate::pipeline::lir_facts_builder::attach_per_callable_lir_facts(
+        abi_visibility_program,
+        &abi_visibility_lir_facts,
+    )
+    .expect("ABI visibility LIR facts 应可挂回 program");
     let lir_stage_output = build_lir_stage_output_from_stage_outputs(
         &mir_stage_output,
         &effect_facts_stage_output,
@@ -153,7 +158,6 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         base_context,
         lir_stage_output,
         abi_visibility_program,
-        abi_visibility_lir_facts,
     }
 }
 
@@ -209,17 +213,11 @@ fn with_inputs_query_result(
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, inputs.primary_types(), &[]);
     check(&inputs, result, &module);
 }
 
@@ -272,17 +270,12 @@ fn with_inputs_query_result_and_cached_deps(
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &cached_dep_artifacts,
-    );
+    let result =
+        codegen.materialize_program_abi(&program, inputs.primary_types(), &cached_dep_artifacts);
     check(&inputs, result, &module);
 }
 
@@ -336,17 +329,11 @@ fn with_inputs_query_result_for_source_types(
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(&source_types),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        &source_types,
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, &source_types, &[]);
     check(&inputs, result, &module);
 }
 
@@ -399,17 +386,11 @@ fn with_inputs_query_result_and_codegen(
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, inputs.primary_types(), &[]);
     check(&inputs, &mut codegen, result, &module);
 }
 
@@ -1013,10 +994,9 @@ fn source_slice_non_boundary_dynamic_call_site(
     callable: &LateLoweredCallable,
 ) -> (crate::mir::SiteId, LirCallSiteContract) {
     let owner = inputs
-        .abi_visibility_lir_facts
-        .callables
-        .values()
-        .find(|facts| facts.root_fqn() == callable.root_fqn())
+        .abi_visibility_program
+        .callable(callable.root_fqn())
+        .and_then(LateLoweredCallable::published_callable_facts)
         .expect("callable LIR facts 应存在");
     let LirCallableContract::Plain(plain) = &owner.contract else {
         panic!("non-boundary source-slice helper 只支持 plain callable facts");
