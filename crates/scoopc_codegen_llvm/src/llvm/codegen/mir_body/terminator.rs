@@ -208,6 +208,103 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_statement(
+        &mut self,
+        stmt: &crate::effect_lowered::LirStatement,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        used_locals: &HashSet<crate::effect_lowered::mir_source::LocalId>,
+        abi: Option<&ProgramAbiQuery<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+
+        match &stmt.kind {
+            LirStatementKind::Nop => Ok(()),
+            LirStatementKind::Assign { target, value } => {
+                if !used_locals.contains(target)
+                    && matches!(
+                        value,
+                        LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                            target: LirTopLevelRefTarget::Callable(_),
+                            ..
+                        })
+                    )
+                {
+                    return Ok(());
+                }
+                if let LirRvalue::MemberAccess { member, .. } = value
+                    && matches!(
+                        member.resolved,
+                        LirMemberTarget::Fun { .. } | LirMemberTarget::ExtensionFun { .. }
+                    )
+                {
+                    return Ok(());
+                }
+                let slot = self.mir_local_slot(stmt.span, slots, *target)?;
+                let value = self.codegen_lir_rvalue(
+                    stmt.span,
+                    value,
+                    body,
+                    source_types,
+                    slots,
+                    slot.cg_ty,
+                    abi,
+                )?;
+                let value_ty = value.ty;
+                if slot.cg_ty == CgTy::Never {
+                    if value_ty == CgTy::Never
+                        && self
+                            .builder
+                            .get_insert_block()
+                            .is_some_and(|bb| bb.get_terminator().is_none())
+                    {
+                        self.builder.build_unreachable()?;
+                    }
+                    return Ok(());
+                }
+                let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
+                if value_ty == CgTy::Never
+                    && self
+                        .builder
+                        .get_insert_block()
+                        .is_some_and(|bb| bb.get_terminator().is_none())
+                {
+                    self.builder.build_unreachable()?;
+                }
+                Ok(())
+            }
+            LirStatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                continuation_route,
+            } => self.codegen_lir_store_member(
+                stmt.span,
+                receiver,
+                member,
+                value,
+                *value_ty,
+                continuation_route,
+                body,
+                source_types,
+                slots,
+            ),
+            LirStatementKind::StoreGlobal {
+                root,
+                value,
+                value_ty,
+            } => self.codegen_lir_store_global(stmt.span, root, value, *value_ty, slots),
+        }
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_terminator(
         &mut self,
         terminator: &crate::mir::Terminator,
@@ -320,6 +417,98 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "PIPELINE_GAPS §2.3",
                 RAW_MIR_TODO_TERMINATOR_DETAIL,
             )),
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_plain_terminator(
+        &mut self,
+        terminator: &LateLoweredStateTerminator,
+        slots: &[MirLocalSlot<'ctx>],
+        llvm_blocks: &std::collections::HashMap<StateId, inkwell::basic_block::BasicBlock<'ctx>>,
+        declared_return_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+
+        match terminator {
+            LateLoweredStateTerminator::Return { payload_source, .. } => {
+                let span = payload_source
+                    .operand_source()
+                    .and_then(|source| source.span())
+                    .unwrap_or(crate::span::Span::new(0, 0));
+                let value = match payload_source {
+                    LateLoweredCompletionPayloadSource::Unit { .. } => {
+                        mir_empty_return_contract_is_lowerable(span, declared_return_cg)?;
+                        CgValue::unit()
+                    }
+                    LateLoweredCompletionPayloadSource::Operand(source) => match source.value() {
+                        LateLoweredOperandValueSource::Local(local) => {
+                            let slot = self.mir_local_slot(span, slots, *local)?;
+                            self.load_mir_local(span, slot)?
+                        }
+                        LateLoweredOperandValueSource::Const(value) => {
+                            self.codegen_mir_const(span, value, Some(declared_return_cg))?
+                        }
+                    },
+                };
+                let value = self.coerce_value(span, value, declared_return_cg)?;
+                self.finish_function_return_path(span, declared_return_cg, value)
+            }
+            LateLoweredStateTerminator::Goto { target } => {
+                let target_bb = llvm_blocks.get(target).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid goto target",
+                    )
+                });
+                self.builder.build_unconditional_branch(target_bb)?;
+                Ok(())
+            }
+            LateLoweredStateTerminator::Branch {
+                cond_local,
+                then_state,
+                else_state,
+            } => {
+                let cond = self
+                    .codegen_lir_operand(
+                        crate::span::Span::new(0, 0),
+                        &LirOperand::Local(*cond_local),
+                        slots,
+                    )?
+                    .as_bool()
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_lir_plain_terminator: LIR verifier accepted non-Bool branch condition",
+                        )
+                    });
+                let then_bb = llvm_blocks.get(then_state).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid then target",
+                    )
+                });
+                let else_bb = llvm_blocks.get(else_state).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid else target",
+                    )
+                });
+                self.builder
+                    .build_conditional_branch(cond, then_bb, else_bb)?;
+                Ok(())
+            }
+            LateLoweredStateTerminator::Unreachable | LateLoweredStateTerminator::Abandon => {
+                self.builder.build_unreachable()?;
+                Ok(())
+            }
+            LateLoweredStateTerminator::Suspend { .. }
+            | LateLoweredStateTerminator::HandleDispatch { .. }
+            | LateLoweredStateTerminator::LocalRuntimeError { .. }
+            | LateLoweredStateTerminator::ResumeUnwind => panic!(
+                "codegen_lir_plain_terminator: effect/control terminator reached plain callable lowering"
+            ),
         }
     }
 
@@ -502,6 +691,205 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Rvalue::Todo(_) => {
                 std::panic::panic_any("codegen_mir_rvalue: MIR verifier accepted Todo rvalue")
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_rvalue(
+        &mut self,
+        span: crate::span::Span,
+        value: &LirRvalue,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+        abi: Option<&ProgramAbiQuery<'ctx>>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match value {
+            LirRvalue::Use(operand) => {
+                self.codegen_lir_operand_expected(span, operand, slots, Some(target_cg))
+            }
+            LirRvalue::Transport { value, transport } => self.codegen_lir_value_transport(
+                span,
+                value,
+                transport,
+                body,
+                source_types,
+                slots,
+                target_cg,
+            ),
+            LirRvalue::TopLevelRef(top) => match &top.target {
+                LirTopLevelRefTarget::Global(root) => {
+                    let key = root.as_str();
+                    if let Some(value) =
+                        self.try_codegen_qualified_enum_unit_variant_value(span, key)?
+                    {
+                        Ok(value)
+                    } else {
+                        self.codegen_top_level_value_ref(span, key)
+                    }
+                }
+                LirTopLevelRefTarget::Callable(id) => {
+                    let program = self.published_late_lowered_program().unwrap_or_else(|| {
+                        panic!("codegen_lir_rvalue: missing published LIR program")
+                    });
+                    let callable = program.callable_by_id(*id).unwrap_or_else(|| {
+                        panic!("codegen_lir_rvalue: LIR verifier accepted unknown callable ref")
+                    });
+                    self.codegen_top_level_value_ref(span, callable.root_fqn())
+                }
+            },
+            LirRvalue::TypeCheck {
+                value,
+                op,
+                test_ty,
+                metadata,
+            } => self.codegen_lir_type_check(
+                span,
+                value,
+                *op,
+                *test_ty,
+                metadata,
+                source_types,
+                slots,
+            ),
+            LirRvalue::Cast {
+                value,
+                op,
+                target_ty,
+                metadata,
+            } => self.codegen_lir_cast(
+                span,
+                value,
+                *op,
+                *target_ty,
+                metadata,
+                source_types,
+                slots,
+                target_cg,
+            ),
+            LirRvalue::Call {
+                site_id,
+                kind,
+                args,
+                transport,
+            } => self.codegen_lir_call(
+                span,
+                *site_id,
+                kind,
+                args,
+                transport,
+                body,
+                source_types,
+                slots,
+                abi,
+            ),
+            LirRvalue::PatternMatch { subject, pattern } => {
+                self.codegen_lir_pattern_match(span, source_types, subject, pattern, slots)
+            }
+            LirRvalue::PatternExtract { subject, path } => {
+                self.codegen_lir_pattern_extract(span, subject, path, slots, target_cg)
+            }
+            LirRvalue::MakeTuple {
+                elements,
+                transport: _,
+            } => self.codegen_lir_make_tuple(span, elements, target_cg, slots),
+            LirRvalue::SizeOf { value_ty, .. } => {
+                self.codegen_mir_size_of(span, source_types, *value_ty)
+            }
+            LirRvalue::KindOf { value_ty, .. } => {
+                self.codegen_mir_kind_of(span, source_types, *value_ty)
+            }
+            LirRvalue::AlignOf { value_ty, .. } => {
+                self.codegen_mir_align_of(span, source_types, *value_ty)
+            }
+            LirRvalue::DescOf { value_ty, .. } => {
+                self.codegen_mir_desc_of(span, source_types, *value_ty)
+            }
+            LirRvalue::TypeMetadataLiteral(metadata) => {
+                self.codegen_lir_type_metadata_literal(span, metadata, source_types)
+            }
+            LirRvalue::StructLit { fields, transport } => self.codegen_lir_make_struct(
+                span,
+                source_types,
+                fields,
+                transport,
+                target_cg,
+                slots,
+            ),
+            LirRvalue::InterpolatedString { .. } => std::panic::panic_any(
+                "codegen_lir_rvalue: LIR verifier accepted residual interpolated string",
+            ),
+            LirRvalue::TupleGet { tuple, index } => {
+                self.codegen_lir_tuple_get(span, body, source_types, tuple, *index, slots)
+            }
+            LirRvalue::MakeClosure {
+                env,
+                fn_ptr,
+                env_contract,
+            } => {
+                let env_cg = self.lir_operand_cg_ty(body, source_types, env).unwrap_or_else(|| {
+                    panic!("codegen_lir_rvalue: LIR verifier accepted closure env without codegen type")
+                });
+                self.codegen_lir_make_closure(
+                    span,
+                    env,
+                    *fn_ptr,
+                    env_contract,
+                    source_types,
+                    env_cg,
+                    target_cg,
+                    slots,
+                )
+            }
+            LirRvalue::PerformResult { .. } => std::panic::panic_any(
+                "codegen_lir_rvalue: perform result reached plain callable lowering",
+            ),
+            LirRvalue::MemberAccess {
+                receiver, member, ..
+            } => self.codegen_lir_member_access(
+                span,
+                receiver,
+                member,
+                LirBodyCodegenCtx {
+                    body,
+                    source_types,
+                    slots,
+                },
+                target_cg,
+            ),
+            LirRvalue::EnumVariant {
+                enum_ty,
+                variant_name,
+                args,
+                payload,
+            } => self.codegen_lir_enum_variant_ctor_call(
+                span,
+                *enum_ty,
+                variant_name,
+                args,
+                payload,
+                source_types,
+                slots,
+            ),
+            LirRvalue::ClassCtor {
+                site_id,
+                class,
+                ctor,
+                args,
+                ..
+            } => {
+                let class_layout_key =
+                    self.lir_class_ctor_layout_key(span, *site_id, class, source_types)?;
+                self.codegen_lir_class_ctor_call(
+                    span,
+                    *site_id,
+                    &class_layout_key,
+                    ctor,
+                    args,
+                    slots,
+                )
             }
         }
     }

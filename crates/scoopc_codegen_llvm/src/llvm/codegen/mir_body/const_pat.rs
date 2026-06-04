@@ -99,6 +99,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::bool(cond))
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        subject: &LirOperand,
+        pattern: &crate::effect_lowered::LirPattern,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let subject = self.codegen_lir_operand(span, subject, slots)?;
+        let cond = self.codegen_lir_pattern_match_value(span, source_types, subject, pattern)?;
+        Ok(CgValue::bool(cond))
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_pattern_match_value(
         &mut self,
         span: crate::span::Span,
@@ -214,6 +227,121 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_pattern_match_value(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        pattern: &crate::effect_lowered::LirPattern,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pattern {
+            crate::effect_lowered::LirPattern::Else
+            | crate::effect_lowered::LirPattern::Wildcard
+            | crate::effect_lowered::LirPattern::Rest
+            | crate::effect_lowered::LirPattern::Bind { .. } => {
+                Ok(self.context.bool_type().const_int(1, false))
+            }
+            crate::effect_lowered::LirPattern::Or { pats } => {
+                let mut cond = self.context.bool_type().const_int(0, false);
+                for pat in pats {
+                    let pat_cond =
+                        self.codegen_lir_pattern_match_value(span, source_types, subject, pat)?;
+                    cond = self.builder.build_or(cond, pat_cond, "lir_pattern_or")?;
+                }
+                Ok(cond)
+            }
+            crate::effect_lowered::LirPattern::Is { ty, metadata } => {
+                self.codegen_lir_is_pattern_match(span, source_types, subject, *ty, metadata)
+            }
+            crate::effect_lowered::LirPattern::Tuple { elements } => {
+                self.codegen_lir_tuple_pattern_match(span, source_types, subject, elements)
+            }
+            crate::effect_lowered::LirPattern::Variant { name, args } => {
+                self.codegen_lir_variant_pattern_match(span, source_types, subject, name, args)
+            }
+            crate::effect_lowered::LirPattern::IntLit { raw } => {
+                let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
+                    panic!("codegen_lir_pattern_match_value: LIR verifier accepted Int pattern for non-int subject")
+                });
+                let expected = self.int_literal_bits_from_text_for_ty(span, raw, int_ty)?;
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.int_type(int_ty).const_int(expected, false),
+                    "lir_pattern_int_eq",
+                )?)
+            }
+            crate::effect_lowered::LirPattern::CharLit { value: expected } => {
+                let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
+                    panic!("codegen_lir_pattern_match_value: LIR verifier accepted Char pattern for non-int subject")
+                });
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.int_type(int_ty).const_int(*expected as u64, false),
+                    "lir_pattern_char_eq",
+                )?)
+            }
+            crate::effect_lowered::LirPattern::StringLit { value } => {
+                let CgTy::String = subject.ty else {
+                    panic!(
+                        "codegen_lir_pattern_match_value: LIR verifier accepted String pattern for non-string subject"
+                    );
+                };
+                let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
+                    panic!(
+                        "codegen_lir_pattern_match_value: LIR verifier accepted String pattern with valueless subject"
+                    );
+                };
+                let deferred_subject =
+                    self.defer_gc_ref_pointer(span, "lir_pattern_str_subject", subject_ptr)?;
+                let expected = self.codegen_string_literal_from_text(span, value)?;
+                let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
+                    panic!(
+                        "codegen_lir_pattern_match_value: string literal codegen produced no pointer"
+                    );
+                };
+                let subject_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    "lir_pattern_str_subject_reload",
+                    &deferred_subject,
+                )?;
+                let fn_val = self.declare_runtime_string_equals();
+                let call = self.builder.build_call(
+                    fn_val,
+                    &[subject_ptr.into(), expected_ptr.into()],
+                    "lir_pattern_str_eq",
+                )?;
+                let raw_result = call
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("runtime string equality call must return a value");
+                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                    panic!(
+                        "codegen_lir_pattern_match_value: runtime string equality must return an integer"
+                    );
+                };
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    eq_i64,
+                    self.context.i64_type().const_zero(),
+                    "lir_pattern_str_eq_bool",
+                )?)
+            }
+            crate::effect_lowered::LirPattern::BoolLit { value: expected } => {
+                let value = subject.as_bool().unwrap_or_else(|| {
+                    panic!("codegen_lir_pattern_match_value: LIR verifier accepted Bool pattern for non-bool subject")
+                });
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.context.bool_type().const_int(*expected as u64, false),
+                    "lir_pattern_bool_eq",
+                )?)
+            }
+        }
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_is_pattern_match(
         &mut self,
         span: crate::span::Span,
@@ -278,6 +406,76 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_ref_is_instance_of(span, subject_ptr, target_ty)
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_is_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        target_ty: TypeId,
+        metadata: &crate::effect_lowered::LirRuntimePatternTypeTestMetadata,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        if metadata.target_ty != target_ty || metadata.descriptor.ty != target_ty {
+            panic!(
+                "codegen_lir_is_pattern_match: LIR verifier accepted pattern metadata target drift"
+            );
+        }
+        let metadata_subject_ty = self
+            .cg_ty_of_mir_type(source_types, metadata.subject_ty)
+            .unwrap_or_else(|| panic!("codegen_lir_is_pattern_match: LIR verifier accepted unsupported pattern subject metadata type"));
+        if !self.cg_ty_layout_equivalent(metadata_subject_ty, subject.ty) {
+            panic!(
+                "codegen_lir_is_pattern_match: LIR verifier accepted pattern subject type drift"
+            );
+        }
+        match metadata.static_fold {
+            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+                return Ok(self.context.bool_type().const_int(1, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+                return Ok(self.context.bool_type().const_int(0, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+        }
+        if !matches!(
+            metadata.descriptor.kind,
+            crate::effect_lowered::LirRuntimeTypeDescriptorKind::Any
+                | crate::effect_lowered::LirRuntimeTypeDescriptorKind::Function
+                | crate::effect_lowered::LirRuntimeTypeDescriptorKind::String
+                | crate::effect_lowered::LirRuntimeTypeDescriptorKind::Nominal { .. }
+        ) {
+            panic!(
+                "codegen_lir_is_pattern_match: LIR verifier accepted unsupported runtime pattern descriptor"
+            );
+        }
+        let target_ty = self
+            .equivalent_runtime_ref_codegen_type_id(source_types, metadata.target_ty)
+            .unwrap_or_else(|| panic!("codegen_lir_is_pattern_match: LIR verifier accepted unsupported runtime target type"));
+        let target_cg = self
+            .try_cg_ty_of_type_id(target_ty)
+            .unwrap_or_else(|| panic!("codegen_lir_is_pattern_match: LIR verifier accepted non-codegen runtime target type"));
+        if !matches!(target_cg, CgTy::Ref | CgTy::String) {
+            panic!(
+                "codegen_lir_is_pattern_match: LIR verifier accepted unsupported runtime pattern target type"
+            );
+        }
+
+        let subject = match subject.ty {
+            CgTy::Ref => subject,
+            CgTy::String => self.coerce_value(span, subject, CgTy::Ref)?,
+            _ => {
+                panic!(
+                    "codegen_lir_is_pattern_match: LIR verifier accepted runtime pattern over non-reference subject"
+                );
+            }
+        };
+        let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
+            panic!(
+                "codegen_lir_is_pattern_match: LIR verifier accepted valueless runtime pattern subject"
+            );
+        };
+        self.codegen_ref_is_instance_of(span, subject_ptr, target_ty)
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_tuple_pattern_match(
         &mut self,
         span: crate::span::Span,
@@ -328,6 +526,60 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             cond = self
                 .builder
                 .build_and(cond, elem_cond, "pass_mir_tuple_pattern_and")?;
+        }
+        Ok(cond)
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_tuple_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        elements: &[crate::effect_lowered::LirPattern],
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let CgTy::Tuple(tuple_ty) = subject.ty else {
+            panic!(
+                "codegen_lir_tuple_pattern_match: LIR verifier accepted tuple pattern for non-tuple subject"
+            );
+        };
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty.inner())
+        else {
+            panic!(
+                "codegen_lir_tuple_pattern_match: LIR verifier accepted tuple pattern without tuple schema"
+            );
+        };
+        let Some(raw) = subject.value else {
+            panic!(
+                "codegen_lir_tuple_pattern_match: LIR verifier accepted valueless tuple pattern subject"
+            );
+        };
+        let tuple_v = raw.into_struct_value();
+        let (prefix_pats, has_rest) = match elements.last() {
+            Some(crate::effect_lowered::LirPattern::Rest) => {
+                (&elements[..elements.len().saturating_sub(1)], true)
+            }
+            _ => (elements, false),
+        };
+        let pat_arity = prefix_pats.len();
+        if (!has_rest && pat_arity != tuple_elems.len())
+            || (has_rest && pat_arity > tuple_elems.len())
+        {
+            panic!(
+                "codegen_lir_tuple_pattern_match: LIR verifier accepted tuple pattern arity drift"
+            );
+        }
+
+        let mut cond = self.context.bool_type().const_int(1, false);
+        for (idx, pat) in prefix_pats.iter().enumerate() {
+            let elem_ty = self.tuple_element_cg_ty(tuple_ty, idx).unwrap_or_else(|| {
+                panic!("codegen_lir_tuple_pattern_match: LIR verifier accepted unsupported tuple pattern element type")
+            });
+            let elem_value = self.extract_mir_tuple_element_value(span, tuple_v, idx, elem_ty)?;
+            let elem_cond =
+                self.codegen_lir_pattern_match_value(span, source_types, elem_value, pat)?;
+            cond = self
+                .builder
+                .build_and(cond, elem_cond, "lir_tuple_pattern_and")?;
         }
         Ok(cond)
     }
@@ -438,6 +690,110 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(phi.as_basic_value().into_int_value())
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_variant_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        variant_name: &str,
+        args: &[crate::effect_lowered::LirPattern],
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let CgTy::Enum(enum_ty) = subject.ty else {
+            panic!(
+                "codegen_lir_variant_pattern_match: LIR verifier accepted variant pattern for non-enum subject"
+            );
+        };
+        let Some(raw) = subject.value else {
+            panic!(
+                "codegen_lir_variant_pattern_match: LIR verifier accepted valueless variant pattern subject"
+            );
+        };
+        let (repr, variant) = {
+            let layout = self.cg_enum_layout(span, enum_ty)?;
+            let repr = layout.repr;
+            let variant = layout
+                .variants
+                .iter()
+                .find(|variant| variant.name == variant_name)
+                .cloned()
+                .unwrap_or_else(|| panic!("codegen_lir_variant_pattern_match: LIR verifier accepted unknown enum variant pattern"));
+            (repr, variant)
+        };
+        let (prefix_pats, has_rest) = match args.last() {
+            Some(crate::effect_lowered::LirPattern::Rest) => {
+                (&args[..args.len().saturating_sub(1)], true)
+            }
+            _ => (args, false),
+        };
+        let expected_arity = variant.fields.len();
+        let found_arity = prefix_pats.len();
+        if (!has_rest && expected_arity != found_arity)
+            || (has_rest && found_arity > expected_arity)
+        {
+            panic!(
+                "codegen_lir_variant_pattern_match: LIR verifier accepted enum variant pattern arity drift"
+            );
+        }
+
+        let tag = self.extract_mir_enum_tag_value(span, enum_ty, repr, raw)?;
+        let expected = tag.get_type().const_int(variant.tag, false);
+        let tag_eq = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            tag,
+            expected,
+            "lir_variant_tag_eq",
+        )?;
+        if !prefix_pats
+            .iter()
+            .any(Self::lir_pattern_needs_payload_match)
+        {
+            return Ok(tag_eq);
+        }
+
+        let subject_ptr = self.create_entry_alloca(span, "lir_variant_subject", subject.ty)?;
+        let _ = self.store_local_value(span, subject_ptr, subject.ty, subject)?;
+        let current_bb = self.expect_insert_block("LIR variant payload match");
+        let func = self.expect_parent_function(current_bb, "LIR variant payload match");
+        let payload_bb = self.context.append_basic_block(func, "lir_variant_payload");
+        let merge_bb = self.context.append_basic_block(func, "lir_variant_merge");
+        self.builder
+            .build_conditional_branch(tag_eq, payload_bb, merge_bb)?;
+
+        self.builder.position_at_end(payload_bb);
+        let mut payload_cond = self.context.bool_type().const_int(1, false);
+        for (idx, pat) in prefix_pats.iter().enumerate() {
+            if !Self::lir_pattern_needs_payload_match(pat) {
+                continue;
+            }
+            let extracted = self.extract_matched_when_variant_field_value(
+                enum_ty,
+                repr,
+                &variant,
+                idx,
+                span,
+                subject_ptr,
+            )?;
+            let field_cond =
+                self.codegen_lir_pattern_match_value(span, source_types, extracted, pat)?;
+            payload_cond =
+                self.builder
+                    .build_and(payload_cond, field_cond, "lir_variant_payload_and")?;
+        }
+
+        let payload_tail = self.builder.get_insert_block().expect(
+            "codegen_lir_variant_pattern_match: payload match must have an insertion block",
+        );
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "lir_variant_match")?;
+        let no_match = self.context.bool_type().const_int(0, false);
+        phi.add_incoming(&[(&no_match, current_bb), (&payload_cond, payload_tail)]);
+        Ok(phi.as_basic_value().into_int_value())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_pattern_extract(
         &mut self,
         span: crate::span::Span,
@@ -488,6 +844,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .unwrap_or_else(|| panic!("codegen_mir_pattern_extract: MIR verifier accepted unknown enum variant extraction"));
                     let subject_ptr =
                         self.create_entry_alloca(span, "pass_mir_extract_subject", current.ty)?;
+                    let _ = self.store_local_value(span, subject_ptr, current.ty, current)?;
+                    self.extract_matched_when_variant_field_value(
+                        enum_ty,
+                        layout.repr,
+                        &variant,
+                        *field_index,
+                        span,
+                        subject_ptr,
+                    )?
+                }
+            };
+        }
+        self.coerce_value(span, current, target_cg)
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_pattern_extract(
+        &mut self,
+        span: crate::span::Span,
+        subject: &LirOperand,
+        path: &[crate::mir::PatternBindingStep],
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let mut current = self.codegen_lir_operand(span, subject, slots)?;
+        for step in path {
+            current = match step {
+                crate::mir::PatternBindingStep::TupleIndex(index) => {
+                    let CgTy::Tuple(tuple_ty) = current.ty else {
+                        panic!(
+                            "codegen_lir_pattern_extract: LIR verifier accepted tuple extraction from non-tuple subject"
+                        );
+                    };
+                    let Some(raw) = current.value else {
+                        panic!(
+                            "codegen_lir_pattern_extract: LIR verifier accepted valueless tuple extraction subject"
+                        );
+                    };
+                    let elem_ty = self.tuple_element_cg_ty(tuple_ty, *index).unwrap_or_else(|| {
+                        panic!("codegen_lir_pattern_extract: LIR verifier accepted tuple extraction field drift")
+                    });
+                    self.extract_mir_tuple_element_value(
+                        span,
+                        raw.into_struct_value(),
+                        *index,
+                        elem_ty,
+                    )?
+                }
+                crate::mir::PatternBindingStep::VariantField {
+                    variant,
+                    field_index,
+                } => {
+                    let CgTy::Enum(enum_ty) = current.ty else {
+                        panic!(
+                            "codegen_lir_pattern_extract: LIR verifier accepted variant extraction from non-enum subject"
+                        );
+                    };
+                    let layout = self.cg_enum_layout(span, enum_ty)?;
+                    let variant = layout
+                        .variants
+                        .iter()
+                        .find(|item| item.name == *variant)
+                        .cloned()
+                        .unwrap_or_else(|| panic!("codegen_lir_pattern_extract: LIR verifier accepted unknown enum variant extraction"));
+                    let subject_ptr =
+                        self.create_entry_alloca(span, "lir_extract_subject", current.ty)?;
                     let _ = self.store_local_value(span, subject_ptr, current.ty, current)?;
                     self.extract_matched_when_variant_field_value(
                         enum_ty,
@@ -579,6 +1000,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | crate::mir::Pattern::Wildcard
                 | crate::mir::Pattern::Rest
                 | crate::mir::Pattern::Bind { .. }
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn lir_pattern_needs_payload_match(
+        pattern: &crate::effect_lowered::LirPattern,
+    ) -> bool {
+        !matches!(
+            pattern,
+            crate::effect_lowered::LirPattern::Else
+                | crate::effect_lowered::LirPattern::Wildcard
+                | crate::effect_lowered::LirPattern::Rest
+                | crate::effect_lowered::LirPattern::Bind { .. }
         )
     }
 }

@@ -10,3 +10,5 @@ mod layout;
 mod stable_naming;
 mod types;
 mod value;
+
+pub(in crate::llvm::codegen) use types::ProgramAbiQuery;

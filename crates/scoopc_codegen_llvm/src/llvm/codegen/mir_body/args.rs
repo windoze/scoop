@@ -53,6 +53,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect()
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_class_ctor_ordered_args(
+        &mut self,
+        _span: crate::span::Span,
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        ctor_params: &[LateLoweredClassCtorParam],
+        kind: &'static str,
+    ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
+        if ctor_params.len() != args.len() {
+            panic!("codegen_lir_class_ctor_ordered_args: LIR verifier accepted {kind}");
+        }
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; args.len()];
+        for (idx, (param, arg)) in ctor_params.iter().zip(args).enumerate() {
+            if arg.name.is_some() {
+                panic!("codegen_lir_class_ctor_ordered_args: LIR verifier accepted {kind}");
+            }
+            let param_cg = self.cg_ty_of_type_id(param.ty().inner(), "LIR class ctor param type");
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
+            let value = self.coerce_value(arg.span, value, param_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("class_ctor_ordered_arg_{idx}"),
+                value,
+            )?;
+            evaluated[idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_lir_class_ctor_ordered_args: LIR verifier accepted {kind}")
+                });
+                self.materialize_deferred_cg_value(
+                    arg_span,
+                    &format!("class_ctor_ordered_arg_reload_{idx}"),
+                    deferred,
+                )
+            })
+            .collect()
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
@@ -216,6 +262,119 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_class_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        site_id: crate::mir::SiteId,
+        class_layout_key: &hir::ClassInstanceKey,
+        _ctor: &crate::effect_lowered::LirClassCtorCallMetadata,
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let class = self.class_init_layout(span, class_layout_key)?;
+        let target_init = self
+            .required_lir_class_ctor_call_site(site_id, "LIR class ctor lowering")?
+            .target_init
+            .clone();
+        let init_body = self.class_ctor_init_body_for_key(span, &target_init)?;
+        let ctor_params = init_body.params();
+        if args.len() != ctor_params.len() {
+            return Err(frontend_error(format!(
+                "class ctor site{} published {} params but LIR carries {} args",
+                site_id.as_u32(),
+                ctor_params.len(),
+                args.len()
+            )));
+        }
+
+        let obj_ty = self.llvm_class_object_type(span, &class)?;
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let type_desc = self.get_or_create_class_type_desc_global(span, class_layout_key)?;
+        let type_desc_i8 = self.builder.build_pointer_cast(
+            type_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "lowered_class_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[type_desc_i8.into(), size_v.into()],
+            "rt_alloc_lowered_class",
+        )?;
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed lowered class allocation");
+        let obj_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed lowered class allocation");
+
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let typed_obj =
+            self.builder
+                .build_pointer_cast(obj_ptr, obj_ptr_ty, "lowered_class_obj_ptr")?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(obj_ty, typed_obj, 1, "lowered_class_payload_gep")?;
+        let payload_ty = self.llvm_class_payload_type(span, &class)?;
+        let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
+        if payload_size_bytes > 0 {
+            let payload_i8 = self
+                .builder
+                .build_bit_cast(
+                    payload_ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "lowered_class_payload_i8",
+                )?
+                .into_pointer_value();
+            let size_ty = self.llvm_ptr_sized_int_type(None);
+            let size_v = size_ty.const_int(payload_size_bytes, false);
+            let zero = self.context.i8_type().const_int(0, false);
+            let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
+        }
+
+        let deferred_obj = self.defer_gc_sensitive_cg_value(
+            span,
+            "lowered_class_ctor_obj_root",
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(obj_ptr.into()),
+            },
+        )?;
+
+        let evaluated_args = self.codegen_lir_class_ctor_ordered_args(
+            span,
+            args,
+            slots,
+            ctor_params,
+            "class ctor ordered arg eval",
+        )?;
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lowered_class_ctor_obj_before_invoke",
+            &deferred_obj,
+        )?;
+
+        self.codegen_class_ctor_invoke(
+            span,
+            span,
+            &class,
+            &init_body,
+            evaluated_args.as_slice(),
+            current_obj,
+        )?;
+        self.emit_ordinary_call_effect_propagation_check(span, "lowered_class_ctor_call_effect")?;
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lowered_class_ctor_obj_return",
+            &deferred_obj,
+        )?;
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(current_obj.into()),
+        })
+    }
+
     pub(in crate::llvm::codegen) fn codegen_bound_mir_call_args(
         &mut self,
         span: crate::span::Span,
@@ -243,6 +402,101 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             uses_native_abi,
             self.types,
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_bound_lir_call_args_from_signature(
+        &mut self,
+        span: crate::span::Span,
+        param_names: &[String],
+        param_tys: &[TypeId],
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        uses_native_abi: bool,
+        source_types: &TypeStore,
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let arg_to_param = map_lir_call_args_to_param_names(param_names, args).unwrap_or_else(|| {
+            panic!("codegen_bound_lir_call_args_from_signature: LIR verifier accepted arg binding drift")
+        });
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let param_ty = param_tys[param_idx];
+            let target_cg = self
+                .cg_ty_of_mir_type(source_types, param_ty)
+                .or_else(|| {
+                    self.equivalent_codegen_type_id(source_types, param_ty)
+                        .and_then(|ty| self.try_cg_ty_of_type_id(ty))
+                })
+                .or_else(|| self.try_cg_ty_of_type_id(param_ty))
+                .unwrap_or_else(|| {
+                    panic!("codegen_bound_lir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
+                });
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("pass_lir_call_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred, target_cg));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred, param_cg) = slot.unwrap_or_else(|| {
+                    panic!("codegen_bound_lir_call_args_from_signature: LIR verifier accepted missing evaluated arg slot")
+                });
+                let param_ty = param_tys[param_idx];
+                let abi_ty = self
+                    .equivalent_codegen_type_id(source_types, param_ty)
+                    .unwrap_or(param_ty);
+                let param_abi = if uses_native_abi {
+                    None
+                } else {
+                    Some(self.ordinary_param_abi_from_cg(span, abi_ty, param_cg)?)
+                };
+                if let Some(abi) = param_abi
+                    && abi.pointee_ty().is_some()
+                {
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("pass_lir_call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                    return Ok(EvaluatedCallArg {
+                        value: slot_ptr.into(),
+                        pointer_value: None,
+                        cleanup_spills,
+                    });
+                }
+
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("pass_lir_call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(inkwell::values::BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let param_cg = param_abi
+                    .map(OrdinaryParamAbi::cg_ty)
+                    .unwrap_or(materialized.ty);
+                let value = self.as_llvm_arg_value(arg_span, param_cg, materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
     }
 
     #[allow(clippy::too_many_arguments)]

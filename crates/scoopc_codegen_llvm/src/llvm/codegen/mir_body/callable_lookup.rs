@@ -24,8 +24,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let program = self.published_late_lowered_program()?;
         let source_types = self.published_late_lowered_types()?;
-        let source_callable = program.callable(fqn)?.source_callable()?;
-        source_callable.body.as_ref()?;
+        let callable = program.callable(fqn)?;
+        let source_callable = callable.source_callable()?;
+        callable.executable_body()?;
         Some((source_types, source_callable))
     }
 
@@ -399,13 +400,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let Some(body) = source_fun.body.as_ref() else {
-            return Ok(());
-        };
-        body.validate_cfg().unwrap_or_else(|_| {
-            panic!("codegen_lir_source_closure_fun: LIR source ABI verifier accepted invalid CFG")
-        });
-        ensure_raw_mir_body_route_is_safe(&source_fun.fqn, body)?;
+        let executable_body = self
+            .published_late_lowered_program()
+            .and_then(|program| program.callable(&source_fun.fqn))
+            .and_then(|callable| callable.executable_body())
+            .unwrap_or_else(|| {
+                panic!("codegen_lir_source_closure_fun: missing LIR executable closure body")
+            });
         self.function_cx.current_callable_fqn = Some(source_fun.fqn.clone());
 
         let declared_return_cg = self
@@ -436,41 +437,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let (return_bb, return_alloca) =
             self.setup_function_return_context(source_fun.span, llvm_fun, declared_return_cg)?;
-        let mut local_slots = self.create_mir_local_slots(body, source_types)?;
-        self.bind_mir_closure_params(
-            source_fun,
+        let mut local_slots = self.create_lir_local_slots(executable_body, source_types)?;
+        self.bind_lir_closure_params(
+            executable_body.header(),
             source_types,
             llvm_fun,
             u32::from(uses_hidden_sret),
             &mut local_slots,
         )?;
-        let used_locals = collect_mir_local_uses(body);
-        let llvm_blocks = body
-            .blocks
+        let used_locals = collect_lir_local_uses(executable_body);
+        let llvm_blocks = executable_body
+            .states()
+            .states()
             .iter()
-            .enumerate()
-            .map(|(idx, _)| {
-                self.context
-                    .append_basic_block(llvm_fun, &format!("mir.bb{idx}"))
+            .map(|state| {
+                (
+                    state.state_id(),
+                    self.context.append_basic_block(
+                        llvm_fun,
+                        &format!("lir.s{}", state.state_id().as_u32()),
+                    ),
+                )
             })
-            .collect::<Vec<_>>();
+            .collect::<std::collections::HashMap<_, _>>();
         let start_bb = llvm_blocks
-            .get(body.start.as_u32() as usize)
+            .get(&executable_body.states().entry_state())
             .copied()
             .unwrap_or_else(|| {
-                panic!("codegen_lir_source_closure_fun: LIR source ABI verifier accepted missing start block")
+                panic!("codegen_lir_source_closure_fun: LIR executable body accepted missing entry state")
             });
         self.builder.build_unconditional_branch(start_bb)?;
 
-        for (idx, block) in body.blocks.iter().enumerate() {
-            self.builder.position_at_end(llvm_blocks[idx]);
-            for stmt in &block.stmts {
-                self.codegen_mir_statement(stmt, body, source_types, &local_slots, &used_locals)?;
+        for state in executable_body.states().states() {
+            let llvm_block = llvm_blocks.get(&state.state_id()).copied().unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_source_closure_fun: LIR executable body accepted missing block for state s{}",
+                    state.state_id().as_u32()
+                )
+            });
+            self.builder.position_at_end(llvm_block);
+            for stmt in state.body().statements() {
+                self.codegen_lir_statement(
+                    stmt,
+                    executable_body,
+                    source_types,
+                    &local_slots,
+                    &used_locals,
+                    None,
+                )?;
             }
-            self.codegen_mir_terminator(
-                &block.terminator,
-                body,
-                source_types,
+            self.codegen_lir_plain_terminator(
+                state.body().terminator(),
                 &local_slots,
                 &llvm_blocks,
                 declared_return_cg,
@@ -556,6 +573,120 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    pub(in crate::llvm::codegen) fn bind_lir_header_params(
+        &mut self,
+        header: &crate::effect_lowered::LirCallableHeader,
+        source_types: &TypeStore,
+        llvm_fun: FunctionValue<'ctx>,
+        param_offset: u32,
+        slots: &mut [MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, param) in header.params().iter().enumerate() {
+            let slot = slots.get(param.local().as_u32() as usize).copied().unwrap_or_else(|| {
+                std::panic::panic_any(
+                    "bind_lir_header_params: LIR verifier accepted param local outside slot table",
+                )
+            });
+            let abi_ty = self
+                .equivalent_codegen_type_id(source_types, param.ty())
+                .unwrap_or_else(|| {
+                    panic!("bind_lir_header_params: LIR verifier accepted unsupported param type")
+                });
+            let abi = self.ordinary_param_abi(param.span(), abi_ty)?;
+            let init = if let Some(pointee_ty) = abi.pointee_ty() {
+                let param_ptr = llvm_fun
+                    .get_nth_param(idx as u32 + param_offset)
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "bind_lir_header_params: ABI declaration missing lowered LLVM parameter",
+                        )
+                    })
+                    .into_pointer_value();
+                let loaded =
+                    self.builder
+                        .build_load(pointee_ty, param_ptr, "lir_header_param_load")?;
+                self.cg_value_from_loaded(param.span(), slot.cg_ty, loaded)?
+            } else {
+                self.cg_value_from_llvm_param(
+                    param.span(),
+                    llvm_fun,
+                    idx as u32 + param_offset,
+                    slot.cg_ty,
+                    "missing LIR header llvm param",
+                )?
+            };
+            let _ = self.store_local_value(param.span(), slot.ptr, slot.cg_ty, init)?;
+        }
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn bind_lir_closure_params(
+        &mut self,
+        header: &crate::effect_lowered::LirCallableHeader,
+        source_types: &TypeStore,
+        llvm_fun: FunctionValue<'ctx>,
+        param_offset: u32,
+        slots: &mut [MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        let env_param = header.params().first().unwrap_or_else(|| {
+            panic!("bind_lir_closure_params: LIR verifier accepted closure without env param")
+        });
+        if env_param.name() != "$env" {
+            panic!(
+                "bind_lir_closure_params: LIR verifier accepted closure first param not named `$env`"
+            )
+        }
+        let env_slot = slots
+            .get(env_param.local().as_u32() as usize)
+            .copied()
+            .unwrap_or_else(|| {
+                panic!("bind_lir_closure_params: LIR verifier accepted missing env local slot")
+            });
+        let env_init = self.codegen_mir_closure_env_param(
+            env_param.span(),
+            header.root_fqn(),
+            llvm_fun,
+            param_offset,
+            env_slot.cg_ty,
+        )?;
+        let _ = self.store_local_value(env_param.span(), env_slot.ptr, env_slot.cg_ty, env_init)?;
+
+        for (idx, param) in header.params().iter().enumerate().skip(1) {
+            let slot = slots
+                .get(param.local().as_u32() as usize)
+                .copied()
+                .unwrap_or_else(|| {
+                    panic!("bind_lir_closure_params: LIR call ABI verifier accepted missing param local slot")
+                });
+            let param_ty = self.equivalent_codegen_type_id(source_types, param.ty()).unwrap_or_else(|| {
+                panic!("bind_lir_closure_params: TypeStore equivalence verifier accepted unsupported param type")
+            });
+            let abi = self.ordinary_param_abi(param.span(), param_ty)?;
+            let init = if let Some(pointee_ty) = abi.pointee_ty() {
+                let param_ptr = llvm_fun
+                    .get_nth_param(idx as u32 + param_offset)
+                    .unwrap_or_else(|| {
+                        panic!("bind_lir_closure_params: LIR call ABI verifier accepted missing LLVM param")
+                    })
+                    .into_pointer_value();
+                let loaded =
+                    self.builder
+                        .build_load(pointee_ty, param_ptr, "lir_closure_param_load")?;
+                self.cg_value_from_loaded(param.span(), slot.cg_ty, loaded)?
+            } else {
+                self.cg_value_from_llvm_param(
+                    param.span(),
+                    llvm_fun,
+                    idx as u32 + param_offset,
+                    slot.cg_ty,
+                    "missing LIR closure llvm param",
+                )?
+            };
+            let _ = self.store_local_value(param.span(), slot.ptr, slot.cg_ty, init)?;
+        }
+        Ok(())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_closure_env_param(
         &mut self,
         span: crate::span::Span,
@@ -635,6 +766,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let ptr = self.create_entry_alloca(
                     local.span,
                     local.name.as_deref().unwrap_or("mir_local"),
+                    cg_ty,
+                )?;
+                Ok(MirLocalSlot { cg_ty, ptr })
+            })
+            .collect()
+    }
+
+    pub(in crate::llvm::codegen) fn create_lir_local_slots(
+        &mut self,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+    ) -> Result<Vec<MirLocalSlot<'ctx>>, LlvmEmitError> {
+        body.locals()
+            .iter()
+            .map(|local| {
+                let cg_ty =
+                    self.lir_local_storage_cg_ty(body, source_types, local.local(), local)?;
+                let ptr = self.create_entry_alloca(
+                    local.span(),
+                    local.name().unwrap_or("lir_local"),
                     cg_ty,
                 )?;
                 Ok(MirLocalSlot { cg_ty, ptr })

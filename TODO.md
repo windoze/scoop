@@ -105,9 +105,25 @@
 - 反模式检查通过：未发现 `lir_*_to_mir`；`instruction.rs` 未定义 `Todo`/`UnresolvedName` LIR placeholder 变体；广义 `_fqn` 命中限于既有 root/symbol/布局键等非新增反向 shim。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
+### [TODO] TC-02-PRE1：补齐 LIR plain lowering 的 effect-typed closure adapter
+
+**目标**：在 plain 路径从 MIR `ValuePrimitives` 切到 LIR 指令后，补齐原先只存在于 MIR value lowering 中的 effect-typed closure adapter 逻辑，确保 `val f: () -> T / E = { ... }`、`when`/LUB 产出的 function value、struct 字段中的 function value 等场景在 LIR lowering 下仍按静态 effect row 选择正确 closure carrier / adapter fn pointer。
+
+**阻塞来源（2026-06-05 迁移 TC-02 时暴露）**：`codegen_lir_make_closure` 目前只按 LIR `fn_ptr: LirCallableId` 生成普通 closure object；缺少 MIR `ValuePrimitives::maybe_build_effect_typed_closure_target_fn_ptr` / `install_effect_typed_closure_target_overrides_for_struct_fields` 对应的 LIR-native 逻辑。结果 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop` 在 LIR plain path 下运行失败（应输出 `5\ncaught\n9\n10\n` 并 exit 10，当前无输出且异常退出）。
+
+**步骤**：
+- S1：将 effect-typed closure surface layout 查询、plain closure adapter、effectful closure step adapter 提供为 LIR lowering 可直接调用的 helper；输入使用 `LirExecutableBody`/`LirLocalDecl`/`LirCallArg`/`LirCallableId`，不得构造 MIR 反向 shim。
+- S2：`LirRvalue::MakeClosure` lowering 根据 target local / downstream consumer 的静态 function type 检测 effect row，并在需要时写入 adapter fn pointer。
+- S3：补齐 struct literal/function-value 聚合场景的 LIR adapter override，对应 MIR 旧逻辑的覆盖面。
+
+**验收**：
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- `cargo test -p scoop --test p7_default_pipeline` 通过，特别是 `single_pipeline_runs_higher_order_function_value_handled_effect_cli`。
+- 不新增 `lir_*_to_mir` 反向转换；不把 `LirCallableId` 转回 FQN 作为运行期查找路径（符号名/诊断除外）。
+
 ### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 
-**目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01**（plain body 的 LIR 指令已填满）。
+**目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1**（plain body 的 LIR 指令已填满，且 LIR plain lowering 已具备 effect-typed closure adapter parity）。
 
 **起点（已核对）**：
 - 入口 `body/main_entry.rs:429-634` `codegen_plain_callable_entry`；其 body 遍历 `:591-623` `for block in body.blocks { for stmt in block.stmts[slice...] }`（原始 MIR）。

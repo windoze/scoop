@@ -77,6 +77,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect()
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_callable_value_args(
+        &mut self,
+        span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let arg_to_param = map_lir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!("codegen_lir_callable_value_args: LIR call ABI verifier accepted invalid closure argument binding")
+        });
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let target_cg = self.cg_ty_of_type_id(param_tys[param_idx], "closure call arg type");
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("lir_closure_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_lir_callable_value_args: LIR call ABI verifier accepted missing closure argument")
+                });
+                let param_ty = param_tys[param_idx];
+                let param_abi = self.ordinary_param_abi(span, param_ty)?;
+                if param_abi.pointee_ty().is_some() {
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("lir_closure_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                    return Ok(EvaluatedCallArg {
+                        value: slot_ptr.into(),
+                        pointer_value: None,
+                        cleanup_spills,
+                    });
+                }
+
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("lir_closure_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(inkwell::values::BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(arg_span, param_abi.cg_ty(), materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_funptr_value_args(
         &mut self,
         _span: crate::span::Span,
@@ -129,6 +200,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .materialize_deferred_cg_value_for_call_arg(
                         arg_span,
                         &format!("pass_mir_funptr_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(arg_span, materialized.ty, materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_funptr_value_args(
+        &mut self,
+        _span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let arg_to_param = map_lir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!(
+                "codegen_lir_funptr_value_args: LIR verifier accepted invalid FunPtr argument binding"
+            )
+        });
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let target_cg = self
+                .cg_ty_of_mir_type(source_types, param_tys[param_idx])
+                .or_else(|| self.try_cg_ty_of_type_id(param_tys[param_idx]))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_funptr_value_args: LIR verifier accepted unsupported FunPtr argument type"
+                    )
+                });
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("lir_funptr_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_funptr_value_args: LIR verifier accepted missing FunPtr argument slot"
+                    )
+                });
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("lir_funptr_arg_reload_{param_idx}"),
                         deferred,
                     )?;
                 let pointer_value = match materialized.value {

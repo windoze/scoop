@@ -38,6 +38,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(in crate::llvm::codegen) fn lir_local_type_id(
+        &self,
+        body: &LirExecutableBody,
+        local: crate::effect_lowered::mir_source::LocalId,
+    ) -> Option<TypeId> {
+        body.locals()
+            .get(local.as_u32() as usize)
+            .map(LirLocalDecl::ty)
+    }
+
+    pub(in crate::llvm::codegen) fn lir_operand_type_id(
+        &self,
+        body: &LirExecutableBody,
+        operand: &LirOperand,
+    ) -> Option<TypeId> {
+        match operand {
+            LirOperand::Local(local) => self.lir_local_type_id(body, *local),
+            LirOperand::Const(value) => Some(match value {
+                crate::mir::ConstValue::Bool(_) => self.builtins.bool_,
+                crate::mir::ConstValue::Char => self.builtins.char_,
+                crate::mir::ConstValue::Unit => self.builtins.unit,
+                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
+                    self.builtins.int
+                }
+                crate::mir::ConstValue::Float64 => self.builtins.float64,
+                crate::mir::ConstValue::Float32 => self.builtins.float32,
+                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                    self.builtins.string
+                }
+            }),
+        }
+    }
+
     pub(in crate::llvm::codegen) fn mir_operand_function_type(
         &self,
         body: &crate::mir::Body,
@@ -51,6 +84,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => None,
         }
+    }
+
+    pub(in crate::llvm::codegen) fn lir_operand_function_type(
+        &self,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        operand: &LirOperand,
+    ) -> Option<crate::ty::FunctionType> {
+        let ty = self.lir_operand_type_id(body, operand)?;
+        match source_types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => {
+                self.equivalent_codegen_function_type(source_types, fun_ty)
+            }
+            _ => None,
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn lir_operand_funptr_function_type(
+        &self,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        operand: &LirOperand,
+    ) -> Option<crate::ty::FunctionType> {
+        let ty = self.lir_operand_type_id(body, operand)?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = source_types.kind(ty) else {
+            return None;
+        };
+        if nominal.fqn != "scoop.unsafe.FunPtr" || nominal.args.len() != 1 {
+            return None;
+        }
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = source_types.kind(nominal.args[0])
+        else {
+            return None;
+        };
+        self.equivalent_codegen_function_type(source_types, fun_ty)
     }
 
     pub(in crate::llvm::codegen) fn mir_callable_fqn_may_outward_effect(
@@ -84,6 +152,111 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Option<String> {
         let mut visiting = HashSet::new();
         self.mir_callable_value_fqn_for_operand(body, mir_types, operand, &mut visiting)
+    }
+
+    pub(in crate::llvm::codegen) fn lir_fun_value_callee_key(
+        &self,
+        body: &LirExecutableBody,
+        operand: &LirOperand,
+    ) -> Option<String> {
+        let mut visiting = HashSet::new();
+        self.lir_callable_value_key_for_operand(body, operand, &mut visiting)
+    }
+
+    fn lir_callable_value_key_for_operand(
+        &self,
+        body: &LirExecutableBody,
+        operand: &LirOperand,
+        visiting: &mut HashSet<crate::effect_lowered::mir_source::LocalId>,
+    ) -> Option<String> {
+        let LirOperand::Local(local) = operand else {
+            return None;
+        };
+        self.lir_callable_value_key_for_local(body, *local, visiting)
+    }
+
+    fn lir_callable_value_key_for_local(
+        &self,
+        body: &LirExecutableBody,
+        local: crate::effect_lowered::mir_source::LocalId,
+        visiting: &mut HashSet<crate::effect_lowered::mir_source::LocalId>,
+    ) -> Option<String> {
+        if !visiting.insert(local) {
+            return None;
+        }
+
+        let mut matched: Option<String> = None;
+        for state in body.states().states() {
+            for stmt in state.body().statements() {
+                let LirStatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local {
+                    continue;
+                }
+                let candidate = self.lir_callable_value_key_for_rvalue(body, value, visiting)?;
+                match &matched {
+                    Some(existing) if existing != &candidate => {
+                        visiting.remove(&local);
+                        return None;
+                    }
+                    Some(_) => {}
+                    None => matched = Some(candidate),
+                }
+            }
+        }
+
+        visiting.remove(&local);
+        matched
+    }
+
+    fn lir_callable_value_key_for_rvalue(
+        &self,
+        body: &LirExecutableBody,
+        value: &LirRvalue,
+        visiting: &mut HashSet<crate::effect_lowered::mir_source::LocalId>,
+    ) -> Option<String> {
+        match value {
+            LirRvalue::Use(operand) | LirRvalue::Transport { value: operand, .. } => {
+                self.lir_callable_value_key_for_operand(body, operand, visiting)
+            }
+            LirRvalue::TopLevelRef(top) => match &top.target {
+                LirTopLevelRefTarget::Global(root) => Some(root.as_str().to_string()),
+                LirTopLevelRefTarget::Callable(id) => self
+                    .published_late_lowered_program()
+                    .and_then(|program| program.callable_by_id(*id))
+                    .map(|callable| callable.root_fqn().to_string()),
+            },
+            LirRvalue::MakeClosure { fn_ptr, .. } => self
+                .published_late_lowered_program()
+                .and_then(|program| program.callable_by_id(*fn_ptr))
+                .map(|callable| callable.root_fqn().to_string()),
+            LirRvalue::MemberAccess { member, .. } => match &member.resolved {
+                LirMemberTarget::Fun { callable } | LirMemberTarget::ExtensionFun { callable } => {
+                    self.published_late_lowered_program()
+                        .and_then(|program| program.callable_by_id(*callable))
+                        .map(|callable| callable.root_fqn().to_string())
+                }
+                LirMemberTarget::Value { .. } | LirMemberTarget::ExtensionValue { .. } => None,
+            },
+            LirRvalue::Call { .. }
+            | LirRvalue::TypeCheck { .. }
+            | LirRvalue::Cast { .. }
+            | LirRvalue::SizeOf { .. }
+            | LirRvalue::KindOf { .. }
+            | LirRvalue::AlignOf { .. }
+            | LirRvalue::DescOf { .. }
+            | LirRvalue::TypeMetadataLiteral(_)
+            | LirRvalue::EnumVariant { .. }
+            | LirRvalue::ClassCtor { .. }
+            | LirRvalue::MakeTuple { .. }
+            | LirRvalue::StructLit { .. }
+            | LirRvalue::InterpolatedString { .. }
+            | LirRvalue::TupleGet { .. }
+            | LirRvalue::PatternMatch { .. }
+            | LirRvalue::PatternExtract { .. }
+            | LirRvalue::PerformResult { .. } => None,
+        }
     }
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_for_operand(

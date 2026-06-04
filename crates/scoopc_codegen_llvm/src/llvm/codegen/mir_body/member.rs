@@ -56,6 +56,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.coerce_value(span, value, target_cg)
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_member_access(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        member: &LirMemberAccessMetadata,
+        lir_ctx: LirBodyCodegenCtx<'_, 'ctx>,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(key) = self.lir_member_resolved_top_level_value_key(member) {
+            let value = if self.lookup_object_property_by_fqn(key).is_some() {
+                self.codegen_object_property_access(span, key)?
+            } else if let Some(value) =
+                self.try_codegen_qualified_enum_unit_variant_value(span, key)?
+            {
+                value
+            } else {
+                self.codegen_top_level_value_ref(span, key)?
+            };
+            return self.coerce_value(span, value, target_cg);
+        }
+        let place = self.codegen_lir_member_place(span, receiver, member, lir_ctx, false)?;
+        let same_layout = self.cg_ty_layout_equivalent(place.field_cg, target_cg);
+        if !same_layout {
+            return Err(frontend_error(format!(
+                "LIR member access result type drift: field={} target={}",
+                self.describe_cg_ty(place.field_cg),
+                self.describe_cg_ty(target_cg),
+            )));
+        }
+        if place.field_cg == CgTy::Unit {
+            return self.coerce_value(span, CgValue::unit(), target_cg);
+        }
+        let llvm_ty = self.llvm_basic_type_of(span, place.field_cg)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_ty, place.ptr, "lir_member_load")?;
+        if let Some(alignment) = place.packed_alignment
+            && let Some(inst) = loaded.as_instruction_value()
+        {
+            inst.set_alignment(alignment)?;
+        }
+        let value = self.cg_value_from_loaded(span, place.field_cg, loaded)?;
+        if place.field_cg != target_cg {
+            return Ok(CgValue {
+                ty: target_cg,
+                value: value.value,
+            });
+        }
+        self.coerce_value(span, value, target_cg)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_mir_enum_variant_ctor_call(
         &mut self,
@@ -97,6 +148,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let deferred = self.defer_gc_sensitive_cg_value(
                 arg.span,
                 &format!("pass_mir_enum_ctor_field_{idx}"),
+                coerced,
+            )?;
+            field_values.push((arg.span, field_cg, deferred));
+        }
+        self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_enum_variant_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        enum_ty: TypeId,
+        variant_name: &str,
+        args: &[LirCallArg],
+        payload: &crate::mir::AggregateTransportMetadata,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self
+            .equivalent_codegen_type_id(source_types, enum_ty)
+            .unwrap_or_else(|| panic!("codegen_lir_enum_variant_ctor_call: verifier accepted enum ctor TypeStore drift"));
+        let layout = self.cg_enum_layout(span, enum_ty)?;
+        let variant = layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name)
+            .unwrap_or_else(|| panic!("codegen_lir_enum_variant_ctor_call: verifier accepted unknown enum variant `{variant_name}`"))
+            .clone();
+        if variant.fields.len() != args.len() {
+            panic!("codegen_lir_enum_variant_ctor_call: verifier accepted enum ctor arity drift");
+        }
+        if !self.lir_enum_payload_schema_matches(source_types, enum_ty, &variant, args, payload) {
+            panic!(
+                "codegen_lir_enum_variant_ctor_call: verifier accepted enum payload schema drift"
+            );
+        }
+        let mut field_values = Vec::with_capacity(args.len());
+        for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args).enumerate() {
+            if arg.name.is_some() {
+                panic!("codegen_lir_enum_variant_ctor_call: verifier accepted named enum ctor arg");
+            }
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(field_cg))?;
+            let coerced = self.coerce_value(arg.span, value, field_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("lir_enum_ctor_field_{idx}"),
                 coerced,
             )?;
             field_values.push((arg.span, field_cg, deferred));
@@ -158,6 +256,59 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_store_member(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        member: &LirMemberAccessMetadata,
+        value: &LirOperand,
+        value_ty: TypeId,
+        continuation_route: &crate::mir::StoredContinuationRoutePublication,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        lir_store_member_continuation_route_is_lowerable(span, body, continuation_route)?;
+
+        let lir_ctx = LirBodyCodegenCtx {
+            body,
+            source_types,
+            slots,
+        };
+        let place = self.codegen_lir_member_place(span, receiver, member, lir_ctx, true)?;
+        if !place.writable {
+            unreachable!(
+                "typecheck must reject non-writable LIR member store targets before LLVM codegen"
+            );
+        }
+        let value_cg = self
+            .cg_ty_of_mir_type(source_types, value_ty)
+            .unwrap_or_else(|| panic!("codegen_lir_store_member: verifier accepted non-codegen member store value type"));
+        let operand_cg = self
+            .lir_operand_cg_ty(body, source_types, value)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_store_member: verifier accepted missing member store operand type"
+                )
+            });
+        if !self.cg_ty_layout_equivalent(value_cg, operand_cg) {
+            panic!(
+                "codegen_lir_store_member: verifier accepted member store value/operand type drift"
+            );
+        }
+        if !self.cg_ty_layout_equivalent(value_cg, place.field_cg) {
+            panic!(
+                "codegen_lir_store_member: verifier accepted member store field/value type drift"
+            );
+        }
+
+        let value = self.codegen_lir_operand_expected(span, value, slots, Some(place.field_cg))?;
+        let stored = self.coerce_value(span, value, place.field_cg)?;
+        let _ = self.store_local_value(span, place.ptr, place.field_cg, stored)?;
+        Ok(())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_store_top_level_var(
         &mut self,
         span: crate::span::Span,
@@ -210,6 +361,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "MIR top-level var store target type",
         );
         let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
+        let stored = self.coerce_value(span, raw, target_cg)?;
+        let global = self.declare_lir_top_level_var_global(&root)?;
+        let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_store_global(
+        &mut self,
+        span: crate::span::Span,
+        root_key: &scoopc_lir_facts::LirGlobalRootKey,
+        value: &LirOperand,
+        _value_ty: TypeId,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        let root_key = root_key.as_str();
+        if self.lir_global_root_has_kind(root_key, LirGlobalRootKind::ExternGlobal) {
+            let root = self
+                .expect_lir_global_root_kind(
+                    root_key,
+                    LirGlobalRootKind::ExternGlobal,
+                    "codegen_lir_store_global",
+                )
+                .clone();
+            let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                panic!("codegen_lir_store_global: extern LIR root is missing contract")
+            });
+            if !extern_global.mutable {
+                panic!(
+                    "codegen_lir_store_global: verifier accepted immutable extern global store target"
+                );
+            }
+            let target_cg = self.cg_ty_of_type_id(
+                self.lir_global_root_ty(&root, "extern global store target type"),
+                "extern global store target type",
+            );
+            let raw = self.codegen_lir_operand_expected(span, value, slots, Some(target_cg))?;
+            let stored = self.coerce_value(span, raw, target_cg)?;
+            let global = self.declare_lir_extern_global(&root)?;
+            let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
+            return Ok(());
+        }
+
+        if !self.lir_global_root_has_kind(root_key, LirGlobalRootKind::TopLevelMutableVar) {
+            panic!(
+                "codegen_lir_store_global: verifier accepted missing top-level var store target `{root_key}`"
+            );
+        }
+        let root = self
+            .expect_lir_global_root_kind(
+                root_key,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "codegen_lir_store_global",
+            )
+            .clone();
+        let target_cg = self.cg_ty_of_type_id(
+            self.lir_global_root_ty(&root, "LIR top-level var store target type"),
+            "LIR top-level var store target type",
+        );
+        let raw = self.codegen_lir_operand_expected(span, value, slots, Some(target_cg))?;
         let stored = self.coerce_value(span, raw, target_cg)?;
         let global = self.declare_lir_top_level_var_global(&root)?;
         let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
@@ -327,6 +537,116 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_member_place(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        member: &LirMemberAccessMetadata,
+        lir_ctx: LirBodyCodegenCtx<'_, 'ctx>,
+        require_writable: bool,
+    ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        let field_key = lir_member_value_key_for_codegen(span, member)?;
+        let receiver_type_id = self.lir_member_receiver_codegen_type_id(
+            span,
+            lir_ctx.body,
+            lir_ctx.source_types,
+            receiver,
+            member,
+        )?;
+        if let Some((class, field_idx, field_cg)) =
+            self.lookup_class_field_by_fqn(field_key, span, Some(receiver_type_id))?
+        {
+            let receiver_cg = self
+                .lir_operand_cg_ty(lir_ctx.body, lir_ctx.source_types, receiver)
+                .unwrap_or_else(|| panic!("codegen_lir_member_place: verifier accepted missing class member receiver operand type"));
+            if receiver_cg == CgTy::Ref {
+                let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_member_place: member verifier accepted class field index drift"
+                    )
+                });
+                if require_writable && !field.mutable {
+                    unreachable!(
+                        "typecheck must reject immutable class member stores before LLVM codegen"
+                    );
+                }
+                let receiver_value = self.codegen_lir_operand_expected(
+                    span,
+                    receiver,
+                    lir_ctx.slots,
+                    Some(CgTy::Ref),
+                )?;
+                let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+                let raw = self.expect_cg_value(receiver_value, "LIR class member receiver");
+                let obj_ptr = self.expect_pointer_value(raw, "LIR class member receiver");
+                let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+                return Ok(MirMemberPlace {
+                    ptr,
+                    field_cg,
+                    writable: field.mutable,
+                    packed_alignment: None,
+                });
+            }
+        }
+
+        let receiver_cg = self.cg_ty_of_type_id(receiver_type_id, "LIR member receiver type");
+        let CgTy::Struct(struct_ty) = receiver_cg else {
+            return Err(frontend_error(format!(
+                "LIR member field target `{field_key}` receiver_ty=t{} receiver_cg={}",
+                receiver_type_id.as_u32(),
+                self.describe_cg_ty(receiver_cg),
+            )));
+        };
+        let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_key, span)?;
+        let LirOperand::Local(local) = receiver else {
+            panic!("codegen_lir_member_place: verifier accepted non-local member store receiver");
+        };
+        let slot = self.mir_local_slot(span, lir_ctx.slots, *local)?;
+        if slot.cg_ty != CgTy::Struct(struct_ty) {
+            panic!("codegen_lir_member_place: verifier accepted member receiver slot type drift");
+        }
+        let local_ptr = self.local_ptr_for_use(
+            span,
+            CgLocal {
+                hir_ty: None,
+                call_may_suspend: false,
+                ty: slot.cg_ty,
+                ptr: slot.ptr,
+                frame_backing_ptr: None,
+                mutable: false,
+            },
+            "lir_member_base",
+        )?;
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let ptr = self.builder.build_struct_gep(
+            llvm_struct_ty,
+            local_ptr,
+            field_idx,
+            "lir_member_gep",
+        )?;
+        let packed_alignment = if let Some(pack_n) = self
+            .struct_clayout(struct_ty)
+            .and_then(|layout| layout.packed)
+        {
+            if require_writable {
+                panic!(
+                    "codegen_lir_member_place: verifier accepted packed value-type member store"
+                );
+            }
+            let field_ty = self.llvm_basic_type_of(span, field_cg)?;
+            let natural = self.target_data.get_abi_alignment(&field_ty);
+            Some(std::cmp::min(natural, pack_n))
+        } else {
+            None
+        };
+        Ok(MirMemberPlace {
+            ptr,
+            field_cg,
+            writable: matches!(receiver, LirOperand::Local(_)),
+            packed_alignment,
+        })
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_operand(
         &mut self,
         span: crate::span::Span,
@@ -334,6 +654,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_operand_expected(span, operand, slots, None)
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_operand(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_lir_operand_expected(span, operand, slots, None)
     }
 
     pub(in crate::llvm::codegen) fn codegen_mir_operand_expected(
@@ -349,6 +678,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.load_mir_local(span, slot)
             }
             crate::mir::Operand::Const(value) => self.codegen_mir_const(span, value, expected),
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_operand_expected(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        slots: &[MirLocalSlot<'ctx>],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match operand {
+            LirOperand::Local(local) => {
+                let slot = self.mir_local_slot(span, slots, *local)?;
+                self.load_mir_local(span, slot)
+            }
+            LirOperand::Const(value) => self.codegen_mir_const(span, value, expected),
         }
     }
 

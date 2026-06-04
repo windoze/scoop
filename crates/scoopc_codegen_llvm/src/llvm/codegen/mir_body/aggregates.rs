@@ -75,6 +75,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_make_tuple(
+        &mut self,
+        span: crate::span::Span,
+        elements: &[LirOperand],
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let CgTy::Tuple(tuple_ty) = target_cg else {
+            panic!("codegen_lir_make_tuple: LIR verifier accepted non-tuple aggregate target type");
+        };
+        let element_tys = {
+            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
+                self.types.kind(tuple_ty.inner())
+            else {
+                panic!(
+                    "codegen_lir_make_tuple: LIR verifier accepted tuple target without tuple schema"
+                );
+            };
+            element_tys.clone()
+        };
+        if element_tys.len() != elements.len() {
+            panic!("codegen_lir_make_tuple: LIR verifier accepted tuple aggregate arity drift");
+        }
+
+        let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
+        let mut deferred_elements: Vec<(usize, crate::span::Span, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(elements.len());
+
+        for (idx, (operand, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
+            let elem_cg = self.try_cg_ty_of_type_id(*elem_ty).unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_make_tuple: LIR verifier accepted unsupported tuple element type"
+                )
+            });
+            let value = self.codegen_lir_operand_expected(span, operand, slots, Some(elem_cg))?;
+            let coerced = self.coerce_value(span, value, elem_cg)?;
+            let deferred =
+                self.defer_gc_sensitive_cg_value(span, &format!("lir_tuple_elem_{idx}"), coerced)?;
+            deferred_elements.push((idx, span, deferred));
+        }
+
+        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
+        for (idx, elem_span, deferred) in deferred_elements {
+            let materialized = self.materialize_deferred_cg_value(
+                elem_span,
+                &format!("lir_tuple_elem_reload_{idx}"),
+                deferred,
+            )?;
+            let raw: BasicValueEnum<'ctx> = match materialized.ty {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_lir_make_tuple: LIR verifier accepted valueless tuple element")
+                }),
+            };
+            agg = self
+                .builder
+                .build_insert_value(agg, raw, idx as u32, "lir_tuple_insert")?;
+        }
+
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_size_of(
         &mut self,
         span: crate::span::Span,
@@ -355,6 +420,131 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_make_struct(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        fields: &[crate::effect_lowered::LirStructLitField],
+        transport: &crate::mir::AggregateTransportMetadata,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let aggregate_ty = self
+            .equivalent_codegen_type_id(source_types, transport.aggregate_ty)
+            .unwrap_or_else(|| {
+                panic!("codegen_lir_make_struct: LIR verifier accepted aggregate TypeStore drift")
+            });
+        if let Some((layout_field, field_cg)) =
+            self.scalar_layout_struct_field(aggregate_ty, target_cg)?
+        {
+            let Some(init) = fields.iter().find(|field| field.name == layout_field.name) else {
+                unreachable!(
+                    "typecheck must reject LIR scalar-layout struct literals missing required fields"
+                );
+            };
+            let value =
+                self.codegen_lir_operand_expected(init.span, &init.value, slots, Some(field_cg))?;
+            let coerced = self.coerce_value(init.span, value, field_cg)?;
+            return self.coerce_value(span, coerced, target_cg);
+        }
+
+        let CgTy::Struct(struct_ty) = target_cg else {
+            panic!(
+                "codegen_lir_make_struct: LIR verifier accepted non-struct aggregate target type"
+            );
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
+            panic!(
+                "codegen_lir_make_struct: LIR verifier accepted struct target without nominal schema"
+            );
+        };
+        let layout_key = self.nominal_layout_key(nominal);
+        let layout = self.struct_layouts.get(&layout_key).unwrap_or_else(|| {
+            panic!("codegen_lir_make_struct: LIR verifier accepted struct without layout")
+        });
+        if layout.fields.len() != fields.len() {
+            panic!(
+                "codegen_lir_make_struct: LIR verifier accepted struct literal field count drift"
+            );
+        }
+
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let mut deferred_fields: Vec<(u32, String, crate::span::Span, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(layout.fields.len());
+
+        for (idx, layout_field) in layout.fields.iter().enumerate() {
+            let mut matches = fields
+                .iter()
+                .filter(|field| field.name == layout_field.name);
+            let Some(init) = matches.next() else {
+                unreachable!(
+                    "typecheck must reject LIR struct literals missing required fields before LLVM codegen"
+                );
+            };
+            if matches.next().is_some() {
+                panic!(
+                    "codegen_lir_make_struct: LIR verifier accepted duplicate struct literal field"
+                );
+            }
+
+            let field_cg = self.cg_ty_of_layout_field(
+                init.span,
+                layout_field.ty,
+                layout_field.ty_fqn.as_deref(),
+            )?;
+            let value =
+                self.codegen_lir_operand_expected(init.span, &init.value, slots, Some(field_cg))?;
+            let coerced = if field_cg == CgTy::Unit {
+                CgValue::unit()
+            } else if value.ty != field_cg {
+                self.coerce_value(init.span, value, field_cg)?
+            } else {
+                value
+            };
+            let deferred = self.defer_gc_sensitive_cg_value(
+                init.span,
+                &format!("lir_struct_field_{idx}"),
+                coerced,
+            )?;
+            let llvm_idx = self
+                .shared_caches
+                .pack_field_indices
+                .borrow()
+                .get(&layout_key)
+                .map_or(idx as u32, |indices| indices[idx]);
+            deferred_fields.push((llvm_idx, layout_field.name.clone(), init.span, deferred));
+        }
+
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        for (idx, (llvm_idx, field_name, field_span, deferred)) in
+            deferred_fields.into_iter().enumerate()
+        {
+            let materialized = self.materialize_deferred_cg_value(
+                field_span,
+                &format!("lir_struct_field_reload_{idx}"),
+                deferred,
+            )?;
+            let raw: BasicValueEnum<'ctx> = match materialized.ty {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_lir_make_struct: LIR verifier accepted valueless struct field")
+                }),
+            };
+            agg = self.builder.build_insert_value(
+                agg,
+                raw,
+                llvm_idx,
+                &format!("lir_struct_insert_{field_name}"),
+            )?;
+        }
+
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_tuple_get(
         &mut self,
         span: crate::span::Span,
@@ -393,6 +583,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.extract_mir_tuple_element_value(span, tuple_v, index, elem_cg)
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_tuple_get(
+        &mut self,
+        span: crate::span::Span,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        tuple: &LirOperand,
+        index: usize,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let tuple_ty = self.lir_operand_type_id(body, tuple).unwrap_or_else(|| {
+            panic!("codegen_lir_tuple_get: LIR verifier accepted tuple get without operand type")
+        });
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = source_types.kind(tuple_ty) else {
+            panic!("codegen_lir_tuple_get: LIR verifier accepted tuple get on non-tuple type");
+        };
+        let elem_ty = *elements.get(index).unwrap_or_else(|| {
+            panic!("codegen_lir_tuple_get: LIR verifier accepted tuple index drift")
+        });
+        let elem_cg = self
+            .cg_ty_of_mir_type(source_types, elem_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_tuple_get: LIR verifier accepted unsupported tuple element type"
+                )
+            });
+        let tuple_cg = self.lir_operand_cg_ty(body, source_types, tuple).unwrap_or_else(|| {
+            panic!("codegen_lir_tuple_get: TypeStore equivalence verifier accepted unsupported tuple operand codegen type")
+        });
+        let value = self.codegen_lir_operand_expected(span, tuple, slots, Some(tuple_cg))?;
+        let tuple_v = value
+            .value
+            .unwrap_or_else(|| {
+                panic!("codegen_lir_tuple_get: LIR verifier accepted valueless tuple operand")
+            })
+            .into_struct_value();
+        self.extract_mir_tuple_element_value(span, tuple_v, index, elem_cg)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_mir_make_closure(
         &mut self,
@@ -411,6 +639,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fn_ptr,
             env_contract,
             mir_types,
+            env_cg,
+            target_cg,
+            slots,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_make_closure(
+        &mut self,
+        span: crate::span::Span,
+        env: &LirOperand,
+        fn_ptr: LirCallableId,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        source_types: &TypeStore,
+        env_cg: CgTy,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let program = self
+            .published_late_lowered_program()
+            .unwrap_or_else(|| panic!("codegen_lir_make_closure: missing published LIR program"));
+        let callable = program.callable_by_id(fn_ptr).unwrap_or_else(|| {
+            panic!("codegen_lir_make_closure: LIR verifier accepted unknown closure callable id")
+        });
+        let fn_root = callable.root_fqn().to_string();
+        self.codegen_lir_make_closure_impl(
+            span,
+            env,
+            &fn_root,
+            env_contract,
+            source_types,
             env_cg,
             target_cg,
             slots,
@@ -442,6 +702,224 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             slots,
             Some(target_fn_ptr),
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_make_closure_impl(
+        &mut self,
+        span: crate::span::Span,
+        env: &LirOperand,
+        fn_ptr: &str,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        source_types: &TypeStore,
+        env_cg: CgTy,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+        target_fn_ptr: Option<PointerValue<'ctx>>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if target_cg != CgTy::Ref {
+            panic!(
+                "codegen_lir_make_closure_impl: LIR verifier accepted non-reference closure target"
+            )
+        }
+
+        let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys_from_contract(
+            span,
+            fn_ptr,
+            source_types,
+            env_cg,
+            env_contract,
+        )?;
+
+        let deferred_env = if capture_field_cgs.is_empty() {
+            None
+        } else {
+            let value = self.codegen_lir_operand_expected(span, env, slots, Some(env_cg))?;
+            let coerced = self.coerce_value(span, value, env_cg)?;
+            Some(self.defer_gc_sensitive_cg_value(span, "lir_closure_env", coerced)?)
+        };
+
+        let closure_obj_ty = self.llvm_closure_object_type();
+        let obj_size_bytes = self.target_data.get_store_size(&closure_obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let closure_desc = self.get_or_create_mir_closure_object_type_desc_global(span, fn_ptr)?;
+        let closure_desc_i8 = self.builder.build_pointer_cast(
+            closure_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "lir_closure_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[closure_desc_i8.into(), size_v.into()],
+            "rt_alloc_lir_closure",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .expect("scoop_alloc_typed closure allocation must return a value");
+        let BasicValueEnum::PointerValue(obj_i8) = raw else {
+            panic!("scoop_alloc_typed closure allocation must return a pointer");
+        };
+
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let obj_ptr = self
+            .builder
+            .build_pointer_cast(obj_i8, obj_ptr_ty, "lir_closure_obj_ptr")?;
+        let deferred_obj = self.defer_gc_ref_pointer(span, "lir_closure_obj_root", obj_ptr)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lir_closure_obj_init",
+            &deferred_obj,
+        )?;
+        let env_gep =
+            self.builder
+                .build_struct_gep(closure_obj_ty, obj_ptr, 1, "lir_closure_env_gep")?;
+        let _ = self.store_local_value(
+            span,
+            env_gep,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(gc_i8_ptr_ty.const_null().into()),
+            },
+        )?;
+
+        let env_i8 = if capture_field_cgs.is_empty() {
+            gc_i8_ptr_ty.const_null()
+        } else {
+            let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
+            let env_ty =
+                self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
+            let env_size_bytes = self.target_data.get_store_size(&env_ty);
+            let env_size_v = self.context.i64_type().const_int(env_size_bytes, false);
+            let env_desc =
+                self.get_or_create_mir_closure_env_type_desc_global(span, &closure_key, env_ty)?;
+            let env_desc_i8 = self.builder.build_pointer_cast(
+                env_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "lir_closure_env_desc_i8",
+            )?;
+            let call = self.build_call_preserving_gc_local_roots(
+                span,
+                rt_alloc,
+                &[env_desc_i8.into(), env_size_v.into()],
+                "rt_alloc_lir_closure_env",
+            )?;
+            let raw = call
+                .try_as_basic_value()
+                .basic()
+                .expect("scoop_alloc_typed closure env allocation must return a value");
+            let BasicValueEnum::PointerValue(env_i8) = raw else {
+                panic!("scoop_alloc_typed closure env allocation must return a pointer");
+            };
+
+            let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+            let env_ptr =
+                self.builder
+                    .build_pointer_cast(env_i8, env_ptr_ty, "lir_closure_env_ptr")?;
+            let deferred_env_obj =
+                self.defer_gc_ref_pointer(span, "lir_closure_env_root", env_ptr)?;
+            let env_value = self.materialize_deferred_cg_value(
+                span,
+                "lir_closure_env_reload",
+                deferred_env.expect("non-empty env must have been deferred"),
+            )?;
+            let tuple_v = env_value
+                .value
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_make_closure_impl: LIR verifier accepted non-value closure env"
+                    )
+                })
+                .into_struct_value();
+            for (idx, field_cg) in capture_field_cgs.iter().enumerate() {
+                let env_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    "lir_closure_env_field_reload",
+                    &deferred_env_obj,
+                )?;
+                let field_gep = self.builder.build_struct_gep(
+                    env_ty,
+                    env_ptr,
+                    (idx + 1) as u32,
+                    "lir_closure_env_field_gep",
+                )?;
+                let field_value =
+                    self.extract_mir_tuple_element_value(span, tuple_v, idx, *field_cg)?;
+                let _ = self.store_local_value(span, field_gep, *field_cg, field_value)?;
+            }
+            env_i8
+        };
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lir_closure_obj_store_env",
+            &deferred_obj,
+        )?;
+        let env_gep =
+            self.builder
+                .build_struct_gep(closure_obj_ty, obj_ptr, 1, "lir_closure_env_gep")?;
+        let _ = self.store_local_value(
+            span,
+            env_gep,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(env_i8.into()),
+            },
+        )?;
+
+        let use_plain_fallback = self
+            .plain_callable_carrier_fallback_allowed(CallableCarrierKind::ClosureObject, fn_ptr);
+        let fallback_target = if target_fn_ptr.is_some()
+            || (self.callable_carrier_contract_enabled() && !use_plain_fallback)
+        {
+            self.llvm_i8_ptr_type().const_null()
+        } else if let Some(plain_entry) = self
+            .module
+            .get_function(&self.lir_source_closure_body_symbol(fn_ptr, span)?)
+        {
+            plain_entry.as_global_value().as_pointer_value()
+        } else {
+            self.ensure_lir_source_closure_callable_defined(span, fn_ptr)?
+                .as_global_value()
+                .as_pointer_value()
+        };
+        let fn_ptr = match target_fn_ptr {
+            Some(ptr) => ptr,
+            None => self.callable_carrier_target_fn_ptr(
+                CallableCarrierKind::ClosureObject,
+                fn_ptr,
+                fallback_target,
+            )?,
+        };
+        let fn_i8 = self
+            .builder
+            .build_pointer_cast(fn_ptr, i8_ptr_ty, "lir_closure_fn_i8")?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lir_closure_obj_store_fn",
+            &deferred_obj,
+        )?;
+        let fn_gep =
+            self.builder
+                .build_struct_gep(closure_obj_ty, obj_ptr, 2, "lir_closure_fn_gep")?;
+        let _ = self.builder.build_store(fn_gep, fn_i8)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lir_closure_obj_return",
+            &deferred_obj,
+        )?;
+        let obj_i8 =
+            self.builder
+                .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "lir_closure_obj_i8")?;
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(obj_i8.into()),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]

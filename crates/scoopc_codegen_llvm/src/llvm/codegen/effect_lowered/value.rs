@@ -18,6 +18,7 @@ use inkwell::values::{
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 use scoopc_lir_facts::LirGlobalRootKind;
 
+use crate::effect_lowered::LirCallArg;
 use crate::effect_lowered::ir::{
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainCallSite,
     LateLoweredProgram, LateLoweredSourceBody,
@@ -70,6 +71,249 @@ fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<Typ
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
         TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
         _ => Some(vec![carrier_ty]),
+    }
+}
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_pure_effect_step_direct_call(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        callee_fqn: &str,
+        args: &[LirCallArg],
+        body: &crate::effect_lowered::LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let layout = abi.callable_layout_by_root_fqn(callee_fqn).map_err(|err| {
+            frontend_error(format!(
+                "LIR pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
+            ))
+        })?;
+        let entry = layout.direct_entry();
+        if entry.return_step_schema() != layout.step_schema() {
+            return Err(frontend_error(format!(
+                "LIR pure statement call `{callee_fqn}` direct entry return schema 漂移：entry=s{} layout=s{}",
+                entry.return_step_schema().as_u32(),
+                layout.step_schema().as_u32()
+            )));
+        }
+        let payload = self.pack_lir_call_args_for_invoke_args_tuple(
+            span,
+            abi,
+            entry.invoke_args_tuple_ty(),
+            args,
+            body,
+            source_types,
+            slots,
+            "lir_pure_call",
+        )?;
+        let callee = self
+            .module
+            .get_function(entry.symbol_name())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LIR pure statement call `{callee_fqn}` 缺少 direct entry shell `{}`",
+                    entry.symbol_name()
+                ))
+            })?;
+        let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        if !entry.args_abi().is_elided() {
+            call_args.push(
+                payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "LIR pure statement call `{callee_fqn}` 需要 non-elided args payload"
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call = self
+            .builder
+            .build_call(callee, &call_args, "lir_pure_call_step")?;
+        let step = call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error(format!(
+                "LIR pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
+            ))
+        })?;
+        self.extract_lir_pure_call_complete(span, abi, layout, step, target_cg)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn pack_lir_call_args_for_invoke_args_tuple(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        invoke_args_tuple_ty: TypeId,
+        args: &[LirCallArg],
+        body: &crate::effect_lowered::LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if args.iter().any(|arg| arg.name.is_some()) {
+            panic!(
+                "pack_lir_call_args_for_invoke_args_tuple: LIR call ABI verifier accepted named argument before canonicalization at {span:?}"
+            );
+        }
+        let layout = abi.source_value_layout(invoke_args_tuple_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        match layout.kind() {
+            SourceAbiLayoutKind::Scalar => {
+                let arg = args.first().ok_or_else(|| {
+                    frontend_error(format!("{name} scalar call ABI 缺少 argument"))
+                })?;
+                if args.len() != 1 {
+                    return Err(frontend_error(format!(
+                        "{name} scalar call ABI 期望 1 个 argument，实际 {} 个",
+                        args.len()
+                    )));
+                }
+                let expected = self
+                    .cg_ty_of_mir_type(source_types, layout.source_ty())
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "pack_lir_call_args_for_invoke_args_tuple: scalar call ABI accepted non-codegen arg type at {:?}",
+                            arg.span
+                        )
+                    });
+                let value =
+                    self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(expected))?;
+                let value = self.coerce_value(arg.span, value, expected)?;
+                Ok(Some(
+                    self.expect_cg_value(value, "scalar LIR call arg value"),
+                ))
+            }
+            SourceAbiLayoutKind::Tuple => {
+                if args.len() == 1
+                    && self.lir_operand_type_id(body, &args[0].value) == Some(layout.source_ty())
+                {
+                    let expected = self
+                        .cg_ty_of_mir_type(source_types, layout.source_ty())
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "pack_lir_call_args_for_invoke_args_tuple: whole tuple arg has no codegen type"
+                            )
+                        });
+                    let value = self.codegen_lir_operand_expected(
+                        args[0].span,
+                        &args[0].value,
+                        slots,
+                        Some(expected),
+                    )?;
+                    let value = self.coerce_value(args[0].span, value, expected)?;
+                    return Ok(Some(
+                        self.expect_cg_value(value, "whole tuple LIR call arg"),
+                    ));
+                }
+                if args.len() != layout.fields().len() {
+                    return Err(frontend_error(format!(
+                        "{name} tuple call ABI 期望 {} 个 argument，实际 {} 个",
+                        layout.fields().len(),
+                        args.len()
+                    )));
+                }
+                let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
+                    return Err(frontend_error(format!(
+                        "{name} tuple call ABI layout 不是 struct"
+                    )));
+                };
+                let mut aggregate = struct_ty.get_undef();
+                for (index, field) in layout.fields().iter().enumerate() {
+                    if field.is_elided() {
+                        continue;
+                    }
+                    let arg = args.get(index).ok_or_else(|| {
+                        frontend_error(format!(
+                            "LIR pure statement tuple call ABI 缺少 argument {index}"
+                        ))
+                    })?;
+                    let expected = self
+                        .cg_ty_of_mir_type(source_types, field.source_ty())
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "pack_lir_call_args_for_invoke_args_tuple: tuple call ABI accepted non-codegen arg type at {:?}",
+                                arg.span
+                            )
+                        });
+                    let value = self.codegen_lir_operand_expected(
+                        arg.span,
+                        &arg.value,
+                        slots,
+                        Some(expected),
+                    )?;
+                    let value = self.coerce_value(arg.span, value, expected)?;
+                    let raw = self.expect_cg_value(value, "tuple LIR call arg value");
+                    aggregate = self
+                        .builder
+                        .build_insert_value(
+                            aggregate,
+                            raw,
+                            field
+                                .abi_field_index()
+                                .expect("non-elided field has ABI index"),
+                            &format!("{name}_arg{index}"),
+                        )?
+                        .into_struct_value();
+                }
+                Ok(Some(aggregate.into()))
+            }
+        }
+    }
+
+    fn extract_lir_pure_call_complete(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        callable_layout: &CallableLayout<'ctx>,
+        step: BasicValueEnum<'ctx>,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let step_schema = callable_layout.step_schema();
+        let step_layout = abi
+            .step_layout_for_callable(callable_layout)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LIR pure statement call 缺少 callee step schema s{} layout",
+                    step_schema.as_u32()
+                ))
+            })?;
+        if !step_layout.cases().is_empty() {
+            return Err(frontend_error(format!(
+                "LIR pure statement call callee step schema s{} 含 outward case，必须走 boundary lowering",
+                step_schema.as_u32()
+            )));
+        }
+        let payload = self.extract_step_payload(
+            step_layout,
+            step,
+            step_layout.complete_variant(),
+            "lir_pure_call_complete_payload",
+        )?;
+        match (target_cg, payload) {
+            (CgTy::Unit, None) => Ok(CgValue::unit()),
+            (CgTy::Never, None) => Ok(CgValue::never()),
+            (CgTy::Unit, Some(_)) => Err(frontend_error(
+                "LIR pure statement call Unit target 收到 non-elided Complete payload".to_string(),
+            )),
+            (_, Some(raw)) => {
+                let value = self.cg_value_from_loaded(span, target_cg, raw)?;
+                self.coerce_value(span, value, target_cg).map_err(|err| {
+                    frontend_error(format!(
+                        "LIR pure direct call Complete payload coercion failed: value_ty={:?} target_ty={:?}: {err}",
+                        value.ty, target_cg,
+                    ))
+                })
+            }
+            (_, None) => Err(frontend_error(
+                "LIR pure statement call non-Unit target 缺少 Complete payload".to_string(),
+            )),
+        }
     }
 }
 

@@ -514,6 +514,235 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_plain_dynamic_dispatch_call(
+        &mut self,
+        span: crate::span::Span,
+        site_id: crate::mir::SiteId,
+        receiver: &LirOperand,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        is_interface: bool,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let target = if is_interface {
+            self.resolve_plain_interface_dispatch_target(site_id, args.len())?
+        } else {
+            self.resolve_plain_virtual_dispatch_target(site_id, args.len())?
+        };
+        self.codegen_lir_plain_dispatch_call(span, receiver, args, source_types, slots, target)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_plain_dispatch_call(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        args: &[LirCallArg],
+        _source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target: PlainDispatchTarget,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let signature = target.signature();
+        if signature.param_tys.len() != args.len() + 1 {
+            std::panic::panic_any(
+                "codegen_lir_plain_dispatch_call: LIR verifier accepted dispatch arity drift",
+            );
+        }
+        if self
+            .direct_call_abi_identity(&signature.fqn)
+            .uses_effect_bridge_abi()
+        {
+            panic!(
+                "codegen_lir_plain_dispatch_call: effect boundary router accepted outward-effect dispatch target in plain lowering at {span:?}"
+            );
+        }
+
+        if let PlainDispatchTarget::Interface {
+            interface_fqn,
+            interface_id,
+            slot,
+            receiver_ty,
+            ..
+        } = &target
+        {
+            let signature = self.instantiate_interface_dispatch_signature(signature, *receiver_ty);
+            let receiver_value =
+                self.codegen_lir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;
+            let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+            let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
+                panic!(
+                    "codegen_lir_plain_dispatch_call: verifier accepted non-ref interface receiver"
+                );
+            };
+            let deferred_receiver =
+                self.defer_gc_ref_pointer(span, "lir_interface_receiver", receiver_ptr)?;
+            let explicit_param_names = signature.param_names[1..].to_vec();
+            let explicit_param_tys = signature.param_tys[1..].to_vec();
+            let evaluated_explicit_args = self.codegen_bound_lir_call_args_from_signature(
+                span,
+                &explicit_param_names,
+                &explicit_param_tys,
+                args,
+                slots,
+                false,
+                self.types,
+            )?;
+            let explicit_args = evaluated_explicit_args
+                .iter()
+                .map(|arg| arg.value)
+                .collect::<Vec<_>>();
+            let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "lir_interface_receiver_reload",
+                &deferred_receiver,
+            )?;
+            let lookup =
+                self.lookup_interface_itable_slot(span, receiver_ptr, *interface_id, *slot)?;
+            let result = self.emit_interface_dispatch_indirect_call(
+                span,
+                span,
+                interface_fqn,
+                *slot,
+                &signature,
+                false,
+                receiver_ptr,
+                lookup,
+                &explicit_args,
+            )?;
+            self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
+            return Ok(result);
+        }
+
+        let ret_cg = self
+            .try_cg_ty_of_type_id(signature.return_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_plain_dispatch_call: LIR verifier accepted unsupported return type"
+                )
+            });
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            signature.param_tys.len() + usize::from(hidden_sret_result_ty.is_some()),
+        );
+        if hidden_sret_result_ty.is_some() {
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for param_ty in &signature.param_tys {
+            llvm_param_tys.push(self.ordinary_param_abi(span, *param_ty)?.llvm_param_ty());
+        }
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+
+        let mut all_args = Vec::with_capacity(args.len() + 1);
+        all_args.push(LirCallArg {
+            span,
+            name: None,
+            value: receiver.clone(),
+        });
+        all_args.extend(args.iter().cloned());
+        let evaluated_args = self.codegen_bound_lir_call_args_from_signature(
+            span,
+            &signature.param_names,
+            &signature.param_tys,
+            &all_args,
+            slots,
+            false,
+            self.types,
+        )?;
+        let receiver_ptr = evaluated_args
+            .first()
+            .and_then(|arg| arg.pointer_value)
+            .unwrap_or_else(|| panic!("codegen_lir_plain_dispatch_call: verifier accepted missing dispatch receiver pointer"));
+        let deferred_receiver = self.defer_gc_ref_pointer(
+            span,
+            &format!("{}_receiver", target.label().replace(' ', "_")),
+            receiver_ptr,
+        )?;
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if let Some(result_ty) = hidden_sret_result_ty {
+            let slot = self.create_entry_alloca(span, "lir_dispatch_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some((slot, result_ty))
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
+
+        let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "lir_dispatch_receiver_reload",
+            &deferred_receiver,
+        )?;
+        let fn_i8 = match &target {
+            PlainDispatchTarget::Virtual { slot, .. } => {
+                self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, *slot)?
+            }
+            PlainDispatchTarget::Interface {
+                interface_id, slot, ..
+            } => {
+                self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, *interface_id, *slot)?
+            }
+        };
+        let typed_fn_ptr = self.builder.build_pointer_cast(
+            fn_i8,
+            self.llvm_ptr_type(AddressSpace::default()),
+            "lir_dispatch_fn_typed",
+        )?;
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "lir_dispatch_call",
+            )?;
+            if let Some((_, result_ty)) = sret_result_slot {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&signature.fqn));
+            Ok(call_site)
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        if let Some((result_ptr, _)) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "lir_dispatch_sret")?;
+        }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "lir_dispatch_direct_result")?
+        } else {
+            None
+        };
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => Ok(if let Some((result_ptr, _)) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(
+                    span,
+                    ret_cg,
+                    result_ptr,
+                    "lir_dispatch_sret",
+                )?
+            } else {
+                self.materialize_deferred_cg_value(
+                    span,
+                    "lir_dispatch_direct_result_reload",
+                    deferred_direct_result.unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_lir_plain_dispatch_call: direct return must publish deferred result",
+                        )
+                    }),
+                )?
+            }),
+        }
+    }
+
     fn instantiate_interface_dispatch_signature(
         &self,
         signature: &CodegenCallableSignature,

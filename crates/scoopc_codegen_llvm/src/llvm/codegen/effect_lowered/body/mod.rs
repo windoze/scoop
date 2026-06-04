@@ -26,11 +26,11 @@ use crate::effect_lowered::ir::{
     LateLoweredContinuationResumeBody, LateLoweredFrameSlotKind,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingCompletionOrigin, LateLoweredHandleStateRegion,
-    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainBodySlice,
-    LateLoweredPlainCallable, LateLoweredResumePayloadBinding, LateLoweredSourceBody,
-    LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind, LateLoweredState,
-    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCaseForwarding,
-    LateLoweredStepDispatchPlan, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
+    LateLoweredSourceBody, LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind,
+    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
     SystemSlotKind,
 };
@@ -41,7 +41,7 @@ use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
-use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
+use super::super::mir_body::{MirLocalSlot, collect_lir_local_uses};
 use super::super::types::{CgTy, CgValue};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, NativeCallableAbi,
@@ -290,52 +290,6 @@ fn validate_plain_callable_layout(
         )));
     }
     Ok(())
-}
-
-fn validate_plain_body_slices(
-    root_fqn: &str,
-    plain: &LateLoweredPlainCallable,
-    body: &LateLoweredSourceBody,
-) -> Result<BTreeMap<mir::BasicBlockId, LateLoweredPlainBodySlice>, LlvmEmitError> {
-    if plain.body_slices().len() != body.blocks.len() {
-        return Err(frontend_error(format!(
-            "plain callable `{root_fqn}` 的 body_slices 数量({}) 与 MIR block 数量({}) 不一致",
-            plain.body_slices().len(),
-            body.blocks.len(),
-        )));
-    }
-    let mut slices = BTreeMap::new();
-    for slice in plain.body_slices() {
-        let block = body
-            .blocks
-            .get(slice.block_id().as_u32() as usize)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "plain callable `{root_fqn}` 的 source slice 指向缺失 bb{}",
-                    slice.block_id().as_u32()
-                ))
-            })?;
-        if slice.start_statement_index() != 0
-            || slice.end_statement_index() as usize != block.stmts.len()
-            || !slice.includes_terminator()
-        {
-            return Err(frontend_error(format!(
-                "plain callable `{root_fqn}` 的 bb{} source slice 不是完整 ordinary block：slice=[{}..{}) includes_terminator={} stmt_count={}",
-                slice.block_id().as_u32(),
-                slice.start_statement_index(),
-                slice.end_statement_index(),
-                slice.includes_terminator(),
-                block.stmts.len(),
-            )));
-        }
-        if slices.insert(slice.block_id(), *slice).is_some() {
-            return Err(frontend_error(format!(
-                "plain callable `{root_fqn}` 重复发布 bb{} source slice",
-                slice.block_id().as_u32()
-            )));
-        }
-    }
-    Ok(slices)
 }
 
 fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -> Option<LocalId> {
