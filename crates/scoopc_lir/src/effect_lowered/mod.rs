@@ -18,6 +18,7 @@ pub mod dump;
 pub(crate) mod frame;
 pub mod instruction;
 pub mod ir;
+pub(crate) mod lift;
 pub mod materialize;
 pub mod opt;
 pub(crate) mod opt_verify;
@@ -33,12 +34,12 @@ pub use instruction::{
     LirGcIntrinsicTransportMetadata, LirInstruction, LirInterpolatedStringPart,
     LirInterpolatedStringPartKind, LirLocalDecl, LirLocalSourceKind, LirMemberAccessMetadata,
     LirMemberKey, LirMemberTarget, LirOperand, LirParam, LirPattern, LirPerformArg,
-    LirRuntimeCastFailure, LirRuntimeCastMetadata, LirRuntimeCastResult, LirRuntimeNominalKind,
-    LirRuntimePatternTypeTestKind, LirRuntimePatternTypeTestMetadata, LirRuntimeTypeDescriptorKey,
-    LirRuntimeTypeDescriptorKind, LirRuntimeTypeParameterizedMatch, LirRuntimeTypeTestMetadata,
-    LirRvalue, LirStateBody, LirStateMachineBody, LirStatement, LirStatementIndex,
-    LirStatementKind, LirStructLitField, LirTerminator, LirTopLevelRef, LirTopLevelRefTarget,
-    LirTypeCheckOp, LirTypeMetadataLiteral, LirUnwindAction,
+    LirResumeMetadata, LirRuntimeCastFailure, LirRuntimeCastMetadata, LirRuntimeCastResult,
+    LirRuntimeNominalKind, LirRuntimePatternTypeTestKind, LirRuntimePatternTypeTestMetadata,
+    LirRuntimeTypeDescriptorKey, LirRuntimeTypeDescriptorKind, LirRuntimeTypeParameterizedMatch,
+    LirRuntimeTypeTestMetadata, LirRvalue, LirStateBody, LirStateMachineBody, LirStatement,
+    LirStatementIndex, LirStatementKind, LirStructLitField, LirTerminator, LirTopLevelRef,
+    LirTopLevelRefTarget, LirTypeCheckOp, LirTypeMetadataLiteral, LirUnwindAction,
 };
 pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
@@ -257,6 +258,9 @@ pub enum EffectLoweringError {
         "late-lowering stage 无法为 `{root_fqn}` 发布 source-slice statement classification contract：{detail}"
     )]
     InvalidSourceSliceClassificationContract { root_fqn: String, detail: String },
+
+    #[error("late-lowering stage 无法把 `{root_fqn}` 的 MIR 指令 lift 为 LIR 指令：{detail}")]
+    InvalidLirInstructionLift { root_fqn: String, detail: String },
 
     #[error(
         "late-lowering stage 无法为 plain callable `{root_fqn}` 发布本地 effect/control contract：{detail}"

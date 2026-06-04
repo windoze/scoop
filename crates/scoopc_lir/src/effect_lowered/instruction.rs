@@ -168,7 +168,7 @@ pub struct LirRuntimePatternTypeTestMetadata {
 }
 
 /// Pattern test payload used by LIR value instructions.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirPattern {
     Else,
     Or {
@@ -206,20 +206,20 @@ pub enum LirPattern {
 }
 
 /// LIR operand model: values are either locals or constants.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirOperand {
     Local(LocalId),
     Const(ConstValue),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallArg {
     pub span: Span,
     pub name: Option<String>,
     pub value: LirOperand,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPerformArg {
     pub span: Span,
     pub source_arg_index: usize,
@@ -227,13 +227,13 @@ pub struct LirPerformArg {
     pub value: LirOperand,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirTopLevelRefTarget {
     Callable(LirCallableId),
     Global(scoopc_lir_facts::LirGlobalRootKey),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirTopLevelRef {
     pub target: LirTopLevelRefTarget,
     pub site_id: Option<SiteId>,
@@ -248,7 +248,7 @@ pub struct LirTopLevelRef {
     pub generic_eff_args: Vec<EffectRow>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirMemberAccessMetadata {
     pub name: String,
     pub receiver_ty: TypeId,
@@ -256,7 +256,7 @@ pub struct LirMemberAccessMetadata {
     pub hidden_effects: EffectRow,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirMemberTarget {
     Value { member: LirMemberKey },
     Fun { callable: LirCallableId },
@@ -264,7 +264,7 @@ pub enum LirMemberTarget {
     ExtensionFun { callable: LirCallableId },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirDispatchMetadata {
     pub dispatch: LirDispatchKey,
     pub owner: scoopc_lir_facts::LirNominalLayoutKey,
@@ -282,33 +282,33 @@ pub struct LirDispatchMetadata {
     pub generic_eff_args: Vec<EffectRow>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorCallMetadata {
     pub target_init_class: scoopc_lir_facts::LirNominalLayoutKey,
     pub selected_ctor_span: Option<Span>,
     pub ordered_param_count: usize,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirInterpolatedStringPart {
     pub span: Span,
     pub kind: LirInterpolatedStringPartKind,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirInterpolatedStringPartKind {
     Text,
     Expr { value: LirOperand, ty: TypeId },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStructLitField {
     pub span: Span,
     pub name: String,
     pub value: LirOperand,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirTypeMetadataLiteral {
     pub source_ty: TypeId,
     pub source_nominal: Option<scoopc_lir_facts::LirNominalLayoutKey>,
@@ -344,7 +344,32 @@ pub struct LirCallTransportMetadata {
     pub abi: LirCallAbiHandoffMetadata,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirResumeMetadata {
+    pub continuation_ty: TypeId,
+    pub resume_ty: TypeId,
+    pub answer_ty: TypeId,
+    pub return_ty: TypeId,
+    pub out_effects: EffectRow,
+    pub runtime_error_effect_ty: Option<TypeId>,
+    pub suspends_outward: bool,
+}
+
+impl From<ResumeMetadata> for LirResumeMetadata {
+    fn from(metadata: ResumeMetadata) -> Self {
+        Self {
+            continuation_ty: metadata.continuation_ty,
+            resume_ty: metadata.resume_ty,
+            answer_ty: metadata.answer_ty,
+            return_ty: metadata.return_ty,
+            out_effects: metadata.out_effects,
+            runtime_error_effect_ty: metadata.runtime_error_effect_ty,
+            suspends_outward: metadata.suspends_outward,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallKind {
     Direct {
         callee: LirCallableId,
@@ -379,12 +404,12 @@ pub enum LirCallKind {
     },
     Resume {
         continuation: LirOperand,
-        resume: ResumeMetadata,
+        resume: LirResumeMetadata,
     },
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirRvalue {
     Use(LirOperand),
     Transport {
@@ -481,7 +506,7 @@ pub enum LirRvalue {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirStatementKind {
     Nop,
     Assign {
@@ -502,7 +527,7 @@ pub enum LirStatementKind {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStatement {
     pub span: Span,
     pub kind: LirStatementKind,
@@ -525,7 +550,7 @@ impl From<crate::mir::LocalSourceKind> for LirLocalSourceKind {
 }
 
 /// Parameter metadata owned by a LIR callable header.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirParam {
     span: Span,
     name: String,
@@ -565,7 +590,7 @@ impl LirParam {
 }
 
 /// Callable header data required by executable body emission.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirCallableHeader {
     span: Span,
     root_fqn: String,
@@ -631,7 +656,7 @@ impl LirCallableHeader {
 }
 
 /// Local slot declaration owned by a LIR executable body.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirLocalDecl {
     local: LocalId,
     span: Span,
@@ -743,7 +768,7 @@ impl LirBodyAnchor {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirUnwindAction {
     NoUnwind,
     Propagate,
@@ -755,7 +780,7 @@ pub enum LirUnwindAction {
 /// are the LIR terminator layer used by state-owned instruction bodies.
 pub type LirTerminator = super::ir::LateLoweredStateTerminator;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStateBody {
     statements: Vec<LirStatement>,
     terminator: LirTerminator,
@@ -792,7 +817,7 @@ impl LirStateBody {
 }
 
 /// One executable state with its LIR-owned instruction body.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirExecutableState {
     state_id: super::ir::StateId,
     role: super::ir::LateLoweredStateRole,
@@ -826,7 +851,7 @@ impl LirExecutableState {
 }
 
 /// Unified LIR body graph used for plain and effect-step callables.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirStateMachineBody {
     entry_state: super::ir::StateId,
     complete_state: super::ir::StateId,
@@ -917,7 +942,7 @@ impl LirStateMachineBody {
 }
 
 /// Complete executable body payload independent from MIR `FunDecl::body`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirExecutableBody {
     flavor: LirExecutableBodyFlavor,
     header: LirCallableHeader,
@@ -957,7 +982,7 @@ impl LirExecutableBody {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirInstruction {
     Statement(LirStatement),
     Terminator(LirTerminator),

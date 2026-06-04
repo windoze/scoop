@@ -344,9 +344,12 @@ fn preserve_source_callable(
     callable: LateLoweredCallable,
     original: &LateLoweredCallable,
 ) -> LateLoweredCallable {
-    let callable = callable.with_source_kind(original.source_kind());
+    let mut callable = callable.with_source_kind(original.source_kind());
     if let Some(source_callable) = original.source_callable() {
-        callable.with_source_callable(source_callable)
+        callable = callable.with_source_callable_payload(source_callable.clone());
+    }
+    if let Some(executable_body) = original.executable_body() {
+        callable.with_executable_body(executable_body.clone())
     } else {
         callable
     }
@@ -698,7 +701,7 @@ fn trivial_wrapper_target(
     ) {
         return None;
     }
-    if !state.source_slices().is_empty() {
+    if !state.statements().is_empty() {
         return None;
     }
     match state.terminator() {
@@ -771,7 +774,7 @@ fn rewrite_state(
     LateLoweredState::new(
         state.state_id(),
         state.role(),
-        state.source_slices().to_vec(),
+        state.statements().to_vec(),
         rewrite_terminator(state.terminator(), redirects),
     )
 }
@@ -1956,7 +1959,7 @@ mod tests {
                 LateLoweredState::new(
                     state.state_id(),
                     state.role(),
-                    state.source_slices().to_vec(),
+                    state.statements().to_vec(),
                     LateLoweredStateTerminator::HandleDispatch {
                         site_id: SiteId::from_raw(999),
                         body_state: StateId::new(1),

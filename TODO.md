@@ -237,14 +237,26 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 补充单测覆盖 plain executable body 的 header/param/local 表示、state/statement/terminator anchor 唯一性与 body-owned 查询，以及 LIR 指令枚举不引入 `Todo` / `UnresolvedName` 占位变体。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
+### [TODO] T2-08B：迁移 source-slice 消费侧到 LIR body anchors
 - 依赖：`T2-08A`。
+- 将 facts builder、dump/verify、LLVM effect-lowered body/layout/codegen 中仍消费 `LateLoweredStateSlice` / `(source_slice, statement_index)` 的路径迁移到 `LirExecutableBody` / `LirBodyAnchor`。
+- 消除对 `LateLoweredSourceBody = crate::mir::Body` 和 `LateLoweredSourceCallable.body` 的 backend/codegen 依赖；若 T2-09 仍保留 `LirArtifact.mir`，也只能作为 artifact 级输入，不能作为 `LateLoweredProgram` 内部 overlay。
+- 验收：`crates/scoopc_codegen_llvm` 和 `crates/scoopc/src/pipeline/lir_facts_builder.rs` 不再调用 `source_slices()` / `source_body()`；boundary/source statement contract 使用 LIR anchor；`cargo check --all-targets` 通过。
+
+新增记录（2026-06-04）：
+- 执行 `T2-08` 时已接入 MIR→LIR statement lift、`LateLoweredState` 的 `LirStateBody`、以及 callable `LirExecutableBody` 旁挂，但严格删除 overlay 后发现 LLVM effect body/layout、facts builder 与 dump/verify 仍直接依赖 source-slice 身份和 `LateLoweredSourceBody`。
+- 若不先迁移这些消费侧，直接删除 `LateLoweredStateSlice` / `LateLoweredSourceBody` 会使现有 codegen 无法定位 boundary anchor、source statement classification、plain body blocks 和 closure/source param binding。
+- 因此本任务作为 `T2-08` 的最小新增前置；当前 `T2-08` 保持未完成，不能用兼容 overlay 视为完成。
+
+### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
+- 依赖：`T2-08A`、`T2-08B`。
 - 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。
 - **lift 遇到 MIR `Todo`/`UnresolvedName` 等占位 → 报 unsupported/internal 错误，不产出 LIR 占位。** 这同时验证：完全 lowered 的合法 body 是否还能到达这些占位（理应不能——`UnresolvedName` 在 typecheck 后不应存在，`Todo` 代表未实现特性应在更早报错）。若实测可达，登记为上游（MIR/typecheck）需补的诊断缺口，**不得**在 LIR 层用占位掩盖。
 - 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
 
 阻塞记录（2026-06-04）：
 - 当前任务严格执行需要先完成 `T2-08A`，否则删除 `LateLoweredSourceBody` / `crate::mir::Body` 后，plain callable 与 LLVM body codegen 没有 LIR-owned body/header/local table 可消费。
+- 继续执行时发现 `T2-08A` 只补齐容器，不足以安全删除 overlay；必须先完成 `T2-08B`，把 facts builder、dump/verify 与 LLVM effect body/layout 消费侧迁移到 LIR anchors，否则删除 `LateLoweredStateSlice` / `LateLoweredSourceBody` 会破坏现有 codegen。当前代码仅保持 LIR body producer 与兼容 source-slice 并存，不能视为 T2-08 完成。
 
 ### [TODO] T2-08-R：Review T2-08
 - 关注点：lift 忠实（每条 MIR stmt/term 有对应 LIR 指令，语义不变）；state 拥有指令、无回指 MIR；transport metadata 一并 lift。

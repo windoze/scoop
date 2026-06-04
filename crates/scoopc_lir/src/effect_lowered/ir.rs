@@ -14,6 +14,10 @@ use crate::stable_id::StableInstanceKey;
 use crate::ty::MonoTypeId;
 use crate::ty::{EffectRow, TypeId};
 
+use super::instruction::{
+    LirBodyAnchor, LirExecutableBody, LirStateBody, LirStatement, LirStatementIndex,
+};
+
 /// LIR-owned source payload namespace.
 ///
 /// Current late-lowered bodies still carry selected source-slice payloads, but
@@ -763,15 +767,7 @@ pub struct LateLoweredBodyVersionKey {
     needs_reentry: bool,
 }
 
-/// LIR-owned source body payload consumed by backend body emission.
-///
-/// The payload is captured while constructing `LateLoweredProgram`, so LLVM body
-/// emission does not have to query the residual materialized MIR pass view for a
-/// callable body.  The wrapped source statement/value model is intentionally kept
-/// behind LIR names here; later P7 cleanup can narrow the payload further without
-/// reintroducing a backend lookup edge.
 pub type LateLoweredSourceCallable = crate::mir::FunDecl;
-
 pub type LateLoweredSourceBody = crate::mir::Body;
 
 pub type LateLoweredSourceStatement = crate::mir::Statement;
@@ -1688,6 +1684,7 @@ pub struct LateLoweredCallable {
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
     source_callable: Option<LateLoweredSourceCallable>,
+    executable_body: Option<LirExecutableBody>,
     source_call_site_metadata: Vec<LateLoweredSourceCallSiteMetadata>,
     #[serde(default)]
     published_callable_facts: Option<Box<scoopc_lir_facts::LirCallableFacts>>,
@@ -1707,6 +1704,7 @@ impl PartialEq for LateLoweredCallable {
             && self.source_kind == other.source_kind
             && self.resolved_outward_cases == other.resolved_outward_cases
             && self.abi == other.abi
+            && self.executable_body == other.executable_body
             && self.source_call_site_metadata == other.source_call_site_metadata
             && self.published_callable_facts == other.published_callable_facts
             && self.source_signatures == other.source_signatures
@@ -1717,7 +1715,7 @@ impl PartialEq for LateLoweredCallable {
 impl Eq for LateLoweredCallable {}
 
 fn collect_source_call_site_metadata(
-    source_callable: &LateLoweredSourceCallable,
+    source_callable: &crate::mir::FunDecl,
 ) -> Vec<LateLoweredSourceCallSiteMetadata> {
     let mut out = Vec::new();
     let Some(body) = &source_callable.body else {
@@ -1789,6 +1787,7 @@ impl LateLoweredCallable {
                 resume_packings,
             ))),
             source_callable: None,
+            executable_body: None,
             source_call_site_metadata: Vec::new(),
             published_callable_facts: None,
             source_signatures: Vec::new(),
@@ -1813,6 +1812,7 @@ impl LateLoweredCallable {
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
             source_callable: None,
+            executable_body: None,
             source_call_site_metadata: Vec::new(),
             published_callable_facts: None,
             source_signatures: Vec::new(),
@@ -1838,9 +1838,22 @@ impl LateLoweredCallable {
         self
     }
 
-    pub fn with_source_callable(mut self, source_callable: &LateLoweredSourceCallable) -> Self {
+    pub fn with_source_callable(mut self, source_callable: &crate::mir::FunDecl) -> Self {
         self.source_call_site_metadata = collect_source_call_site_metadata(source_callable);
         self.source_callable = Some(source_callable.clone());
+        self
+    }
+
+    pub fn with_source_callable_payload(
+        mut self,
+        source_callable: LateLoweredSourceCallable,
+    ) -> Self {
+        self.source_callable = Some(source_callable);
+        self
+    }
+
+    pub fn with_executable_body(mut self, executable_body: LirExecutableBody) -> Self {
+        self.executable_body = Some(executable_body);
         self
     }
 
@@ -1888,6 +1901,16 @@ impl LateLoweredCallable {
         self.source_callable.as_ref()
     }
 
+    pub fn executable_body(&self) -> Option<&LirExecutableBody> {
+        self.executable_body.as_ref()
+    }
+
+    pub fn source_body(&self) -> Option<&LateLoweredSourceBody> {
+        self.source_callable
+            .as_ref()
+            .and_then(|callable| callable.body.as_ref())
+    }
+
     pub fn source_kind(&self) -> scoopc_lir_facts::LirCallableSourceKind {
         self.source_kind
     }
@@ -1898,12 +1921,6 @@ impl LateLoweredCallable {
 
     pub fn lir_body_version_key(&self) -> Option<&BodyVersionKey> {
         self.lir_body_version_key.as_ref()
-    }
-
-    pub fn source_body(&self) -> Option<&LateLoweredSourceBody> {
-        self.source_callable
-            .as_ref()
-            .and_then(|callable| callable.body.as_ref())
     }
 
     pub fn source_call_site_metadata(&self) -> &[LateLoweredSourceCallSiteMetadata] {
@@ -2067,16 +2084,31 @@ impl LateLoweredCallable {
             .unwrap_or(&[])
     }
 
+    pub fn source_statement_classification_by_anchor(
+        &self,
+        anchor: LirBodyAnchor,
+    ) -> Option<&LateLoweredSourceStatementClassification> {
+        self.source_statement_classifications()
+            .iter()
+            .find(|entry| entry.anchor() == anchor)
+    }
+
     pub fn source_statement_classification(
         &self,
         source_slice: LateLoweredStateSlice,
         statement_index: u32,
     ) -> Option<&LateLoweredSourceStatementClassification> {
-        self.source_statement_classifications()
-            .iter()
-            .find(|entry| {
-                entry.source_slice() == source_slice && entry.statement_index() == statement_index
-            })
+        let state = self.state_graph().states().iter().find(|state| {
+            state
+                .source_slices()
+                .iter()
+                .any(|slice| *slice == source_slice)
+        })?;
+        let local_index = statement_index.saturating_sub(source_slice.start_statement_index());
+        self.source_statement_classification_by_anchor(LirBodyAnchor::statement(
+            state.state_id(),
+            LirStatementIndex::new(local_index),
+        ))
     }
 
     pub fn continuation_object(&self) -> ContinuationObjectId {
@@ -4139,10 +4171,6 @@ pub enum LateLoweredStateRole {
     Drop,
 }
 
-/// 单个 late-lowered state 当前覆盖的 direct-style MIR 片段。
-///
-/// P5-T03 先把 segmentation skeleton 固定到“block + statement slice (+ 可选 terminator)”这一层，
-/// 以便后续 frame lifting / boundary lowering 在不回 P3 MIR 猜测的前提下，继续沿用同一套切分结果。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStateSlice {
     block_id: BasicBlockId,
@@ -4183,33 +4211,44 @@ impl LateLoweredStateSlice {
     }
 }
 
-/// source-slice 中单条 statement 的 published 用途分类。
+/// LIR-owned executable body 中单条 statement 的 published 用途分类。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSourceStatementClassification {
-    source_slice: LateLoweredStateSlice,
-    statement_index: u32,
+    anchor: LirBodyAnchor,
     kind: LateLoweredSourceStatementClassificationKind,
 }
 
 impl LateLoweredSourceStatementClassification {
-    pub fn new(
-        source_slice: LateLoweredStateSlice,
-        statement_index: u32,
-        kind: LateLoweredSourceStatementClassificationKind,
-    ) -> Self {
-        Self {
-            source_slice,
-            statement_index,
-            kind,
+    pub fn new(anchor: LirBodyAnchor, kind: LateLoweredSourceStatementClassificationKind) -> Self {
+        Self { anchor, kind }
+    }
+
+    pub fn anchor(&self) -> LirBodyAnchor {
+        self.anchor
+    }
+
+    pub fn state_id(&self) -> StateId {
+        match self.anchor {
+            LirBodyAnchor::State { state }
+            | LirBodyAnchor::Statement { state, .. }
+            | LirBodyAnchor::Terminator { state } => state,
+        }
+    }
+
+    pub fn statement_index(&self) -> u32 {
+        match self.anchor {
+            LirBodyAnchor::Statement { statement, .. } => statement.as_u32(),
+            LirBodyAnchor::State { .. } | LirBodyAnchor::Terminator { .. } => 0,
         }
     }
 
     pub fn source_slice(&self) -> LateLoweredStateSlice {
-        self.source_slice
-    }
-
-    pub fn statement_index(&self) -> u32 {
-        self.statement_index
+        LateLoweredStateSlice::new(
+            BasicBlockId::from_raw(self.state_id().as_u32()),
+            self.statement_index(),
+            self.statement_index().saturating_add(1),
+            false,
+        )
     }
 
     pub fn kind(&self) -> LateLoweredSourceStatementClassificationKind {
@@ -4332,7 +4371,7 @@ impl LateLoweredCompletionPayloadSource {
     }
 }
 
-/// boundary 在 owner state source-slice 中消费哪一个 anchor。
+/// boundary 在 owner state LIR body 中消费哪一个 anchor。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredBoundarySourceConsumption {
     Statement {
@@ -5152,7 +5191,7 @@ pub struct LateLoweredState {
     state_id: StateId,
     role: LateLoweredStateRole,
     source_slices: Vec<LateLoweredStateSlice>,
-    terminator: LateLoweredStateTerminator,
+    body: LirStateBody,
     successors: Vec<StateId>,
 }
 
@@ -5160,7 +5199,24 @@ impl LateLoweredState {
     pub fn new(
         state_id: StateId,
         role: LateLoweredStateRole,
+        statements: Vec<LirStatement>,
+        terminator: LateLoweredStateTerminator,
+    ) -> Self {
+        let successors = terminator.successors();
+        Self {
+            state_id,
+            role,
+            source_slices: Vec::new(),
+            body: LirStateBody::new(statements, terminator),
+            successors,
+        }
+    }
+
+    pub fn new_with_source_slices(
+        state_id: StateId,
+        role: LateLoweredStateRole,
         source_slices: Vec<LateLoweredStateSlice>,
+        statements: Vec<LirStatement>,
         terminator: LateLoweredStateTerminator,
     ) -> Self {
         let successors = terminator.successors();
@@ -5168,7 +5224,18 @@ impl LateLoweredState {
             state_id,
             role,
             source_slices,
-            terminator,
+            body: LirStateBody::new(statements, terminator),
+            successors,
+        }
+    }
+
+    pub fn from_body(state_id: StateId, role: LateLoweredStateRole, body: LirStateBody) -> Self {
+        let successors = body.terminator().successors();
+        Self {
+            state_id,
+            role,
+            source_slices: Vec::new(),
+            body,
             successors,
         }
     }
@@ -5181,12 +5248,20 @@ impl LateLoweredState {
         self.role
     }
 
+    pub fn body(&self) -> &LirStateBody {
+        &self.body
+    }
+
+    pub fn statements(&self) -> &[LirStatement] {
+        self.body.statements()
+    }
+
     pub fn source_slices(&self) -> &[LateLoweredStateSlice] {
         &self.source_slices
     }
 
     pub fn terminator(&self) -> &LateLoweredStateTerminator {
-        &self.terminator
+        self.body.terminator()
     }
 
     pub fn successors(&self) -> &[StateId] {
@@ -5194,11 +5269,12 @@ impl LateLoweredState {
     }
 
     pub fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
-        Self::new(
+        Self::new_with_source_slices(
             self.state_id,
             self.role,
             self.source_slices,
-            self.terminator.with_drop_state(drop_state),
+            self.body.statements().to_vec(),
+            self.body.terminator().clone().with_drop_state(drop_state),
         )
     }
 }

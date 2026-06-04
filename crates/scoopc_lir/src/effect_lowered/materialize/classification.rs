@@ -1,4 +1,4 @@
-//! Source-slice statement classification (resume payload / completion / boundary result injection).
+//! LIR statement classification (resume payload / completion / boundary result injection).
 
 #![allow(dead_code)]
 
@@ -14,94 +14,55 @@ pub(crate) fn materialize_source_statement_classifications(
     let boundary_statement_anchors = collect_boundary_statement_anchors(root_fqn, boundary_map)?;
     let handle_binder_locals = collect_handle_binder_locals(state_graph);
     let mut classifications = Vec::new();
-    let mut seen_statements = BTreeSet::<(BasicBlockId, u32)>::new();
+    let mut seen_statements = BTreeSet::<LirBodyAnchor>::new();
     let mut matched_boundary_statement_anchors = BTreeSet::<BoundaryId>::new();
 
     for state in state_graph.states() {
-        for &source_slice in state.source_slices() {
-            let block = body
-                .blocks
-                .get(source_slice.block_id().as_u32() as usize)
-                .ok_or_else(|| {
-                    invalid_source_slice_classification_contract(
-                        root_fqn,
-                        format!(
-                            "state st{} source slice 指向缺失的 canonical MIR block bb{}",
-                            state.state_id().as_u32(),
-                            source_slice.block_id().as_u32(),
-                        ),
-                    )
-                })?;
-            let start = source_slice.start_statement_index() as usize;
-            let end = source_slice.end_statement_index() as usize;
-            if start > end || end > block.stmts.len() {
+        for (stmt_index, stmt) in state.statements().iter().enumerate() {
+            let statement_index = LirStatementIndex::new(stmt_index as u32);
+            let anchor = LirBodyAnchor::statement(state.state_id(), statement_index);
+            if !seen_statements.insert(anchor) {
                 return Err(invalid_source_slice_classification_contract(
                     root_fqn,
                     format!(
-                        "state st{} source slice [{}..{}) 越界于 canonical MIR block bb{}（stmt_count={}）",
+                        "state st{} statement{} 被重复分类，classification contract 不再唯一",
                         state.state_id().as_u32(),
-                        source_slice.start_statement_index(),
-                        source_slice.end_statement_index(),
-                        source_slice.block_id().as_u32(),
-                        block.stmts.len(),
+                        stmt_index,
                     ),
                 ));
             }
-
-            for stmt_index in
-                source_slice.start_statement_index()..source_slice.end_statement_index()
-            {
-                let key = (source_slice.block_id(), stmt_index);
-                if !seen_statements.insert(key) {
-                    return Err(invalid_source_slice_classification_contract(
-                        root_fqn,
-                        format!(
-                            "source-slice statement bb{} stmt{} 被多个 state 覆盖，classification contract 不再唯一",
-                            source_slice.block_id().as_u32(),
-                            stmt_index,
-                        ),
-                    ));
-                }
-                let stmt = &block.stmts[stmt_index as usize];
-                let kind = classify_source_statement(
-                    state.state_id(),
-                    body,
-                    source_slice,
-                    stmt_index,
-                    stmt,
-                    frame_schema,
-                    &boundary_statement_anchors,
-                    &handle_binder_locals,
-                    &mut matched_boundary_statement_anchors,
-                );
-                if let LateLoweredSourceStatementClassificationKind::Unsupported { reason } = kind {
-                    return Err(invalid_source_slice_classification_contract(
-                        root_fqn,
-                        format!(
-                            "source-slice statement bb{} stmt{} has unsupported source classification: {reason}",
-                            source_slice.block_id().as_u32(),
-                            stmt_index,
-                        ),
-                    ));
-                }
-                classifications.push(LateLoweredSourceStatementClassification::new(
-                    source_slice,
-                    stmt_index,
-                    kind,
+            let kind = classify_source_statement(
+                state.state_id(),
+                body,
+                anchor,
+                stmt,
+                frame_schema,
+                &boundary_statement_anchors,
+                &handle_binder_locals,
+                &mut matched_boundary_statement_anchors,
+            );
+            if let LateLoweredSourceStatementClassificationKind::Unsupported { reason } = kind {
+                return Err(invalid_source_slice_classification_contract(
+                    root_fqn,
+                    format!(
+                        "state st{} statement{} has unsupported LIR classification: {reason}",
+                        state.state_id().as_u32(),
+                        stmt_index,
+                    ),
                 ));
             }
+            classifications.push(LateLoweredSourceStatementClassification::new(anchor, kind));
         }
     }
 
-    for (key, boundary_id) in &boundary_statement_anchors {
+    for (anchor, boundary_id) in &boundary_statement_anchors {
         if !matched_boundary_statement_anchors.contains(boundary_id) {
             return Err(invalid_source_slice_classification_contract(
                 root_fqn,
                 format!(
-                    "boundary bd{} 的 statement anchor bb{} stmt{} 未落入任何 source-slice classification",
+                    "boundary bd{} 的 statement anchor {:?} 未落入任何 LIR statement classification",
                     boundary_id.as_u32(),
-                    key.0.as_u32(),
-                    key.1,
+                    anchor,
                 ),
             ));
         }
@@ -112,7 +73,7 @@ pub(crate) fn materialize_source_statement_classifications(
 pub(crate) fn collect_boundary_statement_anchors(
     root_fqn: &str,
     boundary_map: &LateLoweredBoundaryMap,
-) -> Result<BTreeMap<(BasicBlockId, u32), BoundaryId>, EffectLoweringError> {
+) -> Result<BTreeMap<LirBodyAnchor, BoundaryId>, EffectLoweringError> {
     let mut anchors = BTreeMap::new();
     for boundary in boundary_map.entries() {
         let Some(LateLoweredBoundarySourceConsumption::Statement {
@@ -123,14 +84,18 @@ pub(crate) fn collect_boundary_statement_anchors(
         else {
             continue;
         };
-        let key = (source_slice.block_id(), statement_index);
-        if let Some(existing) = anchors.insert(key, boundary.boundary_id()) {
+        let anchor = LirBodyAnchor::statement(
+            StateId::new(source_slice.block_id().as_u32()),
+            LirStatementIndex::new(
+                statement_index.saturating_sub(source_slice.start_statement_index()),
+            ),
+        );
+        if let Some(existing) = anchors.insert(anchor, boundary.boundary_id()) {
             return Err(invalid_source_slice_classification_contract(
                 root_fqn,
                 format!(
-                    "bb{} stmt{} 同时被 boundary bd{} 与 bd{} 声明为 consumed anchor",
-                    source_slice.block_id().as_u32(),
-                    statement_index,
+                    "LIR anchor {:?} 同时被 boundary bd{} 与 bd{} 声明为 consumed anchor",
+                    anchor,
                     existing.as_u32(),
                     boundary.boundary_id().as_u32(),
                 ),
@@ -187,16 +152,14 @@ pub(crate) fn collect_handle_binder_locals(
 pub(crate) fn classify_source_statement(
     state_id: StateId,
     body: &Body,
-    source_slice: LateLoweredStateSlice,
-    stmt_index: u32,
-    stmt: &crate::mir::Statement,
+    anchor: LirBodyAnchor,
+    stmt: &LirStatement,
     frame_schema: &LateLoweredFrameSchema,
-    boundary_statement_anchors: &BTreeMap<(BasicBlockId, u32), BoundaryId>,
+    boundary_statement_anchors: &BTreeMap<LirBodyAnchor, BoundaryId>,
     handle_binder_locals: &BTreeMap<(StateId, LocalId), SiteId>,
     matched_boundary_statement_anchors: &mut BTreeSet<BoundaryId>,
 ) -> LateLoweredSourceStatementClassificationKind {
-    let key = (source_slice.block_id(), stmt_index);
-    if let Some(boundary_id) = boundary_statement_anchors.get(&key).copied() {
+    if let Some(boundary_id) = boundary_statement_anchors.get(&anchor).copied() {
         matched_boundary_statement_anchors.insert(boundary_id);
         return LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
             boundary_id,
@@ -238,11 +201,11 @@ pub(crate) fn classify_source_statement(
 
 pub(crate) fn resume_payload_injection_binding(
     frame_schema: &LateLoweredFrameSchema,
-    stmt: &crate::mir::Statement,
+    stmt: &LirStatement,
 ) -> Option<LateLoweredResumePayloadBinding> {
-    let StatementKind::Assign {
+    let LirStatementKind::Assign {
         target,
-        value: Rvalue::PerformResult { .. },
+        value: LirRvalue::PerformResult { .. },
     } = &stmt.kind
     else {
         return None;
@@ -259,9 +222,9 @@ pub(crate) fn resume_payload_injection_binding(
 pub(crate) fn boundary_result_injection_binding(
     frame_schema: &LateLoweredFrameSchema,
     state_id: StateId,
-    stmt: &crate::mir::Statement,
+    stmt: &LirStatement,
 ) -> Option<LateLoweredResumePayloadBinding> {
-    let StatementKind::Assign { target, .. } = &stmt.kind else {
+    let LirStatementKind::Assign { target, .. } = &stmt.kind else {
         return None;
     };
     frame_schema
@@ -274,7 +237,7 @@ pub(crate) fn boundary_result_injection_binding(
 pub(crate) fn completion_payload_injection_binding<'a>(
     frame_schema: &'a LateLoweredFrameSchema,
     state_id: StateId,
-    stmt: &crate::mir::Statement,
+    stmt: &LirStatement,
 ) -> Option<&'a LateLoweredCompletionPayloadBinding> {
     let binding = frame_schema.completion_payload_binding_for_state(state_id)?;
     let crate::effect_lowered::ir::LateLoweredCompletionPayloadSource::Operand(source) =
@@ -288,7 +251,7 @@ pub(crate) fn completion_payload_injection_binding<'a>(
     };
     matches!(
         &stmt.kind,
-        StatementKind::Assign { target, .. } if *target == *local
+        LirStatementKind::Assign { target, .. } if *target == *local
     )
     .then_some(binding)
 }
@@ -296,9 +259,9 @@ pub(crate) fn completion_payload_injection_binding<'a>(
 pub(crate) fn handle_binder_statement(
     handle_binder_locals: &BTreeMap<(StateId, LocalId), SiteId>,
     state_id: StateId,
-    stmt: &crate::mir::Statement,
+    stmt: &LirStatement,
 ) -> Option<SiteId> {
-    let StatementKind::Assign { target, .. } = &stmt.kind else {
+    let LirStatementKind::Assign { target, .. } = &stmt.kind else {
         return None;
     };
     handle_binder_locals.get(&(state_id, *target)).copied()
@@ -306,55 +269,45 @@ pub(crate) fn handle_binder_statement(
 
 pub(crate) fn classify_effect_neutral_source_statement(
     body: &Body,
-    stmt: &crate::mir::Statement,
+    stmt: &LirStatement,
 ) -> LateLoweredSourceStatementClassificationKind {
     match &stmt.kind {
-        StatementKind::Nop => LateLoweredSourceStatementClassificationKind::ElidedUnreachable,
-        StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => {
+        LirStatementKind::Nop => LateLoweredSourceStatementClassificationKind::ElidedUnreachable,
+        LirStatementKind::StoreMember { .. } | LirStatementKind::StoreGlobal { .. } => {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
         }
-        StatementKind::Assign { target, value } => {
-            if matches!(value, Rvalue::Todo(reason) if reason == "missing expr")
-                && local_is_only_value_member_namespace_receiver(body, *target)
-            {
-                return LateLoweredSourceStatementClassificationKind::EffectNeutralValue;
-            }
-            classify_effect_neutral_rvalue(body, value)
-        }
-        StatementKind::Todo(reason) => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: (*reason).to_string(),
-        },
+        LirStatementKind::Assign { value, .. } => classify_effect_neutral_rvalue(body, value),
     }
 }
 
 pub(crate) fn classify_effect_neutral_rvalue(
     body: &Body,
-    value: &Rvalue,
+    value: &LirRvalue,
 ) -> LateLoweredSourceStatementClassificationKind {
     match value {
-        Rvalue::Use(_)
-        | Rvalue::Transport { .. }
-        | Rvalue::TopLevelRef(_)
-        | Rvalue::TypeCheck { .. }
-        | Rvalue::Cast { .. }
-        | Rvalue::SizeOf { .. }
-        | Rvalue::KindOf { .. }
-        | Rvalue::AlignOf { .. }
-        | Rvalue::DescOf { .. }
-        | Rvalue::TypeMetadataLiteral(_)
-        | Rvalue::MemberAccess { .. }
-        | Rvalue::EnumVariant { .. }
-        | Rvalue::ClassCtor { .. }
-        | Rvalue::MakeClosure { .. }
-        | Rvalue::MakeTuple { .. }
-        | Rvalue::StructLit { .. }
-        | Rvalue::InterpolatedString { .. }
-        | Rvalue::TupleGet { .. }
-        | Rvalue::PatternMatch { .. }
-        | Rvalue::PatternExtract { .. } => {
+        LirRvalue::Use(_)
+        | LirRvalue::Transport { .. }
+        | LirRvalue::TopLevelRef(_)
+        | LirRvalue::TypeCheck { .. }
+        | LirRvalue::Cast { .. }
+        | LirRvalue::SizeOf { .. }
+        | LirRvalue::KindOf { .. }
+        | LirRvalue::AlignOf { .. }
+        | LirRvalue::DescOf { .. }
+        | LirRvalue::TypeMetadataLiteral(_)
+        | LirRvalue::MemberAccess { .. }
+        | LirRvalue::EnumVariant { .. }
+        | LirRvalue::ClassCtor { .. }
+        | LirRvalue::MakeClosure { .. }
+        | LirRvalue::MakeTuple { .. }
+        | LirRvalue::StructLit { .. }
+        | LirRvalue::InterpolatedString { .. }
+        | LirRvalue::TupleGet { .. }
+        | LirRvalue::PatternMatch { .. }
+        | LirRvalue::PatternExtract { .. } => {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
         }
-        Rvalue::Call {
+        LirRvalue::Call {
             site_id,
             kind,
             args,
@@ -365,18 +318,12 @@ pub(crate) fn classify_effect_neutral_rvalue(
                 metadata: call_site_materialized_metadata(body, kind, args.len()),
             }
         }
-        Rvalue::Call { .. } => LateLoweredSourceStatementClassificationKind::EffectNeutralValue,
-        Rvalue::UnresolvedName { .. } => {
+        LirRvalue::Call { .. } => LateLoweredSourceStatementClassificationKind::EffectNeutralValue,
+        LirRvalue::PerformResult { .. } => {
             LateLoweredSourceStatementClassificationKind::Unsupported {
-                reason: "unresolved name requires earlier lowering".to_string(),
+                reason: "perform result requires published resume payload injection".to_string(),
             }
         }
-        Rvalue::PerformResult { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: "perform result requires published resume payload injection".to_string(),
-        },
-        Rvalue::Todo(reason) => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: (*reason).to_string(),
-        },
     }
 }
 
@@ -411,7 +358,7 @@ pub(crate) fn local_is_only_value_member_namespace_receiver(body: &Body, local: 
 
 fn call_site_materialized_metadata(
     body: &Body,
-    kind: &CallKind,
+    kind: &LirCallKind,
     arg_count: usize,
 ) -> LateLoweredCallSiteMaterializedMetadata {
     LateLoweredCallSiteMaterializedMetadata::new(
@@ -421,56 +368,57 @@ fn call_site_materialized_metadata(
     )
 }
 
-fn is_dynamic_call_kind(kind: &CallKind) -> bool {
+fn is_dynamic_call_kind(kind: &LirCallKind) -> bool {
     matches!(
         kind,
-        CallKind::Closure { .. }
-            | CallKind::FunValue { .. }
-            | CallKind::FunPtr { .. }
-            | CallKind::Virtual { .. }
-            | CallKind::Interface { .. }
+        LirCallKind::Closure { .. }
+            | LirCallKind::FunValue { .. }
+            | LirCallKind::FunPtr { .. }
+            | LirCallKind::Virtual { .. }
+            | LirCallKind::Interface { .. }
     )
 }
 
-fn call_site_materialized_kind(kind: &CallKind) -> LateLoweredCallSiteMaterializedKind {
+fn call_site_materialized_kind(kind: &LirCallKind) -> LateLoweredCallSiteMaterializedKind {
     match kind {
-        CallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
-        CallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
-        CallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
-        CallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
-        CallKind::Virtual { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Virtual {
-            owner_fqn: dispatch.owner_fqn.clone(),
+        LirCallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
+        LirCallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
+        LirCallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
+        LirCallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
+        LirCallKind::Virtual { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Virtual {
+            owner_fqn: dispatch.owner.as_str().to_string(),
             member_name: dispatch.member_name.clone(),
-            member_fqn: dispatch.member_fqn.clone(),
+            member_fqn: dispatch.member.as_str().to_string(),
             receiver_ty: dispatch.receiver_ty,
         },
-        CallKind::Interface { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Interface {
-            owner_fqn: dispatch.owner_fqn.clone(),
+        LirCallKind::Interface { dispatch, .. } => LateLoweredCallSiteMaterializedKind::Interface {
+            owner_fqn: dispatch.owner.as_str().to_string(),
             member_name: dispatch.member_name.clone(),
-            member_fqn: dispatch.member_fqn.clone(),
+            member_fqn: dispatch.member.as_str().to_string(),
             receiver_ty: dispatch.receiver_ty,
         },
-        CallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
+        LirCallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
     }
 }
 
-fn call_carrier_source_ty(body: &Body, kind: &CallKind) -> Option<TypeId> {
+fn call_carrier_source_ty(body: &Body, kind: &LirCallKind) -> Option<TypeId> {
     match kind {
-        CallKind::Closure { callee, .. }
-        | CallKind::FunValue { callee }
-        | CallKind::FunPtr { callee } => operand_source_ty(body, callee),
-        CallKind::Virtual { receiver, dispatch } | CallKind::Interface { receiver, dispatch } => {
+        LirCallKind::Closure { callee, .. }
+        | LirCallKind::FunValue { callee }
+        | LirCallKind::FunPtr { callee } => operand_source_ty(body, callee),
+        LirCallKind::Virtual { receiver, dispatch }
+        | LirCallKind::Interface { receiver, dispatch } => {
             operand_source_ty(body, receiver).or(Some(dispatch.receiver_ty))
         }
-        CallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
-        CallKind::Direct { .. } => None,
+        LirCallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
+        LirCallKind::Direct { .. } => None,
     }
 }
 
-fn operand_source_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
+fn operand_source_ty(body: &Body, operand: &LirOperand) -> Option<TypeId> {
     match operand {
-        Operand::Local(local) => body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
-        Operand::Const(_) => None,
+        LirOperand::Local(local) => body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+        LirOperand::Const(_) => None,
     }
 }
 

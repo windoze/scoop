@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use scoopc_ids::LirCallableId;
 use scoopc_mir_facts::MirFacts;
 
 use crate::effect_facts::{
-    CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
+    CallableAbiKind, ConcreteOpKey, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{
     BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
@@ -24,6 +25,7 @@ use super::ir::{
     LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
     LateLoweredStateGraph, class_ctor_source as source,
 };
+use super::lift::LirLiftContext;
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
     ContinuationRouteOwnerPlan, NominalDirectSupertypeIndex, StepMaterialization,
@@ -78,6 +80,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             &continuation_route_owner_plans,
         )?;
         let materialized = pass_view.materialized();
+        let callable_ids = planned_lir_callable_ids(&pass_view, effect_facts);
+        let concrete_ops = concrete_ops_by_fqn(effect_facts);
         let mut stable_instance_keys = materialized.stable_instance_keys().clone();
         let mut dump_body_labels =
             HashMap::<LateLoweredBodyVersionKey, crate::mir::BodyLabels>::new();
@@ -87,6 +91,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
         for family in pass_view.instances() {
             let root_fqn = family.root_fqn().to_string();
+            let lift = LirLiftContext::new(&root_fqn, &callable_ids, &concrete_ops);
             let source_kind = callable_source_kind(materialized, &root_fqn);
             let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
                 if family.root_body().is_some() {
@@ -155,11 +160,24 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     ),
                     nominal_direct_supertypes: &nominal_direct_supertypes,
                     types,
+                    lift: &lift,
                 })?;
+                let executable_body = plain_fun
+                    .body
+                    .as_ref()
+                    .map(|body| {
+                        let flavor = if plain.callable.local_effect_control().is_some() {
+                            super::instruction::LirExecutableBodyFlavor::PlainLocalEffectControl
+                        } else {
+                            super::instruction::LirExecutableBodyFlavor::Plain
+                        };
+                        lift.lift_plain_body(plain_fun, body, flavor)
+                    })
+                    .transpose()?;
                 if let Some(object) = plain.continuation_object {
                     continuation_objects.push(object);
                 }
-                let callable = LateLoweredCallable::new_plain(
+                let mut callable = LateLoweredCallable::new_plain(
                     root_fqn,
                     stable_instance_key,
                     body_version_key,
@@ -168,6 +186,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 )
                 .with_source_kind(source_kind)
                 .with_source_callable(plain_fun);
+                if let Some(executable_body) = executable_body {
+                    callable = callable.with_executable_body(executable_body);
+                }
                 callables.push(callable);
                 continue;
             }
@@ -213,6 +234,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                             body,
                             body_facts,
                             step_schema.complete_ty(),
+                            &lift,
                         )?;
                         let frame = build_callable_frame(FrameBuildInputs {
                             root_fqn: &root_fqn,
@@ -347,6 +369,15 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             .with_source_statement_classifications(source_statement_classifications);
             if let Some(fun) = root_source_body.or(materialized_signature) {
                 callable = callable.with_source_callable(fun);
+                if let Some(body) = fun.body.as_ref() {
+                    let executable_body = lift.lift_control_body(
+                        fun,
+                        body,
+                        super::instruction::LirExecutableBodyFlavor::EffectStep,
+                        callable.state_graph(),
+                    );
+                    callable = callable.with_executable_body(executable_body);
+                }
             }
             callables.push(callable);
         }
@@ -382,6 +413,35 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
         Item::Fun(fun) if fun.fqn == fqn => Some(fun),
         _ => None,
     })
+}
+
+fn planned_lir_callable_ids(
+    pass_view: &MaterializedMirPassView<'_>,
+    effect_facts: &MaterializedEffectFacts,
+) -> HashMap<String, LirCallableId> {
+    let mut ids = HashMap::new();
+    let mut next = 0u32;
+    for family in pass_view.instances() {
+        if effect_facts.callable_facts().get(family.key()).is_none() {
+            continue;
+        }
+        ids.insert(family.root_fqn().to_string(), LirCallableId::from_raw(next));
+        next += 1;
+    }
+    ids
+}
+
+fn concrete_ops_by_fqn(effect_facts: &MaterializedEffectFacts) -> HashMap<String, ConcreteOpKey> {
+    let mut out = HashMap::new();
+    for schema in effect_facts.step_schemas().values() {
+        for case in schema.cases() {
+            out.insert(
+                case.concrete_op_key().instance_key().template.fqn.clone(),
+                case.concrete_op_key().clone(),
+            );
+        }
+    }
+    out
 }
 
 fn callable_source_kind(
@@ -1412,6 +1472,7 @@ struct PlainCallableBuildInputs<'a> {
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
+    lift: &'a LirLiftContext<'a>,
 }
 
 struct PlainCallableBuildOutput {
@@ -1435,6 +1496,7 @@ fn build_plain_callable_abi(
         cross_callable_continuation_provenance,
         nominal_direct_supertypes,
         types,
+        lift,
     } = inputs;
     let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
     let call_sites = match (&fun.body, body_facts) {
@@ -1461,6 +1523,7 @@ fn build_plain_callable_abi(
                 cross_callable_continuation_provenance,
                 nominal_direct_supertypes,
                 types,
+                lift,
                 return_ty: fun.return_ty,
             })?,
         ),
@@ -1505,6 +1568,7 @@ struct PlainLocalEffectControlBuildInputs<'a> {
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
+    lift: &'a LirLiftContext<'a>,
     return_ty: crate::ty::TypeId,
 }
 
@@ -1529,6 +1593,7 @@ fn build_plain_local_effect_control(
         cross_callable_continuation_provenance,
         nominal_direct_supertypes,
         types,
+        lift,
         return_ty,
     } = inputs;
     let step_schema_id =
@@ -1560,8 +1625,14 @@ fn build_plain_local_effect_control(
             root_fqn: root_fqn.to_string(),
             step_schema: step_schema_id.as_u32(),
         })?;
-    let segmentation =
-        build_callable_segmentation(root_fqn, types, body, body_facts, step_schema.complete_ty())?;
+    let segmentation = build_callable_segmentation(
+        root_fqn,
+        types,
+        body,
+        body_facts,
+        step_schema.complete_ty(),
+        lift,
+    )?;
     let local_case_tags = step_schema
         .cases()
         .iter()

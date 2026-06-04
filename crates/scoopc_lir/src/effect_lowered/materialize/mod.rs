@@ -7,14 +7,17 @@ use crate::effect_facts::{
     StepSchemaId,
 };
 use crate::mir::{
-    BasicBlockId, Body, CallArg, CallKind, LocalId, MaterializedMirPassView, MemberAccessMetadata,
-    MemberTarget, Operand, PatternBindingStep, PerformArg, ResumeMetadata, Rvalue, SiteId,
-    StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
-    TerminatorKind,
+    Body, CallArg, CallKind, LocalId, MaterializedMirPassView, MemberAccessMetadata, MemberTarget,
+    Operand, PatternBindingStep, PerformArg, ResumeMetadata, Rvalue, SiteId, StatementKind,
+    StoredContinuationRoutePublication, StoredContinuationValueRoute, TerminatorKind,
 };
 use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::EffectLoweringError;
+use super::instruction::{
+    LirBodyAnchor, LirCallKind, LirOperand, LirRvalue, LirStatement, LirStatementIndex,
+    LirStatementKind, LirTopLevelRef,
+};
 use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
@@ -39,10 +42,9 @@ use super::ir::{
     LateLoweredResumeBoundaryOperandContract, LateLoweredResumeInterface, LateLoweredResumeMethod,
     LateLoweredResumePayloadBinding, LateLoweredRuntimeErrorBoundaryLowering,
     LateLoweredSourceStatementClassification, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
-    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
-    ResumeInterfaceId, StateId,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
+    LateLoweredStepCase, LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding,
+    LateLoweredStepDispatchPlan, LateLoweredStepType, ResumeInterfaceId, StateId,
 };
 use super::ir::{
     LateLoweredBodyVersionKey, LateLoweredBoundarySource, LateLoweredContinuationRoute,
