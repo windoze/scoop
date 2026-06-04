@@ -1,33 +1,43 @@
-# P2：LIR 内部重设计（自包含 `LirProgram`）
+# P-CG：codegen 直接消费 LIR（去 MIR + 去 FQN + never-fail）
 
-> 设计依据：[`FACT_REFACTOR.md`](./FACT_REFACTOR.md) §13（新 LIR 草案）、§2.7（统一身份模式）、§14（P1 已建 handoff）。
-> 上一阶段：P1（LIR↔codegen handoff）已完成 → [`PLAN-1.md`](./PLAN-1.md) / [`TODO-1.md`](./TODO-1.md)。
-> 总路线（后→前）：P1✓ → **P2（本阶段）** → P3 effect-lowering/facts → P4 MIR → P5 HIR → P6 跨 cone 接口面。
+> 设计依据：[`FACT_REFACTOR.md`](./FACT_REFACTOR.md) §1.7/§1.8（责任划分、下游 never-fail）、§13（LIR）、§2.7（句柄）。
+> 前序：P1（handoff）见 `PLAN-1.md`；P2（LIR 内部重设计：P2a 身份 / P2b 折叠 facts 已完成，P2c lift/overlay 未完）见 `PLAN-3.md`。**本阶段 subsume P2 未完的 T2-08/T2-09**。
 
-## 0. 目标
+## 0. 为什么单列、为什么是一组
 
-收口 P1 留下的两个过渡字段——删掉 `LirArtifact.mir: Option<MaterializedMir>` 与 `LirArtifact.facts: LirFacts`，使 LIR 成为**单一、引用闭合、自包含**的 `LirProgram`：codegen 只 walk 它，**无 MIR overlay、无平行 flat facts、无字符串 live key**。这是 LIR 这一段「fallback 不可表示」真正成立的一步。
+调研确认 codegen 是全管线最脏的一层（HEAD：`panic!` 583 / `.expect(` 491 / `.unwrap()` 232；`_fqn` 1283；整个 `mir_body/` 子树直接 walk `mir::Body`）。且 **codegen-walk-LIR、LIR-lift-完成、删-overlay 三者互相依赖**——不能分开做（上次 agent 试图分开，结果造了 LIR→MIR 反向 shim + 句柄转回 FQN + 满地 `Result`/`panic`，已打回）。故合并为一个阶段，端到端完成「LIR 指令落地 → codegen 消费 LIR → 删 overlay」。
 
-## 1. 现状（P1 末，已核对）
+## 1. 现状（post-revert，HEAD 49639d4a）
 
-- `LirArtifact { cone, program: LateLoweredProgram, facts: LirFacts, base_context, mir: Option<MaterializedMir>, object_files }`（`crates/scoopc/src/pipeline/lir_artifact.rs`）。
-- **overlay 仍在**：`crates/scoopc_lir/src/effect_lowered/ir.rs:343` `type LateLoweredSourceBody = crate::mir::Body`；`LateLoweredStateSlice`(:3591) 按 `start/end_statement_index` 切回 MIR；codegen 走「state → MIR slice」。
-- **身份是两 String**：`StableLirCallableKey { canonical_text, readable_path }`（`crates/scoopc_ids/src/lib.rs:260`），生产代码 **139 处**（含 BTreeMap key 与 owner/target/candidate 跨引用）。
-- **`LirFacts` 18 组平表**（`crates/scoopc_lir_facts/src/lib.rs:24`）与 program 并列。
+- **两条 body 发射路径**（`body/main_entry.rs:codegen_program_bodies` 按 `plain_abi().is_some()` 分流）：
+  - **plain 路径** `mir_body/`：直接 walk 原始 `mir::Body.blocks[].stmts[]`（`main_entry.rs:591-623`），不消费 LIR（除 FQN 查找）。
+  - **effect-step 路径** `effect_lowered/body/`：已 walk LIR `state_graph().states()`（StateId 句柄），但**语句仍经 source-slice 切回 MIR**（`lower_source.rs`/`value.rs`）。
+- **身份**：~1283 处 `_fqn`——callee/符号/布局/路由都按 FQN 字符串查（`callable_lookup.rs`、`identity.rs`、`call/lowering.rs`）。
+- **overlay 仍在**：`LateLoweredSourceBody = crate::mir::Body`、`LateLoweredStateSlice`；`LirArtifact.mir` 过渡字段。
+- **错误**：`LlvmEmitError` 约 60-70% 是「输入失败」变体（`Frontend`/`MissingEntryMain`/`EffectLoweringUnsupported`/`BackendGate`/`AmbiguousEntryMain`/`InvalidLiteral`），其余为真后端（`Target`/`Builder`/`Instruction`/`ModuleVerification`/`RunPasses`）+ IO（`Write*`）。
+- T2-07/T2-08A 已提交：LIR 指令**类型**与 executable body 容器已存在；但 lift 未把指令填满、codegen 未消费。
 
-## 2. 子阶段（按序：地基 → 大头）
+## 2. 目标（完成标志）
 
-- **P2a — 身份地基**（统一身份模式 §2.7）：引入 `LirCallableId`（= `program.callables` 下标）+ `LirCallableHash`（跨 cone/序列化）；`StableLirCallableKey.readable_path` 降为仅调试；139 处 live 引用迁到 `LirCallableId`。**详见 `TODO.md`。**
-- **P2b — 折叠 `LirFacts`**：按 fold map 把 per-callable / per-call-site / per-nominal 的 fact 挂到对应节点；删 `LirArtifact.facts`；程序级组（`summary`/`opt_pipeline`/`type_context`/step-schema 类）保留为 program 字段。
-- **P2c — lift 指令、消除 overlay**（最大）：定义 LIR 自有指令集（覆盖 MIR 的 4 statements / 24 rvalues / 8 terminators / 6 call kinds + transport metadata），lowering 产出 LIR 指令，codegen 改走 LIR 指令；删 `LateLoweredStateSlice` / `LateLoweredSourceBody` 与 `LirArtifact.mir`。
+- codegen 两条路径都 **walk LIR 指令/句柄**，`mir_body/` 不再 match `mir::Statement/Rvalue/Terminator/Operand`；`effect_lowered/body` 语句来自 LIR 而非 MIR slice。
+- callee/符号/布局引用全用 `LirCallableId`/`NominalId` 句柄，不再按 FQN 字符串查。
+- 删除 `LateLoweredSourceBody`/`LateLoweredStateSlice`/`LirArtifact.mir`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
+- `LlvmEmitError` 只剩真后端 + IO 变体；**输入失败变体全部上移**（§1.8）；codegen 对输入 never-fail，残留 `panic!`/`expect` 仅为引用闭合下**结构不可达**的 `unreachable!`/`debug_assert`。
 
-> P2a 是 P2b/P2c 的前提（节点先有密集句柄身份）。本阶段 `TODO.md` 三个子阶段都列出任务，但 P2c 的指令集细节在进入 P2c 时按 mir 指令逐条定稿。
+## 3. 子阶段（一组任务，按序；详见 `TODO.md`）
 
-## 3. 完成标志
+- **TC-01 lift 落地（producer）**：LIR lift 全函数（§1.8），为**所有** callable body（plain + effect-step）填满 LIR 指令；拒绝占位的 guard 上移到 MIR 输出。
+- **TC-02 plain 路径消费 LIR**：`mir_body/` 改 walk LIR 指令，去 `mir::*` match。
+- **TC-03 effect 路径语句消费 LIR**：`lower_source.rs`/`value.rs` 语句来自 LIR，不再 MIR slice。
+- **TC-04 FQN→句柄**：callee/符号/布局查找改 `LirCallableId`/`NominalId`。
+- **TC-05 删 overlay**：删 `LateLoweredSourceBody`/`LateLoweredStateSlice`/`LirArtifact.mir`。
+- **TC-06 never-fail 收口**：上移输入失败错误变体；panic/expect on input → 结构不可达。
 
-`LirArtifact = { cone, program: LirProgram, object_files }`（`base_context` 的类型/布局并入 `program`）；无 `mir`/`facts`/overlay/字符串 live key；codegen 单结构 walk；全套 fixture 端到端绿。
+## 4. 硬纪律（贯穿，违反即 review 打回）
 
-## 4. 验证基线（每任务收尾）
+§1.8：下游对输入 never-fail——**无 `Result` 输入错误出口、无 `Todo`/`Unsupported`/escape 变体、无 `_ => {}` no-op 容忍、无句柄→FQN 反转、无 LIR→MIR 反向 shim**。任何「失败可能」上移为上游输出保证。绝不留 placeholder。
+
+## 5. 验证基线（每任务收尾）
 
 ```
 cargo fmt
