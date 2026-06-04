@@ -193,9 +193,15 @@
 - `mir_body/` 内剩余 source-slice 兼容层改走 LIR 发布的 `mir_source` 边界；`rg -n "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body`、`rg -n "ensure_raw_mir_|raw_mir_route_gate|codegen_mir_statement|codegen_mir_terminator|codegen_mir_rvalue\\(|codegen_mir_call\\(" crates/scoopc_codegen_llvm/src/llvm/codegen`、`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 均无命中。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-02-R：Review TC-02
+### [DONE] TC-02-R：Review TC-02
 - **关注点**：plain 发射逐指令对应原 MIR、语义不变；`mir_body/` 无 `mir::*` body match 残留；route-safe gate 已删（不是注释掉）；未新增 fail-fast/占位/FQN 反转/`lir_*_to_mir`。
 - **确认**：`grep -rnE "mir::(Statement|Rvalue|Terminator|Operand|Place)" .../mir_body` 清零；`grep -rn "ensure_raw_mir_" .../mir_body` 清零；`grep -rn "lir_.*_to_mir\|_fqn" .../mir_body` 无反向/FQN 反转；抽样 diff LLVM IR 等价；§9 绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-02` 落地结果：`codegen_plain_callable_entry` 的普通 plain 分支和 `codegen_lir_source_closure_fun` 均从 `LirExecutableBody` 遍历 state-owned statements/terminator，并调用 `codegen_lir_statement` / `codegen_lir_plain_terminator`；旧 plain MIR statement/rvalue/terminator walker 未作为生产路径保留。
+- 反模式检查通过：`rg -n "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 无命中；`rg -n "ensure_raw_mir_|raw_mir_route_gate|codegen_mir_statement|codegen_mir_terminator|codegen_mir_rvalue\\(|codegen_mir_call\\(" crates/scoopc_codegen_llvm/src/llvm/codegen` 无命中；`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 无命中。`_fqn` 的现存命中对应已排期的 `TC-04` FQN→句柄迁移范围，未发现 TC-02 新增的 LIR→MIR shim。
+- 语义等价由 LLVM/codegen 单测、fixture build/run/golden 检查和完整 fixture suite 覆盖；未发现需要在本 review 中修复或新增前置任务的失败。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-03：effect 路径语句改 walk LIR
 
