@@ -13,6 +13,7 @@ use crate::effect_lowered::ir::{
     LateLoweredCompletionPayloadSource, LateLoweredOperandValueSource, LateLoweredStateTerminator,
     StateId,
 };
+use crate::effect_lowered::mir_source;
 use crate::effect_lowered::{
     LirCallArg, LirCallKind, LirExecutableBody, LirLocalDecl, LirMemberAccessMetadata,
     LirMemberTarget, LirOperand, LirRvalue, LirStatementKind, LirTopLevelRefTarget,
@@ -32,7 +33,7 @@ pub(super) struct MirLocalSlot<'ctx> {
 
 #[derive(Clone, Copy)]
 pub(in crate::llvm::codegen) struct MirBodyCodegenCtx<'m, 'ctx> {
-    body: &'m crate::mir::Body,
+    body: &'m mir_source::Body,
     mir_types: &'m TypeStore,
     slots: &'m [MirLocalSlot<'ctx>],
 }
@@ -78,9 +79,9 @@ fn frontend_error(message: String) -> LlvmEmitError {
 }
 
 fn bind_mir_call_args_to_params(
-    params: &[crate::mir::Param],
-    args: &[crate::mir::CallArg],
-) -> Option<Vec<crate::mir::Operand>> {
+    params: &[mir_source::Param],
+    args: &[mir_source::CallArg],
+) -> Option<Vec<mir_source::Operand>> {
     if args.len() != params.len() {
         return None;
     }
@@ -105,32 +106,6 @@ fn bind_mir_call_args_to_params(
     }
 
     slots.into_iter().collect()
-}
-
-const RAW_MIR_EFFECT_CONTROL_TERMINATOR_DETAIL: &str = "raw MIR effect/control terminator must be rejected or rerouted before plain/materialized MIR body emission";
-const RAW_MIR_PERFORM_TERMINATOR_DETAIL: &str = "raw MIR Perform terminator must route through the published late-lowered boundary before body emission; plain/materialized MIR codegen must not guess cleanup or resume contracts";
-const RAW_MIR_PERFORM_RESULT_DETAIL: &str = "raw MIR PerformResult must be eliminated before body emission; plain/materialized MIR codegen must not synthesize a default value";
-const RAW_MIR_CALL_KIND_DETAIL: &str = "raw MIR dynamic dispatch/resume call kind requires an upstream published handoff contract; plain/materialized MIR codegen only accepts raw-safe direct/closure/fun-value calls";
-const RAW_MIR_TODO_TERMINATOR_DETAIL: &str = "pass MIR Todo terminator must remain an upstream impossible-state guard and may not enter plain/materialized MIR body emission";
-
-fn raw_mir_route_gate_error(
-    body_fqn: &str,
-    span: crate::span::Span,
-    gap_id: &'static str,
-    detail: &'static str,
-) -> LlvmEmitError {
-    let entry = crate::llvm::codegen_gap_inventory::codegen_gap_entry(gap_id)
-        .expect("raw MIR route gate gap id must be in inventory");
-    LlvmEmitError::BackendGate(Box::new(crate::llvm::BackendGateError {
-        body_fqn: body_fqn.to_string(),
-        source_span: span,
-        gap_id: entry.gap_id,
-        owner_task: entry.owner_task,
-        suggested_owner: entry.suggested_owner,
-        route: entry.route.as_str(),
-        detail,
-        at: span.into(),
-    }))
 }
 
 fn mir_empty_return_contract_is_lowerable(
@@ -168,10 +143,10 @@ mod value_args;
 
 fn mir_member_value_fqn_for_codegen(
     _span: crate::span::Span,
-    member: &crate::mir::MemberAccessMetadata,
+    member: &mir_source::MemberAccessMetadata,
 ) -> Result<&str, LlvmEmitError> {
     match member.resolved.as_ref() {
-        Some(crate::mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
+        Some(mir_source::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
         Some(_) => {
             panic!("mir_member_value_fqn_for_codegen: verifier accepted non-value member target")
         }
@@ -199,17 +174,17 @@ fn lir_member_value_key_for_codegen(
 
 fn mir_store_member_continuation_route_is_lowerable(
     span: crate::span::Span,
-    body: &crate::mir::Body,
-    continuation_route: &crate::mir::StoredContinuationRoutePublication,
+    body: &mir_source::Body,
+    continuation_route: &mir_source::StoredContinuationRoutePublication,
 ) -> Result<(), LlvmEmitError> {
     match continuation_route {
-        crate::mir::StoredContinuationRoutePublication::Ambiguous => {
+        mir_source::StoredContinuationRoutePublication::Ambiguous => {
             panic!(
                 "mir_store_member_continuation_route_is_lowerable: materialized MIR verifier accepted ambiguous member continuation route at {span:?}"
             );
         }
-        crate::mir::StoredContinuationRoutePublication::None => Ok(()),
-        crate::mir::StoredContinuationRoutePublication::Unique(route) => {
+        mir_source::StoredContinuationRoutePublication::None => Ok(()),
+        mir_source::StoredContinuationRoutePublication::Unique(route) => {
             let Some(local) = body.locals.get(route.source_local.as_u32() as usize) else {
                 panic!(
                     "mir_store_member_continuation_route_is_lowerable: materialized MIR verifier accepted missing continuation route source local at {span:?}"
@@ -228,16 +203,16 @@ fn mir_store_member_continuation_route_is_lowerable(
 fn lir_store_member_continuation_route_is_lowerable(
     span: crate::span::Span,
     body: &LirExecutableBody,
-    continuation_route: &crate::mir::StoredContinuationRoutePublication,
+    continuation_route: &mir_source::StoredContinuationRoutePublication,
 ) -> Result<(), LlvmEmitError> {
     match continuation_route {
-        crate::mir::StoredContinuationRoutePublication::Ambiguous => {
+        mir_source::StoredContinuationRoutePublication::Ambiguous => {
             panic!(
                 "lir_store_member_continuation_route_is_lowerable: LIR verifier accepted ambiguous member continuation route at {span:?}"
             );
         }
-        crate::mir::StoredContinuationRoutePublication::None => Ok(()),
-        crate::mir::StoredContinuationRoutePublication::Unique(route) => {
+        mir_source::StoredContinuationRoutePublication::None => Ok(()),
+        mir_source::StoredContinuationRoutePublication::Unique(route) => {
             let Some(local) = body.locals().get(route.source_local.as_u32() as usize) else {
                 panic!(
                     "lir_store_member_continuation_route_is_lowerable: LIR verifier accepted missing continuation route source local at {span:?}"
@@ -255,7 +230,7 @@ fn lir_store_member_continuation_route_is_lowerable(
 
 fn map_mir_call_args_to_param_names(
     param_names: &[String],
-    args: &[crate::mir::CallArg],
+    args: &[mir_source::CallArg],
 ) -> Option<Vec<usize>> {
     let mut used = vec![false; param_names.len()];
     let mut next_pos = 0usize;
@@ -319,24 +294,24 @@ fn map_lir_call_args_to_param_names(
     (out.len() == param_names.len()).then_some(out)
 }
 
-pub(super) fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::mir::LocalId> {
+pub(super) fn collect_mir_local_uses(body: &mir_source::Body) -> HashSet<mir_source::LocalId> {
     let mut out = HashSet::new();
     for block in &body.blocks {
         for stmt in &block.stmts {
             match &stmt.kind {
-                crate::mir::StatementKind::Assign { value, .. } => {
+                mir_source::StatementKind::Assign { value, .. } => {
                     collect_mir_rvalue_uses(value, &mut out);
                 }
-                crate::mir::StatementKind::StoreMember {
+                mir_source::StatementKind::StoreMember {
                     receiver, value, ..
                 } => {
                     collect_mir_operand_use(receiver, &mut out);
                     collect_mir_operand_use(value, &mut out);
                 }
-                crate::mir::StatementKind::StoreTopLevelVar { value, .. } => {
+                mir_source::StatementKind::StoreTopLevelVar { value, .. } => {
                     collect_mir_operand_use(value, &mut out);
                 }
-                crate::mir::StatementKind::Nop | crate::mir::StatementKind::Todo(_) => {}
+                mir_source::StatementKind::Nop | mir_source::StatementKind::Todo(_) => {}
             }
         }
         collect_mir_terminator_uses(&block.terminator.kind, &mut out);
@@ -372,8 +347,8 @@ pub(super) fn collect_lir_local_uses(
     out
 }
 
-fn collect_mir_operand_use(operand: &crate::mir::Operand, out: &mut HashSet<crate::mir::LocalId>) {
-    if let crate::mir::Operand::Local(local) = operand {
+fn collect_mir_operand_use(operand: &mir_source::Operand, out: &mut HashSet<mir_source::LocalId>) {
+    if let mir_source::Operand::Local(local) = operand {
         out.insert(*local);
     }
 }
@@ -506,105 +481,105 @@ fn collect_lir_terminator_uses(
     }
 }
 
-fn collect_mir_call_kind_uses(kind: &crate::mir::CallKind, out: &mut HashSet<crate::mir::LocalId>) {
+fn collect_mir_call_kind_uses(kind: &mir_source::CallKind, out: &mut HashSet<mir_source::LocalId>) {
     match kind {
-        crate::mir::CallKind::Direct { .. } => {}
-        crate::mir::CallKind::Closure { callee, .. }
-        | crate::mir::CallKind::FunValue { callee }
-        | crate::mir::CallKind::FunPtr { callee } => collect_mir_operand_use(callee, out),
-        crate::mir::CallKind::Virtual { receiver, .. }
-        | crate::mir::CallKind::Interface { receiver, .. } => {
+        mir_source::CallKind::Direct { .. } => {}
+        mir_source::CallKind::Closure { callee, .. }
+        | mir_source::CallKind::FunValue { callee }
+        | mir_source::CallKind::FunPtr { callee } => collect_mir_operand_use(callee, out),
+        mir_source::CallKind::Virtual { receiver, .. }
+        | mir_source::CallKind::Interface { receiver, .. } => {
             collect_mir_operand_use(receiver, out);
         }
-        crate::mir::CallKind::Resume { continuation, .. } => {
+        mir_source::CallKind::Resume { continuation, .. } => {
             collect_mir_operand_use(continuation, out);
         }
     }
 }
 
-fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::mir::LocalId>) {
+fn collect_mir_rvalue_uses(value: &mir_source::Rvalue, out: &mut HashSet<mir_source::LocalId>) {
     match value {
-        crate::mir::Rvalue::Use(operand)
-        | crate::mir::Rvalue::Transport { value: operand, .. }
-        | crate::mir::Rvalue::TypeCheck { value: operand, .. }
-        | crate::mir::Rvalue::Cast { value: operand, .. }
-        | crate::mir::Rvalue::MemberAccess {
+        mir_source::Rvalue::Use(operand)
+        | mir_source::Rvalue::Transport { value: operand, .. }
+        | mir_source::Rvalue::TypeCheck { value: operand, .. }
+        | mir_source::Rvalue::Cast { value: operand, .. }
+        | mir_source::Rvalue::MemberAccess {
             receiver: operand, ..
         }
-        | crate::mir::Rvalue::TupleGet { tuple: operand, .. }
-        | crate::mir::Rvalue::PatternMatch {
+        | mir_source::Rvalue::TupleGet { tuple: operand, .. }
+        | mir_source::Rvalue::PatternMatch {
             subject: operand, ..
         }
-        | crate::mir::Rvalue::PatternExtract {
+        | mir_source::Rvalue::PatternExtract {
             subject: operand, ..
         } => collect_mir_operand_use(operand, out),
-        crate::mir::Rvalue::Call { kind, args, .. } => {
+        mir_source::Rvalue::Call { kind, args, .. } => {
             collect_mir_call_kind_uses(kind, out);
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);
             }
         }
-        crate::mir::Rvalue::EnumVariant { args, .. } => {
+        mir_source::Rvalue::EnumVariant { args, .. } => {
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);
             }
         }
-        crate::mir::Rvalue::ClassCtor { args, .. } => {
+        mir_source::Rvalue::ClassCtor { args, .. } => {
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);
             }
         }
-        crate::mir::Rvalue::MakeTuple { elements, .. } => {
+        mir_source::Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 collect_mir_operand_use(element, out);
             }
         }
-        crate::mir::Rvalue::StructLit { fields, .. } => {
+        mir_source::Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 collect_mir_operand_use(&field.value, out);
             }
         }
-        crate::mir::Rvalue::InterpolatedString { parts, .. } => {
+        mir_source::Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
-                if let crate::mir::InterpolatedStringPart::Expr { value, .. } = part {
+                if let mir_source::InterpolatedStringPart::Expr { value, .. } = part {
                     collect_mir_operand_use(value, out);
                 }
             }
         }
-        crate::mir::Rvalue::MakeClosure { env, .. } => collect_mir_operand_use(env, out),
-        crate::mir::Rvalue::TopLevelRef(_)
-        | crate::mir::Rvalue::UnresolvedName { .. }
-        | crate::mir::Rvalue::SizeOf { .. }
-        | crate::mir::Rvalue::KindOf { .. }
-        | crate::mir::Rvalue::AlignOf { .. }
-        | crate::mir::Rvalue::DescOf { .. }
-        | crate::mir::Rvalue::TypeMetadataLiteral(_)
-        | crate::mir::Rvalue::PerformResult { .. }
-        | crate::mir::Rvalue::Todo(_) => {}
+        mir_source::Rvalue::MakeClosure { env, .. } => collect_mir_operand_use(env, out),
+        mir_source::Rvalue::TopLevelRef(_)
+        | mir_source::Rvalue::UnresolvedName { .. }
+        | mir_source::Rvalue::SizeOf { .. }
+        | mir_source::Rvalue::KindOf { .. }
+        | mir_source::Rvalue::AlignOf { .. }
+        | mir_source::Rvalue::DescOf { .. }
+        | mir_source::Rvalue::TypeMetadataLiteral(_)
+        | mir_source::Rvalue::PerformResult { .. }
+        | mir_source::Rvalue::Todo(_) => {}
     }
 }
 
 fn collect_mir_terminator_uses(
-    terminator: &crate::mir::TerminatorKind,
-    out: &mut HashSet<crate::mir::LocalId>,
+    terminator: &mir_source::TerminatorKind,
+    out: &mut HashSet<mir_source::LocalId>,
 ) {
     match terminator {
-        crate::mir::TerminatorKind::Return { value } => {
+        mir_source::TerminatorKind::Return { value } => {
             if let Some(value) = value {
                 collect_mir_operand_use(value, out);
             }
         }
-        crate::mir::TerminatorKind::CondBr { cond, .. } => collect_mir_operand_use(cond, out),
-        crate::mir::TerminatorKind::Perform { args, .. } => {
+        mir_source::TerminatorKind::CondBr { cond, .. } => collect_mir_operand_use(cond, out),
+        mir_source::TerminatorKind::Perform { args, .. } => {
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);
             }
         }
-        crate::mir::TerminatorKind::ResumeUnwind
-        | crate::mir::TerminatorKind::Goto { .. }
-        | crate::mir::TerminatorKind::Unreachable
-        | crate::mir::TerminatorKind::Handle { .. }
-        | crate::mir::TerminatorKind::Todo(_) => {}
+        mir_source::TerminatorKind::ResumeUnwind
+        | mir_source::TerminatorKind::Goto { .. }
+        | mir_source::TerminatorKind::Unreachable
+        | mir_source::TerminatorKind::Handle { .. }
+        | mir_source::TerminatorKind::Todo(_) => {}
     }
 }
 
@@ -616,7 +591,7 @@ mod tests {
     fn mir_member_access_codegen_rejects_unresolved_metadata() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let member = crate::mir::MemberAccessMetadata {
+        let member = mir_source::MemberAccessMetadata {
             name: "count".to_string(),
             receiver_ty: builtins.int,
             resolved: None,
@@ -635,12 +610,12 @@ mod tests {
 
     #[test]
     fn mir_store_member_codegen_rejects_ambiguous_continuation_route() {
-        let body = crate::mir::Body::new_empty();
+        let body = mir_source::Body::new_empty();
         let panic = std::panic::catch_unwind(|| {
             let _ = mir_store_member_continuation_route_is_lowerable(
                 crate::span::Span::new(0, 1),
                 &body,
-                &crate::mir::StoredContinuationRoutePublication::Ambiguous,
+                &mir_source::StoredContinuationRoutePublication::Ambiguous,
             );
         })
         .expect_err("ambiguous continuation route should be an internal verifier invariant");
@@ -655,19 +630,19 @@ mod tests {
     fn mir_store_member_codegen_validates_unique_continuation_route_source() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let mut body = crate::mir::Body::new_empty();
-        let source_local = body.push_local(crate::mir::LocalDecl {
+        let mut body = mir_source::Body::new_empty();
+        let source_local = body.push_local(mir_source::LocalDecl {
             span: crate::span::Span::new(0, 1),
             name: Some("k".to_string()),
             ty: builtins.unit,
-            source: crate::mir::LocalSourceKind::SourceLocal,
+            source: mir_source::LocalSourceKind::SourceLocal,
         });
 
         let ok = mir_store_member_continuation_route_is_lowerable(
             crate::span::Span::new(0, 1),
             &body,
-            &crate::mir::StoredContinuationRoutePublication::Unique(
-                crate::mir::StoredContinuationValueRoute {
+            &mir_source::StoredContinuationRoutePublication::Unique(
+                mir_source::StoredContinuationValueRoute {
                     source_local,
                     source_ty: builtins.unit,
                     path: Vec::new(),
@@ -680,8 +655,8 @@ mod tests {
             let _ = mir_store_member_continuation_route_is_lowerable(
                 crate::span::Span::new(0, 1),
                 &body,
-                &crate::mir::StoredContinuationRoutePublication::Unique(
-                    crate::mir::StoredContinuationValueRoute {
+                &mir_source::StoredContinuationRoutePublication::Unique(
+                    mir_source::StoredContinuationValueRoute {
                         source_local,
                         source_ty: builtins.int,
                         path: Vec::new(),

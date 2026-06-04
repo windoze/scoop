@@ -10,7 +10,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         fun_ty: &crate::ty::FunctionType,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = self.callable_value_param_names(fun_ty);
@@ -152,7 +152,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         _span: crate::span::Span,
         fun_ty: &crate::ty::FunctionType,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {

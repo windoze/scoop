@@ -9,9 +9,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_value_transport(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
-        transport: &crate::mir::ValueTransportMetadata,
-        body: &crate::mir::Body,
+        value: &mir_source::Operand,
+        transport: &mir_source::ValueTransportMetadata,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
@@ -27,7 +27,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if !matches!(
             boxing.reason,
-            crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+            mir_source::MirBoxingReason::AnyErasure | mir_source::MirBoxingReason::RefErasure
         ) || boxing.source_ty != transport.source_ty
         {
             return Err(super::composite_transport::composite_transport_gate_error(
@@ -89,7 +89,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Tuple(_) | CgTy::Struct(_) => self.codegen_mir_composite_value_box(
                 span, value, source_ty, source_cg, body, mir_types, slots,
             ),
-            CgTy::Enum(_) if transport.kind == crate::mir::MirTransportKind::EnumPayload => self
+            CgTy::Enum(_) if transport.kind == mir_source::MirTransportKind::EnumPayload => self
                 .codegen_mir_composite_value_box(
                     span, value, source_ty, source_cg, body, mir_types, slots,
                 ),
@@ -115,7 +115,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         value: &LirOperand,
-        transport: &crate::mir::ValueTransportMetadata,
+        transport: &mir_source::ValueTransportMetadata,
         _body: &LirExecutableBody,
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
@@ -132,7 +132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if !matches!(
             boxing.reason,
-            crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+            mir_source::MirBoxingReason::AnyErasure | mir_source::MirBoxingReason::RefErasure
         ) || boxing.source_ty != transport.source_ty
         {
             return Err(super::composite_transport::composite_transport_gate_error(
@@ -197,7 +197,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Tuple(_) | CgTy::Struct(_) => {
                 self.codegen_lir_composite_value_box(span, value, source_ty, source_cg, slots)
             }
-            CgTy::Enum(_) if transport.kind == crate::mir::MirTransportKind::EnumPayload => {
+            CgTy::Enum(_) if transport.kind == mir_source::MirTransportKind::EnumPayload => {
                 self.codegen_lir_composite_value_box(span, value, source_ty, source_cg, slots)
             }
             CgTy::Float64 | CgTy::Float32 => {
@@ -221,10 +221,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_composite_value_box(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         source_ty: TypeId,
         source_cg: CgTy,
-        _body: &crate::mir::Body,
+        _body: &mir_source::Body,
         _mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -356,11 +356,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_type_metadata_literal(
         &mut self,
         span: crate::span::Span,
-        metadata: &crate::mir::TypeMetadataLiteral,
+        metadata: &mir_source::TypeMetadataLiteral,
         mir_types: &TypeStore,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match metadata.kind {
-            crate::mir::TypeMetadataLiteralKind::TypeNameString => {
+            mir_source::TypeMetadataLiteralKind::TypeNameString => {
                 // Type metadata strings are immutable metadata values, so they can share the
                 // ordinary immortal String pool and remain pointer-stable across repeated reads.
                 let type_name = metadata
@@ -379,7 +379,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match metadata.kind {
-            crate::mir::TypeMetadataLiteralKind::TypeNameString => {
+            mir_source::TypeMetadataLiteralKind::TypeNameString => {
                 let type_name = metadata
                     .source_nominal
                     .as_ref()

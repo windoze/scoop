@@ -10,7 +10,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_ordered_args(
         &mut self,
         _span: crate::span::Span,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         ctor_params: &[LateLoweredClassCtorParam],
         kind: &'static str,
@@ -102,10 +102,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         class_layout_key: &hir::ClassInstanceKey,
-        _ctor: &crate::mir::ClassCtorCallMetadata,
-        args: &[crate::mir::CallArg],
+        _ctor: &mir_source::ClassCtorCallMetadata,
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let class = self.class_init_layout(span, class_layout_key)?;
@@ -265,7 +265,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_lir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         class_layout_key: &hir::ClassInstanceKey,
         _ctor: &crate::effect_lowered::LirClassCtorCallMetadata,
         args: &[LirCallArg],
@@ -379,7 +379,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         sig_fun: &hir::FunDecl,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         uses_native_abi: bool,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
@@ -518,7 +518,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         param_names: &[String],
         param_tys: &[TypeId],
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         uses_native_abi: bool,
         source_types: &TypeStore,

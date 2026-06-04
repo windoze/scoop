@@ -506,73 +506,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(in crate::llvm::codegen) fn bind_mir_closure_params(
-        &mut self,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
-        llvm_fun: FunctionValue<'ctx>,
-        param_offset: u32,
-        slots: &mut [MirLocalSlot<'ctx>],
-    ) -> Result<(), LlvmEmitError> {
-        let env_param = mir_fun.params.first().unwrap_or_else(|| {
-            panic!("bind_mir_closure_params: MIR verifier accepted closure without env param")
-        });
-        if env_param.name != "$env" {
-            panic!(
-                "bind_mir_closure_params: MIR verifier accepted closure first param not named `$env`"
-            )
-        }
-        let env_slot = slots
-            .get(env_param.local.as_u32() as usize)
-            .copied()
-            .unwrap_or_else(|| {
-                panic!("bind_mir_closure_params: MIR verifier accepted missing env local slot")
-            });
-        let env_init = self.codegen_mir_closure_env_param(
-            env_param.span,
-            &mir_fun.fqn,
-            llvm_fun,
-            param_offset,
-            env_slot.cg_ty,
-        )?;
-        let _ = self.store_local_value(env_param.span, env_slot.ptr, env_slot.cg_ty, env_init)?;
-
-        for (idx, param) in mir_fun.params.iter().enumerate().skip(1) {
-            let slot = slots
-                .get(param.local.as_u32() as usize)
-                .copied()
-                .unwrap_or_else(|| {
-                    panic!("bind_mir_closure_params: MIR call ABI verifier accepted missing param local slot")
-                });
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param.ty).unwrap_or_else(|| {
-                panic!("bind_mir_closure_params: TypeStore equivalence verifier accepted unsupported param type")
-            });
-            let abi = self.ordinary_param_abi(param.span, param_ty)?;
-            let init = if let Some(pointee_ty) = abi.pointee_ty() {
-                let param_ptr = llvm_fun
-                    .get_nth_param(idx as u32 + param_offset)
-                    .unwrap_or_else(|| {
-                        panic!("bind_mir_closure_params: MIR call ABI verifier accepted missing LLVM param")
-                    })
-                    .into_pointer_value();
-                let loaded =
-                    self.builder
-                        .build_load(pointee_ty, param_ptr, "pass_mir_param_load")?;
-                self.cg_value_from_loaded(param.span, slot.cg_ty, loaded)?
-            } else {
-                self.cg_value_from_llvm_param(
-                    param.span,
-                    llvm_fun,
-                    idx as u32 + param_offset,
-                    slot.cg_ty,
-                    "missing pass MIR llvm param",
-                )?
-            };
-            let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
-        }
-        Ok(())
-    }
-
     pub(in crate::llvm::codegen) fn bind_lir_header_params(
         &mut self,
         header: &crate::effect_lowered::LirCallableHeader,
@@ -754,14 +687,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn create_mir_local_slots(
         &mut self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
     ) -> Result<Vec<MirLocalSlot<'ctx>>, LlvmEmitError> {
         body.locals
             .iter()
             .enumerate()
             .map(|(idx, local)| {
-                let local_id = crate::mir::LocalId::from_raw(idx as u32);
+                let local_id = mir_source::LocalId::from_raw(idx as u32);
                 let cg_ty = self.mir_local_storage_cg_ty(body, mir_types, local_id, local)?;
                 let ptr = self.create_entry_alloca(
                     local.span,

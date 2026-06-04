@@ -150,7 +150,7 @@
 - 更新旧 LLVM substring / effect-lowered / MIR golden：LIR 命名漂移、nested atomic GEP regex、Platform LIR struct literal IR、MIR intrinsic callable 计数及 effect-lowered ABI symbol hash。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
+### [DONE] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 
 **目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1 + TC-02-PRE2**（plain body 的 LIR 指令已填满，LIR plain lowering 已具备 effect-typed closure adapter parity，且剩余 fixture/runtime 残差已收敛）。
 
@@ -186,6 +186,12 @@
 - `grep -rnE "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` → body match 清零（仅可能余类型别名等非 body 用法）。
 - plain callable 由 LIR 指令发射；route-safe gate 已删。
 - §9 基线绿；抽样 diff 同一输入的 LLVM IR/可执行行为等价。
+
+**完成记录（2026-06-05）**：
+- `codegen_plain_callable_entry` 的普通 plain 发射改为以 `LirExecutableBody` / LIR header 为权威来源：返回类型、source span、materialized closure 判定和 composite transport 校验均走 LIR；普通分支遍历 LIR states/statements 并调用 `codegen_lir_statement` / `codegen_lir_plain_terminator`。
+- 删除旧 plain MIR walker / gate：`codegen_mir_statement`、`codegen_mir_terminator`、`codegen_mir_rvalue`、`codegen_mir_call` 和 raw MIR route gate 已移除；closure body 参数绑定残留的 MIR helper 已删除。
+- `mir_body/` 内剩余 source-slice 兼容层改走 LIR 发布的 `mir_source` 边界；`rg -n "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body`、`rg -n "ensure_raw_mir_|raw_mir_route_gate|codegen_mir_statement|codegen_mir_terminator|codegen_mir_rvalue\\(|codegen_mir_call\\(" crates/scoopc_codegen_llvm/src/llvm/codegen`、`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 均无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-02-R：Review TC-02
 - **关注点**：plain 发射逐指令对应原 MIR、语义不变；`mir_body/` 无 `mir::*` body match 残留；route-safe gate 已删（不是注释掉）；未新增 fail-fast/占位/FQN 反转/`lir_*_to_mir`。

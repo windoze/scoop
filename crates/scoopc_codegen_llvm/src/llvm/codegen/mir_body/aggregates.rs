@@ -8,9 +8,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_make_tuple(
         &mut self,
         span: crate::span::Span,
-        _body: &crate::mir::Body,
+        _body: &mir_source::Body,
         _mir_types: &TypeStore,
-        elements: &[crate::mir::Operand],
+        elements: &[mir_source::Operand],
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -271,9 +271,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .current_callable_fqn
             .clone()
             .unwrap_or_else(|| "<mir-descOf>".to_string());
-        let metadata = crate::mir::ValueTransportMetadata::plain(
+        let metadata = mir_source::ValueTransportMetadata::plain(
             value_ty,
-            crate::mir::MirTransportKind::ArrayElement,
+            mir_source::MirTransportKind::ArrayElement,
         );
         let descriptor = self.get_or_create_value_composite_transport_descriptor_global(
             &body_fqn, span, mir_types, &metadata,
@@ -298,8 +298,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         mir_types: &TypeStore,
-        fields: &[crate::mir::StructLitField],
-        transport: &crate::mir::AggregateTransportMetadata,
+        fields: &[mir_source::StructLitField],
+        transport: &mir_source::AggregateTransportMetadata,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -425,7 +425,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         source_types: &TypeStore,
         fields: &[crate::effect_lowered::LirStructLitField],
-        transport: &crate::mir::AggregateTransportMetadata,
+        transport: &mir_source::AggregateTransportMetadata,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -548,9 +548,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_tuple_get(
         &mut self,
         span: crate::span::Span,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        tuple: &crate::mir::Operand,
+        tuple: &mir_source::Operand,
         index: usize,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -625,9 +625,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_make_closure(
         &mut self,
         span: crate::span::Span,
-        env: &crate::mir::Operand,
+        env: &mir_source::Operand,
         fn_ptr: &str,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -652,7 +652,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         env: &LirOperand,
         fn_ptr: LirCallableId,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         source_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -684,7 +684,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         env: &LirOperand,
         fn_ptr: LirCallableId,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         source_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -717,9 +717,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_make_closure_with_target_fn_ptr(
         &mut self,
         span: crate::span::Span,
-        env: &crate::mir::Operand,
+        env: &mir_source::Operand,
         fn_ptr: &str,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -745,7 +745,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         env: &LirOperand,
         fn_ptr: &str,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         source_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -961,9 +961,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_make_closure_impl(
         &mut self,
         span: crate::span::Span,
-        env: &crate::mir::Operand,
+        env: &mir_source::Operand,
         fn_ptr: &str,
-        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        env_contract: &mir_source::ClosureEnvTransportMetadata,
         mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
@@ -1186,8 +1186,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_funptr_invoke_call(
         &mut self,
         span: crate::span::Span,
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {

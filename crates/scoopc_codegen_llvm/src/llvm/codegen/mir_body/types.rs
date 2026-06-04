@@ -7,22 +7,22 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_local_storage_cg_ty(
         &mut self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        local_id: crate::mir::LocalId,
-        local: &crate::mir::LocalDecl,
+        local_id: mir_source::LocalId,
+        local: &mir_source::LocalDecl,
     ) -> Result<CgTy, LlvmEmitError> {
         let local_cg = self.cg_ty_of_mir_type(mir_types, local.ty);
         let mut member_field_cg = None;
         for block in &body.blocks {
             for stmt in &block.stmts {
-                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                let mir_source::StatementKind::Assign { target, value } = &stmt.kind else {
                     continue;
                 };
                 if *target != local_id {
                     continue;
                 }
-                let crate::mir::Rvalue::MemberAccess {
+                let mir_source::Rvalue::MemberAccess {
                     receiver, member, ..
                 } = value
                 else {
@@ -30,7 +30,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 if !matches!(
                     member.resolved,
-                    Some(crate::mir::MemberTarget::Value { .. })
+                    Some(mir_source::MemberTarget::Value { .. })
                 ) {
                     continue;
                 }
@@ -51,7 +51,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         if let Some(field_cg) = member_field_cg
-            && (matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
+            && (matches!(local.source, mir_source::LocalSourceKind::CompilerTemporary)
                 || local_cg.is_some_and(|local_cg| {
                     self.mir_type_contains_param(mir_types, local.ty)
                         || self.cg_ty_layout_equivalent(local_cg, field_cg)
@@ -60,7 +60,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(field_cg);
         }
         if let Some(assigned_cg) = self.mir_local_assignment_cg_ty(body, mir_types, local_id)
-            && matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
+            && matches!(local.source, mir_source::LocalSourceKind::CompilerTemporary)
             && (local_cg.is_none()
                 || matches!(local_cg, Some(CgTy::Ref))
                 || matches!(assigned_cg, CgTy::Enum(_))
@@ -149,42 +149,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_local_assignment_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        local_id: crate::mir::LocalId,
+        local_id: mir_source::LocalId,
     ) -> Option<CgTy> {
         let mut inferred = None;
         for block in &body.blocks {
             for stmt in &block.stmts {
-                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                let mir_source::StatementKind::Assign { target, value } = &stmt.kind else {
                     continue;
                 };
                 if *target != local_id {
                     continue;
                 }
                 let candidate = match value {
-                    crate::mir::Rvalue::Use(operand) => {
+                    mir_source::Rvalue::Use(operand) => {
                         self.mir_operand_cg_ty(body, mir_types, operand)?
                     }
-                    crate::mir::Rvalue::Transport { value, transport } => {
+                    mir_source::Rvalue::Transport { value, transport } => {
                         self.mir_transport_result_cg_ty(body, mir_types, value, transport)?
                     }
-                    crate::mir::Rvalue::TypeCheck { .. } => CgTy::Bool,
-                    crate::mir::Rvalue::Cast { target_ty, .. } => {
+                    mir_source::Rvalue::TypeCheck { .. } => CgTy::Bool,
+                    mir_source::Rvalue::Cast { target_ty, .. } => {
                         self.cg_ty_of_mir_type(mir_types, *target_ty)?
                     }
-                    crate::mir::Rvalue::Call { kind, .. } => {
+                    mir_source::Rvalue::Call { kind, .. } => {
                         self.mir_call_result_cg_ty(body, mir_types, kind)?
                     }
-                    crate::mir::Rvalue::StructLit { transport, .. } => {
+                    mir_source::Rvalue::StructLit { transport, .. } => {
                         let aggregate_ty =
                             self.equivalent_codegen_type_id(mir_types, transport.aggregate_ty)?;
                         self.try_cg_ty_of_type_id(aggregate_ty)?
                     }
-                    crate::mir::Rvalue::MemberAccess { member, .. } => {
+                    mir_source::Rvalue::MemberAccess { member, .. } => {
                         self.mir_member_resolved_static_value_cg_ty(member)?
                     }
-                    crate::mir::Rvalue::TupleGet { tuple, index } => {
+                    mir_source::Rvalue::TupleGet { tuple, index } => {
                         self.mir_tuple_get_result_cg_ty(body, mir_types, tuple, *index)?
                     }
                     _ => continue,
@@ -257,12 +257,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_call_result_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        kind: &crate::mir::CallKind,
+        kind: &mir_source::CallKind,
     ) -> Option<CgTy> {
         match kind {
-            crate::mir::CallKind::Direct { callee_fqn, .. } => {
+            mir_source::CallKind::Direct { callee_fqn, .. } => {
                 if self.registered_class_instance_key(callee_fqn).is_some() {
                     return Some(CgTy::Ref);
                 }
@@ -278,18 +278,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let signature = self.published_codegen_callable_signature(callee_fqn)?;
                 self.try_cg_ty_of_type_id(signature.return_ty)
             }
-            crate::mir::CallKind::Closure { callee, .. }
-            | crate::mir::CallKind::FunValue { callee }
-            | crate::mir::CallKind::FunPtr { callee } => {
+            mir_source::CallKind::Closure { callee, .. }
+            | mir_source::CallKind::FunValue { callee }
+            | mir_source::CallKind::FunPtr { callee } => {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
                     .or_else(|| self.mir_operand_function_type(body, mir_types, callee))?;
                 self.cg_ty_of_mir_type(mir_types, fun_ty.return_ty)
             }
-            crate::mir::CallKind::Resume { resume, .. } => {
+            mir_source::CallKind::Resume { resume, .. } => {
                 self.cg_ty_of_mir_type(mir_types, resume.answer_ty)
             }
-            crate::mir::CallKind::Virtual { .. } | crate::mir::CallKind::Interface { .. } => None,
+            mir_source::CallKind::Virtual { .. } | mir_source::CallKind::Interface { .. } => None,
         }
     }
 
@@ -662,14 +662,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn runtime_type_descriptor_is_codegen_supported(
         &self,
         mir_types: &TypeStore,
-        metadata: &crate::mir::RuntimeTypeTestMetadata,
+        metadata: &mir_source::RuntimeTypeTestMetadata,
     ) -> bool {
         if !matches!(
             metadata.descriptor.kind,
-            crate::mir::RuntimeTypeDescriptorKind::Any
-                | crate::mir::RuntimeTypeDescriptorKind::Function
-                | crate::mir::RuntimeTypeDescriptorKind::String
-                | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
+            mir_source::RuntimeTypeDescriptorKind::Any
+                | mir_source::RuntimeTypeDescriptorKind::Function
+                | mir_source::RuntimeTypeDescriptorKind::String
+                | mir_source::RuntimeTypeDescriptorKind::Nominal { .. }
         ) {
             return false;
         }
@@ -681,14 +681,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn runtime_pattern_type_descriptor_is_codegen_supported(
         &self,
         mir_types: &TypeStore,
-        metadata: &crate::mir::RuntimePatternTypeTestMetadata,
+        metadata: &mir_source::RuntimePatternTypeTestMetadata,
     ) -> bool {
         if !matches!(
             metadata.descriptor.kind,
-            crate::mir::RuntimeTypeDescriptorKind::Any
-                | crate::mir::RuntimeTypeDescriptorKind::Function
-                | crate::mir::RuntimeTypeDescriptorKind::String
-                | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
+            mir_source::RuntimeTypeDescriptorKind::Any
+                | mir_source::RuntimeTypeDescriptorKind::Function
+                | mir_source::RuntimeTypeDescriptorKind::String
+                | mir_source::RuntimeTypeDescriptorKind::Nominal { .. }
         ) {
             return false;
         }
@@ -699,9 +699,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_tuple_get_result_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        tuple: &crate::mir::Operand,
+        tuple: &mir_source::Operand,
         index: usize,
     ) -> Option<CgTy> {
         let tuple_ty = self.mir_operand_type_id(body, tuple)?;
@@ -729,9 +729,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_member_resolved_top_level_value_fqn<'m>(
         &self,
-        member: &'m crate::mir::MemberAccessMetadata,
+        member: &'m mir_source::MemberAccessMetadata,
     ) -> Option<&'m str> {
-        let Some(crate::mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+        let Some(mir_source::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
             return None;
         };
         (self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton)
@@ -762,9 +762,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_member_resolved_static_value_cg_ty(
         &self,
-        member: &crate::mir::MemberAccessMetadata,
+        member: &mir_source::MemberAccessMetadata,
     ) -> Option<CgTy> {
-        let crate::mir::MemberTarget::Value { fqn } = member.resolved.as_ref()? else {
+        let mir_source::MemberTarget::Value { fqn } = member.resolved.as_ref()? else {
             return None;
         };
         if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton) {
@@ -866,10 +866,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_member_field_cg_ty(
         &mut self,
         span: crate::span::Span,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
+        receiver: &mir_source::Operand,
+        member: &mir_source::MemberAccessMetadata,
     ) -> Result<CgTy, LlvmEmitError> {
         let field_fqn = mir_member_value_fqn_for_codegen(span, member)?;
         let receiver_type_id =
@@ -923,16 +923,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_transport_result_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        value: &crate::mir::Operand,
-        transport: &crate::mir::ValueTransportMetadata,
+        value: &mir_source::Operand,
+        transport: &mir_source::ValueTransportMetadata,
     ) -> Option<CgTy> {
         self.mir_operand_cg_ty(body, mir_types, value)?;
         let boxing = transport.boxing.as_ref()?;
         if !matches!(
             boxing.reason,
-            crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+            mir_source::MirBoxingReason::AnyErasure | mir_source::MirBoxingReason::RefErasure
         ) || boxing.source_ty != transport.source_ty
         {
             return None;
@@ -963,13 +963,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         body: &LirExecutableBody,
         source_types: &TypeStore,
         value: &LirOperand,
-        transport: &crate::mir::ValueTransportMetadata,
+        transport: &mir_source::ValueTransportMetadata,
     ) -> Option<CgTy> {
         self.lir_operand_cg_ty(body, source_types, value)?;
         let boxing = transport.boxing.as_ref()?;
         if !matches!(
             boxing.reason,
-            crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+            mir_source::MirBoxingReason::AnyErasure | mir_source::MirBoxingReason::RefErasure
         ) || boxing.source_ty != transport.source_ty
         {
             return None;
@@ -1000,10 +1000,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         enum_ty: TypeId,
         variant: &CgEnumVariant,
-        args: &[crate::mir::CallArg],
-        payload: &crate::mir::AggregateTransportMetadata,
+        args: &[mir_source::CallArg],
+        payload: &mir_source::AggregateTransportMetadata,
     ) -> bool {
-        if payload.kind != crate::mir::AggregateTransportKind::EnumPayload {
+        if payload.kind != mir_source::AggregateTransportKind::EnumPayload {
             return false;
         }
         let Some(payload_enum_ty) =
@@ -1057,9 +1057,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant: &CgEnumVariant,
         args: &[LirCallArg],
-        payload: &crate::mir::AggregateTransportMetadata,
+        payload: &mir_source::AggregateTransportMetadata,
     ) -> bool {
-        if payload.kind != crate::mir::AggregateTransportKind::EnumPayload {
+        if payload.kind != mir_source::AggregateTransportKind::EnumPayload {
             return false;
         }
         let Some(payload_enum_ty) =
@@ -1111,18 +1111,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_member_receiver_codegen_type_id(
         &self,
         _span: crate::span::Span,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
+        receiver: &mir_source::Operand,
+        member: &mir_source::MemberAccessMetadata,
     ) -> Result<TypeId, LlvmEmitError> {
         let receiver_source_ty = match receiver {
-            crate::mir::Operand::Local(local) => body
+            mir_source::Operand::Local(local) => body
                 .locals
                 .get(local.as_u32() as usize)
                 .map(|local| local.ty)
                 .unwrap_or(member.receiver_ty),
-            crate::mir::Operand::Const(_) => member.receiver_ty,
+            mir_source::Operand::Const(_) => member.receiver_ty,
         };
         Ok(self
             .equivalent_codegen_type_id(mir_types, receiver_source_ty)
@@ -1171,7 +1171,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_class_ctor_layout_key(
         &self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         class_fqn: &str,
         mir_types: &TypeStore,
     ) -> Result<hir::ClassInstanceKey, LlvmEmitError> {
@@ -1222,7 +1222,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn lir_class_ctor_layout_key(
         &self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         class_key: &scoopc_lir_facts::LirNominalLayoutKey,
         source_types: &TypeStore,
     ) -> Result<hir::ClassInstanceKey, LlvmEmitError> {
@@ -1308,9 +1308,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_local_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        local: crate::mir::LocalId,
+        local: mir_source::LocalId,
     ) -> Option<CgTy> {
         let local = body.locals.get(local.as_u32() as usize)?;
         self.cg_ty_of_mir_type(mir_types, local.ty)
@@ -1328,13 +1328,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_operand_cg_ty(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
     ) -> Option<CgTy> {
         match operand {
-            crate::mir::Operand::Local(local) => self.mir_local_cg_ty(body, mir_types, *local),
-            crate::mir::Operand::Const(value) => self.mir_const_cg_ty(value),
+            mir_source::Operand::Local(local) => self.mir_local_cg_ty(body, mir_types, *local),
+            mir_source::Operand::Const(value) => self.mir_const_cg_ty(value),
         }
     }
 
@@ -1352,21 +1352,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_const_cg_ty(
         &self,
-        value: &crate::mir::ConstValue,
+        value: &mir_source::ConstValue,
     ) -> Option<CgTy> {
         match value {
-            crate::mir::ConstValue::Bool(_) => Some(CgTy::Bool),
-            crate::mir::ConstValue::Char => Some(CgTy::Int(IntTy {
+            mir_source::ConstValue::Bool(_) => Some(CgTy::Bool),
+            mir_source::ConstValue::Char => Some(CgTy::Int(IntTy {
                 bits: 32,
                 signed: false,
             })),
-            crate::mir::ConstValue::Unit => Some(CgTy::Unit),
-            crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
+            mir_source::ConstValue::Unit => Some(CgTy::Unit),
+            mir_source::ConstValue::Int | mir_source::ConstValue::SynthInt(_) => {
                 self.try_cg_ty_of_type_id(self.builtins.int)
             }
-            crate::mir::ConstValue::Float64 => Some(CgTy::Float64),
-            crate::mir::ConstValue::Float32 => Some(CgTy::Float32),
-            crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+            mir_source::ConstValue::Float64 => Some(CgTy::Float64),
+            mir_source::ConstValue::Float32 => Some(CgTy::Float32),
+            mir_source::ConstValue::String | mir_source::ConstValue::SynthString(_) => {
                 Some(CgTy::String)
             }
         }

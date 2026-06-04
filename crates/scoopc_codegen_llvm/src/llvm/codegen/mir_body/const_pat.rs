@@ -8,14 +8,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_const(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::ConstValue,
+        value: &mir_source::ConstValue,
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match value {
-            crate::mir::ConstValue::Bool(v) => Ok(CgValue::bool(
+            mir_source::ConstValue::Bool(v) => Ok(CgValue::bool(
                 self.context.bool_type().const_int(*v as u64, false),
             )),
-            crate::mir::ConstValue::Char => {
+            mir_source::ConstValue::Char => {
                 let text = self.current_source_slice(span)?;
                 let value =
                     crate::syntax::char_literal::parse_char_literal(text).unwrap_or_else(|_| {
@@ -29,8 +29,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 ))
             }
-            crate::mir::ConstValue::Unit => Ok(CgValue::unit()),
-            crate::mir::ConstValue::Int => {
+            mir_source::ConstValue::Unit => Ok(CgValue::unit()),
+            mir_source::ConstValue::Int => {
                 let int_ty = match expected.or_else(|| self.try_cg_ty_of_type_id(self.builtins.int))
                 {
                     Some(CgTy::Int(int_ty)) => int_ty,
@@ -47,7 +47,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     int_ty,
                 ))
             }
-            crate::mir::ConstValue::SynthInt(value) => {
+            mir_source::ConstValue::SynthInt(value) => {
                 let int_ty = match expected.or_else(|| self.try_cg_ty_of_type_id(self.builtins.int))
                 {
                     Some(CgTy::Int(int_ty)) => int_ty,
@@ -61,7 +61,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     int_ty,
                 ))
             }
-            crate::mir::ConstValue::Float64 => {
+            mir_source::ConstValue::Float64 => {
                 let parsed = crate::syntax::float_literal::parse_float_literal(
                     self.current_source_slice(span)?,
                 );
@@ -70,7 +70,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     CgTy::Float64,
                 ))
             }
-            crate::mir::ConstValue::Float32 => {
+            mir_source::ConstValue::Float32 => {
                 let parsed = crate::syntax::float_literal::parse_float_literal(
                     self.current_source_slice(span)?,
                 );
@@ -79,8 +79,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     CgTy::Float32,
                 ))
             }
-            crate::mir::ConstValue::String => self.codegen_string_literal(span),
-            crate::mir::ConstValue::SynthString(value) => {
+            mir_source::ConstValue::String => self.codegen_string_literal(span),
+            mir_source::ConstValue::SynthString(value) => {
                 self.codegen_string_literal_from_text(span, value)
             }
         }
@@ -90,8 +90,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         mir_types: &TypeStore,
-        subject: &crate::mir::Operand,
-        pattern: &crate::mir::Pattern,
+        subject: &mir_source::Operand,
+        pattern: &mir_source::Pattern,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let subject = self.codegen_mir_operand(span, subject, slots)?;
@@ -117,14 +117,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         mir_types: &TypeStore,
         subject: CgValue<'ctx>,
-        pattern: &crate::mir::Pattern,
+        pattern: &mir_source::Pattern,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         match pattern {
-            crate::mir::Pattern::Else
-            | crate::mir::Pattern::Wildcard
-            | crate::mir::Pattern::Rest
-            | crate::mir::Pattern::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
-            crate::mir::Pattern::Or { pats } => {
+            mir_source::Pattern::Else
+            | mir_source::Pattern::Wildcard
+            | mir_source::Pattern::Rest
+            | mir_source::Pattern::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            mir_source::Pattern::Or { pats } => {
                 let mut cond = self.context.bool_type().const_int(0, false);
                 for pat in pats {
                     let pat_cond =
@@ -135,16 +135,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            crate::mir::Pattern::Is { ty, metadata } => {
+            mir_source::Pattern::Is { ty, metadata } => {
                 self.codegen_mir_is_pattern_match(span, mir_types, subject, *ty, metadata)
             }
-            crate::mir::Pattern::Tuple { elements } => {
+            mir_source::Pattern::Tuple { elements } => {
                 self.codegen_mir_tuple_pattern_match(span, mir_types, subject, elements)
             }
-            crate::mir::Pattern::Variant { name, args } => {
+            mir_source::Pattern::Variant { name, args } => {
                 self.codegen_mir_variant_pattern_match(span, mir_types, subject, name, args)
             }
-            crate::mir::Pattern::IntLit { raw } => {
+            mir_source::Pattern::IntLit { raw } => {
                 let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
                     panic!("codegen_mir_pattern_match_value: MIR verifier accepted Int pattern for non-int subject")
                 });
@@ -156,7 +156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "pass_mir_pattern_int_eq",
                 )?)
             }
-            crate::mir::Pattern::CharLit { value: expected } => {
+            mir_source::Pattern::CharLit { value: expected } => {
                 let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
                     panic!("codegen_mir_pattern_match_value: MIR verifier accepted Char pattern for non-int subject")
                 });
@@ -167,7 +167,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "pass_mir_pattern_char_eq",
                 )?)
             }
-            crate::mir::Pattern::StringLit { value } => {
+            mir_source::Pattern::StringLit { value } => {
                 let CgTy::String = subject.ty else {
                     panic!(
                         "codegen_mir_pattern_match_value: MIR verifier accepted String pattern for non-string subject"
@@ -213,7 +213,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "pass_mir_pattern_str_eq_bool",
                 )?)
             }
-            crate::mir::Pattern::BoolLit { value: expected } => {
+            mir_source::Pattern::BoolLit { value: expected } => {
                 let value = subject
                     .as_bool()
                     .unwrap_or_else(|| panic!("codegen_mir_pattern_match_value: MIR verifier accepted Bool pattern for non-bool subject"));
@@ -348,7 +348,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         subject: CgValue<'ctx>,
         target_ty: TypeId,
-        metadata: &crate::mir::RuntimePatternTypeTestMetadata,
+        metadata: &mir_source::RuntimePatternTypeTestMetadata,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         if metadata.target_ty != target_ty || metadata.descriptor.ty != target_ty {
             panic!(
@@ -364,13 +364,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         match metadata.static_fold {
-            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+            mir_source::RuntimeTypeStaticFold::AlwaysTrue => {
                 return Ok(self.context.bool_type().const_int(1, false));
             }
-            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+            mir_source::RuntimeTypeStaticFold::AlwaysFalse => {
                 return Ok(self.context.bool_type().const_int(0, false));
             }
-            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+            mir_source::RuntimeTypeStaticFold::Dynamic => {}
         }
         if !self.runtime_pattern_type_descriptor_is_codegen_supported(mir_types, metadata) {
             panic!(
@@ -428,13 +428,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         match metadata.static_fold {
-            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+            mir_source::RuntimeTypeStaticFold::AlwaysTrue => {
                 return Ok(self.context.bool_type().const_int(1, false));
             }
-            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+            mir_source::RuntimeTypeStaticFold::AlwaysFalse => {
                 return Ok(self.context.bool_type().const_int(0, false));
             }
-            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+            mir_source::RuntimeTypeStaticFold::Dynamic => {}
         }
         if !matches!(
             metadata.descriptor.kind,
@@ -481,7 +481,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         mir_types: &TypeStore,
         subject: CgValue<'ctx>,
-        elements: &[crate::mir::Pattern],
+        elements: &[mir_source::Pattern],
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let CgTy::Tuple(tuple_ty) = subject.ty else {
             panic!(
@@ -501,7 +501,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let tuple_v = raw.into_struct_value();
         let (prefix_pats, has_rest) = match elements.last() {
-            Some(crate::mir::Pattern::Rest) => {
+            Some(mir_source::Pattern::Rest) => {
                 (&elements[..elements.len().saturating_sub(1)], true)
             }
             _ => (elements, false),
@@ -590,7 +590,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         subject: CgValue<'ctx>,
         variant_name: &str,
-        args: &[crate::mir::Pattern],
+        args: &[mir_source::Pattern],
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let CgTy::Enum(enum_ty) = subject.ty else {
             panic!(
@@ -614,7 +614,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (repr, variant)
         };
         let (prefix_pats, has_rest) = match args.last() {
-            Some(crate::mir::Pattern::Rest) => (&args[..args.len().saturating_sub(1)], true),
+            Some(mir_source::Pattern::Rest) => (&args[..args.len().saturating_sub(1)], true),
             _ => (args, false),
         };
         let expected_arity = variant.fields.len();
@@ -797,15 +797,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_pattern_extract(
         &mut self,
         span: crate::span::Span,
-        subject: &crate::mir::Operand,
-        path: &[crate::mir::PatternBindingStep],
+        subject: &mir_source::Operand,
+        path: &[mir_source::PatternBindingStep],
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let mut current = self.codegen_mir_operand(span, subject, slots)?;
         for step in path {
             current = match step {
-                crate::mir::PatternBindingStep::TupleIndex(index) => {
+                mir_source::PatternBindingStep::TupleIndex(index) => {
                     let CgTy::Tuple(tuple_ty) = current.ty else {
                         panic!(
                             "codegen_mir_pattern_extract: MIR verifier accepted tuple extraction from non-tuple subject"
@@ -826,7 +826,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         elem_ty,
                     )?
                 }
-                crate::mir::PatternBindingStep::VariantField {
+                mir_source::PatternBindingStep::VariantField {
                     variant,
                     field_index,
                 } => {
@@ -863,14 +863,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         subject: &LirOperand,
-        path: &[crate::mir::PatternBindingStep],
+        path: &[mir_source::PatternBindingStep],
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let mut current = self.codegen_lir_operand(span, subject, slots)?;
         for step in path {
             current = match step {
-                crate::mir::PatternBindingStep::TupleIndex(index) => {
+                mir_source::PatternBindingStep::TupleIndex(index) => {
                     let CgTy::Tuple(tuple_ty) = current.ty else {
                         panic!(
                             "codegen_lir_pattern_extract: LIR verifier accepted tuple extraction from non-tuple subject"
@@ -891,7 +891,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         elem_ty,
                     )?
                 }
-                crate::mir::PatternBindingStep::VariantField {
+                mir_source::PatternBindingStep::VariantField {
                     variant,
                     field_index,
                 } => {
@@ -992,14 +992,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn mir_pattern_needs_payload_match(
-        pattern: &crate::mir::Pattern,
+        pattern: &mir_source::Pattern,
     ) -> bool {
         !matches!(
             pattern,
-            crate::mir::Pattern::Else
-                | crate::mir::Pattern::Wildcard
-                | crate::mir::Pattern::Rest
-                | crate::mir::Pattern::Bind { .. }
+            mir_source::Pattern::Else
+                | mir_source::Pattern::Wildcard
+                | mir_source::Pattern::Rest
+                | mir_source::Pattern::Bind { .. }
         )
     }
 

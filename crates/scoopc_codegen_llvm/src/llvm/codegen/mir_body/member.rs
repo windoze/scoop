@@ -8,8 +8,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_member_access(
         &mut self,
         span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
+        receiver: &mir_source::Operand,
+        member: &mir_source::MemberAccessMetadata,
         mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -113,9 +113,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         enum_ty: TypeId,
         variant_name: &str,
-        args: &[crate::mir::CallArg],
-        payload: &crate::mir::AggregateTransportMetadata,
-        _body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        payload: &mir_source::AggregateTransportMetadata,
+        _body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -162,7 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant_name: &str,
         args: &[LirCallArg],
-        payload: &crate::mir::AggregateTransportMetadata,
+        payload: &mir_source::AggregateTransportMetadata,
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -206,12 +206,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_store_member(
         &mut self,
         span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
-        value: &crate::mir::Operand,
+        receiver: &mir_source::Operand,
+        member: &mir_source::MemberAccessMetadata,
+        value: &mir_source::Operand,
         value_ty: TypeId,
-        continuation_route: &crate::mir::StoredContinuationRoutePublication,
-        body: &crate::mir::Body,
+        continuation_route: &mir_source::StoredContinuationRoutePublication,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
@@ -264,7 +264,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         member: &LirMemberAccessMetadata,
         value: &LirOperand,
         value_ty: TypeId,
-        continuation_route: &crate::mir::StoredContinuationRoutePublication,
+        continuation_route: &mir_source::StoredContinuationRoutePublication,
         body: &LirExecutableBody,
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
@@ -313,7 +313,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         fqn: &str,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         _value_ty: TypeId,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
@@ -429,8 +429,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_member_place(
         &mut self,
         span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
+        receiver: &mir_source::Operand,
+        member: &mir_source::MemberAccessMetadata,
         mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
         require_writable: bool,
     ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
@@ -488,7 +488,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         };
         let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_fqn, span)?;
-        let crate::mir::Operand::Local(local) = receiver else {
+        let mir_source::Operand::Local(local) = receiver else {
             panic!("codegen_mir_member_place: verifier accepted non-local member store receiver");
         };
         let slot = self.mir_local_slot(span, mir_ctx.slots, *local)?;
@@ -532,7 +532,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(MirMemberPlace {
             ptr,
             field_cg,
-            writable: matches!(receiver, crate::mir::Operand::Local(_)),
+            writable: matches!(receiver, mir_source::Operand::Local(_)),
             packed_alignment,
         })
     }
@@ -650,7 +650,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_operand(
         &mut self,
         span: crate::span::Span,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_operand_expected(span, operand, slots, None)
@@ -668,16 +668,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_operand_expected(
         &mut self,
         span: crate::span::Span,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
         slots: &[MirLocalSlot<'ctx>],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match operand {
-            crate::mir::Operand::Local(local) => {
+            mir_source::Operand::Local(local) => {
                 let slot = self.mir_local_slot(span, slots, *local)?;
                 self.load_mir_local(span, slot)
             }
-            crate::mir::Operand::Const(value) => self.codegen_mir_const(span, value, expected),
+            mir_source::Operand::Const(value) => self.codegen_mir_const(span, value, expected),
         }
     }
 
@@ -700,7 +700,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_sysroot_gc_handle_new(
         &mut self,
         span: crate::span::Span,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -779,7 +779,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_sysroot_gc_handle_get(
         &mut self,
         span: crate::span::Span,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -862,7 +862,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_sysroot_gc_handle_drop(
         &mut self,
         span: crate::span::Span,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let arg =

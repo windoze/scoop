@@ -9,10 +9,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_type_check(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         op: ast::TypeCheckOp,
         test_ty: TypeId,
-        metadata: &crate::mir::RuntimeTypeTestMetadata,
+        metadata: &mir_source::RuntimeTypeTestMetadata,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -61,10 +61,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_cast(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         op: ast::CastOp,
         target_ty: TypeId,
-        metadata: &crate::mir::RuntimeCastMetadata,
+        metadata: &mir_source::RuntimeCastMetadata,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
@@ -167,7 +167,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let (obj_ptr, _) = self.codegen_lir_runtime_ref_operand(span, value, slots)?;
-        if metadata.test.static_fold == crate::mir::RuntimeTypeStaticFold::AlwaysTrue {
+        if metadata.test.static_fold == mir_source::RuntimeTypeStaticFold::AlwaysTrue {
             let target_ptr_ty = self.runtime_cast_target_ptr_type(span, result_cg)?;
             let casted_ptr =
                 self.builder
@@ -259,20 +259,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_cast_as(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         target_ty: TypeId,
-        metadata: &crate::mir::RuntimeCastMetadata,
+        metadata: &mir_source::RuntimeCastMetadata,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let crate::mir::RuntimeCastFailure::Panic { message } = &metadata.failure else {
+        let mir_source::RuntimeCastFailure::Panic { message } = &metadata.failure else {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract");
         };
         if message != "class cast failed" {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid class-cast panic contract");
         }
-        let crate::mir::RuntimeCastResult::Target { ty } = &metadata.result else {
+        let mir_source::RuntimeCastResult::Target { ty } = &metadata.result else {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract");
         };
         if *ty != target_ty {
@@ -302,7 +302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
-        if metadata.test.static_fold == crate::mir::RuntimeTypeStaticFold::AlwaysTrue {
+        if metadata.test.static_fold == mir_source::RuntimeTypeStaticFold::AlwaysTrue {
             let target_ptr_ty = self.runtime_cast_target_ptr_type(span, result_cg)?;
             let casted_ptr =
                 self.builder
@@ -326,17 +326,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_cast_asq(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         target_ty: TypeId,
-        metadata: &crate::mir::RuntimeCastMetadata,
+        metadata: &mir_source::RuntimeCastMetadata,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !matches!(metadata.failure, crate::mir::RuntimeCastFailure::ReturnNone) {
+        if !matches!(metadata.failure, mir_source::RuntimeCastFailure::ReturnNone) {
             panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` failure contract");
         }
-        let crate::mir::RuntimeCastResult::Option { option_ty, some_ty } = &metadata.result else {
+        let mir_source::RuntimeCastResult::Option { option_ty, some_ty } = &metadata.result else {
             panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result contract");
         };
         if *some_ty != target_ty {
@@ -388,19 +388,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_runtime_type_test_is_ok(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
-        metadata: &crate::mir::RuntimeTypeTestMetadata,
+        value: &mir_source::Operand,
+        metadata: &mir_source::RuntimeTypeTestMetadata,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
         match metadata.static_fold {
-            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+            mir_source::RuntimeTypeStaticFold::AlwaysTrue => {
                 return Ok(self.context.bool_type().const_int(1, false));
             }
-            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+            mir_source::RuntimeTypeStaticFold::AlwaysFalse => {
                 return Ok(self.context.bool_type().const_int(0, false));
             }
-            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+            mir_source::RuntimeTypeStaticFold::Dynamic => {}
         }
 
         if !self.runtime_type_descriptor_is_codegen_supported(mir_types, metadata) {
@@ -424,13 +424,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
         match metadata.static_fold {
-            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+            mir_source::RuntimeTypeStaticFold::AlwaysTrue => {
                 return Ok(self.context.bool_type().const_int(1, false));
             }
-            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+            mir_source::RuntimeTypeStaticFold::AlwaysFalse => {
                 return Ok(self.context.bool_type().const_int(0, false));
             }
-            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+            mir_source::RuntimeTypeStaticFold::Dynamic => {}
         }
 
         if !matches!(
@@ -458,7 +458,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_runtime_ref_operand(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Operand,
+        value: &mir_source::Operand,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(PointerValue<'ctx>, CgValue<'ctx>), LlvmEmitError> {
         let value = self.codegen_mir_operand(span, value, slots)?;

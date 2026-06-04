@@ -6,89 +6,10 @@ use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
-    pub(in crate::llvm::codegen) fn codegen_mir_call(
-        &mut self,
-        span: crate::span::Span,
-        site_id: crate::mir::SiteId,
-        kind: &crate::mir::CallKind,
-        args: &[crate::mir::CallArg],
-        transport: &crate::mir::CallTransportMetadata,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
-        slots: &[MirLocalSlot<'ctx>],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match kind {
-            crate::mir::CallKind::Direct {
-                callee_fqn,
-                generic_type_args,
-                ..
-            } => {
-                if let Some(class_key) = self.registered_class_instance_key(callee_fqn) {
-                    return self.codegen_mir_class_ctor_call_at_site(span, &class_key, args, slots);
-                }
-                self.codegen_mir_direct_call_with_type_args(
-                    span,
-                    site_id,
-                    callee_fqn,
-                    generic_type_args,
-                    args,
-                    body,
-                    mir_types,
-                    transport,
-                    slots,
-                )
-            }
-            crate::mir::CallKind::Closure { callee, fn_ptr } => {
-                let fun_ty = self
-                    .mir_operand_function_type(body, mir_types, callee)
-                    .unwrap_or_else(|| {
-                        panic!("codegen_mir_call: MIR call ABI verifier accepted non-function closure callee")
-                    });
-                self.codegen_mir_closure_call(span, callee, fn_ptr, args, &fun_ty, slots)
-            }
-            crate::mir::CallKind::FunValue { callee } => {
-                let fun_ty = self
-                    .mir_operand_function_type(body, mir_types, callee)
-                    .unwrap_or_else(|| {
-                        panic!("codegen_mir_call: MIR call ABI verifier accepted non-function function-value callee")
-                    });
-                self.codegen_mir_fun_value_call(span, callee, args, &fun_ty, slots)
-            }
-            crate::mir::CallKind::FunPtr { callee } => {
-                let fun_ty = self
-                    .mir_operand_funptr_function_type(body, mir_types, callee)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_mir_call: materialized MIR verifier accepted non-FunPtr callee type"
-                        )
-                    });
-                self.codegen_mir_funptr_value_call(
-                    span,
-                    callee,
-                    args,
-                    &fun_ty,
-                    (body, mir_types, slots),
-                )
-            }
-            crate::mir::CallKind::Virtual { .. }
-            | crate::mir::CallKind::Interface { .. }
-            | crate::mir::CallKind::Resume { .. } => Err(raw_mir_route_gate_error(
-                self.function_cx
-                    .current_callable_fqn
-                    .as_deref()
-                    .unwrap_or("<unknown raw mir body>"),
-                span,
-                "PIPELINE_GAPS §3.6",
-                RAW_MIR_CALL_KIND_DETAIL,
-            )),
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_lir_call(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         kind: &LirCallKind,
         args: &[LirCallArg],
         transport: &crate::effect_lowered::LirCallTransportMetadata,
@@ -1247,12 +1168,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call_with_policy(
         &mut self,
         span: crate::span::Span,
-        site_id: Option<crate::mir::SiteId>,
+        site_id: Option<mir_source::SiteId>,
         fqn: &str,
         generic_type_args: &[TypeId],
-        args: &[crate::mir::CallArg],
-        transport: &crate::mir::CallTransportMetadata,
-        body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        transport: &mir_source::CallTransportMetadata,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         require_plain_surface: bool,
@@ -1490,7 +1411,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_lir_direct_call_with_type_args(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         fqn: &str,
         generic_type_args: &[TypeId],
         args: &[LirCallArg],
@@ -2190,7 +2111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         _class_layout_key: &hir::ClassInstanceKey,
-        _args: &[crate::mir::CallArg],
+        _args: &[mir_source::CallArg],
         _slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         Err(frontend_error(format!(
@@ -2201,9 +2122,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_closure_call(
         &mut self,
         span: crate::span::Span,
-        callee: &crate::mir::Operand,
+        callee: &mir_source::Operand,
         fn_ptr: &str,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -2271,8 +2192,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_fun_value_call(
         &mut self,
         span: crate::span::Span,
-        callee: &crate::mir::Operand,
-        args: &[crate::mir::CallArg],
+        callee: &mir_source::Operand,
+        args: &[mir_source::CallArg],
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -2326,10 +2247,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_funptr_value_call(
         &mut self,
         span: crate::span::Span,
-        callee: &crate::mir::Operand,
-        args: &[crate::mir::CallArg],
+        callee: &mir_source::Operand,
+        args: &[mir_source::CallArg],
         fun_ty: &crate::ty::FunctionType,
-        mir_ctx: (&crate::mir::Body, &TypeStore, &[MirLocalSlot<'ctx>]),
+        mir_ctx: (&mir_source::Body, &TypeStore, &[MirLocalSlot<'ctx>]),
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (_body, mir_types, slots) = mir_ctx;
         let callee_value = self.codegen_mir_operand(span, callee, slots)?;
@@ -2491,7 +2412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure_obj_i8: PointerValue<'ctx>,
         fun_ty: &crate::ty::FunctionType,
         call_may_suspend: bool,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
@@ -2850,10 +2771,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dynamic_call(
         &mut self,
         span: crate::span::Span,
-        site_id: Option<crate::mir::SiteId>,
-        kind: &crate::mir::CallKind,
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        site_id: Option<mir_source::SiteId>,
+        kind: &mir_source::CallKind,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -2866,16 +2787,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dynamic_call_with_policy(
         &mut self,
         span: crate::span::Span,
-        site_id: Option<crate::mir::SiteId>,
-        kind: &crate::mir::CallKind,
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        site_id: Option<mir_source::SiteId>,
+        kind: &mir_source::CallKind,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         allow_effect_typed_dispatch_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
-            crate::mir::CallKind::Closure { callee, fn_ptr } => {
+            mir_source::CallKind::Closure { callee, fn_ptr } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .unwrap_or_else(|| {
@@ -2906,7 +2827,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
-            crate::mir::CallKind::FunValue { callee } => {
+            mir_source::CallKind::FunValue { callee } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .unwrap_or_else(|| {
@@ -2932,7 +2853,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
-            crate::mir::CallKind::FunPtr { callee } => {
+            mir_source::CallKind::FunPtr { callee } => {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
                     .unwrap_or_else(|| {
@@ -2953,7 +2874,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     (body, mir_types, slots),
                 )
             }
-            crate::mir::CallKind::Virtual { receiver, .. } => {
+            mir_source::CallKind::Virtual { receiver, .. } => {
                 let site_id = site_id.ok_or_else(|| {
                     frontend_error("plain virtual dispatch missing LIR site id".to_string())
                 })?;
@@ -2968,7 +2889,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     allow_effect_typed_dispatch_signature,
                 )
             }
-            crate::mir::CallKind::Interface { receiver, .. } => {
+            mir_source::CallKind::Interface { receiver, .. } => {
                 let site_id = site_id.ok_or_else(|| {
                     frontend_error("plain interface dispatch missing LIR site id".to_string())
                 })?;
@@ -2983,7 +2904,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     allow_effect_typed_dispatch_signature,
                 )
             }
-            crate::mir::CallKind::Direct { .. } | crate::mir::CallKind::Resume { .. } => {
+            mir_source::CallKind::Direct { .. } | mir_source::CallKind::Resume { .. } => {
                 panic!(
                     "codegen_mir_plain_dynamic_call_with_policy: MIR call ABI verifier accepted unsupported plain dynamic call kind"
                 )
@@ -2994,8 +2915,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_function_value_call(
         &mut self,
         span: crate::span::Span,
-        callee: &crate::mir::Operand,
-        args: &[crate::mir::CallArg],
+        callee: &mir_source::Operand,
+        args: &[mir_source::CallArg],
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -3020,7 +2941,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         closure_obj_i8: PointerValue<'ctx>,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {

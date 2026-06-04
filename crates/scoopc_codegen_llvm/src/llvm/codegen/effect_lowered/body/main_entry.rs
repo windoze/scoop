@@ -446,28 +446,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let (mir_fun, body) = callable_source_body(callable, "plain body lowering")?;
-        let is_materialized_closure = mir_fun.name.starts_with("$lambda");
-        let mir_types = source_types;
-        body.validate_cfg().unwrap_or_else(|err| {
-            panic!(
-                "codegen_plain_callable_entry: plain callable verifier accepted invalid CFG for `{}` at {:?}: {err}",
-                callable.root_fqn(),
-                mir_fun.span
-            )
-        });
-        self.verify_mir_body_composite_transport_contract(
-            callable.root_fqn(),
-            mir_fun.span,
-            body,
-            mir_types,
-        )?;
         let executable_body = callable.executable_body().ok_or_else(|| {
             frontend_error(format!(
                 "plain body lowering callable `{}` 缺少 LIR executable body",
                 callable.root_fqn()
             ))
         })?;
+        let header = executable_body.header();
+        let source_span = header.span();
+        let is_materialized_closure = header.name().starts_with("$lambda");
+        let mir_types = source_types;
+        self.verify_lir_body_composite_transport_contract(
+            callable.root_fqn(),
+            executable_body,
+            mir_types,
+        )?;
 
         self.current_source_id = self.source_id_for_path(
             callable
@@ -476,7 +469,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .template
                 .source_path
                 .as_path(),
-            mir_fun.span,
+            source_span,
         )?;
         self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
         self.function_cx.current_lir_callable_id =
@@ -485,16 +478,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
 
-        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).unwrap_or_else(|| {
+        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, header.return_ty()).unwrap_or_else(|| {
             panic!(
                 "codegen_plain_callable_entry: plain callable verifier accepted non-codegen return type for `{}` at {:?}",
                 callable.root_fqn(),
-                mir_fun.span
+                source_span
             )
         });
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
-            .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
+            .hidden_sret_result_ty(source_span, declared_return_cg)?
             .is_some();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
@@ -504,7 +497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!(
                             "codegen_plain_callable_entry: plain callable ABI accepted missing sret param for `{}` at {:?}",
                             callable.root_fqn(),
-                            mir_fun.span
+                            source_span
                         )
                     })
                     .into_pointer_value(),
@@ -514,8 +507,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let (return_bb, return_alloca) =
-            self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
+            self.setup_function_return_context(source_span, function, declared_return_cg)?;
         if plain.local_effect_control().is_some() {
+            let (mir_fun, body) =
+                callable_source_body(callable, "plain local effect-control lowering")?;
+            body.validate_cfg().unwrap_or_else(|err| {
+                panic!(
+                    "codegen_plain_callable_entry: plain local effect-control verifier accepted invalid CFG for `{}` at {:?}: {err}",
+                    callable.root_fqn(),
+                    mir_fun.span
+                )
+            });
             let emitter = CallableEmitter::new(
                 self,
                 program,
@@ -543,12 +545,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             }
             self.emit_function_return_block(
-                mir_fun.span,
+                source_span,
                 declared_return_cg,
                 return_bb,
                 return_alloca,
             )?;
-            self.finish_function_explicit_frame_layout(mir_fun.span)?;
+            self.finish_function_explicit_frame_layout(source_span)?;
             self.function_cx.current_sret_return_ptr = None;
             return Ok(());
         }
@@ -593,7 +595,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "codegen_plain_callable_entry: LIR executable body accepted missing entry state s{} for `{}` at {:?}",
                     executable_body.states().entry_state().as_u32(),
                     callable.root_fqn(),
-                    mir_fun.span
+                    source_span
                 )
             });
         self.builder.build_unconditional_branch(start_bb)?;
@@ -624,13 +626,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
         }
 
-        self.emit_function_return_block(
-            mir_fun.span,
-            declared_return_cg,
-            return_bb,
-            return_alloca,
-        )?;
-        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        self.emit_function_return_block(source_span, declared_return_cg, return_bb, return_alloca)?;
+        self.finish_function_explicit_frame_layout(source_span)?;
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
     }

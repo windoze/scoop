@@ -7,7 +7,7 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn resolve_plain_virtual_dispatch_target(
         &self,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         explicit_arg_count: usize,
     ) -> Result<PlainDispatchTarget, LlvmEmitError> {
         let dispatch = self.required_lir_dispatch(site_id, "plain virtual dispatch")?;
@@ -34,7 +34,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn resolve_plain_interface_dispatch_target(
         &self,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         explicit_arg_count: usize,
     ) -> Result<PlainDispatchTarget, LlvmEmitError> {
         let dispatch = self.required_lir_dispatch(site_id, "plain interface dispatch")?;
@@ -150,8 +150,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_static_interface_dispatch_call(
         &mut self,
         span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        args: &[crate::mir::CallArg],
+        receiver: &mir_source::Operand,
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         source_ty: TypeId,
         impl_fqn: &str,
@@ -292,8 +292,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dispatch_call(
         &mut self,
         span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        args: &[crate::mir::CallArg],
+        receiver: &mir_source::Operand,
+        args: &[mir_source::CallArg],
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target: PlainDispatchTarget,
@@ -412,7 +412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let mut all_args = Vec::with_capacity(args.len() + 1);
-        all_args.push(crate::mir::CallArg {
+        all_args.push(mir_source::CallArg {
             span,
             name: None,
             value: receiver.clone(),
@@ -518,7 +518,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_lir_plain_dynamic_dispatch_call(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         receiver: &LirOperand,
         args: &[LirCallArg],
         body: &LirExecutableBody,
@@ -844,12 +844,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call(
         &mut self,
         span: crate::span::Span,
-        site_id: Option<crate::mir::SiteId>,
+        site_id: Option<mir_source::SiteId>,
         fqn: &str,
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        transport: &crate::mir::CallTransportMetadata,
+        transport: &mir_source::CallTransportMetadata,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
@@ -870,13 +870,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_direct_call_with_type_args(
         &mut self,
         span: crate::span::Span,
-        site_id: crate::mir::SiteId,
+        site_id: mir_source::SiteId,
         fqn: &str,
         generic_type_args: &[TypeId],
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        transport: &crate::mir::CallTransportMetadata,
+        transport: &mir_source::CallTransportMetadata,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
@@ -897,12 +897,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_plain_direct_call(
         &mut self,
         span: crate::span::Span,
-        site_id: Option<crate::mir::SiteId>,
+        site_id: Option<mir_source::SiteId>,
         fqn: &str,
-        args: &[crate::mir::CallArg],
-        body: &crate::mir::Body,
+        args: &[mir_source::CallArg],
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        transport: &crate::mir::CallTransportMetadata,
+        transport: &mir_source::CallTransportMetadata,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_mir_direct_call_with_policy(
@@ -922,8 +922,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         _span: crate::span::Span,
         class: &'b hir::MonoClassInit,
-        ctor: &crate::mir::ClassCtorCallMetadata,
-        args: &[crate::mir::CallArg],
+        ctor: &mir_source::ClassCtorCallMetadata,
+        args: &[mir_source::CallArg],
         _kind: &'static str,
     ) -> Result<Option<&'b hir::ClassCtor<MonoTypeId>>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {

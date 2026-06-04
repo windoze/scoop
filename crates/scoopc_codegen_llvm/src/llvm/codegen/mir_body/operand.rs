@@ -7,8 +7,8 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn mir_local_type_id(
         &self,
-        body: &crate::mir::Body,
-        local: crate::mir::LocalId,
+        body: &mir_source::Body,
+        local: mir_source::LocalId,
     ) -> Option<TypeId> {
         body.locals
             .get(local.as_u32() as usize)
@@ -17,21 +17,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_operand_type_id(
         &self,
-        body: &crate::mir::Body,
-        operand: &crate::mir::Operand,
+        body: &mir_source::Body,
+        operand: &mir_source::Operand,
     ) -> Option<TypeId> {
         match operand {
-            crate::mir::Operand::Local(local) => self.mir_local_type_id(body, *local),
-            crate::mir::Operand::Const(value) => Some(match value {
-                crate::mir::ConstValue::Bool(_) => self.builtins.bool_,
-                crate::mir::ConstValue::Char => self.builtins.char_,
-                crate::mir::ConstValue::Unit => self.builtins.unit,
-                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
+            mir_source::Operand::Local(local) => self.mir_local_type_id(body, *local),
+            mir_source::Operand::Const(value) => Some(match value {
+                mir_source::ConstValue::Bool(_) => self.builtins.bool_,
+                mir_source::ConstValue::Char => self.builtins.char_,
+                mir_source::ConstValue::Unit => self.builtins.unit,
+                mir_source::ConstValue::Int | mir_source::ConstValue::SynthInt(_) => {
                     self.builtins.int
                 }
-                crate::mir::ConstValue::Float64 => self.builtins.float64,
-                crate::mir::ConstValue::Float32 => self.builtins.float32,
-                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                mir_source::ConstValue::Float64 => self.builtins.float64,
+                mir_source::ConstValue::Float32 => self.builtins.float32,
+                mir_source::ConstValue::String | mir_source::ConstValue::SynthString(_) => {
                     self.builtins.string
                 }
             }),
@@ -56,15 +56,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match operand {
             LirOperand::Local(local) => self.lir_local_type_id(body, *local),
             LirOperand::Const(value) => Some(match value {
-                crate::mir::ConstValue::Bool(_) => self.builtins.bool_,
-                crate::mir::ConstValue::Char => self.builtins.char_,
-                crate::mir::ConstValue::Unit => self.builtins.unit,
-                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
+                mir_source::ConstValue::Bool(_) => self.builtins.bool_,
+                mir_source::ConstValue::Char => self.builtins.char_,
+                mir_source::ConstValue::Unit => self.builtins.unit,
+                mir_source::ConstValue::Int | mir_source::ConstValue::SynthInt(_) => {
                     self.builtins.int
                 }
-                crate::mir::ConstValue::Float64 => self.builtins.float64,
-                crate::mir::ConstValue::Float32 => self.builtins.float32,
-                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                mir_source::ConstValue::Float64 => self.builtins.float64,
+                mir_source::ConstValue::Float32 => self.builtins.float32,
+                mir_source::ConstValue::String | mir_source::ConstValue::SynthString(_) => {
                     self.builtins.string
                 }
             }),
@@ -73,9 +73,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_operand_function_type(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
     ) -> Option<crate::ty::FunctionType> {
         let ty = self.mir_operand_type_id(body, operand)?;
         match mir_types.kind(ty) {
@@ -133,7 +133,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if let Some((callable_types, callable_fun)) = self.lir_source_callable(callable_fqn) {
             return Some(
-                crate::mir::summarize_pass_rewritten_fun(callable_fun, callable_types, None)
+                mir_source::summarize_pass_rewritten_fun(callable_fun, callable_types, None)
                     .may_outward_effect,
             );
         }
@@ -146,9 +146,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_fun_value_callee_fqn(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
     ) -> Option<String> {
         let mut visiting = HashSet::new();
         self.mir_callable_value_fqn_for_operand(body, mir_types, operand, &mut visiting)
@@ -261,12 +261,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_for_operand(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        operand: &crate::mir::Operand,
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        operand: &mir_source::Operand,
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
-        let crate::mir::Operand::Local(local) = operand else {
+        let mir_source::Operand::Local(local) = operand else {
             return None;
         };
         self.mir_callable_value_fqn_for_local(body, mir_types, *local, visiting)
@@ -274,10 +274,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_for_local(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        local: crate::mir::LocalId,
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        local: mir_source::LocalId,
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         if !visiting.insert(local) {
             return None;
@@ -286,7 +286,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut matched: Option<String> = None;
         for block in &body.blocks {
             for stmt in &block.stmts {
-                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                let mir_source::StatementKind::Assign { target, value } = &stmt.kind else {
                     continue;
                 };
                 if *target != local {
@@ -311,65 +311,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_for_rvalue(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        value: &crate::mir::Rvalue,
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        value: &mir_source::Rvalue,
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         match value {
-            crate::mir::Rvalue::Use(operand)
-            | crate::mir::Rvalue::Transport { value: operand, .. } => {
+            mir_source::Rvalue::Use(operand)
+            | mir_source::Rvalue::Transport { value: operand, .. } => {
                 self.mir_callable_value_fqn_for_operand(body, mir_types, operand, visiting)
             }
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
+            mir_source::Rvalue::TopLevelRef(mir_source::TopLevelRef { fqn, .. }) => {
                 Some(fqn.clone())
             }
-            crate::mir::Rvalue::MakeClosure { fn_ptr, .. } => Some(fn_ptr.clone()),
-            crate::mir::Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref()? {
-                crate::mir::MemberTarget::Fun { fqn }
-                | crate::mir::MemberTarget::ExtensionFun { fqn } => Some(fqn.clone()),
-                crate::mir::MemberTarget::Value { .. }
-                | crate::mir::MemberTarget::ExtensionValue { .. } => None,
+            mir_source::Rvalue::MakeClosure { fn_ptr, .. } => Some(fn_ptr.clone()),
+            mir_source::Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                mir_source::MemberTarget::Fun { fqn }
+                | mir_source::MemberTarget::ExtensionFun { fqn } => Some(fqn.clone()),
+                mir_source::MemberTarget::Value { .. }
+                | mir_source::MemberTarget::ExtensionValue { .. } => None,
             },
-            crate::mir::Rvalue::Call {
-                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+            mir_source::Rvalue::Call {
+                kind: mir_source::CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => self.mir_callable_value_fqn_from_direct_call(
                 body, mir_types, callee_fqn, args, visiting,
             ),
-            crate::mir::Rvalue::UnresolvedName { .. }
-            | crate::mir::Rvalue::TypeCheck { .. }
-            | crate::mir::Rvalue::Cast { .. }
-            | crate::mir::Rvalue::SizeOf { .. }
-            | crate::mir::Rvalue::KindOf { .. }
-            | crate::mir::Rvalue::AlignOf { .. }
-            | crate::mir::Rvalue::DescOf { .. }
-            | crate::mir::Rvalue::TypeMetadataLiteral(_)
-            | crate::mir::Rvalue::EnumVariant { .. }
-            | crate::mir::Rvalue::ClassCtor { .. }
-            | crate::mir::Rvalue::Call { .. }
-            | crate::mir::Rvalue::MakeTuple { .. }
-            | crate::mir::Rvalue::StructLit { .. }
-            | crate::mir::Rvalue::InterpolatedString { .. }
-            | crate::mir::Rvalue::TupleGet { .. }
-            | crate::mir::Rvalue::PatternMatch { .. }
-            | crate::mir::Rvalue::PatternExtract { .. }
-            | crate::mir::Rvalue::PerformResult { .. }
-            | crate::mir::Rvalue::Todo(_) => None,
+            mir_source::Rvalue::UnresolvedName { .. }
+            | mir_source::Rvalue::TypeCheck { .. }
+            | mir_source::Rvalue::Cast { .. }
+            | mir_source::Rvalue::SizeOf { .. }
+            | mir_source::Rvalue::KindOf { .. }
+            | mir_source::Rvalue::AlignOf { .. }
+            | mir_source::Rvalue::DescOf { .. }
+            | mir_source::Rvalue::TypeMetadataLiteral(_)
+            | mir_source::Rvalue::EnumVariant { .. }
+            | mir_source::Rvalue::ClassCtor { .. }
+            | mir_source::Rvalue::Call { .. }
+            | mir_source::Rvalue::MakeTuple { .. }
+            | mir_source::Rvalue::StructLit { .. }
+            | mir_source::Rvalue::InterpolatedString { .. }
+            | mir_source::Rvalue::TupleGet { .. }
+            | mir_source::Rvalue::PatternMatch { .. }
+            | mir_source::Rvalue::PatternExtract { .. }
+            | mir_source::Rvalue::PerformResult { .. }
+            | mir_source::Rvalue::Todo(_) => None,
         }
     }
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_from_direct_call(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         callee_fqn: &str,
-        args: &[crate::mir::CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        args: &[mir_source::CallArg],
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         let (callee_types, callable_fun) = self.lir_source_callable(callee_fqn)?;
-        let summary = crate::mir::summarize_pass_rewritten_fun(callable_fun, callee_types, None);
+        let summary = mir_source::summarize_pass_rewritten_fun(callable_fun, callee_types, None);
         self.mir_callable_value_fqn_from_result(
             body,
             mir_types,
@@ -382,21 +382,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_from_result(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        result: &crate::mir::ResultProvenance,
-        params: &[crate::mir::Param],
-        args: &[crate::mir::CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        result: &mir_source::ResultProvenance,
+        params: &[mir_source::Param],
+        args: &[mir_source::CallArg],
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         match result {
-            crate::mir::ResultProvenance::DirectFunction(fqn)
-            | crate::mir::ResultProvenance::KnownClosure(fqn) => Some(fqn.clone()),
-            crate::mir::ResultProvenance::Param(index) => self
+            mir_source::ResultProvenance::DirectFunction(fqn)
+            | mir_source::ResultProvenance::KnownClosure(fqn) => Some(fqn.clone()),
+            mir_source::ResultProvenance::Param(index) => self
                 .mir_callable_value_fqn_from_param_result(
                     body, mir_types, *index, params, args, visiting,
                 ),
-            crate::mir::ResultProvenance::Join(sources) if sources.len() == 1 => self
+            mir_source::ResultProvenance::Join(sources) if sources.len() == 1 => self
                 .mir_callable_value_fqn_from_result_source(
                     body,
                     mir_types,
@@ -405,43 +405,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                     visiting,
                 ),
-            crate::mir::ResultProvenance::Unit
-            | crate::mir::ResultProvenance::TopLevelValue(_)
-            | crate::mir::ResultProvenance::PerformResult(_)
-            | crate::mir::ResultProvenance::Join(_)
-            | crate::mir::ResultProvenance::Unknown => None,
+            mir_source::ResultProvenance::Unit
+            | mir_source::ResultProvenance::TopLevelValue(_)
+            | mir_source::ResultProvenance::PerformResult(_)
+            | mir_source::ResultProvenance::Join(_)
+            | mir_source::ResultProvenance::Unknown => None,
         }
     }
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_from_result_source(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        source: &crate::mir::ResultProvenanceSource,
-        params: &[crate::mir::Param],
-        args: &[crate::mir::CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        source: &mir_source::ResultProvenanceSource,
+        params: &[mir_source::Param],
+        args: &[mir_source::CallArg],
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         match source {
-            crate::mir::ResultProvenanceSource::DirectFunction(fqn)
-            | crate::mir::ResultProvenanceSource::KnownClosure(fqn) => Some(fqn.clone()),
-            crate::mir::ResultProvenanceSource::Param(index) => self
+            mir_source::ResultProvenanceSource::DirectFunction(fqn)
+            | mir_source::ResultProvenanceSource::KnownClosure(fqn) => Some(fqn.clone()),
+            mir_source::ResultProvenanceSource::Param(index) => self
                 .mir_callable_value_fqn_from_param_result(
                     body, mir_types, *index, params, args, visiting,
                 ),
-            crate::mir::ResultProvenanceSource::TopLevelValue(_)
-            | crate::mir::ResultProvenanceSource::PerformResult(_) => None,
+            mir_source::ResultProvenanceSource::TopLevelValue(_)
+            | mir_source::ResultProvenanceSource::PerformResult(_) => None,
         }
     }
 
     pub(in crate::llvm::codegen) fn mir_callable_value_fqn_from_param_result(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         index: usize,
-        params: &[crate::mir::Param],
-        args: &[crate::mir::CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
+        params: &[mir_source::Param],
+        args: &[mir_source::CallArg],
+        visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
         let bound_args = bind_mir_call_args_to_params(params, args)?;
         let operand = bound_args.get(index)?;
@@ -450,9 +450,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_operand_funptr_function_type(
         &self,
-        body: &crate::mir::Body,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
-        operand: &crate::mir::Operand,
+        operand: &mir_source::Operand,
     ) -> Option<crate::ty::FunctionType> {
         let ty = self.mir_operand_type_id(body, operand)?;
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = mir_types.kind(ty) else {
@@ -516,7 +516,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         body_fqn: &str,
         mir_types: &TypeStore,
         env_cg: CgTy,
-        contract: &crate::mir::ClosureEnvTransportMetadata,
+        contract: &mir_source::ClosureEnvTransportMetadata,
     ) -> Result<Vec<CgTy>, LlvmEmitError> {
         let contract_env_cg = self.cg_ty_of_mir_type(mir_types, contract.env_ty).unwrap_or_else(|| {
             panic!("mir_closure_env_capture_element_cg_tys_from_contract: TypeStore equivalence verifier accepted unsupported closure env contract codegen type")
@@ -538,9 +538,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )
         }
 
-        let env_transport = crate::mir::ValueTransportMetadata {
+        let env_transport = mir_source::ValueTransportMetadata {
             source_ty: contract.env_ty,
-            kind: crate::mir::MirTransportKind::ClosureEnv,
+            kind: mir_source::MirTransportKind::ClosureEnv,
             requirements: self
                 .composite_transport_requirements_for_type(mir_types, contract.env_ty),
             boxing: None,
@@ -590,7 +590,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         _span: crate::span::Span,
         slots: &[MirLocalSlot<'ctx>],
-        local: crate::mir::LocalId,
+        local: mir_source::LocalId,
     ) -> Result<MirLocalSlot<'ctx>, LlvmEmitError> {
         slots
             .get(local.as_u32() as usize)
