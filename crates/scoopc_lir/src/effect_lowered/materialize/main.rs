@@ -521,9 +521,10 @@ pub(crate) fn attach_local_runtime_error_states(
                     });
                 }
             };
-            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new_with_source_slices(
                 state.state_id(),
                 state.role(),
+                state.source_slices().to_vec(),
                 state.statements().to_vec(),
                 terminator,
             ))
@@ -597,9 +598,10 @@ pub(crate) fn attach_handle_dispatch_contracts(
                 }
                 other => other,
             };
-            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new_with_source_slices(
                 state.state_id(),
                 state.role(),
+                state.source_slices().to_vec(),
                 state.statements().to_vec(),
                 terminator,
             ))

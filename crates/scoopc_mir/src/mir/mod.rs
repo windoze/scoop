@@ -27,8 +27,7 @@ mod lower;
 mod materialize;
 mod pass_pipeline;
 mod pass_view;
-#[cfg(test)]
-mod placeholder_inventory;
+pub mod placeholder_inventory;
 mod summary;
 mod transport;
 

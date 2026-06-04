@@ -18,7 +18,6 @@ use inkwell::values::{
 };
 
 use crate::effect_facts::{CaseTag, StepSchemaId};
-use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, BoundarySiteKind, FrameSlotId, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
@@ -36,6 +35,7 @@ use crate::effect_lowered::ir::{
     SystemSlotKind,
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId, SiteId};
+use crate::effect_lowered::{LateLoweredProgram, LirBodyAnchor, LirStatementIndex};
 use crate::llvm::{EntryRef, LlvmEmitError};
 use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};

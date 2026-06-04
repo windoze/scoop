@@ -473,6 +473,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         if source_slice.start_statement_index() != 0 {
             return Ok(());
         }
+        let mut source_slice_local_offset = 0u32;
+        for slice in owner_state.source_slices() {
+            if *slice == source_slice {
+                break;
+            }
+            source_slice_local_offset += slice
+                .end_statement_index()
+                .saturating_sub(slice.start_statement_index());
+        }
         let block = self
             .body
             .blocks
@@ -497,7 +506,13 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     });
             let classification = self
                 .callable
-                .source_statement_classification(source_slice, stmt_index)
+                .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                    owner_state.state_id(),
+                    LirStatementIndex::new(
+                        source_slice_local_offset
+                            + stmt_index.saturating_sub(source_slice.start_statement_index()),
+                    ),
+                ))
                 .ok_or_else(|| {
                     frontend_error(format!(
                         "composed call replay bb{} stmt{} 缺少 published classification",

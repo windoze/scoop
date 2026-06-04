@@ -15,8 +15,8 @@ use super::instruction::{LirCallArg, LirCallKind, LirOperand, LirRvalue, LirStat
 use super::ir::{
     BoundaryId, LateLoweredBoundaryMap, LateLoweredBoundarySource, LateLoweredContinuationCapture,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
-    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateTerminator, StateId, SystemSlotKind,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredOperandValueSource, LateLoweredState,
+    LateLoweredStateGraph, LateLoweredStateTerminator, StateId, SystemSlotKind,
 };
 
 pub(crate) struct FrameLiftingResult {
@@ -837,6 +837,14 @@ fn analyze_state_locals(
             }
         }
 
+        collect_lir_terminator_uses_before_def(
+            state.terminator(),
+            &mut state_defs,
+            &mut state_uses,
+            &mut read_states,
+            state.state_id(),
+        );
+
         for local in binder_info_by_local.keys() {
             if state_defs.contains(local) {
                 def_states
@@ -1023,6 +1031,59 @@ fn collect_lir_statement_uses_before_def(
         LirStatementKind::StoreGlobal { value, .. } => {
             collect_lir_operand_use(value, defs, uses_before_def, read_states, state_id);
         }
+    }
+}
+
+fn collect_lir_terminator_uses_before_def(
+    terminator: &LateLoweredStateTerminator,
+    defs: &mut BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    match terminator {
+        LateLoweredStateTerminator::Branch { cond_local, .. } => {
+            collect_lir_operand_use(
+                &LirOperand::Local(*cond_local),
+                defs,
+                uses_before_def,
+                read_states,
+                state_id,
+            );
+        }
+        LateLoweredStateTerminator::Return { payload_source, .. } => {
+            if let Some(source) = payload_source.operand_source()
+                && let LateLoweredOperandValueSource::Local(local) = source.value()
+            {
+                collect_lir_operand_use(
+                    &LirOperand::Local(*local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
+        }
+        LateLoweredStateTerminator::HandleDispatch { contract, .. } => {
+            if let Some(source) = contract.body_completion_payload_source()
+                && let Some(operand) = source.operand_source()
+                && let LateLoweredOperandValueSource::Local(local) = operand.value()
+            {
+                collect_lir_operand_use(
+                    &LirOperand::Local(*local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
+        }
+        LateLoweredStateTerminator::Suspend { .. }
+        | LateLoweredStateTerminator::Goto { .. }
+        | LateLoweredStateTerminator::LocalRuntimeError { .. }
+        | LateLoweredStateTerminator::ResumeUnwind
+        | LateLoweredStateTerminator::Unreachable
+        | LateLoweredStateTerminator::Abandon => {}
     }
 }
 

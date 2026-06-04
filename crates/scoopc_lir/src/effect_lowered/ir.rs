@@ -2098,17 +2098,29 @@ impl LateLoweredCallable {
         source_slice: LateLoweredStateSlice,
         statement_index: u32,
     ) -> Option<&LateLoweredSourceStatementClassification> {
-        let state = self.state_graph().states().iter().find(|state| {
-            state
-                .source_slices()
-                .iter()
-                .any(|slice| *slice == source_slice)
-        })?;
-        let local_index = statement_index.saturating_sub(source_slice.start_statement_index());
-        self.source_statement_classification_by_anchor(LirBodyAnchor::statement(
-            state.state_id(),
-            LirStatementIndex::new(local_index),
-        ))
+        for state in self.state_graph().states() {
+            let mut local_offset = 0u32;
+            for slice in state.source_slices() {
+                let slice_len = slice
+                    .end_statement_index()
+                    .saturating_sub(slice.start_statement_index());
+                let contains_statement = slice.block_id() == source_slice.block_id()
+                    && statement_index >= slice.start_statement_index()
+                    && statement_index < slice.end_statement_index();
+                if contains_statement {
+                    let local_index = local_offset
+                        + statement_index.saturating_sub(slice.start_statement_index());
+                    return self.source_statement_classification_by_anchor(
+                        LirBodyAnchor::statement(
+                            state.state_id(),
+                            LirStatementIndex::new(local_index),
+                        ),
+                    );
+                }
+                local_offset += slice_len;
+            }
+        }
+        None
     }
 
     pub fn continuation_object(&self) -> ContinuationObjectId {
@@ -4215,12 +4227,24 @@ impl LateLoweredStateSlice {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSourceStatementClassification {
     anchor: LirBodyAnchor,
+    source_slice: LateLoweredStateSlice,
+    source_statement_index: u32,
     kind: LateLoweredSourceStatementClassificationKind,
 }
 
 impl LateLoweredSourceStatementClassification {
-    pub fn new(anchor: LirBodyAnchor, kind: LateLoweredSourceStatementClassificationKind) -> Self {
-        Self { anchor, kind }
+    pub fn new(
+        anchor: LirBodyAnchor,
+        source_slice: LateLoweredStateSlice,
+        source_statement_index: u32,
+        kind: LateLoweredSourceStatementClassificationKind,
+    ) -> Self {
+        Self {
+            anchor,
+            source_slice,
+            source_statement_index,
+            kind,
+        }
     }
 
     pub fn anchor(&self) -> LirBodyAnchor {
@@ -4236,19 +4260,11 @@ impl LateLoweredSourceStatementClassification {
     }
 
     pub fn statement_index(&self) -> u32 {
-        match self.anchor {
-            LirBodyAnchor::Statement { statement, .. } => statement.as_u32(),
-            LirBodyAnchor::State { .. } | LirBodyAnchor::Terminator { .. } => 0,
-        }
+        self.source_statement_index
     }
 
     pub fn source_slice(&self) -> LateLoweredStateSlice {
-        LateLoweredStateSlice::new(
-            BasicBlockId::from_raw(self.state_id().as_u32()),
-            self.statement_index(),
-            self.statement_index().saturating_add(1),
-            false,
-        )
+        self.source_slice
     }
 
     pub fn kind(&self) -> LateLoweredSourceStatementClassificationKind {

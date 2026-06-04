@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use super::*;
+use crate::effect_lowered::ir::{LateLoweredState, LateLoweredStateSlice};
 
 pub(crate) fn materialize_source_statement_classifications(
     root_fqn: &str,
@@ -11,7 +12,8 @@ pub(crate) fn materialize_source_statement_classifications(
     frame_schema: &LateLoweredFrameSchema,
     boundary_map: &LateLoweredBoundaryMap,
 ) -> Result<Vec<LateLoweredSourceStatementClassification>, EffectLoweringError> {
-    let boundary_statement_anchors = collect_boundary_statement_anchors(root_fqn, boundary_map)?;
+    let boundary_statement_anchors =
+        collect_boundary_statement_anchors(root_fqn, state_graph, boundary_map)?;
     let handle_binder_locals = collect_handle_binder_locals(state_graph);
     let mut classifications = Vec::new();
     let mut seen_statements = BTreeSet::<LirBodyAnchor>::new();
@@ -21,6 +23,18 @@ pub(crate) fn materialize_source_statement_classifications(
         for (stmt_index, stmt) in state.statements().iter().enumerate() {
             let statement_index = LirStatementIndex::new(stmt_index as u32);
             let anchor = LirBodyAnchor::statement(state.state_id(), statement_index);
+            let Some((source_slice, source_statement_index)) =
+                source_statement_for_local_index(state, statement_index.as_u32())
+            else {
+                return Err(invalid_source_slice_classification_contract(
+                    root_fqn,
+                    format!(
+                        "state st{} statement{} 没有对应 source slice，无法发布 classification",
+                        state.state_id().as_u32(),
+                        stmt_index,
+                    ),
+                ));
+            };
             if !seen_statements.insert(anchor) {
                 return Err(invalid_source_slice_classification_contract(
                     root_fqn,
@@ -51,7 +65,12 @@ pub(crate) fn materialize_source_statement_classifications(
                     ),
                 ));
             }
-            classifications.push(LateLoweredSourceStatementClassification::new(anchor, kind));
+            classifications.push(LateLoweredSourceStatementClassification::new(
+                anchor,
+                source_slice,
+                source_statement_index,
+                kind,
+            ));
         }
     }
 
@@ -70,8 +89,28 @@ pub(crate) fn materialize_source_statement_classifications(
     Ok(classifications)
 }
 
+fn source_statement_for_local_index(
+    state: &LateLoweredState,
+    local_statement_index: u32,
+) -> Option<(LateLoweredStateSlice, u32)> {
+    let mut local_offset = 0u32;
+    for source_slice in state.source_slices() {
+        let slice_len = source_slice
+            .end_statement_index()
+            .saturating_sub(source_slice.start_statement_index());
+        if local_statement_index < local_offset + slice_len {
+            let source_statement_index = source_slice.start_statement_index()
+                + local_statement_index.saturating_sub(local_offset);
+            return Some((*source_slice, source_statement_index));
+        }
+        local_offset += slice_len;
+    }
+    None
+}
+
 pub(crate) fn collect_boundary_statement_anchors(
     root_fqn: &str,
+    state_graph: &LateLoweredStateGraph,
     boundary_map: &LateLoweredBoundaryMap,
 ) -> Result<BTreeMap<LirBodyAnchor, BoundaryId>, EffectLoweringError> {
     let mut anchors = BTreeMap::new();
@@ -84,12 +123,19 @@ pub(crate) fn collect_boundary_statement_anchors(
         else {
             continue;
         };
-        let anchor = LirBodyAnchor::statement(
-            StateId::new(source_slice.block_id().as_u32()),
-            LirStatementIndex::new(
-                statement_index.saturating_sub(source_slice.start_statement_index()),
-            ),
-        );
+        let Some(anchor) =
+            statement_anchor_for_source_statement(state_graph, source_slice, statement_index)
+        else {
+            return Err(invalid_source_slice_classification_contract(
+                root_fqn,
+                format!(
+                    "boundary bd{} 声明的 source statement bb{}[{}] 未落入任何 LIR state body",
+                    boundary.boundary_id().as_u32(),
+                    source_slice.block_id().as_u32(),
+                    statement_index,
+                ),
+            ));
+        };
         if let Some(existing) = anchors.insert(anchor, boundary.boundary_id()) {
             return Err(invalid_source_slice_classification_contract(
                 root_fqn,
@@ -103,6 +149,33 @@ pub(crate) fn collect_boundary_statement_anchors(
         }
     }
     Ok(anchors)
+}
+
+fn statement_anchor_for_source_statement(
+    state_graph: &LateLoweredStateGraph,
+    source_slice: LateLoweredStateSlice,
+    statement_index: u32,
+) -> Option<LirBodyAnchor> {
+    for state in state_graph.states() {
+        let mut local_statement_offset = 0u32;
+        for slice in state.source_slices() {
+            let slice_len = slice
+                .end_statement_index()
+                .saturating_sub(slice.start_statement_index());
+            let contains_statement = slice.block_id() == source_slice.block_id()
+                && statement_index >= slice.start_statement_index()
+                && statement_index < slice.end_statement_index();
+            if contains_statement {
+                let local_statement = local_statement_offset
+                    + statement_index.saturating_sub(slice.start_statement_index());
+                return state
+                    .body()
+                    .statement_anchor(state.state_id(), LirStatementIndex::new(local_statement));
+            }
+            local_statement_offset += slice_len;
+        }
+    }
+    None
 }
 
 pub(crate) fn boundary_source_consumption(

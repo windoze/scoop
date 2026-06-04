@@ -598,7 +598,9 @@ impl<'a> FnLowering<'a> {
             }
         });
         let result = self.push_temp_local(span, result_ty);
-        let receiver_local = self.lower_expr_to_local(receiver);
+        let receiver_local = self
+            .lower_member_namespace_receiver(receiver, member)
+            .unwrap_or_else(|| self.lower_expr_to_local(receiver));
         if self.current_is_terminated() {
             return result;
         }
@@ -644,6 +646,40 @@ impl<'a> FnLowering<'a> {
             );
         }
         result
+    }
+
+    fn lower_member_namespace_receiver(
+        &mut self,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+    ) -> Option<LocalId> {
+        let hir::ExprKind::UnresolvedIdent { name } = &receiver.kind else {
+            return None;
+        };
+        let resolved_fqn = match member.resolved.as_ref()? {
+            hir::MemberRef::Value { fqn, .. }
+            | hir::MemberRef::Fun { fqn, .. }
+            | hir::MemberRef::ExtensionValue { fqn, .. }
+            | hir::MemberRef::ExtensionFun { fqn, .. } => fqn,
+        };
+        if !resolved_fqn.split('.').any(|segment| segment == name) {
+            return None;
+        }
+        let tmp = self.push_temp_local(receiver.span, receiver.ty);
+        self.assign(
+            receiver.span,
+            tmp,
+            Rvalue::TopLevelRef(TopLevelRef {
+                fqn: name.clone(),
+                site_id: None,
+                hidden_effects: EffectRow::pure(),
+                stable_template_key: None,
+                stable_instance_key: None,
+                generic_type_args: Vec::new(),
+                generic_eff_args: Vec::new(),
+            }),
+        );
+        Some(tmp)
     }
 
     pub(in crate::mir::lower) fn member_value_ty(

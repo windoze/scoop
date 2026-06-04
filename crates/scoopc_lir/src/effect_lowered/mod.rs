@@ -259,8 +259,8 @@ pub enum EffectLoweringError {
     )]
     InvalidSourceSliceClassificationContract { root_fqn: String, detail: String },
 
-    #[error("late-lowering stage 无法把 `{root_fqn}` 的 MIR 指令 lift 为 LIR 指令：{detail}")]
-    InvalidLirInstructionLift { root_fqn: String, detail: String },
+    #[error("late-lowering stage 拒绝 `{root_fqn}` 的 MIR→LIR 输入：{detail}")]
+    InvalidMirForLirLift { root_fqn: String, detail: String },
 
     #[error(
         "late-lowering stage 无法为 plain callable `{root_fqn}` 发布本地 effect/control contract：{detail}"

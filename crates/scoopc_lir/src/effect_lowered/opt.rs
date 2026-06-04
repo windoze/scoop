@@ -6,19 +6,24 @@ use scoopc_lir_facts::{
     LirOptPipelineFacts,
 };
 
+use super::instruction::{LirBodyAnchor, LirStatementIndex};
 use super::ir::{
     BoundaryId, ContinuationObjectId, FrameSlotId, LateLoweredBoundary,
-    LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredCallBoundaryLowering,
-    LateLoweredCallable, LateLoweredCompleteStepDispatch, LateLoweredContinuationCapture,
-    LateLoweredContinuationMethod, LateLoweredContinuationMethodReachability,
-    LateLoweredContinuationObject, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
-    LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredHandleBoundaryLowering,
-    LateLoweredPerformBoundaryLowering, LateLoweredPlainCallable,
-    LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeBoundaryLowering,
+    LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
+    LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract, LateLoweredCallable,
+    LateLoweredClassCtorBoundaryLowering, LateLoweredCompleteStepDispatch,
+    LateLoweredContinuationCapture, LateLoweredContinuationMethod,
+    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
+    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredFrameSlot,
+    LateLoweredFrameSlotKind, LateLoweredHandleBoundaryLowering,
+    LateLoweredPerformBoundaryLowering, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPlainCallable, LateLoweredPlainLocalEffectControl, LateLoweredProgram,
+    LateLoweredResumeBoundaryLowering, LateLoweredResumeBoundaryOperandContract,
     LateLoweredResumeInterface, LateLoweredResumePayloadBinding, LateLoweredResumeState,
-    LateLoweredResumeStateMap, LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState,
-    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
-    LateLoweredStepDispatchPlan, ResumeInterfaceId, StateId,
+    LateLoweredResumeStateMap, LateLoweredRuntimeErrorBoundaryLowering,
+    LateLoweredSourceStatementClassification, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepDispatchPlan,
+    ResumeInterfaceId, StateId,
 };
 use super::opt_verify::{LirOptVerifyError, verify_post_opt_program};
 
@@ -362,6 +367,10 @@ fn optimize_callable(
 ) -> OptimizedCallable {
     let redirects = collect_state_redirects(callable.state_graph());
     let optimized = optimize_control_body(callable, continuation_object, options, &redirects);
+    let source_statement_classifications = rewrite_source_statement_classifications(
+        callable.source_statement_classifications(),
+        &optimized.state_graph,
+    );
     let callable = preserve_source_callable(
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
@@ -377,9 +386,7 @@ fn optimize_callable(
             callable.continuation_object(),
             optimized.resume_packings,
         )
-        .with_source_statement_classifications(
-            callable.source_statement_classifications().to_vec(),
-        ),
+        .with_source_statement_classifications(source_statement_classifications),
         callable,
     );
 
@@ -396,6 +403,10 @@ fn optimize_plain_callable(
 ) -> OptimizedCallable {
     let redirects = collect_state_redirects(callable.state_graph());
     let optimized = optimize_control_body(callable, continuation_object, options, &redirects);
+    let source_statement_classifications = rewrite_source_statement_classifications(
+        callable.source_statement_classifications(),
+        &optimized.state_graph,
+    );
     let plain = callable
         .plain_abi()
         .expect("plain local control callable should publish a plain ABI");
@@ -405,7 +416,7 @@ fn optimize_plain_callable(
         optimized.frame_schema,
         optimized.boundary_map,
         optimized.resume_state_map,
-        callable.source_statement_classifications().to_vec(),
+        source_statement_classifications,
         callable.continuation_object(),
         optimized.resume_packings,
     );
@@ -446,7 +457,12 @@ fn optimize_control_body(
         .iter()
         .map(LateLoweredState::state_id)
         .collect::<BTreeSet<_>>();
-    let boundary_map = rewrite_boundary_map(callable.boundary_map(), redirects, &live_states);
+    let boundary_map = rewrite_boundary_map(
+        callable.boundary_map(),
+        redirects,
+        &live_states,
+        &state_graph,
+    );
     let live_boundaries = boundary_map
         .entries()
         .iter()
@@ -514,6 +530,26 @@ fn optimize_control_body(
         continuation_object,
         resume_packings,
     }
+}
+
+fn rewrite_source_statement_classifications(
+    classifications: &[LateLoweredSourceStatementClassification],
+    state_graph: &LateLoweredStateGraph,
+) -> Vec<LateLoweredSourceStatementClassification> {
+    let mut live_anchors = BTreeSet::new();
+    for state in state_graph.states() {
+        for statement_index in 0..state.statements().len() {
+            live_anchors.insert(LirBodyAnchor::statement(
+                state.state_id(),
+                LirStatementIndex::new(statement_index as u32),
+            ));
+        }
+    }
+    classifications
+        .iter()
+        .filter(|classification| live_anchors.contains(&classification.anchor()))
+        .cloned()
+        .collect()
 }
 
 fn with_callable_resume_packings(
@@ -771,9 +807,10 @@ fn rewrite_state(
     state: &LateLoweredState,
     redirects: &BTreeMap<StateId, StateId>,
 ) -> LateLoweredState {
-    LateLoweredState::new(
+    LateLoweredState::new_with_source_slices(
         state.state_id(),
         state.role(),
+        state.source_slices().to_vec(),
         state.statements().to_vec(),
         rewrite_terminator(state.terminator(), redirects),
     )
@@ -893,6 +930,7 @@ fn redirect_handle_dispatch_contract(
         contract
             .state_regions()
             .iter()
+            .filter(|entry| !redirects.contains_key(&entry.state_id()))
             .map(|entry| {
                 crate::effect_lowered::ir::LateLoweredHandleStateRegionEntry::new(
                     redirect_state_id(entry.state_id(), redirects),
@@ -977,6 +1015,7 @@ fn rewrite_boundary_map(
     boundary_map: &LateLoweredBoundaryMap,
     redirects: &BTreeMap<StateId, StateId>,
     live_states: &BTreeSet<StateId>,
+    state_graph: &LateLoweredStateGraph,
 ) -> LateLoweredBoundaryMap {
     let entries = boundary_map
         .entries()
@@ -993,14 +1032,16 @@ fn rewrite_boundary_map(
                 owner_state,
                 resume_state,
             );
+            let owner = state_graph
+                .state(owner_state)
+                .expect("live boundary owner state should exist in rewritten state graph");
             Some(
                 match boundary_map
                     .boundary(boundary.boundary_id())
                     .and_then(|b| b.lowering())
                 {
-                    Some(lowering) => {
-                        boundary.with_lowering(rewrite_boundary_lowering(lowering, redirects))
-                    }
+                    Some(lowering) => boundary
+                        .with_lowering(rewrite_boundary_lowering(lowering, redirects, owner)),
                     None => boundary,
                 },
             )
@@ -1012,6 +1053,7 @@ fn rewrite_boundary_map(
 fn rewrite_boundary_lowering(
     lowering: &LateLoweredBoundaryLowering,
     redirects: &BTreeMap<StateId, StateId>,
+    owner_state: &LateLoweredState,
 ) -> LateLoweredBoundaryLowering {
     match lowering {
         LateLoweredBoundaryLowering::Call(lowering) => {
@@ -1019,7 +1061,7 @@ fn rewrite_boundary_lowering(
                 lowering.facts().clone(),
                 lowering.result_local(),
                 lowering.metadata().clone(),
-                lowering.operand_contract().clone(),
+                rewrite_call_operand_contract(lowering.operand_contract(), owner_state),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
                 lowering
                     .continuation_compositions()
@@ -1034,19 +1076,19 @@ fn rewrite_boundary_lowering(
                 lowering.consumed_runtime_error_case().cloned(),
             ))
         }
-        LateLoweredBoundaryLowering::ClassCtor(lowering) => LateLoweredBoundaryLowering::ClassCtor(
-            crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering::new(
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => {
+            LateLoweredBoundaryLowering::ClassCtor(LateLoweredClassCtorBoundaryLowering::new(
                 lowering.facts().clone(),
                 lowering.result_local(),
                 lowering.class_fqn().to_string(),
-                lowering.source_consumption(),
+                rebase_source_consumption(lowering.source_consumption(), owner_state),
                 lowering.emitted_steps().to_vec(),
-            ),
-        ),
+            ))
+        }
         LateLoweredBoundaryLowering::Perform(lowering) => {
             LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                 lowering.facts().clone(),
-                lowering.operand_contract().clone(),
+                rewrite_perform_operand_contract(lowering.operand_contract(), owner_state),
                 lowering.emitted_step().clone(),
             ))
         }
@@ -1055,7 +1097,7 @@ fn rewrite_boundary_lowering(
                 lowering.facts().clone(),
                 lowering.result_local(),
                 lowering.runtime_error_boundary(),
-                lowering.operand_contract().clone(),
+                rewrite_resume_operand_contract(lowering.operand_contract(), owner_state),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
                 lowering
                     .continuation_compositions()
@@ -1081,6 +1123,81 @@ fn rewrite_boundary_lowering(
                 lowering.facts().clone(),
                 lowering.outward_emissions().to_vec(),
             ))
+        }
+    }
+}
+
+fn rewrite_call_operand_contract(
+    contract: &LateLoweredCallBoundaryOperandContract,
+    owner_state: &LateLoweredState,
+) -> LateLoweredCallBoundaryOperandContract {
+    LateLoweredCallBoundaryOperandContract::new(
+        rebase_source_consumption(contract.source_consumption(), owner_state),
+        contract.carrier_source().cloned(),
+        contract.arg_sources().to_vec(),
+    )
+}
+
+fn rewrite_perform_operand_contract(
+    contract: &LateLoweredPerformBoundaryOperandContract,
+    owner_state: &LateLoweredState,
+) -> LateLoweredPerformBoundaryOperandContract {
+    LateLoweredPerformBoundaryOperandContract::new(
+        rebase_source_consumption(contract.source_consumption(), owner_state),
+        contract.payload_sources().to_vec(),
+    )
+}
+
+fn rewrite_resume_operand_contract(
+    contract: &LateLoweredResumeBoundaryOperandContract,
+    owner_state: &LateLoweredState,
+) -> LateLoweredResumeBoundaryOperandContract {
+    LateLoweredResumeBoundaryOperandContract::new(
+        rebase_source_consumption(contract.source_consumption(), owner_state),
+        contract.continuation_source().clone(),
+        contract.arg_sources().to_vec(),
+        contract.underlying_continuation_route().clone(),
+        contract.underlying_route_is_compatible_set(),
+    )
+}
+
+fn rebase_source_consumption(
+    consumption: LateLoweredBoundarySourceConsumption,
+    owner_state: &LateLoweredState,
+) -> LateLoweredBoundarySourceConsumption {
+    match consumption {
+        LateLoweredBoundarySourceConsumption::Statement {
+            source_slice,
+            statement_index,
+            consumes_last_statement,
+        } => {
+            let source_slice = owner_state
+                .source_slices()
+                .iter()
+                .copied()
+                .find(|candidate| {
+                    candidate.block_id() == source_slice.block_id()
+                        && statement_index >= candidate.start_statement_index()
+                        && statement_index < candidate.end_statement_index()
+                })
+                .unwrap_or(source_slice);
+            LateLoweredBoundarySourceConsumption::statement(
+                source_slice,
+                statement_index,
+                consumes_last_statement,
+            )
+        }
+        LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
+            let source_slice = owner_state
+                .source_slices()
+                .iter()
+                .copied()
+                .find(|candidate| {
+                    candidate.block_id() == source_slice.block_id()
+                        && candidate.includes_terminator()
+                })
+                .unwrap_or(source_slice);
+            LateLoweredBoundarySourceConsumption::terminator(source_slice)
         }
     }
 }
@@ -1956,9 +2073,10 @@ mod tests {
                 if state.state_id() != state_graph.entry_state() {
                     return state.clone();
                 }
-                LateLoweredState::new(
+                LateLoweredState::new_with_source_slices(
                     state.state_id(),
                     state.role(),
+                    state.source_slices().to_vec(),
                     state.statements().to_vec(),
                     LateLoweredStateTerminator::HandleDispatch {
                         site_id: SiteId::from_raw(999),

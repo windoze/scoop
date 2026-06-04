@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use scoopc_ids::LirCallableId;
+use scoopc_ids::{LirCallableHash, LirCallableId};
+use scoopc_lir_facts::LirCallableRef;
 use scoopc_mir_facts::MirFacts;
 
 use crate::effect_facts::{
     CallableAbiKind, ConcreteOpKey, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
+use crate::mir::placeholder_inventory::validate_body_for_lir_lift;
 use crate::mir::{
     BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
     StatementKind, build_body_labels_for_dump,
@@ -40,6 +42,7 @@ use super::segment::build_callable_segmentation;
 pub struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
+    mir_facts: &'a MirFacts,
     types: &'a TypeStore,
     nominal_direct_supertypes: NominalDirectSupertypeIndex,
 }
@@ -49,12 +52,13 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         pass_view: MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
         types: &'a TypeStore,
-        mir_facts: &MirFacts,
+        mir_facts: &'a MirFacts,
     ) -> Self {
         Self {
             nominal_direct_supertypes: nominal_direct_supertypes_from_mir_facts(mir_facts),
             pass_view,
             effect_facts,
+            mir_facts,
             types,
         }
     }
@@ -62,6 +66,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
     pub fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
+        let mir_facts = self.mir_facts;
         let types = self.types;
         let nominal_direct_supertypes = self.nominal_direct_supertypes;
 
@@ -81,6 +86,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         )?;
         let materialized = pass_view.materialized();
         let callable_ids = planned_lir_callable_ids(&pass_view, effect_facts);
+        let callable_refs = planned_lir_callable_refs(&callable_ids, mir_facts);
         let concrete_ops = concrete_ops_by_fqn(effect_facts);
         let mut stable_instance_keys = materialized.stable_instance_keys().clone();
         let mut dump_body_labels =
@@ -91,7 +97,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
         for family in pass_view.instances() {
             let root_fqn = family.root_fqn().to_string();
-            let lift = LirLiftContext::new(&root_fqn, &callable_ids, &concrete_ops);
+            let lift = LirLiftContext::new(&root_fqn, &callable_ids, &callable_refs, &concrete_ops);
             let source_kind = callable_source_kind(materialized, &root_fqn);
             let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
                 if family.root_body().is_some() {
@@ -121,6 +127,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let materialized_signature = find_materialized_fun(pass_view.materialized(), &root_fqn);
             let root_source_body = pass_source_body;
             if let Some(body) = root_source_body.and_then(|fun| fun.body.as_ref()) {
+                validate_mir_body_for_lir_lift(&root_fqn, body)?;
                 dump_body_labels.insert(
                     body_version_key.clone(),
                     build_body_labels_for_dump(&root_fqn, body, types),
@@ -162,18 +169,22 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     types,
                     lift: &lift,
                 })?;
-                let executable_body = plain_fun
-                    .body
-                    .as_ref()
-                    .map(|body| {
-                        let flavor = if plain.callable.local_effect_control().is_some() {
-                            super::instruction::LirExecutableBodyFlavor::PlainLocalEffectControl
-                        } else {
-                            super::instruction::LirExecutableBodyFlavor::Plain
-                        };
-                        lift.lift_plain_body(plain_fun, body, flavor)
-                    })
-                    .transpose()?;
+                let executable_body = plain_fun.body.as_ref().map(|body| {
+                    if let Some(control) = plain.callable.local_effect_control() {
+                        lift.lift_control_body(
+                            plain_fun,
+                            body,
+                            super::instruction::LirExecutableBodyFlavor::PlainLocalEffectControl,
+                            control.state_graph(),
+                        )
+                    } else {
+                        lift.lift_plain_body(
+                            plain_fun,
+                            body,
+                            super::instruction::LirExecutableBodyFlavor::Plain,
+                        )
+                    }
+                });
                 if let Some(object) = plain.continuation_object {
                     continuation_objects.push(object);
                 }
@@ -415,6 +426,15 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
+fn validate_mir_body_for_lir_lift(root_fqn: &str, body: &Body) -> Result<(), EffectLoweringError> {
+    validate_body_for_lir_lift(root_fqn, body).map_err(|error| {
+        EffectLoweringError::InvalidMirForLirLift {
+            root_fqn: root_fqn.to_string(),
+            detail: error.to_string(),
+        }
+    })
+}
+
 fn planned_lir_callable_ids(
     pass_view: &MaterializedMirPassView<'_>,
     effect_facts: &MaterializedEffectFacts,
@@ -429,6 +449,28 @@ fn planned_lir_callable_ids(
         next += 1;
     }
     ids
+}
+
+fn planned_lir_callable_refs(
+    callable_ids: &HashMap<String, LirCallableId>,
+    mir_facts: &MirFacts,
+) -> HashMap<String, LirCallableRef> {
+    let mut refs = callable_ids
+        .iter()
+        .map(|(root_fqn, id)| (root_fqn.clone(), LirCallableRef::Local(*id)))
+        .collect::<HashMap<_, _>>();
+    for signature in &mir_facts.backend.source_signatures {
+        if refs.contains_key(&signature.fqn) {
+            continue;
+        }
+        if let Some(target_key) = &signature.target_callable_key {
+            refs.insert(
+                signature.fqn.clone(),
+                LirCallableRef::ExternalHash(LirCallableHash::from_stable_key(target_key)),
+            );
+        }
+    }
+    refs
 }
 
 fn concrete_ops_by_fqn(effect_facts: &MaterializedEffectFacts) -> HashMap<String, ConcreteOpKey> {

@@ -27,43 +27,70 @@ fn find_statement_anchor(
 }
 
 fn compat_statement_consumption(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
     state: &LateLoweredState,
     anchor: LirBodyAnchor,
     consumes_last_statement: bool,
-) -> LateLoweredBoundarySourceConsumption {
-    let source_slice = state.source_slices().first().copied().unwrap_or_else(|| {
-        crate::effect_lowered::ir::LateLoweredStateSlice::new(
-            crate::mir::BasicBlockId::from_raw(state.state_id().as_u32()),
-            0,
-            state.statements().len() as u32,
-            false,
-        )
-    });
-    let statement_index = match anchor {
-        LirBodyAnchor::Statement { statement, .. } => {
-            source_slice.start_statement_index() + statement.as_u32()
-        }
-        LirBodyAnchor::State { .. } | LirBodyAnchor::Terminator { .. } => {
-            source_slice.start_statement_index()
-        }
+) -> Result<LateLoweredBoundarySourceConsumption, EffectLoweringError> {
+    let local_statement = match anchor {
+        LirBodyAnchor::Statement { statement, .. } => statement.as_u32(),
+        LirBodyAnchor::State { .. } | LirBodyAnchor::Terminator { .. } => 0,
     };
-    LateLoweredBoundarySourceConsumption::statement(
-        source_slice,
-        statement_index,
-        consumes_last_statement,
-    )
+    let mut local_offset = 0u32;
+    for source_slice in state.source_slices() {
+        let slice_len = source_slice
+            .end_statement_index()
+            .saturating_sub(source_slice.start_statement_index());
+        if local_statement < local_offset + slice_len {
+            let statement_index =
+                source_slice.start_statement_index() + local_statement - local_offset;
+            return Ok(LateLoweredBoundarySourceConsumption::statement(
+                *source_slice,
+                statement_index,
+                consumes_last_statement,
+            ));
+        }
+        local_offset += slice_len;
+    }
+    Err(invalid_boundary_operand_contract(
+        root_fqn,
+        site_id,
+        kind,
+        format!(
+            "owner state st{} 的 LIR statement{} 无对应 source slice",
+            state.state_id().as_u32(),
+            local_statement,
+        ),
+    ))
 }
 
-fn compat_terminator_consumption(state: &LateLoweredState) -> LateLoweredBoundarySourceConsumption {
-    let source_slice = state.source_slices().last().copied().unwrap_or_else(|| {
-        crate::effect_lowered::ir::LateLoweredStateSlice::new(
-            crate::mir::BasicBlockId::from_raw(state.state_id().as_u32()),
-            0,
-            state.statements().len() as u32,
-            true,
-        )
-    });
-    LateLoweredBoundarySourceConsumption::terminator(source_slice)
+fn compat_terminator_consumption(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    state: &LateLoweredState,
+) -> Result<LateLoweredBoundarySourceConsumption, EffectLoweringError> {
+    let source_slice = state
+        .source_slices()
+        .iter()
+        .copied()
+        .find(|slice| slice.includes_terminator())
+        .ok_or_else(|| {
+            invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                kind,
+                format!(
+                    "owner state st{} 无 terminator source slice",
+                    state.state_id().as_u32(),
+                ),
+            )
+        })?;
+    Ok(LateLoweredBoundarySourceConsumption::terminator(
+        source_slice,
+    ))
 }
 
 fn lir_call_site(stmt: &LirStatement, site_id: SiteId) -> bool {
@@ -103,10 +130,7 @@ fn lir_resume_site(stmt: &LirStatement, site_id: SiteId) -> bool {
     )
 }
 
-fn mir_call_statement<'a>(
-    body: &'a Body,
-    site_id: SiteId,
-) -> Option<(LocalId, &'a CallKind, &'a [CallArg])> {
+fn mir_call_statement(body: &Body, site_id: SiteId) -> Option<(LocalId, &CallKind, &[CallArg])> {
     body.blocks.iter().find_map(|block| {
         block.stmts.iter().find_map(|stmt| {
             let StatementKind::Assign {
@@ -127,10 +151,10 @@ fn mir_call_statement<'a>(
     })
 }
 
-fn mir_resume_statement<'a>(
-    body: &'a Body,
+fn mir_resume_statement(
+    body: &Body,
     site_id: SiteId,
-) -> Option<(LocalId, &'a Operand, &'a ResumeMetadata, &'a [CallArg])> {
+) -> Option<(LocalId, &Operand, &ResumeMetadata, &[CallArg])> {
     body.blocks.iter().find_map(|block| {
         block.stmts.iter().find_map(|stmt| {
             let StatementKind::Assign {
@@ -190,7 +214,7 @@ fn mir_class_ctor_source(body: &Body, site_id: SiteId) -> Option<(LocalId, Strin
     })
 }
 
-fn mir_perform_args<'a>(body: &'a Body, site_id: SiteId) -> Option<&'a [PerformArg]> {
+fn mir_perform_args(body: &Body, site_id: SiteId) -> Option<&[PerformArg]> {
     body.blocks.iter().find_map(|block| {
         let TerminatorKind::Perform {
             site_id: term_site_id,
@@ -334,7 +358,14 @@ pub(crate) fn build_call_boundary_operand_contract(
         )?,
     };
     Ok(LateLoweredCallBoundaryOperandContract::new(
-        compat_statement_consumption(owner_state, anchor, consumes_last_statement),
+        compat_statement_consumption(
+            root_fqn,
+            site_id,
+            "Call",
+            owner_state,
+            anchor,
+            consumes_last_statement,
+        )?,
         carrier_source,
         arg_sources,
     ))
@@ -398,7 +429,14 @@ pub(crate) fn build_class_ctor_boundary_source_contract(
     })?;
     Ok((
         source_fqn,
-        compat_statement_consumption(owner_state, anchor, consumes_last_statement),
+        compat_statement_consumption(
+            root_fqn,
+            site_id,
+            "ClassCtor",
+            owner_state,
+            anchor,
+            consumes_last_statement,
+        )?,
     ))
 }
 
@@ -458,7 +496,7 @@ pub(crate) fn build_perform_boundary_operand_contract(
         ));
     }
     Ok(LateLoweredPerformBoundaryOperandContract::new(
-        compat_terminator_consumption(owner_state),
+        compat_terminator_consumption(root_fqn, site_id, "Perform", owner_state)?,
         payload_sources,
     ))
 }
@@ -584,7 +622,14 @@ pub(crate) fn build_resume_boundary_operand_contract(
         nominal_direct_supertypes,
     )?;
     Ok(LateLoweredResumeBoundaryOperandContract::new(
-        compat_statement_consumption(owner_state, anchor, consumes_last_statement),
+        compat_statement_consumption(
+            root_fqn,
+            site_id,
+            "Resume",
+            owner_state,
+            anchor,
+            consumes_last_statement,
+        )?,
         continuation_source,
         arg_sources,
         underlying_continuation_route,

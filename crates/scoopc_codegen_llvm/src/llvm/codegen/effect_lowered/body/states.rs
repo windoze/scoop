@@ -289,6 +289,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
+        let mut local_statement_index = 0u32;
         for slice in state.source_slices() {
             let block = self
                 .body
@@ -312,7 +313,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 });
                 let classification = self
                     .callable
-                    .source_statement_classification(*slice, stmt_index)
+                    .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                        state.state_id(),
+                        LirStatementIndex::new(local_statement_index),
+                    ))
                     .ok_or_else(|| {
                         frontend_error(format!(
                             "source-slice statement bb{} stmt{} 缺少 published classification",
@@ -341,6 +345,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         )));
                     }
                 }
+                local_statement_index = local_statement_index.saturating_add(1);
             }
         }
         Ok(())

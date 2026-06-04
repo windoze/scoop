@@ -2,45 +2,38 @@
 
 ## Scope
 
-- Execute exactly the first incomplete task from `TODO.md`, then stop.
-- Use `TODO.md` as the source of truth for task ordering, requirements, dependencies, validation, and completion records.
-- Update this file as key steps complete or if the plan changes.
+- Work from `TODO.md` as the authoritative task list.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`, then stop.
+- Keep `PLAN.md` unchanged unless phase-level sequencing or dependencies actually change.
+- Avoid workarounds; any blocker that prevents spec-correct completion must be fixed or scheduled as a prerequisite in `TODO.md`.
 
-## Execution Plan
+## Step-by-step Plan
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Inspect recent Git context only as needed to detect an unfinished issue directly relevant to that task.
-3. Read the task body, dependencies, validation requirements, and any relevant project files.
-4. Implement the task as written, unless a concrete prerequisite/blocker makes that impossible.
-5. If blocked by an unscheduled prerequisite or failing test/fixture, update `TODO.md` with the minimum required prerequisite task, commit that bookkeeping, and stop.
-6. Run formatting, linting, relevant tests, then full validation as required by the task and repository policy.
-7. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
-8. Commit all intended changes with a clear task-specific commit message.
-9. Stop without starting the next task.
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Inspect recent git state and the latest commit only as needed to detect unfinished work directly relevant to that task.
+3. Read the files and tests relevant to the selected task; avoid broad unrelated triage.
+4. Implement the smallest correct change that fully satisfies the selected task.
+5. Add or update focused tests/fixtures required by the task.
+6. Run formatting first, then clippy with warnings denied, then the relevant and full validation commands required by the task.
+7. If any unscheduled test or fixture failure appears, either fix it or add the minimum prerequisite/follow-up task to `TODO.md` before completion.
+8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record.
+9. Update this file after key progress points or plan changes.
+10. Inspect git status/diff/log, stage the intended files, commit with a task-tagged message, and stop without starting the next task.
 
 ## Current Status
 
-- Plan file initialized before code execution or shell commands.
-- `TODO.md` read. First incomplete task: `T2-08：lowering 产出 LIR 指令（state 拥有指令）`.
-- Confirmed prerequisite `T2-08A` is marked `[DONE]`.
-- Git context checked: latest commit is `[T2-08A] Add LIR executable body containers`; working tree only contains this plan file.
-- Relevant code paths inspected: `effect_lowered/ir.rs`, `instruction.rs`, `segment.rs`, `builder.rs`, `materialize/*`, LIR facts builder, and LLVM effect body codegen.
-- Implemented an initial LIR producer path: MIR statements lift into `LirStatement`, `LateLoweredState` carries `LirStateBody`, and executable callables get `LirExecutableBody` payloads.
-- Blocker found: strict `T2-08` deletion of `LateLoweredStateSlice` / `LateLoweredSourceBody` is not safe until facts builder, dump/verify, and LLVM effect body/layout consumers stop using source-slice identities.
-- `TODO.md` updated with new prerequisite `T2-08B：迁移 source-slice 消费侧到 LIR body anchors`; `T2-08` remains incomplete and now depends on `T2-08B`.
-- Validation run for the partial/prerequisite bookkeeping state: `cargo fmt`; `cargo check --all-targets` passed after formatting.
-
-## T2-08 Implementation Steps
-
-1. Add a MIR-to-LIR lift module that converts MIR statements/rvalues into the T2-07 LIR instruction types and rejects `Todo` / `UnresolvedName` instead of representing them.
-2. Change `LateLoweredState` so it owns `LirStateBody` and exposes statements/terminator from that body; remove `LateLoweredStateSlice` as final IR state.
-3. Thread lifted state bodies through segmentation/materialization/frame/opt paths, preserving state graph semantics.
-4. Replace source-slice statement classification and boundary consumption identities with LIR body anchors.
-5. Attach a `LirExecutableBody` to each executable callable and remove `LateLoweredSourceBody`/MIR body exposure from `LateLoweredProgram`.
-6. Update facts builder/dump/verify/codegen call sites to consume LIR-owned body/anchors.
-7. Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, full tests, builds, dependency gate, spec fixtures, and full fixtures.
-
-## Plan Change
-
-- The original T2-08 plan cannot be completed safely in this invocation without first migrating all source-slice consumers.
-- Stop after committing the prerequisite insertion and partial producer groundwork; the next invocation should pick up `T2-08B` as the first incomplete task.
+- Initial execution plan written before running project commands.
+- Read `TODO.md`; first incomplete task is `TC-01: LIR lift 落地为全函数，填满所有 callable body`.
+- Inspected TC-01 implementation points. `lift.rs` still returns `Result` through `invalid_lift`; callers are `builder.rs` and `segment.rs`.
+- Latest commit only updates planning files and does not introduce an unfinished issue directly changing TC-01 execution.
+- MIR production validation already rejects Todo placeholders, but `UnresolvedName` can still pass the current production guard, so the MIR→LIR guard must cover it explicitly.
+- Added the MIR-side LIR-lift placeholder guard and made the lift chain total.
+- Fixed strict clippy blockers discovered during validation.
+- First full `cargo test --all --all-targets` exposed two TC-01 regressions: direct bodyless callable references needed stable non-FQN LIR refs, and boundary source statement anchors needed mapping through state-owned LIR slices rather than block ids.
+- Implemented LIR callable refs for direct/bodyless targets and state-slice based boundary anchor mapping.
+- `cargo fmt` and `cargo clippy --all-targets -- -D warnings` now pass after those fixes.
+- The targeted `p7_default_pipeline` failures were fixed by preserving/rebasing source slices through state rewrites and by storing real source-slice coordinates in statement classifications.
+- `cargo test -p scoop --test p7_default_pipeline` now passes after rebuilding `scoopc`.
+- Final §9 validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `cargo build -p scoop -p scoopc`, `python3 tools/dependency_gate.py`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
+- Updated `TODO.md` to mark TC-01 `[DONE]` and recorded the completion summary.
+- Next step: inspect git status/diff/log, stage intended files, commit TC-01, and stop.

@@ -45,7 +45,7 @@
 
 ## 2. 任务（按序）
 
-### [TODO] TC-01：LIR lift 落地为全函数，填满所有 callable body
+### [DONE] TC-01：LIR lift 落地为全函数，填满所有 callable body
 
 **目标**：让 `crates/scoopc_lir/src/effect_lowered/lift.rs` 的 lift 链成为**全函数（无 `Result`）**，并保证 plain + effect-step 所有 callable 的 `LirExecutableBody` 被填满；占位/形状失败上移到 MIR→LIR 边界。**本任务不删 overlay**（TC-05 才删），LIR 指令与现有 source-slice 行为等价即可。
 
@@ -77,6 +77,15 @@
 - plain + effect-step 每个 callable 都有完整 `LirExecutableBody`（单测断言）。
 - 新增单测：对代表性 body 比对 LIR 指令序列与原 MIR slice 语义等价；占位 body 在 MIR guard 处被拒（而非进入 lift）。
 - §9 全套基线绿（占位 fixture 若在 MIR guard 暴露=对的，按上面 STOP 规则处理）。
+
+**完成记录（2026-06-05）**：
+- 将 `lift.rs` lift 链改为 total functions，删除 `invalid_lift` / `EffectLoweringError` 依赖；guard 后不应出现的 MIR placeholder / unresolved name / invalid ranges 改为结构不可达。
+- 在 MIR placeholder inventory 中发布 LIR-lift body guard，并在 late-lowering builder 的 MIR→LIR 入口调用；补齐 unresolved name、unresolved member、Todo、CondBr non-local 条件等拒绝路径。
+- plain body 直接生成完整 LIR executable states；plain local effect-control 和 effect-step body 复制 state-owned LIR body；direct/bodyless callable references 使用稳定 `LirCallableRef`。
+- 修复 state-owned source slice / classification 在 materialization、opt 和 codegen 中的锚点传播；补齐 LIR terminator local liveness，避免 continuation frame 漏捕获 branch condition locals。
+- 修复 companion/static member namespace receiver 在 MIR 中遗留 `UnresolvedName` 的生产缺口。
+- 新增/更新测试：LIR lift statement/control-body 单测、MIR→LIR guard 单测，并刷新 effect-lowered golden fixtures。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-01-R：Review TC-01
 - **关注点**：

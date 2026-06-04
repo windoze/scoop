@@ -274,7 +274,7 @@ impl<'a> SegmentationBuilder<'a> {
                 state_id,
                 role,
                 self.state_slices(&blueprint.source_ranges),
-                self.lift_state_statements(&blueprint.source_ranges)?,
+                self.lift_state_statements(&blueprint.source_ranges),
                 terminator,
             ));
         }
@@ -377,7 +377,7 @@ impl<'a> SegmentationBuilder<'a> {
     fn lift_state_statements(
         &self,
         ranges: &[SourceRange],
-    ) -> Result<Vec<super::instruction::LirStatement>, EffectLoweringError> {
+    ) -> Vec<super::instruction::LirStatement> {
         let mut statements = Vec::new();
         for range in ranges {
             statements.extend(self.lift.lift_statement_range(
@@ -385,9 +385,9 @@ impl<'a> SegmentationBuilder<'a> {
                 range.block_id,
                 range.start_statement_index,
                 range.end_statement_index,
-            )?);
+            ));
         }
-        Ok(statements)
+        statements
     }
 
     fn state_slices(&self, ranges: &[SourceRange]) -> Vec<LateLoweredStateSlice> {

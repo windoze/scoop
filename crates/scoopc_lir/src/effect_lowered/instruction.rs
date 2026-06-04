@@ -1,4 +1,5 @@
 use scoopc_ids::LirCallableId;
+use scoopc_lir_facts::LirCallableRef;
 
 use crate::effect_facts::{CaseTag, ConcreteOpKey};
 use crate::mir::{
@@ -317,7 +318,7 @@ pub struct LirTypeMetadataLiteral {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirGcIntrinsicTransportMetadata {
-    pub callee: LirCallableId,
+    pub callee: LirCallableRef,
     pub operation: GcIntrinsicOperation,
     pub root_lifetime: GcRootLifetime,
     pub pairing: GcIntrinsicPairing,
@@ -372,7 +373,7 @@ impl From<ResumeMetadata> for LirResumeMetadata {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LirCallKind {
     Direct {
-        callee: LirCallableId,
+        callee: LirCallableRef,
         #[serde(default)]
         stable_template_key: Option<Box<StableTemplateKey>>,
         #[serde(default)]
@@ -1058,9 +1059,9 @@ mod tests {
     }
 
     #[test]
-    fn direct_and_closure_calls_use_callable_ids() {
+    fn direct_and_closure_calls_use_callable_handles() {
         let direct = LirCallKind::Direct {
-            callee: LirCallableId::from_raw(3),
+            callee: LirCallableRef::Local(LirCallableId::from_raw(3)),
             stable_template_key: None,
             stable_instance_key: None,
             intrinsic_entry_name: None,
@@ -1072,7 +1073,13 @@ mod tests {
             fn_ptr: LirCallableId::from_raw(4),
         };
 
-        assert!(matches!(direct, LirCallKind::Direct { .. }));
+        assert!(matches!(
+            direct,
+            LirCallKind::Direct {
+                callee: LirCallableRef::Local(_),
+                ..
+            }
+        ));
         assert!(matches!(closure, LirCallKind::Closure { .. }));
     }
 

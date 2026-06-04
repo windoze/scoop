@@ -49,6 +49,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         &self,
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
+        let mut local_statement_index = 0u32;
         for slice in state.source_slices() {
             let block = self
                 .body
@@ -78,7 +79,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
                 let classification = self
                     .callable
-                    .source_statement_classification(*slice, stmt_index)
+                    .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                        state.state_id(),
+                        LirStatementIndex::new(local_statement_index),
+                    ))
                     .ok_or_else(|| {
                         frontend_error(format!(
                             "body verifier 发现 callable `{}` state st{} source-slice bb{} stmt{} 缺少 classification",
@@ -87,8 +91,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                             slice.block_id().as_u32(),
                             stmt_index
                         ))
-                    })?;
+                })?;
                 self.verify_source_statement_classification(classification.kind())?;
+                local_statement_index = local_statement_index.saturating_add(1);
             }
         }
         Ok(())
