@@ -87,7 +87,7 @@
 - 新增/更新测试：LIR lift statement/control-body 单测、MIR→LIR guard 单测，并刷新 effect-lowered golden fixtures。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-01-R：Review TC-01
+### [DONE] TC-01-R：Review TC-01
 - **关注点**：
   - `lift.rs` lift 链全函数、**无 `Result`/`invalid_lift`**；former 失败均为 (a) guard 后 `unreachable!`/`debug_assert!`（结构不可达）或 (b) 上移到 MIR guard——**无第三种「就地 `Result`/`panic`-on-input」**。
   - 占位 guard 确在 **MIR→LIR 上游边界**、用 `placeholder_inventory`；LIR 端结构上见不到 `Todo`/`UnresolvedName`。
@@ -97,6 +97,13 @@
   - `grep -nE "Result<|invalid_lift" .../lift.rs` 仅余无关项；`grep -rnE "Todo|UnresolvedName|Unsupported" .../effect_lowered/{lift,instruction}.rs` 无新 escape 变体。
   - `grep -rn "lir_.*_to_mir\|_fqn\b" crates/scoopc_lir/src/effect_lowered` 无反向 shim / 句柄→FQN。
   - §9 基线绿；若 MIR guard 暴露 fixture 缺口，确认已按 STOP 规则登记 HIR 待补、**未回填占位**让其变绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-01` 落地结果：`lift.rs` lift 链为全函数，`rg -n "Result<|invalid_lift|EffectLoweringError" crates/scoopc_lir/src/effect_lowered/lift.rs` 无命中；占位/未解析 MIR 形状在 lift 中仅保留 guard 后结构不可达的 `unreachable!`。
+- 确认 MIR→LIR guard 位于 `placeholder_inventory::validate_body_for_lir_lift` 并在 LIR builder 入口调用，覆盖 MIR `Todo`、`UnresolvedName`、未解析 member、非 local `CondBr` 条件等拒绝路径。
+- 确认 plain body 通过 `lift_plain_body` 生成完整 `LirExecutableBody`，plain local effect-control 与 effect-step 通过 `lift_control_body` 复制 state-owned LIR body；相关单测覆盖语句序列与 state-owned body。
+- 反模式检查通过：未发现 `lir_*_to_mir`；`instruction.rs` 未定义 `Todo`/`UnresolvedName` LIR placeholder 变体；广义 `_fqn` 命中限于既有 root/symbol/布局键等非新增反向 shim。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 

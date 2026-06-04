@@ -1,39 +1,17 @@
 # Claude Execution Plan
 
-## Scope
+当前任务：`TC-01-R：Review TC-01`。
 
-- Work from `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`, then stop.
-- Keep `PLAN.md` unchanged unless phase-level sequencing or dependencies actually change.
-- Avoid workarounds; any blocker that prevents spec-correct completion must be fixed or scheduled as a prerequisite in `TODO.md`.
+范围约束：本次只完成 `TODO.md` 中第一个未完成任务。若发现阻塞当前 review 的缺陷或未调度失败，先修复或在 `TODO.md` 中插入最小必要前置任务，然后提交并停止；不推进到 `TC-02`。
 
-## Step-by-step Plan
+执行计划：
 
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Inspect recent git state and the latest commit only as needed to detect unfinished work directly relevant to that task.
-3. Read the files and tests relevant to the selected task; avoid broad unrelated triage.
-4. Implement the smallest correct change that fully satisfies the selected task.
-5. Add or update focused tests/fixtures required by the task.
-6. Run formatting first, then clippy with warnings denied, then the relevant and full validation commands required by the task.
-7. If any unscheduled test or fixture failure appears, either fix it or add the minimum prerequisite/follow-up task to `TODO.md` before completion.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record.
-9. Update this file after key progress points or plan changes.
-10. Inspect git status/diff/log, stage the intended files, commit with a task-tagged message, and stop without starting the next task.
+1. 在确定当前任务后检查最新提交和工作区状态，确认是否存在与 `TC-01-R` 直接相关的未完成事项或未提交变更。
+2. 按 `TC-01-R` 的关注点审查 `TC-01` 结果：确认 `lift.rs` lift 链为全函数、无 `Result`/`invalid_lift` 输入错误出口，占位失败已上移到 MIR→LIR guard。
+3. 执行并核对任务要求的 grep 检查：`lift.rs` 中的 `Result<|invalid_lift`，`effect_lowered/{lift,instruction}.rs` 中的占位/escape 相关标记，以及 `scoopc_lir/src/effect_lowered` 中的 `lir_.*_to_mir|_fqn`。
+4. 阅读关键实现与测试位置，确认 plain 与 effect-step callable body 都由完整 `LirExecutableBody` 承载，且没有 LIR→MIR 反向 shim、句柄→FQN 反转或 no-op 容忍。
+5. 按 §9 基线顺序验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。完整测试和 fixture 使用至少 30 分钟超时。
+6. 若所有审查与验证通过，更新 `TODO.md`：将 `TC-01-R` 标题标记为 `[DONE]`，补充完成记录；同步更新本计划文件的进度。
+7. 提交本次 review 相关改动后停止。
 
-## Current Status
-
-- Initial execution plan written before running project commands.
-- Read `TODO.md`; first incomplete task is `TC-01: LIR lift 落地为全函数，填满所有 callable body`.
-- Inspected TC-01 implementation points. `lift.rs` still returns `Result` through `invalid_lift`; callers are `builder.rs` and `segment.rs`.
-- Latest commit only updates planning files and does not introduce an unfinished issue directly changing TC-01 execution.
-- MIR production validation already rejects Todo placeholders, but `UnresolvedName` can still pass the current production guard, so the MIR→LIR guard must cover it explicitly.
-- Added the MIR-side LIR-lift placeholder guard and made the lift chain total.
-- Fixed strict clippy blockers discovered during validation.
-- First full `cargo test --all --all-targets` exposed two TC-01 regressions: direct bodyless callable references needed stable non-FQN LIR refs, and boundary source statement anchors needed mapping through state-owned LIR slices rather than block ids.
-- Implemented LIR callable refs for direct/bodyless targets and state-slice based boundary anchor mapping.
-- `cargo fmt` and `cargo clippy --all-targets -- -D warnings` now pass after those fixes.
-- The targeted `p7_default_pipeline` failures were fixed by preserving/rebasing source slices through state rewrites and by storing real source-slice coordinates in statement classifications.
-- `cargo test -p scoop --test p7_default_pipeline` now passes after rebuilding `scoopc`.
-- Final §9 validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `cargo build -p scoop -p scoopc`, `python3 tools/dependency_gate.py`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
-- Updated `TODO.md` to mark TC-01 `[DONE]` and recorded the completion summary.
-- Next step: inspect git status/diff/log, stage intended files, commit TC-01, and stop.
+当前进度：已完成 `TC-01-R` 审查与 §9 验证基线。`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py` 均通过。`TODO.md` 已将 `TC-01-R` 标记为 `[DONE]` 并写入完成记录。下一步检查 diff/status 后提交本次 review 改动并停止。
