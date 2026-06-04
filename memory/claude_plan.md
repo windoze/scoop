@@ -28,4 +28,5 @@
 - 已把普通 plain 入口的返回类型、source span、materialized closure 判定和 composite transport 校验切到 `LirExecutableBody` / LIR header；仅 `plain.local_effect_control()` 分支仍按现有 effect/source-slice 路径取 MIR source body，该残留与后续 `TC-03` 的 effect 语句迁移直接相关。
 - 已把 `mir_body/` 内剩余 source-slice 兼容层改走 LIR 发布的 `mir_source` 边界，直接 raw `crate::mir::*` body 类型 grep 清零。
 - 已完成 §9 验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py` 均通过。
-- 已在 `TODO.md` 将 `TC-02` 标为 `[DONE]` 并填写完成记录；下一步检查 diff/status 后提交。
+- 已在 `TODO.md` 将 `TC-02` 标为 `[DONE]` 并填写完成记录。
+- 已提交 `4a25c3eb [TC-02] Emit plain callables from LIR`；本次任务完成，停止前不继续下一个 TODO。
