@@ -1,21 +1,30 @@
-# T2-08 执行计划
+# 执行计划
 
-## 当前任务
+## 约束
+- 以 `TODO.md` 为任务排序和完成状态的唯一来源。
+- 本次只完成第一个未标记 `[DONE]` 的任务，然后停止。
+- 若遇到阻塞当前任务的未排期缺陷，先修复或在 `TODO.md` 中新增最小前置任务并提交。
+- 不使用规避方案；若实现与规格不匹配，修复根因或显式排期。
 
-- 首个未完成任务：`T2-08：lowering 产出 LIR 指令（state 拥有指令）`。
-- 任务目标：让 effect-lowering 阶段产出并保存 LIR 自有指令序列，替代 `LateLoweredSourceBody` / `LateLoweredStateSlice` 对 MIR body/slice 的回指；遇到 MIR 占位或未解析构造必须报错，不能在 LIR 中保留占位。
-- 当前状态：发现 `T2-08` 需要先补齐 LIR-owned executable body 容器，已在 `TODO.md` 插入前置任务 `T2-08A`；本次调用将只提交该任务重排/阻塞记录并停止。
+## 初始步骤
+1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务。
+2. 检查该任务的要求、依赖、验证命令与完成记录格式。
+3. 如最新提交明确提到与该任务直接相关的未完成事项，纳入当前任务范围或加入 `TODO.md` 前置项。
 
 ## 执行步骤
+1. 根据当前任务读取相关代码、测试、规格与历史上下文。
+2. 以最小正确改动实现任务，不修改无关用户变更。
+3. 添加或更新覆盖任务行为的测试/fixture。
+4. 按要求运行格式化、lint、测试与 fixture 验证。
+5. 若验证失败，修复失败；若失败属于未排期且不能在当前任务中修复，则在 `TODO.md` 中加入正确顺序的任务并停止。
+6. 完成后把当前任务标题标记为 `[DONE]`，更新完成记录。
+7. 提交本次任务相关全部改动并停止。
 
-1. 检查最近提交和工作区状态，确认无直接相关未完成提交需要并入当前阻塞处理。
-2. 阅读 `ir.rs`、`instruction.rs`、`segment.rs`、`builder.rs`、`materialize/*` 与 LLVM body codegen 消费路径，确认 `T2-08` 的严格删除条件。
-3. 在 `TODO.md` 中新增最小前置任务 `T2-08A`，并把 `T2-08` 显式依赖它。
-4. 记录阻塞原因：缺少 LIR-owned callable header/local/plain body 容器会导致删除 `LateLoweredSourceBody` 后无自包含 body 可供 codegen 消费。
-5. 因本次仅修改 `TODO.md` 和 `memory/claude_plan.md`，不运行格式、clippy、测试和 fixture；在记录中说明跳过原因。
-6. 检查 diff 与 git 状态，提交本次任务重排/阻塞记录，然后停止。
-
-## 进度记录
-
-- 2026-06-04：已确认首个未完成任务为 `T2-08`，准备检查代码与实现入口。
-- 2026-06-04：已检查 `ir.rs`、`instruction.rs`、`segment.rs`、`builder.rs`、`materialize/*` 与 LLVM body codegen 消费路径。发现 `T2-08` 严格执行前缺少一个具体前置：T2-07 只定义了 state 指令外壳，尚无 LIR-owned callable body/header/local table 与 plain body 表示；如果直接删除 `LateLoweredSourceBody` / `crate::mir::Body`，plain callable 和现有 codegen 无法从 LIR program 取得 locals、params、普通 CFG/body 终结符。按任务规则，将在 `TODO.md` 中插入最小前置任务并停止。
+## 当前进度
+- 已读取 `TODO.md`，第一个未完成任务是 `T2-08A：补齐 LIR executable body 容器前置`。
+- 已检查工作树与最新提交：最新提交 `[T2-08] Add executable body prerequisite` 直接对应当前前置任务，当前未提交改动仅有本计划文件。
+- 已读取 LIR IR 与指令定义：现有 `instruction.rs` 只有 `LirStateBody`，`ir.rs` 仍保留 `LateLoweredSourceCallable` / `LateLoweredSourceBody` MIR alias、plain body slice 和 source-slice based classification/consumption。
+- 实施策略：先新增 LIR-owned executable body 类型与 anchor，选择统一 state-owned body 表示，覆盖 plain callable header/param/local/body 容器；本任务不删除旧 MIR overlay，也不改 lowering/codegen 消费路径，留给依赖的 `T2-08`。
+- 已实现并验证：新增 executable body/header/param/local/state/anchor 类型和单测，`T2-08A` 已在 `TODO.md` 标记 `[DONE]`。
+- 已通过验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+- 下一步检查 diff/status，提交本次任务改动后停止。

@@ -27,15 +27,18 @@ pub(crate) mod segment;
 pub use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
 pub use instruction::{
-    LirCallAbiHandoffMetadata, LirCallArg, LirCallKind, LirCallTransportMetadata, LirCastOp,
-    LirClassCtorCallMetadata, LirDispatchKey, LirDispatchMetadata, LirGcIntrinsicTransportMetadata,
-    LirInstruction, LirInterpolatedStringPart, LirInterpolatedStringPartKind,
-    LirMemberAccessMetadata, LirMemberKey, LirMemberTarget, LirOperand, LirPattern, LirPerformArg,
+    LirBodyAnchor, LirCallAbiHandoffMetadata, LirCallArg, LirCallKind, LirCallTransportMetadata,
+    LirCallableHeader, LirCastOp, LirClassCtorCallMetadata, LirDispatchKey, LirDispatchMetadata,
+    LirExecutableBody, LirExecutableBodyFlavor, LirExecutableState,
+    LirGcIntrinsicTransportMetadata, LirInstruction, LirInterpolatedStringPart,
+    LirInterpolatedStringPartKind, LirLocalDecl, LirLocalSourceKind, LirMemberAccessMetadata,
+    LirMemberKey, LirMemberTarget, LirOperand, LirParam, LirPattern, LirPerformArg,
     LirRuntimeCastFailure, LirRuntimeCastMetadata, LirRuntimeCastResult, LirRuntimeNominalKind,
     LirRuntimePatternTypeTestKind, LirRuntimePatternTypeTestMetadata, LirRuntimeTypeDescriptorKey,
     LirRuntimeTypeDescriptorKind, LirRuntimeTypeParameterizedMatch, LirRuntimeTypeTestMetadata,
-    LirRvalue, LirStateBody, LirStatement, LirStatementKind, LirStructLitField, LirTerminator,
-    LirTopLevelRef, LirTopLevelRefTarget, LirTypeCheckOp, LirTypeMetadataLiteral, LirUnwindAction,
+    LirRvalue, LirStateBody, LirStateMachineBody, LirStatement, LirStatementIndex,
+    LirStatementKind, LirStructLitField, LirTerminator, LirTopLevelRef, LirTopLevelRefTarget,
+    LirTypeCheckOp, LirTypeMetadataLiteral, LirUnwindAction,
 };
 pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,

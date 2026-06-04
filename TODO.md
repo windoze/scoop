@@ -218,7 +218,7 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 确认 direct/closure/gc intrinsic callee、top-level global、class ctor、dispatch/member、perform result 等体内 live 引用使用 `LirCallableId`、`LirGlobalRootKey`、`LirNominalLayoutKey`、`LirDispatchKey`、`LirMemberKey`、`ConcreteOpKey` 或 `TypeId`；`instruction.rs` 中旧 `callee_fqn` / `fn_ptr: String` / `op_fqn` / `owner_fqn` / `member_fqn` / `class_fqn` 与 `Todo|UnresolvedName` 检查零命中。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-08A：补齐 LIR executable body 容器前置
+### [DONE] T2-08A：补齐 LIR executable body 容器前置
 - 在 LIR IR 中补齐 executable body 的自有容器，使后续删除 `LateLoweredSourceBody` / `crate::mir::Body` 不会让 callable 失去 body/header 信息。
 - 明确定义 callable header / params / locals 的 LIR-owned 表示；`LateLoweredCallable` 后续只能保留签名、参数名、span、local type/source 等 codegen 必需信息，不能继续依赖 `crate::mir::FunDecl` 的 `body: Option<Body>` 作为间接 overlay。
 - 补齐 plain callable 的 LIR body 表示（普通 CFG block 或统一 state-owned body，二选一并固定），覆盖无 local effect/control 的 plain callable 路径；不能只为 effect-step state 定义 body。
@@ -229,6 +229,13 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 执行 `T2-08` 前检查发现，当前 T2-07 只定义了 `LirStateBody` / `LirStatement` 等 state 指令外壳，尚未提供 LIR-owned callable locals/params/header 与 plain body 容器。
 - 若直接按 `T2-08` 删除 `LateLoweredSourceBody` 和 `LateLoweredProgram` 对 `crate::mir::Body` 的引用，LLVM body codegen、plain callable lowering、local slot 构造、参数绑定和 source classification 均无自包含 LIR body 可消费。
 - 因此将本任务作为 `T2-08` 的最小前置，先补齐 body 容器语义，再由 `T2-08` 执行 MIR-to-LIR lift 与 overlay 删除。
+
+完成记录（2026-06-04）：
+- `scoopc_lir::effect_lowered::instruction` 新增 LIR-owned executable body 容器：`LirCallableHeader`、`LirParam`、`LirLocalDecl`、`LirExecutableBody`、`LirStateMachineBody`、`LirExecutableState` 与 `LirExecutableBodyFlavor`。
+- plain callable body 表示固定为统一 state-owned body，不新增普通 CFG 平行模型；`LirExecutableBodyFlavor::Plain` 覆盖无 local effect/control 的 plain callable 路径，`PlainLocalEffectControl` / `EffectStep` 为后续 lift 接入保留同一容器形状。
+- 新增 `LirBodyAnchor` / `LirStatementIndex`，anchor 指向 LIR-owned state、statement、terminator 节点，替代后续 `(source_slice, statement_index)` 消费路径所需的节点身份。
+- 补充单测覆盖 plain executable body 的 header/param/local 表示、state/statement/terminator anchor 唯一性与 body-owned 查询，以及 LIR 指令枚举不引入 `Todo` / `UnresolvedName` 占位变体。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
 - 依赖：`T2-08A`。
