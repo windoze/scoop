@@ -195,11 +195,18 @@ pub struct LirCallableHash(/* 定长 hash */);
 
 ## 5. P2c — lift 指令、消除 overlay
 
-### [TODO] T2-07：定义 LIR 自有指令集（total，无占位变体）
+### [DONE] T2-07：定义 LIR 自有指令集（total，无占位变体）
 - 按 §1 的 MIR 清单定义 LIR 指令：statement（assign/store-member/store-global）、rvalue（MIR 24 变体中**已实现的真实构造**的 LIR 对应，引用全句柄化：callee→`LirCallableId`、global→句柄、member/dispatch→句柄、type→`TypeId`）、terminator（含 effect 的 Perform/Handle/Resume 控制，复用现 `LateLoweredStateTerminator` 体系）、operand（local/const）。
 - 句柄化 §1 列出的 11 处字符串 FQN。
 - **LIR 是 total 的，禁止任何占位/逃逸变体**：明确排除 MIR 的 `StatementKind::Todo`、`Rvalue::Todo`、`Rvalue::UnresolvedName`、`TerminatorKind::Todo`（及 transport 内同类占位）。「未实现 / 未解析」**不是可表示的 LIR 状态**——它们是 MIR 的 WIP 逃逸口，正是本重构要消灭的「可表示的非法/未完成状态」。
 - 验收：类型定义编译通过；与现 `LateLoweredState`/`StateTerminator` 体系衔接清楚；**LIR 指令枚举中 `grep` 无 `Todo`/`UnresolvedName`**。
+
+完成记录（2026-06-04）：
+- 新增 `crates/scoopc_lir/src/effect_lowered/instruction.rs`，定义 LIR operand、statement、rvalue、call kind、runtime metadata、transport wrapper、unwind action 与 `LirInstruction`，并在 `effect_lowered::mod` 统一导出。
+- LIR rvalue 覆盖 MIR 已实现的真实构造；MIR 占位/逃逸构造未进入 LIR 指令枚举。`LirTerminator` 复用现有 `LateLoweredStateTerminator`，`LirStateBody` 显式绑定 state-owned statement 序列与 state graph terminator，供 T2-08 接入实际 lift。
+- §1 中列出的 body 内 FQN 引用改为句柄化类型：direct/closure/closure value/gc intrinsic callee 使用 `LirCallableId`，global 使用 `LirGlobalRootKey`，member/dispatch 使用 `LirMemberKey`/`LirDispatchKey`/`LirNominalLayoutKey`，effect op 使用 `ConcreteOpKey`，class ctor 使用 `LirNominalLayoutKey`，runtime nominal metadata 使用 `LirNominalLayoutKey`。
+- 新增单测覆盖 direct/closure callable id 与 global/member handle 形状；确认 `crates/scoopc_lir/src/effect_lowered/instruction.rs` 中 `Todo|UnresolvedName` 零命中。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-07-R：Review T2-07
 - 关注点：覆盖 MIR 全部**已实现**的 statement/rvalue/terminator/callkind（无遗漏真实变体）；所有体内引用为句柄/TypeId，无 String FQN；effect 控制（Perform/Handle/Resume/Suspend）保真；**LIR 指令枚举无 `Todo`/`UnresolvedName`/占位**。

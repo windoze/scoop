@@ -16,6 +16,7 @@
 pub mod builder;
 pub mod dump;
 pub(crate) mod frame;
+pub mod instruction;
 pub mod ir;
 pub mod materialize;
 pub mod opt;
@@ -25,6 +26,17 @@ pub(crate) mod segment;
 
 pub use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
+pub use instruction::{
+    LirCallAbiHandoffMetadata, LirCallArg, LirCallKind, LirCallTransportMetadata, LirCastOp,
+    LirClassCtorCallMetadata, LirDispatchKey, LirDispatchMetadata, LirGcIntrinsicTransportMetadata,
+    LirInstruction, LirInterpolatedStringPart, LirInterpolatedStringPartKind,
+    LirMemberAccessMetadata, LirMemberKey, LirMemberTarget, LirOperand, LirPattern, LirPerformArg,
+    LirRuntimeCastFailure, LirRuntimeCastMetadata, LirRuntimeCastResult, LirRuntimeNominalKind,
+    LirRuntimePatternTypeTestKind, LirRuntimePatternTypeTestMetadata, LirRuntimeTypeDescriptorKey,
+    LirRuntimeTypeDescriptorKind, LirRuntimeTypeParameterizedMatch, LirRuntimeTypeTestMetadata,
+    LirRvalue, LirStateBody, LirStatement, LirStatementKind, LirStructLitField, LirTerminator,
+    LirTopLevelRef, LirTopLevelRefTarget, LirTypeCheckOp, LirTypeMetadataLiteral, LirUnwindAction,
+};
 pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
