@@ -208,9 +208,15 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 新增单测覆盖 direct/closure callable id 与 global/member handle 形状；确认 `crates/scoopc_lir/src/effect_lowered/instruction.rs` 中 `Todo|UnresolvedName` 零命中。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-07-R：Review T2-07
+### [DONE] T2-07-R：Review T2-07
 - 关注点：覆盖 MIR 全部**已实现**的 statement/rvalue/terminator/callkind（无遗漏真实变体）；所有体内引用为句柄/TypeId，无 String FQN；effect 控制（Perform/Handle/Resume/Suspend）保真；**LIR 指令枚举无 `Todo`/`UnresolvedName`/占位**。
 - 确认：逐项对照 §1 清单打勾；`grep` LIR 指令定义无占位变体；编译 + clippy。
+
+完成记录（2026-06-04）：
+- Review 对照 MIR 已实现的 statement/rvalue/callkind 与 state-level terminator 形状确认 T2-07 的 LIR 指令定义覆盖当前真实构造；MIR 的 `Todo` / `UnresolvedName` / unwind todo 未进入 LIR 指令枚举。
+- Review 发现 `LirMemberAccessMetadata.resolved: Option<LirMemberTarget>` 仍允许未解析成员作为 LIR 状态可表示；已改为必需的 `LirMemberTarget`，并补充单测覆盖 member access 必须携带解析后的句柄。
+- 确认 direct/closure/gc intrinsic callee、top-level global、class ctor、dispatch/member、perform result 等体内 live 引用使用 `LirCallableId`、`LirGlobalRootKey`、`LirNominalLayoutKey`、`LirDispatchKey`、`LirMemberKey`、`ConcreteOpKey` 或 `TypeId`；`instruction.rs` 中旧 `callee_fqn` / `fn_ptr: String` / `op_fqn` / `owner_fqn` / `member_fqn` / `class_fqn` 与 `Todo|UnresolvedName` 检查零命中。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
 - 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。

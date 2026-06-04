@@ -252,7 +252,7 @@ pub struct LirTopLevelRef {
 pub struct LirMemberAccessMetadata {
     pub name: String,
     pub receiver_ty: TypeId,
-    pub resolved: Option<LirMemberTarget>,
+    pub resolved: LirMemberTarget,
     pub hidden_effects: EffectRow,
 }
 
@@ -582,5 +582,21 @@ mod tests {
 
         assert!(matches!(global, LirTopLevelRefTarget::Global(_)));
         assert!(matches!(member, LirMemberTarget::Value { .. }));
+    }
+
+    #[test]
+    fn member_access_requires_resolved_handle() {
+        let mut types = crate::ty::TypeStore::new();
+        let builtins = types.intern_builtins();
+        let metadata = LirMemberAccessMetadata {
+            name: "value".to_string(),
+            receiver_ty: builtins.any,
+            resolved: LirMemberTarget::Value {
+                member: LirMemberKey::new("sample.Box.value"),
+            },
+            hidden_effects: EffectRow::pure(),
+        };
+
+        assert!(matches!(metadata.resolved, LirMemberTarget::Value { .. }));
     }
 }

@@ -1,30 +1,37 @@
 # Claude Execution Plan
 
-## Scope
+## Status
 
-- Follow `TODO.md` as the authoritative task source.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after committing that one task, or after committing any required prerequisite/blocker bookkeeping if the task cannot proceed.
+- Current invocation started on 2026-06-04.
+- `TODO.md` has been read.
+- First incomplete task identified: `T2-07-R：Review T2-07`.
+- Latest commit is `[T2-07] Define total LIR instruction set`; it does not mention an unfinished issue.
+- Review finding: `LirMemberAccessMetadata` still models `resolved` as `Option<LirMemberTarget>`, allowing unresolved member references to be represented in LIR. This is in scope for T2-07-R because T2-07 requires body references to be handle-based and forbids unresolved/placeholder states in LIR instruction definitions.
+- Fix applied: `LirMemberAccessMetadata.resolved` is now a required `LirMemberTarget`; a unit test constructs member access metadata with an explicit handle.
+- Validation passed: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo test --all --all-targets`; `cargo build -p scoop -p scoopc`; `python3 tools/dependency_gate.py`; `python3 tools/spec_fixtures.py check`; `python3 tools/run_fixtures.py`.
+- `TODO.md` has been updated to mark `T2-07-R` as `[DONE]` and record the review finding/fix.
+- Git status/diff/log have been inspected; modified files are `TODO.md`, `crates/scoopc_lir/src/effect_lowered/instruction.rs`, and `memory/claude_plan.md`.
+- Next step is to commit these T2-07-R changes.
 
-## Step-by-Step Plan
+## Execution Plan
 
-1. Read `TODO.md` and identify the first incomplete task by heading prefix.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Read the task details, dependencies, validation requirements, and any relevant project files.
-4. Implement the task as written, avoiding workarounds or scope narrowing.
-5. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit, and stop.
-6. Run validation in the required order for code changes: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, then relevant/full tests and fixture suite as required.
-7. Address any failing unscheduled test or fixture by fixing it or scheduling it before marking the task complete.
-8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
-9. Update this progress file at key milestones.
-10. Inspect git status/diff/log, commit all intended changes with a task-specific message, and stop.
+1. Read `TODO.md` first and identify the first incomplete task exactly as ordered there.
+2. Check the latest commit message only for an explicitly unfinished issue directly relevant to that selected task.
+3. Read the selected task body, validation requirements, dependencies, and completion-record expectations.
+4. Inspect only the files and code paths relevant to that task.
+5. Implement the task as written, without narrowing scope or introducing workaround behavior.
+6. If a concrete prerequisite or spec mismatch blocks correct implementation, update `TODO.md` with the minimum prerequisite task in dependency order, record the blocker here, commit that bookkeeping, and stop.
+7. Run formatting first with `cargo fmt` if Rust/code changes are made.
+8. Run linting with `cargo clippy --all-targets -- -D warnings` when applicable.
+9. Run the relevant tests and fixtures required by the task. If full validation is required, run `cargo test --all --all-targets` and `python3 tools/run_fixtures.py` with long timeouts.
+10. Fix any unscheduled failing test or fixture, or add the minimum explicit follow-up/prerequisite task in `TODO.md` before completion.
+11. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record only after implementation and required validation are complete.
+12. Update this plan file when key steps complete or if the plan changes.
+13. Inspect git status and diff, then commit all changes required for this task with a descriptive task-tagged commit message.
+14. Stop after completing and committing exactly one task.
 
-## Progress
+## Current Notes
 
-- Plan initialized before running project commands.
-- Identified first incomplete task: `T2-07` (define total LIR instruction set with handle-based references and no placeholder variants).
-- Latest commit `5794d914 [T2-06-R] Review LIR layout ownership` has no explicit unfinished issue directly relevant to `T2-07`.
-- Added a new `effect_lowered::instruction` module defining LIR operands, statements, rvalues, call kinds, transport wrappers, runtime metadata, and a state-terminator alias to the existing late-lowered state graph terminator.
-- Added `LirStateBody` to explicitly bind state-owned LIR statements to the existing late-lowered state terminator type without replacing state storage yet.
-- Validation passed: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `cargo build -p scoop -p scoopc`, `python3 tools/dependency_gate.py`, `python3 tools/spec_fixtures.py check`, and `python3 tools/run_fixtures.py`.
-- Updated `TODO.md`: marked `T2-07` as `[DONE]` and added the completion record.
+- This file contains an execution plan and progress log, not hidden chain-of-thought reasoning.
+- `PLAN.md` will only be updated if phase-level sequencing, dependencies, assumptions, or completion criteria change.
+- Current task is a review task; if review finds a task-scoped defect, fix it before marking T2-07-R done.
