@@ -562,15 +562,6 @@ pub struct LirClassCtorInitFacts {
     pub steps: Vec<LirClassCtorInitStepFacts>,
 }
 
-/// Stable class-constructor call-site identity published for backend source payload lowering.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub struct LirClassCtorCallSiteKey {
-    pub owner_callable: LirCallableId,
-    pub site_id: SiteId,
-}
-
 /// Constructor target and argument mapping selected before backend lowering.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassCtorCallSiteFacts {
@@ -582,15 +573,6 @@ pub struct LirClassCtorCallSiteFacts {
     pub selected_ctor_span_end: Option<usize>,
     pub result_ty: TypeId,
     pub arg_mapping: Vec<Option<usize>>,
-}
-
-/// Stable reflection intrinsic call-site identity published for backend source payload lowering.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub struct LirReflectionCallSiteKey {
-    pub owner_callable: LirCallableId,
-    pub site_id: SiteId,
 }
 
 /// Type arguments for reflection intrinsics keyed by published call-site identity.
@@ -766,33 +748,6 @@ pub struct LirSourceSliceKey {
     pub start_statement_index: u32,
     pub end_statement_index: u32,
     pub includes_terminator: bool,
-}
-
-/// Stable dynamic-invoke identity scoped by owner callable and source site.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub struct LirDynamicInvokeKey {
-    pub owner_callable: LirCallableId,
-    pub site_id: SiteId,
-}
-
-/// Stable source call-site identity scoped by owner callable and MIR/LIR site id.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub struct LirSourceCallSiteKey {
-    pub owner_callable: LirCallableId,
-    pub site_id: SiteId,
-}
-
-/// Stable dispatch identity scoped by owner callable and source site.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub struct LirDispatchKey {
-    pub owner_callable: LirCallableId,
-    pub site_id: SiteId,
 }
 
 /// Body-version identity and semantic flags selected before LIR lowering.
@@ -984,8 +939,8 @@ pub struct LirPlainCallSiteFacts {
     pub source_slice: LirSourceSliceKey,
     pub statement_index: u32,
     pub contract: LirCallSiteContract,
-    pub dynamic_invoke: Option<LirDynamicInvokeKey>,
-    pub dispatch: Option<LirDispatchKey>,
+    pub dynamic_invoke: Option<LirDynamicInvokeContract>,
+    pub dispatch: Option<LirDispatchContract>,
 }
 
 /// Plain callable ordinary ABI and body-source contract.
@@ -1065,6 +1020,9 @@ pub struct LirCallableFacts {
     pub return_ty: TypeId,
     pub body_version: LirBodyVersionFacts,
     pub resolved_outward_cases: Vec<LirCaseKey>,
+    pub source_call_sites: Vec<LirSourceCallSiteFacts>,
+    pub class_ctor_call_sites: Vec<LirClassCtorCallSiteFacts>,
+    pub reflection_call_sites: Vec<LirReflectionCallSiteFacts>,
     pub contract: LirCallableContract,
 }
 
@@ -1083,6 +1041,78 @@ impl LirCallableFacts {
 
     pub fn is_top_level_source_callable(&self) -> bool {
         self.source_kind == LirCallableSourceKind::TopLevel
+    }
+
+    pub fn dynamic_invoke_contracts(&self) -> Vec<&LirDynamicInvokeContract> {
+        let mut contracts = Vec::new();
+        match &self.contract {
+            LirCallableContract::Plain(plain) => {
+                for site in &plain.call_sites {
+                    if let Some(contract) = site.dynamic_invoke.as_ref() {
+                        contracts.push(contract);
+                    }
+                }
+                if let Some(control) = plain.local_effect_control.as_ref() {
+                    collect_control_dynamic_invokes(control, &mut contracts);
+                }
+            }
+            LirCallableContract::EffectStep(effect) => {
+                collect_control_dynamic_invokes(&effect.control_body, &mut contracts);
+            }
+        }
+        contracts
+    }
+
+    pub fn dispatch_contracts(&self) -> Vec<&LirDispatchContract> {
+        let mut contracts = Vec::new();
+        match &self.contract {
+            LirCallableContract::Plain(plain) => {
+                for site in &plain.call_sites {
+                    if let Some(contract) = site.dispatch.as_ref() {
+                        contracts.push(contract);
+                    }
+                }
+                if let Some(control) = plain.local_effect_control.as_ref() {
+                    collect_control_dispatches(control, &mut contracts);
+                }
+            }
+            LirCallableContract::EffectStep(effect) => {
+                collect_control_dispatches(&effect.control_body, &mut contracts);
+            }
+        }
+        contracts
+    }
+}
+
+fn collect_control_dynamic_invokes<'a>(
+    control: &'a LirControlBodyFacts,
+    out: &mut Vec<&'a LirDynamicInvokeContract>,
+) {
+    for boundary in &control.boundary_map.boundaries {
+        if let Some(contract) = boundary.dynamic_invoke.as_ref() {
+            out.push(contract);
+        }
+    }
+    for site in &control.source_statement_call_sites {
+        if let Some(contract) = site.dynamic_invoke.as_ref() {
+            out.push(contract);
+        }
+    }
+}
+
+fn collect_control_dispatches<'a>(
+    control: &'a LirControlBodyFacts,
+    out: &mut Vec<&'a LirDispatchContract>,
+) {
+    for boundary in &control.boundary_map.boundaries {
+        if let Some(contract) = boundary.dispatch.as_ref() {
+            out.push(contract);
+        }
+    }
+    for site in &control.source_statement_call_sites {
+        if let Some(contract) = site.dispatch.as_ref() {
+            out.push(contract);
+        }
     }
 }
 
@@ -1140,8 +1170,8 @@ pub struct LirBoundaryFacts {
     pub owner_state: LirStateKey,
     pub resume_state: LirStateKey,
     pub lowering_kind: Option<String>,
-    pub dynamic_invoke: Option<LirDynamicInvokeKey>,
-    pub dispatch: Option<LirDispatchKey>,
+    pub dynamic_invoke: Option<LirDynamicInvokeContract>,
+    pub dispatch: Option<LirDispatchContract>,
 }
 
 /// Resume-state query keys for a control body.
@@ -1156,6 +1186,16 @@ pub struct LirResumeStateFacts {
     pub state_id: LirStateKey,
 }
 
+/// Dynamic/dispatch payload attached to a control-body source statement node.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LirControlSourceStatementCallSiteFacts {
+    pub site_id: SiteId,
+    pub source_slice: LirSourceSliceKey,
+    pub statement_index: u32,
+    pub dynamic_invoke: Option<LirDynamicInvokeContract>,
+    pub dispatch: Option<LirDispatchContract>,
+}
+
 /// Shared control-body contract used by effect-step callables and plain local control.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirControlBodyFacts {
@@ -1164,6 +1204,7 @@ pub struct LirControlBodyFacts {
     pub frame_schema: LirFrameSchemaFacts,
     pub boundary_map: LirBoundaryMapFacts,
     pub resume_state_map: LirResumeStateMapFacts,
+    pub source_statement_call_sites: Vec<LirControlSourceStatementCallSiteFacts>,
     pub source_statement_count: usize,
     pub continuation_object: LirContinuationObjectKey,
     pub resume_packings: Vec<LirResumePackingKey>,
@@ -1214,7 +1255,7 @@ pub enum LirDynamicInvokeCarrierKind {
 pub struct LirDynamicInvokeCarrierContract {
     pub kind: LirDynamicInvokeCarrierKind,
     pub source_ty: Option<TypeId>,
-    pub dispatch: Option<LirDispatchKey>,
+    pub dispatch: Option<LirDispatchContract>,
 }
 
 /// Backend-neutral dynamic-invoke contract for a call site.

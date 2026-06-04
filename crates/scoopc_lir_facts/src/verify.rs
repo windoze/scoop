@@ -1435,57 +1435,60 @@ fn verify_class_ctor_init_contracts(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
-    for (key, site) in &facts.class_ctor_call_sites {
-        let key_text = class_ctor_call_site_key_text(key);
-        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "map key and payload identity differ",
-            });
-        }
-        if !has_callable_id(facts, key.owner_callable) {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "owner callable is not published",
-            });
-        }
-        if site.selected_ctor_span_start.is_some() != site.selected_ctor_span_end.is_some() {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "selected ctor span endpoints are incomplete",
-            });
-        }
-        if site.class_fqn.is_empty() {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "class identity is empty",
-            });
-        }
-        let Some(target_init) = facts.class_ctor_inits.get(&site.target_init) else {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "target constructor init body is unpublished",
-            });
-        };
-        if target_init.class_fqn.is_empty() {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "target init class identity is empty",
-            });
-        }
-        if site.arg_mapping.len() != target_init.params.len() {
-            return Err(VerifyError::InvalidClassCtorCallSite {
-                key: key_text,
-                reason: "argument mapping arity does not match target constructor params",
-            });
-        }
-        let mut mapped_args = BTreeSet::new();
-        for arg_idx in site.arg_mapping.iter().flatten().copied() {
-            if !mapped_args.insert(arg_idx) {
+    for (owner, callable) in &facts.callables {
+        let mut seen_sites = BTreeSet::new();
+        for site in &callable.class_ctor_call_sites {
+            let key_text = site_key_text(site.owner_callable, site.site_id);
+            if site.owner_callable != *owner {
                 return Err(VerifyError::InvalidClassCtorCallSite {
                     key: key_text,
-                    reason: "argument mapping reuses a source argument",
+                    reason: "callable owner and payload identity differ",
                 });
+            }
+            if !seen_sites.insert(site.site_id) {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "duplicate class constructor call-site identity",
+                });
+            }
+            if site.selected_ctor_span_start.is_some() != site.selected_ctor_span_end.is_some() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "selected ctor span endpoints are incomplete",
+                });
+            }
+            if site.class_fqn.is_empty() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "class identity is empty",
+                });
+            }
+            let Some(target_init) = facts.class_ctor_inits.get(&site.target_init) else {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "target constructor init body is unpublished",
+                });
+            };
+            if target_init.class_fqn.is_empty() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "target init class identity is empty",
+                });
+            }
+            if site.arg_mapping.len() != target_init.params.len() {
+                return Err(VerifyError::InvalidClassCtorCallSite {
+                    key: key_text,
+                    reason: "argument mapping arity does not match target constructor params",
+                });
+            }
+            let mut mapped_args = BTreeSet::new();
+            for arg_idx in site.arg_mapping.iter().flatten().copied() {
+                if !mapped_args.insert(arg_idx) {
+                    return Err(VerifyError::InvalidClassCtorCallSite {
+                        key: key_text,
+                        reason: "argument mapping reuses a source argument",
+                    });
+                }
             }
         }
     }
@@ -1493,34 +1496,37 @@ fn verify_class_ctor_call_site_contracts(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_reflection_call_site_contracts(facts: &LirFacts) -> Result<()> {
-    for (key, site) in &facts.reflection_call_sites {
-        let key_text = reflection_call_site_key_text(key);
-        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
-            return Err(VerifyError::InvalidReflectionCallSite {
-                key: key_text,
-                reason: "map key and payload identity differ",
-            });
-        }
-        if !has_callable_id(facts, key.owner_callable) {
-            return Err(VerifyError::InvalidReflectionCallSite {
-                key: key_text,
-                reason: "owner callable is not published",
-            });
-        }
-        if site.intrinsic_name.is_empty() || site.type_args.len() != 1 {
-            return Err(VerifyError::InvalidReflectionCallSite {
-                key: key_text,
-                reason: "reflection intrinsic must publish exactly one type argument and a name",
-            });
-        }
-        if !matches!(
-            site.intrinsic_name.as_str(),
-            "sizeOf" | "alignOf" | "kindOf" | "descOf"
-        ) {
-            return Err(VerifyError::InvalidReflectionCallSite {
-                key: key_text,
-                reason: "unknown reflection intrinsic name",
-            });
+    for (owner, callable) in &facts.callables {
+        let mut seen_sites = BTreeSet::new();
+        for site in &callable.reflection_call_sites {
+            let key_text = site_key_text(site.owner_callable, site.site_id);
+            if site.owner_callable != *owner {
+                return Err(VerifyError::InvalidReflectionCallSite {
+                    key: key_text,
+                    reason: "callable owner and payload identity differ",
+                });
+            }
+            if !seen_sites.insert(site.site_id) {
+                return Err(VerifyError::InvalidReflectionCallSite {
+                    key: key_text,
+                    reason: "duplicate reflection call-site identity",
+                });
+            }
+            if site.intrinsic_name.is_empty() || site.type_args.len() != 1 {
+                return Err(VerifyError::InvalidReflectionCallSite {
+                    key: key_text,
+                    reason: "reflection intrinsic must publish exactly one type argument and a name",
+                });
+            }
+            if !matches!(
+                site.intrinsic_name.as_str(),
+                "sizeOf" | "alignOf" | "kindOf" | "descOf"
+            ) {
+                return Err(VerifyError::InvalidReflectionCallSite {
+                    key: key_text,
+                    reason: "unknown reflection intrinsic name",
+                });
+            }
         }
     }
     Ok(())
@@ -1866,96 +1872,112 @@ fn verify_control_body(
 }
 
 fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
-    for (key, site) in &facts.source_call_sites {
-        let key_text = source_call_site_key_text(key);
-        if key.owner_callable != site.owner_callable || key.site_id != site.site_id {
-            return Err(VerifyError::InvalidSourceCallSite {
-                key: key_text,
-                reason: "map key and payload identity differ",
-            });
+    for (owner, callable) in &facts.callables {
+        let mut seen_sites = BTreeSet::new();
+        for site in &callable.source_call_sites {
+            let key_text = site_key_text(site.owner_callable, site.site_id);
+            if site.owner_callable != *owner {
+                return Err(VerifyError::InvalidSourceCallSite {
+                    key: key_text,
+                    reason: "callable owner and payload identity differ",
+                });
+            }
+            if !seen_sites.insert(site.site_id) {
+                return Err(VerifyError::InvalidSourceCallSite {
+                    key: key_text,
+                    reason: "duplicate source call-site identity",
+                });
+            }
+            if site
+                .semantic_root_fqn
+                .as_ref()
+                .is_some_and(|root| root.is_empty())
+            {
+                return Err(VerifyError::InvalidSourceCallSite {
+                    key: key_text,
+                    reason: "semantic root is empty",
+                });
+            }
+            if site
+                .named_entry_name
+                .as_ref()
+                .is_some_and(|entry| entry.is_empty())
+            {
+                return Err(VerifyError::InvalidSourceCallSite {
+                    key: key_text,
+                    reason: "named intrinsic entry is empty",
+                });
+            }
+            verify_call_site_contract(
+                facts,
+                &callable_id_text(site.owner_callable),
+                &site.contract,
+            )?;
         }
-        if !has_callable_id(facts, key.owner_callable) {
-            return Err(VerifyError::InvalidSourceCallSite {
-                key: key_text,
-                reason: "owner callable is not published",
-            });
-        }
-        if site
-            .semantic_root_fqn
-            .as_ref()
-            .is_some_and(|root| root.is_empty())
-        {
-            return Err(VerifyError::InvalidSourceCallSite {
-                key: key_text,
-                reason: "semantic root is empty",
-            });
-        }
-        if site
-            .named_entry_name
-            .as_ref()
-            .is_some_and(|entry| entry.is_empty())
-        {
-            return Err(VerifyError::InvalidSourceCallSite {
-                key: key_text,
-                reason: "named intrinsic entry is empty",
-            });
-        }
-        verify_call_site_contract(facts, &callable_id_text(key.owner_callable), &site.contract)?;
     }
     Ok(())
 }
 
 fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
-    for (key, contract) in &facts.dynamic_invokes {
-        let key_text = dynamic_key_text(key);
-        if !has_callable_id(facts, key.owner_callable) {
-            return Err(VerifyError::MissingDynamicInvokeOwner { key: key_text });
-        }
-        verify_call_site_contract(facts, &callable_id_text(key.owner_callable), &contract.call)?;
-        if let Some(step_schema) = contract.call.callee_step_schema
-            && !facts.step_types.contains_key(&step_schema)
-        {
-            return Err(VerifyError::MissingDynamicInvokeTargetStep {
-                key: key_text,
-                step_schema: step_schema.as_u32(),
-            });
-        }
-        if let Some(dispatch_key) = &contract.carrier.dispatch
-            && !facts.dispatches.contains_key(dispatch_key)
-        {
-            return Err(VerifyError::MissingDynamicInvokeDispatch { key: key_text });
-        }
-        if contract.target_body_versions.len() != contract.call.target_callables.len() {
-            return Err(VerifyError::MissingDynamicInvokeTargetStep {
-                key: key_text,
-                step_schema: 0,
-            });
-        }
-        for (target, body_version) in contract
-            .call
-            .target_callables
-            .iter()
-            .zip(contract.target_body_versions.iter())
-        {
-            let Some(target_id) = target.local_id() else {
-                return Err(VerifyError::MissingDynamicInvokeTargetStep {
-                    key: key_text,
-                    step_schema: 0,
-                });
-            };
-            let Some(callable) = facts.callables.get(&target_id) else {
-                return Err(VerifyError::MissingDynamicInvokeTargetStep {
-                    key: key_text,
-                    step_schema: 0,
-                });
-            };
-            if body_version.owner_canonical_text()
-                != callable.body_version.key.owner_canonical_text()
+    for callable in facts.callables.values() {
+        for contract in callable.dynamic_invoke_contracts() {
+            let key_text = site_key_text(contract.owner_callable, contract.site_id);
+            if !has_callable_id(facts, contract.owner_callable) {
+                return Err(VerifyError::MissingDynamicInvokeOwner { key: key_text });
+            }
+            verify_call_site_contract(
+                facts,
+                &callable_id_text(contract.owner_callable),
+                &contract.call,
+            )?;
+            if let Some(step_schema) = contract.call.callee_step_schema
+                && !facts.step_types.contains_key(&step_schema)
             {
                 return Err(VerifyError::MissingDynamicInvokeTargetStep {
                     key: key_text,
+                    step_schema: step_schema.as_u32(),
+                });
+            }
+            if let Some(dispatch) = &contract.carrier.dispatch {
+                if dispatch.owner_callable != contract.owner_callable
+                    || dispatch.site_id != contract.site_id
+                {
+                    return Err(VerifyError::MissingDynamicInvokeDispatch { key: key_text });
+                }
+                verify_dispatch_contract(facts, dispatch)?;
+            }
+            if contract.target_body_versions.len() != contract.call.target_callables.len() {
+                return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                    key: key_text,
                     step_schema: 0,
                 });
+            }
+            for (target, body_version) in contract
+                .call
+                .target_callables
+                .iter()
+                .zip(contract.target_body_versions.iter())
+            {
+                let Some(target_id) = target.local_id() else {
+                    return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                        key: key_text,
+                        step_schema: 0,
+                    });
+                };
+                let Some(callable) = facts.callables.get(&target_id) else {
+                    return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                        key: key_text,
+                        step_schema: 0,
+                    });
+                };
+                if body_version.owner_canonical_text()
+                    != callable.body_version.key.owner_canonical_text()
+                {
+                    return Err(VerifyError::MissingDynamicInvokeTargetStep {
+                        key: key_text,
+                        step_schema: 0,
+                    });
+                }
             }
         }
     }
@@ -1963,15 +1985,22 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
-    for (key, dispatch) in &facts.dispatches {
-        if !has_callable_id(facts, key.owner_callable) {
-            return Err(VerifyError::MissingDispatchOwner {
-                key: dispatch_key_text(key),
-            });
+    for callable in facts.callables.values() {
+        for dispatch in callable.dispatch_contracts() {
+            verify_dispatch_contract(facts, dispatch)?;
         }
-        for target in &dispatch.candidate_targets {
-            verify_dispatch_target(facts, *target, &dispatch.member_fqn)?;
-        }
+    }
+    Ok(())
+}
+
+fn verify_dispatch_contract(facts: &LirFacts, dispatch: &crate::LirDispatchContract) -> Result<()> {
+    if !has_callable_id(facts, dispatch.owner_callable) {
+        return Err(VerifyError::MissingDispatchOwner {
+            key: site_key_text(dispatch.owner_callable, dispatch.site_id),
+        });
+    }
+    for target in &dispatch.candidate_targets {
+        verify_dispatch_target(facts, *target, &dispatch.member_fqn)?;
     }
     Ok(())
 }
@@ -2019,42 +2048,10 @@ fn verify_surface_resume_dispatches(facts: &LirFacts) -> Result<()> {
     Ok(())
 }
 
-fn dynamic_key_text(key: &crate::LirDynamicInvokeKey) -> String {
+fn site_key_text(owner_callable: scoopc_ids::LirCallableId, site_id: scoopc_ids::SiteId) -> String {
     format!(
         "{}:site{}",
-        callable_id_text(key.owner_callable),
-        key.site_id.as_u32()
-    )
-}
-
-fn source_call_site_key_text(key: &crate::LirSourceCallSiteKey) -> String {
-    format!(
-        "{}:site{}",
-        callable_id_text(key.owner_callable),
-        key.site_id.as_u32()
-    )
-}
-
-fn class_ctor_call_site_key_text(key: &crate::LirClassCtorCallSiteKey) -> String {
-    format!(
-        "{}:site{}",
-        callable_id_text(key.owner_callable),
-        key.site_id.as_u32()
-    )
-}
-
-fn reflection_call_site_key_text(key: &crate::LirReflectionCallSiteKey) -> String {
-    format!(
-        "{}:site{}",
-        callable_id_text(key.owner_callable),
-        key.site_id.as_u32()
-    )
-}
-
-fn dispatch_key_text(key: &crate::LirDispatchKey) -> String {
-    format!(
-        "{}:site{}",
-        callable_id_text(key.owner_callable),
-        key.site_id.as_u32()
+        callable_id_text(owner_callable),
+        site_id.as_u32()
     )
 }

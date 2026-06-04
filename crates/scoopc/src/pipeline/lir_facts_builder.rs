@@ -49,6 +49,12 @@ struct LirFactsBuildContext<'a> {
     body_versions_by_id: HashMap<LirCallableId, BodyVersionKey>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct BuildCallSiteKey {
+    owner_callable: LirCallableId,
+    site_id: SiteId,
+}
+
 #[derive(Debug, Clone)]
 struct MaterializedCallableSignature {
     source_kind: LirCallableSourceKind,
@@ -105,15 +111,19 @@ pub(crate) fn build_lir_facts(
     let mut dynamic_invokes = BTreeMap::new();
     let mut dispatches = BTreeMap::new();
     let callable_symbols = build_callable_symbol_facts(&ctx)?;
-    let callables = build_callable_facts(
-        &ctx,
-        &callable_symbols,
-        &mut dynamic_invokes,
-        &mut dispatches,
-    )?;
     let source_call_sites = build_source_call_site_facts(&ctx, &callable_symbols)?;
     let class_ctor_inits = build_class_ctor_init_facts(ctx.lir);
     let class_ctor_call_sites = build_class_ctor_call_site_facts(&ctx, &class_ctor_inits)?;
+    let reflection_call_sites = build_reflection_call_site_facts(&ctx)?;
+    let callables = build_callable_facts(
+        &ctx,
+        &callable_symbols,
+        &source_call_sites,
+        &class_ctor_call_sites,
+        &reflection_call_sites,
+        &mut dynamic_invokes,
+        &mut dispatches,
+    )?;
     let source_signatures = build_source_signature_facts(
         ctx.lir,
         ctx.mir_facts,
@@ -135,14 +145,9 @@ pub(crate) fn build_lir_facts(
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
         source_signatures,
         intrinsic_callables,
-        source_call_sites,
-        class_ctor_call_sites,
-        reflection_call_sites: build_reflection_call_site_facts(&ctx)?,
         class_ctor_inits,
         callables,
         step_types: build_step_type_facts(lir),
-        dynamic_invokes,
-        dispatches,
         resume_packings: build_resume_packing_facts(lir),
         continuation_objects: build_continuation_object_facts(&ctx)?,
         surface_resume_dispatches: build_surface_resume_dispatch_facts(lir),
@@ -1106,9 +1111,9 @@ fn build_physical_layout_facts(
     ctx: &LirFactsBuildContext<'_>,
     callables: &BTreeMap<LirCallableId, LirCallableFacts>,
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
-    source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    _dispatches: &BTreeMap<LirDispatchKey, LirDispatchContract>,
+    source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    dynamic_invokes: &BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    _dispatches: &BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
     let contracts = ctx.materialized.backend_contracts();
     let mut facts = LirPhysicalLayoutFacts::default();
@@ -1517,8 +1522,8 @@ fn build_abi_symbol_facts(
     native_callable_funs: &crate::hir::NativeCallableFunIndex,
     extern_funs: &crate::hir::ExternFunIndex,
     callables: &BTreeMap<LirCallableId, LirCallableFacts>,
-    source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    dynamic_invokes: &BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
 ) -> Result<BTreeMap<String, LirAbiSymbolFact>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for symbol in callable_symbols.values() {
@@ -1642,8 +1647,8 @@ fn callable_symbol_contains_canonical_key(
 
 fn published_call_target_bindings<'a>(
     callables: &'a BTreeMap<LirCallableId, LirCallableFacts>,
-    source_call_sites: &'a BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    dynamic_invokes: &'a BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    source_call_sites: &'a BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    dynamic_invokes: &'a BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
 ) -> Vec<&'a LirCallTargetBinding> {
     let mut out = Vec::new();
     for callable in callables.values() {
@@ -1926,8 +1931,8 @@ fn build_source_signature_facts(
     lir: &LateLoweredProgram,
     mir_facts: &MirFacts,
     callables: &BTreeMap<LirCallableId, LirCallableFacts>,
-    source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    dynamic_invokes: &BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    dynamic_invokes: &BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
 ) -> Result<BTreeMap<String, LirSourceCallableSignatureFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for signature in &mir_facts.backend.source_signatures {
@@ -1959,7 +1964,7 @@ fn build_source_signature_facts(
 
 fn build_intrinsic_callable_facts(
     mir_facts: &MirFacts,
-    source_call_sites: &BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
+    source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
 ) -> Result<BTreeMap<String, LirIntrinsicCallableFact>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for intrinsic in &mir_facts.backend.intrinsic_callables {
@@ -2144,7 +2149,7 @@ fn build_class_ctor_init_facts(
 fn build_class_ctor_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
     class_ctor_inits: &BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
-) -> Result<BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>, EffectLoweringError> {
+) -> Result<BTreeMap<BuildCallSiteKey, LirClassCtorCallSiteFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let owner_id = published_callable_id(ctx, callable)?;
@@ -2287,7 +2292,7 @@ fn published_callable_id_by_root(
 }
 
 fn insert_class_ctor_call_site_facts_for_body(
-    out: &mut BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
+    out: &mut BTreeMap<BuildCallSiteKey, LirClassCtorCallSiteFacts>,
     class_ctor_inits: &BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     owner_id: LirCallableId,
     owner_label: &str,
@@ -2326,7 +2331,7 @@ fn insert_class_ctor_call_site_facts_for_body(
                 ));
             }
             let result_ty = body.locals[target.as_u32() as usize].ty;
-            let key = LirClassCtorCallSiteKey {
+            let key = BuildCallSiteKey {
                 owner_callable: owner_id,
                 site_id: *site_id,
             };
@@ -2347,7 +2352,7 @@ fn insert_class_ctor_call_site_facts_for_body(
 
 fn build_reflection_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
-) -> Result<BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>, EffectLoweringError> {
+) -> Result<BTreeMap<BuildCallSiteKey, LirReflectionCallSiteFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let owner_id = published_callable_id(ctx, callable)?;
@@ -2399,7 +2404,7 @@ fn build_reflection_call_site_facts(
 }
 
 fn insert_reflection_call_site_facts_for_body(
-    out: &mut BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
+    out: &mut BTreeMap<BuildCallSiteKey, LirReflectionCallSiteFacts>,
     owner_id: LirCallableId,
     owner_label: &str,
     body: &crate::mir::Body,
@@ -2413,7 +2418,7 @@ fn insert_reflection_call_site_facts_for_body(
             else {
                 continue;
             };
-            let key = LirReflectionCallSiteKey {
+            let key = BuildCallSiteKey {
                 owner_callable: owner_id,
                 site_id,
             };
@@ -2423,7 +2428,7 @@ fn insert_reflection_call_site_facts_for_body(
                 intrinsic_name: intrinsic_name.to_string(),
                 type_args: vec![value_ty],
             };
-            if let Some(existing) = out.insert(key.clone(), fact)
+            if let Some(existing) = out.insert(key, fact)
                 && (existing.intrinsic_name != intrinsic_name
                     || existing.type_args != vec![value_ty])
             {
@@ -2519,8 +2524,11 @@ fn invalid_lir_facts<T>(detail: String) -> Result<T, EffectLoweringError> {
 fn build_callable_facts(
     ctx: &LirFactsBuildContext<'_>,
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
+    source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    class_ctor_call_sites: &BTreeMap<BuildCallSiteKey, LirClassCtorCallSiteFacts>,
+    reflection_call_sites: &BTreeMap<BuildCallSiteKey, LirReflectionCallSiteFacts>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<BTreeMap<LirCallableId, LirCallableFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
@@ -2563,6 +2571,9 @@ fn build_callable_facts(
                     .iter()
                     .map(|case| LirCaseKey::new(case.as_u32()))
                     .collect(),
+                source_call_sites: source_call_sites_for_owner(source_call_sites, id),
+                class_ctor_call_sites: class_ctor_call_sites_for_owner(class_ctor_call_sites, id),
+                reflection_call_sites: reflection_call_sites_for_owner(reflection_call_sites, id),
                 contract,
             },
         );
@@ -2570,10 +2581,43 @@ fn build_callable_facts(
     Ok(out)
 }
 
+fn source_call_sites_for_owner(
+    sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
+    owner: LirCallableId,
+) -> Vec<LirSourceCallSiteFacts> {
+    sites
+        .values()
+        .filter(|site| site.owner_callable == owner)
+        .cloned()
+        .collect()
+}
+
+fn class_ctor_call_sites_for_owner(
+    sites: &BTreeMap<BuildCallSiteKey, LirClassCtorCallSiteFacts>,
+    owner: LirCallableId,
+) -> Vec<LirClassCtorCallSiteFacts> {
+    sites
+        .values()
+        .filter(|site| site.owner_callable == owner)
+        .cloned()
+        .collect()
+}
+
+fn reflection_call_sites_for_owner(
+    sites: &BTreeMap<BuildCallSiteKey, LirReflectionCallSiteFacts>,
+    owner: LirCallableId,
+) -> Vec<LirReflectionCallSiteFacts> {
+    sites
+        .values()
+        .filter(|site| site.owner_callable == owner)
+        .cloned()
+        .collect()
+}
+
 fn build_source_call_site_facts(
     ctx: &LirFactsBuildContext<'_>,
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
-) -> Result<BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>, EffectLoweringError> {
+) -> Result<BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for callable in ctx.lir.callables() {
         let owner_id = published_callable_id(ctx, callable)?;
@@ -2589,7 +2633,7 @@ fn build_source_call_site_facts(
             let SiteEffectFacts::Call(call_facts) = site_facts else {
                 continue;
             };
-            let key = LirSourceCallSiteKey {
+            let key = BuildCallSiteKey {
                 owner_callable: owner_id,
                 site_id: *site_id,
             };
@@ -2613,7 +2657,7 @@ fn build_source_call_site_facts(
                     .unwrap_or_default(),
                 contract: call_site_contract(ctx, callable_symbols, call_facts)?,
             };
-            if let Some(existing) = out.insert(key.clone(), fact)
+            if let Some(existing) = out.insert(key, fact)
                 && existing.site_id != *site_id
             {
                 return invalid_lir_facts(format!(
@@ -2632,7 +2676,7 @@ fn build_source_call_site_facts(
             })?
             .unit;
         for (site_id, metadata) in &body_metadata {
-            let key = LirSourceCallSiteKey {
+            let key = BuildCallSiteKey {
                 owner_callable: owner_id,
                 site_id: *site_id,
             };
@@ -2722,8 +2766,8 @@ fn build_plain_callable_facts(
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     plain: &LateLoweredPlainCallable,
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<LirPlainCallableFacts, EffectLoweringError> {
     let owner_key = published_callable_key(callable)?;
     let owner_id = published_callable_id(ctx, callable)?;
@@ -2794,8 +2838,8 @@ fn build_effect_step_callable_facts(
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     effect: &LateLoweredEffectStepCallable,
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<LirEffectStepCallableFacts, EffectLoweringError> {
     let owner_key = published_callable_key(callable)?;
     let owner_id = published_callable_id(ctx, callable)?;
@@ -2831,13 +2875,23 @@ fn build_plain_call_site_facts(
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     callable: &LateLoweredCallable,
     site: &LateLoweredPlainCallSite,
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<LirPlainCallSiteFacts, EffectLoweringError> {
     let owner_key = published_callable_key(callable)?;
     let owner_id = published_callable_id(ctx, callable)?;
     let metadata = site.metadata();
     let contract = call_site_contract(ctx, callable_symbols, site.facts())?;
+    let dynamic_key = BuildCallSiteKey {
+        owner_callable: owner_id,
+        site_id: site.site_id(),
+    };
+    let dispatch_key = BuildCallSiteKey {
+        owner_callable: owner_id,
+        site_id: site.site_id(),
+    };
+    let dynamic_already_published = dynamic_invokes.contains_key(&dynamic_key);
+    let dispatch_already_published = dispatches.contains_key(&dispatch_key);
     let dispatch = publish_dispatch_contract(
         ctx,
         owner_id,
@@ -2863,6 +2917,16 @@ fn build_plain_call_site_facts(
         dispatch.clone(),
         dynamic_invokes,
     )?;
+    let dynamic_invoke = if dynamic_already_published {
+        None
+    } else {
+        dynamic_invoke
+    };
+    let dispatch = if dispatch_already_published {
+        None
+    } else {
+        dispatch
+    };
     Ok(LirPlainCallSiteFacts {
         site_id: site.site_id(),
         source_slice: plain_slice_key(site.source_slice()),
@@ -2888,8 +2952,8 @@ fn build_control_body_facts(
     classifications: &[scoopc_lir::effect_lowered::ir::LateLoweredSourceStatementClassification],
     continuation_object: scoopc_lir::effect_lowered::ir::ContinuationObjectId,
     resume_packings: &[scoopc_lir::effect_lowered::ir::ResumeInterfaceId],
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
 ) -> Result<LirControlBodyFacts, EffectLoweringError> {
     let mut boundary_dynamic_invokes = HashMap::new();
     let mut boundary_dispatches = HashMap::new();
@@ -2923,7 +2987,7 @@ fn build_control_body_facts(
             },
             contract,
             metadata,
-            dispatch,
+            dispatch.clone(),
             dynamic_invokes,
         )?;
         if let Some(key) = dynamic {
@@ -2931,7 +2995,7 @@ fn build_control_body_facts(
         }
     }
 
-    publish_source_slice_dynamic_invokes(
+    let source_statement_call_sites = publish_source_slice_dynamic_invokes(
         ctx,
         callable_symbols,
         callable,
@@ -2953,6 +3017,7 @@ fn build_control_body_facts(
             &boundary_dispatches,
         ),
         resume_state_map: resume_state_map_facts(resume_state_map),
+        source_statement_call_sites,
         source_statement_count: classifications.len(),
         continuation_object: LirContinuationObjectKey::new(continuation_object.as_u32()),
         resume_packings: resume_packings
@@ -2971,9 +3036,10 @@ fn publish_source_slice_dynamic_invokes(
     owner_id: LirCallableId,
     owner_step_schema: scoopc_lir::effect_facts::StepSchemaId,
     classifications: &[scoopc_lir::effect_lowered::ir::LateLoweredSourceStatementClassification],
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
-) -> Result<(), EffectLoweringError> {
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
+) -> Result<Vec<LirControlSourceStatementCallSiteFacts>, EffectLoweringError> {
+    let mut source_statement_call_sites = Vec::new();
     let body_facts = ctx
         .effect_facts
         .body(callable.instance_key())
@@ -3006,9 +3072,19 @@ fn publish_source_slice_dynamic_invokes(
             });
         };
         let contract = call_site_contract(ctx, callable_symbols, call_facts)?;
+        let dynamic_key = BuildCallSiteKey {
+            owner_callable: owner_id,
+            site_id,
+        };
+        let dispatch_key = BuildCallSiteKey {
+            owner_callable: owner_id,
+            site_id,
+        };
+        let dynamic_already_published = dynamic_invokes.contains_key(&dynamic_key);
+        let dispatch_already_published = dispatches.contains_key(&dispatch_key);
         let dispatch =
             publish_dispatch_contract(ctx, owner_id, site_id, &metadata, &contract, dispatches)?;
-        publish_dynamic_invoke_contract(
+        let dynamic_invoke = publish_dynamic_invoke_contract(
             ctx,
             owner_id,
             owner_key,
@@ -3020,11 +3096,26 @@ fn publish_source_slice_dynamic_invokes(
             },
             contract,
             &metadata,
-            dispatch,
+            dispatch.clone(),
             dynamic_invokes,
         )?;
+        if dynamic_already_published && dynamic_invoke.is_some() {
+            continue;
+        }
+        let dispatch = if dispatch_already_published {
+            None
+        } else {
+            dispatch
+        };
+        source_statement_call_sites.push(LirControlSourceStatementCallSiteFacts {
+            site_id,
+            source_slice: state_slice_key(classification.source_slice()),
+            statement_index: classification.statement_index(),
+            dynamic_invoke,
+            dispatch,
+        });
     }
-    Ok(())
+    Ok(source_statement_call_sites)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3037,18 +3128,18 @@ fn publish_dynamic_invoke_contract(
     source: LirDynamicInvokeSource,
     contract: LirCallSiteContract,
     metadata: &LateLoweredCallSiteMaterializedMetadata,
-    dispatch: Option<LirDispatchKey>,
-    dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-) -> Result<Option<LirDynamicInvokeKey>, EffectLoweringError> {
+    dispatch: Option<LirDispatchContract>,
+    dynamic_invokes: &mut BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
+) -> Result<Option<LirDynamicInvokeContract>, EffectLoweringError> {
     if contract.callee_step_schema.is_none() || !is_dynamic_call_metadata(metadata) {
         return Ok(None);
     }
-    let key = LirDynamicInvokeKey {
+    let key = BuildCallSiteKey {
         owner_callable: owner_id,
         site_id,
     };
     if dynamic_invokes.contains_key(&key) {
-        return Ok(Some(key));
+        return Ok(dynamic_invokes.get(&key).cloned());
     }
     let carrier =
         dynamic_invoke_carrier_contract(metadata.kind(), metadata.carrier_source_ty(), dispatch)?;
@@ -3079,20 +3170,18 @@ fn publish_dynamic_invoke_contract(
                 })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    dynamic_invokes.insert(
-        key.clone(),
-        LirDynamicInvokeContract {
-            owner_callable: owner_id,
-            owner_step_schema,
-            site_id,
-            source,
-            call: contract,
-            carrier,
-            arg_count: metadata.arg_count(),
-            target_body_versions,
-        },
-    );
-    Ok(Some(key))
+    let dynamic = LirDynamicInvokeContract {
+        owner_callable: owner_id,
+        owner_step_schema,
+        site_id,
+        source,
+        call: contract,
+        carrier,
+        arg_count: metadata.arg_count(),
+        target_body_versions,
+    };
+    dynamic_invokes.insert(key, dynamic.clone());
+    Ok(Some(dynamic))
 }
 
 fn publish_dispatch_contract(
@@ -3101,20 +3190,20 @@ fn publish_dispatch_contract(
     site_id: SiteId,
     metadata: &LateLoweredCallSiteMaterializedMetadata,
     contract: &LirCallSiteContract,
-    dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
-) -> Result<Option<LirDispatchKey>, EffectLoweringError> {
-    let key = LirDispatchKey {
+    dispatches: &mut BTreeMap<BuildCallSiteKey, LirDispatchContract>,
+) -> Result<Option<LirDispatchContract>, EffectLoweringError> {
+    let key = BuildCallSiteKey {
         owner_callable: owner_id,
         site_id,
     };
     if dispatches.contains_key(&key) {
-        return Ok(Some(key));
+        return Ok(dispatches.get(&key).cloned());
     }
     let Some(dispatch) = dispatch_contract(ctx, owner_id, site_id, metadata, contract)? else {
         return Ok(None);
     };
-    dispatches.insert(key.clone(), dispatch);
-    Ok(Some(key))
+    dispatches.insert(key, dispatch.clone());
+    Ok(Some(dispatch))
 }
 
 fn dispatch_contract(
@@ -3213,7 +3302,7 @@ fn dispatch_metadata(
 fn dynamic_invoke_carrier_contract(
     kind: &LateLoweredCallSiteMaterializedKind,
     carrier_source_ty: Option<TypeId>,
-    dispatch: Option<LirDispatchKey>,
+    dispatch: Option<LirDispatchContract>,
 ) -> Result<LirDynamicInvokeCarrierContract, EffectLoweringError> {
     let (carrier_kind, source_ty) = match kind {
         LateLoweredCallSiteMaterializedKind::Closure
@@ -3794,8 +3883,8 @@ fn frame_schema_facts(frame: &LateLoweredFrameSchema) -> LirFrameSchemaFacts {
 
 fn boundary_map_facts(
     map: &LateLoweredBoundaryMap,
-    dynamic_invokes: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDynamicInvokeKey>,
-    dispatches: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDispatchKey>,
+    dynamic_invokes: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDynamicInvokeContract>,
+    dispatches: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDispatchContract>,
 ) -> LirBoundaryMapFacts {
     LirBoundaryMapFacts {
         boundaries: map

@@ -6,7 +6,7 @@ use scoopc_ids::LirCallableId;
 use scoopc_lir::effect_lowered::LateLoweredProgram;
 use scoopc_lir_facts::{
     LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirCallableRef,
-    LirDispatchKey, LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
+    LirDispatchContract, LirDynamicInvokeContract, LirFacts, LirGlobalRootKind,
 };
 
 /// Runtime helpers whose source callables may need legacy declarations until
@@ -128,11 +128,11 @@ impl<'a> ReachabilityCollector<'a> {
         for contract in edges.call_contracts {
             self.enqueue_call_contract_targets(&contract)?;
         }
-        for key in edges.dynamic_keys {
-            self.enqueue_dynamic_invoke_targets(&key)?;
+        for dynamic in edges.dynamic_invokes {
+            self.enqueue_dynamic_invoke_targets(&dynamic)?;
         }
-        for key in edges.dispatch_keys {
-            self.enqueue_dispatch_targets(&key)?;
+        for dispatch in edges.dispatches {
+            self.enqueue_dispatch_targets(&dispatch)?;
         }
         Ok(())
     }
@@ -151,61 +151,58 @@ impl<'a> ReachabilityCollector<'a> {
             LirCallableContract::Plain(plain) => {
                 for call_site in &plain.call_sites {
                     edges.call_contracts.push(call_site.contract.clone());
-                    if let Some(key) = call_site.dynamic_invoke.as_ref() {
-                        edges.dynamic_keys.push(key.clone());
+                    if let Some(dynamic) = call_site.dynamic_invoke.as_ref() {
+                        edges.dynamic_invokes.push(dynamic.clone());
                     }
-                    if let Some(key) = call_site.dispatch.as_ref() {
-                        edges.dispatch_keys.push(key.clone());
+                    if let Some(dispatch) = call_site.dispatch.as_ref() {
+                        edges.dispatches.push(dispatch.clone());
                     }
                 }
                 if let Some(control) = plain.local_effect_control.as_ref() {
                     for boundary in &control.boundary_map.boundaries {
-                        if let Some(key) = boundary.dynamic_invoke.as_ref() {
-                            edges.dynamic_keys.push(key.clone());
+                        if let Some(dynamic) = boundary.dynamic_invoke.as_ref() {
+                            edges.dynamic_invokes.push(dynamic.clone());
                         }
-                        if let Some(key) = boundary.dispatch.as_ref() {
-                            edges.dispatch_keys.push(key.clone());
+                        if let Some(dispatch) = boundary.dispatch.as_ref() {
+                            edges.dispatches.push(dispatch.clone());
+                        }
+                    }
+                    for site in &control.source_statement_call_sites {
+                        if let Some(dynamic) = site.dynamic_invoke.as_ref() {
+                            edges.dynamic_invokes.push(dynamic.clone());
+                        }
+                        if let Some(dispatch) = site.dispatch.as_ref() {
+                            edges.dispatches.push(dispatch.clone());
                         }
                     }
                 }
             }
             LirCallableContract::EffectStep(effect) => {
                 for boundary in &effect.control_body.boundary_map.boundaries {
-                    if let Some(key) = boundary.dynamic_invoke.as_ref() {
-                        edges.dynamic_keys.push(key.clone());
+                    if let Some(dynamic) = boundary.dynamic_invoke.as_ref() {
+                        edges.dynamic_invokes.push(dynamic.clone());
                     }
-                    if let Some(key) = boundary.dispatch.as_ref() {
-                        edges.dispatch_keys.push(key.clone());
+                    if let Some(dispatch) = boundary.dispatch.as_ref() {
+                        edges.dispatches.push(dispatch.clone());
                     }
                 }
-            }
-        }
-
-        for (key, dynamic) in &self.lir_facts.dynamic_invokes {
-            if self.required_root_for_callable_ref(LirCallableRef::Local(dynamic.owner_callable))?
-                == root_fqn
-            {
-                edges.dynamic_keys.push(key.clone());
-            }
-        }
-        for (key, dispatch) in &self.lir_facts.dispatches {
-            if self
-                .required_root_for_callable_ref(LirCallableRef::Local(dispatch.owner_callable))?
-                == root_fqn
-            {
-                edges.dispatch_keys.push(key.clone());
+                for site in &effect.control_body.source_statement_call_sites {
+                    if let Some(dynamic) = site.dynamic_invoke.as_ref() {
+                        edges.dynamic_invokes.push(dynamic.clone());
+                    }
+                    if let Some(dispatch) = site.dispatch.as_ref() {
+                        edges.dispatches.push(dispatch.clone());
+                    }
+                }
             }
         }
         Ok(Some(edges))
     }
 
-    fn enqueue_dynamic_invoke_targets(&mut self, key: &LirDynamicInvokeKey) -> Result<(), String> {
-        let dynamic = self.lir_facts.dynamic_invokes.get(key).ok_or_else(|| {
-            format!(
-                "dynamic invoke site{} is referenced but not published",
-                key.site_id.as_u32()
-            )
-        })?;
+    fn enqueue_dynamic_invoke_targets(
+        &mut self,
+        dynamic: &LirDynamicInvokeContract,
+    ) -> Result<(), String> {
         let contract = dynamic.call.clone();
         let dispatch = dynamic.carrier.dispatch.clone();
         self.enqueue_call_contract_targets(&contract)?;
@@ -215,13 +212,7 @@ impl<'a> ReachabilityCollector<'a> {
         Ok(())
     }
 
-    fn enqueue_dispatch_targets(&mut self, key: &LirDispatchKey) -> Result<(), String> {
-        let dispatch = self.lir_facts.dispatches.get(key).ok_or_else(|| {
-            format!(
-                "dispatch site{} is referenced but not published",
-                key.site_id.as_u32()
-            )
-        })?;
+    fn enqueue_dispatch_targets(&mut self, dispatch: &LirDispatchContract) -> Result<(), String> {
         let targets = dispatch.candidate_targets.clone();
         for target in &targets {
             self.enqueue_required_callable_ref(*target)?;
@@ -319,26 +310,28 @@ impl<'a> ReachabilityCollector<'a> {
 #[derive(Default)]
 struct CallableEdges {
     call_contracts: Vec<LirCallSiteContract>,
-    dynamic_keys: Vec<LirDynamicInvokeKey>,
-    dispatch_keys: Vec<LirDispatchKey>,
+    dynamic_invokes: Vec<LirDynamicInvokeContract>,
+    dispatches: Vec<LirDispatchContract>,
 }
 
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]
 mod tests {
     use super::*;
     use scoop_project_model::{OptLevel, StableConeKey};
-    use scoopc_ids::{BodyVersionKey, LirCallableId, SiteId, StableLirCallableKey};
+    use scoopc_ids::{
+        BodyVersionKey, LirCallableHash, LirCallableId, SiteId, StableLirCallableKey,
+    };
     use scoopc_lir_facts::{
         LirBodyVersionFacts, LirBoundaryMapFacts, LirCallSiteContract, LirCallSiteKind,
         LirCallTargetMode, LirCallableAbiKind, LirCallableContract,
-        LirCallableDynamicInvokeEntryFacts, LirCallableFacts, LirCallableSourceKind,
-        LirContinuationObjectKey, LirControlBodyFacts, LirDispatchContract, LirDispatchKey,
+        LirCallableDynamicInvokeEntryFacts, LirCallableFacts, LirCallableRef,
+        LirCallableSourceKind, LirContinuationObjectKey, LirControlBodyFacts, LirDispatchContract,
         LirDynamicInvokeCarrierContract, LirDynamicInvokeCarrierKind, LirDynamicInvokeContract,
-        LirDynamicInvokeKey, LirDynamicInvokeSource, LirEffectPrecision,
-        LirEffectStepCallableFacts, LirFactGroups, LirFrameSchemaFacts, LirGlobalInitFacts,
-        LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirPlainCallSiteFacts,
-        LirPlainCallableFacts, LirResumeStateMapFacts, LirSourceCallableSignatureFacts,
-        LirSourceSliceKey, LirStageSummary, LirStateGraphFacts, LirStateKey, LirStepSchemaKey,
+        LirDynamicInvokeSource, LirEffectPrecision, LirEffectStepCallableFacts, LirFactGroups,
+        LirFrameSchemaFacts, LirGlobalInitFacts, LirGlobalRootFacts, LirGlobalRootKey,
+        LirGlobalRootKind, LirPlainCallSiteFacts, LirPlainCallableFacts, LirResumeStateMapFacts,
+        LirSourceCallableSignatureFacts, LirSourceSliceKey, LirStageSummary, LirStateGraphFacts,
+        LirStateKey, LirStepSchemaKey,
     };
     use scoopc_types::{TypeId, TypeStore};
 
@@ -370,7 +363,7 @@ mod tests {
         }
     }
 
-    fn call_contract(targets: Vec<StableLirCallableKey>) -> LirCallSiteContract {
+    fn call_contract(targets: Vec<LirCallableRef>) -> LirCallSiteContract {
         LirCallSiteContract {
             kind: LirCallSiteKind::Direct,
             target_mode: LirCallTargetMode::CandidateSet,
@@ -385,7 +378,7 @@ mod tests {
         }
     }
 
-    fn plain_callable(root_fqn: &str, targets: Vec<StableLirCallableKey>) -> LirCallableFacts {
+    fn plain_callable(root_fqn: &str, targets: Vec<LirCallableRef>) -> LirCallableFacts {
         let key = callable_key(root_fqn);
         let call_sites = if targets.is_empty() {
             Vec::new()
@@ -413,6 +406,9 @@ mod tests {
             return_ty: ty(2),
             body_version: body_version(&key),
             resolved_outward_cases: Vec::new(),
+            source_call_sites: Vec::new(),
+            class_ctor_call_sites: Vec::new(),
+            reflection_call_sites: Vec::new(),
             contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
                 function_ty: ty(1),
                 param_names: Vec::new(),
@@ -437,6 +433,9 @@ mod tests {
             return_ty: ty(2),
             body_version: body_version(&key),
             resolved_outward_cases: Vec::new(),
+            source_call_sites: Vec::new(),
+            class_ctor_call_sites: Vec::new(),
+            reflection_call_sites: Vec::new(),
             contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
                 param_tys: Vec::new(),
                 closure_carrier_arg_tys: Vec::new(),
@@ -467,6 +466,7 @@ mod tests {
                     resume_state_map: LirResumeStateMapFacts {
                         entries: Vec::new(),
                     },
+                    source_statement_call_sites: Vec::new(),
                     source_statement_count: 0,
                     continuation_object: LirContinuationObjectKey::new(0),
                     resume_packings: Vec::new(),
@@ -495,8 +495,14 @@ mod tests {
     #[test]
     fn reachability_uses_lir_callable_edges() {
         let facts = facts_with_callables(vec![
-            plain_callable("app.main", vec![callable_key("app.helper")]),
-            plain_callable("app.helper", vec![callable_key("app.leaf")]),
+            plain_callable(
+                "app.main",
+                vec![LirCallableRef::local(LirCallableId::from_raw(1))],
+            ),
+            plain_callable(
+                "app.helper",
+                vec![LirCallableRef::local(LirCallableId::from_raw(2))],
+            ),
             plain_callable("app.leaf", Vec::new()),
         ]);
 
@@ -546,72 +552,74 @@ mod tests {
 
     #[test]
     fn reachability_uses_lir_dynamic_and_dispatch_targets() {
-        let owner = callable_key("app.main");
-        let target = callable_key("app.impl");
-        let dispatch_key = LirDispatchKey {
-            owner_callable: owner.clone(),
-            site_id: SiteId::from_raw(7),
-        };
-        let dynamic_key = LirDynamicInvokeKey {
-            owner_callable: owner.clone(),
-            site_id: SiteId::from_raw(7),
-        };
         let mut facts = facts_with_callables(vec![
             plain_callable("app.main", Vec::new()),
             plain_callable("app.impl", Vec::new()),
         ]);
-        facts.dispatches.insert(
-            dispatch_key.clone(),
-            LirDispatchContract {
-                owner_callable: owner.clone(),
-                site_id: SiteId::from_raw(7),
-                kind: LirCallSiteKind::Interface,
-                owner_fqn: "app.IFace".to_string(),
-                member_name: "run".to_string(),
-                member_fqn: "app.IFace.run".to_string(),
-                receiver_ty: ty(1),
-                explicit_arg_count: 0,
-                method_slot: 0,
-                interface_id: Some(0),
-                candidate_targets: vec![target.clone()],
+        let target = LirCallableRef::local(LirCallableId::from_raw(1));
+        let source_slice = LirSourceSliceKey {
+            block_id: scoopc_lir_facts::LirBodyBlockKey::new(0),
+            start_statement_index: 0,
+            end_statement_index: 1,
+            includes_terminator: false,
+        };
+        let call = LirCallSiteContract {
+            kind: LirCallSiteKind::Interface,
+            target_mode: LirCallTargetMode::CandidateSet,
+            target_callables: vec![target],
+            target_bindings: Vec::new(),
+            exact_callee: None,
+            callee_abi_kind: LirCallableAbiKind::Plain,
+            invoke_args_tuple_ty: ty(1),
+            callee_step_schema: None,
+            resolved_cases: Vec::new(),
+            precision: LirEffectPrecision::Precise,
+        };
+        let dispatch = LirDispatchContract {
+            owner_callable: LirCallableId::from_raw(0),
+            site_id: SiteId::from_raw(7),
+            kind: LirCallSiteKind::Interface,
+            owner_fqn: "app.IFace".to_string(),
+            member_name: "run".to_string(),
+            member_fqn: "app.IFace.run".to_string(),
+            receiver_ty: ty(1),
+            explicit_arg_count: 0,
+            method_slot: 0,
+            interface_id: Some(0),
+            candidate_targets: vec![target],
+        };
+        let dynamic = LirDynamicInvokeContract {
+            owner_callable: LirCallableId::from_raw(0),
+            owner_step_schema: None,
+            site_id: SiteId::from_raw(7),
+            source: LirDynamicInvokeSource::PlainCallSite {
+                source_slice,
+                statement_index: 0,
             },
-        );
-        facts.dynamic_invokes.insert(
-            dynamic_key,
-            LirDynamicInvokeContract {
-                owner_callable: owner,
-                owner_step_schema: None,
-                site_id: SiteId::from_raw(7),
-                source: LirDynamicInvokeSource::PlainCallSite {
-                    source_slice: LirSourceSliceKey {
-                        block_id: scoopc_lir_facts::LirBodyBlockKey::new(0),
-                        start_statement_index: 0,
-                        end_statement_index: 1,
-                        includes_terminator: false,
-                    },
-                    statement_index: 0,
-                },
-                call: LirCallSiteContract {
-                    kind: LirCallSiteKind::Interface,
-                    target_mode: LirCallTargetMode::CandidateSet,
-                    target_callables: vec![target],
-                    target_bindings: Vec::new(),
-                    exact_callee: None,
-                    callee_abi_kind: LirCallableAbiKind::Plain,
-                    invoke_args_tuple_ty: ty(1),
-                    callee_step_schema: None,
-                    resolved_cases: Vec::new(),
-                    precision: LirEffectPrecision::Precise,
-                },
-                carrier: LirDynamicInvokeCarrierContract {
-                    kind: LirDynamicInvokeCarrierKind::InterfaceReceiver,
-                    source_ty: None,
-                    dispatch: Some(dispatch_key),
-                },
-                arg_count: 0,
-                target_body_versions: Vec::new(),
+            call: call.clone(),
+            carrier: LirDynamicInvokeCarrierContract {
+                kind: LirDynamicInvokeCarrierKind::InterfaceReceiver,
+                source_ty: None,
+                dispatch: Some(dispatch.clone()),
             },
-        );
+            arg_count: 0,
+            target_body_versions: Vec::new(),
+        };
+        let main = facts
+            .callables
+            .get_mut(&LirCallableId::from_raw(0))
+            .expect("main callable facts exist");
+        let LirCallableContract::Plain(plain) = &mut main.contract else {
+            panic!("main should be plain");
+        };
+        plain.call_sites.push(LirPlainCallSiteFacts {
+            site_id: SiteId::from_raw(7),
+            source_slice,
+            statement_index: 0,
+            contract: call,
+            dynamic_invoke: Some(dynamic),
+            dispatch: Some(dispatch),
+        });
 
         assert_eq!(
             collect_reachable_top_level_funs("app.main", &facts).unwrap(),
@@ -621,9 +629,12 @@ mod tests {
 
     #[test]
     fn reachability_rejects_unpublished_candidate_set_targets() {
+        let target = callable_key("scoop.core.Bool.toString");
         let facts = facts_with_callables(vec![plain_callable(
             "app.main",
-            vec![callable_key("scoop.core.Bool.toString")],
+            vec![LirCallableRef::external_hash(
+                LirCallableHash::from_stable_key(&target),
+            )],
         )]);
 
         assert!(
@@ -636,8 +647,8 @@ mod tests {
     #[test]
     fn reachability_includes_declaration_only_candidate_set_targets() {
         let target = callable_key("scoop.core.Bool.toString");
-        let mut facts =
-            facts_with_callables(vec![plain_callable("app.main", vec![target.clone()])]);
+        let target_ref = LirCallableRef::external_hash(LirCallableHash::from_stable_key(&target));
+        let mut facts = facts_with_callables(vec![plain_callable("app.main", vec![target_ref])]);
         facts.source_signatures.insert(
             "scoop.core.Bool.toString".to_string(),
             LirSourceCallableSignatureFacts {
@@ -653,7 +664,7 @@ mod tests {
             scoopc_lir_facts::LirAbiSymbolFact {
                 key: "abi:scoop.core.Bool.toString".to_string(),
                 symbol: "scoop_core_Bool_toString".to_string(),
-                callable: Some(target),
+                callable: Some(target_ref),
                 root_fqn: Some("scoop.core.Bool.toString".to_string()),
                 role: "extern_callable".to_string(),
             },

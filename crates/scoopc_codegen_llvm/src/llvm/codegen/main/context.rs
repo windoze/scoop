@@ -331,12 +331,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         site_id: SiteId,
     ) -> Option<&LirSourceCallSiteFacts> {
         let owner_callable = self.current_active_lir_callable_id()?;
-        self.active_lir_facts()
+        self.active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?
             .source_call_sites
-            .get(&LirSourceCallSiteKey {
-                owner_callable,
-                site_id,
-            })
+            .iter()
+            .find(|site| site.site_id == site_id)
     }
 
     pub(in crate::llvm::codegen) fn published_lir_plain_call_site(
@@ -367,12 +367,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         site_id.as_u32()
                     ),
                 })?;
-        let lir_facts = self.active_lir_facts();
-        lir_facts
-            .class_ctor_call_sites
-            .get(&LirClassCtorCallSiteKey {
-                owner_callable,
-                site_id,
+        self.active_lir_program()
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("{context}: missing active LIR program"),
+            })?
+            .callable_by_id(owner_callable)
+            .and_then(|callable| callable.published_callable_facts())
+            .and_then(|callable| {
+                callable
+                    .class_ctor_call_sites
+                    .iter()
+                    .find(|site| site.site_id == site_id)
             })
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
@@ -471,10 +476,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         site_id: SiteId,
     ) -> Option<&LirDispatchContract> {
         let owner_callable = self.current_active_lir_callable_id()?;
-        self.active_lir_facts().dispatches.get(&LirDispatchKey {
-            owner_callable,
-            site_id,
-        })
+        let callable = self
+            .active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?;
+        callable
+            .dispatch_contracts()
+            .into_iter()
+            .find(|dispatch| dispatch.site_id == site_id)
     }
 
     fn current_published_lir_callable_id(&self) -> Option<LirCallableId> {

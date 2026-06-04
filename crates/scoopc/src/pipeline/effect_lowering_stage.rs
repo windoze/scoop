@@ -504,7 +504,7 @@ mod tests {
     use crate::source::SourceFile;
     use scoopc_lir_facts::{
         LirCallSiteKind, LirCallTargetMode, LirCallableContract, LirCallableSymbolKind,
-        LirGlobalRootKind, LirGlobalStoragePolicy, LirSourceCallSiteKey,
+        LirGlobalRootKind, LirGlobalStoragePolicy,
     };
 
     fn session() -> Session {
@@ -842,11 +842,11 @@ fun main(): Int {
             symbol.exported_symbol.as_deref(),
             Some(exact.abi_symbol.as_str())
         );
-        let source_site = facts
+        let source_site = main
             .source_call_sites
-            .get(&LirSourceCallSiteKey {
-                owner_callable: *main_id,
-                site_id: site.site_id,
+            .iter()
+            .find(|source_site| {
+                source_site.owner_callable == *main_id && source_site.site_id == site.site_id
             })
             .expect("plain call-site should also publish an identity-keyed source contract");
         assert_eq!(
@@ -1031,7 +1031,12 @@ fun main(): Int {
         let facts = output.lir_facts();
 
         assert!(!facts.step_types.is_empty());
-        assert!(!facts.dynamic_invokes.is_empty());
+        assert!(
+            facts
+                .callables
+                .values()
+                .any(|callable| !callable.dynamic_invoke_contracts().is_empty())
+        );
         assert!(!facts.resume_packings.is_empty());
         assert!(!facts.continuation_objects.is_empty());
         assert!(!facts.surface_resume_dispatches.is_empty());
@@ -1057,16 +1062,20 @@ fun main(): Int {
         let output = super::run(stage_input_for_source(&session, &source)).unwrap();
         let facts = output.lir_facts();
 
-        assert!(facts.dispatches.values().any(|dispatch| {
-            dispatch.kind == LirCallSiteKind::Virtual
-                && dispatch.owner_fqn == "sample.Base"
-                && dispatch.member_name == "ping"
+        assert!(facts.callables.values().any(|callable| {
+            callable.dispatch_contracts().into_iter().any(|dispatch| {
+                dispatch.kind == LirCallSiteKind::Virtual
+                    && dispatch.owner_fqn == "sample.Base"
+                    && dispatch.member_name == "ping"
+            })
         }));
-        assert!(facts.dispatches.values().any(|dispatch| {
-            dispatch.kind == LirCallSiteKind::Interface
-                && dispatch.owner_fqn == "sample.IFace"
-                && dispatch.member_name == "foo"
-                && dispatch.interface_id.is_some()
+        assert!(facts.callables.values().any(|callable| {
+            callable.dispatch_contracts().into_iter().any(|dispatch| {
+                dispatch.kind == LirCallSiteKind::Interface
+                    && dispatch.owner_fqn == "sample.IFace"
+                    && dispatch.member_name == "foo"
+                    && dispatch.interface_id.is_some()
+            })
         }));
         let call_virtual = facts
             .callables

@@ -144,9 +144,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 新增 standalone LLVM codegen 单测 `declaration_source_signature_uses_published_typestore_owner`，覆盖 declaration-only source signature 携带 distinct published TypeStore 的映射边界。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_codegen_llvm declaration_source_signature_uses_published_typestore_owner`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-05：per-call-site / dispatch fact 挂到体内节点
+### [DONE] T2-05：per-call-site / dispatch fact 挂到体内节点
 - `source_call_sites`/`class_ctor_call_sites`/`reflection_call_sites`/`dynamic_invokes`/`dispatches`（key=(owner_callable, site_id)）改为挂在对应 callable 体内的 site 节点上。
 - 验收：`effect_lowered/layout/lookup.rs:128`、`dynamic_invoke.rs:16` 等改为 walk 节点，不再 `(owner,site)`→get。
+
+完成记录（2026-06-04）：
+- `LirFacts` / `LirFactGroups` 删除 `source_call_sites`、`class_ctor_call_sites`、`reflection_call_sites`、`dynamic_invokes`、`dispatches` 顶层平表；相关 payload 改挂到 `LirCallableFacts`、plain call-site、control boundary 与 control source-statement 节点。
+- dynamic-invoke carrier 直接内嵌 dispatch contract；LLVM ABI materializer、main codegen context 与 reachability 改从 active LIR program/callable 节点 walk，不再通过 `(owner_callable, site_id)` 查顶层 facts map。
+- `scoopc_lir_facts` 公共 API 删除这些复合 key 类型；builder 内部仅保留私有 `BuildCallSiteKey` 作为构造期去重/分组 key，并避免同一 dynamic invoke 在 plain site、boundary、source-statement 间重复发布；修复 `effect_multi_escape_indirect_callee_suspend_matrix` 暴露的重复 dynamic layout 问题。
+- verifier/dump 与单测构造同步改为节点内 payload；`WIRE_SCHEMA_VERSION` 升至 1.14。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-05-R：Review T2-05
 - 关注点：site 数据归 site 节点所有；`(owner_callable, site_id)` 复合 key 消失；空候选/缺 contract 由结构保证不可表示。

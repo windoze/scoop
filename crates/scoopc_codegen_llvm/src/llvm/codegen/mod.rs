@@ -74,11 +74,10 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_lir_facts::{
-    LirCallSiteKind, LirCallableContract, LirClassCtorCallSiteFacts, LirClassCtorCallSiteKey,
-    LirClassCtorDelegationKind, LirClassCtorInitKey, LirClassItableEntryFacts, LirDispatchContract,
-    LirDispatchKey, LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts, LirGlobalRootKey,
-    LirGlobalRootKind, LirGlobalStoragePolicy, LirPlainCallSiteFacts, LirSourceCallSiteFacts,
-    LirSourceCallSiteKey,
+    LirCallSiteKind, LirCallableContract, LirClassCtorCallSiteFacts, LirClassCtorDelegationKind,
+    LirClassCtorInitKey, LirClassItableEntryFacts, LirDispatchContract, LirExternGlobalLinkage,
+    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirPlainCallSiteFacts, LirSourceCallSiteFacts,
 };
 
 use super::LlvmEmitError;

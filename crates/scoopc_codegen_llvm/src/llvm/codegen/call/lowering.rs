@@ -2034,7 +2034,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         true
     }
 
-    #[allow(clippy::for_kv_map)]
     fn required_hir_direct_published_root(
         &self,
         fqn: &str,
@@ -2043,11 +2042,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<String, LlvmEmitError> {
         let arg_tys = hir_arg_tys(args);
         let mut matches = Vec::new();
-        for site in self
-            .active_lir_facts()
-            .source_call_sites
+        let Some(program) = self.active_lir_program() else {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` requires published LIR callable source signatures"
+                ),
+            });
+        };
+        for site in program
+            .callables()
             .iter()
-            .map(|entry| entry.1)
+            .filter_map(|callable| callable.published_callable_facts())
+            .flat_map(|callable| callable.source_call_sites.iter())
         {
             if site.semantic_root_fqn.as_deref() != Some(fqn) {
                 continue;
@@ -2061,13 +2067,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 matches.push(exact.root_fqn.clone());
             }
         }
-        let Some(program) = self.active_lir_program() else {
-            return Err(LlvmEmitError::Frontend {
-                message: format!(
-                    "HIR direct call `{fqn}` requires published LIR callable source signatures"
-                ),
-            });
-        };
         for signature in program.source_signatures() {
             let root = signature.root_fqn.as_str();
             let suffix = if root.len() >= fqn.len() {

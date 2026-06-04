@@ -31,14 +31,9 @@ pub struct LirFacts {
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
-    pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
-    pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<LirCallableId, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
-    pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
     pub resume_packings: BTreeMap<LirResumePackingKey, LirResumePackingFacts>,
     pub continuation_objects: BTreeMap<LirContinuationObjectKey, LirContinuationObjectFacts>,
     pub surface_resume_dispatches:
@@ -53,14 +48,9 @@ pub struct LirFactGroups {
     pub type_context: LirTypeContextFacts,
     pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub intrinsic_callables: BTreeMap<String, LirIntrinsicCallableFact>,
-    pub source_call_sites: BTreeMap<LirSourceCallSiteKey, LirSourceCallSiteFacts>,
-    pub class_ctor_call_sites: BTreeMap<LirClassCtorCallSiteKey, LirClassCtorCallSiteFacts>,
-    pub reflection_call_sites: BTreeMap<LirReflectionCallSiteKey, LirReflectionCallSiteFacts>,
     pub class_ctor_inits: BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts>,
     pub callables: BTreeMap<LirCallableId, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
-    pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
-    pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
     pub resume_packings: BTreeMap<LirResumePackingKey, LirResumePackingFacts>,
     pub continuation_objects: BTreeMap<LirContinuationObjectKey, LirContinuationObjectFacts>,
     pub surface_resume_dispatches:
@@ -79,14 +69,9 @@ impl LirFacts {
             type_context: LirTypeContextFacts::default(),
             source_signatures: BTreeMap::new(),
             intrinsic_callables: BTreeMap::new(),
-            source_call_sites: BTreeMap::new(),
-            class_ctor_call_sites: BTreeMap::new(),
-            reflection_call_sites: BTreeMap::new(),
             class_ctor_inits: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
-            dynamic_invokes: BTreeMap::new(),
-            dispatches: BTreeMap::new(),
             resume_packings: BTreeMap::new(),
             continuation_objects: BTreeMap::new(),
             surface_resume_dispatches: BTreeMap::new(),
@@ -117,14 +102,9 @@ impl LirFacts {
             type_context: groups.type_context,
             source_signatures: groups.source_signatures,
             intrinsic_callables: groups.intrinsic_callables,
-            source_call_sites: groups.source_call_sites,
-            class_ctor_call_sites: groups.class_ctor_call_sites,
-            reflection_call_sites: groups.reflection_call_sites,
             class_ctor_inits: groups.class_ctor_inits,
             callables: groups.callables,
             step_types: groups.step_types,
-            dynamic_invokes: groups.dynamic_invokes,
-            dispatches: groups.dispatches,
             resume_packings: groups.resume_packings,
             continuation_objects: groups.continuation_objects,
             surface_resume_dispatches: groups.surface_resume_dispatches,
@@ -136,9 +116,6 @@ impl LirFacts {
         self.callables.is_empty()
             && self.source_signatures.is_empty()
             && self.intrinsic_callables.is_empty()
-            && self.source_call_sites.is_empty()
-            && self.class_ctor_call_sites.is_empty()
-            && self.reflection_call_sites.is_empty()
             && self.class_ctor_inits.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()
@@ -158,8 +135,6 @@ impl LirFacts {
             && self.summary.surface_resume_dispatch_count == 0
             && self.opt_pipeline.passes.is_empty()
             && self.step_types.is_empty()
-            && self.dynamic_invokes.is_empty()
-            && self.dispatches.is_empty()
             && self.resume_packings.is_empty()
             && self.continuation_objects.is_empty()
             && self.surface_resume_dispatches.is_empty()
@@ -322,6 +297,9 @@ mod tests {
             return_ty: ty(2),
             body_version: body_version(&key),
             resolved_outward_cases: Vec::new(),
+            source_call_sites: Vec::new(),
+            class_ctor_call_sites: Vec::new(),
+            reflection_call_sites: Vec::new(),
             contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
                 function_ty: ty(1),
                 param_names: Vec::new(),
@@ -509,10 +487,7 @@ mod tests {
         let frame_slot = LirFrameSlotKey::new(10);
         let callable_id = LirCallableId::from_raw(0);
         let callable_ref = LirCallableRef::local(callable_id);
-        let dynamic_invoke = LirDynamicInvokeKey {
-            owner_callable: callable_id,
-            site_id: scoopc_ids::SiteId::from_raw(11),
-        };
+        let site_id = scoopc_ids::SiteId::from_raw(11);
         let call_contract = LirCallSiteContract {
             kind: LirCallSiteKind::Closure,
             target_mode: LirCallTargetMode::DynamicFallback,
@@ -524,6 +499,22 @@ mod tests {
             callee_step_schema: Some(step_schema),
             resolved_cases: vec![case_tag],
             precision: LirEffectPrecision::Precise,
+        };
+        let dynamic_invoke = LirDynamicInvokeContract {
+            owner_callable: callable_id,
+            owner_step_schema: Some(step_schema),
+            site_id,
+            source: LirDynamicInvokeSource::Boundary {
+                boundary_id: boundary,
+            },
+            call: call_contract,
+            carrier: LirDynamicInvokeCarrierContract {
+                kind: LirDynamicInvokeCarrierKind::ClosureObject,
+                source_ty: Some(ty(1)),
+                dispatch: None,
+            },
+            arg_count: 1,
+            target_body_versions: vec![body_version.clone()],
         };
         let control_body = LirControlBodyFacts {
             step_schema,
@@ -552,7 +543,7 @@ mod tests {
                 boundaries: vec![LirBoundaryFacts {
                     boundary_id: boundary,
                     source_kind: "perform".to_string(),
-                    site_id: Some(scoopc_ids::SiteId::from_raw(11)),
+                    site_id: Some(site_id),
                     owner_state: entry_state,
                     resume_state,
                     lowering_kind: Some("dynamic_invoke".to_string()),
@@ -566,6 +557,7 @@ mod tests {
                     state_id: resume_state,
                 }],
             },
+            source_statement_call_sites: Vec::new(),
             source_statement_count: 1,
             continuation_object,
             resume_packings: vec![resume_packing],
@@ -597,6 +589,9 @@ mod tests {
                     allowed_effect_terms: vec![ty(1)],
                 },
                 resolved_outward_cases: vec![case_tag],
+                source_call_sites: Vec::new(),
+                class_ctor_call_sites: Vec::new(),
+                reflection_call_sites: Vec::new(),
                 contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
                     param_tys: vec![ty(3)],
                     closure_carrier_arg_tys: vec![ty(1)],
@@ -623,25 +618,6 @@ mod tests {
                     payload_tuple_ty: ty(3),
                     continuation_schema,
                 }],
-            },
-        );
-        groups.dynamic_invokes.insert(
-            dynamic_invoke.clone(),
-            LirDynamicInvokeContract {
-                owner_callable: callable_id,
-                owner_step_schema: Some(step_schema),
-                site_id: dynamic_invoke.site_id,
-                source: LirDynamicInvokeSource::Boundary {
-                    boundary_id: boundary,
-                },
-                call: call_contract,
-                carrier: LirDynamicInvokeCarrierContract {
-                    kind: LirDynamicInvokeCarrierKind::ClosureObject,
-                    source_ty: Some(ty(1)),
-                    dispatch: None,
-                },
-                arg_count: 1,
-                target_body_versions: vec![body_version.clone()],
             },
         );
         groups.resume_packings.insert(
@@ -758,6 +734,9 @@ mod tests {
                     allowed_effect_terms: Vec::new(),
                 },
                 resolved_outward_cases: Vec::new(),
+                source_call_sites: Vec::new(),
+                class_ctor_call_sites: Vec::new(),
+                reflection_call_sites: Vec::new(),
                 contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
                     param_tys: Vec::new(),
                     closure_carrier_arg_tys: Vec::new(),
@@ -788,6 +767,7 @@ mod tests {
                         resume_state_map: LirResumeStateMapFacts {
                             entries: Vec::new(),
                         },
+                        source_statement_call_sites: Vec::new(),
                         source_statement_count: 0,
                         continuation_object: object_id,
                         resume_packings: Vec::new(),

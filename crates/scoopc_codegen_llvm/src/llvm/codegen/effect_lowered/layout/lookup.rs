@@ -153,19 +153,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
     }
 
-    pub(super) fn dispatch_contract(
-        &self,
-        key: &scoopc_lir_facts::LirDispatchKey,
-    ) -> Result<&scoopc_lir_facts::LirDispatchContract, LlvmEmitError> {
-        self.lir_facts.dispatches.get(key).ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM ABI materialization 缺少 callable `{:?}` call site {} 的 LIR dispatch contract",
-                key.owner_callable,
-                key.site_id.as_u32()
-            ))
-        })
-    }
-
     pub(super) fn lir_target_roots(
         &self,
         contract: &LirDynamicInvokeContract,

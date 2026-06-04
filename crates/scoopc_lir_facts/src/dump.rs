@@ -9,6 +9,11 @@ use crate::LirFacts;
 /// Render a compact, stable summary of LIR fact groups.
 pub fn dump_lir_facts(facts: &LirFacts) -> String {
     let mut out = String::new();
+    let dynamic_invoke_count = dynamic_invoke_count(facts);
+    let dispatch_count = dispatch_count(facts);
+    let source_call_site_count = source_call_site_count(facts);
+    let class_ctor_call_site_count = class_ctor_call_site_count(facts);
+    let reflection_call_site_count = reflection_call_site_count(facts);
 
     writeln!(&mut out, "lir_facts {{").expect("writing to String cannot fail");
     writeln!(
@@ -23,8 +28,8 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         facts.summary.opt_revision,
         facts.summary.callable_count,
         facts.summary.step_type_count,
-        facts.dynamic_invokes.len(),
-        facts.dispatches.len(),
+        dynamic_invoke_count,
+        dispatch_count,
         facts.summary.resume_packing_count,
         facts.summary.continuation_object_count,
         facts.summary.surface_resume_dispatch_count,
@@ -126,15 +131,16 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     writeln!(
         &mut out,
         "  dynamic_invoke_contracts={}",
-        facts.dynamic_invokes.len()
+        dynamic_invoke_count
     )
     .expect("writing to String cannot fail");
-    for (key, contract) in &facts.dynamic_invokes {
-        writeln!(
+    for callable in facts.callables.values() {
+        for contract in callable.dynamic_invoke_contracts() {
+            writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} target_mode={:?} callee_step={:?} carrier={:?} arg_count={} targets={}",
-            callable_owner_label(facts, key.owner_callable),
-            key.site_id.as_u32(),
+            callable_owner_label(facts, contract.owner_callable),
+            contract.site_id.as_u32(),
             contract.call.kind,
             contract.call.target_mode,
             contract.call.callee_step_schema.map(|schema| schema.as_u32()),
@@ -143,19 +149,21 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
             contract.target_body_versions.len(),
         )
         .expect("writing to String cannot fail");
+        }
     }
     writeln!(
         &mut out,
         "  source_call_site_contracts={}",
-        facts.source_call_sites.len()
+        source_call_site_count
     )
     .expect("writing to String cannot fail");
-    for (key, site) in &facts.source_call_sites {
-        writeln!(
+    for callable in facts.callables.values() {
+        for site in &callable.source_call_sites {
+            writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} target_mode={:?} semantic_root={} named_entry={} generic_args={} exact_callee={}",
-            callable_owner_label(facts, key.owner_callable),
-            key.site_id.as_u32(),
+            callable_owner_label(facts, site.owner_callable),
+            site.site_id.as_u32(),
             site.contract.kind,
             site.contract.target_mode,
             site.semantic_root_fqn.as_deref().unwrap_or("<none>"),
@@ -168,50 +176,56 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
                 .unwrap_or("<none>"),
         )
         .expect("writing to String cannot fail");
+        }
     }
     writeln!(
         &mut out,
         "  class_ctor_call_site_contracts={}",
-        facts.class_ctor_call_sites.len()
+        class_ctor_call_site_count
     )
     .expect("writing to String cannot fail");
-    for (key, site) in &facts.class_ctor_call_sites {
-        writeln!(
-            &mut out,
-            "    - owner={} site={} class={} target={} arg_slots={}",
-            callable_owner_label(facts, key.owner_callable),
-            key.site_id.as_u32(),
-            site.class_fqn,
-            site.target_init.as_str(),
-            site.arg_mapping.len(),
-        )
-        .expect("writing to String cannot fail");
+    for callable in facts.callables.values() {
+        for site in &callable.class_ctor_call_sites {
+            writeln!(
+                &mut out,
+                "    - owner={} site={} class={} target={} arg_slots={}",
+                callable_owner_label(facts, site.owner_callable),
+                site.site_id.as_u32(),
+                site.class_fqn,
+                site.target_init.as_str(),
+                site.arg_mapping.len(),
+            )
+            .expect("writing to String cannot fail");
+        }
     }
     writeln!(
         &mut out,
         "  reflection_call_site_contracts={}",
-        facts.reflection_call_sites.len()
+        reflection_call_site_count
     )
     .expect("writing to String cannot fail");
-    for (key, site) in &facts.reflection_call_sites {
-        writeln!(
-            &mut out,
-            "    - owner={} site={} intrinsic={} type_args={}",
-            callable_owner_label(facts, key.owner_callable),
-            key.site_id.as_u32(),
-            site.intrinsic_name,
-            site.type_args.len(),
-        )
-        .expect("writing to String cannot fail");
+    for callable in facts.callables.values() {
+        for site in &callable.reflection_call_sites {
+            writeln!(
+                &mut out,
+                "    - owner={} site={} intrinsic={} type_args={}",
+                callable_owner_label(facts, site.owner_callable),
+                site.site_id.as_u32(),
+                site.intrinsic_name,
+                site.type_args.len(),
+            )
+            .expect("writing to String cannot fail");
+        }
     }
-    writeln!(&mut out, "  dispatch_contracts={}", facts.dispatches.len())
+    writeln!(&mut out, "  dispatch_contracts={}", dispatch_count)
         .expect("writing to String cannot fail");
-    for (key, dispatch) in &facts.dispatches {
-        writeln!(
+    for callable in facts.callables.values() {
+        for dispatch in callable.dispatch_contracts() {
+            writeln!(
             &mut out,
             "    - owner={} site={} kind={:?} dispatch_owner={} member={} slot={} interface_id={:?} candidates={}",
-            callable_owner_label(facts, key.owner_callable),
-            key.site_id.as_u32(),
+            callable_owner_label(facts, dispatch.owner_callable),
+            dispatch.site_id.as_u32(),
             dispatch.kind,
             dispatch.owner_fqn,
             dispatch.member_name,
@@ -220,6 +234,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
             dispatch.candidate_targets.len(),
         )
         .expect("writing to String cannot fail");
+        }
     }
     writeln!(
         &mut out,
@@ -250,6 +265,46 @@ fn callable_owner_label(facts: &LirFacts, id: scoopc_ids::LirCallableId) -> Stri
         .get(&id)
         .map(|callable| callable.root_fqn().to_string())
         .unwrap_or_else(|| format!("{id:?}"))
+}
+
+fn dynamic_invoke_count(facts: &LirFacts) -> usize {
+    facts
+        .callables
+        .values()
+        .map(|callable| callable.dynamic_invoke_contracts().len())
+        .sum()
+}
+
+fn dispatch_count(facts: &LirFacts) -> usize {
+    facts
+        .callables
+        .values()
+        .map(|callable| callable.dispatch_contracts().len())
+        .sum()
+}
+
+fn source_call_site_count(facts: &LirFacts) -> usize {
+    facts
+        .callables
+        .values()
+        .map(|callable| callable.source_call_sites.len())
+        .sum()
+}
+
+fn class_ctor_call_site_count(facts: &LirFacts) -> usize {
+    facts
+        .callables
+        .values()
+        .map(|callable| callable.class_ctor_call_sites.len())
+        .sum()
+}
+
+fn reflection_call_site_count(facts: &LirFacts) -> usize {
+    facts
+        .callables
+        .values()
+        .map(|callable| callable.reflection_call_sites.len())
+        .sum()
 }
 
 fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
