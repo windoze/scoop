@@ -357,7 +357,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 args,
                 slots,
                 false,
-                self.types,
+                mir_types,
             )?;
             let explicit_args = evaluated_explicit_args
                 .iter()
@@ -425,7 +425,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &all_args,
             slots,
             false,
-            self.types,
+            mir_types,
         )?;
         let receiver_ptr = evaluated_args
             .first()
@@ -521,6 +521,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         site_id: crate::mir::SiteId,
         receiver: &LirOperand,
         args: &[LirCallArg],
+        body: &LirExecutableBody,
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         is_interface: bool,
@@ -530,7 +531,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.resolve_plain_virtual_dispatch_target(site_id, args.len())?
         };
-        self.codegen_lir_plain_dispatch_call(span, receiver, args, source_types, slots, target)
+        self.codegen_lir_plain_dispatch_call(
+            span,
+            receiver,
+            args,
+            body,
+            source_types,
+            slots,
+            target,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -539,7 +548,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         receiver: &LirOperand,
         args: &[LirCallArg],
-        _source_types: &TypeStore,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target: PlainDispatchTarget,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -584,6 +594,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &explicit_param_names,
                 &explicit_param_tys,
                 args,
+                body,
+                source_types,
                 slots,
                 false,
                 self.types,
@@ -652,6 +664,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &signature.param_names,
             &signature.param_tys,
             &all_args,
+            body,
+            source_types,
             slots,
             false,
             self.types,

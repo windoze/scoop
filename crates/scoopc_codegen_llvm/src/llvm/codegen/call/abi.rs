@@ -8,7 +8,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .or_else(|| match self.types.kind(ty) {
                 // Function values are always passed as managed references; their generic parameter and
                 // return types do not affect the ABI shape of the closure object pointer.
-                TypeKind::Ref(RefTypeKind::Function(_)) => Some(CgTy::Ref),
+                TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
+                TypeKind::Ref(_) => Some(CgTy::Ref),
+                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    self.builtin_nominal_cg_ty(&nominal.fqn)
+                }
                 _ => None,
             })
     }

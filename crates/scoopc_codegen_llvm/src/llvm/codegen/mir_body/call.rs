@@ -225,6 +225,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     site_id,
                     receiver,
                     args,
+                    body,
                     source_types,
                     slots,
                     matches!(kind, LirCallKind::Interface { .. }),
@@ -234,6 +235,619 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 panic!("codegen_lir_call: resume call reached plain callable lowering at {span:?}")
             }
         }
+    }
+
+    fn codegen_lir_atomic_intrinsic(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match fqn {
+            "scoop.unsafe.__atomicRefLoad" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_ref_load",
+                        "argument binding drift",
+                    );
+                }
+                let place = self.lir_atomic_ref_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    false,
+                )?;
+                let llvm_ty = self.llvm_basic_type_of(args[0].span, place.field_cg)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, place.ptr, "atomic_ref_load")?;
+                let inst = loaded.as_instruction_value().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_ref_load",
+                        "load instruction missing",
+                    )
+                });
+                inst.set_atomic_ordering(inkwell::AtomicOrdering::SequentiallyConsistent)
+                    .unwrap_or_else(|_| {
+                        self.panic_verified_intrinsic_contract(
+                            "lir_atomic_ref_load",
+                            "failed to set atomic ordering",
+                        )
+                    });
+                Ok(Some(CgValue {
+                    ty: place.field_cg,
+                    value: Some(loaded),
+                }))
+            }
+            "scoop.unsafe.__atomicRefStore" => {
+                if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_ref_store",
+                        "argument binding drift",
+                    );
+                }
+                let place = self.lir_atomic_ref_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    true,
+                )?;
+                let raw = self.codegen_lir_atomic_ref_operand(
+                    args[1].span,
+                    &args[1].value,
+                    place.field_cg,
+                    slots,
+                )?;
+                let inst = self.builder.build_store(place.ptr, raw)?;
+                inst.set_atomic_ordering(inkwell::AtomicOrdering::SequentiallyConsistent)
+                    .unwrap_or_else(|_| {
+                        self.panic_verified_intrinsic_contract(
+                            "lir_atomic_ref_store",
+                            "failed to set atomic ordering",
+                        )
+                    });
+                self.promote_gc_pointer_with_write_barrier(args[1].span, raw)?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.unsafe.__atomicRefCompareExchange" => {
+                if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_ref_cmpxchg",
+                        "argument binding drift",
+                    );
+                }
+                let place = self.lir_atomic_ref_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    true,
+                )?;
+                let expected = self.codegen_lir_atomic_ref_operand(
+                    args[1].span,
+                    &args[1].value,
+                    place.field_cg,
+                    slots,
+                )?;
+                let desired = self.codegen_lir_atomic_ref_operand(
+                    args[2].span,
+                    &args[2].value,
+                    place.field_cg,
+                    slots,
+                )?;
+                let cx = self.builder.build_cmpxchg(
+                    place.ptr,
+                    expected,
+                    desired,
+                    inkwell::AtomicOrdering::SequentiallyConsistent,
+                    inkwell::AtomicOrdering::SequentiallyConsistent,
+                )?;
+                let success = self.builder.build_extract_value(cx, 1, "cmpxchg_success")?;
+                let ok = self.expect_int_value(success, "lir_atomic_ref_cmpxchg success");
+                self.codegen_lir_atomic_ref_cas_barrier(args[2].span, ok, desired)?;
+                Ok(Some(CgValue::bool(ok)))
+            }
+            "scoop.unsafe.__atomicIntLoad" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_int_load",
+                        "argument binding drift",
+                    );
+                }
+                let (ptr, int_ty) = self.lir_atomic_int_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    false,
+                )?;
+                let loaded =
+                    self.builder
+                        .build_load(self.int_type(int_ty), ptr, "atomic_int_load")?;
+                let inst = loaded.as_instruction_value().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_int_load",
+                        "load instruction missing",
+                    )
+                });
+                inst.set_atomic_ordering(inkwell::AtomicOrdering::SequentiallyConsistent)
+                    .unwrap_or_else(|_| {
+                        self.panic_verified_intrinsic_contract(
+                            "lir_atomic_int_load",
+                            "failed to set atomic ordering",
+                        )
+                    });
+                let raw = self.expect_int_value(loaded, "lir_atomic_int_load return");
+                Ok(Some(CgValue::int(raw, int_ty)))
+            }
+            "scoop.unsafe.__atomicIntStore" => {
+                if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_int_store",
+                        "argument binding drift",
+                    );
+                }
+                let (ptr, int_ty) = self.lir_atomic_int_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    true,
+                )?;
+                let raw = self.codegen_lir_atomic_int_operand(
+                    args[1].span,
+                    &args[1].value,
+                    int_ty,
+                    slots,
+                )?;
+                let inst = self.builder.build_store(ptr, raw)?;
+                inst.set_atomic_ordering(inkwell::AtomicOrdering::SequentiallyConsistent)
+                    .unwrap_or_else(|_| {
+                        self.panic_verified_intrinsic_contract(
+                            "lir_atomic_int_store",
+                            "failed to set atomic ordering",
+                        )
+                    });
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.unsafe.__atomicIntCompareExchange" => {
+                if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+                    self.panic_verified_intrinsic_contract(
+                        "lir_atomic_int_cmpxchg",
+                        "argument binding drift",
+                    );
+                }
+                let (ptr, int_ty) = self.lir_atomic_int_place(
+                    args[0].span,
+                    &args[0].value,
+                    body,
+                    source_types,
+                    slots,
+                    true,
+                )?;
+                let expected = self.codegen_lir_atomic_int_operand(
+                    args[1].span,
+                    &args[1].value,
+                    int_ty,
+                    slots,
+                )?;
+                let desired = self.codegen_lir_atomic_int_operand(
+                    args[2].span,
+                    &args[2].value,
+                    int_ty,
+                    slots,
+                )?;
+                let cx = self.builder.build_cmpxchg(
+                    ptr,
+                    expected,
+                    desired,
+                    inkwell::AtomicOrdering::SequentiallyConsistent,
+                    inkwell::AtomicOrdering::SequentiallyConsistent,
+                )?;
+                let success = self.builder.build_extract_value(cx, 1, "cmpxchg_success")?;
+                let ok = self.expect_int_value(success, "lir_atomic_int_cmpxchg success");
+                Ok(Some(CgValue::bool(ok)))
+            }
+            _ => {
+                let _ = span;
+                Ok(None)
+            }
+        }
+    }
+
+    fn lir_atomic_ref_place(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        require_writable: bool,
+    ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        let LirOperand::Local(local) = operand else {
+            self.panic_verified_intrinsic_contract("lir_atomic_ref_place", "target is not local");
+        };
+        let place = self.lir_atomic_place_for_local(
+            span,
+            *local,
+            body,
+            source_types,
+            slots,
+            require_writable,
+        )?;
+        if matches!(place.field_cg, CgTy::Ref | CgTy::String) {
+            return Ok(place);
+        }
+        self.panic_verified_intrinsic_contract("lir_atomic_ref_place", "target is not ref storage")
+    }
+
+    fn lir_atomic_int_place(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        require_writable: bool,
+    ) -> Result<(inkwell::values::PointerValue<'ctx>, IntTy), LlvmEmitError> {
+        let LirOperand::Local(local) = operand else {
+            self.panic_verified_intrinsic_contract("lir_atomic_int_place", "target is not local");
+        };
+        let place = self.lir_atomic_place_for_local(
+            span,
+            *local,
+            body,
+            source_types,
+            slots,
+            require_writable,
+        )?;
+        let CgTy::Int(int_ty) = place.field_cg else {
+            self.panic_verified_intrinsic_contract(
+                "lir_atomic_int_place",
+                "target is not int storage",
+            );
+        };
+        Ok((place.ptr, int_ty))
+    }
+
+    fn lir_atomic_place_for_local(
+        &mut self,
+        span: crate::span::Span,
+        local: crate::effect_lowered::mir_source::LocalId,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        require_writable: bool,
+    ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        let mut found = None;
+        for state in body.states().states() {
+            for stmt in state.body().statements() {
+                let LirStatementKind::Assign {
+                    target,
+                    value:
+                        LirRvalue::MemberAccess {
+                            receiver, member, ..
+                        },
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                if *target == local {
+                    found = Some((stmt.span, receiver.clone(), member.clone()));
+                    break;
+                }
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        if let Some((stmt_span, receiver, member)) = found {
+            return self.codegen_lir_member_place(
+                stmt_span,
+                &receiver,
+                &member,
+                LirBodyCodegenCtx {
+                    body,
+                    source_types,
+                    slots,
+                },
+                require_writable,
+            );
+        }
+        let slot = self.mir_local_slot(span, slots, local)?;
+        Ok(MirMemberPlace {
+            ptr: slot.ptr,
+            field_cg: slot.cg_ty,
+            writable: true,
+            packed_alignment: None,
+        })
+    }
+
+    fn codegen_lir_atomic_ref_operand(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        storage_ty: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen_lir_operand_expected(span, operand, slots, Some(storage_ty))?;
+        let value = self.coerce_value(span, value, storage_ty)?;
+        Ok(self.expect_cg_pointer(value, "lir_atomic_ref_operand"))
+    }
+
+    fn codegen_lir_atomic_int_operand(
+        &mut self,
+        span: crate::span::Span,
+        operand: &LirOperand,
+        int_ty: IntTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        let value =
+            self.codegen_lir_operand_expected(span, operand, slots, Some(CgTy::Int(int_ty)))?;
+        let value = self.coerce_value(span, value, CgTy::Int(int_ty))?;
+        let (raw, from) = self.expect_cg_int(value, "lir_atomic_int_operand");
+        self.cast_int(raw, from, int_ty)
+    }
+
+    fn codegen_lir_atomic_ref_cas_barrier(
+        &mut self,
+        span: crate::span::Span,
+        success: inkwell::values::IntValue<'ctx>,
+        desired: inkwell::values::PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.expect_current_function("lir_atomic_ref_cas_barrier");
+        let barrier_bb = self
+            .context
+            .append_basic_block(function, "atomic_ref_cas_barrier");
+        let cont_bb = self
+            .context
+            .append_basic_block(function, "atomic_ref_cas_cont");
+        self.builder
+            .build_conditional_branch(success, barrier_bb, cont_bb)?;
+        self.builder.position_at_end(barrier_bb);
+        self.promote_gc_pointer_with_write_barrier(span, desired)?;
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+        Ok(())
+    }
+
+    fn codegen_lir_gc_handle_intrinsic(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        transport: &crate::effect_lowered::LirCallTransportMetadata,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match fqn {
+            "scoop.core.GC.handleNew" => {
+                let arg = self.expect_lir_positional_arg(args, 1, 0, "LIR GC.handleNew lowering");
+                let Some(CgTy::Struct(handle_ty)) =
+                    self.cg_ty_of_mir_type(source_types, transport.result.source_ty)
+                else {
+                    self.panic_verified_intrinsic_contract(
+                        "LIR GC.handleNew lowering",
+                        "missing expected GcHandle result type",
+                    );
+                };
+                let (field_idx, field_cg_ty) =
+                    self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", span)?;
+                let CgTy::Int(field_int_ty) = field_cg_ty else {
+                    self.panic_verified_intrinsic_contract(
+                        "LIR GC.handleNew lowering",
+                        "GcHandle.raw field is not an integer",
+                    );
+                };
+                let obj_v = self.codegen_lir_operand_expected(
+                    arg.span,
+                    &arg.value,
+                    slots,
+                    Some(CgTy::Ref),
+                )?;
+                let obj_ref = self.coerce_value(arg.span, obj_v, CgTy::Ref)?;
+                let obj_ptr = self.expect_cg_pointer(obj_ref, "LIR GC.handleNew argument");
+
+                let rt_handle_new = self.declare_runtime_gc_handle_new();
+                let call = self.builder.build_call(
+                    rt_handle_new,
+                    &[obj_ptr.into()],
+                    "lir_gc_handle_new",
+                )?;
+                let raw = self.expect_basic_value(call, "LIR GC.handleNew runtime return");
+                let handle_i64 = self.expect_int_value(raw, "LIR GC.handleNew runtime return");
+                let ok_cond = self.builder.build_int_compare(
+                    inkwell::IntPredicate::NE,
+                    handle_i64,
+                    self.context.i64_type().const_zero(),
+                    "lir_gc_handle_new_ok",
+                )?;
+                let func = self.expect_current_function("LIR GC.handleNew branch blocks");
+                let ok_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_new_ok_bb");
+                let err_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_new_err_bb");
+                let cont_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_new_cont_bb");
+                self.builder
+                    .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+                self.builder.position_at_end(err_bb);
+                self.emit_exit_with_code(span, 3)?;
+                self.builder.position_at_end(ok_bb);
+                let handle_word = self.cast_int(
+                    handle_i64,
+                    IntTy {
+                        bits: 64,
+                        signed: false,
+                    },
+                    field_int_ty,
+                )?;
+                let llvm_struct_ty = self.llvm_struct_type(span, handle_ty)?;
+                let mut agg: inkwell::values::AggregateValueEnum<'ctx> =
+                    llvm_struct_ty.get_undef().into();
+                agg = self.builder.build_insert_value(
+                    agg,
+                    handle_word.as_basic_value_enum(),
+                    field_idx,
+                    "lir_gc_handle_raw",
+                )?;
+                self.builder.build_unconditional_branch(cont_bb)?;
+                self.builder.position_at_end(cont_bb);
+                Ok(Some(CgValue {
+                    ty: CgTy::Struct(handle_ty),
+                    value: Some(agg.as_basic_value_enum()),
+                }))
+            }
+            "scoop.core.GC.handleGet" => {
+                let arg = self.expect_lir_positional_arg(args, 1, 0, "LIR GC.handleGet lowering");
+                let handle_v = self.codegen_lir_operand(arg.span, &arg.value, slots)?;
+                let CgTy::Struct(handle_ty) = handle_v.ty else {
+                    self.panic_verified_intrinsic_contract(
+                        "LIR GC.handleGet lowering",
+                        "argument is not a GcHandle struct",
+                    );
+                };
+                let handle_i64 = self.extract_lir_gc_handle_word(arg.span, handle_v, handle_ty)?;
+                let rt_handle_get = self.declare_runtime_gc_handle_get();
+                let call = self.builder.build_call(
+                    rt_handle_get,
+                    &[handle_i64.into()],
+                    "lir_gc_handle_get",
+                )?;
+                let raw = self.expect_basic_value(call, "LIR GC.handleGet runtime return");
+                let obj_ptr = self.expect_pointer_value(raw, "LIR GC.handleGet runtime return");
+                let obj_is_null = self
+                    .builder
+                    .build_is_null(obj_ptr, "lir_gc_handle_get_is_null")?;
+                let ok_cond = self
+                    .builder
+                    .build_not(obj_is_null, "lir_gc_handle_get_ok")?;
+                let func = self.expect_current_function("LIR GC.handleGet branch blocks");
+                let ok_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_get_ok_bb");
+                let err_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_get_err_bb");
+                let cont_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_get_cont_bb");
+                self.builder
+                    .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+                self.builder.position_at_end(err_bb);
+                self.emit_exit_with_code(span, 3)?;
+                self.builder.position_at_end(ok_bb);
+                self.builder.build_unconditional_branch(cont_bb)?;
+                self.builder.position_at_end(cont_bb);
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(obj_ptr.as_basic_value_enum()),
+                }))
+            }
+            "scoop.core.GC.handleDrop" => {
+                let arg = self.expect_lir_positional_arg(args, 1, 0, "LIR GC.handleDrop lowering");
+                let handle_v = self.codegen_lir_operand(arg.span, &arg.value, slots)?;
+                let CgTy::Struct(handle_ty) = handle_v.ty else {
+                    self.panic_verified_intrinsic_contract(
+                        "LIR GC.handleDrop lowering",
+                        "argument is not a GcHandle struct",
+                    );
+                };
+                let handle_i64 = self.extract_lir_gc_handle_word(arg.span, handle_v, handle_ty)?;
+                let rt_handle_drop = self.declare_runtime_gc_handle_drop();
+                let call = self.builder.build_call(
+                    rt_handle_drop,
+                    &[handle_i64.into()],
+                    "lir_gc_handle_drop",
+                )?;
+                let raw = self.expect_basic_value(call, "LIR GC.handleDrop runtime return");
+                let ok_i32 = self.expect_int_value(raw, "LIR GC.handleDrop runtime return");
+                let ok_cond = self.builder.build_int_compare(
+                    inkwell::IntPredicate::NE,
+                    ok_i32,
+                    self.context.i32_type().const_zero(),
+                    "lir_gc_handle_drop_ok",
+                )?;
+                let func = self.expect_current_function("LIR GC.handleDrop branch blocks");
+                let ok_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_drop_ok_bb");
+                let err_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_drop_err_bb");
+                let cont_bb = self
+                    .context
+                    .append_basic_block(func, "lir_gc_handle_drop_cont_bb");
+                self.builder
+                    .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+                self.builder.position_at_end(err_bb);
+                self.emit_exit_with_code(span, 3)?;
+                self.builder.position_at_end(ok_bb);
+                self.builder.build_unconditional_branch(cont_bb)?;
+                self.builder.position_at_end(cont_bb);
+                Ok(Some(CgValue::unit()))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn expect_lir_positional_arg<'b>(
+        &self,
+        args: &'b [LirCallArg],
+        expected_len: usize,
+        index: usize,
+        context: &'static str,
+    ) -> &'b LirCallArg {
+        if args.len() != expected_len || args.iter().any(|arg| arg.name.is_some()) {
+            self.panic_verified_intrinsic_contract(context, "argument binding drift");
+        }
+        args.get(index)
+            .unwrap_or_else(|| self.panic_verified_intrinsic_contract(context, "missing argument"))
+    }
+
+    fn extract_lir_gc_handle_word(
+        &mut self,
+        span: crate::span::Span,
+        handle_v: CgValue<'ctx>,
+        handle_ty: crate::ty::MonoTypeId,
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        let raw = self.expect_cg_value(handle_v, "LIR GC handle argument");
+        let struct_v = self.expect_struct_value(raw, "LIR GC handle argument");
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", span)?;
+        let extracted =
+            self.builder
+                .build_extract_value(struct_v, field_idx, "lir_gc_handle_raw")?;
+        let field_v = self.cg_value_from_loaded(span, field_cg_ty, extracted)?;
+        let CgTy::Int(field_int_ty) = field_cg_ty else {
+            self.panic_verified_intrinsic_contract(
+                "extract_lir_gc_handle_word",
+                "GcHandle.raw field is not an integer",
+            );
+        };
+        let field_raw = self.expect_cg_value(field_v, "LIR GC handle raw field");
+        let handle_word = self.expect_int_value(field_raw, "LIR GC handle raw field");
+        self.cast_int(
+            handle_word,
+            field_int_ty,
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+        )
     }
 
     fn lir_builtin_to_string_impl_fqn_for_operand(
@@ -379,7 +993,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             args,
             slots,
             native_abi.is_some(),
-            self.types,
+            source_types,
         )?;
 
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
@@ -538,6 +1152,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fqn.to_string()
         };
         let concrete_fqn = concrete_fqn.as_str();
+        let named_intrinsic_entry = source_site
+            .and_then(|site| site.named_entry_name.as_deref())
+            .map(str::to_string)
+            .or_else(|| self.published_named_intrinsic_entry_name(concrete_fqn));
+        if let Some(entry_name) = named_intrinsic_entry
+            && let Some(value) = self.try_codegen_named_intrinsic_lir_direct_call(
+                span,
+                &entry_name,
+                args,
+                body,
+                source_types,
+                transport.array.as_ref(),
+                slots,
+            )?
+        {
+            return Ok(value);
+        }
+        if let Some(value) =
+            self.codegen_lir_atomic_intrinsic(span, concrete_fqn, args, body, source_types, slots)?
+        {
+            return Ok(value);
+        }
+        if let Some(value) = self.codegen_lir_gc_handle_intrinsic(
+            span,
+            concrete_fqn,
+            args,
+            source_types,
+            transport,
+            slots,
+        )? {
+            return Ok(value);
+        }
         let callable_abi = self.direct_call_abi_identity(concrete_fqn);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         let (signature_types, param_names, source_param_tys, source_return_ty) = self
@@ -560,9 +1206,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         if param_names.len() != param_tys.len() || args.len() != param_tys.len() {
             panic!(
-                "codegen_lir_direct_call_with_type_args: LIR call ABI verifier accepted arity mismatch"
+                "codegen_lir_direct_call_with_type_args: LIR call ABI verifier accepted arity mismatch for `{concrete_fqn}`: params={} args={} names={}",
+                param_tys.len(),
+                args.len(),
+                param_names.len()
             );
         }
+        let mut uses_call_site_signature_tys = false;
+        let declaration_param_tys = source_param_tys
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(idx, param_ty)| {
+                if self.mir_type_contains_param(signature_types, param_ty)
+                    && let Some(arg_ty) = args
+                        .get(idx)
+                        .and_then(|arg| self.lir_operand_type_id(body, &arg.value))
+                {
+                    uses_call_site_signature_tys = true;
+                    arg_ty
+                } else {
+                    param_ty
+                }
+            })
+            .collect::<Vec<_>>();
+        let declaration_return_ty =
+            if self.mir_type_contains_param(signature_types, source_return_ty) {
+                uses_call_site_signature_tys = true;
+                transport.result.source_ty
+            } else {
+                source_return_ty
+            };
+        let declaration_types = if uses_call_site_signature_tys {
+            source_types
+        } else {
+            signature_types
+        };
 
         let native_abi = if callable_abi.uses_native_abi() {
             Some(self.classify_direct_extern_native_callable(
@@ -640,6 +1319,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &param_names,
             &param_tys,
             args,
+            body,
+            source_types,
             slots,
             native_abi.is_some(),
             self.types,
@@ -682,9 +1363,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &llvm_name,
                     declaration_surface,
                     concrete_fqn,
-                    &source_param_tys,
-                    source_return_ty,
-                    signature_types,
+                    &declaration_param_tys,
+                    declaration_return_ty,
+                    declaration_types,
                     false,
                 )?
             }

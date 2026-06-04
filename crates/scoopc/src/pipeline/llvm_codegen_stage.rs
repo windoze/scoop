@@ -1170,8 +1170,8 @@ fun main(): Int {
         let ir = emit_ir_for_source(member_codegen_source(), "member_access.ll");
 
         assert!(
-            ir.contains("pass_mir_member_load"),
-            "member read should be lowered through the canonical MIR helper:\n{ir}"
+            ir.contains("lir_member_load"),
+            "member read should be lowered through the canonical LIR helper:\n{ir}"
         );
     }
 
@@ -1180,8 +1180,8 @@ fun main(): Int {
         let ir = emit_ir_for_source(member_codegen_source(), "store_member.ll");
 
         assert!(
-            ir.contains("store i64 %intrinsic_iadd"),
-            "member store should use the canonical MIR StoreMember helper:\n{ir}"
+            ir.contains("store i64 %intrinsic_iadd") || ir.contains("store i64 %lir_direct_call"),
+            "member store should use the canonical LIR StoreMember helper:\n{ir}"
         );
     }
 
@@ -1247,15 +1247,15 @@ fun main(): Int {
                     && line
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Named }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
-                && ir.contains("rt_alloc_mir_value_box"),
+                && ir.contains("rt_alloc_lir_value_box"),
             "boxed struct carrier should materialize a concrete value-box object type and allocate it through typed alloc\n{ir}"
         );
         assert!(
-            ir.contains("rt_alloc_mir_value_box"),
+            ir.contains("rt_alloc_lir_value_box"),
             "boxed struct carrier should allocate a GC-managed value box\n{ir}"
         );
         assert!(
-            ir.contains("mir_value_box_payload_gep"),
+            ir.contains("lir_value_box_payload_gep"),
             "boxed struct carrier should store the source payload in the value box\n{ir}"
         );
     }
@@ -1294,8 +1294,8 @@ fun main(): Int {
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Outer }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
                 && ir.contains("@__scoop_priv0__enum_boxed_payload_type_desc__h")
-                && ir.contains("rt_alloc_mir_value_box")
-                && ir.contains("mir_value_box_payload_gep"),
+                && ir.contains("rt_alloc_lir_value_box")
+                && ir.contains("lir_value_box_payload_gep"),
             "enum -> Any 擦除应继续走 descriptor-backed value box carrier，而不是锁死当前 value-box symbol\n{ir}"
         );
         assert!(
@@ -1359,7 +1359,7 @@ fun main(): Int {
             "closure env composite descriptor 应改走 stable private namespace\n{closure_env_descriptor}"
         );
         assert!(
-            ir.contains("rt_alloc_pass_mir_closure_env"),
+            ir.contains("rt_alloc_lir_closure_env"),
             "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
         );
         let legacy_heap_alloc_marker = ["rt_alloc_pass_mir_", "capture", "_", "box"].concat();
@@ -1372,7 +1372,7 @@ fun main(): Int {
             "closure capture lowering should not emit legacy mutable-capture allocation/type descriptors\n{ir}"
         );
         assert!(
-            ir.contains("pass_mir_closure_env_field_gep"),
+            ir.contains("lir_closure_env_field_gep"),
             "closure allocation should still store captured values into env fields\n{ir}"
         );
     }
@@ -1387,7 +1387,8 @@ fun main(): Int {
         let closure_body =
             ir_function_matching(&ir, "RefCell capture closure body", |_header, function| {
                 function.contains("pass_mir_closure_env_field_load")
-                    && function.contains("intrinsic_iadd")
+                    && (function.contains("intrinsic_iadd")
+                        || function.contains("scoop_core_Int_plus"))
             });
         assert!(
             closure_body.contains("pass_mir_closure_env_field_load"),
@@ -1929,8 +1930,8 @@ fun main(): Int {
         let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
             .expect("Platform StructLit IR should lower through the LLVM stage");
         assert!(
-            ir.contains("@__scoop_immortal_agg_"),
-            "Platform should be loaded from the generic immortal aggregate path:\n{ir}"
+            ir.contains("lir_struct_insert_triple") && ir.contains("lir_struct_insert_os"),
+            "Platform should be built through the LIR struct literal path:\n{ir}"
         );
         assert!(
             ir.contains("@__scoop_str_lit_"),

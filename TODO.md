@@ -128,9 +128,25 @@
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
 - 基线运行：`cargo test --all --all-targets` 仍有 11 个 plain-LIR `scoopc` LLVM 单测失败；`python3 tools/run_fixtures.py` 仍有 `268/1625` fixture 失败。两组失败已在 `TC-02` 下精确登记为 plain LIR 主体迁移的验收阻塞项，本任务不以 workaround 扩大范围修复 TC-02。
 
+### [TODO] TC-02-PRE2：收敛 plain-LIR 剩余 fixture/runtime 残差
+
+**目标**：在 `TC-02` 标记完成前，收敛本轮 plain-LIR 主体迁移后仍未绿的完整 fixture 基线。不得通过退回 MIR walk、LIR→MIR shim、句柄→FQN 反转、弱化 fixture 行为或跳过失败来完成；旧 IR substring 只能更新为实际 LIR 语义下等价且更准确的断言。
+
+**阻塞来源（2026-06-05，迁移 TC-02 时暴露）**：本轮已将 `cargo test --all --all-targets` 恢复绿色，并将 `python3 tools/run_fixtures.py` 从 `268/1625` 失败降到 `31/1625` 失败；剩余失败仍阻塞 `TC-02` 完成。
+
+**剩余失败分组**：
+- 旧 LLVM IR substring 期望漂移：`build/effect_lowered_member_codegen_emit_llvm.scoop`、`build/effect_lowered_non_boundary_dynamic_call_emit_llvm.scoop`、`build/effect_lowered_step_enum_no_outward.scoop`、`umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop`。
+- LIR atomic-int lvalue 覆盖不足：`build/unsafe_atomic_int_field_lvalue_llvm.scoop`、`build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`run-pass/unsafe_atomic_int_field_lvalue_basic.scoop`。
+- plain-LIR 运行时行为/ABI 残差：`run-pass/array_lit_infer_string_char_float_basic.scoop`、`run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`、`run-pass/enum_value_only_when_basic.scoop`、`run-pass/extension_property_getter_basic.scoop`、`run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`、`run-pass/float_literal_runtime_basic.scoop`、`run-pass/gc_pin_unpin_basic.scoop`、`run-pass/literal_ops_compare_direct_matrix_basic.scoop`、`run-pass/object_companion_once_init_basic.scoop`、`run-pass/object_companion_value_named_nested_init_basic.scoop`、`run-pass/safe_member_access_ref_and_extension_basic.scoop`、`run-pass/scalar_method_intrinsic_basic.scoop`、`run-pass/struct_computed_property_getter_basic.scoop`、`run-pass/struct_computed_property_not_ctor_field_basic.scoop`、`run-pass/top_level_callable_value_call_basic.scoop`、`run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`run-pass/unsafe_funptr_extern_call_basic.scoop`、`run-pass/unsafe_funptr_receiver_call_basic.scoop`、`runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`、`runtime_gc/gc_stw_cross_thread_roots_basic.scoop`、`umb_fix/B-13-composite-transport/pos_array_composite_transport.scoop`、`run_pass_cone/dependency_c_sources_extern_call`、`run_pass_cone/dependency_cxx_sources_extern_call_cpp_stdlib`、`run_pass_cone/source_path_dependency_public_call`。
+
+**验收**：
+- `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 通过。
+- `cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过。
+- `python3 tools/run_fixtures.py` 通过；若只更新旧 IR substring，必须保持检查语义等价于 LIR 发射后的真实行为。
+
 ### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 
-**目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1**（plain body 的 LIR 指令已填满，且 LIR plain lowering 已具备 effect-typed closure adapter parity）。
+**目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1 + TC-02-PRE2**（plain body 的 LIR 指令已填满，LIR plain lowering 已具备 effect-typed closure adapter parity，且剩余 fixture/runtime 残差已收敛）。
 
 **起点（已核对）**：
 - 入口 `body/main_entry.rs:429-634` `codegen_plain_callable_entry`；其 body 遍历 `:591-623` `for block in body.blocks { for stmt in block.stmts[slice...] }`（原始 MIR）。

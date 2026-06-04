@@ -1,35 +1,35 @@
-## Execution Plan
+# Claude Execution Plan
 
-This file records the actionable plan and progress for the current invocation. It intentionally contains a concise rationale and step-by-step plan, not hidden internal reasoning.
+## Scope
 
-### Current Objective
+- Follow `TODO.md` as the authoritative task list.
+- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Stop after completing and committing that single task, or after committing any required prerequisite/blocker scheduling if the task cannot be completed as written.
 
-- Complete exactly the first incomplete task in `TODO.md`, then stop.
-- Selected task: `TC-02-PRE1` - add LIR plain lowering support for effect-typed closure adapters.
+## Step-by-Step Plan
 
-### Initial Plan
-
-1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+1. Read `TODO.md` and identify the first incomplete task by heading prefix.
 2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the task as specified, without narrowing scope or using workarounds.
-5. Run formatting first, then clippy with warnings denied, then relevant and full validation as required.
-6. If an unscheduled failing test or concrete blocker appears, either fix it or add the minimum prerequisite task to `TODO.md` before stopping.
-7. Mark the completed task title with `[DONE]` and update its completion record.
-8. Commit all intended changes with a clear task-tagged message.
+3. Read the task body, dependencies, validation requirements, and completion-record format.
+4. Inspect only the relevant implementation, fixture, and test areas needed for the selected task.
+5. Implement the smallest spec-correct change that completes the selected task without workaround behavior.
+6. Add or update tests/fixtures required by the task and by any root-cause fixes found while implementing it.
+7. Run `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`, then the task-required test and fixture validation, using long timeouts for full suites when needed.
+8. If any unscheduled test or fixture failure is observed, fix it if in scope or add the minimum prerequisite/follow-up task in `TODO.md` before marking the selected task complete.
+9. Mark the selected task heading with `[DONE]` and update its completion record with implementation and validation details.
+10. Review `git status`, `git diff`, and recent commits; commit all relevant changes with a task-tagged message.
+11. Stop without starting the next task.
 
-### Progress Log
+## Progress Log
 
-- Plan file initialized before repository inspection.
-- Read `TODO.md`; the first incomplete task is `TC-02-PRE1`.
-- Next checks are limited to the latest commit and code paths directly relevant to this task.
-- Reproduced the task's targeted failure: `cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture` exits with status 1 instead of expected fixture exit 10.
-- Implementation focus: teach LIR plain rvalue lowering to choose effect-typed closure adapter fn pointers for direct `MakeClosure`, propagated closure locals, and struct literal function fields.
-- Added LIR-native adapter helper code and connected it to LIR plain rvalue/struct lowering.
-- Rebuilt `scoopc` and confirmed the targeted regression now passes: `cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture`.
-- `cargo clippy --all-targets -- -D warnings` initially found one local `too_many_arguments` warning in the new helper; added the same scoped allow pattern used nearby, re-ran `cargo fmt`, and clippy passed.
-- `cargo test --all --all-targets` exposed 11 existing plain-LIR `scoopc` LLVM unit failures outside the adapter parity change; recorded the exact failing tests under `TC-02` in `TODO.md` so they are explicitly scheduled before TC-02 completion.
-- `python3 tools/run_fixtures.py` exposed a broad `268/1625` plain-LIR fixture baseline failure set; recorded the command, count, affected fixture families, and representative root stack points under `TC-02` in `TODO.md`.
-- Fixed the new helper's dependency-gate violation by using the LIR `mir_source` boundary alias instead of a direct `crate::mir::` path; re-ran `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `python3 tools/dependency_gate.py`, and `python3 tools/spec_fixtures.py check` successfully.
-- Rebuilt `scoop`/`scoopc` and re-ran the targeted `TC-02-PRE1` p7 regression successfully after the final code cleanup.
-- Marked `TC-02-PRE1` as `[DONE]` in `TODO.md` and added its completion record, including passed validations and the TC-02-scheduled baseline failures.
+- Initial execution plan recorded before shell commands or code execution.
+- Selected first incomplete task: `TC-02：plain 路径（mir_body/）改 walk LIR 指令`.
+- Next check: inspect latest commit message for unfinished work directly relevant to `TC-02`, then inspect the plain codegen path only.
+- Latest commit is `[TC-02-PRE1] Add LIR closure adapters`; no extra unfinished commit-body item was found beyond the TC-02 failures already recorded in `TODO.md`.
+- Implementation phase started: map current `mir_body/` MIR matches to LIR instruction equivalents, then replace plain callable traversal from MIR blocks/slices to `LirExecutableBody` states/instructions.
+- Current `cargo test -p scoopc pipeline::llvm_codegen_stage::tests:: --lib` result shows 4 remaining LLVM unit failures: one `Array<String>` argv call ABI panic, two stale value-box/enum-box IR-name expectations, and one stale closure-env body matcher based on old `pass_mir_*` names.
+- Next implementation focus: add LIR/plain call ABI support for runtime-reference nominal collection values such as `scoop.core.Array<T>`, then update unit assertions to require the LIR-specific allocation/payload markers while preserving descriptor-backed allocation and env-load semantics.
+- Implemented LIR call ABI fixes for runtime-reference nominal collections and generic call-site signatures, LIR named intrinsic lowering, and LIR atomic-ref intrinsic lowering. Updated LLVM unit assertions from stale MIR-only IR markers to LIR markers where appropriate.
+- `cargo test -p scoopc pipeline::llvm_codegen_stage::tests:: --lib -- --format terse` now passes 37/37. Starting required validation sequence with `cargo fmt`, then clippy, then full suites.
+- Validation update: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, `cargo build -p scoop -p scoopc`, `python3 tools/dependency_gate.py`, and `python3 tools/spec_fixtures.py check` pass.
+- Full fixture suite still fails with 31 targets after the TC-02 partial fixes. This blocks marking `TC-02` done. I will add a minimal `TC-02-PRE2` prerequisite in `TODO.md` covering the remaining failures, keep `TC-02` incomplete, commit the current code plus task-list update, and stop.

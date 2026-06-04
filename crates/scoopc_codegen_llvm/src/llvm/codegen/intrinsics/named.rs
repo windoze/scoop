@@ -15,6 +15,7 @@ use inkwell::values::PointerValue;
 use super::super::mir_body::MirLocalSlot;
 use super::super::*;
 use crate::effect_lowered::mir_source as mir;
+use crate::effect_lowered::{LirCallArg, LirExecutableBody};
 use crate::intrinsics::{
     NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeTy,
     named_intrinsic_audit_entry,
@@ -1014,6 +1015,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_named_intrinsic_call(entry, call).map(Some)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_lir_direct_call(
+        &mut self,
+        span: crate::span::Span,
+        entry_name: &str,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
+        let call = self.lower_named_intrinsic_lir_call(
+            span,
+            args,
+            body,
+            source_types,
+            array_transport,
+            slots,
+        )?;
+        self.codegen_named_intrinsic_call(entry, call).map(Some)
+    }
+
     fn codegen_named_intrinsic_call(
         &mut self,
         entry: &NamedIntrinsicAuditEntry,
@@ -1094,6 +1118,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn lower_named_intrinsic_lir_call(
+        &mut self,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<LoweredNamedIntrinsicCall<'ctx>, LlvmEmitError> {
+        let mut operands = Vec::with_capacity(args.len());
+        for arg in args {
+            operands.push(self.lower_named_intrinsic_lir_operand(
+                arg,
+                body,
+                source_types,
+                slots,
+            )?);
+        }
+        Ok(LoweredNamedIntrinsicCall {
+            span,
+            callee_span: span,
+            operands,
+            array_element_source_ty: array_transport
+                .and_then(|metadata| {
+                    self.equivalent_codegen_type_id(source_types, metadata.element_ty)
+                })
+                .or_else(|| {
+                    array_transport.and_then(|metadata| {
+                        self.equivalent_codegen_type_id(source_types, metadata.element.source_ty)
+                    })
+                }),
+        })
+    }
+
     fn lower_named_intrinsic_mir_operand(
         &mut self,
         arg: &mir::CallArg,
@@ -1128,6 +1186,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(LoweredNamedIntrinsicOperand {
             span: arg.span,
             source_ty: self.equivalent_codegen_type_id(mir_types, source_ty),
+            value,
+        })
+    }
+
+    fn lower_named_intrinsic_lir_operand(
+        &mut self,
+        arg: &LirCallArg,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<LoweredNamedIntrinsicOperand<'ctx>, LlvmEmitError> {
+        let source_ty = self
+            .lir_operand_type_id(body, &arg.value)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "lower_named_intrinsic_lir_operand",
+                    "missing LIR operand type",
+                )
+            });
+        let operand_cg = self
+            .cg_ty_of_mir_type(source_types, source_ty)
+            .or_else(|| {
+                self.equivalent_codegen_type_id(source_types, source_ty)
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
+            })
+            .unwrap_or_else(|| {
+                panic!("lower_named_intrinsic_lir_operand: TypeStore equivalence verifier accepted unsupported named intrinsic operand codegen type")
+            });
+        let value =
+            self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(operand_cg))?;
+        let value = if value.ty == operand_cg {
+            value
+        } else {
+            self.coerce_value(arg.span, value, operand_cg)?
+        };
+        Ok(LoweredNamedIntrinsicOperand {
+            span: arg.span,
+            source_ty: self.equivalent_codegen_type_id(source_types, source_ty),
             value,
         })
     }

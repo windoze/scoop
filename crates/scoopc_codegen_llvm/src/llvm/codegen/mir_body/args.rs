@@ -411,29 +411,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         param_names: &[String],
         param_tys: &[TypeId],
         args: &[LirCallArg],
+        body: &LirExecutableBody,
+        operand_source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         uses_native_abi: bool,
-        source_types: &TypeStore,
+        signature_types: &TypeStore,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let arg_to_param = map_lir_call_args_to_param_names(param_names, args).unwrap_or_else(|| {
             panic!("codegen_bound_lir_call_args_from_signature: LIR verifier accepted arg binding drift")
         });
 
-        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy)>> =
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy, TypeId)>> =
             vec![None; param_tys.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
             let param_ty = param_tys[param_idx];
+            let arg_ty = self.lir_operand_type_id(body, &arg.value);
             let target_cg = self
-                .cg_ty_of_mir_type(source_types, param_ty)
+                .cg_ty_of_mir_type(signature_types, param_ty)
                 .or_else(|| {
-                    self.equivalent_codegen_type_id(source_types, param_ty)
+                    self.equivalent_codegen_type_id(signature_types, param_ty)
                         .and_then(|ty| self.try_cg_ty_of_type_id(ty))
                 })
                 .or_else(|| self.try_cg_ty_of_type_id(param_ty))
+                .or_else(|| {
+                    arg_ty.and_then(|ty| self.cg_ty_of_mir_type(operand_source_types, ty))
+                })
                 .unwrap_or_else(|| {
                     panic!("codegen_bound_lir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
                 });
+            let abi_ty = if self.mir_type_contains_param(signature_types, param_ty) {
+                arg_ty
+                    .and_then(|ty| self.equivalent_codegen_type_id(operand_source_types, ty))
+                    .unwrap_or_else(|| {
+                        self.equivalent_codegen_type_id(signature_types, param_ty)
+                            .unwrap_or(param_ty)
+                    })
+            } else {
+                self.equivalent_codegen_type_id(signature_types, param_ty)
+                    .unwrap_or(param_ty)
+            };
             let value =
                 self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -442,20 +459,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("pass_lir_call_arg_{param_idx}"),
                 coerced,
             )?;
-            evaluated[param_idx] = Some((arg.span, deferred, target_cg));
+            evaluated[param_idx] = Some((arg.span, deferred, target_cg, abi_ty));
         }
 
         evaluated
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred, param_cg) = slot.unwrap_or_else(|| {
+                let (arg_span, deferred, param_cg, abi_ty) = slot.unwrap_or_else(|| {
                     panic!("codegen_bound_lir_call_args_from_signature: LIR verifier accepted missing evaluated arg slot")
                 });
-                let param_ty = param_tys[param_idx];
-                let abi_ty = self
-                    .equivalent_codegen_type_id(source_types, param_ty)
-                    .unwrap_or(param_ty);
                 let param_abi = if uses_native_abi {
                     None
                 } else {
