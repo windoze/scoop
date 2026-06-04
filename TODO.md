@@ -105,7 +105,7 @@
 - 反模式检查通过：未发现 `lir_*_to_mir`；`instruction.rs` 未定义 `Todo`/`UnresolvedName` LIR placeholder 变体；广义 `_fqn` 命中限于既有 root/symbol/布局键等非新增反向 shim。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-02-PRE1：补齐 LIR plain lowering 的 effect-typed closure adapter
+### [DONE] TC-02-PRE1：补齐 LIR plain lowering 的 effect-typed closure adapter
 
 **目标**：在 plain 路径从 MIR `ValuePrimitives` 切到 LIR 指令后，补齐原先只存在于 MIR value lowering 中的 effect-typed closure adapter 逻辑，确保 `val f: () -> T / E = { ... }`、`when`/LUB 产出的 function value、struct 字段中的 function value 等场景在 LIR lowering 下仍按静态 effect row 选择正确 closure carrier / adapter fn pointer。
 
@@ -121,6 +121,13 @@
 - `cargo test -p scoop --test p7_default_pipeline` 通过，特别是 `single_pipeline_runs_higher_order_function_value_handled_effect_cli`。
 - 不新增 `lir_*_to_mir` 反向转换；不把 `LirCallableId` 转回 FQN 作为运行期查找路径（符号名/诊断除外）。
 
+**完成记录（2026-06-05）**：
+- 新增 LIR-native effect-typed closure adapter helper，并在 plain LIR rvalue lowering 中覆盖直接 `LirRvalue::MakeClosure`、`Use`/`Transport` 传播的 closure local，以及 struct literal function-field adapter override。
+- adapter 选择以 `LirExecutableBody`、LIR local、`LirCallArg`、`LirCallableId` 为入口；未新增 `lir_*_to_mir` 反向转换。现有 ABI layout 仍有 root/symbol 键查询，运行期 closure carrier 写入的是已生成的 adapter function pointer。
+- 修复 dependency gate 对新 helper 中直接 `crate::mir::` 路径的拦截，改用 LIR `mir_source` 边界别名。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
+- 基线运行：`cargo test --all --all-targets` 仍有 11 个 plain-LIR `scoopc` LLVM 单测失败；`python3 tools/run_fixtures.py` 仍有 `268/1625` fixture 失败。两组失败已在 `TC-02` 下精确登记为 plain LIR 主体迁移的验收阻塞项，本任务不以 workaround 扩大范围修复 TC-02。
+
 ### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 
 **目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1**（plain body 的 LIR 指令已填满，且 LIR plain lowering 已具备 effect-typed closure adapter parity）。
@@ -129,6 +136,21 @@
 - 入口 `body/main_entry.rs:429-634` `codegen_plain_callable_entry`；其 body 遍历 `:591-623` `for block in body.blocks { for stmt in block.stmts[slice...] }`（原始 MIR）。
 - gate `mir_body/mod.rs:141-205` `ensure_raw_mir_rvalue_is_route_safe` / `ensure_raw_mir_terminator_is_route_safe`（match `mir::Rvalue`/`mir::TerminatorKind`）。
 - 子文件：`operand.rs`(`codegen_mir_operand`)、`args.rs`、`call.rs:109`、`terminator.rs`(`Return`/`Goto`/`CondBr`)、`aggregates.rs`、`transport.rs`、`cast.rs`、`member.rs`、`dispatch.rs`、`callable_lookup.rs`、`const_pat.rs`、`lowering.rs`。match 的 `mir::*`：`Statement`/`StatementKind::Assign`、`Rvalue`(含 `::Call`)、`Terminator`、`Operand`、`Place`、`LocalId`。
+
+**已观测且归属 TC-02 的完整 Rust 测试失败（2026-06-05，TC-02-PRE1 收尾时暴露）**：`cargo test --all --all-targets` 当前 `scoopc` lib 有 11 个 plain-LIR 发射相关失败；TC-02 完成前必须逐项修复并恢复 §9 基线：
+- `pipeline::llvm_codegen_stage::tests::llvm_array_composite_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_atomic_ref_uses_atomic_instructions_and_gc_barrier`
+- `pipeline::llvm_codegen_stage::tests::llvm_closure_env_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_closure_refcell_capture_loads_env_without_env_writeback`
+- `pipeline::llvm_codegen_stage::tests::llvm_entry_global_entry_selection_uses_lir_callable_signature_for_argv`
+- `pipeline::llvm_codegen_stage::tests::llvm_enum_payload_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+- `pipeline::llvm_codegen_stage::tests::llvm_value_boxing_transport`
+- `pipeline::llvm_codegen_stage::tests::mir_member_access_codegen`
+- `pipeline::llvm_codegen_stage::tests::mir_store_member_codegen`
+- `pipeline::llvm_codegen_stage::tests::platform_literal_stage_ir_uses_immortal_structlit_without_alloc`
+
+**已观测且归属 TC-02 的完整 fixture 基线失败（2026-06-05，TC-02-PRE1 收尾时暴露）**：`python3 tools/run_fixtures.py` 当前失败 `268/1625`。失败集中在 plain-LIR 直接调用/参数/返回类型、member/dispatch/transport/atomic/platform IR 期望漂移，以及由这些缺口引起的 `build/`、`codegen/`、`run-pass/`、`runtime_gc/`、`umb_fix/`、`run_pass_cone/` 运行失败；TC-02 完成前必须让这个完整命令恢复绿色，或把每个仍失败目标改成符合 LIR 语义的正确期望。当前已见代表性根因包括 `args.rs:435`、`callable_lookup.rs:326`、`call.rs:562`、`call/abi.rs:88` 的 plain-LIR codegen 缺口，以及旧 `pass_mir_*`/`plain_dispatch_call`/`@__scoop_immortal_agg_` substring 期望漂移。
 
 **步骤**：
 - S1：`codegen_plain_callable_entry` 从 `callable.executable_body()`（`LirExecutableBody`）取 state/指令序列，替代 `body.blocks[].stmts[]`。

@@ -679,6 +679,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_make_closure_with_target_fn_ptr(
+        &mut self,
+        span: crate::span::Span,
+        env: &LirOperand,
+        fn_ptr: LirCallableId,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        source_types: &TypeStore,
+        env_cg: CgTy,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+        target_fn_ptr: PointerValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let program = self.published_late_lowered_program().unwrap_or_else(|| {
+            panic!("codegen_lir_make_closure_with_target_fn_ptr: missing published LIR program")
+        });
+        let callable = program.callable_by_id(fn_ptr).unwrap_or_else(|| {
+            panic!(
+                "codegen_lir_make_closure_with_target_fn_ptr: LIR verifier accepted unknown closure callable id"
+            )
+        });
+        let fn_root = callable.root_fqn().to_string();
+        self.codegen_lir_make_closure_impl(
+            span,
+            env,
+            &fn_root,
+            env_contract,
+            source_types,
+            env_cg,
+            target_cg,
+            slots,
+            Some(target_fn_ptr),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_mir_make_closure_with_target_fn_ptr(
         &mut self,
         span: crate::span::Span,

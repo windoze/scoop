@@ -255,6 +255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     source_types,
                     slots,
                     slot.cg_ty,
+                    Some(*target),
                     abi,
                 )?;
                 let value_ty = value.ty;
@@ -704,8 +705,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
+        target_local: Option<crate::effect_lowered::mir_source::LocalId>,
         abi: Option<&ProgramAbiQuery<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(abi) = abi
+            && let LirRvalue::Use(LirOperand::Local(source_local))
+            | LirRvalue::Transport {
+                value: LirOperand::Local(source_local),
+                ..
+            } = value
+            && let Some((env, fn_ptr, env_contract)) =
+                self.lir_local_make_closure_source(body, *source_local)
+            && let Some(adapter) = self.maybe_build_lir_effect_typed_closure_target_fn_ptr(
+                span,
+                abi,
+                source_types,
+                body,
+                target_local,
+                fn_ptr,
+            )?
+        {
+            let env_cg = self
+                .lir_operand_cg_ty(body, source_types, &env)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_rvalue: LIR verifier accepted propagated closure env without codegen type"
+                    )
+                });
+            return self.codegen_lir_make_closure_with_target_fn_ptr(
+                span,
+                &env,
+                fn_ptr,
+                &env_contract,
+                source_types,
+                env_cg,
+                target_cg,
+                slots,
+                adapter,
+            );
+        }
         match value {
             LirRvalue::Use(operand) => {
                 self.codegen_lir_operand_expected(span, operand, slots, Some(target_cg))
@@ -810,14 +848,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             LirRvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_lir_type_metadata_literal(span, metadata, source_types)
             }
-            LirRvalue::StructLit { fields, transport } => self.codegen_lir_make_struct(
-                span,
-                source_types,
-                fields,
-                transport,
-                target_cg,
-                slots,
-            ),
+            LirRvalue::StructLit { fields, transport } => {
+                if let Some(abi) = abi {
+                    self.install_lir_effect_typed_closure_target_overrides_for_struct_fields(
+                        span,
+                        abi,
+                        source_types,
+                        body,
+                        fields,
+                        target_cg,
+                        slots,
+                    )?;
+                }
+                self.codegen_lir_make_struct(
+                    span,
+                    source_types,
+                    fields,
+                    transport,
+                    target_cg,
+                    slots,
+                )
+            }
             LirRvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_lir_rvalue: LIR verifier accepted residual interpolated string",
             ),
@@ -832,6 +883,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let env_cg = self.lir_operand_cg_ty(body, source_types, env).unwrap_or_else(|| {
                     panic!("codegen_lir_rvalue: LIR verifier accepted closure env without codegen type")
                 });
+                if let Some(abi) = abi
+                    && let Some(adapter) = self.maybe_build_lir_effect_typed_closure_target_fn_ptr(
+                        span,
+                        abi,
+                        source_types,
+                        body,
+                        target_local,
+                        *fn_ptr,
+                    )?
+                {
+                    return self.codegen_lir_make_closure_with_target_fn_ptr(
+                        span,
+                        env,
+                        *fn_ptr,
+                        env_contract,
+                        source_types,
+                        env_cg,
+                        target_cg,
+                        slots,
+                        adapter,
+                    );
+                }
                 self.codegen_lir_make_closure(
                     span,
                     env,
