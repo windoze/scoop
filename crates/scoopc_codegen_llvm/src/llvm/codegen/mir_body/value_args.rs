@@ -308,7 +308,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.expect_active_lir_program("mir_value_box_itable_entries_for_owner")
             .physical_layout()
             .class_itables
-            .get(&key)
+            .get(key.as_str())
             .map(|itable| itable.entries.clone())
             .unwrap_or_default()
     }

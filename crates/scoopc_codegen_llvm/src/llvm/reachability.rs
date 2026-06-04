@@ -731,7 +731,7 @@ mod tests {
         );
         let mut physical_layout = program.physical_layout().clone();
         physical_layout.abi_symbols.insert(
-            "abi:scoop.core.Bool.toString".to_string(),
+            scoopc_lir_facts::LirAbiSymbolKey::new("abi:scoop.core.Bool.toString"),
             scoopc_lir_facts::LirAbiSymbolFact {
                 key: "abi:scoop.core.Bool.toString".to_string(),
                 symbol: "scoop_core_Bool_toString".to_string(),

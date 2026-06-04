@@ -180,9 +180,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - `LirStageOutput::lir_facts()` 保留为 dump/测试兼容快照生成器，不再作为阶段 handoff 独立平表容器保存。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-06-R：Review T2-06
+### [DONE] T2-06-R：Review T2-06
 - 关注点：layout 按 nominal 句柄索引（不再 String map）；程序级组判定正确（确实全局才留 program 字段）；`LirFacts` 彻底退场或仅剩序列化外壳。
 - 确认：`grep -rn "LirFacts" crates/scoopc_codegen_llvm` 零（或仅 dep 反序列化）；基线绿（含 dependency_gate）。
+
+完成记录（2026-06-04）：
+- Review 确认 `LirArtifact` 无 `facts` 字段，`crates/scoopc_codegen_llvm` 中 `LirFacts` 零命中；codegen/LLVM reachability 继续从 active `LateLoweredProgram` 读取 program-owned global/layout/type-context payload。
+- Review 发现 `LirPhysicalLayoutFacts` 的 layout/ABI/layout-name 公开 map key 仍是裸 `String`，与 T2-06-R 的 nominal 句柄索引要求不一致；已新增 `LirNominalLayoutKey`、`LirAbiSymbolKey`、`LirLayoutNameKey` 并把 classes/enums/interfaces/vtables/itables/abi_symbols/layout_names 改为显式句柄 key。
+- 同步修正 LIR facts builder、verifier、dump、LLVM layout lookup/reachability/test 构造路径；保持 payload 中 FQN/符号字符串只作诊断、ABI 名称或来源标签，不再作为 physical layout live map key。
+- 确认 `crates/scoopc_lir_facts/src/contract.rs` 中 `LirPhysicalLayoutFacts` 的上述 map 不再使用 `BTreeMap<String, ...>`；`crates/scoopc_codegen_llvm` 中旧 `LirFacts` 消费零命中。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ---
 

@@ -343,6 +343,14 @@ mod tests {
         }
     }
 
+    fn abi_symbol_key(root_fqn: &str) -> LirAbiSymbolKey {
+        LirAbiSymbolKey::new(format!("abi:{root_fqn}"))
+    }
+
+    fn nominal_layout_key(raw: &str) -> LirNominalLayoutKey {
+        LirNominalLayoutKey::new(raw)
+    }
+
     fn call_target_binding(root_fqn: &str, target: LirCallableRef) -> LirCallTargetBinding {
         LirCallTargetBinding {
             target_callable: target,
@@ -944,7 +952,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
-                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol_key("dep.extern_fun"),
                         abi_symbol("dep.extern_fun", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -996,7 +1004,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
-                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol_key("dep.extern_fun"),
                         abi_symbol("dep.extern_fun", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -1051,7 +1059,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
-                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol_key("dep.extern_fun"),
                         abi_symbol("dep.extern_fun", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -1097,7 +1105,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
-                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol_key("dep.extern_fun"),
                         abi_symbol("dep.extern_fun", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -1129,7 +1137,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     abi_symbols: BTreeMap::from([(
-                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol_key("dep.extern_fun"),
                         abi_symbol("dep.extern_fun", None),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -1157,7 +1165,7 @@ mod tests {
             LirFactGroups {
                 physical_layout: LirPhysicalLayoutFacts {
                     class_vtables: BTreeMap::from([(
-                        "app.Class".to_string(),
+                        nominal_layout_key("app.Class"),
                         vec![LirClassVtableSlotFacts {
                             slot: 0,
                             name: "run".to_string(),
@@ -1195,7 +1203,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     class_vtables: BTreeMap::from([(
-                        "app.Class".to_string(),
+                        nominal_layout_key("app.Class"),
                         vec![LirClassVtableSlotFacts {
                             slot: 0,
                             name: "run".to_string(),
@@ -1206,7 +1214,7 @@ mod tests {
                         }],
                     )]),
                     abi_symbols: BTreeMap::from([(
-                        "abi:app.Class.run".to_string(),
+                        abi_symbol_key("app.Class.run"),
                         abi_symbol("app.Class.run", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()
@@ -1227,7 +1235,7 @@ mod tests {
             LirFactGroups {
                 physical_layout: LirPhysicalLayoutFacts {
                     class_itables: BTreeMap::from([(
-                        "app.Class".to_string(),
+                        nominal_layout_key("app.Class"),
                         LirClassItableFacts {
                             class_fqn: "app.Class".to_string(),
                             entries: vec![LirClassItableEntryFacts {
@@ -1271,7 +1279,7 @@ mod tests {
                 )]),
                 physical_layout: LirPhysicalLayoutFacts {
                     class_itables: BTreeMap::from([(
-                        "app.Class".to_string(),
+                        nominal_layout_key("app.Class"),
                         LirClassItableFacts {
                             class_fqn: "app.Class".to_string(),
                             entries: vec![LirClassItableEntryFacts {
@@ -1288,7 +1296,7 @@ mod tests {
                         },
                     )]),
                     abi_symbols: BTreeMap::from([(
-                        "abi:app.Class.run".to_string(),
+                        abi_symbol_key("app.Class.run"),
                         abi_symbol("app.Class.run", Some(target_ref)),
                     )]),
                     ..LirPhysicalLayoutFacts::default()

@@ -1135,7 +1135,10 @@ fn build_physical_layout_facts(
         insert_class_layout_fact(&mut facts, layout_key.as_str(), class);
     }
     for (fqn, layout) in &contracts.enum_layouts {
-        facts.enums.insert(fqn.clone(), enum_layout_facts(layout));
+        facts.enums.insert(
+            LirNominalLayoutKey::new(fqn.clone()),
+            enum_layout_facts(layout),
+        );
     }
     insert_builtin_option_enum_layout_facts(&mut facts, ctx.effect_facts.types());
     for (class_fqn, slots) in &contracts.class_vtables {
@@ -1154,11 +1157,11 @@ fn build_physical_layout_facts(
         }
         facts
             .class_vtables
-            .insert(class_fqn.clone(), published_slots);
+            .insert(LirNominalLayoutKey::new(class_fqn.clone()), published_slots);
     }
     for (fqn, interface) in &contracts.interfaces {
         facts.interfaces.insert(
-            fqn.clone(),
+            LirNominalLayoutKey::new(fqn.clone()),
             LirInterfaceLayoutFacts {
                 fqn: interface.fqn.clone(),
                 interface_id: interface.interface_id,
@@ -1204,7 +1207,7 @@ fn build_physical_layout_facts(
             });
         }
         facts.class_itables.insert(
-            class_fqn.clone(),
+            LirNominalLayoutKey::new(class_fqn.clone()),
             LirClassItableFacts {
                 class_fqn: class_fqn.clone(),
                 entries: published_entries,
@@ -1248,7 +1251,7 @@ fn insert_value_box_itable_facts(
             continue;
         }
         let owner_key = value_box_itable_owner_key(types, ty)?;
-        if facts.class_itables.contains_key(&owner_key) {
+        if facts.class_itables.contains_key(owner_key.as_str()) {
             continue;
         }
         let value_receiver_type_id = stable_rtti_type_id_for_type(types, ty, &NoTypeParamResolver)
@@ -1261,8 +1264,8 @@ fn insert_value_box_itable_facts(
         let class_itable_key = value_box_class_itable_key(types, ty)?;
         let Some(class_itable) = facts
             .class_itables
-            .get(&class_itable_key)
-            .or_else(|| facts.class_itables.get(&nominal.fqn))
+            .get(class_itable_key.as_str())
+            .or_else(|| facts.class_itables.get(nominal.fqn.as_str()))
             .cloned()
         else {
             continue;
@@ -1298,7 +1301,7 @@ fn insert_value_box_itable_facts(
             })
             .collect::<Result<Vec<_>, _>>()?;
         facts.class_itables.insert(
-            owner_key.clone(),
+            LirNominalLayoutKey::new(owner_key.clone()),
             LirClassItableFacts {
                 class_fqn: owner_key,
                 entries,
@@ -1398,7 +1401,7 @@ fn layout_callable_roots(facts: &LirPhysicalLayoutFacts) -> BTreeSet<String> {
 }
 
 fn insert_layout_target_bound_abi_symbols(
-    out: &mut BTreeMap<String, LirAbiSymbolFact>,
+    out: &mut BTreeMap<LirAbiSymbolKey, LirAbiSymbolFact>,
     ctx: &LirFactsBuildContext<'_>,
     callable_symbols: &BTreeMap<LirCallableId, LirCallableSymbolFacts>,
     layout_roots: BTreeSet<String>,
@@ -1537,7 +1540,7 @@ fn build_abi_symbol_facts(
     callables: &BTreeMap<LirCallableId, LirCallableFacts>,
     source_call_sites: &BTreeMap<BuildCallSiteKey, LirSourceCallSiteFacts>,
     dynamic_invokes: &BTreeMap<BuildCallSiteKey, LirDynamicInvokeContract>,
-) -> Result<BTreeMap<String, LirAbiSymbolFact>, EffectLoweringError> {
+) -> Result<BTreeMap<LirAbiSymbolKey, LirAbiSymbolFact>, EffectLoweringError> {
     let mut out = BTreeMap::new();
     for symbol in callable_symbols.values() {
         let callable_ref = LirCallableRef::local(symbol.callable);
@@ -1688,7 +1691,7 @@ fn published_call_target_bindings<'a>(
 }
 
 fn insert_abi_symbol_fact(
-    out: &mut BTreeMap<String, LirAbiSymbolFact>,
+    out: &mut BTreeMap<LirAbiSymbolKey, LirAbiSymbolFact>,
     identity: String,
     symbol: String,
     callable: Option<LirCallableRef>,
@@ -1697,7 +1700,7 @@ fn insert_abi_symbol_fact(
 ) {
     let fact_key = canonical_record("abi_symbol", [identity, role.to_string()]);
     out.insert(
-        fact_key.clone(),
+        LirAbiSymbolKey::new(fact_key.clone()),
         LirAbiSymbolFact {
             key: fact_key,
             symbol,
@@ -1708,7 +1711,9 @@ fn insert_abi_symbol_fact(
     );
 }
 
-fn build_layout_name_facts(facts: &LirPhysicalLayoutFacts) -> BTreeMap<String, LirLayoutNameFact> {
+fn build_layout_name_facts(
+    facts: &LirPhysicalLayoutFacts,
+) -> BTreeMap<LirLayoutNameKey, LirLayoutNameFact> {
     let mut out = BTreeMap::new();
     for key in facts.classes.keys() {
         insert_layout_name_fact(&mut out, "class", key);
@@ -1728,10 +1733,14 @@ fn build_layout_name_facts(facts: &LirPhysicalLayoutFacts) -> BTreeMap<String, L
     out
 }
 
-fn insert_layout_name_fact(out: &mut BTreeMap<String, LirLayoutNameFact>, family: &str, key: &str) {
+fn insert_layout_name_fact(
+    out: &mut BTreeMap<LirLayoutNameKey, LirLayoutNameFact>,
+    family: &str,
+    key: &str,
+) {
     let fact_key = canonical_record("layout_name", [family.to_string(), key.to_string()]);
     out.insert(
-        fact_key.clone(),
+        LirLayoutNameKey::new(fact_key.clone()),
         LirLayoutNameFact {
             key: fact_key,
             family: family.to_string(),
@@ -1798,10 +1807,10 @@ fn insert_class_layout_fact(
     class: &crate::hir::MonoClassInit,
 ) {
     facts.classes.insert(
-        layout_key.to_string(),
+        LirNominalLayoutKey::new(layout_key),
         LirClassLayoutFacts {
             fqn: class.fqn.clone(),
-            layout_key: layout_key.to_string(),
+            layout_key: LirNominalLayoutKey::new(layout_key),
             super_class_fqn: class.super_class_fqn.clone(),
             fields: class
                 .fields
@@ -1853,7 +1862,7 @@ fn insert_builtin_option_enum_layout_facts(facts: &mut LirPhysicalLayoutFacts, t
         let key = lir_nominal_layout_key("scoop.core.Option", &[*inner], types);
         facts
             .enums
-            .entry(key.clone())
+            .entry(LirNominalLayoutKey::new(key.clone()))
             .or_insert_with(|| LirEnumLayoutFacts {
                 fqn: key,
                 repr: LirEnumReprFacts::TaggedUnion,

@@ -1106,12 +1106,16 @@ fn callable_symbol_for_id(
 fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
     for (key, class) in &facts.physical_layout.classes {
         if key.is_empty() || class.fqn.is_empty() || class.layout_key.is_empty() {
-            return Err(VerifyError::EmptyLayoutClass { key: key.clone() });
+            return Err(VerifyError::EmptyLayoutClass {
+                key: key.as_str().to_string(),
+            });
         }
     }
     for (key, enum_layout) in &facts.physical_layout.enums {
         if key.is_empty() || enum_layout.fqn.is_empty() {
-            return Err(VerifyError::EmptyLayoutEnum { key: key.clone() });
+            return Err(VerifyError::EmptyLayoutEnum {
+                key: key.as_str().to_string(),
+            });
         }
     }
     for (key, symbol) in &facts.physical_layout.callable_symbols {
@@ -1141,15 +1145,15 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
         }
     }
     for (key, symbol) in &facts.physical_layout.abi_symbols {
-        if key != &symbol.key {
+        if key.as_str() != symbol.key {
             return Err(VerifyError::InvalidAbiSymbol {
-                key: key.clone(),
+                key: key.as_str().to_string(),
                 reason: "map key does not match embedded key",
             });
         }
         if symbol.symbol.is_empty() || symbol.role.is_empty() {
             return Err(VerifyError::InvalidAbiSymbol {
-                key: key.clone(),
+                key: key.as_str().to_string(),
                 reason: "symbol or role is empty",
             });
         }
@@ -1163,13 +1167,13 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                             "local callable ref references missing callable"
                         };
                         return Err(VerifyError::InvalidAbiSymbol {
-                            key: key.clone(),
+                            key: key.as_str().to_string(),
                             reason,
                         });
                     };
                     if symbol.root_fqn.as_deref() != Some(callable_symbol.root_fqn.as_str()) {
                         return Err(VerifyError::InvalidAbiSymbol {
-                            key: key.clone(),
+                            key: key.as_str().to_string(),
                             reason: "root FQN drifts from callable symbol",
                         });
                     }
@@ -1179,7 +1183,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                                 != Some(symbol.symbol.as_str())
                             {
                                 return Err(VerifyError::InvalidAbiSymbol {
-                                    key: key.clone(),
+                                    key: key.as_str().to_string(),
                                     reason: "callable export symbol drifts from callable symbol facts",
                                 });
                             }
@@ -1192,7 +1196,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                                 != Some(symbol.symbol.as_str())
                             {
                                 return Err(VerifyError::InvalidAbiSymbol {
-                                    key: key.clone(),
+                                    key: key.as_str().to_string(),
                                     reason: "native symbol drifts from callable symbol facts",
                                 });
                             }
@@ -1205,14 +1209,14 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                                 != Some(symbol.symbol.as_str())
                             {
                                 return Err(VerifyError::InvalidAbiSymbol {
-                                    key: key.clone(),
+                                    key: key.as_str().to_string(),
                                     reason: "extern symbol drifts from callable symbol facts",
                                 });
                             }
                         }
                         _ => {
                             return Err(VerifyError::InvalidAbiSymbol {
-                                key: key.clone(),
+                                key: key.as_str().to_string(),
                                 reason: "unknown ABI symbol role",
                             });
                         }
@@ -1229,7 +1233,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
                         )
                     {
                         return Err(VerifyError::InvalidAbiSymbol {
-                            key: key.clone(),
+                            key: key.as_str().to_string(),
                             reason: "declaration ABI symbol lacks a published source signature",
                         });
                     }
@@ -1239,7 +1243,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             || !matches!(symbol.role.as_str(), "native_callable" | "extern_callable")
         {
             return Err(VerifyError::InvalidAbiSymbol {
-                key: key.clone(),
+                key: key.as_str().to_string(),
                 reason: "body-less ABI symbol must name a native/extern root",
             });
         } else if !facts
@@ -1247,15 +1251,15 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             .contains_key(symbol.root_fqn.as_deref().unwrap_or_default())
         {
             return Err(VerifyError::InvalidAbiSymbol {
-                key: key.clone(),
+                key: key.as_str().to_string(),
                 reason: "body-less ABI symbol lacks a published source signature",
             });
         }
     }
     for (key, layout) in &facts.physical_layout.layout_names {
-        if key != &layout.key || layout.family.is_empty() || layout.layout_name.is_empty() {
+        if key.as_str() != layout.key || layout.family.is_empty() || layout.layout_name.is_empty() {
             return Err(VerifyError::InvalidLayoutName {
-                key: key.clone(),
+                key: key.as_str().to_string(),
                 reason: "identity, family, or layout name is empty/inconsistent",
             });
         }
@@ -1299,16 +1303,16 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             }
             if class_fqn.is_empty() {
                 return Err(VerifyError::InvalidLayoutName {
-                    key: class_fqn.clone(),
+                    key: class_fqn.as_str().to_string(),
                     reason: "class vtable owner is empty",
                 });
             }
         }
     }
     for (class_fqn, itable) in &facts.physical_layout.class_itables {
-        if class_fqn != &itable.class_fqn || class_fqn.is_empty() {
+        if class_fqn.as_str() != itable.class_fqn || class_fqn.is_empty() {
             return Err(VerifyError::InvalidLayoutName {
-                key: class_fqn.clone(),
+                key: class_fqn.as_str().to_string(),
                 reason: "class itable owner is empty or inconsistent",
             });
         }

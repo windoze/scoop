@@ -1,29 +1,32 @@
-# 当前执行计划
+# 执行计划
 
-## 原则
-- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
-- 本次只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 不做开放式历史问题清扫；只处理当前任务直接需要或验证中暴露且未被计划覆盖的问题。
-- 若发现当前任务被真实缺口阻塞，更新 `TODO.md` 添加最小前置任务并提交后停止。
-- 不记录私有逐步推理；本文件记录可审查的执行计划、关键决策和进度。
+## 当前约束
+- 以 `TODO.md` 为任务来源和完成状态的唯一权威。
+- 只完成第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
+- 不做开放式历史问题扫描；只处理当前任务直接相关或验证中暴露且未被明确排期的失败。
+- 验证顺序为 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、相关测试、必要时全量测试和 fixture。
+- 若遇到具体阻塞，不绕过实现；在 `TODO.md` 中加入最小前置任务，提交后停止。
 
 ## 步骤
-1. 阅读 `TODO.md`，定位第一个未完成任务，并检查任务正文、依赖、验证要求和完成记录。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成事项；如有，将其纳入当前任务或作为前置任务写入 `TODO.md`。
-3. 针对该任务读取必要代码、测试、文档和夹具，确认应修改的最小范围。
-4. 实施任务要求；若遇到 spec 不匹配、缺失语言能力、运行时问题或不能接受的 workaround，优先修复同类根因，或在 `TODO.md` 中插入最小前置任务后停止。
-5. 运行格式化与验证：先 `cargo fmt`，再 `cargo clippy --all-targets -- -D warnings`，然后根据任务要求运行相关测试、完整 Rust 测试和完整 fixture suite；如仅修改文档且已有可复用绿色结果，则在完成记录说明跳过理由。
-6. 更新 `TODO.md`：将已完成任务标题加 `[DONE]`，填写完成记录、变更摘要和验证结果；仅当阶段计划实际变化时更新 `PLAN.md`。
-7. 检查 git 状态和差异，提交本次所有相关变更，提交信息包含任务编号和简洁说明。
-8. 提交后停止，不处理下一项任务。
+1. 读取 `TODO.md`，确定第一个未完成任务及其要求、依赖、验证条件。
+2. 查看最近提交信息，确认是否有与该任务直接相关的未完成事项。
+3. 只围绕该任务检查必要的代码、测试、规格和文档上下文。
+4. 若任务可直接完成，按最小正确改动实现；若发现必须先修复的具体前置问题，更新 `TODO.md` 并停止。
+5. 添加或调整覆盖当前行为的最小相关测试或 fixture。
+6. 按要求运行格式化、lint、相关测试；需要全量验证时运行完整 Rust 测试和 fixture 套件并使用足够超时。
+7. 将任务标题改为 `[DONE]`，更新完成记录；仅当阶段计划真实变化时才更新 `PLAN.md`。
+8. 检查 git 状态和 diff，提交本次任务涉及的所有未提交文件。
+9. 停止，不继续下一个任务。
 
-## 进度记录
-- 已建立本次执行计划，下一步读取 `TODO.md` 识别第一个未完成任务。
-- 已定位第一个未完成任务：`T2-06`。任务目标是迁移 `physical_layout` / `global_init` / `class_ctor_inits` ownership，并删除 `LirArtifact.facts` 与 codegen 对 `LirFacts` 的消费。
-- 最近提交为 `T2-05-R`，未发现与 `T2-06` 直接相关的额外未完成事项。
-- 已实施第一轮迁移：`LateLoweredProgram` 新增 program/global/layout/type-context payload；class ctor init body 可挂载 init facts；`LirArtifact`、cached dep handoff、LLVM stage output 与 LLVM emit/codegen 生产路径不再携带独立 `LirFacts`。
-- 已运行 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`，clippy 通过。
-- 验收搜索确认：`crates/scoopc_codegen_llvm/src` 中无 `LirFacts` 类型引用；`LirArtifact` 无 `facts` 字段；cone artifact manifest/持久化也不再写 `lir_facts.bin`。
-- 后续又将 `LirStageOutput` 的独立 `LirFacts` 字段移除；`lir_facts()` 现在从 `LateLoweredProgram` 生成兼容快照。
-- 重新运行完整验证全部通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
-- `TODO.md` 已将 `T2-06` 标记为 `[DONE]` 并写入完成记录。下一步检查 git 差异并提交本任务。
+## 进度
+- 已创建本计划。
+- 已读取 `TODO.md`，第一个未完成任务为 `T2-06-R：Review T2-06`。
+- 当前审查重点：layout 是否按 nominal 句柄索引、program 级字段是否正确、`LirFacts` 是否退出 codegen/handoff 或仅剩兼容快照、dependency gate 与基线是否通过。
+- 已检查最近提交：最新提交提到 P2c TODO，不是 T2-06-R 的直接未完成项。
+- 初步搜索确认 `crates/scoopc_codegen_llvm` 中 `LirFacts` 零命中。
+- 初步发现 `LirPhysicalLayoutFacts` 仍使用 `BTreeMap<String, ...>` 保存 class/enum/interface/vtable/itable/layout name/ABI symbol 等 layout 数据；这可能违反 T2-06-R 的 nominal 句柄索引要求。
+- 已开始直接修复：新增 `LirNominalLayoutKey`、`LirAbiSymbolKey`、`LirLayoutNameKey`，并将 `LirPhysicalLayoutFacts` 的公开 map key 改为这些显式句柄类型。
+- 已同步构造、校验、dump、codegen lookup 与相关单测构造；`cargo check --all-targets` 通过。
+- 已完成验证：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py` 均通过。
+- `TODO.md` 已将 `T2-06-R` 标为 `[DONE]` 并写入完成记录。
+- 已检查提交前状态和 diff；下一步提交本次任务改动后停止。

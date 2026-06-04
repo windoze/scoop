@@ -327,7 +327,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .expect_active_lir_program("codegen_ref_is_instance_of_nonnull")
                     .physical_layout()
                     .interfaces
-                    .contains_key(&nominal.fqn)
+                    .contains_key(nominal.fqn.as_str())
                 {
                     let target_type_id = self.stable_rtti_type_id_for_codegen(
                         target_ty,

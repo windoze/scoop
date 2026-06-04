@@ -22,6 +22,64 @@ macro_rules! id_key {
     };
 }
 
+macro_rules! string_key {
+    ($(#[$meta:meta])* $name:ident) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+        pub struct $name(String);
+
+        impl $name {
+            pub fn new(raw: impl Into<String>) -> Self {
+                Self(raw.into())
+            }
+
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+
+            pub fn is_empty(&self) -> bool {
+                self.0.is_empty()
+            }
+
+            pub fn into_string(self) -> String {
+                self.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                self.as_str()
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(self.as_str())
+            }
+        }
+
+        impl std::ops::Deref for $name {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                self.as_str()
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(raw: String) -> Self {
+                Self::new(raw)
+            }
+        }
+
+        impl From<&str> for $name {
+            fn from(raw: &str) -> Self {
+                Self::new(raw)
+            }
+        }
+    };
+}
+
 id_key!(/// Stable StepSchema identity as published by LIR facts.
     LirStepSchemaKey);
 id_key!(/// Stable continuation schema identity as published by LIR facts.
@@ -44,6 +102,13 @@ id_key!(/// Stable local identity scoped to one source body.
     LirLocalKey);
 id_key!(/// Stable per-cone init routine identity scoped to one LIR fact product.
     LirConeInitRoutineKey);
+
+string_key!(/// Opaque physical-layout owner handle used instead of raw FQN map keys.
+    LirNominalLayoutKey);
+string_key!(/// Opaque ABI-symbol publication handle used instead of raw string map keys.
+    LirAbiSymbolKey);
+string_key!(/// Opaque layout-name publication handle used instead of raw string map keys.
+    LirLayoutNameKey);
 
 /// Callable target reference published in LIR facts.
 ///
@@ -291,7 +356,7 @@ pub struct LirClassFieldFacts {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirClassLayoutFacts {
     pub fqn: String,
-    pub layout_key: String,
+    pub layout_key: LirNominalLayoutKey,
     pub super_class_fqn: Option<String>,
     pub fields: Vec<LirClassFieldFacts>,
 }
@@ -630,14 +695,15 @@ pub struct LirClosureIdentityFact {
 /// Physical ABI/layout contracts that LLVM may map to backend-private LLVM types.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LirPhysicalLayoutFacts {
-    pub classes: std::collections::BTreeMap<String, LirClassLayoutFacts>,
-    pub enums: std::collections::BTreeMap<String, LirEnumLayoutFacts>,
-    pub class_vtables: std::collections::BTreeMap<String, Vec<LirClassVtableSlotFacts>>,
-    pub interfaces: std::collections::BTreeMap<String, LirInterfaceLayoutFacts>,
-    pub class_itables: std::collections::BTreeMap<String, LirClassItableFacts>,
+    pub classes: std::collections::BTreeMap<LirNominalLayoutKey, LirClassLayoutFacts>,
+    pub enums: std::collections::BTreeMap<LirNominalLayoutKey, LirEnumLayoutFacts>,
+    pub class_vtables:
+        std::collections::BTreeMap<LirNominalLayoutKey, Vec<LirClassVtableSlotFacts>>,
+    pub interfaces: std::collections::BTreeMap<LirNominalLayoutKey, LirInterfaceLayoutFacts>,
+    pub class_itables: std::collections::BTreeMap<LirNominalLayoutKey, LirClassItableFacts>,
     pub callable_symbols: std::collections::BTreeMap<LirCallableId, LirCallableSymbolFacts>,
-    pub abi_symbols: std::collections::BTreeMap<String, LirAbiSymbolFact>,
-    pub layout_names: std::collections::BTreeMap<String, LirLayoutNameFact>,
+    pub abi_symbols: std::collections::BTreeMap<LirAbiSymbolKey, LirAbiSymbolFact>,
+    pub layout_names: std::collections::BTreeMap<LirLayoutNameKey, LirLayoutNameFact>,
     pub closure_identities: std::collections::BTreeMap<LirCallableId, LirClosureIdentityFact>,
 }
 

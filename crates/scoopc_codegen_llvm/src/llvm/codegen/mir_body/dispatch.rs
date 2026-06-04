@@ -137,7 +137,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .expect_active_lir_program("static_interface_dispatch_impl")
             .physical_layout()
             .class_itables
-            .get(&owner_fqn)?;
+            .get(owner_fqn.as_str())?;
         let entry = itable
             .entries
             .iter()
