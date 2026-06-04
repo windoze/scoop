@@ -5,8 +5,8 @@
 // - 该路径仍不得触发 legacy effect lowering。
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: define i64 @__scoop_abi0_fun__fixtures_build_helper__h
-// BUILD-LLVM-CONTAINS: plain_dispatch_call = call i64 %load_vtable_fn
-// BUILD-LLVM-CONTAINS: %lir_plain_direct_call = call i64 @__scoop_abi0_fun__fixtures_build_helper__h
+// BUILD-LLVM-CONTAINS: %lir_dispatch_call = call i64 %load_vtable_fn
+// BUILD-LLVM-CONTAINS: %lir_direct_call = call i64 @__scoop_abi0_fun__fixtures_build_helper__h
 // BUILD-LLVM-NOT-CONTAINS: __scoop_lowered_dynamic_invoke__fixtures_build_helper
 // BUILD-LLVM-NOT-CONTAINS: %scoop.lowered.Step__
 // BUILD-LLVM-NOT-CONTAINS: scoop.effect.frame.

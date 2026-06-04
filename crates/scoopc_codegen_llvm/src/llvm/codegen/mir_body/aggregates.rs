@@ -1217,6 +1217,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_funptr_invoke_call(
+        &mut self,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some((receiver_arg, call_args)) = args.split_first() else {
+            panic!("codegen_lir_funptr_invoke_call: LIR verifier accepted missing FunPtr receiver");
+        };
+        if receiver_arg.name.is_some() {
+            panic!("codegen_lir_funptr_invoke_call: LIR verifier accepted named FunPtr receiver");
+        }
+        let fun_ty = self
+            .lir_operand_funptr_function_type(body, source_types, &receiver_arg.value)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_funptr_invoke_call: LIR verifier accepted non-FunPtr receiver type"
+                )
+            });
+        self.codegen_lir_funptr_value_call(
+            span,
+            &receiver_arg.value,
+            call_args,
+            &fun_ty,
+            (source_types, slots),
+        )
+    }
+
     fn get_or_create_mir_closure_object_type_desc_global(
         &mut self,
         span: crate::span::Span,

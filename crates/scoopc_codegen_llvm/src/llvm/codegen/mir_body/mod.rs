@@ -346,13 +346,14 @@ pub(super) fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::
 
 pub(super) fn collect_lir_local_uses(
     body: &LirExecutableBody,
+    source_types: &TypeStore,
 ) -> HashSet<crate::effect_lowered::mir_source::LocalId> {
     let mut out = HashSet::new();
     for state in body.states().states() {
         for stmt in state.body().statements() {
             match &stmt.kind {
                 LirStatementKind::Assign { value, .. } => {
-                    collect_lir_rvalue_uses(value, &mut out);
+                    collect_lir_rvalue_uses(value, source_types, &mut out);
                 }
                 LirStatementKind::StoreMember {
                     receiver, value, ..
@@ -406,6 +407,7 @@ fn collect_lir_call_kind_uses(
 
 fn collect_lir_rvalue_uses(
     value: &LirRvalue,
+    source_types: &TypeStore,
     out: &mut HashSet<crate::effect_lowered::mir_source::LocalId>,
 ) {
     match value {
@@ -413,9 +415,6 @@ fn collect_lir_rvalue_uses(
         | LirRvalue::Transport { value: operand, .. }
         | LirRvalue::TypeCheck { value: operand, .. }
         | LirRvalue::Cast { value: operand, .. }
-        | LirRvalue::MemberAccess {
-            receiver: operand, ..
-        }
         | LirRvalue::TupleGet { tuple: operand, .. }
         | LirRvalue::PatternMatch {
             subject: operand, ..
@@ -423,6 +422,13 @@ fn collect_lir_rvalue_uses(
         | LirRvalue::PatternExtract {
             subject: operand, ..
         } => collect_lir_operand_use(operand, out),
+        LirRvalue::MemberAccess {
+            receiver, member, ..
+        } => {
+            if lir_member_access_uses_receiver(source_types, member) {
+                collect_lir_operand_use(receiver, out);
+            }
+        }
         LirRvalue::Call { kind, args, .. } => {
             collect_lir_call_kind_uses(kind, out);
             for arg in args {
@@ -463,6 +469,16 @@ fn collect_lir_rvalue_uses(
         | LirRvalue::TypeMetadataLiteral(_)
         | LirRvalue::PerformResult { .. } => {}
     }
+}
+
+fn lir_member_access_uses_receiver(
+    source_types: &TypeStore,
+    member: &LirMemberAccessMetadata,
+) -> bool {
+    !matches!(
+        source_types.kind(member.receiver_ty),
+        TypeKind::Ref(RefTypeKind::Any)
+    )
 }
 
 fn collect_lir_terminator_uses(

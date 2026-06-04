@@ -303,11 +303,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             LirCallKind::Direct { callee, .. } => {
                 let program = self.published_late_lowered_program()?;
                 let callable = match callee {
-                    scoopc_lir_facts::LirCallableRef::Local(id) => program.callable_by_id(*id)?,
-                    scoopc_lir_facts::LirCallableRef::ExternalHash(_) => return None,
+                    scoopc_lir_facts::LirCallableRef::Local(id) => program.callable_by_id(*id),
+                    scoopc_lir_facts::LirCallableRef::ExternalHash(_) => None,
                 };
+                let root_fqn = callable
+                    .map(|callable| callable.root_fqn())
+                    .or_else(|| program.root_for_callable_ref(*callee))?;
                 if matches!(
-                    callable.root_fqn(),
+                    root_fqn,
                     "scoop.core.size" | "scoop.core.Array.size" | "scoop.core.MutableArray.size"
                 ) {
                     return Some(CgTy::Int(IntTy {
@@ -315,9 +318,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: true,
                     }));
                 }
-                self.try_cg_ty_of_type_id(callable.executable_body()?.header().return_ty())
+                callable
+                    .and_then(|callable| {
+                        self.try_cg_ty_of_type_id(callable.executable_body()?.header().return_ty())
+                            .or_else(|| {
+                                self.cg_ty_of_mir_type(
+                                    source_types,
+                                    callable.source_callable()?.return_ty,
+                                )
+                            })
+                    })
                     .or_else(|| {
-                        self.cg_ty_of_mir_type(source_types, callable.source_callable()?.return_ty)
+                        self.published_codegen_callable_signature(root_fqn)
+                            .and_then(|signature| self.try_cg_ty_of_type_id(signature.return_ty))
                     })
             }
             LirCallKind::Closure { callee, .. }

@@ -197,11 +197,11 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable0 key=lir_callable0 root=fixtures.mir.Base.ping kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_Base_ping__hfafd525a1c6ee34b188d6d3c88342265
-    - callable_symbol=lir_callable1 key=lir_callable1 root=fixtures.mir.callInterface kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callInterface__h5cb3e3cb640fcee24335d5c8d2169cfe
-    - callable_symbol=lir_callable2 key=lir_callable2 root=fixtures.mir.callVirtual kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callVirtual__hc3618baf79275633d4540cd8e71c5e05
-    - callable_symbol=lir_callable3 key=lir_callable3 root=fixtures.mir.resumeBoom kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeBoom__h23e235fbd311376219b63fd0aed24afd
-    - callable_symbol=lir_callable4 key=lir_callable4 root=fixtures.mir.resumeOnce kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeOnce__h3ea8f124032446225b505f13a2fae81b
+    - callable_symbol=lir_callable0 key=lir_callable0 root=fixtures.mir.Base.ping kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_Base_ping__hb8773d8ff6adbc890fa98aaad5929d4e
+    - callable_symbol=lir_callable1 key=lir_callable1 root=fixtures.mir.callInterface kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callInterface__heeec1c98e492cf50dcea8360b5bb4a77
+    - callable_symbol=lir_callable2 key=lir_callable2 root=fixtures.mir.callVirtual kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callVirtual__h60c4a32d5cb2f7307711b81f83ea36f7
+    - callable_symbol=lir_callable3 key=lir_callable3 root=fixtures.mir.resumeBoom kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeBoom__h55014c39c2d0f3ac46bad65b395ef6e8
+    - callable_symbol=lir_callable4 key=lir_callable4 root=fixtures.mir.resumeOnce kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeOnce__h0a74089591d8d7b3b3365ee82842f75d
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=525 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=5
     - callable=fixtures.mir.Base.ping kind=Plain control_body=false id=lir_callable0 key=lir_callable(223:instance(191:template(177:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;22:fixtures.mir.Base.ping;20:non_generic_callable;68:callable_sig(1:0;1:0;1:0;39:F(-;[N(fixtures.mir.Base)]->V(Int)/E()))));6:list();6:list());38:body#h0366bf5ab603bc73308608e69e7ec4cc)

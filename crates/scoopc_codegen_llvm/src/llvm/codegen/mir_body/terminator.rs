@@ -229,13 +229,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             LirStatementKind::Nop => Ok(()),
             LirStatementKind::Assign { target, value } => {
                 if !used_locals.contains(target)
-                    && matches!(
-                        value,
-                        LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
-                            target: LirTopLevelRefTarget::Callable(_),
-                            ..
-                        })
-                    )
+                    && self.lir_top_level_ref_can_skip_when_unused(value)
                 {
                     return Ok(());
                 }
@@ -510,6 +504,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | LateLoweredStateTerminator::ResumeUnwind => panic!(
                 "codegen_lir_plain_terminator: effect/control terminator reached plain callable lowering"
             ),
+        }
+    }
+
+    fn lir_top_level_ref_can_skip_when_unused(&self, value: &LirRvalue) -> bool {
+        match value {
+            LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                target: LirTopLevelRefTarget::Callable(_),
+                ..
+            }) => true,
+            LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                target: LirTopLevelRefTarget::Global(root),
+                ..
+            }) => {
+                let key = root.as_str();
+                self.enum_layouts.contains_key(key) || self.nominal_kinds.contains_key(key)
+            }
+            _ => false,
         }
     }
 

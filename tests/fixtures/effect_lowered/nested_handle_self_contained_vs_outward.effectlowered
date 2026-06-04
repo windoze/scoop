@@ -193,8 +193,8 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable0 key=lir_callable0 root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h94135633e13b4485a38fb4cc90256ad4
-    - callable_symbol=lir_callable1 key=lir_callable1 root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h722537244fb9938c77c7ef25189ae185
+    - callable_symbol=lir_callable0 key=lir_callable0 root=sample.nested_may_suspend_outward kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_nested_may_suspend_outward__h8eea27bdd3dcd06cb34c4779c4910165
+    - callable_symbol=lir_callable1 key=lir_callable1 root=sample.nested_self_contained kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_nested_self_contained__h73f57fe0d237c6a0304a0672446b8663
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=513 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=2
     - callable=sample.nested_may_suspend_outward kind=EffectStep control_body=true id=lir_callable0 key=lir_callable(229:instance(197:template(183:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list());38:body#hc1ee9a7757c5427e310e1a96a6cc8c3d)

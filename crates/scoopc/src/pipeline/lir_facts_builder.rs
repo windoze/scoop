@@ -1928,7 +1928,13 @@ fn build_callable_symbol_facts(
                 param_tys: signature.param_tys.clone(),
                 return_ty: signature.return_ty,
             });
-        let exported_symbol = Some(AbiMangler.fun_symbol(&key));
+        let exported_symbol = Some(if native.is_none() && extern_.is_none() {
+            mir_source_signature(ctx.mir_facts, callable.root_fqn())
+                .and_then(|signature| signature.abi_symbol.clone())
+                .unwrap_or_else(|| AbiMangler.fun_symbol(&key))
+        } else {
+            AbiMangler.fun_symbol(&key)
+        });
         out.insert(
             id,
             LirCallableSymbolFacts {

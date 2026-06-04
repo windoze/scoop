@@ -445,7 +445,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             u32::from(uses_hidden_sret),
             &mut local_slots,
         )?;
-        let used_locals = collect_lir_local_uses(executable_body);
+        let used_locals = collect_lir_local_uses(executable_body, source_types);
         let llvm_blocks = executable_body
             .states()
             .states()

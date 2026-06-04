@@ -570,7 +570,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &mut slots,
             )?;
         }
-        let used_locals = collect_lir_local_uses(executable_body);
+        let used_locals = collect_lir_local_uses(executable_body, mir_types);
         let llvm_blocks = executable_body
             .states()
             .states()

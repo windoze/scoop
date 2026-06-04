@@ -193,10 +193,10 @@ lir_facts {
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable0 key=lir_callable0 root=a.callFn kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_callFn__h48acacaa1e77bf0456047e8bafafd78e
-    - callable_symbol=lir_callable1 key=lir_callable1 root=a.id kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_id__h9a12cfa061d63ba7bd5b1915817fbbcf
-    - callable_symbol=lir_callable2 key=lir_callable2 root=a.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__h8d98683f32ce245393d464f9cd82f9d7
-    - callable_symbol=lir_callable3 key=lir_callable3 root=a.main.$lambda0 kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__lambda0__h3d73b7a6945dbbb8e79e35d209d56ca1
+    - callable_symbol=lir_callable0 key=lir_callable0 root=a.callFn kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_callFn__hf21d672b87b8766e624cf174874dc98f
+    - callable_symbol=lir_callable1 key=lir_callable1 root=a.id kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_id__h8696609509795f6a4271a62969b49335
+    - callable_symbol=lir_callable2 key=lir_callable2 root=a.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__he4356e4dc08cf7f8a60942b04276ad6a
+    - callable_symbol=lir_callable3 key=lir_callable3 root=a.main.$lambda0 kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__lambda0__hb4355d07af63ec17ca354990f9bd9add
   type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=508 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=4
     - callable=a.callFn kind=Plain control_body=false id=lir_callable0 key=lir_callable(221:instance(189:template(175:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;8:a.callFn;20:non_generic_callable;80:callable_sig(1:0;1:0;1:0;51:F(-;[F(-;[V(Int)]->V(Int)/E()),V(Int)]->V(Int)/E()))));6:list();6:list());38:body#h968600810847af64b9b526ad4badd29e)

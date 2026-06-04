@@ -3012,12 +3012,13 @@ fn collect_mir_backend_facts(
                 if let Some(existing) = source_signatures
                     .iter_mut()
                     .find(|signature| signature.fqn == fqn)
-                    && existing.target_callable_key.is_none()
-                    && target_callable_key.is_some()
                 {
-                    existing.target_callable_key = target_callable_key;
-                    existing.abi_symbol = abi_symbol;
-                    existing.abi_role = abi_role;
+                    existing.identity.cone = callable.identity.cone.clone();
+                    if existing.target_callable_key.is_none() {
+                        existing.target_callable_key = target_callable_key;
+                        existing.abi_symbol = abi_symbol;
+                        existing.abi_role = abi_role;
+                    }
                 }
                 continue;
             }
@@ -3172,6 +3173,14 @@ fn collect_mir_backend_facts(
         signature.abi_symbol = Some(published_source_signature_abi_symbol(&target_key));
         signature.abi_role = Some("callable_export".to_string());
         signature.target_callable_key = Some(target_key);
+    }
+    for signature in &mut source_signatures {
+        if signature.abi_role.as_deref() == Some("callable_export") {
+            signature.abi_symbol = Some(published_source_signature_semantic_abi_symbol(
+                signature,
+                &materialized.types,
+            ));
+        }
     }
     source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
     let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, materialized);
@@ -3379,6 +3388,30 @@ fn explicit_abi_publication_for_source_signature(
 
 fn published_source_signature_abi_symbol(target_key: &StableLirCallableKey) -> String {
     AbiMangler.fun_symbol(target_key)
+}
+
+fn published_source_signature_semantic_abi_symbol(
+    signature: &SourceCallableSignatureFact,
+    types: &TypeStore,
+) -> String {
+    let params = signature
+        .param_tys
+        .iter()
+        .map(|ty| types.display(*ty).to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let key = StableLirCallableKey::new(
+        canonical_record(
+            "source_signature_abi",
+            [
+                signature.fqn.clone(),
+                params,
+                types.display(signature.return_ty).to_string(),
+            ],
+        ),
+        signature.fqn.clone(),
+    );
+    AbiMangler.fun_symbol(&key)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3769,6 +3802,7 @@ fn mir_legacy_scalar_entry_name(fqn: &str) -> Option<&'static str> {
             "eq" | "equals" => Some("float_eq"),
             "ne" | "notEquals" => Some("float_ne"),
             "compareTo" => Some("float_compare_to"),
+            "toInt" => Some("float_to_int"),
             "abs" => Some("float_abs"),
             "isNaN" => Some("float_is_nan"),
             "isInfinite" => Some("float_is_infinite"),

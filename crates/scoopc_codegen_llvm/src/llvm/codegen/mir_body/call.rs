@@ -529,6 +529,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         require_writable: bool,
     ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        if let Some(place) = self.lir_atomic_member_place_for_local(
+            local,
+            span,
+            body,
+            source_types,
+            slots,
+            require_writable,
+        )? {
+            return Ok(place);
+        }
+        if let Some(place) =
+            self.lir_atomic_top_level_place_for_local(local, body, source_types, require_writable)?
+        {
+            return Ok(place);
+        }
+        let slot = self.mir_local_slot(span, slots, local)?;
+        Ok(MirMemberPlace {
+            ptr: slot.ptr,
+            field_cg: slot.cg_ty,
+            writable: true,
+            packed_alignment: None,
+        })
+    }
+
+    fn lir_atomic_member_place_for_local(
+        &mut self,
+        local: crate::effect_lowered::mir_source::LocalId,
+        _span: crate::span::Span,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        require_writable: bool,
+    ) -> Result<Option<MirMemberPlace<'ctx>>, LlvmEmitError> {
         let mut found = None;
         for state in body.states().states() {
             for stmt in state.body().statements() {
@@ -552,25 +585,229 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         if let Some((stmt_span, receiver, member)) = found {
-            return self.codegen_lir_member_place(
-                stmt_span,
-                &receiver,
-                &member,
-                LirBodyCodegenCtx {
-                    body,
-                    source_types,
-                    slots,
-                },
-                require_writable,
-            );
+            return self
+                .lir_atomic_member_place(
+                    stmt_span,
+                    &receiver,
+                    &member,
+                    LirBodyCodegenCtx {
+                        body,
+                        source_types,
+                        slots,
+                    },
+                    require_writable,
+                )
+                .map(Some);
         }
-        let slot = self.mir_local_slot(span, slots, local)?;
+        Ok(None)
+    }
+
+    fn lir_atomic_member_place(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        member: &LirMemberAccessMetadata,
+        lir_ctx: LirBodyCodegenCtx<'_, 'ctx>,
+        require_writable: bool,
+    ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        let field_key = lir_member_value_key_for_codegen(span, member)?;
+        let receiver_type_id = self.lir_member_receiver_codegen_type_id(
+            span,
+            lir_ctx.body,
+            lir_ctx.source_types,
+            receiver,
+            member,
+        )?;
+        let receiver_cg = self.cg_ty_of_type_id(receiver_type_id, "LIR atomic member receiver");
+        if let Some((class, field_idx, field_cg)) =
+            self.lookup_class_field_by_fqn(field_key, span, Some(receiver_type_id))?
+            && receiver_cg == CgTy::Ref
+        {
+            let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "lir_atomic_member_place",
+                    "class field index drift",
+                )
+            });
+            if require_writable && !field.mutable {
+                self.panic_verified_intrinsic_contract(
+                    "lir_atomic_member_place",
+                    "class field target is not writable",
+                );
+            }
+            let receiver_value =
+                self.codegen_lir_operand_expected(span, receiver, lir_ctx.slots, Some(CgTy::Ref))?;
+            let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+            let obj_ptr = self.expect_cg_pointer(receiver_value, "LIR atomic class receiver");
+            let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+            return Ok(MirMemberPlace {
+                ptr,
+                field_cg,
+                writable: field.mutable,
+                packed_alignment: None,
+            });
+        }
+
+        let CgTy::Struct(struct_ty) = receiver_cg else {
+            self.panic_verified_intrinsic_contract(
+                "lir_atomic_member_place",
+                "member receiver is not class ref or struct",
+            );
+        };
+        let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_key, span)?;
+        let base_ptr = self.lir_atomic_struct_receiver_ptr(
+            span,
+            receiver,
+            struct_ty,
+            lir_ctx,
+            require_writable,
+        )?;
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let ptr =
+            self.builder
+                .build_struct_gep(llvm_struct_ty, base_ptr, field_idx, "lir_member_gep")?;
         Ok(MirMemberPlace {
-            ptr: slot.ptr,
-            field_cg: slot.cg_ty,
+            ptr,
+            field_cg,
             writable: true,
             packed_alignment: None,
         })
+    }
+
+    fn lir_atomic_struct_receiver_ptr(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        struct_ty: MonoTypeId,
+        lir_ctx: LirBodyCodegenCtx<'_, 'ctx>,
+        require_writable: bool,
+    ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
+        let LirOperand::Local(local) = receiver else {
+            self.panic_verified_intrinsic_contract(
+                "lir_atomic_struct_receiver_ptr",
+                "struct receiver operand is not local",
+            );
+        };
+        if let Some(place) = self.lir_atomic_member_place_for_local(
+            *local,
+            span,
+            lir_ctx.body,
+            lir_ctx.source_types,
+            lir_ctx.slots,
+            require_writable,
+        )? {
+            if place.field_cg != CgTy::Struct(struct_ty) {
+                self.panic_verified_intrinsic_contract(
+                    "lir_atomic_struct_receiver_ptr",
+                    "nested struct receiver type drift",
+                );
+            }
+            return Ok(place.ptr);
+        }
+        let slot = self.mir_local_slot(span, lir_ctx.slots, *local)?;
+        if slot.cg_ty != CgTy::Struct(struct_ty) {
+            self.panic_verified_intrinsic_contract(
+                "lir_atomic_struct_receiver_ptr",
+                "struct receiver slot type drift",
+            );
+        }
+        Ok(slot.ptr)
+    }
+
+    fn lir_atomic_top_level_place_for_local(
+        &mut self,
+        local: crate::effect_lowered::mir_source::LocalId,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        require_writable: bool,
+    ) -> Result<Option<MirMemberPlace<'ctx>>, LlvmEmitError> {
+        let Some(root_key) = self.lir_local_top_level_ref_key(local, body) else {
+            return Ok(None);
+        };
+        let key = root_key.as_str();
+        if self.lir_global_root_has_kind(key, LirGlobalRootKind::ExternGlobal) {
+            let root = self
+                .expect_lir_global_root_kind(
+                    key,
+                    LirGlobalRootKind::ExternGlobal,
+                    "lir_atomic_top_level_place_for_local",
+                )
+                .clone();
+            let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                panic!("lir_atomic_top_level_place_for_local: extern root missing contract")
+            });
+            if require_writable && !extern_global.mutable {
+                self.panic_verified_intrinsic_contract(
+                    "lir_atomic_top_level_place_for_local",
+                    "extern global target is not writable",
+                );
+            }
+            let cg_ty = self.cg_ty_of_type_id(
+                self.lir_global_root_ty(&root, "LIR atomic extern global"),
+                "LIR atomic extern global",
+            );
+            let gv = self.declare_lir_extern_global(&root)?;
+            return Ok(Some(MirMemberPlace {
+                ptr: gv.as_pointer_value(),
+                field_cg: cg_ty,
+                writable: extern_global.mutable,
+                packed_alignment: None,
+            }));
+        }
+        if !self.lir_global_root_has_kind(key, LirGlobalRootKind::TopLevelMutableVar) {
+            return Ok(None);
+        }
+        let root = self
+            .expect_lir_global_root_kind(
+                key,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "lir_atomic_top_level_place_for_local",
+            )
+            .clone();
+        let cg_ty = self
+            .cg_ty_of_mir_type(
+                source_types,
+                self.lir_global_root_ty(&root, "LIR atomic global"),
+            )
+            .unwrap_or_else(|| {
+                self.cg_ty_of_type_id(
+                    self.lir_global_root_ty(&root, "LIR atomic global"),
+                    "LIR atomic global",
+                )
+            });
+        let gv = self.declare_lir_top_level_var_global(&root)?;
+        Ok(Some(MirMemberPlace {
+            ptr: gv.as_pointer_value(),
+            field_cg: cg_ty,
+            writable: true,
+            packed_alignment: None,
+        }))
+    }
+
+    fn lir_local_top_level_ref_key(
+        &self,
+        local: crate::effect_lowered::mir_source::LocalId,
+        body: &LirExecutableBody,
+    ) -> Option<scoopc_lir_facts::LirGlobalRootKey> {
+        for state in body.states().states() {
+            for stmt in state.body().statements() {
+                let LirStatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local {
+                    continue;
+                }
+                let LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                    target: LirTopLevelRefTarget::Global(root),
+                    ..
+                }) = value
+                else {
+                    return None;
+                };
+                return Some(root.clone());
+            }
+        }
+        None
     }
 
     fn codegen_lir_atomic_ref_operand(
@@ -800,8 +1037,143 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.position_at_end(cont_bb);
                 Ok(Some(CgValue::unit()))
             }
+            "scoop.core.GC.pin" => Ok(Some(self.codegen_lir_gc_pin(
+                span,
+                args,
+                source_types,
+                transport,
+                slots,
+            )?)),
+            "scoop.core.GC.unpin" => Ok(Some(self.codegen_lir_gc_unpin(span, args, slots)?)),
             _ => Ok(None),
         }
+    }
+
+    fn codegen_lir_gc_pin(
+        &mut self,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        transport: &crate::effect_lowered::LirCallTransportMetadata,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let arg = self.expect_lir_positional_arg(args, 1, 0, "LIR GC.pin lowering");
+        let target_cg = self
+            .cg_ty_of_mir_type(source_types, transport.result.source_ty)
+            .or_else(|| {
+                self.equivalent_codegen_type_id(source_types, transport.result.source_ty)
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
+            })
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "LIR GC.pin lowering",
+                    "missing expected Pinned result type",
+                )
+            });
+        let CgTy::Struct(pinned_ty) = target_cg else {
+            self.panic_verified_intrinsic_contract(
+                "LIR GC.pin lowering",
+                "target is not a Pinned struct",
+            );
+        };
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", span)?;
+        let obj =
+            self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(field_cg_ty))?;
+        let obj = self.coerce_value(arg.span, obj, field_cg_ty)?;
+        let obj_ref = self.coerce_value(arg.span, obj, CgTy::Ref)?;
+        let obj_ptr = self.expect_cg_pointer(obj_ref, "LIR GC.pin argument");
+
+        let rt_pin = self.declare_runtime_gc_pin();
+        let call = self
+            .builder
+            .build_call(rt_pin, &[obj_ptr.into()], "lir_gc_pin")?;
+        let raw = self.expect_basic_value(call, "LIR GC.pin runtime return");
+        let ok_i32 = self.expect_int_value(raw, "LIR GC.pin runtime return");
+        let ok_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "lir_gc_pin_ok",
+        )?;
+        let func = self.expect_current_function("LIR GC.pin branch blocks");
+        let ok_bb = self.context.append_basic_block(func, "lir_gc_pin_ok_bb");
+        let err_bb = self.context.append_basic_block(func, "lir_gc_pin_err_bb");
+        let cont_bb = self.context.append_basic_block(func, "lir_gc_pin_cont_bb");
+        self.builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        self.builder.position_at_end(ok_bb);
+        let llvm_struct_ty = self.llvm_struct_type(span, pinned_ty)?;
+        let mut agg: inkwell::values::AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        let raw_field: inkwell::values::BasicValueEnum<'ctx> = match field_cg_ty {
+            CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+            _ => self.expect_cg_value(obj, "LIR GC.pin Pinned.value field"),
+        };
+        agg = self
+            .builder
+            .build_insert_value(agg, raw_field, field_idx, "lir_pinned_value")?;
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn codegen_lir_gc_unpin(
+        &mut self,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let arg = self.expect_lir_positional_arg(args, 1, 0, "LIR GC.unpin lowering");
+        let pinned = self.codegen_lir_operand(arg.span, &arg.value, slots)?;
+        let CgTy::Struct(pinned_ty) = pinned.ty else {
+            self.panic_verified_intrinsic_contract(
+                "LIR GC.unpin lowering",
+                "argument is not a Pinned struct",
+            );
+        };
+        let raw = self.expect_cg_value(pinned, "LIR GC.unpin argument");
+        let struct_v = self.expect_struct_value(raw, "LIR GC.unpin argument");
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", arg.span)?;
+        let extracted =
+            self.builder
+                .build_extract_value(struct_v, field_idx, "lir_pinned_value")?;
+        let field = self.cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
+        let field_ref = self.coerce_value(arg.span, field, CgTy::Ref)?;
+        let obj_ptr = self.expect_cg_pointer(field_ref, "LIR GC.unpin Pinned.value field");
+
+        let rt_unpin = self.declare_runtime_gc_unpin();
+        let call = self
+            .builder
+            .build_call(rt_unpin, &[obj_ptr.into()], "lir_gc_unpin")?;
+        let raw = self.expect_basic_value(call, "LIR GC.unpin runtime return");
+        let ok_i32 = self.expect_int_value(raw, "LIR GC.unpin runtime return");
+        let ok_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "lir_gc_unpin_ok",
+        )?;
+        let func = self.expect_current_function("LIR GC.unpin branch blocks");
+        let ok_bb = self.context.append_basic_block(func, "lir_gc_unpin_ok_bb");
+        let err_bb = self.context.append_basic_block(func, "lir_gc_unpin_err_bb");
+        let cont_bb = self
+            .context
+            .append_basic_block(func, "lir_gc_unpin_cont_bb");
+        self.builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+        self.builder.position_at_end(ok_bb);
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue::unit())
     }
 
     fn expect_lir_positional_arg<'b>(
@@ -1184,6 +1556,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )? {
             return Ok(value);
         }
+        if concrete_fqn == "scoop.unsafe.invoke" || fqn == "scoop.unsafe.invoke" {
+            return self.codegen_lir_funptr_invoke_call(span, args, body, source_types, slots);
+        }
+        if let Some(value) = self.codegen_lir_top_level_funptr_direct_call(
+            concrete_fqn,
+            span,
+            args,
+            source_types,
+            slots,
+        )? {
+            return Ok(value);
+        }
+        if let Some(fun_ty) = self.lir_top_level_function_value_type(concrete_fqn) {
+            return self.codegen_lir_top_level_function_value_direct_call(
+                concrete_fqn,
+                span,
+                args,
+                &fun_ty,
+                slots,
+            );
+        }
         let callable_abi = self.direct_call_abi_identity(concrete_fqn);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         let (signature_types, param_names, source_param_tys, source_return_ty) = self
@@ -1271,13 +1664,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.hidden_sret_result_ty(span, ret_cg)?
         };
+        let published_abi_symbol = self
+            .published_late_lowered_program()
+            .and_then(|program| program.abi_symbol_for_root(concrete_fqn))
+            .map(|symbol| symbol.symbol.clone());
         let exact_symbol = exact_callee
             .as_ref()
             .map(|exact| exact.abi_symbol.as_str())
+            .or(published_abi_symbol.as_deref())
             .unwrap_or("");
         let llvm_name = exact_callee
             .as_ref()
             .map(|exact| exact.abi_symbol.as_str().to_string())
+            .or_else(|| published_abi_symbol.clone())
             .unwrap_or_else(|| {
                 self.exported_abi_symbol_for_lir_callable(concrete_fqn)
                     .unwrap_or_else(|err| {
@@ -1430,6 +1829,179 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+    }
+
+    fn codegen_lir_top_level_funptr_direct_call(
+        &mut self,
+        callable_fqn: &str,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(fun_ty) = self.lir_top_level_funptr_function_type(callable_fqn) else {
+            return Ok(None);
+        };
+        if !fun_ty.effects.is_pure() {
+            panic!(
+                "codegen_lir_top_level_funptr_direct_call: effect-typed top-level FunPtr `{callable_fqn}` reached plain LIR direct call at {span:?}"
+            );
+        }
+
+        let value = self
+            .top_level_immutable_values
+            .get(callable_fqn)
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_top_level_funptr_direct_call: LIR verifier accepted missing FunPtr metadata for `{callable_fqn}` at {span:?}"
+                )
+            });
+        let funptr = self.codegen_top_level_immutable_value_access(span, &value)?;
+        let (funptr_addr, funptr_int_ty) = funptr.as_int().unwrap_or_else(|| {
+            panic!(
+                "codegen_lir_top_level_funptr_direct_call: LIR verifier accepted non-int top-level FunPtr value"
+            )
+        });
+        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+        if args.len() != expected_arity {
+            panic!(
+                "codegen_lir_top_level_funptr_direct_call: LIR verifier accepted FunPtr arity mismatch for `{callable_fqn}`"
+            );
+        }
+
+        let param_tys = self.callable_value_param_tys(&fun_ty);
+        let native_abi =
+            self.classify_funptr_native_callable(span, &param_tys, fun_ty.return_ty)?;
+        let ret_cg = native_abi.return_abi.cg_ty;
+        let casted_addr = if funptr_int_ty.bits == self.host.word_bit_width() {
+            funptr_addr
+        } else {
+            self.cast_int(
+                funptr_addr,
+                funptr_int_ty,
+                IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: false,
+                },
+            )?
+        };
+        let typed_fn_ptr = self.builder.build_int_to_ptr(
+            casted_addr,
+            self.llvm_ptr_type(AddressSpace::default()),
+            "lir_top_level_funptr_typed",
+        )?;
+
+        let evaluated_args =
+            self.codegen_lir_funptr_value_args(span, &fun_ty, args, source_types, slots)?;
+        let llvm_args = evaluated_args
+            .iter()
+            .map(|arg| arg.value)
+            .collect::<Vec<_>>();
+        let call_site_result = self.emit_native_callable_call(
+            span,
+            &native_abi,
+            NativeCallableTarget::Indirect {
+                fn_ty: native_abi.fn_ty,
+                ptr: typed_fn_ptr,
+                call_name: "lir_top_level_funptr_call",
+            },
+            &llvm_args,
+        );
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        let deferred_direct_result = self.defer_direct_call_result(
+            span,
+            ret_cg,
+            call_site,
+            "lir_top_level_funptr_call_result",
+        )?;
+
+        match ret_cg {
+            CgTy::Unit => Ok(Some(CgValue::unit())),
+            CgTy::Never => Ok(Some(CgValue::never())),
+            _ => Ok(Some(self.materialize_deferred_cg_value(
+                span,
+                "lir_top_level_funptr_call_result_reload",
+                deferred_direct_result.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_top_level_funptr_direct_call: LIR verifier accepted missing deferred FunPtr return value"
+                    )
+                }),
+            )?)),
+        }
+    }
+
+    fn codegen_lir_top_level_function_value_direct_call(
+        &mut self,
+        callable_fqn: &str,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        fun_ty: &crate::ty::FunctionType,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !fun_ty.effects.is_pure() {
+            panic!(
+                "codegen_lir_top_level_function_value_direct_call: effect-typed top-level function value `{callable_fqn}` reached plain LIR direct call at {span:?}"
+            );
+        }
+        let value = self
+            .top_level_immutable_values
+            .get(callable_fqn)
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_top_level_function_value_direct_call: LIR verifier accepted missing function-value metadata for `{callable_fqn}` at {span:?}"
+                )
+            });
+        let callee = self.codegen_top_level_immutable_value_access(span, &value)?;
+        let callee = self.coerce_value(span, callee, CgTy::Ref)?;
+        let closure_obj_i8 = self.expect_cg_pointer(callee, "top-level LIR function-value value");
+        self.codegen_lir_function_value_call_from_closure_obj(
+            span,
+            closure_obj_i8,
+            fun_ty,
+            false,
+            args,
+            slots,
+        )
+    }
+
+    fn lir_top_level_funptr_function_type(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<crate::ty::FunctionType> {
+        let root = self.lir_global_root(callable_fqn)?;
+        if root.kind != LirGlobalRootKind::TopLevelImmutableVal {
+            return None;
+        }
+        match self.types.kind(root.ty?) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
+            {
+                let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(nominal.args[0])
+                else {
+                    return None;
+                };
+                Some(fun_ty.clone())
+            }
+            _ => None,
+        }
+    }
+
+    fn lir_top_level_function_value_type(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<crate::ty::FunctionType> {
+        let root = self.lir_global_root(callable_fqn)?;
+        if root.kind != LirGlobalRootKind::TopLevelImmutableVal {
+            return None;
+        }
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(root.ty?) else {
+            return None;
+        };
+        Some(fun_ty.clone())
     }
 
     fn lir_string_like_pointer(

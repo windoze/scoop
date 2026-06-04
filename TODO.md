@@ -128,7 +128,7 @@
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
 - 基线运行：`cargo test --all --all-targets` 仍有 11 个 plain-LIR `scoopc` LLVM 单测失败；`python3 tools/run_fixtures.py` 仍有 `268/1625` fixture 失败。两组失败已在 `TC-02` 下精确登记为 plain LIR 主体迁移的验收阻塞项，本任务不以 workaround 扩大范围修复 TC-02。
 
-### [TODO] TC-02-PRE2：收敛 plain-LIR 剩余 fixture/runtime 残差
+### [DONE] TC-02-PRE2：收敛 plain-LIR 剩余 fixture/runtime 残差
 
 **目标**：在 `TC-02` 标记完成前，收敛本轮 plain-LIR 主体迁移后仍未绿的完整 fixture 基线。不得通过退回 MIR walk、LIR→MIR shim、句柄→FQN 反转、弱化 fixture 行为或跳过失败来完成；旧 IR substring 只能更新为实际 LIR 语义下等价且更准确的断言。
 
@@ -143,6 +143,12 @@
 - `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 通过。
 - `cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过。
 - `python3 tools/run_fixtures.py` 通过；若只更新旧 IR substring，必须保持检查语义等价于 LIR 发射后的真实行为。
+
+**完成记录（2026-06-05）**：
+- 补齐 LIR plain lowering 的剩余运行时 parity：Float `toInt` named intrinsic、顶层 function value / `FunPtr` direct-call、`scoop.unsafe.invoke`、namespace-only top-level refs、external/bodyless direct-call result type inference、`GC.pin/unpin`、递归 atomic lvalue 与顶层 atomic storage。
+- 修复跨 cone public callable ABI symbol 稳定性，source-level public callable ABI 改为按公共签名语义发布；保留 native/extern callable 的独立 runtime/native symbol surface。
+- 更新旧 LLVM substring / effect-lowered / MIR golden：LIR 命名漂移、nested atomic GEP regex、Platform LIR struct literal IR、MIR intrinsic callable 计数及 effect-lowered ABI symbol hash。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
 

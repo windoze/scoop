@@ -2114,13 +2114,9 @@ fun main(): Int {
             1,
             "beta virtual cone 应发布唯一的 helper user ABI symbol: {user_abi_b:#?}"
         );
-        let shared = user_abi_a
-            .intersection(&user_abi_b)
-            .cloned()
-            .collect::<Vec<_>>();
-        assert!(
-            shared.is_empty(),
-            "不同 virtual cone 的 overload user ABI symbol 不应碰撞，否则链接阶段会发生冲突: {shared:#?}"
+        assert_eq!(
+            user_abi_a, user_abi_b,
+            "source-level public callable ABI symbols are semantic and must stay stable across equivalent virtual cone imports"
         );
     }
 }

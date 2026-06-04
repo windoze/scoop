@@ -330,6 +330,10 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
         lower: lower_float_compare_to,
     },
     NamedIntrinsicIrRuleEntry {
+        name: "float_to_int",
+        lower: lower_float_to_int,
+    },
+    NamedIntrinsicIrRuleEntry {
         name: "float_abs",
         lower: lower_float_abs,
     },
@@ -772,6 +776,13 @@ fn lower_float_compare_to<'a, 'ctx>(
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
     cg.codegen_named_intrinsic_float_compare_to(call)
+}
+
+fn lower_float_to_int<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_to_int(call)
 }
 
 fn lower_float_abs<'a, 'ctx>(
@@ -1993,6 +2004,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "intrinsic_fcompare_to_eq",
         )?;
         self.named_intrinsic_three_way_result(is_lt, is_eq)
+    }
+
+    fn codegen_named_intrinsic_float_to_int(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float toInt operand arity")?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_to_int_value(call.span, operand.span, operand.value)
     }
 
     fn codegen_named_intrinsic_float_abs(
