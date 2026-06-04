@@ -4,12 +4,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use scoopc_ids::{BodyVersionKey, LirCallableId, StableCanonicalKey};
+use scoopc_ids::{BodyVersionKey, LirCallableId, SiteId, StableCanonicalKey};
 
 use crate::{
-    LirCallTargetMode, LirCallableContract, LirCallableRef, LirConeInitRoutineKey,
-    LirControlBodyFacts, LirEffectPrecision, LirFacts, LirGlobalRootKey, LirGlobalRootKind,
-    LirInitializerBodyKind, LirTypeContextBridgeMode,
+    LirCallSiteKind, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirCallableRef,
+    LirConeInitRoutineKey, LirControlBodyFacts, LirDispatchContract, LirDynamicInvokeCarrierKind,
+    LirDynamicInvokeContract, LirEffectPrecision, LirFacts, LirGlobalRootKey, LirGlobalRootKind,
+    LirInitializerBodyKind, LirPlainCallSiteFacts, LirTypeContextBridgeMode,
 };
 
 /// Result type returned by LIR fact verification.
@@ -268,6 +269,10 @@ pub enum VerifyError {
         key: String,
         reason: &'static str,
     },
+    InvalidCallSiteContract {
+        key: String,
+        reason: &'static str,
+    },
     MissingDynamicInvokeTargetStep {
         key: String,
         step_schema: u32,
@@ -277,6 +282,10 @@ pub enum VerifyError {
     },
     MissingDispatchOwner {
         key: String,
+    },
+    InvalidDispatchContract {
+        key: String,
+        reason: &'static str,
     },
     MissingContinuationObjectPacking {
         object_id: u32,
@@ -577,6 +586,9 @@ impl fmt::Display for VerifyError {
             Self::InvalidSourceCallSite { key, reason } => {
                 write!(f, "LIR source call-site `{key}` is invalid: {reason}")
             }
+            Self::InvalidCallSiteContract { key, reason } => {
+                write!(f, "LIR call-site `{key}` is invalid: {reason}")
+            }
             Self::MissingDynamicInvokeTargetStep { key, step_schema } => write!(
                 f,
                 "LIR dynamic invoke `{key}` references missing target StepSchema s{step_schema}"
@@ -590,6 +602,9 @@ impl fmt::Display for VerifyError {
                     f,
                     "LIR dispatch `{key}` references a missing owner callable"
                 )
+            }
+            Self::InvalidDispatchContract { key, reason } => {
+                write!(f, "LIR dispatch `{key}` is invalid: {reason}")
             }
             Self::MissingContinuationObjectPacking {
                 object_id,
@@ -1576,6 +1591,8 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
     let mut body_versions = BTreeSet::new();
     for (key, callable) in &facts.callables {
         let key_text = callable_id_text(*key);
+        let dynamic_invokes = callable_dynamic_invoke_index(*key, callable)?;
+        let dispatches = callable_dispatch_index(*key, callable)?;
         if callable.root_fqn().is_empty() {
             return Err(VerifyError::EmptyCallableRoot { key: key_text });
         }
@@ -1607,12 +1624,20 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                     });
                 }
                 for site in &plain.call_sites {
-                    verify_call_site_contract(facts, callable.root_fqn(), &site.contract)?;
+                    verify_plain_call_site_contract(
+                        facts,
+                        callable.root_fqn(),
+                        *key,
+                        site,
+                        &dynamic_invokes,
+                        &dispatches,
+                    )?;
                 }
                 if let Some(control) = &plain.local_effect_control {
                     verify_control_body(
                         facts,
                         callable.root_fqn(),
+                        *key,
                         &callable.body_version.key,
                         control,
                     )?;
@@ -1627,6 +1652,7 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                 verify_control_body(
                     facts,
                     callable.root_fqn(),
+                    *key,
                     &callable.body_version.key,
                     &effect.control_body,
                 )?;
@@ -1641,6 +1667,101 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
                 }
             }
         }
+    }
+    Ok(())
+}
+
+fn callable_dynamic_invoke_index(
+    owner: LirCallableId,
+    callable: &LirCallableFacts,
+) -> Result<BTreeMap<SiteId, &LirDynamicInvokeContract>> {
+    let mut out = BTreeMap::new();
+    for contract in callable.dynamic_invoke_contracts() {
+        verify_embedded_dynamic_invoke_owner(owner, contract)?;
+        if out.insert(contract.site_id, contract).is_some() {
+            return Err(VerifyError::InvalidCallSiteContract {
+                key: site_key_text(contract.owner_callable, contract.site_id),
+                reason: "duplicate dynamic-invoke contract for callable site",
+            });
+        }
+    }
+    Ok(out)
+}
+
+fn callable_dispatch_index(
+    owner: LirCallableId,
+    callable: &LirCallableFacts,
+) -> Result<BTreeMap<SiteId, &LirDispatchContract>> {
+    let mut out = BTreeMap::new();
+    for dispatch in callable.dispatch_contracts() {
+        verify_embedded_dispatch_owner(owner, dispatch)?;
+        if out.insert(dispatch.site_id, dispatch).is_some() {
+            return Err(VerifyError::InvalidDispatchContract {
+                key: site_key_text(dispatch.owner_callable, dispatch.site_id),
+                reason: "duplicate dispatch contract for callable site",
+            });
+        }
+    }
+    Ok(out)
+}
+
+fn verify_embedded_dynamic_invoke_owner(
+    owner: LirCallableId,
+    contract: &LirDynamicInvokeContract,
+) -> Result<()> {
+    if contract.owner_callable != owner {
+        return Err(VerifyError::InvalidCallSiteContract {
+            key: site_key_text(contract.owner_callable, contract.site_id),
+            reason: "dynamic-invoke owner differs from containing callable node",
+        });
+    }
+    Ok(())
+}
+
+fn verify_embedded_dispatch_owner(
+    owner: LirCallableId,
+    dispatch: &LirDispatchContract,
+) -> Result<()> {
+    if dispatch.owner_callable != owner {
+        return Err(VerifyError::InvalidDispatchContract {
+            key: site_key_text(dispatch.owner_callable, dispatch.site_id),
+            reason: "dispatch owner differs from containing callable node",
+        });
+    }
+    Ok(())
+}
+
+fn verify_plain_call_site_contract(
+    facts: &LirFacts,
+    owner_label: &str,
+    owner: LirCallableId,
+    site: &LirPlainCallSiteFacts,
+    dynamic_invokes: &BTreeMap<SiteId, &LirDynamicInvokeContract>,
+    dispatches: &BTreeMap<SiteId, &LirDispatchContract>,
+) -> Result<()> {
+    let key = site_key_text(owner, site.site_id);
+    verify_call_site_contract(facts, owner_label, &site.contract)?;
+    if call_site_requires_dynamic_invoke(&site.contract)
+        && !dynamic_invokes.contains_key(&site.site_id)
+    {
+        return Err(VerifyError::InvalidCallSiteContract {
+            key,
+            reason: "dynamic call site is missing its dynamic-invoke contract",
+        });
+    }
+    if call_site_requires_dispatch(site.contract.kind) && !dispatches.contains_key(&site.site_id) {
+        return Err(VerifyError::InvalidDispatchContract {
+            key,
+            reason: "dispatch call site is missing its dispatch contract",
+        });
+    }
+    if let Some(dynamic) = dynamic_invokes.get(&site.site_id) {
+        verify_dynamic_invoke_contract_shape(dynamic)?;
+        verify_dynamic_matches_call_site(&key, dynamic, owner, site.site_id, &site.contract)?;
+    }
+    if let Some(dispatch) = dispatches.get(&site.site_id) {
+        verify_dispatch_contract_shape(dispatch)?;
+        verify_dispatch_matches_call_site(&key, dispatch, owner, site.site_id, &site.contract)?;
     }
     Ok(())
 }
@@ -1724,6 +1845,75 @@ fn verify_call_site_contract(
                 verify_published_call_target(facts, *target, binding, owner)?;
             }
         }
+    }
+    Ok(())
+}
+
+fn call_site_requires_dynamic_invoke(contract: &crate::LirCallSiteContract) -> bool {
+    contract.callee_step_schema.is_some() && is_dynamic_call_site_kind(contract.kind)
+}
+
+fn is_dynamic_call_site_kind(kind: LirCallSiteKind) -> bool {
+    matches!(
+        kind,
+        LirCallSiteKind::Closure
+            | LirCallSiteKind::FunValue
+            | LirCallSiteKind::FunPtr
+            | LirCallSiteKind::Virtual
+            | LirCallSiteKind::Interface
+    )
+}
+
+fn call_site_requires_dispatch(kind: LirCallSiteKind) -> bool {
+    matches!(kind, LirCallSiteKind::Virtual | LirCallSiteKind::Interface)
+}
+
+fn verify_dynamic_matches_call_site(
+    key: &str,
+    dynamic: &LirDynamicInvokeContract,
+    owner: LirCallableId,
+    site_id: SiteId,
+    contract: &crate::LirCallSiteContract,
+) -> Result<()> {
+    if dynamic.owner_callable != owner || dynamic.site_id != site_id {
+        return Err(VerifyError::InvalidCallSiteContract {
+            key: key.to_string(),
+            reason: "dynamic-invoke identity differs from owning call site",
+        });
+    }
+    if &dynamic.call != contract {
+        return Err(VerifyError::InvalidCallSiteContract {
+            key: key.to_string(),
+            reason: "dynamic-invoke call contract drifts from owning call site",
+        });
+    }
+    Ok(())
+}
+
+fn verify_dispatch_matches_call_site(
+    key: &str,
+    dispatch: &LirDispatchContract,
+    owner: LirCallableId,
+    site_id: SiteId,
+    contract: &crate::LirCallSiteContract,
+) -> Result<()> {
+    if dispatch.owner_callable != owner || dispatch.site_id != site_id {
+        return Err(VerifyError::InvalidDispatchContract {
+            key: key.to_string(),
+            reason: "dispatch identity differs from owning call site",
+        });
+    }
+    if dispatch.kind != contract.kind {
+        return Err(VerifyError::InvalidDispatchContract {
+            key: key.to_string(),
+            reason: "dispatch kind drifts from owning call site",
+        });
+    }
+    if dispatch.candidate_targets != contract.target_callables {
+        return Err(VerifyError::InvalidDispatchContract {
+            key: key.to_string(),
+            reason: "dispatch candidates drift from owning call-site targets",
+        });
     }
     Ok(())
 }
@@ -1838,6 +2028,7 @@ fn target_has_published_source_and_abi(
 fn verify_control_body(
     facts: &LirFacts,
     callable: &str,
+    owner_callable: LirCallableId,
     owner_body_version: &BodyVersionKey,
     control: &LirControlBodyFacts,
 ) -> Result<()> {
@@ -1866,6 +2057,57 @@ fn verify_control_body(
                 callable: callable.to_string(),
                 packing_id: packing_id.as_u32(),
             });
+        }
+    }
+    for boundary in &control.boundary_map.boundaries {
+        if let Some(dynamic) = &boundary.dynamic_invoke {
+            verify_embedded_dynamic_invoke_owner(owner_callable, dynamic)?;
+            match dynamic.source {
+                crate::LirDynamicInvokeSource::Boundary { boundary_id }
+                    if boundary_id == boundary.boundary_id => {}
+                crate::LirDynamicInvokeSource::Boundary { .. } => {
+                    return Err(VerifyError::InvalidCallSiteContract {
+                        key: site_key_text(dynamic.owner_callable, dynamic.site_id),
+                        reason: "dynamic-invoke boundary source disagrees with owning boundary node",
+                    });
+                }
+                _ => {
+                    return Err(VerifyError::InvalidCallSiteContract {
+                        key: site_key_text(dynamic.owner_callable, dynamic.site_id),
+                        reason: "boundary node carries a non-boundary dynamic-invoke source",
+                    });
+                }
+            }
+        }
+        if let Some(dispatch) = &boundary.dispatch {
+            verify_embedded_dispatch_owner(owner_callable, dispatch)?;
+        }
+    }
+    for site in &control.source_statement_call_sites {
+        if let Some(dynamic) = &site.dynamic_invoke {
+            verify_embedded_dynamic_invoke_owner(owner_callable, dynamic)?;
+            match dynamic.source {
+                crate::LirDynamicInvokeSource::ControlSourceSlice {
+                    source_slice,
+                    statement_index,
+                } if source_slice == site.source_slice
+                    && statement_index == site.statement_index => {}
+                crate::LirDynamicInvokeSource::ControlSourceSlice { .. } => {
+                    return Err(VerifyError::InvalidCallSiteContract {
+                        key: site_key_text(dynamic.owner_callable, dynamic.site_id),
+                        reason: "dynamic-invoke source-slice identity disagrees with owning source statement node",
+                    });
+                }
+                _ => {
+                    return Err(VerifyError::InvalidCallSiteContract {
+                        key: site_key_text(dynamic.owner_callable, dynamic.site_id),
+                        reason: "source statement node carries a non-source-slice dynamic-invoke source",
+                    });
+                }
+            }
+        }
+        if let Some(dispatch) = &site.dispatch {
+            verify_embedded_dispatch_owner(owner_callable, dispatch)?;
         }
     }
     Ok(())
@@ -1918,6 +2160,47 @@ fn verify_source_call_site_contracts(facts: &LirFacts) -> Result<()> {
     Ok(())
 }
 
+fn verify_dynamic_invoke_contract_shape(contract: &LirDynamicInvokeContract) -> Result<()> {
+    let key = site_key_text(contract.owner_callable, contract.site_id);
+    if !call_site_requires_dynamic_invoke(&contract.call) {
+        return Err(VerifyError::InvalidCallSiteContract {
+            key,
+            reason: "dynamic-invoke contract is attached to a call site that does not require one",
+        });
+    }
+    match contract.carrier.kind {
+        LirDynamicInvokeCarrierKind::ClosureObject | LirDynamicInvokeCarrierKind::FunPtr => {
+            if contract.carrier.dispatch.is_some() {
+                return Err(VerifyError::InvalidCallSiteContract {
+                    key,
+                    reason: "callable-carrier dynamic invoke must not carry a dispatch contract",
+                });
+            }
+        }
+        LirDynamicInvokeCarrierKind::VirtualReceiver
+        | LirDynamicInvokeCarrierKind::InterfaceReceiver => {
+            let Some(dispatch) = &contract.carrier.dispatch else {
+                return Err(VerifyError::MissingDynamicInvokeDispatch { key });
+            };
+            let expected_kind = match contract.carrier.kind {
+                LirDynamicInvokeCarrierKind::VirtualReceiver => LirCallSiteKind::Virtual,
+                LirDynamicInvokeCarrierKind::InterfaceReceiver => LirCallSiteKind::Interface,
+                LirDynamicInvokeCarrierKind::ClosureObject
+                | LirDynamicInvokeCarrierKind::FunPtr => {
+                    unreachable!("outer match selected dispatch carriers")
+                }
+            };
+            if dispatch.kind != expected_kind || contract.call.kind != expected_kind {
+                return Err(VerifyError::InvalidDispatchContract {
+                    key,
+                    reason: "dynamic-invoke carrier kind disagrees with dispatch call kind",
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
     for callable in facts.callables.values() {
         for contract in callable.dynamic_invoke_contracts() {
@@ -1930,6 +2213,7 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
                 &callable_id_text(contract.owner_callable),
                 &contract.call,
             )?;
+            verify_dynamic_invoke_contract_shape(contract)?;
             if let Some(step_schema) = contract.call.callee_step_schema
                 && !facts.step_types.contains_key(&step_schema)
             {
@@ -1944,6 +2228,13 @@ fn verify_dynamic_invoke_contracts(facts: &LirFacts) -> Result<()> {
                 {
                     return Err(VerifyError::MissingDynamicInvokeDispatch { key: key_text });
                 }
+                verify_dispatch_matches_call_site(
+                    &key_text,
+                    dispatch,
+                    contract.owner_callable,
+                    contract.site_id,
+                    &contract.call,
+                )?;
                 verify_dispatch_contract(facts, dispatch)?;
             }
             if contract.target_body_versions.len() != contract.call.target_callables.len() {
@@ -1993,12 +2284,44 @@ fn verify_dispatch_contracts(facts: &LirFacts) -> Result<()> {
     Ok(())
 }
 
+fn verify_dispatch_contract_shape(dispatch: &LirDispatchContract) -> Result<()> {
+    let key = site_key_text(dispatch.owner_callable, dispatch.site_id);
+    if !call_site_requires_dispatch(dispatch.kind) {
+        return Err(VerifyError::InvalidDispatchContract {
+            key,
+            reason: "dispatch contract is attached to a non-dispatch call kind",
+        });
+    }
+    if dispatch.candidate_targets.is_empty() {
+        return Err(VerifyError::InvalidDispatchContract {
+            key,
+            reason: "dispatch contract must publish at least one candidate target",
+        });
+    }
+    match dispatch.kind {
+        LirCallSiteKind::Virtual if dispatch.interface_id.is_some() => {
+            Err(VerifyError::InvalidDispatchContract {
+                key,
+                reason: "virtual dispatch contract must not publish an interface id",
+            })
+        }
+        LirCallSiteKind::Interface if dispatch.interface_id.is_none() => {
+            Err(VerifyError::InvalidDispatchContract {
+                key,
+                reason: "interface dispatch contract is missing its interface id",
+            })
+        }
+        _ => Ok(()),
+    }
+}
+
 fn verify_dispatch_contract(facts: &LirFacts, dispatch: &crate::LirDispatchContract) -> Result<()> {
     if !has_callable_id(facts, dispatch.owner_callable) {
         return Err(VerifyError::MissingDispatchOwner {
             key: site_key_text(dispatch.owner_callable, dispatch.site_id),
         });
     }
+    verify_dispatch_contract_shape(dispatch)?;
     for target in &dispatch.candidate_targets {
         verify_dispatch_target(facts, *target, &dispatch.member_fqn)?;
     }

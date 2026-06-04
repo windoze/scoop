@@ -2971,9 +2971,19 @@ fn build_control_body_facts(
         };
         let contract = call_site_contract(ctx, callable_symbols, lowering.facts())?;
         let metadata = lowering.metadata();
+        let dynamic_key = BuildCallSiteKey {
+            owner_callable: owner_id,
+            site_id,
+        };
+        let dispatch_key = BuildCallSiteKey {
+            owner_callable: owner_id,
+            site_id,
+        };
+        let dynamic_already_published = dynamic_invokes.contains_key(&dynamic_key);
+        let dispatch_already_published = dispatches.contains_key(&dispatch_key);
         let dispatch =
             publish_dispatch_contract(ctx, owner_id, site_id, metadata, &contract, dispatches)?;
-        if let Some(key) = dispatch.clone() {
+        if !dispatch_already_published && let Some(key) = dispatch.clone() {
             boundary_dispatches.insert(boundary.boundary_id(), key);
         }
         let dynamic = publish_dynamic_invoke_contract(
@@ -2990,7 +3000,7 @@ fn build_control_body_facts(
             dispatch.clone(),
             dynamic_invokes,
         )?;
-        if let Some(key) = dynamic {
+        if !dynamic_already_published && let Some(key) = dynamic {
             boundary_dynamic_invokes.insert(boundary.boundary_id(), key);
         }
     }

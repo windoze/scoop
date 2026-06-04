@@ -352,6 +352,19 @@ mod tests {
         }
     }
 
+    fn test_site_key(owner: LirCallableId, site_id: SiteId) -> String {
+        format!("{owner:?}:site{}", site_id.as_u32())
+    }
+
+    fn plain_source_slice() -> LirSourceSliceKey {
+        LirSourceSliceKey {
+            block_id: LirBodyBlockKey::new(0),
+            start_statement_index: 0,
+            end_statement_index: 1,
+            includes_terminator: false,
+        }
+    }
+
     fn plain_callable_with_candidate(
         owner_fqn: &str,
         target_root: &str,
@@ -363,12 +376,7 @@ mod tests {
         };
         plain.call_sites.push(LirPlainCallSiteFacts {
             site_id: SiteId::from_raw(1),
-            source_slice: LirSourceSliceKey {
-                block_id: LirBodyBlockKey::new(0),
-                start_statement_index: 0,
-                end_statement_index: 1,
-                includes_terminator: false,
-            },
+            source_slice: plain_source_slice(),
             statement_index: 0,
             contract: LirCallSiteContract {
                 kind: LirCallSiteKind::Direct,
@@ -868,6 +876,141 @@ mod tests {
             VerifyError::InvalidExactCalleeBinding {
                 callable: "app.main".to_string(),
                 reason: "call-site still uses signature-fallback precision",
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_plain_dynamic_site_without_dynamic_invoke_contract() {
+        let owner = LirCallableId::from_raw(0);
+        let site_id = SiteId::from_raw(1);
+        let mut callable = plain_callable("app.main");
+        let LirCallableContract::Plain(plain) = &mut callable.contract else {
+            panic!("fixture plain callable should have plain contract");
+        };
+        plain.call_sites.push(LirPlainCallSiteFacts {
+            site_id,
+            source_slice: plain_source_slice(),
+            statement_index: 0,
+            contract: LirCallSiteContract {
+                kind: LirCallSiteKind::Closure,
+                target_mode: LirCallTargetMode::DynamicFallback,
+                target_callables: Vec::new(),
+                target_bindings: Vec::new(),
+                exact_callee: None,
+                callee_abi_kind: LirCallableAbiKind::EffectStep,
+                invoke_args_tuple_ty: ty(2),
+                callee_step_schema: Some(LirStepSchemaKey::new(1)),
+                resolved_cases: Vec::new(),
+                precision: LirEffectPrecision::Precise,
+            },
+            dynamic_invoke: None,
+            dispatch: None,
+        });
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                callables: BTreeMap::from([(owner, callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidCallSiteContract {
+                key: test_site_key(owner, site_id),
+                reason: "dynamic call site is missing its dynamic-invoke contract",
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_plain_dispatch_site_without_dispatch_contract() {
+        let owner = LirCallableId::from_raw(0);
+        let site_id = SiteId::from_raw(1);
+        let target = callable_key("dep.extern_fun");
+        let target_ref = callable_ref_for_key(&target);
+        let mut callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
+        let LirCallableContract::Plain(plain) = &mut callable.contract else {
+            panic!("fixture plain callable should have plain contract");
+        };
+        plain.call_sites[0].contract.kind = LirCallSiteKind::Virtual;
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                source_signatures: BTreeMap::from([(
+                    "dep.extern_fun".to_string(),
+                    source_signature("dep.extern_fun"),
+                )]),
+                physical_layout: LirPhysicalLayoutFacts {
+                    abi_symbols: BTreeMap::from([(
+                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol("dep.extern_fun", Some(target_ref)),
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                callables: BTreeMap::from([(owner, callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidDispatchContract {
+                key: test_site_key(owner, site_id),
+                reason: "dispatch call site is missing its dispatch contract",
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_dispatch_contract_without_candidates() {
+        let owner = LirCallableId::from_raw(0);
+        let site_id = SiteId::from_raw(1);
+        let target = callable_key("dep.extern_fun");
+        let target_ref = callable_ref_for_key(&target);
+        let mut callable = plain_callable_with_candidate("app.main", "dep.extern_fun", target_ref);
+        let LirCallableContract::Plain(plain) = &mut callable.contract else {
+            panic!("fixture plain callable should have plain contract");
+        };
+        plain.call_sites[0].contract.kind = LirCallSiteKind::Virtual;
+        plain.call_sites[0].dispatch = Some(LirDispatchContract {
+            owner_callable: owner,
+            site_id,
+            kind: LirCallSiteKind::Virtual,
+            owner_fqn: "dep.Owner".to_string(),
+            member_name: "run".to_string(),
+            member_fqn: "dep.Owner.run".to_string(),
+            receiver_ty: ty(1),
+            explicit_arg_count: 0,
+            method_slot: 0,
+            interface_id: None,
+            candidate_targets: Vec::new(),
+        });
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(1, 0, 0, 0, 0),
+            LirFactGroups {
+                source_signatures: BTreeMap::from([(
+                    "dep.extern_fun".to_string(),
+                    source_signature("dep.extern_fun"),
+                )]),
+                physical_layout: LirPhysicalLayoutFacts {
+                    abi_symbols: BTreeMap::from([(
+                        "abi:dep.extern_fun".to_string(),
+                        abi_symbol("dep.extern_fun", Some(target_ref)),
+                    )]),
+                    ..LirPhysicalLayoutFacts::default()
+                },
+                callables: BTreeMap::from([(owner, callable)]),
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidDispatchContract {
+                key: test_site_key(owner, site_id),
+                reason: "dispatch contract must publish at least one candidate target",
             }
         );
     }

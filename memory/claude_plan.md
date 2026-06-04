@@ -1,32 +1,37 @@
-# 执行计划
+执行计划
 
-## 范围
+1. 读取 TODO.md，按文档顺序定位第一个标题未带 [DONE] 的任务。
+2. 阅读该任务的完整要求、依赖、验证要求和完成记录；必要时查看 PLAN.md 和最近提交，只限于判断当前任务是否被最新未完成事项影响。
+3. 检查工作区状态，避免覆盖用户或其他代理的未提交改动。
+4. 根据当前任务定位相关代码、测试和 fixtures，实施最小且完整的修复或功能变更。
+5. 按要求运行格式化、lint、相关测试，并在需要时运行完整测试套件和 fixture 套件。
+6. 如果遇到阻塞的缺失功能、规格不符或未安排的失败测试，更新 TODO.md 插入最小 prerequisite 任务，保持当前任务未完成，提交后停止。
+7. 如果任务完成，更新 TODO.md：在任务标题前加 [DONE] 并填写完成记录；仅在阶段计划实际变化时更新 PLAN.md。
+8. 提交所有本次任务相关改动，然后停止，不继续下一个任务。
 
-- 以 `TODO.md` 为唯一任务顺序来源，完成第一个标题未带 `[DONE]` 的任务后停止。
-- 不做开放式历史问题扫查；只处理当前任务、当前任务阻塞项，以及验证时暴露且未被明确排期的失败。
-- 如遇必须新增的前置任务，更新 `TODO.md`、必要时更新 `PLAN.md`，提交后停止。
+当前状态
 
-## 步骤
+- 已读取 TODO.md，首个未完成任务是 `T2-05-R：Review T2-05`。
+- 本次 invocation 只执行该 review 任务，完成后停止。
+- Review 发现 `LirFacts` 顶层 site/dispatch 平表已删除，但 verifier 仍未拒绝 plain dynamic/dispatch site 缺少节点内 contract、dispatch 空候选和 embedded owner/source 漂移。
+- 已开始在 `scoopc_lir_facts` verifier 中补齐这些结构校验，并新增对应单测。
+- 已补齐 verifier 校验，并修正 `lir_facts_builder` boundary 分支避免重复挂载已发布的 dynamic/dispatch payload。
+- 快速验证已通过：`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc effect_lowered_program -- --nocapture`。
+- 首次 `cargo clippy --all-targets -- -D warnings` 发现 helper 显式 lifetime 可省略；已修复并重新格式化，接下来重跑 clippy。
+- `cargo clippy --all-targets -- -D warnings` 已通过。
+- `cargo test --all --all-targets` 已通过。
+- `cargo build -p scoop -p scoopc` 已通过。
+- `python3 tools/dependency_gate.py` 已通过；`python3 tools/spec_fixtures.py check` 已通过。
+- `python3 tools/run_fixtures.py` 已通过。
+- 下一步更新 TODO.md，将 `T2-05-R` 标记为完成并记录 review 修复与完整验证命令。
+- TODO.md 已将 `T2-05-R` 标记为 `[DONE]` 并写入完成记录。此后仅修改了文档/进度记录，不需要重跑完整测试。
 
-1. 读取 `TODO.md`，定位第一个未完成任务，并查看最近提交是否明确提到与该任务直接相关的未完成事项。
-2. 阅读该任务相关代码、规格、测试和夹具，确认完成条件与验证要求。
-3. 以最小正确改动实现当前任务；如果发现规格缺口或阻塞项，不用变通方案绕过。
-4. 按要求更新或新增相关测试/fixture。
-5. 执行格式化、lint、相关测试；如果代码有实际改动，再按要求执行完整验证。
-6. 更新 `TODO.md`：任务完成时在标题加 `[DONE]` 并填写完成记录；若阻塞则插入最小必要前置任务。
-7. 必要时更新 `PLAN.md`，仅限阶段计划或依赖结构真实变化。
-8. 提交所有本轮相关改动，提交信息包含任务编号并描述结果。
-9. 停止，不继续下一个任务。
+T2-05-R 执行步骤
 
-## 进度
-
-- 已定位当前任务：`T2-05`，目标是把 per-call-site / dispatch facts 从 `(owner_callable, site_id)` 平表迁移到 callable 体内 site 节点。
-- 最近提交为 `T2-04-R` review 完成记录，未发现直接要求插入到 `T2-05` 前的未完成事项。
-- 已阅读 facts 定义、builder、LLVM main context、layout dynamic invoke、reachability 与 verifier/dump 相关路径。
-- 迁移方案：构造期可继续使用临时 `(owner, site)` map 去重，但最终 `LirFacts` 不再发布这些平表；payload 挂到 `LirCallableFacts`、plain call-site、control boundary/source-statement 节点中，消费侧从 active LIR program/callable 节点 walk。
-- 已修改 `scoopc_lir_facts` 数据结构、builder、LLVM main context、layout dynamic invoke、reachability、verifier/dump 与相关单测构造；`LirFacts` 顶层不再发布 source/class/reflection site 与 dynamic/dispatch 平表。
-- 已执行针对相关 crate 的 `cargo check -p scoopc_lir_facts -p scoopc_codegen_llvm -p scoopc --all-targets`，结果通过。
-- 已修复完整 fixture suite 暴露的重复 dynamic-invoke contract：同一 `(owner, site)` 已由 boundary 拥有时，不再复制到 plain/source-statement site 的 dynamic payload。
-- 已删除 `scoopc_lir_facts` 公共复合 site key 类型；builder 内仅保留私有 `BuildCallSiteKey` 作为构造期临时 key。
-- 最终验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
-- `TODO.md` 已将 `T2-05` 标记为 `[DONE]` 并记录完成内容；下一步检查 diff/status 后提交。
+1. 检查 git 状态和最近提交，确认是否有与 T2-05-R 直接相关的未完成事项或已有未提交改动。
+2. 审查 T2-05 相关实现：确认 site 数据归 site/control 节点所有，`source_call_sites`、`class_ctor_call_sites`、`reflection_call_sites`、`dynamic_invokes`、`dispatches` 顶层 facts 与公开复合 key 已消失。
+3. 搜索相关 `.get(key)` / `(owner_callable, site_id)` / `BuildCallSiteKey` 使用点，区分允许的构造期私有去重与禁止的消费期 lookup。
+4. 如发现 review 问题，实施最小正确修复并补充测试；如发现阻塞性规格缺口，更新 TODO.md 插入 prerequisite 并停止。
+5. 运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings`，然后运行完整基线命令。
+6. 更新 TODO.md，将 `T2-05-R` 标记为 `[DONE]` 并写入 completion record。
+7. 提交本次任务的所有相关改动，提交后停止。

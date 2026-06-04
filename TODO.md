@@ -155,9 +155,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - verifier/dump 与单测构造同步改为节点内 payload；`WIRE_SCHEMA_VERSION` 升至 1.14。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-05-R：Review T2-05
+### [DONE] T2-05-R：Review T2-05
 - 关注点：site 数据归 site 节点所有；`(owner_callable, site_id)` 复合 key 消失；空候选/缺 contract 由结构保证不可表示。
 - 确认：相关 `.get(key)` 站点清零；基线绿。
+
+完成记录（2026-06-04）：
+- Review 确认 `LirFacts` / `LirFactGroups` 顶层 `source_call_sites`、`class_ctor_call_sites`、`reflection_call_sites`、`dynamic_invokes`、`dispatches` 平表已删除；公开旧复合 key 类型未保留，消费侧改为从 callable/site/control 节点 walk。
+- Review 发现 verifier 仍允许 plain dynamic/dispatch site 缺失节点内 contract、dispatch 空候选、dynamic/dispatch owner/source 漂移，以及 boundary 分支重复挂载已发布 payload；已补齐结构校验并修正 boundary 去重。
+- 新增 verifier 单测覆盖缺 dynamic-invoke contract、缺 dispatch contract、dispatch 空候选等非法 LIR facts 形状，防止缺 contract / 空候选退回为可表示状态。
+- 确认剩余 `(StepSchemaId, SiteId)` / `AbiProgramOrigin` `.get(...)` 为 LLVM ABI layout 内部 cache，不是旧 `LirFacts` 顶层 `(owner_callable, site_id)` fact lookup。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-06：layout / global-init fact 归位 + 删 `LirArtifact.facts`
 - `physical_layout`（classes/enums/vtables/itables/abi_symbols）挂到 nominal 节点；`global_init` 挂到 global root 节点；`class_ctor_inits` 同理。
