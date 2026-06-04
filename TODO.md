@@ -133,9 +133,16 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 修复 active ABI visibility codegen 上下文：`MainCodegen` 同步切换 active LIR program 与 active LIR facts，避免 source-site/signature/intrinsic 查询混用不同 artifact。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc effect_lowered_program -- --nocapture`；`cargo test -p scoopc frontend::tests::dependency_frontend_cache_hit_uses_artifact_without_reading_source -- --exact --nocapture`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] T2-04-R：Review T2-04
+### [DONE] T2-04-R：Review T2-04
 - 关注点：facts 真正成为节点拥有的数据（非旁表 join）；FQN key 全转句柄；无缺-fact fallback 复活。
 - 确认：`call/abi.rs` 无 `source_signatures`/`intrinsic_callables` map 查找；基线绿。
+
+完成记录（2026-06-04）：
+- Review 确认 `call/abi.rs` 不再通过 `source_signatures` / `intrinsic_callables` 平表 map 查找；source/intrinsic metadata 读取走 active LIR program 的 callable/declaration 节点。
+- Review 发现 declaration-only `source_signature` 虽已从 LIR program 节点读取，但 `published_callable_signature_with_names_impl` 仍把该签名标成主 codegen `TypeStore` 所有，ABI visibility/source TypeStore 与主 cone 不一致时会绕过跨 TypeStore 映射。
+- 修正 declaration source signature 分支，返回 `published_late_lowered_types()` 作为签名 owner，防止非 codegen `TypeId` 被直接当作 codegen id 使用。
+- 新增 standalone LLVM codegen 单测 `declaration_source_signature_uses_published_typestore_owner`，覆盖 declaration-only source signature 携带 distinct published TypeStore 的映射边界。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc_codegen_llvm declaration_source_signature_uses_published_typestore_owner`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-05：per-call-site / dispatch fact 挂到体内节点
 - `source_call_sites`/`class_ctor_call_sites`/`reflection_call_sites`/`dynamic_invokes`/`dispatches`（key=(owner_callable, site_id)）改为挂在对应 callable 体内的 site 节点上。

@@ -398,8 +398,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ));
         }
         if let Some(signature) = program.source_signature(callable_fqn) {
+            let source_types = self.published_late_lowered_types()?;
             return Some((
-                self.types,
+                source_types,
                 signature.param_names.clone(),
                 signature.param_tys.clone(),
                 signature.return_ty,
@@ -893,5 +894,129 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &param_tys,
             args,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+
+    use inkwell::context::Context;
+
+    use super::*;
+
+    #[test]
+    fn declaration_source_signature_uses_published_typestore_owner() {
+        let mut codegen_types = TypeStore::new();
+        let builtins = codegen_types.intern_builtins();
+        let mut source_types = codegen_types.clone();
+        let synthetic_param_ty = source_types.ty_param(TypeParamType {
+            name: "SyntheticDeclarationParam".to_string(),
+            decl_file: PathBuf::from("tests/t2_04r.synthetic"),
+            decl_span: crate::span::Span::synthetic_prelude(),
+        });
+        let root = "fixtures.synthetic.declarationOnly".to_string();
+        let declaration = crate::effect_lowered::ir::LateLoweredCallableDeclaration::new(
+            root.clone(),
+            Some(scoopc_lir_facts::LirSourceCallableSignatureFacts {
+                signature_key: "t2_04r.synthetic.signature".to_string(),
+                root_fqn: root.clone(),
+                param_names: vec!["value".to_string()],
+                param_tys: vec![synthetic_param_ty],
+                return_ty: source_types
+                    .builtins()
+                    .expect("source TypeStore should keep builtins")
+                    .unit,
+            }),
+            None,
+        );
+        let program = crate::effect_lowered::LateLoweredProgram::new(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .with_published_callable_fact_payloads(
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            vec![declaration],
+        );
+        let lir_facts = LirFacts::new(crate::opt::OptLevel::O0);
+        let context = Context::create();
+        let module = context.create_module("declaration_signature_test");
+        let builder = context.create_builder();
+        let target_info = crate::llvm::target::configure_module_for_host(&module)
+            .expect("host target should be available for tests");
+        let target_data = TargetData::create(&target_info.data_layout);
+        let source = SourceFile::new_virtual("<mem>/t2_04r.scoop", "package fixtures.synthetic\n");
+        let mut source_map = SourceMap::new();
+        let entry_source_id = source_map.add_source(source);
+        let stable_cone_key = StableConeKey::new("fixtures.synthetic", "0.1.0");
+        let source_cones = HashMap::<PathBuf, SourceConeInfo>::new();
+        let stable_type_param_keys = HashMap::<TypeParamType, StableTypeParamKey>::new();
+        let struct_layouts = hir::StructLayoutIndex::default();
+        let enum_layouts = hir::EnumLayoutIndex::default();
+        let top_level_vars = hir::TopLevelVarIndex::default();
+        let top_level_immutable_values = hir::TopLevelImmutableValueIndex::default();
+        let extern_funs = hir::ExternFunIndex::default();
+        let native_callable_funs = hir::NativeCallableFunIndex::default();
+        let object_inits = hir::ObjectInitIndex::default();
+        let class_inits = hir::ClassInitIndex::default();
+        let release_hooks = hir::ReleaseHookIndex::default();
+        let when_pat_binding_tys = hir::WhenPatBindingTypeIndex::default();
+        let nominal_kinds = hir::NominalKindIndex::default();
+        let interior_mutable_nominals = hir::InteriorMutableIndex::default();
+        let callable_sources = HashMap::<String, crate::llvm::LlvmCallableSourceContract>::new();
+        let effect_analysis_facts = Rc::new(EffectAnalysisFacts::default());
+        let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+
+        let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+            context: &context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map: &source_map,
+            entry_source_id,
+            stable_cone_key: &stable_cone_key,
+            source_cones: &source_cones,
+            stable_type_param_keys: &stable_type_param_keys,
+            types: &codegen_types,
+            struct_layouts: &struct_layouts,
+            enum_layouts: &enum_layouts,
+            top_level_vars: &top_level_vars,
+            top_level_immutable_values: &top_level_immutable_values,
+            extern_funs: &extern_funs,
+            native_callable_funs: &native_callable_funs,
+            object_inits: &object_inits,
+            class_inits: &class_inits,
+            release_hooks: &release_hooks,
+            when_pat_binding_tys: &when_pat_binding_tys,
+            nominal_kinds: &nominal_kinds,
+            interior_mutable_nominals: &interior_mutable_nominals,
+            builtins,
+            callable_sources: &callable_sources,
+            published_late_lowered_program: Some(&program),
+            published_late_lowered_types: Some(&source_types),
+            published_lir_facts: &lir_facts,
+            effect_analysis_facts,
+            effect_op_tags,
+        });
+        let codegen = unit_codegen.fresh_main_codegen();
+
+        let signature = codegen
+            .published_callable_signature_with_names(&root)
+            .expect("declaration source signature should come from the active LIR program");
+        assert_eq!(signature.2.as_slice(), &[synthetic_param_ty]);
+        assert!(
+            codegen
+                .published_codegen_callable_signature(&root)
+                .is_none(),
+            "declaration signature TypeIds must be remapped from the published TypeStore owner"
+        );
     }
 }
