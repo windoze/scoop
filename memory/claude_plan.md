@@ -1,37 +1,21 @@
-# Claude Execution Plan
+# T2-08 执行计划
 
-## Status
+## 当前任务
 
-- Current invocation started on 2026-06-04.
-- `TODO.md` has been read.
-- First incomplete task identified: `T2-07-R：Review T2-07`.
-- Latest commit is `[T2-07] Define total LIR instruction set`; it does not mention an unfinished issue.
-- Review finding: `LirMemberAccessMetadata` still models `resolved` as `Option<LirMemberTarget>`, allowing unresolved member references to be represented in LIR. This is in scope for T2-07-R because T2-07 requires body references to be handle-based and forbids unresolved/placeholder states in LIR instruction definitions.
-- Fix applied: `LirMemberAccessMetadata.resolved` is now a required `LirMemberTarget`; a unit test constructs member access metadata with an explicit handle.
-- Validation passed: `cargo fmt`; `cargo clippy --all-targets -- -D warnings`; `cargo test --all --all-targets`; `cargo build -p scoop -p scoopc`; `python3 tools/dependency_gate.py`; `python3 tools/spec_fixtures.py check`; `python3 tools/run_fixtures.py`.
-- `TODO.md` has been updated to mark `T2-07-R` as `[DONE]` and record the review finding/fix.
-- Git status/diff/log have been inspected; modified files are `TODO.md`, `crates/scoopc_lir/src/effect_lowered/instruction.rs`, and `memory/claude_plan.md`.
-- Next step is to commit these T2-07-R changes.
+- 首个未完成任务：`T2-08：lowering 产出 LIR 指令（state 拥有指令）`。
+- 任务目标：让 effect-lowering 阶段产出并保存 LIR 自有指令序列，替代 `LateLoweredSourceBody` / `LateLoweredStateSlice` 对 MIR body/slice 的回指；遇到 MIR 占位或未解析构造必须报错，不能在 LIR 中保留占位。
+- 当前状态：发现 `T2-08` 需要先补齐 LIR-owned executable body 容器，已在 `TODO.md` 插入前置任务 `T2-08A`；本次调用将只提交该任务重排/阻塞记录并停止。
 
-## Execution Plan
+## 执行步骤
 
-1. Read `TODO.md` first and identify the first incomplete task exactly as ordered there.
-2. Check the latest commit message only for an explicitly unfinished issue directly relevant to that selected task.
-3. Read the selected task body, validation requirements, dependencies, and completion-record expectations.
-4. Inspect only the files and code paths relevant to that task.
-5. Implement the task as written, without narrowing scope or introducing workaround behavior.
-6. If a concrete prerequisite or spec mismatch blocks correct implementation, update `TODO.md` with the minimum prerequisite task in dependency order, record the blocker here, commit that bookkeeping, and stop.
-7. Run formatting first with `cargo fmt` if Rust/code changes are made.
-8. Run linting with `cargo clippy --all-targets -- -D warnings` when applicable.
-9. Run the relevant tests and fixtures required by the task. If full validation is required, run `cargo test --all --all-targets` and `python3 tools/run_fixtures.py` with long timeouts.
-10. Fix any unscheduled failing test or fixture, or add the minimum explicit follow-up/prerequisite task in `TODO.md` before completion.
-11. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record only after implementation and required validation are complete.
-12. Update this plan file when key steps complete or if the plan changes.
-13. Inspect git status and diff, then commit all changes required for this task with a descriptive task-tagged commit message.
-14. Stop after completing and committing exactly one task.
+1. 检查最近提交和工作区状态，确认无直接相关未完成提交需要并入当前阻塞处理。
+2. 阅读 `ir.rs`、`instruction.rs`、`segment.rs`、`builder.rs`、`materialize/*` 与 LLVM body codegen 消费路径，确认 `T2-08` 的严格删除条件。
+3. 在 `TODO.md` 中新增最小前置任务 `T2-08A`，并把 `T2-08` 显式依赖它。
+4. 记录阻塞原因：缺少 LIR-owned callable header/local/plain body 容器会导致删除 `LateLoweredSourceBody` 后无自包含 body 可供 codegen 消费。
+5. 因本次仅修改 `TODO.md` 和 `memory/claude_plan.md`，不运行格式、clippy、测试和 fixture；在记录中说明跳过原因。
+6. 检查 diff 与 git 状态，提交本次任务重排/阻塞记录，然后停止。
 
-## Current Notes
+## 进度记录
 
-- This file contains an execution plan and progress log, not hidden chain-of-thought reasoning.
-- `PLAN.md` will only be updated if phase-level sequencing, dependencies, assumptions, or completion criteria change.
-- Current task is a review task; if review finds a task-scoped defect, fix it before marking T2-07-R done.
+- 2026-06-04：已确认首个未完成任务为 `T2-08`，准备检查代码与实现入口。
+- 2026-06-04：已检查 `ir.rs`、`instruction.rs`、`segment.rs`、`builder.rs`、`materialize/*` 与 LLVM body codegen 消费路径。发现 `T2-08` 严格执行前缺少一个具体前置：T2-07 只定义了 state 指令外壳，尚无 LIR-owned callable body/header/local table 与 plain body 表示；如果直接删除 `LateLoweredSourceBody` / `crate::mir::Body`，plain callable 和现有 codegen 无法从 LIR program 取得 locals、params、普通 CFG/body 终结符。按任务规则，将在 `TODO.md` 中插入最小前置任务并停止。

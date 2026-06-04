@@ -218,10 +218,26 @@ pub struct LirCallableHash(/* 定长 hash */);
 - 确认 direct/closure/gc intrinsic callee、top-level global、class ctor、dispatch/member、perform result 等体内 live 引用使用 `LirCallableId`、`LirGlobalRootKey`、`LirNominalLayoutKey`、`LirDispatchKey`、`LirMemberKey`、`ConcreteOpKey` 或 `TypeId`；`instruction.rs` 中旧 `callee_fqn` / `fn_ptr: String` / `op_fqn` / `owner_fqn` / `member_fqn` / `class_fqn` 与 `Todo|UnresolvedName` 检查零命中。
 - 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
+### [TODO] T2-08A：补齐 LIR executable body 容器前置
+- 在 LIR IR 中补齐 executable body 的自有容器，使后续删除 `LateLoweredSourceBody` / `crate::mir::Body` 不会让 callable 失去 body/header 信息。
+- 明确定义 callable header / params / locals 的 LIR-owned 表示；`LateLoweredCallable` 后续只能保留签名、参数名、span、local type/source 等 codegen 必需信息，不能继续依赖 `crate::mir::FunDecl` 的 `body: Option<Body>` 作为间接 overlay。
+- 补齐 plain callable 的 LIR body 表示（普通 CFG block 或统一 state-owned body，二选一并固定），覆盖无 local effect/control 的 plain callable 路径；不能只为 effect-step state 定义 body。
+- 定义 state/statement/terminator anchor，用于替代 `(source_slice, statement_index)` 的 boundary consumption、source statement classification 与 facts dump/verify 关联；该 anchor 必须指向 LIR-owned executable body 节点，而不是 MIR block slice。
+- 验收：类型定义编译通过；新增单测覆盖 plain callable body/header/local 表示、state/statement anchor 唯一性，以及该前置不新增 `Todo` / `UnresolvedName` LIR 指令变体。
+
+新增记录（2026-06-04）：
+- 执行 `T2-08` 前检查发现，当前 T2-07 只定义了 `LirStateBody` / `LirStatement` 等 state 指令外壳，尚未提供 LIR-owned callable locals/params/header 与 plain body 容器。
+- 若直接按 `T2-08` 删除 `LateLoweredSourceBody` 和 `LateLoweredProgram` 对 `crate::mir::Body` 的引用，LLVM body codegen、plain callable lowering、local slot 构造、参数绑定和 source classification 均无自包含 LIR body 可消费。
+- 因此将本任务作为 `T2-08` 的最小前置，先补齐 body 容器语义，再由 `T2-08` 执行 MIR-to-LIR lift 与 overlay 删除。
+
 ### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
+- 依赖：`T2-08A`。
 - 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。
 - **lift 遇到 MIR `Todo`/`UnresolvedName` 等占位 → 报 unsupported/internal 错误，不产出 LIR 占位。** 这同时验证：完全 lowered 的合法 body 是否还能到达这些占位（理应不能——`UnresolvedName` 在 typecheck 后不应存在，`Todo` 代表未实现特性应在更早报错）。若实测可达，登记为上游（MIR/typecheck）需补的诊断缺口，**不得**在 LIR 层用占位掩盖。
 - 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
+
+阻塞记录（2026-06-04）：
+- 当前任务严格执行需要先完成 `T2-08A`，否则删除 `LateLoweredSourceBody` / `crate::mir::Body` 后，plain callable 与 LLVM body codegen 没有 LIR-owned body/header/local table 可消费。
 
 ### [TODO] T2-08-R：Review T2-08
 - 关注点：lift 忠实（每条 MIR stmt/term 有对应 LIR 指令，语义不变）；state 拥有指令、无回指 MIR；transport metadata 一并 lift。
