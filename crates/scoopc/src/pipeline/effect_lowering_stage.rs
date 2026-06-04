@@ -138,6 +138,7 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
         mir_stage_output.materialized_mir().opt_level(),
         opt_pipeline,
     )?;
+    let lir = super::lir_facts_builder::attach_per_callable_lir_facts(lir, &lir_facts)?;
     Ok(LirStageOutput::new(lir, lir_facts))
 }
 
@@ -857,6 +858,61 @@ fun main(): Int {
             Some("sample.helper")
         );
         assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn effect_lowered_program_callables_own_per_callable_fact_payloads() {
+        let output = run_sample();
+        let facts = output.lir_facts();
+
+        for (id, callable_facts) in &facts.callables {
+            let callable = output
+                .program()
+                .callable_by_id(*id)
+                .expect("callable facts id should resolve to a LIR callable node");
+            assert_eq!(callable.published_callable_facts(), Some(callable_facts));
+            assert!(
+                callable
+                    .source_signature(callable_facts.root_fqn())
+                    .is_some(),
+                "callable `{}` should own its source signature payload",
+                callable_facts.root_fqn()
+            );
+        }
+
+        let helper_id = output
+            .program()
+            .callable_id_by_root("sample.helper")
+            .expect("sample.helper should resolve to a callable id");
+        assert_eq!(
+            output
+                .program()
+                .callable_id_by_source_signature("sample.helper"),
+            Some(helper_id)
+        );
+        assert_eq!(
+            output.program().source_signature("sample.helper"),
+            facts.source_signatures.get("sample.helper")
+        );
+    }
+
+    #[test]
+    fn effect_lowered_program_owns_intrinsic_callable_metadata() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/effect_lowered_intrinsic_fixture.scoop",
+            "package sample\nimport scoop.core.*\nfun main(): Int { return sizeOf(1) }\n",
+        );
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+
+        assert!(!facts.intrinsic_callables.is_empty());
+        for intrinsic in facts.intrinsic_callables.values() {
+            assert_eq!(
+                output.program().intrinsic_callable(&intrinsic.root_fqn),
+                Some(intrinsic)
+            );
+        }
     }
 
     #[test]

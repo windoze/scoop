@@ -1443,11 +1443,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             let dispatch_fqn = fqn.as_str();
 
-            if let Some(entry_name) = self
-                .published_lir_facts
-                .intrinsic_callables
-                .get(dispatch_fqn)
-                .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+            if let Some(entry_name) = self.published_named_intrinsic_entry_name(dispatch_fqn)
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_top_level_call(
                     span,
                     callee.span,
@@ -2047,7 +2043,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<String, LlvmEmitError> {
         let arg_tys = hir_arg_tys(args);
         let mut matches = Vec::new();
-        for (_key, site) in &self.published_lir_facts.source_call_sites {
+        for site in self
+            .active_lir_facts()
+            .source_call_sites
+            .iter()
+            .map(|entry| entry.1)
+        {
             if site.semantic_root_fqn.as_deref() != Some(fqn) {
                 continue;
             }
@@ -2060,7 +2061,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 matches.push(exact.root_fqn.clone());
             }
         }
-        for (root, _signature) in &self.published_lir_facts.source_signatures {
+        let Some(program) = self.active_lir_program() else {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "HIR direct call `{fqn}` requires published LIR callable source signatures"
+                ),
+            });
+        };
+        for signature in program.source_signatures() {
+            let root = signature.root_fqn.as_str();
             let suffix = if root.len() >= fqn.len() {
                 &root[fqn.len()..]
             } else {
@@ -2072,7 +2081,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if self.callable_root_has_abi_surface(root)
                 && self.published_signature_matches_hir_call(root, &arg_tys, result_ty)
             {
-                matches.push(root.clone());
+                matches.push(root.to_string());
             }
         }
         if matches.is_empty() && self.callable_root_has_abi_surface(fqn) {

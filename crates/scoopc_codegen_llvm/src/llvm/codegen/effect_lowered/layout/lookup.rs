@@ -114,21 +114,24 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn callable_facts(
         &self,
         callable: &LateLoweredCallable,
-    ) -> Result<&LirCallableFacts, LlvmEmitError> {
+    ) -> Result<&'a LirCallableFacts, LlvmEmitError> {
         let id = self.callable_id(callable)?;
-        self.lir_facts.callables.get(&id).ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM ABI materialization 缺少 callable `{}` 的 LIR facts（id={:?}）",
-                callable.root_fqn(),
-                id
-            ))
-        })
+        self.program
+            .callable_by_id(id)
+            .and_then(LateLoweredCallable::published_callable_facts)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 callable `{}` 的 LIR facts（id={:?}）",
+                    callable.root_fqn(),
+                    id
+                ))
+            })
     }
 
     pub(super) fn plain_callable_facts(
         &self,
         callable: &LateLoweredCallable,
-    ) -> Result<&scoopc_lir_facts::LirPlainCallableFacts, LlvmEmitError> {
+    ) -> Result<&'a scoopc_lir_facts::LirPlainCallableFacts, LlvmEmitError> {
         match &self.callable_facts(callable)?.contract {
             LirCallableContract::Plain(plain) => Ok(plain),
             LirCallableContract::EffectStep(_) => Err(frontend_error(format!(

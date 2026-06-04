@@ -121,9 +121,17 @@ pub struct LirCallableHash(/* 定长 hash */);
 
 ## 4. P2b — 折叠 `LirFacts` 进节点
 
-### [TODO] T2-04：per-callable fact 挂到 callable 节点
+### [DONE] T2-04：per-callable fact 挂到 callable 节点
 - 把 `callables`/`source_signatures`/`intrinsic_callables` 的 value 内容并入 `LateLoweredCallable`（或其旁挂结构）。string key（FQN）→ `LirCallableId`。
 - 验收：消费侧从「`source_signatures.get(fqn)`」（`call/abi.rs:395`）变为 callable 节点字段访问。
+
+完成记录（2026-06-04）：
+- `LateLoweredCallable` 新增已发布 per-callable facts、source signatures、intrinsic callable metadata payload；`LateLoweredProgram` 新增 declaration sidecar 与 source/intrinsic/callable-id 查询方法，构建 facts 后按 `LirCallableId` 回填到 callable 节点。
+- `resolve_entry_ref`、LLVM signature/intrinsic lookup、ABI layout callable facts lookup、reachability 与 HIR/direct-call root resolution 改为从 active LIR program/callable 节点读取，不再消费 `source_signatures.get(fqn)` / `intrinsic_callables.get(fqn)` / `published_lir_facts.callables` 路径。
+- 修复迁移暴露的 bincode 非自描述序列化问题：新增 LIR program 字段使用 `serde(default)` 但不使用 `skip_serializing_if`；`WIRE_SCHEMA_VERSION` 升至 1.13。
+- 补充回归测试覆盖 callable 节点持有 callable facts/source signatures，以及 program 持有 intrinsic callable metadata。
+- 修复 active ABI visibility codegen 上下文：`MainCodegen` 同步切换 active LIR program 与 active LIR facts，避免 source-site/signature/intrinsic 查询混用不同 artifact。
+- 验证：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc effect_lowered_program -- --nocapture`；`cargo test -p scoopc frontend::tests::dependency_frontend_cache_hit_uses_artifact_without_reading_source -- --exact --nocapture`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] T2-04-R：Review T2-04
 - 关注点：facts 真正成为节点拥有的数据（非旁表 join）；FQN key 全转句柄；无缺-fact fallback 复活。

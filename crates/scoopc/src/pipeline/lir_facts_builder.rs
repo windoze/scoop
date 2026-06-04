@@ -22,7 +22,7 @@ use scoopc_lir::effect_lowered::EffectLoweringError;
 use scoopc_lir::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
     LateLoweredBoundarySource, LateLoweredCallSiteMaterializedKind,
-    LateLoweredCallSiteMaterializedMetadata, LateLoweredCallable,
+    LateLoweredCallSiteMaterializedMetadata, LateLoweredCallable, LateLoweredCallableDeclaration,
     LateLoweredContinuationResumeBody, LateLoweredDynamicInvokeEntry,
     LateLoweredEffectStepCallable, LateLoweredFrameSchema, LateLoweredPlainBodySlice,
     LateLoweredPlainCallSite, LateLoweredPlainCallable, LateLoweredProgram,
@@ -176,6 +176,110 @@ pub(crate) fn build_lir_facts(
             detail: error.to_string(),
         })?;
     Ok(facts)
+}
+
+/// Fold per-callable fact groups back onto the LIR callable inventory.
+pub(crate) fn attach_per_callable_lir_facts(
+    lir: LateLoweredProgram,
+    facts: &LirFacts,
+) -> Result<LateLoweredProgram, EffectLoweringError> {
+    for id in facts.callables.keys() {
+        if lir.callable_by_id(*id).is_none() {
+            return invalid_lir_facts(format!(
+                "callable facts reference missing LIR callable id {id:?}"
+            ));
+        }
+    }
+
+    let mut source_signatures_by_id: BTreeMap<LirCallableId, Vec<LirSourceCallableSignatureFacts>> =
+        BTreeMap::new();
+    let mut intrinsic_callables_by_id: BTreeMap<LirCallableId, Vec<LirIntrinsicCallableFact>> =
+        BTreeMap::new();
+    let mut declarations: BTreeMap<
+        String,
+        (
+            Option<LirSourceCallableSignatureFacts>,
+            Option<LirIntrinsicCallableFact>,
+        ),
+    > = BTreeMap::new();
+
+    for signature in facts.source_signatures.iter().map(|entry| entry.1) {
+        if let Some(id) = local_callable_id_for_published_root(&lir, facts, &signature.root_fqn)? {
+            source_signatures_by_id
+                .entry(id)
+                .or_default()
+                .push(signature.clone());
+        } else {
+            declarations
+                .entry(signature.root_fqn.clone())
+                .or_default()
+                .0 = Some(signature.clone());
+        }
+    }
+
+    for intrinsic in facts.intrinsic_callables.values() {
+        if let Some(id) = local_callable_id_for_published_root(&lir, facts, &intrinsic.root_fqn)? {
+            intrinsic_callables_by_id
+                .entry(id)
+                .or_default()
+                .push(intrinsic.clone());
+        } else {
+            declarations
+                .entry(intrinsic.root_fqn.clone())
+                .or_default()
+                .1 = Some(intrinsic.clone());
+        }
+    }
+
+    let declarations = declarations
+        .into_iter()
+        .map(|(root_fqn, (source_signature, intrinsic_callable))| {
+            LateLoweredCallableDeclaration::new(root_fqn, source_signature, intrinsic_callable)
+        })
+        .collect();
+
+    Ok(lir.with_published_callable_fact_payloads(
+        facts.callables.clone(),
+        source_signatures_by_id,
+        intrinsic_callables_by_id,
+        declarations,
+    ))
+}
+
+fn local_callable_id_for_published_root(
+    lir: &LateLoweredProgram,
+    facts: &LirFacts,
+    root_fqn: &str,
+) -> Result<Option<LirCallableId>, EffectLoweringError> {
+    let mut candidates = BTreeSet::new();
+    for (id, callable) in &facts.callables {
+        if callable.root_fqn() == root_fqn {
+            candidates.insert(*id);
+        }
+    }
+    for symbol in facts.physical_layout.abi_symbols.values() {
+        if symbol.root_fqn.as_deref() != Some(root_fqn) {
+            continue;
+        }
+        if let Some(id) = symbol.callable.and_then(LirCallableRef::local_id) {
+            candidates.insert(id);
+        }
+    }
+    match candidates.len() {
+        0 => Ok(None),
+        1 => {
+            let id = *candidates.iter().next().expect("candidate length checked");
+            if lir.callable_by_id(id).is_none() {
+                return invalid_lir_facts(format!(
+                    "published root `{root_fqn}` resolves to missing LIR callable id {id:?}"
+                ));
+            }
+            Ok(Some(id))
+        }
+        _ => invalid_lir_facts(format!(
+            "published root `{root_fqn}` resolves to multiple local LIR callable ids: {candidates:?}"
+        )),
+    }
 }
 
 fn callable_key_index(

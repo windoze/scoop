@@ -612,6 +612,7 @@ struct EffectLoweringCodegenCx<'ctx> {
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
     shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
+    active_lir_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     active_lir_facts: Option<&'a LirFacts>,
     current_source_id: SourceId,
     function_cx: FunctionBodyCodegenCx<'ctx>,

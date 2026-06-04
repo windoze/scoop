@@ -962,9 +962,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         root: &str,
     ) -> Option<String> {
-        self.published_lir_facts
-            .intrinsic_callables
-            .get(root)
+        self.active_lir_program()?
+            .intrinsic_callable(root)
             .and_then(|intrinsic| intrinsic.named_entry_name.clone())
     }
 

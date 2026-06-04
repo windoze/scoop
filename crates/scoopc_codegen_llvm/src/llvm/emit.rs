@@ -403,9 +403,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     };
 
     if let Some(selected) = selected_root.as_ref() {
-        let _reachable_fqns =
-            collect_reachable_top_level_funs(selected.entry.root_fqn(), late_lowered_lir_facts)
-                .map_err(|message| LlvmEmitError::Frontend { message })?;
+        let _reachable_fqns = collect_reachable_top_level_funs(
+            selected.entry.root_fqn(),
+            late_lowered_program,
+            late_lowered_lir_facts,
+        )
+        .map_err(|message| LlvmEmitError::Frontend { message })?;
     }
 
     let unit_codegen = make_unit_codegen(late_lowered_lir_facts);
@@ -416,6 +419,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_types,
         cached_dep_artifacts,
     )?;
+    declare.set_active_lir_program(Some(abi_program));
     declare.set_active_lir_facts(Some(abi_lir_facts));
     declare.codegen_program_bodies(
         late_lowered_program,
@@ -425,6 +429,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         &abi_query,
     )?;
     declare.set_active_lir_facts(None);
+    declare.set_active_lir_program(None);
     declare.codegen_native_callable_body_symbols(&abi_query)?;
     let cone_init_plans = unit_codegen.cone_init_routine_plans();
     let cone_init_routines = declare.ensure_cone_init_routines_defined(&cone_init_plans)?;

@@ -79,7 +79,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         cached_dep_artifacts: &'a [crate::llvm::LlvmDepLirArtifactHandoff],
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
         let primary_stable_cone_key = self.stable_cone_key;
+        let saved_lir_program = self.active_lir_program;
         let saved_lir_facts = self.active_lir_facts;
+        self.active_lir_program = Some(program);
         self.active_lir_facts = Some(lir_facts);
         let query = (|| {
             ProgramAbiMaterializer::new(
@@ -92,11 +94,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .materialize()
         })();
+        self.active_lir_program = saved_lir_program;
         self.active_lir_facts = saved_lir_facts;
         let mut query = query?;
         for (index, dep) in cached_dep_artifacts.iter().enumerate() {
             let dep_origin = AbiProgramOrigin::CachedDep(index as u32);
+            let saved_lir_program = self.active_lir_program;
             let saved_lir_facts = self.active_lir_facts;
+            self.active_lir_program = Some(dep.lir());
             self.active_lir_facts = Some(dep.lir_facts());
             let dep_query = (|| {
                 ProgramAbiMaterializer::new(
@@ -109,6 +114,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?
                 .materialize()
             })();
+            self.active_lir_program = saved_lir_program;
             self.active_lir_facts = saved_lir_facts;
             let dep_query = dep_query?;
             let label = format!(

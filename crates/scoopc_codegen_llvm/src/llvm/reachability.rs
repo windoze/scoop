@@ -3,6 +3,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use scoopc_ids::LirCallableId;
+use scoopc_lir::effect_lowered::LateLoweredProgram;
 use scoopc_lir_facts::{
     LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirCallableRef,
     LirDispatchKey, LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
@@ -19,9 +20,10 @@ const RUNTIME_REQUIRED_CALLABLES: &[&str] = &[];
 /// stages and must not reappear in backend reachability.
 pub(super) fn collect_reachable_top_level_funs(
     root_fqn: &str,
+    lir: &LateLoweredProgram,
     lir_facts: &LirFacts,
 ) -> Result<Vec<String>, String> {
-    let mut collector = ReachabilityCollector::new(lir_facts);
+    let mut collector = ReachabilityCollector::new(lir, lir_facts);
     collector.seed_entry(root_fqn);
     collector.seed_global_init_roots();
     collector.seed_published_lir_callables();
@@ -30,6 +32,7 @@ pub(super) fn collect_reachable_top_level_funs(
 }
 
 struct ReachabilityCollector<'a> {
+    lir: &'a LateLoweredProgram,
     lir_facts: &'a LirFacts,
     callable_roots_by_id: HashMap<LirCallableId, &'a str>,
     callable_ids_by_root: HashMap<&'a str, LirCallableId>,
@@ -39,14 +42,22 @@ struct ReachabilityCollector<'a> {
 }
 
 impl<'a> ReachabilityCollector<'a> {
-    fn new(lir_facts: &'a LirFacts) -> Self {
+    fn new(lir: &'a LateLoweredProgram, lir_facts: &'a LirFacts) -> Self {
         let mut callable_roots_by_id: HashMap<LirCallableId, &'a str> = HashMap::new();
         let mut callable_ids_by_root: HashMap<&'a str, LirCallableId> = HashMap::new();
-        for (id, facts) in &lir_facts.callables {
-            callable_roots_by_id.entry(*id).or_insert(facts.root_fqn());
-            callable_ids_by_root.entry(facts.root_fqn()).or_insert(*id);
+        for (index, callable) in lir.callables().iter().enumerate() {
+            let Some(id) = LirCallableId::from_index(index) else {
+                continue;
+            };
+            callable_roots_by_id
+                .entry(id)
+                .or_insert(callable.root_fqn());
+            callable_ids_by_root
+                .entry(callable.root_fqn())
+                .or_insert(id);
         }
         Self {
+            lir,
             lir_facts,
             callable_roots_by_id,
             callable_ids_by_root,
@@ -251,8 +262,7 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn callable_by_root(&self, root_fqn: &str) -> Option<&'a LirCallableFacts> {
-        let id = self.callable_ids_by_root.get(root_fqn)?;
-        self.lir_facts.callables.get(id)
+        self.lir.callable(root_fqn)?.published_callable_facts()
     }
 
     fn root_for_callable_ref(&self, target: LirCallableRef) -> Option<String> {
@@ -280,7 +290,7 @@ impl<'a> ReachabilityCollector<'a> {
             .roots
             .values()
             .any(|root| root.root.as_str() == root_fqn)
-            || self.lir_facts.source_signatures.contains_key(root_fqn)
+            || (self.lir.source_signature(root_fqn).is_some()
                 && self
                     .lir_facts
                     .physical_layout
@@ -293,7 +303,7 @@ impl<'a> ReachabilityCollector<'a> {
                                 symbol.role.as_str(),
                                 "callable_export" | "native_callable" | "extern_callable"
                             )
-                    })
+                    }))
     }
 
     fn required_root_for_callable_ref(&self, target: LirCallableRef) -> Result<String, String> {

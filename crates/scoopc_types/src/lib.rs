@@ -64,7 +64,9 @@ impl WireSchemaVersion {
 ///   contracts，P6 不再从 root/FQN/source text 恢复 intrinsic metadata。
 /// - 1.12：MIR reflection intrinsic rvalue 携带 `SiteId`，LIR reflection facts 改为
 ///   owner+site identity 发布。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 12);
+/// - 1.13：LIR program callable 节点携带 per-callable facts、source signatures 与
+///   intrinsic callable metadata，供 P2b 逐步移除平行 facts 表。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 13);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

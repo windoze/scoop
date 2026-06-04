@@ -1,40 +1,27 @@
-# Claude Execution Plan
+# 执行计划
 
-## Scope
+说明：本文件记录可审计的执行计划与进度更新，不记录私密逐字思考。
 
-- Current invocation goal: identify and complete exactly the first incomplete task in `TODO.md`, then stop.
-- Source of truth: `TODO.md` for task order, requirements, dependencies, validation, and completion records.
-- `PLAN.md` will only be changed if phase-level sequencing, dependencies, assumptions, or completion criteria actually change.
-- I will record concise, reviewable planning and progress here. I will not include private chain-of-thought; this file captures the actionable plan, decisions, blockers, and validation status.
+## 当前计划
 
-## Initial Plan
+1. 阅读 `TODO.md`，按标题是否带 `[DONE]` 判定并锁定第一个未完成任务。
+2. 阅读该任务相关上下文，必要时检查 `PLAN.md`、最近提交和相关代码/测试，避免做开放式历史问题扫荡。
+3. 按任务要求实现最小正确变更；如果发现阻塞当前任务的缺失特性或规格不一致，优先修复或在 `TODO.md` 中插入最小必要前置任务并停止。
+4. 运行格式化、lint、相关测试，并在需要时运行完整测试/fixture 套件。
+5. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+6. 检查工作区差异，提交本次任务相关全部变更，然后停止，不进入下一个任务。
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Review the selected task details, dependencies, and validation requirements before doing broader exploration.
-3. Check recent git context only as needed for the selected task, especially whether the latest commit mentions an unfinished issue directly relevant to it.
-4. Inspect the relevant code, fixtures, docs, and tests for that task.
-5. Implement the smallest correct change that completes the task without workarounds or spec deviations.
-6. Run formatting first, then linting, then relevant/full tests as required by the task and repository policy.
-7. If unscheduled failing tests or fixtures are observed, either fix them or add the minimum prerequisite/follow-up task in `TODO.md` before marking completion.
-8. Mark exactly the completed task as `[DONE]` in `TODO.md` and update its completion record.
-9. Update this file whenever the plan changes or a key step completes.
-10. Commit all intended changes with a clear task-tagged commit message, then stop without starting the next task.
+## 进度
 
-## Progress Log
-
-- Initialized execution plan before reading `TODO.md` or running project commands.
-- Identified first incomplete task: `T2-03-R：Review T2-03`.
-- Latest commit is `[T2-03] Migrate LIR callable cross references`, directly relevant to the review task.
-- Review objective: confirm local callable references use `LirCallableId`, cross-cone/bodyless references use `LirCallableHash`, construction resolves handles without dangling references, and remaining `StableLirCallableKey` usage is limited to stable identity sources, boundary maps, tests, diagnostics, or debug output.
-- Review findings to fix before marking done:
-  - `crates/scoopc_codegen_llvm` still carried an unused `current_lir_callable_key` state slot plus stable-key lookup setup; remove it so current callable context is id-only.
-  - `scoopc_lir_facts::verify` allowed `LirCallableRef::Local` to fall through to declaration-style ABI checks when the local id was missing; reject dangling local ids explicitly and keep declaration fallback only for `ExternalHash`.
-- Planned edits: remove the stale codegen stable-key context, tighten verifier/reachability local-ref handling, and add verifier regression tests for dangling local callable refs.
-- Implemented review fixes:
-  - Removed the unused codegen `current_lir_callable_key` state and the unused `LateLoweredProgram::callable_by_lir_key` lookup helper.
-  - Changed verifier/reachability behavior so `LirCallableRef::Local` must resolve through the callable inventory and cannot fall back to declaration ABI symbols.
-  - Added verifier regression coverage for dangling local call target refs and dangling local ABI symbol refs.
-- Validation so far: `cargo fmt` passed; `cargo clippy --all-targets -- -D warnings` passed.
-- Full validation passed: `cargo test --all --all-targets`; `cargo build -p scoop -p scoopc`; `python3 tools/dependency_gate.py`; `python3 tools/spec_fixtures.py check`; `python3 tools/run_fixtures.py`.
-- Review confirmation searches passed: no `current_lir_callable_key` / `lir_callable_key_for_root` / `callable_by_lir_key` matches in `crates/`; no `StableLirCallableKey` matches under `crates/scoopc_codegen_llvm/src/llvm/codegen`; total `StableLirCallableKey` references under `crates` is 90, limited to identity, boundary, diagnostics/debug, and tests.
-- Updated `TODO.md` to mark `T2-03-R` as `[DONE]` with the review findings, fixes, confirmations, and validation record.
+- 已创建初始执行计划，下一步读取 `TODO.md` 识别第一个未完成任务。
+- 已读取 `TODO.md`，第一个未完成任务为 `T2-04：per-callable fact 挂到 callable 节点`。
+- 当前任务目标：把 `LirFacts.callables`、`source_signatures`、`intrinsic_callables` 的 value 内容迁入 `LateLoweredCallable` 或其节点旁挂结构；消费侧不再通过 FQN/string map 查找 source/intrinsic signature。
+- 最近提交为 `T2-03-R` review，未发现直接声明的未完成阻塞项。
+- 选定实现路径：保留 `LirFacts` 平表作为当前验证/序列化投影，但在构建 facts 后把 callable facts、source signatures、intrinsic metadata 回填到 `LateLoweredProgram.callables`；LLVM codegen 的 source signature / intrinsic / callable facts 查询改为从 program/callable 节点读取。
+- 已实现核心迁移：`LateLoweredCallable` 新增 per-callable facts/source signatures/intrinsic payload，`LateLoweredProgram` 新增声明旁挂结构和查询方法；`effect_lowering_stage` 在构建 facts 后回填 payload；LLVM codegen 消费侧已切换到 program/callable 节点查询。
+- `cargo clippy --all-targets -- -D warnings` 已通过。
+- `cargo test --all --all-targets` 首次运行发现 `frontend::tests::dependency_frontend_cache_hit_uses_artifact_without_reading_source` 解码 `lir_program.bin` EOF；该失败与新增 LIR program 序列化字段直接相关，下一步修复缓存测试/artifact 序列化构造后重跑完整验证。
+- 已修复 bincode EOF：新加的 LIR program 字段不再使用 `skip_serializing_if`，避免非自描述 bincode payload 省略字段。
+- `python3 tools/run_fixtures.py` 首次运行发现 3 个 fixture 失败；根因是 codegen 只切换 active `LirFacts`，未同步切换 active `LateLoweredProgram`，迁移后导致 source-site / signature / intrinsic 查询混用。已新增 active LIR program 上下文并修复 3 个失败 fixture 的定向回归。
+- 最终验证已通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+- 已将 `TODO.md` 中 `T2-04` 标记为 `[DONE]` 并填写完成记录；下一步检查 git diff/status 后提交本任务变更。

@@ -54,6 +54,8 @@ pub struct LateLoweredProgram {
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
+    #[serde(default)]
+    callable_declarations: Vec<LateLoweredCallableDeclaration>,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     source_class_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
@@ -78,6 +80,7 @@ impl LateLoweredProgram {
             continuation_objects,
             surface_resume_dispatch_inventory,
             callables,
+            callable_declarations: Vec::new(),
             class_ctor_init_bodies: HashMap::new(),
             source_class_ctor_calls: Vec::new(),
             stable_instance_keys: HashMap::new(),
@@ -136,6 +139,7 @@ impl LateLoweredProgram {
             continuation_objects: self.continuation_objects.clone(),
             surface_resume_dispatch_inventory,
             callables: self.callables.clone(),
+            callable_declarations: self.callable_declarations.clone(),
             class_ctor_init_bodies: self.class_ctor_init_bodies.clone(),
             source_class_ctor_calls: self.source_class_ctor_calls.clone(),
             stable_instance_keys: self.stable_instance_keys.clone(),
@@ -214,6 +218,114 @@ impl LateLoweredProgram {
 
     pub fn callable_by_id(&self, id: LirCallableId) -> Option<&LateLoweredCallable> {
         self.callables.get(id.as_usize())
+    }
+
+    pub fn callable_id_by_root(&self, root_fqn: &str) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, callable)| {
+                (callable.root_fqn() == root_fqn)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    pub fn callable_id_by_source_signature(&self, root_fqn: &str) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, callable)| {
+                callable
+                    .source_signature(root_fqn)
+                    .is_some()
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    pub fn callable_declarations(&self) -> &[LateLoweredCallableDeclaration] {
+        &self.callable_declarations
+    }
+
+    pub fn source_signatures(
+        &self,
+    ) -> impl Iterator<Item = &scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.callables
+            .iter()
+            .flat_map(LateLoweredCallable::source_signatures)
+            .chain(
+                self.callable_declarations
+                    .iter()
+                    .filter_map(LateLoweredCallableDeclaration::source_signature),
+            )
+    }
+
+    pub fn source_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.callables
+            .iter()
+            .find_map(|callable| callable.source_signature(root_fqn))
+            .or_else(|| {
+                self.callable_declarations
+                    .iter()
+                    .find_map(|declaration| declaration.source_signature_for_root(root_fqn))
+            })
+    }
+
+    pub fn intrinsic_callables(
+        &self,
+    ) -> impl Iterator<Item = &scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.callables
+            .iter()
+            .flat_map(LateLoweredCallable::intrinsic_callables)
+            .chain(
+                self.callable_declarations
+                    .iter()
+                    .filter_map(LateLoweredCallableDeclaration::intrinsic_callable),
+            )
+    }
+
+    pub fn intrinsic_callable(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.callables
+            .iter()
+            .find_map(|callable| callable.intrinsic_callable(root_fqn))
+            .or_else(|| {
+                self.callable_declarations
+                    .iter()
+                    .find_map(|declaration| declaration.intrinsic_callable_for_root(root_fqn))
+            })
+    }
+
+    pub fn with_published_callable_fact_payloads(
+        mut self,
+        mut callable_facts: BTreeMap<LirCallableId, scoopc_lir_facts::LirCallableFacts>,
+        mut source_signatures: BTreeMap<
+            LirCallableId,
+            Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        >,
+        mut intrinsic_callables: BTreeMap<
+            LirCallableId,
+            Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
+        >,
+        callable_declarations: Vec<LateLoweredCallableDeclaration>,
+    ) -> Self {
+        for (index, callable) in self.callables.iter_mut().enumerate() {
+            let id = LirCallableId::from_index(index)
+                .expect("LateLoweredProgram callable index must fit in LirCallableId");
+            callable.attach_published_fact_payloads(
+                callable_facts.remove(&id),
+                source_signatures.remove(&id).unwrap_or_default(),
+                intrinsic_callables.remove(&id).unwrap_or_default(),
+            );
+        }
+        self.callable_declarations = callable_declarations;
+        self
     }
 
     pub fn callable_index(&self) -> Result<LirCallableIndex, LirCallableIndexError> {
@@ -1305,6 +1417,60 @@ impl LateLoweredEffectStepCallable {
     }
 }
 
+/// Per-root callable metadata that has no local executable LIR body in this artifact.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredCallableDeclaration {
+    root_fqn: String,
+    #[serde(default)]
+    source_signature: Option<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+    #[serde(default)]
+    intrinsic_callable: Option<scoopc_lir_facts::LirIntrinsicCallableFact>,
+}
+
+impl LateLoweredCallableDeclaration {
+    pub fn new(
+        root_fqn: String,
+        source_signature: Option<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        intrinsic_callable: Option<scoopc_lir_facts::LirIntrinsicCallableFact>,
+    ) -> Self {
+        Self {
+            root_fqn,
+            source_signature,
+            intrinsic_callable,
+        }
+    }
+
+    pub fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub fn source_signature(&self) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.source_signature.as_ref()
+    }
+
+    pub fn source_signature_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        (self.root_fqn == root_fqn)
+            .then_some(self.source_signature.as_ref())
+            .flatten()
+    }
+
+    pub fn intrinsic_callable(&self) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.intrinsic_callable.as_ref()
+    }
+
+    pub fn intrinsic_callable_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        (self.root_fqn == root_fqn)
+            .then_some(self.intrinsic_callable.as_ref())
+            .flatten()
+    }
+}
+
 /// callable version 在 P5 handoff 中选择的 ABI contract。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredCallableAbi {
@@ -1331,6 +1497,12 @@ pub struct LateLoweredCallable {
     abi: LateLoweredCallableAbi,
     source_callable: Option<LateLoweredSourceCallable>,
     source_call_site_metadata: Vec<LateLoweredSourceCallSiteMetadata>,
+    #[serde(default)]
+    published_callable_facts: Option<Box<scoopc_lir_facts::LirCallableFacts>>,
+    #[serde(default)]
+    source_signatures: Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+    #[serde(default)]
+    intrinsic_callables: Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
 }
 
 impl PartialEq for LateLoweredCallable {
@@ -1344,6 +1516,9 @@ impl PartialEq for LateLoweredCallable {
             && self.resolved_outward_cases == other.resolved_outward_cases
             && self.abi == other.abi
             && self.source_call_site_metadata == other.source_call_site_metadata
+            && self.published_callable_facts == other.published_callable_facts
+            && self.source_signatures == other.source_signatures
+            && self.intrinsic_callables == other.intrinsic_callables
     }
 }
 
@@ -1423,6 +1598,9 @@ impl LateLoweredCallable {
             ))),
             source_callable: None,
             source_call_site_metadata: Vec::new(),
+            published_callable_facts: None,
+            source_signatures: Vec::new(),
+            intrinsic_callables: Vec::new(),
         }
     }
 
@@ -1444,6 +1622,9 @@ impl LateLoweredCallable {
             abi: LateLoweredCallableAbi::Plain(plain_abi),
             source_callable: None,
             source_call_site_metadata: Vec::new(),
+            published_callable_facts: None,
+            source_signatures: Vec::new(),
+            intrinsic_callables: Vec::new(),
         }
     }
 
@@ -1469,6 +1650,17 @@ impl LateLoweredCallable {
         self.source_call_site_metadata = collect_source_call_site_metadata(source_callable);
         self.source_callable = Some(source_callable.clone());
         self
+    }
+
+    pub fn attach_published_fact_payloads(
+        &mut self,
+        callable_facts: Option<scoopc_lir_facts::LirCallableFacts>,
+        source_signatures: Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        intrinsic_callables: Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
+    ) {
+        self.published_callable_facts = callable_facts.map(Box::new);
+        self.source_signatures = source_signatures;
+        self.intrinsic_callables = intrinsic_callables;
     }
 
     pub fn with_source_statement_classifications(
@@ -1524,6 +1716,36 @@ impl LateLoweredCallable {
 
     pub fn source_call_site_metadata(&self) -> &[LateLoweredSourceCallSiteMetadata] {
         &self.source_call_site_metadata
+    }
+
+    pub fn published_callable_facts(&self) -> Option<&scoopc_lir_facts::LirCallableFacts> {
+        self.published_callable_facts.as_deref()
+    }
+
+    pub fn source_signatures(&self) -> &[scoopc_lir_facts::LirSourceCallableSignatureFacts] {
+        &self.source_signatures
+    }
+
+    pub fn source_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.source_signatures
+            .iter()
+            .find(|signature| signature.root_fqn == root_fqn)
+    }
+
+    pub fn intrinsic_callables(&self) -> &[scoopc_lir_facts::LirIntrinsicCallableFact] {
+        &self.intrinsic_callables
+    }
+
+    pub fn intrinsic_callable(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.intrinsic_callables
+            .iter()
+            .find(|intrinsic| intrinsic.root_fqn == root_fqn)
     }
 
     pub fn call_abi_kind(&self) -> CallableAbiKind {

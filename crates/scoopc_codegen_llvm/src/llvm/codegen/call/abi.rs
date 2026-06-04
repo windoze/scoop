@@ -334,8 +334,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<&'a scoopc_lir_facts::LirCallableFacts> {
-        let callable_id = self.lir_callable_id_for_root(callable_fqn)?;
-        self.published_lir_facts.callables.get(&callable_id)
+        self.active_lir_program()?
+            .callable(callable_fqn)?
+            .published_callable_facts()
     }
 
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
@@ -365,7 +366,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
-        let program = self.published_late_lowered_program()?;
+        let program = self.active_lir_program()?;
         let source_types = self.published_late_lowered_types()?;
         let callable = program.callable(callable_fqn)?;
         if let Some(plain) = callable.plain_abi() {
@@ -384,10 +385,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        let program = self.active_lir_program()?;
         if let Some((source_types, param_tys, return_ty)) =
             self.published_callable_signature_impl(callable_fqn)
         {
-            let callable_facts = self.published_lir_callable_facts_by_root(callable_fqn)?;
+            let callable_facts = program.callable(callable_fqn)?.published_callable_facts()?;
             return Some((
                 source_types,
                 callable_facts.param_names.clone(),
@@ -395,7 +397,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return_ty,
             ));
         }
-        if let Some(signature) = self.published_lir_facts.source_signatures.get(callable_fqn) {
+        if let Some(signature) = program.source_signature(callable_fqn) {
             return Some((
                 self.types,
                 signature.param_names.clone(),

@@ -7,6 +7,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
         Self {
             shared,
+            active_lir_program: None,
             active_lir_facts: None,
             current_source_id: shared.entry_source_id,
             function_cx: FunctionBodyCodegenCx::default(),
@@ -17,6 +18,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
     pub(in crate::llvm::codegen) fn fresh_child_codegen(&self) -> Self {
         let mut child = Self::new(self.shared);
+        child.active_lir_program = self.active_lir_program;
         child.active_lir_facts = self.active_lir_facts;
         child
     }
@@ -356,10 +358,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         root_fqn: &str,
     ) -> Option<LirCallableId> {
-        self.published_lir_facts
-            .callables
-            .iter()
-            .find_map(|(id, callable)| (callable.root_fqn() == root_fqn).then_some(*id))
+        self.active_lir_program()?.callable_id_by_root(root_fqn)
     }
 
     fn lir_callable_ref_stable_key(
@@ -368,9 +367,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<scoopc_ids::CanonicalTextKey, LlvmEmitError> {
         let canonical = match callable {
             scoopc_lir_facts::LirCallableRef::Local(id) => self
-                .published_lir_facts
-                .callables
-                .get(&id)
+                .active_lir_program()
+                .and_then(|program| program.callable_by_id(id))
+                .and_then(|callable| callable.published_callable_facts())
                 .map(|facts| facts.body_version.key.owner_canonical_text().to_string())
                 .ok_or_else(|| LlvmEmitError::Frontend {
                     message: format!(

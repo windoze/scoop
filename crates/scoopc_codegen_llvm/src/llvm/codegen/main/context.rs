@@ -5,9 +5,23 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn active_lir_program(
+        &self,
+    ) -> Option<&'a crate::effect_lowered::LateLoweredProgram> {
+        self.active_lir_program
+            .or(self.shared.published_late_lowered_program)
+    }
+
     pub(in crate::llvm::codegen) fn active_lir_facts(&self) -> &LirFacts {
         self.active_lir_facts
             .unwrap_or(self.shared.published_lir_facts)
+    }
+
+    pub(in crate::llvm) fn set_active_lir_program(
+        &mut self,
+        program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    ) {
+        self.active_lir_program = program;
     }
 
     pub(in crate::llvm) fn set_active_lir_facts(&mut self, facts: Option<&'a LirFacts>) {
@@ -316,9 +330,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirSourceCallSiteFacts> {
-        let owner_callable = self.current_published_lir_callable_id()?;
-        self.shared
-            .published_lir_facts
+        let owner_callable = self.current_active_lir_callable_id()?;
+        self.active_lir_facts()
             .source_call_sites
             .get(&LirSourceCallSiteKey {
                 owner_callable,
@@ -330,12 +343,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirPlainCallSiteFacts> {
-        let owner_callable = self.current_published_lir_callable_id()?;
+        let owner_callable = self.current_active_lir_callable_id()?;
         let callable = self
-            .shared
-            .published_lir_facts
-            .callables
-            .get(&owner_callable)?;
+            .active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?;
         let LirCallableContract::Plain(plain) = &callable.contract else {
             return None;
         };
@@ -458,35 +470,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         site_id: SiteId,
     ) -> Option<&LirDispatchContract> {
-        let owner_callable = self.current_published_lir_callable_id()?;
-        self.shared
-            .published_lir_facts
-            .dispatches
-            .get(&LirDispatchKey {
-                owner_callable,
-                site_id,
-            })
+        let owner_callable = self.current_active_lir_callable_id()?;
+        self.active_lir_facts().dispatches.get(&LirDispatchKey {
+            owner_callable,
+            site_id,
+        })
     }
 
     fn current_published_lir_callable_id(&self) -> Option<LirCallableId> {
-        self.current_lir_callable_id_in_facts(self.shared.published_lir_facts)
+        self.function_cx
+            .current_callable_fqn
+            .as_deref()
+            .and_then(|root| {
+                self.shared
+                    .published_late_lowered_program
+                    .and_then(|program| program.callable_id_by_root(root))
+            })
             .or(self.function_cx.current_lir_callable_id)
     }
 
     fn current_active_lir_callable_id(&self) -> Option<LirCallableId> {
-        self.current_lir_callable_id_in_facts(self.active_lir_facts())
+        self.function_cx
+            .current_callable_fqn
+            .as_deref()
+            .and_then(|root| {
+                self.active_lir_program()
+                    .and_then(|program| program.callable_id_by_root(root))
+            })
             .or_else(|| self.current_published_lir_callable_id())
-    }
-
-    fn current_lir_callable_id_in_facts(
-        &self,
-        facts: &scoopc_lir_facts::LirFacts,
-    ) -> Option<LirCallableId> {
-        let root = self.function_cx.current_callable_fqn.as_deref()?;
-        facts
-            .callables
-            .iter()
-            .find_map(|(id, callable)| (callable.root_fqn() == root).then_some(*id))
     }
 
     pub(in crate::llvm::codegen) fn required_lir_dispatch(

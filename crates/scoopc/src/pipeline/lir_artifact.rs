@@ -84,9 +84,15 @@ pub fn resolve_entry_ref(
     }
 
     let mut candidates = artifact
-        .facts
-        .callables
+        .program
+        .callables()
         .iter()
+        .enumerate()
+        .filter_map(|(index, program_callable)| {
+            let callable_id = LirCallableId::from_index(index)?;
+            let callable = program_callable.published_callable_facts()?;
+            Some((callable_id, callable))
+        })
         .filter(|(_, callable)| callable.is_top_level_source_callable())
         .filter(|(_, callable)| match entry_main_fqn {
             Some(entry_main_fqn) => callable.root_fqn() == entry_main_fqn,
@@ -94,7 +100,7 @@ pub fn resolve_entry_ref(
         })
         .filter_map(|(callable_id, callable)| {
             classify_entry_main_arg_shape(artifact.base_context.types(), callable)
-                .map(|arg_shape| (*callable_id, callable, arg_shape))
+                .map(|arg_shape| (callable_id, callable, arg_shape))
         })
         .collect::<Vec<_>>();
 
