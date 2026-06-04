@@ -251,16 +251,17 @@ pub struct LirCallableHash(/* 定长 hash */);
 ### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
 - 依赖：`T2-08A`、`T2-08B`。
 - 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。
-- **lift 遇到 MIR `Todo`/`UnresolvedName` 等占位 → 报 unsupported/internal 错误，不产出 LIR 占位。** 这同时验证：完全 lowered 的合法 body 是否还能到达这些占位（理应不能——`UnresolvedName` 在 typecheck 后不应存在，`Todo` 代表未实现特性应在更早报错）。若实测可达，登记为上游（MIR/typecheck）需补的诊断缺口，**不得**在 LIR 层用占位掩盖。
-- 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
+- **LIR lift 必须是全函数（无 `Result`，§1.8 硬纪律）**：`lift_*` 不得返回错误、不得有 `Todo`/`UnresolvedName` 的 Err arm、不得保留 `Todo(_) => {}` 等 no-op 容忍——**删掉现有 `invalid_lift` 与各分析层的占位容忍 arm**。
+- **把「拒绝 `Todo`/`UnresolvedName`/占位」上移到 MIR→LIR 生产者边界**：由 MIR 阶段输出**保证**交给 LIR 的 body 不含占位（guard 在 MIR 侧、用 `mir/placeholder_inventory.rs`，非 LIR）。如此 LIR 端**结构上不可能**见到占位，无需也不许任何错误出口。该 guard 是**上移一级**的临时落点，P4/P5 继续上移到 HIR；**不得**在 LIR 留占位/Result 掩盖。
+- 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`；`lift.rs` 无 `Result`/`invalid_lift`；LIR crate 内 `grep` 无 `Todo`/`UnresolvedName`/`Unsupported` escape 变体与 no-op 容忍。
 
 阻塞记录（2026-06-04）：
 - 当前任务严格执行需要先完成 `T2-08A`，否则删除 `LateLoweredSourceBody` / `crate::mir::Body` 后，plain callable 与 LLVM body codegen 没有 LIR-owned body/header/local table 可消费。
 - 继续执行时发现 `T2-08A` 只补齐容器，不足以安全删除 overlay；必须先完成 `T2-08B`，把 facts builder、dump/verify 与 LLVM effect body/layout 消费侧迁移到 LIR anchors，否则删除 `LateLoweredStateSlice` / `LateLoweredSourceBody` 会破坏现有 codegen。当前代码仅保持 LIR body producer 与兼容 source-slice 并存，不能视为 T2-08 完成。
 
 ### [TODO] T2-08-R：Review T2-08
-- 关注点：lift 忠实（每条 MIR stmt/term 有对应 LIR 指令，语义不变）；state 拥有指令、无回指 MIR；transport metadata 一并 lift。
-- 确认：MIR golden / fixture 行为不变；基线绿。
+- 关注点：lift 忠实（每条 MIR stmt/term 有对应 LIR 指令，语义不变）；state 拥有指令、无回指 MIR；transport metadata 一并 lift；**lift 全函数无 `Result`、LIR 无占位/escape/no-op 容忍；占位拒绝 guard 确在 MIR 输出侧（上游）而非 LIR**。
+- 确认：`grep` `lift.rs` 无 `Result`/`invalid_lift`、LIR crate 无 `Todo`/`UnresolvedName`/`Unsupported` escape；MIR golden / fixture 行为不变；基线绿。若某 fixture 因 guard 上移而在 MIR 处暴露缺口——**暴露是对的**，登记为 HIR 待补，**不得**回填占位让其变绿。
 
 ### [TODO] T2-09：codegen 改走 LIR 指令 + 删 `LirArtifact.mir`
 - `codegen/mir_body/mod.rs` 的 stmt/rvalue/terminator/callkind walker 改为 walk LIR 指令；删 `LirArtifact.mir: Option<MaterializedMir>`。
