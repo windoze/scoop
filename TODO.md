@@ -33,7 +33,7 @@
 | `summary`/`opt_pipeline`/`type_context`/`step_types`/`resume_packings`/`surface_resume_dispatches` | — | **保留 program 级字段**（程序全局） |
 - 消费点（改 walk）：`call/abi.rs:339/352/395`、`effect_lowered/layout/lookup.rs:128/146`、`effect_lowered/layout/dynamic_invoke.rs:16`、`pipeline/llvm_codegen_stage` emit、`mod.rs:927`。
 
-**MIR 指令集（P2c lift 来源）** — `crates/scoopc_mir/src/mir/mod.rs`：`Body`(:2057, `locals`/`blocks`/`start`)、`BasicBlock`(`stmts`/`terminator`/`is_cleanup`)、`StatementKind`(:2424, `Nop`/`Assign`/`StoreMember`/`StoreTopLevelVar`/`Todo`)、`Rvalue`(:2909, 24 变体)、`TerminatorKind`(:3060, `Return`/`ResumeUnwind`/`Goto`/`CondBr`/`Unreachable`/`Perform`/`Handle`/`Todo`)、`Operand`(:2468, `Local`/`Const`)、`ConstValue`、`CallKind`(:2672, `Direct`/`Closure`/`FunValue`/`FunPtr`/`Virtual`/`Interface`/`Resume`)、`MemberTarget`/`DispatchMetadata`/`TopLevelRef`/`PerformMetadata`、transport（`mir/transport.rs`）。**字符串 FQN 引用 11 处**（`CallKind::Direct.callee_fqn`、`Closure.fn_ptr`、`Perform.op_fqn`、`TopLevelRef.fqn`、`StoreTopLevelVar.fqn`、`DispatchMetadata.owner_fqn/member_fqn`、`MemberTarget::*.fqn`、`ClassCtor.class_fqn`、`PerformResult.op_fqn`、GC intrinsic）→ 全转句柄。
+**MIR 指令集（P2c lift 来源）** — `crates/scoopc_mir/src/mir/mod.rs`：`Body`(:2057, `locals`/`blocks`/`start`)、`BasicBlock`(`stmts`/`terminator`/`is_cleanup`)、`StatementKind`(:2424, `Nop`/`Assign`/`StoreMember`/`StoreTopLevelVar`/`Todo`)、`Rvalue`(:2909, 24 变体)、`TerminatorKind`(:3060, `Return`/`ResumeUnwind`/`Goto`/`CondBr`/`Unreachable`/`Perform`/`Handle`/`Todo`)、`Operand`(:2468, `Local`/`Const`)、`ConstValue`、`CallKind`(:2672, `Direct`/`Closure`/`FunValue`/`FunPtr`/`Virtual`/`Interface`/`Resume`)、`MemberTarget`/`DispatchMetadata`/`TopLevelRef`/`PerformMetadata`、transport（`mir/transport.rs`）。**字符串 FQN 引用 11 处**（`CallKind::Direct.callee_fqn`、`Closure.fn_ptr`、`Perform.op_fqn`、`TopLevelRef.fqn`、`StoreTopLevelVar.fqn`、`DispatchMetadata.owner_fqn/member_fqn`、`MemberTarget::*.fqn`、`ClassCtor.class_fqn`、`PerformResult.op_fqn`、GC intrinsic）→ 全转句柄。**注：MIR 的 `StatementKind::Todo`/`Rvalue::Todo`/`Rvalue::UnresolvedName`/`TerminatorKind::Todo` 等占位/逃逸变体不进 LIR（LIR total，见 T2-07）。**
 - codegen MIR-body walker（P2c 改走 LIR 指令）：`crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/mod.rs`（stmt :318、rvalue :363、terminator :425、callkind :347）。
 
 ## 2. 身份类型（P2a 目标）
@@ -188,17 +188,19 @@ pub struct LirCallableHash(/* 定长 hash */);
 
 ## 5. P2c — lift 指令、消除 overlay
 
-### [TODO] T2-07：定义 LIR 自有指令集
-- 按 §1 的 MIR 清单定义 LIR 指令：statement（assign/store-member/store-global）、rvalue（24 变体的 LIR 对应，引用全句柄化：callee→`LirCallableId`、global→句柄、member/dispatch→句柄、type→`TypeId`）、terminator（含 effect 的 Perform/Handle/Resume 控制，复用现 `LateLoweredStateTerminator` 体系）、operand（local/const）。
+### [TODO] T2-07：定义 LIR 自有指令集（total，无占位变体）
+- 按 §1 的 MIR 清单定义 LIR 指令：statement（assign/store-member/store-global）、rvalue（MIR 24 变体中**已实现的真实构造**的 LIR 对应，引用全句柄化：callee→`LirCallableId`、global→句柄、member/dispatch→句柄、type→`TypeId`）、terminator（含 effect 的 Perform/Handle/Resume 控制，复用现 `LateLoweredStateTerminator` 体系）、operand（local/const）。
 - 句柄化 §1 列出的 11 处字符串 FQN。
-- 验收：类型定义编译通过；与现 `LateLoweredState`/`StateTerminator` 体系衔接清楚。
+- **LIR 是 total 的，禁止任何占位/逃逸变体**：明确排除 MIR 的 `StatementKind::Todo`、`Rvalue::Todo`、`Rvalue::UnresolvedName`、`TerminatorKind::Todo`（及 transport 内同类占位）。「未实现 / 未解析」**不是可表示的 LIR 状态**——它们是 MIR 的 WIP 逃逸口，正是本重构要消灭的「可表示的非法/未完成状态」。
+- 验收：类型定义编译通过；与现 `LateLoweredState`/`StateTerminator` 体系衔接清楚；**LIR 指令枚举中 `grep` 无 `Todo`/`UnresolvedName`**。
 
 ### [TODO] T2-07-R：Review T2-07
-- 关注点：覆盖 MIR 全部 statement/rvalue/terminator/callkind（无遗漏变体）；所有体内引用为句柄/TypeId，无 String FQN；effect 控制（Perform/Handle/Resume/Suspend）保真。
-- 确认：逐项对照 §1 清单打勾；编译 + clippy。
+- 关注点：覆盖 MIR 全部**已实现**的 statement/rvalue/terminator/callkind（无遗漏真实变体）；所有体内引用为句柄/TypeId，无 String FQN；effect 控制（Perform/Handle/Resume/Suspend）保真；**LIR 指令枚举无 `Todo`/`UnresolvedName`/占位**。
+- 确认：逐项对照 §1 清单打勾；`grep` LIR 指令定义无占位变体；编译 + clippy。
 
 ### [TODO] T2-08：lowering 产出 LIR 指令（state 拥有指令）
 - 改 effect-lowering：`LateLoweredState` 拥有 LIR 指令序列，取代 `source_slice: LateLoweredStateSlice`；删 `LateLoweredStateSlice` / `LateLoweredSourceBody`。lowering 从 MIR body 一次性 lift 成 LIR 指令。
+- **lift 遇到 MIR `Todo`/`UnresolvedName` 等占位 → 报 unsupported/internal 错误，不产出 LIR 占位。** 这同时验证：完全 lowered 的合法 body 是否还能到达这些占位（理应不能——`UnresolvedName` 在 typecheck 后不应存在，`Todo` 代表未实现特性应在更早报错）。若实测可达，登记为上游（MIR/typecheck）需补的诊断缺口，**不得**在 LIR 层用占位掩盖。
 - 验收：`ir.rs` 无 `LateLoweredSourceBody`/`LateLoweredStateSlice`；`LateLoweredProgram` 不再引用 `crate::mir::Body`。
 
 ### [TODO] T2-08-R：Review T2-08
