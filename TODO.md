@@ -302,13 +302,39 @@
 - 验收 grep 通过：生产路径 `rg -n "\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无命中；`rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无命中。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
+### [TODO] TC-04-FIX2：清除 carrier/dispatch 残留 FQN callable 选择
+
+**目标**：修复 `TC-04-R` 复审发现的剩余生产路径 root/FQN callable 选择：carrier/dispatch 发布、fallback registry、dynamic carrier target、vtable/itable target 与 effect-step facts/layout 查询必须改为消费 LIR callable handle、body-version key 或已发布 callable contract；FQN 字符串只能保留为 LLVM symbol 名、诊断文本、source-signature 文本字段，或非 callable 的 nominal/global layout key。
+
+**阻塞来源（2026-06-05，TC-04-R 复审时发现）**：`TC-04-FIX1` 后基础验收 grep 已清零旧 helper，但更严格的 `_fqn` 抽样与 carrier 路径审查仍发现生产代码用 callable root/FQN 做 live target/layout/facts 选择：
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/carrier.rs`：`published_callable_roots` / `plain_callable_roots`、物理 `class_vtables` / `class_itables` 的 `impl_member_fqn` / `method_impl_fqns` 过滤、`dynamic_dispatch_carrier_targets` 的 string target key、`callable_layout_for_carrier_target` 按 `layout.root_fqn() == callable_fqn` 选择版本。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/lookup.rs`：`callable_facts_for_root` / `effect_step_callable_facts_for_root` 通过 `program.callables().find(|callable| callable.root_fqn() == root_fqn)` 回查 callable facts。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/main/frame.rs`、`gc.rs`、`mir_body/aggregates.rs`、`mir_body/dispatch.rs`、`call/lowering.rs` 仍以 callable FQN 字符串注册/索引 callable carrier fallback、entry symbol、vtable/itable/funptr target。
+- `DynamicInvokeLayout::candidate_targets()` / `CallableCarrierTargetLayout` 仍以 `Vec<String>` / `(CallableCarrierKind, String)` 表达 callable target；这使 codegen 仍可通过 FQN 选择 live callable 布局。
+
+**步骤**：
+- S1：把 callable carrier target key 从 `(CallableCarrierKind, String)` 改为 handle-native key（优先 `LirCallableId` / `LirCallableRef`，跨 cached dep 需要区分 program origin 时使用已有 ABI origin + body-version/callable key），并让 `CallableCarrierTargetLayout` / `DynamicInvokeLayout` 暴露 handle-native target。
+- S2：将 vtable/itable/dynamic invoke/carrier shell 发布从 `impl_member_fqn` / `method_impl_fqns` 字符串过滤改为读取 LIR physical layout 或 published contract 中的 callable handle；如果 producer 目前只发布 FQN，回 producer 补 handle 字段，不在 codegen 用 root/FQN 反查。
+- S3：删除生产路径 `callable_facts_for_root` / `effect_step_callable_facts_for_root`，closure/dispatch carrier args ABI、callable layout version selection、fallback registry 与 entry symbol lookup 均按 callable handle/body-version key 查询。
+- S4：保留 FQN 仅用于 symbol 名生成、诊断文本、source-signature 文本字段；`_fqn` 抽样必须能逐项解释为非 live callable 查找。
+
+**严禁**：不得新增 `lir_*_to_mir` 反向转换；不得把 `LirCallableId` / `LirCallableRef` 转回 FQN 再查；不得用 string fallback、`is_ok()` 探测 ABI surface 或多版本时按 FQN 猜测 authoritative version。
+
+**验收**：
+- `rg -n "callable_facts_for_root|effect_step_callable_facts_for_root|callable_layout_for_carrier_target|published_callable_roots|plain_callable_roots|candidate_targets\(|CallableCarrierKind, String|callable_carrier_entry_symbols|plain_callable_carrier_fallback_targets" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 生产路径清零或改为 handle-native 命名/类型且不含 FQN target。
+- `rg -n "impl_member_fqn|method_impl_fqns" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 不再作为 callable target 选择/查找路径；若仍出现，必须仅为诊断或上游 facts 校验。
+- `rg -n "program\.callable\(|\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无生产命中。
+- `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均非 live callable 查找。
+- §9 基线绿。
+
 ### [TODO] TC-04-R：Review TC-04
 - **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。
 - **确认**：上述 grep 仅余符号名/诊断用法；`grep -rn "_fqn" .../codegen` 抽样确认剩余均非 live 查找；§9 绿。
-- **依赖**：`TC-04-FIX1`。
+- **依赖**：`TC-04-FIX1`、`TC-04-FIX2`。
 
 **审查阻塞记录（2026-06-05）**：
 - `TC-04-R` 静态审查发现 `TC-04` 仍有生产路径 root/FQN live callable 查找，已新增前置修复任务 `TC-04-FIX1`；本 review 保持未完成，待该修复完成后重新执行确认。
+- `TC-04-R` 复审确认 `TC-04-FIX1` 已清除旧 helper 命中，但 carrier/dispatch 发布与 registry 仍以 callable root/FQN 字符串选择 live target/layout/facts；已新增前置修复任务 `TC-04-FIX2`，本 review 保持未完成。
 
 ### [TODO] TC-05：删除 overlay
 
