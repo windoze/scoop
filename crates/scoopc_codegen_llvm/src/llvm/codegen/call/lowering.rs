@@ -1927,7 +1927,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_name = if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
             extern_fun.symbol.clone()
         } else {
-            self.exported_abi_symbol_for_lir_callable(&signature_owner_fqn)?
+            self.exported_abi_symbol_for_lir_root(&signature_owner_fqn)?
         };
         let llvm_fun = match self.module.get_function(&llvm_name) {
             Some(function) => function,
@@ -2005,17 +2005,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn published_signature_matches_hir_call(
+    fn published_signature_tys_match_hir_call(
         &self,
-        root: &str,
+        source_types: &TypeStore,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
         arg_tys: &[TypeId],
         result_ty: Option<TypeId>,
     ) -> bool {
-        let Some((source_types, _, param_tys, return_ty)) =
-            self.published_callable_signature_with_names(root)
-        else {
-            return false;
-        };
         if param_tys.len() != arg_tys.len() {
             return false;
         }
@@ -2032,6 +2029,76 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.equivalent_codegen_type_id(source_types, return_ty) == Some(result_ty);
         }
         true
+    }
+
+    fn published_lir_callable_signature_tys(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
+        let program = self.active_lir_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                let callable = program.callable_by_id(id)?;
+                if let Some(plain) = callable.plain_abi() {
+                    return Some((source_types, plain.param_tys().to_vec(), plain.return_ty()));
+                }
+                let effect = callable.effect_step_abi()?;
+                let param_tys = self.callable_source_carrier_tys_impl(
+                    source_types,
+                    effect.dynamic_invoke_entry().invoke_args_tuple_ty(),
+                )?;
+                let return_ty = program.step_type(effect.step_schema())?.complete_ty();
+                Some((source_types, param_tys, return_ty))
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(_) => {
+                let root = program.root_for_callable_ref(target)?;
+                let signature = program.source_signature(root)?;
+                Some((
+                    source_types,
+                    signature.param_tys.clone(),
+                    signature.return_ty,
+                ))
+            }
+        }
+    }
+
+    fn published_lir_callable_signature_matches_hir_call(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+        arg_tys: &[TypeId],
+        result_ty: Option<TypeId>,
+    ) -> bool {
+        let Some((source_types, param_tys, return_ty)) =
+            self.published_lir_callable_signature_tys(target)
+        else {
+            return false;
+        };
+        self.published_signature_tys_match_hir_call(
+            source_types,
+            &param_tys,
+            return_ty,
+            arg_tys,
+            result_ty,
+        )
+    }
+
+    fn published_source_signature_matches_hir_call(
+        &self,
+        signature: &scoopc_lir_facts::LirSourceCallableSignatureFacts,
+        arg_tys: &[TypeId],
+        result_ty: Option<TypeId>,
+    ) -> bool {
+        let Some(source_types) = self.published_late_lowered_types() else {
+            return false;
+        };
+        self.published_signature_tys_match_hir_call(
+            source_types,
+            &signature.param_tys,
+            signature.return_ty,
+            arg_tys,
+            result_ty,
+        )
     }
 
     fn required_hir_direct_published_root(
@@ -2062,7 +2129,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             };
             if self.callable_root_has_abi_surface(&exact.root_fqn)
-                && self.published_signature_matches_hir_call(&exact.root_fqn, &arg_tys, result_ty)
+                && self.published_lir_callable_signature_matches_hir_call(
+                    exact.target_callable,
+                    &arg_tys,
+                    result_ty,
+                )
             {
                 matches.push(exact.root_fqn.clone());
             }
@@ -2078,7 +2149,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             if self.callable_root_has_abi_surface(root)
-                && self.published_signature_matches_hir_call(root, &arg_tys, result_ty)
+                && self.published_source_signature_matches_hir_call(signature, &arg_tys, result_ty)
             {
                 matches.push(root.to_string());
             }
@@ -2107,7 +2178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn callable_root_has_abi_surface(&self, root: &str) -> bool {
         self.published_named_intrinsic_entry_name(root).is_some()
             || self.extern_funs.contains_key(root)
-            || self.exported_abi_symbol_for_lir_callable(root).is_ok()
+            || self.exported_abi_symbol_for_lir_root(root).is_ok()
     }
 
     pub(in crate::llvm::codegen) fn emit_enter_native_for_extern_call_impl(

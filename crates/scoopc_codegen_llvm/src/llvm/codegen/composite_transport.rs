@@ -736,11 +736,7 @@ pub(in crate::llvm::codegen) fn composite_transport_codegen_guard_error<'a, 'ctx
     detail: &'static str,
 ) -> LlvmEmitError {
     composite_transport_gate_error(
-        codegen
-            .function_cx
-            .current_callable_fqn
-            .as_deref()
-            .unwrap_or("<unknown>"),
+        &codegen.current_callable_diagnostic_label(),
         span,
         gap_id,
         detail,

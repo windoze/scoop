@@ -249,11 +249,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         handle: &hir::HandleExpr,
         _expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let callable = self
-            .function_cx
-            .current_callable_fqn
-            .as_deref()
-            .unwrap_or("<unknown>");
+        let callable = self.current_callable_diagnostic_label();
         Err(LlvmEmitError::Frontend {
             message: format!(
                 "LLVM HIR handle 入口已停用；callable `{callable}` 仍命中 direct HIR handle（arms={}, finally={}），应先经 published late-lowered/local-effect-control handoff",

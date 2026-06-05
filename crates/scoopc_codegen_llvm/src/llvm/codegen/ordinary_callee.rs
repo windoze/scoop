@@ -403,10 +403,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         body: &hir::Block,
         declared_return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
+        let callable = self
+            .current_lir_callable()
+            .map(|callable| callable.root_fqn());
         self.build_ordinary_callee_suspend_plan_for_callable(
             body,
             declared_return_ty,
-            self.function_cx.current_callable_fqn.as_deref(),
+            callable,
             &[],
         )
     }
@@ -441,8 +444,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         expr: &hir::Expr,
     ) -> bool {
-        let context = self
-            .ordinary_callee_effect_analysis_ctx(self.function_cx.current_callable_fqn.as_deref());
+        let callable = self
+            .current_lir_callable()
+            .map(|callable| callable.root_fqn());
+        let context = self.ordinary_callee_effect_analysis_ctx(callable);
         SuspendCallAnalysis {
             types: self.types,
             context: &context,
@@ -513,13 +518,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let saved_function_cx = self.take_function_body_cx();
-        let saved_callable_fqn = saved_function_cx.current_callable_fqn.clone();
+        let saved_lir_callable_id = saved_function_cx.current_lir_callable_id;
         let result = (|| {
             let entry = self.context.append_basic_block(resume_fun, "entry");
             self.builder.position_at_end(entry);
             self.begin_function_explicit_frame_layout(resume_fun)?;
 
-            self.function_cx.current_callable_fqn = saved_callable_fqn.clone();
+            self.function_cx.current_lir_callable_id = saved_lir_callable_id;
             self.function_cx.current_fun_return_ty = Some(declared_return_cg);
             let uses_hidden_sret = self
                 .hidden_sret_result_ty(at, declared_return_cg)?

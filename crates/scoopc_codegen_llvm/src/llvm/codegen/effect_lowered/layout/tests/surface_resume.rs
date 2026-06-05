@@ -514,7 +514,12 @@ pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projec
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let callable = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let callable = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let resume_schema = callable
                 .boundary_map()
                 .entries()
@@ -688,7 +693,12 @@ pub(super) fn llvm_surface_resume_wrapper_completion_rejects_type_drift() {
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let callable = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let callable = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let resume_schema = callable
                 .boundary_map()
                 .entries()

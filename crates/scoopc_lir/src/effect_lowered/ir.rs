@@ -315,6 +315,17 @@ impl LateLoweredProgram {
         self.callables.get(id.as_usize())
     }
 
+    pub fn callable_id_for(&self, callable: &LateLoweredCallable) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, candidate)| {
+                std::ptr::eq(candidate, callable)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
     pub fn callable_id_by_root(&self, root_fqn: &str) -> Option<LirCallableId> {
         self.callables
             .iter()

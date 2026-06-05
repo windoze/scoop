@@ -540,7 +540,6 @@ struct FunctionBodyCodegenCx<'ctx> {
     explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
-    current_callable_fqn: Option<String>,
     current_lir_callable_id: Option<LirCallableId>,
     current_stable_owner_key: Option<StableDefKey>,
     active_class_ctor_source_contracts: Vec<LateLoweredClassCtorSourceCallContract>,

@@ -15,13 +15,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "dispatch target callable `{callable_fqn}` 缺少 LIR callable/source signature contract"
                 ),
             })?;
-        let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
-        let abi_symbol_fact = self
-            .expect_active_lir_program("declare_dispatch_target_fun")
-            .physical_layout()
-            .abi_symbols
-            .values()
-            .find(|fact| fact.root_fqn.as_deref() == Some(callable_fqn));
+        let callable_ref = self.lir_callable_ref_for_root(callable_fqn);
+        let symbol_facts = callable_ref.and_then(|callable| match callable {
+            scoopc_lir_facts::LirCallableRef::Local(id) => self.lir_callable_symbol_facts(id),
+            scoopc_lir_facts::LirCallableRef::ExternalHash(_) => None,
+        });
+        let abi_symbol_fact =
+            callable_ref.and_then(|callable| self.abi_symbol_for_lir_callable_ref(callable));
         let llvm_name = symbol_facts
             .and_then(|facts| {
                 facts.exported_symbol.as_deref().or_else(|| {

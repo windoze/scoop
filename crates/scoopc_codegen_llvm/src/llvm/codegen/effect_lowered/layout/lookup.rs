@@ -78,11 +78,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         root_fqn: &str,
     ) -> Result<&LirCallableFacts, LlvmEmitError> {
-        let callable = self.program.callable(root_fqn).ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR body"
-            ))
-        })?;
+        let callable = self
+            .program
+            .callable_id_by_root(root_fqn)
+            .and_then(|id| self.program.callable_by_id(id))
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR body"
+                ))
+            })?;
         self.callable_facts(callable).map_err(|_| {
             frontend_error(format!(
                 "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR facts"
@@ -94,21 +98,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         callable: &LateLoweredCallable,
     ) -> Result<LirCallableId, LlvmEmitError> {
-        self.program
-            .callables()
-            .iter()
-            .enumerate()
-            .find_map(|(index, candidate)| {
-                std::ptr::eq(candidate, callable)
-                    .then(|| LirCallableId::from_index(index))
-                    .flatten()
-            })
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "LLVM ABI materialization 无法为 callable `{}` 解析 LirCallableId",
-                    callable.root_fqn()
-                ))
-            })
+        self.program.callable_id_for(callable).ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 无法为 callable `{}` 解析 LirCallableId",
+                callable.root_fqn()
+            ))
+        })
     }
 
     pub(super) fn callable_facts(

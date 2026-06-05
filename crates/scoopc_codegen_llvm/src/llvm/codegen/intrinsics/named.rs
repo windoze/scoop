@@ -2657,11 +2657,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         elem_ty: TypeId,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let body_fqn = self
-            .function_cx
-            .current_callable_fqn
-            .clone()
-            .unwrap_or_else(|| "<named-intrinsic-array>".to_string());
+        let body_fqn = self.current_codegen_body_fqn();
         let metadata =
             mir::ValueTransportMetadata::plain(elem_ty, mir::MirTransportKind::ArrayElement);
         let descriptor = self.get_or_create_value_composite_transport_descriptor_global(

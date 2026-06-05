@@ -241,7 +241,7 @@
 - 反模式检查通过：`rg -n "\.source_body\(\)|\.source_slices\(\)|LateLoweredSourceBody|mir::Rvalue|mir::Statement" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中；`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-04：FQN 引用改句柄
+### [DONE] TC-04：FQN 引用改句柄
 
 **目标**：codegen 里把 callee / 符号 / 布局的 **live FQN 字符串查找**改为 `LirCallableId` / `NominalId` 句柄直接 deref。FQN 仅保留为**符号名发射**（LLVM symbol）与**诊断/调试**用途（§2.7：String 仅调试）。可与 TC-02/03 并行，但建议在其后。
 
@@ -262,6 +262,14 @@
 **验收**：
 - `grep -rn "program.callable(" crates/scoopc_codegen_llvm`、`grep -rn "lir_callable_id_for_root\|abi_symbol_for_root\|current_callable_fqn" crates/scoopc_codegen_llvm` → live 查找清零（剩余仅符号名发射/诊断字符串）。
 - §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 将 codegen 当前 callable 身份从 `current_callable_fqn` 迁到 `current_lir_callable_id`，并在 plain/effect/closure body 入口按 active LIR program 解析当前 `LirCallableId`，避免跨 primary/ABI program 索引漂移。
+- direct LIR call lowering 改为以 `LirCallableRef` 作为目标身份，ABI symbol、callable symbol facts、dispatch target declaration 和 closure stable identity 通过 callable ref/id deref；FQN 仅保留在 LLVM symbol 名、稳定命名和诊断文本路径。
+- `ProgramAbiMaterializer`、plain/effect carrier、closure env、GC dispatch target、source signature matching 和相关 layout tests 去掉 `program.callable(...)` / `lir_callable_id_for_root` / `abi_symbol_for_root` / `current_callable_fqn` 路径；`published_signature_matches_hir_call` 改为按 LIR callable ref 或已发布 source signature 校验。
+- 修复迁移后暴露的 active LIR program/body program ID 不一致问题；首次完整 fixture 暴露的 4 个失败目标已逐一复测并恢复绿色。
+- 验收 grep 通过：`rg -n "program\.callable\(" crates/scoopc_codegen_llvm`；`rg -n "lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn" crates/scoopc_codegen_llvm`；`rg -n "published_signature_matches_hir_call" crates/scoopc_codegen_llvm` 均无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-04-R：Review TC-04
 - **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。

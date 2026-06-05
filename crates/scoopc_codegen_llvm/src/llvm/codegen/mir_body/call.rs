@@ -23,40 +23,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 callee,
                 generic_type_args,
                 ..
-            } => {
-                let program = self
-                    .published_late_lowered_program()
-                    .unwrap_or_else(|| panic!("codegen_lir_call: missing published LIR program"));
-                let callee_fqn = match callee {
-                    scoopc_lir_facts::LirCallableRef::Local(id) => program
-                        .callable_by_id(*id)
-                        .unwrap_or_else(|| {
-                            panic!("codegen_lir_call: LIR verifier accepted unknown callee id")
-                        })
-                        .root_fqn()
-                        .to_string(),
-                    scoopc_lir_facts::LirCallableRef::ExternalHash(_) => program
-                        .root_for_callable_ref(*callee)
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "codegen_lir_call: LIR verifier accepted unresolved external callee"
-                            )
-                        })
-                        .to_string(),
-                };
-                self.codegen_lir_direct_call_with_type_args(
-                    span,
-                    site_id,
-                    &callee_fqn,
-                    generic_type_args,
-                    args,
-                    body,
-                    source_types,
-                    transport,
-                    slots,
-                    abi,
-                )
-            }
+            } => self.codegen_lir_direct_call_with_type_args(
+                span,
+                site_id,
+                *callee,
+                generic_type_args,
+                args,
+                body,
+                source_types,
+                transport,
+                slots,
+                abi,
+            ),
             LirCallKind::Closure { callee, fn_ptr } => {
                 let fun_ty = self
                     .lir_operand_function_type(body, source_types, callee)
@@ -128,10 +106,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         value: receiver.clone(),
                     });
                     direct_args.extend(args.iter().cloned());
+                    let impl_ref = self.lir_callable_ref_for_root(impl_fqn).unwrap_or_else(|| {
+                        panic!(
+                            "codegen_lir_call: LIR verifier accepted ToString impl without callable ref"
+                        )
+                    });
                     return self.codegen_lir_direct_call_with_type_args(
                         span,
                         site_id,
-                        impl_fqn,
+                        impl_ref,
                         &[],
                         &direct_args,
                         body,
@@ -1412,7 +1395,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         site_id: mir_source::SiteId,
-        fqn: &str,
+        callee: scoopc_lir_facts::LirCallableRef,
         generic_type_args: &[TypeId],
         args: &[LirCallArg],
         body: &LirExecutableBody,
@@ -1421,10 +1404,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         abi: Option<&ProgramAbiQuery<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let program = self.published_late_lowered_program().unwrap_or_else(|| {
+            panic!("codegen_lir_direct_call_with_type_args: missing published LIR program")
+        });
+        let requested_root = program.root_for_callable_ref(callee).unwrap_or_else(|| {
+            panic!("codegen_lir_direct_call_with_type_args: LIR verifier accepted unresolved callee ref")
+        }).to_string();
         let source_site = self.published_lir_source_call_site(site_id);
         if source_site.is_none() && !generic_type_args.is_empty() {
             return Err(frontend_error(format!(
-                "generic LIR direct call `{fqn}` lacks published LIR source call-site contract"
+                "generic LIR direct call `{requested_root}` lacks published LIR source call-site contract"
             )));
         }
         let plain_site = if source_site.is_none() {
@@ -1435,15 +1424,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let exact_callee = source_site
             .and_then(|site| site.contract.exact_callee.clone())
             .or_else(|| plain_site.and_then(|site| site.contract.exact_callee.clone()));
-        let concrete_fqn = if let Some(exact) = exact_callee.as_ref() {
-            exact.root_fqn.clone()
+        let target_callable = if let Some(exact) = exact_callee.as_ref() {
+            exact.target_callable
         } else if !generic_type_args.is_empty() {
             return Err(frontend_error(format!(
-                "generic LIR direct call `{fqn}` lacks published exact callee binding"
+                "generic LIR direct call `{requested_root}` lacks published exact callee binding"
             )));
         } else {
-            fqn.to_string()
+            callee
         };
+        let concrete_fqn = exact_callee
+            .as_ref()
+            .map(|exact| exact.root_fqn.clone())
+            .or_else(|| program.root_for_callable_ref(target_callable).map(str::to_string))
+            .unwrap_or_else(|| {
+                panic!("codegen_lir_direct_call_with_type_args: LIR verifier accepted target without root label")
+            });
         let concrete_fqn = concrete_fqn.as_str();
         let named_intrinsic_entry = source_site
             .and_then(|site| site.named_entry_name.as_deref())
@@ -1477,7 +1473,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )? {
             return Ok(value);
         }
-        if concrete_fqn == "scoop.unsafe.invoke" || fqn == "scoop.unsafe.invoke" {
+        if concrete_fqn == "scoop.unsafe.invoke" || requested_root == "scoop.unsafe.invoke" {
             return self.codegen_lir_funptr_invoke_call(span, args, body, source_types, slots);
         }
         if let Some(value) = self.codegen_lir_top_level_funptr_direct_call(
@@ -1586,8 +1582,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.hidden_sret_result_ty(span, ret_cg)?
         };
         let published_abi_symbol = self
-            .published_late_lowered_program()
-            .and_then(|program| program.abi_symbol_for_root(concrete_fqn))
+            .abi_symbol_for_lir_callable_ref(target_callable)
             .map(|symbol| symbol.symbol.clone());
         let exact_symbol = exact_callee
             .as_ref()
@@ -1599,20 +1594,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|exact| exact.abi_symbol.as_str().to_string())
             .or_else(|| published_abi_symbol.clone())
             .unwrap_or_else(|| {
-                self.exported_abi_symbol_for_lir_callable(concrete_fqn)
+                self.exported_abi_symbol_for_lir_callable_ref(target_callable)
                     .unwrap_or_else(|err| {
                         panic!("codegen_lir_direct_call_with_type_args: missing ABI symbol: {err}")
                     })
             });
         if concrete_fqn == "scoop.core.byteLength"
-            || fqn == "scoop.core.byteLength"
+            || requested_root == "scoop.core.byteLength"
             || exact_symbol.contains("scoop_core_byteLength")
             || llvm_name.contains("scoop_core_byteLength")
         {
             return self.codegen_lir_core_string_byte_length_call(span, args, ret_cg, slots);
         }
         if concrete_fqn == "scoop.core.getByte"
-            || fqn == "scoop.core.getByte"
+            || requested_root == "scoop.core.getByte"
             || exact_symbol.contains("scoop_core_getByte")
             || llvm_name.contains("scoop_core_getByte")
         {
@@ -2130,7 +2125,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let call_may_suspend = self
             .published_late_lowered_program()
-            .and_then(|program| program.callable(fn_ptr))
+            .and_then(|program| {
+                program
+                    .callable_id_by_root(fn_ptr)
+                    .and_then(|id| program.callable_by_id(id))
+            })
             .map(|callable| callable.effect_step_abi().is_some())
             .unwrap_or_else(|| {
                 self.managed_callable_abi_identity_from_fun_ty(fun_ty)

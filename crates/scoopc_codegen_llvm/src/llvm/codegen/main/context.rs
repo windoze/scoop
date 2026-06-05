@@ -439,10 +439,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "{context}: missing LIR source call-site contract for owner `{}` site{}",
-                    self.function_cx
-                        .current_callable_fqn
-                        .as_deref()
-                        .unwrap_or("<unknown>"),
+                    self.current_callable_diagnostic_label(),
                     site_id.as_u32()
                 ),
             })
@@ -486,26 +483,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn current_published_lir_callable_id(&self) -> Option<LirCallableId> {
-        self.function_cx
-            .current_callable_fqn
-            .as_deref()
-            .and_then(|root| {
-                self.shared
-                    .published_late_lowered_program
-                    .and_then(|program| program.callable_id_by_root(root))
-            })
-            .or(self.function_cx.current_lir_callable_id)
+        self.function_cx.current_lir_callable_id
     }
 
     fn current_active_lir_callable_id(&self) -> Option<LirCallableId> {
-        self.function_cx
-            .current_callable_fqn
-            .as_deref()
-            .and_then(|root| {
-                self.active_lir_program()
-                    .and_then(|program| program.callable_id_by_root(root))
+        self.current_published_lir_callable_id()
+    }
+
+    pub(in crate::llvm::codegen) fn current_lir_callable(
+        &self,
+    ) -> Option<&'a crate::effect_lowered::LateLoweredCallable> {
+        let id = self.current_active_lir_callable_id()?;
+        self.active_lir_program()?.callable_by_id(id)
+    }
+
+    pub(in crate::llvm::codegen) fn current_callable_diagnostic_label(&self) -> String {
+        self.current_lir_callable()
+            .map(|callable| callable.root_fqn().to_string())
+            .or_else(|| {
+                self.function_cx
+                    .current_stable_owner_key
+                    .as_ref()
+                    .map(|key| key.owner_path().to_string())
             })
-            .or_else(|| self.current_published_lir_callable_id())
+            .unwrap_or_else(|| "<unknown>".to_string())
     }
 
     pub(in crate::llvm::codegen) fn required_lir_dispatch(
@@ -517,10 +518,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "{context}: missing LIR dispatch contract for owner `{}` site{}",
-                    self.function_cx
-                        .current_callable_fqn
-                        .as_deref()
-                        .unwrap_or("<unknown>"),
+                    self.current_callable_diagnostic_label(),
                     site_id.as_u32()
                 ),
             })

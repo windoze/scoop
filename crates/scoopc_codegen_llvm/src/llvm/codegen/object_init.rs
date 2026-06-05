@@ -198,7 +198,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.current_source_id = self.source_id_for_path(obj.source_path.as_path(), err_span)?;
         let stable_key = self.stable_object_init_key(&obj.fqn);
-        self.enter_root_callable_identity(private_object_init_fn_name(&stable_key), stable_key);
+        self.enter_root_callable_identity(None, stable_key);
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");

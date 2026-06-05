@@ -179,7 +179,12 @@ pub(super) fn llvm_call_boundary_continuation_composition() {
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()
@@ -487,7 +492,12 @@ pub(super) fn llvm_local_runtime_error_contract_rejects_missing_target_state() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()
@@ -578,7 +588,12 @@ pub(super) fn llvm_local_runtime_error_contract_rejects_non_local_runtime_error_
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let local_runtime_error_states = main
                 .boundary_map()
                 .entries()

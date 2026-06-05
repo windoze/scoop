@@ -77,13 +77,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let target_callable = program.callable(target_layout.root_fqn()).ok_or_else(|| {
-            frontend_error(format!(
-                "carrier shell `{}` 缺少 target callable `{}` 的 LIR body contract",
-                target.symbol_name(),
-                target_layout.root_fqn()
-            ))
-        })?;
+        let target_callable = program
+            .callable_by_version_key(target.body_version_key())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "carrier shell `{}` 缺少 target callable `{}` 的 LIR body contract",
+                    target.symbol_name(),
+                    target_layout.root_fqn()
+                ))
+            })?;
         let mir_fun = callable_source(target_callable, "carrier shell")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
@@ -92,6 +94,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind,
             carrier_fqn,
             function,
+            target_callable,
             mir_fun,
             source_types,
             abi,
@@ -268,6 +271,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         kind: CallableCarrierKind,
         carrier_fqn: &str,
         function: FunctionValue<'ctx>,
+        target_callable: &LateLoweredCallable,
         mir_fun: &mir::FunDecl,
         source_types: &TypeStore,
         abi: &ProgramAbiQuery<'ctx>,
@@ -289,6 +293,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
                 let env_components = self.load_closure_env_components(
                     receiver.into_pointer_value(),
+                    target_callable,
                     mir_fun,
                     source_types,
                     flatten_env,
@@ -445,6 +450,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn load_closure_env_components(
         &mut self,
         closure_obj_i8: PointerValue<'ctx>,
+        target_callable: &LateLoweredCallable,
         mir_fun: &mir::FunDecl,
         source_types: &TypeStore,
         flatten_env: bool,
@@ -489,8 +495,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })
             })
             .collect::<Vec<_>>();
-        let env_obj_ty =
-            self.closure_env_object_type(env_param.span, &mir_fun.fqn, source_types, &capture_cgs)?;
+        let env_obj_ty = self.closure_env_object_type(
+            env_param.span,
+            target_callable,
+            source_types,
+            &capture_cgs,
+        )?;
         let env_i8 = self.load_closure_env_ref(closure_obj_i8)?;
         let env_ptr = self.cast_ptr(
             env_i8,
@@ -587,16 +597,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn closure_env_object_type(
         &mut self,
         span: crate::span::Span,
-        fn_ptr: &str,
+        callable: &LateLoweredCallable,
         source_types: &TypeStore,
         field_cgs: &[CgTy],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let program = self.published_late_lowered_program().ok_or_else(|| {
-            frontend_error(format!("closure env `{fn_ptr}` 缺少 published LIR program"))
-        })?;
-        let callable = program.callable(fn_ptr).ok_or_else(|| {
             frontend_error(format!(
-                "closure env `{fn_ptr}` 缺少 published LIR callable stable key"
+                "closure env `{}` 缺少 published LIR program",
+                callable.root_fqn()
             ))
         })?;
         let stable_callable_key_text = super::stable_naming::callable_version_key_text(

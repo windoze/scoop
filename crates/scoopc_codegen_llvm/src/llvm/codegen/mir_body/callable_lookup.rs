@@ -16,6 +16,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fqn: &str,
     ) -> Option<(
+        LirCallableId,
         &'a TypeStore,
         &'a crate::effect_lowered::LateLoweredSourceCallable,
     )> {
@@ -24,10 +25,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let program = self.published_late_lowered_program()?;
         let source_types = self.published_late_lowered_types()?;
-        let callable = program.callable(fqn)?;
+        let callable_id = program.callable_id_by_root(fqn)?;
+        let callable = program.callable_by_id(callable_id)?;
         let source_callable = callable.source_callable()?;
         callable.executable_body()?;
-        Some((source_types, source_callable))
+        Some((callable_id, source_types, source_callable))
     }
 
     pub(in crate::llvm::codegen) fn lir_source_closure_body_symbol(
@@ -45,7 +47,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let (source_types, source_fun) = self.lir_source_callable(fn_ptr).unwrap_or_else(|| {
+        let (callable_id, source_types, source_fun) = self.lir_source_callable(fn_ptr).unwrap_or_else(|| {
             panic!(
                 "ensure_lir_source_closure_callable_defined: missing LIR source closure callable"
             )
@@ -62,6 +64,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_block = self.expect_insert_block("LIR source closure body lookup");
         let mut child = self.fresh_child_codegen();
+        child.function_cx.current_lir_callable_id = child
+            .active_lir_program()
+            .and_then(|active| active.callable_id_by_root(fn_ptr))
+            .or(Some(callable_id));
         child.current_source_id = child.lir_source_callable_source_id(fn_ptr, span)?;
         let llvm_fun = child.declare_lir_source_closure_fun(span, source_fun, source_types)?;
         if llvm_fun.count_basic_blocks() == 0 {
@@ -191,7 +197,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let llvm_name = match surface {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
-                self.exported_abi_symbol_for_lir_callable(&source_fun.fqn)?
+                self.exported_abi_symbol_for_lir_root(&source_fun.fqn)?
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
             | LlvmFunctionDeclarationSurface::CompilerPrivateHelper => llvm_name.to_string(),
@@ -284,7 +290,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else if llvm_name != owner_fqn {
                     llvm_name.to_string()
                 } else {
-                    self.exported_abi_symbol_for_lir_callable(owner_fqn)?
+                    self.exported_abi_symbol_for_lir_root(owner_fqn)?
                 }
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
@@ -402,12 +408,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let executable_body = self
             .published_late_lowered_program()
-            .and_then(|program| program.callable(&source_fun.fqn))
+            .and_then(|program| {
+                program
+                    .callable_id_by_root(&source_fun.fqn)
+                    .and_then(|id| program.callable_by_id(id))
+            })
             .and_then(|callable| callable.executable_body())
             .unwrap_or_else(|| {
                 panic!("codegen_lir_source_closure_fun: missing LIR executable closure body")
             });
-        self.function_cx.current_callable_fqn = Some(source_fun.fqn.clone());
 
         let declared_return_cg = self
             .cg_ty_of_mir_type(source_types, source_fun.return_ty)

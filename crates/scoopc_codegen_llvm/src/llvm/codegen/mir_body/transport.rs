@@ -347,10 +347,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn current_codegen_body_fqn(&self) -> String {
-        self.function_cx
-            .current_callable_fqn
-            .clone()
-            .unwrap_or_else(|| "<unknown>".to_string())
+        self.current_callable_diagnostic_label()
     }
 
     pub(in crate::llvm::codegen) fn codegen_mir_type_metadata_literal(

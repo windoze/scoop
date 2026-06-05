@@ -125,13 +125,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<bool> {
-        if let Some(callable) = self
-            .published_late_lowered_program()
-            .and_then(|program| program.callable(callable_fqn))
-        {
+        if let Some(callable) = self.published_late_lowered_program().and_then(|program| {
+            program
+                .callable_id_by_root(callable_fqn)
+                .and_then(|id| program.callable_by_id(id))
+        }) {
             return Some(callable.effect_step_abi().is_some());
         }
-        if let Some((callable_types, callable_fun)) = self.lir_source_callable(callable_fqn) {
+        if let Some((_, callable_types, callable_fun)) = self.lir_source_callable(callable_fqn) {
             return Some(
                 mir_source::summarize_pass_rewritten_fun(callable_fun, callable_types, None)
                     .may_outward_effect,
@@ -368,7 +369,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[mir_source::CallArg],
         visiting: &mut HashSet<mir_source::LocalId>,
     ) -> Option<String> {
-        let (callee_types, callable_fun) = self.lir_source_callable(callee_fqn)?;
+        let (_, callee_types, callable_fun) = self.lir_source_callable(callee_fqn)?;
         let summary = mir_source::summarize_pass_rewritten_fun(callable_fun, callee_types, None);
         self.mir_callable_value_fqn_from_result(
             body,

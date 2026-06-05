@@ -576,7 +576,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let saved_source_id = self.current_source_id;
-        let saved_callable_fqn = self.function_cx.current_callable_fqn.clone();
+        let saved_lir_callable_id = self.function_cx.current_lir_callable_id;
         let saved_stable_owner_key = self.function_cx.current_stable_owner_key.clone();
         let saved_class_ctor_source_contracts =
             self.function_cx.active_class_ctor_source_contracts.clone();
@@ -590,7 +590,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id =
             self.source_id_for_path(init_body.source_path().as_path(), callee_span)?;
         let class_key = class.key();
-        self.function_cx.current_callable_fqn = Some(format!("{}.<init>", class_key.as_str()));
+        self.function_cx.current_lir_callable_id = None;
         self.function_cx.current_stable_owner_key = Some(self.stable_def_key_for_source_path(
             class.source_path.as_path(),
             StableDefNamespace::Type,
@@ -707,7 +707,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })();
 
         self.current_source_id = saved_source_id;
-        self.function_cx.current_callable_fqn = saved_callable_fqn;
+        self.function_cx.current_lir_callable_id = saved_lir_callable_id;
         self.function_cx.current_stable_owner_key = saved_stable_owner_key;
         self.function_cx.active_class_ctor_source_contracts = saved_class_ctor_source_contracts;
         self.function_cx.next_class_ctor_source_contract = saved_next_class_ctor_source_contract;

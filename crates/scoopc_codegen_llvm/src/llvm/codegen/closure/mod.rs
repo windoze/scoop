@@ -507,7 +507,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(spec.llvm_fun)?;
         self.enter_nested_closure_identity(
-            spec.callable_fqn.to_string(),
+            None,
             spec.root_stable_owner_key.clone(),
             spec.stable_closure_key.lexical_path(),
         );

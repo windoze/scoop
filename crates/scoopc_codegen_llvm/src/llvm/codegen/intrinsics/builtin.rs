@@ -329,11 +329,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let source_ty = self.fail_legacy_hir_reflection_intrinsic(span, "descOf")?;
         let raw = if self.array_elem_kind_for_type_id(source_ty) == 3 {
-            let body_fqn = self
-                .function_cx
-                .current_callable_fqn
-                .clone()
-                .unwrap_or_else(|| "<descOf>".to_string());
+            let body_fqn = self.current_codegen_body_fqn();
             let metadata =
                 mir::ValueTransportMetadata::plain(source_ty, mir::MirTransportKind::ArrayElement);
             let descriptor = self.get_or_create_value_composite_transport_descriptor_global(

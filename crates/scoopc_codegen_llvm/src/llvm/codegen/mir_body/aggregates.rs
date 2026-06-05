@@ -266,11 +266,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ));
         }
 
-        let body_fqn = self
-            .function_cx
-            .current_callable_fqn
-            .clone()
-            .unwrap_or_else(|| "<mir-descOf>".to_string());
+        let body_fqn = self.current_codegen_body_fqn();
         let metadata = mir_source::ValueTransportMetadata::plain(
             value_ty,
             mir_source::MirTransportKind::ArrayElement,
@@ -1252,7 +1248,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        if let Some((callable_types, callable)) = self.lir_source_callable(fn_ptr) {
+        if let Some((_, callable_types, callable)) = self.lir_source_callable(fn_ptr) {
             let mut params = Vec::with_capacity(callable.params.len().saturating_sub(1));
             let mut value_params = callable.params.iter().skip(1).peekable();
             let receiver = if value_params
