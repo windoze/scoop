@@ -335,14 +335,41 @@
 - 验收 grep 通过：carrier target map / physical FQN target field / 旧 FQN lookup helper 三组生产路径 grep 均无命中；`_fqn` 抽样未发现本任务范围内新增 live callable FQN 查找。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
+### [TODO] TC-04-FIX3：清除 source-callable/direct-call 残留 FQN live lookup
+
+**目标**：修复 `TC-04-R` 在 `TC-04-FIX2` 后继续发现的生产路径 FQN live callable lookup：source callable / closure body、direct call ABI/signature、plain/effect callable layout 查询必须改为消费 `LirCallableId` / `LirCallableRef` / body-version key / 已发布 call-site contract。FQN 字符串只能保留为 LLVM symbol 名、诊断文本、source-signature 文本字段，或非 callable 的 nominal/global layout key。
+
+**阻塞来源（2026-06-05，TC-04-R 复审时发现）**：旧 helper / carrier target grep 已清零，但更广义 `_fqn` 抽样和 root-equality 搜索仍发现生产代码通过 callable root/FQN 选择 live callable facts、signature 或 layout：
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/call/abi.rs`：`published_lir_callable_facts_by_root`、`published_callable_signature_impl`、`published_callable_signature_with_names_impl` 通过 `program.callables().iter().find(|callable| callable.root_fqn() == callable_fqn)` 选择 callable facts；`direct_call_abi_identity` / `callable_uses_explicit_effect_hidden_abi` / `callable_needs_callee_resume_shell` 仍以 FQN 为入口。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/callable_lookup.rs`：`lir_source_callable(fqn)` 和 `codegen_lir_source_closure_fun` 仍按 root/FQN 扫描 `LateLoweredProgram`，再把结果用于 closure source body、source id 和 stable closure identity。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs`：LIR direct-call path 把 `LirCallableRef` / `exact_callee.target_callable` 转成 `concrete_fqn`，再调用 FQN-based ABI/signature/declaration helper。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs` 与 `effect_lowered/value.rs`：`callable_layout_for_root_text`、`plain_callable_layout_for_root_text`、`maybe_plain_callable_layout_for_root_text` 及其 callers 仍按 root 字符串选择 callable layout。
+- `closure/mod.rs`、`mir_body/{aggregates,operand,dispatch}.rs`、`gc.rs`、`call/lowering.rs` 等生产路径仍调用上述 FQN-based helper 或 `published_symbol_for_source_root_text` 参与 callable surface/ABI 判断。
+
+**步骤**：
+- S1：新增/迁移 source callable、published signature、ABI identity、effect hidden ABI 判定入口，使其消费 `LirCallableId` / `LirCallableRef` / body-version key；删除或测试隔离 `published_lir_callable_facts_by_root`、`lir_source_callable(fqn)` 等 root-scan helper。
+- S2：direct call lowering 全程保留 LIR call-site 的 `target_callable` / `callee` handle；ABI identity、signature、symbol declaration 和 native/external classification 均按 handle/contract 查询，FQN 仅作为 label/diagnostic。
+- S3：effect/plain callable layout 查询改用 `callable_layout_for_ref`、`plain_callable_layout_for_id/ref`、body-version key 或 stable hash；删除生产路径 `*_for_root_text` helper。
+- S4：closure/function-value provenance 若仍只携带 FQN，回 producer 补 callable handle/hash，不在 codegen 用 FQN 反查。
+
+**严禁**：不得新增 `lir_*_to_mir` 反向转换；不得把 `LirCallableId` / `LirCallableRef` 转回 FQN 再查；不得通过 root/FQN equality、string fallback、`is_ok()` 探测 ABI surface 或多版本时按 FQN 猜测 authoritative version。
+
+**验收**：
+- `rg -n "published_lir_callable_facts_by_root|lir_source_callable\(|stable_closure_key_for_lir_source_callable|published_symbol_for_source_root_text|published_callable_signature\(|published_callable_signature_with_names\(|published_codegen_callable_signature\(|direct_call_abi_identity\(|callable_uses_explicit_effect_hidden_abi\(|callable_needs_callee_resume_shell\(|callable_layout_for_root_text|plain_callable_layout_for_root_text|maybe_plain_callable_layout_for_root_text" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 生产路径清零或重命名为 handle-native API 且不以 FQN/root 为输入。
+- `rg -n "root_fqn\(\)\s*==|==\s*[^\n]*root_fqn\(\)|root_fqn\s*==|program\.callables\(\).*root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 不再命中 production live callable 选择；剩余命中必须仅为诊断、symbol 名生成或测试。
+- `rg -n "program\.callable\(|\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无生产命中。
+- `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均非 live callable 查找。
+- §9 基线绿。
+
 ### [TODO] TC-04-R：Review TC-04
 - **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。
 - **确认**：上述 grep 仅余符号名/诊断用法；`grep -rn "_fqn" .../codegen` 抽样确认剩余均非 live 查找；§9 绿。
-- **依赖**：`TC-04-FIX1`、`TC-04-FIX2`。
+- **依赖**：`TC-04-FIX1`、`TC-04-FIX2`、`TC-04-FIX3`。
 
 **审查阻塞记录（2026-06-05）**：
 - `TC-04-R` 静态审查发现 `TC-04` 仍有生产路径 root/FQN live callable 查找，已新增前置修复任务 `TC-04-FIX1`；本 review 保持未完成，待该修复完成后重新执行确认。
 - `TC-04-R` 复审确认 `TC-04-FIX1` 已清除旧 helper 命中，但 carrier/dispatch 发布与 registry 仍以 callable root/FQN 字符串选择 live target/layout/facts；已新增前置修复任务 `TC-04-FIX2`，本 review 保持未完成。
+- `TC-04-R` 复审确认 `TC-04-FIX2` 已清除旧 carrier/dispatch target grep 命中，但 source callable、direct-call ABI/signature 和 layout 查询仍有生产路径按 callable root/FQN 选择 live facts/layout；已新增前置修复任务 `TC-04-FIX3`，本 review 保持未完成。
 
 ### [TODO] TC-05：删除 overlay
 
