@@ -18,12 +18,12 @@ use inkwell::values::{
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 use scoopc_lir_facts::LirGlobalRootKind;
 
-use crate::effect_lowered::LirCallArg;
 use crate::effect_lowered::ir::{
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainCallSite,
     LateLoweredProgram, LateLoweredSourceBody,
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId};
+use crate::effect_lowered::{LirCallArg, LirExecutableBody, LirStatement};
 use crate::llvm::LlvmEmitError;
 use crate::span::Span;
 use crate::stable_id::canonical_record;
@@ -143,7 +143,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn pack_lir_call_args_for_invoke_args_tuple(
+    pub(in crate::llvm::codegen) fn pack_lir_call_args_for_invoke_args_tuple(
         &mut self,
         span: Span,
         abi: &ProgramAbiQuery<'ctx>,
@@ -571,6 +571,23 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     }
 
     pub(super) fn lower_effect_neutral_statement(
+        &mut self,
+        stmt: &LirStatement,
+        lir_body: &LirExecutableBody,
+        used_locals: &HashSet<LocalId>,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen.codegen_lir_statement(
+            stmt,
+            lir_body,
+            self.source_types,
+            self.slots,
+            used_locals,
+            Some(self.abi),
+        )
+    }
+
+    #[allow(dead_code)]
+    fn lower_mir_effect_neutral_statement(
         &mut self,
         stmt: &mir::Statement,
         used_locals: &HashSet<LocalId>,

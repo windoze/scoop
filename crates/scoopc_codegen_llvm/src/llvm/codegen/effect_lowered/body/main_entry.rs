@@ -525,7 +525,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 abi,
                 callable,
                 mir_fun,
-                body,
                 function,
                 None,
                 None,

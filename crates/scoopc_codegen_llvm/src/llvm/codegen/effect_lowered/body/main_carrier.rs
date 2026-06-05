@@ -14,7 +14,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         validate_callable_entry_layout(layout)?;
         let direct_fun = self.function(layout.direct_entry().symbol_name())?;
         if direct_fun.count_basic_blocks() == 0 {
-            let (mir_fun, body) = callable_source_body(callable, "body lowering")?;
+            let (mir_fun, _body) = callable_source_body(callable, "body lowering")?;
             let entry = self.context.append_basic_block(direct_fun, "entry");
             self.builder.position_at_end(entry);
             self.begin_function_explicit_frame_layout(direct_fun)?;
@@ -25,7 +25,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 abi,
                 callable,
                 mir_fun,
-                body,
                 direct_fun,
                 None,
                 None,

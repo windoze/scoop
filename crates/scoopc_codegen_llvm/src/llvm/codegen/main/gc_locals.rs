@@ -166,9 +166,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (_, value_ptr_ty, frame_slot) in
             self.explicit_frame_leaf_slot_pairs_for_storage_slot(at, slot, value_ty, name_prefix)?
         {
-            let _ = self
+            let store = self
                 .builder
                 .build_store(frame_slot, value_ptr_ty.const_null())?;
+            store
+                .set_volatile(true)
+                .map_err(|err| LlvmEmitError::Frontend {
+                    message: format!("GC spill root clear 无法标记 volatile: {err}"),
+                })?;
         }
         Ok(())
     }

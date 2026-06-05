@@ -1,9 +1,9 @@
 //! LLVM effect-lowered body codegen（P6-T03）。
 //!
-//! This module lowers the P5 late-lowered state graph directly.  Generic MIR
-//! lowering is reused only for effect-neutral source slices; every boundary,
-//! resume payload binding, completion payload, and state transition comes from
-//! the published late-lowered / ABI query contract.
+//! This module lowers the P5 late-lowered state graph directly.  State-owned
+//! statements are consumed from LIR; every boundary, resume payload binding,
+//! completion payload, and state transition comes from the published
+//! late-lowered / ABI query contract.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
@@ -27,15 +27,17 @@ use crate::effect_lowered::ir::{
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingCompletionOrigin, LateLoweredHandleStateRegion,
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
-    LateLoweredSourceBody, LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
-    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind, LateLoweredState,
+    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCaseForwarding,
+    LateLoweredStepDispatchPlan, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
     SystemSlotKind,
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId, SiteId};
-use crate::effect_lowered::{LateLoweredProgram, LirBodyAnchor, LirStatementIndex};
+use crate::effect_lowered::{
+    LateLoweredProgram, LirBodyAnchor, LirCallArg, LirCallKind, LirExecutableBody, LirMemberTarget,
+    LirOperand, LirRvalue, LirStatement, LirStatementIndex, LirStatementKind, LirTopLevelRefTarget,
+};
 use crate::llvm::{EntryRef, LlvmEmitError};
 use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -90,7 +92,7 @@ fn callable_source<'a>(
 fn callable_source_body<'a>(
     callable: &'a LateLoweredCallable,
     context: &str,
-) -> Result<(&'a LateLoweredSourceCallable, &'a LateLoweredSourceBody), LlvmEmitError> {
+) -> Result<(&'a LateLoweredSourceCallable, &'a mir::Body), LlvmEmitError> {
     let source = callable_source(callable, context)?;
     let body = source.body.as_ref().ok_or_else(|| {
         frontend_error(format!(

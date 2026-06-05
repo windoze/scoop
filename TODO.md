@@ -203,7 +203,7 @@
 - 语义等价由 LLVM/codegen 单测、fixture build/run/golden 检查和完整 fixture suite 覆盖；未发现需要在本 review 中修复或新增前置任务的失败。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-03：effect 路径语句改 walk LIR
+### [DONE] TC-03：effect 路径语句改 walk LIR
 
 **目标**：effect-step 路径的**语句发射**从 MIR source-slice 改为 LIR 指令。state 遍历本就已是 LIR 句柄（`emitter.rs:117` `for state in callable.state_graph().states()`），本任务只动「state 内语句」这一层。**依赖 TC-01**。
 
@@ -222,6 +222,14 @@
 **验收**：
 - `grep -rnE "\.source_body\(\)|\.source_slices\(\)|LateLoweredSourceBody|mir::Rvalue|mir::Statement" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` → 语句消费清零（boundary/state 控制流的非语句用法除外）。
 - §9 基线绿；effect-step fixture 行为不变。
+
+**完成记录（2026-06-05）**：
+- `CallableEmitter` 改以 `LirExecutableBody` 作为 effect/local-control body 的语句与 local slot 权威来源；state 发射从 `state.statements()` 遍历 LIR `LirStatement`，不再经 `source_slices()` 回读 MIR statement。
+- `lower_effect_neutral_statement` / dynamic invoke / class ctor boundary 改吃 LIR statement、LIR call args 和 `LirBodyAnchor` classification；class ctor hidden-init source、composed-call replay prefix、completion payload verifier 均通过 LIR statement anchor 定位。
+- `effect_lowered/body` 验收 grep 清零：`.source_body()` / `.source_slices()` / `LateLoweredSourceBody` / `mir::Rvalue` / `mir::Statement` 均无命中；删除已无调用的 MIR local-use 收集链。
+- 修复迁移后暴露的 LIR class ctor cleanup GC 残差：失败构造对象的 deferred root 在返回后清理，spill root clear store 标记为 volatile，保持 `class_init_raise_cleanup_*_gc_basic` 行为不变。
+- 更新 LLVM runtime type primitive 单测中 `!is` 的 IR 名称期望，从旧 MIR label 切到 LIR label。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-03-R：Review TC-03
 - **关注点**：effect-step 每条语句来自 LIR、与原 MIR slice 等价；boundary/state 控制流仍正确；无 MIR 语句 slice 残留、无占位/`Result`-on-input。

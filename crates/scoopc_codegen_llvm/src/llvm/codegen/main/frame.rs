@@ -421,12 +421,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(Vec::new());
         }
 
+        let original_frame_slots = self
+            .explicit_frame_slot_mirrors_for(slot)
+            .map(|slots| slots.to_vec());
         let slot =
             self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
-        let Some(frame_slots) = self
-            .explicit_frame_slot_mirrors_for(slot)
-            .map(|slots| slots.to_vec())
-        else {
+        let Some(frame_slots) = original_frame_slots.or_else(|| {
+            self.explicit_frame_slot_mirrors_for(slot)
+                .map(|slots| slots.to_vec())
+        }) else {
             return Ok(Vec::new());
         };
 

@@ -20,7 +20,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let (mir_fun, body) = callable_source_body(callable, "resume method")?;
+        let (mir_fun, _body) = callable_source_body(callable, "resume method")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -31,7 +31,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             function,
             None,
             None,
@@ -680,7 +679,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let (mir_fun, body) = callable_source_body(callable, "outcome owner core")?;
+        let (mir_fun, _body) = callable_source_body(callable, "outcome owner core")?;
         let entry = self.context.append_basic_block(core_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(core_fun)?;
@@ -691,7 +690,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             core_fun,
             None,
             None,
@@ -741,7 +739,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let (mir_fun, body) = callable_source_body(callable, "outcome owner wrapper")?;
+        let (mir_fun, _body) = callable_source_body(callable, "outcome owner wrapper")?;
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
@@ -752,7 +750,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             outcome_fun,
             target.wrapper_projection(),
             None,
@@ -797,7 +794,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let (mir_fun, body) = callable_source_body(callable, "continuation step")?;
+        let (mir_fun, _body) = callable_source_body(callable, "continuation step")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -808,7 +805,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             function,
             None,
             None,
@@ -857,7 +853,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let (mir_fun, body) = callable_source_body(callable, "continuation drive owner outcome")?;
+        let (mir_fun, _body) = callable_source_body(callable, "continuation drive owner outcome")?;
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
@@ -868,7 +864,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             outcome_fun,
             None,
             None,
@@ -952,7 +947,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 target.owner_step_schema().as_u32()
             )));
         }
-        let (mir_fun, body) = callable_source_body(callable, "surface resume owner dispatch")?;
+        let (mir_fun, _body) = callable_source_body(callable, "surface resume owner dispatch")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -989,7 +984,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
             function,
             target.wrapper_projection(),
             return_step_schema,

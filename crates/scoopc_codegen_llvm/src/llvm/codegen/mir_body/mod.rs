@@ -294,31 +294,6 @@ fn map_lir_call_args_to_param_names(
     (out.len() == param_names.len()).then_some(out)
 }
 
-pub(super) fn collect_mir_local_uses(body: &mir_source::Body) -> HashSet<mir_source::LocalId> {
-    let mut out = HashSet::new();
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            match &stmt.kind {
-                mir_source::StatementKind::Assign { value, .. } => {
-                    collect_mir_rvalue_uses(value, &mut out);
-                }
-                mir_source::StatementKind::StoreMember {
-                    receiver, value, ..
-                } => {
-                    collect_mir_operand_use(receiver, &mut out);
-                    collect_mir_operand_use(value, &mut out);
-                }
-                mir_source::StatementKind::StoreTopLevelVar { value, .. } => {
-                    collect_mir_operand_use(value, &mut out);
-                }
-                mir_source::StatementKind::Nop | mir_source::StatementKind::Todo(_) => {}
-            }
-        }
-        collect_mir_terminator_uses(&block.terminator.kind, &mut out);
-    }
-    out
-}
-
 pub(super) fn collect_lir_local_uses(
     body: &LirExecutableBody,
     source_types: &TypeStore,
@@ -345,12 +320,6 @@ pub(super) fn collect_lir_local_uses(
         collect_lir_terminator_uses(state.body().terminator(), &mut out);
     }
     out
-}
-
-fn collect_mir_operand_use(operand: &mir_source::Operand, out: &mut HashSet<mir_source::LocalId>) {
-    if let mir_source::Operand::Local(local) = operand {
-        out.insert(*local);
-    }
 }
 
 fn collect_lir_operand_use(
@@ -478,108 +447,6 @@ fn collect_lir_terminator_uses(
         | LateLoweredStateTerminator::ResumeUnwind
         | LateLoweredStateTerminator::Unreachable
         | LateLoweredStateTerminator::Abandon => {}
-    }
-}
-
-fn collect_mir_call_kind_uses(kind: &mir_source::CallKind, out: &mut HashSet<mir_source::LocalId>) {
-    match kind {
-        mir_source::CallKind::Direct { .. } => {}
-        mir_source::CallKind::Closure { callee, .. }
-        | mir_source::CallKind::FunValue { callee }
-        | mir_source::CallKind::FunPtr { callee } => collect_mir_operand_use(callee, out),
-        mir_source::CallKind::Virtual { receiver, .. }
-        | mir_source::CallKind::Interface { receiver, .. } => {
-            collect_mir_operand_use(receiver, out);
-        }
-        mir_source::CallKind::Resume { continuation, .. } => {
-            collect_mir_operand_use(continuation, out);
-        }
-    }
-}
-
-fn collect_mir_rvalue_uses(value: &mir_source::Rvalue, out: &mut HashSet<mir_source::LocalId>) {
-    match value {
-        mir_source::Rvalue::Use(operand)
-        | mir_source::Rvalue::Transport { value: operand, .. }
-        | mir_source::Rvalue::TypeCheck { value: operand, .. }
-        | mir_source::Rvalue::Cast { value: operand, .. }
-        | mir_source::Rvalue::MemberAccess {
-            receiver: operand, ..
-        }
-        | mir_source::Rvalue::TupleGet { tuple: operand, .. }
-        | mir_source::Rvalue::PatternMatch {
-            subject: operand, ..
-        }
-        | mir_source::Rvalue::PatternExtract {
-            subject: operand, ..
-        } => collect_mir_operand_use(operand, out),
-        mir_source::Rvalue::Call { kind, args, .. } => {
-            collect_mir_call_kind_uses(kind, out);
-            for arg in args {
-                collect_mir_operand_use(&arg.value, out);
-            }
-        }
-        mir_source::Rvalue::EnumVariant { args, .. } => {
-            for arg in args {
-                collect_mir_operand_use(&arg.value, out);
-            }
-        }
-        mir_source::Rvalue::ClassCtor { args, .. } => {
-            for arg in args {
-                collect_mir_operand_use(&arg.value, out);
-            }
-        }
-        mir_source::Rvalue::MakeTuple { elements, .. } => {
-            for element in elements {
-                collect_mir_operand_use(element, out);
-            }
-        }
-        mir_source::Rvalue::StructLit { fields, .. } => {
-            for field in fields {
-                collect_mir_operand_use(&field.value, out);
-            }
-        }
-        mir_source::Rvalue::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let mir_source::InterpolatedStringPart::Expr { value, .. } = part {
-                    collect_mir_operand_use(value, out);
-                }
-            }
-        }
-        mir_source::Rvalue::MakeClosure { env, .. } => collect_mir_operand_use(env, out),
-        mir_source::Rvalue::TopLevelRef(_)
-        | mir_source::Rvalue::UnresolvedName { .. }
-        | mir_source::Rvalue::SizeOf { .. }
-        | mir_source::Rvalue::KindOf { .. }
-        | mir_source::Rvalue::AlignOf { .. }
-        | mir_source::Rvalue::DescOf { .. }
-        | mir_source::Rvalue::TypeMetadataLiteral(_)
-        | mir_source::Rvalue::PerformResult { .. }
-        | mir_source::Rvalue::Todo(_) => {}
-    }
-}
-
-fn collect_mir_terminator_uses(
-    terminator: &mir_source::TerminatorKind,
-    out: &mut HashSet<mir_source::LocalId>,
-) {
-    match terminator {
-        mir_source::TerminatorKind::Return { value } => {
-            if let Some(value) = value {
-                collect_mir_operand_use(value, out);
-            }
-        }
-        mir_source::TerminatorKind::CondBr { cond, .. } => collect_mir_operand_use(cond, out),
-        mir_source::TerminatorKind::Perform { args, .. } => {
-            for arg in args {
-                collect_mir_operand_use(&arg.value, out);
-            }
-        }
-        mir_source::TerminatorKind::ResumeUnwind
-        | mir_source::TerminatorKind::Goto { .. }
-        | mir_source::TerminatorKind::Unreachable
-        | mir_source::TerminatorKind::Handle { .. }
-        | mir_source::TerminatorKind::Todo(_) => {}
     }
 }
 

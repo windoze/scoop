@@ -1551,8 +1551,8 @@ fun main(): Int {
         );
 
         assert!(
-            ir.contains("mir_typecheck_not"),
-            "`!is` should lower as a runtime type test plus boolean negation:\n{ir}"
+            ir.contains("lir_typecheck_not"),
+            "`!is` should lower from LIR as a runtime type test plus boolean negation:\n{ir}"
         );
         assert!(
             ir.contains("mir_asq_value"),
