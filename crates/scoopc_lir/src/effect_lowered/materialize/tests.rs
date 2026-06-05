@@ -766,7 +766,7 @@ fun main(): Int {
                 value:
                     Rvalue::Call {
                         site_id,
-                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                         ..
                     },
                 ..

@@ -1,0 +1,28 @@
+// IGNORE-UNTIL-FIX: owner-eff/标准委托端到端未完成，Fact 重构批 4（T4-03/T4-04）恢复
+// EXPECT: pass
+// RUN-STDOUT: delegate_library_wrappers_construct_basic.stdout
+//
+// P5-T01R: direct construction coverage for the standard delegate library
+// wrappers. Full `by` behavior remains covered by the standard delegated
+// property fixtures until P5-T02 removes the temporary by-name lowering.
+// SYSROOT-DEPS: scoop.sync
+
+import scoop.core.*
+import scoop.delegates.*
+
+fun main(): Int {
+    val noneLazy: Lazy<Int> = lazy<Int>(LazyThreadSafetyMode.None) { 10 }
+    val syncLazy: Lazy<Int> = lazy<Int> { 20 }
+    val publicationLazy: Lazy<Int> = lazy<Int>(LazyThreadSafetyMode.Publication) { 30 }
+    val observableProperty: ObservableProperty<Int> = observable<Int>(1) { old, new -> () }
+    val vetoableProperty: VetoableProperty<Int> = vetoable<Int>(5) { old, new -> new > old }
+
+    val _keep1: Lazy<Int> = noneLazy
+    val _keep2: Lazy<Int> = syncLazy
+    val _keep3: Lazy<Int> = publicationLazy
+    val _keep4: ObservableProperty<Int> = observableProperty
+    val _keep5: VetoableProperty<Int> = vetoableProperty
+
+    println("constructed")
+    return 0
+}

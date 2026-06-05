@@ -1,7 +1,10 @@
 //! Declaration and entity facts published by the HIR semantic barrier.
 
+use std::path::PathBuf;
+
 use scoopc_ids::CanonicalTextKey;
 use scoopc_source::SourceMapSpan;
+use scoopc_span::Span;
 use scoopc_types::{EffectRow, TypeId};
 
 use crate::common::FactIdentity;
@@ -11,6 +14,8 @@ use crate::common::FactIdentity;
 pub struct DeclarationFacts {
     pub nominals: Vec<NominalDeclarationFact>,
     pub callables: Vec<CallableDeclarationFact>,
+    pub generic_templates: Vec<GenericTemplateFact>,
+    pub callable_bodies: Vec<CallableBodyFact>,
     pub fields: Vec<FieldDeclarationFact>,
     pub enum_variants: Vec<EnumVariantDeclarationFact>,
     pub dispatch: DispatchFacts,
@@ -21,6 +26,8 @@ impl DeclarationFacts {
     pub fn is_empty(&self) -> bool {
         self.nominals.is_empty()
             && self.callables.is_empty()
+            && self.generic_templates.is_empty()
+            && self.callable_bodies.is_empty()
             && self.fields.is_empty()
             && self.enum_variants.is_empty()
             && self.dispatch.is_empty()
@@ -74,6 +81,41 @@ pub struct CallableDeclarationFact {
     pub effects: EffectRow,
     pub type_params: Vec<TypeParameterFact>,
     pub has_body: bool,
+}
+
+/// Materializer-ready generic template inventory published by the HIR barrier.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct GenericTemplateFact {
+    pub identity: FactIdentity,
+    pub stable_template_key: CanonicalTextKey,
+    pub canonical_root_key: CanonicalTextKey,
+    pub template_fqn: String,
+    pub template_source_path: PathBuf,
+    pub template_decl_span: Span,
+    pub request_fqn: String,
+    pub request_source_path: PathBuf,
+    pub request_span: Span,
+    pub owner_type_param_names: Vec<String>,
+    pub function_type_param_names: Vec<String>,
+    pub owner_eff_param_name: Option<String>,
+    pub function_eff_param_name: Option<String>,
+    pub signature_key: CanonicalTextKey,
+    pub has_body: bool,
+    pub body_key: Option<CanonicalTextKey>,
+}
+
+/// Materializer-ready callable body inventory published by the HIR barrier.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct CallableBodyFact {
+    pub identity: FactIdentity,
+    pub body_key: CanonicalTextKey,
+    pub request_fqn: String,
+    pub request_source_path: PathBuf,
+    pub request_span: Span,
+    pub source_path: PathBuf,
+    pub fqn: String,
+    pub body_span: Span,
+    pub stable_template_key: Option<CanonicalTextKey>,
 }
 
 /// Source-level family for a field or property owner.

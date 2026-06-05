@@ -623,11 +623,11 @@ File {
 
 
 hir_facts {
-  declarations: nominals=75, callables=4, fields=45, enum_variants=24, vtables=54, itables=32
-  source_sites: function_effects=4, calls=8, args=0, assigns=0, updates=0, performs=3, handles=1, resumes=1, patterns=0, top_level_roots=0, extern_globals=0
-  globals: roots=1, object_inits=1, class_inits=22
+  declarations: nominals=85, callables=4, fields=62, enum_variants=24, vtables=64, itables=37
+  source_sites: function_effects=4, callable_source_effects=4, semantic_ops=8, hidden_initializers=21, calls=8, args=0, assigns=0, updates=0, performs=3, handles=1, resumes=1, patterns=0, top_level_roots=0, extern_globals=0
+  globals: roots=1, object_inits=1, class_inits=30
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
-  type_context: universe=hir-stage-type-store, type_params=85, source_cones=8
+  type_context: universe=hir-stage-type-store, type_params=93, source_cones=9
 }
 
 source_site_contracts {
@@ -671,7 +671,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.equals",
-            target_decl_span: Some(22106..22112),
+            target_decl_span: Some(22342..22348),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -693,7 +693,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(20681..20685),
+            target_decl_span: Some(20917..20921),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -704,7 +704,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.equals",
-            target_decl_span: Some(22106..22112),
+            target_decl_span: Some(22342..22348),
             target_type_args: [],
             target_eff_args: [],
         },
@@ -726,7 +726,7 @@ source_site_contracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(20681..20685),
+            target_decl_span: Some(20917..20921),
             target_type_args: [],
             target_eff_args: [],
         },

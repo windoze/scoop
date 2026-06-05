@@ -10,7 +10,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
     ) -> Result<(), LlvmEmitError> {
         let site_id = boundary_site(boundary, "ClassCtor")?;
-        let source = self.class_ctor_boundary_statement(lowering, site_id)?;
+        let source = self.class_ctor_boundary_statement(boundary, lowering, site_id)?;
         match &source {
             ClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
                 let class_layout_key = self.class_ctor_layout_key(
@@ -26,8 +26,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         site_id.as_u32(),
                         |cg| {
                             cg.with_ordinary_effect_propagation_suppressed(|cg| {
-                                cg.codegen_mir_class_ctor_call(
+                                cg.codegen_lir_class_ctor_call(
                                     *span,
+                                    site_id,
                                     &class_layout_key,
                                     ctor,
                                     &args,
@@ -330,10 +331,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         result_local: LocalId,
     ) -> Result<crate::effect_lowered::source::ClassInstanceKey, LlvmEmitError> {
         let Some(target_ty) = self
-            .body
-            .locals
+            .lir_body
+            .locals()
             .get(result_local.as_u32() as usize)
-            .map(|local| local.ty)
+            .map(|local| local.ty())
         else {
             return Err(frontend_error(format!(
                 "class ctor boundary `{class_fqn}` at {span:?} result local{} missing typed nominal result",
@@ -367,6 +368,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn class_ctor_boundary_statement(
         &self,
+        boundary: &LateLoweredBoundary,
         lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
         site_id: SiteId,
     ) -> Result<ClassCtorBoundarySource<'a>, LlvmEmitError> {
@@ -377,28 +379,16 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             )));
         };
         let source_slice = lowering.source_consumption().source_slice();
-        let block = self
-            .body
-            .blocks
-            .get(source_slice.block_id().as_u32() as usize)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "class ctor boundary site{} source block bb{} 不存在",
-                    site_id.as_u32(),
-                    source_slice.block_id().as_u32()
-                ))
-            })?;
-        let stmt = block.stmts.get(statement_index as usize).ok_or_else(|| {
-            frontend_error(format!(
-                "class ctor boundary site{} source statement {} 不存在",
-                site_id.as_u32(),
-                statement_index
-            ))
-        })?;
+        let (stmt, _) = self.lir_statement_for_source_position(
+            boundary.owner_state(),
+            source_slice,
+            statement_index,
+            "class ctor boundary",
+        )?;
         match &stmt.kind {
-            mir::StatementKind::Assign {
+            LirStatementKind::Assign {
                 value:
-                    mir::Rvalue::ClassCtor {
+                    LirRvalue::ClassCtor {
                         site_id: stmt_site,
                         ctor,
                         args,
@@ -410,25 +400,33 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 ctor,
                 args,
             }),
-            mir::StatementKind::Assign {
-                value: mir::Rvalue::TopLevelRef(top_level),
+            LirStatementKind::Assign {
+                value: LirRvalue::TopLevelRef(top_level),
                 ..
             } if top_level.site_id == Some(site_id) && !top_level.hidden_effects.is_pure() => {
-                Ok(ClassCtorBoundarySource::TopLevelRef {
-                    span: stmt.span,
-                    fqn: &top_level.fqn,
-                })
+                match &top_level.target {
+                    LirTopLevelRefTarget::Global(root) => {
+                        Ok(ClassCtorBoundarySource::TopLevelRef {
+                            span: stmt.span,
+                            fqn: root.as_str(),
+                        })
+                    }
+                    LirTopLevelRefTarget::Callable(_) => Err(frontend_error(format!(
+                        "class ctor boundary site{} hidden top-level source 是 callable ref，不是 global init",
+                        site_id.as_u32()
+                    ))),
+                }
             }
-            mir::StatementKind::Assign {
+            LirStatementKind::Assign {
                 value:
-                    mir::Rvalue::MemberAccess {
+                    LirRvalue::MemberAccess {
                         site_id: Some(stmt_site),
                         member,
                         ..
                     },
                 ..
             } if *stmt_site == site_id && !member.hidden_effects.is_pure() => {
-                let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+                let LirMemberTarget::Value { member } = &member.resolved else {
                     return Err(frontend_error(format!(
                         "class ctor boundary site{} hidden member source 不是 resolved value member",
                         site_id.as_u32()
@@ -436,7 +434,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 };
                 Ok(ClassCtorBoundarySource::ObjectProperty {
                     span: stmt.span,
-                    fqn,
+                    fqn: member.as_str(),
                 })
             }
             _ => Err(frontend_error(format!(
@@ -659,10 +657,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         transport_ty: TypeId,
     ) -> Result<bool, LlvmEmitError> {
         for binding in callable.frame_schema().resume_payload_bindings() {
-            let Some(body) = callable.source_body() else {
+            let Some(body) = callable.executable_body() else {
                 continue;
             };
-            let local_ty = body.locals[binding.consumer_local().as_u32() as usize].ty;
+            let local_ty = body.locals()[binding.consumer_local().as_u32() as usize].ty();
             if local_ty != transport_ty || self.is_task_transport_tuple_ty(local_ty)? {
                 return Ok(true);
             }
@@ -773,7 +771,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
         let saved_block = self.codegen.builder.get_insert_block();
         let mut child = self.codegen.fresh_child_codegen();
-        let (mir_fun, body) = callable_source_body(callable, "task transport resume adapter")?;
+        let (mir_fun, _body) = callable_source_body(callable, "task transport resume adapter")?;
         let entry = child.context.append_basic_block(function, "entry");
         child.builder.position_at_end(entry);
         child.begin_function_explicit_frame_layout(function)?;
@@ -784,7 +782,6 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             self.abi,
             callable,
             mir_fun,
-            body,
             function,
             None,
             None,

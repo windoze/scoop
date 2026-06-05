@@ -1,0 +1,8 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.release_hook_function_not_visible
+
+import scoop.core.*
+
+@NoGC
+private fun hiddenRelease(raw: UInt): Unit {}

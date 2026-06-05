@@ -20,63 +20,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.try_cg_ty_of_type_id(elem_ty)
     }
 
-    pub(in crate::llvm::codegen) fn bind_mir_params(
-        &mut self,
-        hir_fun: &hir::FunDecl,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
-        llvm_fun: FunctionValue<'ctx>,
-        param_offset: u32,
-        slots: &mut [MirLocalSlot<'ctx>],
-    ) -> Result<(), LlvmEmitError> {
-        for (idx, param) in mir_fun.params.iter().enumerate() {
-            let _hir_param = hir_fun.params.get(idx).unwrap_or_else(|| {
-                panic!("bind_mir_params: MIR verifier accepted param arity drift")
-            });
-            let slot = slots
-                .get(param.local.as_u32() as usize)
-                .copied()
-                .unwrap_or_else(|| {
-                    std::panic::panic_any(
-                        "bind_mir_params: MIR verifier accepted param local outside slot table",
-                    )
-                });
-            let abi_ty = self
-                .equivalent_codegen_type_id(mir_types, param.ty)
-                .unwrap_or_else(|| {
-                    panic!("bind_mir_params: MIR verifier accepted unsupported param type")
-                });
-            let abi = self.ordinary_param_abi(param.span, abi_ty)?;
-            let init = if let Some(pointee_ty) = abi.pointee_ty() {
-                let param_ptr = llvm_fun
-                    .get_nth_param(idx as u32 + param_offset)
-                    .unwrap_or_else(|| {
-                        std::panic::panic_any(
-                            "bind_mir_params: ABI declaration missing lowered LLVM parameter",
-                        )
-                    })
-                    .into_pointer_value();
-                let loaded =
-                    self.builder
-                        .build_load(pointee_ty, param_ptr, "pass_mir_param_load")?;
-                self.cg_value_from_loaded(param.span, slot.cg_ty, loaded)?
-            } else {
-                self.cg_value_from_llvm_param(
-                    param.span,
-                    llvm_fun,
-                    idx as u32 + param_offset,
-                    slot.cg_ty,
-                    "missing pass MIR llvm param",
-                )?
-            };
-            let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
-        }
-        Ok(())
-    }
-
     pub(in crate::llvm::codegen) fn bind_mir_params_without_hir(
         &mut self,
-        mir_fun: &crate::mir::FunDecl,
+        mir_fun: &mir_source::FunDecl,
         llvm_fun: FunctionValue<'ctx>,
         param_offset: u32,
         slots: &mut [MirLocalSlot<'ctx>],
@@ -148,13 +94,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(in crate::llvm::codegen) fn codegen_mir_statement(
+    pub(in crate::llvm::codegen) fn codegen_lir_statement(
         &mut self,
-        stmt: &crate::mir::Statement,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
+        stmt: &crate::effect_lowered::LirStatement,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
-        used_locals: &HashSet<crate::mir::LocalId>,
+        used_locals: &HashSet<crate::effect_lowered::mir_source::LocalId>,
+        abi: Option<&ProgramAbiQuery<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         if self
             .builder
@@ -165,39 +112,62 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         match &stmt.kind {
-            crate::mir::StatementKind::Nop => Ok(()),
-            crate::mir::StatementKind::Assign { target, value } => {
+            LirStatementKind::Nop => Ok(()),
+            LirStatementKind::Assign { target, value } => {
                 if !used_locals.contains(target)
-                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) =
-                        value
-                    && self.published_codegen_callable_signature(fqn).is_some()
+                    && self.lir_top_level_ref_can_skip_when_unused(value)
+                {
+                    return Ok(());
+                }
+                if let LirRvalue::MemberAccess { member, .. } = value
+                    && matches!(
+                        member.resolved,
+                        LirMemberTarget::Fun { .. } | LirMemberTarget::ExtensionFun { .. }
+                    )
                 {
                     return Ok(());
                 }
                 let slot = self.mir_local_slot(stmt.span, slots, *target)?;
-                let target_source_ty = body
-                    .locals
-                    .get(target.as_u32() as usize)
-                    .map(|local| local.ty);
-                let value = self.codegen_mir_rvalue(
+                let value = self.codegen_lir_rvalue(
                     stmt.span,
                     value,
                     body,
-                    mir_types,
+                    source_types,
                     slots,
                     slot.cg_ty,
-                    target_source_ty,
+                    Some(*target),
+                    abi,
                 )?;
+                let value_ty = value.ty;
+                if slot.cg_ty == CgTy::Never {
+                    if value_ty == CgTy::Never
+                        && self
+                            .builder
+                            .get_insert_block()
+                            .is_some_and(|bb| bb.get_terminator().is_none())
+                    {
+                        self.builder.build_unreachable()?;
+                    }
+                    return Ok(());
+                }
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
+                if value_ty == CgTy::Never
+                    && self
+                        .builder
+                        .get_insert_block()
+                        .is_some_and(|bb| bb.get_terminator().is_none())
+                {
+                    self.builder.build_unreachable()?;
+                }
                 Ok(())
             }
-            crate::mir::StatementKind::StoreMember {
+            LirStatementKind::StoreMember {
                 receiver,
                 member,
                 value,
                 value_ty,
                 continuation_route,
-            } => self.codegen_mir_store_member(
+            } => self.codegen_lir_store_member(
                 stmt.span,
                 receiver,
                 member,
@@ -205,27 +175,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 *value_ty,
                 continuation_route,
                 body,
-                mir_types,
+                source_types,
                 slots,
             ),
-            crate::mir::StatementKind::StoreTopLevelVar {
-                fqn,
+            LirStatementKind::StoreGlobal {
+                root,
                 value,
                 value_ty,
-            } => self.codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, slots),
-            crate::mir::StatementKind::Todo(_) => std::panic::panic_any(
-                "MIR verifier must reject Todo statements before LLVM codegen",
-            ),
+            } => self.codegen_lir_store_global(stmt.span, root, value, *value_ty, slots),
         }
     }
 
-    pub(in crate::llvm::codegen) fn codegen_mir_terminator(
+    pub(in crate::llvm::codegen) fn codegen_lir_plain_terminator(
         &mut self,
-        terminator: &crate::mir::Terminator,
-        _body: &crate::mir::Body,
-        _mir_types: &TypeStore,
+        terminator: &LateLoweredStateTerminator,
         slots: &[MirLocalSlot<'ctx>],
-        llvm_blocks: &[inkwell::basic_block::BasicBlock<'ctx>],
+        llvm_blocks: &std::collections::HashMap<StateId, inkwell::basic_block::BasicBlock<'ctx>>,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
         if self
@@ -236,274 +201,367 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        match &terminator.kind {
-            crate::mir::TerminatorKind::Return { value } => {
-                let value = match value {
-                    Some(operand) => self.codegen_mir_operand_expected(
-                        terminator.span,
-                        operand,
-                        slots,
-                        Some(declared_return_cg),
-                    )?,
-                    None => {
-                        mir_empty_return_contract_is_lowerable(
-                            terminator.span,
-                            declared_return_cg,
-                        )?;
+        match terminator {
+            LateLoweredStateTerminator::Return { payload_source, .. } => {
+                let span = payload_source
+                    .operand_source()
+                    .and_then(|source| source.span())
+                    .unwrap_or(crate::span::Span::new(0, 0));
+                let value = match payload_source {
+                    LateLoweredCompletionPayloadSource::Unit { .. } => {
+                        mir_empty_return_contract_is_lowerable(span, declared_return_cg)?;
                         CgValue::unit()
                     }
+                    LateLoweredCompletionPayloadSource::Operand(source) => match source.value() {
+                        LateLoweredOperandValueSource::Local(local) => {
+                            let slot = self.mir_local_slot(span, slots, *local)?;
+                            self.load_mir_local(span, slot)?
+                        }
+                        LateLoweredOperandValueSource::Const(value) => {
+                            self.codegen_mir_const(span, value, Some(declared_return_cg))?
+                        }
+                    },
                 };
-                let value = self.coerce_value(terminator.span, value, declared_return_cg)?;
-                self.finish_function_return_path(terminator.span, declared_return_cg, value)
+                let value = self.coerce_value(span, value, declared_return_cg)?;
+                self.finish_function_return_path(span, declared_return_cg, value)
             }
-            crate::mir::TerminatorKind::Goto { target } => {
-                let target_bb = llvm_blocks
-                    .get(target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        std::panic::panic_any(
-                            "codegen_mir_terminator: MIR verifier accepted invalid goto target",
-                        )
-                    });
+            LateLoweredStateTerminator::Goto { target } => {
+                let target_bb = llvm_blocks.get(target).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid goto target",
+                    )
+                });
                 self.builder.build_unconditional_branch(target_bb)?;
                 Ok(())
             }
-            crate::mir::TerminatorKind::CondBr {
-                cond,
-                then_target,
-                else_target,
+            LateLoweredStateTerminator::Branch {
+                cond_local,
+                then_state,
+                else_state,
             } => {
                 let cond = self
-                    .codegen_mir_operand(terminator.span, cond, slots)?
+                    .codegen_lir_operand(
+                        crate::span::Span::new(0, 0),
+                        &LirOperand::Local(*cond_local),
+                        slots,
+                    )?
                     .as_bool()
                     .unwrap_or_else(|| {
-                        std::panic::panic_any("codegen_mir_terminator: MIR verifier accepted non-Bool branch condition")
-                    });
-                let then_bb = llvm_blocks
-                    .get(then_target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
                         std::panic::panic_any(
-                            "codegen_mir_terminator: MIR verifier accepted invalid then target",
+                            "codegen_lir_plain_terminator: LIR verifier accepted non-Bool branch condition",
                         )
                     });
-                let else_bb = llvm_blocks
-                    .get(else_target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        std::panic::panic_any(
-                            "codegen_mir_terminator: MIR verifier accepted invalid else target",
-                        )
-                    });
+                let then_bb = llvm_blocks.get(then_state).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid then target",
+                    )
+                });
+                let else_bb = llvm_blocks.get(else_state).copied().unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_lir_plain_terminator: LIR verifier accepted invalid else target",
+                    )
+                });
                 self.builder
                     .build_conditional_branch(cond, then_bb, else_bb)?;
                 Ok(())
             }
-            crate::mir::TerminatorKind::Unreachable => {
+            LateLoweredStateTerminator::Unreachable | LateLoweredStateTerminator::Abandon => {
                 self.builder.build_unreachable()?;
                 Ok(())
             }
-            crate::mir::TerminatorKind::Perform { .. } => Err(raw_mir_route_gate_error(
-                self.function_cx
-                    .current_callable_fqn
-                    .as_deref()
-                    .unwrap_or("<unknown raw mir body>"),
-                terminator.span,
-                "PIPELINE_GAPS §3.2",
-                RAW_MIR_PERFORM_TERMINATOR_DETAIL,
-            )),
-            crate::mir::TerminatorKind::ResumeUnwind
-            | crate::mir::TerminatorKind::Handle { .. } => Err(raw_mir_route_gate_error(
-                self.function_cx
-                    .current_callable_fqn
-                    .as_deref()
-                    .unwrap_or("<unknown raw mir body>"),
-                terminator.span,
-                "PIPELINE_GAPS §3.1",
-                RAW_MIR_EFFECT_CONTROL_TERMINATOR_DETAIL,
-            )),
-            crate::mir::TerminatorKind::Todo(_) => Err(raw_mir_route_gate_error(
-                self.function_cx
-                    .current_callable_fqn
-                    .as_deref()
-                    .unwrap_or("<unknown raw mir body>"),
-                terminator.span,
-                "PIPELINE_GAPS §2.3",
-                RAW_MIR_TODO_TERMINATOR_DETAIL,
-            )),
+            LateLoweredStateTerminator::Suspend { .. }
+            | LateLoweredStateTerminator::HandleDispatch { .. }
+            | LateLoweredStateTerminator::LocalRuntimeError { .. }
+            | LateLoweredStateTerminator::ResumeUnwind => panic!(
+                "codegen_lir_plain_terminator: effect/control terminator reached plain callable lowering"
+            ),
+        }
+    }
+
+    fn lir_top_level_ref_can_skip_when_unused(&self, value: &LirRvalue) -> bool {
+        match value {
+            LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                target: LirTopLevelRefTarget::Callable(_),
+                ..
+            }) => true,
+            LirRvalue::TopLevelRef(crate::effect_lowered::LirTopLevelRef {
+                target: LirTopLevelRefTarget::Global(root),
+                ..
+            }) => {
+                let key = root.as_str();
+                self.enum_layouts.contains_key(key) || self.nominal_kinds.contains_key(key)
+            }
+            _ => false,
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(in crate::llvm::codegen) fn codegen_mir_rvalue(
+    pub(in crate::llvm::codegen) fn codegen_lir_rvalue(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Rvalue,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
+        value: &LirRvalue,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
-        target_source_ty: Option<TypeId>,
+        target_local: Option<crate::effect_lowered::mir_source::LocalId>,
+        abi: Option<&ProgramAbiQuery<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(abi) = abi
+            && let LirRvalue::Use(LirOperand::Local(source_local))
+            | LirRvalue::Transport {
+                value: LirOperand::Local(source_local),
+                ..
+            } = value
+            && let Some((env, fn_ptr, env_contract)) =
+                self.lir_local_make_closure_source(body, *source_local)
+            && let Some(adapter) = self.maybe_build_lir_effect_typed_closure_target_fn_ptr(
+                span,
+                abi,
+                source_types,
+                body,
+                target_local,
+                fn_ptr,
+            )?
+        {
+            let env_cg = self
+                .lir_operand_cg_ty(body, source_types, &env)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_rvalue: LIR verifier accepted propagated closure env without codegen type"
+                    )
+                });
+            return self.codegen_lir_make_closure_with_target_fn_ptr(
+                span,
+                &env,
+                fn_ptr,
+                &env_contract,
+                source_types,
+                env_cg,
+                target_cg,
+                slots,
+                adapter,
+            );
+        }
         match value {
-            crate::mir::Rvalue::Use(operand) => {
-                self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
+            LirRvalue::Use(operand) => {
+                self.codegen_lir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::Transport { value, transport } => self.codegen_mir_value_transport(
-                span, value, transport, body, mir_types, slots, target_cg,
+            LirRvalue::Transport { value, transport } => self.codegen_lir_value_transport(
+                span,
+                value,
+                transport,
+                body,
+                source_types,
+                slots,
+                target_cg,
             ),
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
-                if let Some(value) =
-                    self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
-                {
-                    Ok(value)
-                } else {
-                    self.codegen_top_level_value_ref(span, fqn)
+            LirRvalue::TopLevelRef(top) => match &top.target {
+                LirTopLevelRefTarget::Global(root) => {
+                    let key = root.as_str();
+                    if let Some(value) =
+                        self.try_codegen_qualified_enum_unit_variant_value(span, key)?
+                    {
+                        Ok(value)
+                    } else {
+                        self.codegen_top_level_value_ref(span, key)
+                    }
                 }
-            }
-            crate::mir::Rvalue::TypeCheck {
+                LirTopLevelRefTarget::Callable(id) => {
+                    let program = self.published_late_lowered_program().unwrap_or_else(|| {
+                        panic!("codegen_lir_rvalue: missing published LIR program")
+                    });
+                    let callable = program.callable_by_id(*id).unwrap_or_else(|| {
+                        panic!("codegen_lir_rvalue: LIR verifier accepted unknown callable ref")
+                    });
+                    self.codegen_top_level_value_ref(span, callable.root_fqn())
+                }
+            },
+            LirRvalue::TypeCheck {
                 value,
                 op,
                 test_ty,
                 metadata,
-            } => {
-                self.codegen_mir_type_check(span, value, *op, *test_ty, metadata, mir_types, slots)
-            }
-            crate::mir::Rvalue::Cast {
+            } => self.codegen_lir_type_check(
+                span,
+                value,
+                *op,
+                *test_ty,
+                metadata,
+                source_types,
+                slots,
+            ),
+            LirRvalue::Cast {
                 value,
                 op,
                 target_ty,
                 metadata,
-            } => self.codegen_mir_cast(
-                span, value, *op, *target_ty, metadata, mir_types, slots, target_cg,
+            } => self.codegen_lir_cast(
+                span,
+                value,
+                *op,
+                *target_ty,
+                metadata,
+                source_types,
+                slots,
+                target_cg,
             ),
-            crate::mir::Rvalue::Call {
+            LirRvalue::Call {
+                site_id,
                 kind,
                 args,
                 transport,
-                ..
-            } => self.codegen_mir_call(span, kind, args, transport, body, mir_types, slots),
-            crate::mir::Rvalue::PatternMatch { subject, pattern } => {
-                self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
-            }
-            crate::mir::Rvalue::PatternExtract { subject, path } => {
-                self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
-            }
-            crate::mir::Rvalue::MakeTuple {
-                elements,
+            } => self.codegen_lir_call(
+                span,
+                *site_id,
+                kind,
+                args,
                 transport,
-            } => {
-                if let Some(value) =
-                    self.try_emit_immortal_tuple(span, mir_types, elements, transport, target_cg)?
-                {
-                    Ok(value)
-                } else {
-                    self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
-                }
-            }
-            crate::mir::Rvalue::SizeOf { value_ty } => {
-                self.codegen_mir_size_of(span, mir_types, *value_ty)
-            }
-            crate::mir::Rvalue::KindOf { value_ty } => {
-                self.codegen_mir_kind_of(span, mir_types, *value_ty)
-            }
-            crate::mir::Rvalue::AlignOf { value_ty } => {
-                self.codegen_mir_align_of(span, mir_types, *value_ty)
-            }
-            crate::mir::Rvalue::DescOf { value_ty } => {
-                self.codegen_mir_desc_of(span, mir_types, *value_ty)
-            }
-            crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
-                self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
-            }
-            crate::mir::Rvalue::StructLit { fields, transport } => {
-                if let Some(value) =
-                    self.try_emit_immortal_struct(span, mir_types, fields, transport, target_cg)?
-                {
-                    Ok(value)
-                } else {
-                    self.codegen_mir_make_struct(
-                        span, mir_types, fields, transport, target_cg, slots,
-                    )
-                }
-            }
-            crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
-                "codegen_mir_rvalue: MIR verifier accepted residual interpolated string",
+                body,
+                source_types,
+                slots,
+                abi,
             ),
-            crate::mir::Rvalue::TupleGet { tuple, index } => {
-                self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
+            LirRvalue::PatternMatch { subject, pattern } => {
+                self.codegen_lir_pattern_match(span, source_types, subject, pattern, slots)
             }
-            crate::mir::Rvalue::MakeClosure {
+            LirRvalue::PatternExtract { subject, path } => {
+                self.codegen_lir_pattern_extract(span, subject, path, slots, target_cg)
+            }
+            LirRvalue::MakeTuple {
+                elements,
+                transport: _,
+            } => self.codegen_lir_make_tuple(span, elements, target_cg, slots),
+            LirRvalue::SizeOf { value_ty, .. } => {
+                self.codegen_mir_size_of(span, source_types, *value_ty)
+            }
+            LirRvalue::KindOf { value_ty, .. } => {
+                self.codegen_mir_kind_of(span, source_types, *value_ty)
+            }
+            LirRvalue::AlignOf { value_ty, .. } => {
+                self.codegen_mir_align_of(span, source_types, *value_ty)
+            }
+            LirRvalue::DescOf { value_ty, .. } => {
+                self.codegen_mir_desc_of(span, source_types, *value_ty)
+            }
+            LirRvalue::TypeMetadataLiteral(metadata) => {
+                self.codegen_lir_type_metadata_literal(span, metadata, source_types)
+            }
+            LirRvalue::StructLit { fields, transport } => {
+                if let Some(abi) = abi {
+                    self.install_lir_effect_typed_closure_target_overrides_for_struct_fields(
+                        span,
+                        abi,
+                        source_types,
+                        body,
+                        fields,
+                        target_cg,
+                        slots,
+                    )?;
+                }
+                self.codegen_lir_make_struct(
+                    span,
+                    source_types,
+                    fields,
+                    transport,
+                    target_cg,
+                    slots,
+                )
+            }
+            LirRvalue::InterpolatedString { .. } => std::panic::panic_any(
+                "codegen_lir_rvalue: LIR verifier accepted residual interpolated string",
+            ),
+            LirRvalue::TupleGet { tuple, index } => {
+                self.codegen_lir_tuple_get(span, body, source_types, tuple, *index, slots)
+            }
+            LirRvalue::MakeClosure {
                 env,
                 fn_ptr,
                 env_contract,
             } => {
-                let env_cg = self.mir_operand_cg_ty(body, mir_types, env).unwrap_or_else(|| {
-                        panic!("codegen_mir_rvalue: MIR verifier accepted closure env without codegen type")
-                    });
-                self.codegen_mir_make_closure(
+                let env_cg = self.lir_operand_cg_ty(body, source_types, env).unwrap_or_else(|| {
+                    panic!("codegen_lir_rvalue: LIR verifier accepted closure env without codegen type")
+                });
+                if let Some(abi) = abi
+                    && let Some(adapter) = self.maybe_build_lir_effect_typed_closure_target_fn_ptr(
+                        span,
+                        abi,
+                        source_types,
+                        body,
+                        target_local,
+                        *fn_ptr,
+                    )?
+                {
+                    return self.codegen_lir_make_closure_with_target_fn_ptr(
+                        span,
+                        env,
+                        *fn_ptr,
+                        env_contract,
+                        source_types,
+                        env_cg,
+                        target_cg,
+                        slots,
+                        adapter,
+                    );
+                }
+                self.codegen_lir_make_closure(
                     span,
                     env,
-                    fn_ptr,
+                    *fn_ptr,
                     env_contract,
-                    mir_types,
+                    source_types,
                     env_cg,
                     target_cg,
                     slots,
                 )
             }
-            crate::mir::Rvalue::PerformResult { .. } => Err(raw_mir_route_gate_error(
-                self.function_cx
-                    .current_callable_fqn
-                    .as_deref()
-                    .unwrap_or("<unknown raw mir body>"),
-                span,
-                "PIPELINE_GAPS §3.3",
-                RAW_MIR_PERFORM_RESULT_DETAIL,
-            )),
-            crate::mir::Rvalue::MemberAccess {
+            LirRvalue::PerformResult { .. } => std::panic::panic_any(
+                "codegen_lir_rvalue: perform result reached plain callable lowering",
+            ),
+            LirRvalue::MemberAccess {
                 receiver, member, ..
-            } => self.codegen_mir_member_access(
+            } => self.codegen_lir_member_access(
                 span,
                 receiver,
                 member,
-                MirBodyCodegenCtx {
+                LirBodyCodegenCtx {
                     body,
-                    mir_types,
+                    source_types,
                     slots,
                 },
                 target_cg,
             ),
-            crate::mir::Rvalue::EnumVariant {
+            LirRvalue::EnumVariant {
                 enum_ty,
                 variant_name,
                 args,
                 payload,
-            } => self.codegen_mir_enum_variant_ctor_call(
+            } => self.codegen_lir_enum_variant_ctor_call(
                 span,
                 *enum_ty,
                 variant_name,
                 args,
                 payload,
-                body,
-                mir_types,
+                source_types,
                 slots,
             ),
-            crate::mir::Rvalue::ClassCtor {
-                class_fqn,
+            LirRvalue::ClassCtor {
+                site_id,
+                class,
                 ctor,
                 args,
                 ..
             } => {
                 let class_layout_key =
-                    self.mir_class_ctor_layout_key(span, class_fqn, mir_types, target_source_ty)?;
-                self.codegen_mir_class_ctor_call(span, &class_layout_key, ctor, args, slots)
-            }
-            crate::mir::Rvalue::UnresolvedName { name } => {
-                self.codegen_unresolved_ident(span, name, Some(target_cg))
-            }
-            crate::mir::Rvalue::Todo(_) => {
-                std::panic::panic_any("codegen_mir_rvalue: MIR verifier accepted Todo rvalue")
+                    self.lir_class_ctor_layout_key(span, *site_id, class, source_types)?;
+                self.codegen_lir_class_ctor_call(
+                    span,
+                    *site_id,
+                    &class_layout_key,
+                    ctor,
+                    args,
+                    slots,
+                )
             }
         }
     }
@@ -511,20 +569,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_effect_neutral_rvalue(
         &mut self,
         span: crate::span::Span,
-        value: &crate::mir::Rvalue,
-        body: &crate::mir::Body,
+        value: &mir_source::Rvalue,
+        body: &mir_source::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match value {
-            crate::mir::Rvalue::Use(operand) => {
+            mir_source::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::Transport { value, transport } => self.codegen_mir_value_transport(
+            mir_source::Rvalue::Transport { value, transport } => self.codegen_mir_value_transport(
                 span, value, transport, body, mir_types, slots, target_cg,
             ),
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
+            mir_source::Rvalue::TopLevelRef(mir_source::TopLevelRef { fqn, .. }) => {
                 if let Some(value) =
                     self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
                 {
@@ -533,7 +591,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_top_level_value_ref(span, fqn)
                 }
             }
-            crate::mir::Rvalue::TypeCheck {
+            mir_source::Rvalue::TypeCheck {
                 value,
                 op,
                 test_ty,
@@ -541,7 +599,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } => {
                 self.codegen_mir_type_check(span, value, *op, *test_ty, metadata, mir_types, slots)
             }
-            crate::mir::Rvalue::Cast {
+            mir_source::Rvalue::Cast {
                 value,
                 op,
                 target_ty,
@@ -549,13 +607,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } => self.codegen_mir_cast(
                 span, value, *op, *target_ty, metadata, mir_types, slots, target_cg,
             ),
-            crate::mir::Rvalue::PatternMatch { subject, pattern } => {
+            mir_source::Rvalue::PatternMatch { subject, pattern } => {
                 self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
             }
-            crate::mir::Rvalue::PatternExtract { subject, path } => {
+            mir_source::Rvalue::PatternExtract { subject, path } => {
                 self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
             }
-            crate::mir::Rvalue::MakeTuple {
+            mir_source::Rvalue::MakeTuple {
                 elements,
                 transport,
             } => {
@@ -567,22 +625,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
                 }
             }
-            crate::mir::Rvalue::SizeOf { value_ty } => {
+            mir_source::Rvalue::SizeOf { value_ty, .. } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::KindOf { value_ty } => {
+            mir_source::Rvalue::KindOf { value_ty, .. } => {
                 self.codegen_mir_kind_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::AlignOf { value_ty } => {
+            mir_source::Rvalue::AlignOf { value_ty, .. } => {
                 self.codegen_mir_align_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::DescOf { value_ty } => {
+            mir_source::Rvalue::DescOf { value_ty, .. } => {
                 self.codegen_mir_desc_of(span, mir_types, *value_ty)
             }
-            crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
+            mir_source::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields, transport } => {
+            mir_source::Rvalue::StructLit { fields, transport } => {
                 if let Some(value) =
                     self.try_emit_immortal_struct(span, mir_types, fields, transport, target_cg)?
                 {
@@ -593,13 +651,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )
                 }
             }
-            crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
+            mir_source::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: MIR verifier accepted residual interpolated string",
             ),
-            crate::mir::Rvalue::TupleGet { tuple, index } => {
+            mir_source::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
-            crate::mir::Rvalue::MemberAccess {
+            mir_source::Rvalue::MemberAccess {
                 receiver, member, ..
             } => self.codegen_mir_member_access(
                 span,
@@ -612,7 +670,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
                 target_cg,
             ),
-            crate::mir::Rvalue::EnumVariant {
+            mir_source::Rvalue::EnumVariant {
                 enum_ty,
                 variant_name,
                 args,
@@ -627,10 +685,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_types,
                 slots,
             ),
-            crate::mir::Rvalue::Call { .. } => std::panic::panic_any(
+            mir_source::Rvalue::Call { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive call must publish ABI before codegen",
             ),
-            crate::mir::Rvalue::MakeClosure {
+            mir_source::Rvalue::MakeClosure {
                 env,
                 fn_ptr,
                 env_contract,
@@ -649,16 +707,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     slots,
                 )
             }
-            crate::mir::Rvalue::ClassCtor { .. } => std::panic::panic_any(
+            mir_source::Rvalue::ClassCtor { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive class construction must publish ABI before codegen",
             ),
-            crate::mir::Rvalue::PerformResult { .. } => std::panic::panic_any(
+            mir_source::Rvalue::PerformResult { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive boundary payload must publish contract before codegen",
             ),
-            crate::mir::Rvalue::UnresolvedName { name } => {
+            mir_source::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
-            crate::mir::Rvalue::Todo(_) => std::panic::panic_any(
+            mir_source::Rvalue::Todo(_) => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: MIR verifier accepted Todo value primitive rvalue",
             ),
         }

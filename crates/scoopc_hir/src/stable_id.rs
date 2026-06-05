@@ -7,13 +7,17 @@
 //! text here instead of reusing `TypeStore::display()`, raw `Debug` output, or
 //! path/span text as the authoritative identity input.
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt,
+    hash::{Hash, Hasher},
+};
 
 use thiserror::Error;
 
 use scoopc_types::{
-    EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, UnionType,
-    ValueTypeKind,
+    EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind,
+    TypeParamType, TypeStore, UnionType, ValueTypeKind,
 };
 
 pub use scoop_project_model::StableConeKey;
@@ -102,6 +106,15 @@ impl StableDefKey {
     pub fn overload_signature_key(&self) -> Option<&str> {
         self.overload_signature_key.as_deref()
     }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_def_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "def".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
+    }
 }
 
 impl StableCanonicalKey for StableDefKey {
@@ -139,6 +152,15 @@ impl StableTemplateKey {
     pub fn def(&self) -> &StableDefKey {
         &self.def
     }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_template_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "template".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
+    }
 }
 
 impl StableCanonicalKey for StableTemplateKey {
@@ -153,12 +175,332 @@ impl StableSymbolKey for StableTemplateKey {
     }
 }
 
+/// Stable identity for an effect-row parameter owned by a declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct StableEffectParamKey {
+    owner: StableDefKey,
+    ordinal: u32,
+    name: String,
+}
+
+impl StableEffectParamKey {
+    pub fn new(owner: StableDefKey, ordinal: u32, name: impl Into<String>) -> Self {
+        Self {
+            owner,
+            ordinal,
+            name: name.into(),
+        }
+    }
+
+    pub fn owner(&self) -> &StableDefKey {
+        &self.owner
+    }
+
+    pub fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl StableCanonicalKey for StableEffectParamKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "eff_param",
+            [
+                self.owner.canonical_text(),
+                self.ordinal.to_string(),
+                self.name.clone(),
+            ],
+        )
+    }
+}
+
+/// Resolves synthetic effect-row type parameters to stable effect-param keys.
+pub trait StableEffectParamResolver {
+    fn resolve_effect_param(&self, param: &TypeParamType) -> Option<StableEffectParamKey>;
+}
+
+impl<F> StableEffectParamResolver for F
+where
+    F: Fn(&TypeParamType) -> Option<StableEffectParamKey>,
+{
+    fn resolve_effect_param(&self, param: &TypeParamType) -> Option<StableEffectParamKey> {
+        self(param)
+    }
+}
+
+impl StableEffectParamResolver for HashMap<TypeParamType, StableEffectParamKey> {
+    fn resolve_effect_param(&self, param: &TypeParamType) -> Option<StableEffectParamKey> {
+        self.get(param).cloned()
+    }
+}
+
+/// Resolver for rows that are expected to contain only concrete effect terms.
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct NoEffectParamResolver;
+
+impl StableEffectParamResolver for NoEffectParamResolver {
+    fn resolve_effect_param(&self, _: &TypeParamType) -> Option<StableEffectParamKey> {
+        None
+    }
+}
+
+/// Stable effect-row term used by cross-stage keys and facts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectTerm {
+    Concrete {
+        type_key: CanonicalTextKey,
+    },
+    Param {
+        owner: StableDefKey,
+        ordinal: u32,
+        name: String,
+    },
+}
+
+impl EffectTerm {
+    pub fn concrete(type_key: impl Into<String>) -> Self {
+        Self::Concrete {
+            type_key: CanonicalTextKey::new(type_key),
+        }
+    }
+
+    pub fn param(owner: StableDefKey, ordinal: u32, name: impl Into<String>) -> Self {
+        Self::Param {
+            owner,
+            ordinal,
+            name: name.into(),
+        }
+    }
+
+    pub fn concrete_type_key(&self) -> Option<&CanonicalTextKey> {
+        match self {
+            Self::Concrete { type_key } => Some(type_key),
+            Self::Param { .. } => None,
+        }
+    }
+
+    pub fn param_key(&self) -> Option<StableEffectParamKey> {
+        match self {
+            Self::Param {
+                owner,
+                ordinal,
+                name,
+            } => Some(StableEffectParamKey::new(
+                owner.clone(),
+                *ordinal,
+                name.clone(),
+            )),
+            Self::Concrete { .. } => None,
+        }
+    }
+}
+
+impl StableCanonicalKey for EffectTerm {
+    fn canonical_text(&self) -> String {
+        match self {
+            Self::Concrete { type_key } => type_key.as_str().to_string(),
+            Self::Param {
+                owner,
+                ordinal,
+                name,
+            } => StableEffectParamKey::new(owner.clone(), *ordinal, name.clone()).canonical_text(),
+        }
+    }
+}
+
+/// Stable representation of an effect row for semantic keys and fact handoff.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct EffectRowTemplate {
+    terms: Vec<EffectTerm>,
+    closed: bool,
+}
+
+impl EffectRowTemplate {
+    pub fn new(mut terms: Vec<EffectTerm>, closed: bool) -> Self {
+        terms.sort_by_key(|term| term.canonical_text());
+        terms.dedup_by(|lhs, rhs| lhs.canonical_text() == rhs.canonical_text());
+        Self { terms, closed }
+    }
+
+    pub fn pure() -> Self {
+        Self::new(Vec::new(), false)
+    }
+
+    pub fn pure_closed() -> Self {
+        Self::new(Vec::new(), true)
+    }
+
+    pub fn from_canonical_text(text: impl Into<String>) -> Result<Self, CanonicalEncodingError> {
+        let text = text.into();
+        let (row_text, closed) = match text.strip_suffix('!') {
+            Some(open) => (open, true),
+            None => (text.as_str(), false),
+        };
+        let Some(body) = row_text
+            .strip_prefix("E(")
+            .and_then(|rest| rest.strip_suffix(')'))
+        else {
+            return Err(CanonicalEncodingError::InvalidEffectRowTemplateText { text });
+        };
+        if body.is_empty() {
+            return Ok(Self::new(Vec::new(), closed));
+        }
+        let terms = split_top_level_effect_terms(body)
+            .into_iter()
+            .map(|term| {
+                parse_effect_term_canonical_text(&term).ok_or_else(|| {
+                    CanonicalEncodingError::InvalidEffectRowTemplateText { text: text.clone() }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self::new(terms, closed))
+    }
+
+    pub fn from_effect_row<R, E>(
+        types: &TypeStore,
+        row: &EffectRow,
+        type_params: &R,
+        effect_params: &E,
+        closed: bool,
+    ) -> Result<Self, CanonicalEncodingError>
+    where
+        R: StableTypeParamResolver + ?Sized,
+        E: StableEffectParamResolver + ?Sized,
+    {
+        let mut encoder = CanonicalEncoder::new(types, type_params);
+        let mut terms = Vec::with_capacity(row.terms.len());
+        for term in row.terms.iter().copied() {
+            if let TypeKind::Param(param) = types.kind(term)
+                && param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE
+            {
+                let Some(param_key) = effect_params.resolve_effect_param(param) else {
+                    return Err(CanonicalEncodingError::MissingEffectParamKey {
+                        param_name: param.name.clone(),
+                    });
+                };
+                terms.push(EffectTerm::param(
+                    param_key.owner().clone(),
+                    param_key.ordinal(),
+                    param_key.name().to_string(),
+                ));
+                continue;
+            }
+            terms.push(EffectTerm::Concrete {
+                type_key: CanonicalTextKey::new(encoder.encode_type(term, 0)?),
+            });
+        }
+        Ok(Self::new(terms, closed))
+    }
+
+    pub fn from_concrete_effect_row<R>(
+        types: &TypeStore,
+        row: &EffectRow,
+        type_params: &R,
+        closed: bool,
+    ) -> Result<Self, CanonicalEncodingError>
+    where
+        R: StableTypeParamResolver + ?Sized,
+    {
+        Self::from_effect_row(types, row, type_params, &NoEffectParamResolver, closed)
+    }
+
+    pub fn to_effect_row_with<R>(&self, mut resolve: R) -> Result<EffectRow, CanonicalEncodingError>
+    where
+        R: FnMut(&CanonicalTextKey) -> Option<TypeId>,
+    {
+        let mut terms = Vec::with_capacity(self.terms.len());
+        for term in &self.terms {
+            match term {
+                EffectTerm::Concrete { type_key } => {
+                    let Some(ty) = resolve(type_key) else {
+                        return Err(CanonicalEncodingError::UnresolvedEffectTypeKey {
+                            type_key: type_key.as_str().to_string(),
+                        });
+                    };
+                    terms.push(ty);
+                }
+                EffectTerm::Param { name, .. } => {
+                    return Err(CanonicalEncodingError::UnsubstitutedEffectParam {
+                        param_name: name.clone(),
+                    });
+                }
+            }
+        }
+        Ok(EffectRow::new(terms))
+    }
+
+    pub fn substitute(&self, bindings: &HashMap<StableEffectParamKey, EffectRowTemplate>) -> Self {
+        let mut terms = Vec::new();
+        let mut substituted = false;
+        let mut retained_source_term = false;
+        let mut substituted_rows_closed = true;
+        for term in &self.terms {
+            if let Some(param_key) = term.param_key()
+                && let Some(binding) = bindings.get(&param_key)
+            {
+                substituted = true;
+                substituted_rows_closed &= binding.closed;
+                terms.extend(binding.terms.iter().cloned());
+                continue;
+            }
+            retained_source_term = true;
+            terms.push(term.clone());
+        }
+        let closed =
+            self.closed || (substituted && !retained_source_term && substituted_rows_closed);
+        Self::new(terms, closed)
+    }
+
+    pub fn terms(&self) -> &[EffectTerm] {
+        &self.terms
+    }
+
+    pub fn closed(&self) -> bool {
+        self.closed
+    }
+
+    pub fn is_pure(&self) -> bool {
+        self.terms.is_empty()
+    }
+
+    pub fn is_pure_closed(&self) -> bool {
+        self.closed && self.terms.is_empty()
+    }
+}
+
+impl StableCanonicalKey for EffectRowTemplate {
+    fn canonical_text(&self) -> String {
+        let mut text = format!(
+            "E({})",
+            self.terms
+                .iter()
+                .map(StableCanonicalKey::canonical_text)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        if self.closed {
+            text.push('!');
+        }
+        text
+    }
+}
+
+impl fmt::Display for EffectRowTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.canonical_text())
+    }
+}
+
 /// Semantic monomorphic instance identity derived from canonical type/effect text.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StableInstanceKey {
     template: StableTemplateKey,
     canonical_type_args: Vec<String>,
-    canonical_effect_args: Vec<String>,
+    effect_arg_templates: Vec<EffectRowTemplate>,
 }
 
 impl StableInstanceKey {
@@ -167,10 +509,32 @@ impl StableInstanceKey {
         canonical_type_args: Vec<String>,
         canonical_effect_args: Vec<String>,
     ) -> Self {
+        let effect_arg_templates = canonical_effect_args
+            .into_iter()
+            .map(EffectRowTemplate::from_canonical_text)
+            .collect::<Result<Vec<_>, _>>()
+            .expect("canonical effect arguments must be effect-row template text");
+        Self::from_effect_arg_templates(template, canonical_type_args, effect_arg_templates)
+    }
+
+    pub fn from_canonical_text(text: impl AsRef<str>) -> Result<Self, CanonicalEncodingError> {
+        parse_stable_instance_key(text.as_ref()).ok_or_else(|| {
+            CanonicalEncodingError::InvalidStableKeyText {
+                kind: "instance".to_string(),
+                text: text.as_ref().to_string(),
+            }
+        })
+    }
+
+    pub fn from_effect_arg_templates(
+        template: StableTemplateKey,
+        canonical_type_args: Vec<String>,
+        effect_arg_templates: Vec<EffectRowTemplate>,
+    ) -> Self {
         Self {
             template,
             canonical_type_args,
-            canonical_effect_args,
+            effect_arg_templates,
         }
     }
 
@@ -191,9 +555,9 @@ impl StableInstanceKey {
             .collect::<Result<Vec<_>, _>>()?;
         let canonical_effect_args = effect_args
             .iter()
-            .map(|row| canonical_effect_row_text(types, row, type_params))
+            .map(|row| EffectRowTemplate::from_concrete_effect_row(types, row, type_params, false))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self::from_canonical_args(
+        Ok(Self::from_effect_arg_templates(
             template,
             canonical_type_args,
             canonical_effect_args,
@@ -208,8 +572,15 @@ impl StableInstanceKey {
         &self.canonical_type_args
     }
 
-    pub fn canonical_effect_args(&self) -> &[String] {
-        &self.canonical_effect_args
+    pub fn effect_arg_templates(&self) -> &[EffectRowTemplate] {
+        &self.effect_arg_templates
+    }
+
+    pub fn canonical_effect_args(&self) -> Vec<String> {
+        self.effect_arg_templates
+            .iter()
+            .map(StableCanonicalKey::canonical_text)
+            .collect()
     }
 }
 
@@ -220,7 +591,7 @@ impl StableCanonicalKey for StableInstanceKey {
             [
                 self.template.canonical_text(),
                 canonical_list(&self.canonical_type_args),
-                canonical_list(&self.canonical_effect_args),
+                canonical_list(&self.canonical_effect_args()),
             ],
         )
     }
@@ -229,6 +600,171 @@ impl StableCanonicalKey for StableInstanceKey {
 impl StableSymbolKey for StableInstanceKey {
     fn readable_path(&self) -> &str {
         self.template.readable_path()
+    }
+}
+
+/// Semantic identity for a dispatch target selected by upstream resolution.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct DispatchTargetKey {
+    dispatch_kind: String,
+    stable_instance_key: StableInstanceKey,
+}
+
+impl DispatchTargetKey {
+    pub fn new(dispatch_kind: impl Into<String>, stable_instance_key: StableInstanceKey) -> Self {
+        Self {
+            dispatch_kind: dispatch_kind.into(),
+            stable_instance_key,
+        }
+    }
+
+    pub fn dispatch_kind(&self) -> &str {
+        &self.dispatch_kind
+    }
+
+    pub fn stable_instance_key(&self) -> &StableInstanceKey {
+        &self.stable_instance_key
+    }
+}
+
+impl StableCanonicalKey for DispatchTargetKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "dispatch_target",
+            [
+                self.dispatch_kind.clone(),
+                self.stable_instance_key.canonical_text(),
+            ],
+        )
+    }
+}
+
+impl StableSymbolKey for DispatchTargetKey {
+    fn readable_path(&self) -> &str {
+        self.stable_instance_key.readable_path()
+    }
+}
+
+/// Semantic identity for a call target; display names remain diagnostic only.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum CallTargetKey {
+    Direct {
+        stable_instance_key: StableInstanceKey,
+    },
+    Dispatch {
+        dispatch_target_key: DispatchTargetKey,
+    },
+}
+
+impl CallTargetKey {
+    pub fn direct(stable_instance_key: StableInstanceKey) -> Self {
+        Self::Direct {
+            stable_instance_key,
+        }
+    }
+
+    pub fn dispatch(dispatch_target_key: DispatchTargetKey) -> Self {
+        Self::Dispatch {
+            dispatch_target_key,
+        }
+    }
+}
+
+impl StableCanonicalKey for CallTargetKey {
+    fn canonical_text(&self) -> String {
+        match self {
+            Self::Direct {
+                stable_instance_key,
+            } => canonical_record(
+                "call_target",
+                ["direct".to_string(), stable_instance_key.canonical_text()],
+            ),
+            Self::Dispatch {
+                dispatch_target_key,
+            } => canonical_record(
+                "call_target",
+                ["dispatch".to_string(), dispatch_target_key.canonical_text()],
+            ),
+        }
+    }
+}
+
+impl StableSymbolKey for CallTargetKey {
+    fn readable_path(&self) -> &str {
+        match self {
+            Self::Direct {
+                stable_instance_key,
+            } => stable_instance_key.readable_path(),
+            Self::Dispatch {
+                dispatch_target_key,
+            } => dispatch_target_key.readable_path(),
+        }
+    }
+}
+
+/// ABI symbol identity composed from the ABI namespace and semantic target key.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AbiSymbolKey {
+    kind: AbiSymbolKind,
+    target_canonical_text: String,
+    readable_path: String,
+}
+
+impl AbiSymbolKey {
+    pub fn new<K>(kind: AbiSymbolKind, target: &K) -> Self
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        Self {
+            kind,
+            target_canonical_text: target.canonical_text(),
+            readable_path: target.readable_path().to_string(),
+        }
+    }
+
+    pub fn kind(&self) -> AbiSymbolKind {
+        self.kind
+    }
+}
+
+impl StableCanonicalKey for AbiSymbolKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "abi_symbol",
+            [
+                abi_symbol_kind_text(self.kind).to_string(),
+                self.target_canonical_text.clone(),
+            ],
+        )
+    }
+}
+
+impl PartialEq for AbiSymbolKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.target_canonical_text == other.target_canonical_text
+    }
+}
+
+impl Eq for AbiSymbolKey {}
+
+impl Hash for AbiSymbolKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kind.hash(state);
+        self.target_canonical_text.hash(state);
+    }
+}
+
+impl StableSymbolKey for AbiSymbolKey {
+    fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
+fn abi_symbol_kind_text(kind: AbiSymbolKind) -> &'static str {
+    match kind {
+        AbiSymbolKind::Fun => "fun",
+        AbiSymbolKind::Global => "global",
+        AbiSymbolKind::Type => "type",
     }
 }
 
@@ -519,6 +1055,16 @@ impl StableTypeParamResolver for NoTypeParamResolver {
 pub enum CanonicalEncodingError {
     #[error("missing stable type parameter key for `{param_name}`")]
     MissingTypeParamKey { param_name: String },
+    #[error("missing stable effect parameter key for `{param_name}`")]
+    MissingEffectParamKey { param_name: String },
+    #[error("invalid effect row template canonical text `{text}`")]
+    InvalidEffectRowTemplateText { text: String },
+    #[error("invalid stable {kind} key canonical text `{text}`")]
+    InvalidStableKeyText { kind: String, text: String },
+    #[error("unresolved effect type key `{type_key}`")]
+    UnresolvedEffectTypeKey { type_key: String },
+    #[error("effect row template still contains unsubstituted effect parameter `{param_name}`")]
+    UnsubstitutedEffectParam { param_name: String },
     #[error("canonical type encoding exceeded recursion limit")]
     RecursionLimit,
 }
@@ -546,7 +1092,7 @@ where
     R: StableTypeParamResolver + ?Sized,
 {
     let mut encoder = CanonicalEncoder::new(types, type_params);
-    encoder.encode_effect_row(row, 0)
+    encoder.encode_effect_row(row, false, 0)
 }
 
 /// Encodes a callable overload signature from canonical function type text plus generic arity.
@@ -681,9 +1227,8 @@ where
                 };
                 let params = self.encode_type_list(&fun.params, depth + 1)?;
                 let return_ty = self.encode_type(fun.return_ty, depth + 1)?;
-                let row = self.encode_effect_row(&fun.effects, depth + 1)?;
-                let closed = if fun.effects_closed { "!" } else { "" };
-                format!("F({receiver};[{params}]->{return_ty}/{row}{closed})")
+                let row = self.encode_effect_row(&fun.effects, fun.effects_closed, depth + 1)?;
+                format!("F({receiver};[{params}]->{return_ty}/{row})")
             }
             TypeKind::Ref(RefTypeKind::Union(union)) => self.encode_union(union, depth + 1)?,
             TypeKind::Value(ValueTypeKind::Unit) => "V(Unit)".to_string(),
@@ -736,7 +1281,7 @@ where
             Some(self.encode_type_list(&nominal.args, depth + 1)?)
         };
         let eff = match &nominal.eff {
-            Some(eff) => Some(self.encode_effect_row(eff, depth + 1)?),
+            Some(eff) => Some(self.encode_effect_row(eff, false, depth + 1)?),
             None => None,
         };
         Ok(canonical_nominal_text(
@@ -765,17 +1310,21 @@ where
     fn encode_effect_row(
         &mut self,
         row: &EffectRow,
+        closed: bool,
         depth: usize,
     ) -> Result<String, CanonicalEncodingError> {
-        let mut terms = row
+        let terms = row
             .terms
             .iter()
             .copied()
-            .map(|term| self.encode_type(term, depth + 1))
+            .map(|term| {
+                self.encode_type(term, depth + 1)
+                    .map(|type_key| EffectTerm::Concrete {
+                        type_key: CanonicalTextKey::new(type_key),
+                    })
+            })
             .collect::<Result<Vec<_>, _>>()?;
-        terms.sort();
-        terms.dedup();
-        Ok(format!("E({})", terms.join(",")))
+        Ok(EffectRowTemplate::new(terms, closed).canonical_text())
     }
 
     fn encode_type_list(
@@ -812,6 +1361,144 @@ fn canonical_nominal_text(fqn: &str, args: Option<&str>, eff: Option<&str>) -> S
     }
     encoded.push(')');
     encoded
+}
+
+fn split_top_level_effect_terms(body: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut paren_depth = 0i32;
+    let mut bracket_depth = 0i32;
+    let mut angle_depth = 0i32;
+    for (idx, ch) in body.char_indices() {
+        match ch {
+            ',' if paren_depth == 0 && bracket_depth == 0 && angle_depth == 0 => {
+                parts.push(body[start..idx].to_string());
+                start = idx + ch.len_utf8();
+            }
+            '(' => paren_depth += 1,
+            ')' => paren_depth -= 1,
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth -= 1,
+            '<' => angle_depth += 1,
+            '>' => angle_depth -= 1,
+            _ => {}
+        }
+    }
+    parts.push(body[start..].to_string());
+    parts
+}
+
+fn parse_effect_term_canonical_text(text: &str) -> Option<EffectTerm> {
+    if text.is_empty() {
+        return None;
+    }
+    if text.starts_with("eff_param(") {
+        return parse_stable_effect_param_key(text).map(|param| {
+            EffectTerm::param(
+                param.owner().clone(),
+                param.ordinal(),
+                param.name().to_string(),
+            )
+        });
+    }
+    Some(EffectTerm::concrete(text))
+}
+
+fn parse_stable_effect_param_key(text: &str) -> Option<StableEffectParamKey> {
+    let parts = parse_canonical_record(text, "eff_param")?;
+    let [owner_text, ordinal_text, name] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableEffectParamKey::new(
+        parse_stable_def_key(owner_text)?,
+        ordinal_text.parse().ok()?,
+        (*name).to_string(),
+    ))
+}
+
+fn parse_stable_instance_key(text: &str) -> Option<StableInstanceKey> {
+    let parts = parse_canonical_record(text, "instance")?;
+    let [template_text, type_args_text, effect_args_text] = parts.as_slice() else {
+        return None;
+    };
+    let canonical_type_args = parse_canonical_record(type_args_text, "list")?
+        .into_iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let canonical_effect_args = parse_canonical_record(effect_args_text, "list")?
+        .into_iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    Some(StableInstanceKey::from_canonical_args(
+        parse_stable_template_key(template_text)?,
+        canonical_type_args,
+        canonical_effect_args,
+    ))
+}
+
+fn parse_stable_template_key(text: &str) -> Option<StableTemplateKey> {
+    let parts = parse_canonical_record(text, "template")?;
+    let [def_text] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableTemplateKey::new(parse_stable_def_key(def_text)?))
+}
+
+fn parse_stable_def_key(text: &str) -> Option<StableDefKey> {
+    let parts = parse_canonical_record(text, "def")?;
+    if !(4..=5).contains(&parts.len()) {
+        return None;
+    }
+    Some(StableDefKey::new(
+        parse_stable_cone_key(parts[0])?,
+        parse_stable_def_namespace(parts[1])?,
+        parts[2].to_string(),
+        parts[3].to_string(),
+        parts.get(4).map(|part| (*part).to_string()),
+    ))
+}
+
+fn parse_stable_cone_key(text: &str) -> Option<StableConeKey> {
+    let parts = parse_canonical_record(text, "cone")?;
+    let [name, version] = parts.as_slice() else {
+        return None;
+    };
+    Some(StableConeKey::new(*name, *version))
+}
+
+fn parse_stable_def_namespace(text: &str) -> Option<StableDefNamespace> {
+    match text {
+        "type" => Some(StableDefNamespace::Type),
+        "value" => Some(StableDefNamespace::Value),
+        "fun" => Some(StableDefNamespace::Fun),
+        "property_getter" => Some(StableDefNamespace::PropertyGetter),
+        "property_setter" => Some(StableDefNamespace::PropertySetter),
+        "object_init" => Some(StableDefNamespace::ObjectInit),
+        "top_level_init" => Some(StableDefNamespace::TopLevelInit),
+        "extern_global" => Some(StableDefNamespace::ExternGlobal),
+        "interface" => Some(StableDefNamespace::Interface),
+        _ => None,
+    }
+}
+
+fn parse_canonical_record<'a>(text: &'a str, tag: &str) -> Option<Vec<&'a str>> {
+    let prefix = format!("{tag}(");
+    let mut rest = text.strip_prefix(&prefix)?.strip_suffix(')')?;
+    let mut parts = Vec::new();
+    while !rest.is_empty() {
+        let colon = rest.find(':')?;
+        let len = rest[..colon].parse::<usize>().ok()?;
+        let value_start = colon + 1;
+        let value_end = value_start.checked_add(len)?;
+        let value = rest.get(value_start..value_end)?;
+        parts.push(value);
+        rest = rest.get(value_end..)?;
+        if rest.is_empty() {
+            break;
+        }
+        rest = rest.strip_prefix(';')?;
+    }
+    Some(parts)
 }
 
 #[cfg(test)]
@@ -928,6 +1615,309 @@ mod tests {
             canonical_effect_row_text(&types_a, &row_a, &NoTypeParamResolver).unwrap(),
             "E(N(pkg.EffectA),N(pkg.EffectB))"
         );
+    }
+
+    #[test]
+    fn effect_row_template_is_stable_and_aligns_concrete_type_keys() {
+        let mut types_a = TypeStore::new();
+        let eff_b_a = types_a.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "pkg.EffectB".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+        let eff_a_a = types_a.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "pkg.EffectA".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+
+        let mut types_b = TypeStore::new();
+        let eff_a_b = types_b.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "pkg.EffectA".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+        let eff_b_b = types_b.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "pkg.EffectB".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+
+        let template_a = EffectRowTemplate::from_concrete_effect_row(
+            &types_a,
+            &EffectRow::new(vec![eff_b_a, eff_a_a, eff_b_a]),
+            &NoTypeParamResolver,
+            false,
+        )
+        .unwrap();
+        let template_b = EffectRowTemplate::from_concrete_effect_row(
+            &types_b,
+            &EffectRow::new(vec![eff_a_b, eff_b_b]),
+            &NoTypeParamResolver,
+            false,
+        )
+        .unwrap();
+        let effect_a_key =
+            stable_rtti_type_key_for_type(&types_a, eff_a_a, &NoTypeParamResolver).unwrap();
+
+        assert_eq!(template_a.canonical_text(), template_b.canonical_text());
+        assert_eq!(
+            template_a.canonical_text(),
+            "E(N(pkg.EffectA),N(pkg.EffectB))"
+        );
+        assert!(matches!(
+            &template_a.terms()[0],
+            EffectTerm::Concrete { type_key } if type_key.as_str() == effect_a_key.as_str()
+        ));
+
+        let local_types = HashMap::from([
+            ("N(pkg.EffectA)".to_string(), eff_a_a),
+            ("N(pkg.EffectB)".to_string(), eff_b_a),
+        ]);
+        let round_tripped = template_a
+            .to_effect_row_with(|key| local_types.get(key.as_str()).copied())
+            .unwrap();
+        assert_eq!(round_tripped, EffectRow::new(vec![eff_a_a, eff_b_a]));
+    }
+
+    #[test]
+    fn effect_row_template_substitution_flattens_params_and_preserves_pure_closed() {
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.run",
+            "generic_fun",
+            None,
+        );
+        let param_key = StableEffectParamKey::new(owner.clone(), 0, "E");
+        let param_row =
+            EffectRowTemplate::new(vec![EffectTerm::param(owner.clone(), 0, "E")], false);
+        let pure_closed = param_row.substitute(&HashMap::from([(
+            param_key.clone(),
+            EffectRowTemplate::pure_closed(),
+        )]));
+
+        assert!(pure_closed.is_pure_closed());
+        assert_eq!(pure_closed.canonical_text(), "E()!");
+
+        let mixed_row = EffectRowTemplate::new(
+            vec![
+                EffectTerm::param(owner, 0, "E"),
+                EffectTerm::concrete("N(pkg.IO)"),
+            ],
+            false,
+        );
+        let substituted = mixed_row.substitute(&HashMap::from([(
+            param_key,
+            EffectRowTemplate::new(vec![EffectTerm::concrete("N(pkg.Async)")], false),
+        )]));
+
+        assert_eq!(substituted.canonical_text(), "E(N(pkg.Async),N(pkg.IO))");
+        assert!(!substituted.closed());
+    }
+
+    #[test]
+    fn effect_row_template_from_effect_row_preserves_effect_params() {
+        let mut types = TypeStore::new();
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.run",
+            "generic_fun",
+            None,
+        );
+        let param = TypeParamType {
+            name: "E".to_string(),
+            decl_file: PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
+            decl_span: Span::new(5, 6),
+        };
+        let param_ty = types.ty_param(param.clone());
+        let param_key = StableEffectParamKey::new(owner.clone(), 0, "E");
+
+        let template = EffectRowTemplate::from_effect_row(
+            &types,
+            &EffectRow::new(vec![param_ty]),
+            &NoTypeParamResolver,
+            &HashMap::from([(param, param_key)]),
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(template.terms(), &[EffectTerm::param(owner, 0, "E")]);
+        assert!(template.canonical_text().contains("eff_param("));
+    }
+
+    #[test]
+    fn effect_row_template_from_canonical_text_preserves_effect_params() {
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.run",
+            "generic_fun",
+            Some("sig".to_string()),
+        );
+        let template = EffectRowTemplate::new(
+            vec![
+                EffectTerm::param(owner.clone(), 0, "E"),
+                EffectTerm::concrete("N(pkg.IO)"),
+            ],
+            true,
+        );
+
+        let parsed = EffectRowTemplate::from_canonical_text(template.canonical_text()).unwrap();
+        let instance = StableInstanceKey::from_canonical_args(
+            StableTemplateKey::new(owner.clone()),
+            Vec::new(),
+            vec![template.canonical_text()],
+        );
+        let substituted = parsed.substitute(&HashMap::from([(
+            StableEffectParamKey::new(owner, 0, "E"),
+            EffectRowTemplate::pure_closed(),
+        )]));
+
+        assert_eq!(parsed, template);
+        assert_eq!(instance.effect_arg_templates(), &[template]);
+        assert_eq!(substituted.canonical_text(), "E(N(pkg.IO))!");
+    }
+
+    #[test]
+    fn effect_row_template_tracks_closed_pure_separately_from_open_pure() {
+        let open = EffectRowTemplate::pure();
+        let closed = EffectRowTemplate::pure_closed();
+        let closed_non_pure = EffectRowTemplate::new(vec![EffectTerm::concrete("N(pkg.IO)")], true);
+
+        assert!(open.is_pure());
+        assert!(!open.is_pure_closed());
+        assert!(closed.is_pure_closed());
+        assert_eq!(closed.canonical_text(), "E()!");
+        assert!(closed_non_pure.closed());
+        assert!(!closed_non_pure.is_pure_closed());
+        assert_eq!(closed_non_pure.canonical_text(), "E(N(pkg.IO))!");
+    }
+
+    #[test]
+    fn stable_instance_key_keeps_structured_effect_arg_templates() {
+        let template = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.effectful",
+            "generic_fun",
+            None,
+        ));
+        let effect_template =
+            EffectRowTemplate::new(vec![EffectTerm::concrete("N(pkg.Async)")], true);
+        let instance = StableInstanceKey::from_effect_arg_templates(
+            template,
+            vec!["V(Int)".to_string()],
+            vec![effect_template.clone()],
+        );
+
+        assert_eq!(instance.effect_arg_templates(), &[effect_template]);
+        assert_eq!(
+            instance.canonical_effect_args(),
+            vec!["E(N(pkg.Async))!".to_string()]
+        );
+        assert!(instance.canonical_text().contains("E(N(pkg.Async))!"));
+    }
+
+    #[test]
+    fn stable_template_and_instance_keys_parse_canonical_text() {
+        let template = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "demo.id",
+            "generic_fun",
+            Some("sig".to_string()),
+        ));
+        let instance = StableInstanceKey::from_canonical_args(
+            template.clone(),
+            vec!["V(Int)".to_string()],
+            vec![EffectRowTemplate::pure().canonical_text()],
+        );
+
+        assert_eq!(
+            StableTemplateKey::from_canonical_text(template.canonical_text()).unwrap(),
+            template
+        );
+        assert_eq!(
+            StableInstanceKey::from_canonical_text(instance.canonical_text()).unwrap(),
+            instance
+        );
+    }
+
+    #[test]
+    fn call_dispatch_and_abi_keys_separate_semantic_identity_from_display() {
+        let template = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.Service.run",
+            "generic_fun",
+            None,
+        ));
+        let instance = StableInstanceKey::from_effect_arg_templates(
+            template,
+            Vec::new(),
+            vec![EffectRowTemplate::pure()],
+        );
+        let dispatch_target = DispatchTargetKey::new("interface_slot", instance.clone());
+        let direct_call = CallTargetKey::direct(instance.clone());
+        let dispatch_call = CallTargetKey::dispatch(dispatch_target.clone());
+        let abi_fun = AbiSymbolKey::new(AbiSymbolKind::Fun, &instance);
+        let abi_global = AbiSymbolKey::new(AbiSymbolKind::Global, &instance);
+
+        assert_ne!(direct_call.canonical_text(), dispatch_call.canonical_text());
+        assert!(dispatch_target.canonical_text().contains("interface_slot"));
+        assert_eq!(direct_call.readable_path(), "pkg.Service.run");
+        assert_ne!(abi_fun.canonical_text(), abi_global.canonical_text());
+        assert_eq!(abi_fun.readable_path(), "pkg.Service.run");
+    }
+
+    #[test]
+    fn abi_symbol_key_equality_and_hash_ignore_readable_path() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash as _, Hasher as _};
+
+        struct TestSymbolKey {
+            canonical: &'static str,
+            readable: &'static str,
+        }
+
+        impl StableCanonicalKey for TestSymbolKey {
+            fn canonical_text(&self) -> String {
+                self.canonical.to_string()
+            }
+        }
+
+        impl StableSymbolKey for TestSymbolKey {
+            fn readable_path(&self) -> &str {
+                self.readable
+            }
+        }
+
+        let left = AbiSymbolKey::new(
+            AbiSymbolKind::Fun,
+            &TestSymbolKey {
+                canonical: "target(semantic)",
+                readable: "pkg.old_name",
+            },
+        );
+        let right = AbiSymbolKey::new(
+            AbiSymbolKind::Fun,
+            &TestSymbolKey {
+                canonical: "target(semantic)",
+                readable: "pkg.new_name",
+            },
+        );
+        let mut left_hash = DefaultHasher::new();
+        let mut right_hash = DefaultHasher::new();
+
+        left.hash(&mut left_hash);
+        right.hash(&mut right_hash);
+
+        assert_eq!(left, right);
+        assert_eq!(left.canonical_text(), right.canonical_text());
+        assert_ne!(left.readable_path(), right.readable_path());
+        assert_eq!(left_hash.finish(), right_hash.finish());
     }
 
     #[test]

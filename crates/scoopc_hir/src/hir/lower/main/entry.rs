@@ -143,7 +143,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let interior_mutable_nominals = collect_interior_mutable_nominals(&pairs, None);
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
-    let delegated_properties = collect_delegated_properties(&pairs);
+    let delegated_properties = collect_delegated_properties(&pairs, &index, None);
     let default_arg_structs = collect_default_arg_structs(&pairs);
     let computed_property_accessors = collect_computed_property_accessor_fqns(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
@@ -169,6 +169,24 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             &index,
             &pairs,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        &index,
+        &pairs,
+        &HashMap::new(),
+    );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            &index,
+            &[(source, &ast)],
+            &HashMap::new(),
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        &[(source, &ast)],
+        &generic_template_inventory,
+    );
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
@@ -292,6 +310,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ));
         ci
     };
+    let release_hooks = collect_release_hooks(&pairs);
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
     let monomorphized_member_funs = collect_generic_member_fun_instantiations(
         &pairs,
@@ -325,6 +344,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         &file,
         &member_funs,
     ));
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs(&[(source, &ast)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     let stable_type_param_keys =
         collect_stable_type_param_keys(&[(source, &ast)], &stable_cone_key);
@@ -349,6 +369,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -360,12 +383,14 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,
@@ -392,10 +417,24 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 ///   resolution、effect payload binding 等 typed 事实的路径；
 /// - 但仍停留在 generic HIR/MIR template 边界：不会在这里额外 materialize
 ///   standalone generic fun 或 owner-specialized member fun 的 `::<...>` 实例。
+#[derive(Debug)]
+pub struct TypedHirLoweringOutput {
+    pub lowered_hir: LoweredHir,
+    pub index: Index,
+    pub type_env: crate::typecheck::TypeEnv,
+}
+
 pub fn lower_typed_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<LoweredHir, HirLowerError> {
+    Ok(lower_typed_for_dump_with_frontend_artifact(session, source)?.lowered_hir)
+}
+
+pub fn lower_typed_for_dump_with_frontend_artifact(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<TypedHirLoweringOutput, HirLowerError> {
     let mut ast = parse_file(source)?;
     let mut support_asts = load_dump_support_asts(session, source)?;
 
@@ -496,7 +535,7 @@ pub fn lower_typed_for_dump(
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
 
-    lower_for_compilation_unit_multi_files_internal(
+    let lowered_hir = lower_for_compilation_unit_multi_files_internal(
         &index,
         &compilation_unit,
         &files_to_lower,
@@ -506,5 +545,11 @@ pub fn lower_typed_for_dump(
         CompilationUnitLoweringOptions::generic_template_only(
             StableConeKey::for_virtual_source_path(source.path()),
         ),
-    )
+    )?;
+
+    Ok(TypedHirLoweringOutput {
+        lowered_hir,
+        index,
+        type_env: env,
+    })
 }

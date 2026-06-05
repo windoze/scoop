@@ -6,7 +6,10 @@
 //! 逐步把 effect lowering 从旧 `effect/` 主题中彻底拆开。
 
 mod body;
+mod closure_adapter;
 mod layout;
 mod stable_naming;
 mod types;
 mod value;
+
+pub(in crate::llvm::codegen) use types::ProgramAbiQuery;

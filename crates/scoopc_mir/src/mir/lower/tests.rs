@@ -253,7 +253,7 @@ fun entry(lhs: Num, rhs: Num): Bool {
                 target,
                 value:
                     Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
+                        kind: CallKind::Direct { callee_fqn, .. },
                         args,
                         ..
                     },
@@ -291,7 +291,7 @@ fun entry(lhs: Num, rhs: Num): Bool {
             if let StatementKind::Assign {
                 value:
                     Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
+                        kind: CallKind::Direct { callee_fqn, .. },
                         args,
                         ..
                     },
@@ -358,7 +358,7 @@ fun entry(lhs: Num, rhs: Num): Int {
                 target,
                 value:
                     Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
+                        kind: CallKind::Direct { callee_fqn, .. },
                         args,
                         ..
                     },
@@ -394,7 +394,7 @@ fun entry(lhs: Num, rhs: Num): Int {
                 if let StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -707,7 +707,7 @@ fun main(): Int {
         let StatementKind::Assign {
             value:
                 Rvalue::Call {
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     args,
                     transport,
                     ..
@@ -819,7 +819,7 @@ fun main(): Int {
         };
         match value {
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
+                kind: CallKind::Direct { callee_fqn, .. },
                 args,
                 transport,
                 ..
@@ -902,7 +902,7 @@ fn dump_mir_uint8_array_get_keeps_scalar_transport_metadata() {
         let StatementKind::Assign {
             value:
                 Rvalue::Call {
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     transport,
                     ..
                 },

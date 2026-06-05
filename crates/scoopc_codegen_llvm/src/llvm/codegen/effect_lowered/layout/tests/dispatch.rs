@@ -23,10 +23,9 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
                 .target_callables
                 .iter()
                 .map(|key| {
-                    inputs
-                        .abi_visibility_lir_facts
-                        .callables
-                        .get(key)
+                    key.local_id()
+                        .and_then(|id| inputs.abi_visibility_program.callable_by_id(id))
+                        .and_then(LateLoweredCallable::published_callable_facts)
                         .expect("target callable facts 应存在")
                 })
                 .collect::<Vec<_>>();
@@ -44,7 +43,7 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
             for target in targets {
                 assert!(
                     query
-                        .plain_callable_layout_by_root_fqn(target.root_fqn())
+                        .plain_callable_layout_for_root_text(target.root_fqn())
                         .is_ok(),
                     "NoOutward virtual target `{}` 应发布 plain callable layout",
                     target.root_fqn()
@@ -180,7 +179,12 @@ pub(super) fn llvm_call_boundary_continuation_composition() {
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()
@@ -364,7 +368,8 @@ pub(super) fn llvm_callable_carrier_version_selection_rejects_ambiguous_root_tar
         },
         |_inputs, result, _module| {
             let query = result.expect("duplicated plain versions 应允许物化到 version-key 查询面");
-            let err = match query.plain_callable_layout_by_root_fqn("fixtures.build.makeClosure") {
+            let err = match query.plain_callable_layout_for_root_text("fixtures.build.makeClosure")
+            {
                 Ok(_) => panic!("歧义 root 查询必须要求调用方改用 body version key"),
                 Err(err) => err,
             };
@@ -488,7 +493,12 @@ pub(super) fn llvm_local_runtime_error_contract_rejects_missing_target_state() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()
@@ -579,7 +589,12 @@ pub(super) fn llvm_local_runtime_error_contract_rejects_non_local_runtime_error_
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let local_runtime_error_states = main
                 .boundary_map()
                 .entries()

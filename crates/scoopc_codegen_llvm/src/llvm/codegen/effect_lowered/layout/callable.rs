@@ -250,6 +250,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             callable.body_version_key(),
             &format!("callable `{}`", callable.root_fqn()),
         )?;
+        let callable_hash = callable
+            .lir_callable_key()
+            .map(scoopc_ids::LirCallableHash::from_stable_key)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 callable `{}` 的 stable LIR callable key",
+                    callable.root_fqn()
+                ))
+            })?;
         let dynamic_name = stable_naming::private_name_from_key_text(
             "dynamic_invoke",
             step_layout.stable_effect_key_text(),
@@ -288,6 +297,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         Ok(CallableLayout::new(
             self.origin,
+            callable_hash,
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
             stable_callable_key_text,
@@ -325,6 +335,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             callable.body_version_key(),
             &format!("plain callable `{}`", callable.root_fqn()),
         )?;
+        let callable_hash = callable
+            .lir_callable_key()
+            .map(scoopc_ids::LirCallableHash::from_stable_key)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 plain callable `{}` 的 stable LIR callable key",
+                    callable.root_fqn()
+                ))
+            })?;
         let plain = callable.plain_abi().ok_or_else(|| {
             frontend_error(format!(
                 "LLVM ABI materialization 发现 callable `{}` 没有 plain ABI handoff",
@@ -365,7 +384,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )
         } else {
             (
-                self.exported_plain_callable_symbol(callable.root_fqn())?,
+                self.exported_plain_callable_symbol(callable)?,
                 LlvmFunctionDeclarationSurface::ExportedAbi,
                 false,
             )
@@ -390,6 +409,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })?
             .to_string();
         Ok(PlainCallableLayout::new(
+            callable_hash,
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
             stable_callable_key_text,
@@ -404,22 +424,29 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         ))
     }
 
-    fn exported_plain_callable_symbol(&self, root_fqn: &str) -> Result<String, LlvmEmitError> {
+    fn exported_plain_callable_symbol(
+        &self,
+        callable: &LateLoweredCallable,
+    ) -> Result<String, LlvmEmitError> {
+        let id = self.callable_id(callable)?;
         let symbol_facts = self
-            .lir_facts
-            .physical_layout
+            .program
+            .physical_layout()
             .callable_symbols
-            .values()
-            .find(|symbol| symbol.root_fqn == root_fqn)
+            .get(&id)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 LIR symbol facts"
+                    "LLVM ABI materialization 缺少 plain callable `{}` 的 LIR symbol facts（id={:?}）",
+                    callable.root_fqn(),
+                    id
                 ))
             })?;
-        Ok(symbol_facts
-            .exported_symbol
-            .clone()
-            .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable)))
+        symbol_facts.exported_symbol.clone().ok_or_else(|| {
+            frontend_error(format!(
+                "plain callable `{}` 的 LIR symbol facts 缺少 exported ABI symbol",
+                callable.root_fqn()
+            ))
+        })
     }
 
     pub(super) fn materialize_callable_version_layout_index(

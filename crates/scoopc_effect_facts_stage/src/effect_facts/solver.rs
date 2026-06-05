@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
-use crate::mir::{BasicBlockId, InstanceKey, SiteId};
+use crate::mir::{BasicBlockId, InstanceKey};
 use crate::opt::OptLevel;
 
 use super::{
@@ -534,6 +534,7 @@ fn build_call_graph(
                                 }
                             }
                         }
+                        CallSiteTarget::BodylessDirect { .. } => {}
                         CallSiteTarget::DynamicFallback => {}
                     }
                 }
@@ -988,7 +989,10 @@ fn finalize_call_site_resolution(
     match call_facts.target() {
         CallSiteTarget::KnownInstance(target) => {
             let Some(index) = key_to_index.get(target) else {
-                return fallback_call_resolution(call_facts);
+                panic!(
+                    "effect facts solver received unpublished known-instance call target `{}`",
+                    target.template.fqn
+                );
             };
             let precision = if states[*index].widened {
                 EffectPrecision::Widened
@@ -1009,6 +1013,9 @@ fn finalize_call_site_resolution(
                 precision,
             }
         }
+        CallSiteTarget::BodylessDirect { .. } => {
+            plain_call_resolution(call_facts, call_facts.precision())
+        }
         CallSiteTarget::CandidateSet(targets) => {
             if matches!(call_facts.callee_abi_kind(), CallableAbiKind::Plain) {
                 return plain_call_resolution(call_facts, call_facts.precision());
@@ -1026,12 +1033,10 @@ fn finalize_call_site_resolution(
             let mut resolved_tags = BTreeSet::new();
             for target in targets {
                 let Some(index) = key_to_index.get(target) else {
-                    return CallResolution {
-                        callee_abi_kind: CallableAbiKind::EffectStep,
-                        callee_schema: Some(call_facts.callee_schema()),
-                        resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
-                        precision: EffectPrecision::Widened,
-                    };
+                    panic!(
+                        "effect facts solver received unpublished candidate call target `{}`",
+                        target.template.fqn
+                    );
                 };
                 let projected = schema_index.project_case_set(
                     &states[*index].resolved_outward_cases,
@@ -1066,25 +1071,14 @@ fn finalize_call_site_resolution(
             }
         }
         CallSiteTarget::DynamicFallback => match call_facts.callee_abi_kind() {
-            CallableAbiKind::Plain => {
-                plain_call_resolution(call_facts, EffectPrecision::SignatureFallback)
-            }
+            CallableAbiKind::Plain => plain_call_resolution(call_facts, call_facts.precision()),
             CallableAbiKind::EffectStep => CallResolution {
                 callee_abi_kind: CallableAbiKind::EffectStep,
                 callee_schema: Some(call_facts.callee_schema()),
                 resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
-                precision: EffectPrecision::SignatureFallback,
+                precision: call_facts.precision(),
             },
         },
-    }
-}
-
-fn fallback_call_resolution(call_facts: &CallSiteEffectFacts) -> CallResolution {
-    CallResolution {
-        callee_abi_kind: call_facts.callee_abi_kind(),
-        callee_schema: call_facts.callee_step_schema(),
-        resolved_cases: call_facts.resolved_cases().clone(),
-        precision: call_facts.precision(),
     }
 }
 
@@ -1227,7 +1221,7 @@ fn subtract_case_set(source: &CaseSet, removed: &CaseSet) -> CaseSet {
     )
 }
 
-fn body_needs_plain_local_control(sites: &BTreeMap<SiteId, SiteEffectFacts>) -> bool {
+fn body_needs_plain_local_control(sites: &BTreeMap<crate::mir::SiteId, SiteEffectFacts>) -> bool {
     sites.values().any(|site| match site {
         SiteEffectFacts::Call(call) => {
             matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
@@ -1323,15 +1317,21 @@ mod tests {
         config: EffectFactsSolverConfig,
     ) -> crate::effect_facts::MaterializedEffectFacts {
         let session = session();
+        let mir_stage_output =
+            load_direct_style_mir_stage_output_for_dump(&session, source).unwrap();
         let materialized =
             materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
-        let mut type_context =
-            crate::effect_facts::EffectOwnedTypeContext::from_mir_types(&materialized.types);
+        let mir_stage_output = mir_stage_output.with_materialized_mir(materialized);
+        let mut type_context = crate::effect_facts::EffectOwnedTypeContext::from_mir_types(
+            &mir_stage_output.materialized_mir().types,
+        );
         let seeded =
             crate::effect_facts::MaterializedEffectFactsBuilder::from_materialized_snapshot(
-                &session,
-                source,
-                &materialized,
+                mir_stage_output
+                    .hir_semantic_artifact()
+                    .expect("MIR handoff 应携带 HIR semantic artifact"),
+                mir_stage_output.materialized_mir(),
+                mir_stage_output.mir_facts(),
                 &mut type_context,
             )
             .build()
@@ -1783,7 +1783,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                 };
                 let Rvalue::Call {
                     site_id,
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     ..
                 } = value
                 else {
@@ -1844,7 +1844,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             case_fqns(facts, dynamic_call.resolved_cases()),
             ["sample.Boom.hit".to_string()].into_iter().collect()
         );
-        assert_eq!(dynamic_call.precision(), EffectPrecision::SignatureFallback);
+        assert_eq!(dynamic_call.precision(), EffectPrecision::Widened);
     }
 
     #[test]
@@ -1888,7 +1888,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                 };
                 let Rvalue::Call {
                     site_id,
-                    kind: CallKind::Direct { callee_fqn },
+                    kind: CallKind::Direct { callee_fqn, .. },
                     ..
                 } = value
                 else {
@@ -2006,7 +2006,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
         else {
             panic!("dynamic site 应产生 CallSiteEffectFacts");
         };
-        assert_eq!(dynamic_site.precision(), EffectPrecision::SignatureFallback);
+        assert_eq!(dynamic_site.precision(), EffectPrecision::Widened);
         assert_eq!(
             case_fqns(dynamic_facts, dynamic_site.resolved_cases()),
             ["sample.Alpha.go".to_string(), "sample.Beta.go".to_string()]

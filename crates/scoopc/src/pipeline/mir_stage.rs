@@ -1,13 +1,35 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::collections::btree_map::Entry;
 use std::path::{Path, PathBuf};
 
 use scoop_project_model::StableConeKey;
-use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StableCanonicalKey, StageArtifactKey};
+use scoopc_hir::stage::HirSemanticArtifact;
+use scoopc_hir_facts::HirFacts;
+use scoopc_ids::{
+    AbiMangler, BodyBlockId, BodyVersionKey, CanonicalTextKey, SiteId, StableCanonicalKey,
+    StableLirCallableKey, StageArtifactKey, canonical_record,
+};
 use scoopc_mir_facts::MirFacts;
+use scoopc_mir_facts::backend::{
+    ClassInitContractFact, EnumLayoutContractFact, ExternFunContractFact, GlobalInitContractFact,
+    GlobalInitKind, GlobalStorageKind, InterfaceContractFact, ItableContractFact, MirBackendFacts,
+    NamedIntrinsicCallableFact, NativeCallableFunContractFact, SourceCallableSignatureFact,
+    VtableContractFact,
+};
+use scoopc_mir_facts::boundary::{
+    BoundaryAnchor, BoundaryOperandSource, BoundarySourceContract, ClosureEnvDecomposition,
+    MirBoundaryFacts,
+};
 use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
+use scoopc_mir_facts::effects::{
+    CallSiteSurfaceEffectFact, CallSiteTarget, CallSiteTargetFact, CallSiteTargetSource,
+    CallableInstanceEffectFacts, DynamicFallbackReason, EffectRowTemplate as FactEffectRowTemplate,
+    EffectRowTerm as FactEffectRowTerm, MirBlockEffectRegionFact, MirCallKind, MirEffectEventFact,
+    MirEffectEventKind, MirEffectFacts, MirEffectOpSiteContract, MirSiteInventoryFact, MirSiteKind,
+};
 use scoopc_mir_facts::families::{
     CallableFamilyFact, InstanceFamilyInventory, InstanceInventoryEntry,
 };
@@ -19,6 +41,11 @@ use scoopc_mir_facts::pass_artifacts::{
     SummaryArtifact,
 };
 use scoopc_mir_facts::pipeline::{MirPassPipelineMetadata, MirPassRun};
+use scoopc_mir_facts::provenance::{
+    CallableValueProvenance, CallableValueProvenanceFact, CallableValueProvenanceSource,
+    MirProvenanceFacts, ResultProvenance as FactResultProvenance, ResultProvenanceFact,
+    ResultProvenanceSource as FactResultProvenanceSource,
+};
 use scoopc_mir_facts::roots::{
     MirGlobalStorageKind, MirInitializerDependencyFact,
     MirInitializerDependencyKind as FactInitializerDependencyKind,
@@ -29,12 +56,22 @@ use scoopc_mir_facts::snapshot::{MaterializedSnapshotBinding, SnapshotBindings};
 
 use crate::dump_support::normalize_dump_path;
 use crate::mir::{
-    ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
-    InitializerRoot as MirInitializerRoot, InstanceKey, Item as MirItem, LoweredMir,
-    MaterializedMir, MaterializedMirPassView, MetadataRoot as MirMetadataRoot, MirLowerError,
-    MirLoweringFacts, lower_hir_file_for_dump_with_facts,
+    CallArg as MirCallArg, CallKind as MirCallKindNode, ExternGlobalRoot as MirExternGlobalRoot,
+    File as MirFile, FunDecl as MirFunDecl, InitializerRoot as MirInitializerRoot, InstanceKey,
+    Item as MirItem, LoweredMir, MaterializedCallableEffectTemplate, MaterializedMir,
+    MaterializedMirPassView, MetadataRoot as MirMetadataRoot, MirLowerError, MirLoweringFacts,
+    Operand as MirOperand, ResultProvenance as MirResultProvenance,
+    ResultProvenanceSource as MirResultProvenanceSource, Rvalue as MirRvalue,
+    StatementKind as MirStatementKind, TerminatorKind as MirTerminatorKind, UnwindAction,
+    lower_hir_file_for_dump_with_facts,
 };
-use crate::ty::{TypeId, TypeStore};
+use crate::stable_id::{
+    EffectRowTemplate as StableEffectRowTemplate, NoTypeParamResolver, StableEffectParamKey,
+    StableTemplateKey,
+};
+use crate::ty::{
+    EFFECT_ROW_PARAM_DECL_FILE, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::HirStageOutput;
 
@@ -46,6 +83,12 @@ const CALLABLE_FAMILY_ROLE: &str = "callable_family";
 const CANONICAL_SNAPSHOT_ROLE: &str = "canonical_materialized_snapshot";
 const PASS_ARTIFACT_ROLE: &str = "canonical_pass_artifacts";
 
+#[derive(Clone, Copy)]
+struct PublishedSurfaceRows<'a> {
+    by_fqn: &'a HashMap<String, FactEffectRowTemplate>,
+    by_stable_key: &'a HashMap<String, FactEffectRowTemplate>,
+}
+
 /// direct-style MIR dump / validation helper output.
 ///
 /// This shape is intentionally not P4-ready: it carries the direct-style MIR IR and
@@ -55,6 +98,7 @@ const PASS_ARTIFACT_ROLE: &str = "canonical_pass_artifacts";
 pub struct DirectStyleMirStageOutput {
     lowered_mir: LoweredMir,
     mir_facts: MirFacts,
+    hir_semantic_artifact: Option<HirSemanticArtifact>,
 }
 
 /// P4-ready MIR stage handoff.
@@ -78,11 +122,28 @@ pub struct MirStageOutput {
 }
 
 impl DirectStyleMirStageOutput {
+    #[cfg(test)]
     pub(crate) fn new(
         lowered_mir: LoweredMir,
         stable_cone_key: StableConeKey,
         source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
         source_cone_order: &HashMap<StableConeKey, u32>,
+    ) -> Self {
+        Self::new_with_hir_semantic_artifact(
+            lowered_mir,
+            stable_cone_key,
+            source_cones,
+            source_cone_order,
+            None,
+        )
+    }
+
+    pub(crate) fn new_with_hir_semantic_artifact(
+        lowered_mir: LoweredMir,
+        stable_cone_key: StableConeKey,
+        source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+        source_cone_order: &HashMap<StableConeKey, u32>,
+        hir_semantic_artifact: Option<HirSemanticArtifact>,
     ) -> Self {
         let mir_facts = build_direct_style_mir_facts(
             &lowered_mir.file,
@@ -93,6 +154,7 @@ impl DirectStyleMirStageOutput {
         Self {
             lowered_mir,
             mir_facts,
+            hir_semantic_artifact,
         }
     }
 
@@ -111,6 +173,10 @@ impl DirectStyleMirStageOutput {
     /// Return MIR-owned facts published by this stage.
     pub fn mir_facts(&self) -> &MirFacts {
         &self.mir_facts
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.hir_semantic_artifact.as_ref()
     }
 
     /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
@@ -195,7 +261,15 @@ impl MirStageOutput {
         mut direct_style: DirectStyleMirStageOutput,
         materialized_mir: MaterializedMir,
     ) -> Self {
-        publish_materialized_handoff_facts(&mut direct_style.mir_facts, &materialized_mir);
+        let hir_facts = direct_style
+            .hir_semantic_artifact
+            .as_ref()
+            .map(HirSemanticArtifact::hir_facts);
+        publish_materialized_handoff_facts(
+            &mut direct_style.mir_facts,
+            &materialized_mir,
+            hir_facts,
+        );
         direct_style
             .mir_facts
             .verify()
@@ -217,6 +291,10 @@ impl MirStageOutput {
     /// Return MIR-owned facts published by this P4-ready handoff.
     pub fn mir_facts(&self) -> &MirFacts {
         self.direct_style.mir_facts()
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.direct_style.hir_semantic_artifact()
     }
 
     /// Return the mandatory canonical materialized MIR snapshot handed to P4.
@@ -298,7 +376,11 @@ fn build_direct_style_mir_facts(
     facts
 }
 
-fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &MaterializedMir) {
+fn publish_materialized_handoff_facts(
+    facts: &mut MirFacts,
+    materialized: &MaterializedMir,
+    hir_facts: Option<&HirFacts>,
+) {
     let snapshot_key = canonical_snapshot_key(materialized);
     let canonical_body_fqns = canonical_materialized_body_fqns(materialized);
     facts.snapshots = SnapshotBindings {
@@ -315,6 +397,10 @@ fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &Mater
         ],
     };
     facts.families = collect_instance_family_inventory(materialized);
+    facts.effects = collect_mir_effect_facts(materialized);
+    facts.provenance = collect_mir_provenance_facts(materialized);
+    facts.boundary = collect_mir_boundary_facts(materialized);
+    facts.backend = collect_mir_backend_facts(materialized, hir_facts);
     facts.pass_artifacts = collect_pass_artifact_metadata(materialized, &snapshot_key);
     facts.pass_pipeline = collect_pass_pipeline_metadata(materialized, &snapshot_key);
 }
@@ -365,6 +451,7 @@ fn collect_instance_family_inventory(materialized: &MaterializedMir) -> Instance
             instance_artifact.clone(),
             CanonicalTextKey::new(root_fqn.clone()),
             family.key().type_args.clone(),
+            effect_arg_templates(&materialized.types, &family.key().eff_args),
             body.clone(),
         ));
 
@@ -397,6 +484,3367 @@ fn collect_instance_family_inventory(materialized: &MaterializedMir) -> Instance
     InstanceFamilyInventory {
         instances,
         callable_families,
+    }
+}
+
+fn collect_mir_effect_facts(materialized: &MaterializedMir) -> MirEffectFacts {
+    let cone = materialized.stable_cone_key().clone();
+    let source_effects = materialized
+        .source_callable_effects()
+        .iter()
+        .map(|effect| (effect.template.clone(), effect.clone()))
+        .collect::<HashMap<_, _>>();
+    let pass_view = materialized.pass_view();
+    let mut facts = MirEffectFacts::default();
+    let mut published_surface_by_fqn = HashMap::new();
+    let mut published_surface_by_stable_key = HashMap::new();
+
+    for family in pass_view.instances() {
+        let (_, _, published) = callable_instance_rows(
+            materialized,
+            family.key(),
+            family.root_body(),
+            source_effects.get(&family.key().template),
+        );
+        for fqn in family.callable_fqns() {
+            published_surface_by_fqn.insert(fqn.to_string(), published.clone());
+        }
+        if let Some(stable_key) = materialized.authoritative_stable_instance_key(family.key()) {
+            published_surface_by_stable_key.insert(stable_key.canonical_text(), published);
+        }
+    }
+
+    for family in pass_view.instances() {
+        let instance_artifact = materialized_instance_artifact(materialized, family.key());
+        let surface_rows = PublishedSurfaceRows {
+            by_fqn: &published_surface_by_fqn,
+            by_stable_key: &published_surface_by_stable_key,
+        };
+        let callable = CanonicalTextKey::new(family.root_fqn());
+        let (declared, actual, published) = callable_instance_rows(
+            materialized,
+            family.key(),
+            family.root_body(),
+            source_effects.get(&family.key().template),
+        );
+        let mut step_rows = vec![published.clone()];
+        for fun in family.callable_bodies() {
+            if let Some(body) = &fun.body {
+                step_rows.extend(body_local_effect_rows(
+                    materialized,
+                    family.key(),
+                    fun,
+                    body,
+                    &pass_view,
+                    surface_rows,
+                    source_effects
+                        .get(&family.key().template)
+                        .map(|source| source.eff_param_names.as_slice())
+                        .unwrap_or(&[]),
+                ));
+            }
+        }
+        let step = merge_effect_rows(step_rows);
+        facts
+            .callable_instances
+            .push(CallableInstanceEffectFacts::new(
+                FactIdentity::new(
+                    CanonicalTextKey::new(format!(
+                        "mir_effect:callable_instance:{}",
+                        instance_artifact.canonical_text()
+                    )),
+                    format!("callable instance effects {}", family.root_fqn()),
+                    cone.clone(),
+                    None,
+                ),
+                instance_artifact.clone(),
+                callable,
+                declared,
+                actual,
+                published,
+                step,
+            ));
+
+        for fun in family.callable_bodies() {
+            collect_body_effect_facts(
+                materialized,
+                &cone,
+                &instance_artifact,
+                family.key(),
+                fun,
+                &pass_view,
+                surface_rows,
+                source_effects
+                    .get(&family.key().template)
+                    .map(|source| source.eff_param_names.as_slice())
+                    .unwrap_or(&[]),
+                &mut facts,
+            );
+        }
+    }
+
+    facts.callable_instances.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.site_inventory.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.effect_events.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.block_regions.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.call_site_targets.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.call_site_surface_effects.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts
+}
+
+fn callable_instance_rows(
+    materialized: &MaterializedMir,
+    instance: &InstanceKey,
+    root_body: Option<&MirFunDecl>,
+    source: Option<&MaterializedCallableEffectTemplate>,
+) -> (
+    Option<FactEffectRowTemplate>,
+    FactEffectRowTemplate,
+    FactEffectRowTemplate,
+) {
+    if let Some(source) = source {
+        let bindings = effect_param_bindings(&materialized.types, source, &instance.eff_args);
+        let declared = source.declared_surface_row.as_ref().map(|row| {
+            substitute_fact_effect_row_template(
+                &materialized.types,
+                fact_effect_row_template(&row.substitute(&bindings)),
+                instance,
+                &source.eff_param_names,
+            )
+        });
+        let actual = substitute_fact_effect_row_template(
+            &materialized.types,
+            fact_effect_row_template(&source.actual_surface_row_template.substitute(&bindings)),
+            instance,
+            &source.eff_param_names,
+        );
+        let published = substitute_fact_effect_row_template(
+            &materialized.types,
+            fact_effect_row_template(&source.published_surface_row_template.substitute(&bindings)),
+            instance,
+            &source.eff_param_names,
+        );
+        return (declared, actual, published);
+    }
+
+    let fallback = root_body
+        .and_then(|fun| function_effect_row(&materialized.types, fun.ty))
+        .map(|(row, closed)| {
+            effect_row_template_for_instance(&materialized.types, row, closed, instance, &[])
+        })
+        .unwrap_or_else(FactEffectRowTemplate::pure);
+    (Some(fallback.clone()), fallback.clone(), fallback)
+}
+
+fn effect_param_bindings(
+    types: &TypeStore,
+    source: &MaterializedCallableEffectTemplate,
+    eff_args: &[EffectRow],
+) -> HashMap<StableEffectParamKey, StableEffectRowTemplate> {
+    let mut out = HashMap::new();
+    let param_keys = source_effect_param_keys(source);
+    let default_pure = EffectRow::pure();
+
+    if source.eff_param_names.is_empty() {
+        if param_keys.len() == eff_args.len() {
+            let mut ordered_keys = param_keys;
+            ordered_keys.sort_by_key(|key| {
+                (
+                    key.ordinal(),
+                    key.owner().canonical_text(),
+                    key.name().to_string(),
+                )
+            });
+            for (param_key, row) in ordered_keys.into_iter().zip(eff_args) {
+                bind_effect_param(types, &mut out, param_key, Some(row));
+            }
+        } else {
+            for param_key in param_keys {
+                if let Ok(index) = usize::try_from(param_key.ordinal()) {
+                    bind_effect_param(
+                        types,
+                        &mut out,
+                        param_key,
+                        effect_arg_or_default(eff_args, index, &default_pure),
+                    );
+                }
+            }
+        }
+        return out;
+    }
+
+    for (index, name) in source.eff_param_names.iter().enumerate() {
+        let row = effect_arg_or_default(eff_args, index, &default_pure);
+        for param_key in param_keys.iter().filter(|key| key.name() == name) {
+            bind_effect_param(types, &mut out, param_key.clone(), row);
+        }
+    }
+    out
+}
+
+fn source_effect_param_keys(
+    source: &MaterializedCallableEffectTemplate,
+) -> Vec<StableEffectParamKey> {
+    let mut keys = Vec::new();
+    for template in [
+        source.declared_surface_row.as_ref(),
+        Some(&source.actual_surface_row_template),
+        Some(&source.published_surface_row_template),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for term in template.terms() {
+            let Some(param_key) = term.param_key() else {
+                continue;
+            };
+            if !keys.contains(&param_key) {
+                keys.push(param_key);
+            }
+        }
+    }
+    keys
+}
+
+fn bind_effect_param(
+    types: &TypeStore,
+    out: &mut HashMap<StableEffectParamKey, StableEffectRowTemplate>,
+    param_key: StableEffectParamKey,
+    row: Option<&EffectRow>,
+) {
+    let Some(row) = row else {
+        return;
+    };
+    let row_template =
+        StableEffectRowTemplate::from_concrete_effect_row(types, row, &NoTypeParamResolver, false)
+            .expect("materialized effect argument must have a stable row template");
+    out.entry(param_key).or_insert(row_template);
+}
+
+fn effect_arg_or_default<'a>(
+    eff_args: &'a [EffectRow],
+    index: usize,
+    default_pure: &'a EffectRow,
+) -> Option<&'a EffectRow> {
+    eff_args
+        .get(index)
+        .or_else(|| eff_args.is_empty().then_some(default_pure))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_body_effect_facts(
+    materialized: &MaterializedMir,
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    instance_key: &InstanceKey,
+    fun: &MirFunDecl,
+    pass_view: &MaterializedMirPassView<'_>,
+    surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
+    facts: &mut MirEffectFacts,
+) {
+    let Some(body) = &fun.body else {
+        return;
+    };
+    let body_ref = materialized_body_reference(instance, fun);
+    let mut block_sites = BTreeMap::<BodyBlockId, Vec<SiteId>>::new();
+    let callable_provenance = analyze_body_callable_provenance(materialized, fun, pass_view);
+
+    for (block_index, block) in body.blocks.iter().enumerate() {
+        let block_id = BodyBlockId::from_raw(block_index as u32);
+        let mut has_suspend_boundary = false;
+        let mut has_handle_boundary = false;
+        for (statement_index, stmt) in block.stmts.iter().enumerate() {
+            let MirStatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            match value {
+                MirRvalue::Call {
+                    site_id,
+                    kind,
+                    args,
+                    ..
+                } => {
+                    let site_kind = if matches!(kind, MirCallKindNode::Resume { .. }) {
+                        MirSiteKind::Resume
+                    } else {
+                        MirSiteKind::Call
+                    };
+                    block_sites.entry(block_id).or_default().push(*site_id);
+                    facts.site_inventory.push(site_inventory_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        site_kind,
+                        block_id,
+                        Some(statement_index as u32),
+                        Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
+                        Some(stmt.span),
+                        block.is_cleanup,
+                    ));
+                    let call_surface_row = call_site_surface_row(
+                        materialized,
+                        instance_key,
+                        body,
+                        kind,
+                        callable_provenance.call_targets.get(site_id),
+                        pass_view,
+                        args.len(),
+                        surface_rows,
+                        eff_param_names,
+                    )
+                    .unwrap_or_else(FactEffectRowTemplate::pure);
+                    facts.call_site_surface_effects.push(call_site_surface_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        call_surface_row.clone(),
+                    ));
+                    if let Some(call_kind) = mir_call_kind(kind)
+                        && let Some(target_fact) = callable_provenance.call_targets.get(site_id)
+                    {
+                        facts.call_site_targets.push(call_site_target_fact(
+                            cone,
+                            instance,
+                            &body_ref,
+                            *site_id,
+                            call_kind,
+                            target_fact.clone(),
+                        ));
+                    }
+                    let row = match kind {
+                        MirCallKindNode::Resume { resume, .. } => {
+                            has_suspend_boundary |= !resume.out_effects.is_pure();
+                            resume_effect_row(
+                                &materialized.types,
+                                resume,
+                                instance_key,
+                                eff_param_names,
+                            )
+                        }
+                        _ => call_surface_row,
+                    };
+                    facts.effect_events.push(effect_event_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        call_effect_event_kind(&materialized.types, kind),
+                        block_id,
+                        Some(statement_index as u32),
+                        row,
+                        block.is_cleanup,
+                    ));
+                    let _ = args;
+                }
+                MirRvalue::ClassCtor {
+                    site_id,
+                    class_fqn,
+                    hidden_effects,
+                    ..
+                } => {
+                    block_sites.entry(block_id).or_default().push(*site_id);
+                    facts.site_inventory.push(site_inventory_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        MirSiteKind::ClassCtor,
+                        block_id,
+                        Some(statement_index as u32),
+                        Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
+                        Some(stmt.span),
+                        block.is_cleanup,
+                    ));
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
+                    has_suspend_boundary |= !row.terms.is_empty();
+                    facts.effect_events.push(effect_event_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        MirEffectEventKind::ClassCtor {
+                            source_fqn: class_fqn.clone(),
+                        },
+                        block_id,
+                        Some(statement_index as u32),
+                        row,
+                        block.is_cleanup,
+                    ));
+                }
+                MirRvalue::TopLevelRef(top_level)
+                    if top_level.site_id.is_some() && !top_level.hidden_effects.is_pure() =>
+                {
+                    let site_id = top_level.site_id.expect("checked above");
+                    block_sites.entry(block_id).or_default().push(site_id);
+                    facts.site_inventory.push(site_inventory_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        site_id,
+                        MirSiteKind::HiddenInitializer,
+                        block_id,
+                        Some(statement_index as u32),
+                        Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
+                        Some(stmt.span),
+                        block.is_cleanup,
+                    ));
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        &top_level.hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
+                    has_suspend_boundary |= !row.terms.is_empty();
+                    facts.effect_events.push(effect_event_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        site_id,
+                        MirEffectEventKind::HiddenInitializer {
+                            source_fqn: top_level.fqn.clone(),
+                        },
+                        block_id,
+                        Some(statement_index as u32),
+                        row,
+                        block.is_cleanup,
+                    ));
+                }
+                MirRvalue::MemberAccess {
+                    site_id: Some(site_id),
+                    member,
+                    ..
+                } if !member.hidden_effects.is_pure() => {
+                    block_sites.entry(block_id).or_default().push(*site_id);
+                    facts.site_inventory.push(site_inventory_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        MirSiteKind::HiddenInitializer,
+                        block_id,
+                        Some(statement_index as u32),
+                        Some(target.as_u32()),
+                        body.locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty),
+                        Some(stmt.span),
+                        block.is_cleanup,
+                    ));
+                    let row = effect_row_template_for_instance(
+                        &materialized.types,
+                        &member.hidden_effects,
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    );
+                    has_suspend_boundary |= !row.terms.is_empty();
+                    facts.effect_events.push(effect_event_fact(
+                        cone,
+                        instance,
+                        &body_ref,
+                        *site_id,
+                        MirEffectEventKind::HiddenInitializer {
+                            source_fqn: member.name.clone(),
+                        },
+                        block_id,
+                        Some(statement_index as u32),
+                        row,
+                        block.is_cleanup,
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        match &block.terminator.kind {
+            MirTerminatorKind::Perform {
+                site_id,
+                op_fqn,
+                metadata,
+                ..
+            } => {
+                block_sites.entry(block_id).or_default().push(*site_id);
+                facts.site_inventory.push(site_inventory_fact(
+                    cone,
+                    instance,
+                    &body_ref,
+                    *site_id,
+                    MirSiteKind::Perform,
+                    block_id,
+                    None,
+                    None,
+                    None,
+                    Some(block.terminator.span),
+                    block.is_cleanup,
+                ));
+                has_suspend_boundary = true;
+                facts.effect_events.push(effect_event_fact(
+                    cone,
+                    instance,
+                    &body_ref,
+                    *site_id,
+                    MirEffectEventKind::Perform {
+                        op: perform_effect_op_contract(&materialized.types, op_fqn, metadata),
+                    },
+                    block_id,
+                    None,
+                    effect_row_template_for_instance(
+                        &materialized.types,
+                        &EffectRow::new(vec![metadata.effect_ty]),
+                        false,
+                        instance_key,
+                        eff_param_names,
+                    ),
+                    block.is_cleanup,
+                ));
+            }
+            MirTerminatorKind::Handle {
+                site_id,
+                metadata,
+                arms,
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => {
+                block_sites.entry(block_id).or_default().push(*site_id);
+                facts.site_inventory.push(site_inventory_fact(
+                    cone,
+                    instance,
+                    &body_ref,
+                    *site_id,
+                    MirSiteKind::Handle,
+                    block_id,
+                    None,
+                    None,
+                    None,
+                    Some(block.terminator.span),
+                    block.is_cleanup,
+                ));
+                has_handle_boundary = true;
+                let row = effect_row_template_for_instance(
+                    &materialized.types,
+                    &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
+                    false,
+                    instance_key,
+                    eff_param_names,
+                );
+                facts.effect_events.push(effect_event_fact(
+                    cone,
+                    instance,
+                    &body_ref,
+                    *site_id,
+                    MirEffectEventKind::Handle {
+                        result_ty: metadata.result_ty,
+                        body_target: BodyBlockId::from_raw(body_target.as_u32()),
+                        arm_targets: arm_targets
+                            .iter()
+                            .map(|target| BodyBlockId::from_raw(target.as_u32()))
+                            .collect(),
+                        finally_target: finally_target
+                            .map(|target| BodyBlockId::from_raw(target.as_u32())),
+                        exit_target: BodyBlockId::from_raw(exit_target.as_u32()),
+                        arms: arms
+                            .iter()
+                            .map(|arm| handler_arm_effect_op_contract(&materialized.types, arm))
+                            .collect(),
+                    },
+                    block_id,
+                    None,
+                    row,
+                    block.is_cleanup,
+                ));
+            }
+            _ => {}
+        }
+
+        let mut successors = Vec::new();
+        block.terminator.for_each_successor(|successor| {
+            successors.push(BodyBlockId::from_raw(successor.as_u32()));
+        });
+        let cleanup_target = match block.terminator.unwind {
+            UnwindAction::Cleanup { target } => Some(BodyBlockId::from_raw(target.as_u32())),
+            UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Todo(_) => None,
+        };
+        facts.block_regions.push(MirBlockEffectRegionFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(format!(
+                    "mir_effect:block_region:{}:{}:bb{}",
+                    instance.canonical_text(),
+                    fun.fqn,
+                    block_id.as_u32()
+                )),
+                format!("block region {} bb{}", fun.fqn, block_id.as_u32()),
+                cone.clone(),
+                None,
+            ),
+            instance: instance.clone(),
+            body: body_ref.clone(),
+            block: block_id,
+            site_ids: block_sites.remove(&block_id).unwrap_or_default(),
+            successors,
+            cleanup: block.is_cleanup,
+            cleanup_target,
+            has_suspend_boundary,
+            has_handle_boundary,
+        });
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn site_inventory_fact(
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    body: &MirBodyReference,
+    site_id: SiteId,
+    kind: MirSiteKind,
+    block: BodyBlockId,
+    statement_index: Option<u32>,
+    result_local: Option<u32>,
+    result_ty: Option<TypeId>,
+    span: Option<crate::span::Span>,
+    cleanup: bool,
+) -> MirSiteInventoryFact {
+    MirSiteInventoryFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_effect:site:{}:{}:{}",
+                instance.canonical_text(),
+                body.fqn,
+                site_id.as_u32()
+            )),
+            format!("{} site {}", body.fqn, site_id.as_u32()),
+            cone.clone(),
+            None,
+        ),
+        instance: instance.clone(),
+        body: body.clone(),
+        site_id,
+        kind,
+        block,
+        statement_index,
+        result_local,
+        result_ty,
+        span,
+        cleanup,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn effect_event_fact(
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    body: &MirBodyReference,
+    site_id: SiteId,
+    kind: MirEffectEventKind,
+    block: BodyBlockId,
+    statement_index: Option<u32>,
+    effect_row: FactEffectRowTemplate,
+    cleanup: bool,
+) -> MirEffectEventFact {
+    MirEffectEventFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_effect:event:{}:{}:{}",
+                instance.canonical_text(),
+                body.fqn,
+                site_id.as_u32()
+            )),
+            format!("{} event {}", body.fqn, site_id.as_u32()),
+            cone.clone(),
+            None,
+        ),
+        instance: instance.clone(),
+        body: body.clone(),
+        site_id,
+        kind,
+        block,
+        statement_index,
+        effect_row,
+        cleanup,
+    }
+}
+
+fn call_site_target_fact(
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    body: &MirBodyReference,
+    site_id: SiteId,
+    call_kind: MirCallKind,
+    target: CallSiteTarget,
+) -> CallSiteTargetFact {
+    CallSiteTargetFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_effect:call_target:{}:{}:{}",
+                instance.canonical_text(),
+                body.fqn,
+                site_id.as_u32()
+            )),
+            format!("{} call target {}", body.fqn, site_id.as_u32()),
+            cone.clone(),
+            None,
+        ),
+        instance: instance.clone(),
+        body: body.clone(),
+        site_id,
+        call_kind,
+        target,
+    }
+}
+
+fn call_site_surface_fact(
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    body: &MirBodyReference,
+    site_id: SiteId,
+    surface_row: FactEffectRowTemplate,
+) -> CallSiteSurfaceEffectFact {
+    CallSiteSurfaceEffectFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_effect:call_surface:{}:{}:{}",
+                instance.canonical_text(),
+                body.fqn,
+                site_id.as_u32()
+            )),
+            format!("{} call surface {}", body.fqn, site_id.as_u32()),
+            cone.clone(),
+            None,
+        ),
+        instance: instance.clone(),
+        body: body.clone(),
+        site_id,
+        surface_row,
+    }
+}
+
+fn call_effect_event_kind(types: &TypeStore, kind: &MirCallKindNode) -> MirEffectEventKind {
+    match kind {
+        MirCallKindNode::Direct { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::Direct,
+        },
+        MirCallKindNode::Closure { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::Closure,
+        },
+        MirCallKindNode::FunValue { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::FunValue,
+        },
+        MirCallKindNode::FunPtr { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::FunPtr,
+        },
+        MirCallKindNode::Virtual { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::Virtual,
+        },
+        MirCallKindNode::Interface { .. } => MirEffectEventKind::Call {
+            call_kind: MirCallKind::Interface,
+        },
+        MirCallKindNode::Resume { resume, .. } => MirEffectEventKind::Resume {
+            resume_tuple_ty: resume.resume_ty,
+            answer_ty: resume.answer_ty,
+            continuation_ty: resume.continuation_ty,
+            surface_row: effect_row_template(types, &resume.out_effects, false),
+        },
+    }
+}
+
+fn mir_call_kind(kind: &MirCallKindNode) -> Option<MirCallKind> {
+    match kind {
+        MirCallKindNode::Direct { .. } => Some(MirCallKind::Direct),
+        MirCallKindNode::Closure { .. } => Some(MirCallKind::Closure),
+        MirCallKindNode::FunValue { .. } => Some(MirCallKind::FunValue),
+        MirCallKindNode::FunPtr { .. } => Some(MirCallKind::FunPtr),
+        MirCallKindNode::Virtual { .. } => Some(MirCallKind::Virtual),
+        MirCallKindNode::Interface { .. } => Some(MirCallKind::Interface),
+        MirCallKindNode::Resume { .. } => None,
+    }
+}
+
+fn static_call_site_target(
+    materialized: &MaterializedMir,
+    kind: &MirCallKindNode,
+    explicit_arg_count: usize,
+) -> Option<CallSiteTarget> {
+    match kind {
+        MirCallKindNode::Direct {
+            callee_fqn,
+            stable_instance_key,
+            ..
+        } => Some(
+            stable_instance_key
+                .as_ref()
+                .map(|key| CallSiteTarget::KnownInstance {
+                    key: CanonicalTextKey::new(key.canonical_text()),
+                })
+                .or_else(|| {
+                    stable_key_for_callable(materialized, callee_fqn).map(|key| {
+                        CallSiteTarget::KnownInstance {
+                            key: CanonicalTextKey::new(key.canonical_text()),
+                        }
+                    })
+                })
+                .unwrap_or_else(|| CallSiteTarget::DirectFunction {
+                    fqn: callee_fqn.clone(),
+                }),
+        ),
+        MirCallKindNode::Closure { fn_ptr, .. } => Some(CallSiteTarget::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        }),
+        MirCallKindNode::FunValue { .. } => None,
+        MirCallKindNode::FunPtr { .. } => Some(CallSiteTarget::DynamicFallback {
+            reason: DynamicFallbackReason::NativeFunPtr,
+        }),
+        MirCallKindNode::Virtual { dispatch, .. } => Some(dispatch_target_or_declared_member(
+            dispatch,
+            dispatch_candidate_targets(materialized, dispatch, explicit_arg_count, false),
+        )),
+        MirCallKindNode::Interface { dispatch, .. } => Some(dispatch_target_or_declared_member(
+            dispatch,
+            dispatch_candidate_targets(materialized, dispatch, explicit_arg_count, true),
+        )),
+        MirCallKindNode::Resume { .. } => None,
+    }
+}
+
+fn dispatch_target_or_declared_member(
+    dispatch: &crate::mir::DispatchMetadata,
+    targets: DispatchCandidateTargets,
+) -> CallSiteTarget {
+    match (targets.keys.is_empty(), targets.bodyless_roots.as_slice()) {
+        (false, []) => CallSiteTarget::CandidateSet { keys: targets.keys },
+        (true, [root]) => CallSiteTarget::DirectFunction { fqn: root.clone() },
+        (true, []) => CallSiteTarget::DirectFunction {
+            fqn: dispatch.member_fqn.clone(),
+        },
+        (true, bodyless) => {
+            panic!(
+                "dispatch target `{}` has multiple bodyless targets without instance candidates: {}",
+                dispatch.member_fqn,
+                bodyless.join(", ")
+            )
+        }
+        (false, _) => CallSiteTarget::CandidateSet { keys: targets.keys },
+    }
+}
+
+struct DispatchCandidateTargets {
+    keys: Vec<CanonicalTextKey>,
+    bodyless_roots: Vec<String>,
+}
+
+fn stable_key_for_callable(
+    materialized: &MaterializedMir,
+    fqn: &str,
+) -> Option<crate::stable_id::StableInstanceKey> {
+    let owner = materialized.pass_view().owner_of_callable(fqn)?;
+    materialized.authoritative_stable_instance_key(owner)
+}
+
+fn dispatch_candidate_targets(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+    is_interface: bool,
+) -> DispatchCandidateTargets {
+    let keys = dispatch
+        .stable_candidate_keys
+        .iter()
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .collect::<Vec<_>>();
+    if !keys.is_empty() {
+        return DispatchCandidateTargets {
+            keys,
+            bodyless_roots: Vec::new(),
+        };
+    }
+
+    let candidate_fqns = if is_interface {
+        interface_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+    } else {
+        virtual_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+    };
+    let mut keys = Vec::new();
+    let mut bodyless_roots = Vec::new();
+    for fqn in candidate_fqns {
+        if let Some(key) = stable_key_for_callable(materialized, &fqn) {
+            keys.push(CanonicalTextKey::new(key.canonical_text()));
+        } else if materialized_source_signature_has_target(materialized, &fqn) {
+            bodyless_roots.push(fqn);
+        } else {
+            panic!(
+                "dispatch candidate `{fqn}` lacks a published stable callable or source target key"
+            )
+        }
+    }
+    keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    keys.dedup();
+    bodyless_roots.sort();
+    bodyless_roots.dedup();
+    DispatchCandidateTargets {
+        keys,
+        bodyless_roots,
+    }
+}
+
+fn materialized_source_signature_has_target(materialized: &MaterializedMir, fqn: &str) -> bool {
+    materialized
+        .source_callable_signatures()
+        .iter()
+        .any(|signature| signature.fqn == fqn)
+}
+
+fn dispatch_candidate_fqns_for_surface(
+    materialized: &MaterializedMir,
+    kind: &MirCallKindNode,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    match kind {
+        MirCallKindNode::Virtual { dispatch, .. } => {
+            virtual_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+        }
+        MirCallKindNode::Interface { dispatch, .. } => {
+            interface_dispatch_candidate_fqns(materialized, dispatch, explicit_arg_count)
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn virtual_dispatch_candidate_fqns(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(receiver_fqn) = nominal_type_fqn(&materialized.types, dispatch.receiver_ty) else {
+        return Vec::new();
+    };
+    let mut targets = BTreeSet::new();
+    for (class_fqn, slots) in &materialized.backend_contracts().class_vtables {
+        if class_fqn != receiver_fqn
+            && !class_is_known_subclass(materialized, class_fqn, receiver_fqn)
+        {
+            continue;
+        }
+        if let Some(slot) = slots.iter().find(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        }) {
+            targets.insert(slot.impl_member_fqn.clone());
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn interface_dispatch_candidate_fqns(
+    materialized: &MaterializedMir,
+    dispatch: &crate::mir::DispatchMetadata,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(interface) = materialized
+        .backend_contracts()
+        .interfaces
+        .get(&dispatch.owner_fqn)
+    else {
+        return Vec::new();
+    };
+    let Some(slot) = interface.method_slots.iter().find(|slot| {
+        slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+    }) else {
+        return Vec::new();
+    };
+    let mut targets = BTreeSet::new();
+    for entries in materialized.backend_contracts().class_itables.values() {
+        for entry in entries {
+            if entry.interface_fqn != dispatch.owner_fqn {
+                continue;
+            }
+            if let Some(target) = entry.method_impl_fqns.get(slot.slot as usize) {
+                targets.insert(target.clone());
+            }
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn class_is_known_subclass(
+    materialized: &MaterializedMir,
+    class_fqn: &str,
+    ancestor: &str,
+) -> bool {
+    let mut current = Some(class_fqn);
+    while let Some(fqn) = current {
+        if fqn == ancestor {
+            return true;
+        }
+        current = materialized
+            .backend_contracts()
+            .class_inits
+            .values()
+            .find(|init| init.fqn == fqn)
+            .and_then(|init| init.super_class_fqn.as_deref());
+    }
+    false
+}
+
+fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        _ => None,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn call_site_surface_row(
+    materialized: &MaterializedMir,
+    instance: &InstanceKey,
+    body: &crate::mir::Body,
+    kind: &MirCallKindNode,
+    target: Option<&CallSiteTarget>,
+    pass_view: &MaterializedMirPassView<'_>,
+    explicit_arg_count: usize,
+    surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
+) -> Option<FactEffectRowTemplate> {
+    let types = &materialized.types;
+    if let MirCallKindNode::Closure { callee, .. } | MirCallKindNode::FunValue { callee } = kind {
+        let target_row = call_site_target_surface_row(target, pass_view, surface_rows, types);
+        let function_ty_row =
+            operand_function_effect_row(types, body, callee, instance, eff_param_names);
+        if let Some(row) = merge_optional_surface_rows([target_row, function_ty_row]) {
+            return Some(row);
+        }
+    }
+    match kind {
+        MirCallKindNode::Direct { callee_fqn, .. } => {
+            surface_rows.by_fqn.get(callee_fqn).cloned().or_else(|| {
+                pass_view
+                    .callable(callee_fqn)
+                    .and_then(|fun| function_effect_row(types, fun.ty))
+                    .map(|(row, closed)| {
+                        effect_row_template_for_instance(
+                            types,
+                            row,
+                            closed,
+                            instance,
+                            eff_param_names,
+                        )
+                    })
+            })
+        }
+        MirCallKindNode::Closure { callee, .. }
+        | MirCallKindNode::FunValue { callee }
+        | MirCallKindNode::FunPtr { callee } => {
+            operand_function_effect_row(types, body, callee, instance, eff_param_names)
+        }
+        MirCallKindNode::Virtual { dispatch, .. } | MirCallKindNode::Interface { dispatch, .. } => {
+            if let Some(row) = call_site_target_surface_row(target, pass_view, surface_rows, types)
+            {
+                return Some(row);
+            }
+            let candidate_rows =
+                dispatch_candidate_fqns_for_surface(materialized, kind, explicit_arg_count)
+                    .into_iter()
+                    .filter_map(|fqn| {
+                        surface_rows.by_fqn.get(&fqn).cloned().or_else(|| {
+                            pass_view
+                                .callable(&fqn)
+                                .and_then(|fun| function_effect_row(types, fun.ty))
+                                .map(|(row, closed)| {
+                                    effect_row_template_for_instance(
+                                        types,
+                                        row,
+                                        closed,
+                                        instance,
+                                        eff_param_names,
+                                    )
+                                })
+                        })
+                    })
+                    .collect::<Vec<_>>();
+            if !candidate_rows.is_empty() {
+                return Some(merge_effect_rows(candidate_rows));
+            }
+            surface_rows
+                .by_fqn
+                .get(&dispatch.member_fqn)
+                .cloned()
+                .or_else(|| {
+                    pass_view
+                        .callable(&dispatch.member_fqn)
+                        .and_then(|fun| function_effect_row(types, fun.ty))
+                        .map(|(row, closed)| {
+                            effect_row_template_for_instance(
+                                types,
+                                row,
+                                closed,
+                                instance,
+                                eff_param_names,
+                            )
+                        })
+                })
+        }
+        MirCallKindNode::Resume { resume, .. } => {
+            Some(resume_effect_row(types, resume, instance, eff_param_names))
+        }
+    }
+}
+
+fn merge_optional_surface_rows(
+    rows: impl IntoIterator<Item = Option<FactEffectRowTemplate>>,
+) -> Option<FactEffectRowTemplate> {
+    let rows = rows.into_iter().flatten().collect::<Vec<_>>();
+    if rows.is_empty() {
+        None
+    } else {
+        Some(merge_effect_rows(rows))
+    }
+}
+
+fn call_site_target_surface_row(
+    target: Option<&CallSiteTarget>,
+    pass_view: &MaterializedMirPassView<'_>,
+    surface_rows: PublishedSurfaceRows<'_>,
+    types: &TypeStore,
+) -> Option<FactEffectRowTemplate> {
+    match target? {
+        CallSiteTarget::KnownInstance { key } => {
+            surface_rows.by_stable_key.get(key.as_str()).cloned()
+        }
+        CallSiteTarget::CandidateSet { keys } => {
+            let rows = keys
+                .iter()
+                .filter_map(|key| surface_rows.by_stable_key.get(key.as_str()).cloned())
+                .collect::<Vec<_>>();
+            (!rows.is_empty()).then(|| merge_effect_rows(rows))
+        }
+        CallSiteTarget::DirectFunction { fqn } => {
+            callable_surface_row_by_fqn(fqn, pass_view, surface_rows, types)
+        }
+        CallSiteTarget::KnownClosure { fn_ptr } => {
+            callable_surface_row_by_fqn(fn_ptr, pass_view, surface_rows, types)
+        }
+        CallSiteTarget::Param { .. }
+        | CallSiteTarget::Join { .. }
+        | CallSiteTarget::DynamicFallback { .. }
+        | CallSiteTarget::Dynamic => None,
+    }
+}
+
+fn callable_surface_row_by_fqn(
+    fqn: &str,
+    pass_view: &MaterializedMirPassView<'_>,
+    surface_rows: PublishedSurfaceRows<'_>,
+    types: &TypeStore,
+) -> Option<FactEffectRowTemplate> {
+    surface_rows.by_fqn.get(fqn).cloned().or_else(|| {
+        pass_view
+            .callable(fqn)
+            .and_then(|fun| function_effect_row(types, fun.ty))
+            .map(|(row, closed)| effect_row_template(types, row, closed))
+    })
+}
+
+fn operand_function_effect_row(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    operand: &MirOperand,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> Option<FactEffectRowTemplate> {
+    let MirOperand::Local(local) = operand else {
+        return None;
+    };
+    let ty = body.locals.get(local.as_u32() as usize)?.ty;
+    function_effect_row(types, ty).map(|(row, closed)| {
+        effect_row_template_for_instance(types, row, closed, instance, eff_param_names)
+    })
+}
+
+fn function_effect_row(types: &TypeStore, ty: TypeId) -> Option<(&EffectRow, bool)> {
+    let TypeKind::Ref(RefTypeKind::Function(fun)) = types.kind(ty) else {
+        return None;
+    };
+    Some((&fun.effects, fun.effects_closed))
+}
+
+fn resume_effect_row(
+    types: &TypeStore,
+    resume: &crate::mir::ResumeMetadata,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> FactEffectRowTemplate {
+    let mut terms = resume.out_effects.terms.clone();
+    if let Some(runtime_error) = resume.runtime_error_effect_ty {
+        terms.push(runtime_error);
+    }
+    effect_row_template_for_instance(
+        types,
+        &EffectRow::new(terms),
+        false,
+        instance,
+        eff_param_names,
+    )
+}
+
+fn perform_effect_op_contract(
+    types: &TypeStore,
+    op_fqn: &str,
+    metadata: &crate::mir::PerformMetadata,
+) -> MirEffectOpSiteContract {
+    MirEffectOpSiteContract {
+        op_fqn: op_fqn.to_string(),
+        effect_ty: metadata.effect_ty,
+        op_type_args: metadata.op_type_args.clone(),
+        payload_tuple_ty: fact_tuple_carrier_ty(
+            types,
+            metadata.payload_tuple_ty,
+            &metadata.payload_component_tys,
+        ),
+    }
+}
+
+fn handler_arm_effect_op_contract(
+    types: &TypeStore,
+    arm: &crate::mir::HandlerArm,
+) -> MirEffectOpSiteContract {
+    MirEffectOpSiteContract {
+        op_fqn: arm.op_fqn.clone(),
+        effect_ty: arm.handled_effect_ty,
+        op_type_args: arm.op_type_args.clone(),
+        payload_tuple_ty: fact_tuple_carrier_ty(
+            types,
+            arm.payload_tuple_ty,
+            &arm.payload_component_tys,
+        ),
+    }
+}
+
+fn fact_tuple_carrier_ty(
+    types: &TypeStore,
+    explicit: Option<TypeId>,
+    components: &[TypeId],
+) -> TypeId {
+    if let Some(ty) = explicit {
+        return ty;
+    }
+    match components {
+        [] => types
+            .builtins()
+            .expect("MIR fact publishing requires interned builtins")
+            .unit,
+        [single] => *single,
+        many => types
+            .iter_ids()
+            .find(|id| matches!(types.kind(*id), TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements == many))
+            .expect("MIR fact publishing requires tuple carrier type to exist"),
+    }
+}
+
+fn body_local_effect_rows(
+    materialized: &MaterializedMir,
+    instance: &InstanceKey,
+    fun: &MirFunDecl,
+    body: &crate::mir::Body,
+    pass_view: &MaterializedMirPassView<'_>,
+    surface_rows: PublishedSurfaceRows<'_>,
+    eff_param_names: &[String],
+) -> Vec<FactEffectRowTemplate> {
+    let types = &materialized.types;
+    let mut rows = Vec::new();
+    let callable_provenance = analyze_body_callable_provenance(materialized, fun, pass_view);
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let MirStatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            match value {
+                MirRvalue::ClassCtor { hidden_effects, .. } => {
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
+                }
+                MirRvalue::TopLevelRef(top_level) if !top_level.hidden_effects.is_pure() => {
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        &top_level.hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
+                }
+                MirRvalue::MemberAccess { member, .. } if !member.hidden_effects.is_pure() => {
+                    rows.push(effect_row_template_for_instance(
+                        types,
+                        &member.hidden_effects,
+                        false,
+                        instance,
+                        eff_param_names,
+                    ));
+                }
+                MirRvalue::Call {
+                    kind: MirCallKindNode::Resume { resume, .. },
+                    ..
+                } => rows.push(resume_effect_row(types, resume, instance, eff_param_names)),
+                MirRvalue::Call {
+                    site_id,
+                    kind,
+                    args,
+                    ..
+                } => {
+                    if let Some(row) = call_site_surface_row(
+                        materialized,
+                        instance,
+                        body,
+                        kind,
+                        callable_provenance.call_targets.get(site_id),
+                        pass_view,
+                        args.len(),
+                        surface_rows,
+                        eff_param_names,
+                    ) {
+                        rows.push(row);
+                    }
+                }
+                _ => {}
+            }
+        }
+        match &block.terminator.kind {
+            MirTerminatorKind::Perform { metadata, .. } => {
+                rows.push(effect_row_template_for_instance(
+                    types,
+                    &EffectRow::new(vec![metadata.effect_ty]),
+                    false,
+                    instance,
+                    eff_param_names,
+                ));
+            }
+            MirTerminatorKind::Handle { arms, .. } => {
+                rows.push(effect_row_template_for_instance(
+                    types,
+                    &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
+                    false,
+                    instance,
+                    eff_param_names,
+                ));
+            }
+            _ => {}
+        }
+    }
+    rows
+}
+
+#[derive(Debug, Clone, Default)]
+struct BodyCallableProvenanceAnalysis {
+    value_facts: Vec<CallableValuePublication>,
+    call_targets: BTreeMap<SiteId, CallSiteTarget>,
+}
+
+#[derive(Debug, Clone)]
+struct CallableValuePublication {
+    local: u32,
+    block: Option<BodyBlockId>,
+    statement_index: Option<u32>,
+    site_id: Option<SiteId>,
+    provenance: CallableValueProvenance,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CallableLocalProvenance {
+    Empty,
+    Known(BTreeSet<CallableLocalSource>),
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum CallableLocalSource {
+    KnownInstance(String),
+    DirectFunction(String),
+    KnownClosure(String),
+    Param(usize),
+}
+
+fn analyze_body_callable_provenance(
+    materialized: &MaterializedMir,
+    fun: &MirFunDecl,
+    pass_view: &MaterializedMirPassView<'_>,
+) -> BodyCallableProvenanceAnalysis {
+    let Some(body) = &fun.body else {
+        return BodyCallableProvenanceAnalysis::default();
+    };
+    let mut analysis = BodyCallableProvenanceAnalysis::default();
+    let mut entry_states = vec![None; body.blocks.len()];
+    let mut start_state = vec![CallableLocalProvenance::Empty; body.locals.len()];
+
+    for (index, param) in fun.params.iter().enumerate() {
+        let local = param.local.as_u32();
+        let Some(local_decl) = body.locals.get(local as usize) else {
+            continue;
+        };
+        if function_effect_row(&materialized.types, local_decl.ty).is_none() {
+            continue;
+        }
+        let provenance =
+            CallableLocalProvenance::Known(BTreeSet::from([CallableLocalSource::Param(index)]));
+        start_state[local as usize] = provenance.clone();
+        if let Some(fact_provenance) = fact_callable_value_provenance(&provenance) {
+            analysis.value_facts.push(CallableValuePublication {
+                local,
+                block: None,
+                statement_index: None,
+                site_id: None,
+                provenance: fact_provenance,
+            });
+        }
+    }
+
+    let start = body.start.as_u32() as usize;
+    if start >= entry_states.len() {
+        return analysis;
+    }
+    entry_states[start] = Some(start_state);
+    let mut worklist = VecDeque::from([body.start]);
+
+    while let Some(block_id) = worklist.pop_front() {
+        let block_index = block_id.as_u32() as usize;
+        let Some(mut state) = entry_states[block_index].clone() else {
+            continue;
+        };
+        let block = &body.blocks[block_index];
+
+        for (statement_index, stmt) in block.stmts.iter().enumerate() {
+            let MirStatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+
+            if let MirRvalue::Call {
+                site_id,
+                kind,
+                args,
+                ..
+            } = value
+            {
+                let target_fact =
+                    call_site_target_from_state(materialized, kind, args.len(), &state);
+                if let Some(target_fact) = target_fact {
+                    analysis.call_targets.insert(*site_id, target_fact);
+                }
+            }
+
+            let target_index = target.as_u32() as usize;
+            let Some(target_decl) = body.locals.get(target_index) else {
+                continue;
+            };
+            let next =
+                rvalue_callable_provenance(materialized, target_decl.ty, value, &state, pass_view);
+            if function_effect_row(&materialized.types, target_decl.ty).is_some()
+                && let Some(fact_provenance) = fact_callable_value_provenance(&next)
+            {
+                analysis.value_facts.push(CallableValuePublication {
+                    local: target.as_u32(),
+                    block: Some(BodyBlockId::from_raw(block_id.as_u32())),
+                    statement_index: Some(statement_index as u32),
+                    site_id: value.site_id(),
+                    provenance: fact_provenance,
+                });
+            }
+            state[target_index] = next;
+        }
+
+        block.terminator.for_each_successor(|successor| {
+            let successor_index = successor.as_u32() as usize;
+            if successor_index >= entry_states.len() {
+                return;
+            }
+            let changed = match &mut entry_states[successor_index] {
+                Some(existing) => join_callable_state(existing, &state),
+                None => {
+                    entry_states[successor_index] = Some(state.clone());
+                    true
+                }
+            };
+            if changed {
+                worklist.push_back(successor);
+            }
+        });
+    }
+
+    analysis
+}
+
+fn call_site_target_from_state(
+    materialized: &MaterializedMir,
+    kind: &MirCallKindNode,
+    explicit_arg_count: usize,
+    state: &[CallableLocalProvenance],
+) -> Option<CallSiteTarget> {
+    match kind {
+        MirCallKindNode::FunValue { callee } => {
+            let provenance = operand_callable_provenance_state(callee, state);
+            Some(callable_target_from_provenance(materialized, provenance))
+        }
+        _ => static_call_site_target(materialized, kind, explicit_arg_count),
+    }
+}
+
+fn rvalue_callable_provenance(
+    materialized: &MaterializedMir,
+    target_ty: TypeId,
+    value: &MirRvalue,
+    state: &[CallableLocalProvenance],
+    pass_view: &MaterializedMirPassView<'_>,
+) -> CallableLocalProvenance {
+    match value {
+        MirRvalue::Use(operand) | MirRvalue::Transport { value: operand, .. } => {
+            operand_callable_provenance_state(operand, state).clone()
+        }
+        MirRvalue::TopLevelRef(top_level) => {
+            if function_effect_row(&materialized.types, target_ty).is_none() {
+                return CallableLocalProvenance::Empty;
+            }
+            top_level
+                .stable_instance_key
+                .as_ref()
+                .map(|key| {
+                    known_callable_source(CallableLocalSource::KnownInstance(key.canonical_text()))
+                })
+                .unwrap_or_else(|| {
+                    known_callable_source(CallableLocalSource::DirectFunction(
+                        top_level.fqn.clone(),
+                    ))
+                })
+        }
+        MirRvalue::MemberAccess { member, .. } => match member.resolved.as_ref() {
+            Some(crate::mir::MemberTarget::Fun { fqn })
+            | Some(crate::mir::MemberTarget::ExtensionFun { fqn }) => {
+                known_callable_source(CallableLocalSource::DirectFunction(fqn.clone()))
+            }
+            Some(crate::mir::MemberTarget::Value { .. })
+            | Some(crate::mir::MemberTarget::ExtensionValue { .. })
+            | None => CallableLocalProvenance::Empty,
+        },
+        MirRvalue::MakeClosure { fn_ptr, .. } => {
+            known_callable_source(CallableLocalSource::KnownClosure(fn_ptr.clone()))
+        }
+        MirRvalue::Call {
+            kind: MirCallKindNode::Direct { callee_fqn, .. },
+            args,
+            ..
+        } => pass_view
+            .root_summary(callee_fqn)
+            .map(|summary| {
+                callable_state_from_result_provenance(
+                    materialized,
+                    target_ty,
+                    &summary.result_provenance,
+                    args,
+                    state,
+                )
+            })
+            .unwrap_or_else(|| {
+                if function_effect_row(&materialized.types, target_ty).is_some() {
+                    CallableLocalProvenance::Unknown
+                } else {
+                    CallableLocalProvenance::Empty
+                }
+            }),
+        MirRvalue::UnresolvedName { .. } | MirRvalue::Todo(_) => CallableLocalProvenance::Unknown,
+        MirRvalue::TypeCheck { .. }
+        | MirRvalue::Cast { .. }
+        | MirRvalue::SizeOf { .. }
+        | MirRvalue::KindOf { .. }
+        | MirRvalue::AlignOf { .. }
+        | MirRvalue::DescOf { .. }
+        | MirRvalue::TypeMetadataLiteral(_)
+        | MirRvalue::EnumVariant { .. }
+        | MirRvalue::ClassCtor { .. }
+        | MirRvalue::Call { .. }
+        | MirRvalue::MakeTuple { .. }
+        | MirRvalue::StructLit { .. }
+        | MirRvalue::InterpolatedString { .. }
+        | MirRvalue::TupleGet { .. }
+        | MirRvalue::PatternMatch { .. }
+        | MirRvalue::PatternExtract { .. }
+        | MirRvalue::PerformResult { .. } => CallableLocalProvenance::Empty,
+    }
+}
+
+fn callable_state_from_result_provenance(
+    materialized: &MaterializedMir,
+    target_ty: TypeId,
+    result: &MirResultProvenance,
+    args: &[MirCallArg],
+    state: &[CallableLocalProvenance],
+) -> CallableLocalProvenance {
+    match result {
+        MirResultProvenance::DirectFunction(fqn) => {
+            known_callable_source(CallableLocalSource::DirectFunction(fqn.clone()))
+        }
+        MirResultProvenance::KnownClosure(fn_ptr) => {
+            known_callable_source(CallableLocalSource::KnownClosure(fn_ptr.clone()))
+        }
+        MirResultProvenance::Param(index) => args
+            .get(*index)
+            .map(|arg| operand_callable_provenance_state(&arg.value, state).clone())
+            .unwrap_or(CallableLocalProvenance::Unknown),
+        MirResultProvenance::Join(sources) => {
+            let mut out = None;
+            for source in sources {
+                let next = callable_state_from_result_source(source, args, state);
+                out = Some(match out {
+                    Some(current) => join_callable_provenance(current, next),
+                    None => next,
+                });
+            }
+            out.unwrap_or(CallableLocalProvenance::Unknown)
+        }
+        MirResultProvenance::Unknown => {
+            if function_effect_row(&materialized.types, target_ty).is_some() {
+                CallableLocalProvenance::Unknown
+            } else {
+                CallableLocalProvenance::Empty
+            }
+        }
+        MirResultProvenance::Unit
+        | MirResultProvenance::TopLevelValue(_)
+        | MirResultProvenance::PerformResult(_) => CallableLocalProvenance::Empty,
+    }
+}
+
+fn callable_state_from_result_source(
+    source: &MirResultProvenanceSource,
+    args: &[MirCallArg],
+    state: &[CallableLocalProvenance],
+) -> CallableLocalProvenance {
+    match source {
+        MirResultProvenanceSource::DirectFunction(fqn) => {
+            known_callable_source(CallableLocalSource::DirectFunction(fqn.clone()))
+        }
+        MirResultProvenanceSource::KnownClosure(fn_ptr) => {
+            known_callable_source(CallableLocalSource::KnownClosure(fn_ptr.clone()))
+        }
+        MirResultProvenanceSource::Param(index) => args
+            .get(*index)
+            .map(|arg| operand_callable_provenance_state(&arg.value, state).clone())
+            .unwrap_or(CallableLocalProvenance::Unknown),
+        MirResultProvenanceSource::TopLevelValue(_)
+        | MirResultProvenanceSource::PerformResult(_) => CallableLocalProvenance::Empty,
+    }
+}
+
+fn operand_callable_provenance_state<'a>(
+    operand: &MirOperand,
+    state: &'a [CallableLocalProvenance],
+) -> &'a CallableLocalProvenance {
+    static EMPTY: CallableLocalProvenance = CallableLocalProvenance::Empty;
+    let MirOperand::Local(local) = operand else {
+        return &EMPTY;
+    };
+    state.get(local.as_u32() as usize).unwrap_or(&EMPTY)
+}
+
+fn known_callable_source(source: CallableLocalSource) -> CallableLocalProvenance {
+    CallableLocalProvenance::Known(BTreeSet::from([source]))
+}
+
+fn join_callable_state(
+    existing: &mut [CallableLocalProvenance],
+    incoming: &[CallableLocalProvenance],
+) -> bool {
+    let mut changed = false;
+    for (slot, next) in existing.iter_mut().zip(incoming.iter()) {
+        let joined = join_callable_provenance(slot.clone(), next.clone());
+        if joined != *slot {
+            *slot = joined;
+            changed = true;
+        }
+    }
+    changed
+}
+
+fn join_callable_provenance(
+    left: CallableLocalProvenance,
+    right: CallableLocalProvenance,
+) -> CallableLocalProvenance {
+    match (left, right) {
+        (CallableLocalProvenance::Unknown, _) | (_, CallableLocalProvenance::Unknown) => {
+            CallableLocalProvenance::Unknown
+        }
+        (CallableLocalProvenance::Empty, CallableLocalProvenance::Empty) => {
+            CallableLocalProvenance::Empty
+        }
+        (CallableLocalProvenance::Empty, CallableLocalProvenance::Known(_))
+        | (CallableLocalProvenance::Known(_), CallableLocalProvenance::Empty) => {
+            CallableLocalProvenance::Unknown
+        }
+        (CallableLocalProvenance::Known(mut left), CallableLocalProvenance::Known(right)) => {
+            left.extend(right);
+            CallableLocalProvenance::Known(left)
+        }
+    }
+}
+
+fn callable_target_from_provenance(
+    materialized: &MaterializedMir,
+    provenance: &CallableLocalProvenance,
+) -> CallSiteTarget {
+    match provenance {
+        CallableLocalProvenance::Empty | CallableLocalProvenance::Unknown => {
+            CallSiteTarget::DynamicFallback {
+                reason: DynamicFallbackReason::UnknownCallable,
+            }
+        }
+        CallableLocalProvenance::Known(sources) if sources.len() == 1 => {
+            let source = sources.iter().next().expect("single callable source");
+            single_source_target(materialized, source)
+        }
+        CallableLocalProvenance::Known(sources) => {
+            let mut keys = Vec::new();
+            let mut all_sources_have_stable_key = true;
+            for source in sources {
+                if let Some(key) = stable_key_for_callable_source(materialized, source) {
+                    keys.push(key);
+                } else {
+                    all_sources_have_stable_key = false;
+                }
+            }
+            keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            keys.dedup_by(|left, right| left.as_str() == right.as_str());
+            if all_sources_have_stable_key && !keys.is_empty() {
+                if keys.len() == 1 {
+                    return CallSiteTarget::KnownInstance {
+                        key: keys.into_iter().next().expect("one stable key"),
+                    };
+                }
+                return CallSiteTarget::CandidateSet { keys };
+            }
+
+            CallSiteTarget::Join {
+                sources: sources.iter().map(fact_call_site_target_source).collect(),
+                requires_dynamic_fallback: true,
+            }
+        }
+    }
+}
+
+fn single_source_target(
+    materialized: &MaterializedMir,
+    source: &CallableLocalSource,
+) -> CallSiteTarget {
+    match source {
+        CallableLocalSource::KnownInstance(key) => CallSiteTarget::KnownInstance {
+            key: CanonicalTextKey::new(key.clone()),
+        },
+        CallableLocalSource::DirectFunction(fqn) => stable_key_for_callable(materialized, fqn)
+            .map(|key| CallSiteTarget::KnownInstance {
+                key: CanonicalTextKey::new(key.canonical_text()),
+            })
+            .unwrap_or_else(|| CallSiteTarget::DirectFunction { fqn: fqn.clone() }),
+        CallableLocalSource::KnownClosure(fn_ptr) => CallSiteTarget::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        },
+        CallableLocalSource::Param(index) => CallSiteTarget::Param { index: *index },
+    }
+}
+
+fn stable_key_for_callable_source(
+    materialized: &MaterializedMir,
+    source: &CallableLocalSource,
+) -> Option<CanonicalTextKey> {
+    match source {
+        CallableLocalSource::KnownInstance(key) => Some(CanonicalTextKey::new(key.clone())),
+        CallableLocalSource::DirectFunction(fqn) | CallableLocalSource::KnownClosure(fqn) => {
+            stable_key_for_callable(materialized, fqn)
+                .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        }
+        CallableLocalSource::Param(_) => None,
+    }
+}
+
+fn fact_call_site_target_source(source: &CallableLocalSource) -> CallSiteTargetSource {
+    match source {
+        CallableLocalSource::KnownInstance(key) => CallSiteTargetSource::KnownInstance {
+            key: CanonicalTextKey::new(key.clone()),
+        },
+        CallableLocalSource::DirectFunction(fqn) => {
+            CallSiteTargetSource::DirectFunction { fqn: fqn.clone() }
+        }
+        CallableLocalSource::KnownClosure(fn_ptr) => CallSiteTargetSource::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        },
+        CallableLocalSource::Param(index) => CallSiteTargetSource::Param { index: *index },
+    }
+}
+
+fn fact_callable_value_provenance(
+    provenance: &CallableLocalProvenance,
+) -> Option<CallableValueProvenance> {
+    match provenance {
+        CallableLocalProvenance::Empty => None,
+        CallableLocalProvenance::Unknown => Some(CallableValueProvenance::Unknown),
+        CallableLocalProvenance::Known(sources) if sources.len() == 1 => sources
+            .iter()
+            .next()
+            .map(fact_callable_value_source_as_provenance),
+        CallableLocalProvenance::Known(sources) => Some(CallableValueProvenance::Join {
+            sources: sources.iter().map(fact_callable_value_source).collect(),
+        }),
+    }
+}
+
+fn fact_callable_value_source_as_provenance(
+    source: &CallableLocalSource,
+) -> CallableValueProvenance {
+    match source {
+        CallableLocalSource::KnownInstance(key) => CallableValueProvenance::KnownInstance {
+            key: CanonicalTextKey::new(key.clone()),
+        },
+        CallableLocalSource::DirectFunction(fqn) => {
+            CallableValueProvenance::DirectFunction { fqn: fqn.clone() }
+        }
+        CallableLocalSource::KnownClosure(fn_ptr) => CallableValueProvenance::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        },
+        CallableLocalSource::Param(index) => CallableValueProvenance::Param { index: *index },
+    }
+}
+
+fn fact_callable_value_source(source: &CallableLocalSource) -> CallableValueProvenanceSource {
+    match source {
+        CallableLocalSource::KnownInstance(key) => CallableValueProvenanceSource::KnownInstance {
+            key: CanonicalTextKey::new(key.clone()),
+        },
+        CallableLocalSource::DirectFunction(fqn) => {
+            CallableValueProvenanceSource::DirectFunction { fqn: fqn.clone() }
+        }
+        CallableLocalSource::KnownClosure(fn_ptr) => CallableValueProvenanceSource::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        },
+        CallableLocalSource::Param(index) => CallableValueProvenanceSource::Param { index: *index },
+    }
+}
+
+fn effect_arg_templates(types: &TypeStore, eff_args: &[EffectRow]) -> Vec<FactEffectRowTemplate> {
+    eff_args
+        .iter()
+        .map(|row| effect_row_template(types, row, false))
+        .collect()
+}
+
+fn effect_row_template_for_instance(
+    types: &TypeStore,
+    row: &EffectRow,
+    closed: bool,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> FactEffectRowTemplate {
+    let row = substitute_effect_row_params(types, row, instance, eff_param_names);
+    let template = effect_row_template(types, &row, closed);
+    substitute_fact_effect_row_template(types, template, instance, eff_param_names)
+}
+
+fn substitute_fact_effect_row_template(
+    types: &TypeStore,
+    row: FactEffectRowTemplate,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> FactEffectRowTemplate {
+    let mut terms = Vec::new();
+    for term in row.terms {
+        let FactEffectRowTerm::Param { name, .. } = &term else {
+            terms.push(term);
+            continue;
+        };
+        if instance.eff_args.is_empty() {
+            continue;
+        }
+        let Some(arg) = effect_arg_for_param(instance, eff_param_names, name) else {
+            terms.push(term);
+            continue;
+        };
+        terms.extend(effect_row_template(types, arg, false).terms);
+    }
+    FactEffectRowTemplate::new(terms, row.closed)
+}
+
+fn substitute_effect_row_params(
+    types: &TypeStore,
+    row: &EffectRow,
+    instance: &InstanceKey,
+    eff_param_names: &[String],
+) -> EffectRow {
+    let mut terms = Vec::new();
+    for term in &row.terms {
+        let TypeKind::Param(param) = types.kind(*term) else {
+            terms.push(*term);
+            continue;
+        };
+        if param.decl_file.as_os_str() != EFFECT_ROW_PARAM_DECL_FILE {
+            terms.push(*term);
+            continue;
+        }
+        if instance.eff_args.is_empty() {
+            continue;
+        }
+        let Some(arg) = effect_arg_for_param(instance, eff_param_names, &param.name) else {
+            terms.push(*term);
+            continue;
+        };
+        terms.extend(arg.terms.iter().copied());
+    }
+    EffectRow::new(terms)
+}
+
+fn effect_arg_for_param<'a>(
+    instance: &'a InstanceKey,
+    eff_param_names: &[String],
+    name: &str,
+) -> Option<&'a EffectRow> {
+    eff_param_names
+        .iter()
+        .position(|candidate| candidate == name)
+        .and_then(|index| instance.eff_args.get(index))
+        .or_else(|| (instance.eff_args.len() == 1).then(|| &instance.eff_args[0]))
+}
+
+fn effect_row_template(types: &TypeStore, row: &EffectRow, closed: bool) -> FactEffectRowTemplate {
+    let stable =
+        StableEffectRowTemplate::from_concrete_effect_row(types, row, &NoTypeParamResolver, closed)
+            .expect("MIR fact effect row must be stable-encodable");
+    fact_effect_row_template(&stable)
+}
+
+fn fact_effect_row_template(template: &StableEffectRowTemplate) -> FactEffectRowTemplate {
+    FactEffectRowTemplate::new(
+        template
+            .terms()
+            .iter()
+            .map(|term| match term {
+                crate::stable_id::EffectTerm::Concrete { type_key } => {
+                    FactEffectRowTerm::Concrete {
+                        type_key: type_key.clone(),
+                    }
+                }
+                crate::stable_id::EffectTerm::Param {
+                    owner,
+                    ordinal,
+                    name,
+                } => FactEffectRowTerm::Param {
+                    owner: CanonicalTextKey::new(owner.canonical_text()),
+                    ordinal: *ordinal,
+                    name: name.clone(),
+                },
+            })
+            .collect(),
+        template.closed(),
+    )
+}
+
+fn merge_effect_rows(rows: Vec<FactEffectRowTemplate>) -> FactEffectRowTemplate {
+    let mut terms = Vec::new();
+    let mut closed = true;
+    for row in rows {
+        closed &= row.closed;
+        terms.extend(row.terms);
+    }
+    FactEffectRowTemplate::new(terms, closed)
+}
+
+fn collect_mir_provenance_facts(materialized: &MaterializedMir) -> MirProvenanceFacts {
+    let cone = materialized.stable_cone_key().clone();
+    let pass_view = materialized.pass_view();
+    let mut facts = MirProvenanceFacts::default();
+
+    for family in pass_view.instances() {
+        let instance_artifact = materialized_instance_artifact(materialized, family.key());
+        facts.results.push(ResultProvenanceFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(format!(
+                    "mir_provenance:result:{}",
+                    instance_artifact.canonical_text()
+                )),
+                format!("result provenance {}", family.root_fqn()),
+                cone.clone(),
+                None,
+            ),
+            instance: instance_artifact.clone(),
+            callable: CanonicalTextKey::new(family.root_fqn()),
+            provenance: fact_result_provenance(&family.summary().result_provenance),
+            summary_overridden: family.summary_is_overridden(),
+        });
+
+        for fun in family.callable_bodies() {
+            if fun.body.is_none() {
+                continue;
+            };
+            let body_ref = materialized_body_reference(&instance_artifact, fun);
+            let callable_provenance =
+                analyze_body_callable_provenance(materialized, fun, &pass_view);
+            for publication in callable_provenance.value_facts {
+                facts.callable_values.push(callable_value_provenance_fact(
+                    &cone,
+                    &instance_artifact,
+                    &body_ref,
+                    fun,
+                    publication,
+                ));
+            }
+        }
+    }
+
+    facts.callable_values.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts.results.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts
+}
+
+fn callable_value_provenance_fact(
+    cone: &StableConeKey,
+    instance_artifact: &StageArtifactKey,
+    body_ref: &MirBodyReference,
+    fun: &MirFunDecl,
+    publication: CallableValuePublication,
+) -> CallableValueProvenanceFact {
+    let location = publication
+        .block
+        .zip(publication.statement_index)
+        .map(|(block, statement)| format!("bb{}:stmt{}", block.as_u32(), statement))
+        .unwrap_or_else(|| "param".to_string());
+    CallableValueProvenanceFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_provenance:callable_value:{}:{}:{}:local{}",
+                instance_artifact.canonical_text(),
+                fun.fqn,
+                location,
+                publication.local
+            )),
+            format!("callable value {} local{}", fun.fqn, publication.local),
+            cone.clone(),
+            None,
+        ),
+        instance: instance_artifact.clone(),
+        body: body_ref.clone(),
+        local: publication.local,
+        block: publication.block,
+        statement_index: publication.statement_index,
+        site_id: publication.site_id,
+        provenance: publication.provenance,
+    }
+}
+
+fn fact_result_provenance(result: &MirResultProvenance) -> FactResultProvenance {
+    match result {
+        MirResultProvenance::Unit => FactResultProvenance::Unit,
+        MirResultProvenance::Param(index) => FactResultProvenance::Param { index: *index },
+        MirResultProvenance::DirectFunction(fqn) => {
+            FactResultProvenance::DirectFunction { fqn: fqn.clone() }
+        }
+        MirResultProvenance::KnownClosure(fn_ptr) => FactResultProvenance::KnownClosure {
+            fn_ptr: fn_ptr.clone(),
+        },
+        MirResultProvenance::TopLevelValue(fqn) => {
+            FactResultProvenance::TopLevelValue { fqn: fqn.clone() }
+        }
+        MirResultProvenance::PerformResult(op_fqn) => FactResultProvenance::PerformResult {
+            op_fqn: op_fqn.clone(),
+        },
+        MirResultProvenance::Join(sources) => FactResultProvenance::Join {
+            sources: sources.iter().map(fact_result_provenance_source).collect(),
+        },
+        MirResultProvenance::Unknown => FactResultProvenance::Unknown,
+    }
+}
+
+fn fact_result_provenance_source(source: &MirResultProvenanceSource) -> FactResultProvenanceSource {
+    match source {
+        MirResultProvenanceSource::Param(index) => {
+            FactResultProvenanceSource::Param { index: *index }
+        }
+        MirResultProvenanceSource::DirectFunction(fqn) => {
+            FactResultProvenanceSource::DirectFunction { fqn: fqn.clone() }
+        }
+        MirResultProvenanceSource::KnownClosure(fn_ptr) => {
+            FactResultProvenanceSource::KnownClosure {
+                fn_ptr: fn_ptr.clone(),
+            }
+        }
+        MirResultProvenanceSource::TopLevelValue(fqn) => {
+            FactResultProvenanceSource::TopLevelValue { fqn: fqn.clone() }
+        }
+        MirResultProvenanceSource::PerformResult(op_fqn) => {
+            FactResultProvenanceSource::PerformResult {
+                op_fqn: op_fqn.clone(),
+            }
+        }
+    }
+}
+
+fn collect_mir_boundary_facts(materialized: &MaterializedMir) -> MirBoundaryFacts {
+    let cone = materialized.stable_cone_key().clone();
+    let pass_view = materialized.pass_view();
+    let mut facts = MirBoundaryFacts::default();
+
+    for family in pass_view.instances() {
+        let instance_artifact = materialized_instance_artifact(materialized, family.key());
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let body_ref = materialized_body_reference(&instance_artifact, fun);
+            for (block_index, block) in body.blocks.iter().enumerate() {
+                let block_id = BodyBlockId::from_raw(block_index as u32);
+                for (statement_index, stmt) in block.stmts.iter().enumerate() {
+                    let MirStatementKind::Assign { target, value } = &stmt.kind else {
+                        continue;
+                    };
+                    match value {
+                        MirRvalue::Call {
+                            site_id,
+                            kind,
+                            args,
+                            ..
+                        } => facts.source_contracts.push(boundary_source_contract(
+                            &cone,
+                            &instance_artifact,
+                            &body_ref,
+                            *site_id,
+                            if matches!(kind, MirCallKindNode::Resume { .. }) {
+                                MirSiteKind::Resume
+                            } else {
+                                MirSiteKind::Call
+                            },
+                            BoundaryAnchor::Statement {
+                                block: block_id,
+                                statement_index: statement_index as u32,
+                            },
+                            Some(target.as_u32()),
+                            call_carrier_source(&materialized.types, body, kind),
+                            args.iter()
+                                .map(|arg| operand_source(&materialized.types, body, &arg.value))
+                                .collect(),
+                            closure_env_decomposition(&materialized.types, body, kind),
+                        )),
+                        MirRvalue::ClassCtor { site_id, args, .. } => {
+                            facts.source_contracts.push(boundary_source_contract(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirSiteKind::ClassCtor,
+                                BoundaryAnchor::Statement {
+                                    block: block_id,
+                                    statement_index: statement_index as u32,
+                                },
+                                Some(target.as_u32()),
+                                None,
+                                args.iter()
+                                    .map(|arg| {
+                                        operand_source(&materialized.types, body, &arg.value)
+                                    })
+                                    .collect(),
+                                None,
+                            ));
+                        }
+                        MirRvalue::TopLevelRef(top_level)
+                            if top_level.site_id.is_some()
+                                && !top_level.hidden_effects.is_pure() =>
+                        {
+                            facts.source_contracts.push(boundary_source_contract(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                top_level.site_id.expect("checked above"),
+                                MirSiteKind::HiddenInitializer,
+                                BoundaryAnchor::Statement {
+                                    block: block_id,
+                                    statement_index: statement_index as u32,
+                                },
+                                Some(target.as_u32()),
+                                None,
+                                Vec::new(),
+                                None,
+                            ));
+                        }
+                        MirRvalue::MemberAccess {
+                            site_id: Some(site_id),
+                            member,
+                            receiver,
+                        } if !member.hidden_effects.is_pure() => {
+                            facts.source_contracts.push(boundary_source_contract(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirSiteKind::HiddenInitializer,
+                                BoundaryAnchor::Statement {
+                                    block: block_id,
+                                    statement_index: statement_index as u32,
+                                },
+                                Some(target.as_u32()),
+                                Some(operand_source(&materialized.types, body, receiver)),
+                                Vec::new(),
+                                None,
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+
+                match &block.terminator.kind {
+                    MirTerminatorKind::Perform { site_id, args, .. } => {
+                        facts.source_contracts.push(boundary_source_contract(
+                            &cone,
+                            &instance_artifact,
+                            &body_ref,
+                            *site_id,
+                            MirSiteKind::Perform,
+                            BoundaryAnchor::Terminator { block: block_id },
+                            None,
+                            None,
+                            args.iter()
+                                .map(|arg| operand_source(&materialized.types, body, &arg.value))
+                                .collect(),
+                            None,
+                        ));
+                    }
+                    MirTerminatorKind::Handle { site_id, .. } => {
+                        facts.source_contracts.push(boundary_source_contract(
+                            &cone,
+                            &instance_artifact,
+                            &body_ref,
+                            *site_id,
+                            MirSiteKind::Handle,
+                            BoundaryAnchor::Terminator { block: block_id },
+                            None,
+                            None,
+                            Vec::new(),
+                            None,
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    facts.source_contracts.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+    facts
+}
+
+#[allow(clippy::too_many_arguments)]
+fn boundary_source_contract(
+    cone: &StableConeKey,
+    instance: &StageArtifactKey,
+    body: &MirBodyReference,
+    site_id: SiteId,
+    kind: MirSiteKind,
+    anchor: BoundaryAnchor,
+    result_local: Option<u32>,
+    carrier: Option<BoundaryOperandSource>,
+    args: Vec<BoundaryOperandSource>,
+    closure_env: Option<ClosureEnvDecomposition>,
+) -> BoundarySourceContract {
+    BoundarySourceContract {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!(
+                "mir_boundary:source:{}:{}:{}",
+                instance.canonical_text(),
+                body.fqn,
+                site_id.as_u32()
+            )),
+            format!("{} boundary source {}", body.fqn, site_id.as_u32()),
+            cone.clone(),
+            None,
+        ),
+        instance: instance.clone(),
+        body: body.clone(),
+        site_id,
+        kind,
+        anchor,
+        result_local,
+        carrier,
+        args,
+        closure_env,
+    }
+}
+
+fn call_carrier_source(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    kind: &MirCallKindNode,
+) -> Option<BoundaryOperandSource> {
+    match kind {
+        MirCallKindNode::Closure { callee, .. }
+        | MirCallKindNode::FunValue { callee }
+        | MirCallKindNode::FunPtr { callee } => Some(operand_source(types, body, callee)),
+        MirCallKindNode::Virtual { receiver, .. } | MirCallKindNode::Interface { receiver, .. } => {
+            Some(operand_source(types, body, receiver))
+        }
+        MirCallKindNode::Resume { continuation, .. } => {
+            Some(operand_source(types, body, continuation))
+        }
+        MirCallKindNode::Direct { .. } => None,
+    }
+}
+
+fn closure_env_decomposition(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    kind: &MirCallKindNode,
+) -> Option<ClosureEnvDecomposition> {
+    let MirCallKindNode::Closure { callee, fn_ptr } = kind else {
+        return None;
+    };
+    let MirOperand::Local(local) = callee else {
+        return None;
+    };
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let MirStatementKind::Assign {
+                target,
+                value: MirRvalue::MakeClosure { env, .. },
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if target == local {
+                return Some(ClosureEnvDecomposition {
+                    fn_ptr: fn_ptr.clone(),
+                    env: operand_source(types, body, env),
+                });
+            }
+        }
+    }
+    None
+}
+
+fn operand_source(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    operand: &MirOperand,
+) -> BoundaryOperandSource {
+    match operand {
+        MirOperand::Local(local) => BoundaryOperandSource::Local {
+            local: local.as_u32(),
+            ty: body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+        },
+        MirOperand::Const(value) => BoundaryOperandSource::Const {
+            kind: format!("{value:?}"),
+            ty: const_value_ty(types, value),
+        },
+    }
+}
+
+fn const_value_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<TypeId> {
+    let builtins = types.builtins()?;
+    Some(match value {
+        crate::mir::ConstValue::Bool(_) => builtins.bool_,
+        crate::mir::ConstValue::Char => builtins.char_,
+        crate::mir::ConstValue::Unit => builtins.unit,
+        crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => builtins.int,
+        crate::mir::ConstValue::Float64 => builtins.float64,
+        crate::mir::ConstValue::Float32 => builtins.float32,
+        crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => builtins.string,
+    })
+}
+
+fn mir_call_arg_ty(
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    value: &crate::mir::Operand,
+) -> Option<TypeId> {
+    match value {
+        crate::mir::Operand::Local(local) => body.locals.get(local.as_u32() as usize).map(|l| l.ty),
+        crate::mir::Operand::Const(value) => const_value_ty(types, value),
+    }
+}
+
+fn collect_mir_backend_facts(
+    materialized: &MaterializedMir,
+    hir_facts: Option<&HirFacts>,
+) -> MirBackendFacts {
+    let cone = materialized.stable_cone_key().clone();
+    let contracts = materialized.backend_contracts();
+    let mut source_signatures = materialized
+        .source_callable_signatures()
+        .iter()
+        .enumerate()
+        .map(|(index, signature)| {
+            let identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#{index}", signature.fqn),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    signature
+                        .stable_template_key
+                        .as_ref()
+                        .map(StableTemplateKey::canonical_text),
+                    &signature.fqn,
+                );
+            SourceCallableSignatureFact {
+                identity,
+                fqn: signature.fqn.clone(),
+                target_callable_key,
+                abi_symbol,
+                abi_role,
+                param_names: signature.param_names.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut seen_source_signatures = source_signatures
+        .iter()
+        .map(|signature| signature.fqn.clone())
+        .collect::<BTreeSet<_>>();
+    for family in materialized.pass_view().instances() {
+        let Some(root) = family.root_body() else {
+            continue;
+        };
+        if !seen_source_signatures.insert(root.fqn.clone()) {
+            continue;
+        }
+        let identity = backend_identity(&cone, "source_signature", &format!("{}#root", root.fqn));
+        let (target_callable_key, abi_symbol, abi_role) =
+            explicit_abi_publication_for_source_signature(
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                None,
+                &root.fqn,
+            );
+        source_signatures.push(SourceCallableSignatureFact {
+            identity,
+            fqn: root.fqn.clone(),
+            target_callable_key,
+            abi_symbol,
+            abi_role,
+            param_names: root.params.iter().map(|param| param.name.clone()).collect(),
+            param_tys: root.params.iter().map(|param| param.ty).collect(),
+            return_ty: root.return_ty,
+        });
+    }
+    if let Some(hir_facts) = hir_facts {
+        let stable_template_by_fqn = hir_facts
+            .declarations
+            .generic_templates
+            .iter()
+            .filter_map(|template| {
+                StableTemplateKey::from_canonical_text(template.stable_template_key.as_str())
+                    .ok()
+                    .map(|key| (template.template_fqn.clone(), key))
+            })
+            .collect::<HashMap<_, _>>();
+        for callable in &hir_facts.declarations.callables {
+            let fqn = callable.identity.display_name.clone();
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    stable_template_by_fqn
+                        .get(&fqn)
+                        .map(StableTemplateKey::canonical_text)
+                        .or_else(|| Some(callable.identity.canonical_text().to_string())),
+                    &fqn,
+                );
+            if !seen_source_signatures.insert(fqn.clone()) {
+                if let Some(existing) = source_signatures
+                    .iter_mut()
+                    .find(|signature| signature.fqn == fqn)
+                {
+                    existing.identity.cone = callable.identity.cone.clone();
+                    if existing.target_callable_key.is_none() {
+                        existing.target_callable_key = target_callable_key;
+                        existing.abi_symbol = abi_symbol;
+                        existing.abi_role = abi_role;
+                    }
+                }
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#hir-declaration", fqn),
+            );
+            let mut param_tys = Vec::with_capacity(
+                callable.parameter_tys.len() + usize::from(callable.receiver_ty.is_some()),
+            );
+            if let Some(receiver_ty) = callable.receiver_ty {
+                param_tys.push(receiver_ty);
+            }
+            param_tys.extend(callable.parameter_tys.iter().copied());
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn,
+                target_callable_key,
+                abi_symbol,
+                abi_role,
+                param_names: (0..param_tys.len())
+                    .map(|index| format!("arg{index}"))
+                    .collect(),
+                param_tys,
+                return_ty: callable.return_ty,
+            });
+        }
+    }
+    if let Some((string_ty, int_ty)) = builtin_string_substrate_types(&materialized.types)
+        .or_else(|| infer_string_substrate_types_from_signatures(&source_signatures))
+    {
+        for (fqn, param_names, param_tys, return_ty) in [
+            (
+                "scoop.core.byteLength",
+                vec!["value".to_string()],
+                vec![string_ty],
+                int_ty,
+            ),
+            (
+                "scoop.core.getByte",
+                vec!["value".to_string(), "index".to_string()],
+                vec![string_ty, int_ty],
+                int_ty,
+            ),
+        ] {
+            if !seen_source_signatures.insert(fqn.to_string()) {
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!("{}#builtin-string-substrate", fqn),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    Some(canonical_record(
+                        "builtin_string_substrate",
+                        [fqn.to_string()],
+                    )),
+                    fqn,
+                );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: fqn.to_string(),
+                target_callable_key,
+                abi_symbol,
+                abi_role,
+                param_names,
+                param_tys,
+                return_ty,
+            });
+        }
+    }
+    let alias_sources = source_signatures.clone();
+    for signature in alias_sources {
+        for alias_fqn in backend_source_signature_aliases(&signature.fqn) {
+            if !seen_source_signatures.insert((*alias_fqn).to_string()) {
+                continue;
+            }
+            let fact_identity = backend_identity(
+                &cone,
+                "source_signature",
+                &format!(
+                    "{}#alias-for-{}",
+                    alias_fqn,
+                    signature.identity.canonical_text()
+                ),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    None,
+                    alias_fqn,
+                );
+            source_signatures.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: (*alias_fqn).to_string(),
+                target_callable_key,
+                abi_symbol,
+                abi_role,
+                param_names: signature.param_names.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            });
+        }
+    }
+    for family in materialized.pass_view().instances() {
+        for fun in family.callable_bodies() {
+            if let Some(body) = &fun.body {
+                publish_explicit_intrinsic_call_source_signatures(
+                    &mut source_signatures,
+                    &mut seen_source_signatures,
+                    &cone,
+                    &contracts.native_callable_funs,
+                    &contracts.extern_funs,
+                    &materialized.types,
+                    body,
+                    "call-site",
+                );
+            }
+        }
+    }
+    for item in &materialized.file.items {
+        let crate::mir::Item::Fun(fun) = item else {
+            continue;
+        };
+        if let Some(body) = &fun.body {
+            publish_explicit_intrinsic_call_source_signatures(
+                &mut source_signatures,
+                &mut seen_source_signatures,
+                &cone,
+                &contracts.native_callable_funs,
+                &contracts.extern_funs,
+                &materialized.types,
+                body,
+                "raw-call-site",
+            );
+        }
+    }
+    for signature in &mut source_signatures {
+        if signature.target_callable_key.is_some() {
+            continue;
+        }
+        let target_key = StableLirCallableKey::new(
+            signature.identity.canonical_text().to_string(),
+            signature.fqn.clone(),
+        );
+        signature.abi_symbol = Some(published_source_signature_abi_symbol(&target_key));
+        signature.abi_role = Some("callable_export".to_string());
+        signature.target_callable_key = Some(target_key);
+    }
+    for signature in &mut source_signatures {
+        if signature.abi_role.as_deref() == Some("callable_export") {
+            signature.abi_symbol = Some(published_source_signature_semantic_abi_symbol(
+                signature,
+                &materialized.types,
+            ));
+        }
+    }
+    source_signatures.sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    let intrinsic_callables = collect_named_intrinsic_callable_facts(&cone, materialized);
+    let mut facts = MirBackendFacts {
+        source_signatures,
+        intrinsic_callables,
+        enum_layouts: contracts
+            .enum_layouts
+            .iter()
+            .map(|(fqn, layout)| EnumLayoutContractFact {
+                identity: backend_identity(&cone, "enum_layout", fqn),
+                fqn: fqn.clone(),
+                repr: format!("{:?}", layout.repr),
+                variant_count: layout.variants.len(),
+            })
+            .collect(),
+        class_inits: contracts
+            .class_inits
+            .iter()
+            .map(|(key, init)| ClassInitContractFact {
+                identity: backend_identity(&cone, "class_init", key.as_str()),
+                key: key.as_str().to_string(),
+                fqn: init.fqn.clone(),
+                source_path: normalize_dump_path(&init.source_path),
+                super_class_fqn: init.super_class_fqn.clone(),
+                field_count: init.fields.len(),
+                ctor_count: init.ctors.len(),
+                step_count: init.steps.len(),
+            })
+            .collect(),
+        vtables: contracts
+            .class_vtables
+            .iter()
+            .map(|(class_fqn, slots)| VtableContractFact {
+                identity: backend_identity(&cone, "vtable", class_fqn),
+                class_fqn: class_fqn.clone(),
+                slot_count: slots.len(),
+            })
+            .collect(),
+        interfaces: contracts
+            .interfaces
+            .iter()
+            .map(|(interface_fqn, info)| InterfaceContractFact {
+                identity: backend_identity(&cone, "interface", interface_fqn),
+                interface_fqn: interface_fqn.clone(),
+                interface_id: info.interface_id,
+                super_interfaces: info.super_interfaces.clone(),
+                method_slot_count: info.method_slots.len(),
+            })
+            .collect(),
+        itables: contracts
+            .class_itables
+            .iter()
+            .map(|(class_fqn, entries)| ItableContractFact {
+                identity: backend_identity(&cone, "itable", class_fqn),
+                class_fqn: class_fqn.clone(),
+                entry_count: entries.len(),
+            })
+            .collect(),
+        extern_funs: contracts
+            .extern_funs
+            .iter()
+            .map(|(fqn, fun)| ExternFunContractFact {
+                identity: backend_identity(&cone, "extern_fun", fqn),
+                fqn: fqn.clone(),
+                symbol: fun.symbol.clone(),
+                abi: fun.abi.name().to_string(),
+                calling_convention: fun.calling_convention.clone(),
+                lib: fun.lib.clone(),
+            })
+            .collect(),
+        native_callable_funs: contracts
+            .native_callable_funs
+            .iter()
+            .map(|(fqn, fun)| NativeCallableFunContractFact {
+                identity: backend_identity(&cone, "native_callable_fun", fqn),
+                fqn: fqn.clone(),
+                symbol: fun.symbol.clone(),
+                calling_convention: fun.calling_convention.clone(),
+            })
+            .collect(),
+        global_inits: Vec::new(),
+    };
+
+    facts
+        .global_inits
+        .extend(
+            contracts
+                .top_level_vars
+                .iter()
+                .map(|(fqn, var)| GlobalInitContractFact {
+                    identity: backend_identity(&cone, "global_var", fqn),
+                    fqn: fqn.clone(),
+                    kind: GlobalInitKind::RuntimeMutableVar,
+                    ty: Some(var.ty),
+                    source_path: Some(normalize_dump_path(&var.source_path)),
+                    span: Some(var.span),
+                    storage: Some(global_storage_kind(var.storage)),
+                    has_initializer: var.init.is_some(),
+                    artifact: None,
+                }),
+        );
+    facts.global_inits.extend(
+        contracts
+            .top_level_immutable_values
+            .iter()
+            .map(|(fqn, value)| GlobalInitContractFact {
+                identity: backend_identity(&cone, "global_val", fqn),
+                fqn: fqn.clone(),
+                kind: GlobalInitKind::RuntimeImmutableValue,
+                ty: Some(value.ty),
+                source_path: Some(normalize_dump_path(&value.source_path)),
+                span: Some(value.span),
+                storage: None,
+                has_initializer: value.init.is_some(),
+                artifact: None,
+            }),
+    );
+    facts
+        .global_inits
+        .extend(
+            contracts
+                .object_inits
+                .iter()
+                .map(|(fqn, object)| GlobalInitContractFact {
+                    identity: backend_identity(&cone, "object_init", fqn),
+                    fqn: fqn.clone(),
+                    kind: GlobalInitKind::ObjectSingleton,
+                    ty: None,
+                    source_path: Some(normalize_dump_path(&object.source_path)),
+                    span: Some(object.span),
+                    storage: None,
+                    has_initializer: !object.steps.is_empty(),
+                    artifact: None,
+                }),
+        );
+
+    facts
+        .source_signatures
+        .sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    facts
+        .enum_layouts
+        .sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    facts
+        .class_inits
+        .sort_by(|left, right| left.key.cmp(&right.key));
+    facts
+        .vtables
+        .sort_by(|left, right| left.class_fqn.cmp(&right.class_fqn));
+    facts
+        .interfaces
+        .sort_by(|left, right| left.interface_fqn.cmp(&right.interface_fqn));
+    facts
+        .itables
+        .sort_by(|left, right| left.class_fqn.cmp(&right.class_fqn));
+    facts
+        .extern_funs
+        .sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    facts
+        .native_callable_funs
+        .sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    facts
+        .global_inits
+        .sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    facts
+}
+
+fn explicit_abi_publication_for_source_signature(
+    native_callable_funs: &crate::hir::NativeCallableFunIndex,
+    extern_funs: &crate::hir::ExternFunIndex,
+    source_key: Option<String>,
+    fqn: &str,
+) -> (Option<StableLirCallableKey>, Option<String>, Option<String>) {
+    let published_target = source_key.map(|key| StableLirCallableKey::new(key, fqn.to_string()));
+    if let Some(native) = native_callable_funs.get(fqn) {
+        let Some(target_key) = published_target.clone() else {
+            return (None, None, None);
+        };
+        return (
+            Some(target_key),
+            Some(native.symbol.clone()),
+            Some("native_callable".to_string()),
+        );
+    }
+    if let Some(extern_fun) = extern_funs.get(fqn) {
+        let Some(target_key) = published_target.clone() else {
+            return (None, None, None);
+        };
+        return (
+            Some(target_key),
+            Some(extern_fun.symbol.clone()),
+            Some("extern_callable".to_string()),
+        );
+    }
+    let Some(target_key) = published_target else {
+        return (None, None, None);
+    };
+    let abi_symbol = published_source_signature_abi_symbol(&target_key);
+    (
+        Some(target_key),
+        Some(abi_symbol),
+        Some("callable_export".to_string()),
+    )
+}
+
+fn published_source_signature_abi_symbol(target_key: &StableLirCallableKey) -> String {
+    AbiMangler.fun_symbol(target_key)
+}
+
+fn published_source_signature_semantic_abi_symbol(
+    signature: &SourceCallableSignatureFact,
+    types: &TypeStore,
+) -> String {
+    let params = signature
+        .param_tys
+        .iter()
+        .map(|ty| types.display(*ty).to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let key = StableLirCallableKey::new(
+        canonical_record(
+            "source_signature_abi",
+            [
+                signature.fqn.clone(),
+                params,
+                types.display(signature.return_ty).to_string(),
+            ],
+        ),
+        signature.fqn.clone(),
+    );
+    AbiMangler.fun_symbol(&key)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn publish_explicit_intrinsic_call_source_signatures(
+    out: &mut Vec<SourceCallableSignatureFact>,
+    seen: &mut BTreeSet<String>,
+    cone: &StableConeKey,
+    native_callable_funs: &crate::hir::NativeCallableFunIndex,
+    extern_funs: &crate::hir::ExternFunIndex,
+    types: &TypeStore,
+    body: &crate::mir::Body,
+    label: &str,
+) {
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            let crate::mir::Rvalue::Call {
+                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
+                args,
+                ..
+            } = value
+            else {
+                continue;
+            };
+            if !seen.insert(callee_fqn.clone()) {
+                if let Some(existing) = out
+                    .iter_mut()
+                    .find(|signature| signature.fqn == *callee_fqn)
+                    && existing.target_callable_key.is_none()
+                {
+                    let (target_callable_key, abi_symbol, abi_role) =
+                        explicit_abi_publication_for_source_signature(
+                            native_callable_funs,
+                            extern_funs,
+                            Some(existing.identity.canonical_text().to_string()),
+                            callee_fqn,
+                        );
+                    existing.target_callable_key = target_callable_key;
+                    existing.abi_symbol = abi_symbol;
+                    existing.abi_role = abi_role;
+                }
+                continue;
+            }
+            let Some(param_tys) = args
+                .iter()
+                .map(|arg| mir_call_arg_ty(types, body, &arg.value))
+                .collect::<Option<Vec<_>>>()
+            else {
+                continue;
+            };
+            let Some(return_ty) = body
+                .locals
+                .get(target.as_u32() as usize)
+                .map(|local| local.ty)
+            else {
+                continue;
+            };
+            let fact_identity = backend_identity(
+                cone,
+                "source_signature",
+                &format!("{}#{label}{}", callee_fqn, stmt.span.start),
+            );
+            let (target_callable_key, abi_symbol, abi_role) =
+                explicit_abi_publication_for_source_signature(
+                    native_callable_funs,
+                    extern_funs,
+                    Some(fact_identity.canonical_text().to_string()),
+                    callee_fqn,
+                );
+            let param_names = (0..param_tys.len())
+                .map(|index| format!("arg{index}"))
+                .collect::<Vec<_>>();
+            out.push(SourceCallableSignatureFact {
+                identity: fact_identity,
+                fqn: callee_fqn.clone(),
+                target_callable_key,
+                abi_symbol,
+                abi_role,
+                param_names: param_names.clone(),
+                param_tys: param_tys.clone(),
+                return_ty,
+            });
+            for alias_fqn in direct_call_source_signature_aliases(callee_fqn) {
+                if !seen.insert(alias_fqn.clone()) {
+                    continue;
+                }
+                let alias_identity = backend_identity(
+                    cone,
+                    "source_signature",
+                    &format!("{}#{label}{}#alias", alias_fqn, stmt.span.start),
+                );
+                let (target_callable_key, abi_symbol, abi_role) =
+                    explicit_abi_publication_for_source_signature(
+                        native_callable_funs,
+                        extern_funs,
+                        Some(alias_identity.canonical_text().to_string()),
+                        &alias_fqn,
+                    );
+                out.push(SourceCallableSignatureFact {
+                    identity: alias_identity,
+                    fqn: alias_fqn,
+                    target_callable_key,
+                    abi_symbol,
+                    abi_role,
+                    param_names: param_names.clone(),
+                    param_tys: param_tys.clone(),
+                    return_ty,
+                });
+            }
+        }
+    }
+}
+
+fn direct_call_source_signature_aliases(fqn: &str) -> Vec<String> {
+    let Some((owner, name)) = fqn.rsplit_once('.') else {
+        return Vec::new();
+    };
+    match name {
+        "ne" => vec![format!("{owner}.notEquals")],
+        "eq" => vec![format!("{owner}.equals")],
+        _ => Vec::new(),
+    }
+}
+
+fn backend_source_signature_aliases(fqn: &str) -> &'static [&'static str] {
+    match fqn {
+        // `String.length()` is the source-level method contract; backend lowering
+        // calls the byte-level substrate with the same receiver/return signature.
+        "scoop.core.String.length" => &["scoop.core.byteLength"],
+        _ => &[],
+    }
+}
+
+fn builtin_string_substrate_types(types: &TypeStore) -> Option<(TypeId, TypeId)> {
+    let mut string_ty = None;
+    let mut int_ty = None;
+    for ty in types.iter_ids() {
+        match types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::String) => string_ty = Some(ty),
+            TypeKind::Value(ValueTypeKind::Int) => int_ty = Some(ty),
+            _ => {}
+        }
+        let display = types.display(ty).to_string();
+        if display == "String" {
+            string_ty.get_or_insert(ty);
+        } else if display == "Int" {
+            int_ty.get_or_insert(ty);
+        }
+    }
+    Some((string_ty?, int_ty?))
+}
+
+fn infer_string_substrate_types_from_signatures(
+    signatures: &[SourceCallableSignatureFact],
+) -> Option<(TypeId, TypeId)> {
+    let string_ty = signatures
+        .iter()
+        .find(|signature| signature.fqn == "scoop.core.String.toString")
+        .map(|signature| signature.return_ty)
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.core.String."))
+                .and_then(|signature| signature.param_tys.first().copied())
+        })
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.lang.string."))
+                .and_then(|signature| {
+                    signature
+                        .param_tys
+                        .first()
+                        .copied()
+                        .or(Some(signature.return_ty))
+                })
+        })
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.contains("String"))
+                .and_then(|signature| {
+                    signature
+                        .param_tys
+                        .first()
+                        .copied()
+                        .or(Some(signature.return_ty))
+                })
+        })?;
+    let int_ty = signatures
+        .iter()
+        .find(|signature| signature.fqn == "scoop.core.Int.plus")
+        .map(|signature| signature.return_ty)
+        .or_else(|| {
+            signatures
+                .iter()
+                .find(|signature| signature.fqn.starts_with("scoop.core.Int."))
+                .map(|signature| signature.return_ty)
+        })?;
+    Some((string_ty, int_ty))
+}
+
+fn collect_named_intrinsic_callable_facts(
+    cone: &StableConeKey,
+    materialized: &MaterializedMir,
+) -> Vec<NamedIntrinsicCallableFact> {
+    let mut out: Vec<NamedIntrinsicCallableFact> = Vec::new();
+    let mut seen = BTreeSet::new();
+    for family in materialized.pass_view().instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let crate::mir::StatementKind::Assign {
+                        value:
+                            crate::mir::Rvalue::Call {
+                                site_id,
+                                kind:
+                                    crate::mir::CallKind::Direct {
+                                        callee_fqn,
+                                        intrinsic_entry_name,
+                                        ..
+                                    },
+                                ..
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    let entry_name = intrinsic_entry_name.clone();
+                    let Some(entry_name) = entry_name else {
+                        continue;
+                    };
+                    if !seen.insert((callee_fqn.clone(), entry_name.clone())) {
+                        continue;
+                    }
+                    out.push(NamedIntrinsicCallableFact {
+                        identity: backend_identity(
+                            cone,
+                            "named_intrinsic_callable",
+                            &format!("{}#site{}#{entry_name}", fun.fqn, site_id.as_u32()),
+                        ),
+                        root_fqn: callee_fqn.clone(),
+                        named_entry_name: entry_name.clone(),
+                    });
+                }
+            }
+        }
+    }
+    for item in &materialized.file.items {
+        let crate::mir::Item::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign {
+                    value:
+                        crate::mir::Rvalue::Call {
+                            site_id,
+                            kind:
+                                crate::mir::CallKind::Direct {
+                                    callee_fqn,
+                                    intrinsic_entry_name,
+                                    ..
+                                },
+                            ..
+                        },
+                    ..
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                let entry_name = intrinsic_entry_name.clone();
+                let Some(entry_name) = entry_name else {
+                    continue;
+                };
+                if !seen.insert((callee_fqn.clone(), entry_name.clone())) {
+                    continue;
+                }
+                out.push(NamedIntrinsicCallableFact {
+                    identity: backend_identity(
+                        cone,
+                        "named_intrinsic_callable",
+                        &format!("{}#raw-site{}#{entry_name}", fun.fqn, site_id.as_u32()),
+                    ),
+                    root_fqn: callee_fqn.clone(),
+                    named_entry_name: entry_name.clone(),
+                });
+            }
+        }
+    }
+    for signature in materialized.source_callable_signatures() {
+        let Some(entry_name) = mir_legacy_scalar_entry_name(&signature.fqn) else {
+            continue;
+        };
+        if !seen.insert((signature.fqn.clone(), entry_name.to_string())) {
+            continue;
+        }
+        out.push(NamedIntrinsicCallableFact {
+            identity: backend_identity(
+                cone,
+                "named_intrinsic_callable",
+                &format!("{}#legacy-scalar#{entry_name}", signature.fqn),
+            ),
+            root_fqn: signature.fqn.clone(),
+            named_entry_name: entry_name.to_string(),
+        });
+    }
+    out.sort_by(|left, right| {
+        left.root_fqn
+            .cmp(&right.root_fqn)
+            .then_with(|| left.named_entry_name.cmp(&right.named_entry_name))
+    });
+    out
+}
+
+fn mir_legacy_scalar_entry_name(fqn: &str) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    let (owner, method) = base.rsplit_once('.')?;
+    if matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    ) {
+        return match method {
+            "plus" => Some("int_plus"),
+            "minus" => Some("int_minus"),
+            "times" => Some("int_times"),
+            "div" => Some("int_div"),
+            "rem" => Some("int_rem"),
+            "unaryMinus" => Some("int_unary_minus"),
+            "unaryPlus" => Some("int_unary_plus"),
+            "inc" => Some("int_inc"),
+            "dec" => Some("int_dec"),
+            "and" => Some("int_and"),
+            "or" => Some("int_or"),
+            "xor" => Some("int_xor"),
+            "inv" => Some("int_inv"),
+            "shl" => Some("int_shl"),
+            "shr" => Some("int_shr"),
+            "ushr" => Some("int_ushr"),
+            "lt" => Some("int_lt"),
+            "le" => Some("int_le"),
+            "gt" => Some("int_gt"),
+            "ge" => Some("int_ge"),
+            "eq" | "equals" => Some("int_eq"),
+            "ne" | "notEquals" => Some("int_ne"),
+            "compareTo" => Some("int_compare_to"),
+            "hash" => Some("int_hash"),
+            _ => None,
+        };
+    }
+    match owner {
+        "scoop.core.Float32" | "scoop.core.Float64" => match method {
+            "plus" => Some("float_plus"),
+            "minus" => Some("float_minus"),
+            "times" => Some("float_times"),
+            "div" => Some("float_div"),
+            "rem" => Some("float_rem"),
+            "unaryMinus" => Some("float_unary_minus"),
+            "unaryPlus" => Some("float_unary_plus"),
+            "lt" => Some("float_lt"),
+            "le" => Some("float_le"),
+            "gt" => Some("float_gt"),
+            "ge" => Some("float_ge"),
+            "eq" | "equals" => Some("float_eq"),
+            "ne" | "notEquals" => Some("float_ne"),
+            "compareTo" => Some("float_compare_to"),
+            "toInt" => Some("float_to_int"),
+            "abs" => Some("float_abs"),
+            "isNaN" => Some("float_is_nan"),
+            "isInfinite" => Some("float_is_infinite"),
+            "hash" => Some("float_hash"),
+            _ => None,
+        },
+        "scoop.core.Bool" => match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "eq" | "equals" => Some("bool_eq"),
+            "ne" | "notEquals" => Some("bool_ne"),
+            "not" | "negate" => Some("bool_not"),
+            _ => None,
+        },
+        "scoop.core.Char" => match method {
+            "toInt" => Some("char_to_int"),
+            "hash" => Some("char_hash"),
+            "compareTo" => Some("char_compare_to"),
+            "eq" | "equals" => Some("char_equals"),
+            "plus" | "plusInt" => Some("char_plus_int"),
+            "minus" | "minusInt" => Some("char_minus_int"),
+            "minusChar" => Some("char_minus_char"),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn backend_identity(cone: &StableConeKey, kind: &str, key: &str) -> FactIdentity {
+    FactIdentity::new(
+        CanonicalTextKey::new(format!("mir_backend:{kind}:{key}")),
+        format!("backend {kind} {key}"),
+        cone.clone(),
+        None,
+    )
+}
+
+fn global_storage_kind(storage: crate::hir::TopLevelVarStorage) -> GlobalStorageKind {
+    match storage {
+        crate::hir::TopLevelVarStorage::Global => GlobalStorageKind::Global,
+        crate::hir::TopLevelVarStorage::ThreadLocal => GlobalStorageKind::ThreadLocal,
     }
 }
 
@@ -898,6 +4346,7 @@ fn lower_mir_stage_unvalidated(
     hir_output: HirStageOutput,
 ) -> (DirectStyleMirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
+    let hir_semantic_artifact = hir_output.hir_semantic_artifact().cloned();
     let mut lowered_hir = hir_output.into_lowered_hir();
     let stable_cone_key = lowered_hir.stable_cone_key.clone();
     let builtins = lowered_hir.types.intern_builtins();
@@ -911,11 +4360,12 @@ fn lower_mir_stage_unvalidated(
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        DirectStyleMirStageOutput::new(
+        DirectStyleMirStageOutput::new_with_hir_semantic_artifact(
             LoweredMir { file, types },
             stable_cone_key,
             &lowered_hir.source_cones,
             &lowered_hir.source_cone_order,
+            hir_semantic_artifact,
         ),
         builtins.unit,
         builtins.bool_,
@@ -942,6 +4392,7 @@ mod tests {
         StatementKind, TerminatorKind, UnwindAction, ValueTransportMetadata,
         lower_hir_file_for_dump_with_facts,
     };
+    use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
@@ -1023,6 +4474,271 @@ mod tests {
         assert!(output.stable_dump().contains("mir_facts {"));
         assert_eq!(output.mir_facts().roots.callable_bodies.len(), 2);
         assert!(output.mir_facts().snapshots.canonical.is_none());
+    }
+
+    #[test]
+    fn p4_ready_mir_facts_publish_self_contained_handoff_contracts() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/p4_ready_mir_facts.scoop",
+            "package sample\nfun helper(): Int { return 1 }\nfun main(): Int { return helper() }\n",
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let facts = output.mir_facts();
+
+        assert!(facts.snapshots.canonical.is_some());
+        assert!(!facts.families.instances.is_empty());
+        assert!(
+            facts
+                .families
+                .instances
+                .iter()
+                .all(|instance| instance.eff_args.is_empty())
+        );
+        assert!(!facts.effects.callable_instances.is_empty());
+        assert!(
+            facts
+                .effects
+                .site_inventory
+                .iter()
+                .any(|site| site.kind == scoopc_mir_facts::effects::MirSiteKind::Call)
+        );
+        assert!(!facts.effects.call_site_targets.is_empty());
+        assert!(!facts.provenance.results.is_empty());
+        assert!(!facts.boundary.source_contracts.is_empty());
+        assert!(!facts.backend.source_signatures.is_empty());
+    }
+
+    #[test]
+    fn mir_callable_instance_effects_match_overload_template_identity() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_effect_overload_identity.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun choose(x: Any): Int / Pure {
+    return 0
+}
+
+fun choose(x: String): Int / (Raise<Int>) {
+    Raise.raise(1)
+    return 1
+}
+
+fun useAny(x: Any): Int / Pure {
+    return choose(x)
+}
+
+fun useString(): Int / (Raise<Int>) {
+    return choose("effectful")
+}
+
+fun root(): Int / (Raise<Int>) {
+    return useAny("plain") + useString()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let choose_rows = output
+            .mir_facts()
+            .effects
+            .callable_instances
+            .iter()
+            .filter(|fact| fact.callable.as_str().contains("sample.choose"))
+            .map(|fact| fact.published_surface_row.canonical_text())
+            .collect::<Vec<_>>();
+
+        assert_eq!(choose_rows.len(), 2, "expected both overload instances");
+        assert!(
+            choose_rows.iter().any(|row| row == "E()"),
+            "Any overload should keep its Pure row: {choose_rows:?}"
+        );
+        assert!(
+            choose_rows.iter().any(|row| row.contains("Raise")),
+            "String overload should keep its Raise row: {choose_rows:?}"
+        );
+    }
+
+    #[test]
+    fn mir_callable_instance_effect_rows_substitute_owner_eff_param_after_type_params() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_owner_eff_param_substitution.scoop",
+            r#"package sample
+import scoop.core.*
+
+class Holder<V, eff E = Pure>(val value: V, val action: () -> Unit / E) {
+    fun run(): Unit / E {
+        this.action()
+    }
+}
+
+fun main(): Unit {
+    val holder: Holder<Int, eff Pure> = Holder(1, { })
+    holder.run()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let holder_run = output
+            .mir_facts()
+            .effects
+            .callable_instances
+            .iter()
+            .find(|fact| fact.callable.as_str().contains("Holder.run"))
+            .expect("Holder.run instance effects should be published");
+
+        assert_eq!(holder_run.published_surface_row.canonical_text(), "E()");
+        assert_eq!(holder_run.step_effect_row.canonical_text(), "E()");
+    }
+
+    #[test]
+    fn mir_callable_value_provenance_does_not_relabel_top_level_values_as_functions() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_non_callable_top_level_value_provenance.scoop",
+            "package sample\nval Count: Int = 1\nfun root(): Int / Pure { return Count }\n",
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+
+        assert!(
+            output
+                .mir_facts()
+                .provenance
+                .callable_values
+                .iter()
+                .all(|fact| !matches!(
+                    &fact.provenance,
+                    scoopc_mir_facts::provenance::CallableValueProvenance::DirectFunction { fqn }
+                        if fqn == "sample.Count"
+                ))
+        );
+    }
+
+    #[test]
+    fn mir_higher_order_callable_targets_publish_param_join_and_closure_facts() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_higher_order_callable_targets.scoop",
+            r#"package sample
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+enum Mode {
+    Pure,
+    Effectful,
+}
+
+fun callIt(f: () -> Int / (Ask)): Int / (Ask) {
+    return f()
+}
+
+fun choose(mode: Mode): () -> Int / (Ask) {
+    when (mode) {
+        Pure -> {
+            val thunk: () -> Int / (Ask) = { 1 }
+            thunk
+        }
+        Effectful -> {
+            val thunk: () -> Int / (Ask) = { Ask.ask(2) }
+            thunk
+        }
+    }
+}
+
+fun directThunk(): () -> Int / (Ask) {
+    val thunk: () -> Int / (Ask) = { Ask.ask(3) }
+    return thunk
+}
+
+fun root(mode: Mode): Int / (Ask) {
+    val local: () -> Int / (Ask) = { Ask.ask(4) }
+    val a: Int = callIt(local)
+    val b: Int = choose(mode)()
+    val c: () -> Int / (Ask) = directThunk()
+    return a + b + c()
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
+        let direct = super::run(typed_hir_output).unwrap();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, &source, OptLevel::O0)
+                .unwrap();
+        let output = direct.with_materialized_mir(materialized);
+        let facts = output.mir_facts();
+
+        assert!(facts.provenance.callable_values.iter().any(|fact| {
+            fact.body.fqn == "sample.callIt"
+                && matches!(
+                    &fact.provenance,
+                    scoopc_mir_facts::provenance::CallableValueProvenance::Param { index: 0 }
+                )
+        }));
+        assert!(facts.effects.call_site_targets.iter().any(|fact| {
+            fact.body.fqn == "sample.callIt"
+                && matches!(
+                    &fact.target,
+                    scoopc_mir_facts::effects::CallSiteTarget::Param { index: 0 }
+                )
+        }));
+        assert!(facts.effects.call_site_targets.iter().any(|fact| {
+            fact.body.fqn == "sample.root"
+                && matches!(
+                    &fact.target,
+                    scoopc_mir_facts::effects::CallSiteTarget::CandidateSet { keys }
+                        if keys.len() == 2
+                )
+        }));
+        assert!(facts.effects.call_site_targets.iter().any(|fact| {
+            fact.body.fqn == "sample.root"
+                && matches!(
+                    &fact.target,
+                    scoopc_mir_facts::effects::CallSiteTarget::KnownClosure { .. }
+                )
+        }));
+        assert!(facts.provenance.callable_values.iter().any(|fact| {
+            fact.body.fqn == "sample.root"
+                && matches!(
+                    &fact.provenance,
+                    scoopc_mir_facts::provenance::CallableValueProvenance::Join { sources }
+                        if sources.len() == 2
+                )
+        }));
     }
 
     #[test]
@@ -1378,7 +5094,7 @@ fun main(): Int {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -1421,7 +5137,7 @@ fun main(): Int {
                     saw_class_ctor = true;
                 }
                 StatementKind::Assign {
-                    value: Rvalue::SizeOf { value_ty },
+                    value: Rvalue::SizeOf { value_ty, .. },
                     ..
                 } if output.types().display(*value_ty).to_string()
                     == "mir_lowered.call_contracts.Box" =>
@@ -1562,7 +5278,7 @@ fun main(): Int {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             ..
                         },
                     ..
@@ -1809,7 +5525,7 @@ fun main(): Int {
                     StatementKind::Assign {
                         value:
                             Rvalue::Call {
-                                kind: CallKind::Direct { callee_fqn },
+                                kind: CallKind::Direct { callee_fqn, .. },
                                 ..
                             },
                         ..
@@ -2317,7 +6033,13 @@ fun bad() {
             .collect::<Vec<_>>();
         assert!(matches!(
             main_calls.as_slice(),
-            [CallKind::Direct { callee_fqn }, CallKind::Direct { callee_fqn: callee_fqn_2 }]
+            [
+                CallKind::Direct { callee_fqn, .. },
+                CallKind::Direct {
+                    callee_fqn: callee_fqn_2,
+                    ..
+                }
+            ]
                 if callee_fqn == "a.id" && callee_fqn_2 == "a.callFn"
         ));
 
@@ -2607,7 +6329,7 @@ fun entry(): Int / Raise<Int> {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -2882,7 +6604,7 @@ fun main(): Unit {
                 StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             transport,
                             ..
                         },
@@ -2953,7 +6675,7 @@ fun main(): Unit {
                     StatementKind::Assign {
                         value:
                             Rvalue::Call {
-                                kind: CallKind::Direct { callee_fqn },
+                                kind: CallKind::Direct { callee_fqn, .. },
                                 ..
                             },
                         ..

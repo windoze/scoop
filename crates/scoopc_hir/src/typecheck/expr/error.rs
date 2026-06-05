@@ -538,6 +538,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("lazy 委托属性 `{property}` 的 initializer 必须为 `Pure!`；这里需要 effect {required}")]
+    #[diagnostic(code(scoop::typecheck::lazy_initializer_must_be_pure))]
+    LazyInitializerMustBePure {
+        property: String,
+        required: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`；这里得到 {found}")]
     #[diagnostic(code(scoop::typecheck::thread_spawn_entry_must_be_pure))]
     ThreadSpawnEntryMustBePure {

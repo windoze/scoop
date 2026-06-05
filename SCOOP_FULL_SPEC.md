@@ -2647,6 +2647,8 @@ This design serves two purposes:
 
 The `@NoGC` annotation marks a function as safe to run in contexts where **GC-managed heap allocation must not occur**, such as parts of the runtime itself (including the GC implementation written in Scoop).
 
+At its declaration boundary, `@NoGC` also implies **Pure**: a `@NoGC` function must not declare an effect-row parameter, and its effect row must be omitted or explicitly `Pure` / `Pure!`. Any explicit non-Pure effect row is rejected, so `@NoGC` code cannot depend on effect polymorphism or propagate ordinary effects.
+
 #### 15.8.1 Call restrictions
 
 A `@NoGC` function may only call:
@@ -2954,22 +2956,91 @@ Semantics:
 - A GC handle does **not** imply pinning: it does not guarantee a stable object address. If raw pointers into the object are required, the object must additionally be pinned for that duration (see §15.10).
 - Stable GC handles are the intended long-lived token for async I/O completion callbacks, reactor registrations, wakeup identities, and similar native bookkeeping. They keep the object alive but do not pin it; pinning remains a separate short-lived operation only for borrowing raw addresses.
 
-### 15.11 Type Descriptor Release Callback (FFI-managed Resources)
+### 15.11 `@ReleaseHook` and Type Descriptor Release Callback (FFI-managed Resources)
 
-Scoop does not support general-purpose finalizers. However, for FFI and managed-unmanaged interop, the runtime may associate an optional **release callback** with a GC-managed object type.
+Scoop does not support general-purpose finalizers. For FFI and managed-unmanaged interop, a final class may opt in to best-effort cleanup of unmanaged resources by attaching `@ReleaseHook`:
 
-Semantics (high-level):
+```kotlin
+@ReleaseHook(name = "fully.qualified.releaseFunction", args = ["fieldName", ...])
+```
 
-- Each GC-managed type has an implementation-defined type descriptor used by the GC for scanning and layout.
-- The type descriptor may optionally include a `release_callback: (ptr: Ptr<Byte>) -> Unit` function pointer.
-- When the GC determines that an object is unreachable and is about to be reclaimed, it calls the release callback (if present) with a pointer to the object's storage.
-- The callback is intended for releasing **unmanaged** resources associated with the object (e.g. memory in a non-GC arena, OS handles), and must not assume any ordering relative to other objects.
+`@ReleaseHook` causes the compiler to synthesize a type-descriptor release callback for the annotated class. When the GC later determines that an instance is unreachable and is about to reclaim its storage, the runtime invokes that callback. The callback reads the listed fields from the object and calls the configured release function with those field values, in `args` order.
 
-Important restrictions:
+#### 15.11.1 Host type requirements
 
-- This is **not** a user-facing language feature in Scoop 0.1: the callback is **auto-synthesized by the compiler** for specific runtime/library types.
-- The callback must not resurrect the object or depend on other GC-managed objects being alive.
-- The exact calling context and allowed operations are implementation-defined; implementations should treat the callback as `@NoGC` and `@Unsafe`-like.
+The annotation is valid only on a type declaration that satisfies all of the following:
+
+- The declaration is a `class`.
+- The class is non-generic.
+- The class is final: it must not be `open`, `abstract`, or `sealed`.
+- The same declaration also carries `@Experimental(feature = "releaseHook")`.
+
+Other type kinds (`struct`, `enum`, `interface`, annotation class) and generic or non-final classes are rejected.
+
+#### 15.11.2 Release function requirements
+
+The `name` argument is a string literal containing the fully qualified name of the release function. The named declaration must resolve to a single visible function that satisfies all of the following:
+
+- It is a top-level or otherwise receiver-less function; methods that require a receiver are not valid release targets.
+- It is non-generic.
+- It is annotated `@NoGC`, or it is an `@Extern(abi = "c")` function.
+- It returns `Unit`.
+- Its parameter count, order, and types exactly match the fields named by `args`.
+
+The safety link to §15.8 is intentional: `@NoGC` functions are allocation-free and Pure at their declaration boundary, and `@Extern(abi = "c")` functions are implicitly `@NoGC` and effect-impermeable. Release hooks therefore cannot run ordinary effectful or allocating Scoop code from the GC sweep path.
+
+#### 15.11.3 `args` field requirements
+
+The `args` argument is an array of string literals naming fields on the same class. For each name:
+
+- The field must exist on the annotated class.
+- The field type must be GC-free.
+- The field type must exactly match the corresponding release function parameter type.
+
+The release hook never passes `self`, and it cannot pass GC-managed references. Typical valid fields are scalars or raw native handles such as `Ptr<T>` where `T` is GC-free.
+
+#### 15.11.4 Runtime semantics
+
+Each GC-managed type has an implementation-defined type descriptor used by the GC for scanning, layout, and optional release. For a class accepted by `@ReleaseHook`, the compiler fills the descriptor's release slot with a generated trampoline. That trampoline receives a pointer to the object's storage, reads the configured GC-free fields using the full object layout, and calls the release function.
+
+High-level semantics:
+
+- If an object with a release hook becomes unreachable and the GC reclaims it, the release function is called before the object storage is freed.
+- Release is best-effort and nondeterministic. It is not tied to lexical scope exit, reference count changes, or any deterministic lifetime boundary.
+- Objects that remain live at process exit or runtime teardown are not released through `@ReleaseHook`; the runtime does not install an `atexit` finalization pass for this feature.
+- No ordering is guaranteed between release hooks for different objects.
+- The release function must not resurrect the object or depend on any other GC-managed object being alive.
+- The release function must not allocate, trigger GC, or call APIs that can re-enter the GC. The type checker enforces the language-level part of this rule by requiring `@NoGC` or `@Extern(abi = "c")` and GC-free arguments.
+
+If deterministic cleanup is required, a type should expose an explicit `close` / `destroy`-style API. If explicit cleanup and `@ReleaseHook` are both available, the native release operation should be idempotent so that a later best-effort GC release cannot double-free an already released resource.
+
+Sharing one unmanaged handle between multiple release-hook objects can still cause multiple release calls; ownership of unmanaged resources remains part of the library/API contract.
+
+#### 15.11.5 Minimal example
+
+```kotlin
+package demo
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern(name = "demo_handle_create", abi = "c")
+fun createNative(id: Int): Ptr<Int>
+
+@Extern(name = "demo_handle_destroy", abi = "c")
+fun destroyNative(handle: Ptr<Int>): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "demo.destroyNative", args = ["raw"])
+class NativeHandle(val raw: Ptr<Int>)
+
+fun openNativeHandle(id: Int): NativeHandle {
+    val raw: Ptr<Int> = @Unsafe do { createNative(id) }
+    return NativeHandle(raw)
+}
+```
+
+When a `NativeHandle` instance becomes unreachable and is reclaimed, the generated release callback calls `demo.destroyNative(raw)`. If the process exits while the instance is still live, that call is not guaranteed to happen.
 
 ## 16. Other Features
 

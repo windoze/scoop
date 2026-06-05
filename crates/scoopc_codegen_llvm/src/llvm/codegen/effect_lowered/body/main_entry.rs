@@ -13,7 +13,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
+            if callable.effect_step_abi().is_some()
+                && !abi.callable_version_is_primary(callable.body_version_key())
+            {
+                continue;
+            }
+            if callable.effect_step_abi().is_some()
+                && callable
+                    .body_step_schema()
+                    .is_some_and(|step| abi.frame_layout(step).is_none())
+            {
+                continue;
+            }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(program));
             if callable.plain_abi().is_some() {
                 child.codegen_plain_callable_entry(program, source_types, abi, callable)?;
             } else {
@@ -30,22 +43,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(abi_program));
             if callable.plain_abi().is_some() {
                 child.codegen_plain_callable_entry(abi_program, abi_source_types, abi, callable)?;
             } else {
                 child.codegen_callable_entries(abi_program, abi_source_types, abi, callable)?;
             }
         }
-        for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
+        for (key, target) in abi.callable_carrier_target_layouts() {
             // Cached dep carrier shells are defined by the dep artifact object;
             // the consumer module only needs their declarations through ABI materialization.
             if !abi.callable_version_is_primary(target.body_version_key()) {
                 continue;
             }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(abi_program));
             child.codegen_callable_carrier_entry_shell(
-                kind,
-                carrier_fqn,
+                key.kind(),
                 target,
                 abi_program,
                 abi_source_types,
@@ -194,32 +208,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+        self.codegen_release_trampolines()?;
         Ok(())
     }
 
     /// Emits the C `main` exit path through the stage-owned direct-entry ABI.
     pub(crate) fn codegen_stage_main_exit_code(
         &mut self,
-        entry_root_fqn: &str,
+        entry: &EntryRef,
         entry_argv_array: Option<PointerValue<'ctx>>,
         source_types: &TypeStore,
         program: &LateLoweredProgram,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let mut entry_callables = program
-            .callables()
-            .iter()
-            .filter(|callable| callable.root_fqn() == entry_root_fqn);
-        let callable = entry_callables.next().ok_or_else(|| {
+        let entry_root_fqn = entry.root_fqn();
+        let callable = program.callable_by_id(entry.callable_id()).ok_or_else(|| {
             frontend_error(format!(
-                "LLVM main wrapper 缺少入口 `{}` 的 callable body",
-                entry_root_fqn
+                "LLVM main wrapper 缺少入口 `{}` 的 callable body（id={:?})",
+                entry_root_fqn,
+                entry.callable_id()
             ))
         })?;
-        if entry_callables.next().is_some() {
+        if callable.root_fqn() != entry_root_fqn {
             return Err(frontend_error(format!(
-                "LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
-                entry_root_fqn
+                "LLVM main wrapper 入口 `{}` 的 EntryRef 与 LIR body `{}` 不一致",
+                entry_root_fqn,
+                callable.root_fqn()
             )));
         }
         if callable.plain_abi().is_some() {
@@ -434,23 +448,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let (mir_fun, body) = callable_source_body(callable, "plain body lowering")?;
-        let is_materialized_closure = mir_fun.name.starts_with("$lambda");
+        let executable_body = callable.executable_body().ok_or_else(|| {
+            frontend_error(format!(
+                "plain body lowering callable `{}` 缺少 LIR executable body",
+                callable.root_fqn()
+            ))
+        })?;
+        let header = executable_body.header();
+        let source_span = header.span();
+        let is_materialized_closure = header.name().starts_with("$lambda");
         let mir_types = source_types;
-        body.validate_cfg().unwrap_or_else(|err| {
-            panic!(
-                "codegen_plain_callable_entry: plain callable verifier accepted invalid CFG for `{}` at {:?}: {err}",
-                callable.root_fqn(),
-                mir_fun.span
-            )
-        });
-        self.verify_mir_body_composite_transport_contract(
+        self.verify_lir_body_composite_transport_contract(
             callable.root_fqn(),
-            mir_fun.span,
-            body,
+            executable_body,
             mir_types,
         )?;
-        let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
 
         self.current_source_id = self.source_id_for_path(
             callable
@@ -459,23 +471,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .template
                 .source_path
                 .as_path(),
-            mir_fun.span,
+            source_span,
         )?;
-        self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
+        self.function_cx.current_lir_callable_id = program.callable_id_for(callable);
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
 
-        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).unwrap_or_else(|| {
+        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, header.return_ty()).unwrap_or_else(|| {
             panic!(
                 "codegen_plain_callable_entry: plain callable verifier accepted non-codegen return type for `{}` at {:?}",
                 callable.root_fqn(),
-                mir_fun.span
+                source_span
             )
         });
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
-            .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
+            .hidden_sret_result_ty(source_span, declared_return_cg)?
             .is_some();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
@@ -485,7 +497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!(
                             "codegen_plain_callable_entry: plain callable ABI accepted missing sret param for `{}` at {:?}",
                             callable.root_fqn(),
-                            mir_fun.span
+                            source_span
                         )
                     })
                     .into_pointer_value(),
@@ -495,8 +507,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let (return_bb, return_alloca) =
-            self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
+            self.setup_function_return_context(source_span, function, declared_return_cg)?;
         if plain.local_effect_control().is_some() {
+            let (mir_fun, body) =
+                callable_source_body(callable, "plain local effect-control lowering")?;
+            body.validate_cfg().unwrap_or_else(|err| {
+                panic!(
+                    "codegen_plain_callable_entry: plain local effect-control verifier accepted invalid CFG for `{}` at {:?}: {err}",
+                    callable.root_fqn(),
+                    mir_fun.span
+                )
+            });
             let emitter = CallableEmitter::new(
                 self,
                 program,
@@ -504,7 +525,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 abi,
                 callable,
                 mir_fun,
-                body,
                 function,
                 None,
                 None,
@@ -524,200 +544,90 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             }
             self.emit_function_return_block(
-                mir_fun.span,
+                source_span,
                 declared_return_cg,
                 return_bb,
                 return_alloca,
             )?;
-            self.finish_function_explicit_frame_layout(mir_fun.span)?;
+            self.finish_function_explicit_frame_layout(source_span)?;
             self.function_cx.current_sret_return_ptr = None;
             return Ok(());
         }
-        let mut slots = self.create_mir_local_slots(body, mir_types)?;
+        let mut slots = self.create_lir_local_slots(executable_body, mir_types)?;
         if is_materialized_closure {
-            self.bind_mir_closure_params(
-                mir_fun,
+            self.bind_lir_closure_params(
+                executable_body.header(),
                 mir_types,
                 function,
                 u32::from(uses_hidden_sret),
                 &mut slots,
             )?;
         } else {
-            self.bind_lir_source_params(
-                mir_fun,
+            self.bind_lir_header_params(
+                executable_body.header(),
                 mir_types,
                 function,
                 u32::from(uses_hidden_sret),
                 &mut slots,
             )?;
         }
-        let used_locals = collect_mir_local_uses(body);
-        let llvm_blocks = body
-            .blocks
+        let used_locals = collect_lir_local_uses(executable_body, mir_types);
+        let llvm_blocks = executable_body
+            .states()
+            .states()
             .iter()
-            .enumerate()
-            .map(|(idx, _)| {
-                self.context
-                    .append_basic_block(function, &format!("plain.bb{idx}"))
+            .map(|state| {
+                (
+                    state.state_id(),
+                    self.context.append_basic_block(
+                        function,
+                        &format!("plain.s{}", state.state_id().as_u32()),
+                    ),
+                )
             })
-            .collect::<Vec<_>>();
+            .collect::<std::collections::HashMap<_, _>>();
         let start_bb = llvm_blocks
-            .get(body.start.as_u32() as usize)
+            .get(&executable_body.states().entry_state())
             .copied()
             .unwrap_or_else(|| {
                 panic!(
-                    "codegen_plain_callable_entry: plain callable verifier accepted missing start block bb{} for `{}` at {:?}",
-                    body.start.as_u32(),
+                    "codegen_plain_callable_entry: LIR executable body accepted missing entry state s{} for `{}` at {:?}",
+                    executable_body.states().entry_state().as_u32(),
                     callable.root_fqn(),
-                    mir_fun.span
+                    source_span
                 )
             });
         self.builder.build_unconditional_branch(start_bb)?;
 
-        for (idx, block) in body.blocks.iter().enumerate() {
-            self.builder.position_at_end(llvm_blocks[idx]);
-            let block_id = mir::BasicBlockId::from_raw(idx as u32);
-            let slice = body_slices.get(&block_id).ok_or_else(|| {
-                frontend_error(format!(
-                    "plain body lowering callable `{}` 缺少 bb{} 的 published source slice",
-                    callable.root_fqn(),
-                    block_id.as_u32(),
-                ))
-            })?;
-            {
-                let mut values = ValuePrimitives::new(
-                    self,
-                    program,
-                    Some(plain.call_sites()),
+        for state in executable_body.states().states() {
+            let llvm_block = llvm_blocks.get(&state.state_id()).copied().unwrap_or_else(|| {
+                panic!(
+                    "codegen_plain_callable_entry: LIR executable body accepted missing block for state s{}",
+                    state.state_id().as_u32()
+                )
+            });
+            self.builder.position_at_end(llvm_block);
+            for stmt in state.body().statements() {
+                self.codegen_lir_statement(
+                    stmt,
+                    executable_body,
                     mir_types,
-                    body,
                     &slots,
-                    abi,
-                );
-                for stmt in &block.stmts
-                    [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
-                {
-                    values.lower_effect_neutral_statement(stmt, &used_locals)?;
-                }
+                    &used_locals,
+                    Some(abi),
+                )?;
             }
-            self.codegen_plain_terminator(
-                &block.terminator,
+            self.codegen_lir_plain_terminator(
+                state.body().terminator(),
                 &slots,
                 &llvm_blocks,
                 declared_return_cg,
             )?;
         }
 
-        self.emit_function_return_block(
-            mir_fun.span,
-            declared_return_cg,
-            return_bb,
-            return_alloca,
-        )?;
-        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        self.emit_function_return_block(source_span, declared_return_cg, return_bb, return_alloca)?;
+        self.finish_function_explicit_frame_layout(source_span)?;
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
-    }
-
-    pub(super) fn codegen_plain_terminator(
-        &mut self,
-        terminator: &mir::Terminator,
-        slots: &[MirLocalSlot<'ctx>],
-        llvm_blocks: &[BasicBlock<'ctx>],
-        declared_return_cg: CgTy,
-    ) -> Result<(), LlvmEmitError> {
-        if self
-            .builder
-            .get_insert_block()
-            .is_some_and(|bb| bb.get_terminator().is_some())
-        {
-            return Ok(());
-        }
-        match &terminator.kind {
-            mir::TerminatorKind::Return { value } => {
-                let value = match value {
-                    Some(operand) => self.codegen_mir_operand_expected(
-                        terminator.span,
-                        operand,
-                        slots,
-                        Some(declared_return_cg),
-                    )?,
-                    None => self.default_value(terminator.span, declared_return_cg)?,
-                };
-                let value = self
-                    .coerce_value(terminator.span, value, declared_return_cg)
-                    .map_err(|err| match err {
-                        LlvmEmitError::Frontend { message } => frontend_error(format!(
-                            "plain return coercion failed at {:?}: {message}",
-                            terminator.span
-                        )),
-                        other => other,
-                    })?;
-                self.finish_function_return_path(terminator.span, declared_return_cg, value)
-            }
-            mir::TerminatorKind::Goto { target } => {
-                let target_bb = llvm_blocks
-                    .get(target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_plain_terminator: plain callable verifier accepted missing goto target bb{} at {:?}",
-                            target.as_u32(),
-                            terminator.span
-                        )
-                    });
-                self.builder.build_unconditional_branch(target_bb)?;
-                Ok(())
-            }
-            mir::TerminatorKind::CondBr {
-                cond,
-                then_target,
-                else_target,
-            } => {
-                let cond = self
-                    .codegen_mir_operand(terminator.span, cond, slots)?
-                    .as_bool()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_plain_terminator: plain callable verifier accepted non-bool branch condition at {:?}",
-                            terminator.span
-                        )
-                    });
-                let then_bb = llvm_blocks
-                    .get(then_target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_plain_terminator: plain callable verifier accepted missing then target bb{} at {:?}",
-                            then_target.as_u32(),
-                            terminator.span
-                        )
-                    });
-                let else_bb = llvm_blocks
-                    .get(else_target.as_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "codegen_plain_terminator: plain callable verifier accepted missing else target bb{} at {:?}",
-                            else_target.as_u32(),
-                            terminator.span
-                        )
-                    });
-                self.builder
-                    .build_conditional_branch(cond, then_bb, else_bb)?;
-                Ok(())
-            }
-            mir::TerminatorKind::Unreachable => {
-                self.builder.build_unreachable()?;
-                Ok(())
-            }
-            mir::TerminatorKind::Perform { .. }
-            | mir::TerminatorKind::ResumeUnwind
-            | mir::TerminatorKind::Handle { .. }
-            | mir::TerminatorKind::Todo(_) => panic!(
-                "codegen_plain_terminator: effect/control terminator reached plain callable lowering at {:?}",
-                terminator.span
-            ),
-        }
     }
 }

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_host_must_be_class
+// EXPECT-ERROR: struct
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun releaseNonClassHost(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.releaseNonClassHost", args = ["raw"])
+struct NonClassReleaseHost(val raw: UInt)

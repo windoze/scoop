@@ -226,11 +226,11 @@ mod tests {
     #[test]
     fn verifier_rejects_missing_callable_step_schema() {
         let unit = unit_ty();
-        let callable_key = callable_key("app.main");
+        let main_key = callable_key("app.main");
         let missing_schema = StepSchemaId::new(7);
         let mut facts = EffectFacts::new();
         facts.callables.insert(
-            callable_key,
+            main_key,
             CallableEffectFacts::new(
                 EffectRow::pure(),
                 CallableAbiKind::EffectStep,
@@ -247,6 +247,180 @@ mod tests {
             VerifyError::MissingStepSchema {
                 context: "callable app.main body_step_schema".to_string(),
                 schema: 7,
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_missing_plain_local_control_step_schema() {
+        let unit = unit_ty();
+        let main_key = callable_key("app.main");
+        let step = StepSchemaId::new(0);
+        let continuation = ContinuationSchemaId::new(0);
+        let case = CaseTag::new(0);
+
+        let mut facts = EffectFacts::new();
+        facts.step_schemas.insert(
+            step,
+            StepSchema::new(
+                unit,
+                unit,
+                unit,
+                vec![StepCaseFact::new(
+                    case,
+                    ConcreteOpKey::new(
+                        callable_key("app.Ping.hit"),
+                        EffectFamilyKey::new("app.Ping".to_string(), Vec::new()),
+                    ),
+                    unit,
+                    continuation,
+                )],
+            ),
+        );
+        facts.continuation_schemas.insert(
+            continuation,
+            ContinuationSchema::new(unit, unit, step, unit),
+        );
+        facts.callables.insert(
+            main_key.clone(),
+            CallableEffectFacts::new(
+                EffectRow::pure(),
+                CallableAbiKind::Plain,
+                None,
+                None,
+                CaseSet::new(step, Vec::new()),
+                false,
+                ImplPlan::NoOutward,
+            ),
+        );
+
+        let mut sites = BTreeMap::new();
+        sites.insert(
+            scoopc_ids::SiteId::from_raw(0),
+            SiteEffectFacts::Perform(PerformSiteEffectFacts::new(case, unit, continuation)),
+        );
+        facts
+            .bodies
+            .insert(main_key, BodyEffectFacts::new(BTreeMap::new(), sites));
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::MissingLocalControlStepSchema {
+                body: "app.main".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_empty_call_site_candidate_set() {
+        let unit = unit_ty();
+        let main_key = callable_key("app.main");
+        let step = StepSchemaId::new(0);
+
+        let mut facts = EffectFacts::new();
+        facts.callables.insert(
+            main_key.clone(),
+            CallableEffectFacts::new(
+                EffectRow::pure(),
+                CallableAbiKind::Plain,
+                None,
+                None,
+                CaseSet::new(step, Vec::new()),
+                false,
+                ImplPlan::NoOutward,
+            ),
+        );
+
+        let mut sites = BTreeMap::new();
+        sites.insert(
+            scoopc_ids::SiteId::from_raw(0),
+            SiteEffectFacts::Call(CallSiteEffectFacts::new_with_abi(
+                CallSiteKind::FunValue,
+                CallSiteTarget::CandidateSet(Vec::new()),
+                CallableAbiKind::Plain,
+                unit,
+                None,
+                CaseSet::new(step, Vec::new()),
+                EffectPrecision::Precise,
+            )),
+        );
+        facts
+            .bodies
+            .insert(main_key, BodyEffectFacts::new(BTreeMap::new(), sites));
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::EmptyCallSiteCandidateSet {
+                context: "body app.main site0".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_call_site_abi_schema_mismatch() {
+        let unit = unit_ty();
+        let main_key = callable_key("app.main");
+        let step = StepSchemaId::new(0);
+        let continuation = ContinuationSchemaId::new(0);
+        let case = CaseTag::new(0);
+
+        let mut facts = EffectFacts::new();
+        facts.step_schemas.insert(
+            step,
+            StepSchema::new(
+                unit,
+                unit,
+                unit,
+                vec![StepCaseFact::new(
+                    case,
+                    ConcreteOpKey::new(
+                        callable_key("app.Ping.hit"),
+                        EffectFamilyKey::new("app.Ping".to_string(), Vec::new()),
+                    ),
+                    unit,
+                    continuation,
+                )],
+            ),
+        );
+        facts.continuation_schemas.insert(
+            continuation,
+            ContinuationSchema::new(unit, unit, step, unit),
+        );
+        facts.callables.insert(
+            main_key.clone(),
+            CallableEffectFacts::new(
+                EffectRow::pure(),
+                CallableAbiKind::Plain,
+                None,
+                None,
+                CaseSet::new(step, Vec::new()),
+                false,
+                ImplPlan::NoOutward,
+            ),
+        );
+
+        let mut sites = BTreeMap::new();
+        sites.insert(
+            scoopc_ids::SiteId::from_raw(0),
+            SiteEffectFacts::Call(CallSiteEffectFacts::new_with_abi(
+                CallSiteKind::FunValue,
+                CallSiteTarget::DynamicFallback,
+                CallableAbiKind::Plain,
+                unit,
+                None,
+                CaseSet::new(step, vec![case]),
+                EffectPrecision::Precise,
+            )),
+        );
+        facts.bodies.insert(
+            main_key,
+            BodyEffectFacts::with_local_control_step_schema(BTreeMap::new(), sites, Some(step)),
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::CallSiteAbiSchemaMismatch {
+                context: "body app.main site0".to_string(),
             }
         );
     }

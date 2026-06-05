@@ -86,6 +86,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_closure_expr: typecheck must publish a function type for lambda expressions"
             )
         };
+        let mut effective_fun_ty = fun_ty.clone();
+        for (idx, param_ty) in effective_fun_ty.params.iter_mut().enumerate() {
+            if self.try_mono_type_id(*param_ty).is_none()
+                && let Some(param) = closure.params.get(idx)
+            {
+                *param_ty = param.ty;
+            }
+        }
+        if self.try_mono_type_id(effective_fun_ty.return_ty).is_none() {
+            effective_fun_ty.return_ty = closure.body.ty;
+        }
+        let fun_ty = &effective_fun_ty;
 
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
         let ClosureParamBindings {
@@ -127,8 +139,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-            let uses_explicit_effect_hidden_abi = self
+            let published_effect_step = self
                 .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str());
+            let uses_explicit_effect_hidden_abi =
+                published_effect_step || !fun_ty.effects.is_pure();
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
                 1 + fun_ty.params.len()
                     + usize::from(fun_ty.receiver.is_some())
@@ -221,8 +235,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
 
-        let closure_desc =
-            self.get_or_create_closure_object_type_desc_global(span, expected_fun_ty)?;
+        let closure_desc = self.get_or_create_closure_object_type_desc_for_signature(
+            span,
+            fun_ty.receiver,
+            &fun_ty.params,
+            fun_ty.return_ty,
+        )?;
         let closure_desc_i8 = self.builder.build_pointer_cast(
             closure_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -371,18 +389,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        if fun_ty.effects.is_pure() {
+        let carrier_key = self
+            .lir_source_callable(closure_identity.callable_fqn.as_str())
+            .map(|(callable_id, _, _)| {
+                let program = self.expect_active_lir_program("direct HIR closure carrier target");
+                callable_carrier_target_key_for_ref(
+                    program,
+                    CallableCarrierKind::ClosureObject,
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                    "direct HIR closure carrier target",
+                )
+            })
+            .transpose()?;
+
+        if let Some(key) = carrier_key
+            && (fun_ty.effects.is_pure()
+                || !self.callable_uses_explicit_effect_hidden_abi(
+                    closure_identity.callable_fqn.as_str(),
+                ))
+        {
             self.register_plain_callable_carrier_fallback(
-                CallableCarrierKind::ClosureObject,
+                key,
                 closure_identity.callable_fqn.as_str(),
             )?;
         }
 
-        let fn_ptr = self.callable_carrier_target_fn_ptr(
-            CallableCarrierKind::ClosureObject,
-            closure_identity.callable_fqn.as_str(),
-            llvm_fun.as_global_value().as_pointer_value(),
-        )?;
+        let fn_ptr = match carrier_key {
+            Some(key) => self.callable_carrier_target_fn_ptr(
+                key,
+                closure_identity.callable_fqn.as_str(),
+                llvm_fun.as_global_value().as_pointer_value(),
+            )?,
+            None => llvm_fun.as_global_value().as_pointer_value(),
+        };
         let fn_i8 = self
             .builder
             .build_pointer_cast(fn_ptr, i8_ptr_ty, "closure_fn_i8")?;
@@ -486,7 +525,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(spec.llvm_fun)?;
         self.enter_nested_closure_identity(
-            spec.callable_fqn.to_string(),
+            None,
             spec.root_stable_owner_key.clone(),
             spec.stable_closure_key.lexical_path(),
         );
@@ -499,8 +538,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
-        let uses_explicit_effect_hidden_abi =
-            self.callable_uses_explicit_effect_hidden_abi(spec.callable_fqn);
+        let uses_explicit_effect_hidden_abi = self
+            .callable_uses_explicit_effect_hidden_abi(spec.callable_fqn)
+            || !fun_ty.effects.is_pure();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun
@@ -683,36 +723,5 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         env_ty.set_body(&fields, false);
         Ok(env_ty)
-    }
-
-    /// 在当前 compilation unit 的 `TypeStore` 中查找 `() -> Unit / Pure` 的函数类型。
-    ///
-    /// 用途：
-    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 source callable contracts 中只有声明，
-    ///   但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
-    pub(in crate::llvm::codegen) fn lookup_pure_unit_closure_type(&self) -> Option<TypeId> {
-        let unit = self
-            .types
-            .iter_ids()
-            .find(|id| matches!(self.types.kind(*id), TypeKind::Value(ValueTypeKind::Unit)))?;
-
-        let mut fallback = None;
-        for id in self.types.iter_ids() {
-            let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(id) else {
-                continue;
-            };
-            if fun_ty.receiver.is_some()
-                || !fun_ty.params.is_empty()
-                || fun_ty.return_ty != unit
-                || !fun_ty.effects.is_pure()
-            {
-                continue;
-            }
-            if fun_ty.effects_closed {
-                return Some(id);
-            }
-            fallback.get_or_insert(id);
-        }
-        fallback
     }
 }

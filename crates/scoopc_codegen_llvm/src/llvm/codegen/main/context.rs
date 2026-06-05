@@ -5,6 +5,28 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn active_lir_program(
+        &self,
+    ) -> Option<&'a crate::effect_lowered::LateLoweredProgram> {
+        self.active_lir_program
+            .or(self.shared.published_late_lowered_program)
+    }
+
+    pub(in crate::llvm::codegen) fn expect_active_lir_program(
+        &self,
+        context: &str,
+    ) -> &'a crate::effect_lowered::LateLoweredProgram {
+        self.active_lir_program()
+            .unwrap_or_else(|| panic!("{context}: missing active LIR program"))
+    }
+
+    pub(in crate::llvm) fn set_active_lir_program(
+        &mut self,
+        program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    ) {
+        self.active_lir_program = program;
+    }
+
     /// Return the active LLVM insertion block, or panic with a named compiler invariant.
     pub(in crate::llvm::codegen) fn expect_insert_block(
         &self,
@@ -303,125 +325,203 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .expect("current source id must be registered before LLVM codegen"))
     }
 
-    pub(in crate::llvm::codegen) fn current_call_site(
+    pub(in crate::llvm::codegen) fn published_lir_source_call_site(
         &self,
-        span: crate::span::Span,
-    ) -> Result<hir::CallSite, LlvmEmitError> {
-        let source = self.current_source()?;
-        Ok(hir::CallSite::new(source.path().to_path_buf(), span))
-    }
-
-    pub(in crate::llvm::codegen) fn current_top_level_fun_call_binding(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<Option<&ast::TopLevelFunCallBinding>, LlvmEmitError> {
-        let call_site = self.current_call_site(span)?;
-        Ok(self.top_level_fun_call_sites.get(&call_site))
-    }
-
-    pub(in crate::llvm::codegen) fn concrete_top_level_fun_call_fqn(
-        &self,
-        span: crate::span::Span,
-        fallback_fqn: &str,
-    ) -> Result<String, LlvmEmitError> {
-        fn callable_dispatch_base_fqn(fqn: &str) -> &str {
-            let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-            base.split_once("$overload$")
-                .map(|(base, _)| base)
-                .unwrap_or(base)
-        }
-
-        fn callable_fqn_specificity(fqn: &str) -> u8 {
-            u8::from(fqn.contains("$overload$")) + u8::from(fqn.contains("::<"))
-        }
-
-        fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
-            let mut stack = vec![ty];
-            while let Some(id) = stack.pop() {
-                match types.kind(id) {
-                    TypeKind::Param(_) => return true,
-                    TypeKind::StarProjection(star) => stack.push(star.read_ty),
-                    TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                    | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                        stack.extend(nominal.args.iter().copied());
-                        if let Some(eff) = &nominal.eff {
-                            stack.extend(eff.terms.iter().copied());
-                        }
-                    }
-                    TypeKind::Ref(RefTypeKind::Function(fun)) => {
-                        if let Some(receiver) = fun.receiver {
-                            stack.push(receiver);
-                        }
-                        stack.extend(fun.params.iter().copied());
-                        stack.push(fun.return_ty);
-                        stack.extend(fun.effects.terms.iter().copied());
-                    }
-                    TypeKind::Ref(RefTypeKind::Union(union)) => {
-                        stack.extend(union.variants.iter().copied());
-                    }
-                    TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
-                    TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
-                        stack.extend(elements.iter().copied());
-                    }
-                    TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
-                    | TypeKind::Value(
-                        ValueTypeKind::Unit
-                        | ValueTypeKind::Nothing
-                        | ValueTypeKind::Bool
-                        | ValueTypeKind::Char
-                        | ValueTypeKind::Float64
-                        | ValueTypeKind::Float32
-                        | ValueTypeKind::Int
-                        | ValueTypeKind::UInt
-                        | ValueTypeKind::IntN(_)
-                        | ValueTypeKind::UIntN(_),
-                    ) => {}
-                }
-            }
-            false
-        }
-
-        let Some(binding) = self.current_top_level_fun_call_binding(span)? else {
-            return Ok(fallback_fqn.to_string());
-        };
-        let binding_fqn = if binding.type_args.is_empty() {
-            binding.fqn.clone()
-        } else {
-            let args = binding
-                .type_args
-                .iter()
-                .map(|ty| self.types.display(*ty).to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{}::<{}>", binding.fqn, args)
-        };
-        let binding_contains_unresolved_params = binding
-            .type_args
+        site_id: SiteId,
+    ) -> Option<&LirSourceCallSiteFacts> {
+        let owner_callable = self.current_active_lir_callable_id()?;
+        self.active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?
+            .source_call_sites
             .iter()
-            .any(|&ty| type_contains_param(self.types, ty))
-            || binding.eff_args.iter().any(|row| {
-                row.terms
+            .find(|site| site.site_id == site_id)
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_plain_call_site(
+        &self,
+        site_id: SiteId,
+    ) -> Option<&LirPlainCallSiteFacts> {
+        let owner_callable = self.current_active_lir_callable_id()?;
+        let callable = self
+            .active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?;
+        let LirCallableContract::Plain(plain) = &callable.contract else {
+            return None;
+        };
+        plain.call_sites.iter().find(|site| site.site_id == site_id)
+    }
+
+    pub(in crate::llvm::codegen) fn required_lir_class_ctor_call_site(
+        &self,
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirClassCtorCallSiteFacts, LlvmEmitError> {
+        let owner_callable =
+            self.current_active_lir_callable_id()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "{context}: missing current LIR callable identity for class ctor site{}",
+                        site_id.as_u32()
+                    ),
+                })?;
+        self.active_lir_program()
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("{context}: missing active LIR program"),
+            })?
+            .callable_by_id(owner_callable)
+            .and_then(|callable| callable.published_callable_facts())
+            .and_then(|callable| {
+                callable
+                    .class_ctor_call_sites
                     .iter()
-                    .any(|&ty| type_contains_param(self.types, ty))
-            });
-        if binding_contains_unresolved_params && callable_fqn_specificity(fallback_fqn) > 0 {
-            return Ok(fallback_fqn.to_string());
+                    .find(|site| site.site_id == site_id)
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR class ctor call-site contract for owner `{:?}` site{}",
+                    owner_callable,
+                    site_id.as_u32()
+                ),
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn next_class_ctor_source_contract(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<Option<LateLoweredClassCtorSourceCallContract>, LlvmEmitError> {
+        let index = self.function_cx.next_class_ctor_source_contract;
+        let Some(contract) = self
+            .function_cx
+            .active_class_ctor_source_contracts
+            .get(index)
+        else {
+            let source = self.current_source()?;
+            return Ok(self
+                .shared
+                .published_late_lowered_program
+                .and_then(|program| {
+                    program.source_class_ctor_calls().iter().find(|contract| {
+                        contract.call_span() == span
+                            && (contract.source_path() == source.path()
+                                || contract.source_path().ends_with(source.path())
+                                || source.path().ends_with(contract.source_path()))
+                    })
+                })
+                .cloned());
+        };
+        if contract.call_span() != span {
+            let source = self.current_source()?;
+            return Ok(self
+                .shared
+                .published_late_lowered_program
+                .and_then(|program| {
+                    program.source_class_ctor_calls().iter().find(|contract| {
+                        contract.call_span() == span
+                            && (contract.source_path() == source.path()
+                                || contract.source_path().ends_with(source.path())
+                                || source.path().ends_with(contract.source_path()))
+                    })
+                })
+                .cloned());
         }
-        let fallback_base = callable_dispatch_base_fqn(fallback_fqn);
-        let binding_base = callable_dispatch_base_fqn(&binding_fqn);
-        if binding_base == fallback_base
-            && callable_fqn_specificity(binding_fqn.as_str())
-                < callable_fqn_specificity(fallback_fqn)
-        {
-            return Ok(fallback_fqn.to_string());
-        }
-        // materialized MIR 已经可以把 where-bound/interface dispatch 等 source-level binding
-        // 具体化为不同 base 的 direct callee；此时必须信任 MIR 中的 fallback target，不能再按
-        // 原始 source-span side table 回退到抽象接口/trait base FQN。
-        if binding_base != fallback_base {
-            return Ok(fallback_fqn.to_string());
-        }
-        Ok(binding_fqn)
+        self.function_cx.next_class_ctor_source_contract += 1;
+        Ok(Some(contract.clone()))
+    }
+
+    pub(in crate::llvm::codegen) fn required_lir_source_call_site(
+        &self,
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirSourceCallSiteFacts, LlvmEmitError> {
+        self.published_lir_source_call_site(site_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR source call-site contract for owner `{}` site{}",
+                    self.current_callable_diagnostic_label(),
+                    site_id.as_u32()
+                ),
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_exact_callee_root(
+        &self,
+        site_id: SiteId,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        Ok(self
+            .required_lir_source_call_site(site_id, "published_lir_exact_callee_root")?
+            .contract
+            .exact_callee
+            .as_ref()
+            .map(|exact| exact.root_fqn.as_str()))
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_source_semantic_root(
+        &self,
+        site_id: SiteId,
+    ) -> Result<Option<&str>, LlvmEmitError> {
+        Ok(self
+            .required_lir_source_call_site(site_id, "published_lir_source_semantic_root")?
+            .semantic_root_fqn
+            .as_deref())
+    }
+
+    pub(in crate::llvm::codegen) fn published_lir_dispatch(
+        &self,
+        site_id: SiteId,
+    ) -> Option<&LirDispatchContract> {
+        let owner_callable = self.current_active_lir_callable_id()?;
+        let callable = self
+            .active_lir_program()?
+            .callable_by_id(owner_callable)?
+            .published_callable_facts()?;
+        callable
+            .dispatch_contracts()
+            .into_iter()
+            .find(|dispatch| dispatch.site_id == site_id)
+    }
+
+    fn current_published_lir_callable_id(&self) -> Option<LirCallableId> {
+        self.function_cx.current_lir_callable_id
+    }
+
+    fn current_active_lir_callable_id(&self) -> Option<LirCallableId> {
+        self.current_published_lir_callable_id()
+    }
+
+    pub(in crate::llvm::codegen) fn current_lir_callable(
+        &self,
+    ) -> Option<&'a crate::effect_lowered::LateLoweredCallable> {
+        let id = self.current_active_lir_callable_id()?;
+        self.active_lir_program()?.callable_by_id(id)
+    }
+
+    pub(in crate::llvm::codegen) fn current_callable_diagnostic_label(&self) -> String {
+        self.current_lir_callable()
+            .map(|callable| callable.root_fqn().to_string())
+            .or_else(|| {
+                self.function_cx
+                    .current_stable_owner_key
+                    .as_ref()
+                    .map(|key| key.owner_path().to_string())
+            })
+            .unwrap_or_else(|| "<unknown>".to_string())
+    }
+
+    pub(in crate::llvm::codegen) fn required_lir_dispatch(
+        &self,
+        site_id: SiteId,
+        context: &str,
+    ) -> Result<&LirDispatchContract, LlvmEmitError> {
+        self.published_lir_dispatch(site_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "{context}: missing LIR dispatch contract for owner `{}` site{}",
+                    self.current_callable_diagnostic_label(),
+                    site_id.as_u32()
+                ),
+            })
     }
 
     pub(in crate::llvm::codegen) fn source_id_for_path(
@@ -443,8 +543,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fqn: &str,
     ) -> Option<&LirGlobalRootFacts> {
-        self.published_lir_facts
-            .global_init
+        self.active_lir_program()?
+            .global_init()
             .roots
             .get(&LirGlobalRootKey::new(fqn))
     }

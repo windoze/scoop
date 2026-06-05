@@ -48,7 +48,29 @@ impl WireSchemaVersion {
 ///   通过 `ensure_compatible` 被显式拒绝。
 /// - 1.2：P10 final cleanup 后，LIR type-context facts 记录 portable `TypeStore`
 ///   wire format 已实现，不再携带 P7/P8 的 deferred 决策。
-pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 2);
+/// - 1.3：MIR fact product 发布 self-contained handoff groups（effects/provenance/
+///   boundary/backend）及 instance `eff_args`。
+/// - 1.4：MIR effect events/site inventory 携带 P4 所需的 typed perform/handle/resume
+///   contract 与 result type，避免 P4 回扫 MIR shape。
+/// - 1.5：MIR callable target/provenance facts 支持 parameter-carried callable、join
+///   sources 与显式 dynamic fallback 标记。
+/// - 1.6：MIR callable value provenance 结构化记录 statement index，并补强 fact verifier
+///   对空 provenance join 的拒绝。
+/// - 1.7：LIR facts 新增 exact callee binding、source signature keys、ABI/layout/
+///   closure identity contracts，避免 LLVM 回扫旧 side table。
+/// - 1.8：LIR facts 发布 intrinsic callable metadata，LLVM 只消费 fact 化 named
+///   intrinsic entry，不再在 P6 通过 legacy scalar FQN fallback 补洞。
+/// - 1.9：MIR/LIR facts 发布 named intrinsic callable 与 reflection type-argument
+///   contracts，P6 不再从 root/FQN/source text 恢复 intrinsic metadata。
+/// - 1.12：MIR reflection intrinsic rvalue 携带 `SiteId`，LIR reflection facts 改为
+///   owner+site identity 发布。
+/// - 1.13：LIR program callable 节点携带 per-callable facts、source signatures 与
+///   intrinsic callable metadata，供 P2b 逐步移除平行 facts 表。
+/// - 1.14：LIR callable/body site 节点携带 source/class-ctor/reflection call-site 与
+///   dynamic/dispatch contracts，移除这些 payload 的顶层平表发布。
+/// - 1.15：LIR program 携带 stage summary、opt/type context、global init 与 physical
+///   layout payload，LLVM handoff 不再携带独立 `LirFacts`。
+pub const WIRE_SCHEMA_VERSION: WireSchemaVersion = WireSchemaVersion::new(1, 15);
 
 pub mod serde_static_str {
     use serde::{Deserialize, Deserializer, Serializer};

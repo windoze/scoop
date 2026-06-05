@@ -5,7 +5,7 @@
 // SPEC: docs/spec/language_spec-part6.md#1-低层边界总览;docs/spec/language_spec-part6.md#18-与标准库的关系
 // COVERS: NONE
 // BUCKETS: B-27
-// REASON: P7-B3.2 retired B-27 rows; this fixture keeps the sync arity gate active.
+// REASON: P7-B3.2 retired B-27 rows; this historical sync-intrinsics bucket now keeps the ordinary sync method arity gate active.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/std_sync_api_surface_ok.scoop
 // SYSROOT-DEPS: scoop.sync
 

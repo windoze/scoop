@@ -6,42 +6,83 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn declare_dispatch_target_fun(
         &mut self,
         _at: crate::span::Span,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
+        target_label: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let signature = self
-            .published_codegen_callable_signature(callable_fqn)
+        let program = self.expect_active_lir_program("declare_dispatch_target_fun");
+        let symbol_facts = program
+            .physical_layout()
+            .callable_symbols
+            .get(&target.local_id().ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target `{target_label}` uses external callable ref `{}` without local symbol facts",
+                    target.display_text(),
+                ),
+            })?)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "dispatch target callable `{callable_fqn}` 缺少 LIR callable/source signature contract"
+                    "dispatch target callable `{target_label}` 缺少 LIR callable symbol facts"
                 ),
             })?;
-        let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
+        let source_types =
+            self.published_late_lowered_types()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "dispatch target callable `{target_label}` 缺少 LIR TypeStore contract"
+                    ),
+                })?;
+        let (param_tys, return_ty) = self
+            .published_signature_tys_as_codegen_tys_impl(
+                source_types,
+                symbol_facts.param_tys.clone(),
+                symbol_facts.return_ty,
+            )
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{target_label}` 的 LIR signature 无法映射到 LLVM codegen TypeStore"
+                ),
+            })?;
+        let signature = CodegenCallableSignature {
+            fqn: symbol_facts.root_fqn.clone(),
+            param_names: symbol_facts.param_names.clone(),
+            param_tys,
+            return_ty,
+        };
+        let abi_symbol_fact = self.abi_symbol_for_lir_callable_ref(target);
         let llvm_name = symbol_facts
-            .and_then(|facts| {
-                facts
+            .exported_symbol
+            .as_deref()
+            .or_else(|| {
+                symbol_facts
                     .native
                     .as_ref()
                     .map(|native| native.symbol.as_str())
                     .or_else(|| {
-                        facts
+                        symbol_facts
                             .extern_
                             .as_ref()
                             .map(|extern_| extern_.symbol.as_str())
                     })
-            })
-            .unwrap_or(callable_fqn);
-        if let Some(existing) = self.module.get_function(llvm_name) {
+                })
+            .or_else(|| abi_symbol_fact.map(|fact| fact.symbol.as_str()))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{target_label}` 的 LIR callable ABI symbol fact 缺少 symbol"
+                ),
+            })?
+            .to_string();
+        if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
-        let surface = if symbol_facts
-            .is_some_and(|facts| facts.native.is_some() || facts.extern_.is_some())
+        let surface = if abi_symbol_fact
+            .is_some_and(|fact| matches!(fact.role.as_str(), "native_callable" | "extern_callable"))
         {
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
         } else {
             LlvmFunctionDeclarationSurface::ExportedAbi
         };
         self.declare_lir_plain_fun_with_symbol(
-            llvm_name,
+            &llvm_name,
             surface,
             &signature.fqn,
             &signature.param_tys,
@@ -49,6 +90,171 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.types,
             false,
         )
+    }
+
+    pub(super) fn release_trampoline_fn_name(&self, class_fqn: &str) -> String {
+        let stable_key = self.stable_nominal_type_key(class_fqn, "release_trampoline");
+        let readable = sanitize_llvm_ident(class_fqn);
+        let hash = PrivateSymbolMangler.hash_suffix("release_trampoline", &stable_key);
+        format!("__scoop_release_{readable}__h{hash}")
+    }
+
+    pub(super) fn codegen_release_trampolines(&mut self) -> Result<(), LlvmEmitError> {
+        let mut class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
+        class_keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+
+        let at = crate::span::Span::new(0, 0);
+        for class_key in class_keys {
+            if !self.release_hooks.contains_key(class_key.as_str()) {
+                continue;
+            }
+            let _ = self.get_or_create_release_trampoline(at, &class_key)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn get_or_create_release_trampoline(
+        &mut self,
+        at: crate::span::Span,
+        class_key: &hir::ClassInstanceKey,
+    ) -> Result<Option<FunctionValue<'ctx>>, LlvmEmitError> {
+        let class = self.class_init_layout(at, class_key)?;
+        let Some(hook) = self.release_hooks.get(&class.fqn).cloned() else {
+            return Ok(None);
+        };
+
+        self.codegen_release_trampoline_for_hook(at, &class, &hook)
+            .map(Some)
+    }
+
+    fn codegen_release_trampoline_for_hook(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::MonoClassInit,
+        hook: &hir::ReleaseHook,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let name = self.release_trampoline_fn_name(&class.fqn);
+        let object_param_ty = self.llvm_i8_ptr_type();
+        let fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[object_param_ty.into()], false);
+        let trampoline =
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
+        trampoline.set_call_conventions(0);
+        self.mark_gc_leaf_function(trampoline);
+        if trampoline.count_basic_blocks() > 0 {
+            return Ok(trampoline);
+        }
+
+        let signature = self
+            .published_codegen_callable_signature(&hook.target_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook target `{}` 缺少 LIR callable signature contract",
+                    hook.target_fqn
+                ),
+            })?;
+        if signature.param_tys.len() != hook.arg_fields.len() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook `{}` 参数数量漂移：target params={} args={}",
+                    class.fqn,
+                    signature.param_tys.len(),
+                    hook.arg_fields.len()
+                ),
+            });
+        }
+
+        let saved_block = self.builder.get_insert_block();
+        let entry = self.context.append_basic_block(trampoline, "entry");
+        self.builder.position_at_end(entry);
+
+        let object = trampoline
+            .get_nth_param(0)
+            .unwrap_or_else(|| panic!("release trampoline declaration must have object parameter"))
+            .into_pointer_value();
+        object.set_name("object");
+
+        let mut args = Vec::<inkwell::values::BasicMetadataValueEnum<'ctx>>::with_capacity(
+            hook.arg_fields.len(),
+        );
+        for (idx, field_name) in hook.arg_fields.iter().enumerate() {
+            let param_ty = signature.param_tys[idx];
+            let param_cg = self.cg_ty_of_type_id(param_ty, "release hook target param");
+            let field_value = self.codegen_release_hook_field_arg(at, class, object, field_name)?;
+            let coerced = self.coerce_value(at, field_value, param_cg)?;
+            args.push(self.as_llvm_arg_value(at, param_cg, coerced)?);
+        }
+
+        let llvm_name = self
+            .published_symbol_for_source_root_text(&hook.target_fqn)
+            .unwrap_or_else(|| hook.target_fqn.clone());
+        let target = self.declare_lir_plain_fun_with_symbol(
+            &llvm_name,
+            LlvmFunctionDeclarationSurface::ExportedAbi,
+            &signature.fqn,
+            &signature.param_tys,
+            signature.return_ty,
+            self.types,
+            false,
+        )?;
+        let call = self
+            .builder
+            .build_call(target, &args, "release_hook_call")?;
+        call.set_call_convention(self.llvm_call_convention_for_fqn(&hook.target_fqn));
+        self.builder.build_return(None)?;
+
+        if let Some(block) = saved_block {
+            self.builder.position_at_end(block);
+        }
+        Ok(trampoline)
+    }
+
+    fn codegen_release_hook_field_arg(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::MonoClassInit,
+        object: PointerValue<'ctx>,
+        field_name: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let field_idx = self.release_hook_field_index(class, field_name)?;
+        let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+            panic!("release hook verifier accepted field index outside class layout")
+        });
+        let field_cg = self.cg_ty_of(field.ty);
+        let field_ptr = self.codegen_class_field_ptr(at, class, object, field_idx)?;
+        let llvm_ty = self.llvm_basic_type_of(at, field_cg)?;
+        let load_name = format!("release_hook_arg_{}", sanitize_llvm_ident(field_name));
+        let loaded = self.builder.build_load(llvm_ty, field_ptr, &load_name)?;
+        self.cg_value_from_loaded(at, field_cg, loaded)
+    }
+
+    fn release_hook_field_index(
+        &self,
+        class: &hir::MonoClassInit,
+        field_name: &str,
+    ) -> Result<u32, LlvmEmitError> {
+        let field_fqn = if field_name.contains('.') {
+            field_name.to_string()
+        } else {
+            format!("{}.{}", class.fqn, field_name)
+        };
+        if let Some(idx) = class.field_indices.get(&field_fqn).copied() {
+            return Ok(idx);
+        }
+
+        class
+            .fields
+            .iter()
+            .position(|field| field.name == field_name && field.fqn == field_fqn)
+            .map(|idx| idx as u32)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "release hook `{}` references field `{}` missing from class layout",
+                    class.fqn, field_name
+                ),
+            })
     }
 
     pub(super) fn try_codegen_sysroot_gc_debug_intrinsics(
@@ -1020,6 +1226,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv
     }
 
+    fn type_descriptor_release_fn_ptr(
+        &mut self,
+        at: crate::span::Span,
+        type_id_key: &str,
+        i8_ptr_ty: PointerType<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if !self.release_hooks.contains_key(type_id_key) {
+            return Ok(i8_ptr_ty.const_null());
+        }
+
+        let class_key = self.registered_class_instance_key(type_id_key).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "type descriptor `{type_id_key}` has a release hook but no class layout metadata"
+                ),
+            }
+        })?;
+        let trampoline = self
+            .get_or_create_release_trampoline(at, &class_key)?
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "type descriptor `{type_id_key}` has a release hook but no release trampoline"
+                ),
+            })?;
+        Ok(trampoline
+            .as_global_value()
+            .as_pointer_value()
+            .const_cast(i8_ptr_ty))
+    }
+
     pub(super) fn get_or_create_type_descriptor_global(
         &mut self,
         spec: TypeDescriptorSpec<'ctx, '_>,
@@ -1066,6 +1302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let itable_ptr = itable.unwrap_or_else(|| i8_ptr_ty.const_null());
         let vtable_ptr = vtable.unwrap_or_else(|| i8_ptr_ty.const_null());
+        let release_fn_ptr = self.type_descriptor_release_fn_ptr(at, type_id_key, i8_ptr_ty)?;
 
         let values: [BasicValueEnum<'ctx>; 14] = [
             i32_ty.const_zero().into(), // abi_version
@@ -1077,7 +1314,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i32_ty.const_zero().into(), // _reserved_u32
             bitmap_ptr.into(),
             i8_ptr_ty.const_null().into(), // trace_fn
-            i8_ptr_ty.const_null().into(), // release_fn
+            release_fn_ptr.into(),         // release_fn
             i64_ty
                 .const_int(stable_rtti_type_id(type_id_key), false)
                 .into(),
@@ -1227,9 +1464,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
-        let Some(entries) = self.class_itables.get(class_fqn) else {
+        let Some(itable) = self
+            .expect_active_lir_program("get_or_create_class_itable_global")
+            .physical_layout()
+            .class_itables
+            .get(class_fqn)
+        else {
             return Ok(None);
         };
+        let entries = itable.entries.as_slice();
         if entries.is_empty() {
             return Ok(None);
         }
@@ -1242,7 +1485,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         owner_key: &K,
-        entries: &[crate::itable::ClassItableEntry],
+        entries: &[LirClassItableEntryFacts],
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError>
     where
         K: StableCanonicalKey + ?Sized,
@@ -1306,21 +1549,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let methods_gv = if let Some(existing) = self.module.get_global(&methods_gv_name) {
                 existing
             } else {
-                let arr_ty = i8_ptr_ty.array_type(entry.method_impl_fqns.len() as u32);
+                let arr_ty = i8_ptr_ty.array_type(entry.method_impl_targets.len() as u32);
                 let gv = self.module.add_global(arr_ty, None, &methods_gv_name);
 
                 let mut inits: Vec<PointerValue<'ctx>> =
-                    Vec::with_capacity(entry.method_impl_fqns.len());
-                for impl_fqn in &entry.method_impl_fqns {
-                    if impl_fqn.is_empty() {
+                    Vec::with_capacity(entry.method_impl_targets.len());
+                for target in &entry.method_impl_targets {
+                    let Some(target) = *target else {
                         inits.push(i8_ptr_ty.const_null());
                         continue;
-                    }
-                    let llvm_fun = self.declare_dispatch_target_fun(at, impl_fqn)?;
+                    };
+                    let target_label = target.display_text();
+                    let llvm_fun = self.declare_dispatch_target_fun(at, target, &target_label)?;
+                    let key = callable_carrier_target_key_for_ref(
+                        self.expect_active_lir_program("class itable carrier target"),
+                        CallableCarrierKind::InterfaceItable,
+                        target,
+                        "class itable carrier target",
+                    )?;
 
                     let fn_ptr = self.callable_carrier_target_fn_ptr(
-                        CallableCarrierKind::InterfaceItable,
-                        impl_fqn,
+                        key,
+                        &target_label,
                         llvm_fun.as_global_value().as_pointer_value(),
                     )?;
                     inits.push(fn_ptr.const_cast(i8_ptr_ty));
@@ -1355,7 +1605,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(existing) = self.module.get_global(&receiver_types_gv_name) {
                         existing
                     } else {
-                        let arr_ty = i64_ty.array_type(entry.method_impl_fqns.len() as u32);
+                        let arr_ty = i64_ty.array_type(entry.method_impl_targets.len() as u32);
                         let gv = self
                             .module
                             .add_global(arr_ty, None, &receiver_types_gv_name);
@@ -1366,7 +1616,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .chain(std::iter::repeat(
                                 crate::itable::ITABLE_RECEIVER_REF_TYPE_ID,
                             ))
-                            .take(entry.method_impl_fqns.len())
+                            .take(entry.method_impl_targets.len())
                             .map(|id| i64_ty.const_int(id, false))
                             .collect::<Vec<_>>();
                         gv.set_initializer(&i64_ty.const_array(&inits));
@@ -1449,7 +1699,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class_fqn: &str,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
-        let Some(slots) = self.class_vtables.get(class_fqn) else {
+        let Some(slots) = self
+            .expect_active_lir_program("get_or_create_class_vtable_global")
+            .physical_layout()
+            .class_vtables
+            .get(class_fqn)
+        else {
             return Ok(None);
         };
         if slots.is_empty() {
@@ -1468,11 +1723,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut inits: Vec<PointerValue<'ctx>> = Vec::with_capacity(slots.len());
         for slot in slots {
-            let llvm_fun = self.declare_dispatch_target_fun(at, &slot.impl_member_fqn)?;
+            let target = slot.impl_member_target;
+            let target_label = target.display_text();
+            let llvm_fun = self.declare_dispatch_target_fun(at, target, &target_label)?;
+            let key = callable_carrier_target_key_for_ref(
+                self.expect_active_lir_program("class vtable carrier target"),
+                CallableCarrierKind::ClassVtable,
+                target,
+                "class vtable carrier target",
+            )?;
 
             let fn_ptr = self.callable_carrier_target_fn_ptr(
-                CallableCarrierKind::ClassVtable,
-                &slot.impl_member_fqn,
+                key,
+                &target_label,
                 llvm_fun.as_global_value().as_pointer_value(),
             )?;
             inits.push(fn_ptr.const_cast(i8_ptr_ty));

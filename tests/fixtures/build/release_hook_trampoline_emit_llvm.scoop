@@ -1,0 +1,29 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: define internal void @__scoop_release_
+// BUILD-LLVM-CONTAINS: ptr %object
+// BUILD-LLVM-CONTAINS: class_payload_gep
+// BUILD-LLVM-CONTAINS: class_field_gep
+// BUILD-LLVM-REGEX: (?s)release_hook_arg_raw.*release_hook_arg_tag
+// BUILD-LLVM-CONTAINS: call void @scoop_test_release_ptr_uint(i64 %release_hook_arg_raw, i64 %release_hook_arg_tag)
+// BUILD-LLVM-REGEX: (?m)^@__scoop_priv[0-9]+__class_type_desc__h[A-Za-z0-9_]+ = internal constant %scoop.runtime.ScoopTypeDescriptor \{[^\n]*ptr null, ptr @__scoop_release_
+// BUILD-LLVM-NOT-CONTAINS: @scoop_enter_native
+// BUILD-LLVM-NOT-CONTAINS: @scoop_leave_native
+
+package fixtures.build.releasehook
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_release_ptr_uint", abi = "c")
+fun releaseNative(raw: Ptr<Int>, tag: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.build.releasehook.releaseNative", args = ["raw", "tag"])
+class NativeResource(val raw: Ptr<Int>, val tag: UInt)
+
+fun keepNative(raw: Ptr<Int>) {
+    val _native: NativeResource = NativeResource(raw, 7u)
+}
+
+fun main() {}

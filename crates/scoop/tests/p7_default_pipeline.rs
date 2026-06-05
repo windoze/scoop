@@ -159,6 +159,36 @@ fn single_pipeline_runs_indirect_perform_closure_resume_cli() {
 }
 
 #[test]
+fn single_pipeline_emits_descriptor_dispatched_closure_resume_surface_cli() {
+    let fixture = workspace_path(
+        "tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop",
+    );
+    let dir = tempdir().unwrap();
+    let output_ll = dir.path().join("closure_resume.ll");
+
+    let output = run_scoop([
+        OsStr::new("build"),
+        OsStr::new("--emit-llvm"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+        OsStr::new("-o"),
+        output_ll.as_os_str(),
+    ]);
+
+    assert!(output.status.success(), "build failed: {output:?}");
+    let ir = std::fs::read_to_string(output_ll).unwrap();
+    let has_wrapper_dispatch = ir.split("\ndefine ").any(|function| {
+        function.contains("lowered_surface_resume__outcome")
+            && function.contains("surface_resume_outcome_hit_ko0")
+            && function.contains("surface_resume_outcome_hit_ko2")
+    });
+    assert!(
+        has_wrapper_dispatch,
+        "closure composed resume surface should dispatch by continuation descriptor across wrapper and captured closure owners"
+    );
+}
+
+#[test]
 fn single_pipeline_runs_multi_type_param_effect_payload_dispatch_cli() {
     let fixture =
         workspace_path("tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.scoop");

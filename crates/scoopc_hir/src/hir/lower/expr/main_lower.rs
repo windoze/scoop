@@ -9,6 +9,28 @@ use crate::syntax::int_literal::{IntLiteralSuffix, parse_int_literal_suffix};
 use super::*;
 
 impl<'a> HirLowering<'a> {
+    fn expected_nominal_eff_refinement(&self, found: TypeId, expected: TypeId) -> Option<TypeId> {
+        let (found_fqn, found_args, found_eff) = match self.types.kind(found) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (&nominal.fqn, &nominal.args, &nominal.eff)
+            }
+            _ => return None,
+        };
+        let (expected_fqn, expected_args, expected_eff) = match self.types.kind(expected) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (&nominal.fqn, &nominal.args, &nominal.eff)
+            }
+            _ => return None,
+        };
+        (found_fqn == expected_fqn
+            && found_args == expected_args
+            && expected_eff.is_some()
+            && found_eff != expected_eff)
+            .then_some(expected)
+    }
+
     pub(in crate::hir::lower) fn invalid_expr_kind_after_stage_error(
         &mut self,
         _span: Span,
@@ -731,7 +753,14 @@ impl<'a> HirLowering<'a> {
                 // 调用降糖成其它 HIR 形态，也要优先保留该结果类型，避免局部 `val x = call(...)`
                 // 因为中间表达式被写成 `Any` 而在 codegen 时触发错误的 value coercion。
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
-                let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
+                let call_ty = match (typechecked_call_ty, expected.value_ty) {
+                    (Some(found), Some(expected_ty)) => self
+                        .expected_nominal_eff_refinement(found, expected_ty)
+                        .unwrap_or(found),
+                    (Some(found), None) => found,
+                    (None, Some(expected_ty)) => expected_ty,
+                    (None, None) => self.builtins.any,
+                };
                 let callee_expr = self.transparent_call_callee(callee);
                 let synthesized_args =
                     self.synthesized_unit_call_args_for_typed_sugar(e.span, args);
@@ -1101,8 +1130,15 @@ impl<'a> HirLowering<'a> {
                         })
                     });
 
+                    let expected_fun_binding = self
+                        .typechecked_top_level_fun_call_binding(e.span)
+                        .map(|binding| {
+                            self.fun_call_binding_with_expected_return(binding, expected.value_ty)
+                        });
                     let materialized_direct_target =
-                        self.materialized_top_level_fun_call_target_fqn(e.span);
+                        expected_fun_binding.as_ref().and_then(|binding| {
+                            self.materialized_direct_call_target_fqn_for_binding(binding)
+                        });
                     let callee = if let Some(target_fqn) = materialized_direct_target {
                         Box::new(self.top_level_callee_expr_with_fqn(callee.span, target_fqn))
                     } else {
@@ -1123,10 +1159,8 @@ impl<'a> HirLowering<'a> {
                                 )
                             })
                             .flatten();
-                        let plan = if let Some(fun_binding) =
-                            self.typechecked_top_level_fun_call_binding(e.span)
-                        {
-                            self.callable_param_plan_for_fun_binding(&fun_binding)
+                        let plan = if let Some(fun_binding) = expected_fun_binding.as_ref() {
+                            self.callable_param_plan_for_fun_binding(fun_binding)
                         } else if let Some(ctor_binding) = ctor_binding.as_ref() {
                             self.callable_param_plan_for_ctor_binding(e.span, ctor_binding)
                         } else {
@@ -1554,11 +1588,14 @@ impl<'a> HirLowering<'a> {
                 }
                 ast::InterpolatedStringPart::Expr { expr } => {
                     let lowered_expr = self.lower_expr(pkg_prefix, expr);
+                    let to_string_fqn = self
+                        .builtin_to_string_method_fqn_for_ty(lowered_expr.ty)
+                        .unwrap_or(Self::TO_STRING_INTERFACE_METHOD_FQN);
                     let to_string_call_span = self.fresh_synthetic_call_site_span(expr.span);
                     let to_string_call = self.lower_synthetic_member_call(
                         to_string_call_span,
                         lowered_expr,
-                        Self::TO_STRING_INTERFACE_METHOD_FQN,
+                        to_string_fqn,
                         Vec::new(),
                         self.builtins.string,
                     );
@@ -2106,27 +2143,26 @@ impl<'a> HirLowering<'a> {
     ) -> Option<crate::ast::TopLevelFunCallBinding> {
         let typecheck_types = self.typecheck_types?;
         let binding = self.file.top_level_fun_call_binding(span)?;
+        let re_intern_binding_ty = |this: &mut Self, ty: TypeId| {
+            let ty = if !binding.types_are_hir && (ty.as_u32() as usize) < typecheck_types.len() {
+                this.types.re_intern_from(typecheck_types, ty)
+            } else {
+                ty
+            };
+            this.apply_active_type_param_bindings(ty)
+        };
         let param_tys = binding
             .param_tys
             .iter()
             .copied()
-            .map(|ty| {
-                let ty = self.types.re_intern_from(typecheck_types, ty);
-                self.apply_active_type_param_bindings(ty)
-            })
+            .map(|ty| re_intern_binding_ty(self, ty))
             .collect();
-        let return_ty = binding.return_ty.map(|ty| {
-            let ty = self.types.re_intern_from(typecheck_types, ty);
-            self.apply_active_type_param_bindings(ty)
-        });
+        let return_ty = binding.return_ty.map(|ty| re_intern_binding_ty(self, ty));
         let type_args = binding
             .type_args
             .iter()
             .copied()
-            .map(|ty| {
-                let ty = self.types.re_intern_from(typecheck_types, ty);
-                self.apply_active_type_param_bindings(ty)
-            })
+            .map(|ty| re_intern_binding_ty(self, ty))
             .collect();
         let eff_args = binding
             .eff_args
@@ -2135,7 +2171,8 @@ impl<'a> HirLowering<'a> {
                 let re_interned = EffectRow::new(
                     row.terms
                         .iter()
-                        .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                        .copied()
+                        .map(|ty| re_intern_binding_ty(self, ty))
                         .collect(),
                 );
                 self.apply_active_type_param_bindings_to_effect_row(&re_interned)
@@ -2151,6 +2188,7 @@ impl<'a> HirLowering<'a> {
             return_ty,
             type_args,
             eff_args,
+            types_are_hir: true,
         })
     }
 

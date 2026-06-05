@@ -39,57 +39,32 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             for successor in state.successors() {
                 self.verify_state_exists(*successor, "state successor")?;
             }
-            self.verify_state_source_slices(state)?;
+            self.verify_state_lir_statements(state)?;
             self.verify_state_terminator_contract(state)?;
         }
         Ok(())
     }
 
-    pub(super) fn verify_state_source_slices(
+    pub(super) fn verify_state_lir_statements(
         &self,
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
-        for slice in state.source_slices() {
-            let block = self
-                .body
-                .blocks
-                .get(slice.block_id().as_u32() as usize)
+        for (local_statement_index, _) in state.statements().iter().enumerate() {
+            let classification = self
+                .callable
+                .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                    state.state_id(),
+                    LirStatementIndex::new(local_statement_index as u32),
+                ))
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "body verifier 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
+                        "body verifier 发现 callable `{}` state st{} LIR statement{} 缺少 classification",
                         self.callable.root_fqn(),
                         state.state_id().as_u32(),
-                        slice.block_id().as_u32()
+                        local_statement_index,
                     ))
                 })?;
-            if slice.start_statement_index() > slice.end_statement_index()
-                || slice.end_statement_index() as usize > block.stmts.len()
-            {
-                return Err(frontend_error(format!(
-                    "body verifier 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
-                    self.callable.root_fqn(),
-                    state.state_id().as_u32(),
-                    slice.start_statement_index(),
-                    slice.end_statement_index(),
-                    slice.block_id().as_u32(),
-                    block.stmts.len()
-                )));
-            }
-            for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
-                let classification = self
-                    .callable
-                    .source_statement_classification(*slice, stmt_index)
-                    .ok_or_else(|| {
-                        frontend_error(format!(
-                            "body verifier 发现 callable `{}` state st{} source-slice bb{} stmt{} 缺少 classification",
-                            self.callable.root_fqn(),
-                            state.state_id().as_u32(),
-                            slice.block_id().as_u32(),
-                            stmt_index
-                        ))
-                    })?;
-                self.verify_source_statement_classification(classification.kind())?;
-            }
+            self.verify_source_statement_classification(classification.kind())?;
         }
         Ok(())
     }
@@ -100,6 +75,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         match kind {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+            | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
             | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => Ok(()),
             LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                 Err(frontend_error(format!(
@@ -308,22 +284,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         else {
             return false;
         };
-        for &slice in state.source_slices() {
-            let Some(block) = self.body.blocks.get(slice.block_id().as_u32() as usize) else {
-                continue;
-            };
-            let start = slice.start_statement_index() as usize;
-            let end = slice.end_statement_index() as usize;
-            for stmt in &block.stmts[start..end] {
-                if matches!(
-                    &stmt.kind,
-                    mir::StatementKind::Assign {
-                        target,
-                        value: mir::Rvalue::Use(mir::Operand::Local(source)),
-                    } if *target == return_local && *source == binding_local
-                ) {
-                    return true;
-                }
+        for stmt in state.statements() {
+            if matches!(
+                &stmt.kind,
+                LirStatementKind::Assign {
+                    target,
+                    value: LirRvalue::Use(LirOperand::Local(source)),
+                } if *target == return_local && *source == binding_local
+            ) {
+                return true;
             }
         }
         false
@@ -385,38 +354,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         &self,
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
-        if state.source_slices().is_empty() {
+        if !matches!(state.terminator(), LateLoweredStateTerminator::ResumeUnwind) {
             return Err(frontend_error(format!(
-                "ResumeUnwind state st{} 缺少 canonical MIR cleanup source slice",
+                "ResumeUnwind state st{} 的 LIR terminator 不是 ResumeUnwind",
                 state.state_id().as_u32()
             )));
-        }
-        for slice in state.source_slices() {
-            let block = self
-                .body
-                .blocks
-                .get(slice.block_id().as_u32() as usize)
-                .ok_or_else(|| {
-                    frontend_error(format!(
-                        "ResumeUnwind state st{} source slice 指向缺失 block bb{}",
-                        state.state_id().as_u32(),
-                        slice.block_id().as_u32()
-                    ))
-                })?;
-            if !block.is_cleanup || !slice.includes_terminator() {
-                return Err(frontend_error(format!(
-                    "ResumeUnwind state st{} source slice bb{} 未发布 cleanup terminator contract",
-                    state.state_id().as_u32(),
-                    slice.block_id().as_u32()
-                )));
-            }
-            if !matches!(block.terminator.kind, mir::TerminatorKind::ResumeUnwind) {
-                return Err(frontend_error(format!(
-                    "ResumeUnwind state st{} source slice bb{} terminator 不是 canonical MIR ResumeUnwind",
-                    state.state_id().as_u32(),
-                    slice.block_id().as_u32()
-                )));
-            }
         }
         Ok(())
     }
@@ -600,7 +542,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if self.callable.state_graph().drop_state() != Some(state.state_id())
             || state.role() != LateLoweredStateRole::Drop
-            || !state.source_slices().is_empty()
+            || !state.statements().is_empty()
         {
             return Err(frontend_error(format!(
                 "Abandon state st{} 只能作为 published drop_state 的空 Drop state 终止，不能作为普通 CFG fallback",

@@ -22,8 +22,11 @@ pub fn dump_hir_facts(facts: &HirFacts) -> String {
     .expect("writing to String cannot fail");
     writeln!(
         &mut out,
-        "  source_sites: function_effects={}, calls={}, args={}, assigns={}, updates={}, performs={}, handles={}, resumes={}, patterns={}, top_level_roots={}, extern_globals={}",
+        "  source_sites: function_effects={}, callable_source_effects={}, semantic_ops={}, hidden_initializers={}, calls={}, args={}, assigns={}, updates={}, performs={}, handles={}, resumes={}, patterns={}, top_level_roots={}, extern_globals={}",
         facts.source_sites.function_effects.len(),
+        facts.source_sites.callable_source_effects.len(),
+        facts.source_sites.semantic_operations.len(),
+        facts.source_sites.hidden_initializers.len(),
         facts.source_sites.call_sites.len(),
         facts.source_sites.argument_bindings.len(),
         facts.source_sites.assignments.len(),

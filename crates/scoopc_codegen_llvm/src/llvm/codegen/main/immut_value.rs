@@ -274,10 +274,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             StableDefNamespace::TopLevelInit,
             "top_level_init",
         );
-        self.enter_root_callable_identity(
-            private_top_level_immutable_value_init_fn_name(&stable_key),
-            stable_key,
-        );
+        self.enter_root_callable_identity(None, stable_key);
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");

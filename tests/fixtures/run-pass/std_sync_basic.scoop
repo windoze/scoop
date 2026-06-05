@@ -1,13 +1,13 @@
 // EXPECT: pass
 // RUN-STDOUT: std_sync_basic.stdout
 //
-// 目标：T1319b `scoop.sync`（pthread backend）最小可执行语义可回归。
+// 目标：T1319b `scoop.sync` 最小同线程 smoke 可回归。
 //
 // 说明：
-// - 当前阶段缺少通用 `scoop.thread.spawn/join`，因此该用例只覆盖：
-//   - Mutex：create/lock/unlock/destroy 不崩溃；
-//   - CondVar：create/notify/destroy 不崩溃（wait 的阻塞/唤醒语义由后续 thread API 用例覆盖）；
-//   - Once：run 只执行一次（同线程重复调用应直接返回）。
+// - Mutex：create/lock/unlock/destroy 不崩溃；
+// - CondVar：create/notify/destroy 不崩溃；
+// - Once：run 只执行一次（同线程重复调用应直接返回）。
+// 并发 wait/notify 与后端矩阵由 runtime_gc/std_sync_backend_parity_*.scoop 覆盖。
 // SYSROOT-DEPS: scoop.sync
 
 import scoop.core.*

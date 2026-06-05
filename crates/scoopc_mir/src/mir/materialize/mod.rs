@@ -11,7 +11,7 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
-use scoopc_ids::{InstanceKey, TemplateKey};
+use scoopc_ids::{InstanceKey, StableCanonicalKey, TemplateKey};
 use thiserror::Error;
 
 use crate::ast;
@@ -23,9 +23,9 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    AbiMangler, NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace,
-    StableInstanceKey, StableTemplateKey, canonical_callable_signature_key,
-    stable_template_symbol_suffix,
+    AbiMangler, CanonicalTextKey, EffectRowTemplate, NoTypeParamResolver, StableConeKey,
+    StableDefKey, StableDefNamespace, StableInstanceKey, StableTemplateKey,
+    canonical_callable_signature_key, canonical_type_text, stable_template_symbol_suffix,
 };
 use crate::ty::{
     BuiltinTypes, EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId,
@@ -75,14 +75,26 @@ pub struct MaterializedMir {
     pub(super) dispatch_devirtualization_facts: super::DispatchDevirtualizationFacts,
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
     pub(super) source_callable_signatures: Vec<MaterializedCallableSignature>,
+    pub(super) source_callable_effects: Vec<MaterializedCallableEffectTemplate>,
 }
 
 #[derive(Debug, Clone)]
 pub struct MaterializedCallableSignature {
     pub fqn: String,
+    pub stable_template_key: Option<StableTemplateKey>,
+    pub has_generic_params_or_effect_param: bool,
     pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct MaterializedCallableEffectTemplate {
+    pub template: TemplateKey,
+    pub eff_param_names: Vec<String>,
+    pub declared_surface_row: Option<EffectRowTemplate>,
+    pub actual_surface_row_template: EffectRowTemplate,
+    pub published_surface_row_template: EffectRowTemplate,
 }
 
 /// Data-only backend contracts captured at materialization time for LIR facts.
@@ -90,6 +102,7 @@ pub struct MaterializedCallableSignature {
 pub struct MaterializedBackendContracts {
     pub enum_layouts: crate::hir::EnumLayoutIndex,
     pub class_inits: crate::hir::ClassInitIndex,
+    pub ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub class_vtables: crate::vtable::ClassVtableIndex,
     pub interfaces: crate::itable::InterfaceIndex,
     pub class_itables: crate::itable::ClassItableIndex,
@@ -217,6 +230,10 @@ impl MaterializedMir {
 
     pub fn source_callable_signatures(&self) -> &[MaterializedCallableSignature] {
         &self.source_callable_signatures
+    }
+
+    pub fn source_callable_effects(&self) -> &[MaterializedCallableEffectTemplate] {
+        &self.source_callable_effects
     }
 }
 
@@ -458,6 +475,7 @@ fn frontend_err(message: impl Into<String>) -> Box<MirMaterializeError> {
 mod dispatch;
 mod entry;
 mod generic_mir;
+#[cfg(test)]
 mod hir_calls;
 mod inputs;
 mod instance;
@@ -474,8 +492,10 @@ mod validation;
 // functions that sibling submodules need to resolve via `use super::*;`.
 pub use entry::*;
 use generic_mir::*;
+#[cfg(test)]
 use hir_calls::*;
 use inputs::*;
+use seed::*;
 use templates::*;
 use utils::*;
 

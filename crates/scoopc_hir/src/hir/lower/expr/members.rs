@@ -59,7 +59,7 @@ impl<'a> HirLowering<'a> {
 
     pub(in crate::hir::lower) fn lower_member_access_expr_from_receiver(
         &mut self,
-        pkg_prefix: &str,
+        _pkg_prefix: &str,
         span: Span,
         receiver: Expr,
         member: &ast::MemberIdent,
@@ -72,86 +72,50 @@ impl<'a> HirLowering<'a> {
         if let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref()
             && let Some(info) = self.delegated_properties.get(fqn).cloned()
         {
-            match info {
-                DelegatedPropertyInfo::Lazy(info) => {
-                    return self.lower_lazy_delegated_property_get_from_receiver(
-                        pkg_prefix,
-                        member.span,
-                        receiver,
-                        &info,
-                    );
-                }
-                DelegatedPropertyInfo::Generic(info) => {
-                    let this_ref = receiver.clone();
+            let this_ref = receiver.clone();
 
-                    let delegate = self.lower_generic_delegated_property_delegate_access_expr(
-                        member.span,
-                        receiver,
-                        &info,
-                    );
-                    let meta =
-                        self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+            let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+                member.span,
+                receiver,
+                &info,
+                result_ty,
+            );
+            let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
 
-                    if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
-                        let getter_fqn = format!("{class_fqn}.getValue");
-                        let receiver_ty = delegate.ty;
-                        let call = self.lower_synthetic_member_call_with_receiver_ty(
-                            span,
-                            delegate,
-                            receiver_ty,
-                            &getter_fqn,
-                            vec![this_ref, meta],
-                            result_ty,
-                        );
-                        return (call.kind, call.ty);
-                    }
-
-                    let callee = Expr {
-                        span: member.span,
-                        ty: self.builtins.any,
-                        kind: ExprKind::MemberAccess {
-                            receiver: Box::new(delegate),
-                            member: MemberAccess {
-                                span: member.span,
-                                name: "getValue".to_string(),
-                                resolved: None,
-                            },
-                        },
-                    };
-
-                    return (
-                        ExprKind::Call {
-                            callee: Box::new(callee),
-                            args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
-                        },
-                        result_ty,
-                    );
-                }
-                DelegatedPropertyInfo::Observable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        member.span,
-                        receiver,
-                        fqn,
-                        info.decl,
-                        info.ty.as_ref(),
-                        info.mutex_field_fqn,
-                    );
-                }
-                DelegatedPropertyInfo::Vetoable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        member.span,
-                        receiver,
-                        fqn,
-                        info.decl,
-                        info.ty.as_ref(),
-                        info.mutex_field_fqn,
-                    );
-                }
-                DelegatedPropertyInfo::MapBacked => {
-                    // map-backed：值在初始化时被拷贝到真实字段，后续只读；
-                    // 读取不需要额外同步，按普通字段访问处理。
-                }
+            if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
+                let getter_fqn = format!("{class_fqn}.getValue");
+                let receiver_ty = delegate.ty;
+                let call = self.lower_synthetic_member_call_with_receiver_ty(
+                    span,
+                    delegate,
+                    receiver_ty,
+                    &getter_fqn,
+                    vec![this_ref, meta],
+                    result_ty,
+                );
+                return (call.kind, call.ty);
             }
+
+            let callee = Expr {
+                span: member.span,
+                ty: self.builtins.any,
+                kind: ExprKind::MemberAccess {
+                    receiver: Box::new(delegate),
+                    member: MemberAccess {
+                        span: member.span,
+                        name: "getValue".to_string(),
+                        resolved: None,
+                    },
+                },
+            };
+
+            return (
+                ExprKind::Call {
+                    callee: Box::new(callee),
+                    args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
+                },
+                result_ty,
+            );
         }
 
         // T0112：extension property access → desugar to getter call.

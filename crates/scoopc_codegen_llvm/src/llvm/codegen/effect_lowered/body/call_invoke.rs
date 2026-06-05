@@ -24,11 +24,19 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         invoke_args_tuple_ty: TypeId,
-        args: &[mir::CallArg],
+        args: &[LirCallArg],
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        self.value_primitives()
-            .pack_call_args_for_invoke_args_tuple(span, invoke_args_tuple_ty, args, name)
+        self.codegen.pack_lir_call_args_for_invoke_args_tuple(
+            span,
+            self.abi,
+            invoke_args_tuple_ty,
+            args,
+            self.lir_body,
+            self.source_types,
+            &self.slots,
+            name,
+        )
     }
 
     pub(super) fn emit_known_instance_call_step(
@@ -62,29 +70,25 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .ok_or_else(|| frontend_error("call boundary callee 未返回 Step_F".to_string()))
     }
 
-    pub(super) fn body_operand_source_ty(&self, operand: &mir::Operand) -> Option<TypeId> {
+    pub(super) fn body_operand_source_ty(&self, operand: &LirOperand) -> Option<TypeId> {
         match operand {
-            mir::Operand::Local(local) => self
-                .body
-                .locals
-                .get(local.as_u32() as usize)
-                .map(|decl| decl.ty),
-            mir::Operand::Const(_) => None,
+            LirOperand::Local(local) => self.codegen.lir_local_type_id(self.lir_body, *local),
+            LirOperand::Const(_) => None,
         }
     }
 
     pub(super) fn lower_dynamic_call_carrier(
         &mut self,
         span: crate::span::Span,
-        kind: &mir::CallKind,
+        kind: &LirCallKind,
         layout: &DynamicInvokeLayout<'ctx>,
     ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
         let (operand, expected_ty) = match (kind, layout.carrier()) {
             (
-                mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee },
+                LirCallKind::Closure { callee, .. } | LirCallKind::FunValue { callee },
                 DynamicInvokeCarrierLayout::ClosureObject(_),
             ) => (callee, CgTy::Ref),
-            (mir::CallKind::FunPtr { callee }, DynamicInvokeCarrierLayout::FunPtr(_)) => {
+            (LirCallKind::FunPtr { callee }, DynamicInvokeCarrierLayout::FunPtr(_)) => {
                 let source_ty = self.body_operand_source_ty(callee).unwrap_or_else(|| {
                     panic!(
                         "lower_dynamic_call_carrier: dynamic invoke verifier accepted missing FunPtr carrier source type at {span:?}"
@@ -99,7 +103,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 (callee, expected)
             }
             (
-                mir::CallKind::Virtual { receiver, .. },
+                LirCallKind::Virtual { receiver, .. },
                 DynamicInvokeCarrierLayout::VirtualReceiver(dispatch),
             ) => {
                 let expected = self
@@ -113,7 +117,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 (receiver, expected)
             }
             (
-                mir::CallKind::Interface { receiver, .. },
+                LirCallKind::Interface { receiver, .. },
                 DynamicInvokeCarrierLayout::InterfaceReceiver(dispatch),
             ) => {
                 let expected = self
@@ -133,7 +137,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 )));
             }
         };
-        let value = self.codegen.codegen_mir_operand_expected(
+        let value = self.codegen.codegen_lir_operand_expected(
             span,
             operand,
             &self.slots,

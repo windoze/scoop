@@ -4,7 +4,7 @@ use crate::ast;
 use crate::resolve::Visibility;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
-use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::infer::ExpectedTypeFrom;
 use super::util::package_prefix;
@@ -748,7 +748,7 @@ fn instantiate_member_value_type_from_receiver_ty(
     member_fqn: &str,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
-    let Some((owner_fqn, concrete_args)) =
+    let Some((owner_fqn, concrete_args, concrete_eff)) =
         find_member_owner_nominal_instantiation(receiver_ty, member_fqn, lower)?
     else {
         return Ok(None);
@@ -760,12 +760,20 @@ fn instantiate_member_value_type_from_receiver_ty(
         return Ok(None);
     };
 
-    let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+    let eff_bindings = sym
+        .eff_param
+        .as_ref()
+        .zip(concrete_eff)
+        .map(|(param, row)| vec![(param.name.clone(), row)])
+        .unwrap_or_default();
+
+    let ty = lower.lower_type_ref_in_decl_file_with_scopes(
         &sym.decl_file,
         sym.type_param_names
             .iter()
             .cloned()
             .zip(concrete_args.iter().copied()),
+        eff_bindings,
         &type_ref,
     )?;
     Ok(Some(ty))
@@ -776,11 +784,12 @@ fn instantiate_member_value_type_from_receiver_ty(
 /// 该 helper 同时服务：
 /// - member value type 的使用点重新实例化；
 /// - member direct-call 的 owner-specialization 实例请求记录。
+#[allow(clippy::type_complexity)]
 pub(super) fn find_member_owner_nominal_instantiation(
     receiver_ty: TypeId,
     member_fqn: &str,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<(String, Vec<TypeId>)>, ExprTypeError> {
+) -> Result<Option<(String, Vec<TypeId>, Option<EffectRow>)>, ExprTypeError> {
     let Some((member_owner_fqn, _)) = member_fqn.rsplit_once('.') else {
         return Ok(None);
     };
@@ -793,14 +802,16 @@ pub(super) fn find_member_owner_nominal_instantiation(
             continue;
         }
 
-        let (nominal_fqn, nominal_args) = match lower.type_kind(cur) {
+        let (nominal_fqn, nominal_args, nominal_eff) = match lower.type_kind(cur) {
             TypeKind::Value(ValueTypeKind::Nominal(nominal))
-            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                (nominal.fqn, nominal.args, nominal.eff)
+            }
             _ => continue,
         };
 
         if nominal_fqn == member_owner_fqn {
-            return Ok(Some((nominal_fqn, nominal_args)));
+            return Ok(Some((nominal_fqn, nominal_args, nominal_eff)));
         }
 
         stack.extend(lower.instantiated_direct_supertypes(cur)?);

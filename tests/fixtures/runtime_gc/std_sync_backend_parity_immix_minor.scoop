@@ -1,0 +1,157 @@
+// EXPECT: pass
+// RUN-STDOUT: std_sync_backend_parity.stdout.txt
+// ENV: SCOOP_RUNTIME_GC_BACKEND=immix SCOOP_GC_IMMIX_NURSERY_BYTES=0 SCOOP_GC_IMMIX_NURSERY_BLOCKS=1
+// TIMEOUT: 30000
+// SYSROOT-DEPS: scoop.runtime.test scoop.sync scoop.thread
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+import scoop.runtime.test.*
+import scoop.sync.*
+import scoop.thread.*
+
+@Extern("scoop_test_sync_destroy_counts_reset")
+fun syncDestroyCountsReset(): Unit
+
+@Extern("scoop_test_sync_mutex_destroy_count")
+fun syncMutexDestroyCount(): Int
+
+@Extern("scoop_test_sync_condvar_destroy_count")
+fun syncCondVarDestroyCount(): Int
+
+@Extern("scoop_test_sync_once_destroy_count")
+fun syncOnceDestroyCount(): Int
+
+class SyncState(
+    val lock: Mutex,
+    val cv: CondVar,
+    val report: CondVar,
+    var waitReady: Int,
+    var phase: Int,
+    var awakenedCount: Int,
+    var onceReady: Int,
+    var onceCalls: Int,
+    var onceDoneWorkers: Int
+)
+
+object SharedSync {
+    val state: SyncState = SyncState(mutexCreate(), condVarCreate(), condVarCreate(), 0, 0, 0, 0, 0, 0)
+    val once: Once = onceCreate()
+}
+
+fun printDestroyCounts(label: String): Unit {
+    val mutexCount: Int = @Unsafe do { syncMutexDestroyCount() }
+    val condVarCount: Int = @Unsafe do { syncCondVarDestroyCount() }
+    val onceCount: Int = @Unsafe do { syncOnceDestroyCount() }
+    println(f"${label} ${mutexCount} ${condVarCount} ${onceCount}")
+}
+
+fun condvarWorker(): Unit {
+    val st: SyncState = SharedSync.state
+    st.lock.lock()
+    st.waitReady = st.waitReady + 1
+    st.report.notifyAll()
+    while (st.phase < 1) {
+        st.cv.wait(st.lock)
+    }
+    st.awakenedCount = st.awakenedCount + 1
+    st.report.notifyAll()
+    st.lock.unlock()
+}
+
+fun onceWorker(): Unit {
+    val st: SyncState = SharedSync.state
+    st.lock.lock()
+    st.onceReady = st.onceReady + 1
+    st.report.notifyAll()
+    while (st.phase < 2) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
+
+    SharedSync.once.run {
+        st.lock.lock()
+        st.onceCalls = st.onceCalls + 1
+        st.lock.unlock()
+        sleepMillis(20)
+    }
+
+    st.lock.lock()
+    st.onceDoneWorkers = st.onceDoneWorkers + 1
+    st.report.notifyAll()
+    st.lock.unlock()
+}
+
+fun destroyThenDrop(): Unit {
+    val lock: Mutex = mutexCreate()
+    val cv: CondVar = condVarCreate()
+    lock.destroy()
+    cv.destroy()
+}
+
+fun main() {
+    @Unsafe do { syncDestroyCountsReset() }
+
+    val smoke: Mutex = mutexCreate()
+    smoke.lock()
+    smoke.unlock()
+    smoke.destroy()
+    println("mutex: lock/unlock")
+    @Unsafe do { syncDestroyCountsReset() }
+
+    destroyThenDrop()
+    printDestroyCounts("after-explicit")
+    __scoop_gc_collect()
+    printDestroyCounts("after-explicit-gc")
+
+    val waiter1: Thread = threadSpawn { condvarWorker() }
+    val waiter2: Thread = threadSpawn { condvarWorker() }
+    val st: SyncState = SharedSync.state
+    st.lock.lock()
+    while (st.waitReady < 2) {
+        st.report.wait(st.lock)
+    }
+    println("condvar: ready")
+    st.phase = 1
+    st.cv.notifyOne()
+    while (st.awakenedCount < 1) {
+        st.report.wait(st.lock)
+    }
+    st.lock.unlock()
+    sleepMillis(20)
+    st.lock.lock()
+    println(f"condvar: notify_one_count=${st.awakenedCount}")
+    st.cv.notifyAll()
+    while (st.awakenedCount < 2) {
+        st.report.wait(st.lock)
+    }
+    st.lock.unlock()
+    waiter1.join()
+    waiter2.join()
+    println("condvar: notify_all")
+
+    val runner1: Thread = threadSpawn { onceWorker() }
+    val runner2: Thread = threadSpawn { onceWorker() }
+    st.lock.lock()
+    while (st.onceReady < 2) {
+        st.report.wait(st.lock)
+    }
+    println("once: ready")
+    st.phase = 2
+    st.cv.notifyAll()
+    while (st.onceDoneWorkers < 2) {
+        st.report.wait(st.lock)
+    }
+    val onceCalls: Int = st.onceCalls
+    st.lock.unlock()
+    runner1.join()
+    runner2.join()
+    println(f"once_calls=${onceCalls}")
+    when (SharedSync.once.isDone()) {
+        true -> println("once_done=true")
+        false -> println("once_done=false")
+    }
+
+    println("ok")
+}

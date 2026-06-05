@@ -9,41 +9,41 @@ snapshot_binding:
     - fixtures.mir_lowered.handled_raise
     - fixtures.mir_lowered.main
 step_schemas:
-  step#h47752407ea25b20895cbab7f45b4813e:
+  step#h9288a144da1f0a199f0f7ef9f381cbfd:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(183:template(169:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;35:fixtures.mir_lowered.body_completes;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
-      - case#h6b0ffc40a4c598b8764a6cea9884a428: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h3a4d328d517f0ec1bbe42bcbc735b969
-      - case#h27036057dba4ef244706b411a56c01ce: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h14224947e342572199807a14751fe699
-  step#h068552129b7d6ae6deccef107eb85d40:
+      - case#hbdead6762e21d44eacc626ac0d0d1618: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h0bdccbb247991f08e9cefdb87b2239b0
+      - case#h61fefbbdcabbc13c67c9e05fb72772ce: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hec223ff2f9b297a24cffa63e3c2724f0
+  step#hda5c3e1f27111a04116f487d8390e018:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(182:template(168:def(40:cone(23:handle_finally_boundary;5:0.0.0);3:fun;34:fixtures.mir_lowered.handled_raise;20:non_generic_callable;48:callable_sig(1:0;1:0;1:0;19:F(-;[]->V(Int)/E()))));6:list();6:list())
     cases:
-      - case#hfeb226f206e677d3a35aefd7bbf713dd: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#ha8229f640866c76efd9a08151e252f0c
-      - case#h7b826e4f3d6ebe7539d64db975146f84: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h46ef1bc150bfb0178b6f2e00e07a10f3
+      - case#hd629a727b80119f6874cb2b28a9ca402: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#hcd2fbb424d31d1e4de07737e9fca1650
+      - case#h87b1c998d71ec23f0d356dc1fee1b046: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hb0ffcf5b9d3328e2dc97241f37f53d8c
 continuation_schemas:
-  cont#h3a4d328d517f0ec1bbe42bcbc735b969:
+  cont#h0bdccbb247991f08e9cefdb87b2239b0:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#h47752407ea25b20895cbab7f45b4813e
-    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
-  cont#h14224947e342572199807a14751fe699:
+    out_step_schema: step#h9288a144da1f0a199f0f7ef9f381cbfd
+    surface_ty: scoop.core.Continuation<Int, Int, eff Pure>
+  cont#hec223ff2f9b297a24cffa63e3c2724f0:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h47752407ea25b20895cbab7f45b4813e
-    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
-  cont#ha8229f640866c76efd9a08151e252f0c:
+    out_step_schema: step#h9288a144da1f0a199f0f7ef9f381cbfd
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff Pure>
+  cont#hcd2fbb424d31d1e4de07737e9fca1650:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#h068552129b7d6ae6deccef107eb85d40
-    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
-  cont#h46ef1bc150bfb0178b6f2e00e07a10f3:
+    out_step_schema: step#hda5c3e1f27111a04116f487d8390e018
+    surface_ty: scoop.core.Continuation<Int, Int, eff Pure>
+  cont#hb0ffcf5b9d3328e2dc97241f37f53d8c:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h068552129b7d6ae6deccef107eb85d40
-    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
+    out_step_schema: step#hda5c3e1f27111a04116f487d8390e018
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff Pure>
 callable_facts:
   fixtures.mir_lowered.body_completes:
     instance_key: fixtures.mir_lowered.body_completes
@@ -113,12 +113,12 @@ body_facts:
       site0:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#h6b0ffc40a4c598b8764a6cea9884a428=fixtures.mir_lowered.Step.next]
+        handled_cases: [case#hbdead6762e21d44eacc626ac0d0d1618=fixtures.mir_lowered.Step.next]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#h6b0ffc40a4c598b8764a6cea9884a428=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h3a4d328d517f0ec1bbe42bcbc735b969 arm_outward_cases=[]
+          - handled_case: case#hbdead6762e21d44eacc626ac0d0d1618=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h0bdccbb247991f08e9cefdb87b2239b0 arm_outward_cases=[]
       site1:
         kind: Call
         call_kind: Direct
@@ -184,17 +184,17 @@ body_facts:
       site0:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#hfeb226f206e677d3a35aefd7bbf713dd=fixtures.mir_lowered.Step.next]
+        handled_cases: [case#hd629a727b80119f6874cb2b28a9ca402=fixtures.mir_lowered.Step.next]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#hfeb226f206e677d3a35aefd7bbf713dd=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#ha8229f640866c76efd9a08151e252f0c arm_outward_cases=[]
+          - handled_case: case#hd629a727b80119f6874cb2b28a9ca402=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#hcd2fbb424d31d1e4de07737e9fca1650 arm_outward_cases=[]
       site1:
         kind: Perform
-        emitted_case: case#hfeb226f206e677d3a35aefd7bbf713dd=fixtures.mir_lowered.Step.next
+        emitted_case: case#hd629a727b80119f6874cb2b28a9ca402=fixtures.mir_lowered.Step.next
         payload_tuple_ty: Int
-        captured_cont_schema: cont#ha8229f640866c76efd9a08151e252f0c
+        captured_cont_schema: cont#hcd2fbb424d31d1e4de07737e9fca1650
       site2:
         kind: Call
         call_kind: Direct
@@ -208,13 +208,13 @@ body_facts:
       site3:
         kind: Call
         call_kind: Direct
-        target_mode: DynamicFallback
-        target: DynamicFallback
+        target_mode: KnownInstance
+        target: BodylessDirect(scoop.core.Int.plus)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise
       site4:
         kind: Call
         call_kind: Direct
@@ -256,10 +256,10 @@ body_facts:
       site2:
         kind: Call
         call_kind: Direct
-        target_mode: DynamicFallback
-        target: DynamicFallback
+        target_mode: KnownInstance
+        target: BodylessDirect(scoop.core.Int.plus)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: (Int, Int)
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise

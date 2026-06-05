@@ -3,7 +3,7 @@ opt_level: O2
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=28 layout_enums=7 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=1
+  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=32 layout_enums=9 layout_interfaces=11 layout_class_itables=64 layout_callable_symbols=1
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -12,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=28 enums=7 vtables=54 interfaces=11 class_itables=54 callable_symbols=1
+  physical_layout: classes=32 enums=9 vtables=64 interfaces=11 class_itables=64 callable_symbols=1
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -34,6 +34,7 @@ lir_facts {
     - class=scoop.core.MutableArray<String> layout_key=scoop.core.MutableArray<String> super=<none> fields=0
     - class=scoop.core.MutableArray<UInt8> layout_key=scoop.core.MutableArray<UInt8> super=<none> fields=0
     - class=scoop.core.MutableArray<scoop.core.UInt8> layout_key=scoop.core.MutableArray<scoop.core.UInt8> super=<none> fields=0
+    - class=scoop.core.ReleaseHook layout_key=scoop.core.ReleaseHook super=<none> fields=2
     - class=scoop.core.Retention layout_key=scoop.core.Retention super=<none> fields=1
     - class=scoop.core.String layout_key=scoop.core.String super=<none> fields=0
     - class=scoop.core.Suppress layout_key=scoop.core.Suppress super=<none> fields=1
@@ -41,10 +42,15 @@ lir_facts {
     - class=scoop.core.Target layout_key=scoop.core.Target super=<none> fields=1
     - class=scoop.core.ThreadLocal layout_key=scoop.core.ThreadLocal super=<none> fields=0
     - class=scoop.lang.string.StringBuilder layout_key=scoop.lang.string.StringBuilder super=<none> fields=1
+    - class=scoop.sync.CondVar layout_key=scoop.sync.CondVar super=<none> fields=1
+    - class=scoop.sync.Mutex layout_key=scoop.sync.Mutex super=<none> fields=1
+    - class=scoop.sync.Once layout_key=scoop.sync.Once super=<none> fields=3
     - enum=scoop.core.AnnotationTarget repr=tagged_union variants=11
     - enum=scoop.core.Nothing repr=tagged_union variants=0
     - enum=scoop.core.Option<Int> repr=tagged_union variants=2
     - enum=scoop.core.Option<T> repr=tagged_union variants=2
+    - enum=scoop.core.Option<V> repr=tagged_union variants=2
+    - enum=scoop.core.Option<scoop.sync.Mutex> repr=tagged_union variants=2
     - enum=scoop.core.RuntimeError repr=tagged_union variants=3
     - enum=scoop.core.TypeKind repr=tagged_union variants=7
     - enum=scoop.delegates.LazyThreadSafetyMode repr=tagged_union variants=3
@@ -82,6 +88,7 @@ lir_facts {
     - class_vtable=scoop.core.Platform slots=0
     - class_vtable=scoop.core.PropertyMeta slots=0
     - class_vtable=scoop.core.RefCell slots=0
+    - class_vtable=scoop.core.ReleaseHook slots=0
     - class_vtable=scoop.core.Retention slots=0
     - class_vtable=scoop.core.String slots=1
     - class_vtable=scoop.core.Suppress slots=0
@@ -98,7 +105,16 @@ lir_facts {
     - class_vtable=scoop.core.ULongProgression slots=0
     - class_vtable=scoop.core.Unit slots=0
     - class_vtable=scoop.core.VariantMeta slots=0
+    - class_vtable=scoop.delegates.Lazy slots=0
+    - class_vtable=scoop.delegates.ObservableProperty slots=0
+    - class_vtable=scoop.delegates.VetoableProperty slots=0
     - class_vtable=scoop.lang.string.StringBuilder slots=0
+    - class_vtable=scoop.sync.CondVar slots=0
+    - class_vtable=scoop.sync.Mutex slots=0
+    - class_vtable=scoop.sync.Once slots=0
+    - class_vtable=scoop.sync.__ScoopSyncCondVarNative slots=0
+    - class_vtable=scoop.sync.__ScoopSyncMutexNative slots=0
+    - class_vtable=scoop.sync.__ScoopSyncOnceNative slots=0
     - class_vtable=scoop.unsafe.FunPtr slots=0
     - class_vtable=scoop.unsafe.Ptr slots=0
     - class_vtable=scoop.unsafe.__AtomicInt slots=0
@@ -147,6 +163,7 @@ lir_facts {
     - class_itable=scoop.core.Platform entries=0
     - class_itable=scoop.core.PropertyMeta entries=0
     - class_itable=scoop.core.RefCell entries=0
+    - class_itable=scoop.core.ReleaseHook entries=0
     - class_itable=scoop.core.Retention entries=0
     - class_itable=scoop.core.String entries=2
     - class_itable=scoop.core.Suppress entries=0
@@ -163,18 +180,30 @@ lir_facts {
     - class_itable=scoop.core.ULongProgression entries=0
     - class_itable=scoop.core.Unit entries=0
     - class_itable=scoop.core.VariantMeta entries=0
+    - class_itable=scoop.delegates.Lazy entries=1
+    - class_itable=scoop.delegates.ObservableProperty entries=2
+    - class_itable=scoop.delegates.VetoableProperty entries=2
     - class_itable=scoop.lang.string.StringBuilder entries=0
+    - class_itable=scoop.sync.CondVar entries=0
+    - class_itable=scoop.sync.Mutex entries=0
+    - class_itable=scoop.sync.Once entries=0
+    - class_itable=scoop.sync.__ScoopSyncCondVarNative entries=0
+    - class_itable=scoop.sync.__ScoopSyncMutexNative entries=0
+    - class_itable=scoop.sync.__ScoopSyncOnceNative entries=0
     - class_itable=scoop.unsafe.FunPtr entries=0
     - class_itable=scoop.unsafe.Ptr entries=0
     - class_itable=scoop.unsafe.__AtomicInt entries=0
-    - callable_symbol=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058) root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__hed58d665920cc5194786c13c460921eb
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=455 wire_format=implemented wire_owner=P10 TypeStore portable serialization
+    - callable_symbol=lir_callable0 key=lir_callable0 root=sample.leaf kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_leaf__hfc0c53a2fe606468df89d61be06358cc
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=509 wire_format=implemented wire_owner=P10 TypeStore portable serialization
   callables=1
-    - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058)
+    - callable=sample.leaf kind=EffectStep control_body=true id=lir_callable0 key=lir_callable(204:instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list());38:body#he0aa76eb060be7dd67728fcb6b875058)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=4 boundaries=1 continuation_object=cont_obj#0
   step_types=1
-    - step#0 invoke_args=t2 complete=t2 continuation_obj=t450 cases=2
+    - step#0 invoke_args=t2 complete=t2 continuation_obj=t504 cases=2
   dynamic_invoke_contracts=0
+  source_call_site_contracts=0
+  class_ctor_call_site_contracts=0
+  reflection_call_site_contracts=0
   dispatch_contracts=0
   resume_packing_contracts=1
   continuation_object_contracts=1
@@ -201,15 +230,15 @@ LateLoweredProgram
       continuation_obj_ty: scoop.__compiler.ContinuationObject@instance(172:template(158:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;20:non_generic_callable;63:callable_sig(1:0;1:0;1:0;34:F(-;[]->V(Unit)/E(N(sample.Ping))))));6:list();6:list())
       implemented_packings: [packing#hbda32c11eb474ef2bb4097df707732c2]
       captures:
-        - FrameSlot(slot#h87bf8991b13b9396050cf1b03002ff79)
-        - FrameSlot(slot#hbc026a14341021973da38b2a8977ffce)
+        - FrameSlot(slot#hb92991b7d37cf98711e4e9b11830507d)
+        - FrameSlot(slot#hb82ff29771d7e6af2ef13c37aab351a2)
         - FrameSlot(slot#h3f9f3264f84a8aa6f0d215db9866df43)
         - FrameSlot(slot#h17753a9fdef41bf14a0ce9d82fdfba83)
         - FrameSlot(slot#h41a4d0c2c46f6b6b69e97650a2775c17)
         - FrameSlot(slot#h8358482dae07d79607fb759c98012249)
         - FrameSlot(slot#h5cce077f5edd2fdb6d042c6310aea87e)
         - FrameSlot(slot#h9164311a4449477f563e81974851bdec)
-        - State(state#h70734b8a1aa7d482e5962d83755825b6)
+        - State(state#hcb8c4f73c3a7be1b6b19dc54009bccf1)
       authoritative_surface_resumes:
         - case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit resume_tuple_ty=Unit answer_ty=Unit surface_ty=scoop.core.Continuation<Unit, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#hc6139592b135838b3e9c9fab8b330535 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
         - case=case#hd480ba84de77f583d62a8c3b73f48ace=scoop.core.Raise.raise<scoop.core.RuntimeError> resume_tuple_ty=Nothing answer_ty=Unit surface_ty=scoop.core.Continuation<Nothing, Unit, eff sample.Ping> out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f continuation_schema=cont#h11a1bd1dfef229a81fae4c0c6a47f04c concrete_op=scoop.core.Raise.raise<scoop.core.RuntimeError> => Unreachable
@@ -235,33 +264,30 @@ LateLoweredProgram
       resolved_outward_cases: [case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit]
       abi: EffectStep
       authoritative_step_schema: step#hf579283409c1a9bcd8808c239ce4e22f
-      dynamic_invoke_entry: invoke(Unit) -> step#hf579283409c1a9bcd8808c239ce4e22f entry=state#h3ab72cca943c63776a0fc547d61f3dfc complete=state#h0d4166bb69c01249663ba19ad0bf7cdd
+      dynamic_invoke_entry: invoke(Unit) -> step#hf579283409c1a9bcd8808c239ce4e22f entry=state#he36e4b63815f809a142978dfadb00010 complete=state#hceecc064f844f3cda0eb1c404aa1a798
       state_graph:
-        entry_state: state#h3ab72cca943c63776a0fc547d61f3dfc
-        complete_state: state#h0d4166bb69c01249663ba19ad0bf7cdd
+        entry_state: state#he36e4b63815f809a142978dfadb00010
+        complete_state: state#hceecc064f844f3cda0eb1c404aa1a798
         cleanup_state: <none>
-        drop_state: state#h64b448bb2b44e0436f700a1ce1dc948e
+        drop_state: state#ha0d3b4c5c1b2c1159ea94e9bfd1e1d07
         states:
-          - state#h3ab72cca943c63776a0fc547d61f3dfc Entry term=Suspend(boundaries=[boundary#habba71d15b77867d275b0fd4af7a96fe], resume=state#h70734b8a1aa7d482e5962d83755825b6, local_runtime_error=[], cleanup=<none>, drop=state#h64b448bb2b44e0436f700a1ce1dc948e) successors=[state#h70734b8a1aa7d482e5962d83755825b6]
-            source_slices:
-              - bb#ha394e35f43f26fb3fc7412ccd4957136 stmts[0..1] + term
-                statement_classification:
-                  - stmt0: resume-payload-injection boundary#habba71d15b77867d275b0fd4af7a96fe resume=state#h70734b8a1aa7d482e5962d83755825b6 local#he2f2b22bb9edb5809a0bc8c9cb88425c
-          - state#h0d4166bb69c01249663ba19ad0bf7cdd Complete term=Unreachable successors=[]
-            source_slices:
+          - state#he36e4b63815f809a142978dfadb00010 Entry term=Suspend(boundaries=[boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a], resume=state#hcb8c4f73c3a7be1b6b19dc54009bccf1, local_runtime_error=[], cleanup=<none>, drop=state#ha0d3b4c5c1b2c1159ea94e9bfd1e1d07) successors=[state#hcb8c4f73c3a7be1b6b19dc54009bccf1]
+            lir_statements:
+              - stmt0 span=83..93
+                classification: resume-payload-injection boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a resume=state#hcb8c4f73c3a7be1b6b19dc54009bccf1 local#he2f2b22bb9edb5809a0bc8c9cb88425c
+          - state#hceecc064f844f3cda0eb1c404aa1a798 Complete term=Unreachable successors=[]
+            lir_statements:
               <synthetic>
-          - state#h70734b8a1aa7d482e5962d83755825b6 Resume term=Return(Unit:Unit -> state#h0d4166bb69c01249663ba19ad0bf7cdd) successors=[state#h0d4166bb69c01249663ba19ad0bf7cdd]
-            source_slices:
-              - bb#h41bf9de9f76ce5d8ec9e8fb4ea9e8915 stmts[0..0] + term
-                statement_classification:
-                  <none>
-          - state#h64b448bb2b44e0436f700a1ce1dc948e Drop term=Abandon successors=[]
-            source_slices:
+          - state#hcb8c4f73c3a7be1b6b19dc54009bccf1 Resume term=Return(Unit:Unit -> state#hceecc064f844f3cda0eb1c404aa1a798) successors=[state#hceecc064f844f3cda0eb1c404aa1a798]
+            lir_statements:
+              <synthetic>
+          - state#ha0d3b4c5c1b2c1159ea94e9bfd1e1d07 Drop term=Abandon successors=[]
+            lir_statements:
               <synthetic>
       frame_schema:
         slots:
-          - slot#h87bf8991b13b9396050cf1b03002ff79 BoundaryResult(boundary#habba71d15b77867d275b0fd4af7a96fe, local#he2f2b22bb9edb5809a0bc8c9cb88425c) ty=Unit writes=[state#h70734b8a1aa7d482e5962d83755825b6] reads=[]
-          - slot#hbc026a14341021973da38b2a8977ffce ResumePayload(boundary#habba71d15b77867d275b0fd4af7a96fe, case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit) ty=Unit writes=[state#h70734b8a1aa7d482e5962d83755825b6] reads=[state#h70734b8a1aa7d482e5962d83755825b6]
+          - slot#hb92991b7d37cf98711e4e9b11830507d BoundaryResult(boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a, local#he2f2b22bb9edb5809a0bc8c9cb88425c) ty=Unit writes=[state#hcb8c4f73c3a7be1b6b19dc54009bccf1] reads=[]
+          - slot#hb82ff29771d7e6af2ef13c37aab351a2 ResumePayload(boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a, case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit) ty=Unit writes=[state#hcb8c4f73c3a7be1b6b19dc54009bccf1] reads=[state#hcb8c4f73c3a7be1b6b19dc54009bccf1]
           - slot#h3f9f3264f84a8aa6f0d215db9866df43 System(StateTag) ty=Int writes=[] reads=[]
           - slot#h17753a9fdef41bf14a0ce9d82fdfba83 System(ResumePayloadCarrier) ty=Any writes=[] reads=[]
           - slot#h41a4d0c2c46f6b6b69e97650a2775c17 System(CleanupFlag) ty=Bool writes=[] reads=[]
@@ -269,18 +295,18 @@ LateLoweredProgram
           - slot#h5cce077f5edd2fdb6d042c6310aea87e System(CompletionTag) ty=Int writes=[] reads=[]
           - slot#h9164311a4449477f563e81974851bdec System(CurrentEffectCtx) ty=Any writes=[] reads=[]
         resume_payload_bindings:
-          - boundary#habba71d15b77867d275b0fd4af7a96fe resume=state#h70734b8a1aa7d482e5962d83755825b6 local#he2f2b22bb9edb5809a0bc8c9cb88425c home=slot#h87bf8991b13b9396050cf1b03002ff79
+          - boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a resume=state#hcb8c4f73c3a7be1b6b19dc54009bccf1 local#he2f2b22bb9edb5809a0bc8c9cb88425c home=slot#hb92991b7d37cf98711e4e9b11830507d
         completion_payload_bindings:
-          - return=state#h70734b8a1aa7d482e5962d83755825b6 complete=state#h0d4166bb69c01249663ba19ad0bf7cdd payload=Unit:Unit home=<none>
+          - return=state#hcb8c4f73c3a7be1b6b19dc54009bccf1 complete=state#hceecc064f844f3cda0eb1c404aa1a798 payload=Unit:Unit home=<none>
       boundary_map:
-        - boundary#habba71d15b77867d275b0fd4af7a96fe Perform(site#hb5615a385eb59aafd0b527f65855b18e) owner=state#h3ab72cca943c63776a0fc547d61f3dfc resume=state#h70734b8a1aa7d482e5962d83755825b6
+        - boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a Perform(site#hb5615a385eb59aafd0b527f65855b18e) owner=state#he36e4b63815f809a142978dfadb00010 resume=state#hcb8c4f73c3a7be1b6b19dc54009bccf1
           lowering: Perform emitted_case=case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit captured_cont_schema=cont#hc6139592b135838b3e9c9fab8b330535 payload_tuple_ty=Unit
             operand_contract:
-              anchor: terminator slice=bb#ha394e35f43f26fb3fc7412ccd4957136 stmts[0..1] + term
+              anchor: terminator bb#ha394e35f43f26fb3fc7412ccd4957136
               payload_sources:
                 <none>
             emit: case#hb7a9d8f2fc73c90d3ed952908a379dce=sample.Ping.hit op=sample.Ping.hit payload_tuple_ty=Unit cont_obj#h00c9bbc2dc0e48766a701825c4575e56 cont_schema=cont#hc6139592b135838b3e9c9fab8b330535 out_step_schema=step#hf579283409c1a9bcd8808c239ce4e22f
       resume_state_map:
-        - boundary#habba71d15b77867d275b0fd4af7a96fe -> state#h70734b8a1aa7d482e5962d83755825b6
+        - boundary#h9eb3e84c9575f384f8f07fa4a7e60c6a -> state#hcb8c4f73c3a7be1b6b19dc54009bccf1
       resume_packing_interfaces: [packing#hbda32c11eb474ef2bb4097df707732c2]
       continuation_object: cont_obj#h00c9bbc2dc0e48766a701825c4575e56

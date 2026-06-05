@@ -37,7 +37,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get(fqn)
             .map(|source| source.span)
             .unwrap_or_else(|| crate::span::Span::new(0, 0));
-        let plain = abi.plain_callable_layout_by_root_fqn(fqn)?;
+        let program = self.expect_active_lir_program("codegen_native_callable_body_symbol");
+        let callable_id = program
+            .physical_layout()
+            .callable_symbols
+            .iter()
+            .find_map(|(id, facts)| {
+                facts
+                    .native
+                    .as_ref()
+                    .is_some_and(|native| native.symbol == callable.symbol)
+                    .then_some(*id)
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "`@CallingConvention` native callable `{fqn}` 缺少 LIR callable symbol handle"
+                ))
+            })?;
+        let plain = abi.plain_callable_layout_for_id(program, callable_id)?;
         let plain_entry = plain.direct_entry();
         if plain_entry.param_tys().len() != signature.param_tys.len() {
             return Err(frontend_error(format!(

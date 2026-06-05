@@ -24,7 +24,9 @@ use std::path::PathBuf;
 
 use crate::ast;
 use crate::span::Span;
-use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
+use crate::stable_id::StableTemplateKey;
+use crate::ty::{EffectRow, MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
+use scoopc_ids::TemplateKey;
 
 pub(crate) use crate::ty::EFFECT_ROW_PARAM_DECL_FILE;
 pub use lower::GenericTemplateSymbolSuffixIndex;
@@ -35,6 +37,7 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_with_explicit_mir_instances,
     lower_for_compilation_unit_multi_files_with_type_env,
     lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
+    lower_typed_for_dump_with_frontend_artifact,
 };
 pub use lower::{
     LoweringInputs, canonical_generic_fun_signature_key,
@@ -290,6 +293,10 @@ pub struct FunDecl {
     pub source_path: PathBuf,
     /// 函数本身的类型（函数类型）。
     pub ty: TypeId,
+    /// Source-declared effect row, if the callable explicitly wrote one.
+    pub declared_effects: Option<EffectRow>,
+    /// Whether the source-declared row was closed (`/ Row!`).
+    pub effects_closed: bool,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub body: Option<Block>,
@@ -838,6 +845,17 @@ pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 /// - key 使用 [`ClassInstanceKey`]，避免 codegen 以裸 `String` / `&str` 静默退回 base FQN。
 pub type ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>;
 
+/// 已校验的 `@ReleaseHook` metadata（class FQN -> 释放函数与字段列表）。
+///
+/// 该 side table 来自 typecheck 写回的 AST 合同，供后端在生成 type descriptor / trampoline 时消费。
+pub type ReleaseHookIndex = HashMap<String, ReleaseHook>;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReleaseHook {
+    pub target_fqn: String,
+    pub arg_fields: Vec<String>,
+}
+
 /// 单态化 class instance 的后端 layout key。
 ///
 /// 该 key 的字符串表示仍与既有 dump/wire format 兼容（非泛型为 FQN，泛型为 mangled FQN），
@@ -1221,6 +1239,39 @@ pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
 /// - 主要供 generic MIR lowering / materialization / production reachability 在不回退到
 ///   backend 现场猜目标的前提下，恢复 operator overload、`compareTo` 等语法糖的真实 callee。
 pub type TopLevelFunCallSiteIndex = HashMap<CallSite, ast::TopLevelFunCallBinding>;
+
+/// 由 typecheck 确认的 generic function-value 绑定索引。
+pub type TopLevelFunValueRefIndex = HashMap<CallSite, ast::TopLevelFunValueRef>;
+
+/// HIR handoff 中 materializer-ready 的 generic template inventory。
+#[derive(Debug, Clone)]
+pub struct GenericTemplateInventory {
+    pub request_lookup_key: GenericTemplateRequestLookupKey,
+    pub template: TemplateKey,
+    pub stable_template_key: StableTemplateKey,
+    pub canonical_root_key: String,
+    pub owner_type_param_names: Vec<String>,
+    pub function_type_param_names: Vec<String>,
+    pub owner_eff_param_name: Option<String>,
+    pub function_eff_param_name: Option<String>,
+    pub signature_key: String,
+    pub has_body: bool,
+    pub body_key: Option<String>,
+}
+
+/// HIR handoff 中 materializer-ready 的 callable body inventory。
+#[derive(Debug, Clone)]
+pub struct CallableBodyInventory {
+    pub body_key: String,
+    pub request_lookup_key: GenericTemplateRequestLookupKey,
+    pub source_path: PathBuf,
+    pub fqn: String,
+    pub body_span: Span,
+    pub stable_template_key: Option<StableTemplateKey>,
+}
+
+/// Lookup payload preserved by HIR facts for request-to-template transport.
+pub type GenericTemplateRequestLookupKey = (String, PathBuf, Span);
 
 /// 由 typecheck 确认的 canonical call-argument 绑定索引：`source_path + expr span` → param slots。
 pub type CallArgBindingSiteIndex = HashMap<CallSite, ast::CallArgBinding>;

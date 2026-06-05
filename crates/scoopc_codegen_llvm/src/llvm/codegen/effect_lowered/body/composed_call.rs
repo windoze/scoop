@@ -473,40 +473,45 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         if source_slice.start_statement_index() != 0 {
             return Ok(());
         }
-        let block = self
-            .body
-            .blocks
-            .get(source_slice.block_id().as_u32() as usize)
-            .unwrap_or_else(|| {
-                panic!(
-                    "replay_call_boundary_prefix: late-lowered source slice references a missing block"
-                )
-            });
-        for stmt_index in source_slice.start_statement_index()..statement_index {
-            let stmt =
-                block
-                    .stmts
-                    .get(stmt_index as usize)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "replay_call_boundary_prefix: late-lowered verifier accepted missing replay statement bb{} stmt{} in `{}`",
-                            source_slice.block_id().as_u32(),
-                            stmt_index,
-                            self.mir_fun.fqn
-                        )
-                    });
-            let classification = self
-                .callable
-                .source_statement_classification(source_slice, stmt_index)
+        let (_, start_lir_index) = self.lir_statement_for_source_position(
+            owner_state.state_id(),
+            source_slice,
+            source_slice.start_statement_index(),
+            "composed call replay prefix start",
+        )?;
+        let (_, boundary_lir_index) = self.lir_statement_for_source_position(
+            owner_state.state_id(),
+            source_slice,
+            statement_index,
+            "composed call replay boundary",
+        )?;
+        for local_index in start_lir_index.as_u32()..boundary_lir_index.as_u32() {
+            let stmt = owner_state
+                .statements()
+                .get(local_index as usize)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "composed call replay bb{} stmt{} 缺少 published classification",
-                        source_slice.block_id().as_u32(),
-                        stmt_index,
+                        "composed call replay st{} LIR statement{} 越界",
+                        owner_state.state_id().as_u32(),
+                        local_index,
+                    ))
+                })?;
+            let classification = self
+                .callable
+                .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                    owner_state.state_id(),
+                    LirStatementIndex::new(local_index),
+                ))
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "composed call replay st{} LIR statement{} 缺少 published classification",
+                        owner_state.state_id().as_u32(),
+                        local_index,
                     ))
                 })?;
             match classification.kind() {
                 LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
                 | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
                     ..
                 }
@@ -525,9 +530,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
                 LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                     return Err(frontend_error(format!(
-                        "composed call replay bb{} stmt{} classified unsupported: {reason}",
-                        source_slice.block_id().as_u32(),
-                        stmt_index,
+                        "composed call replay st{} LIR statement{} classified unsupported: {reason}",
+                        owner_state.state_id().as_u32(),
+                        local_index,
                     )));
                 }
             }

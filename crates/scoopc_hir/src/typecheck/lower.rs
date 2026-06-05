@@ -896,15 +896,17 @@ impl<'a> TypeLowering<'a> {
         &mut self,
         ty: TypeId,
     ) -> Result<Vec<TypeId>, TypeLowerError> {
-        let (fqn, args) = match self.types.kind(ty) {
+        let (fqn, args, eff) = match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                (nominal.fqn.clone(), nominal.args.clone())
-            }
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (
+                nominal.fqn.clone(),
+                nominal.args.clone(),
+                nominal.eff.clone(),
+            ),
             _ => return Ok(Vec::new()),
         };
 
-        self.ensure_concrete_direct_supertypes(ty, &fqn, &args)?;
+        self.ensure_concrete_direct_supertypes(ty, &fqn, &args, eff)?;
         Ok(self
             .concrete_direct_supertypes
             .get(&ty)
@@ -1108,6 +1110,8 @@ impl<'a> TypeLowering<'a> {
         };
         let key = MonomorphKey {
             symbol,
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: type_args.to_vec(),
             eff_args: eff_args.to_vec(),
         };
@@ -1124,9 +1128,15 @@ impl<'a> TypeLowering<'a> {
         self.effect_row_param_scopes.push(scope);
     }
 
-    pub(super) fn push_effect_row_param_marker_binding(&mut self, name: String, decl_span: Span) {
+    pub(super) fn push_effect_row_param_marker_binding(
+        &mut self,
+        name: String,
+        decl_span: Span,
+    ) -> EffectRow {
         let marker = self.intern_effect_row_param_marker(name.clone(), decl_span);
-        self.push_effect_row_param_binding(name, EffectRow::new(vec![marker]));
+        let row = EffectRow::new(vec![marker]);
+        self.push_effect_row_param_binding(name, row.clone());
+        row
     }
 
     fn intern_effect_row_param_marker(&mut self, name: String, decl_span: Span) -> TypeId {
@@ -1215,13 +1225,14 @@ impl<'a> TypeLowering<'a> {
 
     /// T0125：在”声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`，并将指定的
     /// type param 名称注册为 `TypeKind::Param` scope（用于泛型 class ctor 参数类型解析）。
-    pub(super) fn lower_type_ref_in_decl_file_with_fresh_type_params(
+    pub(super) fn lower_type_ref_in_decl_file_with_fresh_type_params_and_eff(
         &mut self,
         decl_file: &Path,
         type_param_names: &[String],
+        eff_param: Option<&ast::EffectRowParam>,
         ty: &ast::TypeRef,
     ) -> Result<TypeId, TypeLowerError> {
-        if type_param_names.is_empty() {
+        if type_param_names.is_empty() && eff_param.is_none() {
             return self.lower_type_ref_in_decl_file(decl_file, ty);
         }
 
@@ -1254,7 +1265,19 @@ impl<'a> TypeLowering<'a> {
         }
         ctx.type_param_scopes.push(scope);
 
+        let eff_pushed = if let Some(eff_param) = eff_param {
+            let name = decl_source.slice(eff_param.name.span).to_string();
+            let row = ctx.lower_effect_row_expr(eff_param.default.as_ref())?;
+            ctx.push_effect_row_param_binding(name, row);
+            true
+        } else {
+            false
+        };
+
         let out = ctx.lower_type_ref(ty);
+        if eff_pushed {
+            ctx.pop_effect_row_param_binding();
+        }
         let _ = ctx.type_param_scopes.pop();
         out
     }
@@ -2767,12 +2790,19 @@ impl<'a> TypeLowering<'a> {
                         .types
                         .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
                 };
-                let (nominal_fqn, nominal_args) = match self.types.kind(id) {
+                let (nominal_fqn, nominal_args, nominal_eff) = match self.types.kind(id) {
                     TypeKind::Value(ValueTypeKind::Nominal(n))
-                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn.clone(), n.args.clone()),
+                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+                        (n.fqn.clone(), n.args.clone(), n.eff.clone())
+                    }
                     _ => unreachable!("nominal lowering produced non-nominal type"),
                 };
-                self.ensure_concrete_direct_supertypes(id, &nominal_fqn, &nominal_args)?;
+                self.ensure_concrete_direct_supertypes(
+                    id,
+                    &nominal_fqn,
+                    &nominal_args,
+                    nominal_eff,
+                )?;
                 Ok(id)
             }
         }
@@ -3638,12 +3668,19 @@ impl<'a> TypeLowering<'a> {
                         .types
                         .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
                 };
-                let (nominal_fqn, nominal_args) = match self.types.kind(id) {
+                let (nominal_fqn, nominal_args, nominal_eff) = match self.types.kind(id) {
                     TypeKind::Value(ValueTypeKind::Nominal(n))
-                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn.clone(), n.args.clone()),
+                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+                        (n.fqn.clone(), n.args.clone(), n.eff.clone())
+                    }
                     _ => unreachable!("nominal lowering produced non-nominal type"),
                 };
-                self.ensure_concrete_direct_supertypes(id, &nominal_fqn, &nominal_args)?;
+                self.ensure_concrete_direct_supertypes(
+                    id,
+                    &nominal_fqn,
+                    &nominal_args,
+                    nominal_eff,
+                )?;
                 Ok(id)
             }
         }
@@ -3654,6 +3691,7 @@ impl<'a> TypeLowering<'a> {
         nominal_ty: TypeId,
         fqn: &str,
         args: &[TypeId],
+        eff: Option<EffectRow>,
     ) -> Result<(), TypeLowerError> {
         if self.concrete_direct_supertypes.contains_key(&nominal_ty) {
             return Ok(());
@@ -3673,13 +3711,20 @@ impl<'a> TypeLowering<'a> {
             .cloned()
             .zip(args.iter().copied())
             .collect::<Vec<_>>();
+        let eff_bindings = sym
+            .eff_param
+            .as_ref()
+            .zip(eff)
+            .map(|(param, row)| vec![(param.name.clone(), row)])
+            .unwrap_or_default();
 
         let mut instantiated: Vec<TypeId> = Vec::new();
         if let Some(super_infos) = self.env.direct_supertype_infos(fqn) {
             for super_info in super_infos {
-                let super_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                let super_ty = self.lower_type_ref_in_decl_file_with_scopes(
                     &sym.decl_file,
                     bindings.iter().cloned(),
+                    eff_bindings.iter().cloned(),
                     &super_info.ty,
                 )?;
                 if !instantiated.contains(&super_ty) {

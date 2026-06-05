@@ -166,6 +166,7 @@ pub enum CallTargetMode {
 pub enum CallSiteTarget {
     KnownInstance(InstanceKey),
     CandidateSet(Vec<InstanceKey>),
+    BodylessDirect { fqn: String },
     DynamicFallback,
 }
 
@@ -173,6 +174,7 @@ impl CallSiteTarget {
     pub fn mode(&self) -> CallTargetMode {
         match self {
             Self::KnownInstance(_) => CallTargetMode::KnownInstance,
+            Self::BodylessDirect { .. } => CallTargetMode::KnownInstance,
             Self::CandidateSet(_) => CallTargetMode::CandidateSet,
             Self::DynamicFallback => CallTargetMode::DynamicFallback,
         }
@@ -659,6 +661,7 @@ pub struct BodyEffectFacts {
     blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
     /// Plain callable 内部 effect/control lowering 使用的 schema；不改变 callable 的公开 Plain ABI。
+    /// 当 Plain body 存在本地 effect/control 时由 P4 必发，避免 P5 反推 owner schema。
     local_control_step_schema: Option<StepSchemaId>,
     solver_facts: BodyEffectSolverFacts,
 }

@@ -14,18 +14,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         origin: AbiProgramOrigin,
         stable_cone_key: &'a StableConeKey,
         program: &'a LateLoweredProgram,
-        lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
     ) -> Result<Self, LlvmEmitError> {
         validate_program_layout_inventory(program)?;
-        lir_facts.verify().map_err(|error| {
-            frontend_error(format!(
-                "LLVM ABI materialization received invalid LIR facts: {error}"
-            ))
-        })?;
         crate::llvm::LlvmStageBaseContext::verify_lir_type_store_owner(
             source_types,
-            lir_facts,
+            program,
             "physical ABI/layout",
         )?;
         Ok(Self {
@@ -33,7 +27,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             origin,
             stable_cone_key,
             program,
-            lir_facts,
             source_types,
             source_value_layouts: BTreeMap::new(),
         })

@@ -369,8 +369,12 @@ typedef uint64_t (*ScoopTypeTraceFn)(void *object, ScoopGcTraceVisitor visitor, 
 
 - `release_fn` MAY be NULL.
 - If non-NULL, `release_fn(object)` is called once right before the runtime frees the object memory in sweep/reclaim.
+- `object` is the pointer to the heap object header, not just the payload. Compiler-generated `@ReleaseHook` trampolines use the full object layout to read the configured fields.
+- Language-level `@ReleaseHook` is the user-facing way to populate this slot for final non-generic classes. The compiler verifies that every released field is GC-free and that the target release function is either `@NoGC` or `@Extern(abi = "c")` before emitting a trampoline.
+- Release is best-effort cleanup for unmanaged resources, not deterministic destruction. The runtime does not call `release_fn` for objects that remain live at process exit or runtime teardown.
 - `release_fn` MUST NOT resurrect the object, and MUST NOT assume any other objects are still alive.
-- `release_fn` MUST NOT call back into allocation-heavy runtime APIs (it runs in a restricted GC context).
+- `release_fn` MUST NOT allocate, trigger GC, or call runtime APIs that can re-enter the GC or contend on the GC lock. The callback runs in a restricted GC context, typically while the world is stopped and the GC lock is held.
+- If a type also exposes an explicit `close` / `destroy` API, the underlying native release operation should be idempotent so explicit release and later best-effort GC release cannot double-free the same native resource.
 
 `release_fn` signature (shape):
 

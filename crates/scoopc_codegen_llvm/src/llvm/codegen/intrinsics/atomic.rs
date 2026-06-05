@@ -275,7 +275,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match atomic_intrinsic_base_fqn(fqn) {
+        match fqn {
             "scoop.unsafe.__atomicRefLoad" => {
                 let target_expr = self.expect_hir_positional_intrinsic_arg(
                     args,
@@ -591,13 +591,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(cont_bb);
         Ok(())
     }
-}
-
-fn atomic_intrinsic_base_fqn(fqn: &str) -> &str {
-    fqn.split("::<")
-        .next()
-        .unwrap_or(fqn)
-        .split("$overload")
-        .next()
-        .unwrap_or(fqn)
 }

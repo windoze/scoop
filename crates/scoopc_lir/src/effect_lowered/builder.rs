@@ -1,27 +1,33 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 
+use scoopc_ids::{LirCallableHash, LirCallableId};
+use scoopc_lir_facts::LirCallableRef;
 use scoopc_mir_facts::MirFacts;
 
 use crate::effect_facts::{
-    CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
+    CallableAbiKind, ConcreteOpKey, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
+use crate::mir::placeholder_inventory::validate_body_for_lir_lift;
 use crate::mir::{
     BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
     StatementKind, build_body_labels_for_dump,
 };
-use crate::ty::TypeStore;
+use crate::ty::{TypeId, TypeStore};
 
 use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, augment_frame_for_handle_dispatch, build_callable_frame};
 use super::ir::{
-    ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody, LateLoweredClassCtorInitStep,
-    LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
+    ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap,
+    LateLoweredCallSiteMaterializedKind, LateLoweredCallSiteMaterializedMetadata,
+    LateLoweredCallable, LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody,
+    LateLoweredClassCtorInitStep, LateLoweredClassCtorParam,
+    LateLoweredClassCtorSourceCallContract, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
     LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
     LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
     LateLoweredStateGraph, class_ctor_source as source,
 };
+use super::lift::LirLiftContext;
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
     ContinuationRouteOwnerPlan, NominalDirectSupertypeIndex, StepMaterialization,
@@ -36,6 +42,7 @@ use super::segment::build_callable_segmentation;
 pub struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
+    mir_facts: &'a MirFacts,
     types: &'a TypeStore,
     nominal_direct_supertypes: NominalDirectSupertypeIndex,
 }
@@ -45,12 +52,13 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         pass_view: MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
         types: &'a TypeStore,
-        mir_facts: &MirFacts,
+        mir_facts: &'a MirFacts,
     ) -> Self {
         Self {
             nominal_direct_supertypes: nominal_direct_supertypes_from_mir_facts(mir_facts),
             pass_view,
             effect_facts,
+            mir_facts,
             types,
         }
     }
@@ -58,6 +66,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
     pub fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
+        let mir_facts = self.mir_facts;
         let types = self.types;
         let nominal_direct_supertypes = self.nominal_direct_supertypes;
 
@@ -76,6 +85,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             &continuation_route_owner_plans,
         )?;
         let materialized = pass_view.materialized();
+        let callable_ids = planned_lir_callable_ids(&pass_view, effect_facts);
+        let callable_refs = planned_lir_callable_refs(&callable_ids, mir_facts);
+        let concrete_ops = concrete_ops_by_fqn(effect_facts);
         let mut stable_instance_keys = materialized.stable_instance_keys().clone();
         let mut dump_body_labels =
             HashMap::<LateLoweredBodyVersionKey, crate::mir::BodyLabels>::new();
@@ -85,6 +97,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
         for family in pass_view.instances() {
             let root_fqn = family.root_fqn().to_string();
+            let lift = LirLiftContext::new(&root_fqn, &callable_ids, &callable_refs, &concrete_ops);
+            let source_kind = callable_source_kind(materialized, &root_fqn);
             let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
                 if family.root_body().is_some() {
                     return Err(EffectLoweringError::MissingCallableFacts {
@@ -113,6 +127,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let materialized_signature = find_materialized_fun(pass_view.materialized(), &root_fqn);
             let root_source_body = pass_source_body;
             if let Some(body) = root_source_body.and_then(|fun| fun.body.as_ref()) {
+                validate_mir_body_for_lir_lift(&root_fqn, body)?;
                 dump_body_labels.insert(
                     body_version_key.clone(),
                     build_body_labels_for_dump(&root_fqn, body, types),
@@ -152,7 +167,24 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     ),
                     nominal_direct_supertypes: &nominal_direct_supertypes,
                     types,
+                    lift: &lift,
                 })?;
+                let executable_body = plain_fun.body.as_ref().map(|body| {
+                    if let Some(control) = plain.callable.local_effect_control() {
+                        lift.lift_control_body(
+                            plain_fun,
+                            body,
+                            super::instruction::LirExecutableBodyFlavor::PlainLocalEffectControl,
+                            control.state_graph(),
+                        )
+                    } else {
+                        lift.lift_plain_body(
+                            plain_fun,
+                            body,
+                            super::instruction::LirExecutableBodyFlavor::Plain,
+                        )
+                    }
+                });
                 if let Some(object) = plain.continuation_object {
                     continuation_objects.push(object);
                 }
@@ -162,9 +194,11 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     body_version_key,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
                     plain.callable,
-                );
-                if let Some(fun) = source_fun {
-                    callable = callable.with_source_callable(fun);
+                )
+                .with_source_kind(source_kind)
+                .with_source_callable(plain_fun);
+                if let Some(executable_body) = executable_body {
+                    callable = callable.with_executable_body(executable_body);
                 }
                 callables.push(callable);
                 continue;
@@ -211,6 +245,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                             body,
                             body_facts,
                             step_schema.complete_ty(),
+                            &lift,
                         )?;
                         let frame = build_callable_frame(FrameBuildInputs {
                             root_fqn: &root_fqn,
@@ -341,21 +376,43 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 continuation_object_id,
                 resume_packing_ids,
             )
+            .with_source_kind(source_kind)
             .with_source_statement_classifications(source_statement_classifications);
-            if let Some(fun) = root_source_body {
+            if let Some(fun) = root_source_body.or(materialized_signature) {
                 callable = callable.with_source_callable(fun);
+                if let Some(body) = fun.body.as_ref() {
+                    let executable_body = lift.lift_control_body(
+                        fun,
+                        body,
+                        super::instruction::LirExecutableBodyFlavor::EffectStep,
+                        callable.state_graph(),
+                    );
+                    callable = callable.with_executable_body(executable_body);
+                }
             }
             callables.push(callable);
         }
 
-        let class_init_payloads = materialized
-            .backend_contracts()
-            .class_init_payloads()
-            .collect::<Vec<_>>();
-        let class_ctor_init_bodies = build_class_ctor_init_bodies(class_init_payloads.iter());
+        let backend_contracts = materialized.backend_contracts();
+        let class_init_payloads = backend_contracts.class_init_payloads().collect::<Vec<_>>();
+        let class_ctor_init_bodies = build_class_ctor_init_bodies(
+            class_init_payloads.iter(),
+            &backend_contracts.ctor_call_sites,
+            types,
+        );
+        let source_class_ctor_calls = build_source_class_ctor_calls(
+            &class_init_payloads,
+            &class_ctor_init_bodies,
+            &backend_contracts.ctor_call_sites,
+            &backend_contracts.top_level_immutable_values,
+            &backend_contracts.top_level_vars,
+            &backend_contracts.object_inits,
+            types,
+        );
         let program =
             LateLoweredProgram::new(step_types, resume_packings, continuation_objects, callables)
                 .with_class_ctor_init_bodies(class_ctor_init_bodies)
+                .with_source_class_ctor_calls(source_class_ctor_calls)
                 .with_stable_instance_keys(stable_instance_keys);
         let dump_type_texts = collect_program_dump_type_texts(&program, types);
         Ok(program.with_dump_metadata(dump_type_texts, dump_body_labels))
@@ -369,30 +426,218 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
+fn validate_mir_body_for_lir_lift(root_fqn: &str, body: &Body) -> Result<(), EffectLoweringError> {
+    validate_body_for_lir_lift(root_fqn, body).map_err(|error| {
+        EffectLoweringError::InvalidMirForLirLift {
+            root_fqn: root_fqn.to_string(),
+            detail: error.to_string(),
+        }
+    })
+}
+
+fn planned_lir_callable_ids(
+    pass_view: &MaterializedMirPassView<'_>,
+    effect_facts: &MaterializedEffectFacts,
+) -> HashMap<String, LirCallableId> {
+    let mut ids = HashMap::new();
+    let mut next = 0u32;
+    for family in pass_view.instances() {
+        if effect_facts.callable_facts().get(family.key()).is_none() {
+            continue;
+        }
+        ids.insert(family.root_fqn().to_string(), LirCallableId::from_raw(next));
+        next += 1;
+    }
+    ids
+}
+
+fn planned_lir_callable_refs(
+    callable_ids: &HashMap<String, LirCallableId>,
+    mir_facts: &MirFacts,
+) -> HashMap<String, LirCallableRef> {
+    let mut refs = callable_ids
+        .iter()
+        .map(|(root_fqn, id)| (root_fqn.clone(), LirCallableRef::Local(*id)))
+        .collect::<HashMap<_, _>>();
+    for signature in &mir_facts.backend.source_signatures {
+        if refs.contains_key(&signature.fqn) {
+            continue;
+        }
+        if let Some(target_key) = &signature.target_callable_key {
+            refs.insert(
+                signature.fqn.clone(),
+                LirCallableRef::ExternalHash(LirCallableHash::from_stable_key(target_key)),
+            );
+        }
+    }
+    refs
+}
+
+fn concrete_ops_by_fqn(effect_facts: &MaterializedEffectFacts) -> HashMap<String, ConcreteOpKey> {
+    let mut out = HashMap::new();
+    for schema in effect_facts.step_schemas().values() {
+        for case in schema.cases() {
+            out.insert(
+                case.concrete_op_key().instance_key().template.fqn.clone(),
+                case.concrete_op_key().clone(),
+            );
+        }
+    }
+    out
+}
+
+fn callable_source_kind(
+    materialized: &MaterializedMir,
+    root_fqn: &str,
+) -> scoopc_lir_facts::LirCallableSourceKind {
+    let base_fqn = callable_source_base_fqn(root_fqn);
+    if base_fqn.contains(".$lambda") || callable_owner_is_nominal_or_object(materialized, base_fqn)
+    {
+        scoopc_lir_facts::LirCallableSourceKind::MemberOrSynthetic
+    } else {
+        scoopc_lir_facts::LirCallableSourceKind::TopLevel
+    }
+}
+
+fn callable_source_base_fqn(root_fqn: &str) -> &str {
+    let base = root_fqn
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(root_fqn);
+    base.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
+fn callable_owner_is_nominal_or_object(materialized: &MaterializedMir, root_fqn: &str) -> bool {
+    let Some((owner_fqn, _name)) = root_fqn.rsplit_once('.') else {
+        return false;
+    };
+    materialized.file.items.iter().any(|item| match item {
+        Item::Metadata(crate::mir::MetadataRoot::Nominal(metadata)) => metadata.fqn == owner_fqn,
+        Item::Metadata(crate::mir::MetadataRoot::Object(metadata)) => metadata.fqn == owner_fqn,
+        _ => false,
+    })
+}
+
 pub fn build_class_ctor_init_bodies<'a>(
     classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
 ) -> Vec<LateLoweredClassCtorInitBody> {
     let mut bodies = Vec::new();
-    for class in classes.clone() {
+    let class_index = classes.clone().collect::<Vec<_>>();
+    for class in &class_index {
         if class.ctors.is_empty() {
-            bodies.push(build_class_ctor_init_body(classes.clone(), class, None));
+            bodies.push(build_class_ctor_init_body(
+                &class_index,
+                class,
+                None,
+                ctor_call_sites,
+                types,
+            ));
             continue;
         }
         for ctor in &class.ctors {
             bodies.push(build_class_ctor_init_body(
-                classes.clone(),
+                &class_index,
                 class,
                 Some(ctor),
+                ctor_call_sites,
+                types,
             ));
         }
     }
     bodies
 }
 
-fn build_class_ctor_init_body<'a>(
-    classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+fn build_source_class_ctor_calls(
+    class_init_payloads: &[source::MonoClassInit],
+    class_ctor_init_bodies: &[LateLoweredClassCtorInitBody],
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    top_level_immutable_values: &crate::mir::source_payload::TopLevelImmutableValueIndex,
+    top_level_vars: &crate::mir::source_payload::TopLevelVarIndex,
+    object_inits: &crate::mir::source_payload::ObjectInitIndex,
+    types: &TypeStore,
+) -> Vec<LateLoweredClassCtorSourceCallContract> {
+    let class_index = class_init_payloads.iter().collect::<Vec<_>>();
+    let mut out = class_ctor_init_bodies
+        .iter()
+        .flat_map(|body| body.source_ctor_calls().iter().cloned())
+        .collect::<Vec<_>>();
+
+    for value in top_level_immutable_values.values() {
+        if let Some(init) = &value.init {
+            collect_class_ctor_source_call_contracts_from_expr(
+                value.source_path.as_path(),
+                init,
+                ctor_call_sites,
+                types,
+                &class_index,
+                Some(value.ty),
+                &mut out,
+            );
+        }
+    }
+    for value in top_level_vars.values() {
+        if let Some(init) = &value.init {
+            collect_class_ctor_source_call_contracts_from_expr(
+                value.source_path.as_path(),
+                init,
+                ctor_call_sites,
+                types,
+                &class_index,
+                Some(value.ty),
+                &mut out,
+            );
+        }
+    }
+    for object in object_inits.values() {
+        for step in &object.steps {
+            match step {
+                crate::mir::source_payload::ObjectInitStep::PropertyInit { name, init } => {
+                    collect_class_ctor_source_call_contracts_from_expr(
+                        object.source_path.as_path(),
+                        init,
+                        ctor_call_sites,
+                        types,
+                        &class_index,
+                        object.properties.get(name).map(|property| property.ty),
+                        &mut out,
+                    );
+                }
+                crate::mir::source_payload::ObjectInitStep::InitBlock { block } => {
+                    collect_class_ctor_source_call_contracts_from_block(
+                        object.source_path.as_path(),
+                        block,
+                        ctor_call_sites,
+                        types,
+                        &class_index,
+                        &mut out,
+                    );
+                }
+            }
+        }
+    }
+
+    out.sort_by(|lhs, rhs| {
+        lhs.source_path()
+            .cmp(rhs.source_path())
+            .then(lhs.call_span().start.cmp(&rhs.call_span().start))
+            .then(lhs.call_span().end.cmp(&rhs.call_span().end))
+    });
+    out.dedup_by(|lhs, rhs| {
+        lhs.source_path() == rhs.source_path() && lhs.call_span() == rhs.call_span()
+    });
+    out
+}
+
+fn build_class_ctor_init_body(
+    class_index: &[&source::MonoClassInit],
     class: &source::MonoClassInit,
     ctor: Option<&source::ClassCtor<crate::ty::MonoTypeId>>,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
 ) -> LateLoweredClassCtorInitBody {
     let ctor_span = ctor.map(|ctor| ctor.span);
     let key = class_ctor_init_key(&class.fqn, ctor_span);
@@ -408,12 +653,12 @@ fn build_class_ctor_init_body<'a>(
         })
         .unwrap_or_default();
     let delegation = ctor.and_then(|ctor| {
-        ctor.delegation.as_ref().map(|delegation| {
-            build_class_ctor_delegation(classes.clone(), class, ctor.span, delegation)
-        })
+        ctor.delegation
+            .as_ref()
+            .map(|delegation| build_class_ctor_delegation(class, ctor.span, delegation))
     });
     let implicit_super = if delegation.is_none() {
-        build_implicit_super_call(classes.clone(), class)
+        build_implicit_super_call(class)
     } else {
         None
     };
@@ -451,6 +696,17 @@ fn build_class_ctor_init_body<'a>(
             block: body.clone(),
         });
     }
+    let source_ctor_calls = collect_class_ctor_source_call_contracts(
+        class_index,
+        class,
+        class.source_path.as_path(),
+        ctor,
+        implicit_super.as_ref(),
+        delegation.as_ref(),
+        &steps,
+        ctor_call_sites,
+        types,
+    );
     LateLoweredClassCtorInitBody::new(
         key,
         class.fqn.clone(),
@@ -462,11 +718,670 @@ fn build_class_ctor_init_body<'a>(
         implicit_super,
         delegation,
         steps,
+        source_ctor_calls,
     )
 }
 
-fn build_implicit_super_call<'a>(
-    _classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+#[allow(clippy::too_many_arguments)]
+fn collect_class_ctor_source_call_contracts(
+    class_index: &[&source::MonoClassInit],
+    class: &source::MonoClassInit,
+    source_path: &Path,
+    ctor: Option<&source::ClassCtor<crate::ty::MonoTypeId>>,
+    implicit_super: Option<&LateLoweredClassCtorSuperCall>,
+    delegation: Option<&LateLoweredClassCtorDelegation>,
+    steps: &[LateLoweredClassCtorInitStep],
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
+) -> Vec<LateLoweredClassCtorSourceCallContract> {
+    let mut out = Vec::new();
+    if let Some(ctor) = ctor {
+        for param in &ctor.params {
+            if let Some(default_value) = &param.default_value {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    default_value,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    Some(param.ty.inner()),
+                    &mut out,
+                );
+            }
+        }
+    }
+    if let Some(super_call) = implicit_super {
+        for arg in super_call.args() {
+            collect_class_ctor_source_call_contracts_from_arg(
+                source_path,
+                arg,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                &mut out,
+            );
+        }
+    }
+    if let Some(delegation) = delegation {
+        for arg in delegation.args() {
+            collect_class_ctor_source_call_contracts_from_arg(
+                source_path,
+                arg,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                &mut out,
+            );
+        }
+    }
+    for step in steps {
+        match step {
+            LateLoweredClassCtorInitStep::PropertyParamAssignment { .. } => {}
+            LateLoweredClassCtorInitStep::PropertyInitializer { field_fqn, init } => {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    init,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    class
+                        .fields
+                        .iter()
+                        .find(|field| field.fqn == *field_fqn)
+                        .map(|field| field.ty.inner()),
+                    &mut out,
+                );
+            }
+            LateLoweredClassCtorInitStep::InitBlock { block }
+            | LateLoweredClassCtorInitStep::SecondaryBody { block } => {
+                collect_class_ctor_source_call_contracts_from_block(
+                    source_path,
+                    block,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    &mut out,
+                );
+            }
+        }
+    }
+    out
+}
+
+fn collect_class_ctor_source_call_contracts_from_block(
+    source_path: &Path,
+    block: &source::Block,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
+    class_index: &[&source::MonoClassInit],
+    out: &mut Vec<LateLoweredClassCtorSourceCallContract>,
+) {
+    for stmt in &block.stmts {
+        collect_class_ctor_source_call_contracts_from_stmt(
+            source_path,
+            stmt,
+            ctor_call_sites,
+            types,
+            class_index,
+            out,
+        );
+    }
+}
+
+fn collect_class_ctor_source_call_contracts_from_stmt(
+    source_path: &Path,
+    stmt: &crate::mir::source_payload::Stmt,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
+    class_index: &[&source::MonoClassInit],
+    out: &mut Vec<LateLoweredClassCtorSourceCallContract>,
+) {
+    use crate::mir::source_payload::StmtKind;
+
+    match &stmt.kind {
+        StmtKind::Empty
+        | StmtKind::Break { .. }
+        | StmtKind::Continue { .. }
+        | StmtKind::Todo(_) => {}
+        StmtKind::Expr(expr) => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                expr,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+        StmtKind::Val(decl) => {
+            if let Some(init) = &decl.init {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    init,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    Some(decl.ty),
+                    out,
+                );
+            }
+        }
+        StmtKind::Assign { lhs, rhs, .. } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                lhs,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                rhs,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+        StmtKind::While { cond, body } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                cond,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            collect_class_ctor_source_call_contracts_from_block(
+                source_path,
+                body,
+                ctor_call_sites,
+                types,
+                class_index,
+                out,
+            );
+        }
+        StmtKind::Return { value } => {
+            if let Some(value) = value {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    value,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+    }
+}
+
+fn collect_class_ctor_source_call_contracts_from_arg(
+    source_path: &Path,
+    arg: &source::CallArg,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
+    class_index: &[&source::MonoClassInit],
+    expected_ty: Option<TypeId>,
+    out: &mut Vec<LateLoweredClassCtorSourceCallContract>,
+) {
+    match arg {
+        crate::mir::source_payload::CallArg::Positional(expr)
+        | crate::mir::source_payload::CallArg::Named { value: expr, .. } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                expr,
+                ctor_call_sites,
+                types,
+                class_index,
+                expected_ty,
+                out,
+            );
+        }
+    }
+}
+
+struct ClassCtorSourceSelection {
+    ctor_span: Option<crate::span::Span>,
+    arg_mapping: Vec<Option<usize>>,
+    arg_expected: Vec<Option<TypeId>>,
+}
+
+fn ctor_source_contract_selection(
+    class_index: &[&source::MonoClassInit],
+    types: &TypeStore,
+    result_ty: TypeId,
+    args: &[source::CallArg],
+    published: Option<&crate::mir::source_payload::CtorCallInfo>,
+) -> Option<ClassCtorSourceSelection> {
+    if let Some(call) = published {
+        let arg_expected =
+            class_ctor_call_arg_expected_tys(class_index, types, result_ty, call, args.len());
+        return Some(ClassCtorSourceSelection {
+            ctor_span: call.ctor_span,
+            arg_mapping: call.arg_mapping.clone(),
+            arg_expected,
+        });
+    }
+    let target_class_fqn = types.display(result_ty).to_string();
+    let class = class_index
+        .iter()
+        .copied()
+        .find(|class| class.fqn == target_class_fqn)?;
+    if class.ctors.is_empty() {
+        return args.is_empty().then_some(ClassCtorSourceSelection {
+            ctor_span: None,
+            arg_mapping: Vec::new(),
+            arg_expected: Vec::new(),
+        });
+    }
+    let mut matches = class
+        .ctors
+        .iter()
+        .filter_map(|ctor| derive_ctor_arg_mapping(ctor, args).map(|mapping| (ctor, mapping)))
+        .collect::<Vec<_>>();
+    if matches.len() != 1 {
+        return None;
+    }
+    let (ctor, arg_mapping) = matches.remove(0);
+    let mut arg_expected = vec![None; args.len()];
+    for (param_idx, arg_idx) in arg_mapping.iter().copied().enumerate() {
+        let Some(arg_idx) = arg_idx else {
+            continue;
+        };
+        if let (Some(slot), Some(param)) =
+            (arg_expected.get_mut(arg_idx), ctor.params.get(param_idx))
+        {
+            *slot = Some(param.ty.inner());
+        }
+    }
+    Some(ClassCtorSourceSelection {
+        ctor_span: Some(ctor.span),
+        arg_mapping,
+        arg_expected,
+    })
+}
+
+fn derive_ctor_arg_mapping(
+    ctor: &source::ClassCtor<crate::ty::MonoTypeId>,
+    args: &[source::CallArg],
+) -> Option<Vec<Option<usize>>> {
+    let mut mapping = vec![None; ctor.params.len()];
+    let mut next_positional = 0usize;
+    for (arg_idx, arg) in args.iter().enumerate() {
+        let param_idx = match arg {
+            crate::mir::source_payload::CallArg::Positional(_) => {
+                while mapping.get(next_positional).is_some_and(Option::is_some) {
+                    next_positional += 1;
+                }
+                let idx = next_positional;
+                next_positional += 1;
+                idx
+            }
+            crate::mir::source_payload::CallArg::Named { name, .. } => {
+                ctor.params.iter().position(|param| param.name == *name)?
+            }
+        };
+        let slot = mapping.get_mut(param_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(arg_idx);
+    }
+    if mapping
+        .iter()
+        .enumerate()
+        .any(|(idx, arg)| arg.is_none() && !ctor.params[idx].has_default)
+    {
+        return None;
+    }
+    Some(mapping)
+}
+
+fn class_ctor_call_arg_expected_tys(
+    class_index: &[&source::MonoClassInit],
+    types: &TypeStore,
+    result_ty: TypeId,
+    call: &crate::mir::source_payload::CtorCallInfo,
+    arg_count: usize,
+) -> Vec<Option<TypeId>> {
+    let mut expected = vec![None; arg_count];
+    let target_class_fqn = types.display(result_ty).to_string();
+    let Some(class) = class_index
+        .iter()
+        .copied()
+        .find(|class| class.fqn == target_class_fqn)
+    else {
+        return expected;
+    };
+    let selected_ctor = call
+        .ctor_span
+        .and_then(|span| class.ctors.iter().find(|ctor| ctor.span == span))
+        .or_else(|| {
+            if call.ctor_span.is_none() && class.ctors.len() == 1 {
+                class.ctors.first()
+            } else {
+                None
+            }
+        });
+    let Some(ctor) = selected_ctor else {
+        return expected;
+    };
+    for (param_idx, arg_idx) in call.arg_mapping.iter().copied().enumerate() {
+        let Some(arg_idx) = arg_idx else {
+            continue;
+        };
+        if let (Some(slot), Some(param)) = (expected.get_mut(arg_idx), ctor.params.get(param_idx)) {
+            *slot = Some(param.ty.inner());
+        }
+    }
+    expected
+}
+
+fn collect_class_ctor_source_call_contracts_from_expr(
+    source_path: &Path,
+    expr: &source::Expr,
+    ctor_call_sites: &crate::mir::source_payload::CtorCallSiteIndex,
+    types: &TypeStore,
+    class_index: &[&source::MonoClassInit],
+    expected_ty: Option<TypeId>,
+    out: &mut Vec<LateLoweredClassCtorSourceCallContract>,
+) {
+    use crate::mir::source_payload::{ExprKind, InterpolatedStringPart};
+
+    if let ExprKind::Call { args, .. } = &expr.kind {
+        let site = crate::mir::source_payload::CallSite::new(source_path.to_path_buf(), expr.span);
+        let result_ty = expected_ty.unwrap_or(expr.ty);
+        if let Some(selection) = ctor_source_contract_selection(
+            class_index,
+            types,
+            result_ty,
+            args,
+            ctor_call_sites.get(&site),
+        ) && !out.iter().any(|contract| contract.call_span() == expr.span)
+        {
+            let target_class_fqn = types.display(result_ty).to_string();
+            out.push(LateLoweredClassCtorSourceCallContract::new(
+                source_path.to_path_buf(),
+                expr.span,
+                target_class_fqn.clone(),
+                class_ctor_init_key(&target_class_fqn, selection.ctor_span),
+                result_ty,
+                selection.arg_mapping,
+            ));
+        }
+    }
+
+    match &expr.kind {
+        ExprKind::Missing
+        | ExprKind::Literal(_)
+        | ExprKind::VarRef(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::ClassLiteral(_)
+        | ExprKind::Todo(_) => {}
+        ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    &field.value,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+        ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    element,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let InterpolatedStringPart::Expr { expr } = part {
+                    collect_class_ctor_source_call_contracts_from_expr(
+                        source_path,
+                        expr,
+                        ctor_call_sites,
+                        types,
+                        class_index,
+                        None,
+                        out,
+                    );
+                }
+            }
+        }
+        ExprKind::Unary { expr, .. }
+        | ExprKind::TypeCheck { expr, .. }
+        | ExprKind::Cast { expr, .. } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                expr,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                lhs,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                rhs,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+        ExprKind::Block(block) => {
+            collect_class_ctor_source_call_contracts_from_block(
+                source_path,
+                block,
+                ctor_call_sites,
+                types,
+                class_index,
+                out,
+            );
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                cond,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                then_branch,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            if let Some(else_branch) = else_branch {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    else_branch,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                subject,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_class_ctor_source_call_contracts_from_expr(
+                        source_path,
+                        guard,
+                        ctor_call_sites,
+                        types,
+                        class_index,
+                        None,
+                        out,
+                    );
+                }
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    &arm.body,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                receiver,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+        ExprKind::Call { callee, args } => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                callee,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+            let site =
+                crate::mir::source_payload::CallSite::new(source_path.to_path_buf(), expr.span);
+            let arg_expected = ctor_source_contract_selection(
+                class_index,
+                types,
+                expected_ty.unwrap_or(expr.ty),
+                args,
+                ctor_call_sites.get(&site),
+            )
+            .map(|selection| selection.arg_expected)
+            .unwrap_or_else(|| vec![None; args.len()]);
+            for (arg_idx, arg) in args.iter().enumerate() {
+                collect_class_ctor_source_call_contracts_from_arg(
+                    source_path,
+                    arg,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    arg_expected.get(arg_idx).copied().flatten(),
+                    out,
+                );
+            }
+        }
+        ExprKind::Perform { args, .. } => {
+            for arg in args {
+                collect_class_ctor_source_call_contracts_from_arg(
+                    source_path,
+                    arg,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+        }
+        ExprKind::Handle(handle) => {
+            collect_class_ctor_source_call_contracts_from_block(
+                source_path,
+                &handle.body,
+                ctor_call_sites,
+                types,
+                class_index,
+                out,
+            );
+            for arm in &handle.arms {
+                collect_class_ctor_source_call_contracts_from_expr(
+                    source_path,
+                    &arm.body,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    None,
+                    out,
+                );
+            }
+            if let Some(finally) = &handle.finally {
+                collect_class_ctor_source_call_contracts_from_block(
+                    source_path,
+                    finally,
+                    ctor_call_sites,
+                    types,
+                    class_index,
+                    out,
+                );
+            }
+        }
+        ExprKind::Closure(closure) => {
+            collect_class_ctor_source_call_contracts_from_expr(
+                source_path,
+                &closure.body,
+                ctor_call_sites,
+                types,
+                class_index,
+                None,
+                out,
+            );
+        }
+    }
+}
+
+fn build_implicit_super_call(
     class: &source::MonoClassInit,
 ) -> Option<LateLoweredClassCtorSuperCall> {
     let super_fqn = class.super_class_fqn.as_ref()?;
@@ -483,8 +1398,7 @@ fn build_implicit_super_call<'a>(
     ))
 }
 
-fn build_class_ctor_delegation<'a>(
-    _classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+fn build_class_ctor_delegation(
     class: &source::MonoClassInit,
     _current_ctor_span: crate::span::Span,
     delegation: &source::ClassCtorDelegation,
@@ -600,6 +1514,7 @@ struct PlainCallableBuildInputs<'a> {
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
+    lift: &'a LirLiftContext<'a>,
 }
 
 struct PlainCallableBuildOutput {
@@ -623,6 +1538,7 @@ fn build_plain_callable_abi(
         cross_callable_continuation_provenance,
         nominal_direct_supertypes,
         types,
+        lift,
     } = inputs;
     let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
     let call_sites = match (&fun.body, body_facts) {
@@ -649,6 +1565,7 @@ fn build_plain_callable_abi(
                 cross_callable_continuation_provenance,
                 nominal_direct_supertypes,
                 types,
+                lift,
                 return_ty: fun.return_ty,
             })?,
         ),
@@ -693,6 +1610,7 @@ struct PlainLocalEffectControlBuildInputs<'a> {
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
+    lift: &'a LirLiftContext<'a>,
     return_ty: crate::ty::TypeId,
 }
 
@@ -717,10 +1635,11 @@ fn build_plain_local_effect_control(
         cross_callable_continuation_provenance,
         nominal_direct_supertypes,
         types,
+        lift,
         return_ty,
     } = inputs;
     let step_schema_id =
-        discover_plain_local_effect_control_step_schema(root_fqn, body_facts, effect_facts)?;
+        require_plain_local_effect_control_step_schema(root_fqn, body_facts, effect_facts)?;
     let step_schema = effect_facts
         .step_schemas()
         .get(&step_schema_id)
@@ -748,8 +1667,14 @@ fn build_plain_local_effect_control(
             root_fqn: root_fqn.to_string(),
             step_schema: step_schema_id.as_u32(),
         })?;
-    let segmentation =
-        build_callable_segmentation(root_fqn, types, body, body_facts, step_schema.complete_ty())?;
+    let segmentation = build_callable_segmentation(
+        root_fqn,
+        types,
+        body,
+        body_facts,
+        step_schema.complete_ty(),
+        lift,
+    )?;
     let local_case_tags = step_schema
         .cases()
         .iter()
@@ -857,90 +1782,22 @@ fn plain_body_has_local_effect_control(body_facts: &crate::effect_facts::BodyEff
     })
 }
 
-fn discover_plain_local_effect_control_step_schema(
+fn require_plain_local_effect_control_step_schema(
     root_fqn: &str,
     body_facts: &crate::effect_facts::BodyEffectFacts,
-    effect_facts: &MaterializedEffectFacts,
+    _effect_facts: &MaterializedEffectFacts,
 ) -> Result<StepSchemaId, EffectLoweringError> {
     if let Some(step_schema) = body_facts.local_control_step_schema() {
         return Ok(step_schema);
     }
 
-    let mut candidates = BTreeSet::new();
-    for site in body_facts.sites().values() {
-        match site {
-            SiteEffectFacts::ClassCtor(facts) => {
-                if !facts.emitted_cases().is_empty() {
-                    candidates.insert(facts.emitted_cases().schema());
-                }
-            }
-            SiteEffectFacts::Perform(facts) => {
-                push_continuation_owner_step_schema(
-                    root_fqn,
-                    facts.captured_cont_schema(),
-                    effect_facts,
-                    &mut candidates,
-                )?;
-            }
-            SiteEffectFacts::Handle(facts) => {
-                for arm in facts.arm_facts() {
-                    push_continuation_owner_step_schema(
-                        root_fqn,
-                        arm.continuation_schema(),
-                        effect_facts,
-                        &mut candidates,
-                    )?;
-                }
-            }
-            SiteEffectFacts::Call(_) | SiteEffectFacts::Resume(_) => {}
-        }
-    }
-    match candidates.len() {
-        1 => Ok(*candidates.iter().next().expect("one candidate exists")),
-        0 => Err(
-            EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail:
-                    "plain body 含本地 effect/control，但 P4/P5 未发布可归属的 owner StepSchema"
-                        .to_string(),
-            },
-        ),
-        _ => Err(
-            EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail: format!(
-                    "plain body 本地 effect/control 对应多个 owner StepSchema：{}",
-                    candidates
-                        .iter()
-                        .map(|schema| format!("s{}", schema.as_u32()))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            },
-        ),
-    }
-}
-
-fn push_continuation_owner_step_schema(
-    root_fqn: &str,
-    continuation_schema: crate::effect_facts::ContinuationSchemaId,
-    effect_facts: &MaterializedEffectFacts,
-    candidates: &mut BTreeSet<StepSchemaId>,
-) -> Result<(), EffectLoweringError> {
-    let schema = effect_facts
-        .continuation_schemas()
-        .get(&continuation_schema)
-        .ok_or_else(
-            || EffectLoweringError::InvalidPlainLocalEffectControlContract {
-                root_fqn: root_fqn.to_string(),
-                detail: format!(
-                    "本地 continuation schema k{} 缺少 authoritative schema contract",
-                    continuation_schema.as_u32()
-                ),
-            },
-        )?;
-    candidates.insert(schema.out_step_schema());
-    Ok(())
+    Err(
+        EffectLoweringError::InvalidPlainLocalEffectControlContract {
+            root_fqn: root_fqn.to_string(),
+            detail: "plain body 含本地 effect/control，但 P4 未发布 local_control_step_schema"
+                .to_string(),
+        },
+    )
 }
 
 fn plain_body_slices(body: &Body) -> Vec<LateLoweredPlainBodySlice> {
@@ -973,7 +1830,13 @@ fn build_plain_call_sites(
         );
         for (statement_index, statement) in block.stmts.iter().enumerate() {
             let StatementKind::Assign {
-                value: Rvalue::Call { site_id, .. },
+                value:
+                    Rvalue::Call {
+                        site_id,
+                        kind,
+                        args,
+                        ..
+                    },
                 ..
             } = &statement.kind
             else {
@@ -993,11 +1856,73 @@ fn build_plain_call_sites(
                 *site_id,
                 source_slice,
                 statement_index as u32,
+                call_site_materialized_metadata(body, kind, args.len()),
                 call_facts.clone(),
             ));
         }
     }
     Ok(call_sites)
+}
+
+fn call_site_materialized_metadata(
+    body: &Body,
+    kind: &crate::mir::CallKind,
+    arg_count: usize,
+) -> LateLoweredCallSiteMaterializedMetadata {
+    LateLoweredCallSiteMaterializedMetadata::new(
+        call_site_materialized_kind(kind),
+        arg_count,
+        call_carrier_source_ty(body, kind),
+    )
+}
+
+fn call_site_materialized_kind(kind: &crate::mir::CallKind) -> LateLoweredCallSiteMaterializedKind {
+    match kind {
+        crate::mir::CallKind::Direct { .. } => LateLoweredCallSiteMaterializedKind::Direct,
+        crate::mir::CallKind::Closure { .. } => LateLoweredCallSiteMaterializedKind::Closure,
+        crate::mir::CallKind::FunValue { .. } => LateLoweredCallSiteMaterializedKind::FunValue,
+        crate::mir::CallKind::FunPtr { .. } => LateLoweredCallSiteMaterializedKind::FunPtr,
+        crate::mir::CallKind::Virtual { dispatch, .. } => {
+            LateLoweredCallSiteMaterializedKind::Virtual {
+                owner_fqn: dispatch.owner_fqn.clone(),
+                member_name: dispatch.member_name.clone(),
+                member_fqn: dispatch.member_fqn.clone(),
+                receiver_ty: dispatch.receiver_ty,
+            }
+        }
+        crate::mir::CallKind::Interface { dispatch, .. } => {
+            LateLoweredCallSiteMaterializedKind::Interface {
+                owner_fqn: dispatch.owner_fqn.clone(),
+                member_name: dispatch.member_name.clone(),
+                member_fqn: dispatch.member_fqn.clone(),
+                receiver_ty: dispatch.receiver_ty,
+            }
+        }
+        crate::mir::CallKind::Resume { .. } => LateLoweredCallSiteMaterializedKind::Resume,
+    }
+}
+
+fn call_carrier_source_ty(body: &Body, kind: &crate::mir::CallKind) -> Option<crate::ty::TypeId> {
+    match kind {
+        crate::mir::CallKind::Closure { callee, .. }
+        | crate::mir::CallKind::FunValue { callee }
+        | crate::mir::CallKind::FunPtr { callee } => operand_source_ty(body, callee),
+        crate::mir::CallKind::Virtual { receiver, dispatch }
+        | crate::mir::CallKind::Interface { receiver, dispatch } => {
+            operand_source_ty(body, receiver).or(Some(dispatch.receiver_ty))
+        }
+        crate::mir::CallKind::Resume { continuation, .. } => operand_source_ty(body, continuation),
+        crate::mir::CallKind::Direct { .. } => None,
+    }
+}
+
+fn operand_source_ty(body: &Body, operand: &crate::mir::Operand) -> Option<crate::ty::TypeId> {
+    match operand {
+        crate::mir::Operand::Local(local) => {
+            body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
+        }
+        crate::mir::Operand::Const(_) => None,
+    }
 }
 
 fn collect_program_dump_type_texts(
@@ -1232,6 +2157,7 @@ fn record_call_target_types(
                 record_instance_key_types(out, types, instance);
             }
         }
+        crate::effect_facts::CallSiteTarget::BodylessDirect { .. } => {}
         crate::effect_facts::CallSiteTarget::DynamicFallback => {}
     }
 }

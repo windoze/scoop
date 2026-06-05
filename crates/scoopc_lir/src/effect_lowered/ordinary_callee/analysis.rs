@@ -46,6 +46,12 @@ pub struct EffectConstructorCall {
     pub owner_fqn: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct EffectReflectionCall {
+    pub intrinsic_name: String,
+    pub type_args: Vec<TypeId>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EffectContinuationResume {
     resumes_outward: bool,
@@ -79,6 +85,7 @@ pub struct EffectAnalysisFacts {
     callable_return_tys: HashMap<String, TypeId>,
     nominal_supertypes: HashMap<String, Vec<String>>,
     constructor_calls: HashMap<hir::CallSite, EffectConstructorCall>,
+    reflection_calls: HashMap<hir::CallSite, EffectReflectionCall>,
     continuation_resumes: HashMap<hir::CallSite, EffectContinuationResume>,
 }
 
@@ -89,6 +96,7 @@ impl EffectAnalysisFacts {
         callable_return_tys: HashMap<String, TypeId>,
         nominal_supertypes: HashMap<String, Vec<String>>,
         constructor_calls: HashMap<hir::CallSite, EffectConstructorCall>,
+        reflection_calls: HashMap<hir::CallSite, EffectReflectionCall>,
         continuation_resumes: HashMap<hir::CallSite, EffectContinuationResume>,
     ) -> Self {
         Self {
@@ -97,6 +105,7 @@ impl EffectAnalysisFacts {
             callable_return_tys,
             nominal_supertypes,
             constructor_calls,
+            reflection_calls,
             continuation_resumes,
         }
     }
@@ -158,6 +167,18 @@ impl EffectAnalysisFacts {
     ) -> Option<&EffectConstructorCall> {
         self.constructor_calls
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+    }
+
+    pub fn reflection_arg_ty_by_source(
+        &self,
+        source_path: &Path,
+        span: Span,
+        intrinsic_name: &str,
+    ) -> Option<TypeId> {
+        self.reflection_calls
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+            .filter(|call| call.intrinsic_name == intrinsic_name)
+            .and_then(|call| call.type_args.first().copied())
     }
 
     pub fn continuation_resume(

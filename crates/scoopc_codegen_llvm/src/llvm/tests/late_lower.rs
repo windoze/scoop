@@ -1019,7 +1019,7 @@ pub(super) fn materialized_gc_array_fixture_keeps_string_locals_for_println_stri
                     let crate::mir::StatementKind::Assign {
                         value:
                             crate::mir::Rvalue::Call {
-                                kind: crate::mir::CallKind::Direct { callee_fqn },
+                                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                                 args,
                                 ..
                             },
@@ -1098,7 +1098,7 @@ pub(super) fn production_codegen_string_builder_fixture_materializes_mutable_arr
                     let crate::mir::StatementKind::Assign {
                         value:
                             crate::mir::Rvalue::Call {
-                                kind: crate::mir::CallKind::Direct { callee_fqn },
+                                kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                                 transport,
                                 ..
                             },
@@ -1162,7 +1162,7 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
             let crate::mir::StatementKind::Assign {
                 value:
                     crate::mir::Rvalue::Call {
-                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                         transport,
                         ..
                     },
@@ -1458,7 +1458,7 @@ pub(super) fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected: 
             let crate::mir::StatementKind::Assign {
                 value:
                     crate::mir::Rvalue::Call {
-                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        kind: crate::mir::CallKind::Direct { callee_fqn, .. },
                         ..
                     },
                 ..

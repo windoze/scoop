@@ -206,6 +206,7 @@ pub(crate) fn materialize_boundary_map(
                     types,
                     nominal_direct_supertypes,
                 )?;
+                let metadata = materialized_call_site_metadata(root_fqn, body, site_id)?;
                 let consumed_runtime_error_case =
                     call_dispatch.consumed_runtime_error_case.map(|pending| {
                         let target_state = StateId::new(next_state_raw);
@@ -228,6 +229,7 @@ pub(crate) fn materialize_boundary_map(
                 LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                     facts,
                     result_local,
+                    metadata,
                     operand_contract,
                     call_dispatch.dispatch,
                     call_dispatch.continuation_compositions,
@@ -519,10 +521,11 @@ pub(crate) fn attach_local_runtime_error_states(
                     });
                 }
             };
-            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new_with_source_slices(
                 state.state_id(),
                 state.role(),
                 state.source_slices().to_vec(),
+                state.statements().to_vec(),
                 terminator,
             ))
         })
@@ -595,10 +598,11 @@ pub(crate) fn attach_handle_dispatch_contracts(
                 }
                 other => other,
             };
-            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new_with_source_slices(
                 state.state_id(),
                 state.role(),
                 state.source_slices().to_vec(),
+                state.statements().to_vec(),
                 terminator,
             ))
         })
@@ -1076,57 +1080,28 @@ pub(crate) fn handle_completion_payload_source_from_state(
     })?;
     let mut skipped_type_mismatches = Vec::new();
 
-    for slice in state.source_slices().iter().rev() {
-        if slice.end_statement_index() == slice.start_statement_index() {
+    for stmt in state.statements().iter().rev() {
+        let LirStatementKind::Assign { target, .. } = &stmt.kind else {
+            continue;
+        };
+        let local = body.locals.get(target.as_u32() as usize).ok_or_else(|| {
+            invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!("{context} 引用了不存在的 local{}", target.as_u32()),
+            )
+        })?;
+        if local.ty != complete_ty && !is_any_type(types, complete_ty) {
+            skipped_type_mismatches.push(format!(
+                "local{}:t{}",
+                target.as_u32(),
+                local.ty.as_u32()
+            ));
             continue;
         }
-        let block = body
-            .blocks
-            .get(slice.block_id().as_u32() as usize)
-            .ok_or_else(|| {
-                invalid_handle_dispatch_contract(
-                    root_fqn,
-                    site_id,
-                    format!(
-                        "handle arm completion payload source 引用了不存在的 block bb{}",
-                        slice.block_id().as_u32()
-                    ),
-                )
-            })?;
-        for stmt_index in (slice.start_statement_index()..slice.end_statement_index()).rev() {
-            let stmt = block.stmts.get(stmt_index as usize).ok_or_else(|| {
-                invalid_handle_dispatch_contract(
-                    root_fqn,
-                    site_id,
-                    format!(
-                        "{context} 引用了不存在的 bb{} stmt{}",
-                        slice.block_id().as_u32(),
-                        stmt_index
-                    ),
-                )
-            })?;
-            let StatementKind::Assign { target, .. } = &stmt.kind else {
-                continue;
-            };
-            let local = body.locals.get(target.as_u32() as usize).ok_or_else(|| {
-                invalid_handle_dispatch_contract(
-                    root_fqn,
-                    site_id,
-                    format!("{context} 引用了不存在的 local{}", target.as_u32()),
-                )
-            })?;
-            if local.ty != complete_ty && !is_any_type(types, complete_ty) {
-                skipped_type_mismatches.push(format!(
-                    "local{}:t{}",
-                    target.as_u32(),
-                    local.ty.as_u32()
-                ));
-                continue;
-            }
-            return Ok(LateLoweredCompletionPayloadSource::operand(
-                LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
-            ));
-        }
+        return Ok(LateLoweredCompletionPayloadSource::operand(
+            LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
+        ));
     }
 
     let skipped = if skipped_type_mismatches.is_empty() {

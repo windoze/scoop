@@ -2,19 +2,22 @@
 
 use super::super::*;
 
-/// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。
-fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if let Some((base, _)) = fqn.rsplit_once("::<") {
-        return base;
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn try_cg_ty_for_call_abi_type(&self, ty: TypeId) -> Option<CgTy> {
+        self.try_cg_ty_of_type_id(ty)
+            .or_else(|| match self.types.kind(ty) {
+                // Function values are always passed as managed references; their generic parameter and
+                // return types do not affect the ABI shape of the closure object pointer.
+                TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
+                TypeKind::Ref(_) => Some(CgTy::Ref),
+                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    self.builtin_nominal_cg_ty(&nominal.fqn)
+                }
+                _ => None,
+            })
     }
 
-    fqn.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
-}
-
-impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn callable_source_carrier_tys_impl(
+    pub(in crate::llvm::codegen) fn callable_source_carrier_tys_impl(
         &self,
         source_types: &TypeStore,
         carrier_ty: TypeId,
@@ -51,13 +54,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_for_call_abi_type(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .try_mono_type_id(ty)
                 .map(|ty| self.types.display(ty.inner()).to_string())
-                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+                .unwrap_or_else(|| self.types.display(ty).to_string());
             tracing::warn!(
-                current_callable = ?self.function_cx.current_callable_fqn,
+                current_callable = %self.current_callable_diagnostic_label(),
                 ?span,
                 ty = %ty_desc,
                 "llvm_param_ty: unsupported function param type"
@@ -75,19 +78,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
-        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_for_call_abi_type(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .try_mono_type_id(ty)
                 .map(|ty| self.types.display(ty.inner()).to_string())
-                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+                .unwrap_or_else(|| self.types.display(ty).to_string());
             tracing::warn!(
-                current_callable = ?self.function_cx.current_callable_fqn,
+                current_callable = %self.current_callable_diagnostic_label(),
                 ?span,
                 ty = %ty_desc,
                 "ordinary_param_abi: unsupported function param type"
             );
             panic!("ordinary_param_abi: MIR signature verifier accepted unsupported param type {ty_desc}")
         });
+        self.ordinary_param_abi_from_cg(span, ty, cg)
+    }
+
+    pub(in crate::llvm::codegen) fn ordinary_param_abi_from_cg(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+        cg: CgTy,
+    ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
         let llvm_ty = self.llvm_basic_type_of(span, cg)?;
         let needs_indirect = matches!(
             llvm_ty,
@@ -130,7 +142,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", ty.as_u32()));
             tracing::warn!(
-                current_callable = ?self.function_cx.current_callable_fqn,
+                current_callable = %self.current_callable_diagnostic_label(),
                 ?span,
                 ty = %ty_desc,
                 "native_param_abi: unsupported function param type"
@@ -155,7 +167,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", return_ty.as_u32()));
             tracing::warn!(
-                current_callable = ?self.function_cx.current_callable_fqn,
+                current_callable = %self.current_callable_diagnostic_label(),
                 ?span,
                 ty = %ty_desc,
                 "native_return_abi: unsupported function return type"
@@ -305,16 +317,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> hir::CallableAbiIdentity {
-        let identity = self.direct_callable_abi_identity_for_fqn_impl(callable_fqn);
-        if identity != hir::CallableAbiIdentity::ManagedOrdinary {
-            return identity;
-        }
-
-        let dispatch_fqn = direct_call_dispatch_fqn(callable_fqn);
-        if dispatch_fqn == callable_fqn {
-            return identity;
-        }
-        self.direct_callable_abi_identity_for_fqn_impl(dispatch_fqn)
+        self.direct_callable_abi_identity_for_fqn_impl(callable_fqn)
     }
 
     pub(in crate::llvm::codegen) fn managed_callable_abi_identity_impl(
@@ -331,37 +334,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.managed_callable_abi_identity_impl(!fun_ty.effects.is_pure())
     }
 
+    fn published_lir_callable_facts_by_root(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<&'a scoopc_lir_facts::LirCallableFacts> {
+        self.active_lir_program()?
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callable_fqn)?
+            .published_callable_facts()
+    }
+
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
     /// 其遗留声明入口就必须预留显式 hidden ABI，而不能再从 HIR `effectful` 布尔值反推。
     pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_impl(
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_lir_facts.callables.values().any(|callable| {
-            callable.root_fqn == callable_fqn
-                && matches!(
+        self.published_lir_callable_facts_by_root(callable_fqn)
+            .is_some_and(|callable| {
+                matches!(
                     callable.kind(),
                     scoopc_lir_facts::LirCallableKind::EffectStep
                 )
-        })
+            })
     }
 
     pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_impl(
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_lir_facts.callables.values().any(|callable| {
-            callable.root_fqn == callable_fqn && callable.body_version.needs_reentry
-        })
+        self.published_lir_callable_facts_by_root(callable_fqn)
+            .is_some_and(|callable| callable.body_version.needs_reentry)
     }
 
     pub(in crate::llvm::codegen) fn published_callable_signature_impl(
         &self,
         callable_fqn: &str,
     ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
-        let program = self.published_late_lowered_program()?;
+        let program = self.active_lir_program()?;
         let source_types = self.published_late_lowered_types()?;
-        let callable = program.callable(callable_fqn)?;
+        let callable = program
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callable_fqn)?;
         if let Some(plain) = callable.plain_abi() {
             return Some((source_types, plain.param_tys().to_vec(), plain.return_ty()));
         }
@@ -378,14 +394,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        let program = self.active_lir_program()?;
         if let Some((source_types, param_tys, return_ty)) =
             self.published_callable_signature_impl(callable_fqn)
         {
-            let callable_facts = self
-                .published_lir_facts
-                .callables
-                .values()
-                .find(|callable| callable.root_fqn == callable_fqn)?;
+            let callable_facts = program
+                .callables()
+                .iter()
+                .find(|callable| callable.root_fqn() == callable_fqn)?
+                .published_callable_facts()?;
             return Some((
                 source_types,
                 callable_facts.param_names.clone(),
@@ -393,20 +410,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return_ty,
             ));
         }
-        if let Some(signature) = self.published_lir_facts.source_signatures.get(callable_fqn) {
+        if let Some(signature) = program.source_signature(callable_fqn) {
+            let source_types = self.published_late_lowered_types()?;
             return Some((
-                self.types,
+                source_types,
                 signature.param_names.clone(),
                 signature.param_tys.clone(),
                 signature.return_ty,
-            ));
-        }
-        if let Some(symbol) = self.lir_callable_symbol_facts(callable_fqn) {
-            return Some((
-                self.types,
-                symbol.param_names.clone(),
-                symbol.param_tys.clone(),
-                symbol.return_ty,
             ));
         }
         None
@@ -422,6 +432,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
         Some(CodegenCallableSignature {
             fqn: callable_fqn.to_string(),
+            param_names,
+            param_tys,
+            return_ty,
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<CodegenCallableSignature> {
+        let program = self.active_lir_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let callable = match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => program.callable_by_id(id)?,
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                program.callables().iter().find(|callable| {
+                    callable.lir_callable_key().is_some_and(|key| {
+                        scoopc_ids::LirCallableHash::from_stable_key(key) == hash
+                    })
+                })?
+            }
+        };
+        let (param_names, param_tys, return_ty) = if let Some(plain) = callable.plain_abi() {
+            let names = callable
+                .published_callable_facts()
+                .map(|facts| facts.param_names.clone())
+                .unwrap_or_else(|| plain.param_tys().iter().map(|_| String::new()).collect());
+            (names, plain.param_tys().to_vec(), plain.return_ty())
+        } else {
+            let effect = callable.effect_step_abi()?;
+            let facts = callable.published_callable_facts()?;
+            let param_tys = self.callable_source_carrier_tys_impl(
+                source_types,
+                effect.dynamic_invoke_entry().invoke_args_tuple_ty(),
+            )?;
+            let return_ty = program.step_type(effect.step_schema())?.complete_ty();
+            (facts.param_names.clone(), param_tys, return_ty)
+        };
+        let (param_tys, return_ty) =
+            self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
+        Some(CodegenCallableSignature {
+            fqn: callable.root_fqn().to_string(),
             param_names,
             param_tys,
             return_ty,
@@ -751,7 +803,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map_call_args_to_params_by_name(param_names, args)
             .unwrap_or_else(|| std::panic::panic_any(kind));
 
-        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>, CgTy)>> =
             vec![None; param_names.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param
@@ -761,15 +813,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_ty = *param_tys
                 .get(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
-            let target_cg = self
-                .try_cg_ty_of_type_id(param_ty)
-                .unwrap_or_else(|| {
-                    panic!("codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type")
-                });
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
             };
+            let target_cg = self
+                .try_cg_ty_for_call_abi_type(param_ty)
+                .or_else(|| self.try_cg_ty_for_call_abi_type(expr.ty))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type {}",
+                        self.types.display(param_ty)
+                    )
+                });
             let v = match &expr.kind {
                 hir::ExprKind::Closure(closure) => {
                     self.codegen_closure_expr(expr.span, closure, param_ty)?
@@ -785,14 +841,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let slot = evaluated
                 .get_mut(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
-            *slot = Some((expr.span, deferred));
+            *slot = Some((expr.span, deferred, target_cg));
         }
 
         evaluated
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (expr_span, deferred) = slot.unwrap_or_else(|| std::panic::panic_any(kind));
+                let (expr_span, deferred, param_cg) =
+                    slot.unwrap_or_else(|| std::panic::panic_any(kind));
                 let param_ty = *param_tys.get(param_idx).unwrap_or_else(|| {
                     panic!(
                         "codegen_bound_call_args_impl: call ABI verifier accepted param index drift"
@@ -801,7 +858,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_abi = match abi_mode {
                     CallArgAbiMode::Native => None,
                     CallArgAbiMode::Ordinary => {
-                        Some(self.ordinary_param_abi(callee_span, param_ty)?)
+                        Some(self.ordinary_param_abi_from_cg(callee_span, param_ty, param_cg)?)
                     }
                 };
                 if let Some(abi) = param_abi
@@ -892,5 +949,127 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &param_tys,
             args,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+
+    use inkwell::context::Context;
+
+    use super::*;
+
+    #[test]
+    fn declaration_source_signature_uses_published_typestore_owner() {
+        let mut codegen_types = TypeStore::new();
+        let builtins = codegen_types.intern_builtins();
+        let mut source_types = codegen_types.clone();
+        let synthetic_param_ty = source_types.ty_param(TypeParamType {
+            name: "SyntheticDeclarationParam".to_string(),
+            decl_file: PathBuf::from("tests/t2_04r.synthetic"),
+            decl_span: crate::span::Span::synthetic_prelude(),
+        });
+        let root = "fixtures.synthetic.declarationOnly".to_string();
+        let declaration = crate::effect_lowered::ir::LateLoweredCallableDeclaration::new(
+            root.clone(),
+            Some(scoopc_lir_facts::LirSourceCallableSignatureFacts {
+                signature_key: "t2_04r.synthetic.signature".to_string(),
+                root_fqn: root.clone(),
+                param_names: vec!["value".to_string()],
+                param_tys: vec![synthetic_param_ty],
+                return_ty: source_types
+                    .builtins()
+                    .expect("source TypeStore should keep builtins")
+                    .unit,
+            }),
+            None,
+        );
+        let program = crate::effect_lowered::LateLoweredProgram::new(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .with_published_callable_fact_payloads(
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::new(),
+            vec![declaration],
+        );
+        let context = Context::create();
+        let module = context.create_module("declaration_signature_test");
+        let builder = context.create_builder();
+        let target_info = crate::llvm::target::configure_module_for_host(&module)
+            .expect("host target should be available for tests");
+        let target_data = TargetData::create(&target_info.data_layout);
+        let source = SourceFile::new_virtual("<mem>/t2_04r.scoop", "package fixtures.synthetic\n");
+        let mut source_map = SourceMap::new();
+        let entry_source_id = source_map.add_source(source);
+        let stable_cone_key = StableConeKey::new("fixtures.synthetic", "0.1.0");
+        let source_cones = HashMap::<PathBuf, SourceConeInfo>::new();
+        let stable_type_param_keys = HashMap::<TypeParamType, StableTypeParamKey>::new();
+        let struct_layouts = hir::StructLayoutIndex::default();
+        let enum_layouts = hir::EnumLayoutIndex::default();
+        let top_level_vars = hir::TopLevelVarIndex::default();
+        let top_level_immutable_values = hir::TopLevelImmutableValueIndex::default();
+        let extern_funs = hir::ExternFunIndex::default();
+        let native_callable_funs = hir::NativeCallableFunIndex::default();
+        let object_inits = hir::ObjectInitIndex::default();
+        let class_inits = hir::ClassInitIndex::default();
+        let release_hooks = hir::ReleaseHookIndex::default();
+        let when_pat_binding_tys = hir::WhenPatBindingTypeIndex::default();
+        let nominal_kinds = hir::NominalKindIndex::default();
+        let interior_mutable_nominals = hir::InteriorMutableIndex::default();
+        let callable_sources = HashMap::<String, crate::llvm::LlvmCallableSourceContract>::new();
+        let effect_analysis_facts = Rc::new(EffectAnalysisFacts::default());
+        let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+
+        let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+            context: &context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map: &source_map,
+            entry_source_id,
+            stable_cone_key: &stable_cone_key,
+            source_cones: &source_cones,
+            stable_type_param_keys: &stable_type_param_keys,
+            types: &codegen_types,
+            struct_layouts: &struct_layouts,
+            enum_layouts: &enum_layouts,
+            top_level_vars: &top_level_vars,
+            top_level_immutable_values: &top_level_immutable_values,
+            extern_funs: &extern_funs,
+            native_callable_funs: &native_callable_funs,
+            object_inits: &object_inits,
+            class_inits: &class_inits,
+            release_hooks: &release_hooks,
+            when_pat_binding_tys: &when_pat_binding_tys,
+            nominal_kinds: &nominal_kinds,
+            interior_mutable_nominals: &interior_mutable_nominals,
+            builtins,
+            callable_sources: &callable_sources,
+            published_late_lowered_program: Some(&program),
+            published_late_lowered_types: Some(&source_types),
+            effect_analysis_facts,
+            effect_op_tags,
+        });
+        let codegen = unit_codegen.fresh_main_codegen();
+
+        let signature = codegen
+            .published_callable_signature_with_names(&root)
+            .expect("declaration source signature should come from the active LIR program");
+        assert_eq!(signature.2.as_slice(), &[synthetic_param_ty]);
+        assert!(
+            codegen
+                .published_codegen_callable_signature(&root)
+                .is_none(),
+            "declaration signature TypeIds must be remapped from the published TypeStore owner"
+        );
     }
 }

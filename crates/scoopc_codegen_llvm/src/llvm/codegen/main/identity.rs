@@ -3,11 +3,11 @@
 #![allow(dead_code)]
 
 use super::*;
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
         Self {
             shared,
+            active_lir_program: None,
             current_source_id: shared.entry_source_id,
             function_cx: FunctionBodyCodegenCx::default(),
             effect_cx: EffectLoweringCodegenCx::default(),
@@ -16,7 +16,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
     pub(in crate::llvm::codegen) fn fresh_child_codegen(&self) -> Self {
-        Self::new(self.shared)
+        let mut child = Self::new(self.shared);
+        child.active_lir_program = self.active_lir_program;
+        child
     }
 
     pub(in crate::llvm::codegen) fn source_cone_info_for_path(
@@ -266,47 +268,119 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn lir_callable_symbol_facts(
         &self,
-        callable_fqn: &str,
+        callable_id: LirCallableId,
     ) -> Option<&'a scoopc_lir_facts::LirCallableSymbolFacts> {
-        self.published_lir_facts
-            .physical_layout
+        self.active_lir_program()?
+            .physical_layout()
             .callable_symbols
-            .values()
-            .find(|symbol| symbol.root_fqn == callable_fqn)
+            .get(&callable_id)
     }
 
-    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable(
+    pub(in crate::llvm::codegen) fn abi_symbol_for_lir_callable_ref(
         &self,
-        callable_fqn: &str,
+        callable: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<&'a scoopc_lir_facts::LirAbiSymbolFact> {
+        self.active_lir_program()?
+            .physical_layout()
+            .abi_symbols
+            .values()
+            .find(|symbol| symbol.callable == Some(callable))
+    }
+
+    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable_ref(
+        &self,
+        callable: scoopc_lir_facts::LirCallableRef,
     ) -> Result<String, LlvmEmitError> {
-        if callable_fqn == "main" {
+        let program = self.expect_active_lir_program("exported_abi_symbol_for_lir_callable_ref");
+        let root = program.root_for_callable_ref(callable);
+        let owner_label = root.unwrap_or("<external-lir-callable>");
+        if root == Some("main") {
             return Ok("main".to_string());
         }
-        if let Some(symbol_facts) = self.lir_callable_symbol_facts(callable_fqn) {
+        if let scoopc_lir_facts::LirCallableRef::Local(id) = callable
+            && let Some(symbol_facts) = self.lir_callable_symbol_facts(id)
+        {
             let symbol = symbol_facts
                 .exported_symbol
                 .clone()
-                .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable));
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LIR callable symbol facts for `{owner_label}` are missing exported ABI symbol"
+                    ),
+                })?;
             self.reserve_exported_abi_symbol(
                 &symbol,
-                &symbol_facts.callable,
-                format!("LIR callable `{callable_fqn}` via callable symbol facts"),
+                &self.lir_callable_ref_stable_key(scoopc_lir_facts::LirCallableRef::Local(
+                    symbol_facts.callable,
+                ))?,
+                format!("LIR callable `{owner_label}` via callable symbol facts"),
             )?;
             return Ok(symbol);
         }
+        if let Some(abi_symbol) = self.abi_symbol_for_lir_callable_ref(callable) {
+            if let Some(callable) = abi_symbol.callable.as_ref() {
+                self.reserve_exported_abi_symbol(
+                    &abi_symbol.symbol,
+                    &self.lir_callable_ref_stable_key(*callable)?,
+                    format!("LIR declaration `{owner_label}` via ABI symbol facts"),
+                )?;
+            }
+            return Ok(abi_symbol.symbol.clone());
+        }
         Err(LlvmEmitError::Frontend {
             message: format!(
-                "LIR callable symbol facts 缺少 exported callable `{callable_fqn}` 的 ABI identity"
+                "LIR callable `{owner_label}` is missing a published target-bound ABI symbol fact"
             ),
         })
     }
 
+    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable_id(
+        &self,
+        callable_id: LirCallableId,
+    ) -> Result<String, LlvmEmitError> {
+        self.exported_abi_symbol_for_lir_callable_ref(scoopc_lir_facts::LirCallableRef::Local(
+            callable_id,
+        ))
+    }
+
+    pub(in crate::llvm::codegen) fn published_symbol_for_source_root_text(
+        &self,
+        root: &str,
+    ) -> Option<String> {
+        if root == "main" {
+            return Some("main".to_string());
+        }
+        let program = self.active_lir_program()?;
+        program
+            .physical_layout()
+            .callable_symbols
+            .values()
+            .find(|facts| facts.root_fqn == root)
+            .and_then(|facts| {
+                facts.exported_symbol.clone().or_else(|| {
+                    facts
+                        .native
+                        .as_ref()
+                        .map(|native| native.symbol.clone())
+                        .or_else(|| facts.extern_.as_ref().map(|extern_| extern_.symbol.clone()))
+                })
+            })
+            .or_else(|| {
+                program
+                    .physical_layout()
+                    .abi_symbols
+                    .values()
+                    .find(|symbol| symbol.root_fqn.as_deref() == Some(root))
+                    .map(|symbol| symbol.symbol.clone())
+            })
+    }
+
     pub(in crate::llvm::codegen) fn enter_root_callable_identity(
         &mut self,
-        callable_fqn: String,
+        callable_id: Option<LirCallableId>,
         stable_owner_key: StableDefKey,
     ) {
-        self.function_cx.current_callable_fqn = Some(callable_fqn);
+        self.function_cx.current_lir_callable_id = callable_id;
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = None;
         self.function_cx.next_stable_child_closure_index = 0;
@@ -315,15 +389,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn enter_nested_closure_identity(
         &mut self,
-        callable_fqn: String,
+        callable_id: Option<LirCallableId>,
         stable_owner_key: StableDefKey,
         stable_closure_path: &str,
     ) {
-        self.function_cx.current_callable_fqn = Some(callable_fqn);
+        self.function_cx.current_lir_callable_id = callable_id;
         self.function_cx.current_stable_owner_key = Some(stable_owner_key);
         self.function_cx.current_stable_closure_path_prefix = Some(stable_closure_path.to_string());
         self.function_cx.next_stable_child_closure_index = 0;
         self.function_cx.stable_closure_paths.clear();
+    }
+
+    fn lir_callable_ref_stable_key(
+        &self,
+        callable: scoopc_lir_facts::LirCallableRef,
+    ) -> Result<scoopc_ids::CanonicalTextKey, LlvmEmitError> {
+        let canonical = match callable {
+            scoopc_lir_facts::LirCallableRef::Local(id) => self
+                .active_lir_program()
+                .and_then(|program| program.callable_by_id(id))
+                .and_then(|callable| callable.published_callable_facts())
+                .map(|facts| facts.body_version.key.owner_canonical_text().to_string())
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LIR callable ref {id:?} is missing callable facts for ABI symbol reservation"
+                    ),
+                })?,
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                format!("lir_callable_hash#h{}", hash.to_hex())
+            }
+        };
+        Ok(scoopc_ids::CanonicalTextKey::new(canonical))
     }
 
     pub(in crate::llvm::codegen) fn current_stable_owner_key(
@@ -372,32 +468,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: &str,
         _at: crate::span::Span,
     ) -> Result<StableClosureKey, LlvmEmitError> {
-        let (_, source_fun) = self.lir_source_callable(callable_fqn).unwrap_or_else(|| {
+        let (callable_id, _, source_fun) = self.lir_source_callable(callable_fqn).unwrap_or_else(|| {
             panic!("stable_closure_key_for_lir_source_callable: LIR source contract accepted missing closure callable")
         });
         if !source_fun.name.starts_with("$lambda") {
             panic!("stable_closure_key_for_lir_source_callable: callable is not a closure body")
         }
-        let mut owner_callable_fqn = callable_fqn;
-        while let Some((parent, _)) = owner_callable_fqn.rsplit_once(".$lambda") {
-            owner_callable_fqn = parent;
-        }
-        let owner_symbol = self
-            .lir_callable_symbol_facts(owner_callable_fqn)
+        let program =
+            self.published_late_lowered_program()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: "LIR closure identity lookup requires a published LIR program"
+                        .to_string(),
+                })?;
+        let identity = self
+            .expect_active_lir_program("stable_closure_key_for_lir_source_callable")
+            .physical_layout()
+            .closure_identities
+            .get(&callable_id)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LIR callable symbol facts 缺少 closure `{callable_fqn}` owner `{owner_callable_fqn}` 的 stable identity"
+                    "LIR closure identity facts 缺少 closure `{callable_fqn}` 的 owner/lexical path"
                 ),
             })?;
-        let lexical_path = callable_fqn
-            .strip_prefix(owner_callable_fqn)
-            .and_then(|suffix| suffix.strip_prefix('.'))
+        let owner_key = program
+            .callable_by_id(identity.owner_callable)
+            .and_then(|callable| callable.lir_callable_key())
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LIR source closure `{callable_fqn}` 无法从 owner `{owner_callable_fqn}` 恢复 lexical path"
+                    "LIR closure identity facts 缺少 owner `{}` 的 stable callable key",
+                    identity.owner_root_fqn
                 ),
             })?;
-        Ok(StableClosureKey::new(&owner_symbol.callable, lexical_path))
+        Ok(StableClosureKey::new(
+            owner_key,
+            identity.lexical_path.as_str(),
+        ))
     }
 
     pub(in crate::llvm::codegen) fn direct_hir_closure_callable_fqn(
@@ -405,9 +510,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _at: crate::span::Span,
         closure: &hir::ClosureExpr,
     ) -> Result<String, LlvmEmitError> {
-        let owner_fqn = self.function_cx.current_callable_fqn.as_deref().unwrap_or_else(|| {
-            panic!("direct_hir_closure_callable_fqn: closure codegen requires current callable owner")
-        });
-        Ok(format!("{owner_fqn}.$lambda{}", closure.id.as_u32()))
+        let owner = self.current_callable_diagnostic_label();
+        if owner == "<unknown>" {
+            panic!(
+                "direct_hir_closure_callable_fqn: closure codegen requires current callable owner"
+            )
+        }
+        Ok(format!("{owner}.$lambda{}", closure.id.as_u32()))
     }
 }

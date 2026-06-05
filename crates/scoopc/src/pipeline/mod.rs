@@ -10,9 +10,13 @@ mod effect_lowering_stage;
 mod hir_golden_tests;
 #[cfg(test)]
 mod hir_preflight;
-#[cfg(test)]
+#[cfg(all(test, feature = "llvm"))]
 mod hir_via_mir_tests;
+#[cfg(feature = "llvm")]
+pub mod lir_artifact;
 pub(crate) mod lir_facts_builder;
+#[cfg(feature = "llvm")]
+mod lir_stage;
 #[cfg(feature = "llvm")]
 mod llvm_codegen_stage;
 mod mir_stage;
@@ -20,13 +24,14 @@ mod mir_stage;
 use crate::cone::SourceConeCompilationUnit;
 use crate::session::Session;
 use crate::source::SourceFile;
-use scoopc_hir::cone_import::CachedConeImport;
 
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
 #[cfg(feature = "llvm")]
-pub use llvm_codegen_stage::LlvmCodegenStageInput;
+pub use lir_artifact::{CodegenInput, LirArtifact};
+#[cfg(feature = "llvm")]
+pub(crate) use lir_stage::build_lir_artifact;
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 #[cfg(feature = "llvm")]
 pub use scoopc_codegen_llvm::llvm::{
@@ -104,33 +109,11 @@ pub fn load_p4_ready_mir_stage_output_for_dump(
 }
 
 pub fn build_effect_facts_stage_output(
-    session: &Session,
-    source: &SourceFile,
+    _session: &Session,
+    _source: &SourceFile,
     mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
-    build_effect_facts_stage_output_with_compilation_sources(
-        session,
-        source,
-        std::slice::from_ref(source),
-        &[],
-        mir_stage_output,
-    )
-}
-
-pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
-    session: &Session,
-    source: &SourceFile,
-    compilation_sources: &[SourceFile],
-    cached_cone_imports: &[CachedConeImport],
-    mir_stage_output: &MirStageOutput,
-) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
-    effect_facts_stage::run_with_compilation_sources(
-        session,
-        source,
-        compilation_sources,
-        cached_cone_imports,
-        mir_stage_output,
-    )
+    effect_facts_stage::run(mir_stage_output)
 }
 
 pub fn load_effect_facts_stage_output_for_dump(
@@ -205,9 +188,56 @@ pub fn materialize_direct_style_mir_for_dump(
 #[cfg(feature = "llvm")]
 pub(crate) fn run_llvm_codegen_stage(
     session: &Session,
-    input: LlvmCodegenStageInput,
+    input: CodegenInput,
 ) -> Result<LlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::run(session, input)
+}
+
+#[cfg(feature = "llvm")]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_llvm_codegen_input(
+    session: &Session,
+    source_map: SourceMap,
+    entry_source_id: SourceId,
+    lowered: crate::frontend::CodegenLoweringOutput,
+    abi_visibility_lowered: Option<crate::frontend::CodegenLoweringOutput>,
+    entry_main_fqn: Option<String>,
+    entry_required: bool,
+    opt_level: OptLevel,
+    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
+) -> Result<CodegenInput, crate::llvm::LlvmEmitError> {
+    let entry_source =
+        source_map
+            .source(entry_source_id)
+            .ok_or_else(|| crate::llvm::LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM LIR stage 找不到入口源文件（source_id={})",
+                    entry_source_id.as_usize()
+                ),
+            })?;
+    let program = build_lir_artifact(session, entry_source, lowered, false)?;
+    let abi_shell = abi_visibility_lowered
+        .map(|lowered| build_lir_artifact(session, entry_source, lowered, true))
+        .transpose()?;
+    let deps = cached_dep_artifacts
+        .into_iter()
+        .map(lir_artifact::lir_artifact_from_dep)
+        .collect::<Result<Vec<_>, _>>()?;
+    let entry = lir_artifact::resolve_entry_ref(
+        entry_source_id,
+        &program,
+        entry_main_fqn.as_deref(),
+        entry_required,
+    )?;
+    Ok(CodegenInput {
+        program,
+        abi_shell,
+        deps,
+        entry,
+        entry_source_id,
+        source_map,
+        opt_level,
+    })
 }
 
 #[cfg(feature = "llvm")]
@@ -236,12 +266,28 @@ fn build_single_file_stage_output(
         crate::frontend::MirRequestRootMode::EntryMain,
     )
     .map_err(frontend_error)?;
+    let abi_visibility_lowering = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        &front,
+        opt_level,
+        crate::frontend::MirRequestRootMode::RequestSources,
+    )
+    .map(Some)
+    .map_err(frontend_error)?;
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
 
-    run_llvm_codegen_stage(
+    let input = build_llvm_codegen_input(
         session,
-        LlvmCodegenStageInput::new(lowering, None, source_map, entry_source_id, None, opt_level),
-    )
+        source_map,
+        entry_source_id,
+        lowering,
+        abi_visibility_lowering,
+        None,
+        true,
+        opt_level,
+        Vec::new(),
+    )?;
+    run_llvm_codegen_stage(session, input)
 }
 
 #[cfg(feature = "llvm")]
@@ -260,7 +306,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Object => crate::llvm::emit_main_obj_to_file_from_stage_output(
@@ -268,7 +314,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Asm => crate::llvm::emit_main_asm_to_file_from_stage_output(
@@ -276,7 +322,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
             stage_output.entry_source_id(),
             stage_input,
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
     }
@@ -292,7 +338,7 @@ pub fn emit_minimal_main_ir(
         stage_output.source_map(),
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
-        None,
+        stage_output.entry_ref(),
         stage_output.opt_level(),
     )
 }
@@ -332,7 +378,7 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
         output,
-        None,
+        stage_output.entry_ref(),
         opt_level,
     )
 }
@@ -359,7 +405,7 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
         stage_output.entry_source_id(),
         crate::llvm::StageEmitInput::from_stage_output(&stage_output),
         output,
-        None,
+        stage_output.entry_ref(),
         opt_level,
     )
 }
@@ -423,7 +469,6 @@ pub fn emit_project_llvm_artifact_to_file(
         front.input().entry_main_fqn(),
         opt_level,
         artifact,
-        front.cached_cone_imports().to_vec(),
         front.cached_dep_artifacts().to_vec(),
     )?;
     Ok(extern_libs)
@@ -448,24 +493,20 @@ pub fn emit_production_llvm_artifact_to_file(
     entry_main_fqn: Option<&str>,
     opt_level: crate::opt::OptLevel,
     artifact: LlvmArtifactKind,
-    cached_cone_imports: Vec<CachedConeImport>,
     cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
-    llvm_codegen_stage::emit_artifact_to_file(
+    let input = build_llvm_codegen_input(
         session,
-        llvm_codegen_stage::LlvmCodegenStageInput::with_cached_cone_imports(
-            lowered,
-            abi_visibility_lowered,
-            source_map.clone(),
-            entry_source_id,
-            entry_main_fqn.map(str::to_owned),
-            opt_level,
-            cached_cone_imports,
-            cached_dep_artifacts,
-        ),
-        output,
-        artifact,
-    )
+        source_map.clone(),
+        entry_source_id,
+        lowered,
+        abi_visibility_lowered,
+        entry_main_fqn.map(str::to_owned),
+        true,
+        opt_level,
+        cached_dep_artifacts,
+    )?;
+    llvm_codegen_stage::emit_artifact_to_file(session, input, output, artifact)
 }
 
 #[cfg(test)]

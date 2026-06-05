@@ -875,6 +875,101 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "precheck_when_pattern_integer_literals",
                     "LLVM stage must not traverse HIR patterns for literal validation",
                 ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM stage handoff must not pass source-span dispatch side tables into P6",
+                ),
+                fp(
+                    "top_level_fun_call_sites",
+                    "LLVM stage handoff must not rebuild intrinsic/direct-call metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "LLVM stage handoff must not pass source-span class ctor call binding side tables into P6",
+                ),
+                fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM stage handoff must not publish source-span intrinsic/direct-call contracts",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM stage handoff must not key call contracts by source path and span",
+                ),
+                fp(
+                    "build_intrinsic_call_contracts",
+                    "LLVM stage handoff must not rebuild intrinsic metadata from HIR source-site spans",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM stage handoff must not carry source-span intrinsic/direct-call side tables",
+                ),
+                fp(
+                    "class_vtables",
+                    "LLVM stage handoff must not pass source vtable side tables into P6",
+                ),
+                fp(
+                    "class_itables",
+                    "LLVM stage handoff must not pass source itable side tables into P6",
+                ),
+                fp(
+                    "build_dispatch_call_contracts",
+                    "LLVM stage handoff must consume published LIR dispatch contracts instead of rebuilding a source-span dispatch table",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM codegen handoff",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/handoff.rs",
+            (
+                fp(
+                    "top_level_fun_call_sites",
+                    "LLVM handoff must not carry source-span top-level call binding side tables",
+                ),
+                fp(
+                    "TopLevelFunCallSiteIndex",
+                    "LLVM handoff must not expose frontend top-level call binding side-table types",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM handoff must not carry source-span dispatch side tables",
+                ),
+                fp(
+                    "LlvmDispatchCallKey",
+                    "LLVM handoff must not key dispatch lowering by source-span side-table identities",
+                ),
+                fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM handoff must not expose source-span intrinsic/direct-call contract types",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM handoff must not expose source path/span call contract keys",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM handoff must not carry source-span intrinsic/direct-call side tables",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "LLVM handoff must not carry source-span class ctor call binding side tables",
+                ),
+                fp(
+                    "CtorCallSiteIndex",
+                    "LLVM handoff must not expose frontend class ctor call side-table types",
+                ),
+                fp(
+                    "ClassVtableIndex",
+                    "LLVM handoff must not expose source vtable side-table types",
+                ),
+                fp(
+                    "InterfaceIndex",
+                    "LLVM handoff must not expose source interface side-table types",
+                ),
+                fp(
+                    "ClassItableIndex",
+                    "LLVM handoff must not expose source itable side-table types",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -908,6 +1003,18 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 ),
                 fp("crate::hir", "emit handoff must not traverse HIR APIs"),
                 fp("crate::mir", "emit handoff must not traverse raw MIR APIs"),
+                fp(
+                    "top_level_fun_call_sites",
+                    "emit handoff must not pass source-span top-level call binding side tables to codegen",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "emit handoff must not pass source-span dispatch side tables to codegen",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "emit handoff must not pass source-span class ctor call side tables to codegen",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -967,6 +1074,97 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "MaterializedEffectFacts",
                     "LLVM production codegen context must not save full materialized effect-facts wrappers",
+                ),
+                fp(
+                    "top_level_fun_call_sites",
+                    "LLVM production codegen context must not save source-span top-level call binding side tables",
+                ),
+                fp(
+                    "TopLevelFunCallSiteIndex",
+                    "LLVM production codegen context must not expose frontend top-level call binding side-table types",
+                ),
+                fp(
+                    "dispatch_call_contracts",
+                    "LLVM production codegen context must not save source-span dispatch side tables",
+                ),
+                fp(
+                    "LlvmDispatchCallKey",
+                    "LLVM production codegen context must not key dispatch lowering by source-span side-table identities",
+                ),
+                fp(
+                    "LlvmIntrinsicCallContract",
+                    "LLVM production codegen context must not retain source-span intrinsic contracts",
+                ),
+                fp(
+                    "LlvmSourceCallKey",
+                    "LLVM production codegen context must not retain source path/span call keys",
+                ),
+                fp(
+                    "intrinsic_call_contracts",
+                    "LLVM production codegen context must not retain source-span intrinsic side tables",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "LLVM production codegen context must not retain source-span class ctor call side tables",
+                ),
+                fp(
+                    "CtorCallSiteIndex",
+                    "LLVM production codegen context must not expose frontend class ctor call side-table types",
+                ),
+                fp(
+                    "class_vtables:",
+                    "LLVM production codegen context must consume LIR physical layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "class_itables:",
+                    "LLVM production codegen context must consume LIR physical layout facts instead of source itable side tables",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM source call-site bridge residuals",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/main/context.rs",
+            (
+                fp(
+                    "current_call_site(",
+                    "LLVM codegen must not rebuild HIR call-site identities from current source path and span",
+                ),
+                fp(
+                    "source_call_site_id",
+                    "LLVM codegen must consume LIR-owned SiteId facts instead of hashing source path/span",
+                ),
+                fp(
+                    "published_class_ctor_call_site",
+                    "class ctor metadata must be queried by LIR owner+SiteId, not source span",
+                ),
+                fp(
+                    "current_class_ctor_source_call_contract",
+                    "class ctor source payload lowering must not look up contracts by current source span",
+                ),
+                fp(
+                    "source_class_ctor_call(",
+                    "class ctor source payload lowering must not query LateLoweredProgram by source path/span",
+                ),
+                fp(
+                    "find_source_ctor_contract",
+                    "class ctor source payload lowering must not fall back to source path/span contract lookup",
+                ),
+                fp(
+                    "published_reflection_type_arg_for_current_call",
+                    "reflection metadata must be queried by LIR owner+SiteId, not source span",
+                ),
+                fp(
+                    "legacy_reflection_arg_ty",
+                    "reflection metadata must not fall back to legacy source path/span analysis facts",
+                ),
+                fp(
+                    "key.owner_callable.readable_path() == owner_callable.readable_path()",
+                    "class ctor call-site lookup must fail fast on exact owner+SiteId misses instead of readable-path matching",
+                ),
+                fp(
+                    "LirReflectionCallSiteKey { source_site",
+                    "reflection call-site facts must not be keyed by raw source-site hashes in LLVM",
                 ),
             ),
         ),
@@ -1048,6 +1246,618 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "dispatch_call_sites",
                     "dispatch kind must come from LIR facts or the explicit LLVM dispatch narrow contract",
                 ),
+                fp(
+                    "direct_call_dispatch_fqn",
+                    "direct call lowering must not recover callable roots by parsing FQN strings",
+                ),
+                fp(
+                    "resolve_lir_root_for_hir_direct_call",
+                    "direct call lowering must consume exact LIR callee bindings instead of FQN/signature fallback",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "direct call lowering must use published intrinsic facts instead of FQN fallback lookup",
+                ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "direct call lowering must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "concrete_top_level_fun_call_fqn",
+                    "direct call lowering must consume published exact callee facts instead of rebuilding concrete FQNs",
+                ),
+                fp(
+                    "concrete_hir_top_level_call_fqn",
+                    "direct call lowering must not synthesize generic concrete FQNs from HIR arguments or result types",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "direct call lowering must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "direct call lowering must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "direct call lowering must use LIR class ctor call-site facts instead of source-span ctor side tables",
+                ),
+                fp(
+                    "registered_class_instance_key_for_type",
+                    "direct call lowering must not trigger class ctor lowering from result/unresolved callee types",
+                ),
+                fp(
+                    "let arg_mapping = (0..args.len()).map(Some).collect",
+                    "direct call lowering must consume published class ctor arg mapping instead of synthesizing positional mappings",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "rsplit_once(\"::<\")",
+                    "direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "direct call lowering must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "split_once(\"$overload",
+                    "direct call lowering must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "try_codegen_class_vtable_call",
+                    "direct call lowering must not route source calls through backend vtable side-table fallback",
+                ),
+                fp(
+                    "try_codegen_interface_itable_call",
+                    "direct call lowering must not route source calls through backend itable side-table fallback",
+                ),
+                fp(
+                    "published_instantiated_call_fqn",
+                    "direct call lowering must use LIR source call-site facts instead of source-span instantiated FQN lookup",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "direct call lowering must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "direct call lowering must not use static intrinsic root helper lookup",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "direct call lowering must not look up named intrinsic metadata by root/FQN",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_call_or_root",
+                    "direct call lowering must not fall back from source-span intrinsic metadata to root lookup wrappers",
+                ),
+                fp(
+                    "self.class_vtables",
+                    "direct call lowering must not consume source vtable side tables",
+                ),
+                fp(
+                    "self.interfaces",
+                    "direct call lowering must not consume source interface side tables",
+                ),
+                fp(
+                    "published_print_callable_fqn",
+                    "direct call lowering must consume published exact callee facts instead of synthesizing print concrete FQNs",
+                ),
+                fp(
+                    "published_hir_generic_callable_fqn",
+                    "direct call lowering must consume published exact callee facts instead of synthesizing generic concrete FQNs",
+                ),
+                fp(
+                    "unwrap_or_else(|| fqn.to_string())",
+                    "direct call lowering must fail fast when exact callee facts are missing instead of falling back to the source FQN",
+                ),
+                fp(
+                    "format!(\"{fqn}::<",
+                    "direct call lowering must not format generic concrete FQNs in P6",
+                ),
+                fp(
+                    "published_root_matches_hir_callee",
+                    "direct call lowering must not match generic callees by root string prefixes",
+                ),
+                fp(
+                    "unique_published_hir_direct_exact_root",
+                    "direct call lowering must not scan source-call/signature facts to recover generic direct roots",
+                ),
+                fp(
+                    "published_hir_direct_root_from_facts",
+                    "direct call lowering must not recover direct roots by scanning published source facts",
+                ),
+                fp(
+                    "source_call_sites.values()",
+                    "direct call lowering must not scan source call-site facts to recover direct roots",
+                ),
+                fp(
+                    "source_signatures.keys()",
+                    "direct call lowering must not scan source signature roots to recover concrete callees",
+                ),
+                fp(
+                    "source_signatures.values()",
+                    "direct call lowering must not scan source signature facts to recover concrete callees",
+                ),
+                fp(
+                    "root.get(fqn.len()",
+                    "direct call lowering must not parse concrete generic suffixes from source signature roots",
+                ),
+                fp(
+                    "Ok(fqn.to_string())",
+                    "direct call lowering must fail fast instead of accepting the source FQN without exact facts",
+                ),
+                fp(
+                    "strip_prefix(fqn)",
+                    "direct call lowering must not parse concrete generic roots from source FQN prefixes",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM effect-lowered direct calls",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/value.rs",
+            (
+                fp(
+                    "direct_call_dispatch_fqn",
+                    "effect-lowered calls must not recover callable roots by parsing FQN strings",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "effect-lowered calls must use published intrinsic metadata instead of FQN fallback lookup",
+                ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "effect-lowered calls must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "effect-lowered calls must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "effect-lowered calls must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "effect-lowered calls must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "effect-lowered calls must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "intrinsic_base_fqn(",
+                    "effect-lowered calls must not parse intrinsic base FQNs locally",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "effect-lowered calls must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "rsplit_once(\"::<\")",
+                    "effect-lowered calls must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "effect-lowered calls must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "split_once(\"$overload",
+                    "effect-lowered calls must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "effect-lowered calls must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "effect-lowered calls must not use static intrinsic root helper lookup",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "effect-lowered calls must not look up named intrinsic metadata by root/FQN",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM MIR direct call residuals",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "MIR direct call lowering must use published intrinsic metadata instead of FQN fallback lookup",
+                ),
+                fp(
+                    "current_top_level_fun_call_binding",
+                    "MIR direct call lowering must not recover metadata from source-span top-level call binding side tables",
+                ),
+                fp(
+                    "concrete_top_level_fun_call_fqn",
+                    "MIR direct call lowering must consume published exact callee facts instead of rebuilding concrete FQNs",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fqn",
+                    "MIR direct call lowering must use call-site intrinsic facts instead of FQN intrinsic lookup wrappers",
+                ),
+                fp(
+                    "published_intrinsic_base_fqn(",
+                    "MIR direct call lowering must use call-site intrinsic facts instead of parsing intrinsic base FQNs",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name",
+                    "MIR direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "MIR direct call lowering must use published named intrinsic metadata instead of local scalar FQN fallback",
+                ),
+                fp(
+                    "ctor_call_sites",
+                    "MIR direct call lowering must use Rvalue::ClassCtor or LIR facts instead of source-span ctor side tables",
+                ),
+                fp(
+                    "rsplit_once(\"::<\")",
+                    "MIR direct call lowering must not parse generic FQN text to recover callable roots",
+                ),
+                fp(
+                    "published_instantiated_call_fqn",
+                    "MIR direct call lowering must use LIR source call-site facts instead of source-span instantiated FQN lookup",
+                ),
+                fp(
+                    "split_once(\"$overload",
+                    "MIR direct call lowering must not parse overload FQN text to recover callable roots",
+                ),
+                fp(
+                    "instantiated_mir_callee_fqn",
+                    "MIR direct call lowering must consume published exact callee facts instead of formatting generic callable FQNs",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_root",
+                    "MIR direct call lowering must not fall back from published intrinsic metadata to root helper lookup",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "MIR direct call lowering must not use static intrinsic root helper lookup",
+                ),
+                fp(
+                    "published_named_intrinsic_entry_name_for_fact_root",
+                    "MIR direct call lowering must not look up named intrinsic metadata by root/FQN",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "P4 intrinsic fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "P4 fact builder must not classify backend bodyless intrinsics through FQN fallback lookup",
+                ),
+                fp(
+                    "is_backend_intrinsic_bodyless_fqn",
+                    "P4 fact builder must not keep task-private backend intrinsic bodyless FQN fallback helpers",
+                ),
+                fp(
+                    "call_site_for_bodyless_direct_surface",
+                    "P4 fact builder must not downgrade missing direct targets to bodyless DynamicFallback",
+                ),
+                fp(
+                    "target_key.template.fqn.starts_with(\"scoop.delegates.\")",
+                    "P4 fact builder must not special-case missing delegate callable facts",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "P4 solver target fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_effect_facts_stage/src/effect_facts/solver.rs",
+            (
+                fp(
+                    "fallback_call_resolution",
+                    "P4 solver must not silently reuse stale call facts when a target is unpublished",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR facts builder fallback residuals",
+            "fact-boundary",
+            "crates/scoopc/src/pipeline/lir_facts_builder.rs",
+            (
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "LIR facts builder must consume explicitly published intrinsic metadata, not FQN fallback lookup",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name_for_fqn",
+                    "LIR facts builder must consume explicitly published scalar intrinsic metadata, not FQN fallback lookup",
+                ),
+                fp(
+                    "known_named_intrinsic_roots",
+                    "LIR facts builder must not use static intrinsic root inventories as facts",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "LIR facts builder must not publish intrinsic metadata through static root helper lookup",
+                ),
+                fp(
+                    "source_signatures.keys()",
+                    "LIR facts builder must not scan source signature roots to invent intrinsic callable facts",
+                ),
+                fp(
+                    "source_signatures.values()",
+                    "LIR facts builder must not scan source signatures to recover target roots",
+                ),
+                fp(
+                    "source_signatures.contains_key",
+                    "LIR facts builder must not use source-signature membership as a value-box target fallback",
+                ),
+                fp(
+                    "source_body_call_site_metadata",
+                    "LIR facts builder must consume LIR-owned source call-site metadata instead of scanning source bodies",
+                ),
+                fp(
+                    "source_sites.call_site(",
+                    "LIR facts builder must not recover call-site metadata by source path/span lookup",
+                ),
+                fp(
+                    "class_ctor_source_selection",
+                    "LIR class ctor source contracts must consume published ctor facts, not synthesize selections",
+                ),
+                fp(
+                    "synthesize_class_ctor_arg_mapping",
+                    "LIR class ctor source contracts must not synthesize named/default argument mappings",
+                ),
+                fp(
+                    "facts.source_sites.call_sites",
+                    "LIR facts builder must not scan HIR source-site call maps for backend metadata",
+                ),
+                fp(
+                    "constructor_call_sites()",
+                    "LIR facts builder must publish ctor call-sites from LIR-owned SiteId facts, not HIR source-site helpers",
+                ),
+                fp(
+                    "reflection_call_sites()",
+                    "LIR facts builder must publish reflection metadata from LIR-owned SiteId facts, not HIR source-site helpers",
+                ),
+                fp(
+                    "hir_intrinsic_metadata_by_source_site",
+                    "LIR facts builder must not recover intrinsic metadata from source path/span maps",
+                ),
+                fp(
+                    "target.readable_path().to_string()",
+                    "LIR facts builder must not infer roots from target readable paths",
+                ),
+                fp(
+                    "target_callable_key.readable_path().to_string()",
+                    "LIR facts builder must not infer roots from callable-key readable paths",
+                ),
+                fp(
+                    "dispatch_layout_impl_roots",
+                    "LIR facts builder must not synthesize ABI symbols from root-only dispatch layout scans",
+                ),
+                fp(
+                    "insert_declaration_abi_symbol_if_missing",
+                    "LIR facts builder must not synthesize declaration ABI symbols from root-only source signatures",
+                ),
+                fp(
+                    "insert_published_layout_target_abi_symbols",
+                    "LIR facts builder must not synthesize layout target ABI symbols from root-only layout scans",
+                ),
+                fp(
+                    "published_layout_target_roots",
+                    "LIR facts builder must not recover ABI targets from layout root scans",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&declaration_key)",
+                    "LIR facts builder must not synthesize declaration ABI symbols when target-bound ABI facts are missing",
+                ),
+                fp(
+                    "body#declaration",
+                    "LIR facts builder must not manufacture declaration callable keys for unpublished targets",
+                ),
+                fp(
+                    "declaration_lir_callable_key",
+                    "LIR facts builder must not manufacture declaration callable keys for unpublished targets",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&target_key)",
+                    "LIR facts builder must not synthesize ABI symbols for missing target-bound facts",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(target_callable_key)",
+                    "LIR facts builder must not synthesize ABI symbols for missing target-bound facts",
+                ),
+                fp(
+                    "published_declaration_abi_symbol",
+                    "LIR facts builder must consume upstream ABI symbol facts instead of declaration ABI synthesis helpers",
+                ),
+                fp(
+                    "source_signature_target_key",
+                    "LIR facts builder must consume upstream target callable keys instead of deriving them from source signatures",
+                ),
+                fp(
+                    "bodyless_direct_target_key",
+                    "LIR facts builder must consume upstream bodyless target keys instead of synthesizing them locally",
+                ),
+                fp(
+                    "bodyless_target_key_from_root",
+                    "LIR facts builder must not synthesize bodyless target keys from root FQNs",
+                ),
+                fp(
+                    "bodyless_signature_root(",
+                    "LIR facts builder must not use static bodyless root inventories as source-signature facts",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&published_key)",
+                    "LIR facts builder must not synthesize ABI symbols for bodyless target bindings",
+                ),
+                fp(
+                    "bodyless direct source signature publication requires builtin types",
+                    "LIR facts builder must fail fast instead of synthesizing empty Unit source signatures",
+                ),
+                fp(
+                    "return_ty: unit_ty",
+                    "LIR facts builder must fail fast instead of synthesizing empty Unit source signatures",
+                ),
+                fp(
+                    "value_box_member_impl_root",
+                    "LIR value-box layout must consume published target facts instead of assembling member roots from text",
+                ),
+                fp(
+                    "published_value_box_member_impl",
+                    "LIR value-box layout must consume published target facts instead of helper-based member root assembly",
+                ),
+                fp(
+                    "published_value_box_member_target",
+                    "LIR value-box layout must consume published class itable target facts instead of scanning source signatures",
+                ),
+                fp(
+                    "format!(\"{nominal_fqn}.{slot_name}\")",
+                    "LIR value-box layout must not assemble member roots from nominal/member text",
+                ),
+                fp(
+                    "format!(\"{}.{}\", nominal.fqn, slot.name)",
+                    "LIR value-box layout must not assemble member roots from nominal/member text",
+                ),
+                fp(
+                    "format!(\"{base}::<",
+                    "LIR value-box layout must not instantiate generic member roots from display text",
+                ),
+                fp(
+                    "filter_map(|target| ctx.body_versions_by_key.get(target).cloned())",
+                    "LIR dynamic-invoke facts must fail fast when a target body-version fact is missing",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "MIR backend fact fallback residuals",
+            "fact-boundary",
+            "crates/scoopc/src/pipeline/mir_stage.rs",
+            (
+                fp(
+                    "facts.source_sites.call_sites",
+                    "MIR backend facts must not recover backend metadata by scanning HIR source-site call maps",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "MIR backend facts must consume explicit intrinsic metadata instead of FQN fallback lookup",
+                ),
+                fp(
+                    "source_signature_target_from_abi_contracts",
+                    "MIR backend facts must not synthesize target-bound source signature or ABI publications locally",
+                ),
+                fp(
+                    "collect_direct_call_source_signature_facts",
+                    "MIR backend facts must not scan MIR calls to synthesize source signature facts",
+                ),
+                fp(
+                    "publish_mir_direct_call_source_signatures",
+                    "MIR backend facts must not scan MIR calls to publish source signature facts",
+                ),
+                fp(
+                    "legacy_scalar_named_intrinsic_entry_name_for_fqn",
+                    "MIR backend facts must consume explicit intrinsic metadata instead of scalar FQN fallback lookup",
+                ),
+                fp(
+                    "bodyless_signature_root(",
+                    "MIR backend facts must publish source signatures from explicit call contracts, not static bodyless root inventories",
+                ),
+                fp(
+                    "source_signature_target_publication",
+                    "MIR backend facts must not synthesize target-bound source signature or ABI publications locally",
+                ),
+                fp(
+                    "hir_facts.source_sites.function_targets()",
+                    "MIR backend facts must not scan HIR source-site function target maps",
+                ),
+                fp(
+                    "named_intrinsic_callables()",
+                    "MIR backend facts must not scan HIR source-site named intrinsic callables",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&target_callable_key)",
+                    "MIR backend facts must not synthesize target ABI symbols from locally created target keys",
+                ),
+                fp(
+                    "AbiMangler.fun_symbol(&target_key)",
+                    "MIR backend facts must not synthesize target ABI symbols from locally created target keys",
+                ),
+                fp(
+                    "mir_source_callable_target",
+                    "MIR backend facts must not manufacture target callable keys for missing source-signature targets",
+                ),
+                fp(
+                    "named_intrinsic_entry_name_for_root",
+                    "MIR backend facts must not synthesize named intrinsic facts from static root lookup",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR effect fact import fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_lir/src/effect_facts/mod.rs",
+            (
+                fp(
+                    "filter_map(|(key, facts)|",
+                    "effect fact import must fail fast instead of dropping callables with unknown stable keys",
+                ),
+                fp(
+                    "filter_map(|(key, body)|",
+                    "effect fact import must fail fast instead of dropping bodies with unknown stable keys",
+                ),
+                fp(
+                    "filter_map(|case|",
+                    "effect fact import must fail fast instead of dropping step cases with unknown concrete op keys",
+                ),
+                fp(
+                    "unwrap_or(CallSiteTarget::DynamicFallback)",
+                    "effect fact import must fail fast instead of downgrading unknown known-instance targets to DynamicFallback",
+                ),
+                fp(
+                    "filter_map(|key| instance_for_stable_key",
+                    "effect fact import must fail fast instead of dropping unknown candidate targets",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LIR verifier fallback residuals",
+            "fact-boundary",
+            "crates/scoopc_lir_facts/src/verify.rs",
+            (
+                fp(
+                    "body#declaration",
+                    "LIR verifier must not let declaration-body target keys escape target-bound ABI validation",
+                ),
+                fp(
+                    "symbol.callable.is_none()",
+                    "LIR verifier must not accept root-only ABI symbols for concrete call-site targets",
+                ),
+                fp(
+                    "is_bodyless_plain_call_surface",
+                    "LIR verifier must not allow bodyless DynamicFallback escape hatches",
+                ),
+                fp(
+                    "root_has_published_source_and_abi",
+                    "LIR verifier must validate layout/dispatch targets by target callable key, not root-only ABI presence",
+                ),
+                fp(
+                    "source_signatures.values()",
+                    "LIR verifier must validate target bindings by exact signature key, not root scans",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1125,6 +1935,83 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "self.source_signatures.get",
                     "exported ABI identity must come from LIR callable symbol facts",
                 ),
+                fp(
+                    "AbiMangler.fun_symbol(&declaration_key)",
+                    "exported ABI identity must fail fast instead of synthesizing declaration symbols",
+                ),
+                fp(
+                    "synthesized from source callable contract",
+                    "exported ABI identity must not report declaration symbol synthesis as a valid fallback",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM named intrinsic fact lookup",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/intrinsics/named.rs",
+            (
+                fp(
+                    "crate::intrinsics::named_intrinsic_entry_name_for_root",
+                    "LLVM intrinsic lookup must consume LIR intrinsic facts without static root fallback",
+                ),
+                fp(
+                    "root_intrinsic_entry",
+                    "LLVM intrinsic lookup must not hide static root fallback behind an alias",
+                ),
+                fp(
+                    "fallback_named_intrinsic_entry_name_for_fqn",
+                    "LLVM intrinsic lookup must consume LIR intrinsic facts without FQN fallback",
+                ),
+                fp(
+                    "scalar_bodyless_intrinsic_entry_name",
+                    "LLVM intrinsic lookup must not restore local scalar FQN fallback helpers",
+                ),
+                fp(
+                    "split(\"::<\")",
+                    "LLVM intrinsic lookup must not parse generic FQN text for scalar metadata",
+                ),
+                fp(
+                    "split(\"$overload",
+                    "LLVM intrinsic lookup must not parse overload FQN text for scalar metadata",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM reflection intrinsic source recovery",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/intrinsics/builtin.rs",
+            (
+                fp(
+                    "current_source_slice(span)",
+                    "reflection intrinsic lowering must consume published type-argument facts instead of parsing source text",
+                ),
+                fp(
+                    "split_once('<')",
+                    "reflection intrinsic lowering must not parse generic type arguments from source text",
+                ),
+                fp(
+                    "reflection_type_arg_for_current_call",
+                    "reflection intrinsic lowering must not query type arguments by current source path/span",
+                ),
+                fp(
+                    "reflection_type_arg(source.path()",
+                    "reflection intrinsic lowering must not query type arguments by source path/span",
+                ),
+                fp(
+                    "legacy_reflection_arg_ty",
+                    "reflection intrinsic lowering must not query legacy source path/span reflection analysis facts",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM callable layout ABI fallback",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/callable.rs",
+            (
+                fp(
+                    "AbiMangler.fun_symbol",
+                    "callable layout materialization must consume exported ABI symbol facts instead of synthesizing them",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1144,6 +2031,18 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                     "HIR/materialized declaration source",
                     "dispatch target diagnostics must not expose HIR/materialized declaration fallback",
                 ),
+                fp(
+                    "published_dispatch_target_fqn",
+                    "dispatch target declaration must not recover generic target roots by scanning FQN prefixes",
+                ),
+                fp(
+                    "self.class_vtables",
+                    "dispatch target declaration must consume LIR physical layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "self.class_itables",
+                    "dispatch target declaration must consume LIR physical layout facts instead of source itable side tables",
+                ),
             ),
         ),
         SourceBoundaryRule(
@@ -1158,6 +2057,49 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "declare_top_level_fun(",
                     "MIR dispatch helpers must not declare dispatch targets through HIR functions",
+                ),
+                fp(
+                    "self.class_vtables",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source vtable side tables",
+                ),
+                fp(
+                    "self.interfaces",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source interface side tables",
+                ),
+                fp(
+                    "self.class_itables",
+                    "MIR dispatch helpers must consume LIR dispatch/layout facts instead of source itable side tables",
+                ),
+                fp(
+                    "rsplit_once('.')",
+                    "MIR dispatch helpers must not parse dispatch owner from FQN text",
+                ),
+                fp(
+                    "slot.name ==",
+                    "MIR dispatch helpers must not recover slots by method-name matching",
+                ),
+                fp(
+                    "params_len == explicit_arg_count",
+                    "MIR dispatch helpers must not recover slots by arity matching",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM dynamic-invoke target lookup",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/lookup.rs",
+            (
+                fp(
+                    "key.readable_path()",
+                    "dynamic-invoke target lookup must not infer roots from callable-key readable paths",
+                ),
+                fp(
+                    "contains_key(readable)",
+                    "dynamic-invoke target lookup must not validate readable-path root fallbacks",
+                ),
+                fp(
+                    "then(|| readable.to_string())",
+                    "dynamic-invoke target lookup must not return readable-path root fallbacks",
                 ),
             ),
         ),
@@ -1200,6 +2142,72 @@ def source_boundary_rules() -> tuple[SourceBoundaryRule, ...]:
                 fp(
                     "codegen_block_value(body)",
                     "class ctor body emission must not directly lower a ctor HIR body",
+                ),
+                fp(
+                    "self.class_ctor_init_bodies",
+                    "class ctor init body lookup must consume the published LateLoweredProgram, not LLVM base-context fallback bodies",
+                ),
+                fp(
+                    "class_ctor_init_bodies.get",
+                    "class ctor init body lookup must not fall back to LLVM base-context side tables",
+                ),
+                fp(
+                    "pick_class_ctor_by_target",
+                    "class ctor lowering must consume exact LIR ctor call-site facts instead of span/arg-count selection",
+                ),
+                fp(
+                    "select_class_ctor_from_source_payload",
+                    "class ctor lowering must consume published source contracts instead of source-payload span/arg-count selection",
+                ),
+                fp(
+                    "class_ctor_init_body_for_source_selection",
+                    "class ctor init lookup must use exact published init keys instead of reconstructing keys from selected source ctors",
+                ),
+                fp(
+                    "unique_class_ctor_init_body_by_span_suffix",
+                    "class ctor init lookup must not recover init bodies by span suffix",
+                ),
+                fp(
+                    "same_span_class_ctor_init_body",
+                    "class ctor init lookup must not recover init bodies by span suffix",
+                ),
+                fp(
+                    "rsplit_once('@')",
+                    "class ctor init lookup must not parse init-key span suffixes",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "MIR direct scalar intrinsic fallback",
+            "fact-boundary",
+            "crates/scoopc_mir/src/mir/lower/fn_lowering_call.rs",
+            (
+                fp(
+                    "scalar_intrinsic_entry_from_fqn",
+                    "MIR direct-call lowering must consume published intrinsic metadata instead of deriving scalar intrinsic entries from FQN text",
+                ),
+            ),
+        ),
+        SourceBoundaryRule(
+            "LLVM value-box itable fallback",
+            "backend-boundary",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/value_args.rs",
+            (
+                fp(
+                    "materialized_value_box_member_impl_fqn",
+                    "value-box itable materialization must consume published LIR layout facts instead of synthesizing member implementation FQNs",
+                ),
+                fp(
+                    "stable_instance_fqn",
+                    "value-box itable materialization must not instantiate generic member FQNs in P6",
+                ),
+                fp(
+                    "format!(\"{}.{}\", nominal.fqn, slot.name)",
+                    "value-box itable materialization must not assemble member implementation roots from nominal/member text",
+                ),
+                fp(
+                    "abi_symbols.values().find_map",
+                    "value-box itable materialization must consume target-bound layout facts instead of scanning ABI symbols by root text",
                 ),
             ),
         ),
@@ -1284,7 +2292,12 @@ def source_tree_boundary_rules() -> tuple[SourceTreeBoundaryRule, ...]:
             "LLVM production direct MIR residuals outside LIR source-body helpers",
             "backend-boundary",
             "crates/scoopc_codegen_llvm/src/llvm",
-            ("/tests/", "tests.rs", "/codegen/mir_body/"),
+            (
+                "/tests/",
+                "tests.rs",
+                "/codegen/mir_body/",
+                "/codegen/main/immortal.rs",
+            ),
             (
                 fp(
                     "use crate::mir",

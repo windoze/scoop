@@ -17,6 +17,37 @@ use thiserror::Error;
 
 const LINK_INPUTS_FINGERPRINT_DOMAIN: &str = "scoop.link.inputs.v1";
 const LINK_INPUTS_FINGERPRINT_FILE_NAME: &str = "inputs.fingerprint";
+const RUNTIME_GC_BACKEND_ENV: &str = "SCOOP_RUNTIME_GC_BACKEND";
+
+/// GC backend used when compiling the C runtime for linked user programs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeGcBackend {
+    Baseline,
+    Minimal,
+    Immix,
+    Hosted,
+}
+
+impl RuntimeGcBackend {
+    fn c_define_value(self) -> &'static str {
+        match self {
+            RuntimeGcBackend::Baseline => "1",
+            RuntimeGcBackend::Minimal => "2",
+            RuntimeGcBackend::Immix => "3",
+            RuntimeGcBackend::Hosted => "4",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "baseline" | "gc-baseline" | "1" => Some(RuntimeGcBackend::Baseline),
+            "minimal" | "gc-minimal" | "2" => Some(RuntimeGcBackend::Minimal),
+            "immix" | "gc-immix" | "3" => Some(RuntimeGcBackend::Immix),
+            "hosted" | "gc-hosted" | "4" => Some(RuntimeGcBackend::Hosted),
+            _ => None,
+        }
+    }
+}
 
 /// Linker invocation request for one consumer cone.
 #[derive(Debug, Clone)]
@@ -54,12 +85,24 @@ pub struct LinkResponse {
 }
 
 /// Runtime C object build options.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeBuildOptions {
     /// Optional C compiler path/name; defaults to `clang`.
     pub compiler: Option<PathBuf>,
+    /// Runtime GC backend. Defaults to Immix to preserve the current driver behavior.
+    pub gc_backend: RuntimeGcBackend,
     /// Additional C flags used only for runtime compilation.
     pub c_flags: Vec<String>,
+}
+
+impl Default for RuntimeBuildOptions {
+    fn default() -> Self {
+        Self {
+            compiler: None,
+            gc_backend: RuntimeGcBackend::Immix,
+            c_flags: Vec::new(),
+        }
+    }
 }
 
 /// Runtime C object build output.
@@ -80,6 +123,10 @@ pub enum LinkError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Runtime(#[from] RuntimeObjError),
+
+    #[error("invalid {env} value `{value}`; expected one of baseline, immix, minimal, or hosted")]
+    #[diagnostic(code(scoopld::invalid_runtime_gc_backend))]
+    InvalidRuntimeGcBackend { env: &'static str, value: String },
 
     #[error("failed to access link path `{}`", path.display())]
     #[diagnostic(code(scoopld::io))]
@@ -190,8 +237,8 @@ pub fn link(req: LinkRequest) -> Result<LinkResponse, LinkError> {
         create_dir_all(parent)?;
     }
 
-    let runtime =
-        compile_runtime_to_obj_dir(&req.runtime_artifact_dir, &RuntimeBuildOptions::default())?;
+    let runtime_opts = runtime_build_options_from_env()?;
+    let runtime = compile_runtime_to_obj_dir(&req.runtime_artifact_dir, &runtime_opts)?;
     let fingerprint = compute_link_inputs_fingerprint(&req, &runtime)?;
     let fingerprint_path = req.output_dir.join(LINK_INPUTS_FINGERPRINT_FILE_NAME);
     let cache_binary = cache_binary_path(&req);
@@ -229,6 +276,18 @@ pub fn link(req: LinkRequest) -> Result<LinkResponse, LinkError> {
     })
 }
 
+fn runtime_build_options_from_env() -> Result<RuntimeBuildOptions, LinkError> {
+    let mut opts = RuntimeBuildOptions::default();
+    if let Ok(value) = std::env::var(RUNTIME_GC_BACKEND_ENV) {
+        opts.gc_backend =
+            RuntimeGcBackend::parse(&value).ok_or(LinkError::InvalidRuntimeGcBackend {
+                env: RUNTIME_GC_BACKEND_ENV,
+                value,
+            })?;
+    }
+    Ok(opts)
+}
+
 /// Compile `runtime/c/*.c` into object files under `output_dir`.
 pub fn compile_runtime_to_obj_dir(
     output_dir: &Path,
@@ -251,7 +310,7 @@ pub fn compile_runtime_to_obj_dir(
         };
 
         let mut flags = vec![
-            String::from("-DSCOOP_GC_BACKEND=3"),
+            format!("-DSCOOP_GC_BACKEND={}", opts.gc_backend.c_define_value()),
             String::from("-DSCOOP_RUNTIME_NO_GC_TEST_HELPERS=1"),
         ];
         flags.extend(opts.c_flags.iter().cloned());
@@ -857,6 +916,28 @@ mod tests {
                 .any(|pair| pair[0] == "-I" && pair[1] == include_dir),
             "runtime include dir missing from args: {args:?}"
         );
+    }
+
+    #[test]
+    fn runtime_gc_backend_parser_accepts_fixture_matrix_names() {
+        assert_eq!(
+            RuntimeGcBackend::parse("baseline"),
+            Some(RuntimeGcBackend::Baseline)
+        );
+        assert_eq!(
+            RuntimeGcBackend::parse("gc-minimal"),
+            Some(RuntimeGcBackend::Minimal)
+        );
+        assert_eq!(
+            RuntimeGcBackend::parse("immix"),
+            Some(RuntimeGcBackend::Immix)
+        );
+        assert_eq!(
+            RuntimeGcBackend::parse("hosted"),
+            Some(RuntimeGcBackend::Hosted)
+        );
+        assert_eq!(RuntimeGcBackend::parse("4"), Some(RuntimeGcBackend::Hosted));
+        assert_eq!(RuntimeGcBackend::parse("unknown"), None);
     }
 
     #[test]

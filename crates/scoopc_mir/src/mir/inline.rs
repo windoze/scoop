@@ -187,7 +187,7 @@ impl InlineSnapshot {
                     target,
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             args,
                             ..
                         },
@@ -272,7 +272,7 @@ impl BlockCallableProvenance {
                 Some(CallableProvenance::KnownClosure(fn_ptr.clone()))
             }
             Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
+                kind: CallKind::Direct { callee_fqn, .. },
                 args,
                 ..
             } => {
@@ -416,7 +416,7 @@ fn try_expand_direct_call(
     let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
-    let CallKind::Direct { callee_fqn } = kind else {
+    let CallKind::Direct { callee_fqn, .. } = kind else {
         return None;
     };
     if callee_fqn == caller_fqn {
@@ -858,16 +858,20 @@ fn remap_rvalue(
             args: remap_call_args(args, local_operands, local_map)?,
             hidden_effects: hidden_effects.clone(),
         }),
-        Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
+        Rvalue::SizeOf { value_ty, .. } => Some(Rvalue::SizeOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::KindOf { value_ty } => Some(Rvalue::KindOf {
+        Rvalue::KindOf { value_ty, .. } => Some(Rvalue::KindOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::AlignOf { value_ty } => Some(Rvalue::AlignOf {
+        Rvalue::AlignOf { value_ty, .. } => Some(Rvalue::AlignOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
-        Rvalue::DescOf { value_ty } => Some(Rvalue::DescOf {
+        Rvalue::DescOf { value_ty, .. } => Some(Rvalue::DescOf {
+            site_id: fresh_cloned_site_id(next_site_id),
             value_ty: *value_ty,
         }),
         Rvalue::TypeMetadataLiteral(metadata) => {
@@ -949,8 +953,20 @@ fn remap_call_kind(
     direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
 ) -> Option<CallKind> {
     match kind {
-        CallKind::Direct { callee_fqn } => Some(CallKind::Direct {
+        CallKind::Direct {
+            callee_fqn,
+            stable_template_key,
+            stable_instance_key,
+            intrinsic_entry_name,
+            generic_type_args,
+            generic_eff_args,
+        } => Some(CallKind::Direct {
             callee_fqn: callee_fqn.clone(),
+            stable_template_key: stable_template_key.clone(),
+            stable_instance_key: stable_instance_key.clone(),
+            intrinsic_entry_name: intrinsic_entry_name.clone(),
+            generic_type_args: generic_type_args.clone(),
+            generic_eff_args: generic_eff_args.clone(),
         }),
         CallKind::FunValue { callee } => remap_known_callable_call_kind(
             callee,
@@ -989,6 +1005,11 @@ fn remap_known_callable_call_kind(
     match provenance {
         CallableProvenance::DirectFunction(callee_fqn) => Some(CallKind::Direct {
             callee_fqn: callee_fqn.clone(),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         }),
         CallableProvenance::KnownClosure(fn_ptr) => Some(CallKind::Closure {
             callee: remap_operand(callee, local_operands, local_map)?,
@@ -1369,6 +1390,11 @@ fun main(): Int {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "fixtures.inline.seed".to_string(),
+                            stable_template_key: None,
+                            stable_instance_key: None,
+                            intrinsic_entry_name: None,
+                            generic_type_args: Vec::new(),
+                            generic_eff_args: Vec::new(),
                         },
                         args: Vec::new(),
                         transport: call_transport(builtins.unit),
@@ -1400,6 +1426,11 @@ fun main(): Int {
                         site_id: SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "fixtures.inline.inner".to_string(),
+                            stable_template_key: None,
+                            stable_instance_key: None,
+                            intrinsic_entry_name: None,
+                            generic_type_args: Vec::new(),
+                            generic_eff_args: Vec::new(),
                         },
                         args: Vec::new(),
                         transport: call_transport(builtins.unit),
@@ -1529,7 +1560,7 @@ fun main(): Int {
                 let StatementKind::Assign {
                     value:
                         Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
+                            kind: CallKind::Direct { callee_fqn, .. },
                             ..
                         },
                     ..

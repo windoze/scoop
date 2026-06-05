@@ -479,6 +479,82 @@ pub(super) fn native_callable_direct_and_indirect_aggregate_return_share_target_
 }
 
 #[test]
+pub(super) fn release_hook_trampoline_loads_payload_fields_and_calls_target() {
+    let source = SourceFile::new_virtual(
+        "<mem>/release_hook_trampoline.scoop",
+        r#"
+package fixtures.releasehook
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_release_ptr_uint")
+fun releaseNative(raw: Ptr<Int>, tag: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.releasehook.releaseNative", args = ["raw", "tag"])
+class NativeResource(val raw: Ptr<Int>, val tag: UInt)
+
+class PlainResource(val raw: UInt, val tag: UInt)
+
+fun keepNative(raw: Ptr<Int>) {
+    val _native: NativeResource = NativeResource(raw, 7u)
+}
+
+fun keepPlain(raw: UInt) {
+    val _plain: PlainResource = PlainResource(11u, 13u)
+}
+
+fun main() {}
+"#,
+    );
+
+    let session = session_for_source(&source);
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let trampoline = function_ir_matching(&ir, "release hook trampoline", |header, function| {
+        header.contains("define internal void @__scoop_release_")
+            && function.contains("@scoop_test_release_ptr_uint")
+    });
+
+    assert!(
+        trampoline.contains("ptr %object"),
+        "release trampoline must receive the runtime object header pointer:\n{trampoline}"
+    );
+    assert!(
+        trampoline.contains("class_payload_gep") && trampoline.contains("class_field_gep"),
+        "release trampoline must GEP through full class object layout before loading fields:\n{trampoline}"
+    );
+    assert!(
+        trampoline.contains("release_hook_arg_raw")
+            && trampoline.contains("release_hook_arg_tag")
+            && trampoline.contains("call void @scoop_test_release_ptr_uint"),
+        "release trampoline must load args in annotation order and call the release target:\n{trampoline}"
+    );
+    assert!(
+        !trampoline.contains("@scoop_enter_native") && !trampoline.contains("@scoop_leave_native"),
+        "release trampoline runs in GC release context and must not insert ordinary native boundary calls:\n{trampoline}"
+    );
+
+    let release_descriptor_lines = ir
+        .lines()
+        .filter(|line| {
+            line.contains("%scoop.runtime.ScoopTypeDescriptor")
+                && line.contains("ptr @__scoop_release_")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        release_descriptor_lines.len(),
+        1,
+        "exactly the annotated class descriptor should point at a release trampoline:\n{ir}"
+    );
+    assert!(
+        release_descriptor_lines[0].contains("ptr null, ptr @__scoop_release_"),
+        "release_fn slot must be the descriptor field after trace_fn:\n{}",
+        release_descriptor_lines[0]
+    );
+}
+
+#[test]
 pub(super) fn managed_extern_direct_call_uses_ordinary_managed_contract() {
     assert_managed_extern_direct_call_uses_ordinary_managed_contract();
 }
@@ -999,7 +1075,7 @@ fun main(): Int {
 }
 
 #[test]
-pub(super) fn sync_mutex_runtime_calls_use_addrspace_1_object_pointers() {
+pub(super) fn sync_mutex_runtime_calls_use_raw_native_handle() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1018,12 +1094,15 @@ fun main(): Int {
 "#,
     );
 
-    let session = session_for_source(&source);
+    let session = Session::with_options(
+        SessionOptions::new().with_extra_sysroot_dependencies(["scoop.sync"]),
+    )
+    .unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@scoop_sync_mutex_create"),
-        "IR 应包含对 scoop_sync_mutex_create 的引用"
+        ir.contains("@scoop_sync_mutex_native_create"),
+        "IR 应包含对 scoop_sync_mutex_native_create 的引用"
     );
     assert!(
         ir.contains("addrspace(1)"),

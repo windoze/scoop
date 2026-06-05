@@ -124,8 +124,8 @@ pub(super) struct ResumeUnwindOrigin<'a> {
 pub(super) enum ClassCtorBoundarySource<'a> {
     ClassCtor {
         span: crate::span::Span,
-        ctor: &'a mir::ClassCtorCallMetadata,
-        args: &'a [mir::CallArg],
+        ctor: &'a crate::effect_lowered::LirClassCtorCallMetadata,
+        args: &'a [crate::effect_lowered::LirCallArg],
     },
     ObjectProperty {
         span: crate::span::Span,

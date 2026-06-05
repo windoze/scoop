@@ -17,11 +17,16 @@ use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::{
+    EffectRowTemplate as StableEffectRowTemplate, EffectTerm as StableEffectTerm,
+    NoTypeParamResolver, StableDefKey, StableInstanceKey, StableTemplateKey, canonical_type_text,
+};
 use crate::ty::{
-    BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
 };
 use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
+use scoopc_ids::StableCanonicalKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContinuationResumeReceiverRoute {
@@ -234,6 +239,9 @@ pub struct FunctionTargetContract {
     pub(crate) abi_identity: hir::CallableAbiIdentity,
     pub(crate) param_tys: Vec<TypeId>,
     pub(crate) return_ty: Option<TypeId>,
+    pub(crate) stable_template_key: Option<StableTemplateKey>,
+    pub(crate) stable_instance_key: Option<StableInstanceKey>,
+    pub(crate) intrinsic_entry_name: Option<String>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
@@ -252,12 +260,28 @@ impl FunctionTargetContract {
         &self.type_args
     }
 
+    pub fn eff_args(&self) -> &[EffectRow] {
+        &self.eff_args
+    }
+
     pub fn param_tys(&self) -> &[TypeId] {
         &self.param_tys
     }
 
     pub fn return_ty(&self) -> Option<TypeId> {
         self.return_ty
+    }
+
+    pub fn stable_template_key(&self) -> Option<&StableTemplateKey> {
+        self.stable_template_key.as_ref()
+    }
+
+    pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
+        self.stable_instance_key.as_ref()
+    }
+
+    pub fn intrinsic_entry_name(&self) -> Option<&str> {
+        self.intrinsic_entry_name.as_deref()
     }
 
     pub fn arg_binding(&self) -> Option<&CallArgBindingContract> {
@@ -272,6 +296,27 @@ pub struct MemberCallTargetContract {
     pub(crate) member_fqn: String,
     pub(crate) receiver_ty: TypeId,
     pub(crate) function: FunctionTargetContract,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateSiteBindingContract {
+    pub(crate) stable_template_key: StableTemplateKey,
+    pub(crate) type_args: Vec<TypeId>,
+    pub(crate) eff_args: Vec<EffectRow>,
+}
+
+impl TemplateSiteBindingContract {
+    pub fn stable_template_key(&self) -> &StableTemplateKey {
+        &self.stable_template_key
+    }
+
+    pub fn type_args(&self) -> &[TypeId] {
+        &self.type_args
+    }
+
+    pub fn eff_args(&self) -> &[EffectRow] {
+        &self.eff_args
+    }
 }
 
 impl MemberCallTargetContract {
@@ -315,6 +360,10 @@ impl ConstructorCallTargetContract {
 
     pub fn arg_mapping(&self) -> &[Option<usize>] {
         &self.arg_mapping
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
     }
 }
 
@@ -391,6 +440,8 @@ pub struct MirLoweringFacts {
     perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     handle_sites: HashMap<hir::CallSite, HandleSiteInfo>,
     call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
+    template_value_bindings: HashMap<hir::CallSite, TemplateSiteBindingContract>,
+    dispatch_candidate_keys: HashMap<hir::CallSite, Vec<StableInstanceKey>>,
     assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_call_sites: HashMap<hir::CallSite, hir::CtorCallInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
@@ -401,6 +452,7 @@ pub struct MirLoweringFacts {
     when_pat_binding_tys: HashMap<Span, TypeId>,
     nominal_kinds: HashMap<String, ast::TypeKind>,
     enum_has_payload: HashMap<String, bool>,
+    enum_variant_owner_fqns: HashMap<String, String>,
     top_level_fun_call_fqns: HashMap<hir::CallSite, String>,
     member_value_tys: HashMap<String, TypeId>,
     continuation_identity_return_funs: HashMap<String, usize>,

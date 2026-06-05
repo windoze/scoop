@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_arg_field_must_be_gc_free
+// EXPECT-ERROR: payload
+// EXPECT-ERROR: GC-free
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Payload(val value: Int)
+
+@NoGC
+fun gcFieldRelease(payload: Payload): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.gcFieldRelease", args = ["payload"])
+class GcFieldReleaseHost(val payload: Payload)

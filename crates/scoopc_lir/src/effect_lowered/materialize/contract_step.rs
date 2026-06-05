@@ -573,6 +573,9 @@ pub(crate) fn nominal_source_type_compatible(
     if builtin_string_source_type_compatible(types, local_ty, expected_ty) {
         return true;
     }
+    if matches!(types.kind(expected_ty), TypeKind::Ref(RefTypeKind::Any)) {
+        return matches!(types.kind(local_ty), TypeKind::Ref(_));
+    }
     let (local_nominal, expected_nominal) = match (types.kind(local_ty), types.kind(expected_ty)) {
         (
             TypeKind::Ref(RefTypeKind::Nominal(local_nominal)),
@@ -966,44 +969,4 @@ pub(crate) fn build_ordered_perform_payload_sources(
             )
         })
         .collect()
-}
-
-pub(crate) fn validate_source_slice_bounds(
-    root_fqn: &str,
-    site_id: SiteId,
-    kind: &'static str,
-    body: &Body,
-    source_slice: LateLoweredStateSlice,
-) -> Result<(), EffectLoweringError> {
-    let block = body
-        .blocks
-        .get(source_slice.block_id().as_u32() as usize)
-        .ok_or_else(|| {
-            invalid_boundary_operand_contract(
-                root_fqn,
-                site_id,
-                kind,
-                format!(
-                    "source slice 指向缺失的 canonical MIR block bb{}",
-                    source_slice.block_id().as_u32(),
-                ),
-            )
-        })?;
-    let start = source_slice.start_statement_index() as usize;
-    let end = source_slice.end_statement_index() as usize;
-    if start > end || end > block.stmts.len() {
-        return Err(invalid_boundary_operand_contract(
-            root_fqn,
-            site_id,
-            kind,
-            format!(
-                "source slice [{}..{}) 越界于 canonical MIR block bb{}（stmt_count={}）",
-                source_slice.start_statement_index(),
-                source_slice.end_statement_index(),
-                source_slice.block_id().as_u32(),
-                block.stmts.len(),
-            ),
-        ));
-    }
-    Ok(())
 }

@@ -14,6 +14,7 @@ use super::ir::{
     LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph,
     LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, StateId,
 };
+use super::lift::LirLiftContext;
 
 /// P5-T03 产出的 whole-function segmentation skeleton。
 pub(crate) struct LateLoweredSegmentation {
@@ -28,8 +29,9 @@ pub(crate) fn build_callable_segmentation(
     body: &Body,
     body_facts: &BodyEffectFacts,
     complete_ty: TypeId,
+    lift: &LirLiftContext<'_>,
 ) -> Result<LateLoweredSegmentation, EffectLoweringError> {
-    SegmentationBuilder::new(root_fqn, types, body, body_facts, complete_ty)?.build()
+    SegmentationBuilder::new(root_fqn, types, body, body_facts, complete_ty, lift)?.build()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -91,8 +93,16 @@ struct AnchorBinding {
 
 #[derive(Debug, Clone)]
 struct StateBlueprint {
-    source_slices: Vec<LateLoweredStateSlice>,
+    source_ranges: Vec<SourceRange>,
     terminator: StateBlueprintTerminator,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceRange {
+    block_id: BasicBlockId,
+    start_statement_index: u32,
+    end_statement_index: u32,
+    includes_terminator: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +139,7 @@ struct SegmentationBuilder<'a> {
     root_fqn: &'a str,
     types: &'a TypeStore,
     body: &'a Body,
+    lift: &'a LirLiftContext<'a>,
     complete_ty: TypeId,
     selected_boundaries: BTreeMap<BoundaryAnchor, SelectedBoundary>,
     cursor_ids: BTreeMap<StateCursor, StateId>,
@@ -148,6 +159,7 @@ impl<'a> SegmentationBuilder<'a> {
         body: &'a Body,
         body_facts: &BodyEffectFacts,
         complete_ty: TypeId,
+        lift: &'a LirLiftContext<'a>,
     ) -> Result<Self, EffectLoweringError> {
         let selected_boundaries = collect_selected_boundaries(root_fqn, body, body_facts)?;
         let entry_cursor = StateCursor::block_start(body.start);
@@ -161,6 +173,7 @@ impl<'a> SegmentationBuilder<'a> {
             root_fqn,
             types,
             body,
+            lift,
             complete_ty,
             selected_boundaries,
             cursor_ids,
@@ -257,10 +270,11 @@ impl<'a> SegmentationBuilder<'a> {
                 &boundary_ids_by_anchor,
                 self.complete_state,
             );
-            states.push(LateLoweredState::new(
+            states.push(LateLoweredState::new_with_source_slices(
                 state_id,
                 role,
-                blueprint.source_slices.clone(),
+                self.state_slices(&blueprint.source_ranges),
+                self.lift_state_statements(&blueprint.source_ranges),
                 terminator,
             ));
         }
@@ -318,12 +332,12 @@ impl<'a> SegmentationBuilder<'a> {
                 },
             );
             return Ok(StateBlueprint {
-                source_slices: vec![LateLoweredStateSlice::new(
-                    cursor.block,
-                    cursor.statement_index,
-                    statement_index as u32 + 1,
-                    false,
-                )],
+                source_ranges: vec![SourceRange {
+                    block_id: cursor.block,
+                    start_statement_index: cursor.statement_index,
+                    end_statement_index: statement_index as u32 + 1,
+                    includes_terminator: false,
+                }],
                 terminator: StateBlueprintTerminator::Suspend {
                     anchor,
                     resume_state,
@@ -350,14 +364,44 @@ impl<'a> SegmentationBuilder<'a> {
         let boundary_anchor = selected_boundary.as_ref().map(|_| anchor);
 
         Ok(StateBlueprint {
-            source_slices: vec![LateLoweredStateSlice::new(
-                cursor.block,
-                cursor.statement_index,
-                statement_len as u32,
-                true,
-            )],
+            source_ranges: vec![SourceRange {
+                block_id: cursor.block,
+                start_statement_index: cursor.statement_index,
+                end_statement_index: statement_len as u32,
+                includes_terminator: true,
+            }],
             terminator: self.build_terminator_blueprint(&block.terminator, boundary_anchor)?,
         })
+    }
+
+    fn lift_state_statements(
+        &self,
+        ranges: &[SourceRange],
+    ) -> Vec<super::instruction::LirStatement> {
+        let mut statements = Vec::new();
+        for range in ranges {
+            statements.extend(self.lift.lift_statement_range(
+                self.body,
+                range.block_id,
+                range.start_statement_index,
+                range.end_statement_index,
+            ));
+        }
+        statements
+    }
+
+    fn state_slices(&self, ranges: &[SourceRange]) -> Vec<LateLoweredStateSlice> {
+        ranges
+            .iter()
+            .map(|range| {
+                LateLoweredStateSlice::new(
+                    range.block_id,
+                    range.start_statement_index,
+                    range.end_statement_index,
+                    range.includes_terminator,
+                )
+            })
+            .collect()
     }
 
     fn build_terminator_blueprint(

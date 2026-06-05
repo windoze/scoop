@@ -2,7 +2,7 @@ MaterializedEffectFacts
 snapshot_binding:
   query_surface: PassView
   opt_level: O2
-  instance_count: 6
+  instance_count: 5
   canonical_body_fqns:
     - fixtures.mir.Base.ping
     - fixtures.mir.callInterface
@@ -140,7 +140,7 @@ body_facts:
         kind: Call
         call_kind: Interface
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir.IFace.foo)
+        target: BodylessDirect(fixtures.mir.IFace.foo)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>

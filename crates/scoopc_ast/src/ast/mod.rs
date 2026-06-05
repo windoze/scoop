@@ -157,6 +157,11 @@ pub struct File {
     /// - `arg_mapping[param_idx] = Some(arg_idx)` 表示该形参由调用点第 `arg_idx` 个显式实参提供，
     ///   `None` 表示由默认值补齐。
     pub(crate) typechecked_ctor_call_bindings: RefCell<HashMap<Span, CtorCallBinding>>,
+    /// typecheck 校验通过的 `@ReleaseHook` 合同（class FQN -> release hook binding）。
+    ///
+    /// 说明：该表只在 typecheck 成功路径写入，HIR lowering 直接消费它，避免 codegen 再从注解
+    /// surface 重新推断释放函数与字段列表。
+    pub(crate) release_hook_bindings: RefCell<HashMap<String, ReleaseHookBinding>>,
 }
 
 impl std::fmt::Debug for File {
@@ -387,6 +392,20 @@ impl File {
             .get(&span)
             .cloned()
     }
+
+    pub fn replace_release_hook_bindings(&self, bindings: HashMap<String, ReleaseHookBinding>) {
+        *self.release_hook_bindings.borrow_mut() = bindings;
+    }
+
+    pub fn record_release_hook_binding(&self, class_fqn: String, binding: ReleaseHookBinding) {
+        self.release_hook_bindings
+            .borrow_mut()
+            .insert(class_fqn, binding);
+    }
+
+    pub fn release_hook_bindings(&self) -> HashMap<String, ReleaseHookBinding> {
+        self.release_hook_bindings.borrow().clone()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -409,6 +428,7 @@ pub struct TopLevelFunCallBinding {
     pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
+    pub types_are_hir: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -445,6 +465,12 @@ pub struct CtorCallBinding {
     pub owner_fqn: String,
     pub ctor_span: Option<Span>,
     pub arg_mapping: Vec<Option<usize>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleaseHookBinding {
+    pub target_fqn: String,
+    pub arg_fields: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,33 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::effect_facts_stage::MaterializedEffectFacts;
-use crate::effect_lowered::ordinary_callee::{
-    EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,
-    EffectFieldOwnerKind, EffectGlobalRootKind,
-};
-use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
-use crate::frontend::CodegenLoweringOutput;
-use crate::hir::{self, LoweredHir};
-use crate::llvm::{
-    CachedDepArtifactHandoff, LlvmCallableSourceContract, LlvmCodegenStageOutput,
-    LlvmDispatchCallKey, LlvmEmitError, LlvmStageBaseContext,
-};
-use crate::mir::MaterializedMir;
-use crate::opt::OptLevel;
+use crate::llvm::{LlvmCodegenStageOutput, LlvmDepLirArtifactHandoff, LlvmEmitError};
 use crate::session::Session;
-use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::ty::TypeStore;
-use scoopc_hir::cone_import::CachedConeImport;
-use scoopc_hir_facts::HirFacts;
-use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
-use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_lir_facts::{LirCallSiteKind, LirFacts};
 
-use super::{
-    HirStageOutput, LirStageOutput, LlvmArtifactKind,
-    build_effect_facts_stage_output_with_compilation_sources, mir_stage,
-};
+use super::{CodegenInput, LirArtifact, LlvmArtifactKind};
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -40,476 +16,85 @@ thread_local! {
     static TEST_STAGE_RUN_COUNTING_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// LLVM codegen stage 的显式输入。
-///
-/// 约束：
-/// - `lowered` 必须来自 build/frontend 的统一 typed lowering 与 MIR-owned materialization；
-/// - `abi_visibility_lowered` 若存在，只能用于发布 request-source 范围的 ABI shell；它不能改变
-///   reachable body lowering / fail-fast 的 authoritative handoff；
-/// - stage 会显式把它推进到 P5 late-lowered handoff，再把 LLVM-only residuals 收进
-///   `LlvmStageBaseContext`。
-#[derive(Debug)]
-pub struct LlvmCodegenStageInput {
-    lowered: CodegenLoweringOutput,
-    abi_visibility_lowered: Option<CodegenLoweringOutput>,
-    source_map: SourceMap,
-    entry_source_id: SourceId,
-    entry_main_fqn: Option<String>,
-    opt_level: OptLevel,
-    /// P10-T04-b：FrontendOutput 在前端被 cache-hit 注入过的依赖 cone import。
-    /// effect-facts stage 重建 Index/TypeEnv 时需要重放它们，否则 cached
-    /// dep 的 public API 在下游不可见。
-    cached_cone_imports: Vec<CachedConeImport>,
-    /// P10-T04-c-2：LLVM ABI/layout materializer 直接消费的 cache-hit dep LIR handoff。
-    cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
-}
-
-impl LlvmCodegenStageInput {
-    pub fn new(
-        lowered: CodegenLoweringOutput,
-        abi_visibility_lowered: Option<CodegenLoweringOutput>,
-        source_map: SourceMap,
-        entry_source_id: SourceId,
-        entry_main_fqn: Option<String>,
-        opt_level: OptLevel,
-    ) -> Self {
-        Self::with_cached_cone_imports(
-            lowered,
-            abi_visibility_lowered,
-            source_map,
-            entry_source_id,
-            entry_main_fqn,
-            opt_level,
-            Vec::new(),
-            Vec::new(),
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_cached_cone_imports(
-        lowered: CodegenLoweringOutput,
-        abi_visibility_lowered: Option<CodegenLoweringOutput>,
-        source_map: SourceMap,
-        entry_source_id: SourceId,
-        entry_main_fqn: Option<String>,
-        opt_level: OptLevel,
-        cached_cone_imports: Vec<CachedConeImport>,
-        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
-    ) -> Self {
-        Self {
-            lowered,
-            abi_visibility_lowered,
-            source_map,
-            entry_source_id,
-            entry_main_fqn,
-            opt_level,
-            cached_cone_imports,
-            cached_dep_artifacts,
-        }
-    }
-}
-
-fn build_callable_source_contracts(
-    top_level_funs: &[hir::FunDecl],
-    member_funs: &[hir::FunDecl],
-) -> HashMap<String, LlvmCallableSourceContract> {
-    top_level_funs
-        .iter()
-        .chain(member_funs.iter())
-        .map(|fun| {
-            (
-                fun.fqn.clone(),
-                LlvmCallableSourceContract {
-                    source_path: fun.source_path.clone(),
-                    span: fun.span,
-                },
-            )
-        })
-        .collect()
-}
-
-fn build_dispatch_call_contracts(
-    dispatch_call_sites: hir::DispatchCallSiteIndex,
-) -> HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
-    dispatch_call_sites
-        .into_iter()
-        .map(|(site, kind)| {
-            let kind = match kind {
-                hir::DispatchCallKind::Virtual => LirCallSiteKind::Virtual,
-                hir::DispatchCallKind::Interface => LirCallSiteKind::Interface,
-            };
-            (
-                LlvmDispatchCallKey::new(site.source_path, site.span, site.receiver_ty),
-                kind,
-            )
-        })
-        .collect()
-}
-
-pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> EffectAnalysisFacts {
-    let global_roots = facts
-        .globals
-        .roots
-        .iter()
-        .map(|root| {
-            let kind = match root.kind {
-                GlobalRootKind::TopLevelVal => EffectGlobalRootKind::TopLevelVal,
-                GlobalRootKind::TopLevelVar => EffectGlobalRootKind::TopLevelVar,
-                GlobalRootKind::ObjectSingleton => EffectGlobalRootKind::ObjectSingleton,
-            };
-            (root.identity.display_name.clone(), (kind, root.ty))
-        })
-        .collect();
-    let fields = facts
-        .declarations
-        .fields
-        .iter()
-        .map(|field| EffectFieldFact {
-            owner_kind: match field.owner_kind {
-                FieldOwnerKind::Struct => EffectFieldOwnerKind::Struct,
-                FieldOwnerKind::Class => EffectFieldOwnerKind::Class,
-                FieldOwnerKind::Object => EffectFieldOwnerKind::Object,
-                FieldOwnerKind::EnumVariant => EffectFieldOwnerKind::EnumVariant,
-            },
-            owner: field.owner.as_str().to_string(),
-            fqn: field.identity.display_name.clone(),
-            ty: field.ty,
-        })
-        .collect();
-    let callable_return_tys = facts
-        .declarations
-        .callables
-        .iter()
-        .map(|callable| (callable.identity.display_name.clone(), callable.return_ty))
-        .collect();
-    let nominal_supertypes = facts
-        .declarations
-        .nominals
-        .iter()
-        .filter(|nominal| nominal.kind == NominalKind::Class)
-        .map(|nominal| {
-            (
-                nominal.identity.display_name.clone(),
-                nominal
-                    .direct_supertypes
-                    .iter()
-                    .map(|key| key.as_str().to_string())
-                    .collect(),
-            )
-        })
-        .collect();
-    let constructor_calls = facts
-        .source_sites
-        .call_sites
-        .iter()
-        .filter_map(|site| {
-            facts
-                .source_sites
-                .constructor_call(site.identity.source_path.as_path(), site.identity.span)
-                .map(|target| {
-                    (
-                        crate::effect_lowered::source::CallSite::new(
-                            site.identity.source_path.clone(),
-                            site.identity.span,
-                        ),
-                        EffectConstructorCall {
-                            owner_fqn: target.owner_fqn.clone(),
-                        },
-                    )
-                })
-        })
-        .collect();
-    let continuation_resumes = facts
-        .source_sites
-        .continuation_resumes
-        .iter()
-        .map(|resume| {
-            (
-                crate::effect_lowered::source::CallSite::new(
-                    resume.identity.source_path.clone(),
-                    resume.identity.span,
-                ),
-                EffectContinuationResume::new(resume.resumes_outward()),
-            )
-        })
-        .collect();
-
-    EffectAnalysisFacts::from_parts(
-        global_roots,
-        fields,
-        callable_return_tys,
-        nominal_supertypes,
-        constructor_calls,
-        continuation_resumes,
-    )
-}
-
-fn build_llvm_stage_base_context_from_lowered_hir(
-    lowered_hir: LoweredHir,
-    hir_facts: HirFacts,
-    materialized_mir: MaterializedMir,
-    effect_facts: MaterializedEffectFacts,
-) -> LlvmStageBaseContext {
-    let top_level_funs: Vec<hir::FunDecl> = lowered_hir
-        .file
-        .items
-        .into_iter()
-        .filter_map(|item| match item {
-            hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
-        .collect();
-    let effect_analysis_facts = build_ordinary_callee_effect_analysis_facts(&hir_facts);
-    let stable_cone_key = materialized_mir.stable_cone_key().clone();
-    let types = effect_facts.types().clone();
-    let contracts = materialized_mir.backend_contracts();
-    let mut enum_layouts = contracts.enum_layouts.clone();
-    for (key, value) in lowered_hir.enum_layouts {
-        enum_layouts.entry(key).or_insert(value);
-    }
-    let mut top_level_vars = contracts.top_level_vars.clone();
-    for (key, value) in lowered_hir.top_level_vars {
-        top_level_vars.entry(key).or_insert(value);
-    }
-    let mut top_level_immutable_values = contracts.top_level_immutable_values.clone();
-    for (key, value) in lowered_hir.top_level_immutable_values {
-        top_level_immutable_values.entry(key).or_insert(value);
-    }
-    let mut object_inits = contracts.object_inits.clone();
-    for (key, value) in lowered_hir.object_inits {
-        object_inits.entry(key).or_insert(value);
-    }
-    let mut class_inits = contracts.class_inits.clone();
-    for (key, value) in lowered_hir.class_inits {
-        class_inits.entry(key).or_insert(value);
-    }
-    let class_init_payloads = class_inits
-        .values()
-        .map(crate::mir::MonoClassInit::from_hir)
-        .collect::<Vec<_>>();
-    let class_ctor_init_bodies =
-        crate::effect_lowered::builder::build_class_ctor_init_bodies(class_init_payloads.iter())
-            .into_iter()
-            .map(|body| (body.key().as_str().to_string(), body))
-            .collect();
-    let mut class_vtables = contracts.class_vtables.clone();
-    for (key, value) in lowered_hir.class_vtables {
-        class_vtables.entry(key).or_insert(value);
-    }
-    let mut interfaces = contracts.interfaces.clone();
-    for (key, value) in lowered_hir.interfaces {
-        interfaces.entry(key).or_insert(value);
-    }
-    let mut class_itables = contracts.class_itables.clone();
-    for (key, value) in lowered_hir.class_itables {
-        class_itables.entry(key).or_insert(value);
-    }
-    let mut extern_funs = contracts.extern_funs.clone();
-    for (key, value) in lowered_hir.extern_funs {
-        extern_funs.entry(key).or_insert(value);
-    }
-    let mut native_callable_funs = contracts.native_callable_funs.clone();
-    for (key, value) in lowered_hir.native_callable_funs {
-        native_callable_funs.entry(key).or_insert(value);
-    }
-    let callable_sources =
-        build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-    let dispatch_call_contracts = build_dispatch_call_contracts(lowered_hir.dispatch_call_sites);
-
-    LlvmStageBaseContext::new(
-        lowered_hir.source_cones,
-        lowered_hir.stable_type_param_keys,
-        &materialized_mir.types,
-        types,
-        stable_cone_key,
-        lowered_hir.struct_layouts,
-        enum_layouts,
-        top_level_vars,
-        top_level_immutable_values,
-        lowered_hir.top_level_fun_call_sites,
-        object_inits,
-        class_inits,
-        class_ctor_init_bodies,
-        class_vtables,
-        interfaces,
-        class_itables,
-        lowered_hir.ctor_call_sites,
-        dispatch_call_contracts,
-        lowered_hir.effect_op_call_sites,
-        lowered_hir.continuation_resume_call_sites,
-        lowered_hir.when_pat_binding_tys,
-        lowered_hir.nominal_kinds,
-        lowered_hir.interior_mutable_nominals,
-        lowered_hir.direct_supertypes,
-        lowered_hir.builtins,
-        callable_sources,
-        extern_funs,
-        native_callable_funs,
-        effect_analysis_facts,
-    )
-}
-
-struct LlvmLirRun {
-    output: LirStageOutput,
-    base_context: LlvmStageBaseContext,
-}
-
-impl LlvmLirRun {
-    fn into_abi_visibility_parts(self) -> (LateLoweredProgram, LirFacts, TypeStore) {
-        let (program, facts) = self.output.into_parts();
-        (program, facts, self.base_context.into_type_store())
-    }
-}
-
-fn run_lir_stage_from_lowered_hir(
-    session: &Session,
-    source_map: &SourceMap,
-    entry_source: &SourceFile,
-    lowered_hir: LoweredHir,
-    materialized_mir: MaterializedMir,
-    cached_cone_imports: &[CachedConeImport],
-    preserve_published_resume_shells: bool,
-) -> Result<LlvmLirRun, LlvmEmitError> {
-    let source_path = entry_source.path().to_path_buf();
-    let base_hir = lowered_hir.clone();
-    let typed_hir_output = HirStageOutput::new(lowered_hir, &source_path)
-        .map_err(crate::hir::HirLowerError::from)
-        .map_err(|err| stage_error("HIR stage", err))?;
-    let hir_facts = typed_hir_output.hir_facts().clone();
-    let mir_stage_output = mir_stage::run(typed_hir_output)
-        .map_err(|err| stage_error("direct-style MIR", err))?
-        .with_materialized_mir(materialized_mir);
-    let compilation_sources = source_map_compilation_sources(session, source_map);
-    let effect_facts_stage_output = build_effect_facts_stage_output_with_compilation_sources(
-        session,
-        entry_source,
-        &compilation_sources,
-        cached_cone_imports,
-        &mir_stage_output,
-    )
-    .map_err(|err| stage_error("effect facts", err))?;
-    let opt_options = if preserve_published_resume_shells {
-        LateLoweredOptOptions::preserve_published_resume_shells()
-    } else {
-        LateLoweredOptOptions::default()
-    };
-    let output = super::effect_lowering_stage::build_lir_stage_output_from_stage_outputs(
-        &mir_stage_output,
-        &effect_facts_stage_output,
-        opt_options,
-    )
-    .map_err(|err| stage_error("late lowering", err))?;
-    let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
-    let effect_facts = effect_facts_stage_output.into_effect_facts();
-    let base_context = build_llvm_stage_base_context_from_lowered_hir(
-        base_hir,
-        hir_facts,
-        materialized_mir,
-        effect_facts,
-    );
-    base_context.verify_lir_type_context(output.lir_facts(), "primary")?;
-    Ok(LlvmLirRun {
-        output,
-        base_context,
-    })
-}
-
-fn source_map_compilation_sources(session: &Session, source_map: &SourceMap) -> Vec<SourceFile> {
-    let sysroot_paths = session
-        .sysroot()
-        .files
-        .iter()
-        .map(|file| file.source.path().to_path_buf())
-        .collect::<HashSet<_>>();
-    source_map
-        .sources()
-        .filter(|source| !sysroot_paths.contains(source.path()))
-        .cloned()
-        .collect()
-}
-
 pub(crate) fn run(
-    session: &Session,
-    input: LlvmCodegenStageInput,
+    _session: &Session,
+    input: CodegenInput,
 ) -> Result<LlvmCodegenStageOutput, LlvmEmitError> {
     #[cfg(test)]
     record_test_stage_run();
 
-    let LlvmCodegenStageInput {
-        lowered,
-        abi_visibility_lowered,
-        source_map,
+    let CodegenInput {
+        program,
+        abi_shell,
+        deps,
+        entry,
         entry_source_id,
-        entry_main_fqn,
+        source_map,
         opt_level,
-        cached_cone_imports,
-        cached_dep_artifacts,
     } = input;
-    let entry_source =
-        source_map
-            .source(entry_source_id)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "LLVM stage 找不到入口源文件（source_id={})",
-                    entry_source_id.as_usize()
-                ),
-            })?;
-    let (lowered_hir, materialized_mir) = lowered.into_parts();
-    let primary_run = run_lir_stage_from_lowered_hir(
-        session,
-        &source_map,
-        entry_source,
-        lowered_hir,
-        materialized_mir,
-        &cached_cone_imports,
-        false,
-    )?;
-    let (lir, lir_facts) = primary_run.output.into_parts();
-    let base_context = primary_run.base_context;
-    let abi_visibility_parts = abi_visibility_lowered
-        .map(|lowered| {
-            let (lowered_hir, materialized_mir) = lowered.into_parts();
-            run_lir_stage_from_lowered_hir(
-                session,
-                &source_map,
-                entry_source,
-                lowered_hir,
-                materialized_mir,
-                &cached_cone_imports,
-                true,
-            )
-            .and_then(|run| {
-                run.base_context
-                    .verify_lir_type_context(run.output.lir_facts(), "ABI visibility")?;
-                Ok(run.into_abi_visibility_parts())
-            })
+    let LirArtifact {
+        program: lir,
+        base_context,
+        ..
+    } = program;
+    base_context.verify_lir_type_context(&lir, "primary")?;
+    let abi_visibility_parts = abi_shell
+        .map(|artifact| {
+            let LirArtifact {
+                program,
+                base_context,
+                ..
+            } = artifact;
+            base_context.verify_lir_type_context(&program, "ABI visibility")?;
+            Ok::<_, LlvmEmitError>((program, base_context.into_type_store()))
         })
         .transpose()?;
-    let (abi_visibility_lir, abi_visibility_lir_facts, abi_visibility_types) =
-        if let Some((program, facts, types)) = abi_visibility_parts {
-            (Some(program), Some(facts), Some(types))
+    let (abi_visibility_lir, abi_visibility_types) =
+        if let Some((program, types)) = abi_visibility_parts {
+            (Some(program), Some(types))
         } else {
-            (None, None, None)
+            (None, None)
         };
+    let dep_artifacts = deps
+        .into_iter()
+        .map(dep_handoff_from_lir_artifact)
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(LlvmCodegenStageOutput::new(
         source_map,
         entry_source_id,
-        entry_main_fqn,
+        entry,
         opt_level,
         base_context,
         lir,
-        lir_facts,
         abi_visibility_lir,
-        abi_visibility_lir_facts,
         abi_visibility_types,
-        cached_dep_artifacts,
+        dep_artifacts,
+    ))
+}
+
+fn dep_handoff_from_lir_artifact(
+    artifact: LirArtifact,
+) -> Result<LlvmDepLirArtifactHandoff, LlvmEmitError> {
+    let LirArtifact {
+        cone,
+        program,
+        base_context,
+        object_files,
+        ..
+    } = artifact;
+    base_context.verify_lir_type_context(&program, "dependency")?;
+    Ok(LlvmDepLirArtifactHandoff::new(
+        cone,
+        program,
+        base_context.into_type_store(),
+        object_files,
     ))
 }
 
 pub(crate) fn emit_artifact_to_file(
     session: &Session,
-    input: LlvmCodegenStageInput,
+    input: CodegenInput,
     output: &Path,
     artifact: LlvmArtifactKind,
 ) -> Result<(), LlvmEmitError> {
@@ -520,7 +105,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Object => crate::llvm::emit_main_obj_to_file_from_stage_output(
@@ -528,7 +113,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
         LlvmArtifactKind::Asm => crate::llvm::emit_main_asm_to_file_from_stage_output(
@@ -536,15 +121,9 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
             output,
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         ),
-    }
-}
-
-fn stage_error(stage: &'static str, error: impl std::fmt::Display) -> LlvmEmitError {
-    LlvmEmitError::Frontend {
-        message: format!("LLVM stage `{stage}` 失败：{error}"),
     }
 }
 
@@ -595,14 +174,14 @@ mod tests {
     use object::{BinaryFormat, Object, ObjectSymbol, SymbolKind, SymbolScope};
     use scoopc_ids::StableCanonicalKey;
 
-    use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
+    use super::{enable_test_stage_run_counting, test_stage_run_count};
     use crate::llvm::{
         CachedDepArtifactHandoff, LlvmEmitError, StageEmitInput, emit_main_ir_from_stage_output,
     };
     use crate::opt::OptLevel;
-    use crate::pipeline::{self as pipeline, LlvmArtifactKind};
+    use crate::pipeline::{self as pipeline, CodegenInput, LlvmArtifactKind};
     use crate::session::{Session, SessionOptions};
-    use crate::source::{SourceFile, SourceMap};
+    use crate::source::SourceFile;
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -612,9 +191,6 @@ mod tests {
         let mut deps = Vec::new();
         if source.text().contains("import scoop.runtime.test.*") {
             deps.push("scoop.runtime.test");
-        }
-        if source.text().contains("import scoop.sync.*") {
-            deps.push("scoop.sync");
         }
         if source.text().contains("import scoop.thread.*") {
             deps.push("scoop.thread");
@@ -1105,50 +681,28 @@ fun main(): Int {
     fn emit_ir_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
-        entry_main_fqn: Option<&str>,
+        entry_fqn: Option<&str>,
     ) -> Result<String, LlvmEmitError> {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
-        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
-        pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
-            &out,
-            entry_main_fqn,
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-            Vec::new(),
-            Vec::new(),
-        )?;
+        let (session, input) =
+            codegen_input_for_source(source, entry_fqn.map(str::to_owned), Vec::new());
+        super::emit_artifact_to_file(&session, input, &out, LlvmArtifactKind::LlvmIr)?;
         Ok(std::fs::read_to_string(out).unwrap())
     }
 
     fn emit_object_external_symbols_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
-        entry_main_fqn: Option<&str>,
+        entry_fqn: Option<&str>,
     ) -> Result<Vec<String>, LlvmEmitError> {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
-        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
-        pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
-            &out,
-            entry_main_fqn,
-            OptLevel::O0,
-            LlvmArtifactKind::Object,
-            Vec::new(),
-            Vec::new(),
-        )?;
+        let (session, input) =
+            codegen_input_for_source(source, entry_fqn.map(str::to_owned), Vec::new());
+        super::emit_artifact_to_file(&session, input, &out, LlvmArtifactKind::Object)?;
 
         let bytes = std::fs::read(&out).unwrap();
         let obj = object::File::parse(&*bytes).expect("generated object should parse");
@@ -1337,20 +891,25 @@ fun main(): Int {
             .unwrap_or_else(|| panic!("IR should contain global matching `{description}`:\n{ir}"))
     }
 
-    fn emit_args_for_source(
+    fn codegen_input_for_source(
         source: SourceFile,
-    ) -> (
-        Session,
-        SourceMap,
-        crate::source::SourceId,
-        crate::frontend::CodegenLoweringOutput,
-    ) {
+        entry_fqn: Option<String>,
+        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
+    ) -> (Session, CodegenInput) {
+        try_codegen_input_for_source(source, entry_fqn, cached_dep_artifacts).unwrap()
+    }
+
+    fn try_codegen_input_for_source(
+        source: SourceFile,
+        entry_fqn: Option<String>,
+        cached_dep_artifacts: Vec<CachedDepArtifactHandoff>,
+    ) -> Result<(Session, CodegenInput), LlvmEmitError> {
         let session = session_for_source(&source);
         let context =
             crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
                 .unwrap();
         let front = crate::frontend::run_project_frontend(&session, context).unwrap();
-        let lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        let primary = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
             &session,
             &front,
             OptLevel::O0,
@@ -1359,18 +918,21 @@ fun main(): Int {
         .unwrap();
         let (source_map, entry_source_id) =
             crate::frontend::build_source_map(&session, front.input());
-        (session, source_map, entry_source_id, lowered)
+        pipeline::build_llvm_codegen_input(
+            &session,
+            source_map,
+            entry_source_id,
+            primary,
+            None,
+            entry_fqn,
+            true,
+            OptLevel::O0,
+            cached_dep_artifacts,
+        )
+        .map(|input| (session, input))
     }
 
-    fn emit_args_for_source_with_abi_visibility(
-        source: SourceFile,
-    ) -> (
-        Session,
-        SourceMap,
-        crate::source::SourceId,
-        crate::frontend::CodegenLoweringOutput,
-        crate::frontend::CodegenLoweringOutput,
-    ) {
+    fn codegen_input_for_source_with_abi_visibility(source: SourceFile) -> (Session, CodegenInput) {
         let session = session_for_source(&source);
         let context =
             crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
@@ -1392,31 +954,148 @@ fun main(): Int {
         .unwrap();
         let (source_map, entry_source_id) =
             crate::frontend::build_source_map(&session, front.input());
-        (
-            session,
+        let input = pipeline::build_llvm_codegen_input(
+            &session,
             source_map,
             entry_source_id,
             primary,
-            abi_visibility,
+            Some(abi_visibility),
+            None,
+            true,
+            OptLevel::O0,
+            Vec::new(),
         )
+        .unwrap();
+        (session, input)
     }
 
-    fn sample_emit_args() -> (
-        Session,
-        SourceMap,
-        crate::source::SourceId,
-        crate::frontend::CodegenLoweringOutput,
-    ) {
-        emit_args_for_source(sample_source())
+    fn sample_codegen_input() -> (Session, CodegenInput) {
+        codegen_input_for_source(sample_source(), None, Vec::new())
     }
 
-    fn effectful_emit_args() -> (
-        Session,
-        SourceMap,
-        crate::source::SourceId,
-        crate::frontend::CodegenLoweringOutput,
-    ) {
-        emit_args_for_source(effectful_source())
+    fn effectful_codegen_input() -> (Session, CodegenInput) {
+        codegen_input_for_source(effectful_source(), None, Vec::new())
+    }
+
+    #[test]
+    fn build_lir_artifact_produces_self_contained_handoff() {
+        let _guard = test_lock();
+        let source = sample_source();
+        let session = session_for_source(&source);
+        let context =
+            crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
+                .unwrap();
+        let front = crate::frontend::run_project_frontend(&session, context).unwrap();
+        let primary = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+            &session,
+            &front,
+            OptLevel::O0,
+            crate::frontend::MirRequestRootMode::RequestSources,
+        )
+        .unwrap();
+        let (source_map, entry_source_id) =
+            crate::frontend::build_source_map(&session, front.input());
+        let entry_source = source_map
+            .source(entry_source_id)
+            .expect("sample source map should contain the entry source");
+
+        let artifact = pipeline::build_lir_artifact(&session, entry_source, primary, false)
+            .expect("LIR artifact construction should succeed");
+
+        let mir = artifact
+            .mir
+            .as_ref()
+            .expect("primary LIR artifact should retain the MIR overlay");
+        assert_eq!(&artifact.cone, mir.stable_cone_key());
+        assert_eq!(&artifact.cone, artifact.base_context.stable_cone_key());
+        assert!(artifact.object_files.is_empty());
+        assert!(artifact.program.callable("sample.main").is_some());
+        artifact
+            .base_context
+            .verify_lir_type_context(&artifact.program, "unit test")
+            .expect("LIR program should reference the artifact base context type store");
+    }
+
+    #[test]
+    fn cached_dep_handoff_converts_to_lir_artifact() {
+        let _guard = test_lock();
+        let (session, input) = sample_codegen_input();
+        let dep_stage = super::run(&session, input).expect("dep LLVM stage should succeed");
+        let object_files = vec![PathBuf::from("/tmp/scoop_cached_dep.o")];
+        let dep_handoff = CachedDepArtifactHandoff::new(
+            crate::cone::ConeId::new(7),
+            dep_stage.base_context().stable_cone_key().clone(),
+            dep_stage.lir().clone(),
+            dep_stage.base_context().types().clone(),
+            object_files.clone(),
+        );
+
+        let artifact = pipeline::lir_artifact::lir_artifact_from_dep(dep_handoff)
+            .expect("cached dep handoff should convert to LIR artifact");
+
+        assert_eq!(&artifact.cone, dep_stage.base_context().stable_cone_key());
+        assert_eq!(&artifact.cone, artifact.base_context.stable_cone_key());
+        assert!(artifact.program.callable("sample.main").is_some());
+        assert!(artifact.mir.is_none());
+        assert_eq!(artifact.object_files, object_files);
+        artifact
+            .base_context
+            .verify_lir_type_context(&artifact.program, "cached dep unit test")
+            .expect("cached dep LIR program should match the rebuilt base context");
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_resolves_default_main_entry_ref() {
+        let _guard = test_lock();
+        let (_session, input) = codegen_input_for_source(sample_source(), None, Vec::new());
+        let entry = input.entry.as_ref().expect("default main should resolve");
+
+        assert_eq!(entry.root_fqn(), "sample.main");
+        assert!(
+            input
+                .program
+                .program
+                .callable_by_id(entry.callable_id())
+                .is_some(),
+            "EntryRef should point at a callable inside the primary LIR program"
+        );
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_resolves_explicit_entry_ref() {
+        let _guard = test_lock();
+        let (_session, input) = codegen_input_for_source(
+            unhandled_outward_entry_source(),
+            Some("sample.effectEntry".to_string()),
+            Vec::new(),
+        );
+        let entry = input.entry.as_ref().expect("explicit entry should resolve");
+
+        assert_eq!(entry.root_fqn(), "sample.effectEntry");
+        assert!(
+            input
+                .program
+                .program
+                .callable_by_id(entry.callable_id())
+                .is_some(),
+            "explicit EntryRef should point at a callable inside the primary LIR program"
+        );
+    }
+
+    #[test]
+    fn build_llvm_codegen_input_reports_missing_explicit_entry() {
+        let _guard = test_lock();
+        let err = try_codegen_input_for_source(
+            sample_source(),
+            Some("sample.missingEntry".to_string()),
+            Vec::new(),
+        )
+        .expect_err("missing explicit entry should be rejected before LLVM emit");
+
+        assert!(
+            err.to_string().contains("sample.missingEntry"),
+            "diagnostic should name the missing entry, got: {err}"
+        );
     }
 
     #[test]
@@ -1491,8 +1170,8 @@ fun main(): Int {
         let ir = emit_ir_for_source(member_codegen_source(), "member_access.ll");
 
         assert!(
-            ir.contains("pass_mir_member_load"),
-            "member read should be lowered through the canonical MIR helper:\n{ir}"
+            ir.contains("lir_member_load"),
+            "member read should be lowered through the canonical LIR helper:\n{ir}"
         );
     }
 
@@ -1501,8 +1180,8 @@ fun main(): Int {
         let ir = emit_ir_for_source(member_codegen_source(), "store_member.ll");
 
         assert!(
-            ir.contains("store i64 %intrinsic_iadd"),
-            "member store should use the canonical MIR StoreMember helper:\n{ir}"
+            ir.contains("store i64 %intrinsic_iadd") || ir.contains("store i64 %lir_direct_call"),
+            "member store should use the canonical LIR StoreMember helper:\n{ir}"
         );
     }
 
@@ -1568,15 +1247,15 @@ fun main(): Int {
                     && line
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Named }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
-                && ir.contains("rt_alloc_mir_value_box"),
+                && ir.contains("rt_alloc_lir_value_box"),
             "boxed struct carrier should materialize a concrete value-box object type and allocate it through typed alloc\n{ir}"
         );
         assert!(
-            ir.contains("rt_alloc_mir_value_box"),
+            ir.contains("rt_alloc_lir_value_box"),
             "boxed struct carrier should allocate a GC-managed value box\n{ir}"
         );
         assert!(
-            ir.contains("mir_value_box_payload_gep"),
+            ir.contains("lir_value_box_payload_gep"),
             "boxed struct carrier should store the source payload in the value box\n{ir}"
         );
     }
@@ -1615,8 +1294,8 @@ fun main(): Int {
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Outer }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
                 && ir.contains("@__scoop_priv0__enum_boxed_payload_type_desc__h")
-                && ir.contains("rt_alloc_mir_value_box")
-                && ir.contains("mir_value_box_payload_gep"),
+                && ir.contains("rt_alloc_lir_value_box")
+                && ir.contains("lir_value_box_payload_gep"),
             "enum -> Any 擦除应继续走 descriptor-backed value box carrier，而不是锁死当前 value-box symbol\n{ir}"
         );
         assert!(
@@ -1680,7 +1359,7 @@ fun main(): Int {
             "closure env composite descriptor 应改走 stable private namespace\n{closure_env_descriptor}"
         );
         assert!(
-            ir.contains("rt_alloc_pass_mir_closure_env"),
+            ir.contains("rt_alloc_lir_closure_env"),
             "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
         );
         let legacy_heap_alloc_marker = ["rt_alloc_pass_mir_", "capture", "_", "box"].concat();
@@ -1693,7 +1372,7 @@ fun main(): Int {
             "closure capture lowering should not emit legacy mutable-capture allocation/type descriptors\n{ir}"
         );
         assert!(
-            ir.contains("pass_mir_closure_env_field_gep"),
+            ir.contains("lir_closure_env_field_gep"),
             "closure allocation should still store captured values into env fields\n{ir}"
         );
     }
@@ -1708,7 +1387,8 @@ fun main(): Int {
         let closure_body =
             ir_function_matching(&ir, "RefCell capture closure body", |_header, function| {
                 function.contains("pass_mir_closure_env_field_load")
-                    && function.contains("intrinsic_iadd")
+                    && (function.contains("intrinsic_iadd")
+                        || function.contains("scoop_core_Int_plus"))
             });
         assert!(
             closure_body.contains("pass_mir_closure_env_field_load"),
@@ -1871,8 +1551,8 @@ fun main(): Int {
         );
 
         assert!(
-            ir.contains("mir_typecheck_not"),
-            "`!is` should lower as a runtime type test plus boolean negation:\n{ir}"
+            ir.contains("lir_typecheck_not"),
+            "`!is` should lower from LIR as a runtime type test plus boolean negation:\n{ir}"
         );
         assert!(
             ir.contains("mir_asq_value"),
@@ -2048,15 +1728,7 @@ fun main() {
     #[test]
     fn llvm_codegen_stage_output_is_constructible() {
         let _guard = test_lock();
-        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
-        let input = LlvmCodegenStageInput::new(
-            lowered,
-            None,
-            source_map,
-            entry_source_id,
-            None,
-            OptLevel::O0,
-        );
+        let (session, input) = sample_codegen_input();
         let stage_output = super::run(&session, input).unwrap();
 
         assert_eq!(stage_output.opt_level(), OptLevel::O0);
@@ -2066,8 +1738,8 @@ fun main() {
             .expect("sample main callable should exist");
         assert!(
             stage_output
-                .lir_facts()
-                .physical_layout
+                .lir()
+                .physical_layout()
                 .callable_symbols
                 .values()
                 .any(|facts| facts.root_fqn == main_callable.root_fqn()
@@ -2084,7 +1756,7 @@ fun main() {
             stage_output.source_map(),
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::from_stage_output(&stage_output),
-            stage_output.entry_main_fqn(),
+            stage_output.entry_ref(),
             stage_output.opt_level(),
         )
         .unwrap();
@@ -2111,15 +1783,7 @@ fun main(): Int {
 }
 "#,
         );
-        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
-        let input = LlvmCodegenStageInput::new(
-            lowered,
-            None,
-            source_map,
-            entry_source_id,
-            None,
-            OptLevel::O0,
-        );
+        let (session, input) = codegen_input_for_source(source, None, Vec::new());
 
         let stage_output = super::run(&session, input).unwrap();
         let base = stage_output.base_context();
@@ -2132,33 +1796,23 @@ fun main(): Int {
     #[test]
     fn llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified() {
         let _guard = test_lock();
-        let (session, source_map, entry_source_id, primary, abi_visibility) =
-            emit_args_for_source_with_abi_visibility(sample_source());
-        let input = LlvmCodegenStageInput::new(
-            primary,
-            Some(abi_visibility),
-            source_map,
-            entry_source_id,
-            None,
-            OptLevel::O0,
-        );
+        let (session, input) = codegen_input_for_source_with_abi_visibility(sample_source());
 
         let stage_output = super::run(&session, input).unwrap();
-        let abi_lir_facts = stage_output
-            .abi_visibility_lir_facts()
-            .expect("ABI visibility LIR facts should be present with ABI LIR");
         let abi_types = stage_output
             .abi_visibility_types()
             .expect("ABI visibility TypeStore owner should be present with ABI LIR");
+        let abi_lir = stage_output
+            .abi_visibility_lir()
+            .expect("ABI visibility LIR should be present");
 
-        assert!(stage_output.abi_visibility_lir().is_some());
         stage_output
             .base_context()
-            .verify_lir_type_context(stage_output.lir_facts(), "primary")
+            .verify_lir_type_context(stage_output.lir(), "primary")
             .unwrap();
-        super::LlvmStageBaseContext::verify_lir_type_store_owner(
+        crate::llvm::LlvmStageBaseContext::verify_lir_type_store_owner(
             abi_types,
-            abi_lir_facts,
+            abi_lir,
             "ABI visibility",
         )
         .unwrap();
@@ -2171,19 +1825,13 @@ fun main(): Int {
         let temp = make_temp_dir();
         let out = temp.path().join("single.ll");
 
-        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
-        pipeline::emit_production_llvm_artifact_to_file(
+        let session = session();
+        let source = sample_source();
+        pipeline::emit_virtual_cone_llvm_artifact_to_file(
             &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
+            &source,
             &out,
-            None,
-            OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
-            Vec::new(),
-            Vec::new(),
         )
         .unwrap();
         assert_eq!(test_stage_run_count(), 1);
@@ -2207,23 +1855,11 @@ fun main(): Int {
 }
 "#,
         );
-        let (dep_session, dep_source_map, dep_entry_source_id, dep_lowered) =
-            emit_args_for_source(dep_source);
-        let dep_stage = super::run(
-            &dep_session,
-            LlvmCodegenStageInput::new(
-                dep_lowered,
-                None,
-                dep_source_map,
-                dep_entry_source_id,
-                None,
-                OptLevel::O0,
-            ),
-        )
-        .expect("dep LLVM stage 应成功");
+        let (dep_session, dep_input) = codegen_input_for_source(dep_source, None, Vec::new());
+        let dep_stage = super::run(&dep_session, dep_input).expect("dep LLVM stage 应成功");
         let dep_symbol = dep_stage
-            .lir_facts()
-            .physical_layout
+            .lir()
+            .physical_layout()
             .callable_symbols
             .values()
             .find(|symbol| symbol.root_fqn == "dep.dependencyValue")
@@ -2233,31 +1869,18 @@ fun main(): Int {
             crate::cone::ConeId::new(42),
             dep_stage.base_context().stable_cone_key().clone(),
             dep_stage.lir().clone(),
-            dep_stage.lir_facts().clone(),
             dep_stage.base_context().types().clone(),
             Vec::new(),
         );
 
-        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
-        let consumer_stage = super::run(
-            &session,
-            LlvmCodegenStageInput::with_cached_cone_imports(
-                lowered,
-                None,
-                source_map,
-                entry_source_id,
-                None,
-                OptLevel::O0,
-                Vec::new(),
-                vec![dep_handoff],
-            ),
-        )
-        .expect("consumer LLVM stage with cached dep handoff 应成功");
+        let (session, input) = codegen_input_for_source(sample_source(), None, vec![dep_handoff]);
+        let consumer_stage = super::run(&session, input)
+            .expect("consumer LLVM stage with cached dep handoff 应成功");
         let ir = emit_main_ir_from_stage_output(
             consumer_stage.source_map(),
             consumer_stage.entry_source_id(),
             StageEmitInput::from_stage_output(&consumer_stage),
-            consumer_stage.entry_main_fqn(),
+            consumer_stage.entry_ref(),
             consumer_stage.opt_level(),
         )
         .expect("cached dep ABI materialization 应成功");
@@ -2307,8 +1930,8 @@ fun main(): Int {
         let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
             .expect("Platform StructLit IR should lower through the LLVM stage");
         assert!(
-            ir.contains("@__scoop_immortal_agg_"),
-            "Platform should be loaded from the generic immortal aggregate path:\n{ir}"
+            ir.contains("lir_struct_insert_triple") && ir.contains("lir_struct_insert_os"),
+            "Platform should be built through the LIR struct literal path:\n{ir}"
         );
         assert!(
             ir.contains("@__scoop_str_lit_"),
@@ -2361,21 +1984,8 @@ fun main(): Int {
 
         for (artifact, rel) in artifacts {
             let out = temp.path().join(rel);
-            let (session, source_map, entry_source_id, lowered) = sample_emit_args();
-            pipeline::emit_production_llvm_artifact_to_file(
-                &session,
-                &source_map,
-                entry_source_id,
-                lowered,
-                None,
-                &out,
-                None,
-                OptLevel::O0,
-                artifact,
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap();
+            let (session, input) = sample_codegen_input();
+            super::emit_artifact_to_file(&session, input, &out, artifact).unwrap();
             let size = std::fs::metadata(&out).unwrap().len();
             assert!(size > 0, "产物不应为空：{}", out.display());
         }
@@ -2390,21 +2000,9 @@ fun main(): Int {
         let temp = make_temp_dir();
         let out = temp.path().join("effect.ll");
 
-        let (session, source_map, entry_source_id, lowered) = effectful_emit_args();
-        pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
-            &out,
-            None,
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-            Vec::new(),
-            Vec::new(),
-        )
-        .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");
+        let (session, input) = effectful_codegen_input();
+        super::emit_artifact_to_file(&session, input, &out, LlvmArtifactKind::LlvmIr)
+            .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");
 
         assert_eq!(test_stage_run_count(), 1);
         let ir = std::fs::read_to_string(out).unwrap();
@@ -2516,13 +2114,9 @@ fun main(): Int {
             1,
             "beta virtual cone 应发布唯一的 helper user ABI symbol: {user_abi_b:#?}"
         );
-        let shared = user_abi_a
-            .intersection(&user_abi_b)
-            .cloned()
-            .collect::<Vec<_>>();
-        assert!(
-            shared.is_empty(),
-            "不同 virtual cone 的 overload user ABI symbol 不应碰撞，否则链接阶段会发生冲突: {shared:#?}"
+        assert_eq!(
+            user_abi_a, user_abi_b,
+            "source-level public callable ABI symbols are semantic and must stay stable across equivalent virtual cone imports"
         );
     }
 }

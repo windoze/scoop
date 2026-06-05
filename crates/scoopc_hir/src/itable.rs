@@ -21,7 +21,7 @@ use crate::stable_id::{
     NoTypeParamResolver, canonical_nominal_type_key, stable_rtti_interface_id, stable_rtti_type_id,
     stable_rtti_type_id_for_type,
 };
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use crate::typecheck::is_type_assignable;
 use crate::typecheck::{TypeEnv, TypeEnvError, TypeLowerError, TypeLowering, TypeSymbolKind};
 use crate::vtable::ClassVtableIndex;
@@ -471,6 +471,14 @@ fn collect_concrete_class_targets(types: &TypeStore, env: &TypeEnv) -> Vec<Concr
         if !matches!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Class)) {
             continue;
         }
+        // Runtime itable metadata is only meaningful for ground instances;
+        // generic templates such as `Box<T>` cannot have stable RTTI ids.
+        if type_contains_param(types, id)
+            || (!sym.type_param_names.is_empty()
+                && nominal.args.len() != sym.type_param_names.len())
+        {
+            continue;
+        }
 
         let class_key = if nominal.args.is_empty() {
             nominal.fqn.clone()
@@ -495,14 +503,16 @@ fn collect_concrete_interface_targets(types: &TypeStore, env: &TypeEnv) -> Vec<T
     let mut out: Vec<TypeId> = types
         .iter_ids()
         .filter(|id| {
-            matches!(
-                types.kind(*id),
-                TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                    if matches!(
-                        env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
-                        Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-                    )
-            )
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(*id) else {
+                return false;
+            };
+            let Some(sym) = env.type_symbol(&nominal.fqn) else {
+                return false;
+            };
+            matches!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Interface))
+                && !type_contains_param(types, *id)
+                && (sym.type_param_names.is_empty()
+                    || nominal.args.len() == sym.type_param_names.len())
         })
         .collect();
 
@@ -559,6 +569,14 @@ fn stable_runtime_type_id_for_lower(
     ty: TypeId,
     context: &str,
 ) -> Result<u64, ItableLayoutError> {
+    if type_contains_param(lower.types(), ty) {
+        return Err(ItableLayoutError::StableTypeId {
+            message: format!(
+                "{context}: non-ground runtime type `{}` still contains type parameters",
+                lower.fmt_type(ty)
+            ),
+        });
+    }
     stable_rtti_type_id_for_type(lower.types(), ty, &NoTypeParamResolver).map_err(|err| {
         ItableLayoutError::StableTypeId {
             message: format!("{context}: {err}"),
@@ -566,11 +584,63 @@ fn stable_runtime_type_id_for_lower(
     })
 }
 
+/// Returns whether `ty` still contains a declaration-site type parameter.
+fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    let mut stack = vec![ty];
+    let mut seen = HashSet::new();
+    while let Some(id) = stack.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        match types.kind(id) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied());
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+    false
+}
+
+/// Resolved owner nominal instantiation: `(owner_fqn, type_args, owner_effect_row)`.
+type MemberOwnerNominalInstantiation = (String, Vec<TypeId>, Option<EffectRow>);
+
 fn find_member_owner_nominal_instantiation(
     receiver_ty: TypeId,
     member_fqn: &str,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<(String, Vec<TypeId>)>, ItableLayoutError> {
+) -> Result<Option<MemberOwnerNominalInstantiation>, ItableLayoutError> {
     let Some((member_owner_fqn, _)) = member_fqn.rsplit_once('.') else {
         return Ok(None);
     };
@@ -582,13 +652,15 @@ fn find_member_owner_nominal_instantiation(
             continue;
         }
 
-        let (nominal_fqn, nominal_args) = match lower.type_kind(cur) {
+        let (nominal_fqn, nominal_args, nominal_eff) = match lower.type_kind(cur) {
             TypeKind::Value(ValueTypeKind::Nominal(nominal))
-            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                (nominal.fqn, nominal.args, nominal.eff)
+            }
             _ => continue,
         };
         if nominal_fqn == member_owner_fqn {
-            return Ok(Some((nominal_fqn, nominal_args)));
+            return Ok(Some((nominal_fqn, nominal_args, nominal_eff)));
         }
 
         stack.extend(lower.instantiated_direct_supertypes(cur)?);
@@ -604,12 +676,12 @@ fn materialize_member_impl_fqn_for_owner(
     generic_template_symbol_suffixes: &crate::hir::GenericTemplateSymbolSuffixIndex,
     lower: &mut TypeLowering<'_>,
 ) -> Result<String, ItableLayoutError> {
-    let Some((_owner_fqn, owner_args)) =
+    let Some((_owner_fqn, owner_args, owner_eff)) =
         find_member_owner_nominal_instantiation(owner_ty, impl_member_fqn, lower)?
     else {
         return Ok(impl_member_fqn.to_string());
     };
-    if owner_args.is_empty() {
+    if owner_args.is_empty() && owner_eff.is_none() {
         return Ok(impl_member_fqn.to_string());
     }
 
@@ -629,7 +701,7 @@ fn materialize_member_impl_fqn_for_owner(
         lower.types(),
         &template,
         &owner_args,
-        &[],
+        &owner_eff.into_iter().collect::<Vec<_>>(),
         generic_template_symbol_suffixes
             .get(&template)
             .map(String::as_str)

@@ -54,7 +54,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, None);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit, index, None);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
@@ -82,6 +82,24 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
             index,
             compilation_unit,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        index,
+        compilation_unit,
+        &HashMap::new(),
+    );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            index,
+            &[(source, file)],
+            &HashMap::new(),
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        &[(source, file)],
+        &generic_template_inventory,
+    );
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -202,6 +220,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ));
         ci
     };
+    let release_hooks = collect_release_hooks(compilation_unit);
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
     extend_top_level_fun_call_sites_without_overwriting(
         &mut top_level_fun_call_sites,
@@ -212,6 +231,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
             &member_funs,
         ),
     );
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs(&[(source, file)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
     let no_source_cone_overrides = HashMap::new();
@@ -230,6 +250,9 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -241,12 +264,14 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,
@@ -533,7 +558,8 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let interior_mutable_nominals = collect_interior_mutable_nominals(compilation_unit, type_env);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, Some(typecheck_types));
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
@@ -562,6 +588,24 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             compilation_unit,
             &source_cones,
         );
+    let generic_stable_template_keys = util::collect_stable_template_keys_with_source_cones(
+        &stable_cone_key,
+        index,
+        compilation_unit,
+        &source_cones,
+    );
+    let generic_template_inventory =
+        util::collect_materializer_generic_template_inventory_with_source_cones(
+            &stable_cone_key,
+            index,
+            files_to_lower,
+            &source_cones,
+            &generic_stable_template_keys,
+        );
+    let callable_body_inventory = util::collect_materializer_callable_body_inventory(
+        files_to_lower,
+        &generic_template_inventory,
+    );
 
     let mut decls: Vec<Decl> = Vec::new();
     let mut items: Vec<Item> = Vec::new();
@@ -732,6 +776,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
         &generic_class_decls,
     ));
+    let release_hooks = collect_release_hooks(compilation_unit);
 
     match instance_mode {
         CompilationUnitInstanceMode::DirectLoweredHir => {
@@ -750,6 +795,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     typecheck_types,
                     initial_items: &items,
                     initial_member_funs: &member_funs,
+                    initial_class_inits: &class_inits,
                     stable_cone_key: &stable_cone_key,
                     source_cones: &source_cones,
                 });
@@ -887,6 +933,11 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         Some(typecheck_types),
         &mut types,
     );
+    let top_level_fun_value_refs = collect_top_level_fun_value_refs_with_type_remap(
+        files_to_lower,
+        Some(typecheck_types),
+        &mut types,
+    );
     let file_hir = File { decls, items };
     extend_top_level_fun_call_sites_without_overwriting(
         &mut top_level_fun_call_sites,
@@ -910,6 +961,9 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         source_cones,
         source_cone_order,
         stable_type_param_keys,
+        generic_stable_template_keys,
+        generic_template_inventory,
+        callable_body_inventory,
         member_funs,
         types,
         struct_layouts,
@@ -921,12 +975,14 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_vars,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        top_level_fun_value_refs,
         call_arg_bindings,
         with_update_contracts,
         assign_place_contracts,
         object_inits,
         generic_class_decls,
         class_inits,
+        release_hooks,
         class_vtables,
         interfaces,
         class_itables,

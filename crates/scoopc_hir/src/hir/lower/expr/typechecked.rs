@@ -180,6 +180,75 @@ impl<'a> HirLowering<'a> {
             .cloned()
     }
 
+    pub(in crate::hir::lower) fn fun_call_binding_with_expected_return(
+        &mut self,
+        mut binding: crate::ast::TopLevelFunCallBinding,
+        expected_ty: Option<TypeId>,
+    ) -> crate::ast::TopLevelFunCallBinding {
+        let Some(expected_ty) = expected_ty else {
+            return binding;
+        };
+        if self.type_contains_param_for_direct_call_target(expected_ty) {
+            return binding;
+        }
+        let Some(overload) = self.fun_overload_for_call_binding(&binding) else {
+            return binding;
+        };
+        if overload.sig.type_params.is_empty() {
+            return binding;
+        }
+        let Some(return_ty_ref) = overload.sig.return_ty.as_ref().cloned() else {
+            return binding;
+        };
+        let Some((decl_source, decl_file)) = self.decl_ast_context(&binding.decl_file) else {
+            return binding;
+        };
+        let type_params = overload.sig.type_params.clone();
+        if let Some((expected_fqn, expected_args)) = nominal_fqn_and_args(self.types, expected_ty)
+            && expected_args.len() == type_params.len()
+            && type_ref_base_fqn_in_file(decl_source, decl_file, &return_ty_ref).as_deref()
+                == Some(expected_fqn.as_str())
+        {
+            binding.type_args = expected_args;
+            binding.return_ty = Some(expected_ty);
+            return binding;
+        }
+        let decl_file_path = binding.decl_file.clone();
+        let declared_return_ty = self.with_foreign_ast_context(decl_source, decl_file, |this| {
+            let type_param_bindings = type_params
+                .iter()
+                .map(|param| {
+                    let ty = this.types.ty_param(crate::ty::TypeParamType {
+                        name: param.name.clone(),
+                        decl_file: decl_file_path.clone(),
+                        decl_span: param.name_span,
+                    });
+                    (param.name.clone(), ty)
+                })
+                .collect::<Vec<_>>();
+            this.push_type_param_bindings(type_param_bindings);
+            let ty = this.lower_type_ref(&return_ty_ref);
+            this.pop_type_params();
+            ty
+        });
+
+        let mut inferred = HashMap::new();
+        collect_hir_type_param_bindings(self.types, declared_return_ty, expected_ty, &mut inferred);
+        let mut type_args = Vec::with_capacity(type_params.len());
+        for param in &type_params {
+            let Some(ty) = inferred.get(&param.name).copied() else {
+                return binding;
+            };
+            if self.type_contains_param_for_direct_call_target(ty) {
+                return binding;
+            }
+            type_args.push(ty);
+        }
+        binding.type_args = type_args;
+        binding.return_ty = Some(expected_ty);
+        binding
+    }
+
     pub(in crate::hir::lower) fn typechecked_direct_call_expr(
         &mut self,
         span: Span,
@@ -1589,4 +1658,42 @@ impl<'a> HirLowering<'a> {
             kind,
         })
     }
+}
+
+fn nominal_fqn_and_args(types: &TypeStore, ty: TypeId) -> Option<(String, Vec<TypeId>)> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            Some((nominal.fqn.clone(), nominal.args.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn type_ref_base_fqn_in_file(
+    source: &crate::source::SourceFile,
+    file: &ast::File,
+    ty: &ast::TypeRef,
+) -> Option<String> {
+    let ast::TypeRef::Path(path) = ty else {
+        return None;
+    };
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| segment.text(source).to_string())
+        .collect::<Vec<_>>();
+    if segments.is_empty() {
+        return None;
+    }
+    if segments.len() > 1 {
+        return Some(segments.join("."));
+    }
+    let name = segments[0].clone();
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    Some(if pkg_prefix.is_empty() {
+        name
+    } else {
+        format!("{pkg_prefix}.{name}")
+    })
 }

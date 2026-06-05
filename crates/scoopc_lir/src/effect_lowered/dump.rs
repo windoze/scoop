@@ -6,6 +6,7 @@ use crate::effect_facts::{CaseTag, ConcreteOpKey, EffectFamilyKey, ImplPlan};
 use crate::stable_id::stable_dump_label;
 use crate::ty::{EffectRow, TypeId};
 
+use super::instruction::LirBodyAnchor;
 use super::ir::{
     BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
@@ -24,11 +25,10 @@ use super::ir::{
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
     LateLoweredResumeStateMap, LateLoweredSourceStatementClassification,
     LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
-    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
-    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
-    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
-    LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
+    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeDispatchSourceKind, LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
@@ -609,14 +609,9 @@ fn build_callable_labels(
         .iter()
         .map(|state| {
             let signature = format!(
-                "role={:?}|slices=[{}]|terminator={}",
+                "role={:?}|stmt_count={}|terminator={}",
                 state.role(),
-                state
-                    .source_slices()
-                    .iter()
-                    .map(|slice| state_slice_identity(program, body_key, *slice))
-                    .collect::<Vec<_>>()
-                    .join(" | "),
+                state.statements().len(),
                 state_terminator_kind_name(state.terminator()),
             );
             let ordinal = next_ordinal(&mut state_signatures, &signature);
@@ -721,28 +716,6 @@ fn build_callable_labels(
         boundaries,
         slots,
     }
-}
-
-fn state_slice_identity(
-    program: &LateLoweredProgram,
-    key: &LateLoweredBodyVersionKey,
-    slice: LateLoweredStateSlice,
-) -> String {
-    let term = if slice.includes_terminator() {
-        "+term"
-    } else {
-        ""
-    };
-    format!(
-        "{}:{}..{}{}",
-        program
-            .dump_body_labels(key)
-            .map(|labels| labels.block_label(slice.block_id()))
-            .unwrap_or_else(|| "bb_missing".to_string()),
-        slice.start_statement_index(),
-        slice.end_statement_index(),
-        term,
-    )
 }
 
 fn boundary_source_identity(
@@ -1750,47 +1723,45 @@ fn render_state(
     if let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator() {
         render_handle_dispatch_contract(ctx, rendered, callable, contract);
     }
-    writeln!(rendered, "            source_slices:").unwrap();
-    if state.source_slices().is_empty() {
+    writeln!(rendered, "            lir_statements:").unwrap();
+    if state.statements().is_empty() {
         writeln!(rendered, "              <synthetic>").unwrap();
         return;
     }
-    for slice in state.source_slices() {
-        render_state_slice(ctx, rendered, callable, *slice);
-        render_state_slice_classifications(ctx, rendered, callable, *slice, classifications);
+    for (index, statement) in state.statements().iter().enumerate() {
+        let anchor = LirBodyAnchor::statement(
+            state.state_id(),
+            super::instruction::LirStatementIndex::new(index as u32),
+        );
+        writeln!(
+            rendered,
+            "              - stmt{} span={:?}",
+            index, statement.span
+        )
+        .unwrap();
+        render_statement_classification(ctx, rendered, callable, anchor, classifications);
     }
 }
 
-fn render_state_slice_classifications(
+fn render_statement_classification(
     ctx: &DumpCtx<'_>,
     rendered: &mut String,
     callable: &LateLoweredCallable,
-    slice: LateLoweredStateSlice,
+    anchor: LirBodyAnchor,
     classifications: &[LateLoweredSourceStatementClassification],
 ) {
-    writeln!(rendered, "                statement_classification:").unwrap();
-    let mut rendered_any = false;
-    for classification in classifications.iter().filter(|classification| {
-        classification.source_slice() == slice
-            && classification.statement_index() >= slice.start_statement_index()
-            && classification.statement_index() < slice.end_statement_index()
-    }) {
-        rendered_any = true;
+    if let Some(classification) = classifications
+        .iter()
+        .find(|classification| classification.anchor() == anchor)
+    {
         writeln!(
             rendered,
-            "                  - stmt{}: {}",
-            classification.statement_index(),
+            "                classification: {}",
             render_source_statement_classification_kind(ctx, callable, classification.kind()),
         )
         .unwrap();
-    }
-    if !rendered_any {
-        let marker = if slice.start_statement_index() == slice.end_statement_index() {
-            "<none>"
-        } else {
-            "<unclassified>"
-        };
-        writeln!(rendered, "                  {marker}").unwrap();
+    } else {
+        writeln!(rendered, "                classification: <unclassified>").unwrap();
     }
 }
 
@@ -1845,6 +1816,14 @@ fn render_source_statement_classification_kind(
             ctx.site_label(callable.body_version_key(), site_id),
             ctx.state_label(callable.body_version_key(), state_id),
         ),
+        LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { site_id, metadata } => {
+            format!(
+                "dynamic-invoke-call {} kind={:?} args={}",
+                ctx.site_label(callable.body_version_key(), site_id),
+                metadata.kind(),
+                metadata.arg_count(),
+            )
+        }
         LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {
             "elided-unreachable".to_string()
         }
@@ -2110,38 +2089,6 @@ fn render_handle_dispatch_contract(
             .unwrap();
         }
     }
-}
-
-fn render_state_slice(
-    ctx: &DumpCtx<'_>,
-    rendered: &mut String,
-    callable: &LateLoweredCallable,
-    slice: LateLoweredStateSlice,
-) {
-    writeln!(
-        rendered,
-        "              - {}",
-        render_state_slice_inline(ctx, callable, slice)
-    )
-    .unwrap();
-}
-
-fn render_state_slice_inline(
-    ctx: &DumpCtx<'_>,
-    callable: &LateLoweredCallable,
-    slice: LateLoweredStateSlice,
-) -> String {
-    let terminator = if slice.includes_terminator() {
-        " + term"
-    } else {
-        ""
-    };
-    format!(
-        "{} stmts[{}..{}]{terminator}",
-        ctx.block_label(callable.body_version_key(), slice.block_id()),
-        slice.start_statement_index(),
-        slice.end_statement_index(),
-    )
 }
 
 fn render_frame_schema(
@@ -2592,7 +2539,7 @@ fn render_resume_operand_contract(
 fn render_source_consumption(
     ctx: &DumpCtx<'_>,
     rendered: &mut String,
-    callable: &LateLoweredCallable,
+    _callable: &LateLoweredCallable,
     consumption: LateLoweredBoundarySourceConsumption,
 ) {
     match consumption {
@@ -2603,11 +2550,9 @@ fn render_source_consumption(
         } => {
             writeln!(
                 rendered,
-                "              anchor: statement {} stmt{} slice={} slice_stmt_index={} last_in_slice={}",
-                ctx.block_label(callable.body_version_key(), source_slice.block_id()),
+                "              anchor: {} stmt{} last_in_slice={}",
+                ctx.block_label(_callable.body_version_key(), source_slice.block_id()),
                 statement_index,
-                render_state_slice_inline(ctx, callable, source_slice),
-                statement_index.saturating_sub(source_slice.start_statement_index()),
                 consumes_last_statement,
             )
             .unwrap();
@@ -2615,8 +2560,8 @@ fn render_source_consumption(
         LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
             writeln!(
                 rendered,
-                "              anchor: terminator slice={}",
-                render_state_slice_inline(ctx, callable, source_slice),
+                "              anchor: terminator {}",
+                ctx.block_label(_callable.body_version_key(), source_slice.block_id()),
             )
             .unwrap();
         }
@@ -2759,6 +2704,9 @@ fn render_call_target(ctx: &DumpCtx<'_>, target: &crate::effect_facts::CallSiteT
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+        crate::effect_facts::CallSiteTarget::BodylessDirect { fqn } => {
+            format!("BodylessDirect({fqn})")
+        }
         crate::effect_facts::CallSiteTarget::DynamicFallback => "DynamicFallback".to_string(),
     }
 }

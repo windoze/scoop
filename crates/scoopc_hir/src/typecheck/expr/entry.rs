@@ -628,6 +628,21 @@ fn check_class_member_fun_bodies_in_type_decl(
         } else {
             false
         };
+        let type_eff_binding = if let Some(eff_param) = &decl.eff_param {
+            let name = source.slice(eff_param.name.span).to_string();
+            if let Some(expr) = eff_param.default.as_ref()
+                && let Err(e) = lower.lower_effect_row_expr(Some(expr))
+            {
+                if type_where_bounds_pushed {
+                    lower.pop_where_bounds();
+                }
+                lower.pop_type_params(&decl.type_params);
+                return Err(e.into());
+            }
+            Some(lower.push_effect_row_param_marker_binding(name, eff_param.name.span))
+        } else {
+            None
+        };
 
         let result: Result<(), ExprTypeError> = (|| {
             check_primary_ctor_default_exprs(shared, decl, lower)?;
@@ -643,7 +658,12 @@ fn check_class_member_fun_bodies_in_type_decl(
                     .map(|p| lower.ty_param_from_decl(p))
                     .collect::<Vec<_>>();
                 let this_ty = lower.with_warning_emission_suspended(|lower| {
-                    lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)
+                    lower.lower_type_fqn_with_args_and_eff(
+                        type_fqn.clone(),
+                        this_ty_args,
+                        type_eff_binding.clone(),
+                        decl.name.span,
+                    )
                 })?;
 
                 let member_shared = ClassExprShared {
@@ -710,6 +730,9 @@ fn check_class_member_fun_bodies_in_type_decl(
             Ok(())
         })();
 
+        if type_eff_binding.is_some() {
+            lower.pop_effect_row_param_binding();
+        }
         if type_where_bounds_pushed {
             lower.pop_where_bounds();
         }
@@ -1281,17 +1304,25 @@ fn check_standard_delegated_property_inline_exprs(
                 return Ok(());
             }
 
-            lower.with_safe_lambda_context(lambda, |lower| {
-                let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
-                    lower,
-                    lambda.body.as_ref(),
-                    property_ty,
-                    ExpectedTypeFrom::new(format!(
-                        "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
-                    )),
-                )?;
-                Ok::<(), ExprTypeError>(())
+            let (_, performed_effects) = lower.with_safe_lambda_context(lambda, |lower| {
+                lower.with_nested_effect_collection(|lower| {
+                    expr_infer_inputs(shared, outer_locals).infer_in_expected(
+                        lower,
+                        lambda.body.as_ref(),
+                        property_ty,
+                        ExpectedTypeFrom::new(format!(
+                            "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
+                        )),
+                    )
+                })
             })?;
+            if let Some((effect, span)) = performed_effects.first().copied() {
+                return Err(ExprTypeError::LazyInitializerMustBePure {
+                    property: property_name.to_string(),
+                    required: lower.fmt_type(effect),
+                    span: span.into(),
+                });
+            }
         }
         "scoop.delegates.observable" | "scoop.delegates.vetoable" => {
             let Some(initial) = args.first() else {
@@ -1341,6 +1372,8 @@ fn check_standard_delegated_property_inline_exprs(
         }
         _ => {}
     }
+
+    let _ = expr_infer_inputs(shared, outer_locals).infer(lower, delegate)?;
 
     Ok(())
 }

@@ -273,6 +273,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .get_nth_param(self.function.count_params().saturating_sub(1))
             .ok_or_else(|| frontend_error("outcome resume wrapper 缺少 outcome 参数".to_string()))?
             .into_pointer_value();
+        let owner_outcome_ptr = if self.return_projection.is_some() {
+            self.codegen
+                .alloc_effect_outcome_slot(self.mir_fun.span, "surface_resume_owner")?
+        } else {
+            outcome_ptr
+        };
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
         let first_resume_bb = self
             .codegen
@@ -304,13 +310,51 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         }
         args.push(current_effect_ctx.into());
         args.push(incoming_resume_token.into());
-        args.push(outcome_ptr.into());
+        args.push(owner_outcome_ptr.into());
         self.codegen.build_call_preserving_gc_local_roots(
             self.mir_fun.span,
             core_fun,
             &args,
             "outcome_resume_core",
         )?;
+        if let Some(projection) = self.return_projection {
+            let owner_layout = self
+                .abi
+                .step_layout(projection.owner_step_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "outcome resume wrapper 缺少 owner step schema s{} layout",
+                        projection.owner_step_schema().as_u32()
+                    ))
+                })?;
+            let wrapper_layout = self
+                .abi
+                .step_layout(projection.wrapper_step_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "outcome resume wrapper 缺少 wrapper step schema s{} layout",
+                        projection.wrapper_step_schema().as_u32()
+                    ))
+                })?;
+            let owner_step = self.build_step_from_effect_outcome(
+                owner_layout,
+                owner_outcome_ptr,
+                "surface_resume_owner_outcome",
+            )?;
+            let wrapper_step = self.build_projected_owner_step_to_wrapper(
+                projection,
+                owner_step,
+                "surface_resume_wrapper_project",
+            )?;
+            self.emit_step_as_effect_outcome_to_ptr(
+                wrapper_layout,
+                wrapper_step,
+                outcome_ptr,
+                "surface_resume_wrapper_outcome",
+            )?;
+            self.seal_unterminated_state_blocks_as_unreachable()?;
+            return Ok(());
+        }
         self.codegen.builder.build_return(None)?;
         self.seal_unterminated_state_blocks_as_unreachable()?;
         Ok(())

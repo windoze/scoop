@@ -10,7 +10,7 @@ mod plan;
 pub use analysis::{
     ContinuationEscapeFacts, EffectAnalysisCtx, EffectAnalysisFacts, EffectConstructorCall,
     EffectContinuationResume, EffectFieldFact, EffectFieldOwnerKind, EffectGlobalRootKind,
-    KnownLocalMetadata,
+    EffectReflectionCall, KnownLocalMetadata,
 };
 #[cfg(feature = "llvm")]
 pub use plan::{

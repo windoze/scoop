@@ -41,6 +41,19 @@ impl<'a> FnLowering<'a> {
         {
             return Some(*return_ty);
         }
+        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
+            && let Some(owner_fqn) = self.facts.enum_variant_owner_fqn(name)
+        {
+            return self.types.iter_ids().find(|&ty| {
+                matches!(
+                    self.types.kind(ty),
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                        if nominal.fqn == owner_fqn
+                            && nominal.args.is_empty()
+                            && nominal.eff.is_none()
+                )
+            });
+        }
         match self.types.kind(callee.ty) {
             TypeKind::Ref(RefTypeKind::Function(fun)) => Some(fun.return_ty),
             _ => None,
@@ -584,6 +597,11 @@ impl<'a> FnLowering<'a> {
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let compare_kind = CallKind::Direct {
             callee_fqn: binding.to_string(),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let compare_args = vec![
             CallArg {
@@ -651,6 +669,11 @@ impl<'a> FnLowering<'a> {
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let compare_kind = CallKind::Direct {
             callee_fqn: "scoop.core.String.compareTo".to_string(),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let compare_args = vec![
             CallArg {
@@ -724,6 +747,12 @@ impl<'a> FnLowering<'a> {
 
         let kind = CallKind::Direct {
             callee_fqn: format!("{owner_fqn}.{method}"),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: Self::scalar_method_intrinsic_entry_name(&owner_fqn, method)
+                .map(str::to_string),
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![
             CallArg {
@@ -774,6 +803,12 @@ impl<'a> FnLowering<'a> {
         };
         let kind = CallKind::Direct {
             callee_fqn: format!("{owner_fqn}.{method}"),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: Self::scalar_method_intrinsic_entry_name(&owner_fqn, method)
+                .map(str::to_string),
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![CallArg {
             span: operand.span,
@@ -864,6 +899,112 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn scalar_method_intrinsic_entry_name(owner: &str, method: &str) -> Option<&'static str> {
+        if Self::scalar_owner_is_integer(owner) {
+            return Self::int_method_intrinsic_entry_name(method);
+        }
+        match owner {
+            "scoop.core.Float" | "scoop.core.Float32" | "scoop.core.Float64" => {
+                Self::float_method_intrinsic_entry_name(method)
+            }
+            "scoop.core.Bool" => Self::bool_method_intrinsic_entry_name(method),
+            "scoop.core.Char" => Self::char_method_intrinsic_entry_name(method),
+            _ => None,
+        }
+    }
+
+    fn scalar_owner_is_integer(owner: &str) -> bool {
+        matches!(
+            owner,
+            "scoop.core.Int"
+                | "scoop.core.UInt"
+                | "scoop.core.Int8"
+                | "scoop.core.Int16"
+                | "scoop.core.Int32"
+                | "scoop.core.Int64"
+                | "scoop.core.UInt8"
+                | "scoop.core.UInt16"
+                | "scoop.core.UInt32"
+                | "scoop.core.UInt64"
+        )
+    }
+
+    fn int_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+        match method {
+            "plus" => Some("int_plus"),
+            "minus" => Some("int_minus"),
+            "times" => Some("int_times"),
+            "div" => Some("int_div"),
+            "rem" => Some("int_rem"),
+            "unaryMinus" => Some("int_unary_minus"),
+            "unaryPlus" => Some("int_unary_plus"),
+            "inc" => Some("int_inc"),
+            "dec" => Some("int_dec"),
+            "and" => Some("int_and"),
+            "or" => Some("int_or"),
+            "xor" => Some("int_xor"),
+            "inv" => Some("int_inv"),
+            "shl" => Some("int_shl"),
+            "shr" => Some("int_shr"),
+            "ushr" => Some("int_ushr"),
+            "lt" => Some("int_lt"),
+            "le" => Some("int_le"),
+            "gt" => Some("int_gt"),
+            "ge" => Some("int_ge"),
+            "equals" => Some("int_eq"),
+            "notEquals" => Some("int_ne"),
+            "compareTo" => Some("int_compare_to"),
+            "hash" => Some("int_hash"),
+            _ => None,
+        }
+    }
+
+    fn float_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+        match method {
+            "plus" => Some("float_plus"),
+            "minus" => Some("float_minus"),
+            "times" => Some("float_times"),
+            "div" => Some("float_div"),
+            "rem" => Some("float_rem"),
+            "unaryMinus" => Some("float_unary_minus"),
+            "unaryPlus" => Some("float_unary_plus"),
+            "lt" => Some("float_lt"),
+            "le" => Some("float_le"),
+            "gt" => Some("float_gt"),
+            "ge" => Some("float_ge"),
+            "equals" => Some("float_eq"),
+            "notEquals" => Some("float_ne"),
+            "compareTo" => Some("float_compare_to"),
+            "hash" => Some("float_hash"),
+            _ => None,
+        }
+    }
+
+    fn bool_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+        match method {
+            "and" => Some("bool_and"),
+            "or" => Some("bool_or"),
+            "xor" => Some("bool_xor"),
+            "equals" => Some("bool_eq"),
+            "notEquals" => Some("bool_ne"),
+            "not" => Some("bool_not"),
+            _ => None,
+        }
+    }
+
+    fn char_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+        match method {
+            "toInt" => Some("char_to_int"),
+            "hash" => Some("char_hash"),
+            "compareTo" => Some("char_compare_to"),
+            "equals" => Some("char_equals"),
+            "plus" | "plusInt" => Some("char_plus_int"),
+            "minus" | "minusInt" => Some("char_minus_int"),
+            "minusChar" => Some("char_minus_char"),
+            _ => None,
+        }
+    }
+
     fn already_lowered_compare_to_args<'b>(
         &self,
         lhs: &'b hir::Expr,
@@ -912,6 +1053,11 @@ impl<'a> FnLowering<'a> {
         };
         let kind = CallKind::Direct {
             callee_fqn: format!("scoop.core.Int.{method}"),
+            stable_template_key: None,
+            stable_instance_key: None,
+            intrinsic_entry_name: Self::int_method_intrinsic_entry_name(method).map(str::to_string),
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
         };
         let args = vec![
             CallArg {
@@ -966,6 +1112,9 @@ impl<'a> FnLowering<'a> {
                 let tmp = self.push_temp_local(span, ty);
                 let hidden_effects = self.facts.top_level_ref_hidden_effects(fqn);
                 let site_id = (!hidden_effects.is_pure()).then(|| self.fresh_site_id());
+                let stable_binding = self
+                    .facts
+                    .template_value_binding(self.source_path.as_path(), span);
                 self.assign(
                     span,
                     tmp,
@@ -973,6 +1122,19 @@ impl<'a> FnLowering<'a> {
                         fqn: fqn.clone(),
                         site_id,
                         hidden_effects,
+                        stable_template_key: stable_binding
+                            .map(TemplateSiteBindingContract::stable_template_key)
+                            .cloned()
+                            .map(Box::new),
+                        stable_instance_key: None,
+                        generic_type_args: stable_binding
+                            .map(TemplateSiteBindingContract::type_args)
+                            .unwrap_or_default()
+                            .to_vec(),
+                        generic_eff_args: stable_binding
+                            .map(TemplateSiteBindingContract::eff_args)
+                            .unwrap_or_default()
+                            .to_vec(),
                     }),
                 );
                 tmp
@@ -1219,11 +1381,14 @@ impl<'a> FnLowering<'a> {
 
         // 3) else 分支：同上；若缺省 else，则使用 Unit 占位。
         self.current_bb = else_bb;
-        let else_value = else_branch
-            .map(|e| self.lower_expr_to_local(e))
-            .unwrap_or_else(|| self.emit_unit(span));
+        let else_value = else_branch.map(|e| self.lower_expr_to_local(e));
         if !self.current_is_terminated() {
-            self.assign_use_to_local(span, result, Operand::Local(else_value));
+            if let Some(else_value) = else_value {
+                self.assign_use_to_local(span, result, Operand::Local(else_value));
+            } else if ty == self.builtins.unit {
+                let unit = self.emit_unit(span);
+                self.assign_use_to_local(span, result, Operand::Local(unit));
+            }
             self.set_terminator(
                 self.current_bb,
                 span,

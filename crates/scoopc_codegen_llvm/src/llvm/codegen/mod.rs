@@ -51,18 +51,20 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
+use scoopc_ids::{LirCallableHash, LirCallableId, SiteId};
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
+use crate::effect_lowered::ir::LateLoweredClassCtorSourceCallContract;
 use crate::effect_lowered::ordinary_callee::{CalleeSuspendPlan, EffectAnalysisFacts};
 use crate::effect_lowered::source as hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    AbiMangler, CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
-    StableConeKey, StableDefKey, StableDefNamespace, StableTypeParamKey,
-    canonical_callable_signature_key, canonical_record, canonical_type_text,
-    stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
+    CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey, StableConeKey,
+    StableDefKey, StableDefNamespace, StableTypeParamKey, canonical_callable_signature_key,
+    canonical_record, canonical_type_text, stable_rtti_derived_type_key, stable_rtti_type_id,
+    stable_rtti_type_id_for_type,
 };
 use crate::syntax::int_literal::parse_int_literal_checked;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
@@ -72,8 +74,10 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_lir_facts::{
-    LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage,
-    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirCallSiteKind, LirCallableContract, LirClassCtorCallSiteFacts, LirClassCtorDelegationKind,
+    LirClassCtorInitKey, LirClassItableEntryFacts, LirDispatchContract, LirExternGlobalLinkage,
+    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirPlainCallSiteFacts, LirSourceCallSiteFacts,
 };
 
 use super::LlvmEmitError;
@@ -125,7 +129,8 @@ struct InterfaceItableSlotLookup<'ctx> {
 struct InterfaceValueReceiverCase {
     receiver_type_id: u64,
     source_ty: TypeId,
-    impl_fqn: String,
+    impl_label: String,
+    target: scoopc_lir_facts::LirCallableRef,
 }
 
 /// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
@@ -405,8 +410,8 @@ struct SharedCodegenCaches {
     class_init_layout_cache: RefCell<HashMap<hir::ClassInstanceKey, hir::MonoClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
     callable_carrier_contract_enabled: Cell<bool>,
-    callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
-    plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
+    carrier_entry_symbols_by_key: RefCell<HashMap<CallableCarrierTargetKey, String>>,
+    plain_carrier_fallback_keys: RefCell<HashSet<CallableCarrierTargetKey>>,
     exported_abi_symbols: RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
     string_byte_data_globals: RefCell<StringByteDataGlobalRegistry>,
 }
@@ -460,6 +465,67 @@ impl CallableCarrierKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct CallableCarrierTargetKey {
+    kind: CallableCarrierKind,
+    callable_hash: LirCallableHash,
+}
+
+impl CallableCarrierTargetKey {
+    pub(super) const fn new(kind: CallableCarrierKind, callable_hash: LirCallableHash) -> Self {
+        Self {
+            kind,
+            callable_hash,
+        }
+    }
+
+    pub(super) const fn kind(self) -> CallableCarrierKind {
+        self.kind
+    }
+
+    pub(super) const fn callable_hash(self) -> LirCallableHash {
+        self.callable_hash
+    }
+}
+
+pub(super) fn lir_callable_hash_for_ref(
+    program: &crate::effect_lowered::LateLoweredProgram,
+    target: scoopc_lir_facts::LirCallableRef,
+    context: &str,
+) -> Result<LirCallableHash, LlvmEmitError> {
+    match target {
+        scoopc_lir_facts::LirCallableRef::Local(id) => {
+            let callable = program
+                .callable_by_id(id)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!("{context}: LIR callable ref {target:?} has no local body"),
+                })?;
+            let stable_key =
+                callable
+                    .lir_callable_key()
+                    .ok_or_else(|| LlvmEmitError::Frontend {
+                        message: format!(
+                            "{context}: LIR callable ref {target:?} has no stable callable key"
+                        ),
+                    })?;
+            Ok(LirCallableHash::from_stable_key(stable_key))
+        }
+        scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => Ok(hash),
+    }
+}
+
+pub(super) fn callable_carrier_target_key_for_ref(
+    program: &crate::effect_lowered::LateLoweredProgram,
+    kind: CallableCarrierKind,
+    target: scoopc_lir_facts::LirCallableRef,
+    context: &str,
+) -> Result<CallableCarrierTargetKey, LlvmEmitError> {
+    Ok(CallableCarrierTargetKey::new(
+        kind,
+        lir_callable_hash_for_ref(program, target, context)?,
+    ))
+}
+
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的稳定输入与共享状态。
 ///
 /// 这一层先只承接：
@@ -485,25 +551,14 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     extern_funs: &'a hir::ExternFunIndex,
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
-    class_ctor_init_bodies:
-        &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    class_vtables: &'a crate::vtable::ClassVtableIndex,
-    interfaces: &'a crate::itable::InterfaceIndex,
-    class_itables: &'a crate::itable::ClassItableIndex,
-    ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    dispatch_call_contracts: &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
-    #[allow(dead_code)]
-    effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    release_hooks: &'a hir::ReleaseHookIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
     interior_mutable_nominals: &'a hir::InteriorMutableIndex,
-    direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
     /// ABI 可见性阶段发布的 callable contract。
@@ -513,8 +568,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     /// TypeStore owner for `published_late_lowered_program`.
     published_late_lowered_types: Option<&'a TypeStore>,
-    /// LIR-owned backend-neutral contracts for global init/storage and callable ABI.
-    published_lir_facts: &'a LirFacts,
     /// Narrow source/semantic facts used by remaining LIR-owned source payload lowering.
     effect_analysis_facts: Rc<EffectAnalysisFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -549,8 +602,10 @@ struct FunctionBodyCodegenCx<'ctx> {
     explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
-    current_callable_fqn: Option<String>,
+    current_lir_callable_id: Option<LirCallableId>,
     current_stable_owner_key: Option<StableDefKey>,
+    active_class_ctor_source_contracts: Vec<LateLoweredClassCtorSourceCallContract>,
+    next_class_ctor_source_contract: usize,
     current_stable_closure_path_prefix: Option<String>,
     next_stable_child_closure_index: usize,
     stable_closure_paths: HashMap<hir::ClosureId, String>,
@@ -615,6 +670,7 @@ struct EffectLoweringCodegenCx<'ctx> {
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
     shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
+    active_lir_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     current_source_id: SourceId,
     function_cx: FunctionBodyCodegenCx<'ctx>,
     effect_cx: EffectLoweringCodegenCx<'ctx>,
@@ -824,23 +880,12 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
-    pub(super) class_ctor_init_bodies:
-        &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
-    pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub(super) interfaces: &'a crate::itable::InterfaceIndex,
-    pub(super) class_itables: &'a crate::itable::ClassItableIndex,
-    pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    pub(super) dispatch_call_contracts:
-        &'a HashMap<crate::llvm::LlvmDispatchCallKey, LirCallSiteKind>,
-    pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    pub(super) release_hooks: &'a hir::ReleaseHookIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) interior_mutable_nominals: &'a hir::InteriorMutableIndex,
-    pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
     pub(super) callable_sources: &'a HashMap<String, crate::llvm::LlvmCallableSourceContract>,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
@@ -848,7 +893,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) published_late_lowered_types: Option<&'a TypeStore>,
-    pub(super) published_lir_facts: &'a LirFacts,
     pub(super) effect_analysis_facts: Rc<EffectAnalysisFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -882,28 +926,18 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            top_level_fun_call_sites,
             native_callable_funs,
             object_inits,
             class_inits,
-            class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
-            ctor_call_sites,
-            dispatch_call_contracts,
-            effect_op_call_sites,
-            continuation_resume_call_sites,
+            release_hooks,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,
-            direct_supertypes,
             builtins,
             callable_sources,
             extern_funs,
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts,
             effect_analysis_facts,
             effect_op_tags,
         } = inputs;
@@ -925,28 +959,18 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_immutable_values,
-            top_level_fun_call_sites,
             extern_funs,
             native_callable_funs,
             object_inits,
             class_inits,
-            class_ctor_init_bodies,
-            class_vtables,
-            interfaces,
-            class_itables,
-            ctor_call_sites,
-            dispatch_call_contracts,
-            effect_op_call_sites,
-            continuation_resume_call_sites,
+            release_hooks,
             when_pat_binding_tys,
             nominal_kinds,
             interior_mutable_nominals,
-            direct_supertypes,
             builtins,
             callable_sources,
             published_late_lowered_program,
             published_late_lowered_types,
-            published_lir_facts,
             effect_analysis_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -955,7 +979,10 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
     }
 
     pub(super) fn cone_init_routine_plans(&self) -> Vec<ConeInitRoutinePlan> {
-        let global_init = &self.published_lir_facts.global_init;
+        let global_init = self
+            .published_late_lowered_program
+            .expect("cone init planning requires published LIR program")
+            .global_init();
         global_init
             .final_entry_order
             .routines
@@ -1132,16 +1159,8 @@ fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
     ptr.as_value_ref() as usize
 }
 
-// Walk HIR in lexical order so materialized-MIR closure helpers can recover the
-// same `$lambdaN.$lambdaM` path without reusing `ClosureId` or old symbol text.
 fn callable_export_readable_path(owner_path: &str) -> &str {
-    let base = owner_path
-        .rsplit_once("::<")
-        .map(|(base, _)| base)
-        .unwrap_or(owner_path);
-    base.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(base)
+    owner_path
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

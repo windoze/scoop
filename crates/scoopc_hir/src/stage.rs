@@ -1,27 +1,42 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir::{
-    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, Decl,
-    DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
-    LoweredHir, Stmt, StmtKind, ValDecl, ValueRef,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, ClassCtor,
+    ClassInitStep, Decl, DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError,
+    HirStageError, InterpolatedStringPart, Item, LoweredHir, MemberRef, MonoClassInit, ObjectInit,
+    ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
-use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
+use crate::intrinsics::{
+    NamedIntrinsicLoweringMode, legacy_scalar_named_intrinsic_entry_name_for_fqn,
+    named_intrinsic_audit_entry, named_intrinsic_entry_name_for_root,
+};
+use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::stable_id::{CanonicalTextKey, SiteId, StableHashScope, stable_hash64};
-use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::stable_id::{
+    CanonicalEncodingError, CanonicalTextKey, EffectRowTemplate as StableEffectRowTemplate,
+    EffectTerm as StableEffectTerm, NoTypeParamResolver, SiteId, StableCanonicalKey, StableDefKey,
+    StableEffectParamKey, StableHashScope, StableInstanceKey, StableTemplateKey, stable_hash64,
+};
+use crate::ty::{
+    EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind,
+    TypeParamType, TypeStore, ValueTypeKind,
+};
+use crate::typecheck::TypeEnv;
+use scoop_project_model::StableConeKey;
 use scoopc_hir_facts::{
     HirFacts,
     common::FactIdentity,
     declarations::{
-        CallableDeclarationFact, DeclarationFacts, DispatchSlotFact, DispatchTableFact,
-        EnumVariantDeclarationFact, FieldDeclarationFact, FieldOwnerKind, NominalDeclarationFact,
-        NominalKind as HirFactNominalKind, TypeParameterFact, Variance as HirFactVariance,
+        CallableBodyFact, CallableDeclarationFact, DeclarationFacts, DispatchSlotFact,
+        DispatchTableFact, EnumVariantDeclarationFact, FieldDeclarationFact, FieldOwnerKind,
+        GenericTemplateFact, NominalDeclarationFact, NominalKind as HirFactNominalKind,
+        TypeParameterFact, Variance as HirFactVariance,
     },
     globals::{
         GlobalRootFact, GlobalRootKind, GlobalStoragePolicy, InitializerFact, InitializerFieldFact,
@@ -546,7 +561,11 @@ pub enum IntrinsicRuntimeFallback {
 
 impl TypedIntrinsicKind {
     fn from_call_binding(binding: &ast::TopLevelFunCallBinding) -> Self {
-        let Some(entry_name) = binding.intrinsic_entry_name.as_deref() else {
+        let entry_name = binding
+            .intrinsic_entry_name
+            .as_deref()
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&binding.fqn));
+        let Some(entry_name) = entry_name else {
             return Self::from_fqn(&binding.fqn);
         };
         let entry = named_intrinsic_audit_entry(entry_name)
@@ -659,9 +678,24 @@ pub struct FunctionTargetContract {
     pub(crate) abi_identity: CallableAbiIdentity,
     pub(crate) param_tys: Vec<TypeId>,
     pub(crate) return_ty: Option<TypeId>,
+    pub(crate) stable_template_key: Option<StableTemplateKey>,
+    pub(crate) stable_instance_key: Option<StableInstanceKey>,
     pub(crate) type_args: Vec<TypeId>,
     pub(crate) eff_args: Vec<EffectRow>,
     pub(crate) arg_binding: Option<CallArgBindingContract>,
+}
+
+struct SyntheticStableFunctionTarget {
+    fqn: String,
+    decl_file: PathBuf,
+    decl_span: Span,
+    abi_identity: CallableAbiIdentity,
+    stable_template_key: StableTemplateKey,
+    type_args: Vec<TypeId>,
+    eff_args: Vec<EffectRow>,
+    param_tys: Vec<TypeId>,
+    return_ty: Option<TypeId>,
+    arg_binding: Option<CallArgBindingContract>,
 }
 
 impl FunctionTargetContract {
@@ -669,8 +703,42 @@ impl FunctionTargetContract {
         types: &TypeStore,
         binding: &ast::TopLevelFunCallBinding,
         abi_identity: CallableAbiIdentity,
+        stable_template_key: Option<StableTemplateKey>,
         arg_binding: Option<CallArgBindingContract>,
     ) -> Self {
+        let type_args = binding
+            .type_args
+            .iter()
+            .copied()
+            .filter(|ty| type_id_in_store(types, *ty))
+            .collect::<Vec<_>>();
+        let eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                EffectRow::new(
+                    row.terms
+                        .iter()
+                        .copied()
+                        .filter(|ty| type_id_in_store(types, *ty))
+                        .collect(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let stable_instance_key = stable_template_key.as_ref().and_then(|template| {
+            instance_args_are_concrete(types, &type_args, &eff_args)
+                .then(|| {
+                    StableInstanceKey::from_type_arguments(
+                        template.clone(),
+                        types,
+                        &type_args,
+                        &eff_args,
+                        &NoTypeParamResolver,
+                    )
+                    .ok()
+                })
+                .flatten()
+        });
         Self {
             fqn: binding.fqn.clone(),
             decl_file: Some(binding.decl_file.clone()),
@@ -683,25 +751,10 @@ impl FunctionTargetContract {
                 .filter(|ty| type_id_in_store(types, *ty))
                 .collect(),
             return_ty: binding.return_ty.filter(|ty| type_id_in_store(types, *ty)),
-            type_args: binding
-                .type_args
-                .iter()
-                .copied()
-                .filter(|ty| type_id_in_store(types, *ty))
-                .collect(),
-            eff_args: binding
-                .eff_args
-                .iter()
-                .map(|row| {
-                    EffectRow::new(
-                        row.terms
-                            .iter()
-                            .copied()
-                            .filter(|ty| type_id_in_store(types, *ty))
-                            .collect(),
-                    )
-                })
-                .collect(),
+            stable_template_key,
+            stable_instance_key,
+            type_args,
+            eff_args,
             arg_binding,
         }
     }
@@ -718,8 +771,54 @@ impl FunctionTargetContract {
             abi_identity,
             param_tys: Vec::new(),
             return_ty: None,
+            stable_template_key: None,
+            stable_instance_key: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
+            arg_binding,
+        }
+    }
+
+    fn synthetic_with_stable_args(
+        types: &TypeStore,
+        target: SyntheticStableFunctionTarget,
+    ) -> Self {
+        let SyntheticStableFunctionTarget {
+            fqn,
+            decl_file,
+            decl_span,
+            abi_identity,
+            stable_template_key,
+            type_args,
+            eff_args,
+            param_tys,
+            return_ty,
+            arg_binding,
+        } = target;
+        let stable_instance_key = instance_args_are_concrete(types, &type_args, &eff_args)
+            .then(|| {
+                StableInstanceKey::from_type_arguments(
+                    stable_template_key.clone(),
+                    types,
+                    &type_args,
+                    &eff_args,
+                    &NoTypeParamResolver,
+                )
+                .ok()
+            })
+            .flatten();
+
+        Self {
+            fqn,
+            decl_file: Some(decl_file),
+            decl_span: Some(decl_span),
+            abi_identity,
+            param_tys,
+            return_ty,
+            stable_template_key: Some(stable_template_key),
+            stable_instance_key,
+            type_args,
+            eff_args,
             arg_binding,
         }
     }
@@ -748,6 +847,14 @@ impl FunctionTargetContract {
 
     pub fn return_ty(&self) -> Option<TypeId> {
         self.return_ty
+    }
+
+    pub fn stable_template_key(&self) -> Option<&StableTemplateKey> {
+        self.stable_template_key.as_ref()
+    }
+
+    pub fn stable_instance_key(&self) -> Option<&StableInstanceKey> {
+        self.stable_instance_key.as_ref()
     }
 
     pub fn type_args(&self) -> &[TypeId] {
@@ -1922,6 +2029,47 @@ fn format_hir_fact_payload(
     let _ = writeln!(out, "{indent}],");
 }
 
+/// HIR 语义 artifact，供后续 stage 直接消费前端已经构造好的声明环境。
+#[derive(Debug, Clone)]
+pub struct HirSemanticArtifact {
+    stable_cone_key: StableConeKey,
+    index: Index,
+    type_env: TypeEnv,
+    hir_facts: HirFacts,
+}
+
+impl HirSemanticArtifact {
+    pub fn new(
+        stable_cone_key: StableConeKey,
+        index: Index,
+        type_env: TypeEnv,
+        hir_facts: HirFacts,
+    ) -> Self {
+        Self {
+            stable_cone_key,
+            index,
+            type_env,
+            hir_facts,
+        }
+    }
+
+    pub fn stable_cone_key(&self) -> &StableConeKey {
+        &self.stable_cone_key
+    }
+
+    pub fn index(&self) -> &Index {
+        &self.index
+    }
+
+    pub fn type_env(&self) -> &TypeEnv {
+        &self.type_env
+    }
+
+    pub fn hir_facts(&self) -> &HirFacts {
+        &self.hir_facts
+    }
+}
+
 /// HIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
@@ -1935,23 +2083,47 @@ fn format_hir_fact_payload(
 pub struct HirStageOutput {
     lowered_hir: LoweredHir,
     hir_facts: HirFacts,
+    semantic_artifact: Option<HirSemanticArtifact>,
     source_path: PathBuf,
 }
 
 impl HirStageOutput {
     pub fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
-        Self::new_checked(lowered_hir, source_path)
+        Self::new_checked(lowered_hir, source_path, None)
     }
 
-    fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+    pub fn new_with_frontend_artifact(
+        lowered_hir: LoweredHir,
+        source_path: &Path,
+        index: Index,
+        type_env: TypeEnv,
+    ) -> Result<Self, HirStageError> {
+        HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
+        Self::new_checked(lowered_hir, source_path, Some((index, type_env)))
+    }
+
+    fn new_checked(
+        mut lowered_hir: LoweredHir,
+        source_path: &Path,
+        frontend_artifact_parts: Option<(Index, TypeEnv)>,
+    ) -> Result<Self, HirStageError> {
         ensure_raise_runtime_error_effect(&mut lowered_hir.types);
         let collected_contracts =
             CollectedHirContracts::from_lowered_hir(&lowered_hir, source_path)?;
         let hir_facts = build_hir_facts(&lowered_hir, &collected_contracts, source_path)?;
+        let semantic_artifact = frontend_artifact_parts.map(|(index, type_env)| {
+            HirSemanticArtifact::new(
+                lowered_hir.stable_cone_key.clone(),
+                index,
+                type_env,
+                hir_facts.clone(),
+            )
+        });
         Ok(Self {
             lowered_hir,
             hir_facts,
+            semantic_artifact,
             source_path: source_path.to_path_buf(),
         })
     }
@@ -1970,6 +2142,10 @@ impl HirStageOutput {
 
     pub fn hir_facts(&self) -> &HirFacts {
         &self.hir_facts
+    }
+
+    pub fn hir_semantic_artifact(&self) -> Option<&HirSemanticArtifact> {
+        self.semantic_artifact.as_ref()
     }
 
     pub fn source_path(&self) -> &Path {
@@ -2000,8 +2176,14 @@ impl HirStageOutput {
 }
 
 pub fn run(session: &Session, source: &SourceFile) -> Result<HirStageOutput, HirLowerError> {
-    let lowered_hir = crate::hir::lower_typed_for_dump(session, source)?;
-    HirStageOutput::new(lowered_hir, source.path()).map_err(HirLowerError::from)
+    let output = crate::hir::lower_typed_for_dump_with_frontend_artifact(session, source)?;
+    HirStageOutput::new_with_frontend_artifact(
+        output.lowered_hir,
+        source.path(),
+        output.index,
+        output.type_env,
+    )
+    .map_err(HirLowerError::from)
 }
 
 fn build_hir_facts(
@@ -2010,7 +2192,7 @@ fn build_hir_facts(
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2022,7 +2204,7 @@ pub fn build_hir_declaration_facts_from_lowered_hir(
     let collected_contracts =
         CollectedHirContracts::from_lowered_hir_source_path(lowered_hir, source_path)?;
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2033,7 +2215,7 @@ pub fn build_hir_facts_from_lowered_hir(
 ) -> Result<HirFacts, HirStageError> {
     let collected_contracts = CollectedHirContracts::from_lowered_hir(lowered_hir, source_path)?;
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts)?;
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -2056,7 +2238,7 @@ fn populate_source_site_facts(
     facts: &mut hir_site_facts::SourceSiteFacts,
     lowered_hir: &LoweredHir,
     contracts: &CollectedHirContracts,
-) {
+) -> Result<(), HirStageError> {
     facts.function_effects = contracts
         .function_effects
         .iter()
@@ -2066,9 +2248,30 @@ fn populate_source_site_facts(
     let mut call_site_contracts = contracts.call_site_contracts.iter().collect::<Vec<_>>();
     call_site_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
     for (call_site, contract) in call_site_contracts {
+        let intrinsic_contract = lowered_hir
+            .top_level_fun_call_sites
+            .get(call_site)
+            .filter(|binding| binding_publishes_intrinsic_metadata(binding))
+            .map(|binding| {
+                intrinsic_call_contract_from_existing_or_binding(
+                    &lowered_hir.types,
+                    contract,
+                    binding,
+                )
+            });
+        let contract = intrinsic_contract.as_ref().unwrap_or(contract);
         facts
             .call_sites
             .push(call_site_contract_fact(call_site, contract));
+        if let Some(instance_fact) = call_site_instance_fact(call_site, contract) {
+            facts.call_site_instances.push(instance_fact);
+        }
+        if let Some(binding_fact) = template_site_binding_fact(call_site, contract) {
+            facts.template_site_bindings.push(binding_fact);
+        }
+        if let Some(candidate_fact) = dispatch_candidate_fact(lowered_hir, call_site, contract) {
+            facts.dispatch_candidates.push(candidate_fact);
+        }
         if let Some(binding) = call_site_contract_arg_binding(contract) {
             facts
                 .argument_bindings
@@ -2078,6 +2281,40 @@ fn populate_source_site_facts(
                 });
         }
     }
+
+    let mut published_call_sites = contracts
+        .call_site_contracts
+        .keys()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let mut intrinsic_bindings = lowered_hir
+        .top_level_fun_call_sites
+        .iter()
+        .filter(|(call_site, binding)| {
+            binding_publishes_intrinsic_metadata(binding)
+                && !published_call_sites.contains(*call_site)
+        })
+        .collect::<Vec<_>>();
+    intrinsic_bindings.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    for (call_site, binding) in intrinsic_bindings {
+        let contract = intrinsic_call_contract_from_binding(&lowered_hir.types, binding);
+        facts
+            .call_sites
+            .push(call_site_contract_fact(call_site, &contract));
+        published_call_sites.insert(call_site.clone());
+    }
+
+    facts
+        .template_site_bindings
+        .extend(template_value_binding_facts(lowered_hir));
+    facts.template_site_bindings.sort_by(|lhs, rhs| {
+        lhs.identity
+            .source_path
+            .cmp(&rhs.identity.source_path)
+            .then(lhs.identity.span.start.cmp(&rhs.identity.span.start))
+            .then(lhs.identity.span.end.cmp(&rhs.identity.span.end))
+            .then((lhs.kind as u8).cmp(&(rhs.kind as u8)))
+    });
 
     let mut assign_place_contracts = contracts.assign_place_contracts.iter().collect::<Vec<_>>();
     assign_place_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
@@ -2148,6 +2385,1210 @@ fn populate_source_site_facts(
         .iter()
         .map(extern_global_contract_fact)
         .collect();
+
+    let source_effect_facts = SourceEffectFactBuilder::new(lowered_hir, contracts)?;
+    facts.callable_source_effects = source_effect_facts.callable_source_effects()?;
+    facts.semantic_operations = source_effect_facts.semantic_operations()?;
+    facts.hidden_initializers = source_effect_facts.hidden_initializers()?;
+
+    Ok(())
+}
+
+#[derive(Clone)]
+struct ComputedCallableEffect {
+    direct: EffectRow,
+    inferred: EffectRow,
+    published: EffectRow,
+    row_is_closed: bool,
+    status: hir_site_facts::EffectInferenceStatus,
+}
+
+struct SourceEffectFactBuilder<'a> {
+    lowered_hir: &'a LoweredHir,
+    contracts: &'a CollectedHirContracts,
+    functions: Vec<&'a FunDecl>,
+    functions_by_fqn: HashMap<String, &'a FunDecl>,
+    effect_param_keys: HashMap<TypeParamType, StableEffectParamKey>,
+}
+
+impl<'a> SourceEffectFactBuilder<'a> {
+    fn new(
+        lowered_hir: &'a LoweredHir,
+        contracts: &'a CollectedHirContracts,
+    ) -> Result<Self, HirStageError> {
+        let mut functions = Vec::new();
+        let mut functions_by_fqn = HashMap::new();
+        for item in &lowered_hir.file.items {
+            if let Item::Fun(fun) = item {
+                functions_by_fqn.insert(fun.fqn.clone(), fun);
+                functions.push(fun);
+            }
+        }
+        for fun in &lowered_hir.member_funs {
+            functions_by_fqn.insert(fun.fqn.clone(), fun);
+            functions.push(fun);
+        }
+
+        Ok(Self {
+            lowered_hir,
+            contracts,
+            functions,
+            functions_by_fqn,
+            effect_param_keys: stable_effect_param_keys(lowered_hir)?,
+        })
+    }
+
+    fn callable_source_effects(
+        &self,
+    ) -> Result<Vec<hir_site_facts::CallableSourceEffectFacts>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut facts = Vec::with_capacity(self.functions.len());
+        for fun in &self.functions {
+            let computed = computer.compute_callable(fun);
+            facts.push(hir_site_facts::CallableSourceEffectFacts {
+                fqn: fun.fqn.clone(),
+                source_path: fun.source_path.clone(),
+                span: fun.span,
+                return_ty: fun.return_ty,
+                declared_surface_row: fun
+                    .declared_effects
+                    .as_ref()
+                    .map(|row| self.effect_row_template(row, fun.effects_closed, fun))
+                    .transpose()?,
+                direct_effect_row: self.effect_row_template(&computed.direct, false, fun)?,
+                inferred_surface_row_template: self.effect_row_template(
+                    &computed.inferred,
+                    false,
+                    fun,
+                )?,
+                published_surface_row_template: self.effect_row_template(
+                    &computed.published,
+                    computed.row_is_closed,
+                    fun,
+                )?,
+                row_is_closed: computed.row_is_closed,
+                inference_status: computed.status,
+            });
+        }
+        facts.sort_by(|lhs, rhs| {
+            lhs.source_path
+                .cmp(&rhs.source_path)
+                .then(lhs.span.start.cmp(&rhs.span.start))
+                .then(lhs.fqn.cmp(&rhs.fqn))
+        });
+        Ok(facts)
+    }
+
+    fn semantic_operations(
+        &self,
+    ) -> Result<Vec<hir_site_facts::CanonicalSemanticOperationFact>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut call_sites = self
+            .contracts
+            .call_site_contracts
+            .iter()
+            .collect::<Vec<_>>();
+        call_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let mut facts = Vec::with_capacity(call_sites.len());
+        for (call_site, contract) in call_sites {
+            let surface = computer.call_contract_surface_row(contract);
+            facts.push(hir_site_facts::CanonicalSemanticOperationFact {
+                identity: source_site_identity(call_site, "semantic"),
+                kind: semantic_operation_kind(contract),
+                surface_row: self.effect_row_template_for_site(&surface, false, call_site)?,
+            });
+        }
+        Ok(facts)
+    }
+
+    fn hidden_initializers(
+        &self,
+    ) -> Result<Vec<hir_site_facts::HiddenInitializerEffectFact>, HirStageError> {
+        let mut computer = SourceEffectComputer::new(self);
+        let mut facts = Vec::new();
+
+        let mut classes = self.lowered_hir.class_inits.values().collect::<Vec<_>>();
+        classes.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for class in classes {
+            if class.ctors.is_empty() {
+                let row = computer.class_ctor_effect_row(&class.fqn, None);
+                facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                    kind: hir_site_facts::HiddenInitializerKind::ClassCtor,
+                    fqn: class.fqn.clone(),
+                    source_path: class.source_path.clone(),
+                    span: None,
+                    effect_row: self.effect_row_template_for_parts(
+                        &row,
+                        false,
+                        &class.source_path,
+                        Span::new(0, 0),
+                        &class.fqn,
+                    )?,
+                });
+            }
+            for ctor in &class.ctors {
+                let row = computer.class_ctor_effect_row(&class.fqn, Some(ctor.span));
+                facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                    kind: hir_site_facts::HiddenInitializerKind::ClassCtor,
+                    fqn: class.fqn.clone(),
+                    source_path: class.source_path.clone(),
+                    span: Some(ctor.span),
+                    effect_row: self.effect_row_template_for_parts(
+                        &row,
+                        false,
+                        &class.source_path,
+                        ctor.span,
+                        &class.fqn,
+                    )?,
+                });
+            }
+        }
+
+        let mut objects = self.lowered_hir.object_inits.values().collect::<Vec<_>>();
+        objects.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for object in objects {
+            let row = computer.object_init_effect_row(&object.fqn);
+            facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                kind: hir_site_facts::HiddenInitializerKind::ObjectInit,
+                fqn: object.fqn.clone(),
+                source_path: object.source_path.clone(),
+                span: Some(object.span),
+                effect_row: self.effect_row_template_for_parts(
+                    &row,
+                    false,
+                    &object.source_path,
+                    object.span,
+                    &object.fqn,
+                )?,
+            });
+        }
+
+        let mut values = self
+            .lowered_hir
+            .top_level_immutable_values
+            .values()
+            .collect::<Vec<_>>();
+        values.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for value in values {
+            let row = computer.top_level_immutable_value_effect_row(&value.fqn);
+            facts.push(hir_site_facts::HiddenInitializerEffectFact {
+                kind: hir_site_facts::HiddenInitializerKind::TopLevelInit,
+                fqn: value.fqn.clone(),
+                source_path: value.source_path.clone(),
+                span: Some(value.span),
+                effect_row: self.effect_row_template_for_parts(
+                    &row,
+                    false,
+                    &value.source_path,
+                    value.span,
+                    &value.fqn,
+                )?,
+            });
+        }
+
+        Ok(facts)
+    }
+
+    fn effect_row_template(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        fun: &FunDecl,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        self.effect_row_template_for_parts(row, closed, &fun.source_path, fun.span, &fun.fqn)
+    }
+
+    fn effect_row_template_for_site(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        call_site: &CallSite,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        self.effect_row_template_for_parts(
+            row,
+            closed,
+            &call_site.source_path,
+            call_site.span,
+            "source semantic operation",
+        )
+    }
+
+    fn effect_row_template_for_parts(
+        &self,
+        row: &EffectRow,
+        closed: bool,
+        source_path: &Path,
+        span: Span,
+        owner: &str,
+    ) -> Result<hir_site_facts::EffectRowTemplate, HirStageError> {
+        let template = StableEffectRowTemplate::from_effect_row(
+            &self.lowered_hir.types,
+            row,
+            &self.lowered_hir.stable_type_param_keys,
+            &self.effect_param_keys,
+            closed,
+        )
+        .map_err(|err| hir_stage_effect_template_error(source_path, span, owner, err))?;
+        Ok(effect_row_template_fact(&template))
+    }
+}
+
+struct SourceEffectComputer<'a, 'b> {
+    builder: &'a SourceEffectFactBuilder<'b>,
+    cache: HashMap<String, ComputedCallableEffect>,
+    visiting_callables: HashSet<String>,
+    visiting_hidden: HashSet<String>,
+}
+
+impl<'a, 'b> SourceEffectComputer<'a, 'b> {
+    fn new(builder: &'a SourceEffectFactBuilder<'b>) -> Self {
+        Self {
+            builder,
+            cache: HashMap::new(),
+            visiting_callables: HashSet::new(),
+            visiting_hidden: HashSet::new(),
+        }
+    }
+
+    fn compute_callable(&mut self, fun: &FunDecl) -> ComputedCallableEffect {
+        if let Some(cached) = self.cache.get(&fun.fqn).cloned() {
+            return cached;
+        }
+        if !self.visiting_callables.insert(fun.fqn.clone()) {
+            let fallback = fun
+                .declared_effects
+                .clone()
+                .or_else(|| {
+                    function_effect_contract(&self.builder.lowered_hir.types, fun.ty)
+                        .map(|row| row.0)
+                })
+                .unwrap_or_else(EffectRow::pure);
+            return ComputedCallableEffect {
+                direct: EffectRow::pure(),
+                inferred: fallback.clone(),
+                published: fallback,
+                row_is_closed: fun.effects_closed,
+                status: hir_site_facts::EffectInferenceStatus::ExplicitContract,
+            };
+        }
+
+        let direct = fun
+            .body
+            .as_ref()
+            .map(|body| self.block_direct_row(body, fun.source_path.as_path()))
+            .unwrap_or_else(EffectRow::pure);
+        let inferred = fun
+            .body
+            .as_ref()
+            .map(|body| self.block_surface_row(body, fun.source_path.as_path()))
+            .or_else(|| fun.declared_effects.clone())
+            .unwrap_or_else(EffectRow::pure);
+        let (published, row_is_closed, status) =
+            if let Some(declared) = fun.declared_effects.clone() {
+                (
+                    declared,
+                    fun.effects_closed,
+                    hir_site_facts::EffectInferenceStatus::ExplicitContract,
+                )
+            } else if fun.body.is_some() {
+                (
+                    inferred.clone(),
+                    false,
+                    hir_site_facts::EffectInferenceStatus::InferredFromBody,
+                )
+            } else {
+                (
+                    EffectRow::pure(),
+                    false,
+                    hir_site_facts::EffectInferenceStatus::MissingBodyAssumedPure,
+                )
+            };
+
+        let out = ComputedCallableEffect {
+            direct,
+            inferred,
+            published,
+            row_is_closed,
+            status,
+        };
+        self.visiting_callables.remove(&fun.fqn);
+        self.cache.insert(fun.fqn.clone(), out.clone());
+        out
+    }
+
+    fn block_surface_row(&mut self, block: &Block, source_path: &Path) -> EffectRow {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.stmt_surface_row(stmt, source_path).terms);
+        }
+        EffectRow::new(terms)
+    }
+
+    fn stmt_surface_row(&mut self, stmt: &Stmt, source_path: &Path) -> EffectRow {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.expr_surface_row(expr, source_path),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.expr_surface_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Assign { lhs, rhs, .. } => union_rows([
+                self.expr_surface_row(lhs, source_path),
+                self.expr_surface_row(rhs, source_path),
+            ]),
+            StmtKind::While { cond, body } => union_rows([
+                self.expr_surface_row(cond, source_path),
+                self.block_surface_row(body, source_path),
+            ]),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.expr_surface_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn expr_surface_row(&mut self, expr: &Expr, source_path: &Path) -> EffectRow {
+        match &expr.kind {
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::ClassLiteral(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Closure(_)
+            | ExprKind::Todo(_) => EffectRow::pure(),
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => union_rows([
+                self.object_init_effect_row(fqn),
+                self.top_level_immutable_value_effect_row(fqn),
+            ]),
+            ExprKind::VarRef(_) => EffectRow::pure(),
+            ExprKind::Block(block) => self.block_surface_row(block, source_path),
+            ExprKind::Unary { expr: operand, .. } => union_rows([
+                self.expr_surface_row(operand, source_path),
+                self.semantic_surface_row(source_path, expr.span),
+            ]),
+            ExprKind::Cast { expr, .. } | ExprKind::TypeCheck { expr, .. } => {
+                self.expr_surface_row(expr, source_path)
+            }
+            ExprKind::Binary { lhs, rhs, .. } => union_rows([
+                self.expr_surface_row(lhs, source_path),
+                self.expr_surface_row(rhs, source_path),
+                self.semantic_surface_row(source_path, expr.span),
+            ]),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let mut rows = vec![
+                    self.expr_surface_row(cond, source_path),
+                    self.expr_surface_row(then_branch, source_path),
+                ];
+                if let Some(else_branch) = else_branch.as_deref() {
+                    rows.push(self.expr_surface_row(else_branch, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::When { subject, arms } => {
+                let mut rows = vec![self.expr_surface_row(subject, source_path)];
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        rows.push(self.expr_surface_row(guard, source_path));
+                    }
+                    rows.push(self.expr_surface_row(&arm.body, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::MemberAccess { receiver, member } => {
+                let mut rows = vec![self.expr_surface_row(receiver, source_path)];
+                if let Some(MemberRef::Value { fqn, .. }) = member.resolved.as_ref()
+                    && let Some((owner_fqn, _)) = fqn.rsplit_once('.')
+                {
+                    rows.push(self.object_init_effect_row(owner_fqn));
+                }
+                rows.push(self.semantic_surface_row(source_path, expr.span));
+                union_rows(rows)
+            }
+            ExprKind::StructLit { fields, .. } => union_rows(
+                fields
+                    .iter()
+                    .map(|field| self.expr_surface_row(&field.value, source_path)),
+            ),
+            ExprKind::TupleLit { elements } => union_rows(
+                elements
+                    .iter()
+                    .map(|element| self.expr_surface_row(element, source_path)),
+            ),
+            ExprKind::InterpolatedString { parts, .. } => {
+                union_rows(parts.iter().filter_map(|part| {
+                    if let InterpolatedStringPart::Expr { expr } = part {
+                        Some(self.expr_surface_row(expr, source_path))
+                    } else {
+                        None
+                    }
+                }))
+            }
+            ExprKind::Call { callee, args } => {
+                let mut rows = vec![
+                    self.expr_surface_row(callee, source_path),
+                    self.call_args_surface_row(args, source_path),
+                    self.semantic_surface_row(source_path, expr.span),
+                ];
+                if let Some(info) = self
+                    .builder
+                    .lowered_hir
+                    .ctor_call_sites
+                    .get(&CallSite::new(source_path.to_path_buf(), expr.span))
+                {
+                    rows.push(self.class_ctor_effect_row(&info.class_fqn, info.ctor_span));
+                } else if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) =
+                    self.builder.lowered_hir.types.kind(callee.ty)
+                {
+                    rows.push(fun_ty.effects.clone());
+                }
+                union_rows(rows)
+            }
+            ExprKind::Perform {
+                effect_ty, args, ..
+            } => union_rows([
+                self.call_args_surface_row(args, source_path),
+                EffectRow::new(vec![*effect_ty]),
+            ]),
+            ExprKind::Handle(handle) => {
+                let handled = EffectRow::new(
+                    handle
+                        .arms
+                        .iter()
+                        .map(|arm| arm.op.effect_ty)
+                        .collect::<Vec<_>>(),
+                );
+                let body =
+                    subtract_row(self.block_surface_row(&handle.body, source_path), &handled);
+                let mut rows = vec![body];
+                for arm in &handle.arms {
+                    rows.push(self.expr_surface_row(&arm.body, source_path));
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    rows.push(self.block_surface_row(finally, source_path));
+                }
+                union_rows(rows)
+            }
+        }
+    }
+
+    fn block_direct_row(&mut self, block: &Block, source_path: &Path) -> EffectRow {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.stmt_direct_row(stmt, source_path).terms);
+        }
+        EffectRow::new(terms)
+    }
+
+    fn stmt_direct_row(&mut self, stmt: &Stmt, source_path: &Path) -> EffectRow {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.expr_direct_row(expr, source_path),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.expr_direct_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Assign { lhs, rhs, .. } => union_rows([
+                self.expr_direct_row(lhs, source_path),
+                self.expr_direct_row(rhs, source_path),
+            ]),
+            StmtKind::While { cond, body } => union_rows([
+                self.expr_direct_row(cond, source_path),
+                self.block_direct_row(body, source_path),
+            ]),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.expr_direct_row(expr, source_path))
+                .unwrap_or_else(EffectRow::pure),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn expr_direct_row(&mut self, expr: &Expr, source_path: &Path) -> EffectRow {
+        match &expr.kind {
+            ExprKind::Perform {
+                effect_ty, args, ..
+            } => union_rows([
+                self.call_args_direct_row(args, source_path),
+                EffectRow::new(vec![*effect_ty]),
+            ]),
+            ExprKind::Closure(_) => EffectRow::pure(),
+            ExprKind::Block(block) => self.block_direct_row(block, source_path),
+            ExprKind::Unary { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::TypeCheck { expr, .. } => self.expr_direct_row(expr, source_path),
+            ExprKind::Binary { lhs, rhs, .. } => union_rows([
+                self.expr_direct_row(lhs, source_path),
+                self.expr_direct_row(rhs, source_path),
+            ]),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let mut rows = vec![
+                    self.expr_direct_row(cond, source_path),
+                    self.expr_direct_row(then_branch, source_path),
+                ];
+                if let Some(else_branch) = else_branch.as_deref() {
+                    rows.push(self.expr_direct_row(else_branch, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::When { subject, arms } => {
+                let mut rows = vec![self.expr_direct_row(subject, source_path)];
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        rows.push(self.expr_direct_row(guard, source_path));
+                    }
+                    rows.push(self.expr_direct_row(&arm.body, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::MemberAccess { receiver, .. } => self.expr_direct_row(receiver, source_path),
+            ExprKind::StructLit { fields, .. } => union_rows(
+                fields
+                    .iter()
+                    .map(|field| self.expr_direct_row(&field.value, source_path)),
+            ),
+            ExprKind::TupleLit { elements } => union_rows(
+                elements
+                    .iter()
+                    .map(|element| self.expr_direct_row(element, source_path)),
+            ),
+            ExprKind::InterpolatedString { parts, .. } => {
+                union_rows(parts.iter().filter_map(|part| {
+                    if let InterpolatedStringPart::Expr { expr } = part {
+                        Some(self.expr_direct_row(expr, source_path))
+                    } else {
+                        None
+                    }
+                }))
+            }
+            ExprKind::Call { callee, args } => union_rows([
+                self.expr_direct_row(callee, source_path),
+                self.call_args_direct_row(args, source_path),
+            ]),
+            ExprKind::Handle(handle) => {
+                let mut rows = vec![self.block_direct_row(&handle.body, source_path)];
+                for arm in &handle.arms {
+                    rows.push(self.expr_direct_row(&arm.body, source_path));
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    rows.push(self.block_direct_row(finally, source_path));
+                }
+                union_rows(rows)
+            }
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::ClassLiteral(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Todo(_) => EffectRow::pure(),
+        }
+    }
+
+    fn call_args_surface_row(&mut self, args: &[CallArg], source_path: &Path) -> EffectRow {
+        union_rows(args.iter().map(|arg| match arg {
+            CallArg::Positional(expr) => self.expr_surface_row(expr, source_path),
+            CallArg::Named { value, .. } => self.expr_surface_row(value, source_path),
+        }))
+    }
+
+    fn call_args_direct_row(&mut self, args: &[CallArg], source_path: &Path) -> EffectRow {
+        union_rows(args.iter().map(|arg| match arg {
+            CallArg::Positional(expr) => self.expr_direct_row(expr, source_path),
+            CallArg::Named { value, .. } => self.expr_direct_row(value, source_path),
+        }))
+    }
+
+    fn semantic_surface_row(&mut self, source_path: &Path, span: Span) -> EffectRow {
+        let call_site = CallSite::new(source_path.to_path_buf(), span);
+        self.builder
+            .contracts
+            .call_site_contracts
+            .get(&call_site)
+            .map(|contract| self.call_contract_surface_row(contract))
+            .unwrap_or_else(EffectRow::pure)
+    }
+
+    fn call_contract_surface_row(&mut self, contract: &TypedCallSiteContract) -> EffectRow {
+        match contract {
+            TypedCallSiteContract::DirectTopLevel(function) => {
+                self.function_target_surface_row(function)
+            }
+            TypedCallSiteContract::MemberDirect(member)
+            | TypedCallSiteContract::Virtual(member)
+            | TypedCallSiteContract::Interface(member) => {
+                self.function_target_surface_row(member.function())
+            }
+            TypedCallSiteContract::Extension { function, .. }
+            | TypedCallSiteContract::Intrinsic { function, .. } => {
+                self.function_target_surface_row(function)
+            }
+            TypedCallSiteContract::Constructor(ctor) => {
+                self.class_ctor_effect_row(ctor.owner_fqn(), ctor.ctor_span())
+            }
+            TypedCallSiteContract::Closure { callee_ty, .. }
+            | TypedCallSiteContract::FunValue { callee_ty, .. }
+            | TypedCallSiteContract::FunPtr { callee_ty, .. } => {
+                self.function_type_surface_row(*callee_ty)
+            }
+            TypedCallSiteContract::EffectOp(perform) => EffectRow::new(vec![perform.effect_ty()]),
+            TypedCallSiteContract::ContinuationResume(resume) => {
+                let mut terms = resume.out_effects().terms.clone();
+                if let Some(effect) = resume.runtime_error_effect_ty() {
+                    terms.push(effect);
+                }
+                EffectRow::new(terms)
+            }
+        }
+    }
+
+    fn function_target_surface_row(&mut self, target: &FunctionTargetContract) -> EffectRow {
+        let row = if let Some(fun) = self.builder.functions_by_fqn.get(target.fqn()).copied() {
+            self.compute_callable(fun).published
+        } else {
+            self.function_row_for_fqn(target.fqn())
+                .unwrap_or_else(EffectRow::pure)
+        };
+        self.substitute_target_effect_args(row, target.eff_args())
+    }
+
+    fn function_row_for_fqn(&self, fqn: &str) -> Option<EffectRow> {
+        self.builder
+            .functions_by_fqn
+            .get(fqn)
+            .and_then(|fun| function_effect_contract(&self.builder.lowered_hir.types, fun.ty))
+            .map(|(row, _)| row)
+    }
+
+    fn function_type_surface_row(&self, ty: TypeId) -> EffectRow {
+        match self.builder.lowered_hir.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => fun_ty.effects.clone(),
+            _ => EffectRow::pure(),
+        }
+    }
+
+    fn substitute_target_effect_args(&self, row: EffectRow, eff_args: &[EffectRow]) -> EffectRow {
+        if eff_args.is_empty() || row.terms.is_empty() {
+            return row;
+        }
+        let mut markers = row
+            .terms
+            .iter()
+            .filter_map(|term| match self.builder.lowered_hir.types.kind(*term) {
+                TypeKind::Param(param)
+                    if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE =>
+                {
+                    Some((
+                        *term,
+                        self.builder
+                            .lowered_hir
+                            .stable_type_param_keys
+                            .get(param)
+                            .map(|key| key.index())
+                            .unwrap_or(usize::MAX),
+                    ))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        markers.sort_by(|lhs, rhs| lhs.1.cmp(&rhs.1).then(lhs.0.cmp(&rhs.0)));
+        markers.dedup_by_key(|(ty, _)| *ty);
+        let marker_to_arg = markers
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, (marker, _))| eff_args.get(idx).map(|row| (marker, row)))
+            .collect::<HashMap<_, _>>();
+
+        let mut terms = Vec::new();
+        for term in row.terms {
+            if let Some(arg_row) = marker_to_arg.get(&term) {
+                terms.extend(arg_row.terms.iter().copied());
+            } else {
+                terms.push(term);
+            }
+        }
+        EffectRow::new(terms)
+    }
+
+    fn class_ctor_effect_row(&mut self, class_fqn: &str, ctor_span: Option<Span>) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.class_ctor_effect_terms(class_fqn, ctor_span, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn object_init_effect_row(&mut self, object_fqn: &str) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.object_init_effect_terms(object_fqn, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn top_level_immutable_value_effect_row(&mut self, value_fqn: &str) -> EffectRow {
+        let mut visiting = std::mem::take(&mut self.visiting_hidden);
+        let terms = self.top_level_immutable_value_effect_terms(value_fqn, &mut visiting);
+        self.visiting_hidden = visiting;
+        EffectRow::new(terms)
+    }
+
+    fn class_ctor_effect_terms(
+        &mut self,
+        class_fqn: &str,
+        ctor_span: Option<Span>,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(class) = self.lookup_class_init(class_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("class:{}:{:?}", class.fqn, ctor_span);
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+            terms.extend(self.class_ctor_effect_terms(super_fqn, None, visiting));
+        }
+        terms.extend(self.scan_call_args_hidden(
+            &class.super_ctor_args,
+            class.source_path.as_path(),
+            visiting,
+        ));
+
+        let selected_ctor = ctor_span
+            .and_then(|span| class.ctors.iter().find(|ctor| ctor.span == span))
+            .or_else(|| {
+                if ctor_span.is_none() && class.ctors.len() == 1 {
+                    class.ctors.first()
+                } else {
+                    None
+                }
+            });
+        if let Some(ctor) = selected_ctor {
+            for param in &ctor.params {
+                if let Some(default_value) = param.default_value.as_ref() {
+                    terms.extend(self.scan_expr_hidden(
+                        default_value,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+            if let Some(delegation) = ctor.delegation.as_ref() {
+                terms.extend(self.scan_call_args_hidden(
+                    &delegation.args,
+                    class.source_path.as_path(),
+                    visiting,
+                ));
+            }
+        }
+
+        for step in &class.steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr_hidden(
+                        init,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+                ClassInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block_hidden(
+                        block,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+        }
+        if let Some(ctor) = selected_ctor
+            && let Some(body) = ctor.body.as_ref()
+        {
+            terms.extend(self.scan_block_hidden(body, class.source_path.as_path(), visiting));
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn object_init_effect_terms(
+        &mut self,
+        object_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(object_init) = self.builder.lowered_hir.object_inits.get(object_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("object:{object_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        for step in &object_init.steps {
+            match step {
+                ObjectInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr_hidden(
+                        init,
+                        object_init.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+                ObjectInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block_hidden(
+                        block,
+                        object_init.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn top_level_immutable_value_effect_terms(
+        &mut self,
+        value_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(value) = self
+            .builder
+            .lowered_hir
+            .top_level_immutable_values
+            .get(value_fqn)
+        else {
+            return Vec::new();
+        };
+        let key = format!("top-level-val:{value_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let terms = value
+            .init
+            .as_ref()
+            .map(|init| self.scan_expr_hidden(init, value.source_path.as_path(), visiting))
+            .unwrap_or_default();
+        visiting.remove(&key);
+        terms
+    }
+
+    fn lookup_class_init(&self, class_fqn: &str) -> Option<&'b MonoClassInit> {
+        self.builder
+            .lowered_hir
+            .class_inits
+            .values()
+            .find(|class| class.fqn == class_fqn)
+    }
+
+    fn scan_block_hidden(
+        &mut self,
+        block: &Block,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.scan_stmt_hidden(stmt, source_path, visiting));
+        }
+        terms
+    }
+
+    fn scan_stmt_hidden(
+        &mut self,
+        stmt: &Stmt,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => self.scan_expr_hidden(expr, source_path, visiting),
+            StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.scan_expr_hidden(expr, source_path, visiting))
+                .unwrap_or_default(),
+            StmtKind::Assign { lhs, rhs, .. } => {
+                let mut terms = self.scan_expr_hidden(lhs, source_path, visiting);
+                terms.extend(self.scan_expr_hidden(rhs, source_path, visiting));
+                terms
+            }
+            StmtKind::While { cond, body } => {
+                let mut terms = self.scan_expr_hidden(cond, source_path, visiting);
+                terms.extend(self.scan_block_hidden(body, source_path, visiting));
+                terms
+            }
+            StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.scan_expr_hidden(expr, source_path, visiting))
+                .unwrap_or_default(),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => Vec::new(),
+        }
+    }
+
+    fn scan_expr_hidden(
+        &mut self,
+        expr: &Expr,
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        self.expr_surface_row(expr, source_path)
+            .terms
+            .into_iter()
+            .chain(match &expr.kind {
+                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                    let mut terms = self.object_init_effect_terms(fqn, visiting);
+                    terms.extend(self.top_level_immutable_value_effect_terms(fqn, visiting));
+                    terms
+                }
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    fn scan_call_args_hidden(
+        &mut self,
+        args: &[CallArg],
+        source_path: &Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for arg in args {
+            match arg {
+                CallArg::Positional(expr) => {
+                    terms.extend(self.scan_expr_hidden(expr, source_path, visiting));
+                }
+                CallArg::Named { value, .. } => {
+                    terms.extend(self.scan_expr_hidden(value, source_path, visiting));
+                }
+            }
+        }
+        terms
+    }
+}
+
+fn union_rows(rows: impl IntoIterator<Item = EffectRow>) -> EffectRow {
+    EffectRow::new(rows.into_iter().flat_map(|row| row.terms).collect())
+}
+
+fn subtract_row(row: EffectRow, handled: &EffectRow) -> EffectRow {
+    EffectRow::new(
+        row.terms
+            .into_iter()
+            .filter(|term| !handled.terms.contains(term))
+            .collect(),
+    )
+}
+
+fn stable_effect_param_keys(
+    lowered_hir: &LoweredHir,
+) -> Result<HashMap<TypeParamType, StableEffectParamKey>, HirStageError> {
+    let mut out = HashMap::new();
+    for (param, key) in &lowered_hir.stable_type_param_keys {
+        if param.decl_file.as_os_str() != EFFECT_ROW_PARAM_DECL_FILE {
+            continue;
+        }
+        let owner = StableDefKey::from_canonical_text(key.owner_def_key()).map_err(|err| {
+            hir_stage_effect_template_error(Path::new("<hir>"), param.decl_span, &param.name, err)
+        })?;
+        let ordinal = u32::try_from(key.index()).unwrap_or(u32::MAX);
+        out.insert(
+            param.clone(),
+            StableEffectParamKey::new(owner, ordinal, param.name.clone()),
+        );
+    }
+    Ok(out)
+}
+
+fn effect_row_template_fact(
+    template: &StableEffectRowTemplate,
+) -> hir_site_facts::EffectRowTemplate {
+    hir_site_facts::EffectRowTemplate {
+        terms: template
+            .terms()
+            .iter()
+            .map(|term| match term {
+                StableEffectTerm::Concrete { type_key } => {
+                    hir_site_facts::EffectRowTerm::Concrete {
+                        type_key: type_key.clone(),
+                    }
+                }
+                StableEffectTerm::Param {
+                    owner,
+                    ordinal,
+                    name,
+                } => hir_site_facts::EffectRowTerm::Param {
+                    owner: CanonicalTextKey::new(owner.canonical_text()),
+                    ordinal: *ordinal,
+                    name: name.clone(),
+                },
+            })
+            .collect(),
+        closed: template.closed(),
+    }
+}
+
+fn hir_stage_effect_template_error(
+    source_path: &Path,
+    span: Span,
+    owner: &str,
+    err: CanonicalEncodingError,
+) -> HirStageError {
+    HirStageError::new(
+        source_path.to_path_buf(),
+        span,
+        format!("failed to publish HIR effect row template for `{owner}`: {err}"),
+        owner,
+    )
+}
+
+fn semantic_operation_kind(
+    contract: &TypedCallSiteContract,
+) -> hir_site_facts::CanonicalSemanticOperationKind {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::DirectTopLevel,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::MemberDirect(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::MemberDirect,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Extension { function, .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Extension,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::Constructor(ctor) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreConstructorInit {
+                owner_fqn: ctor.owner_fqn().to_string(),
+                ctor_span: ctor.ctor_span(),
+            }
+        }
+        TypedCallSiteContract::Closure { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Closure,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::FunValue { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::FunValue,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::FunPtr { .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::FunPtr,
+                target: None,
+            }
+        }
+        TypedCallSiteContract::Virtual(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::VirtualDispatch,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Interface(member) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::InterfaceDispatch,
+                target: function_target_key(member.function()),
+            }
+        }
+        TypedCallSiteContract::Intrinsic { function, .. } => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreCall {
+                call_kind: hir_site_facts::CallSiteKind::Intrinsic,
+                target: function_target_key(function),
+            }
+        }
+        TypedCallSiteContract::EffectOp(perform) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreEffectOperation {
+                effect_ty: perform.effect_ty(),
+                op_fqn: perform.op_fqn().to_string(),
+            }
+        }
+        TypedCallSiteContract::ContinuationResume(_) => {
+            hir_site_facts::CanonicalSemanticOperationKind::CoreContinuationResume
+        }
+    }
+}
+
+fn function_target_key(target: &FunctionTargetContract) -> Option<CanonicalTextKey> {
+    target
+        .stable_instance_key()
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .or_else(|| {
+            target
+                .stable_template_key()
+                .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        })
+        .or_else(|| Some(CanonicalTextKey::new(target.fqn())))
+}
+
+fn intrinsic_call_contract_from_binding(
+    types: &TypeStore,
+    binding: &ast::TopLevelFunCallBinding,
+) -> TypedCallSiteContract {
+    let function = FunctionTargetContract::from_binding(
+        types,
+        binding,
+        CallableAbiIdentity::ManagedOrdinary,
+        None,
+        None,
+    );
+    TypedCallSiteContract::Intrinsic {
+        kind: TypedIntrinsicKind::from_call_binding(binding),
+        function,
+    }
+}
+
+fn intrinsic_call_contract_from_existing_or_binding(
+    types: &TypeStore,
+    contract: &TypedCallSiteContract,
+    binding: &ast::TopLevelFunCallBinding,
+) -> TypedCallSiteContract {
+    let function = function_target_from_call_contract(contract)
+        .cloned()
+        .unwrap_or_else(|| {
+            FunctionTargetContract::from_binding(
+                types,
+                binding,
+                CallableAbiIdentity::ManagedOrdinary,
+                None,
+                None,
+            )
+        });
+    TypedCallSiteContract::Intrinsic {
+        kind: TypedIntrinsicKind::from_call_binding(binding),
+        function,
+    }
+}
+
+fn binding_publishes_intrinsic_metadata(binding: &ast::TopLevelFunCallBinding) -> bool {
+    binding.is_intrinsic
+        || binding.intrinsic_entry_name.is_some()
+        || legacy_scalar_named_intrinsic_entry_name_for_fqn(&binding.fqn).is_some()
 }
 
 fn source_site_identity(call_site: &CallSite, role: &str) -> hir_site_facts::SourceSiteIdentity {
@@ -2241,19 +3682,23 @@ fn call_site_contract_kind_fact(
     contract: &TypedCallSiteContract,
 ) -> hir_site_facts::CallSiteContractKind {
     match contract {
-        TypedCallSiteContract::DirectTopLevel(function) => {
-            hir_site_facts::CallSiteContractKind::DirectTopLevel(function_target_fact(function))
-        }
-        TypedCallSiteContract::MemberDirect(member) => {
-            hir_site_facts::CallSiteContractKind::MemberDirect(member_call_target_fact(member))
-        }
+        TypedCallSiteContract::DirectTopLevel(function) => intrinsic_call_site_fact(function)
+            .unwrap_or_else(|| {
+                hir_site_facts::CallSiteContractKind::DirectTopLevel(function_target_fact(function))
+            }),
+        TypedCallSiteContract::MemberDirect(member) => intrinsic_call_site_fact(&member.function)
+            .unwrap_or_else(|| {
+                hir_site_facts::CallSiteContractKind::MemberDirect(member_call_target_fact(member))
+            }),
         TypedCallSiteContract::Extension {
             receiver_ty,
             function,
-        } => hir_site_facts::CallSiteContractKind::Extension {
-            receiver_ty: *receiver_ty,
-            function: function_target_fact(function),
-        },
+        } => intrinsic_call_site_fact(function).unwrap_or_else(|| {
+            hir_site_facts::CallSiteContractKind::Extension {
+                receiver_ty: *receiver_ty,
+                function: function_target_fact(function),
+            }
+        }),
         TypedCallSiteContract::Constructor(ctor) => {
             hir_site_facts::CallSiteContractKind::Constructor(constructor_call_target_fact(ctor))
         }
@@ -2332,12 +3777,401 @@ fn call_site_contract_arg_binding(
     }
 }
 
+fn intrinsic_call_site_fact(
+    function: &FunctionTargetContract,
+) -> Option<hir_site_facts::CallSiteContractKind> {
+    let entry_name = named_intrinsic_entry_name_for_root(&function.fqn)
+        .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&function.fqn))?;
+    let entry = named_intrinsic_audit_entry(entry_name)?;
+    Some(hir_site_facts::CallSiteContractKind::Intrinsic {
+        kind: hir_site_facts::IntrinsicKind::NamedTable {
+            entry_name: entry_name.to_string(),
+            uses_runtime_call: matches!(
+                entry.lowering_mode,
+                NamedIntrinsicLoweringMode::RuntimeCall
+            ),
+        },
+        function: function_target_fact(function),
+    })
+}
+
+fn call_site_instance_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::CallSiteInstanceFact> {
+    let function = function_target_from_call_contract(contract)?;
+    let template_key = function.stable_template_key.as_ref()?;
+    let stable_instance_key = function.stable_instance_key.as_ref()?;
+    Some(hir_site_facts::CallSiteInstanceFact {
+        identity: source_site_identity(call_site, "call_instance"),
+        template_key: CanonicalTextKey::new(template_key.canonical_text()),
+        stable_instance_key: CanonicalTextKey::new(stable_instance_key.canonical_text()),
+        type_args: function.type_args.clone(),
+        eff_args: function.eff_args.clone(),
+    })
+}
+
+fn template_site_binding_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::TemplateSiteBindingFact> {
+    let function = function_target_from_call_contract(contract)?;
+    if function.stable_instance_key.is_some()
+        || (function.type_args.is_empty() && function.eff_args.is_empty())
+    {
+        return None;
+    }
+    let template_key = function.stable_template_key.as_ref()?;
+    Some(hir_site_facts::TemplateSiteBindingFact {
+        identity: source_site_identity(call_site, "template_call_binding"),
+        kind: hir_site_facts::TemplateSiteBindingKind::DirectCall,
+        template_key: CanonicalTextKey::new(template_key.canonical_text()),
+        type_args: function.type_args.clone(),
+        eff_args: function.eff_args.clone(),
+    })
+}
+
+fn template_value_binding_facts(
+    lowered_hir: &LoweredHir,
+) -> Vec<hir_site_facts::TemplateSiteBindingFact> {
+    let templates_by_request = lowered_hir
+        .generic_template_inventory
+        .iter()
+        .map(|info| {
+            (
+                info.request_lookup_key.clone(),
+                info.stable_template_key.clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut out = Vec::new();
+    for (site, binding) in &lowered_hir.top_level_fun_value_refs {
+        if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+            continue;
+        }
+        let lookup = (
+            binding.fqn.clone(),
+            binding.decl_file.clone(),
+            binding.decl_span,
+        );
+        let Some(template_key) = templates_by_request.get(&lookup) else {
+            continue;
+        };
+        out.push(hir_site_facts::TemplateSiteBindingFact {
+            identity: source_site_identity(site, "template_value_binding"),
+            kind: hir_site_facts::TemplateSiteBindingKind::FunValue,
+            template_key: CanonicalTextKey::new(template_key.canonical_text()),
+            type_args: binding.type_args.clone(),
+            eff_args: binding.eff_args.clone(),
+        });
+    }
+    out
+}
+
+fn dispatch_candidate_fact(
+    lowered_hir: &LoweredHir,
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> Option<hir_site_facts::DispatchCandidateFact> {
+    let (dispatch_kind, member) = match contract {
+        TypedCallSiteContract::Virtual(member) => {
+            (hir_site_facts::CallSiteKind::VirtualDispatch, member)
+        }
+        TypedCallSiteContract::Interface(member) => {
+            (hir_site_facts::CallSiteKind::InterfaceDispatch, member)
+        }
+        _ => return None,
+    };
+    let explicit_arg_count = dispatch_explicit_arg_count(lowered_hir, member);
+    let candidate_fqns = match dispatch_kind {
+        hir_site_facts::CallSiteKind::VirtualDispatch => virtual_dispatch_candidate_fqns(
+            lowered_hir,
+            member.receiver_ty,
+            member.member_name(),
+            explicit_arg_count,
+        ),
+        hir_site_facts::CallSiteKind::InterfaceDispatch => interface_dispatch_candidate_fqns(
+            lowered_hir,
+            member.receiver_ty,
+            member.owner_fqn(),
+            member.member_name(),
+            explicit_arg_count,
+        ),
+        _ => Vec::new(),
+    };
+    let member_has_stable_identity = member.function.stable_template_key.as_ref().is_some();
+    let member_template_fqn = generic_template_base_fqn(member.function.fqn());
+    let mut stable_instance_keys = candidate_fqns
+        .iter()
+        .filter(|fqn| {
+            !member_has_stable_identity || generic_template_base_fqn(fqn) != member_template_fqn
+        })
+        .flat_map(|fqn| dispatch_candidate_stable_instance_keys(lowered_hir, fqn))
+        .map(|key| CanonicalTextKey::new(key.canonical_text()))
+        .collect::<Vec<_>>();
+    if let Some(stable_instance_key) = member.function.stable_instance_key.as_ref() {
+        stable_instance_keys.push(CanonicalTextKey::new(stable_instance_key.canonical_text()));
+    }
+    if let Some(stable_template_key) = member.function.stable_template_key.as_ref()
+        && instance_args_are_concrete(
+            &lowered_hir.types,
+            member.function.type_args(),
+            member.function.eff_args(),
+        )
+        && let Ok(stable_instance_key) = StableInstanceKey::from_type_arguments(
+            stable_template_key.clone(),
+            &lowered_hir.types,
+            member.function.type_args(),
+            member.function.eff_args(),
+            &NoTypeParamResolver,
+        )
+    {
+        stable_instance_keys.push(CanonicalTextKey::new(stable_instance_key.canonical_text()));
+    }
+    stable_instance_keys.sort_by(|lhs, rhs| lhs.as_str().cmp(rhs.as_str()));
+    stable_instance_keys.dedup();
+    Some(hir_site_facts::DispatchCandidateFact {
+        identity: source_site_identity(call_site, "dispatch_candidate"),
+        dispatch_kind,
+        receiver_ty: member.receiver_ty,
+        stable_instance_keys,
+    })
+}
+
+fn dispatch_explicit_arg_count(
+    lowered_hir: &LoweredHir,
+    member: &MemberCallTargetContract,
+) -> usize {
+    let param_tys = member.function.param_tys();
+    if param_tys.first().is_some_and(|&param_ty| {
+        same_nominal_type(&lowered_hir.types, param_ty, member.receiver_ty())
+    }) {
+        param_tys.len().saturating_sub(1)
+    } else {
+        param_tys.len()
+    }
+}
+
+fn virtual_dispatch_candidate_fqns(
+    lowered_hir: &LoweredHir,
+    receiver_ty: TypeId,
+    member_name: &str,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(receiver_fqn) = nominal_type_fqn(&lowered_hir.types, receiver_ty) else {
+        return Vec::new();
+    };
+    let mut targets = BTreeSet::new();
+    for class_fqn in descendants_and_self(lowered_hir, receiver_fqn) {
+        if let Some(slot) = lowered_hir
+            .class_vtables
+            .get(class_fqn.as_str())
+            .and_then(|slots| {
+                slots.iter().find(|slot| {
+                    slot.name == member_name && slot.params_len == explicit_arg_count as u32
+                })
+            })
+        {
+            targets.insert(slot.impl_member_fqn.clone());
+        } else if class_fqn == receiver_fqn {
+            targets.insert(format!("{class_fqn}.{member_name}"));
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn interface_dispatch_candidate_fqns(
+    lowered_hir: &LoweredHir,
+    receiver_ty: TypeId,
+    owner_fqn: &str,
+    member_name: &str,
+    explicit_arg_count: usize,
+) -> Vec<String> {
+    let Some(interface) = lowered_hir.interfaces.get(owner_fqn) else {
+        return Vec::new();
+    };
+    let mut matching_slots = interface
+        .method_slots
+        .iter()
+        .filter(|slot| slot.name == member_name && slot.params_len == explicit_arg_count as u32);
+    let Some(slot) = matching_slots.next() else {
+        return Vec::new();
+    };
+    if matching_slots.next().is_some() {
+        return Vec::new();
+    }
+
+    let mut targets = BTreeSet::new();
+    if let Some(receiver_fqn) = nominal_type_fqn(&lowered_hir.types, receiver_ty)
+        && let Some(entries) = lowered_hir.class_itables.get(receiver_fqn)
+    {
+        collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
+    }
+    if targets.is_empty() {
+        for entries in lowered_hir.class_itables.values() {
+            collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn collect_interface_slot_targets(
+    entries: &[crate::itable::ClassItableEntry],
+    owner_fqn: &str,
+    slot: usize,
+    targets: &mut BTreeSet<String>,
+) {
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.interface_fqn == owner_fqn)
+    {
+        if let Some(target) = entry.method_impl_fqns.get(slot)
+            && !target.is_empty()
+        {
+            targets.insert(target.clone());
+        }
+    }
+}
+
+fn dispatch_candidate_stable_instance_keys(
+    lowered_hir: &LoweredHir,
+    candidate_fqn: &str,
+) -> Vec<StableInstanceKey> {
+    let template_fqn = generic_template_base_fqn(candidate_fqn);
+    let Some((owner_fqn, _)) = template_fqn.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let templates = lowered_hir
+        .generic_template_inventory
+        .iter()
+        .filter(|info| info.template.fqn == template_fqn)
+        .collect::<Vec<_>>();
+    let mut out = Vec::new();
+    for template in templates {
+        if !template.function_type_param_names.is_empty()
+            || template.function_eff_param_name.is_some()
+        {
+            continue;
+        }
+        for nominal in concrete_nominal_instances_for_owner(lowered_hir, owner_fqn) {
+            if nominal.args.len() != template.owner_type_param_names.len() {
+                continue;
+            }
+            let eff_args = match (&template.owner_eff_param_name, nominal.eff.as_ref()) {
+                (Some(_), Some(row)) => vec![row.clone()],
+                (Some(_), None) => continue,
+                (None, _) => Vec::new(),
+            };
+            if !instance_args_are_concrete(&lowered_hir.types, &nominal.args, &eff_args) {
+                continue;
+            }
+            if let Ok(stable_key) = StableInstanceKey::from_type_arguments(
+                template.stable_template_key.clone(),
+                &lowered_hir.types,
+                &nominal.args,
+                &eff_args,
+                &NoTypeParamResolver,
+            ) {
+                out.push(stable_key);
+            }
+        }
+    }
+    out.sort_by_key(StableInstanceKey::canonical_text);
+    out.dedup();
+    out
+}
+
+fn concrete_nominal_instances_for_owner(
+    lowered_hir: &LoweredHir,
+    owner_fqn: &str,
+) -> Vec<NominalType> {
+    lowered_hir
+        .types
+        .iter_ids()
+        .filter_map(|ty| match lowered_hir.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == owner_fqn =>
+            {
+                Some(nominal.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn descendants_and_self(lowered_hir: &LoweredHir, root: &str) -> BTreeSet<String> {
+    let mut direct_subclasses = HashMap::<String, BTreeSet<String>>::new();
+    for (child, supers) in &lowered_hir.direct_supertypes {
+        for super_fqn in supers {
+            direct_subclasses
+                .entry(super_fqn.clone())
+                .or_default()
+                .insert(child.clone());
+        }
+    }
+    let mut seen = BTreeSet::from([root.to_string()]);
+    let mut stack = vec![root.to_string()];
+    while let Some(current) = stack.pop() {
+        if let Some(children) = direct_subclasses.get(&current) {
+            for child in children {
+                if seen.insert(child.clone()) {
+                    stack.push(child.clone());
+                }
+            }
+        }
+    }
+    seen
+}
+
+fn same_nominal_type(types: &TypeStore, lhs: TypeId, rhs: TypeId) -> bool {
+    lhs == rhs || nominal_type_fqn(types, lhs) == nominal_type_fqn(types, rhs)
+}
+
+fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        _ => None,
+    }
+}
+
+fn function_target_from_call_contract(
+    contract: &TypedCallSiteContract,
+) -> Option<&FunctionTargetContract> {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function)
+        | TypedCallSiteContract::Intrinsic { function, .. } => Some(function),
+        TypedCallSiteContract::MemberDirect(member)
+        | TypedCallSiteContract::Virtual(member)
+        | TypedCallSiteContract::Interface(member) => Some(member.function()),
+        TypedCallSiteContract::Extension { function, .. } => Some(function),
+        TypedCallSiteContract::Constructor(_)
+        | TypedCallSiteContract::Closure { .. }
+        | TypedCallSiteContract::FunValue { .. }
+        | TypedCallSiteContract::FunPtr { .. }
+        | TypedCallSiteContract::EffectOp(_)
+        | TypedCallSiteContract::ContinuationResume(_) => None,
+    }
+}
+
 fn function_target_fact(function: &FunctionTargetContract) -> hir_site_facts::FunctionTarget {
     hir_site_facts::FunctionTarget {
         fqn: function.fqn.clone(),
         decl_file: function.decl_file.clone(),
         decl_span: function.decl_span,
         abi: callable_abi_fact(function.abi_identity),
+        stable_template_key: function
+            .stable_template_key
+            .as_ref()
+            .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        stable_instance_key: function
+            .stable_instance_key
+            .as_ref()
+            .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        intrinsic_entry_name: named_intrinsic_entry_name_for_root(&function.fqn)
+            .or_else(|| legacy_scalar_named_intrinsic_entry_name_for_fqn(&function.fqn))
+            .map(str::to_string),
         param_tys: function.param_tys.clone(),
         return_ty: function.return_ty,
         type_args: function.type_args.clone(),
@@ -2831,6 +4665,7 @@ fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     }
     collect_missing_nominal_side_table_facts(facts, lowered_hir);
     collect_callable_declaration_facts(facts, lowered_hir);
+    collect_materializer_inventory_facts(facts, lowered_hir);
     collect_layout_field_facts(facts, lowered_hir);
     collect_dispatch_declaration_facts(facts, lowered_hir);
 
@@ -2840,6 +4675,24 @@ fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     facts
         .callables
         .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts.generic_templates.sort_by(|lhs, rhs| {
+        lhs.template_source_path
+            .cmp(&rhs.template_source_path)
+            .then(
+                lhs.template_decl_span
+                    .start
+                    .cmp(&rhs.template_decl_span.start),
+            )
+            .then(lhs.template_decl_span.end.cmp(&rhs.template_decl_span.end))
+            .then(lhs.template_fqn.cmp(&rhs.template_fqn))
+    });
+    facts.callable_bodies.sort_by(|lhs, rhs| {
+        lhs.source_path
+            .cmp(&rhs.source_path)
+            .then(lhs.body_span.start.cmp(&rhs.body_span.start))
+            .then(lhs.body_span.end.cmp(&rhs.body_span.end))
+            .then(lhs.fqn.cmp(&rhs.fqn))
+    });
     facts.fields.sort_by(|lhs, rhs| {
         lhs.owner
             .as_str()
@@ -3031,6 +4884,65 @@ fn collect_callable_declaration_facts(facts: &mut DeclarationFacts, lowered_hir:
             .callables
             .push(callable_declaration_fact(lowered_hir, fun));
     }
+}
+
+fn collect_materializer_inventory_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    facts.generic_templates = lowered_hir
+        .generic_template_inventory
+        .iter()
+        .map(|info| GenericTemplateFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(format!(
+                    "generic_template_inventory:{}:{}:{}..{}",
+                    info.stable_template_key.canonical_text(),
+                    info.template.source_path.display(),
+                    info.template.decl_span.start,
+                    info.template.decl_span.end
+                )),
+                &info.template.fqn,
+                lowered_hir.stable_cone_key.clone(),
+                None,
+            ),
+            stable_template_key: CanonicalTextKey::new(info.stable_template_key.canonical_text()),
+            canonical_root_key: CanonicalTextKey::new(info.canonical_root_key.clone()),
+            template_fqn: info.template.fqn.clone(),
+            template_source_path: info.template.source_path.clone(),
+            template_decl_span: info.template.decl_span,
+            request_fqn: info.request_lookup_key.0.clone(),
+            request_source_path: info.request_lookup_key.1.clone(),
+            request_span: info.request_lookup_key.2,
+            owner_type_param_names: info.owner_type_param_names.clone(),
+            function_type_param_names: info.function_type_param_names.clone(),
+            owner_eff_param_name: info.owner_eff_param_name.clone(),
+            function_eff_param_name: info.function_eff_param_name.clone(),
+            signature_key: CanonicalTextKey::new(info.signature_key.clone()),
+            has_body: info.has_body,
+            body_key: info.body_key.clone().map(CanonicalTextKey::new),
+        })
+        .collect();
+    facts.callable_bodies = lowered_hir
+        .callable_body_inventory
+        .iter()
+        .map(|info| CallableBodyFact {
+            identity: FactIdentity::new(
+                CanonicalTextKey::new(info.body_key.clone()),
+                &info.fqn,
+                lowered_hir.stable_cone_key.clone(),
+                None,
+            ),
+            body_key: CanonicalTextKey::new(info.body_key.clone()),
+            request_fqn: info.request_lookup_key.0.clone(),
+            request_source_path: info.request_lookup_key.1.clone(),
+            request_span: info.request_lookup_key.2,
+            source_path: info.source_path.clone(),
+            fqn: info.fqn.clone(),
+            body_span: info.body_span,
+            stable_template_key: info
+                .stable_template_key
+                .as_ref()
+                .map(|key| CanonicalTextKey::new(key.canonical_text())),
+        })
+        .collect();
 }
 
 fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
@@ -3736,8 +5648,14 @@ impl<'a> ContractCollector<'a> {
 
     fn collect(mut self, source_path: &Path) -> Result<CollectedHirContracts, HirStageError> {
         for item in &self.lowered_hir.file.items {
-            self.collect_item(source_path, item)?;
+            let item_path = self
+                .item_source_path(source_path, item)
+                .unwrap_or_else(|| source_path.to_path_buf());
+            self.collect_item(&item_path, item)?;
         }
+
+        self.collect_object_inits(None)?;
+        self.collect_class_inits(None)?;
 
         for member_fun in &self.lowered_hir.member_funs {
             self.record_function_effect_contract(member_fun);
@@ -3770,6 +5688,9 @@ impl<'a> ContractCollector<'a> {
                 self.collect_item(source_path, item)?;
             }
         }
+
+        self.collect_object_inits(Some(source_path))?;
+        self.collect_class_inits(Some(source_path))?;
 
         for member_fun in &self.lowered_hir.member_funs {
             if member_fun.source_path != source_path {
@@ -3820,6 +5741,110 @@ impl<'a> ContractCollector<'a> {
                 }
             }
             Item::Todo { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn collect_object_inits(&mut self, only_path: Option<&Path>) -> Result<(), HirStageError> {
+        let mut object_inits = self
+            .lowered_hir
+            .object_inits
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        object_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for object in &object_inits {
+            if only_path.is_some_and(|path| object.source_path != path) {
+                continue;
+            }
+            self.collect_object_init(object)?;
+        }
+        Ok(())
+    }
+
+    fn collect_object_init(&mut self, object: &ObjectInit) -> Result<(), HirStageError> {
+        for step in &object.steps {
+            match step {
+                ObjectInitStep::PropertyInit { init, .. } => {
+                    self.collect_expr(&object.source_path, init)?;
+                }
+                ObjectInitStep::InitBlock { block } => {
+                    self.collect_block(&object.source_path, block)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_class_inits(&mut self, only_path: Option<&Path>) -> Result<(), HirStageError> {
+        let mut class_inits = self
+            .lowered_hir
+            .class_inits
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        class_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for class in &class_inits {
+            if only_path.is_some_and(|path| class.source_path != path) {
+                continue;
+            }
+            self.collect_class_init(class)?;
+        }
+        Ok(())
+    }
+
+    fn collect_class_init(&mut self, class: &MonoClassInit) -> Result<(), HirStageError> {
+        self.collect_class_init_parts(
+            &class.source_path,
+            &class.super_ctor_args,
+            &class.steps,
+            &class.ctors,
+        )
+    }
+
+    fn collect_class_init_parts<T>(
+        &mut self,
+        source_path: &Path,
+        super_ctor_args: &[CallArg],
+        steps: &[ClassInitStep],
+        ctors: &[ClassCtor<T>],
+    ) -> Result<(), HirStageError> {
+        for arg in super_ctor_args {
+            self.collect_call_arg_expr(source_path, arg)?;
+        }
+        for step in steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => {
+                    self.collect_expr(source_path, init)?;
+                }
+                ClassInitStep::InitBlock { block } => {
+                    self.collect_block(source_path, block)?;
+                }
+            }
+        }
+        for ctor in ctors {
+            self.collect_class_ctor(source_path, ctor)?;
+        }
+        Ok(())
+    }
+
+    fn collect_class_ctor<T>(
+        &mut self,
+        source_path: &Path,
+        ctor: &ClassCtor<T>,
+    ) -> Result<(), HirStageError> {
+        for param in &ctor.params {
+            if let Some(default_value) = &param.default_value {
+                self.collect_expr(source_path, default_value)?;
+            }
+        }
+        if let Some(delegation) = &ctor.delegation {
+            for arg in &delegation.args {
+                self.collect_call_arg_expr(source_path, arg)?;
+            }
+        }
+        if let Some(body) = &ctor.body {
+            self.collect_block(source_path, body)?;
         }
         Ok(())
     }
@@ -3911,6 +5936,32 @@ impl<'a> ContractCollector<'a> {
         found
     }
 
+    fn unique_hir_fun_fqn_by_local_name(&self, name: &str) -> Option<String> {
+        let mut found = None::<String>;
+        for item in &self.lowered_hir.file.items {
+            let Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.fqn.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            if found.as_deref().is_some_and(|fqn| fqn != fun.fqn) {
+                return None;
+            }
+            found = Some(fun.fqn.clone());
+        }
+        for body in &self.lowered_hir.callable_body_inventory {
+            if body.fqn.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            if found.as_deref().is_some_and(|fqn| fqn != body.fqn) {
+                return None;
+            }
+            found = Some(body.fqn.clone());
+        }
+        found
+    }
+
     fn has_multiple_hir_fun_decls(&self, fqn: &str) -> bool {
         let mut found_one = false;
         for item in &self.lowered_hir.file.items {
@@ -3935,6 +5986,172 @@ impl<'a> ContractCollector<'a> {
             found_one = true;
         }
         false
+    }
+
+    fn stable_template_key_for_binding(
+        &self,
+        binding: &ast::TopLevelFunCallBinding,
+    ) -> Option<StableTemplateKey> {
+        fn span_contains(outer: Span, inner: Span) -> bool {
+            outer.start <= inner.start && inner.end <= outer.end
+        }
+
+        self.lowered_hir
+            .generic_stable_template_keys
+            .iter()
+            .filter(|(template, _)| {
+                template.fqn == binding.fqn
+                    && template.source_path == binding.decl_file
+                    && (template.decl_span == binding.decl_span
+                        || span_contains(template.decl_span, binding.decl_span))
+            })
+            .min_by(|(lhs, _), (rhs, _)| {
+                lhs.decl_span
+                    .start
+                    .cmp(&rhs.decl_span.start)
+                    .then(lhs.decl_span.end.cmp(&rhs.decl_span.end))
+            })
+            .map(|(_, stable)| stable.clone())
+            .or_else(|| {
+                self.lowered_hir
+                    .generic_template_inventory
+                    .iter()
+                    .filter(|info| {
+                        info.template.fqn == binding.fqn
+                            && info.template.source_path == binding.decl_file
+                            && (info.template.decl_span == binding.decl_span
+                                || span_contains(info.template.decl_span, binding.decl_span)
+                                || info.request_lookup_key.2 == binding.decl_span)
+                    })
+                    .min_by(|lhs, rhs| {
+                        lhs.template
+                            .decl_span
+                            .start
+                            .cmp(&rhs.template.decl_span.start)
+                            .then(lhs.template.decl_span.end.cmp(&rhs.template.decl_span.end))
+                    })
+                    .map(|info| info.stable_template_key.clone())
+            })
+    }
+
+    fn synthetic_stable_member_target(
+        &self,
+        fqn: &str,
+        args: &[CallArg],
+        return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
+        arg_binding: Option<CallArgBindingContract>,
+    ) -> Option<FunctionTargetContract> {
+        let template_fqn = generic_template_base_fqn(fqn);
+        let receiver_ty = args.first().map(call_arg_value_ty)?;
+        let (owner_fqn, _) = self.member_binding_for_fqn(template_fqn)?;
+        let (receiver_fqn, owner_type_args, owner_eff_arg) =
+            match self.lowered_hir.types.kind(receiver_ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (
+                    nominal.fqn.as_str(),
+                    nominal.args.clone(),
+                    nominal.eff.clone(),
+                ),
+                _ => return None,
+            };
+        if receiver_fqn != owner_fqn {
+            return None;
+        }
+
+        let template = self
+            .lowered_hir
+            .generic_template_inventory
+            .iter()
+            .find(|template| {
+                template.template.fqn == template_fqn
+                    && template.owner_type_param_names.len() == owner_type_args.len()
+                    && template.function_type_param_names.is_empty()
+            })?;
+        let eff_args = match (&template.owner_eff_param_name, owner_eff_arg) {
+            (Some(_), Some(row)) => vec![row],
+            (Some(_), None) => return None,
+            (None, _) => Vec::new(),
+        };
+
+        Some(FunctionTargetContract::synthetic_with_stable_args(
+            &self.lowered_hir.types,
+            SyntheticStableFunctionTarget {
+                fqn: template_fqn.to_string(),
+                decl_file: template.template.source_path.clone(),
+                decl_span: template.template.decl_span,
+                abi_identity,
+                stable_template_key: template.stable_template_key.clone(),
+                type_args: owner_type_args,
+                eff_args,
+                param_tys: vec![receiver_ty],
+                return_ty: Some(return_ty),
+                arg_binding,
+            },
+        ))
+    }
+
+    fn synthetic_stable_top_level_target(
+        &self,
+        fqn: &str,
+        args: &[CallArg],
+        return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
+        arg_binding: Option<CallArgBindingContract>,
+    ) -> Option<FunctionTargetContract> {
+        let template_fqn = generic_template_base_fqn(fqn);
+        let template = self
+            .lowered_hir
+            .generic_template_inventory
+            .iter()
+            .find(|template| {
+                template.template.fqn == template_fqn
+                    && template.owner_type_param_names.is_empty()
+                    && template.owner_eff_param_name.is_none()
+            })?;
+        if template.function_eff_param_name.is_some() {
+            return None;
+        }
+        let fun = self.hir_fun_decl(template_fqn)?;
+        let mut bindings = HashMap::new();
+        for (param, arg) in fun.params.iter().zip(args.iter()) {
+            collect_type_param_bindings_in_type(
+                &self.lowered_hir.types,
+                param.ty,
+                call_arg_value_ty(arg),
+                &mut bindings,
+            );
+        }
+        collect_type_param_bindings_in_type(
+            &self.lowered_hir.types,
+            fun.return_ty,
+            return_ty,
+            &mut bindings,
+        );
+        let type_args = template
+            .function_type_param_names
+            .iter()
+            .map(|name| bindings.get(name).copied())
+            .collect::<Option<Vec<_>>>()?;
+        if type_args.is_empty() {
+            return None;
+        }
+
+        Some(FunctionTargetContract::synthetic_with_stable_args(
+            &self.lowered_hir.types,
+            SyntheticStableFunctionTarget {
+                fqn: template_fqn.to_string(),
+                decl_file: template.template.source_path.clone(),
+                decl_span: template.template.decl_span,
+                abi_identity,
+                stable_template_key: template.stable_template_key.clone(),
+                type_args,
+                eff_args: Vec::new(),
+                param_tys: fun.params.iter().map(|param| param.ty).collect(),
+                return_ty: Some(return_ty),
+                arg_binding,
+            },
+        ))
     }
 
     fn callable_abi_identity_for_fqn(&self, fqn: &str) -> CallableAbiIdentity {
@@ -4080,13 +6297,19 @@ impl<'a> ContractCollector<'a> {
                     }
                 }
             }
-            ExprKind::Unary { expr, .. }
-            | ExprKind::TypeCheck { expr, .. }
-            | ExprKind::Cast { expr, .. }
-            | ExprKind::MemberAccess { receiver: expr, .. } => {
-                self.collect_expr(source_path, expr)?;
+            ExprKind::Unary { expr: operand, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
+                self.collect_expr(source_path, operand)?;
+            }
+            ExprKind::TypeCheck { expr: operand, .. } | ExprKind::Cast { expr: operand, .. } => {
+                self.collect_expr(source_path, operand)?;
+            }
+            ExprKind::MemberAccess { receiver, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
+                self.collect_expr(source_path, receiver)?;
             }
             ExprKind::Binary { lhs, rhs, .. } => {
+                self.record_semantic_call_contract(source_path, expr.span)?;
                 self.collect_expr(source_path, lhs)?;
                 self.collect_expr(source_path, rhs)?;
             }
@@ -4155,6 +6378,89 @@ impl<'a> ContractCollector<'a> {
         Ok(())
     }
 
+    fn record_semantic_call_contract(
+        &mut self,
+        source_path: &Path,
+        span: Span,
+    ) -> Result<(), HirStageError> {
+        let call_site = self.call_site(source_path, span);
+        if self.call_site_contracts.contains_key(&call_site) {
+            return Ok(());
+        }
+        let Some(binding) = self.lowered_hir.top_level_fun_call_sites.get(&call_site) else {
+            return Ok(());
+        };
+
+        let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
+        let abi_identity = self.callable_abi_identity_for_binding(binding, source_path, span)?;
+        let stable_template_key = self.stable_template_key_for_binding(binding);
+        let function = FunctionTargetContract::from_binding(
+            &self.lowered_hir.types,
+            binding,
+            abi_identity,
+            stable_template_key,
+            arg_binding,
+        );
+        let contract = if binding.is_intrinsic {
+            TypedCallSiteContract::Intrinsic {
+                kind: TypedIntrinsicKind::from_call_binding(binding),
+                function,
+            }
+        } else if let Some((dispatch_kind, receiver_ty)) =
+            self.dispatch_kind_and_receiver_ty(source_path, span)
+        {
+            let (owner_fqn, member_name) =
+                self.member_binding_for_fqn(&binding.fqn).ok_or_else(|| {
+                    HirStageError::new(
+                        source_path.to_path_buf(),
+                        span,
+                        format!(
+                            "semantic dispatch call contract missing owner/member binding for `{}`",
+                            binding.fqn
+                        ),
+                        "typed HIR call contract",
+                    )
+                })?;
+            let member = MemberCallTargetContract::new(
+                owner_fqn,
+                member_name,
+                binding.fqn.clone(),
+                receiver_ty,
+                function,
+            );
+            match dispatch_kind {
+                DispatchCallKind::Virtual => TypedCallSiteContract::Virtual(member),
+                DispatchCallKind::Interface => TypedCallSiteContract::Interface(member),
+            }
+        } else if let Some((owner_fqn, member_name)) = self.member_binding_for_fqn(&binding.fqn) {
+            let receiver_ty = function.param_tys().first().copied().ok_or_else(|| {
+                HirStageError::new(
+                    source_path.to_path_buf(),
+                    span,
+                    format!(
+                        "semantic member call contract for `{}` is missing receiver type",
+                        binding.fqn
+                    ),
+                    "typed HIR call contract",
+                )
+            })?;
+            TypedCallSiteContract::MemberDirect(MemberCallTargetContract::new(
+                owner_fqn,
+                member_name,
+                binding.fqn.clone(),
+                receiver_ty,
+                function,
+            ))
+        } else {
+            TypedCallSiteContract::DirectTopLevel(function)
+        };
+
+        self.call_site_kinds
+            .insert(call_site.clone(), contract.kind());
+        self.call_site_contracts.insert(call_site, contract);
+        Ok(())
+    }
+
     fn record_call_contract(
         &mut self,
         source_path: &Path,
@@ -4192,10 +6498,12 @@ impl<'a> ContractCollector<'a> {
             let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
             let abi_identity =
                 self.callable_abi_identity_for_binding(binding, source_path, expr.span)?;
+            let stable_template_key = self.stable_template_key_for_binding(binding);
             let function = FunctionTargetContract::from_binding(
                 &self.lowered_hir.types,
                 binding,
                 abi_identity,
+                stable_template_key,
                 arg_binding.clone(),
             );
 
@@ -4260,11 +6568,30 @@ impl<'a> ContractCollector<'a> {
         let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             let abi_identity = self.callable_abi_identity_for_fqn(fqn);
-            let function = FunctionTargetContract::synthetic_with_arg_binding(
-                fqn.clone(),
-                abi_identity,
-                arg_binding.clone(),
-            );
+            let function = self
+                .synthetic_stable_member_target(
+                    fqn,
+                    args,
+                    expr.ty,
+                    abi_identity,
+                    arg_binding.clone(),
+                )
+                .or_else(|| {
+                    self.synthetic_stable_top_level_target(
+                        fqn,
+                        args,
+                        expr.ty,
+                        abi_identity,
+                        arg_binding.clone(),
+                    )
+                })
+                .unwrap_or_else(|| {
+                    FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn.clone(),
+                        abi_identity,
+                        arg_binding.clone(),
+                    )
+                });
             if let Some((dispatch_kind, receiver_ty)) =
                 self.dispatch_kind_and_receiver_ty(source_path, expr.span)
             {
@@ -4316,6 +6643,26 @@ impl<'a> ContractCollector<'a> {
                     arg_binding,
                 ),
             })
+        } else if let ExprKind::UnresolvedIdent { name } = &callee.kind
+            && let Some(fqn) = self.unique_hir_fun_fqn_by_local_name(name)
+        {
+            let abi_identity = self.callable_abi_identity_for_fqn(&fqn);
+            let function = self
+                .synthetic_stable_top_level_target(
+                    &fqn,
+                    args,
+                    expr.ty,
+                    abi_identity,
+                    arg_binding.clone(),
+                )
+                .unwrap_or_else(|| {
+                    FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn.clone(),
+                        abi_identity,
+                        arg_binding.clone(),
+                    )
+                });
+            Some(TypedCallSiteContract::DirectTopLevel(function))
         } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunPtr {
                 callee_ty: callee.ty,
@@ -4388,19 +6735,57 @@ impl<'a> ContractCollector<'a> {
     }
 
     fn call_may_lower_without_typed_contract(&self, expr: &Expr, callee: &Expr) -> bool {
-        if !matches!(callee.kind, ExprKind::UnresolvedIdent { .. }) {
+        let ExprKind::UnresolvedIdent { name } = &callee.kind else {
             return false;
+        };
+
+        if self.unresolved_callee_is_enum_variant(name) {
+            return true;
+        }
+
+        if self.unresolved_callee_is_nominal_type_ctor(name) {
+            return true;
         }
 
         match self.lowered_hir.types.kind(expr.ty) {
+            // Some class-init internal helpers still arrive as unresolved/Any; they
+            // cannot publish stable targets, and generic requests still fail later.
+            TypeKind::Ref(RefTypeKind::Any) => true,
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                self.unresolved_callee_is_nominal_ctor(name, nominal)
+            }
             TypeKind::Value(ValueTypeKind::Option(_)) => true,
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
-                .lowered_hir
-                .nominal_kinds
-                .get(&nominal.fqn)
-                .is_some_and(|kind| *kind == ast::TypeKind::Enum),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                self.unresolved_callee_is_nominal_ctor(name, nominal)
+                    || self
+                        .lowered_hir
+                        .nominal_kinds
+                        .get(&nominal.fqn)
+                        .is_some_and(|kind| *kind == ast::TypeKind::Enum)
+            }
             _ => false,
         }
+    }
+
+    fn unresolved_callee_is_nominal_ctor(&self, name: &str, nominal: &NominalType) -> bool {
+        let Some(local_name) = nominal.fqn.rsplit('.').next() else {
+            return false;
+        };
+        local_name == name
+    }
+
+    fn unresolved_callee_is_nominal_type_ctor(&self, name: &str) -> bool {
+        self.lowered_hir.nominal_kinds.iter().any(|(fqn, kind)| {
+            matches!(kind, ast::TypeKind::Class | ast::TypeKind::Struct)
+                && fqn.rsplit('.').next() == Some(name)
+        })
+    }
+
+    fn unresolved_callee_is_enum_variant(&self, name: &str) -> bool {
+        self.lowered_hir
+            .enum_layouts
+            .values()
+            .any(|layout| layout.variants.iter().any(|variant| variant.name == name))
     }
 
     fn call_arg_binding_contract(
@@ -4614,6 +6999,13 @@ fn call_arg_value_ty(arg: &CallArg) -> TypeId {
     }
 }
 
+fn generic_template_base_fqn(fqn: &str) -> &str {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    base.split_once("$overload")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
 fn receiver_ty_from_call_contract_source(
     callee: &Expr,
     binding: Option<&CallArgBindingContract>,
@@ -4701,6 +7093,125 @@ fn is_funptr_ty(types: &TypeStore, ty: TypeId) -> bool {
 
 fn type_id_in_store(types: &TypeStore, ty: TypeId) -> bool {
     (ty.as_u32() as usize) < types.len()
+}
+
+fn instance_args_are_concrete(
+    types: &TypeStore,
+    type_args: &[TypeId],
+    eff_args: &[EffectRow],
+) -> bool {
+    type_args.iter().all(|&ty| !type_contains_param(types, ty))
+        && eff_args
+            .iter()
+            .all(|row| row.terms.iter().all(|&ty| !type_contains_param(types, ty)))
+}
+
+fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+    let mut stack = vec![ty];
+    while let Some(id) = stack.pop() {
+        match types.kind(id) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied())
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied())
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+    false
+}
+
+fn collect_type_param_bindings_in_type(
+    types: &TypeStore,
+    pattern_ty: TypeId,
+    concrete_ty: TypeId,
+    bindings: &mut HashMap<String, TypeId>,
+) {
+    match (types.kind(pattern_ty), types.kind(concrete_ty)) {
+        (TypeKind::Param(param), _) if !type_contains_param(types, concrete_ty) => {
+            bindings.entry(param.name.clone()).or_insert(concrete_ty);
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(pattern))
+            | TypeKind::Value(ValueTypeKind::Nominal(pattern)),
+            TypeKind::Ref(RefTypeKind::Nominal(concrete))
+            | TypeKind::Value(ValueTypeKind::Nominal(concrete)),
+        ) if pattern.fqn == concrete.fqn => {
+            for (&pattern_arg, &concrete_arg) in pattern.args.iter().zip(concrete.args.iter()) {
+                collect_type_param_bindings_in_type(types, pattern_arg, concrete_arg, bindings);
+            }
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Option(pattern)),
+            TypeKind::Value(ValueTypeKind::Option(concrete)),
+        ) => {
+            collect_type_param_bindings_in_type(types, *pattern, *concrete, bindings);
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(pattern)),
+            TypeKind::Value(ValueTypeKind::Tuple(concrete)),
+        ) => {
+            for (&pattern_ty, &concrete_ty) in pattern.iter().zip(concrete.iter()) {
+                collect_type_param_bindings_in_type(types, pattern_ty, concrete_ty, bindings);
+            }
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Function(pattern)),
+            TypeKind::Ref(RefTypeKind::Function(concrete)),
+        ) => {
+            if let (Some(pattern_receiver), Some(concrete_receiver)) =
+                (pattern.receiver, concrete.receiver)
+            {
+                collect_type_param_bindings_in_type(
+                    types,
+                    pattern_receiver,
+                    concrete_receiver,
+                    bindings,
+                );
+            }
+            for (&pattern_param, &concrete_param) in
+                pattern.params.iter().zip(concrete.params.iter())
+            {
+                collect_type_param_bindings_in_type(types, pattern_param, concrete_param, bindings);
+            }
+            collect_type_param_bindings_in_type(
+                types,
+                pattern.return_ty,
+                concrete.return_ty,
+                bindings,
+            );
+        }
+        _ => {}
+    }
 }
 
 fn function_effect_contract(types: &TypeStore, fun_ty: TypeId) -> Option<(EffectRow, bool)> {
@@ -6005,5 +8516,89 @@ fn format_type_id_lossy(types: &TypeStore, ty: TypeId) -> String {
         types.display(ty).to_string()
     } else {
         format!("TypeId({})", ty.as_u32())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lower_stage(source_text: &str) -> HirStageOutput {
+        let session = Session::new().expect("create test session");
+        let source = SourceFile::new_virtual("<t2_01r_source_effect_facts>", source_text);
+        let lowered = crate::hir::lower_typed_for_dump(&session, &source)
+            .expect("test source should lower to typed HIR");
+        HirStageOutput::new(lowered, source.path()).expect("HIR facts should verify")
+    }
+
+    #[test]
+    fn source_effect_facts_include_operator_semantic_bindings() {
+        let output = lower_stage(
+            r#"
+package fixtures.t2_01r
+
+effect Log {
+    fun write(message: String): Unit
+}
+
+struct Box {
+    val value: Int
+
+    operator fun plus(other: Box): Box / Log {
+        return other
+    }
+
+    operator fun inv(): Box / Log {
+        return this
+    }
+}
+
+private fun viaOperators(a: Box, b: Box): Box {
+    val c: Box = a + b
+    val d: Box = ~a
+    return c
+}
+"#,
+        );
+        let facts = &output.hir_facts().source_sites;
+        let callable = facts
+            .callable_source_effects
+            .iter()
+            .find(|fact| fact.fqn == "fixtures.t2_01r.viaOperators")
+            .expect("viaOperators callable source effect fact should be published");
+
+        let inferred = callable.inferred_surface_row_template.canonical_text();
+        assert!(
+            inferred.contains("fixtures.t2_01r.Log"),
+            "operator call effects should flow into inferred surface row, got {inferred}"
+        );
+        let published = callable.published_surface_row_template.canonical_text();
+        assert!(
+            published.contains("fixtures.t2_01r.Log"),
+            "private omitted-row function should publish inferred operator effects, got {published}"
+        );
+
+        let semantic_targets = facts
+            .semantic_operations
+            .iter()
+            .filter_map(|fact| match &fact.kind {
+                hir_site_facts::CanonicalSemanticOperationKind::CoreCall { target, .. } => {
+                    target.as_ref().map(|target| target.as_str().to_string())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            semantic_targets
+                .iter()
+                .any(|target| target.contains("fixtures.t2_01r.Box.plus")),
+            "binary operator should publish a canonical semantic core call, got {semantic_targets:?}"
+        );
+        assert!(
+            semantic_targets
+                .iter()
+                .any(|target| target.contains("fixtures.t2_01r.Box.inv")),
+            "unary operator should publish a canonical semantic core call, got {semantic_targets:?}"
+        );
     }
 }

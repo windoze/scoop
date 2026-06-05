@@ -13,7 +13,13 @@ use crate::globals::GlobalStoragePolicy;
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct SourceSiteFacts {
     pub function_effects: Vec<FunctionEffectContract>,
+    pub callable_source_effects: Vec<CallableSourceEffectFacts>,
+    pub semantic_operations: Vec<CanonicalSemanticOperationFact>,
+    pub hidden_initializers: Vec<HiddenInitializerEffectFact>,
     pub call_sites: Vec<CallSiteContract>,
+    pub call_site_instances: Vec<CallSiteInstanceFact>,
+    pub template_site_bindings: Vec<TemplateSiteBindingFact>,
+    pub dispatch_candidates: Vec<DispatchCandidateFact>,
     pub argument_bindings: Vec<ArgumentBindingContract>,
     pub assignments: Vec<AssignmentContract>,
     pub with_updates: Vec<WithUpdateContract>,
@@ -29,7 +35,13 @@ impl SourceSiteFacts {
     /// Return whether no source-site contracts have been published yet.
     pub fn is_empty(&self) -> bool {
         self.function_effects.is_empty()
+            && self.callable_source_effects.is_empty()
+            && self.semantic_operations.is_empty()
+            && self.hidden_initializers.is_empty()
             && self.call_sites.is_empty()
+            && self.call_site_instances.is_empty()
+            && self.template_site_bindings.is_empty()
+            && self.dispatch_candidates.is_empty()
             && self.argument_bindings.is_empty()
             && self.assignments.is_empty()
             && self.with_updates.is_empty()
@@ -89,6 +101,189 @@ impl SourceSiteFacts {
             _ => None,
         }
     }
+
+    /// Iterate over constructor call contracts already published in HIR facts.
+    pub fn constructor_call_sites(&self) -> impl Iterator<Item = &CallSiteContract> {
+        self.call_sites
+            .iter()
+            .filter(|fact| matches!(fact.contract, CallSiteContractKind::Constructor(_)))
+    }
+
+    /// Iterate over reflection intrinsic call contracts already published in HIR facts.
+    pub fn reflection_call_sites(&self) -> impl Iterator<Item = &CallSiteContract> {
+        self.call_sites.iter().filter(|fact| {
+            matches!(
+                fact.contract,
+                CallSiteContractKind::Intrinsic {
+                    kind: IntrinsicKind::Reflection { .. },
+                    ..
+                }
+            )
+        })
+    }
+
+    /// Iterate over source-callable roots explicitly classified as named intrinsics.
+    pub fn named_intrinsic_callables(
+        &self,
+    ) -> impl Iterator<Item = (&SourceSiteIdentity, &String, &FunctionTarget)> {
+        self.call_sites.iter().filter_map(|fact| {
+            let CallSiteContractKind::Intrinsic {
+                kind: IntrinsicKind::NamedTable { entry_name, .. },
+                function,
+            } = &fact.contract
+            else {
+                return None;
+            };
+            Some((&fact.identity, entry_name, function))
+        })
+    }
+
+    /// Iterate over all function targets explicitly published at call sites.
+    pub fn function_targets(&self) -> impl Iterator<Item = (&SourceSiteIdentity, &FunctionTarget)> {
+        self.call_sites.iter().filter_map(|fact| {
+            let function = match &fact.contract {
+                CallSiteContractKind::DirectTopLevel(function)
+                | CallSiteContractKind::Extension { function, .. }
+                | CallSiteContractKind::Intrinsic { function, .. } => function,
+                CallSiteContractKind::MemberDirect(member)
+                | CallSiteContractKind::Virtual(member)
+                | CallSiteContractKind::Interface(member) => &member.function,
+                CallSiteContractKind::Constructor(_)
+                | CallSiteContractKind::Closure { .. }
+                | CallSiteContractKind::FunValue { .. }
+                | CallSiteContractKind::FunPtr { .. }
+                | CallSiteContractKind::EffectOp(_)
+                | CallSiteContractKind::ContinuationResume(_) => return None,
+            };
+            Some((&fact.identity, function))
+        })
+    }
+}
+
+/// Stable data-only effect row template published by HIR facts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct EffectRowTemplate {
+    pub terms: Vec<EffectRowTerm>,
+    pub closed: bool,
+}
+
+impl EffectRowTemplate {
+    /// Return the open empty row.
+    pub fn pure() -> Self {
+        Self {
+            terms: Vec::new(),
+            closed: false,
+        }
+    }
+
+    /// Render a deterministic compact form for dumps and diagnostics.
+    pub fn canonical_text(&self) -> String {
+        let mut text = format!(
+            "E({})",
+            self.terms
+                .iter()
+                .map(EffectRowTerm::canonical_text)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        if self.closed {
+            text.push('!');
+        }
+        text
+    }
+}
+
+/// One term inside a stable effect row template.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectRowTerm {
+    Concrete {
+        type_key: CanonicalTextKey,
+    },
+    Param {
+        owner: CanonicalTextKey,
+        ordinal: u32,
+        name: String,
+    },
+}
+
+impl EffectRowTerm {
+    fn canonical_text(&self) -> String {
+        match self {
+            Self::Concrete { type_key } => type_key.as_str().to_string(),
+            Self::Param {
+                owner,
+                ordinal,
+                name,
+            } => format!("eff_param({},{},{})", owner.as_str(), ordinal, name),
+        }
+    }
+}
+
+/// How HIR arrived at a callable's published source-level surface row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectInferenceStatus {
+    ExplicitContract,
+    InferredFromBody,
+    MissingBodyAssumedPure,
+}
+
+/// Source-level layered effect rows for one callable.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CallableSourceEffectFacts {
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub return_ty: TypeId,
+    pub declared_surface_row: Option<EffectRowTemplate>,
+    pub direct_effect_row: EffectRowTemplate,
+    pub inferred_surface_row_template: EffectRowTemplate,
+    pub published_surface_row_template: EffectRowTemplate,
+    pub row_is_closed: bool,
+    pub inference_status: EffectInferenceStatus,
+}
+
+/// Canonical core operation seen at a source expression site.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CanonicalSemanticOperationFact {
+    pub identity: SourceSiteIdentity,
+    pub kind: CanonicalSemanticOperationKind,
+    pub surface_row: EffectRowTemplate,
+}
+
+/// Normalized semantic operation families consumed by source effect inference.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CanonicalSemanticOperationKind {
+    CoreCall {
+        call_kind: CallSiteKind,
+        target: Option<CanonicalTextKey>,
+    },
+    CoreEffectOperation {
+        effect_ty: TypeId,
+        op_fqn: String,
+    },
+    CoreContinuationResume,
+    CoreConstructorInit {
+        owner_fqn: String,
+        ctor_span: Option<Span>,
+    },
+}
+
+/// Hidden initializer effect summary published before MIR lowering.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HiddenInitializerEffectFact {
+    pub kind: HiddenInitializerKind,
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub span: Option<Span>,
+    pub effect_row: EffectRowTemplate,
+}
+
+/// Hidden initializer family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum HiddenInitializerKind {
+    ClassCtor,
+    ObjectInit,
+    TopLevelInit,
 }
 
 /// Stable source-site identity scoped to a lowered body.
@@ -233,11 +428,51 @@ pub struct FunctionTarget {
     pub decl_file: Option<PathBuf>,
     pub decl_span: Option<Span>,
     pub abi: CallableAbi,
+    pub stable_template_key: Option<CanonicalTextKey>,
+    pub stable_instance_key: Option<CanonicalTextKey>,
+    #[serde(default)]
+    pub intrinsic_entry_name: Option<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: Option<TypeId>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
     pub arg_binding: Option<CallArgBindingContract>,
+}
+
+/// Materializer-ready instance identity observed at a source call site.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CallSiteInstanceFact {
+    pub identity: SourceSiteIdentity,
+    pub template_key: CanonicalTextKey,
+    pub stable_instance_key: CanonicalTextKey,
+    pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
+}
+
+/// Source site whose generic binding is known before a concrete instance exists.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TemplateSiteBindingFact {
+    pub identity: SourceSiteIdentity,
+    pub kind: TemplateSiteBindingKind,
+    pub template_key: CanonicalTextKey,
+    pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
+}
+
+/// Source syntax family for a template-level generic binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum TemplateSiteBindingKind {
+    DirectCall,
+    FunValue,
+}
+
+/// Stable dispatch candidate identity published before materialization.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DispatchCandidateFact {
+    pub identity: SourceSiteIdentity,
+    pub dispatch_kind: CallSiteKind,
+    pub receiver_ty: TypeId,
+    pub stable_instance_keys: Vec<CanonicalTextKey>,
 }
 
 /// Member call target identity and receiver type.

@@ -2,7 +2,7 @@
 //!
 //! Dynamic invocations cover closure / virtual / interface dispatch where the
 //! callee identity is decided at runtime. The backend-neutral contract is now
-//! read from `LirFacts`; this module only turns that contract into LLVM function
+//! read from the LIR program; this module only turns that contract into LLVM function
 //! and carrier layouts.
 
 use super::*;
@@ -13,7 +13,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>, LlvmEmitError> {
         let mut layouts = BTreeMap::new();
-        for contract in self.lir_facts.dynamic_invokes.values() {
+        let contracts = self
+            .program
+            .callables()
+            .iter()
+            .filter_map(LateLoweredCallable::published_callable_facts)
+            .flat_map(LirCallableFacts::dynamic_invoke_contracts)
+            .cloned()
+            .collect::<Vec<_>>();
+        for contract in contracts {
             let Some(owner_step_schema) = contract.owner_step_schema else {
                 continue;
             };
@@ -30,7 +38,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let layout = self.materialize_dynamic_invoke_layout(
                 owner_step_schema,
                 site_id,
-                contract,
+                &contract,
                 step_layouts,
             )?;
             layouts.insert(key, layout);
@@ -47,8 +55,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<DynamicInvokeLayout<'ctx>, LlvmEmitError> {
         let callee_schema = contract.call.callee_step_schema.ok_or_else(|| {
             frontend_error(format!(
-                "LLVM ABI materialization 发现 callable `{}` call site {} 的 LIR dynamic-invoke contract 缺少 callee step schema",
-                contract.owner_callable.readable_path(),
+                "LLVM ABI materialization 发现 callable `{:?}` call site {} 的 LIR dynamic-invoke contract 缺少 callee step schema",
+                contract.owner_callable,
                 site_id.as_u32(),
             ))
         })?;
@@ -57,8 +65,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&callee_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LLVM ABI materialization 缺少 callable `{}` call site {} dynamic-invoke return step schema {} 的 step layout",
-                    contract.owner_callable.readable_path(),
+                    "LLVM ABI materialization 缺少 callable `{:?}` call site {} dynamic-invoke return step schema {} 的 step layout",
+                    contract.owner_callable,
                     site_id.as_u32(),
                     callee_schema.as_u32(),
                 ))
@@ -70,19 +78,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             LirDynamicInvokeCarrierKind::ClosureObject | LirDynamicInvokeCarrierKind::FunPtr => {
                 if !matches!(
                     contract.call.target_mode,
-                    LirCallTargetMode::DynamicFallback | LirCallTargetMode::KnownInstance
+                    LirCallTargetMode::DynamicFallback
+                        | LirCallTargetMode::KnownInstance
+                        | LirCallTargetMode::CandidateSet
                 ) {
                     return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 callable-carrier lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
-                        contract.owner_callable.readable_path(),
+                        "LLVM ABI materialization 发现 callable `{:?}` call site {} 的 callable-carrier lowering 只能绑定 KnownInstance/CandidateSet/DynamicFallback，但实际 target_mode 为 {:?}",
+                        contract.owner_callable,
                         site_id.as_u32(),
                         contract.call.target_mode,
                     )));
                 }
                 let carrier_source_ty = contract.carrier.source_ty.ok_or_else(|| {
                     frontend_error(format!(
-                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 callable carrier source type",
-                        contract.owner_callable.readable_path(),
+                        "LLVM ABI materialization 缺少 callable `{:?}` call site {} 的 callable carrier source type",
+                        contract.owner_callable,
                         site_id.as_u32(),
                     ))
                 })?;
@@ -110,14 +120,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
             }
             LirDynamicInvokeCarrierKind::VirtualReceiver => {
-                let dispatch_key = contract.carrier.dispatch.as_ref().ok_or_else(|| {
+                let dispatch = contract.carrier.dispatch.as_ref().ok_or_else(|| {
                     frontend_error(format!(
-                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 virtual dispatch key",
-                        contract.owner_callable.readable_path(),
+                        "LLVM ABI materialization 缺少 callable `{:?}` call site {} 的 virtual dispatch contract",
+                        contract.owner_callable,
                         site_id.as_u32(),
                     ))
                 })?;
-                let dispatch = self.dispatch_contract(dispatch_key)?;
                 let receiver_ty = dispatch.receiver_ty;
                 let owner_fqn = dispatch.owner_fqn.clone();
                 let member_name = dispatch.member_name.clone();
@@ -133,22 +142,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             }
             LirDynamicInvokeCarrierKind::InterfaceReceiver => {
-                let dispatch_key = contract.carrier.dispatch.as_ref().ok_or_else(|| {
+                let dispatch = contract.carrier.dispatch.as_ref().ok_or_else(|| {
                     frontend_error(format!(
-                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 interface dispatch key",
-                        contract.owner_callable.readable_path(),
+                        "LLVM ABI materialization 缺少 callable `{:?}` call site {} 的 interface dispatch contract",
+                        contract.owner_callable,
                         site_id.as_u32(),
                     ))
                 })?;
-                let dispatch = self.dispatch_contract(dispatch_key)?;
                 let receiver_ty = dispatch.receiver_ty;
                 let owner_fqn = dispatch.owner_fqn.clone();
                 let member_name = dispatch.member_name.clone();
                 let method_slot = dispatch.method_slot;
                 let interface_id = dispatch.interface_id.ok_or_else(|| {
                     frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 interface dispatch contract 缺少 interface id",
-                        contract.owner_callable.readable_path(),
+                        "LLVM ABI materialization 发现 callable `{:?}` call site {} 的 interface dispatch contract 缺少 interface id",
+                        contract.owner_callable,
                         site_id.as_u32(),
                     ))
                 })?;
@@ -180,7 +188,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             args_abi,
             callee_schema,
             carrier,
-            self.lir_target_roots(contract)?,
+            self.lir_target_refs(contract)?,
         ))
     }
 }

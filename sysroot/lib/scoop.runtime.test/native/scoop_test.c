@@ -270,6 +270,153 @@ intptr_t scoop_test_sync_once_destroy_count(void) {
   return (intptr_t)__atomic_load_n(&scoop_test_sync_once_destroy_calls, __ATOMIC_SEQ_CST);
 }
 
+typedef struct ScoopTestReleaseHookProbe {
+  uint64_t magic;
+  intptr_t id;
+  uint32_t released;
+  struct ScoopTestReleaseHookProbe *next;
+} ScoopTestReleaseHookProbe;
+
+static const uint64_t SCOOP_TEST_RELEASE_HOOK_PROBE_MAGIC = 0x5c00b715e0000001ull;
+
+static ScoopTestReleaseHookProbe *scoop_test_release_hook_probe_head = 0;
+static uint64_t scoop_test_release_hook_probe_release_calls = 0;
+static uint64_t scoop_test_release_hook_probe_duplicate_calls = 0;
+static uint64_t scoop_test_release_hook_probe_invalid_calls = 0;
+static uint64_t scoop_test_release_hook_probe_live_handles = 0;
+static intptr_t scoop_test_release_hook_probe_last_released_id = 0;
+static intptr_t scoop_test_release_hook_probe_expected_exit_releases = -1;
+static intptr_t scoop_test_release_hook_probe_expected_exit_live = -1;
+static uint32_t scoop_test_release_hook_probe_atexit_registered = 0;
+
+static ScoopTestReleaseHookProbe *scoop_test_release_hook_probe_find(uintptr_t raw) {
+  for (ScoopTestReleaseHookProbe *it = scoop_test_release_hook_probe_head; it != 0; it = it->next) {
+    if ((uintptr_t)it == raw) {
+      return it;
+    }
+  }
+  return 0;
+}
+
+static void scoop_test_release_hook_probe_at_exit(void) {
+  const intptr_t expected_releases = __atomic_load_n(&scoop_test_release_hook_probe_expected_exit_releases,
+                                                     __ATOMIC_SEQ_CST);
+  const intptr_t expected_live = __atomic_load_n(&scoop_test_release_hook_probe_expected_exit_live,
+                                                __ATOMIC_SEQ_CST);
+  if (expected_releases < 0 || expected_live < 0) {
+    return;
+  }
+
+  const intptr_t actual_releases =
+      (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_release_calls, __ATOMIC_SEQ_CST);
+  const intptr_t actual_live =
+      (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_live_handles, __ATOMIC_SEQ_CST);
+  const intptr_t duplicate_calls =
+      (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_duplicate_calls, __ATOMIC_SEQ_CST);
+  const intptr_t invalid_calls =
+      (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_invalid_calls, __ATOMIC_SEQ_CST);
+
+  if (actual_releases != expected_releases || actual_live != expected_live || duplicate_calls != 0 ||
+      invalid_calls != 0) {
+    (void)fprintf(stderr,
+                  "release hook atexit mismatch: releases=%ld expected=%ld live=%ld "
+                  "expected_live=%ld duplicate=%ld invalid=%ld\n",
+                  (long)actual_releases,
+                  (long)expected_releases,
+                  (long)actual_live,
+                  (long)expected_live,
+                  (long)duplicate_calls,
+                  (long)invalid_calls);
+    abort();
+  }
+}
+
+void scoop_test_release_hook_probe_reset(void) {
+  ScoopTestReleaseHookProbe *it = scoop_test_release_hook_probe_head;
+  while (it != 0) {
+    ScoopTestReleaseHookProbe *next = it->next;
+    free(it);
+    it = next;
+  }
+  scoop_test_release_hook_probe_head = 0;
+  __atomic_store_n(&scoop_test_release_hook_probe_release_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_duplicate_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_invalid_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_live_handles, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_last_released_id, 0, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_expected_exit_releases, -1, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_expected_exit_live, -1, __ATOMIC_SEQ_CST);
+}
+
+uintptr_t scoop_test_release_hook_probe_create(intptr_t id) {
+  ScoopTestReleaseHookProbe *probe = (ScoopTestReleaseHookProbe *)malloc(sizeof(ScoopTestReleaseHookProbe));
+  if (probe == 0) {
+    abort();
+  }
+  probe->magic = SCOOP_TEST_RELEASE_HOOK_PROBE_MAGIC;
+  probe->id = id;
+  probe->released = 0;
+  probe->next = scoop_test_release_hook_probe_head;
+  scoop_test_release_hook_probe_head = probe;
+  (void)__atomic_fetch_add(&scoop_test_release_hook_probe_live_handles, 1u, __ATOMIC_SEQ_CST);
+  return (uintptr_t)probe;
+}
+
+void scoop_test_release_hook_probe_release(uintptr_t raw) {
+  ScoopTestReleaseHookProbe *probe = scoop_test_release_hook_probe_find(raw);
+  if (probe == 0 || probe->magic != SCOOP_TEST_RELEASE_HOOK_PROBE_MAGIC) {
+    (void)__atomic_fetch_add(&scoop_test_release_hook_probe_invalid_calls, 1u, __ATOMIC_SEQ_CST);
+    return;
+  }
+  if (__atomic_exchange_n(&probe->released, 1u, __ATOMIC_SEQ_CST) != 0) {
+    (void)__atomic_fetch_add(&scoop_test_release_hook_probe_duplicate_calls, 1u, __ATOMIC_SEQ_CST);
+    return;
+  }
+  __atomic_store_n(&scoop_test_release_hook_probe_last_released_id, probe->id, __ATOMIC_SEQ_CST);
+  (void)__atomic_fetch_add(&scoop_test_release_hook_probe_release_calls, 1u, __ATOMIC_SEQ_CST);
+  (void)__atomic_fetch_sub(&scoop_test_release_hook_probe_live_handles, 1u, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_release_hook_probe_id(uintptr_t raw) {
+  ScoopTestReleaseHookProbe *probe = scoop_test_release_hook_probe_find(raw);
+  if (probe == 0 || probe->magic != SCOOP_TEST_RELEASE_HOOK_PROBE_MAGIC) {
+    return -1;
+  }
+  return probe->id;
+}
+
+intptr_t scoop_test_release_hook_probe_release_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_release_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_release_hook_probe_duplicate_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_duplicate_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_release_hook_probe_invalid_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_invalid_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_release_hook_probe_live_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_release_hook_probe_live_handles, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_release_hook_probe_last_id(void) {
+  return __atomic_load_n(&scoop_test_release_hook_probe_last_released_id, __ATOMIC_SEQ_CST);
+}
+
+void scoop_test_release_hook_probe_expect_at_exit(intptr_t release_count, intptr_t live_count) {
+  __atomic_store_n(&scoop_test_release_hook_probe_expected_exit_releases, release_count,
+                   __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_release_hook_probe_expected_exit_live, live_count, __ATOMIC_SEQ_CST);
+  if (__atomic_exchange_n(&scoop_test_release_hook_probe_atexit_registered, 1u, __ATOMIC_SEQ_CST) ==
+      0) {
+    if (atexit(scoop_test_release_hook_probe_at_exit) != 0) {
+      abort();
+    }
+  }
+}
+
 // 返回 `scoop_test_add_int` 的函数地址，作为 `FunPtr<(Int, Int) -> Int>` 的 runtime 落点。
 //
 // 说明：

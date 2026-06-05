@@ -1,0 +1,6 @@
+before 0 0 0 0 0
+created 101 16
+after-drop 1 101 0 0 0
+after-second-collect 1 101 0 0 0
+survivor 202 24
+exit-check-armed 1 101 1 0 0

@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: effectful_closure_explicit_param_carrier.stdout
+// EXPECT-EXIT: 0
+//
+// P5-T02B00:
+// - 一个带显式参数且 effectful（`/ Raise<Int>`）的闭包被作为函数值传入 `run`，
+//   并经 ClosureObject dispatch-carrier shell 降级。
+// - 闭包无捕获，所以 env 是 `Unit`：invoke-args tuple 是 `(Unit, Int)`，env 占据
+//   leading source slot 0（被 elide），显式参数 `v` 必须落到 source slot 1。
+// - 之前 carrier 把 `v` 错放到 slot 0，导致 `carrier_direct_args 缺少 source component 1`。
+// - 断言 try/catch 捕获到正确的 Raise 值，验证显式参数确实正确传入闭包体。
+
+import scoop.core.*
+
+fun run(cb: (Int) -> Unit / Raise<Int>): Unit / Raise<Int> {
+    cb(1)
+}
+
+fun main(): Int {
+    val r: Int = try {
+        run { v -> if (v == 1) { Raise.raise(99) } }
+        0
+    } catch (e: Int) {
+        e
+    }
+    println(r)
+    return 0
+}

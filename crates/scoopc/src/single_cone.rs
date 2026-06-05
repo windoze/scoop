@@ -26,7 +26,7 @@ use crate::frontend::{
     run_frontend_with_artifact_cache,
 };
 use crate::opt::OptLevel;
-use crate::pipeline::{LlvmCodegenStageInput, run_llvm_codegen_stage};
+use crate::pipeline::{build_llvm_codegen_input, run_llvm_codegen_stage};
 use crate::session::{Session, SessionOptions};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -161,21 +161,19 @@ pub fn run_single_cone_artifact_compile(
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
     let entry_main_fqn = front.input().entry_main_fqn().map(str::to_owned);
 
-    let cached_cone_imports = front.cached_cone_imports().to_vec();
     let cached_dep_artifacts = front.cached_dep_artifacts().to_vec();
-    let stage_output = run_llvm_codegen_stage(
+    let codegen_input = build_llvm_codegen_input(
         session,
-        LlvmCodegenStageInput::with_cached_cone_imports(
-            lowering,
-            abi_visibility_lowering,
-            source_map,
-            entry_source_id,
-            entry_main_fqn,
-            opt_level,
-            cached_cone_imports,
-            cached_dep_artifacts,
-        ),
+        source_map,
+        entry_source_id,
+        lowering,
+        abi_visibility_lowering,
+        entry_main_fqn,
+        is_bin_consumer,
+        opt_level,
+        cached_dep_artifacts,
     )?;
+    let stage_output = run_llvm_codegen_stage(session, codegen_input)?;
 
     // 把 dep 自己的 LLVM object 写到 artifact `objs/` 目录里，待 consumer link 拉起。
     std::fs::create_dir_all(output_dir).into_diagnostic()?;
@@ -189,7 +187,7 @@ pub fn run_single_cone_artifact_compile(
             stage_output.entry_source_id(),
             stage_input,
             &obj_path,
-            front.input().entry_main_fqn(),
+            stage_output.entry_ref(),
             opt_level,
         )?;
     } else {
@@ -217,9 +215,8 @@ pub fn run_single_cone_artifact_compile(
         }
     }
 
-    // 把空 skeleton 升级成包含真实 LIR program / LIR facts / object 的完整 artifact。
+    // 把空 skeleton 升级成包含真实 LIR program / object 的完整 artifact。
     skeleton.lir_program = stage_output.lir().clone();
-    skeleton.lir_facts = stage_output.lir_facts().clone();
     skeleton.type_store = stage_output.base_context().types().clone();
     skeleton.manifest.extern_libs = extern_libs;
     skeleton.objects = vec![

@@ -1077,18 +1077,34 @@ impl<'a> MirDumpRenderer<'a> {
                     ),
                 ],
             ),
-            Rvalue::SizeOf { value_ty } => {
-                self.inline_struct("SizeOf", vec![("value_ty", self.type_text(*value_ty))])
-            }
-            Rvalue::KindOf { value_ty } => {
-                self.inline_struct("KindOf", vec![("value_ty", self.type_text(*value_ty))])
-            }
-            Rvalue::AlignOf { value_ty } => {
-                self.inline_struct("AlignOf", vec![("value_ty", self.type_text(*value_ty))])
-            }
-            Rvalue::DescOf { value_ty } => {
-                self.inline_struct("DescOf", vec![("value_ty", self.type_text(*value_ty))])
-            }
+            Rvalue::SizeOf { site_id, value_ty } => self.inline_struct(
+                "SizeOf",
+                vec![
+                    ("site", format!("site{}", site_id.as_u32())),
+                    ("value_ty", self.type_text(*value_ty)),
+                ],
+            ),
+            Rvalue::KindOf { site_id, value_ty } => self.inline_struct(
+                "KindOf",
+                vec![
+                    ("site", format!("site{}", site_id.as_u32())),
+                    ("value_ty", self.type_text(*value_ty)),
+                ],
+            ),
+            Rvalue::AlignOf { site_id, value_ty } => self.inline_struct(
+                "AlignOf",
+                vec![
+                    ("site", format!("site{}", site_id.as_u32())),
+                    ("value_ty", self.type_text(*value_ty)),
+                ],
+            ),
+            Rvalue::DescOf { site_id, value_ty } => self.inline_struct(
+                "DescOf",
+                vec![
+                    ("site", format!("site{}", site_id.as_u32())),
+                    ("value_ty", self.type_text(*value_ty)),
+                ],
+            ),
             Rvalue::TypeMetadataLiteral(literal) => self.type_metadata_literal_text(literal),
             Rvalue::InterpolatedString { raw, parts } => self.inline_struct(
                 "InterpolatedString",
@@ -1233,7 +1249,7 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn call_kind_text(&self, ctx: &BodyRenderCtx<'_>, kind: &CallKind) -> String {
         match kind {
-            CallKind::Direct { callee_fqn } => {
+            CallKind::Direct { callee_fqn, .. } => {
                 self.inline_struct("Direct", vec![("callee_fqn", format_debug(callee_fqn))])
             }
             CallKind::Closure { callee, fn_ptr } => self.inline_struct(

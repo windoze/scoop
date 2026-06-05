@@ -81,6 +81,33 @@ const DUMMY_RUNTIME_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRu
     params: EMPTY_RUNTIME_PARAMS,
     return_ty: NamedIntrinsicRuntimeTy::WordInt,
 };
+const INT_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I64];
+const INT_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: INT_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const BOOL_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I64];
+const BOOL_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: BOOL_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const CHAR_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::I32];
+const CHAR_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRuntimeSignature {
+    params: CHAR_TO_STRING_PARAMS,
+    return_ty: NamedIntrinsicRuntimeTy::StringRef,
+};
+const FLOAT64_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::Float64];
+const FLOAT64_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature =
+    NamedIntrinsicRuntimeSignature {
+        params: FLOAT64_TO_STRING_PARAMS,
+        return_ty: NamedIntrinsicRuntimeTy::StringRef,
+    };
+const FLOAT32_TO_STRING_PARAMS: &[NamedIntrinsicRuntimeTy] = &[NamedIntrinsicRuntimeTy::Float32];
+const FLOAT32_TO_STRING_SIGNATURE: NamedIntrinsicRuntimeSignature =
+    NamedIntrinsicRuntimeSignature {
+        params: FLOAT32_TO_STRING_PARAMS,
+        return_ty: NamedIntrinsicRuntimeTy::StringRef,
+    };
 
 const fn ir_emission_entry(name: &'static str) -> NamedIntrinsicAuditEntry {
     NamedIntrinsicAuditEntry {
@@ -236,6 +263,7 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
     ir_emission_entry("float_eq"),
     ir_emission_entry("float_ne"),
     ir_emission_entry("float_compare_to"),
+    ir_emission_entry("float_to_int"),
     ir_emission_entry("float_abs"),
     ir_emission_entry("float_is_nan"),
     ir_emission_entry("float_is_infinite"),
@@ -261,6 +289,41 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         runtime_reason: Some(
             "test-only validation entry: published behavior depends on an external runtime-managed counter, so the runtime boundary itself is part of the contract and must remain a RuntimeCall",
         ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "int_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_int_to_string"),
+        runtime_signature: Some(INT_TO_STRING_SIGNATURE),
+        runtime_reason: Some("integer toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "bool_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_bool_to_string"),
+        runtime_signature: Some(BOOL_TO_STRING_SIGNATURE),
+        runtime_reason: Some("bool toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "char_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_char_to_string"),
+        runtime_signature: Some(CHAR_TO_STRING_SIGNATURE),
+        runtime_reason: Some("char toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "float64_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_float64_to_string"),
+        runtime_signature: Some(FLOAT64_TO_STRING_SIGNATURE),
+        runtime_reason: Some("Float64 toString intrinsic"),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "float32_to_string",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_float32_to_string"),
+        runtime_signature: Some(FLOAT32_TO_STRING_SIGNATURE),
+        runtime_reason: Some("Float32 toString intrinsic"),
     },
     NamedIntrinsicAuditEntry {
         name: "write_barrier",
@@ -306,7 +369,7 @@ pub fn named_intrinsic_audit_entry(name: &str) -> Option<&'static NamedIntrinsic
         .find(|entry| entry.name == name)
 }
 
-pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+pub fn named_intrinsic_entry_name_for_root(fqn: &str) -> Option<&'static str> {
     let base = fqn
         .split("::<")
         .next()
@@ -322,8 +385,29 @@ pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static
         "scoop.core.MutableArray.set" => Some("array_set_outofline"),
         "scoop.core.Array.__dataPtr" => Some("array_data_ptr_inline"),
         "scoop.core.MutableArray.__dataPtr" => Some("array_data_ptr_outofline"),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_cast" => Some("unsafe_mutable_array_cast"),
+        "scoop.unsafe.__scoop_unsafe_mutable_array_erase" => Some("unsafe_mutable_array_erase"),
+        "scoop.unsafe.__scoop_unsafe_array_cast" => Some("unsafe_array_cast"),
+        "scoop.unsafe.__scoop_unsafe_value_to_word" => Some("unsafe_value_to_word"),
+        "scoop.unsafe.__scoop_unsafe_value_to_any" => Some("unsafe_value_to_any"),
+        "scoop.unsafe.__scoop_unsafe_value_slot" => Some("unsafe_value_slot"),
         _ => fallback_scalar_method_intrinsic_entry_name(base),
     }
+}
+
+pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+    named_intrinsic_entry_name_for_root(fqn)
+}
+
+pub fn legacy_scalar_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    fallback_scalar_method_intrinsic_entry_name(base)
 }
 
 fn fallback_scalar_method_intrinsic_entry_name(base: &str) -> Option<&'static str> {
@@ -405,6 +489,7 @@ fn float_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
         "eq" | "equals" => Some("float_eq"),
         "ne" | "notEquals" => Some("float_ne"),
         "compareTo" => Some("float_compare_to"),
+        "toInt" => Some("float_to_int"),
         "abs" => Some("float_abs"),
         "isNaN" => Some("float_is_nan"),
         "isInfinite" => Some("float_is_infinite"),
@@ -420,7 +505,7 @@ fn bool_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
         "xor" => Some("bool_xor"),
         "eq" | "equals" => Some("bool_eq"),
         "ne" | "notEquals" => Some("bool_ne"),
-        "not" => Some("bool_not"),
+        "not" | "negate" => Some("bool_not"),
         _ => None,
     }
 }

@@ -70,6 +70,7 @@ pub mod pipeline;
 pub use scoopc_hir::resolve;
 pub use scoopc_hir::session;
 pub use scoopc_mir::rtti;
+#[cfg(feature = "llvm")]
 pub mod single_cone;
 pub mod source;
 pub mod span;

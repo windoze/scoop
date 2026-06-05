@@ -67,7 +67,7 @@ body_facts:
         invoke_args_tuple_ty: Int
         callee_schema: <none>
         resolved_cases: []
-        precision: SignatureFallback
+        precision: Precise
   a.id:
     blocks:
       bb0:

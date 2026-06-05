@@ -228,10 +228,8 @@ pub fn inject_cone_artifact_frontend_import(
 
 /// Build a neutral `CachedConeImport` payload from a per-cone artifact.
 ///
-/// This payload can be both injected directly into the consumer's `Index`/`TypeEnv`
-/// (as `inject_cone_artifact_frontend_import` does) and threaded through to downstream
-/// stages that rebuild `Index`/`TypeEnv` from `compilation_sources`, so they can
-/// replay the same injection (P10-T04-b).
+/// This payload is injected into the consumer's `Index`/`TypeEnv` by the frontend; downstream
+/// stages receive the resulting HIR semantic artifact instead of replaying this injection.
 pub fn build_cached_cone_import_from_artifact(
     decl_cone: ConeId,
     artifact: &ConeArtifact,
@@ -631,11 +629,10 @@ fn ir_type_to_type_ref(synth: &mut SyntheticSourceBuilder, ty: &IrType) -> ast::
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use scoop_project_model::{OptLevel, StableConeKey};
+    use scoop_project_model::StableConeKey;
     use scoopc_effect_facts::EffectFacts;
     use scoopc_hir_facts::HirFacts;
     use scoopc_lir::LateLoweredProgram;
-    use scoopc_lir_facts::LirFacts;
     use scoopc_mir_facts::MirFacts;
 
     use super::*;
@@ -724,7 +721,6 @@ mod tests {
                 HirFacts::new(),
                 MirFacts::new(),
                 EffectFacts::new(),
-                LirFacts::new(OptLevel::O0),
                 LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
                 scoopc_types::TypeStore::new(),
             ),

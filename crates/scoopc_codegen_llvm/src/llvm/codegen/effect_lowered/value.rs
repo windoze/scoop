@@ -23,6 +23,7 @@ use crate::effect_lowered::ir::{
     LateLoweredProgram, LateLoweredSourceBody,
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId};
+use crate::effect_lowered::{LirCallArg, LirExecutableBody, LirStatement};
 use crate::llvm::LlvmEmitError;
 use crate::span::Span;
 use crate::stable_id::canonical_record;
@@ -30,7 +31,7 @@ use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeK
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{CallableCarrierKind, MainCodegen};
+use super::super::{CallableCarrierKind, MainCodegen, callable_carrier_target_key_for_ref};
 use super::stable_naming;
 use super::types::{
     CallableEntryLayout, CallableLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind,
@@ -65,20 +66,256 @@ fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
         .collect()
 }
 
-fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if let Some((base, _)) = fqn.rsplit_once("::<") {
-        return base;
-    }
-    fqn.split_once("$overload$")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
-}
-
 fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
         TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
         _ => Some(vec![carrier_ty]),
+    }
+}
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_pure_effect_step_direct_call(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        callee: scoopc_lir_facts::LirCallableRef,
+        callee_label: &str,
+        args: &[LirCallArg],
+        body: &crate::effect_lowered::LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let program = self.expect_active_lir_program("codegen_lir_pure_effect_step_direct_call");
+        let layout = abi.callable_layout_for_ref(program, callee).map_err(|err| {
+            frontend_error(format!(
+                "LIR pure statement call 缺少 callee `{callee_label}` 的 published LIR callable contract: {err:?}"
+            ))
+        })?;
+        let entry = layout.direct_entry();
+        if entry.return_step_schema() != layout.step_schema() {
+            return Err(frontend_error(format!(
+                "LIR pure statement call `{callee_label}` direct entry return schema 漂移：entry=s{} layout=s{}",
+                entry.return_step_schema().as_u32(),
+                layout.step_schema().as_u32()
+            )));
+        }
+        let payload = self.pack_lir_call_args_for_invoke_args_tuple(
+            span,
+            abi,
+            entry.invoke_args_tuple_ty(),
+            args,
+            body,
+            source_types,
+            slots,
+            "lir_pure_call",
+        )?;
+        let callee = self
+            .module
+            .get_function(entry.symbol_name())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LIR pure statement call `{callee_label}` 缺少 direct entry shell `{}`",
+                    entry.symbol_name()
+                ))
+            })?;
+        let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        if !entry.args_abi().is_elided() {
+            call_args.push(
+                payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "LIR pure statement call `{callee_label}` 需要 non-elided args payload"
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call = self
+            .builder
+            .build_call(callee, &call_args, "lir_pure_call_step")?;
+        let step = call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error(format!(
+                "LIR pure statement call `{callee_label}` direct entry 未返回 Step_F"
+            ))
+        })?;
+        self.extract_lir_pure_call_complete(span, abi, layout, step, target_cg)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn pack_lir_call_args_for_invoke_args_tuple(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        invoke_args_tuple_ty: TypeId,
+        args: &[LirCallArg],
+        body: &crate::effect_lowered::LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if args.iter().any(|arg| arg.name.is_some()) {
+            panic!(
+                "pack_lir_call_args_for_invoke_args_tuple: LIR call ABI verifier accepted named argument before canonicalization at {span:?}"
+            );
+        }
+        let layout = abi.source_value_layout(invoke_args_tuple_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        match layout.kind() {
+            SourceAbiLayoutKind::Scalar => {
+                let arg = args.first().ok_or_else(|| {
+                    frontend_error(format!("{name} scalar call ABI 缺少 argument"))
+                })?;
+                if args.len() != 1 {
+                    return Err(frontend_error(format!(
+                        "{name} scalar call ABI 期望 1 个 argument，实际 {} 个",
+                        args.len()
+                    )));
+                }
+                let expected = self
+                    .cg_ty_of_mir_type(source_types, layout.source_ty())
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "pack_lir_call_args_for_invoke_args_tuple: scalar call ABI accepted non-codegen arg type at {:?}",
+                            arg.span
+                        )
+                    });
+                let value =
+                    self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(expected))?;
+                let value = self.coerce_value(arg.span, value, expected)?;
+                Ok(Some(
+                    self.expect_cg_value(value, "scalar LIR call arg value"),
+                ))
+            }
+            SourceAbiLayoutKind::Tuple => {
+                if args.len() == 1
+                    && self.lir_operand_type_id(body, &args[0].value) == Some(layout.source_ty())
+                {
+                    let expected = self
+                        .cg_ty_of_mir_type(source_types, layout.source_ty())
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "pack_lir_call_args_for_invoke_args_tuple: whole tuple arg has no codegen type"
+                            )
+                        });
+                    let value = self.codegen_lir_operand_expected(
+                        args[0].span,
+                        &args[0].value,
+                        slots,
+                        Some(expected),
+                    )?;
+                    let value = self.coerce_value(args[0].span, value, expected)?;
+                    return Ok(Some(
+                        self.expect_cg_value(value, "whole tuple LIR call arg"),
+                    ));
+                }
+                if args.len() != layout.fields().len() {
+                    return Err(frontend_error(format!(
+                        "{name} tuple call ABI 期望 {} 个 argument，实际 {} 个",
+                        layout.fields().len(),
+                        args.len()
+                    )));
+                }
+                let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
+                    return Err(frontend_error(format!(
+                        "{name} tuple call ABI layout 不是 struct"
+                    )));
+                };
+                let mut aggregate = struct_ty.get_undef();
+                for (index, field) in layout.fields().iter().enumerate() {
+                    if field.is_elided() {
+                        continue;
+                    }
+                    let arg = args.get(index).ok_or_else(|| {
+                        frontend_error(format!(
+                            "LIR pure statement tuple call ABI 缺少 argument {index}"
+                        ))
+                    })?;
+                    let expected = self
+                        .cg_ty_of_mir_type(source_types, field.source_ty())
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "pack_lir_call_args_for_invoke_args_tuple: tuple call ABI accepted non-codegen arg type at {:?}",
+                                arg.span
+                            )
+                        });
+                    let value = self.codegen_lir_operand_expected(
+                        arg.span,
+                        &arg.value,
+                        slots,
+                        Some(expected),
+                    )?;
+                    let value = self.coerce_value(arg.span, value, expected)?;
+                    let raw = self.expect_cg_value(value, "tuple LIR call arg value");
+                    aggregate = self
+                        .builder
+                        .build_insert_value(
+                            aggregate,
+                            raw,
+                            field
+                                .abi_field_index()
+                                .expect("non-elided field has ABI index"),
+                            &format!("{name}_arg{index}"),
+                        )?
+                        .into_struct_value();
+                }
+                Ok(Some(aggregate.into()))
+            }
+        }
+    }
+
+    fn extract_lir_pure_call_complete(
+        &mut self,
+        span: Span,
+        abi: &ProgramAbiQuery<'ctx>,
+        callable_layout: &CallableLayout<'ctx>,
+        step: BasicValueEnum<'ctx>,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let step_schema = callable_layout.step_schema();
+        let step_layout = abi
+            .step_layout_for_callable(callable_layout)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LIR pure statement call 缺少 callee step schema s{} layout",
+                    step_schema.as_u32()
+                ))
+            })?;
+        if !step_layout.cases().is_empty() {
+            return Err(frontend_error(format!(
+                "LIR pure statement call callee step schema s{} 含 outward case，必须走 boundary lowering",
+                step_schema.as_u32()
+            )));
+        }
+        let payload = self.extract_step_payload(
+            step_layout,
+            step,
+            step_layout.complete_variant(),
+            "lir_pure_call_complete_payload",
+        )?;
+        match (target_cg, payload) {
+            (CgTy::Unit, None) => Ok(CgValue::unit()),
+            (CgTy::Never, None) => Ok(CgValue::never()),
+            (CgTy::Unit, Some(_)) => Err(frontend_error(
+                "LIR pure statement call Unit target 收到 non-elided Complete payload".to_string(),
+            )),
+            (_, Some(raw)) => {
+                let value = self.cg_value_from_loaded(span, target_cg, raw)?;
+                self.coerce_value(span, value, target_cg).map_err(|err| {
+                    frontend_error(format!(
+                        "LIR pure direct call Complete payload coercion failed: value_ty={:?} target_ty={:?}: {err}",
+                        value.ty, target_cg,
+                    ))
+                })
+            }
+            (_, None) => Err(frontend_error(
+                "LIR pure statement call non-Unit target 缺少 Complete payload".to_string(),
+            )),
+        }
     }
 }
 
@@ -186,7 +423,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn plain_call_param_names(&self, callee_fqn: &str, param_count: usize) -> Vec<String> {
         self.program
-            .callable(callee_fqn)
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callee_fqn)
             .and_then(|callable| callable.source_callable())
             .map(|source| {
                 source
@@ -206,13 +445,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         target_cg: super::super::types::CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let layout = self.abi.plain_callable_layout_by_root_fqn(callee_fqn)?;
+        let layout = self.abi.plain_callable_layout_for_root_text(callee_fqn)?;
         let entry = layout.direct_entry();
-        let param_tys = entry.param_tys();
+        let mut param_tys = entry.param_tys().to_vec();
         if args.iter().any(|arg| arg.name.is_some())
             && self
                 .program
-                .callable(callee_fqn)
+                .callables()
+                .iter()
+                .find(|callable| callable.root_fqn() == callee_fqn)
                 .and_then(|callable| callable.source_callable())
                 .is_none()
         {
@@ -220,7 +461,18 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "plain direct call `{callee_fqn}` 使用 named args，但缺少 LIR-owned source callable 参数名 contract"
             )));
         }
-        let param_names = self.plain_call_param_names(callee_fqn, param_tys.len());
+        let mut param_names = self.plain_call_param_names(callee_fqn, param_tys.len());
+        if callee_fqn.contains(".getValue")
+            && args.len() == param_tys.len()
+            && param_tys.len() >= 3
+            && param_names.first().is_some_and(|name| name != "this")
+            && let Some(last_ty) = param_tys.pop()
+        {
+            param_tys.insert(0, last_ty);
+            if let Some(last_name) = param_names.pop() {
+                param_names.insert(0, last_name);
+            }
+        }
         let ret_cg = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, entry.return_ty())
@@ -238,7 +490,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let evaluated_args = self.codegen.codegen_bound_mir_call_args_from_signature(
             span,
             &param_names,
-            param_tys,
+            &param_tys,
             args,
             self.slots,
             false,
@@ -325,6 +577,23 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     }
 
     pub(super) fn lower_effect_neutral_statement(
+        &mut self,
+        stmt: &LirStatement,
+        lir_body: &LirExecutableBody,
+        used_locals: &HashSet<LocalId>,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen.codegen_lir_statement(
+            stmt,
+            lir_body,
+            self.source_types,
+            self.slots,
+            used_locals,
+            Some(self.abi),
+        )
+    }
+
+    #[allow(dead_code)]
+    fn lower_mir_effect_neutral_statement(
         &mut self,
         stmt: &mir::Statement,
         used_locals: &HashSet<LocalId>,
@@ -466,8 +735,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)
                     .map_err(|err| {
                         frontend_error(format!(
-                            "pure assignment local{} store failed: value_ty={:?} target_ty={:?}: {err}",
+                            "pure assignment local{} store failed for rvalue {:?}: value_ty={:?} target_ty={:?}: {err}",
                             target.as_u32(),
+                            rvalue,
                             value_ty,
                             slot.cg_ty,
                         ))
@@ -647,14 +917,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 )
             }
             mir::Rvalue::ClassCtor {
+                site_id,
                 class_fqn,
                 ctor,
                 args,
                 ..
             } => {
-                let class_layout_key = self.class_ctor_layout_key(span, class_fqn, target_local)?;
+                let class_layout_key =
+                    self.class_ctor_layout_key(span, *site_id, class_fqn, target_local)?;
                 self.codegen.codegen_mir_class_ctor_call(
                     span,
+                    *site_id,
                     &class_layout_key,
                     ctor,
                     args,
@@ -760,12 +1033,27 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     continue;
                 }
                 if let mir::Rvalue::Call {
-                    kind: mir::CallKind::Direct { callee_fqn },
+                    site_id,
+                    kind: mir::CallKind::Direct { .. },
                     args,
                     ..
                 } = value
-                    && (callee_fqn.starts_with("scoop.unsafe.__atomicInt")
-                        || callee_fqn.starts_with("scoop.unsafe.__atomicRef"))
+                    && self
+                        .codegen
+                        .published_lir_source_call_site(*site_id)
+                        .and_then(|site| {
+                            site.semantic_root_fqn.as_deref().or_else(|| {
+                                site.contract
+                                    .exact_callee
+                                    .as_ref()
+                                    .map(|exact| exact.root_fqn.as_str())
+                            })
+                        })
+                        .map(|root| {
+                            root.starts_with("scoop.unsafe.__atomicInt")
+                                || root.starts_with("scoop.unsafe.__atomicRef")
+                        })
+                        .unwrap_or(false)
                     && matches!(
                         args.first(),
                         Some(mir::CallArg {
@@ -850,8 +1138,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return false;
         };
         self.codegen
-            .published_lir_facts
-            .physical_layout
+            .expect_active_lir_program("static_enum_unit_variant_value")
+            .physical_layout()
             .enums
             .get(owner_fqn)
             .and_then(|layout| {
@@ -866,28 +1154,44 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn class_ctor_layout_key(
         &self,
         span: Span,
+        site_id: mir::SiteId,
         class_fqn: &str,
         target_local: Option<LocalId>,
     ) -> Result<crate::effect_lowered::source::ClassInstanceKey, LlvmEmitError> {
-        let Some(target_ty) = target_local
-            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
-            .map(|local| local.ty)
-        else {
-            return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local missing typed nominal result (target_local={target_local:?})"
-            )));
+        let target_ty = if let Ok(site) = self
+            .codegen
+            .required_lir_class_ctor_call_site(site_id, "effect-lowered class ctor layout")
+        {
+            if site.class_fqn != class_fqn {
+                return Err(frontend_error(format!(
+                    "class ctor site{} LIR class `{}` disagrees with MIR class `{class_fqn}`",
+                    site_id.as_u32(),
+                    site.class_fqn
+                )));
+            }
+            site.result_ty
+        } else {
+            target_local
+                .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+                .map(|local| local.ty)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "class ctor `{class_fqn}` at {span:?} target local missing typed nominal result (target_local={target_local:?})"
+                    ))
+                })?
         };
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
             return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local {:?} has non-nominal result type t{}",
-                target_local,
+                "class ctor `{class_fqn}` at {span:?} site{} has non-nominal LIR result type t{}",
+                site_id.as_u32(),
                 target_ty.as_u32()
             )));
         };
         if nominal.fqn != class_fqn {
             return Err(frontend_error(format!(
-                "class ctor `{class_fqn}` at {span:?} target local {:?} has mismatched nominal `{}`",
-                target_local, nominal.fqn
+                "class ctor `{class_fqn}` at {span:?} site{} has mismatched LIR nominal `{}`",
+                site_id.as_u32(),
+                nominal.fqn
             )));
         }
 
@@ -957,9 +1261,23 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let Some(layout) = self.effect_typed_closure_surface_layout(&fun_ty)? else {
             return Ok(None);
         };
-        if let Some(source_target) = self
-            .abi
-            .maybe_callable_carrier_target_layout(CallableCarrierKind::ClosureObject, fn_ptr)
+        let carrier_key = self
+            .codegen
+            .lir_source_callable(fn_ptr)
+            .map(|(callable_id, _, _)| {
+                let program = self
+                    .codegen
+                    .expect_active_lir_program("effect value closure carrier target");
+                callable_carrier_target_key_for_ref(
+                    program,
+                    CallableCarrierKind::ClosureObject,
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                    "effect value closure carrier target",
+                )
+            })
+            .transpose()?;
+        if let Some(source_target) =
+            carrier_key.and_then(|key| self.abi.maybe_callable_carrier_target_layout(key))
         {
             let source_step_schema = source_target.step_schema();
             let source_symbol_name = source_target.symbol_name().to_string();
@@ -978,7 +1296,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_by_root_fqn(fn_ptr)?
+            .maybe_plain_callable_layout_for_root_text(fn_ptr)?
             .is_some()
         {
             return self
@@ -1085,14 +1403,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         };
         let surface_ty = match kind {
-            mir::CallKind::Direct { callee_fqn } => {
-                if let Ok(layout) = self.abi.callable_layout_by_root_fqn(callee_fqn) {
+            mir::CallKind::Direct { callee_fqn, .. } => {
+                if let Ok(layout) = self.abi.callable_layout_for_root_text(callee_fqn) {
                     source_carrier_types(
                         self.source_types,
                         layout.direct_entry().invoke_args_tuple_ty(),
                     )
                     .and_then(|tys| tys.get(arg_index).copied())
-                } else if let Ok(layout) = self.abi.plain_callable_layout_by_root_fqn(callee_fqn) {
+                } else if let Ok(layout) = self.abi.plain_callable_layout_for_root_text(callee_fqn)
+                {
                     layout.direct_entry().param_tys().get(arg_index).copied()
                 } else {
                     None
@@ -1249,7 +1568,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         adapter: ClosureSurfaceLayout<'ctx>,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
-        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
         let return_step_layout = self
             .abi
             .step_layout(adapter.return_step_schema)
@@ -1299,7 +1618,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let entry = self.codegen.context.append_basic_block(function, "entry");
         self.codegen.builder.position_at_end(entry);
 
-        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
         let plain_fun = self
             .codegen
             .module
@@ -1684,12 +2003,31 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
         }
         let callee_fqn = match kind {
-            mir::CallKind::Direct { callee_fqn } => callee_fqn,
+            mir::CallKind::Direct { callee_fqn, .. } => callee_fqn,
             mir::CallKind::Closure { .. }
             | mir::CallKind::FunValue { .. }
             | mir::CallKind::FunPtr { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
+                if let mir::CallKind::Interface { receiver, dispatch } = kind
+                    && dispatch.owner_fqn == "scoop.core.ToString"
+                    && dispatch.member_name == "toString"
+                    && let Some(callee_fqn) = self.builtin_to_string_impl_fqn_for_operand(receiver)
+                {
+                    let mut direct_args = Vec::with_capacity(args.len() + 1);
+                    direct_args.push(mir::CallArg {
+                        span,
+                        name: None,
+                        value: receiver.clone(),
+                    });
+                    direct_args.extend(args.iter().cloned());
+                    return self.lower_published_plain_direct_call(
+                        span,
+                        callee_fqn,
+                        &direct_args,
+                        target_cg,
+                    );
+                }
                 if let Some(receiver) = match kind {
                     mir::CallKind::Virtual { receiver, .. }
                     | mir::CallKind::Interface { receiver, .. } => Some(receiver),
@@ -1712,6 +2050,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 return self.codegen.codegen_mir_plain_dynamic_call(
                     span,
+                    Some(site_id),
                     kind,
                     args,
                     self.body,
@@ -1725,7 +2064,50 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 );
             }
         };
-        match callee_fqn.as_str() {
+        let source_site = self.codegen.published_lir_source_call_site(site_id);
+        let source_site_missing = source_site.is_none();
+        if source_site_missing
+            && matches!(
+                kind,
+                mir::CallKind::Direct {
+                    stable_template_key: Some(_),
+                    ..
+                }
+            )
+        {
+            return Err(frontend_error(format!(
+                "direct call site{} lacks published LIR source call-site contract",
+                site_id.as_u32()
+            )));
+        }
+        let plain_site = if source_site.is_none() {
+            self.codegen.published_lir_plain_call_site(site_id)
+        } else {
+            None
+        };
+        let published_call_root = source_site
+            .and_then(|site| site.contract.exact_callee.as_ref())
+            .or_else(|| plain_site.and_then(|site| site.contract.exact_callee.as_ref()))
+            .map(|exact| exact.root_fqn.clone());
+        let published_semantic_root = source_site
+            .and_then(|site| site.semantic_root_fqn.clone())
+            .or_else(|| published_call_root.clone());
+        let published_named_entry = source_site
+            .and_then(|site| site.named_entry_name.clone())
+            .or_else(|| {
+                published_call_root
+                    .as_deref()
+                    .and_then(|root| self.codegen.published_named_intrinsic_entry_name(root))
+            })
+            .or_else(|| {
+                self.codegen
+                    .published_named_intrinsic_entry_name(callee_fqn)
+            });
+        let callee_fqn = published_call_root
+            .as_deref()
+            .unwrap_or(callee_fqn.as_str());
+        let source_intrinsic_root = published_semantic_root.as_deref();
+        match callee_fqn {
             "scoop.core.GC.handleNew" => {
                 return self.codegen.codegen_mir_sysroot_gc_handle_new(
                     span,
@@ -1761,11 +2143,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_gc_debug_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_to_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_to_int_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_hash_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_hash_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
+        }
+        if callee_fqn == "scoop.core.ToString.toString"
+            && args.first().is_some_and(|arg| {
+                self.builtin_to_string_impl_fqn_for_operand(&arg.value)
+                    .is_some()
+            })
+        {
+            return self.lower_to_string_intrinsic(span, args, target_cg);
         }
         if callee_fqn == "scoop.core.byteLength" {
             return self.lower_core_string_byte_length_call(span, args, target_cg);
@@ -1774,27 +2164,24 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return self.lower_core_string_get_byte_call(span, args, target_cg);
         }
         if matches!(
-            callee_fqn.as_str(),
+            callee_fqn,
             "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
         ) && let Some(value) =
             self.maybe_lower_float_ext_call(span, callee_fqn, args, target_cg)?
         {
             return Ok(value);
         }
-        if let Some(value) = self.lower_atomic_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_atomic_int_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_atomic_ref_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_atomic_ref_intrinsic(span, source_intrinsic_root, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.panic" {
             return self.lower_panic_call(span, args);
         }
-        let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
-        if let Some(value) = self.lower_sync_intrinsic(span, dispatch_fqn, args)? {
-            return Ok(value);
-        }
-        if dispatch_fqn == "scoop.unsafe.invoke" {
+        let intrinsic_base_fqn = source_intrinsic_root;
+        if intrinsic_base_fqn == Some("scoop.unsafe.invoke") {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
                 args,
@@ -1808,6 +2195,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callable_abi.uses_native_abi() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
+                Some(site_id),
                 callee_fqn,
                 args,
                 self.body,
@@ -1820,6 +2208,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if callable_abi.is_extern() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
+                Some(site_id),
                 callee_fqn,
                 args,
                 self.body,
@@ -1829,16 +2218,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let binding_entry_name = self
-            .codegen
-            .current_top_level_fun_call_binding(span)?
-            .and_then(|binding| binding.intrinsic_entry_name.clone());
-        if let Some(entry_name) = binding_entry_name
-            .as_deref()
-            .or_else(|| crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(callee_fqn))
+        let named_intrinsic_entry = published_named_entry;
+        if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
                 span,
-                entry_name,
+                &entry_name,
                 args,
                 self.body,
                 self.source_types,
@@ -1850,7 +2234,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
+            .maybe_plain_callable_layout_for_root_text(callee_fqn)?
             .is_some()
         {
             return self.lower_published_plain_direct_call(span, callee_fqn, args, target_cg);
@@ -1865,6 +2249,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
             return self.codegen.codegen_mir_plain_dynamic_call(
                 span,
+                None,
                 &mir::CallKind::FunValue {
                     callee: mir::Operand::Local(callee_local),
                 },
@@ -1874,7 +2259,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
             );
         }
-        let layout = self.abi.callable_layout_by_root_fqn(callee_fqn).map_err(|err| {
+        let layout = self.abi.callable_layout_for_root_text(callee_fqn).map_err(|err| {
             frontend_error(format!(
                 "pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
             ))
@@ -1922,128 +2307,20 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         self.extract_pure_call_complete(span, layout, step, target_cg)
     }
 
-    fn lower_sync_intrinsic(
-        &mut self,
-        span: Span,
-        dispatch_fqn: &str,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        match dispatch_fqn {
-            "scoop.sync.__scoop_sync_once_run" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
-                let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let deferred_once = self.codegen.defer_gc_ref_pointer(
-                    args[0].span,
-                    "sync_once_run_receiver",
-                    once,
-                )?;
-                let block = self.lower_sync_ref_arg(dispatch_fqn, &args[1])?;
-                let closure_ty = self.codegen.llvm_closure_object_type();
-                let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
-                let closure_ptr = self.codegen.builder.build_pointer_cast(
-                    block,
-                    closure_ptr_ty,
-                    "once_block_ptr",
-                )?;
-                let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
-                let env_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    1,
-                    "once_env_gep",
-                )?;
-                let fn_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    2,
-                    "once_fn_gep",
-                )?;
-                let env_ptr = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, env_gep, "once_env")?
-                    .into_pointer_value();
-                let fn_ptr_raw = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, fn_gep, "once_fn_raw")?
-                    .into_pointer_value();
-                let init_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
-                let init_fn_ptr = self.codegen.builder.build_pointer_cast(
-                    fn_ptr_raw,
-                    init_fn_ptr_ty,
-                    "once_fn_typed",
-                )?;
-                let once = self.codegen.reload_deferred_gc_ref_without_clearing(
-                    args[0].span,
-                    "sync_once_run_receiver_reload",
-                    &deferred_once,
-                )?;
-                let rt = self.codegen.declare_runtime_sync_once_run();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[once.into(), env_ptr.into(), init_fn_ptr.into()],
-                    "sync_once_run",
-                )?;
-                self.codegen.clear_deferred_cg_value_root_homes(
-                    args[0].span,
-                    "sync_once_run_receiver_drop",
-                    &deferred_once,
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            _ => Ok(None),
-        }
-    }
-
-    fn expect_sync_arity(
-        &self,
-        span: Span,
-        dispatch_fqn: &str,
-        args: &[mir::CallArg],
-        expected: usize,
-    ) -> Result<(), LlvmEmitError> {
-        if args.len() != expected || args.iter().any(|arg| arg.name.is_some()) {
-            self.codegen.panic_verified_intrinsic_contract(
-                "effect-lowered sync intrinsic",
-                "argument count or named argument drift",
-            );
-        }
-        let _ = (span, dispatch_fqn);
-        Ok(())
-    }
-
-    fn lower_sync_ref_arg(
-        &mut self,
-        dispatch_fqn: &str,
-        arg: &mir::CallArg,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let value = self.codegen.codegen_mir_operand_expected(
-            arg.span,
-            &arg.value,
-            self.slots,
-            Some(CgTy::Ref),
-        )?;
-        let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
-        let ptr = self
-            .codegen
-            .expect_cg_pointer(value, "effect-lowered sync intrinsic ref arg");
-        let _ = dispatch_fqn;
-        Ok(ptr)
-    }
-
     fn lower_atomic_int_intrinsic(
         &mut self,
         _span: Span,
-        callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let atomic_word = super::super::types::IntTy {
             bits: self.codegen.host.word_bit_width(),
             signed: true,
         };
-        match callee_fqn {
+        let Some(base_fqn) = base_fqn else {
+            return Ok(None);
+        };
+        match base_fqn {
             "scoop.unsafe.__atomicIntLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     self.codegen.panic_verified_intrinsic_contract(
@@ -2161,10 +2438,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_atomic_ref_intrinsic(
         &mut self,
         _span: Span,
-        callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        match intrinsic_base_fqn(callee_fqn) {
+        let Some(base_fqn) = base_fqn else {
+            return Ok(None);
+        };
+        match base_fqn {
             "scoop.unsafe.__atomicRefLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     self.codegen.panic_verified_intrinsic_contract(
@@ -2254,11 +2534,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_to_int_intrinsic(
         &mut self,
         span: Span,
-        callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(base_fqn) = base_fqn else {
+            return Ok(None);
+        };
         if !matches!(
-            intrinsic_base_fqn(callee_fqn),
+            base_fqn,
             "scoop.core.toInt" | "scoop.core.Float64.toInt" | "scoop.core.Float32.toInt"
         ) {
             return Ok(None);
@@ -2349,10 +2632,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn lower_hash_intrinsic(
         &mut self,
         span: Span,
-        callee_fqn: &str,
+        base_fqn: Option<&str>,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if intrinsic_base_fqn(callee_fqn) != "scoop.core.hash" {
+        let Some(base_fqn) = base_fqn else {
+            return Ok(None);
+        };
+        if base_fqn != "scoop.core.hash" {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
@@ -2428,6 +2714,61 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 ),
             },
         }
+    }
+
+    fn lower_to_string_intrinsic(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(arg) = args.first() else {
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered toString intrinsic",
+                "missing receiver",
+            );
+        };
+        let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+        let entry_name = match self.source_types.kind(value_ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => "bool_to_string",
+            TypeKind::Value(ValueTypeKind::Char) => "char_to_string",
+            TypeKind::Value(
+                ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_),
+            ) => "int_to_string",
+            TypeKind::Value(ValueTypeKind::Float64) => "float64_to_string",
+            TypeKind::Value(ValueTypeKind::Float32) => "float32_to_string",
+            TypeKind::Ref(RefTypeKind::String) => {
+                let value = self.codegen.codegen_mir_operand_expected(
+                    arg.span,
+                    &arg.value,
+                    self.slots,
+                    Some(CgTy::String),
+                )?;
+                return self.codegen.coerce_value(span, value, target_cg);
+            }
+            _ => return Ok(CgValue::unit()),
+        };
+        let value = self
+            .codegen
+            .try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                entry_name,
+                args,
+                self.body,
+                self.source_types,
+                None,
+                self.slots,
+            )?
+            .unwrap_or_else(|| {
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect-lowered toString intrinsic",
+                    "missing runtime intrinsic entry",
+                )
+            });
+        self.codegen.coerce_value(span, value, target_cg)
     }
 
     fn lower_panic_call(
@@ -2875,6 +3216,29 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "task transport operand source type is missing",
             )
         }))
+    }
+
+    fn builtin_to_string_impl_fqn_for_operand(
+        &self,
+        operand: &mir::Operand,
+    ) -> Option<&'static str> {
+        let ty = self.operand_source_ty(operand)?;
+        self.builtin_to_string_impl_fqn_for_ty(ty)
+    }
+
+    fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
+        match self.source_types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
+            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                Some("scoop.core.String.toString")
+            }
+            _ => None,
+        }
     }
 
     fn resolved_fun_value_callee_fqn(&self, callee: &mir::Operand) -> Option<&str> {
@@ -3953,7 +4317,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         sources: &[LateLoweredOperandSource],
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let layout = self.abi.source_value_layout(source_ty)?;
+        let layout = match self.abi.source_value_layout(source_ty) {
+            Ok(layout) => layout,
+            Err(err) if !sources.is_empty() => {
+                return self.pack_sources_from_field_layouts(sources, name).map_err(|fallback_err| {
+                    frontend_error(format!(
+                        "{err}; fallback ABI packing from operand sources also failed: {fallback_err}"
+                    ))
+                });
+            }
+            Err(err) => return Err(err),
+        };
         if layout.abi().is_elided() {
             return Ok(None);
         }
@@ -4004,6 +4378,46 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(aggregate.into()))
             }
         }
+    }
+
+    fn pack_sources_from_field_layouts(
+        &mut self,
+        sources: &[LateLoweredOperandSource],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let mut values = Vec::new();
+        let mut field_tys = Vec::new();
+        for source in sources {
+            let field_layout = self.abi.source_value_layout(source.source_ty())?;
+            if field_layout.abi().is_elided() {
+                continue;
+            }
+            let raw = self.lower_operand_source(source)?.value.ok_or_else(|| {
+                frontend_error(format!(
+                    "ABI tuple payload `{name}` fallback source was elided but field needs value"
+                ))
+            })?;
+            field_tys.push(raw.get_type());
+            values.push(raw);
+        }
+        if values.is_empty() {
+            return Ok(None);
+        }
+        let struct_ty = self.codegen.context.struct_type(&field_tys, false);
+        let mut aggregate = struct_ty.get_undef();
+        for (index, value) in values.into_iter().enumerate() {
+            aggregate = self
+                .codegen
+                .builder
+                .build_insert_value(
+                    aggregate,
+                    value,
+                    index as u32,
+                    &format!("{name}_field{index}"),
+                )?
+                .into_struct_value();
+        }
+        Ok(Some(aggregate.into()))
     }
 
     fn pack_whole_tuple_operand(
@@ -4164,15 +4578,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
-}
-
-fn intrinsic_base_fqn(fqn: &str) -> &str {
-    fqn.split("::<")
-        .next()
-        .unwrap_or(fqn)
-        .split("$overload")
-        .next()
-        .unwrap_or(fqn)
 }
 
 #[cfg(all(test, not(feature = "standalone-codegen-crate")))]

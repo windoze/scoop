@@ -11,11 +11,12 @@ use crate::mir::{
 use crate::ty::TypeStore;
 
 use super::EffectLoweringError;
+use super::instruction::{LirCallArg, LirCallKind, LirOperand, LirRvalue, LirStatementKind};
 use super::ir::{
     BoundaryId, LateLoweredBoundaryMap, LateLoweredBoundarySource, LateLoweredContinuationCapture,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
-    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateTerminator, StateId, SystemSlotKind,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredOperandValueSource, LateLoweredState,
+    LateLoweredStateGraph, LateLoweredStateTerminator, StateId, SystemSlotKind,
 };
 
 pub(crate) struct FrameLiftingResult {
@@ -769,11 +770,7 @@ fn collect_join_info(
         else {
             continue;
         };
-        let merge_block = state
-            .source_slices()
-            .first()
-            .map(|slice| slice.block_id())
-            .unwrap_or(BasicBlockId::from_raw(0));
+        let merge_block = BasicBlockId::from_raw(state.state_id().as_u32());
         pending.push((*local, state_id, merge_block));
     }
 
@@ -811,49 +808,42 @@ fn analyze_state_locals(
         let mut state_defs = BTreeSet::new();
         let mut state_uses = BTreeSet::new();
 
-        for slice in state.source_slices() {
-            if slice.start_statement_index() == 0
-                && let Some(implicit_defs) = implicit_defs_by_block.get(&slice.block_id())
-            {
-                for local in implicit_defs {
-                    state_defs.insert(*local);
-                    def_states
-                        .entry(*local)
-                        .or_default()
-                        .insert(state.state_id());
-                }
-            }
-
-            let block = &body.blocks[slice.block_id().as_u32() as usize];
-            for stmt in &block.stmts
-                [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
-            {
-                collect_statement_uses_before_def(
-                    stmt,
-                    &mut state_defs,
-                    &mut state_uses,
-                    &mut read_states,
-                    state.state_id(),
-                );
-                if let StatementKind::Assign { target, .. } = stmt.kind {
-                    state_defs.insert(target);
-                    def_states
-                        .entry(target)
-                        .or_default()
-                        .insert(state.state_id());
-                }
-            }
-
-            if slice.includes_terminator() {
-                collect_terminator_uses_before_def(
-                    &block.terminator.kind,
-                    &mut state_defs,
-                    &mut state_uses,
-                    &mut read_states,
-                    state.state_id(),
-                );
+        if let Some(implicit_defs) =
+            implicit_defs_by_block.get(&BasicBlockId::from_raw(state.state_id().as_u32()))
+        {
+            for local in implicit_defs {
+                state_defs.insert(*local);
+                def_states
+                    .entry(*local)
+                    .or_default()
+                    .insert(state.state_id());
             }
         }
+
+        for stmt in state.statements() {
+            collect_lir_statement_uses_before_def(
+                stmt,
+                &mut state_defs,
+                &mut state_uses,
+                &mut read_states,
+                state.state_id(),
+            );
+            if let LirStatementKind::Assign { target, .. } = stmt.kind {
+                state_defs.insert(target);
+                def_states
+                    .entry(target)
+                    .or_default()
+                    .insert(state.state_id());
+            }
+        }
+
+        collect_lir_terminator_uses_before_def(
+            state.terminator(),
+            &mut state_defs,
+            &mut state_uses,
+            &mut read_states,
+            state.state_id(),
+        );
 
         for local in binder_info_by_local.keys() {
             if state_defs.contains(local) {
@@ -967,6 +957,7 @@ fn solve_live_out(
     live_out
 }
 
+#[allow(dead_code)]
 fn collect_statement_uses_before_def(
     stmt: &crate::mir::Statement,
     defs: &mut BTreeSet<LocalId>,
@@ -1005,6 +996,98 @@ fn collect_statement_uses_before_def(
     }
 }
 
+fn collect_lir_statement_uses_before_def(
+    stmt: &super::instruction::LirStatement,
+    defs: &mut BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    match &stmt.kind {
+        LirStatementKind::Nop => {}
+        LirStatementKind::Assign { value, .. } => {
+            collect_lir_rvalue_uses(value, defs, uses_before_def, read_states, state_id)
+        }
+        LirStatementKind::StoreMember {
+            receiver,
+            value,
+            continuation_route,
+            ..
+        } => {
+            collect_lir_operand_use(receiver, defs, uses_before_def, read_states, state_id);
+            collect_lir_operand_use(value, defs, uses_before_def, read_states, state_id);
+            if let crate::mir::StoredContinuationRoutePublication::Unique(route) =
+                continuation_route
+            {
+                collect_lir_operand_use(
+                    &LirOperand::Local(route.source_local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
+        }
+        LirStatementKind::StoreGlobal { value, .. } => {
+            collect_lir_operand_use(value, defs, uses_before_def, read_states, state_id);
+        }
+    }
+}
+
+fn collect_lir_terminator_uses_before_def(
+    terminator: &LateLoweredStateTerminator,
+    defs: &mut BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    match terminator {
+        LateLoweredStateTerminator::Branch { cond_local, .. } => {
+            collect_lir_operand_use(
+                &LirOperand::Local(*cond_local),
+                defs,
+                uses_before_def,
+                read_states,
+                state_id,
+            );
+        }
+        LateLoweredStateTerminator::Return { payload_source, .. } => {
+            if let Some(source) = payload_source.operand_source()
+                && let LateLoweredOperandValueSource::Local(local) = source.value()
+            {
+                collect_lir_operand_use(
+                    &LirOperand::Local(*local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
+        }
+        LateLoweredStateTerminator::HandleDispatch { contract, .. } => {
+            if let Some(source) = contract.body_completion_payload_source()
+                && let Some(operand) = source.operand_source()
+                && let LateLoweredOperandValueSource::Local(local) = operand.value()
+            {
+                collect_lir_operand_use(
+                    &LirOperand::Local(*local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
+        }
+        LateLoweredStateTerminator::Suspend { .. }
+        | LateLoweredStateTerminator::Goto { .. }
+        | LateLoweredStateTerminator::LocalRuntimeError { .. }
+        | LateLoweredStateTerminator::ResumeUnwind
+        | LateLoweredStateTerminator::Unreachable
+        | LateLoweredStateTerminator::Abandon => {}
+    }
+}
+
+#[allow(dead_code)]
 fn collect_terminator_uses_before_def(
     kind: &TerminatorKind,
     defs: &mut BTreeSet<LocalId>,
@@ -1034,6 +1117,7 @@ fn collect_terminator_uses_before_def(
     }
 }
 
+#[allow(dead_code)]
 fn collect_rvalue_uses(
     value: &Rvalue,
     defs: &BTreeSet<LocalId>,
@@ -1104,6 +1188,103 @@ fn collect_rvalue_uses(
     }
 }
 
+fn collect_lir_rvalue_uses(
+    value: &LirRvalue,
+    defs: &BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    match value {
+        LirRvalue::Use(operand)
+        | LirRvalue::Transport { value: operand, .. }
+        | LirRvalue::TypeCheck { value: operand, .. }
+        | LirRvalue::Cast { value: operand, .. }
+        | LirRvalue::TupleGet { tuple: operand, .. }
+        | LirRvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | LirRvalue::PatternExtract {
+            subject: operand, ..
+        } => collect_lir_operand_use(operand, defs, uses_before_def, read_states, state_id),
+        LirRvalue::MemberAccess { receiver, .. } => {
+            collect_lir_operand_use(receiver, defs, uses_before_def, read_states, state_id);
+        }
+        LirRvalue::Call { kind, args, .. } => {
+            collect_lir_call_kind_uses(kind, defs, uses_before_def, read_states, state_id);
+            collect_lir_call_arg_uses(args, defs, uses_before_def, read_states, state_id);
+        }
+        LirRvalue::EnumVariant { args, .. } | LirRvalue::ClassCtor { args, .. } => {
+            collect_lir_call_arg_uses(args, defs, uses_before_def, read_states, state_id);
+        }
+        LirRvalue::MakeTuple { elements, .. } => {
+            for element in elements {
+                collect_lir_operand_use(element, defs, uses_before_def, read_states, state_id);
+            }
+        }
+        LirRvalue::StructLit { fields, .. } => {
+            for field in fields {
+                collect_lir_operand_use(&field.value, defs, uses_before_def, read_states, state_id);
+            }
+        }
+        LirRvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::instruction::LirInterpolatedStringPartKind::Expr { value, .. } =
+                    &part.kind
+                {
+                    collect_lir_operand_use(value, defs, uses_before_def, read_states, state_id);
+                }
+            }
+        }
+        LirRvalue::MakeClosure { env, .. } => {
+            collect_lir_operand_use(env, defs, uses_before_def, read_states, state_id);
+        }
+        LirRvalue::TopLevelRef(_)
+        | LirRvalue::SizeOf { .. }
+        | LirRvalue::KindOf { .. }
+        | LirRvalue::AlignOf { .. }
+        | LirRvalue::DescOf { .. }
+        | LirRvalue::TypeMetadataLiteral(_)
+        | LirRvalue::PerformResult { .. } => {}
+    }
+}
+
+fn collect_lir_call_arg_uses(
+    args: &[LirCallArg],
+    defs: &BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    for arg in args {
+        collect_lir_operand_use(&arg.value, defs, uses_before_def, read_states, state_id);
+    }
+}
+
+fn collect_lir_call_kind_uses(
+    kind: &LirCallKind,
+    defs: &BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    match kind {
+        LirCallKind::Direct { .. } => {}
+        LirCallKind::Closure { callee, .. }
+        | LirCallKind::FunValue { callee }
+        | LirCallKind::FunPtr { callee } => {
+            collect_lir_operand_use(callee, defs, uses_before_def, read_states, state_id);
+        }
+        LirCallKind::Virtual { receiver, .. } | LirCallKind::Interface { receiver, .. } => {
+            collect_lir_operand_use(receiver, defs, uses_before_def, read_states, state_id);
+        }
+        LirCallKind::Resume { continuation, .. } => {
+            collect_lir_operand_use(continuation, defs, uses_before_def, read_states, state_id);
+        }
+    }
+}
+
+#[allow(dead_code)]
 fn collect_call_kind_uses(
     kind: &CallKind,
     defs: &BTreeSet<LocalId>,
@@ -1127,6 +1308,7 @@ fn collect_call_kind_uses(
     }
 }
 
+#[allow(dead_code)]
 fn collect_operand_use(
     operand: &Operand,
     defs: &BTreeSet<LocalId>,
@@ -1135,6 +1317,22 @@ fn collect_operand_use(
     state_id: StateId,
 ) {
     let Operand::Local(local) = operand else {
+        return;
+    };
+    read_states.entry(*local).or_default().insert(state_id);
+    if !defs.contains(local) {
+        uses_before_def.insert(*local);
+    }
+}
+
+fn collect_lir_operand_use(
+    operand: &LirOperand,
+    defs: &BTreeSet<LocalId>,
+    uses_before_def: &mut BTreeSet<LocalId>,
+    read_states: &mut HashMap<LocalId, BTreeSet<StateId>>,
+    state_id: StateId,
+) {
+    let LirOperand::Local(local) = operand else {
         return;
     };
     read_states.entry(*local).or_default().insert(state_id);

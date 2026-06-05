@@ -1,9 +1,9 @@
 //! LLVM effect-lowered body codegen（P6-T03）。
 //!
-//! This module lowers the P5 late-lowered state graph directly.  Generic MIR
-//! lowering is reused only for effect-neutral source slices; every boundary,
-//! resume payload binding, completion payload, and state transition comes from
-//! the published late-lowered / ABI query contract.
+//! This module lowers the P5 late-lowered state graph directly.  State-owned
+//! statements are consumed from LIR; every boundary, resume payload binding,
+//! completion payload, and state transition comes from the published
+//! late-lowered / ABI query contract.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
@@ -18,7 +18,6 @@ use inkwell::values::{
 };
 
 use crate::effect_facts::{CaseTag, StepSchemaId};
-use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, BoundarySiteKind, FrameSlotId, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
@@ -27,8 +26,7 @@ use crate::effect_lowered::ir::{
     LateLoweredContinuationResumeBody, LateLoweredFrameSlotKind,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingCompletionOrigin, LateLoweredHandleStateRegion,
-    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainBodySlice,
-    LateLoweredPlainCallable, LateLoweredResumePayloadBinding, LateLoweredSourceBody,
+    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
     LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind, LateLoweredState,
     LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCaseForwarding,
     LateLoweredStepDispatchPlan, LateLoweredSurfaceResumeDispatchPublication,
@@ -36,12 +34,16 @@ use crate::effect_lowered::ir::{
     SystemSlotKind,
 };
 use crate::effect_lowered::mir_source::{self as mir, LocalId, SiteId};
-use crate::llvm::LlvmEmitError;
+use crate::effect_lowered::{
+    LateLoweredProgram, LirBodyAnchor, LirCallArg, LirCallKind, LirExecutableBody, LirMemberTarget,
+    LirOperand, LirRvalue, LirStatement, LirStatementIndex, LirStatementKind, LirTopLevelRefTarget,
+};
+use crate::llvm::{EntryRef, LlvmEmitError};
 use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
-use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
+use super::super::mir_body::{MirLocalSlot, collect_lir_local_uses};
 use super::super::types::{CgTy, CgValue};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, NativeCallableAbi,
@@ -90,7 +92,7 @@ fn callable_source<'a>(
 fn callable_source_body<'a>(
     callable: &'a LateLoweredCallable,
     context: &str,
-) -> Result<(&'a LateLoweredSourceCallable, &'a LateLoweredSourceBody), LlvmEmitError> {
+) -> Result<(&'a LateLoweredSourceCallable, &'a mir::Body), LlvmEmitError> {
     let source = callable_source(callable, context)?;
     let body = source.body.as_ref().ok_or_else(|| {
         frontend_error(format!(
@@ -199,6 +201,91 @@ fn boundary_complete_result_local(boundary: &LateLoweredBoundary) -> Option<Loca
     }
 }
 
+fn collect_callable_contract_local_uses(
+    callable: &LateLoweredCallable,
+    out: &mut HashSet<LocalId>,
+) {
+    for boundary in callable.boundary_map().entries() {
+        if let Some(lowering) = boundary.lowering() {
+            collect_boundary_lowering_local_uses(lowering, out);
+        }
+    }
+    for slot in callable.frame_schema().slots() {
+        if let Some(local) = frame_slot_local(slot.kind()) {
+            out.insert(local);
+        }
+    }
+    for binding in callable.frame_schema().completion_payload_bindings() {
+        collect_completion_payload_source_local_use(binding.payload_source(), out);
+    }
+    for state in callable.state_graph().states() {
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator() else {
+            continue;
+        };
+        collect_handle_dispatch_contract_local_uses(contract, out);
+    }
+}
+
+fn collect_boundary_lowering_local_uses(
+    lowering: &LateLoweredBoundaryLowering,
+    out: &mut HashSet<LocalId>,
+) {
+    match lowering {
+        LateLoweredBoundaryLowering::Call(lowering) => {
+            if let Some(source) = lowering.operand_contract().carrier_source() {
+                collect_operand_source_local_use(source, out);
+            }
+            for source in lowering.operand_contract().arg_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::Perform(lowering) => {
+            for source in lowering.operand_contract().payload_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::Resume(lowering) => {
+            collect_operand_source_local_use(
+                lowering.operand_contract().continuation_source(),
+                out,
+            );
+            for source in lowering.operand_contract().arg_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::ClassCtor(_)
+        | LateLoweredBoundaryLowering::RuntimeError(_)
+        | LateLoweredBoundaryLowering::Handle(_) => {}
+    }
+}
+
+fn collect_handle_dispatch_contract_local_uses(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    out: &mut HashSet<LocalId>,
+) {
+    if let Some(source) = contract.body_completion_payload_source() {
+        collect_completion_payload_source_local_use(source, out);
+    }
+    for arm in contract.handled_arms() {
+        collect_completion_payload_source_local_use(arm.completion_payload_source(), out);
+    }
+}
+
+fn collect_completion_payload_source_local_use(
+    source: &LateLoweredCompletionPayloadSource,
+    out: &mut HashSet<LocalId>,
+) {
+    if let Some(source) = source.operand_source() {
+        collect_operand_source_local_use(source, out);
+    }
+}
+
+fn collect_operand_source_local_use(source: &LateLoweredOperandSource, out: &mut HashSet<LocalId>) {
+    if let LateLoweredOperandValueSource::Local(local) = source.value() {
+        out.insert(*local);
+    }
+}
+
 fn completion_payload_source_is_local(
     source: &LateLoweredCompletionPayloadSource,
     local: LocalId,
@@ -269,10 +356,15 @@ fn validate_plain_callable_layout(
         ))
     })?;
     let entry = layout.direct_entry();
-    if layout.root_fqn() != callable.root_fqn()
-        || entry.param_tys() != plain.param_tys()
-        || entry.return_ty() != plain.return_ty()
-    {
+    let exact = layout.root_fqn() == callable.root_fqn()
+        && entry.param_tys() == plain.param_tys()
+        && entry.return_ty() == plain.return_ty();
+    let same_generic_instance_shape = layout.surface_instance().template
+        == callable.instance_key().template
+        && layout.surface_instance().type_args == callable.instance_key().type_args
+        && entry.param_tys().len() == plain.param_tys().len()
+        && entry.return_ty() == plain.return_ty();
+    if !exact && !same_generic_instance_shape {
         return Err(frontend_error(format!(
             "plain callable `{}` ABI contract 漂移：layout_root=`{}` return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
             callable.root_fqn(),
@@ -285,52 +377,6 @@ fn validate_plain_callable_layout(
         )));
     }
     Ok(())
-}
-
-fn validate_plain_body_slices(
-    root_fqn: &str,
-    plain: &LateLoweredPlainCallable,
-    body: &LateLoweredSourceBody,
-) -> Result<BTreeMap<mir::BasicBlockId, LateLoweredPlainBodySlice>, LlvmEmitError> {
-    if plain.body_slices().len() != body.blocks.len() {
-        return Err(frontend_error(format!(
-            "plain callable `{root_fqn}` 的 body_slices 数量({}) 与 MIR block 数量({}) 不一致",
-            plain.body_slices().len(),
-            body.blocks.len(),
-        )));
-    }
-    let mut slices = BTreeMap::new();
-    for slice in plain.body_slices() {
-        let block = body
-            .blocks
-            .get(slice.block_id().as_u32() as usize)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "plain callable `{root_fqn}` 的 source slice 指向缺失 bb{}",
-                    slice.block_id().as_u32()
-                ))
-            })?;
-        if slice.start_statement_index() != 0
-            || slice.end_statement_index() as usize != block.stmts.len()
-            || !slice.includes_terminator()
-        {
-            return Err(frontend_error(format!(
-                "plain callable `{root_fqn}` 的 bb{} source slice 不是完整 ordinary block：slice=[{}..{}) includes_terminator={} stmt_count={}",
-                slice.block_id().as_u32(),
-                slice.start_statement_index(),
-                slice.end_statement_index(),
-                slice.includes_terminator(),
-                block.stmts.len(),
-            )));
-        }
-        if slices.insert(slice.block_id(), *slice).is_some() {
-            return Err(frontend_error(format!(
-                "plain callable `{root_fqn}` 重复发布 bb{} source slice",
-                slice.block_id().as_u32()
-            )));
-        }
-    }
-    Ok(slices)
 }
 
 fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -> Option<LocalId> {

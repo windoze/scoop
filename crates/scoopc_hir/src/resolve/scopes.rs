@@ -1732,7 +1732,12 @@ impl<'a> BlockScopeChecker<'a> {
 
         // P5-T01a：member 层整体先于 extension；直接成员未命中后，继承成员仍必须先于
         // 同名 extension 被考虑。
-        if let Some(resolved) = self.resolve_inherited_member(receiver_ty_fqn, member_name) {
+        let allow_abstract_inherited_funs = self.type_is_interface(receiver_ty_fqn);
+        if let Some(resolved) = self.resolve_inherited_member(
+            receiver_ty_fqn,
+            member_name,
+            allow_abstract_inherited_funs,
+        ) {
             member.resolved = Some(resolved);
             return Ok(());
         }
@@ -1821,11 +1826,9 @@ impl<'a> BlockScopeChecker<'a> {
     /// 仅在直接查找 `<receiverFqn>.<memberName>` 失败后才被调用，因此自身 override 永远胜出。
     ///
     /// 命中规则：
-    /// - **fun**：仅在 supertype 上找到的 overload 中存在 `has_body = true`（即"默认/具体实现"）时
-    ///   才接受为命中；纯 abstract（无 body）的 interface 方法不在此处接管，
-    ///   维持与既有 extension fun fallback / vtable / itable 路径的兼容（典型例子：
-    ///   `struct Int : Hashable` 上的 `Int.hash` 由 extension fun 提供，本步骤不应把
-    ///   `Hashable.hash` 抽象签名误植回 `member.resolved`）。
+    /// - **fun**：class/struct/object receiver 仅接受 `has_body = true` 的 inherited body member；
+    ///   interface receiver 还必须能解析继承的抽象 interface 方法（例如
+    ///   `ReadWriteProperty.getValue` 继承自 `ReadOnlyProperty`）。
     /// - **value**：可见 field / property 直接命中；当当前 supertype 上既有 value 也有 abstract fun
     ///   时仍优先 fun（命中即立即返回）。
     /// - 多 supertype 同名时按 BFS 顺序取第一条命中（已 override 自身的成员在直接查找阶段就胜出，
@@ -1835,6 +1838,7 @@ impl<'a> BlockScopeChecker<'a> {
         &self,
         receiver_ty_fqn: &str,
         member_name: &str,
+        allow_abstract_funs: bool,
     ) -> Option<ast::ResolvedMemberRef> {
         let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn).to_string();
 
@@ -1860,7 +1864,8 @@ impl<'a> BlockScopeChecker<'a> {
             let candidate = format!("{super_norm}.{member_name}");
             if let Some(syms) = self.index.by_fqn.get(&candidate) {
                 if syms.fun.iter().any(|o| {
-                    o.has_body && is_symbol_visible_from(self.use_cone, self.source, &o.symbol)
+                    (allow_abstract_funs || o.has_body)
+                        && is_symbol_visible_from(self.use_cone, self.source, &o.symbol)
                 }) {
                     return Some(ast::ResolvedMemberRef::Fun { fqn: candidate });
                 }
@@ -1880,6 +1885,14 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         value_hit
+    }
+
+    fn type_is_interface(&self, fqn: &str) -> bool {
+        let normalized = normalize_collections_alias(fqn);
+        self.index
+            .type_kinds
+            .get(normalized)
+            .is_some_and(|kind| matches!(kind, ast::TypeKind::Interface))
     }
 
     /// 查找"在当前文件作用域内可见"的 extension fun 候选集合（T0322）。
@@ -2179,6 +2192,10 @@ impl<'a> BlockScopeChecker<'a> {
                 && syms.any_visible_fun(self.use_cone, self.source).is_some()
             {
                 out.push(candidate_fqn);
+            } else if let Some(ast::ResolvedMemberRef::Fun { fqn }) =
+                self.resolve_inherited_member(bound_fqn, member_name, true)
+            {
+                out.push(fqn);
             }
         }
         out.sort();

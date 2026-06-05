@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_host_must_be_final
+// EXPECT-ERROR: final class
+// EXPECT-ERROR: open
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun releaseOpenHost(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.releaseOpenHost", args = ["raw"])
+open class OpenReleaseHost(val raw: UInt)

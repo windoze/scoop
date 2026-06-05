@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_function_not_found
+// EXPECT-ERROR: missingRelease
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.missingRelease", args = ["raw"])
+class ReleaseFunctionNotFoundHost(val raw: UInt)

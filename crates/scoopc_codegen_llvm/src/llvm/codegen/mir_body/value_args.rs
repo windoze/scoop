@@ -10,7 +10,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         fun_ty: &crate::ty::FunctionType,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = self.callable_value_param_names(fun_ty);
@@ -77,11 +77,82 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect()
     }
 
+    pub(in crate::llvm::codegen) fn codegen_lir_callable_value_args(
+        &mut self,
+        span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[LirCallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let arg_to_param = map_lir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!("codegen_lir_callable_value_args: LIR call ABI verifier accepted invalid closure argument binding")
+        });
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let target_cg = self.cg_ty_of_type_id(param_tys[param_idx], "closure call arg type");
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("lir_closure_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_lir_callable_value_args: LIR call ABI verifier accepted missing closure argument")
+                });
+                let param_ty = param_tys[param_idx];
+                let param_abi = self.ordinary_param_abi(span, param_ty)?;
+                if param_abi.pointee_ty().is_some() {
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("lir_closure_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                    return Ok(EvaluatedCallArg {
+                        value: slot_ptr.into(),
+                        pointer_value: None,
+                        cleanup_spills,
+                    });
+                }
+
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("lir_closure_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(inkwell::values::BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(arg_span, param_abi.cg_ty(), materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_funptr_value_args(
         &mut self,
         _span: crate::span::Span,
         fun_ty: &crate::ty::FunctionType,
-        args: &[crate::mir::CallArg],
+        args: &[mir_source::CallArg],
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
@@ -129,6 +200,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .materialize_deferred_cg_value_for_call_arg(
                         arg_span,
                         &format!("pass_mir_funptr_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(arg_span, materialized.ty, materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_lir_funptr_value_args(
+        &mut self,
+        _span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[LirCallArg],
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let arg_to_param = map_lir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!(
+                "codegen_lir_funptr_value_args: LIR verifier accepted invalid FunPtr argument binding"
+            )
+        });
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let target_cg = self
+                .cg_ty_of_mir_type(source_types, param_tys[param_idx])
+                .or_else(|| self.try_cg_ty_of_type_id(param_tys[param_idx]))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_funptr_value_args: LIR verifier accepted unsupported FunPtr argument type"
+                    )
+                });
+            let value =
+                self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("lir_funptr_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_lir_funptr_value_args: LIR verifier accepted missing FunPtr argument slot"
+                    )
+                });
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("lir_funptr_arg_reload_{param_idx}"),
                         deferred,
                     )?;
                 let pointer_value = match materialized.value {
@@ -267,168 +406,49 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(None);
         }
-        let entries = self.mir_value_box_itable_entries(source_ty)?;
+        let owner_key = self.mir_value_box_itable_owner_key(source_ty)?;
+        let entries = self.mir_value_box_itable_entries_for_owner(&owner_key);
         if entries.is_empty() {
             return Ok(None);
         }
-        let owner_key = CanonicalTextKey::new(canonical_record(
+        self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
+    }
+
+    fn mir_value_box_itable_owner_key<T: CodegenMonoInput>(
+        &self,
+        source_ty: T,
+    ) -> Result<CanonicalTextKey, LlvmEmitError> {
+        let source_ty = self.mono_type_id(source_ty, "MIR value box itable owner");
+        Ok(CanonicalTextKey::new(canonical_record(
             "mir_value_box_itable_owner",
             [self.canonical_type_key_text_for_codegen(
                 source_ty.inner(),
                 "MIR value box itable owner",
             )?],
-        ));
-        self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
-    }
-
-    pub(in crate::llvm::codegen) fn materialized_value_box_member_impl_fqn(
-        &self,
-        source_ty: MonoTypeId,
-        impl_member_fqn: &str,
-    ) -> String {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty.inner())
-        else {
-            return impl_member_fqn.to_string();
-        };
-        let Some((owner_fqn, _)) = impl_member_fqn.rsplit_once('.') else {
-            return impl_member_fqn.to_string();
-        };
-        if nominal.fqn != owner_fqn || nominal.args.is_empty() {
-            return impl_member_fqn.to_string();
-        }
-        let Some(template_source) = self.callable_sources.get(impl_member_fqn) else {
-            return impl_member_fqn.to_string();
-        };
-        let template = crate::effect_lowered::mir_source::TemplateKey {
-            fqn: impl_member_fqn.to_string(),
-            source_path: template_source.source_path.clone(),
-            decl_span: template_source.span,
-        };
-        crate::effect_lowered::source::stable_instance_fqn(
-            self.types,
-            &template,
-            &nominal.args,
-            &[],
-            "",
-        )
+        )))
     }
 
     pub(in crate::llvm::codegen) fn mir_value_box_itable_entries<T: CodegenMonoInput>(
         &self,
         source_ty: T,
-    ) -> Result<Vec<crate::itable::ClassItableEntry>, LlvmEmitError> {
+    ) -> Result<Vec<LirClassItableEntryFacts>, LlvmEmitError> {
         let Some(source_ty) = source_ty.try_into_mono_type_id(self) else {
             return Ok(Vec::new());
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty.inner())
-        else {
-            return Ok(Vec::new());
-        };
-        let mut interfaces = Vec::new();
-        let mut visiting = HashSet::new();
-        self.collect_mir_value_box_interfaces(&nominal.fqn, &mut interfaces, &mut visiting);
-        interfaces
-            .into_iter()
-            .map(|interface_fqn| {
-                let iface = self
-                    .published_lir_facts
-                    .physical_layout
-                    .interfaces
-                    .get(&interface_fqn)
-                    .ok_or_else(|| {
-                        frontend_error(format!(
-                            "value box interface `{interface_fqn}` missing LIR interface metadata"
-                        ))
-                    })?;
-                let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
-                let value_receiver_type_id = self
-                    .stable_rtti_type_id_for_codegen(
-                        source_ty.inner(),
-                        "MIR value box receiver RTTI",
-                    )
-                    .map_err(|err| {
-                        frontend_error(format!(
-                            "MIR value box `{}` 无法构造 receiver stable RTTI type id: {err}",
-                            self.types.display(source_ty.inner())
-                        ))
-                    })?;
-                let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
-                for slot in &iface.method_slots {
-                    let impl_fqn = self.materialized_value_box_member_impl_fqn(
-                        source_ty,
-                        &format!("{}.{}", nominal.fqn, slot.name),
-                    );
-                    if self
-                        .published_codegen_callable_signature(impl_fqn.as_str())
-                        .is_some()
-                    {
-                        method_impl_fqns.push(impl_fqn);
-                        method_receiver_type_ids.push(value_receiver_type_id);
-                    } else if slot.has_body {
-                        method_impl_fqns.push(slot.member_fqn.clone());
-                        method_receiver_type_ids.push(crate::itable::ITABLE_RECEIVER_REF_TYPE_ID);
-                    } else {
-                        return Err(frontend_error(format!(
-                            "value box `{}` missing implementation for interface method `{}`",
-                            nominal.fqn, slot.member_fqn
-                        )));
-                    }
-                }
-                let interface_type_name = iface.fqn.clone();
-                let interface_ty =
-                    self.types
-                        .find_nominal_ref_by_fqn(&iface.fqn)
-                        .ok_or_else(|| {
-                            frontend_error(format!(
-                                "MIR value box interface `{}` missing nominal TypeId",
-                                iface.fqn
-                            ))
-                        })?;
-                let interface_type_id = self
-                    .stable_rtti_type_id_for_codegen(interface_ty, "MIR value box interface RTTI")
-                    .map_err(|err| {
-                        frontend_error(format!(
-                            "MIR value box interface `{}` 无法构造 stable RTTI type id: {err}",
-                            iface.fqn
-                        ))
-                    })?;
-                Ok(crate::itable::ClassItableEntry {
-                    interface_fqn: iface.fqn.clone(),
-                    interface_id: iface.interface_id,
-                    interface_type_name: interface_type_name.clone(),
-                    interface_type_id,
-                    runtime_match_type_names: vec![interface_type_name],
-                    runtime_match_type_ids: vec![interface_type_id],
-                    method_impl_fqns,
-                    method_receiver_type_ids,
-                })
-            })
-            .collect()
+        let owner_key = self.mir_value_box_itable_owner_key(source_ty)?;
+        Ok(self.mir_value_box_itable_entries_for_owner(&owner_key))
     }
 
-    pub(in crate::llvm::codegen) fn collect_mir_value_box_interfaces(
+    fn mir_value_box_itable_entries_for_owner(
         &self,
-        fqn: &str,
-        out: &mut Vec<String>,
-        visiting: &mut HashSet<String>,
-    ) {
-        if !visiting.insert(fqn.to_string()) {
-            return;
-        }
-        if let Some(supertypes) = self.direct_supertypes.get(fqn) {
-            for super_fqn in supertypes {
-                if self
-                    .published_lir_facts
-                    .physical_layout
-                    .interfaces
-                    .contains_key(super_fqn)
-                    && !out.contains(super_fqn)
-                {
-                    out.push(super_fqn.clone());
-                }
-                self.collect_mir_value_box_interfaces(super_fqn, out, visiting);
-            }
-        }
-        visiting.remove(fqn);
+        owner_key: &CanonicalTextKey,
+    ) -> Vec<LirClassItableEntryFacts> {
+        let key = owner_key.canonical_text();
+        self.expect_active_lir_program("mir_value_box_itable_entries_for_owner")
+            .physical_layout()
+            .class_itables
+            .get(key.as_str())
+            .map(|itable| itable.entries.clone())
+            .unwrap_or_default()
     }
 }

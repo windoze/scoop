@@ -46,7 +46,6 @@ struct FixtureAbiInputs {
     base_context: LlvmStageBaseContext,
     lir_stage_output: LirStageOutput,
     abi_visibility_program: LateLoweredProgram,
-    abi_visibility_lir_facts: scoopc_lir_facts::LirFacts,
 }
 
 impl FixtureAbiInputs {
@@ -81,6 +80,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         typed_hir_output.lowered_hir(),
         typed_hir_output.hir_facts(),
     );
+    let hir_semantic_artifact = typed_hir_output.hir_semantic_artifact().cloned();
     let mut lowered_hir = typed_hir_output.into_lowered_hir();
     let stable_cone_key = lowered_hir.stable_cone_key.clone();
     let builtins = lowered_hir.types.intern_builtins();
@@ -95,11 +95,12 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let materialized_mir =
         crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
             .expect("materialized MIR 应成功");
-    let mir_stage_output = DirectStyleMirStageOutput::new(
+    let mir_stage_output = DirectStyleMirStageOutput::new_with_hir_semantic_artifact(
         LoweredMir { file, types },
         stable_cone_key,
         &lowered_hir.source_cones,
         &lowered_hir.source_cone_order,
+        hir_semantic_artifact,
     )
     .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
@@ -122,6 +123,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     .into_parts();
     let abi_visibility_lir_facts = crate::pipeline::lir_facts_builder::build_lir_facts(
         &abi_visibility_program,
+        None,
         mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
@@ -129,6 +131,11 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         abi_visibility_opt_pipeline,
     )
     .expect("ABI visibility LIR facts 应成功");
+    let abi_visibility_program = crate::pipeline::lir_facts_builder::attach_per_callable_lir_facts(
+        abi_visibility_program,
+        &abi_visibility_lir_facts,
+    )
+    .expect("ABI visibility LIR facts 应可挂回 program");
     let lir_stage_output = build_lir_stage_output_from_stage_outputs(
         &mir_stage_output,
         &effect_facts_stage_output,
@@ -151,7 +158,6 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         base_context,
         lir_stage_output,
         abi_visibility_program,
-        abi_visibility_lir_facts,
     }
 }
 
@@ -178,9 +184,7 @@ fn with_inputs_query_result(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -197,45 +201,30 @@ fn with_inputs_query_result(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
-        class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
-        ctor_call_sites: base.ctor_call_sites(),
-        dispatch_call_contracts: base.dispatch_call_contracts(),
-        effect_op_call_sites: base.effect_op_call_sites(),
-        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        release_hooks: &empty_release_hooks,
         when_pat_binding_tys: base.when_pat_binding_tys(),
         nominal_kinds: base.nominal_kinds(),
         interior_mutable_nominals: base.interior_mutable_nominals(),
-        direct_supertypes: base.direct_supertypes(),
         builtins: base.builtins(),
         callable_sources: base.callable_sources(),
         extern_funs: base.extern_funs(),
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, inputs.primary_types(), &[]);
     check(&inputs, result, &module);
 }
 
 fn with_inputs_query_result_and_cached_deps(
     inputs: FixtureAbiInputs,
     rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
-    cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff>,
+    cached_dep_artifacts: Vec<crate::llvm::LlvmDepLirArtifactHandoff>,
     check: impl for<'ctx> FnOnce(
         &FixtureAbiInputs,
         Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
@@ -252,9 +241,7 @@ fn with_inputs_query_result_and_cached_deps(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -271,38 +258,24 @@ fn with_inputs_query_result_and_cached_deps(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
-        class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
-        ctor_call_sites: base.ctor_call_sites(),
-        dispatch_call_contracts: base.dispatch_call_contracts(),
-        effect_op_call_sites: base.effect_op_call_sites(),
-        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        release_hooks: &empty_release_hooks,
         when_pat_binding_tys: base.when_pat_binding_tys(),
         nominal_kinds: base.nominal_kinds(),
         interior_mutable_nominals: base.interior_mutable_nominals(),
-        direct_supertypes: base.direct_supertypes(),
         builtins: base.builtins(),
         callable_sources: base.callable_sources(),
         extern_funs: base.extern_funs(),
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &cached_dep_artifacts,
-    );
+    let result =
+        codegen.materialize_program_abi(&program, inputs.primary_types(), &cached_dep_artifacts);
     check(&inputs, result, &module);
 }
 
@@ -327,9 +300,7 @@ fn with_inputs_query_result_for_source_types(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -346,38 +317,23 @@ fn with_inputs_query_result_for_source_types(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
-        class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
-        ctor_call_sites: base.ctor_call_sites(),
-        dispatch_call_contracts: base.dispatch_call_contracts(),
-        effect_op_call_sites: base.effect_op_call_sites(),
-        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        release_hooks: &empty_release_hooks,
         when_pat_binding_tys: base.when_pat_binding_tys(),
         nominal_kinds: base.nominal_kinds(),
         interior_mutable_nominals: base.interior_mutable_nominals(),
-        direct_supertypes: base.direct_supertypes(),
         builtins: base.builtins(),
         callable_sources: base.callable_sources(),
         extern_funs: base.extern_funs(),
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(&source_types),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        &source_types,
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, &source_types, &[]);
     check(&inputs, result, &module);
 }
 
@@ -401,9 +357,7 @@ fn with_inputs_query_result_and_codegen(
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
     let empty_class_inits = crate::hir::ClassInitIndex::default();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
-    let empty_interfaces = crate::itable::InterfaceIndex::default();
-    let empty_class_itables = crate::itable::ClassItableIndex::default();
+    let empty_release_hooks = crate::hir::ReleaseHookIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -420,38 +374,23 @@ fn with_inputs_query_result_and_codegen(
         enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
-        top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
         class_inits: &empty_class_inits,
-        class_ctor_init_bodies: base.class_ctor_init_bodies(),
-        class_vtables: &empty_class_vtables,
-        interfaces: &empty_interfaces,
-        class_itables: &empty_class_itables,
-        ctor_call_sites: base.ctor_call_sites(),
-        dispatch_call_contracts: base.dispatch_call_contracts(),
-        effect_op_call_sites: base.effect_op_call_sites(),
-        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        release_hooks: &empty_release_hooks,
         when_pat_binding_tys: base.when_pat_binding_tys(),
         nominal_kinds: base.nominal_kinds(),
         interior_mutable_nominals: base.interior_mutable_nominals(),
-        direct_supertypes: base.direct_supertypes(),
         builtins: base.builtins(),
         callable_sources: base.callable_sources(),
         extern_funs: base.extern_funs(),
         native_callable_funs: base.native_callable_funs(),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(inputs.primary_types()),
-        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         effect_analysis_facts: base.effect_analysis_facts(),
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &inputs.abi_visibility_lir_facts,
-        inputs.primary_types(),
-        &[],
-    );
+    let result = codegen.materialize_program_abi(&program, inputs.primary_types(), &[]);
     check(&inputs, &mut codegen, result, &module);
 }
 
@@ -1055,10 +994,9 @@ fn source_slice_non_boundary_dynamic_call_site(
     callable: &LateLoweredCallable,
 ) -> (crate::mir::SiteId, LirCallSiteContract) {
     let owner = inputs
-        .abi_visibility_lir_facts
-        .callables
-        .values()
-        .find(|facts| facts.root_fqn() == callable.root_fqn())
+        .abi_visibility_program
+        .callable(callable.root_fqn())
+        .and_then(LateLoweredCallable::published_callable_facts)
         .expect("callable LIR facts 应存在");
     let LirCallableContract::Plain(plain) = &owner.contract else {
         panic!("non-boundary source-slice helper 只支持 plain callable facts");

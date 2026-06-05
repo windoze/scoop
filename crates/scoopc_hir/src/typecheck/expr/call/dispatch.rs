@@ -657,6 +657,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                         return_ty: Some(instantiated.return_ty),
                         type_args: instantiated.type_args.clone(),
                         eff_args,
+                        types_are_hir: false,
                     },
                 );
                 if let Some(binding) = call_arg_binding_from_mapping(&mapping, &call_args) {
@@ -1052,6 +1053,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                     None,
                     explicit_type_args.as_deref(),
                     None,
+                    None,
                     false,
                     lower,
                 )?);
@@ -1179,9 +1181,10 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                 {
                     lower.record_typechecked_call_arg_binding(call_expr.span, binding);
                 }
-                let ty = lower.lower_type_fqn_with_args(
+                let ty = lower.lower_type_fqn_with_args_and_eff(
                     chosen.owner_fqn,
                     chosen.inferred_type_args,
+                    chosen.inferred_eff_arg,
                     id.span,
                 )?;
                 return Ok(ty);
@@ -1279,6 +1282,7 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                     return_ty: Some(chosen.instantiated.return_ty),
                     type_args: chosen.instantiated.type_args.clone(),
                     eff_args,
+                    types_are_hir: false,
                 },
             );
             if let Some(binding) = call_arg_binding_from_mapping(&chosen.mapping, chosen_call_args)

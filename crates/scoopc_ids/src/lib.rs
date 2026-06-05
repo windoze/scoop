@@ -8,19 +8,21 @@
 #![forbid(unsafe_code)]
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use scoopc_span::Span;
 use scoopc_types::{EffectRow, TypeId};
 use sha2::{Digest, Sha256};
 
-/// Versioned hash scopes shared by ABI, private symbols, RTTI, and dumps.
+/// Versioned hash scopes shared by ABI, private symbols, RTTI, dumps, and LIR handles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum StableHashScope {
     AbiV0,
     PrivateV0,
     RttiV0,
     DumpV0,
+    LirCallableV0,
 }
 
 impl StableHashScope {
@@ -31,7 +33,78 @@ impl StableHashScope {
             Self::PrivateV0 => "priv0:",
             Self::RttiV0 => "rtti0:",
             Self::DumpV0 => "dump0:",
+            Self::LirCallableV0 => "lircall0:",
         }
+    }
+}
+
+/// Artifact-local callable handle; semantically this is `LateLoweredProgram.callables` index.
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct LirCallableId(u32);
+
+impl LirCallableId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn from_index(index: usize) -> Option<Self> {
+        u32::try_from(index).ok().map(Self)
+    }
+
+    pub const fn as_u32(self) -> u32 {
+        self.0
+    }
+
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl fmt::Debug for LirCallableId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "lir_callable{}", self.0)
+    }
+}
+
+/// Stable compact callable identity for cross-cone references and serialized maps.
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct LirCallableHash([u8; 16]);
+
+impl LirCallableHash {
+    pub fn from_stable_key(key: &StableLirCallableKey) -> Self {
+        Self::from_canonical_text(key.as_str())
+    }
+
+    pub fn from_canonical_text(canonical_text: &str) -> Self {
+        let digest = stable_digest(StableHashScope::LirCallableV0, canonical_text);
+        let bytes = digest[..16]
+            .try_into()
+            .expect("sha256 output is always at least 16 bytes");
+        Self(bytes)
+    }
+
+    pub const fn as_bytes(self) -> [u8; 16] {
+        self.0
+    }
+
+    pub fn to_hex(self) -> String {
+        hex_lower(&self.0)
+    }
+}
+
+impl fmt::Debug for LirCallableHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "lir_callable_hash#h{}", self.to_hex())
+    }
+}
+
+impl fmt::Display for LirCallableHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_hex())
     }
 }
 
@@ -253,13 +326,39 @@ impl StableSymbolKey for StableEffectInstanceKey {
 ///
 /// The current monolithic compiler may still derive this from a stage-owned
 /// semantic instance key, but the fact product only stores canonical text and a
-/// readable path so it remains independent of MIR/LIR implementation types.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
+/// debug-only readable path so it remains independent of MIR/LIR implementation
+/// types. Identity comparisons, hashes, and live lookups must use
+/// `canonical_text`; `readable_path` is only for diagnostics and symbol labels.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StableLirCallableKey {
     canonical_text: String,
     readable_path: String,
+}
+
+impl PartialEq for StableLirCallableKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.canonical_text == other.canonical_text
+    }
+}
+
+impl Eq for StableLirCallableKey {}
+
+impl Hash for StableLirCallableKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.canonical_text.hash(state);
+    }
+}
+
+impl PartialOrd for StableLirCallableKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StableLirCallableKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.canonical_text.cmp(&other.canonical_text)
+    }
 }
 
 impl StableLirCallableKey {
@@ -281,6 +380,7 @@ impl StableLirCallableKey {
         &self.canonical_text
     }
 
+    /// Returns a human-readable path for diagnostics and symbol labels only.
     pub fn readable_path(&self) -> &str {
         &self.readable_path
     }
@@ -667,6 +767,8 @@ fn sanitize_symbol_component(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeSet, HashSet};
+
     use super::*;
 
     #[test]
@@ -675,6 +777,51 @@ mod tests {
 
         assert_eq!(site.as_u32(), 42);
         assert_eq!(format!("{site:?}"), "site42");
+    }
+
+    #[test]
+    fn lir_callable_id_debug_and_index_round_trip_are_stable() {
+        let id = LirCallableId::from_index(7).expect("index fits in u32");
+
+        assert_eq!(id.as_u32(), 7);
+        assert_eq!(id.as_usize(), 7);
+        assert_eq!(format!("{id:?}"), "lir_callable7");
+    }
+
+    #[test]
+    fn lir_callable_hash_uses_canonical_text_only() {
+        let canonical = "lir_callable(3:foo)";
+        let first = StableLirCallableKey::new(canonical, "pkg.first");
+        let renamed = StableLirCallableKey::new(canonical, "pkg.renamed");
+        let other = StableLirCallableKey::new("lir_callable(3:bar)", "pkg.first");
+
+        let first_hash = LirCallableHash::from_stable_key(&first);
+
+        assert_eq!(first_hash, LirCallableHash::from_stable_key(&renamed));
+        assert_ne!(first_hash, LirCallableHash::from_stable_key(&other));
+        assert_eq!(first_hash.as_bytes().len(), 16);
+        assert_eq!(first_hash.to_hex().len(), 32);
+    }
+
+    #[test]
+    fn stable_lir_callable_key_identity_uses_canonical_text_only() {
+        let canonical = "lir_callable(3:foo)";
+        let first = StableLirCallableKey::new(canonical, "pkg.first");
+        let renamed = StableLirCallableKey::new(canonical, "pkg.renamed");
+        let other = StableLirCallableKey::new("lir_callable(3:bar)", "pkg.first");
+
+        assert_eq!(first, renamed);
+        assert_ne!(first, other);
+
+        let mut hash_keys = HashSet::new();
+        assert!(hash_keys.insert(first.clone()));
+        assert!(!hash_keys.insert(renamed.clone()));
+        assert!(hash_keys.insert(other.clone()));
+
+        let mut ordered_keys = BTreeSet::new();
+        assert!(ordered_keys.insert(first));
+        assert!(!ordered_keys.insert(renamed));
+        assert!(ordered_keys.insert(other));
     }
 
     #[test]
@@ -688,6 +835,10 @@ mod tests {
         assert_ne!(
             stable_hash64(StableHashScope::RttiV0, canonical),
             stable_hash64(StableHashScope::DumpV0, canonical)
+        );
+        assert_ne!(
+            stable_hash128_hex(StableHashScope::AbiV0, canonical),
+            stable_hash128_hex(StableHashScope::LirCallableV0, canonical)
         );
     }
 

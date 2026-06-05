@@ -2,23 +2,22 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::ast;
 use crate::mir::{
-    BasicBlockId, Body as MirBody, CallArg, CallKind, ConstValue, DeclMemberMetadata,
-    FunDecl as MirFunDecl, HandleMetadata, HandlerArm, InstanceKey, InstanceSummary,
-    Item as MirItem, MaterializedMir, MetadataRoot, Operand, PerformMetadata, ResultProvenance,
-    ResultProvenanceSource, ResumeMetadata, Rvalue, SiteId, StatementKind, TemplateKey,
-    TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
+    BasicBlockId, FunDecl as MirFunDecl, InstanceKey, MaterializedMir, SiteId, TemplateKey,
 };
 use crate::resolve::{FunOverload, Index};
-use crate::session::Session;
-use crate::source::SourceFile;
 use crate::stable_id::{
     NoTypeParamResolver, StableCanonicalKey, StableConeKey, StableDefKey, StableDefNamespace,
     StableInstanceKey, StableTemplateKey, StableTypeParamKey, canonical_callable_signature_key,
+    canonical_type_text,
 };
 use crate::ty::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, ValueTypeKind,
 };
 use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
+use scoopc_hir::stage::HirSemanticArtifact;
+use scoopc_mir_facts::{
+    MirFacts, backend as mir_backend, boundary as mir_boundary, effects as mir_effects,
+};
 
 use super::{
     BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
@@ -33,26 +32,200 @@ use super::{
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
 #[derive(Debug)]
 pub struct MaterializedEffectFactsBuilder<'a> {
-    session: &'a Session,
-    source: &'a SourceFile,
-    compilation_sources: &'a [SourceFile],
-    /// P10-T04-b：cache-hit 的依赖 cone 不在 `compilation_sources` 中，重建 Index/TypeEnv
-    /// 时必须把这些 cached frontend imports 重放回去。
-    cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
+    frontend_artifact: &'a HirSemanticArtifact,
     materialized: &'a MaterializedMir,
+    mir_facts: &'a MirFacts,
     type_context: &'a mut EffectOwnedTypeContext,
     compiler_continuation_runtime_error_callables: HashSet<InstanceKey>,
 }
 
-#[derive(Debug, Clone)]
-struct SurfaceCallableContract {
-    declared_row: EffectRow,
+#[derive(Debug)]
+struct MirFactIndex<'a> {
+    instance_by_stable_text: HashMap<String, InstanceKey>,
+    instance_by_callable_fqn: HashMap<String, InstanceKey>,
+    callable_instances: HashMap<InstanceKey, &'a mir_effects::CallableInstanceEffectFacts>,
+    bodies: HashMap<(InstanceKey, String), MirBodyFactBundle<'a>>,
+    source_signatures: HashMap<String, &'a mir_backend::SourceCallableSignatureFact>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum CallableValueProvenance {
-    DirectFunction(String),
-    KnownClosure(String),
+#[derive(Debug, Clone, Default)]
+struct MirBodyFactBundle<'a> {
+    regions: BTreeMap<BasicBlockId, &'a mir_effects::MirBlockEffectRegionFact>,
+    sites: BTreeMap<SiteId, &'a mir_effects::MirSiteInventoryFact>,
+    events: BTreeMap<SiteId, &'a mir_effects::MirEffectEventFact>,
+    call_targets: BTreeMap<SiteId, &'a mir_effects::CallSiteTargetFact>,
+    call_surfaces: BTreeMap<SiteId, &'a mir_effects::CallSiteSurfaceEffectFact>,
+    boundaries: BTreeMap<SiteId, &'a mir_boundary::BoundarySourceContract>,
+}
+
+impl<'a> MirFactIndex<'a> {
+    fn new(
+        materialized: &MaterializedMir,
+        mir_facts: &'a MirFacts,
+    ) -> Result<Self, EffectFactsError> {
+        let mut instance_by_stable_text = HashMap::new();
+        let mut instance_by_callable_fqn = HashMap::new();
+        for family in materialized.pass_view().instances() {
+            let stable_key = materialized
+                .authoritative_stable_instance_key(family.key())
+                .ok_or_else(|| EffectFactsError::Frontend {
+                    message: format!(
+                        "callable family `{}` 缺少 authoritative stable instance key，无法消费 MIR facts",
+                        family.key().template.fqn,
+                    ),
+                })?;
+            instance_by_stable_text.insert(stable_key.canonical_text(), family.key().clone());
+            for fqn in family.callable_fqns() {
+                instance_by_callable_fqn.insert(fqn.to_string(), family.key().clone());
+            }
+        }
+
+        let mut index = Self {
+            instance_by_stable_text,
+            instance_by_callable_fqn,
+            callable_instances: HashMap::new(),
+            bodies: HashMap::new(),
+            source_signatures: mir_facts
+                .backend
+                .source_signatures
+                .iter()
+                .map(|signature| (signature.fqn.clone(), signature))
+                .collect(),
+        };
+
+        for fact in &mir_facts.effects.callable_instances {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index.callable_instances.insert(key, fact);
+        }
+        for fact in &mir_facts.effects.block_regions {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .regions
+                .insert(BasicBlockId::from_raw(fact.block.as_u32()), fact);
+        }
+        for fact in &mir_facts.effects.site_inventory {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .sites
+                .insert(fact.site_id, fact);
+        }
+        for fact in &mir_facts.effects.effect_events {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .events
+                .insert(fact.site_id, fact);
+        }
+        for fact in &mir_facts.effects.call_site_targets {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .call_targets
+                .insert(fact.site_id, fact);
+        }
+        for fact in &mir_facts.effects.call_site_surface_effects {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .call_surfaces
+                .insert(fact.site_id, fact);
+        }
+        for fact in &mir_facts.boundary.source_contracts {
+            let key = index.instance_for_artifact(&fact.instance)?.clone();
+            index
+                .body_mut(key, &fact.body.fqn)
+                .boundaries
+                .insert(fact.site_id, fact);
+        }
+        Ok(index)
+    }
+
+    fn callable_instance(
+        &self,
+        key: &InstanceKey,
+    ) -> Result<&'a mir_effects::CallableInstanceEffectFacts, EffectFactsError> {
+        self.callable_instances
+            .get(key)
+            .copied()
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "CallableInstanceEffectFacts",
+                detail: key.template.fqn.to_string(),
+            })
+    }
+
+    fn body(
+        &self,
+        key: &InstanceKey,
+        fqn: &str,
+    ) -> Result<&MirBodyFactBundle<'a>, EffectFactsError> {
+        self.bodies
+            .get(&(key.clone(), fqn.to_string()))
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "Mir body effect facts",
+                detail: fqn.to_string(),
+            })
+    }
+
+    fn source_signature(&self, fqn: &str) -> Option<&'a mir_backend::SourceCallableSignatureFact> {
+        self.source_signatures.get(fqn).copied()
+    }
+
+    fn bodyless_direct_signature(&self, fqn: &str) -> Result<(), EffectFactsError> {
+        let Some(signature) = self.source_signature(fqn) else {
+            return Err(EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: format!(
+                    "bodyless direct target `{fqn}` lacks an upstream source signature fact"
+                ),
+            });
+        };
+        if signature.target_callable_key.is_none()
+            || signature
+                .abi_symbol
+                .as_deref()
+                .unwrap_or_default()
+                .is_empty()
+            || signature.abi_role.as_deref().unwrap_or_default().is_empty()
+        {
+            return Err(EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: format!(
+                    "bodyless direct target `{fqn}` lacks target-bound callable/ABI publication"
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    fn instance_for_stable_text(&self, text: &str) -> Result<InstanceKey, EffectFactsError> {
+        self.instance_by_stable_text
+            .get(text)
+            .cloned()
+            .ok_or_else(|| EffectFactsError::UnknownMirFactInstance {
+                key: text.to_string(),
+            })
+    }
+
+    fn instance_for_callable_fqn(&self, fqn: &str) -> Option<InstanceKey> {
+        self.instance_by_callable_fqn.get(fqn).cloned()
+    }
+
+    fn instance_for_artifact(
+        &self,
+        artifact: &scoopc_ids::StageArtifactKey,
+    ) -> Result<&InstanceKey, EffectFactsError> {
+        self.instance_by_stable_text
+            .get(artifact.owner_canonical_text())
+            .ok_or_else(|| EffectFactsError::UnknownMirFactInstance {
+                key: artifact.owner_canonical_text().to_string(),
+            })
+    }
+
+    fn body_mut(&mut self, key: InstanceKey, fqn: &str) -> &mut MirBodyFactBundle<'a> {
+        self.bodies.entry((key, fqn.to_string())).or_default()
+    }
 }
 
 impl EffectFactsTypeContext {
@@ -85,219 +258,6 @@ impl EffectFactsTypeContext {
             effect_sym,
             op_type_args,
         )
-    }
-
-    fn known_callable_instance_key(
-        &self,
-        fqn: &str,
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Option<InstanceKey> {
-        let overload = self.select_fun_overload(fqn, explicit_arg_count, has_receiver)?;
-        Some(InstanceKey {
-            template: TemplateKey {
-                fqn: fqn.to_string(),
-                source_path: overload.symbol.decl_file.clone(),
-                decl_span: overload.symbol.span,
-            },
-            type_args: Vec::new(),
-            eff_args: Vec::new(),
-        })
-    }
-
-    fn virtual_dispatch_candidate_fqns(
-        &self,
-        types: &TypeStore,
-        receiver_ty: TypeId,
-        member_name: &str,
-        explicit_arg_count: usize,
-    ) -> Vec<String> {
-        let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty) else {
-            return Vec::new();
-        };
-        let mut targets = BTreeSet::new();
-        for class_fqn in self.descendants_and_self(receiver_fqn) {
-            if let Some(slot) = self
-                .class_vtables
-                .get(class_fqn.as_str())
-                .and_then(|slots| {
-                    slots.iter().find(|slot| {
-                        slot.name == member_name && slot.params_len == explicit_arg_count as u32
-                    })
-                })
-            {
-                targets.insert(slot.impl_member_fqn.clone());
-            } else if class_fqn == receiver_fqn {
-                targets.insert(format!("{class_fqn}.{member_name}"));
-            }
-        }
-        targets.into_iter().collect()
-    }
-
-    fn interface_dispatch_candidate_fqns(
-        &self,
-        types: &TypeStore,
-        receiver_ty: TypeId,
-        owner_fqn: &str,
-        member_name: &str,
-        explicit_arg_count: usize,
-    ) -> Vec<String> {
-        let Some(interface) = self.interfaces.get(owner_fqn) else {
-            return Vec::new();
-        };
-        let mut matching_slots = interface.method_slots.iter().filter(|slot| {
-            slot.name == member_name && slot.params_len == explicit_arg_count as u32
-        });
-        let Some(slot) = matching_slots.next() else {
-            return Vec::new();
-        };
-        if matching_slots.next().is_some() {
-            return Vec::new();
-        }
-
-        let mut targets = BTreeSet::new();
-        if let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty)
-            && let Some(entries) = self.class_itables.get(receiver_fqn)
-        {
-            collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
-        }
-        if targets.is_empty() {
-            for entries in self.class_itables.values() {
-                collect_interface_slot_targets(
-                    entries,
-                    owner_fqn,
-                    slot.slot as usize,
-                    &mut targets,
-                );
-            }
-        }
-        targets.into_iter().collect()
-    }
-
-    fn descendants_and_self(&self, root: &str) -> BTreeSet<String> {
-        let mut seen = BTreeSet::from([root.to_string()]);
-        let mut stack = vec![root.to_string()];
-        while let Some(current) = stack.pop() {
-            if let Some(children) = self.direct_subclasses.get(&current) {
-                for child in children {
-                    if seen.insert(child.clone()) {
-                        stack.push(child.clone());
-                    }
-                }
-            }
-        }
-        seen
-    }
-
-    fn select_fun_overload(
-        &self,
-        fqn: &str,
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Option<&FunOverload> {
-        let mut matches = self.matching_fun_overloads(fqn, explicit_arg_count, has_receiver);
-        let first = matches.pop()?;
-        matches.is_empty().then_some(first)
-    }
-
-    fn matching_fun_overloads(
-        &self,
-        fqn: &str,
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Vec<&FunOverload> {
-        let Some(entry) = self.index.by_fqn.get(fqn) else {
-            return Vec::new();
-        };
-        let overloads = &entry.fun;
-        let exact = overloads
-            .iter()
-            .filter(|overload| {
-                overload.sig.params.len() == explicit_arg_count
-                    && overload.sig.receiver.is_some() == has_receiver
-            })
-            .collect::<Vec<_>>();
-        if !exact.is_empty() {
-            return exact;
-        }
-
-        if !has_receiver {
-            let owner_is_type = fqn
-                .rsplit_once('.')
-                .is_some_and(|(owner, _)| self.env.type_symbol(owner).is_some());
-            return overloads
-                .iter()
-                .filter(|overload| {
-                    overload.sig.receiver.is_some()
-                        && overload.sig.params.len().saturating_add(1) == explicit_arg_count
-                        || owner_is_type
-                            && overload.sig.receiver.is_none()
-                            && overload.sig.params.len().saturating_add(1) == explicit_arg_count
-                })
-                .collect();
-        }
-
-        // class/interface member fun 在索引里不一定把 owner 记作显式 receiver；对 declaration-only
-        // member fallback surface contract，允许按 owner-qualified FQN + 参数个数直接匹配。
-        overloads
-            .iter()
-            .filter(|overload| overload.sig.params.len() == explicit_arg_count)
-            .collect()
-    }
-
-    fn surface_callable_contract(
-        &self,
-        types: &mut TypeStore,
-        fqn: &str,
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Option<SurfaceCallableContract> {
-        let builtins = types.intern_builtins();
-        let mut terms = Vec::new();
-        let mut saw_match = false;
-        for overload in self.matching_fun_overloads(fqn, explicit_arg_count, has_receiver) {
-            saw_match = true;
-            let decl_source = self.env.source(&overload.symbol.decl_file)?;
-            let file_ctx = self.env.file_type_context(&overload.symbol.decl_file)?;
-            let mut lower = TypeLowering::new_with_ctx(
-                decl_source,
-                &self.index,
-                &self.env,
-                types,
-                builtins,
-                file_ctx.pkg_prefix.clone(),
-                file_ctx.imports.clone(),
-            );
-            let declared_row = lower
-                .lower_effect_row_expr_in_decl_file_with_scopes(
-                    &overload.symbol.decl_file,
-                    std::iter::empty::<(String, TypeId)>(),
-                    std::iter::empty::<(String, EffectRow)>(),
-                    overload.sig.effects.as_ref(),
-                )
-                .ok()?;
-            terms.extend(declared_row.terms);
-        }
-        if !saw_match {
-            return None;
-        }
-        Some(SurfaceCallableContract {
-            declared_row: EffectRow::new(terms),
-        })
-    }
-
-    fn computed_property_accessor_surface_contract(
-        &self,
-        fqn: &str,
-    ) -> Option<SurfaceCallableContract> {
-        let property_fqn = fqn.strip_suffix("$set").unwrap_or(fqn);
-        let (owner_fqn, _) = property_fqn.rsplit_once('.')?;
-        self.env.type_symbol(owner_fqn)?;
-        let entry = self.index.by_fqn.get(property_fqn)?;
-        entry.value.as_ref()?;
-        Some(SurfaceCallableContract {
-            declared_row: EffectRow::pure(),
-        })
     }
 }
 
@@ -541,16 +501,15 @@ impl RegionCaseContribution {
     }
 }
 
-impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
+impl<'ctx, 'facts, 'pool> BodyFactsBuilder<'ctx, 'facts, 'pool> {
     #[allow(clippy::too_many_arguments)]
     fn new(
-        type_ctx: &'a EffectFactsTypeContext,
-        schema_pool: &'b mut EffectFactsSchemaPool<'a>,
-        owner_by_callable_fqn: &'a HashMap<String, InstanceKey>,
-        callable_facts: &'a HashMap<InstanceKey, CallableEffectFacts>,
-        raw_fun_by_fqn: &'a HashMap<String, MirFunDecl>,
-        top_level_value_surface_contracts: &'a HashMap<String, SurfaceCallableContract>,
-        callable_fun: &'a MirFunDecl,
+        type_ctx: &'ctx EffectFactsTypeContext,
+        schema_pool: &'pool mut EffectFactsSchemaPool<'ctx>,
+        mir_fact_index: &'ctx MirFactIndex<'facts>,
+        mir_body_facts: &'ctx MirBodyFactBundle<'facts>,
+        callable_facts: &'ctx HashMap<InstanceKey, CallableEffectFacts>,
+        callable_fun: &'ctx MirFunDecl,
         callable_step_schema: StepSchemaId,
     ) -> Result<Self, EffectFactsError> {
         let current_case_index = schema_pool
@@ -570,17 +529,14 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         Ok(Self {
             type_ctx,
             schema_pool,
-            owner_by_callable_fqn,
+            mir_fact_index,
+            mir_body_facts,
             callable_facts,
-            raw_fun_by_fqn,
-            top_level_value_surface_contracts,
             callable_fun,
             callable_step_schema,
             current_case_index,
-            callable_summary_cache: HashMap::new(),
             sites: BTreeMap::new(),
             block_drafts: BTreeMap::new(),
-            block_scan_cache: BTreeMap::new(),
             block_site_ids: BTreeMap::new(),
             block_handled_tags: BTreeMap::new(),
             handle_site_solver_facts: BTreeMap::new(),
@@ -588,34 +544,40 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
     }
 
     fn build(mut self, types: &mut TypeStore) -> Result<BodyEffectFacts, EffectFactsError> {
-        let Some((body_len, block_successors, cleanup_blocks)) =
-            self.callable_fun.body.as_ref().map(|body| {
-                (
-                    body.blocks.len(),
-                    collect_block_successors(body),
-                    body.blocks
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(index, block)| {
-                            block
-                                .is_cleanup
-                                .then_some(BasicBlockId::from_raw(index as u32))
-                        })
-                        .collect::<BTreeSet<_>>(),
-                )
-            })
-        else {
+        if self.callable_fun.body.is_none() {
             return Ok(BodyEffectFacts::default());
-        };
+        }
 
-        for block_index in 0..body_len {
-            let block_id = BasicBlockId::from_raw(block_index as u32);
-            let _ = self.scan_block_sites(types, block_id)?;
+        let mut block_successors = BTreeMap::new();
+        let mut cleanup_blocks = BTreeSet::new();
+        for (block_id, region) in &self.mir_body_facts.regions {
+            block_successors.insert(
+                *block_id,
+                region
+                    .successors
+                    .iter()
+                    .map(|successor| BasicBlockId::from_raw(successor.as_u32()))
+                    .collect::<Vec<_>>(),
+            );
+            self.block_site_ids
+                .insert(*block_id, region.site_ids.clone());
+            if region.cleanup {
+                cleanup_blocks.insert(*block_id);
+            }
+        }
+
+        let site_ids = self
+            .mir_body_facts
+            .sites
+            .keys()
+            .copied()
+            .collect::<Vec<_>>();
+        for site_id in site_ids {
+            let _ = self.ensure_site_facts_from_mir(types, site_id)?;
         }
 
         let mut blocks = BTreeMap::new();
-        for block_index in 0..body_len {
-            let block_id = BasicBlockId::from_raw(block_index as u32);
+        for block_id in self.mir_body_facts.regions.keys().copied() {
             let draft = self.block_drafts.remove(&block_id).unwrap_or_default();
             blocks.insert(
                 block_id,
@@ -648,11 +610,130 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         ))
     }
 
-    fn record_block_site(&mut self, block_id: BasicBlockId, site_id: SiteId) {
-        let sites = self.block_site_ids.entry(block_id).or_default();
-        if !sites.contains(&site_id) {
-            sites.push(site_id);
+    fn ensure_site_facts_from_mir(
+        &mut self,
+        types: &mut TypeStore,
+        site_id: SiteId,
+    ) -> Result<RegionCaseContribution, EffectFactsError> {
+        let event = self.mir_body_facts.events.get(&site_id).ok_or_else(|| {
+            EffectFactsError::MissingMirFact {
+                kind: "MirEffectEventFact",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            }
+        })?;
+        let block_id = BasicBlockId::from_raw(event.block.as_u32());
+        if self.sites.contains_key(&site_id) {
+            return Ok(self.region_contribution_for_site(site_id, event.cleanup));
         }
+
+        let mut direct = RegionCaseContribution::default();
+        let mut draft = self.block_drafts.remove(&block_id).unwrap_or_default();
+        match &event.kind {
+            mir_effects::MirEffectEventKind::Call { call_kind } => {
+                self.ensure_call_site_facts_from_mir(types, site_id, *call_kind)?;
+                if !event.effect_row.terms.is_empty() {
+                    draft.has_suspend_boundary = true;
+                }
+            }
+            mir_effects::MirEffectEventKind::ClassCtor { .. }
+            | mir_effects::MirEffectEventKind::HiddenInitializer { .. } => {
+                let row = effect_row_from_fact_template(types, &event.effect_row)?;
+                let projected = self.ensure_class_ctor_site_facts_from_row(types, site_id, &row)?;
+                if !projected.is_empty() {
+                    draft.has_suspend_boundary = true;
+                }
+                direct.add_tags(event.cleanup, projected);
+            }
+            mir_effects::MirEffectEventKind::Perform { op } => {
+                let emitted = self.ensure_perform_site_facts_from_contract(types, site_id, op)?;
+                direct.add_tags(event.cleanup, [emitted]);
+                draft.has_suspend_boundary = true;
+            }
+            mir_effects::MirEffectEventKind::Resume {
+                resume_tuple_ty,
+                answer_ty,
+                continuation_ty,
+                surface_row,
+            } => {
+                let out_row = effect_row_from_fact_template(types, &event.effect_row)?;
+                let surface_row = effect_row_from_fact_template(types, surface_row)?;
+                let projected = self.ensure_resume_site_facts_from_mir(
+                    types,
+                    site_id,
+                    *resume_tuple_ty,
+                    *answer_ty,
+                    *continuation_ty,
+                    &out_row,
+                    &surface_row,
+                )?;
+                if !projected.is_empty() {
+                    draft.has_suspend_boundary = true;
+                }
+                direct.add_tags(event.cleanup, projected);
+            }
+            mir_effects::MirEffectEventKind::Handle {
+                result_ty,
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                arms,
+            } => {
+                let outward = self.ensure_handle_site_facts_from_mir(
+                    types,
+                    site_id,
+                    *result_ty,
+                    BasicBlockId::from_raw(body_target.as_u32()),
+                    arm_targets
+                        .iter()
+                        .map(|target| BasicBlockId::from_raw(target.as_u32()))
+                        .collect(),
+                    finally_target.map(|target| BasicBlockId::from_raw(target.as_u32())),
+                    BasicBlockId::from_raw(exit_target.as_u32()),
+                    arms,
+                )?;
+                direct.add_tags(event.cleanup, outward);
+                draft.has_handle_boundary = true;
+                if matches!(
+                    self.sites.get(&site_id),
+                    Some(SiteEffectFacts::Handle(facts))
+                        if facts.nested_handle_classification()
+                            == NestedHandleClassification::MaySuspendOutward
+                ) {
+                    draft.has_suspend_boundary = true;
+                }
+            }
+        }
+        draft.outward_tags.extend(direct.total_tags());
+        self.block_drafts.insert(block_id, draft);
+        Ok(direct)
+    }
+
+    fn region_contribution_for_site(
+        &self,
+        site_id: SiteId,
+        is_cleanup: bool,
+    ) -> RegionCaseContribution {
+        let mut contribution = RegionCaseContribution::default();
+        match self.sites.get(&site_id) {
+            Some(SiteEffectFacts::ClassCtor(facts)) => {
+                contribution.add_tags(is_cleanup, facts.emitted_cases().tags().iter().copied());
+            }
+            Some(SiteEffectFacts::Perform(facts)) => {
+                contribution.add_tags(is_cleanup, [facts.emitted_case()]);
+            }
+            Some(SiteEffectFacts::Resume(facts)) => {
+                let tags = self
+                    .schema_pool
+                    .project_case_set(facts.resolved_cases(), &self.current_case_index);
+                contribution.add_tags(is_cleanup, tags);
+            }
+            Some(SiteEffectFacts::Handle(facts)) => {
+                contribution.add_tags(is_cleanup, handle_total_outward_tags(facts));
+            }
+            Some(SiteEffectFacts::Call(_)) | None => {}
+        }
+        contribution
     }
 
     fn mark_region_handled_cases(
@@ -666,164 +747,24 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             return;
         }
 
-        let block = self.body().blocks[entry.as_u32() as usize].clone();
-        if !block.is_cleanup {
+        let Some(region) = self.mir_body_facts.regions.get(&entry) else {
+            return;
+        };
+        if !region.cleanup {
             self.block_handled_tags
                 .entry(entry)
                 .or_default()
                 .extend(tags.iter().copied());
         }
 
-        block.terminator.for_each_successor(|target| {
+        let successors = region
+            .successors
+            .iter()
+            .map(|target| BasicBlockId::from_raw(target.as_u32()))
+            .collect::<Vec<_>>();
+        for target in successors {
             self.mark_region_handled_cases(target, stops, tags, visited);
-        });
-    }
-
-    fn scan_block_sites(
-        &mut self,
-        types: &mut TypeStore,
-        block_id: BasicBlockId,
-    ) -> Result<RegionCaseContribution, EffectFactsError> {
-        if let Some(cached) = self.block_scan_cache.get(&block_id) {
-            return Ok(cached.clone());
         }
-
-        let block = self.body().blocks[block_id.as_u32() as usize].clone();
-        let mut direct = RegionCaseContribution::default();
-        let mut draft = BlockDraft::default();
-
-        for stmt in &block.stmts {
-            let StatementKind::Assign { target, value } = &stmt.kind else {
-                continue;
-            };
-            match value {
-                Rvalue::Call {
-                    site_id,
-                    kind,
-                    args,
-                    ..
-                } => {
-                    self.record_block_site(block_id, *site_id);
-                    match kind {
-                        CallKind::Resume { resume, .. } => {
-                            let projected =
-                                self.ensure_resume_site_facts(types, *site_id, resume)?;
-                            if !projected.is_empty() {
-                                draft.has_suspend_boundary = true;
-                            }
-                            direct.add_tags(block.is_cleanup, projected);
-                        }
-                        _ => {
-                            self.ensure_call_site_facts(types, *target, *site_id, kind, args)?;
-                        }
-                    }
-                }
-                Rvalue::ClassCtor {
-                    site_id,
-                    hidden_effects,
-                    ..
-                } => {
-                    self.record_block_site(block_id, *site_id);
-                    let projected =
-                        self.ensure_class_ctor_site_facts(types, *site_id, hidden_effects)?;
-                    if !projected.is_empty() {
-                        draft.has_suspend_boundary = true;
-                    }
-                    direct.add_tags(block.is_cleanup, projected);
-                }
-                Rvalue::TopLevelRef(top_level)
-                    if top_level.site_id.is_some()
-                        && !top_level.hidden_effects.is_pure()
-                        && !top_level_ref_is_only_hidden_member_namespace_receiver(
-                            self.body(),
-                            *target,
-                        ) =>
-                {
-                    let site_id = top_level.site_id.expect("checked above");
-                    self.record_block_site(block_id, site_id);
-                    let projected = self.ensure_class_ctor_site_facts(
-                        types,
-                        site_id,
-                        &top_level.hidden_effects,
-                    )?;
-                    if !projected.is_empty() {
-                        draft.has_suspend_boundary = true;
-                    }
-                    direct.add_tags(block.is_cleanup, projected);
-                }
-                Rvalue::MemberAccess {
-                    site_id: Some(site_id),
-                    member,
-                    ..
-                } if !member.hidden_effects.is_pure() => {
-                    self.record_block_site(block_id, *site_id);
-                    let projected =
-                        self.ensure_class_ctor_site_facts(types, *site_id, &member.hidden_effects)?;
-                    if !projected.is_empty() {
-                        draft.has_suspend_boundary = true;
-                    }
-                    direct.add_tags(block.is_cleanup, projected);
-                }
-                _ => {}
-            }
-        }
-
-        match &block.terminator.kind {
-            TerminatorKind::Perform {
-                site_id,
-                op_fqn,
-                metadata,
-                ..
-            } => {
-                self.record_block_site(block_id, *site_id);
-                let emitted = self.ensure_perform_site_facts(types, *site_id, op_fqn, metadata)?;
-                direct.add_tags(block.is_cleanup, [emitted]);
-                draft.has_suspend_boundary = true;
-            }
-            TerminatorKind::Handle {
-                site_id,
-                metadata,
-                arms,
-                body_target,
-                arm_targets,
-                finally_target,
-                exit_target,
-                ..
-            } => {
-                self.record_block_site(block_id, *site_id);
-                let outward = self.ensure_handle_site_facts(
-                    types,
-                    *site_id,
-                    metadata,
-                    arms,
-                    *body_target,
-                    arm_targets,
-                    *finally_target,
-                    *exit_target,
-                )?;
-                direct.add_tags(block.is_cleanup, outward);
-                draft.has_handle_boundary = true;
-                if matches!(
-                    self.sites.get(site_id),
-                    Some(SiteEffectFacts::Handle(facts))
-                        if facts.nested_handle_classification()
-                            == NestedHandleClassification::MaySuspendOutward
-                ) {
-                    draft.has_suspend_boundary = true;
-                }
-            }
-            TerminatorKind::Return { .. }
-            | TerminatorKind::ResumeUnwind
-            | TerminatorKind::Goto { .. }
-            | TerminatorKind::CondBr { .. }
-            | TerminatorKind::Unreachable
-            | TerminatorKind::Todo(_) => {}
-        }
-
-        draft.outward_tags.extend(direct.total_tags());
-        self.block_drafts.insert(block_id, draft);
-        self.block_scan_cache.insert(block_id, direct.clone());
-        Ok(direct)
     }
 
     fn collect_region_cases(
@@ -837,64 +778,69 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             return Ok(RegionCaseContribution::default());
         }
 
-        let block = self.body().blocks[entry.as_u32() as usize].clone();
-        let mut acc = self.scan_block_sites(types, entry)?;
-
-        match &block.terminator.kind {
-            TerminatorKind::Goto { target } => {
-                acc.extend(self.collect_region_cases(types, *target, stops, visited)?);
-            }
-            TerminatorKind::CondBr {
-                then_target,
-                else_target,
-                ..
-            } => {
-                acc.extend(self.collect_region_cases(types, *then_target, stops, visited)?);
-                acc.extend(self.collect_region_cases(types, *else_target, stops, visited)?);
-            }
-            TerminatorKind::Perform { resume_target, .. } => {
-                acc.extend(self.collect_region_cases(types, *resume_target, stops, visited)?);
-                if let UnwindAction::Cleanup { target } = block.terminator.unwind {
-                    acc.extend(self.collect_region_cases(types, target, stops, visited)?);
-                }
-            }
-            TerminatorKind::Handle { exit_target, .. } => {
-                acc.extend(self.collect_region_cases(types, *exit_target, stops, visited)?);
-            }
-            TerminatorKind::Return { .. }
-            | TerminatorKind::ResumeUnwind
-            | TerminatorKind::Unreachable
-            | TerminatorKind::Todo(_) => {}
+        let Some(region) = self.mir_body_facts.regions.get(&entry) else {
+            return Ok(RegionCaseContribution::default());
+        };
+        let site_ids = region.site_ids.clone();
+        let successors = region
+            .successors
+            .iter()
+            .map(|successor| BasicBlockId::from_raw(successor.as_u32()))
+            .collect::<Vec<_>>();
+        let mut acc = RegionCaseContribution::default();
+        for site_id in site_ids {
+            acc.extend(self.ensure_site_facts_from_mir(types, site_id)?);
+        }
+        for successor in successors {
+            acc.extend(self.collect_region_cases(types, successor, stops, visited)?);
         }
         Ok(acc)
     }
 
-    fn ensure_call_site_facts(
+    fn ensure_call_site_facts_from_mir(
         &mut self,
         types: &mut TypeStore,
-        result_local: crate::mir::LocalId,
         site_id: SiteId,
-        kind: &CallKind,
-        args: &[CallArg],
+        call_kind: mir_effects::MirCallKind,
     ) -> Result<(), EffectFactsError> {
         if self.sites.contains_key(&site_id) {
             return Ok(());
         }
-        let facts = self.build_call_site_effect_facts(types, result_local, kind, args)?;
+        let site = self.required_site_inventory(site_id)?;
+        let boundary = self.required_boundary(site_id)?;
+        let surface = self.required_call_surface(site_id)?;
+        let target = self.required_call_target(site_id)?;
+        let kind = call_site_kind_from_mir(call_kind);
+        let invoke_args_tuple_ty =
+            self.invoke_args_tuple_ty_from_boundary(types, site_id, boundary)?;
+        let result_ty = site
+            .result_ty
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "MirSiteInventoryFact.result_ty",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            })?;
+        let surface_row = effect_row_from_fact_template(types, &surface.surface_row)?;
+        let facts = self.call_site_facts_from_published_target(
+            types,
+            kind,
+            target,
+            invoke_args_tuple_ty,
+            result_ty,
+            &surface_row,
+        )?;
         self.sites.insert(site_id, SiteEffectFacts::Call(facts));
         Ok(())
     }
 
-    fn ensure_class_ctor_site_facts(
+    fn ensure_class_ctor_site_facts_from_row(
         &mut self,
-        types: &mut TypeStore,
+        types: &TypeStore,
         site_id: SiteId,
         hidden_effects: &EffectRow,
     ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
         if let Some(SiteEffectFacts::ClassCtor(facts)) = self.sites.get(&site_id) {
             return Ok(facts.emitted_cases().tags().iter().copied().collect());
         }
-
         let projected = self.current_cases_for_effect_row(types, hidden_effects)?;
         let cases = self.case_set_from_tags(projected.clone());
         self.sites.insert(
@@ -904,56 +850,57 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         Ok(projected)
     }
 
-    fn current_cases_for_effect_row(
-        &self,
-        types: &TypeStore,
-        row: &EffectRow,
-    ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
-        let mut tags = BTreeSet::new();
-        for effect_ty in &row.terms {
-            let (effect_fqn, effect_type_args) = lower_effect_nominal_identity(types, *effect_ty)?;
-            for (op_key, case_info) in &self.current_case_index {
-                let family = op_key.effect_family();
-                if family.effect_fqn() == effect_fqn
-                    && family.type_args() == effect_type_args.as_slice()
-                {
-                    tags.insert(case_info.tag);
-                }
-            }
-        }
-        Ok(tags)
-    }
-
-    fn ensure_resume_site_facts(
+    fn ensure_perform_site_facts_from_contract(
         &mut self,
         types: &mut TypeStore,
         site_id: SiteId,
-        resume: &ResumeMetadata,
+        op: &mir_effects::MirEffectOpSiteContract,
+    ) -> Result<CaseTag, EffectFactsError> {
+        if let Some(SiteEffectFacts::Perform(facts)) = self.sites.get(&site_id) {
+            return Ok(facts.emitted_case());
+        }
+        let case_info =
+            self.current_case_for_effect_op(types, op.effect_ty, &op.op_fqn, &op.op_type_args)?;
+        self.sites.insert(
+            site_id,
+            SiteEffectFacts::Perform(PerformSiteEffectFacts::new(
+                case_info.tag,
+                op.payload_tuple_ty,
+                case_info.continuation_schema,
+            )),
+        );
+        Ok(case_info.tag)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ensure_resume_site_facts_from_mir(
+        &mut self,
+        types: &mut TypeStore,
+        site_id: SiteId,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        continuation_ty: TypeId,
+        out_row: &EffectRow,
+        surface_row: &EffectRow,
     ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
         if let Some(SiteEffectFacts::Resume(facts)) = self.sites.get(&site_id) {
             return Ok(self
                 .schema_pool
                 .project_case_set(facts.resolved_cases(), &self.current_case_index));
         }
-
-        let mut out_terms = resume.out_effects.terms.clone();
-        if let Some(runtime_error_effect_ty) = resume.runtime_error_effect_ty {
-            out_terms.push(runtime_error_effect_ty);
-        }
-        let out_row = EffectRow::new(out_terms);
         let out_step_schema = self.schema_pool.intern_synthetic_step_schema(
             types,
-            resume.resume_ty,
-            resume.answer_ty,
-            &out_row,
-            &resume.out_effects,
+            resume_tuple_ty,
+            answer_ty,
+            out_row,
+            surface_row,
             SyntheticStepSchemaKind::ResumeSurface,
         )?;
         let continuation_schema = self.schema_pool.intern_continuation_schema(
-            resume.resume_ty,
-            resume.answer_ty,
+            resume_tuple_ty,
+            answer_ty,
             out_step_schema,
-            resume.continuation_ty,
+            continuation_ty,
         );
         let resolved_cases = self.schema_pool.full_case_set(out_step_schema);
         let projected = self
@@ -963,8 +910,8 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             site_id,
             SiteEffectFacts::Resume(ResumeSiteEffectFacts::new(
                 continuation_schema,
-                resume.resume_ty,
-                resume.answer_ty,
+                resume_tuple_ty,
+                answer_ty,
                 out_step_schema,
                 resolved_cases,
             )),
@@ -972,54 +919,23 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         Ok(projected)
     }
 
-    fn ensure_perform_site_facts(
-        &mut self,
-        types: &mut TypeStore,
-        site_id: SiteId,
-        op_fqn: &str,
-        metadata: &PerformMetadata,
-    ) -> Result<CaseTag, EffectFactsError> {
-        if let Some(SiteEffectFacts::Perform(facts)) = self.sites.get(&site_id) {
-            return Ok(facts.emitted_case());
-        }
-
-        let case_info = self.current_case_for_effect_op(
-            types,
-            metadata.effect_ty,
-            op_fqn,
-            &metadata.op_type_args,
-        )?;
-        let payload_tuple_ty = metadata
-            .payload_tuple_ty
-            .unwrap_or_else(|| canonical_tuple_carrier_ty(types, &metadata.payload_component_tys));
-        self.sites.insert(
-            site_id,
-            SiteEffectFacts::Perform(PerformSiteEffectFacts::new(
-                case_info.tag,
-                payload_tuple_ty,
-                case_info.continuation_schema,
-            )),
-        );
-        Ok(case_info.tag)
-    }
-
     #[allow(clippy::too_many_arguments)]
-    fn ensure_handle_site_facts(
+    fn ensure_handle_site_facts_from_mir(
         &mut self,
         types: &mut TypeStore,
         site_id: SiteId,
-        metadata: &HandleMetadata,
-        arms: &[HandlerArm],
+        result_ty: TypeId,
         body_target: BasicBlockId,
-        arm_targets: &[BasicBlockId],
+        arm_targets: Vec<BasicBlockId>,
         finally_target: Option<BasicBlockId>,
         exit_target: BasicBlockId,
+        arms: &[mir_effects::MirEffectOpSiteContract],
     ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
         self.handle_site_solver_facts.insert(
             site_id,
             HandleSiteSolverFacts::new(
                 body_target,
-                arm_targets.to_vec(),
+                arm_targets.clone(),
                 finally_target,
                 exit_target,
             ),
@@ -1043,7 +959,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         for (arm, arm_target) in arms.iter().zip(arm_targets.iter().copied()) {
             let case_info = self.current_case_for_effect_op(
                 types,
-                arm.handled_effect_ty,
+                arm.effect_ty,
                 &arm.op_fqn,
                 &arm.op_type_args,
             )?;
@@ -1053,13 +969,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 self.collect_region_cases(types, arm_target, &body_stops, &mut BTreeSet::new())?;
             cleanup_outward.extend(arm_cases.cleanup.iter().copied());
             arm_non_cleanup.extend(arm_cases.non_cleanup.iter().copied());
-
-            let payload_tuple_ty = arm
-                .payload_tuple_ty
-                .unwrap_or_else(|| canonical_tuple_carrier_ty(types, &arm.payload_component_tys));
             arm_facts.push(HandleArmEffectFacts::new(
                 case_info.tag,
-                payload_tuple_ty,
+                arm.payload_tuple_ty,
                 case_info.continuation_schema,
                 self.case_set_from_tags(arm_cases.non_cleanup),
             ));
@@ -1100,7 +1012,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         };
 
         let facts = HandleSiteEffectFacts::new(
-            metadata.result_ty,
+            result_ty,
             self.case_set_from_tags(handled_tags.clone()),
             self.case_set_from_tags(body_outward.clone()),
             arm_facts,
@@ -1114,495 +1026,204 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         Ok(total_outward)
     }
 
-    fn build_call_site_effect_facts(
+    #[allow(clippy::too_many_arguments)]
+    fn call_site_facts_from_published_target(
         &mut self,
         types: &mut TypeStore,
-        result_local: crate::mir::LocalId,
-        kind: &CallKind,
-        args: &[CallArg],
+        kind: CallSiteKind,
+        target: &mir_effects::CallSiteTargetFact,
+        invoke_args_tuple_ty: TypeId,
+        result_ty: TypeId,
+        surface_row: &EffectRow,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        let arg_tys = args
-            .iter()
-            .map(|arg| operand_ty(self.body(), types, &arg.value))
-            .collect::<Vec<_>>();
-        let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &arg_tys);
-        let result_ty = self.body().locals[result_local.as_u32() as usize].ty;
-        match kind {
-            CallKind::Direct { callee_fqn } => self.build_direct_like_call_site(
-                types,
-                CallSiteKind::Direct,
-                callee_fqn,
-                args.len(),
-                invoke_args_tuple_ty,
-                result_ty,
-                None,
-            ),
-            CallKind::Closure { fn_ptr, .. } => self.build_direct_like_call_site(
-                types,
-                CallSiteKind::Closure,
-                fn_ptr,
-                args.len(),
-                invoke_args_tuple_ty,
-                result_ty,
-                None,
-            ),
-            CallKind::FunValue { callee } => {
-                if let Some(facts) = self.build_builtin_fun_value_call_site(
+        match &target.target {
+            mir_effects::CallSiteTarget::KnownInstance { key } => {
+                let target_key = self.mir_fact_index.instance_for_stable_text(key.as_str())?;
+                self.call_site_for_known_instance(
                     types,
-                    callee,
+                    kind,
+                    target_key,
                     invoke_args_tuple_ty,
                     result_ty,
-                )? {
-                    return Ok(facts);
+                    surface_row,
+                )
+            }
+            mir_effects::CallSiteTarget::CandidateSet { keys } => {
+                if keys.is_empty() {
+                    return Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.CandidateSet",
+                        detail: format!(
+                            "{} site{} published an empty candidate set",
+                            self.callable_fun.fqn,
+                            target.site_id.as_u32()
+                        ),
+                    });
                 }
-                if let Some(callable_fqn) = self.resolved_fun_value_callable_fqn(types, callee) {
-                    return self.build_direct_like_call_site(
+                let target_keys = keys
+                    .iter()
+                    .map(|key| self.mir_fact_index.instance_for_stable_text(key.as_str()))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.call_site_for_candidate_set(
+                    types,
+                    kind,
+                    target_keys,
+                    invoke_args_tuple_ty,
+                    result_ty,
+                    surface_row,
+                )
+            }
+            mir_effects::CallSiteTarget::DirectFunction { fqn } => {
+                if let Some(target_key) = self.mir_fact_index.instance_for_callable_fqn(fqn) {
+                    self.call_site_for_known_instance(
                         types,
-                        CallSiteKind::FunValue,
-                        &callable_fqn,
-                        args.len(),
+                        kind,
+                        target_key,
                         invoke_args_tuple_ty,
                         result_ty,
-                        None,
-                    );
-                }
-                let callee_ty = operand_ty(self.body(), types, callee);
-                if let Some(contract) = function_surface_contract_from_ty(types, callee_ty)
-                    && contract.declared_row.is_pure()
-                {
-                    return Ok(CallSiteEffectFacts::new_plain(
-                        CallSiteKind::FunValue,
-                        CallSiteTarget::DynamicFallback,
+                        surface_row,
+                    )
+                } else {
+                    if !surface_row.is_pure() {
+                        let _ = (types, kind, invoke_args_tuple_ty, result_ty);
+                        return Err(EffectFactsError::MissingMirFact {
+                            kind: "CallSiteTargetFact.DirectFunction",
+                            detail: format!(
+                                "{} direct call target `{fqn}` has no published stable callable target",
+                                self.callable_fun.fqn
+                            ),
+                        });
+                    }
+                    self.mir_fact_index.bodyless_direct_signature(fqn)?;
+                    self.call_site_for_surface_row(
+                        types,
+                        kind,
+                        CallSiteTarget::BodylessDirect {
+                            fqn: fqn.to_string(),
+                        },
                         invoke_args_tuple_ty,
-                        CaseSet::new(self.callable_step_schema, Vec::new()),
+                        result_ty,
+                        surface_row,
                         EffectPrecision::Precise,
-                    ));
+                    )
                 }
-                let (step_schema, resolved_cases) =
-                    if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
-                        let schema = self.schema_pool.intern_synthetic_step_schema(
-                            types,
-                            invoke_args_tuple_ty,
-                            result_ty,
-                            &contract.declared_row,
-                            &contract.declared_row,
-                            SyntheticStepSchemaKind::CallSurface,
-                        )?;
-                        (schema, self.schema_pool.full_case_set(schema))
-                    } else {
-                        (
-                            self.callable_step_schema,
-                            self.schema_pool.full_case_set(self.callable_step_schema),
-                        )
-                    };
-                Ok(CallSiteEffectFacts::new(
-                    CallSiteKind::FunValue,
-                    CallSiteTarget::DynamicFallback,
-                    invoke_args_tuple_ty,
-                    step_schema,
-                    resolved_cases,
-                    EffectPrecision::SignatureFallback,
-                ))
             }
-            CallKind::FunPtr { callee } => {
-                let callee_ty = operand_ty(self.body(), types, callee);
-                if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
-                    debug_assert!(
-                        contract.declared_row.is_pure(),
-                        "non-pure FunPtr should have been rejected before MIR/effect facts"
-                    );
+            mir_effects::CallSiteTarget::KnownClosure { fn_ptr } => {
+                if let Some(target_key) = self.mir_fact_index.instance_for_callable_fqn(fn_ptr) {
+                    self.call_site_for_known_instance(
+                        types,
+                        kind,
+                        target_key,
+                        invoke_args_tuple_ty,
+                        result_ty,
+                        surface_row,
+                    )
+                } else {
+                    Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.KnownClosure",
+                        detail: format!(
+                            "{} closure target `{fn_ptr}` has no stable callable instance",
+                            self.callable_fun.fqn
+                        ),
+                    })
                 }
+            }
+            mir_effects::CallSiteTarget::Dynamic if matches!(kind, CallSiteKind::FunPtr) => {
                 Ok(CallSiteEffectFacts::new_plain(
-                    CallSiteKind::FunPtr,
+                    kind,
                     CallSiteTarget::DynamicFallback,
                     invoke_args_tuple_ty,
                     CaseSet::new(self.callable_step_schema, Vec::new()),
                     EffectPrecision::Precise,
                 ))
             }
-            CallKind::Virtual { dispatch, .. } => self.build_dispatch_call_site(
+            mir_effects::CallSiteTarget::Dynamic => self.call_site_for_surface_row(
                 types,
-                CallSiteKind::Virtual,
-                &self.type_ctx.virtual_dispatch_candidate_fqns(
-                    types,
-                    dispatch.receiver_ty,
-                    &dispatch.member_name,
-                    args.len(),
-                ),
-                &dispatch.member_fqn,
-                args.len(),
-                invoke_args_tuple_ty,
-                result_ty,
-                Some(dispatch.receiver_ty),
-            ),
-            CallKind::Interface { dispatch, .. } => self.build_dispatch_call_site(
-                types,
-                CallSiteKind::Interface,
-                &self.type_ctx.interface_dispatch_candidate_fqns(
-                    types,
-                    dispatch.receiver_ty,
-                    &dispatch.owner_fqn,
-                    &dispatch.member_name,
-                    args.len(),
-                ),
-                &dispatch.member_fqn,
-                args.len(),
-                invoke_args_tuple_ty,
-                result_ty,
-                Some(dispatch.receiver_ty),
-            ),
-            CallKind::Resume { .. } => unreachable!("resume call sites are handled separately"),
-        }
-    }
-
-    fn build_builtin_fun_value_call_site(
-        &mut self,
-        types: &mut TypeStore,
-        callee: &Operand,
-        invoke_args_tuple_ty: TypeId,
-        _result_ty: TypeId,
-    ) -> Result<Option<CallSiteEffectFacts>, EffectFactsError> {
-        if !self.fun_value_callee_is_builtin_string_member(types, callee, "concat")
-            && !self.fun_value_callee_is_builtin_string_member(types, callee, "length")
-        {
-            return Ok(None);
-        }
-        Ok(Some(CallSiteEffectFacts::new_plain(
-            CallSiteKind::FunValue,
-            CallSiteTarget::DynamicFallback,
-            invoke_args_tuple_ty,
-            CaseSet::new(self.callable_step_schema, Vec::new()),
-            EffectPrecision::Precise,
-        )))
-    }
-
-    fn resolved_fun_value_callable_fqn(
-        &mut self,
-        types: &TypeStore,
-        callee: &Operand,
-    ) -> Option<String> {
-        let mut visiting = HashSet::new();
-        self.callable_value_provenance_for_operand(types, callee, &mut visiting)
-            .map(|provenance| match provenance {
-                CallableValueProvenance::DirectFunction(fqn)
-                | CallableValueProvenance::KnownClosure(fqn) => fqn,
-            })
-    }
-
-    fn callable_value_provenance_for_operand(
-        &mut self,
-        types: &TypeStore,
-        operand: &Operand,
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        let Operand::Local(local) = operand else {
-            return None;
-        };
-        self.callable_value_provenance_for_local(types, *local, visiting)
-    }
-
-    fn callable_value_provenance_for_local(
-        &mut self,
-        types: &TypeStore,
-        local: crate::mir::LocalId,
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        if !visiting.insert(local) {
-            return None;
-        }
-
-        let assignments = self
-            .body()
-            .blocks
-            .iter()
-            .flat_map(|block| block.stmts.iter())
-            .filter_map(|stmt| {
-                let StatementKind::Assign { target, value } = &stmt.kind else {
-                    return None;
-                };
-                (*target == local).then_some(value.clone())
-            })
-            .collect::<Vec<_>>();
-
-        let mut matched: Option<CallableValueProvenance> = None;
-        for value in assignments {
-            let candidate = self.callable_value_provenance_for_rvalue(types, &value, visiting)?;
-            match &matched {
-                Some(existing) if *existing != candidate => {
-                    visiting.remove(&local);
-                    return None;
-                }
-                Some(_) => {}
-                None => matched = Some(candidate),
-            }
-        }
-
-        visiting.remove(&local);
-        matched
-    }
-
-    fn callable_value_provenance_for_rvalue(
-        &mut self,
-        types: &TypeStore,
-        value: &Rvalue,
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        match value {
-            Rvalue::Use(operand) | Rvalue::Transport { value: operand, .. } => {
-                self.callable_value_provenance_for_operand(types, operand, visiting)
-            }
-            Rvalue::TopLevelRef(top_level) => Some(CallableValueProvenance::DirectFunction(
-                top_level.fqn.clone(),
-            )),
-            Rvalue::MakeClosure { fn_ptr, .. } => {
-                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
-            }
-            Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref()? {
-                crate::mir::MemberTarget::Fun { fqn }
-                | crate::mir::MemberTarget::ExtensionFun { fqn } => {
-                    Some(CallableValueProvenance::DirectFunction(fqn.clone()))
-                }
-                crate::mir::MemberTarget::Value { .. }
-                | crate::mir::MemberTarget::ExtensionValue { .. } => None,
-            },
-            Rvalue::Call {
-                kind: CallKind::Direct { callee_fqn },
-                args,
-                ..
-            } => self.callable_value_provenance_from_direct_call(types, callee_fqn, args, visiting),
-            Rvalue::UnresolvedName { .. }
-            | Rvalue::TypeCheck { .. }
-            | Rvalue::Cast { .. }
-            | Rvalue::SizeOf { .. }
-            | Rvalue::KindOf { .. }
-            | Rvalue::AlignOf { .. }
-            | Rvalue::DescOf { .. }
-            | Rvalue::TypeMetadataLiteral(_)
-            | Rvalue::EnumVariant { .. }
-            | Rvalue::ClassCtor { .. }
-            | Rvalue::Call { .. }
-            | Rvalue::MakeTuple { .. }
-            | Rvalue::StructLit { .. }
-            | Rvalue::InterpolatedString { .. }
-            | Rvalue::TupleGet { .. }
-            | Rvalue::PatternMatch { .. }
-            | Rvalue::PatternExtract { .. }
-            | Rvalue::PerformResult { .. }
-            | Rvalue::Todo(_) => None,
-        }
-    }
-
-    fn callable_value_provenance_from_direct_call(
-        &mut self,
-        types: &TypeStore,
-        callee_fqn: &str,
-        args: &[CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        let summary = self.callable_summary(types, callee_fqn)?;
-        let params = self.raw_fun_by_fqn.get(callee_fqn)?.params.clone();
-        self.callable_value_provenance_from_result(
-            types,
-            &summary.result_provenance,
-            &params,
-            args,
-            visiting,
-        )
-    }
-
-    fn callable_summary(
-        &mut self,
-        types: &TypeStore,
-        callable_fqn: &str,
-    ) -> Option<InstanceSummary> {
-        if let Some(summary) = self.callable_summary_cache.get(callable_fqn) {
-            return Some(summary.clone());
-        }
-        let fun = self.raw_fun_by_fqn.get(callable_fqn)?;
-        let summary = summarize_pass_rewritten_fun(fun, types, None);
-        self.callable_summary_cache
-            .insert(callable_fqn.to_string(), summary.clone());
-        Some(summary)
-    }
-
-    fn callable_value_provenance_from_result(
-        &mut self,
-        types: &TypeStore,
-        result: &ResultProvenance,
-        params: &[crate::mir::Param],
-        args: &[CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        match result {
-            ResultProvenance::DirectFunction(fqn) => {
-                Some(CallableValueProvenance::DirectFunction(fqn.clone()))
-            }
-            ResultProvenance::KnownClosure(fn_ptr) => {
-                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
-            }
-            ResultProvenance::Param(index) => self
-                .callable_value_provenance_from_param_result(types, *index, params, args, visiting),
-            ResultProvenance::Join(sources) if sources.len() == 1 => self
-                .callable_value_provenance_from_result_source(
-                    types,
-                    &sources[0],
-                    params,
-                    args,
-                    visiting,
-                ),
-            ResultProvenance::Unit
-            | ResultProvenance::TopLevelValue(_)
-            | ResultProvenance::PerformResult(_)
-            | ResultProvenance::Join(_)
-            | ResultProvenance::Unknown => None,
-        }
-    }
-
-    fn callable_value_provenance_from_result_source(
-        &mut self,
-        types: &TypeStore,
-        source: &ResultProvenanceSource,
-        params: &[crate::mir::Param],
-        args: &[CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        match source {
-            ResultProvenanceSource::DirectFunction(fqn) => {
-                Some(CallableValueProvenance::DirectFunction(fqn.clone()))
-            }
-            ResultProvenanceSource::KnownClosure(fn_ptr) => {
-                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
-            }
-            ResultProvenanceSource::Param(index) => self
-                .callable_value_provenance_from_param_result(types, *index, params, args, visiting),
-            ResultProvenanceSource::TopLevelValue(_) | ResultProvenanceSource::PerformResult(_) => {
-                None
-            }
-        }
-    }
-
-    fn callable_value_provenance_from_param_result(
-        &mut self,
-        types: &TypeStore,
-        index: usize,
-        params: &[crate::mir::Param],
-        args: &[CallArg],
-        visiting: &mut HashSet<crate::mir::LocalId>,
-    ) -> Option<CallableValueProvenance> {
-        let bound_args = bind_call_args_to_params(params, args)?;
-        let operand = bound_args.get(index)?;
-        self.callable_value_provenance_for_operand(types, operand, visiting)
-    }
-
-    fn fun_value_callee_is_builtin_string_member(
-        &self,
-        types: &TypeStore,
-        callee: &Operand,
-        member_name: &str,
-    ) -> bool {
-        let Operand::Local(callee_local) = callee else {
-            return false;
-        };
-        self.body().blocks.iter().any(|block| {
-            block.stmts.iter().any(|stmt| {
-                let StatementKind::Assign { target, value } = &stmt.kind else {
-                    return false;
-                };
-                if target != callee_local {
-                    return false;
-                }
-                let Rvalue::MemberAccess { member, .. } = value else {
-                    return false;
-                };
-                member.name == member_name
-                    && matches!(
-                        types.kind(member.receiver_ty),
-                        TypeKind::Ref(RefTypeKind::String)
-                    )
-            })
-        })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn build_direct_like_call_site(
-        &mut self,
-        types: &mut TypeStore,
-        kind: CallSiteKind,
-        callable_fqn: &str,
-        explicit_arg_count: usize,
-        invoke_args_tuple_ty: TypeId,
-        result_ty: TypeId,
-        receiver_ty: Option<TypeId>,
-    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        if is_plain_compiler_intrinsic(callable_fqn) {
-            return Ok(CallSiteEffectFacts::new_plain(
                 kind,
                 CallSiteTarget::DynamicFallback,
                 invoke_args_tuple_ty,
-                CaseSet::new(self.callable_step_schema, Vec::new()),
-                EffectPrecision::Precise,
-            ));
-        }
-
-        if let Some(target_key) =
-            self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some())
-        {
-            if let Some(facts) = self.callable_facts.get(&target_key) {
-                if matches!(facts.call_abi_kind(), CallableAbiKind::Plain) {
-                    return Ok(CallSiteEffectFacts::new_plain(
+                result_ty,
+                surface_row,
+                Self::dynamic_surface_precision(surface_row),
+            ),
+            mir_effects::CallSiteTarget::Param { .. }
+            | mir_effects::CallSiteTarget::Join { .. } => self.call_site_for_surface_row(
+                types,
+                kind,
+                CallSiteTarget::DynamicFallback,
+                invoke_args_tuple_ty,
+                result_ty,
+                surface_row,
+                Self::dynamic_surface_precision(surface_row),
+            ),
+            mir_effects::CallSiteTarget::DynamicFallback { reason } => match reason {
+                mir_effects::DynamicFallbackReason::OpenParam => self.call_site_for_surface_row(
+                    types,
+                    kind,
+                    CallSiteTarget::DynamicFallback,
+                    invoke_args_tuple_ty,
+                    result_ty,
+                    surface_row,
+                    Self::dynamic_surface_precision(surface_row),
+                ),
+                mir_effects::DynamicFallbackReason::UnknownCallable
+                    if matches!(kind, CallSiteKind::Closure | CallSiteKind::FunValue) =>
+                {
+                    self.call_site_for_surface_row(
+                        types,
                         kind,
-                        CallSiteTarget::KnownInstance(target_key),
+                        CallSiteTarget::DynamicFallback,
+                        invoke_args_tuple_ty,
+                        result_ty,
+                        surface_row,
+                        Self::dynamic_surface_precision(surface_row),
+                    )
+                }
+                mir_effects::DynamicFallbackReason::NativeFunPtr
+                    if matches!(kind, CallSiteKind::FunPtr) =>
+                {
+                    Ok(CallSiteEffectFacts::new_plain(
+                        kind,
+                        CallSiteTarget::DynamicFallback,
                         invoke_args_tuple_ty,
                         CaseSet::new(self.callable_step_schema, Vec::new()),
                         EffectPrecision::Precise,
-                    ));
+                    ))
                 }
-                // P4-T03 只发布 callable shell 的保守上界；直到 P4-T04 回填求解结果前，
-                // 只有空 case-set 才能提前视为精确，其余 known-instance call site 必须保守标宽。
-                let precision = if facts.resolved_outward_cases().is_empty() {
-                    EffectPrecision::Precise
-                } else {
-                    EffectPrecision::Widened
-                };
-                return Ok(CallSiteEffectFacts::new(
-                    kind,
-                    CallSiteTarget::KnownInstance(target_key),
-                    facts.invoke_args_tuple_ty(),
-                    facts.step_schema(),
-                    facts.resolved_outward_cases().clone(),
-                    precision,
-                ));
-            }
+                mir_effects::DynamicFallbackReason::UnknownCallable
+                | mir_effects::DynamicFallbackReason::EmptyCandidateSet
+                | mir_effects::DynamicFallbackReason::NativeFunPtr => {
+                    Err(EffectFactsError::MissingMirFact {
+                        kind: "CallSiteTargetFact.DynamicFallback",
+                        detail: format!(
+                            "{} site{} published unsupported fallback reason {reason:?}",
+                            self.callable_fun.fqn,
+                            target.site_id.as_u32()
+                        ),
+                    })
+                }
+            },
+        }
+    }
 
-            let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
-                declared_effect_row(raw_fun, types)
-            } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn)
-            {
-                contract.declared_row
-            } else if let Some(contract) = self
-                .type_ctx
-                .computed_property_accessor_surface_contract(callable_fqn)
-            {
-                contract.declared_row
-            } else {
-                match self.type_ctx.surface_callable_contract(
-                    types,
-                    callable_fqn,
-                    explicit_arg_count,
-                    receiver_ty.is_some(),
-                ) {
-                    Some(contract) => contract.declared_row,
-                    None if self.callable_value_reference_exists(callable_fqn) => {
-                        return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
-                    }
-                    None => {
-                        return Err(EffectFactsError::MissingCallableSurfaceContract {
-                            callable: callable_fqn.to_string(),
-                        });
-                    }
-                }
-            };
-            if declared_row.is_pure() {
+    fn dynamic_surface_precision(surface_row: &EffectRow) -> EffectPrecision {
+        if surface_row.is_pure() {
+            EffectPrecision::Precise
+        } else {
+            EffectPrecision::Widened
+        }
+    }
+
+    fn call_site_for_known_instance(
+        &mut self,
+        _types: &mut TypeStore,
+        kind: CallSiteKind,
+        target_key: InstanceKey,
+        invoke_args_tuple_ty: TypeId,
+        _result_ty: TypeId,
+        _surface_row: &EffectRow,
+    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
+        if let Some(facts) = self.callable_facts.get(&target_key) {
+            if matches!(facts.call_abi_kind(), CallableAbiKind::Plain) {
                 return Ok(CallSiteEffectFacts::new_plain(
                     kind,
                     CallSiteTarget::KnownInstance(target_key),
@@ -1611,262 +1232,200 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     EffectPrecision::Precise,
                 ));
             }
-            let step_schema = self.schema_pool.intern_synthetic_step_schema(
-                types,
-                invoke_args_tuple_ty,
-                result_ty,
-                &declared_row,
-                &declared_row,
-                SyntheticStepSchemaKind::CallSurface,
-            )?;
+            let precision = if facts.resolved_outward_cases().is_empty() {
+                EffectPrecision::Precise
+            } else {
+                EffectPrecision::Widened
+            };
             return Ok(CallSiteEffectFacts::new(
                 kind,
                 CallSiteTarget::KnownInstance(target_key),
-                invoke_args_tuple_ty,
-                step_schema,
-                self.schema_pool.full_case_set(step_schema),
-                EffectPrecision::SignatureFallback,
+                facts.invoke_args_tuple_ty(),
+                facts.step_schema(),
+                facts.resolved_outward_cases().clone(),
+                precision,
             ));
         }
+        if _surface_row.is_pure() {
+            self.mir_fact_index
+                .bodyless_direct_signature(&target_key.template.fqn)?;
+            return self.call_site_for_surface_row(
+                _types,
+                kind,
+                CallSiteTarget::BodylessDirect {
+                    fqn: target_key.template.fqn.clone(),
+                },
+                invoke_args_tuple_ty,
+                _result_ty,
+                _surface_row,
+                EffectPrecision::Precise,
+            );
+        }
+        Err(EffectFactsError::MissingMirFact {
+            kind: "CallableInstanceEffectFacts",
+            detail: format!(
+                "{} known call target `{}` has no callable effect facts",
+                self.callable_fun.fqn, target_key.template.fqn
+            ),
+        })
+    }
 
-        let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
-            declared_effect_row(raw_fun, types)
-        } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn) {
-            contract.declared_row
-        } else if let Some(contract) = self
-            .type_ctx
-            .computed_property_accessor_surface_contract(callable_fqn)
-        {
-            contract.declared_row
-        } else {
-            match self.type_ctx.surface_callable_contract(
-                types,
-                callable_fqn,
-                explicit_arg_count,
-                receiver_ty.is_some(),
-            ) {
-                Some(contract) => contract.declared_row,
-                None if self.callable_value_reference_exists(callable_fqn) => {
-                    return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
-                }
-                None => {
-                    return Err(EffectFactsError::MissingCallableSurfaceContract {
-                        callable: callable_fqn.to_string(),
-                    });
-                }
-            }
-        };
-        if declared_row.is_pure() {
+    fn call_site_for_candidate_set(
+        &mut self,
+        types: &mut TypeStore,
+        kind: CallSiteKind,
+        target_keys: Vec<InstanceKey>,
+        invoke_args_tuple_ty: TypeId,
+        result_ty: TypeId,
+        surface_row: &EffectRow,
+    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
+        self.call_site_for_surface_row(
+            types,
+            kind,
+            CallSiteTarget::CandidateSet(target_keys),
+            invoke_args_tuple_ty,
+            result_ty,
+            surface_row,
+            if surface_row.is_pure() {
+                EffectPrecision::Precise
+            } else {
+                EffectPrecision::Widened
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn call_site_for_surface_row(
+        &mut self,
+        types: &mut TypeStore,
+        kind: CallSiteKind,
+        target: CallSiteTarget,
+        invoke_args_tuple_ty: TypeId,
+        result_ty: TypeId,
+        surface_row: &EffectRow,
+        precision: EffectPrecision,
+    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
+        if surface_row.is_pure() {
             return Ok(CallSiteEffectFacts::new_plain(
                 kind,
-                CallSiteTarget::DynamicFallback,
+                target,
                 invoke_args_tuple_ty,
                 CaseSet::new(self.callable_step_schema, Vec::new()),
-                EffectPrecision::SignatureFallback,
+                precision,
             ));
         }
         let step_schema = self.schema_pool.intern_synthetic_step_schema(
             types,
             invoke_args_tuple_ty,
             result_ty,
-            &declared_row,
-            &declared_row,
+            surface_row,
+            surface_row,
             SyntheticStepSchemaKind::CallSurface,
         )?;
         Ok(CallSiteEffectFacts::new(
             kind,
-            CallSiteTarget::DynamicFallback,
+            target,
             invoke_args_tuple_ty,
             step_schema,
             self.schema_pool.full_case_set(step_schema),
-            EffectPrecision::SignatureFallback,
+            precision,
         ))
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn build_dispatch_call_site(
-        &mut self,
-        types: &mut TypeStore,
-        kind: CallSiteKind,
-        candidate_fqns: &[String],
-        fallback_fqn: &str,
-        explicit_arg_count: usize,
-        invoke_args_tuple_ty: TypeId,
-        result_ty: TypeId,
-        receiver_ty: Option<TypeId>,
-    ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        let candidate_keys =
-            self.resolve_candidate_keys(candidate_fqns, explicit_arg_count, receiver_ty.is_some());
-        if !candidate_keys.is_empty() {
-            let declared_row =
-                self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;
-            if declared_row.is_pure() {
-                return Ok(CallSiteEffectFacts::new_plain(
-                    kind,
-                    CallSiteTarget::CandidateSet(candidate_keys),
-                    invoke_args_tuple_ty,
-                    CaseSet::new(self.callable_step_schema, Vec::new()),
-                    EffectPrecision::Precise,
-                ));
-            }
-            let step_schema = self.schema_pool.intern_synthetic_step_schema(
-                types,
-                invoke_args_tuple_ty,
-                result_ty,
-                &declared_row,
-                &declared_row,
-                SyntheticStepSchemaKind::CallSurface,
-            )?;
-            return Ok(CallSiteEffectFacts::new(
-                kind,
-                CallSiteTarget::CandidateSet(candidate_keys),
-                invoke_args_tuple_ty,
-                step_schema,
-                self.schema_pool.full_case_set(step_schema),
-                EffectPrecision::Widened,
-            ));
-        }
-
-        self.build_direct_like_call_site(
-            types,
-            kind,
-            fallback_fqn,
-            explicit_arg_count,
-            invoke_args_tuple_ty,
-            result_ty,
-            receiver_ty,
-        )
-    }
-
-    fn union_candidate_rows(
+    fn invoke_args_tuple_ty_from_boundary(
         &self,
         types: &mut TypeStore,
-        candidate_fqns: &[String],
-        explicit_arg_count: usize,
-        receiver_ty: Option<TypeId>,
-    ) -> Result<EffectRow, EffectFactsError> {
-        let mut terms = Vec::new();
-        let mut saw_any = false;
-        for fqn in candidate_fqns {
-            if let Some(key) =
-                self.known_callable_key(fqn, explicit_arg_count, receiver_ty.is_some())
-                && let Some(facts) = self.callable_facts.get(&key)
-            {
-                terms.extend(facts.declared_row().terms.iter().copied());
-                saw_any = true;
-                continue;
-            }
-            if let Some(raw_fun) = self.raw_fun_by_fqn.get(fqn) {
-                terms.extend(declared_effect_row(raw_fun, types).terms);
-                saw_any = true;
-                continue;
-            }
-            if let Some(contract) = self.type_ctx.surface_callable_contract(
-                types,
-                fqn,
-                explicit_arg_count,
-                receiver_ty.is_some(),
-            ) {
-                terms.extend(contract.declared_row.terms);
-                saw_any = true;
-            }
-        }
-        if !saw_any {
-            return Err(EffectFactsError::MissingCallableSurfaceContract {
-                callable: candidate_fqns.join(", "),
-            });
-        }
-        Ok(EffectRow::new(terms))
+        site_id: SiteId,
+        boundary: &mir_boundary::BoundarySourceContract,
+    ) -> Result<TypeId, EffectFactsError> {
+        let arg_tys = boundary
+            .args
+            .iter()
+            .map(|source| {
+                boundary_operand_ty(source).ok_or_else(|| EffectFactsError::MissingMirFact {
+                    kind: "BoundaryOperandSource.ty",
+                    detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(canonical_tuple_carrier_ty(types, &arg_tys))
     }
 
-    fn callable_value_surface_contract(
+    fn required_site_inventory(
+        &self,
+        site_id: SiteId,
+    ) -> Result<&'facts mir_effects::MirSiteInventoryFact, EffectFactsError> {
+        self.mir_body_facts
+            .sites
+            .get(&site_id)
+            .copied()
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "MirSiteInventoryFact",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            })
+    }
+
+    fn required_boundary(
+        &self,
+        site_id: SiteId,
+    ) -> Result<&'facts mir_boundary::BoundarySourceContract, EffectFactsError> {
+        self.mir_body_facts
+            .boundaries
+            .get(&site_id)
+            .copied()
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "BoundarySourceContract",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            })
+    }
+
+    fn required_call_surface(
+        &self,
+        site_id: SiteId,
+    ) -> Result<&'facts mir_effects::CallSiteSurfaceEffectFact, EffectFactsError> {
+        self.mir_body_facts
+            .call_surfaces
+            .get(&site_id)
+            .copied()
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "CallSiteSurfaceEffectFact",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            })
+    }
+
+    fn required_call_target(
+        &self,
+        site_id: SiteId,
+    ) -> Result<&'facts mir_effects::CallSiteTargetFact, EffectFactsError> {
+        self.mir_body_facts
+            .call_targets
+            .get(&site_id)
+            .copied()
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "CallSiteTargetFact",
+                detail: format!("{} site{}", self.callable_fun.fqn, site_id.as_u32()),
+            })
+    }
+
+    fn current_cases_for_effect_row(
         &self,
         types: &TypeStore,
-        callable_fqn: &str,
-    ) -> Option<SurfaceCallableContract> {
-        if let Some(contract) = self.top_level_value_surface_contracts.get(callable_fqn) {
-            return Some(contract.clone());
-        }
-
-        self.body().blocks.iter().find_map(|block| {
-            block.stmts.iter().find_map(|stmt| {
-                let StatementKind::Assign { target, value } = &stmt.kind else {
-                    return None;
-                };
-                let Rvalue::TopLevelRef(top_level) = value else {
-                    return None;
-                };
-                if top_level.fqn != callable_fqn {
-                    return None;
+        row: &EffectRow,
+    ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
+        let mut tags = BTreeSet::new();
+        for effect_ty in &row.terms {
+            let (effect_fqn, effect_type_args) = lower_effect_nominal_identity(types, *effect_ty)?;
+            for (op_key, case_info) in &self.current_case_index {
+                let family = op_key.effect_family();
+                if family.effect_fqn() == effect_fqn
+                    && family.type_args() == effect_type_args.as_slice()
+                {
+                    tags.insert(case_info.tag);
                 }
-                let local_ty = self.body().locals.get(target.as_u32() as usize)?.ty;
-                function_surface_contract_from_ty(types, local_ty)
-            })
-        })
+            }
+        }
+        Ok(tags)
     }
-
-    fn callable_value_reference_exists(&self, callable_fqn: &str) -> bool {
-        self.body().blocks.iter().any(|block| {
-            block.stmts.iter().any(|stmt| {
-                matches!(
-                    &stmt.kind,
-                    StatementKind::Assign {
-                        value: Rvalue::TopLevelRef(top_level),
-                        ..
-                    } if top_level.fqn == callable_fqn
-                )
-            })
-        })
-    }
-
-    fn dynamic_callable_value_fallback(
-        &self,
-        kind: CallSiteKind,
-        invoke_args_tuple_ty: TypeId,
-    ) -> CallSiteEffectFacts {
-        CallSiteEffectFacts::new(
-            kind,
-            CallSiteTarget::DynamicFallback,
-            invoke_args_tuple_ty,
-            self.callable_step_schema,
-            self.schema_pool.full_case_set(self.callable_step_schema),
-            EffectPrecision::SignatureFallback,
-        )
-    }
-
-    fn known_callable_key(
-        &self,
-        callable_fqn: &str,
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Option<InstanceKey> {
-        self.owner_by_callable_fqn
-            .get(callable_fqn)
-            .cloned()
-            .or_else(|| {
-                self.type_ctx.known_callable_instance_key(
-                    callable_fqn,
-                    explicit_arg_count,
-                    has_receiver,
-                )
-            })
-    }
-
-    fn resolve_candidate_keys(
-        &self,
-        candidate_fqns: &[String],
-        explicit_arg_count: usize,
-        has_receiver: bool,
-    ) -> Vec<InstanceKey> {
-        let mut keys = candidate_fqns
-            .iter()
-            .filter_map(|fqn| self.known_callable_key(fqn, explicit_arg_count, has_receiver))
-            .collect::<Vec<_>>();
-        keys.sort_by_key(|key| format!("{key:?}"));
-        keys.dedup();
-        keys
-    }
-
     fn current_case_for_effect_op(
         &self,
         types: &mut TypeStore,
@@ -1887,13 +1446,6 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 callable: self.callable_fun.fqn.clone(),
                 op_fqn: op_fqn.to_string(),
             })
-    }
-
-    fn body(&self) -> &MirBody {
-        self.callable_fun
-            .body
-            .as_ref()
-            .expect("body facts builder requires a callable body")
     }
 
     fn empty_case_set(&self) -> CaseSet {
@@ -1945,20 +1497,16 @@ struct ConcreteEffectOpContract {
     resume_tuple_ty: TypeId,
 }
 
-/// Analysis-only context rebuilt from sources so P4 can interpret surface declarations.
+/// Analysis-only context borrowed from the HIR semantic artifact so P4 can interpret declarations.
 ///
-/// This is not a replacement owner for HIR/MIR facts: it is private builder state used to lower
-/// effect signatures and dispatch candidates into the effect-owned type context published on
+/// This is not a replacement owner for HIR/MIR facts: it is private builder state copied from the
+/// upstream artifact to lower effect signatures into the effect-owned type context published on
 /// `MaterializedEffectFacts`.
 #[derive(Debug)]
 struct EffectFactsTypeContext {
     stable_cone_key: StableConeKey,
     index: Index,
     env: TypeEnv,
-    class_vtables: crate::vtable::ClassVtableIndex,
-    interfaces: crate::itable::InterfaceIndex,
-    class_itables: crate::itable::ClassItableIndex,
-    direct_subclasses: HashMap<String, BTreeSet<String>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -2006,20 +1554,17 @@ struct RegionCaseContribution {
 }
 
 #[derive(Debug)]
-struct BodyFactsBuilder<'a, 'b> {
-    type_ctx: &'a EffectFactsTypeContext,
-    schema_pool: &'b mut EffectFactsSchemaPool<'a>,
-    owner_by_callable_fqn: &'a HashMap<String, InstanceKey>,
-    callable_facts: &'a HashMap<InstanceKey, CallableEffectFacts>,
-    raw_fun_by_fqn: &'a HashMap<String, MirFunDecl>,
-    top_level_value_surface_contracts: &'a HashMap<String, SurfaceCallableContract>,
-    callable_fun: &'a MirFunDecl,
+struct BodyFactsBuilder<'ctx, 'facts, 'pool> {
+    type_ctx: &'ctx EffectFactsTypeContext,
+    schema_pool: &'pool mut EffectFactsSchemaPool<'ctx>,
+    mir_fact_index: &'ctx MirFactIndex<'facts>,
+    mir_body_facts: &'ctx MirBodyFactBundle<'facts>,
+    callable_facts: &'ctx HashMap<InstanceKey, CallableEffectFacts>,
+    callable_fun: &'ctx MirFunDecl,
     callable_step_schema: StepSchemaId,
     current_case_index: HashMap<ConcreteOpKey, CurrentBodyCaseInfo>,
-    callable_summary_cache: HashMap<String, InstanceSummary>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
     block_drafts: BTreeMap<BasicBlockId, BlockDraft>,
-    block_scan_cache: BTreeMap<BasicBlockId, RegionCaseContribution>,
     block_site_ids: BTreeMap<BasicBlockId, Vec<SiteId>>,
     block_handled_tags: BTreeMap<BasicBlockId, BTreeSet<CaseTag>>,
     handle_site_solver_facts: BTreeMap<SiteId, HandleSiteSolverFacts>,
@@ -2027,35 +1572,15 @@ struct BodyFactsBuilder<'a, 'b> {
 
 impl<'a> MaterializedEffectFactsBuilder<'a> {
     pub fn from_materialized_snapshot(
-        session: &'a Session,
-        source: &'a SourceFile,
+        frontend_artifact: &'a HirSemanticArtifact,
         materialized: &'a MaterializedMir,
-        type_context: &'a mut EffectOwnedTypeContext,
-    ) -> Self {
-        Self::from_materialized_snapshot_in_compilation_unit(
-            session,
-            source,
-            std::slice::from_ref(source),
-            &[],
-            materialized,
-            type_context,
-        )
-    }
-
-    pub fn from_materialized_snapshot_in_compilation_unit(
-        session: &'a Session,
-        source: &'a SourceFile,
-        compilation_sources: &'a [SourceFile],
-        cached_cone_imports: &'a [scoopc_hir::cone_import::CachedConeImport],
-        materialized: &'a MaterializedMir,
+        mir_facts: &'a MirFacts,
         type_context: &'a mut EffectOwnedTypeContext,
     ) -> Self {
         Self {
-            session,
-            source,
-            compilation_sources,
-            cached_cone_imports,
+            frontend_artifact,
             materialized,
+            mir_facts,
             type_context,
             compiler_continuation_runtime_error_callables: HashSet::new(),
         }
@@ -2074,32 +1599,19 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             let pass_view = self.materialized.pass_view();
             MirSnapshotBinding::from_pass_view(&pass_view)
         };
-        let type_ctx = EffectFactsTypeContext::build(
-            self.session,
-            self.source,
-            self.compilation_sources,
-            self.cached_cone_imports,
-            self.materialized.stable_cone_key().clone(),
-        )?;
+        let type_ctx = EffectFactsTypeContext::from_frontend_artifact(self.frontend_artifact);
         let compiler_generated_runtime_error_effect_ty =
             find_or_intern_raise_runtime_error_effect(self.type_context.types_mut());
+        let mir_fact_index = MirFactIndex::new(self.materialized, self.mir_facts)?;
         let callable_seeds = collect_callable_seeds(
             self.materialized,
             self.type_context.types_mut(),
             &type_ctx,
             &type_ctx.index,
+            &mir_fact_index,
             &self.compiler_continuation_runtime_error_callables,
             compiler_generated_runtime_error_effect_ty,
         )?;
-        let owner_by_callable_fqn = collect_callable_owner_map(self.materialized);
-        let raw_fun_by_fqn = collect_raw_fun_by_fqn(self.materialized);
-        let mut top_level_value_surface_contracts = collect_top_level_value_surface_contracts(
-            self.type_context.types(),
-            self.materialized.top_level_value_tys(),
-        );
-        top_level_value_surface_contracts.extend(collect_property_accessor_surface_contracts(
-            self.materialized,
-        ));
 
         let mut callable_facts = HashMap::with_capacity(callable_seeds.len());
         let mut bodies = HashMap::with_capacity(callable_seeds.len());
@@ -2137,13 +1649,13 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
 
             for seed in &callable_seeds {
                 let body_facts = if seed.root_fun.body.is_some() {
+                    let mir_body_facts = mir_fact_index.body(&seed.key, &seed.root_fun.fqn)?;
                     BodyFactsBuilder::new(
                         &type_ctx,
                         &mut schema_pool,
-                        &owner_by_callable_fqn,
+                        &mir_fact_index,
+                        mir_body_facts,
                         &callable_facts,
-                        &raw_fun_by_fqn,
-                        &top_level_value_surface_contracts,
                         &seed.root_fun,
                         *callable_step_schemas
                             .get(&seed.key)
@@ -2171,90 +1683,12 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
 }
 
 impl EffectFactsTypeContext {
-    fn build(
-        session: &Session,
-        source: &SourceFile,
-        compilation_sources: &[SourceFile],
-        cached_cone_imports: &[scoopc_hir::cone_import::CachedConeImport],
-        stable_cone_key: StableConeKey,
-    ) -> Result<Self, EffectFactsError> {
-        let mut sources = compilation_sources.to_vec();
-        for support_source in crate::frontend::load_default_support_sources(session.options())
-            .map_err(|error| EffectFactsError::Frontend {
-                message: error.to_string(),
-            })?
-        {
-            let is_effect_facts_signature_support = support_source
-                .path()
-                .file_name()
-                .is_some_and(|name| name == "string.scoop");
-            if !is_effect_facts_signature_support {
-                continue;
-            }
-            if sources
-                .iter()
-                .any(|source| source.path() == support_source.path())
-            {
-                continue;
-            }
-            sources.push(support_source);
+    fn from_frontend_artifact(frontend_artifact: &HirSemanticArtifact) -> Self {
+        Self {
+            stable_cone_key: frontend_artifact.stable_cone_key().clone(),
+            index: frontend_artifact.index().clone(),
+            env: frontend_artifact.type_env().clone(),
         }
-        if !sources
-            .iter()
-            .any(|candidate| candidate.path() == source.path())
-        {
-            sources.push(source.clone());
-        }
-        let mut index = session.build_top_level_index(&sources)?;
-
-        let parsed_files = sources
-            .iter()
-            .map(|source| session.parse(source))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)
-            .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
-        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
-            env.extend_from_file(source, parsed, &index)
-                .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
-        }
-
-        // P10-T04-b：依赖 cone 在前端是 cache-hit 的话，它的源不在 `compilation_sources` 中，
-        // 重建 Index/TypeEnv 后必须把 cached frontend import 重放回这里，否则下游
-        // surface contract 推断会因为找不到依赖 cone 的 public API 而失败。
-        scoopc_hir::cone_import::inject_cached_cone_imports(
-            &mut index,
-            &mut env,
-            cached_cone_imports,
-        )
-        .map_err(|error| EffectFactsError::Frontend {
-            message: format!("注入 cached cone import 失败：{error}"),
-        })?;
-
-        let mut pairs = session
-            .sysroot()
-            .files
-            .iter()
-            .map(|file| (&file.source, &file.ast))
-            .collect::<Vec<_>>();
-        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
-            pairs.push((source, parsed));
-        }
-
-        let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
-        let (interfaces, class_itables) =
-            crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
-        let direct_subclasses = collect_direct_subclasses(&pairs, &index);
-
-        Ok(Self {
-            stable_cone_key,
-            index,
-            env,
-            class_vtables,
-            interfaces,
-            class_itables,
-            direct_subclasses,
-        })
     }
 
     fn step_case_seeds(
@@ -2612,37 +2046,36 @@ impl EffectFactsTypeContext {
     }
 }
 
-fn collect_body_concrete_effect_ops(
+fn collect_body_concrete_effect_ops_from_facts(
     type_ctx: &EffectFactsTypeContext,
     types: &mut TypeStore,
-    root_fun: &MirFunDecl,
+    body_facts: &MirBodyFactBundle<'_>,
 ) -> Result<Vec<ConcreteEffectOpContract>, EffectFactsError> {
-    let Some(body) = &root_fun.body else {
-        return Ok(Vec::new());
-    };
-
     let mut contracts = Vec::new();
-    for block in &body.blocks {
-        if let TerminatorKind::Perform {
-            op_fqn, metadata, ..
-        } = &block.terminator.kind
-        {
-            contracts.push(type_ctx.concrete_effect_op_contract_for_site(
-                types,
-                metadata.effect_ty,
-                op_fqn,
-                &metadata.op_type_args,
-            )?);
-        }
-        if let TerminatorKind::Handle { arms, .. } = &block.terminator.kind {
-            for arm in arms {
+    for event in body_facts.events.values() {
+        match &event.kind {
+            mir_effects::MirEffectEventKind::Perform { op } => {
                 contracts.push(type_ctx.concrete_effect_op_contract_for_site(
                     types,
-                    arm.handled_effect_ty,
-                    &arm.op_fqn,
-                    &arm.op_type_args,
+                    op.effect_ty,
+                    &op.op_fqn,
+                    &op.op_type_args,
                 )?);
             }
+            mir_effects::MirEffectEventKind::Handle { arms, .. } => {
+                for arm in arms {
+                    contracts.push(type_ctx.concrete_effect_op_contract_for_site(
+                        types,
+                        arm.effect_ty,
+                        &arm.op_fqn,
+                        &arm.op_type_args,
+                    )?);
+                }
+            }
+            mir_effects::MirEffectEventKind::Call { .. }
+            | mir_effects::MirEffectEventKind::ClassCtor { .. }
+            | mir_effects::MirEffectEventKind::HiddenInitializer { .. }
+            | mir_effects::MirEffectEventKind::Resume { .. } => {}
         }
     }
 
@@ -2657,6 +2090,7 @@ fn collect_callable_seeds(
     types: &mut TypeStore,
     type_ctx: &EffectFactsTypeContext,
     index: &Index,
+    mir_fact_index: &MirFactIndex<'_>,
     compiler_continuation_runtime_error_callables: &HashSet<InstanceKey>,
     compiler_generated_runtime_error_effect_ty: TypeId,
 ) -> Result<Vec<CallableSeed>, EffectFactsError> {
@@ -2681,18 +2115,30 @@ fn collect_callable_seeds(
         let Some(root_fun) = root_fun else {
             continue;
         };
-        let declared_row = declared_effect_row(&root_fun, types);
-        let surface_effect_row = callable_step_effect_row(&root_fun, &declared_row, None);
+        let instance_effects = mir_fact_index.callable_instance(&family_key)?;
+        let published_surface_row =
+            effect_row_from_fact_template(types, &instance_effects.published_surface_row)?;
+        let declared_row = instance_effects
+            .declared_surface_row
+            .as_ref()
+            .map(|row| effect_row_from_fact_template(types, row))
+            .transpose()?
+            .unwrap_or_else(|| published_surface_row.clone());
+        let surface_effect_row = published_surface_row;
         let step_effect_row = if compiler_continuation_runtime_error_callables.contains(&family_key)
         {
-            let mut terms = surface_effect_row.terms.clone();
+            let mut terms =
+                effect_row_from_fact_template(types, &instance_effects.step_effect_row)?.terms;
             terms.push(compiler_generated_runtime_error_effect_ty);
             EffectRow::new(terms)
         } else {
-            surface_effect_row.clone()
+            effect_row_from_fact_template(types, &instance_effects.step_effect_row)?
         };
-        let body_concrete_effect_ops =
-            collect_body_concrete_effect_ops(type_ctx, types, &root_fun)?;
+        let body_concrete_effect_ops = collect_body_concrete_effect_ops_from_facts(
+            type_ctx,
+            types,
+            mir_fact_index.body(&family_key, &root_fun.fqn)?,
+        )?;
         let stable_instance_key_text = materialized
             .authoritative_stable_instance_key(&family_key)
             .ok_or_else(|| EffectFactsError::Frontend {
@@ -2702,6 +2148,14 @@ fn collect_callable_seeds(
                 ),
             })?
             .canonical_text();
+        let signature = mir_fact_index
+            .source_signature(&root_fun.fqn)
+            .ok_or_else(|| EffectFactsError::MissingMirFact {
+                kind: "SourceCallableSignatureFact",
+                detail: root_fun.fqn.clone(),
+            })?;
+        let (invoke_arg_components, complete_ty) =
+            (signature.param_tys.clone(), signature.return_ty);
         seeds.push(CallableSeed {
             key: family_key,
             stable_instance_key_text,
@@ -2709,102 +2163,12 @@ fn collect_callable_seeds(
             surface_effect_row,
             step_effect_row,
             declared_row,
-            invoke_arg_components: root_fun.params.iter().map(|param| param.ty).collect(),
-            complete_ty: root_fun.return_ty,
+            invoke_arg_components,
+            complete_ty,
             body_concrete_effect_ops,
         });
     }
-    propagate_static_callee_effect_rows(&mut seeds);
     Ok(seeds)
-}
-
-fn propagate_static_callee_effect_rows(seeds: &mut [CallableSeed]) {
-    let mut surface_rows = seeds
-        .iter()
-        .map(|seed| (seed.root_fun.fqn.clone(), seed.surface_effect_row.clone()))
-        .collect::<HashMap<_, _>>();
-    let mut step_rows = seeds
-        .iter()
-        .map(|seed| (seed.root_fun.fqn.clone(), seed.step_effect_row.clone()))
-        .collect::<HashMap<_, _>>();
-
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for seed in seeds.iter() {
-            if !seed.root_fun.name.starts_with("$lambda") {
-                continue;
-            }
-            let callee_fqns = static_callee_fqns(&seed.root_fun);
-            if callee_fqns.is_empty() {
-                continue;
-            }
-
-            let mut next_surface_terms = surface_rows
-                .get(&seed.root_fun.fqn)
-                .map(|row| row.terms.clone())
-                .unwrap_or_default();
-            let mut next_step_terms = step_rows
-                .get(&seed.root_fun.fqn)
-                .map(|row| row.terms.clone())
-                .unwrap_or_default();
-            for callee_fqn in callee_fqns {
-                if let Some(row) = surface_rows.get(callee_fqn) {
-                    next_surface_terms.extend(row.terms.iter().copied());
-                }
-                if let Some(row) = step_rows.get(callee_fqn) {
-                    next_step_terms.extend(row.terms.iter().copied());
-                }
-            }
-
-            let next_surface = EffectRow::new(next_surface_terms);
-            if surface_rows.get(&seed.root_fun.fqn) != Some(&next_surface) {
-                surface_rows.insert(seed.root_fun.fqn.clone(), next_surface);
-                changed = true;
-            }
-            let next_step = EffectRow::new(next_step_terms);
-            if step_rows.get(&seed.root_fun.fqn) != Some(&next_step) {
-                step_rows.insert(seed.root_fun.fqn.clone(), next_step);
-                changed = true;
-            }
-        }
-    }
-
-    for seed in seeds.iter_mut() {
-        if let Some(row) = surface_rows.remove(&seed.root_fun.fqn) {
-            seed.surface_effect_row = row;
-        }
-        if let Some(row) = step_rows.remove(&seed.root_fun.fqn) {
-            seed.step_effect_row = row;
-        }
-    }
-}
-
-fn static_callee_fqns(fun: &MirFunDecl) -> Vec<&str> {
-    let Some(body) = &fun.body else {
-        return Vec::new();
-    };
-    let mut callees = Vec::new();
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            let StatementKind::Assign { value, .. } = &stmt.kind else {
-                continue;
-            };
-            let Rvalue::Call { kind, .. } = value else {
-                continue;
-            };
-            match kind {
-                CallKind::Direct { callee_fqn } => callees.push(callee_fqn.as_str()),
-                CallKind::Closure { fn_ptr, .. } => callees.push(fn_ptr.as_str()),
-                CallKind::FunValue { .. }
-                | CallKind::FunPtr { .. }
-                | CallKind::Virtual { .. }
-                | CallKind::Interface { .. }
-                | CallKind::Resume { .. } => {}
-            }
-        }
-    }
-    callees
 }
 
 fn template_decl_is_effect_op(index: &Index, template: &TemplateKey) -> bool {
@@ -2820,261 +2184,6 @@ fn template_decl_is_effect_op(index: &Index, template: &TemplateKey) -> bool {
 fn template_decl_is_compiler_owned_resume(template: &TemplateKey) -> bool {
     template.fqn == "scoop.core.Continuation.resume"
 }
-
-fn declared_effect_row(fun: &MirFunDecl, types: &TypeStore) -> EffectRow {
-    match types.kind(fun.ty) {
-        TypeKind::Ref(RefTypeKind::Function(function)) => function.effects.clone(),
-        _ => EffectRow::pure(),
-    }
-}
-
-fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
-    let base = callable_fqn
-        .split("::<")
-        .next()
-        .unwrap_or(callable_fqn)
-        .split("$overload")
-        .next()
-        .unwrap_or(callable_fqn);
-    if crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(base).is_some() {
-        return true;
-    }
-    matches!(
-        base,
-        "scoop.runtime.test.__scoop_stackmap_statepoint_smoke"
-            | "scoop.core.size"
-            | "scoop.core.get"
-            | "scoop.core.set"
-            | "scoop.core.Array.size"
-            | "scoop.core.Array.get"
-            | "scoop.core.MutableArray.size"
-            | "scoop.core.MutableArray.get"
-            | "scoop.core.MutableArray.set"
-            | "scoop.core.byteLength"
-            | "scoop.core.getByte"
-            | "scoop.core.toInt"
-            | "scoop.core.panic"
-            | "scoop.sync.mutexCreate"
-            | "scoop.sync.lock"
-            | "scoop.sync.unlock"
-            | "scoop.sync.condVarCreate"
-            | "scoop.sync.wait"
-            | "scoop.sync.notifyOne"
-            | "scoop.sync.notifyAll"
-            | "scoop.sync.onceCreate"
-            | "scoop.sync.isDone"
-            | "scoop.sync.run"
-            | "scoop.sync.destroy"
-    )
-}
-
-fn top_level_ref_is_only_hidden_member_namespace_receiver(
-    body: &MirBody,
-    local: crate::mir::LocalId,
-) -> bool {
-    let mut saw_hidden_member = false;
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            let StatementKind::Assign { target, value } = &stmt.kind else {
-                continue;
-            };
-            if *target == local {
-                continue;
-            }
-            if let Rvalue::MemberAccess {
-                receiver: Operand::Local(receiver),
-                member,
-                ..
-            } = value
-                && *receiver == local
-                && !member.hidden_effects.is_pure()
-                && matches!(
-                    member.resolved,
-                    Some(crate::mir::MemberTarget::Value { .. })
-                )
-            {
-                saw_hidden_member = true;
-                continue;
-            }
-            if rvalue_mentions_local_for_hidden_namespace(value, local) {
-                return false;
-            }
-        }
-    }
-    saw_hidden_member
-}
-
-fn operand_mentions_local_for_hidden_namespace(
-    operand: &Operand,
-    local: crate::mir::LocalId,
-) -> bool {
-    matches!(operand, Operand::Local(found) if *found == local)
-}
-
-fn call_args_mention_local_for_hidden_namespace(
-    args: &[CallArg],
-    local: crate::mir::LocalId,
-) -> bool {
-    args.iter()
-        .any(|arg| operand_mentions_local_for_hidden_namespace(&arg.value, local))
-}
-
-fn call_kind_mentions_local_for_hidden_namespace(
-    kind: &CallKind,
-    local: crate::mir::LocalId,
-) -> bool {
-    match kind {
-        CallKind::Direct { .. } => false,
-        CallKind::Closure { callee, .. }
-        | CallKind::FunValue { callee }
-        | CallKind::FunPtr { callee } => operand_mentions_local_for_hidden_namespace(callee, local),
-        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
-            operand_mentions_local_for_hidden_namespace(receiver, local)
-        }
-        CallKind::Resume { continuation, .. } => {
-            operand_mentions_local_for_hidden_namespace(continuation, local)
-        }
-    }
-}
-
-fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir::LocalId) -> bool {
-    match value {
-        Rvalue::Use(operand)
-        | Rvalue::Transport { value: operand, .. }
-        | Rvalue::TypeCheck { value: operand, .. }
-        | Rvalue::Cast { value: operand, .. }
-        | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::PatternMatch {
-            subject: operand, ..
-        }
-        | Rvalue::PatternExtract {
-            subject: operand, ..
-        }
-        | Rvalue::MakeClosure { env: operand, .. } => {
-            operand_mentions_local_for_hidden_namespace(operand, local)
-        }
-        Rvalue::MemberAccess { receiver, .. } => {
-            operand_mentions_local_for_hidden_namespace(receiver, local)
-        }
-        Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } => {
-            call_args_mention_local_for_hidden_namespace(args, local)
-        }
-        Rvalue::Call { kind, args, .. } => {
-            call_kind_mentions_local_for_hidden_namespace(kind, local)
-                || call_args_mention_local_for_hidden_namespace(args, local)
-        }
-        Rvalue::MakeTuple { elements, .. } => elements
-            .iter()
-            .any(|operand| operand_mentions_local_for_hidden_namespace(operand, local)),
-        Rvalue::StructLit { fields, .. } => fields
-            .iter()
-            .any(|field| operand_mentions_local_for_hidden_namespace(&field.value, local)),
-        Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
-            crate::mir::InterpolatedStringPart::Text { .. } => false,
-            crate::mir::InterpolatedStringPart::Expr { value, .. } => {
-                operand_mentions_local_for_hidden_namespace(value, local)
-            }
-        }),
-        Rvalue::TopLevelRef(_)
-        | Rvalue::UnresolvedName { .. }
-        | Rvalue::SizeOf { .. }
-        | Rvalue::KindOf { .. }
-        | Rvalue::AlignOf { .. }
-        | Rvalue::DescOf { .. }
-        | Rvalue::TypeMetadataLiteral(_)
-        | Rvalue::PerformResult { .. }
-        | Rvalue::Todo(_) => false,
-    }
-}
-
-fn bind_call_args_to_params(
-    params: &[crate::mir::Param],
-    args: &[CallArg],
-) -> Option<Vec<Operand>> {
-    if args.len() != params.len() {
-        return None;
-    }
-
-    let mut slots = vec![None; params.len()];
-    let mut next_positional = 0usize;
-    for arg in args {
-        let index = if let Some(name) = &arg.name {
-            params.iter().position(|param| &param.name == name)?
-        } else {
-            while next_positional < params.len() && slots[next_positional].is_some() {
-                next_positional += 1;
-            }
-            let index = next_positional;
-            next_positional += 1;
-            index
-        };
-        if index >= slots.len() || slots[index].is_some() {
-            return None;
-        }
-        slots[index] = Some(arg.value.clone());
-    }
-
-    slots.into_iter().collect()
-}
-
-/// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的
-/// surface `declared_row` 因本地 `handle` 吸收而是 `Pure`。
-fn callable_step_effect_row(
-    fun: &MirFunDecl,
-    declared_row: &EffectRow,
-    compiler_generated_runtime_error_effect_ty: Option<TypeId>,
-) -> EffectRow {
-    let Some(body) = &fun.body else {
-        return declared_row.clone();
-    };
-
-    let mut terms = declared_row.terms.clone();
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            let StatementKind::Assign { value, .. } = &stmt.kind else {
-                continue;
-            };
-            let Rvalue::Call {
-                kind: CallKind::Resume { resume, .. },
-                ..
-            } = value
-            else {
-                if let Rvalue::ClassCtor { hidden_effects, .. } = value {
-                    terms.extend(hidden_effects.terms.iter().copied());
-                } else if let Rvalue::TopLevelRef(top_level) = value {
-                    terms.extend(top_level.hidden_effects.terms.iter().copied());
-                } else if let Rvalue::MemberAccess { member, .. } = value {
-                    terms.extend(member.hidden_effects.terms.iter().copied());
-                }
-                continue;
-            };
-            terms.extend(resume.out_effects.terms.iter().copied());
-            if let Some(runtime_error_effect_ty) = resume.runtime_error_effect_ty {
-                terms.push(runtime_error_effect_ty);
-            }
-        }
-
-        match &block.terminator.kind {
-            TerminatorKind::Perform { metadata, .. } => terms.push(metadata.effect_ty),
-            TerminatorKind::Handle { arms, .. } => {
-                terms.extend(arms.iter().map(|arm| arm.handled_effect_ty));
-            }
-            TerminatorKind::Return { .. }
-            | TerminatorKind::ResumeUnwind
-            | TerminatorKind::Goto { .. }
-            | TerminatorKind::CondBr { .. }
-            | TerminatorKind::Unreachable
-            | TerminatorKind::Todo(_) => {}
-        }
-    }
-
-    if let Some(runtime_error_effect_ty) = compiler_generated_runtime_error_effect_ty {
-        terms.push(runtime_error_effect_ty);
-    }
-
-    EffectRow::new(terms)
-}
-
 fn find_or_intern_raise_runtime_error_effect(types: &mut TypeStore) -> TypeId {
     let runtime_error_ty = types.iter_ids().find(|&id| {
         matches!(
@@ -3154,6 +2263,57 @@ fn canonical_tuple_carrier_ty(types: &mut TypeStore, components: &[TypeId]) -> T
     }
 }
 
+fn boundary_operand_ty(source: &mir_boundary::BoundaryOperandSource) -> Option<TypeId> {
+    match source {
+        mir_boundary::BoundaryOperandSource::Local { ty, .. }
+        | mir_boundary::BoundaryOperandSource::Const { ty, .. } => *ty,
+    }
+}
+
+fn call_site_kind_from_mir(kind: mir_effects::MirCallKind) -> CallSiteKind {
+    match kind {
+        mir_effects::MirCallKind::Direct => CallSiteKind::Direct,
+        mir_effects::MirCallKind::Closure => CallSiteKind::Closure,
+        mir_effects::MirCallKind::FunValue => CallSiteKind::FunValue,
+        mir_effects::MirCallKind::FunPtr => CallSiteKind::FunPtr,
+        mir_effects::MirCallKind::Virtual => CallSiteKind::Virtual,
+        mir_effects::MirCallKind::Interface => CallSiteKind::Interface,
+    }
+}
+
+fn effect_row_from_fact_template(
+    types: &TypeStore,
+    template: &mir_effects::EffectRowTemplate,
+) -> Result<EffectRow, EffectFactsError> {
+    let mut terms = Vec::with_capacity(template.terms.len());
+    for term in &template.terms {
+        match term {
+            mir_effects::EffectRowTerm::Concrete { type_key } => {
+                let ty = types
+                    .iter_ids()
+                    .find(|ty| {
+                        canonical_type_text(types, *ty, &NoTypeParamResolver)
+                            .is_ok_and(|text| text == type_key.as_str())
+                    })
+                    .ok_or_else(|| EffectFactsError::UnknownMirFactEffectTerm {
+                        term: type_key.as_str().to_string(),
+                    })?;
+                terms.push(ty);
+            }
+            mir_effects::EffectRowTerm::Param {
+                owner,
+                ordinal,
+                name,
+            } => {
+                return Err(EffectFactsError::UnsupportedMirFactEffectTerm {
+                    term: format!("eff_param({},{},{})", owner.as_str(), ordinal, name),
+                });
+            }
+        }
+    }
+    Ok(EffectRow::new(terms))
+}
+
 fn continuation_surface_ty(
     types: &mut TypeStore,
     resume_tuple_ty: TypeId,
@@ -3187,266 +2347,6 @@ fn effect_row_identity_string(types: &TypeStore, row: &EffectRow) -> String {
                 .collect::<Vec<_>>()
                 .join(" + ")
         ),
-    }
-}
-
-fn collect_callable_owner_map(materialized: &MaterializedMir) -> HashMap<String, InstanceKey> {
-    let mut owners = HashMap::new();
-    let pass_view = materialized.pass_view();
-    for family in pass_view.instances() {
-        for fqn in family.callable_fqns() {
-            owners.insert(fqn.to_string(), family.key().clone());
-        }
-    }
-    owners
-}
-
-fn collect_raw_fun_by_fqn(materialized: &MaterializedMir) -> HashMap<String, MirFunDecl> {
-    let mut out = materialized
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            MirItem::Fun(fun) => Some((fun.fqn.clone(), fun.clone())),
-            _ => None,
-        })
-        .collect::<HashMap<_, _>>();
-
-    for fun in materialized.caller_side_pass_candidate_bodies() {
-        out.entry(fun.fqn.clone()).or_insert_with(|| fun.clone());
-    }
-
-    for family in materialized.pass_view().instances() {
-        if let Some(fun) = family.root_body() {
-            out.entry(fun.fqn.clone()).or_insert_with(|| fun.clone());
-        }
-    }
-
-    out
-}
-
-fn collect_top_level_value_surface_contracts(
-    types: &TypeStore,
-    top_level_value_tys: &HashMap<String, TypeId>,
-) -> HashMap<String, SurfaceCallableContract> {
-    top_level_value_tys
-        .iter()
-        .filter_map(|(fqn, ty)| {
-            function_surface_contract_from_ty(types, *ty).map(|contract| (fqn.clone(), contract))
-        })
-        .collect()
-}
-
-fn collect_property_accessor_surface_contracts(
-    materialized: &MaterializedMir,
-) -> HashMap<String, SurfaceCallableContract> {
-    let mut out = HashMap::new();
-    for item in &materialized.file.items {
-        if let MirItem::Metadata(metadata) = item {
-            collect_property_accessor_surface_contracts_in_metadata(metadata, &mut out);
-        }
-    }
-    out
-}
-
-fn collect_property_accessor_surface_contracts_in_metadata(
-    metadata: &MetadataRoot,
-    out: &mut HashMap<String, SurfaceCallableContract>,
-) {
-    let members = match metadata {
-        MetadataRoot::Nominal(nominal) => &nominal.members,
-        MetadataRoot::Object(object) => &object.members,
-        MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => return,
-    };
-
-    for member in members {
-        match member {
-            DeclMemberMetadata::Property(prop) if !prop.has_backing_field => {
-                if let Some(getter) = &prop.getter {
-                    out.insert(
-                        getter.fqn.clone(),
-                        SurfaceCallableContract {
-                            declared_row: EffectRow::pure(),
-                        },
-                    );
-                }
-                if let Some(setter) = &prop.setter {
-                    let contract = SurfaceCallableContract {
-                        declared_row: EffectRow::pure(),
-                    };
-                    out.insert(setter.fqn.clone(), contract.clone());
-                    out.insert(format!("{}$set", prop.fqn), contract);
-                }
-            }
-            DeclMemberMetadata::Nested(nested) => {
-                collect_property_accessor_surface_contracts_in_metadata(nested, out)
-            }
-            DeclMemberMetadata::Field(_)
-            | DeclMemberMetadata::Property(_)
-            | DeclMemberMetadata::Fun(_)
-            | DeclMemberMetadata::EnumVariant(_)
-            | DeclMemberMetadata::InitBlock { .. } => {}
-        }
-    }
-}
-
-fn collect_direct_subclasses(
-    pairs: &[(&SourceFile, &ast::File)],
-    index: &Index,
-) -> HashMap<String, BTreeSet<String>> {
-    let mut out = HashMap::new();
-    for (source, file) in pairs {
-        let pkg_prefix = package_prefix(source, file.package.as_ref());
-        for item in &file.items {
-            match item {
-                ast::Item::Type(ty) => collect_direct_subclasses_in_type_decl(
-                    source,
-                    file,
-                    ty,
-                    &pkg_prefix,
-                    index,
-                    &mut out,
-                ),
-                ast::Item::Object(obj) => collect_direct_subclasses_in_object_decl(
-                    source,
-                    file,
-                    obj,
-                    &pkg_prefix,
-                    index,
-                    &mut out,
-                ),
-                ast::Item::Fun(_)
-                | ast::Item::Val(_)
-                | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_) => {}
-            }
-        }
-    }
-    out
-}
-
-fn collect_direct_subclasses_in_type_decl(
-    source: &SourceFile,
-    file: &ast::File,
-    decl: &ast::TypeDecl,
-    owner_prefix: &str,
-    index: &Index,
-    out: &mut HashMap<String, BTreeSet<String>>,
-) {
-    let type_fqn = join_prefix(owner_prefix, decl.name.text(source));
-    if matches!(decl.kind, ast::TypeKind::Class)
-        && let Some(super_fqn) = decl
-            .supertypes
-            .iter()
-            .filter(|super_ty| super_ty.ctor_args_span.is_some())
-            .find_map(|super_ty| index.type_ref_to_fqn_in_file(source, file, &super_ty.ty))
-    {
-        out.entry(super_fqn).or_default().insert(type_fqn.clone());
-    }
-
-    let Some(body) = &decl.body else {
-        return;
-    };
-    for member in &body.members {
-        match member {
-            ast::TypeMember::Type(nested) => {
-                collect_direct_subclasses_in_type_decl(source, file, nested, &type_fqn, index, out);
-            }
-            ast::TypeMember::Object(obj) => {
-                collect_direct_subclasses_in_object_decl(source, file, obj, &type_fqn, index, out);
-            }
-            ast::TypeMember::EnumVariant(_)
-            | ast::TypeMember::Property(_)
-            | ast::TypeMember::InitBlock(_)
-            | ast::TypeMember::SecondaryCtor(_)
-            | ast::TypeMember::Fun(_) => {}
-        }
-    }
-}
-
-fn collect_direct_subclasses_in_object_decl(
-    source: &SourceFile,
-    file: &ast::File,
-    obj: &ast::ObjectDecl,
-    owner_prefix: &str,
-    index: &Index,
-    out: &mut HashMap<String, BTreeSet<String>>,
-) {
-    let Some(name) = obj.name.as_ref() else {
-        return;
-    };
-    let obj_fqn = join_prefix(owner_prefix, name.text(source));
-
-    if let Some(super_fqn) = obj
-        .supertypes
-        .iter()
-        .filter(|super_ty| super_ty.ctor_args_span.is_some())
-        .find_map(|super_ty| index.type_ref_to_fqn_in_file(source, file, &super_ty.ty))
-    {
-        out.entry(super_fqn).or_default().insert(obj_fqn.clone());
-    }
-
-    let Some(body) = &obj.body else {
-        return;
-    };
-    for member in &body.members {
-        match member {
-            ast::TypeMember::Type(nested) => {
-                collect_direct_subclasses_in_type_decl(source, file, nested, &obj_fqn, index, out);
-            }
-            ast::TypeMember::Object(nested_obj) => {
-                collect_direct_subclasses_in_object_decl(
-                    source, file, nested_obj, &obj_fqn, index, out,
-                );
-            }
-            ast::TypeMember::EnumVariant(_)
-            | ast::TypeMember::Property(_)
-            | ast::TypeMember::InitBlock(_)
-            | ast::TypeMember::SecondaryCtor(_)
-            | ast::TypeMember::Fun(_) => {}
-        }
-    }
-}
-
-fn collect_interface_slot_targets(
-    entries: &[crate::itable::ClassItableEntry],
-    owner_fqn: &str,
-    slot_index: usize,
-    out: &mut BTreeSet<String>,
-) {
-    for entry in entries {
-        if entry.interface_fqn != owner_fqn {
-            continue;
-        }
-        if let Some(target) = entry.method_impl_fqns.get(slot_index) {
-            out.insert(target.clone());
-        }
-    }
-}
-
-fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
-    match types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
-        _ => None,
-    }
-}
-
-fn function_surface_contract_from_ty(
-    types: &TypeStore,
-    ty: TypeId,
-) -> Option<SurfaceCallableContract> {
-    match types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Function(function)) => Some(SurfaceCallableContract {
-            declared_row: function.effects.clone(),
-        }),
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
-            if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
-        {
-            function_surface_contract_from_ty(types, nominal.args[0])
-        }
-        _ => None,
     }
 }
 
@@ -3487,60 +2387,6 @@ fn handle_total_outward_tags(facts: &HandleSiteEffectFacts) -> BTreeSet<CaseTag>
     tags
 }
 
-fn collect_block_successors(body: &MirBody) -> BTreeMap<BasicBlockId, Vec<BasicBlockId>> {
-    body.blocks
-        .iter()
-        .enumerate()
-        .map(|(index, block)| {
-            let block_id = BasicBlockId::from_raw(index as u32);
-            let mut successors = Vec::new();
-            block.terminator.for_each_successor(|target| {
-                if !successors.contains(&target) {
-                    successors.push(target);
-                }
-            });
-            (block_id, successors)
-        })
-        .collect()
-}
-
-fn operand_ty(body: &MirBody, types: &mut TypeStore, operand: &Operand) -> TypeId {
-    match operand {
-        Operand::Local(local) => body.locals[local.as_u32() as usize].ty,
-        Operand::Const(value) => match value {
-            ConstValue::Bool(_) => types.intern_builtins().bool_,
-            ConstValue::Char => types.intern_builtins().char_,
-            ConstValue::Unit => types.intern_builtins().unit,
-            ConstValue::Int | ConstValue::SynthInt(_) => types.intern_builtins().int,
-            ConstValue::Float64 => types.intern_builtins().float64,
-            ConstValue::Float32 => types.intern_builtins().float32,
-            ConstValue::String | ConstValue::SynthString(_) => types.intern_builtins().string,
-        },
-    }
-}
-
-fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {
-    let Some(package) = package else {
-        return String::new();
-    };
-    let mut out = String::new();
-    for (index, segment) in package.path.iter().enumerate() {
-        if index != 0 {
-            out.push('.');
-        }
-        out.push_str(segment.text(source));
-    }
-    out
-}
-
-fn join_prefix(prefix: &str, name: &str) -> String {
-    if prefix.is_empty() {
-        name.to_string()
-    } else {
-        format!("{prefix}.{name}")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};
@@ -3552,16 +2398,1168 @@ mod tests {
         EffectPrecision, ImplPlan, NestedHandleClassification, SiteEffectFacts,
     };
     use crate::mir::{
-        BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TemplateKey, TerminatorKind,
-        materialize_for_dump,
+        BasicBlockId, CallKind, InstanceKey, Rvalue, SiteId, StatementKind, TemplateKey,
+        TerminatorKind, materialize_for_dump,
     };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
-    use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeKind, TypeStore};
+    use crate::ty::{
+        EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    };
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
+    }
+
+    fn frontend_artifact(
+        session: &Session,
+        source: &SourceFile,
+    ) -> scoopc_hir::stage::HirSemanticArtifact {
+        scoopc_hir::stage::run(session, source)
+            .unwrap()
+            .hir_semantic_artifact()
+            .expect("HIR stage 应发布 effect-facts 可消费的 semantic artifact")
+            .clone()
+    }
+
+    fn build_test_mir_facts(
+        materialized: &crate::mir::MaterializedMir,
+    ) -> scoopc_mir_facts::MirFacts {
+        use scoopc_ids::{
+            AbiMangler, BodyBlockId, BodyVersionKey, CanonicalTextKey, StableCanonicalKey as _,
+            StableLirCallableKey, StageArtifactKey,
+        };
+        use scoopc_mir_facts::backend::SourceCallableSignatureFact;
+        use scoopc_mir_facts::boundary::{
+            BoundaryAnchor, BoundaryOperandSource, BoundarySourceContract, MirBoundaryFacts,
+        };
+        use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
+        use scoopc_mir_facts::effects::{
+            CallSiteSurfaceEffectFact, CallSiteTarget as FactCallSiteTarget, CallSiteTargetFact,
+            CallableInstanceEffectFacts, EffectRowTemplate as FactEffectRowTemplate,
+            EffectRowTerm as FactEffectRowTerm, MirBlockEffectRegionFact, MirCallKind,
+            MirEffectEventFact, MirEffectEventKind, MirEffectFacts, MirEffectOpSiteContract,
+            MirSiteInventoryFact, MirSiteKind,
+        };
+
+        let cone = materialized.stable_cone_key().clone();
+        let mut facts = scoopc_mir_facts::MirFacts::new();
+        facts.backend.source_signatures = materialized
+            .source_callable_signatures()
+            .iter()
+            .enumerate()
+            .map(|(index, signature)| {
+                let target_key = test_lir_callable_key(&signature.fqn);
+                SourceCallableSignatureFact {
+                    identity: test_identity(
+                        &cone,
+                        format!("test:source_signature:{index}:{}", signature.fqn),
+                    ),
+                    fqn: signature.fqn.clone(),
+                    target_callable_key: Some(target_key.clone()),
+                    abi_symbol: Some(AbiMangler.fun_symbol(&target_key)),
+                    abi_role: Some("callable_export".to_string()),
+                    param_names: signature.param_names.clone(),
+                    param_tys: signature.param_tys.clone(),
+                    return_ty: signature.return_ty,
+                }
+            })
+            .collect();
+        let mut seen_source_signatures = facts
+            .backend
+            .source_signatures
+            .iter()
+            .map(|signature| signature.fqn.clone())
+            .collect::<BTreeSet<_>>();
+
+        let pass_view = materialized.pass_view();
+        let mut effects = MirEffectFacts::default();
+        let mut boundary = MirBoundaryFacts::default();
+
+        for family in pass_view.instances() {
+            let instance_artifact = test_instance_artifact(materialized, family.key());
+            let root_body = family.root_body();
+            if let Some(root) = root_body
+                && seen_source_signatures.insert(root.fqn.clone())
+            {
+                facts.backend.source_signatures.push({
+                    let target_key = test_lir_callable_key(&root.fqn);
+                    SourceCallableSignatureFact {
+                        identity: test_identity(
+                            &cone,
+                            format!("test:source_signature:root:{}", root.fqn),
+                        ),
+                        fqn: root.fqn.clone(),
+                        target_callable_key: Some(target_key.clone()),
+                        abi_symbol: Some(AbiMangler.fun_symbol(&target_key)),
+                        abi_role: Some("callable_export".to_string()),
+                        param_names: root.params.iter().map(|param| param.name.clone()).collect(),
+                        param_tys: root.params.iter().map(|param| param.ty).collect(),
+                        return_ty: root.return_ty,
+                    }
+                });
+            }
+            let published = root_body
+                .and_then(|fun| test_function_effect_row(&materialized.types, fun.ty))
+                .map(|(row, closed)| test_effect_row_template(&materialized.types, row, closed))
+                .unwrap_or_else(FactEffectRowTemplate::pure);
+            let mut step_rows = vec![published.clone()];
+            for fun in family.callable_bodies() {
+                if let Some(body) = &fun.body {
+                    step_rows.extend(test_body_local_effect_rows(&materialized.types, body));
+                }
+            }
+            effects
+                .callable_instances
+                .push(CallableInstanceEffectFacts::new(
+                    test_identity(
+                        &cone,
+                        format!(
+                            "test:callable_instance:{}",
+                            instance_artifact.canonical_text()
+                        ),
+                    ),
+                    instance_artifact.clone(),
+                    CanonicalTextKey::new(family.root_fqn()),
+                    Some(published.clone()),
+                    published.clone(),
+                    published.clone(),
+                    test_merge_effect_rows(step_rows),
+                ));
+
+            for fun in family.callable_bodies() {
+                let Some(body) = &fun.body else {
+                    continue;
+                };
+                let body_ref = test_body_reference(&instance_artifact, fun);
+                for (block_index, block) in body.blocks.iter().enumerate() {
+                    let block_id = BodyBlockId::from_raw(block_index as u32);
+                    let mut block_sites = Vec::new();
+                    let mut has_suspend_boundary = false;
+                    let mut has_handle_boundary = false;
+
+                    for (statement_index, stmt) in block.stmts.iter().enumerate() {
+                        let StatementKind::Assign { target, value } = &stmt.kind else {
+                            continue;
+                        };
+                        match value {
+                            Rvalue::Call {
+                                site_id,
+                                kind,
+                                args,
+                                ..
+                            } => {
+                                let site_kind = if matches!(kind, CallKind::Resume { .. }) {
+                                    MirSiteKind::Resume
+                                } else {
+                                    MirSiteKind::Call
+                                };
+                                block_sites.push(*site_id);
+                                effects.site_inventory.push(test_site_inventory(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    site_kind,
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    Some(target.as_u32()),
+                                    body.locals
+                                        .get(target.as_u32() as usize)
+                                        .map(|local| local.ty),
+                                    block.is_cleanup,
+                                ));
+                                let surface = test_call_site_surface_row(
+                                    &materialized.types,
+                                    body,
+                                    kind,
+                                    &pass_view,
+                                )
+                                .unwrap_or_else(FactEffectRowTemplate::pure);
+                                effects
+                                    .call_site_surface_effects
+                                    .push(CallSiteSurfaceEffectFact {
+                                        identity: test_identity(
+                                            &cone,
+                                            format!(
+                                                "test:call_surface:{}:{}",
+                                                fun.fqn,
+                                                site_id.as_u32()
+                                            ),
+                                        ),
+                                        instance: instance_artifact.clone(),
+                                        body: body_ref.clone(),
+                                        site_id: *site_id,
+                                        surface_row: surface.clone(),
+                                    });
+                                if let Some((call_kind, target)) =
+                                    test_call_site_target(materialized, kind, args.len())
+                                {
+                                    effects.call_site_targets.push(CallSiteTargetFact {
+                                        identity: test_identity(
+                                            &cone,
+                                            format!(
+                                                "test:call_target:{}:{}",
+                                                fun.fqn,
+                                                site_id.as_u32()
+                                            ),
+                                        ),
+                                        instance: instance_artifact.clone(),
+                                        body: body_ref.clone(),
+                                        site_id: *site_id,
+                                        call_kind,
+                                        target,
+                                    });
+                                }
+                                let (event_kind, row) = match kind {
+                                    CallKind::Resume { resume, .. } => {
+                                        has_suspend_boundary |= !resume.out_effects.is_pure();
+                                        (
+                                            MirEffectEventKind::Resume {
+                                                resume_tuple_ty: resume.resume_ty,
+                                                answer_ty: resume.answer_ty,
+                                                continuation_ty: resume.continuation_ty,
+                                                surface_row: test_effect_row_template(
+                                                    &materialized.types,
+                                                    &resume.out_effects,
+                                                    false,
+                                                ),
+                                            },
+                                            test_resume_effect_row(&materialized.types, resume),
+                                        )
+                                    }
+                                    _ => (test_call_event_kind(kind), surface),
+                                };
+                                effects.effect_events.push(test_event(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    event_kind,
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    row,
+                                    block.is_cleanup,
+                                ));
+                                boundary.source_contracts.push(test_boundary_contract(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    site_kind,
+                                    BoundaryAnchor::Statement {
+                                        block: block_id,
+                                        statement_index: statement_index as u32,
+                                    },
+                                    Some(target.as_u32()),
+                                    test_call_carrier_source(&materialized.types, body, kind),
+                                    args.iter()
+                                        .map(|arg| {
+                                            test_operand_source(
+                                                &materialized.types,
+                                                body,
+                                                &arg.value,
+                                            )
+                                        })
+                                        .collect(),
+                                    None,
+                                ));
+                            }
+                            Rvalue::ClassCtor {
+                                site_id,
+                                class_fqn,
+                                hidden_effects,
+                                args,
+                                ..
+                            } => {
+                                block_sites.push(*site_id);
+                                effects.site_inventory.push(test_site_inventory(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirSiteKind::ClassCtor,
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    Some(target.as_u32()),
+                                    body.locals
+                                        .get(target.as_u32() as usize)
+                                        .map(|local| local.ty),
+                                    block.is_cleanup,
+                                ));
+                                let row = test_effect_row_template(
+                                    &materialized.types,
+                                    hidden_effects,
+                                    false,
+                                );
+                                has_suspend_boundary |= !row.terms.is_empty();
+                                effects.effect_events.push(test_event(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirEffectEventKind::ClassCtor {
+                                        source_fqn: class_fqn.clone(),
+                                    },
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    row,
+                                    block.is_cleanup,
+                                ));
+                                boundary.source_contracts.push(test_boundary_contract(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirSiteKind::ClassCtor,
+                                    BoundaryAnchor::Statement {
+                                        block: block_id,
+                                        statement_index: statement_index as u32,
+                                    },
+                                    Some(target.as_u32()),
+                                    None,
+                                    args.iter()
+                                        .map(|arg| {
+                                            test_operand_source(
+                                                &materialized.types,
+                                                body,
+                                                &arg.value,
+                                            )
+                                        })
+                                        .collect(),
+                                    None,
+                                ));
+                            }
+                            Rvalue::TopLevelRef(top_level)
+                                if top_level.site_id.is_some()
+                                    && !top_level.hidden_effects.is_pure() =>
+                            {
+                                let site_id = top_level.site_id.expect("checked above");
+                                block_sites.push(site_id);
+                                effects.site_inventory.push(test_site_inventory(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    site_id,
+                                    MirSiteKind::HiddenInitializer,
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    Some(target.as_u32()),
+                                    body.locals
+                                        .get(target.as_u32() as usize)
+                                        .map(|local| local.ty),
+                                    block.is_cleanup,
+                                ));
+                                let row = test_effect_row_template(
+                                    &materialized.types,
+                                    &top_level.hidden_effects,
+                                    false,
+                                );
+                                has_suspend_boundary |= !row.terms.is_empty();
+                                effects.effect_events.push(test_event(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    site_id,
+                                    MirEffectEventKind::HiddenInitializer {
+                                        source_fqn: top_level.fqn.clone(),
+                                    },
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    row,
+                                    block.is_cleanup,
+                                ));
+                            }
+                            Rvalue::MemberAccess {
+                                site_id: Some(site_id),
+                                member,
+                                receiver,
+                            } if !member.hidden_effects.is_pure() => {
+                                block_sites.push(*site_id);
+                                effects.site_inventory.push(test_site_inventory(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirSiteKind::HiddenInitializer,
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    Some(target.as_u32()),
+                                    body.locals
+                                        .get(target.as_u32() as usize)
+                                        .map(|local| local.ty),
+                                    block.is_cleanup,
+                                ));
+                                let row = test_effect_row_template(
+                                    &materialized.types,
+                                    &member.hidden_effects,
+                                    false,
+                                );
+                                has_suspend_boundary |= !row.terms.is_empty();
+                                effects.effect_events.push(test_event(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirEffectEventKind::HiddenInitializer {
+                                        source_fqn: member.name.clone(),
+                                    },
+                                    block_id,
+                                    Some(statement_index as u32),
+                                    row,
+                                    block.is_cleanup,
+                                ));
+                                boundary.source_contracts.push(test_boundary_contract(
+                                    &cone,
+                                    &instance_artifact,
+                                    &body_ref,
+                                    *site_id,
+                                    MirSiteKind::HiddenInitializer,
+                                    BoundaryAnchor::Statement {
+                                        block: block_id,
+                                        statement_index: statement_index as u32,
+                                    },
+                                    Some(target.as_u32()),
+                                    Some(test_operand_source(&materialized.types, body, receiver)),
+                                    Vec::new(),
+                                    None,
+                                ));
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    match &block.terminator.kind {
+                        TerminatorKind::Perform {
+                            site_id,
+                            op_fqn,
+                            metadata,
+                            args,
+                            ..
+                        } => {
+                            block_sites.push(*site_id);
+                            effects.site_inventory.push(test_site_inventory(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirSiteKind::Perform,
+                                block_id,
+                                None,
+                                None,
+                                None,
+                                block.is_cleanup,
+                            ));
+                            has_suspend_boundary = true;
+                            effects.effect_events.push(test_event(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirEffectEventKind::Perform {
+                                    op: test_perform_contract(
+                                        &materialized.types,
+                                        op_fqn,
+                                        metadata,
+                                    ),
+                                },
+                                block_id,
+                                None,
+                                test_effect_row_template(
+                                    &materialized.types,
+                                    &EffectRow::new(vec![metadata.effect_ty]),
+                                    false,
+                                ),
+                                block.is_cleanup,
+                            ));
+                            boundary.source_contracts.push(test_boundary_contract(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirSiteKind::Perform,
+                                BoundaryAnchor::Terminator { block: block_id },
+                                None,
+                                None,
+                                args.iter()
+                                    .map(|arg| {
+                                        test_operand_source(&materialized.types, body, &arg.value)
+                                    })
+                                    .collect(),
+                                None,
+                            ));
+                        }
+                        TerminatorKind::Handle {
+                            site_id,
+                            metadata,
+                            arms,
+                            body_target,
+                            arm_targets,
+                            finally_target,
+                            exit_target,
+                            ..
+                        } => {
+                            block_sites.push(*site_id);
+                            effects.site_inventory.push(test_site_inventory(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirSiteKind::Handle,
+                                block_id,
+                                None,
+                                None,
+                                None,
+                                block.is_cleanup,
+                            ));
+                            has_handle_boundary = true;
+                            effects.effect_events.push(test_event(
+                                &cone,
+                                &instance_artifact,
+                                &body_ref,
+                                *site_id,
+                                MirEffectEventKind::Handle {
+                                    result_ty: metadata.result_ty,
+                                    body_target: BodyBlockId::from_raw(body_target.as_u32()),
+                                    arm_targets: arm_targets
+                                        .iter()
+                                        .map(|target| BodyBlockId::from_raw(target.as_u32()))
+                                        .collect(),
+                                    finally_target: finally_target
+                                        .map(|target| BodyBlockId::from_raw(target.as_u32())),
+                                    exit_target: BodyBlockId::from_raw(exit_target.as_u32()),
+                                    arms: arms
+                                        .iter()
+                                        .map(|arm| test_handler_contract(&materialized.types, arm))
+                                        .collect(),
+                                },
+                                block_id,
+                                None,
+                                test_effect_row_template(
+                                    &materialized.types,
+                                    &EffectRow::new(
+                                        arms.iter().map(|arm| arm.handled_effect_ty).collect(),
+                                    ),
+                                    false,
+                                ),
+                                block.is_cleanup,
+                            ));
+                        }
+                        _ => {}
+                    }
+
+                    let mut successors = Vec::new();
+                    block.terminator.for_each_successor(|successor| {
+                        successors.push(BodyBlockId::from_raw(successor.as_u32()));
+                    });
+                    effects.block_regions.push(MirBlockEffectRegionFact {
+                        identity: test_identity(
+                            &cone,
+                            format!("test:block:{}:bb{}", fun.fqn, block_index),
+                        ),
+                        instance: instance_artifact.clone(),
+                        body: body_ref.clone(),
+                        block: block_id,
+                        site_ids: block_sites,
+                        successors,
+                        cleanup: block.is_cleanup,
+                        cleanup_target: None,
+                        has_suspend_boundary,
+                        has_handle_boundary,
+                    });
+                }
+            }
+        }
+
+        facts.effects = effects;
+        facts.boundary = boundary;
+
+        fn test_identity(cone: &crate::stable_id::StableConeKey, key: String) -> FactIdentity {
+            FactIdentity::new(CanonicalTextKey::new(key.clone()), key, cone.clone(), None)
+        }
+
+        fn test_lir_callable_key(fqn: &str) -> StableLirCallableKey {
+            StableLirCallableKey::new(format!("test_lir_callable({fqn})"), fqn.to_string())
+        }
+
+        fn test_instance_artifact(
+            materialized: &crate::mir::MaterializedMir,
+            instance: &InstanceKey,
+        ) -> StageArtifactKey {
+            let stable = materialized
+                .authoritative_stable_instance_key(instance)
+                .expect("test materialized instance should have stable key");
+            StageArtifactKey::new("mir", &stable, "materialized_instance", 0)
+        }
+
+        fn test_body_reference(
+            owner: &StageArtifactKey,
+            fun: &crate::mir::FunDecl,
+        ) -> MirBodyReference {
+            let owner_key = CanonicalTextKey::new(owner.canonical_text());
+            MirBodyReference::new(
+                BodyVersionKey::new(&owner_key, "canonical_materialized_mir", 0),
+                owner_key,
+                fun.fqn.clone(),
+                Some(fun.return_ty),
+            )
+        }
+
+        fn test_effect_row_template(
+            types: &TypeStore,
+            row: &EffectRow,
+            closed: bool,
+        ) -> FactEffectRowTemplate {
+            let stable = crate::stable_id::EffectRowTemplate::from_concrete_effect_row(
+                types,
+                row,
+                &crate::stable_id::NoTypeParamResolver,
+                closed,
+            )
+            .expect("test effect row should be stable");
+            FactEffectRowTemplate::new(
+                stable
+                    .terms()
+                    .iter()
+                    .map(|term| match term {
+                        crate::stable_id::EffectTerm::Concrete { type_key } => {
+                            FactEffectRowTerm::Concrete {
+                                type_key: type_key.clone(),
+                            }
+                        }
+                        crate::stable_id::EffectTerm::Param {
+                            owner,
+                            ordinal,
+                            name,
+                        } => FactEffectRowTerm::Param {
+                            owner: CanonicalTextKey::new(owner.canonical_text()),
+                            ordinal: *ordinal,
+                            name: name.clone(),
+                        },
+                    })
+                    .collect(),
+                stable.closed(),
+            )
+        }
+
+        fn test_merge_effect_rows(rows: Vec<FactEffectRowTemplate>) -> FactEffectRowTemplate {
+            let mut terms = Vec::new();
+            let mut closed = true;
+            for row in rows {
+                closed &= row.closed;
+                terms.extend(row.terms);
+            }
+            FactEffectRowTemplate::new(terms, closed)
+        }
+
+        fn test_function_effect_row(types: &TypeStore, ty: TypeId) -> Option<(&EffectRow, bool)> {
+            let TypeKind::Ref(RefTypeKind::Function(fun)) = types.kind(ty) else {
+                return None;
+            };
+            Some((&fun.effects, fun.effects_closed))
+        }
+
+        fn test_body_local_effect_rows(
+            types: &TypeStore,
+            body: &crate::mir::Body,
+        ) -> Vec<FactEffectRowTemplate> {
+            let mut rows = Vec::new();
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let StatementKind::Assign { value, .. } = &stmt.kind else {
+                        continue;
+                    };
+                    match value {
+                        Rvalue::ClassCtor { hidden_effects, .. } => {
+                            rows.push(test_effect_row_template(types, hidden_effects, false))
+                        }
+                        Rvalue::TopLevelRef(top_level) if !top_level.hidden_effects.is_pure() => {
+                            rows.push(test_effect_row_template(
+                                types,
+                                &top_level.hidden_effects,
+                                false,
+                            ))
+                        }
+                        Rvalue::MemberAccess { member, .. } if !member.hidden_effects.is_pure() => {
+                            rows.push(test_effect_row_template(
+                                types,
+                                &member.hidden_effects,
+                                false,
+                            ))
+                        }
+                        Rvalue::Call {
+                            kind: CallKind::Resume { resume, .. },
+                            ..
+                        } => rows.push(test_resume_effect_row(types, resume)),
+                        _ => {}
+                    }
+                }
+                match &block.terminator.kind {
+                    TerminatorKind::Perform { metadata, .. } => {
+                        rows.push(test_effect_row_template(
+                            types,
+                            &EffectRow::new(vec![metadata.effect_ty]),
+                            false,
+                        ))
+                    }
+                    TerminatorKind::Handle { arms, .. } => rows.push(test_effect_row_template(
+                        types,
+                        &EffectRow::new(arms.iter().map(|arm| arm.handled_effect_ty).collect()),
+                        false,
+                    )),
+                    _ => {}
+                }
+            }
+            rows
+        }
+
+        fn test_resume_effect_row(
+            types: &TypeStore,
+            resume: &crate::mir::ResumeMetadata,
+        ) -> FactEffectRowTemplate {
+            let mut terms = resume.out_effects.terms.clone();
+            if let Some(runtime_error) = resume.runtime_error_effect_ty {
+                terms.push(runtime_error);
+            }
+            test_effect_row_template(types, &EffectRow::new(terms), false)
+        }
+
+        fn test_call_site_surface_row(
+            types: &TypeStore,
+            body: &crate::mir::Body,
+            kind: &CallKind,
+            pass_view: &crate::mir::MaterializedMirPassView<'_>,
+        ) -> Option<FactEffectRowTemplate> {
+            match kind {
+                CallKind::Direct { callee_fqn, .. } => pass_view
+                    .callable(callee_fqn)
+                    .and_then(|fun| test_function_effect_row(types, fun.ty))
+                    .map(|(row, closed)| test_effect_row_template(types, row, closed)),
+                CallKind::Closure { callee, .. }
+                | CallKind::FunValue { callee }
+                | CallKind::FunPtr { callee } => {
+                    test_operand_function_effect_row(types, body, callee)
+                }
+                CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
+                    pass_view
+                        .callable(&dispatch.member_fqn)
+                        .and_then(|fun| test_function_effect_row(types, fun.ty))
+                        .map(|(row, closed)| test_effect_row_template(types, row, closed))
+                }
+                CallKind::Resume { resume, .. } => Some(test_resume_effect_row(types, resume)),
+            }
+        }
+
+        fn test_operand_function_effect_row(
+            types: &TypeStore,
+            body: &crate::mir::Body,
+            operand: &crate::mir::Operand,
+        ) -> Option<FactEffectRowTemplate> {
+            let crate::mir::Operand::Local(local) = operand else {
+                return None;
+            };
+            let ty = body.locals.get(local.as_u32() as usize)?.ty;
+            test_function_effect_row(types, ty)
+                .map(|(row, closed)| test_effect_row_template(types, row, closed))
+        }
+
+        fn test_call_event_kind(kind: &CallKind) -> MirEffectEventKind {
+            let call_kind = match kind {
+                CallKind::Direct { .. } => MirCallKind::Direct,
+                CallKind::Closure { .. } => MirCallKind::Closure,
+                CallKind::FunValue { .. } => MirCallKind::FunValue,
+                CallKind::FunPtr { .. } => MirCallKind::FunPtr,
+                CallKind::Virtual { .. } => MirCallKind::Virtual,
+                CallKind::Interface { .. } => MirCallKind::Interface,
+                CallKind::Resume { .. } => unreachable!("resume has dedicated event kind"),
+            };
+            MirEffectEventKind::Call { call_kind }
+        }
+
+        fn test_call_site_target(
+            materialized: &crate::mir::MaterializedMir,
+            kind: &CallKind,
+            explicit_arg_count: usize,
+        ) -> Option<(MirCallKind, FactCallSiteTarget)> {
+            match kind {
+                CallKind::Direct {
+                    callee_fqn,
+                    stable_instance_key,
+                    ..
+                } => Some((
+                    MirCallKind::Direct,
+                    stable_instance_key
+                        .as_ref()
+                        .map(|key| FactCallSiteTarget::KnownInstance {
+                            key: CanonicalTextKey::new(key.canonical_text()),
+                        })
+                        .or_else(|| {
+                            test_stable_key_for_callable(materialized, callee_fqn).map(|key| {
+                                FactCallSiteTarget::KnownInstance {
+                                    key: CanonicalTextKey::new(key.canonical_text()),
+                                }
+                            })
+                        })
+                        .unwrap_or_else(|| FactCallSiteTarget::DirectFunction {
+                            fqn: callee_fqn.clone(),
+                        }),
+                )),
+                CallKind::Closure { fn_ptr, .. } => Some((
+                    MirCallKind::Closure,
+                    FactCallSiteTarget::KnownClosure {
+                        fn_ptr: fn_ptr.clone(),
+                    },
+                )),
+                CallKind::FunValue { .. } => {
+                    Some((MirCallKind::FunValue, FactCallSiteTarget::Dynamic))
+                }
+                CallKind::FunPtr { .. } => Some((MirCallKind::FunPtr, FactCallSiteTarget::Dynamic)),
+                CallKind::Virtual { dispatch, .. } => Some((
+                    MirCallKind::Virtual,
+                    FactCallSiteTarget::CandidateSet {
+                        keys: test_dispatch_candidate_keys(
+                            materialized,
+                            dispatch,
+                            explicit_arg_count,
+                            false,
+                        ),
+                    },
+                )),
+                CallKind::Interface { dispatch, .. } => Some((
+                    MirCallKind::Interface,
+                    FactCallSiteTarget::CandidateSet {
+                        keys: test_dispatch_candidate_keys(
+                            materialized,
+                            dispatch,
+                            explicit_arg_count,
+                            true,
+                        ),
+                    },
+                )),
+                CallKind::Resume { .. } => None,
+            }
+        }
+
+        fn test_stable_key_for_callable(
+            materialized: &crate::mir::MaterializedMir,
+            fqn: &str,
+        ) -> Option<crate::stable_id::StableInstanceKey> {
+            let owner = materialized.pass_view().owner_of_callable(fqn)?;
+            materialized.authoritative_stable_instance_key(owner)
+        }
+
+        fn test_dispatch_candidate_keys(
+            materialized: &crate::mir::MaterializedMir,
+            dispatch: &crate::mir::DispatchMetadata,
+            explicit_arg_count: usize,
+            is_interface: bool,
+        ) -> Vec<CanonicalTextKey> {
+            let keys = dispatch
+                .stable_candidate_keys
+                .iter()
+                .map(|key| CanonicalTextKey::new(key.canonical_text()))
+                .collect::<Vec<_>>();
+            if !keys.is_empty() {
+                return keys;
+            }
+            let fqns = if is_interface {
+                test_interface_candidate_fqns(materialized, dispatch, explicit_arg_count)
+            } else {
+                test_virtual_candidate_fqns(materialized, dispatch, explicit_arg_count)
+            };
+            let mut keys = fqns
+                .iter()
+                .map(|fqn| {
+                    test_stable_key_for_callable(materialized, fqn).unwrap_or_else(|| {
+                        panic!("test dispatch candidate `{fqn}` lacks a published stable key")
+                    })
+                })
+                .map(|key| CanonicalTextKey::new(key.canonical_text()))
+                .collect::<Vec<_>>();
+            keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            keys.dedup();
+            keys
+        }
+
+        fn test_virtual_candidate_fqns(
+            materialized: &crate::mir::MaterializedMir,
+            dispatch: &crate::mir::DispatchMetadata,
+            explicit_arg_count: usize,
+        ) -> Vec<String> {
+            let Some(receiver_fqn) =
+                test_nominal_type_fqn(&materialized.types, dispatch.receiver_ty)
+            else {
+                return Vec::new();
+            };
+            let mut out = BTreeSet::new();
+            for (class_fqn, slots) in &materialized.backend_contracts().class_vtables {
+                if class_fqn != receiver_fqn
+                    && !test_class_is_subclass(materialized, class_fqn, receiver_fqn)
+                {
+                    continue;
+                }
+                if let Some(slot) = slots.iter().find(|slot| {
+                    slot.name == dispatch.member_name
+                        && slot.params_len == explicit_arg_count as u32
+                }) {
+                    out.insert(slot.impl_member_fqn.clone());
+                }
+            }
+            out.into_iter().collect()
+        }
+
+        fn test_interface_candidate_fqns(
+            materialized: &crate::mir::MaterializedMir,
+            dispatch: &crate::mir::DispatchMetadata,
+            explicit_arg_count: usize,
+        ) -> Vec<String> {
+            let Some(interface) = materialized
+                .backend_contracts()
+                .interfaces
+                .get(&dispatch.owner_fqn)
+            else {
+                return Vec::new();
+            };
+            let Some(slot) = interface.method_slots.iter().find(|slot| {
+                slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+            }) else {
+                return Vec::new();
+            };
+            let mut out = BTreeSet::new();
+            for entries in materialized.backend_contracts().class_itables.values() {
+                for entry in entries {
+                    if entry.interface_fqn != dispatch.owner_fqn {
+                        continue;
+                    }
+                    if let Some(target) = entry.method_impl_fqns.get(slot.slot as usize) {
+                        out.insert(target.clone());
+                    }
+                }
+            }
+            out.into_iter().collect()
+        }
+
+        fn test_class_is_subclass(
+            materialized: &crate::mir::MaterializedMir,
+            class_fqn: &str,
+            ancestor: &str,
+        ) -> bool {
+            let mut current = Some(class_fqn);
+            while let Some(fqn) = current {
+                if fqn == ancestor {
+                    return true;
+                }
+                current = materialized
+                    .backend_contracts()
+                    .class_inits
+                    .values()
+                    .find(|init| init.fqn == fqn)
+                    .and_then(|init| init.super_class_fqn.as_deref());
+            }
+            false
+        }
+
+        fn test_nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+            match types.kind(ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+                _ => None,
+            }
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn test_site_inventory(
+            cone: &crate::stable_id::StableConeKey,
+            instance: &StageArtifactKey,
+            body: &MirBodyReference,
+            site_id: SiteId,
+            kind: MirSiteKind,
+            block: BodyBlockId,
+            statement_index: Option<u32>,
+            result_local: Option<u32>,
+            result_ty: Option<TypeId>,
+            cleanup: bool,
+        ) -> MirSiteInventoryFact {
+            MirSiteInventoryFact {
+                identity: test_identity(
+                    cone,
+                    format!("test:site:{}:{}", body.fqn, site_id.as_u32()),
+                ),
+                instance: instance.clone(),
+                body: body.clone(),
+                site_id,
+                kind,
+                block,
+                statement_index,
+                result_local,
+                result_ty,
+                span: None,
+                cleanup,
+            }
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn test_event(
+            cone: &crate::stable_id::StableConeKey,
+            instance: &StageArtifactKey,
+            body: &MirBodyReference,
+            site_id: SiteId,
+            kind: MirEffectEventKind,
+            block: BodyBlockId,
+            statement_index: Option<u32>,
+            effect_row: FactEffectRowTemplate,
+            cleanup: bool,
+        ) -> MirEffectEventFact {
+            MirEffectEventFact {
+                identity: test_identity(
+                    cone,
+                    format!("test:event:{}:{}", body.fqn, site_id.as_u32()),
+                ),
+                instance: instance.clone(),
+                body: body.clone(),
+                site_id,
+                kind,
+                block,
+                statement_index,
+                effect_row,
+                cleanup,
+            }
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn test_boundary_contract(
+            cone: &crate::stable_id::StableConeKey,
+            instance: &StageArtifactKey,
+            body: &MirBodyReference,
+            site_id: SiteId,
+            kind: MirSiteKind,
+            anchor: BoundaryAnchor,
+            result_local: Option<u32>,
+            carrier: Option<BoundaryOperandSource>,
+            args: Vec<BoundaryOperandSource>,
+            closure_env: Option<scoopc_mir_facts::boundary::ClosureEnvDecomposition>,
+        ) -> BoundarySourceContract {
+            BoundarySourceContract {
+                identity: test_identity(
+                    cone,
+                    format!("test:boundary:{}:{}", body.fqn, site_id.as_u32()),
+                ),
+                instance: instance.clone(),
+                body: body.clone(),
+                site_id,
+                kind,
+                anchor,
+                result_local,
+                carrier,
+                args,
+                closure_env,
+            }
+        }
+
+        fn test_perform_contract(
+            types: &TypeStore,
+            op_fqn: &str,
+            metadata: &crate::mir::PerformMetadata,
+        ) -> MirEffectOpSiteContract {
+            MirEffectOpSiteContract {
+                op_fqn: op_fqn.to_string(),
+                effect_ty: metadata.effect_ty,
+                op_type_args: metadata.op_type_args.clone(),
+                payload_tuple_ty: test_tuple_carrier_ty(
+                    types,
+                    metadata.payload_tuple_ty,
+                    &metadata.payload_component_tys,
+                ),
+            }
+        }
+
+        fn test_handler_contract(
+            types: &TypeStore,
+            arm: &crate::mir::HandlerArm,
+        ) -> MirEffectOpSiteContract {
+            MirEffectOpSiteContract {
+                op_fqn: arm.op_fqn.clone(),
+                effect_ty: arm.handled_effect_ty,
+                op_type_args: arm.op_type_args.clone(),
+                payload_tuple_ty: test_tuple_carrier_ty(
+                    types,
+                    arm.payload_tuple_ty,
+                    &arm.payload_component_tys,
+                ),
+            }
+        }
+
+        fn test_tuple_carrier_ty(
+            types: &TypeStore,
+            explicit: Option<TypeId>,
+            components: &[TypeId],
+        ) -> TypeId {
+            if let Some(ty) = explicit {
+                return ty;
+            }
+            match components {
+                [] => types.builtins().expect("builtins").unit,
+                [single] => *single,
+                many => types
+                    .iter_ids()
+                    .find(|id| matches!(types.kind(*id), TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements == many))
+                    .expect("tuple carrier should exist"),
+            }
+        }
+
+        fn test_call_carrier_source(
+            types: &TypeStore,
+            body: &crate::mir::Body,
+            kind: &CallKind,
+        ) -> Option<BoundaryOperandSource> {
+            match kind {
+                CallKind::Closure { callee, .. }
+                | CallKind::FunValue { callee }
+                | CallKind::FunPtr { callee } => Some(test_operand_source(types, body, callee)),
+                CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+                    Some(test_operand_source(types, body, receiver))
+                }
+                CallKind::Resume { continuation, .. } => {
+                    Some(test_operand_source(types, body, continuation))
+                }
+                CallKind::Direct { .. } => None,
+            }
+        }
+
+        fn test_operand_source(
+            types: &TypeStore,
+            body: &crate::mir::Body,
+            operand: &crate::mir::Operand,
+        ) -> BoundaryOperandSource {
+            match operand {
+                crate::mir::Operand::Local(local) => BoundaryOperandSource::Local {
+                    local: local.as_u32(),
+                    ty: body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+                },
+                crate::mir::Operand::Const(value) => BoundaryOperandSource::Const {
+                    kind: format!("{value:?}"),
+                    ty: test_const_ty(types, value),
+                },
+            }
+        }
+
+        fn test_const_ty(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<TypeId> {
+            let builtins = types.builtins()?;
+            Some(match value {
+                crate::mir::ConstValue::Bool(_) => builtins.bool_,
+                crate::mir::ConstValue::Char => builtins.char_,
+                crate::mir::ConstValue::Unit => builtins.unit,
+                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => builtins.int,
+                crate::mir::ConstValue::Float64 => builtins.float64,
+                crate::mir::ConstValue::Float32 => builtins.float32,
+                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                    builtins.string
+                }
+            })
+        }
+
+        facts
     }
 
     fn sample_source() -> SourceFile {
@@ -3611,12 +3609,14 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
     ) {
         let session = session();
         let source = sample_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .build()
@@ -3652,17 +3652,71 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         crate::effect_facts::MaterializedEffectFacts,
     ) {
         let session = session();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .build()
         .unwrap();
         (materialized, facts)
+    }
+
+    #[test]
+    fn gc_handle_intrinsic_call_sites_use_handle_token_carrier() {
+        let source = SourceFile::new_virtual(
+            "<mem>/effect_facts_gc_handle_carrier.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+fun main(): Unit {
+    @Unsafe do {
+        val box: Any = Box(value = 1)
+        val h: GcHandle = GC.handleNew(box)
+        val got: Any = GC.handleGet(h)
+        GC.handleDrop(h)
+    }
+}
+"#,
+        );
+        let (_, facts) = build_facts_for_source(source);
+        let (main_key, _) = callable_facts_for(&facts, "sample.main");
+        let body = facts
+            .body(main_key)
+            .expect("sample.main body facts should be published");
+
+        let handle_carriers = body
+            .sites()
+            .values()
+            .filter_map(|site| {
+                let SiteEffectFacts::Call(call) = site else {
+                    return None;
+                };
+                let carrier = facts
+                    .types()
+                    .display(call.invoke_args_tuple_ty())
+                    .to_string();
+                (carrier == "scoop.core.GcHandle").then_some(carrier)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            handle_carriers,
+            vec![
+                "scoop.core.GcHandle".to_string(),
+                "scoop.core.GcHandle".to_string(),
+            ],
+            "GC handle token calls must publish the stable handle carrier, not the GC singleton receiver",
+        );
     }
 
     fn call_and_resume_source() -> SourceFile {
@@ -4027,10 +4081,7 @@ fun pureHelper(): Unit {}
             fun_value_facts.target(),
             CallSiteTarget::DynamicFallback
         ));
-        assert_eq!(
-            fun_value_facts.precision(),
-            EffectPrecision::SignatureFallback
-        );
+        assert_eq!(fun_value_facts.precision(), EffectPrecision::Widened);
         assert_eq!(
             facts
                 .step_schemas()
@@ -4417,6 +4468,7 @@ fun pureHelper(): Unit {}
     fn materialized_effect_facts_builder_uses_canonical_pass_view_snapshot() {
         let session = session();
         let source = sample_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let removed_fqn = materialized
             .pass_view()
@@ -4429,12 +4481,13 @@ fun pureHelper(): Unit {}
         materialized
             .pass_artifacts_mut()
             .remove_callable_body(&removed_fqn);
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .build()
@@ -4636,7 +4689,9 @@ fun pureHelper(): Unit {}
     fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema() {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let leaf_key = materialized
             .pass_view()
@@ -4645,9 +4700,9 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
@@ -4674,7 +4729,9 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let leaf_key = materialized
             .pass_view()
@@ -4683,9 +4740,9 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
@@ -4713,7 +4770,9 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
+        let frontend_artifact = frontend_artifact(&session, &source);
         let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mir_facts = build_test_mir_facts(&materialized);
         let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let pass_view = materialized.pass_view();
         let leaf_key = pass_view
@@ -4726,9 +4785,9 @@ fun pureHelper(): Unit {}
             .clone();
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
-            &session,
-            &source,
+            &frontend_artifact,
             &materialized,
+            &mir_facts,
             &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])

@@ -15,6 +15,7 @@ use inkwell::values::PointerValue;
 use super::super::mir_body::MirLocalSlot;
 use super::super::*;
 use crate::effect_lowered::mir_source as mir;
+use crate::effect_lowered::{LirCallArg, LirExecutableBody};
 use crate::intrinsics::{
     NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeTy,
     named_intrinsic_audit_entry,
@@ -327,6 +328,10 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
     NamedIntrinsicIrRuleEntry {
         name: "float_compare_to",
         lower: lower_float_compare_to,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_to_int",
+        lower: lower_float_to_int,
     },
     NamedIntrinsicIrRuleEntry {
         name: "float_abs",
@@ -773,6 +778,13 @@ fn lower_float_compare_to<'a, 'ctx>(
     cg.codegen_named_intrinsic_float_compare_to(call)
 }
 
+fn lower_float_to_int<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_to_int(call)
+}
+
 fn lower_float_abs<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
@@ -958,18 +970,36 @@ fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_call(
+    pub(in crate::llvm::codegen) fn published_named_intrinsic_entry_name(
+        &self,
+        root: &str,
+    ) -> Option<String> {
+        self.active_lir_program()?
+            .intrinsic_callable(root)
+            .and_then(|intrinsic| intrinsic.named_entry_name.clone())
+    }
+
+    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_hir_top_level_call(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        callee: &hir::Expr,
         args: &[hir::CallArg],
         entry_name: &str,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
-            return Ok(None);
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
+        let mut operands = Vec::with_capacity(args.len());
+        for arg in args {
+            let value = match arg {
+                hir::CallArg::Positional(value) | hir::CallArg::Named { value, .. } => value,
+            };
+            operands.push(self.lower_named_intrinsic_hir_operand(value)?);
+        }
+        let call = LoweredNamedIntrinsicCall {
+            span,
+            callee_span,
+            operands,
+            array_element_source_ty: None,
         };
-        let call = self.lower_named_intrinsic_hir_call(span, callee_span, callee, args)?;
         self.codegen_named_intrinsic_call(entry, call).map(Some)
     }
 
@@ -984,14 +1014,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         array_transport: Option<&mir::ArrayElementTransportMetadata>,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some(entry) = named_intrinsic_audit_entry(entry_name) else {
-            return Ok(None);
-        };
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
         let call = self.lower_named_intrinsic_mir_call(
             span,
             args,
             body,
             mir_types,
+            array_transport,
+            slots,
+        )?;
+        self.codegen_named_intrinsic_call(entry, call).map(Some)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn try_codegen_named_intrinsic_lir_direct_call(
+        &mut self,
+        span: crate::span::Span,
+        entry_name: &str,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let entry = self.published_named_intrinsic_entry(entry_name)?;
+        let call = self.lower_named_intrinsic_lir_call(
+            span,
+            args,
+            body,
+            source_types,
             array_transport,
             slots,
         )?;
@@ -1019,28 +1070,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn lower_named_intrinsic_hir_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        callee: &hir::Expr,
-        args: &[hir::CallArg],
-    ) -> Result<LoweredNamedIntrinsicCall<'ctx>, LlvmEmitError> {
-        let mut operands = Vec::with_capacity(args.len() + 1);
-        if let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind {
-            operands.push(self.lower_named_intrinsic_hir_operand(receiver)?);
-        }
-        for arg in args {
-            let value = match arg {
-                hir::CallArg::Positional(value) | hir::CallArg::Named { value, .. } => value,
-            };
-            operands.push(self.lower_named_intrinsic_hir_operand(value)?);
-        }
-        Ok(LoweredNamedIntrinsicCall {
-            span,
-            callee_span,
-            operands,
-            array_element_source_ty: None,
+    fn published_named_intrinsic_entry(
+        &self,
+        entry_name: &str,
+    ) -> Result<&'static NamedIntrinsicAuditEntry, LlvmEmitError> {
+        named_intrinsic_audit_entry(entry_name).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "published named intrinsic entry `{entry_name}` is not present in the backend audit table"
+                ),
+            }
         })
     }
 
@@ -1090,6 +1129,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn lower_named_intrinsic_lir_call(
+        &mut self,
+        span: crate::span::Span,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<LoweredNamedIntrinsicCall<'ctx>, LlvmEmitError> {
+        let mut operands = Vec::with_capacity(args.len());
+        for arg in args {
+            operands.push(self.lower_named_intrinsic_lir_operand(
+                arg,
+                body,
+                source_types,
+                slots,
+            )?);
+        }
+        Ok(LoweredNamedIntrinsicCall {
+            span,
+            callee_span: span,
+            operands,
+            array_element_source_ty: array_transport
+                .and_then(|metadata| {
+                    self.equivalent_codegen_type_id(source_types, metadata.element_ty)
+                })
+                .or_else(|| {
+                    array_transport.and_then(|metadata| {
+                        self.equivalent_codegen_type_id(source_types, metadata.element.source_ty)
+                    })
+                }),
+        })
+    }
+
     fn lower_named_intrinsic_mir_operand(
         &mut self,
         arg: &mir::CallArg,
@@ -1124,6 +1197,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(LoweredNamedIntrinsicOperand {
             span: arg.span,
             source_ty: self.equivalent_codegen_type_id(mir_types, source_ty),
+            value,
+        })
+    }
+
+    fn lower_named_intrinsic_lir_operand(
+        &mut self,
+        arg: &LirCallArg,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<LoweredNamedIntrinsicOperand<'ctx>, LlvmEmitError> {
+        let source_ty = self
+            .lir_operand_type_id(body, &arg.value)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "lower_named_intrinsic_lir_operand",
+                    "missing LIR operand type",
+                )
+            });
+        let operand_cg = self
+            .cg_ty_of_mir_type(source_types, source_ty)
+            .or_else(|| {
+                self.equivalent_codegen_type_id(source_types, source_ty)
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
+            })
+            .unwrap_or_else(|| {
+                panic!("lower_named_intrinsic_lir_operand: TypeStore equivalence verifier accepted unsupported named intrinsic operand codegen type")
+            });
+        let value =
+            self.codegen_lir_operand_expected(arg.span, &arg.value, slots, Some(operand_cg))?;
+        let value = if value.ty == operand_cg {
+            value
+        } else {
+            self.coerce_value(arg.span, value, operand_cg)?
+        };
+        Ok(LoweredNamedIntrinsicOperand {
+            span: arg.span,
+            source_ty: self.equivalent_codegen_type_id(source_types, source_ty),
             value,
         })
     }
@@ -1895,6 +2006,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.named_intrinsic_three_way_result(is_lt, is_eq)
     }
 
+    fn codegen_named_intrinsic_float_to_int(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float toInt operand arity")?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_to_int_value(call.span, operand.span, operand.value)
+    }
+
     fn codegen_named_intrinsic_float_abs(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
@@ -2537,11 +2657,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         elem_ty: TypeId,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let body_fqn = self
-            .function_cx
-            .current_callable_fqn
-            .clone()
-            .unwrap_or_else(|| "<named-intrinsic-array>".to_string());
+        let body_fqn = self.current_codegen_body_fqn();
         let metadata =
             mir::ValueTransportMetadata::plain(elem_ty, mir::MirTransportKind::ArrayElement);
         let descriptor = self.get_or_create_value_composite_transport_descriptor_global(

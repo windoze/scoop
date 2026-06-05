@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: effectful_interface_method_explicit_param_carrier.stdout
+// EXPECT-EXIT: 0
+//
+// P5-T02B00:
+// - effectful interface 方法（`accept(v: Int): Unit / Raise<Int>`，带显式参数）经
+//   InterfaceItable dispatch-carrier shell 降级。receiver 占据 source slot 0，显式
+//   参数落到 slot 1。
+// - 与 ClosureObject 路径一起守护「effectful + 至少一个显式参数 + 走 carrier shell」
+//   的 args tuple source-component 对齐。
+
+import scoop.core.*
+
+interface Sink {
+    fun accept(v: Int): Unit / Raise<Int>
+}
+
+class RaiseSink() : Sink {
+    fun accept(v: Int): Unit / Raise<Int> {
+        if (v == 7) {
+            Raise.raise(v + 1)
+        }
+    }
+}
+
+fun driveSink(s: Sink, v: Int): Unit / Raise<Int> {
+    s.accept(v)
+}
+
+fun main(): Int {
+    val s: Sink = RaiseSink()
+    val r: Int = try {
+        driveSink(s, 7)
+        0
+    } catch (e: Int) {
+        e
+    }
+    println(r)
+    return 0
+}

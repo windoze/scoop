@@ -34,6 +34,62 @@ fn filter_materialized_decl_members(members: &[DeclMemberMetadata]) -> Vec<DeclM
         .collect()
 }
 
+fn materialized_callable_effect_template_from_hir_fact(
+    fact: scoopc_hir::hir_facts::source_sites::CallableSourceEffectFacts,
+    eff_param_names_by_template: &HashMap<TemplateKey, Vec<String>>,
+) -> MaterializeResult<super::MaterializedCallableEffectTemplate> {
+    let template = TemplateKey {
+        fqn: fact.fqn,
+        source_path: fact.source_path,
+        decl_span: fact.span,
+    };
+    let eff_param_names = eff_param_names_by_template
+        .get(&template)
+        .cloned()
+        .unwrap_or_default();
+    Ok(super::MaterializedCallableEffectTemplate {
+        template,
+        eff_param_names,
+        declared_surface_row: fact
+            .declared_surface_row
+            .map(stable_effect_row_template_from_hir_fact)
+            .transpose()
+            .map_err(|error| frontend_err(format!("invalid declared effect row fact: {error}")))?,
+        actual_surface_row_template: stable_effect_row_template_from_hir_fact(
+            fact.inferred_surface_row_template,
+        )
+        .map_err(|error| frontend_err(format!("invalid actual effect row fact: {error}")))?,
+        published_surface_row_template: stable_effect_row_template_from_hir_fact(
+            fact.published_surface_row_template,
+        )
+        .map_err(|error| frontend_err(format!("invalid published effect row fact: {error}")))?,
+    })
+}
+
+fn stable_effect_row_template_from_hir_fact(
+    row: scoopc_hir::hir_facts::source_sites::EffectRowTemplate,
+) -> Result<EffectRowTemplate, crate::stable_id::CanonicalEncodingError> {
+    let terms = row
+        .terms
+        .into_iter()
+        .map(|term| match term {
+            scoopc_hir::hir_facts::source_sites::EffectRowTerm::Concrete { type_key } => {
+                Ok(crate::stable_id::EffectTerm::Concrete { type_key })
+            }
+            scoopc_hir::hir_facts::source_sites::EffectRowTerm::Param {
+                owner,
+                ordinal,
+                name,
+            } => Ok(crate::stable_id::EffectTerm::Param {
+                owner: crate::stable_id::StableDefKey::from_canonical_text(owner.as_str())?,
+                ordinal,
+                name,
+            }),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(EffectRowTemplate::new(terms, row.closed))
+}
+
 impl MirInstanceMaterializer {
     pub(super) fn new(
         generic_file: File,
@@ -44,10 +100,13 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
             stable_cone_key,
-            typecheck_types,
+            typecheck_types: _typecheck_types,
             template_infos,
             callable_body_infos,
             callable_signatures,
+            callable_effects,
+            call_site_instance_facts,
+            template_site_binding_facts,
             known_receiver_subclasses,
             direct_subclasses,
             class_vtables,
@@ -56,8 +115,6 @@ impl MirInstanceMaterializer {
             enum_layouts,
             extern_funs,
             native_callable_funs,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
@@ -100,6 +157,8 @@ impl MirInstanceMaterializer {
             .iter()
             .map(|signature| super::MaterializedCallableSignature {
                 fqn: signature.template.fqn.clone(),
+                stable_template_key: signature.stable_template_key.clone(),
+                has_generic_params_or_effect_param: signature.has_generic_params_or_effect_param,
                 param_names: signature
                     .params
                     .iter()
@@ -109,6 +168,19 @@ impl MirInstanceMaterializer {
                 return_ty: signature.return_ty,
             })
             .collect();
+        let eff_param_names_by_template = template_infos
+            .iter()
+            .map(|info| (info.template.clone(), info.eff_param_names.clone()))
+            .collect::<HashMap<_, _>>();
+        let source_callable_effects = callable_effects
+            .into_iter()
+            .map(|fact| {
+                materialized_callable_effect_template_from_hir_fact(
+                    fact,
+                    &eff_param_names_by_template,
+                )
+            })
+            .collect::<MaterializeResult<Vec<_>>>()?;
         let callable_signatures = callable_signatures
             .into_iter()
             .map(|signature| (signature.template.clone(), signature))
@@ -140,10 +212,9 @@ impl MirInstanceMaterializer {
                         prefers_materialized_body: false,
                     });
                     decl_only_candidates.push(DeclOnlyTemplateCandidate {
-                        request_lookup_key: info.request_lookup_key,
                         template,
                         type_param_names: info.type_param_names,
-                        eff_param_name: info.eff_param_name,
+                        eff_param_names: info.eff_param_names,
                         signature_key: info.signature_key,
                         signature,
                     });
@@ -167,10 +238,9 @@ impl MirInstanceMaterializer {
                 prefers_materialized_body: root_fun.body.is_some(),
             });
             root_candidates.push(TemplateRootCandidate {
-                request_lookup_key: info.request_lookup_key,
                 template,
                 type_param_names: info.type_param_names,
-                eff_param_name: info.eff_param_name,
+                eff_param_names: info.eff_param_names,
                 signature_key: info.signature_key,
                 root_fun,
             });
@@ -209,7 +279,6 @@ impl MirInstanceMaterializer {
             stable_template_keys.insert(candidate.template.clone(), stable_template_key);
         }
 
-        let mut request_templates = HashMap::new();
         let mut roots = HashMap::new();
         let mut template_signatures = HashMap::new();
         for candidate in root_candidates {
@@ -221,8 +290,6 @@ impl MirInstanceMaterializer {
                 .get(&group_key)
                 .cloned()
                 .expect("canonical template must exist for every root candidate");
-            request_templates.insert(candidate.request_lookup_key, canonical.clone());
-
             if candidate.template != canonical || roots.contains_key(&canonical) {
                 continue;
             }
@@ -235,9 +302,8 @@ impl MirInstanceMaterializer {
             template_signatures.insert(
                 canonical.clone(),
                 TemplateSignatureInfo {
-                    template: canonical.clone(),
                     type_param_names: candidate.type_param_names.clone(),
-                    eff_param_name: candidate.eff_param_name.clone(),
+                    eff_param_names: candidate.eff_param_names.clone(),
                     fun_ty: candidate.root_fun.ty,
                     return_ty: candidate.root_fun.return_ty,
                     params: candidate
@@ -256,7 +322,7 @@ impl MirInstanceMaterializer {
                 TemplateRootInfo {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
-                    eff_param_name: candidate.eff_param_name,
+                    eff_param_names: candidate.eff_param_names,
                     family,
                 },
             );
@@ -271,8 +337,6 @@ impl MirInstanceMaterializer {
                 .get(&group_key)
                 .cloned()
                 .expect("canonical template must exist for every decl-only candidate");
-            request_templates.insert(candidate.request_lookup_key, canonical.clone());
-
             if candidate.template != canonical || template_signatures.contains_key(&canonical) {
                 continue;
             }
@@ -280,9 +344,8 @@ impl MirInstanceMaterializer {
             template_signatures.insert(
                 canonical.clone(),
                 TemplateSignatureInfo {
-                    template: canonical,
                     type_param_names: candidate.type_param_names,
-                    eff_param_name: candidate.eff_param_name,
+                    eff_param_names: candidate.eff_param_names,
                     fun_ty: candidate.signature.fun_ty,
                     return_ty: candidate.signature.return_ty,
                     params: candidate.signature.params,
@@ -291,6 +354,15 @@ impl MirInstanceMaterializer {
         }
 
         let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
+        let mut templates_by_stable_key = stable_template_keys
+            .iter()
+            .map(|(template, stable_key)| (stable_key.clone(), template.clone()))
+            .collect::<HashMap<_, _>>();
+        templates_by_stable_key.extend(
+            nongeneric_callable_stable_template_keys
+                .iter()
+                .map(|(template, stable_key)| (stable_key.clone(), template.clone())),
+        );
         let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
         for template in template_signatures.keys() {
             roots_by_fqn
@@ -350,8 +422,7 @@ impl MirInstanceMaterializer {
             entry.push(fun.clone());
         }
 
-        let mut direct_call_bindings = top_level_fun_call_bindings.clone();
-        direct_call_bindings.extend(lowered_top_level_fun_call_bindings.clone());
+        let direct_call_bindings = lowered_top_level_fun_call_bindings.clone();
 
         let mut materializer = Self {
             stable_cone_key,
@@ -370,15 +441,15 @@ impl MirInstanceMaterializer {
             request_root_funs,
             hir_direct_instance_keys_by_fun: HashMap::new(),
             generic_family_fqns,
-            request_templates,
+            templates_by_stable_key,
             roots,
             source_callable_signatures,
+            source_callable_effects,
             template_signatures,
             stable_template_keys,
             nongeneric_callable_stable_template_keys,
             template_symbol_suffixes,
             roots_by_fqn,
-            explicit_dispatch_candidate_instances: HashMap::new(),
             direct_call_bindings,
             ctor_call_sites,
             top_level_vars,
@@ -412,15 +483,8 @@ impl MirInstanceMaterializer {
             materialized: HashMap::new(),
             declaration_only_instances: HashSet::new(),
         };
-        materializer.explicit_dispatch_candidate_instances =
-            materializer.collect_explicit_dispatch_candidate_instances(typecheck_types);
-        materializer.load_site_instance_bindings(
-            typecheck_types,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
-        )?;
-        materializer
-            .load_preinterned_call_site_instance_bindings(lowered_top_level_fun_call_bindings)?;
+        materializer.load_hir_call_site_instance_bindings(call_site_instance_facts)?;
+        materializer.load_hir_template_site_bindings(template_site_binding_facts)?;
         Ok(materializer)
     }
 
@@ -438,118 +502,98 @@ impl MirInstanceMaterializer {
         tys
     }
 
-    pub(super) fn load_site_instance_bindings(
+    pub(super) fn load_hir_call_site_instance_bindings(
         &mut self,
-        typecheck_types: &TypeStore,
-        top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
-        top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+        facts: Vec<scoopc_hir::hir_facts::source_sites::CallSiteInstanceFact>,
     ) -> MaterializeResult<()> {
-        for (site, binding) in top_level_fun_call_bindings {
-            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
-                continue;
-            }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
-            else {
-                return Err(materialize_err(
-                    MirMaterializeError::MissingGenericTemplate {
-                        fqn: binding.fqn,
-                        file: binding.decl_file.display().to_string(),
-                        span: binding.decl_span,
-                        call_file: Some(site.0.display().to_string()),
-                        call_site: Some(site.1),
-                    },
+        for fact in facts {
+            let stable_template_key = StableTemplateKey::from_canonical_text(
+                fact.template_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR call-site instance fact has invalid stable template key: {err}"
+                ))
+            })?;
+            let stable_instance_key = StableInstanceKey::from_canonical_text(
+                fact.stable_instance_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR call-site instance fact has invalid stable instance key: {err}"
+                ))
+            })?;
+            if stable_instance_key.template() != &stable_template_key {
+                return Err(frontend_err(
+                    "HIR call-site instance fact stable template/instance mismatch",
                 ));
-            };
-            let type_args = binding
-                .type_args
-                .iter()
-                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                .collect();
-            let eff_args = binding
-                .eff_args
-                .iter()
-                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
-                .collect();
-            self.call_bindings.insert(
-                site,
-                SiteInstanceBinding {
-                    template,
-                    type_args,
-                    eff_args,
-                },
-            );
-        }
-
-        for (site, binding) in top_level_fun_value_refs {
-            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
-                continue;
             }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
+            let Some(binding) = self.instance_key_from_stable_instance_key(&stable_instance_key)?
             else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
-                        fqn: binding.fqn,
-                        file: binding.decl_file.display().to_string(),
-                        span: binding.decl_span,
-                        call_file: Some(site.0.display().to_string()),
-                        call_site: Some(site.1),
-                    },
-                ));
-            };
-            let type_args = binding
-                .type_args
-                .iter()
-                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                .collect();
-            let eff_args = binding
-                .eff_args
-                .iter()
-                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
-                .collect();
-            self.value_ref_bindings.insert(
-                site,
-                SiteInstanceBinding {
-                    template,
-                    type_args,
-                    eff_args,
-                },
-            );
-        }
-
-        Ok(())
-    }
-
-    pub(super) fn load_preinterned_call_site_instance_bindings(
-        &mut self,
-        top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
-    ) -> MaterializeResult<()> {
-        for (site, binding) in top_level_fun_call_bindings {
-            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
-                continue;
-            }
-            let Some(template) =
-                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
-            else {
-                return Err(materialize_err(
-                    MirMaterializeError::MissingGenericTemplate {
-                        fqn: binding.fqn,
-                        file: binding.decl_file.display().to_string(),
-                        span: binding.decl_span,
-                        call_file: Some(site.0.display().to_string()),
-                        call_site: Some(site.1),
+                        fqn: stable_template_key.def().owner_path().to_string(),
+                        file: fact.identity.source_path.display().to_string(),
+                        span: fact.identity.span,
+                        call_file: Some(fact.identity.source_path.display().to_string()),
+                        call_site: Some(fact.identity.span),
                     },
                 ));
             };
             self.call_bindings.insert(
-                site,
+                (fact.identity.source_path, fact.identity.span),
                 SiteInstanceBinding {
-                    template,
+                    template: binding.template,
                     type_args: binding.type_args,
                     eff_args: binding.eff_args,
                 },
             );
+        }
+        Ok(())
+    }
+
+    pub(super) fn load_hir_template_site_bindings(
+        &mut self,
+        facts: Vec<scoopc_hir::hir_facts::source_sites::TemplateSiteBindingFact>,
+    ) -> MaterializeResult<()> {
+        for fact in facts {
+            if fact.type_args.is_empty() && fact.eff_args.is_empty() {
+                continue;
+            }
+            let stable_template_key = StableTemplateKey::from_canonical_text(
+                fact.template_key.as_str(),
+            )
+            .map_err(|err| {
+                frontend_err(format!(
+                    "HIR template-site binding fact has invalid stable template key: {err}"
+                ))
+            })?;
+            let Some(template) = self.resolve_stable_request_template(&stable_template_key) else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: stable_template_key.def().owner_path().to_string(),
+                        file: fact.identity.source_path.display().to_string(),
+                        span: fact.identity.span,
+                        call_file: Some(fact.identity.source_path.display().to_string()),
+                        call_site: Some(fact.identity.span),
+                    },
+                ));
+            };
+            let binding = SiteInstanceBinding {
+                template,
+                type_args: fact.type_args,
+                eff_args: fact.eff_args,
+            };
+            match fact.kind {
+                scoopc_hir::hir_facts::source_sites::TemplateSiteBindingKind::DirectCall => {
+                    self.call_bindings
+                        .insert((fact.identity.source_path, fact.identity.span), binding);
+                }
+                scoopc_hir::hir_facts::source_sites::TemplateSiteBindingKind::FunValue => {
+                    self.value_ref_bindings
+                        .insert((fact.identity.source_path, fact.identity.span), binding);
+                }
+            }
         }
         Ok(())
     }
@@ -564,11 +608,10 @@ impl MirInstanceMaterializer {
             if key.type_args.is_empty() && key.eff_args.is_empty() {
                 continue;
             }
-            let Some(template) = self.resolve_request_template(
-                &key.symbol.fqn,
-                &key.symbol.decl_file,
-                key.symbol.decl_span,
-            ) else {
+            if !instance_request_is_concrete(typecheck_types, &key.type_args, &key.eff_args) {
+                continue;
+            }
+            let Some(stable_template_key) = key.stable_template_key.as_ref() else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: key.symbol.fqn.clone(),
@@ -579,16 +622,25 @@ impl MirInstanceMaterializer {
                     },
                 ));
             };
-            let type_args = key
-                .type_args
-                .iter()
-                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                .collect();
-            let eff_args = key
-                .eff_args
-                .iter()
-                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
-                .collect();
+            let Some(template) = self.resolve_stable_request_template(stable_template_key) else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: key.symbol.fqn.clone(),
+                        file: key.symbol.decl_file.display().to_string(),
+                        span: key.symbol.decl_span,
+                        call_file: Some(request.request_source_path.display().to_string()),
+                        call_site: Some(request.call_span),
+                    },
+                ));
+            };
+            let Some(stable_instance_key) = key.stable_instance_key.as_ref() else {
+                return Err(frontend_err(format!(
+                    "monomorph request `{}` 缺少 stable instance key",
+                    key.symbol.fqn
+                )));
+            };
+            let (type_args, eff_args) =
+                self.localize_stable_request_args(typecheck_types, key, stable_instance_key)?;
             self.call_bindings.insert(
                 (request.request_source_path.clone(), request.call_span),
                 SiteInstanceBinding {

@@ -551,6 +551,31 @@ fn session() -> Session {
     Session::with_options(SessionOptions::new()).unwrap()
 }
 
+#[test]
+fn lower_typed_single_source_file_preserves_release_hook_side_table() {
+    let sess = session();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"package a
+@Extern(abi = "c")
+fun release(raw: UInt): Unit
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "a.release", args = ["raw"])
+class NativeBox(val raw: UInt)
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &source);
+    let hook = lowered
+        .release_hooks
+        .get("a.NativeBox")
+        .expect("release hook side table should contain class");
+
+    assert_eq!(hook.target_fqn, "a.release");
+    assert_eq!(hook.arg_fields, vec!["raw"]);
+}
+
 fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {
     lowered
         .file
@@ -620,7 +645,7 @@ fn add_call_synth_string_arg(stmt: &Stmt) -> Option<&str> {
     Some(value.as_str())
 }
 
-fn add_call_arg_is_to_string_call(stmt: &Stmt) -> bool {
+fn add_call_arg_is_concrete_int_to_string_call(stmt: &Stmt) -> bool {
     let StmtKind::Expr(Expr {
         kind: ExprKind::Call { args, .. },
         ..
@@ -641,7 +666,7 @@ fn add_call_arg_is_to_string_call(stmt: &Stmt) -> bool {
     let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
         return false;
     };
-    fqn == "scoop.core.ToString.toString"
+    fqn == "scoop.core.Int.toString"
 }
 
 fn block_contains_call_with_member_access_callee(block: &Block) -> bool {
@@ -765,20 +790,13 @@ fun main(): Int {
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[1]), Some("a"));
     assert!(
-        add_call_arg_is_to_string_call(&block.stmts[2]),
-        "expression part should call ToString.toString through canonical top-level callee"
+        add_call_arg_is_concrete_int_to_string_call(&block.stmts[2]),
+        "Int expression part should call the concrete builtin toString body"
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[3]), Some("b"));
     assert!(
         !block_contains_call_with_member_access_callee(block),
         "synthetic f-string lowering must not emit Call(MemberAccess(...))"
-    );
-    assert!(
-        lowered
-            .dispatch_call_sites
-            .values()
-            .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
-        "ToString.toString should be published as an interface dispatch call"
     );
 }
 
@@ -1502,11 +1520,11 @@ fn find_raise_perform_effect_ty_in_expr(expr: &Expr) -> Option<TypeId> {
                     .as_ref()
                     .and_then(find_raise_perform_effect_ty_in_block)
             }),
+        ExprKind::Closure(closure) => find_raise_perform_effect_ty_in_expr(&closure.body),
         ExprKind::Literal(_)
         | ExprKind::VarRef(_)
         | ExprKind::UnresolvedIdent { .. }
         | ExprKind::ClassLiteral(_)
-        | ExprKind::Closure(_)
         | ExprKind::Missing
         | ExprKind::Todo(_) => None,
     }
@@ -2469,18 +2487,27 @@ fun main(): Int {
     );
 
     let lowered = lower_typed_single_source_file(&sess, &source);
-    let main_fun = lowered
-        .file
-        .items
+    let class_init = lowered
+        .class_inits
+        .get(&crate::hir::ClassInstanceKey::for_unparameterized(
+            "fixtures.t3014c.Counter",
+        ))
+        .expect("应收集到 Counter 的 class init");
+    let delegate_init = class_init
+        .steps
         .iter()
-        .find_map(|item| match item {
-            Item::Fun(fun) if fun.fqn == "fixtures.t3014c.main" => Some(fun),
+        .find_map(|step| match step {
+            ClassInitStep::PropertyInit { field_fqn, init }
+                if field_fqn == "fixtures.t3014c.Counter.x$delegate" =>
+            {
+                Some(init)
+            }
             _ => None,
         })
-        .expect("应收集到 fixtures.t3014c.main");
-    let main_body = main_fun.body.as_ref().expect("main 应有 body");
-    let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
-        .expect("observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        .expect("Counter.x$delegate 应存在普通委托字段 initializer");
+    let effect_ty = find_raise_perform_effect_ty_in_expr(delegate_init).expect(
+        "observable delegate closure 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform",
+    );
     assert_raise_int_effect_ty(&lowered.types, effect_ty);
 }
 
@@ -2754,18 +2781,27 @@ fun main(): Int {
     )
     .unwrap();
 
-    let main_fun = lowered
-        .file
-        .items
+    let class_init = lowered
+        .class_inits
+        .get(&crate::hir::ClassInstanceKey::for_unparameterized(
+            "fixtures.t3014cr.Counter",
+        ))
+        .expect("应收集到 Counter 的 class init");
+    let delegate_init = class_init
+        .steps
         .iter()
-        .find_map(|item| match item {
-            Item::Fun(fun) if fun.fqn == "fixtures.t3014cr.main" => Some(fun),
+        .find_map(|step| match step {
+            ClassInitStep::PropertyInit { field_fqn, init }
+                if field_fqn == "fixtures.t3014cr.Counter.x$delegate" =>
+            {
+                Some(init)
+            }
             _ => None,
         })
-        .expect("应收集到 fixtures.t3014cr.main");
-    let main_body = main_fun.body.as_ref().expect("main 应有 body");
-    let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
-        .expect("跨文件 observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        .expect("Counter.x$delegate 应存在普通委托字段 initializer");
+    let effect_ty = find_raise_perform_effect_ty_in_expr(delegate_init).expect(
+        "跨文件 observable delegate closure 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform",
+    );
     assert_raise_int_effect_ty(&lowered.types, effect_ty);
 }
 

@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_function_must_be_nogc_or_c_extern
+// EXPECT-ERROR: mustBeLeafRelease
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun mustBeLeafRelease(raw: UInt): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.mustBeLeafRelease", args = ["raw"])
+class NonLeafReleaseFunctionHost(val raw: UInt)

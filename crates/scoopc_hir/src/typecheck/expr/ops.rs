@@ -16,7 +16,7 @@ use super::call::{
     collect_member_method_signature_groups_from_receiver_ty, combined_member_instance_type_args,
     default_eff_arg_for_fun_sig, format_ambiguous_specificity_candidates,
     format_candidate_location, instantiate_eff_row_var_in_sig_types, instantiate_fun_sig_for_call,
-    map_call_args_to_params_with_defaults, pick_most_specific_overload,
+    map_call_args_to_params_with_defaults, nominal_eff_row_from_type, pick_most_specific_overload,
     specificity_candidate_for_fun_sig, substitute_type_args_in_effect_row, type_param_name,
     type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base,
 };
@@ -355,6 +355,16 @@ pub(super) fn collect_member_method_signatures_from_index(
     let use_cone = lower.index().cone_of_source(source);
     let base_type_bindings =
         collect_nominal_type_param_bindings(receiver_fqn, receiver_args, lower);
+    let owner_eff_param_sig = lower
+        .env()
+        .type_symbol(receiver_fqn)
+        .and_then(|sym| sym.eff_param.as_ref())
+        .and_then(|eff_param| {
+            nominal_eff_row_from_type(receiver_ty, lower).map(|row| EffParamSig {
+                name: eff_param.name.clone(),
+                default: row,
+            })
+        });
 
     let mut out: Vec<FunSigOwned> = Vec::new();
     for o in overloads {
@@ -407,10 +417,16 @@ pub(super) fn collect_member_method_signatures_from_index(
         } else {
             None
         };
-        let eff_bindings: Vec<(String, EffectRow)> = eff_param_sig
-            .as_ref()
-            .map(|p| vec![(p.name.clone(), p.default.clone())])
-            .unwrap_or_default();
+        let mut eff_bindings: Vec<(String, EffectRow)> = Vec::new();
+        if let Some(owner_eff_param) = &owner_eff_param_sig {
+            eff_bindings.push((
+                owner_eff_param.name.clone(),
+                owner_eff_param.default.clone(),
+            ));
+        }
+        if let Some(fun_eff_param) = &eff_param_sig {
+            eff_bindings.push((fun_eff_param.name.clone(), fun_eff_param.default.clone()));
+        }
 
         let mut param_names: Vec<String> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut param_has_defaults: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
@@ -447,6 +463,13 @@ pub(super) fn collect_member_method_signatures_from_index(
                 ret,
             )?,
             None => builtins.unit,
+        };
+        let return_eff_row_var_subst = if let (Some(eff_param), Some(ret_ref)) =
+            (eff_param_sig.as_ref(), o.sig.return_ty.as_ref())
+        {
+            build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, &decl_source, lower)?
+        } else {
+            EffRowVarSubstPlan::None
         };
 
         // 成员方法的隐式 receiver 不直接携带函数级 `eff` row 变量，因此第 0 个 receiver 参数
@@ -514,11 +537,12 @@ pub(super) fn collect_member_method_signatures_from_index(
             param_has_defaults,
             param_is_vararg,
             type_params,
+            owner_eff_param: owner_eff_param_sig.clone(),
             eff_param: eff_param_sig,
             param_fn_effect_eff_base,
             param_nominal_eff_eff_base,
             param_eff_row_var_subst,
-            return_eff_row_var_subst: EffRowVarSubstPlan::None,
+            return_eff_row_var_subst,
             params,
             return_ty,
             effects: o.sig.effects.clone(),
@@ -768,6 +792,7 @@ fn record_member_direct_call_binding(
             return_ty: Some(instance.return_ty),
             type_args,
             eff_args: instance.eff_args.to_vec(),
+            types_are_hir: false,
         },
     );
     Ok(())

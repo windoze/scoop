@@ -1,595 +1,444 @@
-# `@ReleaseHook` + `@NoGC` 强制 Pure TODO
-
-> 生成时间：2026-05-30
-> 计划基线：[`PLAN.md`](./PLAN.md)
-> 格式参考：[`docs/archive/plans/TODO-gc-pacing-immortal.md`](./docs/archive/plans/TODO-gc-pacing-immortal.md)、[`docs/archive/plans/TODO-1-gc-pacing-immortal.md`](./docs/archive/plans/TODO-1-gc-pacing-immortal.md)
-> 当前状态：任务已拆为 P0-P5 六阶段，全部 `[TODO]`。每个实现任务后紧跟一个独立 review 任务，编号为原任务 ID + `R`。
-> 行号说明：下文行号以当前文件状态为准；实现时若漂移，优先按文件路径、函数名、fixture 名定位。
-
-## 总原则
-
-- `PLAN.md` 是当前执行计划基线；实现时若发现阶段边界或 contract 需要变化，必须先回写 `PLAN.md`，再调整 TODO。
-- 任务按 P0 → P1 → P2 → P3 顺序推进，不跨阶段并行实现。**P0 是 P1 的硬前置**：`@ReleaseHook` 的安全性依赖 `@NoGC` 已被保证 Pure。
-- 每个实现任务后必须紧跟一个独立 review 任务，复审完整变更、阶段目标与约束遵守情况；review 不是形式检查，发现未达标必须直接修正或阻塞下一任务。
-- 任务完成后更新本文件中对应任务的状态（`[TODO]`→`[DONE]`）与完成记录。
-- **安全闭环不可削弱**：释放函数只能是 `@NoGC` 或 `@Extern(abi="c")`；`args` 只能是 GC-free 字段；宿主只能是 non-generic + final class 且带 `@Experimental(feature="releaseHook")`。任何放宽都必须先回写 `PLAN.md` 并补安全论证。
-- **best-effort 语义不可被误记为 finalizer**：退出时存活对象不回收是预期行为，不得为「保证退出时调用」而引入 atexit/teardown 清理。
-- 所有 runtime/codegen 改动必须保持 `baseline` / `immix` / `hosted` / `minimal` 后端可编译可回归。
-
-## 任务包划分
-
-| 阶段 | 覆盖 PLAN 阶段 | 目标 |
-| --- | --- | --- |
-| P0 | §5 / P0 | `@NoGC` 强制 Pure（独立正确性前置修复） |
-| P1 | §5 / P1 | `@ReleaseHook` 注解 surface 与 front-end/HIR 全套校验 |
-| P2 | §5 / P2 | trampoline codegen + 填 `release_fn` |
-| P3 | §5 / P3 | 验证矩阵、四后端/跨平台回归、demo 用例与文档/spec 回写 |
-| P4 | §5 / P4 | `scoop.sync` 迁移到 `@ReleaseHook`，删除 `Once.run` `@Intrinsic` 与全部编译器硬编码 |
-| P5 | §5 / P5 | `lazy`/`observable`/`vetoable` 降为普通库 class，删除属性委托全部 by-name 特判 |
-
-## 具体任务索引
-
-| 任务 | 状态 | 目标 |
-| --- | --- | --- |
-| P0-T01 | [TODO] | 新增 `@NoGC` effect 契约校验并接入 fun decl 检查 |
-| P0-T01R | [TODO] | Review P0-T01 `@NoGC` Pure 契约 |
-| P0-T02 | [TODO] | `@NoGC` Pure typecheck fixtures + spec 回写 |
-| P0-T02R | [TODO] | Review P0-T02 fixtures 与 spec |
-| P1-T01 | [TODO] | `@ReleaseHook` 注解种类、识别与参数解析 |
-| P1-T01R | [TODO] | Review P1-T01 注解 surface |
-| P1-T02 | [TODO] | 宿主校验：class / non-generic / final / `@Experimental` |
-| P1-T02R | [TODO] | Review P1-T02 宿主校验 |
-| P1-T03 | [TODO] | 释放函数签名校验 + `args` 字段 GC-free/类型匹配 + HIR side table |
-| P1-T03R | [TODO] | Review P1-T03 函数/字段校验 |
-| P1-T04 | [TODO] | `@ReleaseHook` typecheck fixtures（错误面 + 正例） |
-| P1-T04R | [TODO] | Review P1-T04 fixtures |
-| P2-T01 | [TODO] | 生成 release trampoline（按字段读值并调用释放函数） |
-| P2-T01R | [TODO] | Review P2-T01 trampoline |
-| P2-T02 | [TODO] | 在 type descriptor 填 `release_fn` + IR fixtures |
-| P2-T02R | [TODO] | Review P2-T02 descriptor 接线 |
-| P3-T01 | [TODO] | run-pass 端到端 + 四后端 parity + 跨平台矩阵 |
-| P3-T01R | [TODO] | Review P3-T01 验证矩阵 |
-| P3-T02 | [TODO] | 最小 demo 用例 + spec/runtime 文档回写 |
-| P3-T02R | [TODO] | Review P3-T02 用例与文档 |
-| P4-T01 | [TODO] | 重写 `sync.scoop`：三类型降为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化 |
-| P4-T01R | [TODO] | Review P4-T01 sync 源改造 |
-| P4-T02 | [TODO] | 收缩 `scoop_sync.c` 为只管 raw native handle |
-| P4-T02R | [TODO] | Review P4-T02 runtime 收缩 |
-| P4-T03 | [TODO] | 删除 `Once.run` intrinsic 全套 codegen/runtime 硬编码 |
-| P4-T03R | [TODO] | Review P4-T03 intrinsic 删除 |
-| P4-T04 | [TODO] | 删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判（含 lazy 属性引用决策） |
-| P4-T04R | [TODO] | Review P4-T04 特判清理 |
-| P4-T05 | [TODO] | sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫 |
-| P4-T05R | [TODO] | Review P4-T05 回归与守卫 |
-| P5-T01 | [TODO] | 在 `scoop.delegates` 写 lazy/observable/vetoable 库实现，降级顶层函数 |
-| P5-T01R | [TODO] | Review P5-T01 委托库实现 |
-| P5-T02 | [TODO] | 删除三者 by-name 合成、backing 字段注入与 `ParsedStdDelegateExpr` 分叉 |
-| P5-T02R | [TODO] | Review P5-T02 特判删除 |
-| P5-T03 | [TODO] | 委托回归（含 lazy 三模式）+ 守卫扩展到三者与 Mutex 注入点 |
-| P5-T03R | [TODO] | Review P5-T03 回归与守卫 |
-
-## 阶段间验收门禁
-
-- 进入 P1 前：`@NoGC` 已强制 Pure（带 effect 的 `@NoGC` 函数被编译期拒绝），且与 `@Extern` 既有 Pure 检查无重复/冲突诊断；P0 fixtures 与 spec 已绿并通过 review。
-- 进入 P2 前：`@ReleaseHook` 的所有非法形态在 typecheck 阶段被拒绝，正例通过；校验结果（目标函数 FQN + 有序字段名）已落入 HIR side table 供 codegen 消费。
-- 进入 P3 前：带 `@ReleaseHook` 的类型 descriptor `release_fn` 非 null 且指向正确 trampoline，trampoline 以正确偏移/顺序/类型调用目标函数；无注解类型 `release_fn` 仍为 null（IR fixture 锁定）。
-- 进入 P4 前：P3 已收口，`@ReleaseHook` 机制在四后端 + 双平台验证通过；demo 类型工作，spec/runtime 文档已同步。`scoop.sync` 改造必须建立在已验证机制之上。
-- 完成 P3 后：端到端 + 四后端 + 双平台全绿；`@ReleaseHook` 与 `@NoGC` Pure 语义写入 spec 与 runtime 文档；最小 demo 类型以纯 Scoop + FFI 形式工作。
-- 完成 P4 后：`Mutex`/`CondVar`/`Once` 为纯 Scoop final class + `@ReleaseHook` + `@Extern(abi="c")`；`Once.run` 无 `@Intrinsic`；编译器内无这三类型的实现性硬编码（消费侧引用按 P4-T04 决策处理并被守卫测试锁定）；sync 全量回归与四后端/跨平台绿，且语义与迁移前逐项一致。
-- 进入 P5 前：P4 已收口，`Mutex`/`Once` 已是库类（线程安全委托要内部组合它们）。
-- 完成 P5 后：`lazy`/`observable`/`vetoable` 为纯库 class，三个顶层函数无 `@Intrinsic`；编译器属性委托 lowering 只剩泛型路径；`impl_lowering.rs` 的 `SYNC_MUTEX_*` 常量与 `sugar.rs`/`decls.rs` 三者合成全部删除；语义（含 lazy 三模式）与迁移前逐项一致，回归与守卫绿。
-
----
-
-## P0：`@NoGC` 强制 Pure
-
-### [TODO] P0-T01：新增 `@NoGC` effect 契约校验并接入 fun decl 检查
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P0、§1（`@NoGC` 缺陷）、§2（安全论证）
-  - `crates/scoopc_hir/src/typecheck/annotations.rs`（`check_extern_fun_effect_contract:2509-2525`、`check_builtin_annotations_on_fun_decl:2301`、`AnnotationError` 变体约 :376）
-- 目标：
-  - 让 `abi = "scoop"` 的 `@NoGC` 函数禁止携带 effect（禁 `eff_param`、要求 `effects.terms` 为空），与 `@Extern` 一致。
-- 必须检查的文件/位置：
-  - `check_extern_fun_effect_contract`（镜像对象）
-  - `check_builtin_annotations_on_fun_decl` 中 `@NoGC` 分支与 `@Extern` 分支（确认 extern 隐含 `@NoGC` 的现状，避免重复诊断）
-  - `BuiltinAnnotationKind`（`builtin_annotations.rs:19-47`）确认 `NoGC` 变体
-- 必须实现的内容：
-  1. 新增 `check_nogc_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), AnnotationError>`，结构镜像 extern 版：`eff_param` 存在则报错；`effects.terms` 非空则报错。
-  2. 视诊断需要新增/复用 `AnnotationError` 变体（如 `NoGcFunEffParamNotAllowed` / `NoGcFunEffectsNotAllowed`，参考 `ExternFun*` 变体）。
-  3. 在 `check_builtin_annotations_on_fun_decl` 里，当函数显式带 `@NoGC` 时调用该检查。
-- 必须遵从的约束：
-  - `@Extern(abi="c")` 隐含 `@NoGC`：不得对同一 extern 函数同时触发 extern 与 nogc 两套 effect 报错；如有重叠，复用 extern 路径或在调用点排除已由 extern 覆盖的情形。
-  - 不得改变 `@NoGC` 已有的调用点 gate 语义（`gates.rs:214-240`）。
-- 验证：
-  1. `cargo fmt`
-  2. `cargo clippy --all-targets -- -D warnings`
-  3. `cargo test --all --all-targets`
-- 完成条件：
-  - 带 effect 的 `@NoGC` 函数编译期被拒绝；既有 Pure 的 `@NoGC` 用例不受影响。
-- 依赖：无
-- 完成记录：
-  - （待填）
-
-### [TODO] P0-T01R：Review P0-T01 `@NoGC` Pure 契约
-
-- 参考：P0-T01 完成记录、`check_extern_fun_effect_contract`
-- 目标：独立复核 `@NoGC` Pure 契约的正确性与无误伤。
-- 必须实现的内容：
-  1. 复核 `eff_param` 与非空 `effects.terms` 两条路径都被拒绝。
-  2. 确认 `@Extern(abi="c")`（隐含 `@NoGC`）无重复/冲突诊断。
-  3. 抽样既有 `@NoGC` 用例确认无误伤。
-- 必须遵从的约束：发现未达标直接修正或阻塞 P0-T02。
-- 验证：`cargo test --all --all-targets`
-- 完成条件：契约准确、无误伤。
-- 依赖：P0-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P0-T02：`@NoGC` Pure typecheck fixtures + spec 回写
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P0-T03、P0-T04
-  - `SCOOP_FULL_SPEC.md`（`@NoGC` 约 :2646-2700）
-  - 既有 typecheck fixture 命名/结构（`tests/fixtures/typecheck/`）
-- 必须实现的内容：
-  1. 新增 `tests/fixtures/typecheck/nogc_fun_with_effect_is_error.scoop`。
-  2. 新增 `tests/fixtures/typecheck/nogc_fun_with_eff_param_is_error.scoop`。
-  3. 新增正例 `tests/fixtures/typecheck/nogc_fun_pure_ok.scoop`。
-  4. 回写 `SCOOP_FULL_SPEC.md` `@NoGC` 章节：明确 `@NoGC` 蕴含 Pure。
-- 必须遵从的约束：fixture 期望输出须与实际诊断一致；spec 措辞与实现 contract 对齐。
-- 验证：
-  1. `cargo test --all --all-targets`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：错误/正例 fixture 全绿；spec 已同步。
-- 依赖：P0-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P0-T02R：Review P0-T02 fixtures 与 spec
-
-- 参考：P0-T02 完成记录
-- 必须实现的内容：复核 fixture 覆盖完整（effect / eff_param / 正例）、期望输出准确、spec 与实现一致。
-- 必须遵从的约束：发现缺口直接补齐或阻塞 P1。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P0 收口，可进入 P1。
-- 依赖：P0-T02
-- 完成记录：
-  - （待填）
-
----
-
-## P1：`@ReleaseHook` 注解 surface 与校验
-
-### [TODO] P1-T01：`@ReleaseHook` 注解种类、识别与参数解析
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P1-T01
-  - `crates/scoopc_hir/src/typecheck/builtin_annotations.rs`（`BuiltinAnnotationKind:19-47`、`builtin_annotation_kind:~104`、`parse_experimental_annotation:~194`）
-- 注解形态：`@ReleaseHook(name = "releaseFunctionFQN", args = ["field1", "field2", ...])`
-- 必须实现的内容：
-  1. `BuiltinAnnotationKind` 新增 `ReleaseHook`。
-  2. `builtin_annotation_kind` 识别 `["ReleaseHook"]` 与 `["scoop","core","ReleaseHook"]`。
-  3. 新增 `parse_release_hook_annotation`：解析 `name`（字符串字面量 FQN）与 `args`（字符串数组），对参数形状（缺字段、类型错误、多余 key）给出清晰诊断；结构参考 `parse_experimental_annotation`。
-- 必须遵从的约束：本任务只做解析与 surface 识别，不做宿主/函数/字段语义校验（留给 P1-T02/T03）。
-- 验证：
-  1. `cargo fmt`
-  2. `cargo clippy --all-targets -- -D warnings`
-  3. `cargo test --all --all-targets`
-- 完成条件：注解被识别，`name`/`args` 能被正确解析出结构化值。
-- 依赖：P0 完成
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T01R：Review P1-T01 注解 surface
-
-- 必须实现的内容：复核识别路径（短名 + FQN）、参数解析的错误形状覆盖。
-- 验证：`cargo test --all --all-targets`
-- 依赖：P1-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T02：宿主校验（class / non-generic / final / `@Experimental`）
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P1-T02
-  - `crates/scoopc_hir/src/typecheck/annotations.rs`（`check_builtin_annotations_on_type_decl`）
-  - `crates/scoopc_ast/src/ast/mod.rs`（`TypeDecl.type_params`、`Modifier::{Open,Abstract,Sealed}:535-537`）
-- 必须实现的内容：
-  1. 仅允许宿主为 **class**（拒绝 struct/enum/interface/annotation class）。
-  2. **non-generic**：`type_params.is_empty()`，否则报错。
-  3. **final**：modifiers 不含 `Open` / `Abstract` / `Sealed`，否则报错。
-  4. **必须同时带** `@Experimental(feature = "releaseHook")`，否则报错。
-  5. 每条违例独立、清晰诊断。
-- 必须遵从的约束：错误信息要能直接指导用户改正（指出缺哪个条件）。
-- 验证：`cargo test --all --all-targets`
-- 完成条件：四类宿主约束均被强制。
-- 依赖：P1-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T02R：Review P1-T02 宿主校验
-
-- 必须实现的内容：复核四个条件（class/non-generic/final/`@Experimental`）逐一被拒绝且诊断清晰。
-- 验证：`cargo test --all --all-targets`
-- 依赖：P1-T02
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T03：释放函数签名校验 + `args` 字段校验 + HIR side table
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P1-T03、P1-T04、P1-T05、§2（安全论证）
-  - `crates/scoopc_hir/src/typecheck/lower.rs`（`is_gc_free_value_type:3168`）
-  - `crates/scoopc_hir/src/typecheck/expr/call/gates.rs`（`@NoGC` 判定）、`@Extern` ABI 判定
-- 必须实现的内容：
-  1. `name` 函数校验：FQN 可解析、可访问；必须是 `@NoGC` 或 `@Extern(abi="c")`；签名为 `void f(FieldType1, ...)`（返回 Unit；参数个数/顺序与 `args` 对应）。
-  2. `args` 字段校验：每个名字是该 class 字段；每个字段类型 GC-free（复用 `is_gc_free_value_type`）；字段类型与释放函数对应参数类型精确匹配（按 `args` 顺序）。
-  3. 把校验结果（目标函数 FQN + 有序字段名列表）存入 HIR side table，供 P2 codegen 消费（落点/命名参考现有 annotation→codegen 传递机制）。
-- 必须遵从的约束：不得放宽到允许传 `self` 或任何 GC 引用；不得接受非 `@NoGC` 且非 `@Extern(c)` 的释放函数。
-- 验证：
-  1. `cargo clippy --all-targets -- -D warnings`
-  2. `cargo test --all --all-targets`
-- 完成条件：签名/字段全部校验通过的合法用例产出可供 codegen 消费的 side table 记录。
-- 依赖：P1-T02
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T03R：Review P1-T03 函数/字段校验
-
-- 必须实现的内容：复核签名匹配（个数/顺序/类型/返回 Unit）、`@NoGC`/`@Extern(c)` 限定、GC-free 判定、side table 内容正确。
-- 验证：`cargo test --all --all-targets`
-- 依赖：P1-T03
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T04：`@ReleaseHook` typecheck fixtures（错误面 + 正例）
-
-- 参考：[`PLAN.md`](./PLAN.md) §5 / P1-T06
-- 必须实现的内容（每个错误面各一个 fixture，正例一个）：
-  1. 宿主错误：generic class、open/abstract/sealed class、缺 `@Experimental`、非 class 宿主。
-  2. 函数错误：释放函数不存在 / 不可访问 / 非 `@NoGC` 且非 `@Extern(c)` / 返回非 Unit / 参数个数或类型不匹配。
-  3. 字段错误：`args` 字段不存在 / 非 GC-free / 类型不匹配。
-  4. 正例：final non-generic class + `Ptr<T>` handle 字段 + `@Extern(abi="c")` 释放函数 + `@Experimental(feature="releaseHook")`。
-- 必须遵从的约束：fixture 期望输出与实际诊断一致。
-- 验证：
-  1. `cargo test --all --all-targets`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：全部错误面被拒绝、正例通过。
-- 依赖：P1-T03
-- 完成记录：
-  - （待填）
-
-### [TODO] P1-T04R：Review P1-T04 fixtures
-
-- 必须实现的内容：复核错误面覆盖完整、期望输出准确、正例确实通过。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P1 收口，可进入 P2。
-- 依赖：P1-T04
-- 完成记录：
-  - （待填）
-
----
-
-## P2：trampoline codegen + 填 `release_fn`
-
-### [TODO] P2-T01：生成 release trampoline
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P2-T01、§1（对象指针布局）
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/layout.rs`（`lookup_struct_field:192`、`codegen_class_field_ptr:287`）
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/gc.rs`（`offset_of_element` 用法 :920、header 类型 :827、payload 布局 :1157）
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/main/identity.rs`（`lir_callable_symbol_facts:267`）、`gc.rs`（`declare_dispatch_target_fun:6-52`）
-- 必须实现的内容：
-  1. 生成 `void __scoop_release_<TypeMangled>(void *object)`，签名匹配 `ScoopTypeReleaseFn`。
-  2. 把 `object`（header 基址）按该 class **完整布局**（含 header，payload 从 index 1）GEP 出各 `args` 字段值。
-  3. 解析释放函数符号并按 `args` 顺序生成调用。
-  4. 确保被引用的释放函数不被 DCE（trampoline 引用即保活点，必要时显式标记）。
-- 必须遵从的约束：字段偏移必须基于含 header 的完整对象布局；不得只按 payload 偏移计算。
-- 验证：
-  1. `cargo clippy --all-targets -- -D warnings`
-  2. `cargo test --all --all-targets`
-- 完成条件：trampoline 读取正确字段并以正确顺序/类型调用目标函数。
-- 依赖：P1 完成
-- 完成记录：
-  - （待填）
-
-### [TODO] P2-T01R：Review P2-T01 trampoline
-
-- 必须实现的内容：复核字段偏移（含 header）、调用顺序/类型、符号解析与 DCE 保活。
-- 验证：`cargo test --all --all-targets`
-- 依赖：P2-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P2-T02：在 type descriptor 填 `release_fn` + IR fixtures
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P2-T02、P2-T03
-  - `crates/scoopc_codegen_llvm/src/llvm/codegen/gc.rs`（`get_or_create_type_descriptor_global:1023`、release_fn 槽 :1080）
-- 必须实现的内容：
-  1. 在 `get_or_create_type_descriptor_global` 内，当该类型带 `@ReleaseHook`（查 P1 的 HIR side table）时，把 values 第 9 项（:1080）由 `const_null` 改为 trampoline 函数指针；其余类型保持 null。
-  2. IR/build fixtures：断言带 `@ReleaseHook` 类型的 descriptor `release_fn` 非 null 且指向 trampoline；trampoline 字段偏移/调用正确；无注解类型 `release_fn` 仍为 null。
-- 必须遵从的约束：不得改变无注解类型的 descriptor 输出。
-- 验证：
-  1. `cargo test --all --all-targets`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：descriptor 正确接线，IR fixture 锁定。
-- 依赖：P2-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P2-T02R：Review P2-T02 descriptor 接线
-
-- 必须实现的内容：复核 release_fn 填充条件正确、无注解类型无回归、IR fixture 断言充分。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P2 收口，可进入 P3。
-- 依赖：P2-T02
-- 完成记录：
-  - （待填）
-
----
-
-## P3：验证矩阵、回归与文档收尾
-
-### [TODO] P3-T01：run-pass 端到端 + 四后端 parity + 跨平台矩阵
-
-- 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T01、P3-T02、P3-T03、§6（风险）
-- 必须实现的内容：
-  1. run-pass fixture：final non-generic class 持有 `Ptr<T>` native handle，构造时经 `@Extern(abi="c")` FFI 创建资源，`@ReleaseHook` 指向销毁函数；制造对象不可达 + 触发 GC，用计数器/side-effect 探针断言释放函数被调用且字段值正确传入。
-  2. 断言进程退出时存活对象**不**触发释放（验证 best-effort 边界）。
-  3. 四后端 parity（baseline moving / baseline non-moving / immix / minimal / hosted）：release_fn 调用一致；immix minor 与 major reclaim 都正确，单对象不重复释放。
-  4. 跨平台矩阵至少 `linux/amd64` + `macos/aarch64`。
-- 必须遵从的约束：探针机制不得依赖会触发分配/effect 的路径（保持释放上下文约束）。
-- 验证：
-  1. `cargo test --all --all-targets`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：端到端 + 四后端 + 双平台全绿。
-- 依赖：P2 完成
-- 完成记录：
-  - （待填）
-
-### [TODO] P3-T01R：Review P3-T01 验证矩阵
-
-- 必须实现的内容：复核端到端断言有效（确实观测到释放且字段正确）、退出不回收语义被验证、四后端与跨平台覆盖完整、无重复释放。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P3-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P3-T02：真实用例 + spec/runtime 文档回写
-
-- 参考：[`PLAN.md`](./PLAN.md) §5 / P3-T04、P3-T05
-  - `runtime/c/include/scoop_runtime.h:38-43`、`SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md`（release callback 约 :2959-2972）
-- 必须实现的内容：
-  1. 用 `@ReleaseHook` 把一个真实用例（`Mutex` 或 `CondVar`）重写为纯 Scoop class + FFI，去掉对应 compiler intrinsic 依赖；若本轮 scope 仅验证机制，可先以最小 demo 类型代替，并把正式迁移列为后续 backlog（在完成记录中注明）。
-  2. `SCOOP_FULL_SPEC.md` 新增 `@ReleaseHook` 章节：形态、约束（class/non-generic/final/`@Experimental`/`@NoGC`|`@Extern(c)`/GC-free args）、best-effort 语义、退出不回收、与 `@NoGC`/`@Extern` 的关系。
-  3. `runtime/c/include/scoop_runtime.h` release callback 注释与 `SCOOP_RUNTIME.md` 与 `@ReleaseHook` 关联说明对齐。
-- 必须遵从的约束：文档措辞必须与实际实现 contract 一致，明确标注「尽力而为、非确定性析构」。
-- 验证：
-  1. `cargo test --all --all-targets`
-  2. `python3 tools/run_fixtures.py`
-- 完成条件：至少一个真实/演示类型以纯 Scoop + FFI 工作；spec 与 runtime 文档同步。
-- 依赖：P3-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P3-T02R：Review P3-T02 用例与文档
-
-- 必须实现的内容：复核 demo 用例确实走纯 Scoop + `@ReleaseHook` 路径、spec/runtime 文档与实现一致、best-effort 语义表述准确。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P3 收口，可进入 P4。
-- 依赖：P3-T02
-- 完成记录：
-  - （待填）
-
----
-
-## P4：`scoop.sync` 迁移到 `@ReleaseHook` 并清理 intrinsic
-
-> 现状（已核实）：`Mutex`/`CondVar`/`Once` 当前是 opaque `public class`，op 为 `@Extern(abi="scoop")`，对象由 C 侧 `scoop_sync_*_create` + C 写死的 type descriptor（已带 `release_fn`）分配；只有 `__scoop_sync_once_run` 是 `@Intrinsic`。本阶段把它们收敛为「普通 final class + `Ptr<T>` handle + `@ReleaseHook` + `@Extern(abi="c")`」，并删光编译器硬编码。
-
-### [TODO] P4-T01：重写 `sync.scoop` 三类型为 `@ReleaseHook` class，`Once.run` 纯 Scoop 化
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P4-T01、§3.1
-  - `sysroot/lib/scoop.sync/src/sync.scoop`（`Mutex:21`/`CondVar:24`/`Once:27`；op `:32-101,110-119`；`__scoop_sync_once_run` `:130-131`）
-- 必须实现的内容：
-  1. `Mutex`/`CondVar`/`Once` 改为 final non-generic class，持 `Ptr<T>` native handle 字段；构造经 `@Extern(abi="c")` create-native（返回裸 handle）填字段。
-  2. 各 op（lock/unlock、wait/notifyOne/notifyAll、isDone）改为 method body 内解出 `self.handle` 调 `@Extern(abi="c")` 函数；删除旧 `@Extern(abi="scoop")` 包装。
-  3. 每类型加 `@ReleaseHook(name = destroyNative, args = ["handle"])` + `@Experimental(feature = "releaseHook")`，释放函数为 `@Extern(abi="c")` 销毁。
-  4. `Once.run` 用纯 Scoop 重写（基于已 class 化的 `Mutex`/`CondVar` + `isDone`），删除 `@Intrinsic`。
-- 必须遵从的约束：
-  - 可见语义（可重入性、condvar 原子 unlock-wait-relock、once 并发单次执行）必须与迁移前一致。
-  - handle 字段类型须满足 `@ReleaseHook` 的 GC-free 约束（`Ptr<T>`）。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：三类型为纯 Scoop class，`Once.run` 无 `@Intrinsic`。
-- 依赖：P3 完成
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T01R：Review P4-T01 sync 源改造
-
-- 必须实现的内容：复核三类型 class 形态、`@ReleaseHook`/`@Experimental` 正确、op 走 `@Extern(abi="c")`、`Once.run` 纯 Scoop 且语义不变。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P4-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T02：收缩 `scoop_sync.c` 为只管 raw native handle
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P4-T02
-  - `sysroot/lib/scoop.sync/native/scoop_sync.c`（C 侧 type desc + `*_release` `:209-224/334-349/496-511`；handle 布局 `:173-182`；create/op/destroy 各段）
-- 必须实现的内容：
-  1. 删除 C 侧 GC 对象分配（`scoop_alloc_typed`）、C 写死的 `ScoopTypeDescriptor` 与 `scoop_sync_*_release` wrapper。
-  2. create 改为只 malloc + 初始化 native struct，返回裸指针；destroy 接收裸指针释放；op 接收裸指针操作。
-  3. 保留 `destroyed` 等幂等标志，使显式 destroy 与 `@ReleaseHook` 兜底不会双重释放。
-- 必须遵从的约束：`baseline`/`immix`/`hosted`/`minimal` 均可编译可回归；不得保留任何 C 侧 type descriptor 路径。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：C runtime 只承担 raw native handle 生命周期，不再涉足 GC 对象/descriptor。
-- 依赖：P4-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T02R：Review P4-T02 runtime 收缩
-
-- 必须实现的内容：复核 C 侧已无 GC 对象分配与 type descriptor、幂等释放标志有效、四后端编译通过。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P4-T02
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T03：删除 `Once.run` intrinsic 全套硬编码
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P4-T03、§3.1
-  - `runtime_symbols.rs:26`、`runtime_abi.rs:266-283`、`call/lowering.rs:1558`、`intrinsics/sync.rs:6-92`、`effect_lowered/value.rs:1794,1925-1997`、`closure/mod.rs:691`
-- 必须实现的内容：
-  1. 删除 `SCOOP_SYNC_ONCE_RUN` 符号常量与 `declare_runtime_sync_once_run`。
-  2. 删除 `call/lowering.rs` 与 `effect_lowered/value.rs` 对 `scoop.sync.__scoop_sync_once_run` 的 FQN dispatch 及 `codegen_sysroot_sync_once_run` / `lower_sync_intrinsic` handler。
-  3. 移除 `closure/mod.rs` 中为 `Once.run` 准备的 `lookup_pure_unit_closure_type` 特例（若仅为此存在）。
-- 必须遵从的约束：删除后 `Once.run`（已纯 Scoop 化）走常规 method/closure codegen；不得残留任何 sync 专用 codegen 分支。
-- 验证：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：编译器 codegen/runtime 层无 `Once.run` 专用路径。
-- 依赖：P4-T01（纯 Scoop `Once.run` 必须先就位）
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T03R：Review P4-T03 intrinsic 删除
-
-- 必须实现的内容：复核所有列出的硬编码点已删除、`Once.run` 走常规路径、无回归。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P4-T03
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T04：删除/重指 effect-facts 白名单与其余 `scoop.sync` 特判
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P4-T04、§3.1、§6（lazy 属性同步风险）
-  - `effect_facts/builder.rs:2857-2867`、`session/mod.rs:242,269`、`scoop_project_model/graph_loader.rs:668,682,710,767`、`pipeline/llvm_codegen_stage.rs:617`
-  - 消费侧：`impl_lowering.rs:33-36`、`decls.rs:965,982,1008,1025`、`sugar.rs:326,336,656,666,778,788,914,926`
-- 必须实现的内容：
-  1. 删除 `effect_facts/builder.rs` 的 11 个 sync FQN 无 effect 白名单；确认 class 化后常规 effect 推导给出正确结果（必要时调整 sync op 的 effect 声明）。
-  2. 评估并按需收敛 `session`/`project_model`/auto-import 对 `scoop.sync` 的特殊处理。
-  3. **决策点（必须在完成记录写明结论与理由）**：lazy/delegate 属性同步注入的 `Mutex` 引用是消费侧依赖——二选一：(a) 保留为经普通名字解析的 stdlib 引用（精确保留这唯一允许点），或 (b) 把 lazy-property 加锁合成下放 sysroot helper 使编译器持零 sync FQN。
-- 必须遵从的约束：lazy/Observable/Vetoable 属性的同步语义不得被破坏；删白名单后 effect 推导结果必须与迁移前对这些调用的可见 effect 行为一致。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：除 P4-T04 决策保留的唯一消费侧引用外，编译器无 `scoop.sync` 实现性特判。
-- 依赖：P4-T01、P4-T03
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T04R：Review P4-T04 特判清理
-
-- 必须实现的内容：复核白名单删除后 effect 推导正确、属性同步未被破坏、消费侧决策合理且被精确界定。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P4-T04
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T05：sync 全量回归 + 四后端/跨平台 + 零硬编码 grep 守卫
-
-- 参考：[`PLAN.md`](./PLAN.md) §5 / P4-T05、§6（sync 双重释放 / 行为基线）
-- 必须实现的内容：
-  1. sync run-pass fixtures：lock/unlock、condvar wait/notify、once 单次执行 + 并发竞争；以迁移前语义为基线逐项对齐。
-  2. 四后端（baseline moving/non-moving、immix、minimal、hosted）+ 跨平台（`linux/amd64` + `macos/aarch64`）parity。
-  3. 新增「零编译器硬编码」grep 守卫测试：断言 `Mutex`/`CondVar`/`Once`/`scoop.sync` 相关 FQN 不再出现在编译器 crate（消费侧若选 P4-T04(a)，守卫精确排除该唯一允许点）。
-  4. 删除/迁移已被取代的旧 sync fixtures。
-- 必须遵从的约束：显式 `destroy()` 与 `@ReleaseHook` 共存路径必须验证不双重释放。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：sync 全量回归与四后端/跨平台绿；守卫测试锁定零硬编码（除允许点）。
-- 依赖：P4-T02、P4-T03、P4-T04
-- 完成记录：
-  - （待填）
-
-### [TODO] P4-T05R：Review P4-T05 回归与守卫
-
-- 必须实现的内容：复核语义对齐基线、并发用例有效、守卫测试覆盖完整且排除点精确、无双重释放。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P4 整体收口。
-- 依赖：P4-T05
-- 完成记录：
-  - （待填）
-
----
-
-## P5：`lazy` / `observable` / `vetoable` 降为普通库 class
-
-> 依据（已核实）：泛型委托路径已把委托对象存成宿主类普通字段、读写编译成 `getValue`/`setValue`（`tests/fixtures/hir/delegated_property_lowering.scoop`），这正是三者要走的路；普通 class 本就能自由持有/改写 `var` 字段（`sysroot/lib/scoop.core/src/core.scoop:1506` 的 `RefCell`/`Atomic`），`@InteriorMutable` 只是值类型后门（`structs.rs:37-44`），与 class 委托无关。本阶段**不需要任何新原语**，是纯减法 + 库重写。
-
-### [TODO] P5-T01：在 `scoop.delegates` 写 lazy/observable/vetoable 库实现
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5-T01
-  - `sysroot/lib/scoop.delegates/src/delegates.scoop`（`ReadOnlyProperty`/`ReadWriteProperty` `:11-19`；`@Intrinsic` 顶层 `lazy`/`observable`/`vetoable` `:29-63`）
-  - `sysroot/lib/scoop.sync/src/sync.scoop`（P4 后的库 `Mutex`/`Once`）
-- 必须实现的内容：
-  1. `Lazy<V>` class 持 `var inited: Bool` + `var value: V`（或等价 nullable 存储），实现 `ReadOnlyProperty`，`getValue` 内首次跑 initializer 并 memoize。
-  2. `ObservableProperty<V>` / `VetoableProperty<V>` class 持 backing value + 回调，实现 `ReadWriteProperty`；observable 回调在写之后、vetoable 否决则不写。
-  3. 线程安全模式内部组合库 `Mutex`（或 lazy 用 `Once`）；`lazy` 的 `LazyThreadSafetyMode`（None/Synchronized/Publication）各模式行为对齐现状。
-  4. `lazy`/`observable`/`vetoable` 三个顶层函数从 `@Intrinsic` 降为返回上述包装类的普通 `fun`。
-- 必须遵从的约束：可见语义必须复刻现状；不依赖任何新编译器原语或 `@InteriorMutable`。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：三者有可用的纯库实现，顶层函数无 `@Intrinsic`。
-- 依赖：P4 完成
-- 完成记录：
-  - （待填）
-
-### [TODO] P5-T01R：Review P5-T01 委托库实现
-
-- 必须实现的内容：复核三者实现 `ReadOnlyProperty`/`ReadWriteProperty` 正确、lazy 三模式与回调/否决语义对齐、线程安全靠库 `Mutex`/`Once` 组合。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P5-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P5-T02：删除三者 by-name 合成与分叉
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5 / P5-T02
-  - `hir/lower/sugar.rs`（lazy get `:201-622`、observable get/set `:624-854`、vetoable `:856-1047`）
-  - `hir/lower/util/decls.rs`（lazy 字段注入 `:933-987`、observable/vetoable `:1000-1046`）
-  - `hir/lower/main/impl_lowering.rs:33-36`（`SYNC_MUTEX_*` 常量）及使用点 `decls.rs:964-986/1021-1029`
-- 必须实现的内容：
-  1. 删除 `sugar.rs` 三者的 get/set 合成与 `decls.rs` 的 backing 字段注入。
-  2. 删除 `impl_lowering.rs:33-36` 的 `SYNC_MUTEX_*` 常量及其全部使用点。
-  3. 删除 `ParsedStdDelegateExpr::{Lazy,Observable,Vetoable}` 分叉，使 `DelegatedPropertyInfo` 只剩泛型分支；`by lazy{...}`/`observable(...)`/`vetoable(...)` 经普通表达式求值 + 泛型委托 lowering 接入。
-- 必须遵从的约束：泛型委托路径不得改动；删除后这三者完全走泛型路径。
-- 验证：`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：编译器属性委托 lowering 只剩唯一的泛型路径。
-- 依赖：P5-T01
-- 完成记录：
-  - （待填）
-
-### [TODO] P5-T02R：Review P5-T02 特判删除
-
-- 必须实现的内容：复核三者合成与 `SYNC_MUTEX_*` 常量已全删、`DelegatedPropertyInfo` 只剩泛型分支、无残留 by-name 分叉。
-- 验证：`python3 tools/run_fixtures.py`
-- 依赖：P5-T02
-- 完成记录：
-  - （待填）
-
-### [TODO] P5-T03：委托回归 + 守卫扩展
-
-- 参考：[`PLAN.md`](./PLAN.md) §5 / P5-T03、§6（委托库化语义对齐）
-- 必须实现的内容：
-  1. 把现有 lazy/observable/vetoable run-pass / hir fixtures 切到库实现，验证语义不变：lazy 三模式、observable 回调在写后、vetoable 否决不写、并发可见性。
-  2. 把「零编译器硬编码」grep 守卫扩展到 `lazy`/`observable`/`vetoable` 及 `scoop.sync.Mutex` 注入点；P4-T04 若保留过消费侧允许点，此时一并删除并收紧守卫。
-  3. 删除/迁移已被取代的旧委托合成 fixtures。
-- 必须遵从的约束：以迁移前语义为基线逐项对齐；分配开销变化（委托对象字段 vs 宿主内联字段）在基线说明中注明。
-- 验证：`cargo test --all --all-targets`、`python3 tools/run_fixtures.py`
-- 完成条件：委托回归与守卫绿；语义逐项一致。
-- 依赖：P5-T02
-- 完成记录：
-  - （待填）
-
-### [TODO] P5-T03R：Review P5-T03 回归与守卫
-
-- 必须实现的内容：复核语义逐项对齐（尤其 lazy 三模式与 vetoable 否决）、守卫覆盖三者且无遗漏允许点、旧 fixtures 已清理。
-- 验证：`python3 tools/run_fixtures.py`
-- 完成条件：P5 整体收口；属性委托对编译器完全透明。
-- 依赖：P5-T03
-- 完成记录：
-  - （待填）
+# TODO — P-CG：codegen 直接消费 LIR（去 MIR + 去 FQN + never-fail）
+
+> 计划：[`PLAN.md`](./PLAN.md)；设计：[`FACT_REFACTOR.md`](./FACT_REFACTOR.md) §1.7/§1.8/§13/§2.7。
+> 一组任务 TC-01..TC-06，按序；每任务后跟 review；每任务收尾跑 §9 基线。
+
+## 0. 硬纪律（§1.8，违反即打回）
+
+下游对输入 **never-fail**。本阶段全程**禁止**：
+- 新增 `Result` 输入错误出口、`.expect()`/`panic!`/`.unwrap()` on input；
+- `Todo`/`Unsupported`/`Unknown`/`Fallback` 等占位/escape 变体、`_ => {}` no-op 容忍；
+- **句柄→FQN 字符串反转**（如 `lir_*_fqn`、`lir_callable_root -> String`）；
+- **LIR→MIR 反向 shim**（如 `lir_*_to_mir`）。
+
+任何「失败可能」必须**上移**为上游（LIR lift 的 producer / MIR 输出）的保证。真正构造不可能的内部不变量用 `unreachable!`/`debug_assert`，不用 `Result`。**绝不留 placeholder。**
+
+## 1. 代码地图（按符号定位，勿全库搜索）
+
+**发射驱动**：`crates/scoopc_codegen_llvm/src/llvm/emit.rs:98-118`（`build_main_module_from_stage_output`）→ `codegen/effect_lowered/body/main_entry.rs:7-34`（`codegen_program_bodies` 遍历 `program.callables()`，按 `callable.plain_abi().is_some()` 分流：plain→`codegen_plain_callable_entry`(:429-634)；effect-step→`codegen_callable_entries`(:32-33)）。
+
+**plain 路径（直接 walk MIR，TC-02 目标）** `codegen/mir_body/`：
+- `main_entry.rs:591-623`：`for block in body.blocks { for stmt in block.stmts[slice...] }`——原始 MIR 遍历。
+- `mod.rs:141-205`：route-safe gate（`ensure_raw_mir_rvalue_is_route_safe`/`..terminator..`，match `mir::Rvalue`/`mir::TerminatorKind`）。
+- `operand.rs`(`codegen_mir_operand`)、`args.rs`、`call.rs:109`、`terminator.rs`、`aggregates.rs`、`transport.rs`、`cast.rs`、`member.rs`、`dispatch.rs`、`callable_lookup.rs`、`const_pat.rs`、`lowering.rs`。
+- match 的 `mir::*`：`Statement`/`StatementKind::Assign`、`Rvalue`(含 `::Call`)、`Terminator`(`Return`/`Goto`/`CondBr`)、`Operand`、`Place`、`LocalId`。
+
+**effect-step 路径（语句仍切 MIR，TC-03 目标）** `codegen/effect_lowered/body/`：
+- `emitter.rs:117`：`for state in callable.state_graph().states()`（已 LIR 句柄）。
+- `lower_source.rs:94-116`：经 published boundary/`LateLoweredPlainBodySlice` 调 `ValuePrimitives::lower_effect_neutral_statement(stmt, ..)`——`stmt` 仍是 `LateLoweredSourceBody`(MIR) 的语句。
+- `value.rs`：ValuePrimitives 降值（effect-neutral）。
+
+**LIR 指令 / 容器（TC-01/02/03 消费方）** `crates/scoopc_lir/src/effect_lowered/`：
+- `instruction.rs`：`LirStatement`/`LirStatementKind`/`LirRvalue`/`LirCallKind`/`LirInstruction`、`LirExecutableBody`/`LirStateMachineBody`/`LirExecutableState`/`LirCallableHeader`/`LirParam`/`LirLocalDecl`/`LirBodyAnchor`/`LirStatementIndex`。
+- `lift.rs`：`lift_statement`/`lift_rvalue`/`lift_terminator`（**TC-01：改全函数、去 `Result`/`invalid_lift`**）。
+- `ir.rs:343` `type LateLoweredSourceBody = crate::mir::Body`、`:3591` `LateLoweredStateSlice`（**TC-05 删**）。
+
+**FQN→句柄（TC-04 目标）**：`callable_lookup.rs:27`、`identity.rs:280-357`（`exported_abi_symbol_for_lir_callable`/`lir_callable_id_for_root`/`abi_symbol_for_root`）、`call/lowering.rs:2065`（`published_signature_matches_hir_call`）、`function_cx` 的 `current_callable_fqn`。
+
+**错误类型（TC-06）** `crates/scoopc_codegen_llvm/src/llvm/mod.rs:99`：`LlvmEmitError`。
+- **输入失败（上移）**：`Frontend`/`MissingEntryMain`/`EffectLoweringUnsupported`/`BackendGate`/`AmbiguousEntryMain`/`InvalidLiteral`。
+- **保留（真后端/IO）**：`Target`/`Builder`/`Instruction`/`ModuleVerificationFailed`/`RunPassesFailed`/`Write{Ll,Obj,Asm}Failed`。
+
+**fail-fast 热点（TC-06）**：`effect_lowered/layout/{classification.rs(141),surface_resume.rs(76),handle_dispatch.rs(48),dispatch.rs(36)}`、`effect_lowered/body/{value.rs(43),mod.rs(40)}`、`mir_body/{const_pat.rs(36),lowering.rs(29)}`。多为「查应被上游 pre-validate 的 ABI fact」的 `expect`、与「verifier 已接受的不变量却在 codegen 失败」的 `panic`。
+
+`LirArtifact.mir: Option<MaterializedMir>` 在 `crates/scoopc/src/pipeline/lir_artifact.rs`（TC-05 删）。
+
+## 2. 任务（按序）
+
+### [DONE] TC-01：LIR lift 落地为全函数，填满所有 callable body
+
+**目标**：让 `crates/scoopc_lir/src/effect_lowered/lift.rs` 的 lift 链成为**全函数（无 `Result`）**，并保证 plain + effect-step 所有 callable 的 `LirExecutableBody` 被填满；占位/形状失败上移到 MIR→LIR 边界。**本任务不删 overlay**（TC-05 才删），LIR 指令与现有 source-slice 行为等价即可。
+
+**起点（已核对，HEAD 49639d4a）**：`lift.rs` 现有 `LirLiftContext`，其 `lift_plain_body`(:45)、`lift_statement_range`(:135)、`lift_statement`(:162)、`lift_rvalue`(:206)、`lift_plain_terminator`(:393)、`lift_member_access`(:455)、`lift_member_target`(:473)、`lift_call_kind`(:493)、`lift_call_transport`(:538) 都返回 `Result<_, EffectLoweringError>`，靠 `invalid_lift(..)` 制造错误。`lift_control_body`(:101) 已是全函数（复用既有 state body）。`lift_plain_body` 已真正构造 `LirExecutableState`/`LirStateBody`（:70-91）。
+
+**`invalid_lift` 的 5 类失败来源，逐类按 §1.8 处理**（这是本任务核心，不许有第六种「就地报错」处理方式）：
+1. `MIR Todo statement/rvalue/terminator/unwind reached LIR lift`（:196/:388/:402/:440）、`unresolved MIR name`（:223）——**占位/未解析**。处理：**在 MIR→LIR 生产者边界加 guard**（见下「guard 落点」），保证进入 lift 的 `mir::Body` 不含 `StatementKind::Todo`/`Rvalue::Todo`/`Rvalue::UnresolvedName`/`TerminatorKind::Todo`/`UnwindAction::Todo`。guard 之后这些 arm 在 lift 里**结构不可达** → 改 `unreachable!("guarded at MIR→LIR boundary: ...")`，**不是** `Result`。
+2. `missing MIR block bb{}`（:143）——块引用。well-formed MIR 中块 id 必有效 → 直接索引 / `unreachable!`（B 类不变量），不用 `Result`。
+3. `MIR CondBr condition is not a local operand`（:425）——terminator 形状。MIR 构造保证 CondBr cond 为 local → `unreachable!`/`debug_assert!`，不用 `Result`。
+4. member access（:460）、call_kind/transport 等其余 `invalid_lift`——逐一判定：若是 well-formed MIR 的结构保证 → `unreachable!`/`debug_assert!`；若确为「输入可能非法」→ **上移到 guard**，不在 lift 留 `Result`。
+5. 删除 `invalid_lift` 函数本身。
+
+**guard 落点（失败上移的唯一去处）**：在 **MIR 交给 LIR lowering 的边界**（effect-lowering stage 入口 / MIR 输出侧）加一道校验，用 `crates/scoopc_mir/src/mir/placeholder_inventory.rs` 扫描待 lower 的 body，**若含上述占位则在此（MIR 侧、上游）报错**。这道 guard 是「失败上移一级」的临时落点，P4/P5 继续上移到 HIR。guard 是**校验/拒绝**，不是 escape 变体，不违反「无 placeholder」。
+
+**步骤**：
+- S1：把 `lift_*` 全部改成返回值类型本身（去 `Result`）；调用点（`lift.rs:62/158/170`、`segment.rs:383`）去掉 `?`。
+- S2：5 类失败按上表改为 `unreachable!`/`debug_assert!`（结构不可达）或上移；删 `invalid_lift`。
+- S3：在 MIR→LIR 边界加 placeholder guard（上游报错）。
+- S4：确认 plain（`lift_plain_body`）与 effect-step（`lift_control_body`）两路都产出完整 `LirExecutableBody`（state + 指令 + terminator），无空缺。
+
+**严禁（违反即打回，上次就栽在这）**：
+- 不得新增 `Result`/`.expect()`/`panic!`-on-input 来替代 `invalid_lift`（`unreachable!` 仅用于「guard 后结构不可达」，不得用于「输入可能触发」）。
+- 不得新增 `Todo`/`Unsupported`/`Unknown`/escape 变体或 `_ => {}` no-op 容忍。
+- 不得用 `lir_*_to_mir` 反向转换、不得句柄→FQN 反转。
+- **若发现某占位/形状确实会被合法 fixture 触达、无法在 MIR 边界干净 guard**：STOP，在完成记录里写明具体来源（哪条 MIR 构造产出占位、哪个 fixture），登记为上游缺口，**不得**为了让基线变绿在 lift/codegen 回填占位或 `Result`。
+
+**验收**：
+- `grep -nE "Result<|invalid_lift|EffectLoweringError" crates/scoopc_lir/src/effect_lowered/lift.rs` → lift 链无 `Result`/`invalid_lift`（仅可能保留无关 import）。
+- plain + effect-step 每个 callable 都有完整 `LirExecutableBody`（单测断言）。
+- 新增单测：对代表性 body 比对 LIR 指令序列与原 MIR slice 语义等价；占位 body 在 MIR guard 处被拒（而非进入 lift）。
+- §9 全套基线绿（占位 fixture 若在 MIR guard 暴露=对的，按上面 STOP 规则处理）。
+
+**完成记录（2026-06-05）**：
+- 将 `lift.rs` lift 链改为 total functions，删除 `invalid_lift` / `EffectLoweringError` 依赖；guard 后不应出现的 MIR placeholder / unresolved name / invalid ranges 改为结构不可达。
+- 在 MIR placeholder inventory 中发布 LIR-lift body guard，并在 late-lowering builder 的 MIR→LIR 入口调用；补齐 unresolved name、unresolved member、Todo、CondBr non-local 条件等拒绝路径。
+- plain body 直接生成完整 LIR executable states；plain local effect-control 和 effect-step body 复制 state-owned LIR body；direct/bodyless callable references 使用稳定 `LirCallableRef`。
+- 修复 state-owned source slice / classification 在 materialization、opt 和 codegen 中的锚点传播；补齐 LIR terminator local liveness，避免 continuation frame 漏捕获 branch condition locals。
+- 修复 companion/static member namespace receiver 在 MIR 中遗留 `UnresolvedName` 的生产缺口。
+- 新增/更新测试：LIR lift statement/control-body 单测、MIR→LIR guard 单测，并刷新 effect-lowered golden fixtures。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-01-R：Review TC-01
+- **关注点**：
+  - `lift.rs` lift 链全函数、**无 `Result`/`invalid_lift`**；former 失败均为 (a) guard 后 `unreachable!`/`debug_assert!`（结构不可达）或 (b) 上移到 MIR guard——**无第三种「就地 `Result`/`panic`-on-input」**。
+  - 占位 guard 确在 **MIR→LIR 上游边界**、用 `placeholder_inventory`；LIR 端结构上见不到 `Todo`/`UnresolvedName`。
+  - LIR 指令覆盖 **plain + effect-step 全部 body**、与 MIR slice 等价、无空 body。
+  - **零反模式**：无 escape 变体、无 no-op 容忍、无 `lir_*_to_mir`、无句柄→FQN 反转。
+- **确认**：
+  - `grep -nE "Result<|invalid_lift" .../lift.rs` 仅余无关项；`grep -rnE "Todo|UnresolvedName|Unsupported" .../effect_lowered/{lift,instruction}.rs` 无新 escape 变体。
+  - `grep -rn "lir_.*_to_mir\|_fqn\b" crates/scoopc_lir/src/effect_lowered` 无反向 shim / 句柄→FQN。
+  - §9 基线绿；若 MIR guard 暴露 fixture 缺口，确认已按 STOP 规则登记 HIR 待补、**未回填占位**让其变绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-01` 落地结果：`lift.rs` lift 链为全函数，`rg -n "Result<|invalid_lift|EffectLoweringError" crates/scoopc_lir/src/effect_lowered/lift.rs` 无命中；占位/未解析 MIR 形状在 lift 中仅保留 guard 后结构不可达的 `unreachable!`。
+- 确认 MIR→LIR guard 位于 `placeholder_inventory::validate_body_for_lir_lift` 并在 LIR builder 入口调用，覆盖 MIR `Todo`、`UnresolvedName`、未解析 member、非 local `CondBr` 条件等拒绝路径。
+- 确认 plain body 通过 `lift_plain_body` 生成完整 `LirExecutableBody`，plain local effect-control 与 effect-step 通过 `lift_control_body` 复制 state-owned LIR body；相关单测覆盖语句序列与 state-owned body。
+- 反模式检查通过：未发现 `lir_*_to_mir`；`instruction.rs` 未定义 `Todo`/`UnresolvedName` LIR placeholder 变体；广义 `_fqn` 命中限于既有 root/symbol/布局键等非新增反向 shim。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-02-PRE1：补齐 LIR plain lowering 的 effect-typed closure adapter
+
+**目标**：在 plain 路径从 MIR `ValuePrimitives` 切到 LIR 指令后，补齐原先只存在于 MIR value lowering 中的 effect-typed closure adapter 逻辑，确保 `val f: () -> T / E = { ... }`、`when`/LUB 产出的 function value、struct 字段中的 function value 等场景在 LIR lowering 下仍按静态 effect row 选择正确 closure carrier / adapter fn pointer。
+
+**阻塞来源（2026-06-05 迁移 TC-02 时暴露）**：`codegen_lir_make_closure` 目前只按 LIR `fn_ptr: LirCallableId` 生成普通 closure object；缺少 MIR `ValuePrimitives::maybe_build_effect_typed_closure_target_fn_ptr` / `install_effect_typed_closure_target_overrides_for_struct_fields` 对应的 LIR-native 逻辑。结果 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop` 在 LIR plain path 下运行失败（应输出 `5\ncaught\n9\n10\n` 并 exit 10，当前无输出且异常退出）。
+
+**步骤**：
+- S1：将 effect-typed closure surface layout 查询、plain closure adapter、effectful closure step adapter 提供为 LIR lowering 可直接调用的 helper；输入使用 `LirExecutableBody`/`LirLocalDecl`/`LirCallArg`/`LirCallableId`，不得构造 MIR 反向 shim。
+- S2：`LirRvalue::MakeClosure` lowering 根据 target local / downstream consumer 的静态 function type 检测 effect row，并在需要时写入 adapter fn pointer。
+- S3：补齐 struct literal/function-value 聚合场景的 LIR adapter override，对应 MIR 旧逻辑的覆盖面。
+
+**验收**：
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- `cargo test -p scoop --test p7_default_pipeline` 通过，特别是 `single_pipeline_runs_higher_order_function_value_handled_effect_cli`。
+- 不新增 `lir_*_to_mir` 反向转换；不把 `LirCallableId` 转回 FQN 作为运行期查找路径（符号名/诊断除外）。
+
+**完成记录（2026-06-05）**：
+- 新增 LIR-native effect-typed closure adapter helper，并在 plain LIR rvalue lowering 中覆盖直接 `LirRvalue::MakeClosure`、`Use`/`Transport` 传播的 closure local，以及 struct literal function-field adapter override。
+- adapter 选择以 `LirExecutableBody`、LIR local、`LirCallArg`、`LirCallableId` 为入口；未新增 `lir_*_to_mir` 反向转换。现有 ABI layout 仍有 root/symbol 键查询，运行期 closure carrier 写入的是已生成的 adapter function pointer。
+- 修复 dependency gate 对新 helper 中直接 `crate::mir::` 路径的拦截，改用 LIR `mir_source` 边界别名。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo build -p scoop -p scoopc`；`cargo test -p scoop --test p7_default_pipeline single_pipeline_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`。
+- 基线运行：`cargo test --all --all-targets` 仍有 11 个 plain-LIR `scoopc` LLVM 单测失败；`python3 tools/run_fixtures.py` 仍有 `268/1625` fixture 失败。两组失败已在 `TC-02` 下精确登记为 plain LIR 主体迁移的验收阻塞项，本任务不以 workaround 扩大范围修复 TC-02。
+
+### [DONE] TC-02-PRE2：收敛 plain-LIR 剩余 fixture/runtime 残差
+
+**目标**：在 `TC-02` 标记完成前，收敛本轮 plain-LIR 主体迁移后仍未绿的完整 fixture 基线。不得通过退回 MIR walk、LIR→MIR shim、句柄→FQN 反转、弱化 fixture 行为或跳过失败来完成；旧 IR substring 只能更新为实际 LIR 语义下等价且更准确的断言。
+
+**阻塞来源（2026-06-05，迁移 TC-02 时暴露）**：本轮已将 `cargo test --all --all-targets` 恢复绿色，并将 `python3 tools/run_fixtures.py` 从 `268/1625` 失败降到 `31/1625` 失败；剩余失败仍阻塞 `TC-02` 完成。
+
+**剩余失败分组**：
+- 旧 LLVM IR substring 期望漂移：`build/effect_lowered_member_codegen_emit_llvm.scoop`、`build/effect_lowered_non_boundary_dynamic_call_emit_llvm.scoop`、`build/effect_lowered_step_enum_no_outward.scoop`、`umb_fix/P6-T01-platform/pos_platform_structlit_immortal_ir.scoop`。
+- LIR atomic-int lvalue 覆盖不足：`build/unsafe_atomic_int_field_lvalue_llvm.scoop`、`build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`run-pass/unsafe_atomic_int_field_lvalue_basic.scoop`。
+- plain-LIR 运行时行为/ABI 残差：`run-pass/array_lit_infer_string_char_float_basic.scoop`、`run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`、`run-pass/enum_value_only_when_basic.scoop`、`run-pass/extension_property_getter_basic.scoop`、`run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`、`run-pass/float_literal_runtime_basic.scoop`、`run-pass/gc_pin_unpin_basic.scoop`、`run-pass/literal_ops_compare_direct_matrix_basic.scoop`、`run-pass/object_companion_once_init_basic.scoop`、`run-pass/object_companion_value_named_nested_init_basic.scoop`、`run-pass/safe_member_access_ref_and_extension_basic.scoop`、`run-pass/scalar_method_intrinsic_basic.scoop`、`run-pass/struct_computed_property_getter_basic.scoop`、`run-pass/struct_computed_property_not_ctor_field_basic.scoop`、`run-pass/top_level_callable_value_call_basic.scoop`、`run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`run-pass/unsafe_funptr_extern_call_basic.scoop`、`run-pass/unsafe_funptr_receiver_call_basic.scoop`、`runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`、`runtime_gc/gc_stw_cross_thread_roots_basic.scoop`、`umb_fix/B-13-composite-transport/pos_array_composite_transport.scoop`、`run_pass_cone/dependency_c_sources_extern_call`、`run_pass_cone/dependency_cxx_sources_extern_call_cpp_stdlib`、`run_pass_cone/source_path_dependency_public_call`。
+
+**验收**：
+- `cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 通过。
+- `cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check` 通过。
+- `python3 tools/run_fixtures.py` 通过；若只更新旧 IR substring，必须保持检查语义等价于 LIR 发射后的真实行为。
+
+**完成记录（2026-06-05）**：
+- 补齐 LIR plain lowering 的剩余运行时 parity：Float `toInt` named intrinsic、顶层 function value / `FunPtr` direct-call、`scoop.unsafe.invoke`、namespace-only top-level refs、external/bodyless direct-call result type inference、`GC.pin/unpin`、递归 atomic lvalue 与顶层 atomic storage。
+- 修复跨 cone public callable ABI symbol 稳定性，source-level public callable ABI 改为按公共签名语义发布；保留 native/extern callable 的独立 runtime/native symbol surface。
+- 更新旧 LLVM substring / effect-lowered / MIR golden：LIR 命名漂移、nested atomic GEP regex、Platform LIR struct literal IR、MIR intrinsic callable 计数及 effect-lowered ABI symbol hash。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-02：plain 路径（`mir_body/`）改 walk LIR 指令
+
+**目标**：plain callable 发射从「walk 原始 `mir::Body`」改为「walk `LirExecutableBody` 的 LIR 指令」，去掉 `mir::*` body match 与 route-safe gate。**依赖 TC-01 + TC-02-PRE1 + TC-02-PRE2**（plain body 的 LIR 指令已填满，LIR plain lowering 已具备 effect-typed closure adapter parity，且剩余 fixture/runtime 残差已收敛）。
+
+**起点（已核对）**：
+- 入口 `body/main_entry.rs:429-634` `codegen_plain_callable_entry`；其 body 遍历 `:591-623` `for block in body.blocks { for stmt in block.stmts[slice...] }`（原始 MIR）。
+- gate `mir_body/mod.rs:141-205` `ensure_raw_mir_rvalue_is_route_safe` / `ensure_raw_mir_terminator_is_route_safe`（match `mir::Rvalue`/`mir::TerminatorKind`）。
+- 子文件：`operand.rs`(`codegen_mir_operand`)、`args.rs`、`call.rs:109`、`terminator.rs`(`Return`/`Goto`/`CondBr`)、`aggregates.rs`、`transport.rs`、`cast.rs`、`member.rs`、`dispatch.rs`、`callable_lookup.rs`、`const_pat.rs`、`lowering.rs`。match 的 `mir::*`：`Statement`/`StatementKind::Assign`、`Rvalue`(含 `::Call`)、`Terminator`、`Operand`、`Place`、`LocalId`。
+
+**已观测且归属 TC-02 的完整 Rust 测试失败（2026-06-05，TC-02-PRE1 收尾时暴露）**：`cargo test --all --all-targets` 当前 `scoopc` lib 有 11 个 plain-LIR 发射相关失败；TC-02 完成前必须逐项修复并恢复 §9 基线：
+- `pipeline::llvm_codegen_stage::tests::llvm_array_composite_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_atomic_ref_uses_atomic_instructions_and_gc_barrier`
+- `pipeline::llvm_codegen_stage::tests::llvm_closure_env_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_closure_refcell_capture_loads_env_without_env_writeback`
+- `pipeline::llvm_codegen_stage::tests::llvm_entry_global_entry_selection_uses_lir_callable_signature_for_argv`
+- `pipeline::llvm_codegen_stage::tests::llvm_enum_payload_transport`
+- `pipeline::llvm_codegen_stage::tests::llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+- `pipeline::llvm_codegen_stage::tests::llvm_value_boxing_transport`
+- `pipeline::llvm_codegen_stage::tests::mir_member_access_codegen`
+- `pipeline::llvm_codegen_stage::tests::mir_store_member_codegen`
+- `pipeline::llvm_codegen_stage::tests::platform_literal_stage_ir_uses_immortal_structlit_without_alloc`
+
+**已观测且归属 TC-02 的完整 fixture 基线失败（2026-06-05，TC-02-PRE1 收尾时暴露）**：`python3 tools/run_fixtures.py` 当前失败 `268/1625`。失败集中在 plain-LIR 直接调用/参数/返回类型、member/dispatch/transport/atomic/platform IR 期望漂移，以及由这些缺口引起的 `build/`、`codegen/`、`run-pass/`、`runtime_gc/`、`umb_fix/`、`run_pass_cone/` 运行失败；TC-02 完成前必须让这个完整命令恢复绿色，或把每个仍失败目标改成符合 LIR 语义的正确期望。当前已见代表性根因包括 `args.rs:435`、`callable_lookup.rs:326`、`call.rs:562`、`call/abi.rs:88` 的 plain-LIR codegen 缺口，以及旧 `pass_mir_*`/`plain_dispatch_call`/`@__scoop_immortal_agg_` substring 期望漂移。
+
+**步骤**：
+- S1：`codegen_plain_callable_entry` 从 `callable.executable_body()`（`LirExecutableBody`）取 state/指令序列，替代 `body.blocks[].stmts[]`。
+- S2：`mir_body/` 各 `codegen_mir_*` 改为 `codegen_lir_*`，match `LirStatement`/`LirStatementKind`/`LirRvalue`/`LirCallKind`/`LirTerminator`/`LirOperand`（`instruction.rs` 定义）替代对应 `mir::*`。operand/local 用 LIR local 句柄（`LirLocalDecl`/local 下标），不再 `mir::Operand`/`mir::LocalId`。
+- S3：**删 route-safe gate**（`ensure_raw_mir_*`）——LIR 指令集 total 且构造即 route-safe，gate 无意义。
+- S4：`callable_lookup.rs` 的 closure body 解析也改走 LIR（与 TC-04 衔接：callee 句柄而非 FQN）。
+
+**严禁**：不得保留任何 `mir::{Statement,Rvalue,Terminator,Operand,Place}` 的 body match；不得 `lir_*_to_mir` 反向转换；不得句柄→FQN 反转；**若 LIR 指令缺某字段导致发射缺数据 → 回 TC-01 在 producer 补全，不在 codegen 造转换/占位/`Result`**。
+
+**验收**：
+- `grep -rnE "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` → body match 清零（仅可能余类型别名等非 body 用法）。
+- plain callable 由 LIR 指令发射；route-safe gate 已删。
+- §9 基线绿；抽样 diff 同一输入的 LLVM IR/可执行行为等价。
+
+**完成记录（2026-06-05）**：
+- `codegen_plain_callable_entry` 的普通 plain 发射改为以 `LirExecutableBody` / LIR header 为权威来源：返回类型、source span、materialized closure 判定和 composite transport 校验均走 LIR；普通分支遍历 LIR states/statements 并调用 `codegen_lir_statement` / `codegen_lir_plain_terminator`。
+- 删除旧 plain MIR walker / gate：`codegen_mir_statement`、`codegen_mir_terminator`、`codegen_mir_rvalue`、`codegen_mir_call` 和 raw MIR route gate 已移除；closure body 参数绑定残留的 MIR helper 已删除。
+- `mir_body/` 内剩余 source-slice 兼容层改走 LIR 发布的 `mir_source` 边界；`rg -n "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body`、`rg -n "ensure_raw_mir_|raw_mir_route_gate|codegen_mir_statement|codegen_mir_terminator|codegen_mir_rvalue\\(|codegen_mir_call\\(" crates/scoopc_codegen_llvm/src/llvm/codegen`、`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 均无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-02-R：Review TC-02
+- **关注点**：plain 发射逐指令对应原 MIR、语义不变；`mir_body/` 无 `mir::*` body match 残留；route-safe gate 已删（不是注释掉）；未新增 fail-fast/占位/FQN 反转/`lir_*_to_mir`。
+- **确认**：`grep -rnE "mir::(Statement|Rvalue|Terminator|Operand|Place)" .../mir_body` 清零；`grep -rn "ensure_raw_mir_" .../mir_body` 清零；`grep -rn "lir_.*_to_mir\|_fqn" .../mir_body` 无反向/FQN 反转；抽样 diff LLVM IR 等价；§9 绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-02` 落地结果：`codegen_plain_callable_entry` 的普通 plain 分支和 `codegen_lir_source_closure_fun` 均从 `LirExecutableBody` 遍历 state-owned statements/terminator，并调用 `codegen_lir_statement` / `codegen_lir_plain_terminator`；旧 plain MIR statement/rvalue/terminator walker 未作为生产路径保留。
+- 反模式检查通过：`rg -n "mir::(Statement|Rvalue|Terminator|Operand|Place|LocalId)" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 无命中；`rg -n "ensure_raw_mir_|raw_mir_route_gate|codegen_mir_statement|codegen_mir_terminator|codegen_mir_rvalue\\(|codegen_mir_call\\(" crates/scoopc_codegen_llvm/src/llvm/codegen` 无命中；`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body` 无命中。`_fqn` 的现存命中对应已排期的 `TC-04` FQN→句柄迁移范围，未发现 TC-02 新增的 LIR→MIR shim。
+- 语义等价由 LLVM/codegen 单测、fixture build/run/golden 检查和完整 fixture suite 覆盖；未发现需要在本 review 中修复或新增前置任务的失败。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-03：effect 路径语句改 walk LIR
+
+**目标**：effect-step 路径的**语句发射**从 MIR source-slice 改为 LIR 指令。state 遍历本就已是 LIR 句柄（`emitter.rs:117` `for state in callable.state_graph().states()`），本任务只动「state 内语句」这一层。**依赖 TC-01**。
+
+**起点（已核对）**：
+- `body/lower_source.rs:94-116`：经 published boundary / `LateLoweredPlainBodySlice` 调 `ValuePrimitives::lower_effect_neutral_statement(stmt, used_locals)`，其中 `stmt` 取自 `LateLoweredSourceBody`(= `crate::mir::Body`) 的语句。
+- `body/value.rs`：`ValuePrimitives` 的 effect-neutral 降值，match `mir::Rvalue`/`mir::Operand`。
+- boundary/state 控制流来自 LIR（`LateLoweredBoundaryLowering` / state graph），本任务不动。
+
+**步骤**：
+- S1：`lower_effect_neutral_statement` 及 `value.rs` 的相关入口签名改吃 `LirStatement`/`LirRvalue`（来自 `LirExecutableState` 的 state-owned 指令 / `LirBodyAnchor`），不再接 `mir::Statement`/`mir::Rvalue`。
+- S2：删去经 `LateLoweredPlainBodySlice`/`source_slices()`/`source_body()` 取 MIR 语句的路径；state 内语句序列直接来自 LIR body。
+- S3：boundary 处的 operand 来源（`LateLoweredBoundaryLowering` 已是 LIR 句柄）与 LIR 语句衔接，确保 boundary 前后语句顺序一致。
+
+**严禁**：同 TC-02（无 `mir::*` 语句 match、无 `lir_*_to_mir`、无 FQN 反转、缺数据回 TC-01 补）。
+
+**验收**：
+- `grep -rnE "\.source_body\(\)|\.source_slices\(\)|LateLoweredSourceBody|mir::Rvalue|mir::Statement" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` → 语句消费清零（boundary/state 控制流的非语句用法除外）。
+- §9 基线绿；effect-step fixture 行为不变。
+
+**完成记录（2026-06-05）**：
+- `CallableEmitter` 改以 `LirExecutableBody` 作为 effect/local-control body 的语句与 local slot 权威来源；state 发射从 `state.statements()` 遍历 LIR `LirStatement`，不再经 `source_slices()` 回读 MIR statement。
+- `lower_effect_neutral_statement` / dynamic invoke / class ctor boundary 改吃 LIR statement、LIR call args 和 `LirBodyAnchor` classification；class ctor hidden-init source、composed-call replay prefix、completion payload verifier 均通过 LIR statement anchor 定位。
+- `effect_lowered/body` 验收 grep 清零：`.source_body()` / `.source_slices()` / `LateLoweredSourceBody` / `mir::Rvalue` / `mir::Statement` 均无命中；删除已无调用的 MIR local-use 收集链。
+- 修复迁移后暴露的 LIR class ctor cleanup GC 残差：失败构造对象的 deferred root 在返回后清理，spill root clear store 标记为 volatile，保持 `class_init_raise_cleanup_*_gc_basic` 行为不变。
+- 更新 LLVM runtime type primitive 单测中 `!is` 的 IR 名称期望，从旧 MIR label 切到 LIR label。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-03-R：Review TC-03
+- **关注点**：effect-step 每条语句来自 LIR、与原 MIR slice 等价；boundary/state 控制流仍正确；无 MIR 语句 slice 残留、无占位/`Result`-on-input。
+- **确认**：上述 grep 清零；effect 相关 golden/fixture 行为不变；§9 绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-03` 落地结果：`CallableEmitter::lower_state_statements` 逐 state 遍历 `LateLoweredState::statements()`，并以 `LirBodyAnchor::statement` 查 published classification；effect-neutral 和 dynamic invoke 语句均进入 `lower_effect_neutral_statement` / `lower_published_call_statement` 的 LIR statement 路径。
+- 修复 review 中发现的 LIR local-use 漏收集：`used_locals` 现在除 LIR statements/terminators 外，还并入 boundary operand contracts、frame-slot source locals、completion payload sources 和 handle completion payload sources，避免仅由 Call/Perform/Resume boundary payload/args/continuation 消费的 top-level refs 被误判 unused 并跳过。
+- 反模式检查通过：`rg -n "\.source_body\(\)|\.source_slices\(\)|LateLoweredSourceBody|mir::Rvalue|mir::Statement" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中；`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-04：FQN 引用改句柄
+
+**目标**：codegen 里把 callee / 符号 / 布局的 **live FQN 字符串查找**改为 `LirCallableId` / `NominalId` 句柄直接 deref。FQN 仅保留为**符号名发射**（LLVM symbol）与**诊断/调试**用途（§2.7：String 仅调试）。可与 TC-02/03 并行，但建议在其后。
+
+**起点（已核对，~1283 处 `_fqn`）**，主要类别：
+- callee 查找：`mir_body/callable_lookup.rs:27`、`identity.rs:356` `program.callable(fqn)`。
+- 符号预留 / id 解析：`identity.rs:280-357` `exported_abi_symbol_for_lir_callable(fqn)` / `lir_callable_id_for_root(fqn)` / `abi_symbol_for_root(fqn)`。
+- 路由匹配：`call/lowering.rs:2065` `published_signature_matches_hir_call(fqn, ..)`。
+- 身份跟踪：`function_cx` 的 `current_callable_fqn: Option<String>`。
+
+**步骤**：
+- S1：callee/符号/布局/dispatch 的查找入口改为接收并 deref `LirCallableId`（callable）/ `NominalId`（类型布局）；`lir_callable_id_for_root(fqn)` 这种「FQN→id」查找应在更上游（LIR 已持 id）消除，codegen 直接拿 id。
+- S2：`current_callable_fqn` 改为 `current_callable: LirCallableId`（需要符号名时由 id deref 取）。
+- S3：`published_signature_matches_hir_call` 等「按 FQN + 签名匹配路由」改为按句柄/已发布契约判定（与 TC-02/03 的 LIR call-site 契约衔接）。
+- S4：保留 FQN **仅**用于 emit LLVM 符号名与诊断信息。
+
+**严禁**：不得保留「按 FQN 查找、查不到就 fallback/默认」路径；不得把句柄又转回 FQN 去查（句柄→FQN 反转）；缺映射回上游补。
+
+**验收**：
+- `grep -rn "program.callable(" crates/scoopc_codegen_llvm`、`grep -rn "lir_callable_id_for_root\|abi_symbol_for_root\|current_callable_fqn" crates/scoopc_codegen_llvm` → live 查找清零（剩余仅符号名发射/诊断字符串）。
+- §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 将 codegen 当前 callable 身份从 `current_callable_fqn` 迁到 `current_lir_callable_id`，并在 plain/effect/closure body 入口按 active LIR program 解析当前 `LirCallableId`，避免跨 primary/ABI program 索引漂移。
+- direct LIR call lowering 改为以 `LirCallableRef` 作为目标身份，ABI symbol、callable symbol facts、dispatch target declaration 和 closure stable identity 通过 callable ref/id deref；FQN 仅保留在 LLVM symbol 名、稳定命名和诊断文本路径。
+- `ProgramAbiMaterializer`、plain/effect carrier、closure env、GC dispatch target、source signature matching 和相关 layout tests 去掉 `program.callable(...)` / `lir_callable_id_for_root` / `abi_symbol_for_root` / `current_callable_fqn` 路径；`published_signature_matches_hir_call` 改为按 LIR callable ref 或已发布 source signature 校验。
+- 修复迁移后暴露的 active LIR program/body program ID 不一致问题；首次完整 fixture 暴露的 4 个失败目标已逐一复测并恢复绿色。
+- 验收 grep 通过：`rg -n "program\.callable\(" crates/scoopc_codegen_llvm`；`rg -n "lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn" crates/scoopc_codegen_llvm`；`rg -n "published_signature_matches_hir_call" crates/scoopc_codegen_llvm` 均无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-04-FIX1：清除 TC-04 review 发现的剩余 FQN live callable 查找
+
+**目标**：修复 `TC-04-R` 静态审查发现的 TC-04 残留：LLVM codegen 生产路径仍有按 root/FQN 字符串解析 callable、符号或 callable layout 的 live 查找。完成后 `TC-04-R` 才能确认「callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断」。
+
+**阻塞来源（2026-06-05，TC-04-R 审查时发现）**：基础验收 grep 虽显示 `program.callable(`、旧 `lir_callable_id_for_root` / `abi_symbol_for_root` / `current_callable_fqn`、`lir_*_to_mir` 无命中，但更严格的生产路径审查仍发现 root/FQN live lookup：
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/call/abi.rs`：`.callable(callable_fqn)`、`callable_id_by_root(callable_fqn)` 用于 published callable facts/signature。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body/{emitter.rs,main_entry.rs}`：当前 callable id 仍优先通过 `active.callable_id_by_root(callable.root_fqn())` 映射。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/value.rs`：plain direct call lowering 使用 `.callable(callee_fqn)` 与 `plain_callable_layout_by_root_fqn(callee_fqn)` 等 root-based layout 查询。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/main/identity.rs`：`lir_callable_ref_for_root` / `exported_abi_symbol_for_lir_root` 仍把 root/FQN 反查为 callable ref/id 后继续发射。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/{call.rs,callable_lookup.rs,operand.rs}` 与 `call/lowering.rs`：仍有 root/FQN 到 `LirCallableRef`、ABI symbol 或 published root 的运行期选择路径。
+
+**步骤**：
+- S1：将生产路径 helper 的入口从 root/FQN 改为 `LirCallableId` / `LirCallableRef`；跨 primary/ABI program 映射时使用 LIR stable callable key/hash 或已发布 callable ref，不得通过 `root_fqn()` 反查。
+- S2：将 direct call、closure/source callable、published signature、ABI symbol、callable layout 查询改为消费 LIR call-site contract 中的 callable handle；缺少 handle/contract 时回 producer 补，不在 codegen 用 FQN fallback。
+- S3：删除或测试隔离 `lir_callable_ref_for_root`、`exported_abi_symbol_for_lir_root`、production `.callable(..)`/`callable_id_by_root(..)` 和 callable root-based layout lookup；FQN 字符串只允许保留在 LLVM symbol 名生成、诊断文本、source-signature 文本字段或非 callable 的 global/nominal layout key 场景。
+
+**严禁**：不得新增 LIR→MIR 反向转换；不得把 `LirCallableId`/`LirCallableRef` 转回 FQN 再查；不得用「查不到就 fallback」或 `is_ok()` 探测 ABI surface。
+
+**验收**：
+- `rg -n "\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs'` 生产路径清零（测试代码中的 fixture lookup 可保留）。
+- `rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无生产命中。
+- `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均为符号名、诊断、source-signature 文本字段，或明确非 callable 的 global/nominal layout key。
+- §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 删除/替换 TC-04 review 发现的生产路径 root/FQN callable 反查：`current_lir_callable_id` 改为随当前 active LIR program/body program 直接绑定；plain/effect layout 查询新增 `LirCallableId` / `LirCallableRef` / body-version-key 入口；`lir_callable_ref_for_root`、`exported_abi_symbol_for_lir_root` 和 root-named layout 查询不再作为生产 helper 暴露。
+- direct call、closure adapter、native callable wrapper、dispatch target declaration、source closure body、published signature 查询等路径改为消费 LIR handle、body version key、published symbol facts 或 source-signature 文本字段；未新增 `lir_*_to_mir` 反向转换。
+- 修复迁移中暴露的 LIR plain interface dispatch parity：补齐 LIR 静态 interface dispatch，避免 `println<String>` / `ToString` candidate-set 退化为空 itable 动态分派导致 `exit(7)`。
+- 验收 grep 通过：生产路径 `rg -n "\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无命中；`rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [DONE] TC-04-FIX2：清除 carrier/dispatch 残留 FQN callable 选择
+
+**目标**：修复 `TC-04-R` 复审发现的剩余生产路径 root/FQN callable 选择：carrier/dispatch 发布、fallback registry、dynamic carrier target、vtable/itable target 与 effect-step facts/layout 查询必须改为消费 LIR callable handle、body-version key 或已发布 callable contract；FQN 字符串只能保留为 LLVM symbol 名、诊断文本、source-signature 文本字段，或非 callable 的 nominal/global layout key。
+
+**阻塞来源（2026-06-05，TC-04-R 复审时发现）**：`TC-04-FIX1` 后基础验收 grep 已清零旧 helper，但更严格的 `_fqn` 抽样与 carrier 路径审查仍发现生产代码用 callable root/FQN 做 live target/layout/facts 选择：
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/carrier.rs`：`published_callable_roots` / `plain_callable_roots`、物理 `class_vtables` / `class_itables` 的 `impl_member_fqn` / `method_impl_fqns` 过滤、`dynamic_dispatch_carrier_targets` 的 string target key、`callable_layout_for_carrier_target` 按 `layout.root_fqn() == callable_fqn` 选择版本。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/layout/lookup.rs`：`callable_facts_for_root` / `effect_step_callable_facts_for_root` 通过 `program.callables().find(|callable| callable.root_fqn() == root_fqn)` 回查 callable facts。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/main/frame.rs`、`gc.rs`、`mir_body/aggregates.rs`、`mir_body/dispatch.rs`、`call/lowering.rs` 仍以 callable FQN 字符串注册/索引 callable carrier fallback、entry symbol、vtable/itable/funptr target。
+- `DynamicInvokeLayout::candidate_targets()` / `CallableCarrierTargetLayout` 仍以 `Vec<String>` / `(CallableCarrierKind, String)` 表达 callable target；这使 codegen 仍可通过 FQN 选择 live callable 布局。
+
+**步骤**：
+- S1：把 callable carrier target key 从 `(CallableCarrierKind, String)` 改为 handle-native key（优先 `LirCallableId` / `LirCallableRef`，跨 cached dep 需要区分 program origin 时使用已有 ABI origin + body-version/callable key），并让 `CallableCarrierTargetLayout` / `DynamicInvokeLayout` 暴露 handle-native target。
+- S2：将 vtable/itable/dynamic invoke/carrier shell 发布从 `impl_member_fqn` / `method_impl_fqns` 字符串过滤改为读取 LIR physical layout 或 published contract 中的 callable handle；如果 producer 目前只发布 FQN，回 producer 补 handle 字段，不在 codegen 用 root/FQN 反查。
+- S3：删除生产路径 `callable_facts_for_root` / `effect_step_callable_facts_for_root`，closure/dispatch carrier args ABI、callable layout version selection、fallback registry 与 entry symbol lookup 均按 callable handle/body-version key 查询。
+- S4：保留 FQN 仅用于 symbol 名生成、诊断文本、source-signature 文本字段；`_fqn` 抽样必须能逐项解释为非 live callable 查找。
+
+**严禁**：不得新增 `lir_*_to_mir` 反向转换；不得把 `LirCallableId` / `LirCallableRef` 转回 FQN 再查；不得用 string fallback、`is_ok()` 探测 ABI surface 或多版本时按 FQN 猜测 authoritative version。
+
+**验收**：
+- `rg -n "callable_facts_for_root|effect_step_callable_facts_for_root|callable_layout_for_carrier_target|published_callable_roots|plain_callable_roots|candidate_targets\(|CallableCarrierKind, String|callable_carrier_entry_symbols|plain_callable_carrier_fallback_targets" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 生产路径清零或改为 handle-native 命名/类型且不含 FQN target。
+- `rg -n "impl_member_fqn|method_impl_fqns" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 不再作为 callable target 选择/查找路径；若仍出现，必须仅为诊断或上游 facts 校验。
+- `rg -n "program\.callable\(|\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无生产命中。
+- `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均非 live callable 查找。
+- §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 将 callable carrier target registry 从 `(CallableCarrierKind, String)` 改为 `CallableCarrierTargetKey { kind, LirCallableHash }`；dynamic invoke candidate target、carrier target layout 查询、entry symbol registry 与 plain fallback registry 均按 LIR callable handle/hash 选择。
+- carrier 发布改用 `LirCallableRef` / stable callable hash / body-version contract；删除生产路径 `callable_facts_for_root` / `effect_step_callable_facts_for_root`，closure、vtable、itable carrier ABI facts 均通过 handle-native callable facts 读取。
+- class vtable/itable、value-box itable、static interface dispatch 与 dispatch target declaration 改读 `impl_member_target` / `method_impl_targets`；物理 `impl_member_fqn` / `method_impl_fqns` 不再作为 target 选择/查找路径。
+- 为 callable layouts 保存 stable `LirCallableHash`，修正 carrier/ABI query 中 external hash 与 body-version selector 的匹配路径；保留 FQN 仅用于 LLVM symbol、source-signature 文本、诊断或 nominal/global layout key。
+- 验收 grep 通过：carrier target map / physical FQN target field / 旧 FQN lookup helper 三组生产路径 grep 均无命中；`_fqn` 抽样未发现本任务范围内新增 live callable FQN 查找。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+
+### [TODO] TC-04-FIX3：清除 source-callable/direct-call 残留 FQN live lookup
+
+**目标**：修复 `TC-04-R` 在 `TC-04-FIX2` 后继续发现的生产路径 FQN live callable lookup：source callable / closure body、direct call ABI/signature、plain/effect callable layout 查询必须改为消费 `LirCallableId` / `LirCallableRef` / body-version key / 已发布 call-site contract。FQN 字符串只能保留为 LLVM symbol 名、诊断文本、source-signature 文本字段，或非 callable 的 nominal/global layout key。
+
+**阻塞来源（2026-06-05，TC-04-R 复审时发现）**：旧 helper / carrier target grep 已清零，但更广义 `_fqn` 抽样和 root-equality 搜索仍发现生产代码通过 callable root/FQN 选择 live callable facts、signature 或 layout：
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/call/abi.rs`：`published_lir_callable_facts_by_root`、`published_callable_signature_impl`、`published_callable_signature_with_names_impl` 通过 `program.callables().iter().find(|callable| callable.root_fqn() == callable_fqn)` 选择 callable facts；`direct_call_abi_identity` / `callable_uses_explicit_effect_hidden_abi` / `callable_needs_callee_resume_shell` 仍以 FQN 为入口。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/callable_lookup.rs`：`lir_source_callable(fqn)` 和 `codegen_lir_source_closure_fun` 仍按 root/FQN 扫描 `LateLoweredProgram`，再把结果用于 closure source body、source id 和 stable closure identity。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/call.rs`：LIR direct-call path 把 `LirCallableRef` / `exact_callee.target_callable` 转成 `concrete_fqn`，再调用 FQN-based ABI/signature/declaration helper。
+- `crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/types.rs` 与 `effect_lowered/value.rs`：`callable_layout_for_root_text`、`plain_callable_layout_for_root_text`、`maybe_plain_callable_layout_for_root_text` 及其 callers 仍按 root 字符串选择 callable layout。
+- `closure/mod.rs`、`mir_body/{aggregates,operand,dispatch}.rs`、`gc.rs`、`call/lowering.rs` 等生产路径仍调用上述 FQN-based helper 或 `published_symbol_for_source_root_text` 参与 callable surface/ABI 判断。
+
+**步骤**：
+- S1：新增/迁移 source callable、published signature、ABI identity、effect hidden ABI 判定入口，使其消费 `LirCallableId` / `LirCallableRef` / body-version key；删除或测试隔离 `published_lir_callable_facts_by_root`、`lir_source_callable(fqn)` 等 root-scan helper。
+- S2：direct call lowering 全程保留 LIR call-site 的 `target_callable` / `callee` handle；ABI identity、signature、symbol declaration 和 native/external classification 均按 handle/contract 查询，FQN 仅作为 label/diagnostic。
+- S3：effect/plain callable layout 查询改用 `callable_layout_for_ref`、`plain_callable_layout_for_id/ref`、body-version key 或 stable hash；删除生产路径 `*_for_root_text` helper。
+- S4：closure/function-value provenance 若仍只携带 FQN，回 producer 补 callable handle/hash，不在 codegen 用 FQN 反查。
+
+**严禁**：不得新增 `lir_*_to_mir` 反向转换；不得把 `LirCallableId` / `LirCallableRef` 转回 FQN 再查；不得通过 root/FQN equality、string fallback、`is_ok()` 探测 ABI surface 或多版本时按 FQN 猜测 authoritative version。
+
+**验收**：
+- `rg -n "published_lir_callable_facts_by_root|lir_source_callable\(|stable_closure_key_for_lir_source_callable|published_symbol_for_source_root_text|published_callable_signature\(|published_callable_signature_with_names\(|published_codegen_callable_signature\(|direct_call_abi_identity\(|callable_uses_explicit_effect_hidden_abi\(|callable_needs_callee_resume_shell\(|callable_layout_for_root_text|plain_callable_layout_for_root_text|maybe_plain_callable_layout_for_root_text" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 生产路径清零或重命名为 handle-native API 且不以 FQN/root 为输入。
+- `rg -n "root_fqn\(\)\s*==|==\s*[^\n]*root_fqn\(\)|root_fqn\s*==|program\.callables\(\).*root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 不再命中 production live callable 选择；剩余命中必须仅为诊断、symbol 名生成或测试。
+- `rg -n "program\.callable\(|\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无生产命中。
+- `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均非 live callable 查找。
+- §9 基线绿。
+
+### [TODO] TC-04-R：Review TC-04
+- **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。
+- **确认**：上述 grep 仅余符号名/诊断用法；`grep -rn "_fqn" .../codegen` 抽样确认剩余均非 live 查找；§9 绿。
+- **依赖**：`TC-04-FIX1`、`TC-04-FIX2`、`TC-04-FIX3`。
+
+**审查阻塞记录（2026-06-05）**：
+- `TC-04-R` 静态审查发现 `TC-04` 仍有生产路径 root/FQN live callable 查找，已新增前置修复任务 `TC-04-FIX1`；本 review 保持未完成，待该修复完成后重新执行确认。
+- `TC-04-R` 复审确认 `TC-04-FIX1` 已清除旧 helper 命中，但 carrier/dispatch 发布与 registry 仍以 callable root/FQN 字符串选择 live target/layout/facts；已新增前置修复任务 `TC-04-FIX2`，本 review 保持未完成。
+- `TC-04-R` 复审确认 `TC-04-FIX2` 已清除旧 carrier/dispatch target grep 命中，但 source callable、direct-call ABI/signature 和 layout 查询仍有生产路径按 callable root/FQN 选择 live facts/layout；已新增前置修复任务 `TC-04-FIX3`，本 review 保持未完成。
+
+### [TODO] TC-05：删除 overlay
+
+**目标**：在 TC-01/02/03 完成（producer 填满 LIR 指令、两条 codegen 路径都 walk LIR）后，**物理删除** overlay。**依赖 TC-01 + TC-02 + TC-03**（必须都完成，否则删了会断编译）。
+
+**起点（已核对）**：
+- `crates/scoopc_lir/src/effect_lowered/ir.rs:343` `pub type LateLoweredSourceBody = crate::mir::Body`；`:3591` `struct LateLoweredStateSlice`；以及 `LateLoweredState` 上承载 source_slice 的字段、`source_body()`/`source_slices()` 访问器。
+- `crates/scoopc/src/pipeline/lir_artifact.rs` `LirArtifact.mir: Option<MaterializedMir>`、`facts`（facts 已在 P2b 删，确认）；以及 `LateLoweredSourceCallable.body`（`crate::mir::FunDecl` 的间接 overlay）。
+
+**步骤**：
+- S1：删 `LateLoweredStateSlice`、`source_slice` 字段与 `source_body()`/`source_slices()` 访问器；`LateLoweredState` 只保留 LIR-owned body。
+- S2：删 `type LateLoweredSourceBody`；`LateLoweredProgram` / `LateLoweredCallable` 不再引用 `crate::mir::Body` / `crate::mir::FunDecl::body`。
+- S3：删 `LirArtifact.mir`；`base_context` 的类型/布局并入 `program`（若 TC-02/03 尚未并入则在此完成）。最终 `LirArtifact = { cone, program, object_files }`。
+
+**严禁**：不得为了让某处编译通过而保留 `mir` 字段「以防万一」；删不掉=说明 TC-01/02/03 有残留消费，回去补，不在此留 overlay。
+
+**验收**：
+- `grep -rnE "LateLoweredSourceBody|LateLoweredStateSlice|crate::mir::Body" crates/scoopc_lir crates/scoopc_codegen_llvm crates/scoopc/src/pipeline` → 清零（除历史注释）。
+- `LirArtifact` 无 `mir`/`facts` 字段。
+- §9 基线绿。
+
+### [TODO] TC-05-R：Review TC-05
+- **关注点**：overlay 类型/字段/访问器彻底删除（非注释保留）；codegen 完全不触 MIR body；`LirArtifact = {cone, program, object_files}`。
+- **确认**：上述 grep 清零；`grep -rn "\.mir\b" .../lir_artifact.rs` 无 `mir` 字段；§9 绿；抽样 diff 可执行行为等价。
+
+### [TODO] TC-06：never-fail 收口（错误上移 + ICE 结构化）
+
+**目标**：codegen 对**输入** never-fail——`LlvmEmitError` 只剩真后端 + IO 变体；输入失败变体全部上移；热点处 input `panic`/`expect` 改为「结构不可达」或上移。**建议最后做**（依赖 TC-01..05，因为很多 input 失败在 LIR 消费/句柄/overlay 删除后已自然消失）。
+
+**起点（已核对）`crates/scoopc_codegen_llvm/src/llvm/mod.rs:99` `LlvmEmitError`**：
+- **输入失败（上移、删变体）**：`Frontend`、`MissingEntryMain`、`EffectLoweringUnsupported`、`BackendGate`、`AmbiguousEntryMain`、`InvalidLiteral`。
+- **保留（真后端/IO）**：`Target`、`Builder`、`Instruction`、`ModuleVerificationFailed`、`RunPassesFailed`、`Write{Ll,Obj,Asm}Failed`。
+- fail-fast 热点（input `expect`/`panic`）：`effect_lowered/layout/{classification.rs(141),surface_resume.rs(76),handle_dispatch.rs(48),dispatch.rs(36)}`、`effect_lowered/body/{value.rs(43),mod.rs(40)}`、`mir_body/{const_pat.rs(36),lowering.rs(29)}`。多为「查应被上游 pre-validate 的 ABI fact」的 `expect`、「verifier 已接受但 codegen 失败」的 `panic`。
+
+**步骤**：
+- S1：逐个删输入失败变体，把其判定**上移**——`MissingEntryMain`/`AmbiguousEntryMain`：entry 由 LIR 阶段解析为句柄时保证（呼应 TC-04 的 entry 句柄）；`InvalidLiteral`：字面量在更上游（HIR/MIR）保证合法；`EffectLoweringUnsupported`/`BackendGate`/`Frontend`：route/shape 由 LIR 指令集 total + LIR 构造保证。
+- S2：热点文件的 input `expect`/`panic`：经 TC-01..05 后，绝大多数因 LIR 句柄/契约保证而**结构不可达** → 降为 `unreachable!("LIR 保证: ...")` / `debug_assert!`；剩下确属「输入可能非法」的，把保证上移（LIR producer 或更上游）。
+- S3：保留真后端（LLVM builder/verifier 失败）与 IO（写文件失败）变体——它们不是「输入失败」。
+
+**严禁**：不得用「降 `unreachable!`」掩盖「其实输入可能触发」的情况（那是把 panic 换个名字）；判不准就上移，不留 input 失败路径。
+
+**验收**：
+- `LlvmEmitError` 仅余 `Target`/`Builder`/`Instruction`/`ModuleVerificationFailed`/`RunPassesFailed`/`Write*`。
+- codegen 无 `Result` 输入错误出口；input `panic!`/`expect` 清零（剩余 `unreachable!`/`debug_assert` 均有「LIR/上游保证」注释）。
+- §9 基线绿。
+
+### [TODO] TC-06-R：Review P-CG（整体阶段验收）
+- **关注点（对照 PLAN §2 完成标志）**：两条路径都 walk LIR、无 `mir::*` body match、无 overlay、callee/符号/布局引用全句柄、`LlvmEmitError` 仅后端/IO、codegen 对输入 never-fail。
+- **范围纪律**：未越界改 P3+；全程无 LIR→MIR 反向 shim / 句柄→FQN 反转 / 占位 / no-op 容忍。
+- **逐项确认**：
+  - `grep -rnE "mir::(Statement|Rvalue|Terminator|Operand|Place)|LateLoweredSourceBody|LateLoweredStateSlice|crate::mir::Body|\.source_body\(\)" crates/scoopc_codegen_llvm crates/scoopc_lir` 清零。
+  - `LlvmEmitError` 无输入失败变体；codegen 无 input `Result`/`panic`/`expect`。
+  - `grep -rn "lir_.*_to_mir\|program.callable(" crates/scoopc_codegen_llvm` 清零。
+  - §9 全套绿；抽样若干 fixture diff 可执行行为等价；在 PLAN.md 标记 P-CG DONE。
+
+## 9. 验证基线（每任务收尾）
+
+```
+cargo fmt
+cargo clippy --all-targets -- -D warnings
+cargo test --all --all-targets
+cargo build -p scoop -p scoopc
+python3 tools/dependency_gate.py
+python3 tools/spec_fixtures.py check
+python3 tools/run_fixtures.py
+```
+
+## 10. 风险 / 备注
+
+- **互相依赖**：TC-01（LIR 有指令）是 TC-02/03 前提；TC-05（删 overlay）必须在 TC-02/03/01 都完成后；TC-04 与 body 改造正交可并行但建议在 TC-02/03 后。
+- **不得为绿造 shim**：若某路径迁 LIR 后缺数据，是 TC-01 lift 未填全或上游未保证——回到 producer 补，**不在 codegen 造反向转换/占位**（上次打回的就是这个）。
+- 真后端 `panic`（LLVM builder 失败等）可保留——它们不是「输入失败」，是 LLVM/IO 层真错误。

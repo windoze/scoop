@@ -187,8 +187,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         fqn: &str,
         args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args)
+        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args, result_ty)
     }
 
     /// 为 native callable 调用点生成 `scoop_enter_native(root_slots, len)`。
@@ -202,26 +203,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
         self.emit_enter_native_for_extern_call_impl(at)
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_class_vtable_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        self.try_codegen_class_vtable_call_impl(span, callee_span, fqn, args)
-    }
-
-    pub(in crate::llvm::codegen) fn try_codegen_interface_itable_call(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        self.try_codegen_interface_itable_call_impl(span, callee_span, fqn, args)
     }
 
     pub(in crate::llvm::codegen) fn load_class_vtable_slot_fn_ptr_i8(
@@ -447,6 +428,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: &str,
     ) -> Option<CodegenCallableSignature> {
         self.published_codegen_callable_signature_impl(callable_fqn)
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_ref(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<CodegenCallableSignature> {
+        self.published_codegen_callable_signature_for_ref_impl(target)
     }
 
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count(

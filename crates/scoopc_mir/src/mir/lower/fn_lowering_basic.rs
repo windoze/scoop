@@ -782,6 +782,9 @@ impl<'a> FnLowering<'a> {
                 if self.current_is_terminated() {
                     return;
                 }
+                let actual_receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+                let metadata_receiver_ty =
+                    self.member_metadata_receiver_ty(*receiver_ty, actual_receiver_ty);
                 let value_local = self.lower_expr_to_local(rhs);
                 if self.current_is_terminated() {
                     return;
@@ -797,7 +800,7 @@ impl<'a> FnLowering<'a> {
                         receiver: Operand::Local(receiver_local),
                         member: self.assign_place_member_metadata(
                             member_name,
-                            *receiver_ty,
+                            metadata_receiver_ty,
                             resolved.as_ref(),
                         ),
                         value,
@@ -806,6 +809,24 @@ impl<'a> FnLowering<'a> {
                     },
                 );
             }
+        }
+    }
+
+    fn member_metadata_receiver_ty(&self, contract_ty: TypeId, actual_ty: TypeId) -> TypeId {
+        if contract_ty == actual_ty {
+            return contract_ty;
+        }
+        if self.nominal_fqn(contract_ty) == self.nominal_fqn(actual_ty) {
+            return actual_ty;
+        }
+        contract_ty
+    }
+
+    fn nominal_fqn(&self, ty: TypeId) -> Option<&str> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+            _ => None,
         }
     }
 

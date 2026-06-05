@@ -16,6 +16,50 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn direct_call_explicit_param_tys(
+        &self,
+        function: &FunctionTargetContract,
+        explicit_arg_count: usize,
+    ) -> Option<Vec<TypeId>> {
+        let mut param_tys = self.selected_or_indexed_param_tys(function)?;
+        if self.retained_gc_intrinsic_params_include_receiver(
+            function.fqn(),
+            explicit_arg_count,
+            &param_tys,
+        ) {
+            param_tys.remove(0);
+        }
+        Some(param_tys)
+    }
+
+    fn retained_gc_intrinsic_params_include_receiver(
+        &self,
+        fqn: &str,
+        explicit_arg_count: usize,
+        param_tys: &[TypeId],
+    ) -> bool {
+        if !matches!(
+            fqn,
+            "scoop.core.GC.pin"
+                | "scoop.core.GC.unpin"
+                | "scoop.core.GC.handleNew"
+                | "scoop.core.GC.handleGet"
+                | "scoop.core.GC.handleDrop"
+        ) || param_tys.len() != explicit_arg_count.saturating_add(1)
+        {
+            return false;
+        }
+        let Some((owner_fqn, _)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        matches!(
+            self.types.kind(param_tys[0]),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == owner_fqn
+        )
+    }
+
     pub(in crate::mir::lower) fn source_arg_expected_tys_for_callee_ty(
         &self,
         callee_ty: TypeId,
@@ -54,7 +98,14 @@ impl<'a> FnLowering<'a> {
 
         match contract {
             TypedCallSiteContract::DirectTopLevel(function) => {
-                self.lower_direct_call_expr(span, result, function.fqn(), args, Some(&function));
+                self.lower_direct_call_expr(
+                    span,
+                    result,
+                    function.fqn(),
+                    args,
+                    Some(&function),
+                    None,
+                );
                 true
             }
             TypedCallSiteContract::MemberDirect(member) => {
@@ -64,15 +115,33 @@ impl<'a> FnLowering<'a> {
                     member.function().fqn(),
                     args,
                     Some(member.function()),
+                    None,
                 );
                 true
             }
             TypedCallSiteContract::Extension { function, .. } => {
-                self.lower_direct_call_expr(span, result, function.fqn(), args, Some(&function));
+                self.lower_direct_call_expr(
+                    span,
+                    result,
+                    function.fqn(),
+                    args,
+                    Some(&function),
+                    None,
+                );
                 true
             }
             TypedCallSiteContract::Constructor(ctor) => {
-                self.lower_constructor_call_expr(span, result, &ctor, args);
+                let result_ty = self.body.locals[result.as_u32() as usize].ty;
+                let ctor_result_ty = self.constructor_result_ty_for_contract(&ctor);
+                let ctor_result = if result_ty == ctor_result_ty {
+                    result
+                } else {
+                    self.push_temp_local(span, ctor_result_ty)
+                };
+                self.lower_constructor_call_expr(span, ctor_result, &ctor, args);
+                if ctor_result != result && !self.current_is_terminated() {
+                    self.assign_use_to_local(span, result, Operand::Local(ctor_result));
+                }
                 true
             }
             TypedCallSiteContract::Closure { arg_binding, .. } => {
@@ -124,7 +193,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Intrinsic { kind, function } => {
-                self.lower_intrinsic_call_expr(span, result, &kind, function.fqn(), args)
+                self.lower_intrinsic_call_expr(span, result, &kind, &function, args)
             }
             TypedCallSiteContract::EffectOp(_) | TypedCallSiteContract::ContinuationResume(_) => {
                 false
@@ -164,13 +233,14 @@ impl<'a> FnLowering<'a> {
         callee_fqn: &str,
         args: &[hir::CallArg],
         function: Option<&FunctionTargetContract>,
+        intrinsic_entry_name: Option<String>,
     ) {
         let arg_binding = function
             .and_then(FunctionTargetContract::arg_binding)
             .filter(|binding| !call_arg_binding_has_receiver(binding));
         let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let expected_tys = function
-            .and_then(|function| self.selected_or_indexed_param_tys(function))
+            .and_then(|function| self.direct_call_explicit_param_tys(function, args.len()))
             .map(|param_tys| {
                 self.source_arg_expected_tys_from_param_tys(
                     &param_tys,
@@ -184,12 +254,34 @@ impl<'a> FnLowering<'a> {
             return;
         };
         let args = self.canonicalize_call_args_from_binding(args, arg_binding);
+        let intrinsic_entry_name = intrinsic_entry_name.or_else(|| {
+            function
+                .and_then(FunctionTargetContract::intrinsic_entry_name)
+                .map(str::to_string)
+        });
         let kind = CallKind::Direct {
             callee_fqn: callee_fqn.to_string(),
+            stable_template_key: function
+                .and_then(FunctionTargetContract::stable_template_key)
+                .cloned()
+                .map(Box::new),
+            stable_instance_key: function
+                .and_then(FunctionTargetContract::stable_instance_key)
+                .cloned()
+                .map(Box::new),
+            intrinsic_entry_name,
+            generic_type_args: function
+                .map(FunctionTargetContract::type_args)
+                .unwrap_or_default()
+                .to_vec(),
+            generic_eff_args: function
+                .map(FunctionTargetContract::eff_args)
+                .unwrap_or_default()
+                .to_vec(),
         };
         let terminates_current_block = matches!(
             &kind,
-            CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
+            CallKind::Direct { callee_fqn, .. } if callee_fqn == "scoop.core.panic"
         );
         let site_id = self.fresh_site_id();
         let transport = self.call_transport_metadata(
@@ -234,6 +326,10 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 class_fqn: ctor.owner_fqn().to_string(),
                 ctor: ClassCtorCallMetadata {
+                    target_init_class_fqn: self
+                        .types
+                        .display(self.body.locals[result.as_u32() as usize].ty)
+                        .to_string(),
                     selected_ctor_span: ctor.ctor_span(),
                     ordered_param_count: ctor.arg_mapping().len(),
                 },
@@ -343,9 +439,10 @@ impl<'a> FnLowering<'a> {
         span: Span,
         result: LocalId,
         kind: &TypedIntrinsicKind,
-        callee_fqn: &str,
+        function: &FunctionTargetContract,
         args: &[hir::CallArg],
     ) -> bool {
+        let callee_fqn = function.fqn();
         let intrinsic_fqn = intrinsic_base_fqn(callee_fqn);
         match (kind, intrinsic_fqn) {
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.sizeOf") if name == "sizeOf" => {
@@ -366,14 +463,16 @@ impl<'a> FnLowering<'a> {
                             })
                     })
                     .expect("typed sizeOf intrinsic must publish a value or type argument");
-                self.assign(span, result, Rvalue::SizeOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::SizeOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.alignOf")
                 if name == "alignOf" =>
             {
                 let value_ty = self.reflection_type_arg_for_call(span, "alignOf");
-                self.assign(span, result, Rvalue::AlignOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::AlignOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.nameOf") if name == "nameOf" => {
@@ -400,12 +499,14 @@ impl<'a> FnLowering<'a> {
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.kindOf") if name == "kindOf" => {
                 let value_ty = self.reflection_type_arg_for_call(span, "kindOf");
-                self.assign(span, result, Rvalue::KindOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::KindOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.descOf") if name == "descOf" => {
                 let value_ty = self.reflection_type_arg_for_call(span, "descOf");
-                self.assign(span, result, Rvalue::DescOf { value_ty });
+                let site_id = self.fresh_site_id();
+                self.assign(span, result, Rvalue::DescOf { site_id, value_ty });
                 true
             }
             (TypedIntrinsicKind::Platform { name }, "scoop.core.getPlatform")
@@ -418,7 +519,18 @@ impl<'a> FnLowering<'a> {
                 true
             }
             _ => {
-                self.lower_direct_call_expr(span, result, callee_fqn, args, None);
+                let entry_name = match kind {
+                    TypedIntrinsicKind::NamedTable { entry_name, .. } => Some(entry_name.clone()),
+                    _ => None,
+                };
+                self.lower_direct_call_expr(
+                    span,
+                    result,
+                    callee_fqn,
+                    args,
+                    Some(function),
+                    entry_name,
+                );
                 true
             }
         }
@@ -440,20 +552,27 @@ impl<'a> FnLowering<'a> {
         }
         let stripped_binding = call_arg_binding_without_receiver(member.function().arg_binding());
         let arg_binding = Self::active_hir_call_arg_binding(call_args, stripped_binding.as_ref());
+        let selected_param_tys = self.selected_or_indexed_param_tys(member.function());
         let function_has_receiver = member
             .function()
             .arg_binding()
-            .is_some_and(call_arg_binding_has_receiver);
-        let expected_tys = self
-            .selected_or_indexed_param_tys(member.function())
+            .is_some_and(call_arg_binding_has_receiver)
+            || selected_param_tys.as_ref().is_some_and(|param_tys| {
+                self.dispatch_param_tys_include_receiver(
+                    param_tys,
+                    call_args.len(),
+                    member.receiver_ty(),
+                )
+            });
+        let expected_tys = selected_param_tys
             .map(|param_tys| {
-                let param_tys = if function_has_receiver {
+                let explicit_param_tys = if function_has_receiver {
                     param_tys.get(1..).unwrap_or(&[])
                 } else {
-                    &param_tys
+                    param_tys.as_slice()
                 };
                 self.source_arg_expected_tys_from_param_tys(
-                    param_tys,
+                    explicit_param_tys,
                     call_args.len(),
                     false,
                     arg_binding,
@@ -463,12 +582,39 @@ impl<'a> FnLowering<'a> {
         let Some(args) = self.lower_call_args_with_expected(call_args, &expected_tys) else {
             return;
         };
+        let mut stable_candidate_keys = self
+            .facts
+            .dispatch_candidate_keys(self.source_path.as_path(), span)
+            .to_vec();
+        if let Some(stable_key) = member.function().stable_instance_key() {
+            stable_candidate_keys.push(stable_key.clone());
+        } else if let Some(stable_template_key) = member.function().stable_template_key()
+            && let Ok(stable_key) = StableInstanceKey::from_type_arguments(
+                stable_template_key.clone(),
+                self.types,
+                member.function().type_args(),
+                member.function().eff_args(),
+                &NoTypeParamResolver,
+            )
+        {
+            stable_candidate_keys.push(stable_key);
+        }
+        stable_candidate_keys.sort_by_key(StableInstanceKey::canonical_text);
+        stable_candidate_keys.dedup();
         let dispatch = DispatchMetadata {
             owner_fqn: member.owner_fqn().to_string(),
             member_name: member.member_name().to_string(),
             member_fqn: member.member_fqn().to_string(),
             member_decl_span: member.function().decl_span(),
             receiver_ty: member.receiver_ty(),
+            stable_candidate_keys,
+            stable_template_key: member
+                .function()
+                .stable_template_key()
+                .cloned()
+                .map(Box::new),
+            generic_type_args: member.function().type_args().to_vec(),
+            generic_eff_args: member.function().eff_args().to_vec(),
         };
         let kind = match dispatch_kind {
             DispatchTargetKind::Virtual => CallKind::Virtual {
@@ -497,6 +643,41 @@ impl<'a> FnLowering<'a> {
                 transport,
             },
         );
+    }
+
+    fn dispatch_param_tys_include_receiver(
+        &self,
+        param_tys: &[TypeId],
+        explicit_arg_count: usize,
+        receiver_ty: TypeId,
+    ) -> bool {
+        if param_tys.len() != explicit_arg_count.saturating_add(1) {
+            return false;
+        }
+        let Some(&first_param_ty) = param_tys.first() else {
+            return false;
+        };
+        if first_param_ty == receiver_ty {
+            return true;
+        }
+        self.nominal_fqn_for_ty(first_param_ty)
+            .zip(self.nominal_fqn_for_ty(receiver_ty))
+            .is_some_and(|(param_fqn, receiver_fqn)| param_fqn == receiver_fqn)
+    }
+
+    fn constructor_result_ty_for_contract(
+        &mut self,
+        ctor: &ConstructorCallTargetContract,
+    ) -> TypeId {
+        if self.nominal_fqn_for_ty(ctor.result_ty()).as_deref() == Some(ctor.owner_fqn()) {
+            return ctor.result_ty();
+        }
+        self.types
+            .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                fqn: ctor.owner_fqn().to_string(),
+                args: Vec::new(),
+                eff: None,
+            })))
     }
 
     pub(in crate::mir::lower) fn dispatch_receiver_and_args<'b>(
@@ -718,7 +899,7 @@ impl<'a> FnLowering<'a> {
         let callee_fqn = match gc_intrinsic_callee {
             Some(callee_fqn) => callee_fqn,
             None => match kind {
-                CallKind::Direct { callee_fqn } => callee_fqn.as_str(),
+                CallKind::Direct { callee_fqn, .. } => callee_fqn.as_str(),
                 CallKind::Closure { .. }
                 | CallKind::FunValue { .. }
                 | CallKind::FunPtr { .. }
@@ -801,7 +982,7 @@ impl<'a> FnLowering<'a> {
         kind: &CallKind,
         args: &[CallArg],
     ) -> Option<ArrayElementTransportMetadata> {
-        let CallKind::Direct { callee_fqn } = kind else {
+        let CallKind::Direct { callee_fqn, .. } = kind else {
             return None;
         };
         match intrinsic_base_fqn(callee_fqn.as_str()) {
@@ -973,7 +1154,7 @@ impl<'a> FnLowering<'a> {
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
             && matches!(
-                self.types.kind(ty),
+                self.types.kind(result_ty),
                 TypeKind::Value(ValueTypeKind::Option(_) | ValueTypeKind::Nominal(_))
             )
         {
@@ -981,7 +1162,7 @@ impl<'a> FnLowering<'a> {
                 return result;
             };
             let payload = self.aggregate_transport(
-                ty,
+                result_ty,
                 AggregateTransportKind::EnumPayload,
                 args.iter()
                     .map(|arg| (arg.name.clone(), self.operand_ty(&arg.value)))
@@ -991,7 +1172,7 @@ impl<'a> FnLowering<'a> {
                 span,
                 result,
                 Rvalue::EnumVariant {
-                    enum_ty: ty,
+                    enum_ty: result_ty,
                     variant_name: name.clone(),
                     args,
                     payload,

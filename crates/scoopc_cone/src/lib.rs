@@ -26,12 +26,11 @@ pub use archive::{
 pub use artifact::{
     CONE_ARTIFACT_EFFECT_FACTS_FILE_NAME, CONE_ARTIFACT_FRONTEND_IMPORT_FILE_NAME,
     CONE_ARTIFACT_HIR_FACTS_FILE_NAME, CONE_ARTIFACT_INPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_LIR_FACTS_FILE_NAME, CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME,
-    CONE_ARTIFACT_MANIFEST_FILE_NAME, CONE_ARTIFACT_MIR_FACTS_FILE_NAME,
-    CONE_ARTIFACT_OBJS_DIR_NAME, CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME,
-    CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifact, ConeArtifactError, ConeArtifactFingerprints,
-    ConeArtifactFrontendImport, ConeArtifactManifest, ConeArtifactObject,
-    ConeArtifactSchemaVersions, ConeArtifactStageProducts,
+    CONE_ARTIFACT_LIR_PROGRAM_FILE_NAME, CONE_ARTIFACT_MANIFEST_FILE_NAME,
+    CONE_ARTIFACT_MIR_FACTS_FILE_NAME, CONE_ARTIFACT_OBJS_DIR_NAME,
+    CONE_ARTIFACT_OUTPUTS_FINGERPRINT_FILE_NAME, CONE_ARTIFACT_TYPE_STORE_FILE_NAME, ConeArtifact,
+    ConeArtifactError, ConeArtifactFingerprints, ConeArtifactFrontendImport, ConeArtifactManifest,
+    ConeArtifactObject, ConeArtifactSchemaVersions, ConeArtifactStageProducts,
     build_frontend_import_for_typechecked_cone,
 };
 pub use consume::{

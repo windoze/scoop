@@ -23,5 +23,4 @@ pub(super) const SCOOP_FLOAT64_TO_INT: &str = "scoop_float64_to_int";
 pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_EQUALS: &str = "scoop_string_equals";
-pub(super) const SCOOP_SYNC_ONCE_RUN: &str = "scoop_sync_once_run";
 pub(super) const SCOOP_UNPIN: &str = "scoop_unpin";

@@ -591,8 +591,18 @@ pub(super) fn llvm_call_target_query_preserves_known_instance_direct_entries() {
         |inputs, result, _module| {
             let query = result.expect("known-instance direct call 应可回查 callable entry");
             let program = inputs.lir_stage_output.program();
-            let main = program.callable("main").expect("main callable 应存在");
-            let helper = program.callable("helper").expect("helper callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
+            let helper_id = program
+                .callable_id_by_root("helper")
+                .expect("helper callable 应存在");
+            let helper = program
+                .callable_by_id(helper_id)
+                .expect("helper callable 应存在");
             let main_plain = main.plain_abi().expect("main 应保持 plain callable ABI");
             let call_facts = main_plain
                 .call_sites()
@@ -1102,7 +1112,12 @@ pub(super) fn llvm_resume_payload_binding_rejects_missing_contract() {
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let fetch = program.callable("fetch").expect("fetch callable 应存在");
+            let fetch_id = program
+                .callable_id_by_root("fetch")
+                .expect("fetch callable 应存在");
+            let fetch = program
+                .callable_by_id(fetch_id)
+                .expect("fetch callable 应存在");
             let frame_schema = LateLoweredFrameSchema::new(fetch.frame_schema().slots().to_vec())
                 .with_completion_payload_bindings(
                     fetch.frame_schema().completion_payload_bindings().to_vec(),
@@ -1148,7 +1163,12 @@ pub(super) fn llvm_resume_payload_binding_rejects_runtime_error_binding_drift() 
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let runtime_error_boundary = main
                 .boundary_map()
                 .entries()
@@ -1403,7 +1423,12 @@ pub(super) fn llvm_boundary_operand_contract_rejects_ordered_arg_drift() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()
@@ -1568,7 +1593,12 @@ pub(super) fn llvm_boundary_operand_contract_rejects_missing_underlying_continua
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let main = program.callable("main").expect("main callable 应存在");
+            let main_id = program
+                .callable_id_by_root("main")
+                .expect("main callable 应存在");
+            let main = program
+                .callable_by_id(main_id)
+                .expect("main callable 应存在");
             let boundary_map = LateLoweredBoundaryMap::new(
                 main.boundary_map()
                     .entries()

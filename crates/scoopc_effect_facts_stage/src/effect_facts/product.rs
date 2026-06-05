@@ -55,18 +55,22 @@ impl MaterializedEffectFacts {
 
         let mut callables = BTreeMap::new();
         for (instance, callable) in self.callable_facts() {
-            let Some(stable_key) = stable_key_for_instance(&pass_view, instance) else {
-                continue;
-            };
+            let stable_key = stable_key_for_instance(&pass_view, instance).ok_or_else(|| {
+                EffectFactsProductError::MissingStableInstanceKey {
+                    instance: instance.template.fqn.clone(),
+                }
+            })?;
             callables.insert(stable_key, map_callable_facts(callable));
         }
 
         let mut bodies = BTreeMap::new();
         for (instance, body) in self.bodies() {
-            let Some(stable_key) = stable_key_for_instance(&pass_view, instance) else {
-                continue;
-            };
-            bodies.insert(stable_key, map_body_facts(body, &pass_view));
+            let stable_key = stable_key_for_instance(&pass_view, instance).ok_or_else(|| {
+                EffectFactsProductError::MissingStableInstanceKey {
+                    instance: instance.template.fqn.clone(),
+                }
+            })?;
+            bodies.insert(stable_key, map_body_facts(body, &pass_view)?);
         }
 
         let facts = published::EffectFacts::from_parts(
@@ -133,7 +137,7 @@ fn map_callable_facts(callable: &CallableEffectFacts) -> published::CallableEffe
 fn map_body_facts(
     body: &BodyEffectFacts,
     pass_view: &MaterializedMirPassView<'_>,
-) -> published::BodyEffectFacts {
+) -> Result<published::BodyEffectFacts, EffectFactsProductError> {
     let blocks = body
         .blocks()
         .iter()
@@ -146,13 +150,13 @@ fn map_body_facts(
         .collect::<BTreeMap<_, _>>();
     let mut sites = BTreeMap::new();
     for (site_id, site) in body.sites() {
-        sites.insert(*site_id, map_site_facts(site, pass_view));
+        sites.insert(*site_id, map_site_facts(site, pass_view)?);
     }
-    published::BodyEffectFacts::with_local_control_step_schema(
+    Ok(published::BodyEffectFacts::with_local_control_step_schema(
         blocks,
         sites,
         body.local_control_step_schema().map(map_step_schema_id),
-    )
+    ))
 }
 
 fn map_block_facts(block: &BlockEffectFacts) -> published::BlockEffectFacts {
@@ -167,22 +171,22 @@ fn map_block_facts(block: &BlockEffectFacts) -> published::BlockEffectFacts {
 fn map_site_facts(
     site: &SiteEffectFacts,
     pass_view: &MaterializedMirPassView<'_>,
-) -> published::SiteEffectFacts {
+) -> Result<published::SiteEffectFacts, EffectFactsProductError> {
     match site {
-        SiteEffectFacts::Call(call) => {
-            published::SiteEffectFacts::Call(map_call_site(call, pass_view))
-        }
-        SiteEffectFacts::ClassCtor(class_ctor) => {
-            published::SiteEffectFacts::ClassCtor(map_class_ctor_site(class_ctor))
-        }
-        SiteEffectFacts::Perform(perform) => {
-            published::SiteEffectFacts::Perform(map_perform_site(perform))
-        }
+        SiteEffectFacts::Call(call) => Ok(published::SiteEffectFacts::Call(map_call_site(
+            call, pass_view,
+        )?)),
+        SiteEffectFacts::ClassCtor(class_ctor) => Ok(published::SiteEffectFacts::ClassCtor(
+            map_class_ctor_site(class_ctor),
+        )),
+        SiteEffectFacts::Perform(perform) => Ok(published::SiteEffectFacts::Perform(
+            map_perform_site(perform),
+        )),
         SiteEffectFacts::Resume(resume) => {
-            published::SiteEffectFacts::Resume(map_resume_site(resume))
+            Ok(published::SiteEffectFacts::Resume(map_resume_site(resume)))
         }
         SiteEffectFacts::Handle(handle) => {
-            published::SiteEffectFacts::Handle(map_handle_site(handle))
+            Ok(published::SiteEffectFacts::Handle(map_handle_site(handle)))
         }
     }
 }
@@ -190,16 +194,16 @@ fn map_site_facts(
 fn map_call_site(
     call: &CallSiteEffectFacts,
     pass_view: &MaterializedMirPassView<'_>,
-) -> published::CallSiteEffectFacts {
-    published::CallSiteEffectFacts::new_with_abi(
+) -> Result<published::CallSiteEffectFacts, EffectFactsProductError> {
+    Ok(published::CallSiteEffectFacts::new_with_abi(
         map_call_site_kind(call.kind()),
-        map_call_site_target(call.target(), pass_view),
+        map_call_site_target(call.target(), pass_view)?,
         map_callable_abi(call.callee_abi_kind()),
         call.invoke_args_tuple_ty(),
         call.callee_step_schema().map(map_step_schema_id),
         map_case_set(call.resolved_cases()),
-        map_effect_precision(call.precision()),
-    )
+        map_effect_precision(call.precision())?,
+    ))
 }
 
 fn map_class_ctor_site(
@@ -249,23 +253,33 @@ fn map_handle_arm(arm: &HandleArmEffectFacts) -> published::HandleArmEffectFacts
 fn map_call_site_target(
     target: &CallSiteTarget,
     pass_view: &MaterializedMirPassView<'_>,
-) -> published::CallSiteTarget {
+) -> Result<published::CallSiteTarget, EffectFactsProductError> {
     match target {
-        CallSiteTarget::KnownInstance(instance) => stable_key_for_instance(pass_view, instance)
-            .map(published::CallSiteTarget::KnownInstance)
-            .unwrap_or(published::CallSiteTarget::DynamicFallback),
+        CallSiteTarget::KnownInstance(instance) => {
+            let key = stable_key_for_instance(pass_view, instance).ok_or_else(|| {
+                EffectFactsProductError::MissingStableInstanceKey {
+                    instance: instance.template.fqn.clone(),
+                }
+            })?;
+            Ok(published::CallSiteTarget::KnownInstance(key))
+        }
         CallSiteTarget::CandidateSet(instances) => {
             let stable_keys = instances
                 .iter()
-                .filter_map(|instance| stable_key_for_instance(pass_view, instance))
-                .collect::<Vec<_>>();
-            if stable_keys.is_empty() {
-                published::CallSiteTarget::DynamicFallback
-            } else {
-                published::CallSiteTarget::CandidateSet(stable_keys)
-            }
+                .map(|instance| {
+                    stable_key_for_instance(pass_view, instance).ok_or_else(|| {
+                        EffectFactsProductError::MissingStableInstanceKey {
+                            instance: instance.template.fqn.clone(),
+                        }
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(published::CallSiteTarget::CandidateSet(stable_keys))
         }
-        CallSiteTarget::DynamicFallback => published::CallSiteTarget::DynamicFallback,
+        CallSiteTarget::BodylessDirect { fqn } => {
+            Ok(published::CallSiteTarget::BodylessDirect { fqn: fqn.clone() })
+        }
+        CallSiteTarget::DynamicFallback => Ok(published::CallSiteTarget::DynamicFallback),
     }
 }
 
@@ -313,11 +327,17 @@ fn map_callable_abi(kind: CallableAbiKind) -> published::CallableAbiKind {
     }
 }
 
-fn map_effect_precision(precision: EffectPrecision) -> published::EffectPrecision {
+fn map_effect_precision(
+    precision: EffectPrecision,
+) -> Result<published::EffectPrecision, EffectFactsProductError> {
     match precision {
-        EffectPrecision::Precise => published::EffectPrecision::Precise,
-        EffectPrecision::Widened => published::EffectPrecision::Widened,
-        EffectPrecision::SignatureFallback => published::EffectPrecision::SignatureFallback,
+        EffectPrecision::Precise => Ok(published::EffectPrecision::Precise),
+        EffectPrecision::Widened => Ok(published::EffectPrecision::Widened),
+        EffectPrecision::SignatureFallback => Err(EffectFactsProductError::Verify(
+            published::verify::VerifyError::InvalidCallSiteFallbackPrecision {
+                context: "effect facts product adapter".to_string(),
+            },
+        )),
     }
 }
 

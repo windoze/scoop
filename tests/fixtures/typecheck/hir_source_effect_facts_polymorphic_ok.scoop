@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：覆盖 HIR source effect facts 的 direct / inferred / published row 形状，尤其是 effect-row 参数。
+
+package fixtures.typecheck
+
+effect Log {
+    fun write(message: String): Unit
+}
+
+fun <eff E> passThrough(action: () -> Unit / E): Unit / E {
+    action()
+}
+
+fun writesLog(): Unit / Log {
+    Log.write("start")
+}
+
+fun usePolymorphicRow(): Unit / Log {
+    passThrough<eff Log>({ writesLog() })
+}

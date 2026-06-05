@@ -96,19 +96,10 @@ pub(in crate::hir::lower) fn infer_generic_fun_call_type_args(
         collect_hir_type_param_bindings(types, param.ty, concrete_ty, &mut bindings);
     }
     if type_contains_param(types, sig_fun.return_ty) && !type_contains_param(types, result_ty) {
-        let param_type_param_names = sig_fun
-            .params
-            .iter()
-            .flat_map(|param| {
-                let mut names = Vec::new();
-                collect_hir_type_param_names(types, param.ty, &mut names);
-                names
-            })
-            .collect::<HashSet<_>>();
         let mut result_bindings = HashMap::new();
         collect_hir_type_param_bindings(types, sig_fun.return_ty, result_ty, &mut result_bindings);
         for (name, ty) in result_bindings {
-            if !param_type_param_names.contains(&name) || bindings.contains_key(&name) {
+            if !bindings.contains_key(&name) {
                 bindings.entry(name).or_insert(ty);
             }
         }
@@ -321,21 +312,21 @@ pub(in crate::hir::lower) fn collect_generic_fun_calls_in_expr(
         super::super::ExprKind::Call { callee, args } => {
             if let Some(callee_fqn) = generic_fun_callee_fqn(callee)
                 && let Some(candidates) = generic_fun_candidates_by_fqn.get(callee_fqn)
-                && candidates.len() == 1
             {
-                let lookup_key = candidates[0].clone();
-                if let (Some(sig_fun), Some(type_param_names)) = (
-                    generic_fun_signatures.get(&lookup_key),
-                    generic_fun_type_param_names.get(&lookup_key),
-                ) && let Some(type_args) = infer_generic_fun_call_type_args(
-                    types,
-                    sig_fun,
-                    type_param_names,
-                    generic_fun_call_receiver_expr(callee),
-                    args,
-                    expr.ty,
-                ) {
-                    out.push((lookup_key, type_args));
+                for lookup_key in candidates {
+                    if let (Some(sig_fun), Some(type_param_names)) = (
+                        generic_fun_signatures.get(lookup_key),
+                        generic_fun_type_param_names.get(lookup_key),
+                    ) && let Some(type_args) = infer_generic_fun_call_type_args(
+                        types,
+                        sig_fun,
+                        type_param_names,
+                        generic_fun_call_receiver_expr(callee),
+                        args,
+                        expr.ty,
+                    ) {
+                        out.push((lookup_key.clone(), type_args));
+                    }
                 }
             }
 
@@ -518,6 +509,7 @@ pub(in crate::hir::lower) struct GenericFunInstantiationInputs<'a> {
     pub typecheck_types: &'a TypeStore,
     pub initial_items: &'a [super::super::Item],
     pub initial_member_funs: &'a [super::super::FunDecl],
+    pub initial_class_inits: &'a ClassInitIndex,
     pub stable_cone_key: &'a StableConeKey,
     pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 }
@@ -535,11 +527,16 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
         typecheck_types,
         initial_items,
         initial_member_funs,
+        initial_class_inits,
         stable_cone_key,
         source_cones,
     } = inputs;
 
-    if monomorph_keys.is_empty() && initial_items.is_empty() && initial_member_funs.is_empty() {
+    if monomorph_keys.is_empty()
+        && initial_items.is_empty()
+        && initial_member_funs.is_empty()
+        && initial_class_inits.is_empty()
+    {
         return Vec::new();
     }
 
@@ -681,6 +678,28 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
             types,
             &mut pending,
         );
+    }
+    for init in initial_class_inits.values() {
+        for step in &init.steps {
+            match step {
+                ClassInitStep::PropertyInit { init, .. } => collect_generic_fun_calls_in_expr(
+                    init,
+                    &generic_fun_candidates_by_fqn,
+                    &generic_fun_type_param_names,
+                    &generic_fun_signatures,
+                    types,
+                    &mut pending,
+                ),
+                ClassInitStep::InitBlock { block } => collect_generic_fun_calls_in_block(
+                    block,
+                    &generic_fun_candidates_by_fqn,
+                    &generic_fun_type_param_names,
+                    &generic_fun_signatures,
+                    types,
+                    &mut pending,
+                ),
+            }
+        }
     }
 
     while let Some((lookup_key, re_interned_args)) = pending.pop() {
@@ -952,6 +971,7 @@ pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates_wi
                         index,
                         &fqn,
                         &[],
+                        None,
                         fun,
                     ),
                     has_body: !matches!(fun.body, ast::FunBody::Missing),
@@ -994,6 +1014,407 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_sourc
     compilation_unit: &[(&SourceFile, &ast::File)],
     source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 ) -> GenericTemplateSymbolSuffixIndex {
+    let candidates = collect_template_symbol_candidates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
+
+    let canonical_templates = canonical_template_map(&candidates);
+    let mut canonical_stable_keys = HashMap::new();
+    let mut aliases = HashMap::new();
+    for candidate in candidates {
+        let group_key = (
+            candidate.template.fqn.clone(),
+            candidate.signature_key.clone(),
+        );
+        let canonical = canonical_templates
+            .get(&group_key)
+            .cloned()
+            .expect("every generic template candidate should resolve to a canonical template");
+        canonical_stable_keys
+            .entry(canonical.clone())
+            .or_insert_with(|| candidate.stable_template_key.clone());
+        aliases.insert(candidate.template, canonical);
+    }
+
+    let canonical_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
+    let mut out = HashMap::new();
+    for (template, canonical) in aliases {
+        out.insert(
+            template,
+            canonical_suffixes
+                .get(&canonical)
+                .cloned()
+                .unwrap_or_default(),
+        );
+    }
+    out
+}
+
+pub(in crate::hir::lower) fn collect_stable_template_keys_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<TemplateKey, StableTemplateKey> {
+    let candidates = collect_template_symbol_candidates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
+    let canonical_templates = canonical_template_map(&candidates);
+    let mut canonical_stable_keys = HashMap::new();
+    let mut aliases = HashMap::new();
+    for candidate in candidates {
+        let group_key = (
+            candidate.template.fqn.clone(),
+            candidate.signature_key.clone(),
+        );
+        let canonical = canonical_templates
+            .get(&group_key)
+            .cloned()
+            .expect("every generic template candidate should resolve to a canonical template");
+        canonical_stable_keys
+            .entry(canonical.clone())
+            .or_insert_with(|| candidate.stable_template_key.clone());
+        aliases.insert(candidate.template, canonical);
+    }
+
+    aliases
+        .into_iter()
+        .filter_map(|(template, canonical)| {
+            canonical_stable_keys
+                .get(&canonical)
+                .cloned()
+                .map(|stable| (template, stable))
+        })
+        .collect()
+}
+
+pub(in crate::hir::lower) fn collect_materializer_generic_template_inventory_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    files_to_publish: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+    stable_template_keys: &HashMap<TemplateKey, StableTemplateKey>,
+) -> Vec<crate::hir::GenericTemplateInventory> {
+    let mut out = Vec::new();
+    for (template, info) in collect_explicit_top_level_generic_fun_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        files_to_publish,
+        source_cones,
+    ) {
+        let Some(stable_template_key) = stable_template_keys.get(&template).cloned() else {
+            continue;
+        };
+        out.push(crate::hir::GenericTemplateInventory {
+            request_lookup_key: (
+                template.fqn.clone(),
+                template.source_path.clone(),
+                info.fun.name.span,
+            ),
+            canonical_root_key: generic_template_root_key(&stable_template_key),
+            body_key: info.has_body.then(|| {
+                callable_body_key(&template.source_path, &template.fqn, template.decl_span)
+            }),
+            template,
+            stable_template_key,
+            owner_type_param_names: Vec::new(),
+            function_type_param_names: ast_type_param_names(info.source, &info.fun.type_params),
+            owner_eff_param_name: None,
+            function_eff_param_name: info
+                .fun
+                .eff_param
+                .as_ref()
+                .map(|param| param.name.text(info.source).to_string()),
+            signature_key: info.signature_key,
+            has_body: info.has_body,
+        });
+    }
+
+    for (template, info) in collect_explicit_member_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        files_to_publish,
+        source_cones,
+    ) {
+        let Some(stable_template_key) = stable_template_keys.get(&template).cloned() else {
+            continue;
+        };
+        match info {
+            ExplicitMemberTemplate::Fun {
+                source,
+                owner_type_params,
+                owner_eff_param,
+                fun,
+                signature_key,
+                has_body,
+                ..
+            } => out.push(crate::hir::GenericTemplateInventory {
+                request_lookup_key: (
+                    template.fqn.clone(),
+                    template.source_path.clone(),
+                    fun.name.span,
+                ),
+                canonical_root_key: generic_template_root_key(&stable_template_key),
+                body_key: has_body.then(|| {
+                    callable_body_key(&template.source_path, &template.fqn, template.decl_span)
+                }),
+                template,
+                stable_template_key,
+                owner_type_param_names: ast_type_param_names(source, owner_type_params),
+                function_type_param_names: ast_type_param_names(source, &fun.type_params),
+                owner_eff_param_name: owner_eff_param
+                    .as_ref()
+                    .map(|param| param.name.text(source).to_string()),
+                function_eff_param_name: fun
+                    .eff_param
+                    .as_ref()
+                    .map(|param| param.name.text(source).to_string()),
+                signature_key,
+                has_body,
+            }),
+            ExplicitMemberTemplate::Getter {
+                source,
+                owner_type_params,
+                owner_eff_param,
+                property,
+                signature_key,
+                has_body,
+                ..
+            } => out.push(crate::hir::GenericTemplateInventory {
+                request_lookup_key: (
+                    template.fqn.clone(),
+                    template.source_path.clone(),
+                    property.name.span,
+                ),
+                canonical_root_key: generic_template_root_key(&stable_template_key),
+                body_key: has_body.then(|| {
+                    callable_body_key(&template.source_path, &template.fqn, template.decl_span)
+                }),
+                template,
+                stable_template_key,
+                owner_type_param_names: ast_type_param_names(source, owner_type_params),
+                function_type_param_names: Vec::new(),
+                owner_eff_param_name: owner_eff_param
+                    .as_ref()
+                    .map(|param| param.name.text(source).to_string()),
+                function_eff_param_name: None,
+                signature_key,
+                has_body,
+            }),
+        }
+    }
+
+    out.sort_by(|lhs, rhs| template_key_sort(&lhs.template, &rhs.template));
+    out
+}
+
+pub(in crate::hir::lower) fn collect_materializer_callable_body_inventory(
+    files_to_publish: &[(&SourceFile, &ast::File)],
+    generic_templates: &[crate::hir::GenericTemplateInventory],
+) -> Vec<crate::hir::CallableBodyInventory> {
+    let stable_templates_by_request = generic_templates
+        .iter()
+        .map(|info| {
+            (
+                info.request_lookup_key.clone(),
+                info.stable_template_key.clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut out = Vec::new();
+    for (source, file) in files_to_publish {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            match item {
+                ast::Item::Fun(fun) => push_callable_fun_body_inventory(
+                    &mut out,
+                    source,
+                    &pkg_prefix,
+                    fun,
+                    &stable_templates_by_request,
+                ),
+                ast::Item::Type(ty) => {
+                    let owner_fqn = join_prefix(&pkg_prefix, ty.name.text(source));
+                    collect_callable_body_inventory_from_type_body(
+                        &mut out,
+                        source,
+                        &owner_fqn,
+                        ty.body.as_ref(),
+                        &stable_templates_by_request,
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    let Some(object_name) = object_decl_name(source, obj) else {
+                        continue;
+                    };
+                    let owner_fqn = join_prefix(&pkg_prefix, &object_name);
+                    collect_callable_body_inventory_from_type_body(
+                        &mut out,
+                        source,
+                        &owner_fqn,
+                        obj.body.as_ref(),
+                        &stable_templates_by_request,
+                    );
+                }
+                ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => {}
+            }
+        }
+    }
+    out.sort_by(|lhs, rhs| lhs.body_key.cmp(&rhs.body_key));
+    out
+}
+
+fn ast_type_param_names(source: &SourceFile, params: &[ast::TypeParam]) -> Vec<String> {
+    params
+        .iter()
+        .map(|param| param.name.text(source).to_string())
+        .collect()
+}
+
+fn generic_template_root_key(stable_template_key: &StableTemplateKey) -> String {
+    format!("generic_template:{}", stable_template_key.canonical_text())
+}
+
+fn callable_body_key(source_path: &std::path::Path, fqn: &str, span: Span) -> String {
+    format!(
+        "callable_body:{}:{}:{}..{}",
+        source_path.display(),
+        fqn,
+        span.start,
+        span.end
+    )
+}
+
+fn push_callable_fun_body_inventory(
+    out: &mut Vec<crate::hir::CallableBodyInventory>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    fun: &ast::FunDecl,
+    stable_templates_by_request: &HashMap<
+        crate::hir::GenericTemplateRequestLookupKey,
+        StableTemplateKey,
+    >,
+) {
+    if !matches!(fun.body, ast::FunBody::Block(_)) {
+        return;
+    }
+    let local_name = fun.name.text(source);
+    let fqn = join_prefix(owner_fqn, local_name);
+    let request_lookup_key = (fqn.clone(), source.path().to_path_buf(), fun.name.span);
+    out.push(crate::hir::CallableBodyInventory {
+        body_key: callable_body_key(source.path(), &fqn, fun.span),
+        stable_template_key: stable_templates_by_request
+            .get(&request_lookup_key)
+            .cloned(),
+        request_lookup_key,
+        source_path: source.path().to_path_buf(),
+        fqn,
+        body_span: fun.span,
+    });
+}
+
+fn push_callable_property_getter_body_inventory(
+    out: &mut Vec<crate::hir::CallableBodyInventory>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    property: &ast::PropertyDecl,
+    stable_templates_by_request: &HashMap<
+        crate::hir::GenericTemplateRequestLookupKey,
+        StableTemplateKey,
+    >,
+) {
+    let Some(getter) = property.getter.as_ref() else {
+        return;
+    };
+    if matches!(getter.body, ast::AccessorBody::Missing) {
+        return;
+    }
+    let local_name = property.name.text(source);
+    let fqn = join_prefix(owner_fqn, local_name);
+    let request_lookup_key = (fqn.clone(), source.path().to_path_buf(), property.name.span);
+    out.push(crate::hir::CallableBodyInventory {
+        body_key: callable_body_key(source.path(), &fqn, property.span),
+        stable_template_key: stable_templates_by_request
+            .get(&request_lookup_key)
+            .cloned(),
+        request_lookup_key,
+        source_path: source.path().to_path_buf(),
+        fqn,
+        body_span: property.span,
+    });
+}
+
+fn collect_callable_body_inventory_from_type_body(
+    out: &mut Vec<crate::hir::CallableBodyInventory>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    body: Option<&ast::TypeBody>,
+    stable_templates_by_request: &HashMap<
+        crate::hir::GenericTemplateRequestLookupKey,
+        StableTemplateKey,
+    >,
+) {
+    let Some(body) = body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => push_callable_fun_body_inventory(
+                out,
+                source,
+                owner_fqn,
+                fun,
+                stable_templates_by_request,
+            ),
+            ast::TypeMember::Property(property) => push_callable_property_getter_body_inventory(
+                out,
+                source,
+                owner_fqn,
+                property,
+                stable_templates_by_request,
+            ),
+            ast::TypeMember::Type(ty) => {
+                let nested_owner = format!("{owner_fqn}.{}", ty.name.text(source));
+                collect_callable_body_inventory_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    ty.body.as_ref(),
+                    stable_templates_by_request,
+                );
+            }
+            ast::TypeMember::Object(obj) => {
+                let Some(object_name) = object_decl_name(source, obj) else {
+                    continue;
+                };
+                let nested_owner = format!("{owner_fqn}.{object_name}");
+                collect_callable_body_inventory_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    obj.body.as_ref(),
+                    stable_templates_by_request,
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn collect_template_symbol_candidates_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> Vec<TemplateSymbolCandidate> {
     let mut candidates = Vec::new();
 
     for (template, info) in collect_explicit_top_level_generic_fun_templates_with_source_cones(
@@ -1072,36 +1493,7 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_sourc
         });
     }
 
-    let canonical_templates = canonical_template_map(&candidates);
-    let mut canonical_stable_keys = HashMap::new();
-    let mut aliases = HashMap::new();
-    for candidate in candidates {
-        let group_key = (
-            candidate.template.fqn.clone(),
-            candidate.signature_key.clone(),
-        );
-        let canonical = canonical_templates
-            .get(&group_key)
-            .cloned()
-            .expect("every generic template candidate should resolve to a canonical template");
-        canonical_stable_keys
-            .entry(canonical.clone())
-            .or_insert_with(|| candidate.stable_template_key.clone());
-        aliases.insert(candidate.template, canonical);
-    }
-
-    let canonical_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
-    let mut out = HashMap::new();
-    for (template, canonical) in aliases {
-        out.insert(
-            template,
-            canonical_suffixes
-                .get(&canonical)
-                .cloned()
-                .unwrap_or_default(),
-        );
-    }
-    out
+    candidates
 }
 
 pub(in crate::hir::lower) fn virtual_stable_cone_key_for_compilation_unit(

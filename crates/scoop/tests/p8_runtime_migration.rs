@@ -61,10 +61,12 @@ fn normal_build_does_not_export_runtime_test_helpers() {
     assert!(build.status.success(), "build failed: {build:?}");
 
     let symbols = nm_global_symbols(&output_exe);
+    // `scoop.delegates` is part of the default sysroot surface and now has a
+    // real library implementation that depends on `scoop.sync` for thread-safe
+    // delegates. Keep this guard focused on runtime-test and thread helpers.
     assert!(
         !symbols.contains("scoop_test_")
             && !symbols.contains("scoop_runtime_test_sync")
-            && !symbols.contains("scoop_sync_")
             && !symbols.contains("scoop_thread_spawn")
             && !symbols.contains("scoop_thread_join")
             && !symbols.contains("scoop_thread_yield")

@@ -356,11 +356,11 @@ File {
 
 
 hir_facts {
-  declarations: nominals=77, callables=5, fields=51, enum_variants=26, vtables=56, itables=34
-  source_sites: function_effects=5, calls=0, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=1, extern_globals=0
-  globals: roots=2, object_inits=2, class_inits=23
+  declarations: nominals=87, callables=5, fields=68, enum_variants=26, vtables=66, itables=39
+  source_sites: function_effects=5, callable_source_effects=5, semantic_ops=0, hidden_initializers=24, calls=0, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=1, extern_globals=0
+  globals: roots=2, object_inits=2, class_inits=31
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
-  type_context: universe=hir-stage-type-store, type_params=85, source_cones=8
+  type_context: universe=hir-stage-type-store, type_params=93, source_cones=9
 }
 
 source_site_contracts {

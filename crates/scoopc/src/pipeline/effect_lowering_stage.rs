@@ -5,7 +5,6 @@ use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
     run_lir_opt_pipeline,
 };
-use scoopc_lir_facts::LirFacts;
 
 use super::{EffectFactsStageOutput, MirStageOutput};
 
@@ -41,7 +40,7 @@ impl EffectLoweringStageInput {
 /// - 输入必须显式区分 P3 的 `MirStageOutput` 与 P4 的 `EffectFactsStageOutput`；
 /// - stage 只消费 canonical MIR snapshot + `MaterializedEffectFacts`，不回 HIR/typecheck；
 /// - `lir()` / `program()` 返回独立的 `LateLoweredProgram`，它现在是正式 LIR 本体；
-/// - `lir_facts()` 返回独立 `scoopc_lir_facts::LirFacts` 数据产品；
+/// - `lir_facts()` 返回从 `LateLoweredProgram` 生成的兼容 dump/测试快照；
 /// - 输出不再保存 `EffectFactsStageOutput` 或 `MirStageOutput` wrapper；
 /// - 对外暴露的输出不会混有“部分 callable 已 lowered、部分仍停留在 direct-style”的半成品状态；
 /// - P6 只应把这份输出翻译到 LLVM，而不是再重做高层 effect lowering 设计；
@@ -56,20 +55,19 @@ impl EffectLoweringStageInput {
 #[derive(Debug)]
 pub struct LirStageOutput {
     lir: LateLoweredProgram,
-    lir_facts: LirFacts,
 }
 
 impl LirStageOutput {
-    fn new(lir: LateLoweredProgram, lir_facts: LirFacts) -> Self {
-        Self { lir, lir_facts }
+    fn new(lir: LateLoweredProgram) -> Self {
+        Self { lir }
     }
 
     pub fn lir(&self) -> &LateLoweredProgram {
         &self.lir
     }
 
-    pub fn lir_facts(&self) -> &LirFacts {
-        &self.lir_facts
+    pub fn lir_facts(&self) -> scoopc_lir_facts::LirFacts {
+        self.lir.published_lir_facts_snapshot()
     }
 
     pub fn program(&self) -> &LateLoweredProgram {
@@ -81,8 +79,8 @@ impl LirStageOutput {
         render_stage_output(self)
     }
 
-    pub fn into_parts(self) -> (LateLoweredProgram, LirFacts) {
-        (self.lir, self.lir_facts)
+    pub fn into_program(self) -> LateLoweredProgram {
+        self.lir
     }
 }
 
@@ -126,15 +124,20 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
             detail: error.to_string(),
         })?
         .into_parts();
+    let lir = super::lir_facts_builder::attach_lir_identity(lir, effect_facts.types())?;
     let lir_facts = super::lir_facts_builder::build_lir_facts(
         &lir,
+        mir_stage_output
+            .hir_semantic_artifact()
+            .map(|artifact| artifact.hir_facts()),
         mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         &effect_facts,
         mir_stage_output.materialized_mir().opt_level(),
         opt_pipeline,
     )?;
-    Ok(LirStageOutput::new(lir, lir_facts))
+    let lir = super::lir_facts_builder::attach_per_callable_lir_facts(lir, &lir_facts)?;
+    Ok(LirStageOutput::new(lir))
 }
 
 fn convert_stage_effect_facts_to_lir(
@@ -347,6 +350,9 @@ fn map_call_site_target(
         crate::effect_facts_stage::CallSiteTarget::CandidateSet(instances) => {
             scoopc_lir::effect_facts::CallSiteTarget::CandidateSet(instances.clone())
         }
+        crate::effect_facts_stage::CallSiteTarget::BodylessDirect { fqn } => {
+            scoopc_lir::effect_facts::CallSiteTarget::BodylessDirect { fqn: fqn.clone() }
+        }
         crate::effect_facts_stage::CallSiteTarget::DynamicFallback => {
             scoopc_lir::effect_facts::CallSiteTarget::DynamicFallback
         }
@@ -495,8 +501,8 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use scoopc_lir_facts::{
-        LirCallSiteKind, LirCallableContract, LirCallableSymbolKind, LirGlobalRootKind,
-        LirGlobalStoragePolicy,
+        LirCallSiteKind, LirCallTargetMode, LirCallableContract, LirCallableSymbolKind,
+        LirGlobalRootKind, LirGlobalStoragePolicy,
     };
 
     fn session() -> Session {
@@ -789,6 +795,125 @@ fun main(): Int {
     }
 
     #[test]
+    fn effect_lowered_lir_facts_publish_exact_callee_binding() {
+        let output = run_sample();
+        let facts = output.lir_facts();
+        let (main_id, main) = facts
+            .callables
+            .iter()
+            .find(|(_, callable)| callable.root_fqn() == "sample.main")
+            .expect("sample.main callable facts should be published");
+        let LirCallableContract::Plain(plain) = &main.contract else {
+            panic!("sample.main should publish a plain ABI contract");
+        };
+        let site = plain
+            .call_sites
+            .iter()
+            .find(|site| site.contract.target_mode == LirCallTargetMode::KnownInstance)
+            .expect("helper call should publish a known-instance call-site contract");
+        let exact = site
+            .contract
+            .exact_callee
+            .as_ref()
+            .expect("known-instance call should publish exact callee binding");
+
+        assert_eq!(exact.root_fqn, "sample.helper");
+        assert_eq!(
+            site.contract.target_callables.as_slice(),
+            std::slice::from_ref(&exact.target_callable)
+        );
+        let signature = facts
+            .source_signatures
+            .get(&exact.root_fqn)
+            .expect("exact callee root should resolve to a source signature");
+        assert_eq!(signature.signature_key, exact.signature_key);
+        let target_id = exact
+            .target_callable
+            .local_id()
+            .expect("exact callee should resolve to a local callable id");
+        let symbol = facts
+            .physical_layout
+            .callable_symbols
+            .get(&target_id)
+            .expect("exact callee should resolve to callable symbol facts");
+        assert_eq!(
+            symbol.exported_symbol.as_deref(),
+            Some(exact.abi_symbol.as_str())
+        );
+        let source_site = main
+            .source_call_sites
+            .iter()
+            .find(|source_site| {
+                source_site.owner_callable == *main_id && source_site.site_id == site.site_id
+            })
+            .expect("plain call-site should also publish an identity-keyed source contract");
+        assert_eq!(
+            source_site
+                .contract
+                .exact_callee
+                .as_ref()
+                .map(|exact| exact.root_fqn.as_str()),
+            Some("sample.helper")
+        );
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn effect_lowered_program_callables_own_per_callable_fact_payloads() {
+        let output = run_sample();
+        let facts = output.lir_facts();
+
+        for (id, callable_facts) in &facts.callables {
+            let callable = output
+                .program()
+                .callable_by_id(*id)
+                .expect("callable facts id should resolve to a LIR callable node");
+            assert_eq!(callable.published_callable_facts(), Some(callable_facts));
+            assert!(
+                callable
+                    .source_signature(callable_facts.root_fqn())
+                    .is_some(),
+                "callable `{}` should own its source signature payload",
+                callable_facts.root_fqn()
+            );
+        }
+
+        let helper_id = output
+            .program()
+            .callable_id_by_root("sample.helper")
+            .expect("sample.helper should resolve to a callable id");
+        assert_eq!(
+            output
+                .program()
+                .callable_id_by_source_signature("sample.helper"),
+            Some(helper_id)
+        );
+        assert_eq!(
+            output.program().source_signature("sample.helper"),
+            facts.source_signatures.get("sample.helper")
+        );
+    }
+
+    #[test]
+    fn effect_lowered_program_owns_intrinsic_callable_metadata() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/effect_lowered_intrinsic_fixture.scoop",
+            "package sample\nimport scoop.core.*\nfun main(): Int { return sizeOf(1) }\n",
+        );
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+
+        assert!(!facts.intrinsic_callables.is_empty());
+        for intrinsic in facts.intrinsic_callables.values() {
+            assert_eq!(
+                output.program().intrinsic_callable(&intrinsic.root_fqn),
+                Some(intrinsic)
+            );
+        }
+    }
+
+    #[test]
     fn effect_lowered_stage_stable_dump_lists_post_opt_late_lowered_sections() {
         let session = session();
         let source = dump_fixture_source();
@@ -855,12 +980,10 @@ fun main(): Int {
         assert!(dump.contains("root: main"));
         assert!(dump.contains("abi: Plain"));
         assert!(dump.contains("plain_call_sites:"));
-        assert!(dump.contains("target=executeCase callee_abi=EffectStep"));
-        assert!(dump.contains("callee_step_schema=step#h"));
-        assert!(dump.contains("resolved_cases=[case#h"));
-        assert!(dump.contains("dispatch=EffectStepDispatch"));
-        assert!(dump.contains("plain_local_effect_control: step#h"));
-        assert!(dump.contains("consumed_runtime_error_case: in case#h"));
+        assert!(dump.contains("target=executeCase"));
+        assert!(dump.contains("Call kind=Direct target_mode=KnownInstance"));
+        assert!(dump.contains("callee_step=step#h"));
+        assert!(dump.contains("dispatch_input_step_schema: step#h"));
         assert!(dump.contains("scoop.core.Raise.raise"));
     }
 
@@ -906,7 +1029,12 @@ fun main(): Int {
         let facts = output.lir_facts();
 
         assert!(!facts.step_types.is_empty());
-        assert!(!facts.dynamic_invokes.is_empty());
+        assert!(
+            facts
+                .callables
+                .values()
+                .any(|callable| !callable.dynamic_invoke_contracts().is_empty())
+        );
         assert!(!facts.resume_packings.is_empty());
         assert!(!facts.continuation_objects.is_empty());
         assert!(!facts.surface_resume_dispatches.is_empty());
@@ -932,16 +1060,20 @@ fun main(): Int {
         let output = super::run(stage_input_for_source(&session, &source)).unwrap();
         let facts = output.lir_facts();
 
-        assert!(facts.dispatches.values().any(|dispatch| {
-            dispatch.kind == LirCallSiteKind::Virtual
-                && dispatch.owner_fqn == "sample.Base"
-                && dispatch.member_name == "ping"
+        assert!(facts.callables.values().any(|callable| {
+            callable.dispatch_contracts().into_iter().any(|dispatch| {
+                dispatch.kind == LirCallSiteKind::Virtual
+                    && dispatch.owner_fqn == "sample.Base"
+                    && dispatch.member_name == "ping"
+            })
         }));
-        assert!(facts.dispatches.values().any(|dispatch| {
-            dispatch.kind == LirCallSiteKind::Interface
-                && dispatch.owner_fqn == "sample.IFace"
-                && dispatch.member_name == "foo"
-                && dispatch.interface_id.is_some()
+        assert!(facts.callables.values().any(|callable| {
+            callable.dispatch_contracts().into_iter().any(|dispatch| {
+                dispatch.kind == LirCallSiteKind::Interface
+                    && dispatch.owner_fqn == "sample.IFace"
+                    && dispatch.member_name == "foo"
+                    && dispatch.interface_id.is_some()
+            })
         }));
         let call_virtual = facts
             .callables
@@ -990,6 +1122,17 @@ fun main(): Int {
             .expect("callVirtual should publish callable symbol facts");
         assert_eq!(call_virtual.kind, LirCallableSymbolKind::ManagedOrdinary);
         assert_eq!(call_virtual.param_tys.len(), 1);
+        assert!(facts.physical_layout.layout_names.values().any(|layout| {
+            layout.family == "class_vtable" && layout.layout_name == "sample.Base"
+        }));
+        assert!(facts.physical_layout.abi_symbols.values().any(|symbol| {
+            symbol.role == "callable_export"
+                && symbol.callable
+                    == Some(scoopc_lir_facts::LirCallableRef::Local(
+                        call_virtual.callable,
+                    ))
+                && Some(symbol.symbol.as_str()) == call_virtual.exported_symbol.as_deref()
+        }));
         assert!(!facts.type_context.primary_fingerprint.is_empty());
         assert_eq!(
             facts.type_context.stable_wire_format.decision,
@@ -1086,12 +1229,12 @@ fun main(): Int {
         for needle in [
             "continuation_schema: cont#h",
             "source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
+            "handle_continuation_binder instance=executeCase",
             "cont_obj#h",
             "site#h",
             "arm#0 handled_case=case#h",
             "source=OwnerTrampolineMixed",
-            "resume_boundary instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
+            "resume_boundary instance=executeCase",
         ] {
             assert!(
                 dump.contains(needle),

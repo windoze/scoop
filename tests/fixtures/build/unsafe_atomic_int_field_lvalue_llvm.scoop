@@ -3,8 +3,8 @@
 // BUILD-LLVM-CONTAINS: load atomic i64, ptr addrspace(1) %class_field_gep
 // BUILD-LLVM-CONTAINS: store atomic i64 1, ptr addrspace(1) %class_field_gep
 // BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1) %class_field_gep
-// BUILD-LLVM-CONTAINS: %atomic_int_field_gep = getelementptr inbounds nuw %fixtures.build.ClaimBox, ptr addrspace(1) %class_field_gep
-// BUILD-LLVM-CONTAINS: store atomic i64 4, ptr addrspace(1) %atomic_int_field_gep
+// BUILD-LLVM-REGEX: %lir_member_gep[0-9]* = getelementptr inbounds nuw %fixtures\.build\.ClaimBox, ptr addrspace\(1\) %class_field_gep[0-9]*
+// BUILD-LLVM-REGEX: store atomic i64 4, ptr addrspace\(1\) %lir_member_gep[0-9]* seq_cst
 //
 // 目标：T4016T5：atomic field lvalue 不应先退化成普通 member load；LLVM 必须直接在字段 GEP 上发出原子指令。
 

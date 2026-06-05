@@ -132,7 +132,7 @@ fun entry(): Int {
             })
             .expect("expected direct call in monomorphized body");
         match call_kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 assert_eq!(callee_fqn, "fixtures.monomorph.id::<Int>");
             }
             other => panic!("expected direct instantiated call, got {other:?}"),
@@ -591,7 +591,7 @@ fun entry(): Unit {
             })
             .expect("expected direct call in wrap::<Int>");
         match call_kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 assert_eq!(callee_fqn, "scoop.core.print::<Int>");
             }
             other => panic!("expected direct instantiated print call, got {other:?}"),
@@ -763,7 +763,7 @@ fun entry(): Int / Boom {
             })
             .expect("expected direct call in lambda instance");
         match call_kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 assert_eq!(
                     callee_fqn,
                     "fixtures.monomorph.forward::<eff fixtures.monomorph.Boom>"
@@ -852,7 +852,7 @@ fun entry(): Int / Boom {
             })
             .expect("expected direct call in wrap instance");
         match call_kind {
-            crate::mir::CallKind::Direct { callee_fqn } => {
+            crate::mir::CallKind::Direct { callee_fqn, .. } => {
                 assert_eq!(
                     callee_fqn,
                     "fixtures.monomorph.forward::<eff fixtures.monomorph.Boom>"

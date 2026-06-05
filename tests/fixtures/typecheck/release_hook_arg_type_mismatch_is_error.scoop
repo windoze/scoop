@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::release_hook_arg_type_mismatch
+// EXPECT-ERROR: raw
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@NoGC
+fun typeMismatchRelease(raw: Int): Unit {}
+
+@Experimental(feature = "releaseHook")
+@ReleaseHook(name = "fixtures.typecheck.typeMismatchRelease", args = ["raw"])
+class ArgTypeMismatchReleaseHost(val raw: UInt)

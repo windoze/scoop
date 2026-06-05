@@ -53,7 +53,7 @@ body_facts:
       bb0:
         ambient_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
         outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
-        has_suspend_boundary: false
+        has_suspend_boundary: true
         has_handle_boundary: false
     sites:
       site0:
@@ -65,4 +65,4 @@ body_facts:
         invoke_args_tuple_ty: Unit
         callee_schema: step#he679877ca4c8a7a16bc599f9cf964851
         resolved_cases: [case#h265f7635734707f917cf0145e2915255=sample.Alpha.go, case#h97bcc406efddc82dd44e39c164e506d8=sample.Beta.go]
-        precision: SignatureFallback
+        precision: Widened

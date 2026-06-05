@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_parameterized_interface_itable_stable_id.stdout
+// EXPECT-EXIT: 0
+//
+// P5-T00: runtime itable metadata must be generated for a ground
+// instantiation of a generic class implementing a parameterized interface.
+
+import scoop.core.*
+
+interface Tagged<T> {
+    fun code(): Int
+}
+
+class Box<T>(val value: Int) : Tagged<T> {
+    fun code(): Int {
+        return this.value
+    }
+}
+
+fun readCode(tagged: Tagged<Int>): Int {
+    return tagged.code()
+}
+
+fun main(): Int {
+    val boxed: Box<Int> = Box(42)
+    println(readCode(boxed))
+
+    val erased: Any = boxed
+    when (erased is Tagged<Int>) {
+        true -> println("tagged-int")
+        false -> println("not-tagged-int")
+    }
+
+    return 0
+}

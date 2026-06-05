@@ -385,8 +385,8 @@ pub struct FrontendOutput {
     type_env: TypeEnv,
     /// consumer 的所有 dep cone 注入 payload，按 DAG 顺序保留。
     ///
-    /// 下游 stage（effect_facts、MIR materialize、LIR codegen）若从 `compilation_sources`
-    /// 重建 `Index`/`TypeEnv`，可以再次注入这些 payload 以恢复 dep cone 的可见性。
+    /// 这些 payload 只在 frontend 构造 `Index`/`TypeEnv` 时注入；后续 stage 通过 HIR
+    /// semantic artifact 直接消费注入后的环境，不再重放注入。
     cached_cone_imports: Vec<CachedConeImport>,
     /// cache-hit dependency artifacts decoded for LLVM ABI/layout handoff.
     #[cfg(feature = "llvm")]
@@ -518,6 +518,8 @@ pub enum MirRequestRootMode {
 pub struct CodegenLoweringOutput {
     pub lowered_hir: hir::LoweredHir,
     pub materialized_mir: crate::mir::MaterializedMir,
+    pub frontend_index: Index,
+    pub type_env: TypeEnv,
 }
 
 #[cfg(feature = "llvm")]
@@ -534,8 +536,21 @@ impl CodegenLoweringOutput {
         self.materialized_mir.callable_view()
     }
 
-    pub fn into_parts(self) -> (hir::LoweredHir, crate::mir::MaterializedMir) {
-        (self.lowered_hir, self.materialized_mir)
+    pub fn frontend_index(&self) -> &Index {
+        &self.frontend_index
+    }
+
+    pub fn type_env(&self) -> &TypeEnv {
+        &self.type_env
+    }
+
+    pub fn into_parts(self) -> (hir::LoweredHir, crate::mir::MaterializedMir, Index, TypeEnv) {
+        (
+            self.lowered_hir,
+            self.materialized_mir,
+            self.frontend_index,
+            self.type_env,
+        )
     }
 }
 
@@ -667,6 +682,7 @@ pub(crate) fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectIn
     prepare_virtual_cone_input_with_options(source, &SessionOptions::new())
 }
 
+#[cfg(any(test, feature = "llvm"))]
 pub(crate) fn prepare_virtual_cone_input_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
@@ -690,6 +706,7 @@ pub(crate) fn prepare_virtual_cone_input_with_options(
     ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
 
+#[cfg(feature = "llvm")]
 pub(crate) fn prepare_virtual_cone_context_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
@@ -790,7 +807,6 @@ fn build_cached_dep_artifact_handoff(
         dep_id,
         artifact.manifest.stable_cone_key(),
         artifact.lir_program.clone(),
-        artifact.lir_facts.clone(),
         artifact.type_store.clone(),
         object_files,
     ))
@@ -846,7 +862,7 @@ pub fn run_frontend_with_artifact_cache(
     let mut final_index = None;
     let mut final_env = None;
     // consumer 在 frontend 阶段消费的所有 dep cone 注入 payload，按 dep DAG 顺序排列。
-    // 下游 stage 若从 `compilation_sources` 重建 `Index`/`TypeEnv`，可以重新注入这些 payload。
+    // 下游 stage 通过 HIR semantic artifact 消费注入后的环境，不再重放这些 payload。
     let mut consumer_cached_cone_imports: Vec<CachedConeImport> = Vec::new();
     #[cfg(feature = "llvm")]
     let mut consumer_cached_dep_artifacts: Vec<crate::llvm::CachedDepArtifactHandoff> = Vec::new();
@@ -1116,7 +1132,6 @@ pub fn run_frontend_with_artifact_cache(
                 scoopc_hir_facts::HirFacts::new(),
                 scoopc_mir_facts::MirFacts::new(),
                 scoopc_effect_facts::EffectFacts::new(),
-                scoopc_lir_facts::LirFacts::new(crate::opt::OptLevel::O0),
                 scoopc_lir::LateLoweredProgram::new(Vec::new(), Vec::new(), Vec::new(), Vec::new()),
                 TypeStore::new(),
                 frontend_import,
@@ -1187,7 +1202,10 @@ pub fn run_frontend_with_artifact_cache(
     let mut index =
         final_index.ok_or_else(|| miette::miette!("内部错误：consumer cone 未运行 frontend"))?;
     select_cone_entry_main(&mut input, &asts, &mut index)?;
+    #[cfg(feature = "llvm")]
     let env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
+    #[cfg(not(feature = "llvm"))]
+    let _env = final_env.ok_or_else(|| miette::miette!("内部错误：consumer cone 缺少 TypeEnv"))?;
 
     // P10-T04-c：subprocess single-cone artifact 模式下，consumer 自己就是 artifact target。
     // 把 consumer 的 skeleton 从 published_artifacts 摘出来交还给调用方，由 subprocess 跑完
@@ -1309,6 +1327,8 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
     Ok(CodegenLoweringOutput {
         lowered_hir,
         materialized_mir,
+        frontend_index: front.index.clone(),
+        type_env: front.type_env.clone(),
     })
 }
 
@@ -1496,6 +1516,7 @@ mod tests {
     use super::*;
     use crate::parser::parse_file;
     use crate::resolve::IndexedFile;
+    #[cfg(feature = "llvm")]
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn bin_manifest(name: &str) -> ConeManifest {
@@ -1726,6 +1747,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     #[test]
     fn downstream_frontend_uses_dependency_artifact_imports() {
         let dep_id = ConeId::new(2);
@@ -1783,6 +1805,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     #[test]
     fn dependency_frontend_cache_hit_uses_artifact_without_reading_source() {
         // P10-T04-c-3：fingerprint 命中时 dep cone 必须完全由 artifact 供给，不能再 parse
@@ -1852,8 +1875,8 @@ mod tests {
             "<cone:fixture-cache-dep@0.0.0>"
         );
 
-        // P10-T04-b: 验证 cached cone imports 沿 FrontendOutput 透传，下游 stage（effect_facts/mir）
-        // 重建 Index/TypeEnv 时可以重新注入。
+        // P10-T04-b: 验证 frontend 仍记录 cache-hit dep 的 import payload；下游通过
+        // HIR semantic artifact 消费注入后的环境，不再自行重放注入。
         assert_eq!(
             output.cached_cone_imports().len(),
             1,
@@ -1951,6 +1974,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "llvm")]
     fn cached_dependency_graph(dep_id: ConeId, dep_text: &str) -> SourceConeGraph {
         let dep = SourceFile::new_virtual("/tmp/scoop-cache-dep/src/lib.scoop", dep_text);
         let consumer = SourceFile::new_virtual(
@@ -1988,6 +2012,7 @@ mod tests {
         .unwrap()
     }
 
+    #[cfg(feature = "llvm")]
     fn unique_temp_dir(prefix: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)

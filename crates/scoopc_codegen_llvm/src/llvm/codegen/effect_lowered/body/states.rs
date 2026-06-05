@@ -7,9 +7,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         for state in self.callable.state_graph().states() {
             let bb = self.state_block(state.state_id())?;
             self.codegen.builder.position_at_end(bb);
-            self.lower_state_source_slices(state).map_err(|err| {
+            self.lower_state_statements(state).map_err(|err| {
                 frontend_error(format!(
-                    "callable `{}` state st{} source-slice lowering failed: {err}",
+                    "callable `{}` state st{} LIR statement lowering failed: {err}",
                     self.callable.root_fqn(),
                     state.state_id().as_u32()
                 ))
@@ -90,13 +90,18 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         )?
                     }
                 } else {
+                    // The non-flattened lambda invoke-args tuple is `(env, explicit_params...)`:
+                    // the env parameter always occupies exactly one leading source slot
+                    // (component 0), even when it is `Unit` (env_component_count == 0) and thus
+                    // elided. Explicit param at mir index `index` therefore maps 1:1 to source
+                    // component `index`.
                     self.bind_direct_param_from_component(
                         entry_layout.symbol_name(),
                         param.span,
                         param_cg,
                         args_layout,
                         raw_arg,
-                        env_component_count + index - 1,
+                        index,
                     )?
                 }
             } else if self.mir_fun.params.len() == 1
@@ -280,60 +285,49 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         }
     }
 
-    pub(super) fn lower_state_source_slices(
+    pub(super) fn lower_state_statements(
         &mut self,
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
-        for slice in state.source_slices() {
-            let block = self
-                .body
-                .blocks
-                .get(slice.block_id().as_u32() as usize)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "lower_state_source_slices: late-lowered verifier accepted missing source block bb{} in `{}`",
-                        slice.block_id().as_u32(),
-                        self.mir_fun.fqn
-                    )
-                });
-            for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
-                let stmt = block.stmts.get(stmt_index as usize).unwrap_or_else(|| {
-                    panic!(
-                        "lower_state_source_slices: late-lowered verifier accepted missing source statement bb{} stmt{} in `{}`",
-                        slice.block_id().as_u32(),
-                        stmt_index,
-                        self.mir_fun.fqn
-                    )
-                });
-                let classification = self
-                    .callable
-                    .source_statement_classification(*slice, stmt_index)
-                    .ok_or_else(|| {
-                        frontend_error(format!(
-                            "source-slice statement bb{} stmt{} 缺少 published classification",
-                            slice.block_id().as_u32(),
-                            stmt_index,
-                        ))
-                    })?;
-                match classification.kind() {
-                    LateLoweredSourceStatementClassificationKind::EffectNeutralValue
-                    | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection { .. }
-                    | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection { .. } => {
-                        if !self.lower_published_call_statement(stmt)? {
-                            self.lower_effect_neutral_statement(stmt)?;
-                        }
+        for (local_statement_index, stmt) in state.statements().iter().enumerate() {
+            let classification = self
+                .callable
+                .source_statement_classification_by_anchor(LirBodyAnchor::statement(
+                    state.state_id(),
+                    LirStatementIndex::new(local_statement_index as u32),
+                ))
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "state st{} LIR statement{} 缺少 published classification",
+                        state.state_id().as_u32(),
+                        local_statement_index,
+                    ))
+                })?;
+            match classification.kind() {
+                LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                | LateLoweredSourceStatementClassificationKind::DynamicInvokeCall { .. }
+                | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
+                    ..
+                }
+                | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection {
+                    ..
+                } => {
+                    if !self.lower_published_call_statement(stmt)? {
+                        self.lower_effect_neutral_statement(stmt)?;
                     }
-                    LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { .. }
-                    | LateLoweredSourceStatementClassificationKind::ResumePayloadInjection { .. }
-                    | LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder { .. }
-                    | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
-                    LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
-                        return Err(frontend_error(format!(
-                            "source-slice statement bb{} stmt{} classified unsupported: {reason}",
-                            slice.block_id().as_u32(),
-                            stmt_index,
-                        )));
-                    }
+                }
+                LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { .. }
+                | LateLoweredSourceStatementClassificationKind::ResumePayloadInjection { .. }
+                | LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder {
+                    ..
+                }
+                | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
+                LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
+                    return Err(frontend_error(format!(
+                        "state st{} LIR statement{} classified unsupported: {reason}",
+                        state.state_id().as_u32(),
+                        local_statement_index,
+                    )));
                 }
             }
         }

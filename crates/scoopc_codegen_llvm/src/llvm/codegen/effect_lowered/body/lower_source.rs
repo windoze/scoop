@@ -3,6 +3,74 @@
 use super::*;
 
 impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
+    pub(super) fn lir_statement_for_source_position(
+        &self,
+        owner_state: StateId,
+        source_slice: crate::effect_lowered::ir::LateLoweredStateSlice,
+        source_statement_index: u32,
+        context: &str,
+    ) -> Result<(&'a LirStatement, LirStatementIndex), LlvmEmitError> {
+        let classification = self
+            .callable
+            .source_statement_classifications()
+            .iter()
+            .find(|classification| {
+                classification.state_id() == owner_state
+                    && classification.source_slice() == source_slice
+                    && classification.statement_index() == source_statement_index
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "{context} source bb{} stmt{} 未映射到 state st{} 的 LIR statement",
+                    source_slice.block_id().as_u32(),
+                    source_statement_index,
+                    owner_state.as_u32(),
+                ))
+            })?;
+        let LirBodyAnchor::Statement { state, statement } = classification.anchor() else {
+            return Err(frontend_error(format!(
+                "{context} source bb{} stmt{} 映射到非 statement LIR anchor {:?}",
+                source_slice.block_id().as_u32(),
+                source_statement_index,
+                classification.anchor(),
+            )));
+        };
+        if state != owner_state {
+            return Err(frontend_error(format!(
+                "{context} source bb{} stmt{} LIR anchor state 漂移：classification=st{} owner=st{}",
+                source_slice.block_id().as_u32(),
+                source_statement_index,
+                state.as_u32(),
+                owner_state.as_u32(),
+            )));
+        }
+        let state_body = self
+            .callable
+            .state_graph()
+            .state(owner_state)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "{context} source bb{} stmt{} 引用缺失 owner state st{}",
+                    source_slice.block_id().as_u32(),
+                    source_statement_index,
+                    owner_state.as_u32(),
+                ))
+            })?;
+        let stmt = state_body
+            .statements()
+            .get(statement.as_u32() as usize)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "{context} source bb{} stmt{} 映射到越界 LIR statement{} in st{}",
+                    source_slice.block_id().as_u32(),
+                    source_statement_index,
+                    statement.as_u32(),
+                    owner_state.as_u32(),
+                ))
+            })?;
+        Ok((stmt, statement))
+    }
+
     pub(super) fn local_runtime_error_runtime_for_call(
         &self,
         site_id: SiteId,
@@ -93,13 +161,19 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn lower_effect_neutral_statement(
         &mut self,
-        stmt: &mir::Statement,
+        stmt: &LirStatement,
     ) -> Result<(), LlvmEmitError> {
         let codegen = &mut *self.codegen;
         let program = self.program;
         let plain_call_sites = self.callable.plain_abi().map(|plain| plain.call_sites());
         let source_types = self.source_types;
-        let body = self.body;
+        let lir_body = self.lir_body;
+        let body = self.mir_fun.body.as_ref().unwrap_or_else(|| {
+            panic!(
+                "CallableEmitter::new validated source body for `{}`",
+                self.callable.root_fqn()
+            )
+        });
         let slots = &self.slots;
         let abi = self.abi;
         let used_locals = &self.used_locals;
@@ -112,17 +186,17 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             slots,
             abi,
         )
-        .lower_effect_neutral_statement(stmt, used_locals)
+        .lower_effect_neutral_statement(stmt, lir_body, used_locals)
     }
 
     pub(super) fn lower_published_call_statement(
         &mut self,
-        stmt: &mir::Statement,
+        stmt: &LirStatement,
     ) -> Result<bool, LlvmEmitError> {
-        let mir::StatementKind::Assign {
+        let LirStatementKind::Assign {
             target,
             value:
-                mir::Rvalue::Call {
+                LirRvalue::Call {
                     site_id,
                     kind,
                     args,
@@ -134,11 +208,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         };
         if !matches!(
             kind,
-            mir::CallKind::Closure { .. }
-                | mir::CallKind::FunValue { .. }
-                | mir::CallKind::FunPtr { .. }
-                | mir::CallKind::Virtual { .. }
-                | mir::CallKind::Interface { .. }
+            LirCallKind::Closure { .. }
+                | LirCallKind::FunValue { .. }
+                | LirCallKind::FunPtr { .. }
+                | LirCallKind::Virtual { .. }
+                | LirCallKind::Interface { .. }
         ) {
             return Ok(false);
         }
@@ -146,24 +220,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .abi
             .dynamic_invoke_layout(self.abi_step_schema, *site_id)
         else {
-            let value = self
-                .codegen
-                .codegen_mir_plain_dynamic_call(
-                    stmt.span,
-                    kind,
-                    args,
-                    self.body,
-                    self.source_types,
-                    &self.slots,
-                )
-                .map_err(|err| {
-                    frontend_error(format!(
-                        "source-slice dynamic call site {} 缺少 published dynamic-invoke contract，且 plain callable lowering 失败: {err}",
-                        site_id.as_u32(),
-                    ))
-                })?;
-            self.store_local_value(stmt.span, *target, value)?;
-            return Ok(true);
+            return Ok(false);
         };
         let args_payload = self.pack_call_args_for_invoke(
             stmt.span,

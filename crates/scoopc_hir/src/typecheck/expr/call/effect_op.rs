@@ -132,7 +132,7 @@ pub(in crate::typecheck::expr) fn combined_member_instance_type_args(
     lower: &mut TypeLowering<'_>,
 ) -> Result<Vec<TypeId>, ExprTypeError> {
     let mut type_args = find_member_owner_nominal_instantiation(receiver_ty, callee_fqn, lower)?
-        .map(|(_, owner_args)| owner_args)
+        .map(|(_, owner_args, _)| owner_args)
         .unwrap_or_default();
     type_args.extend(fun_type_args.iter().copied());
     Ok(type_args)
@@ -236,6 +236,7 @@ pub(in crate::typecheck::expr) fn lower_effect_op_signature(
         param_has_defaults: vec![false; param_count],
         param_is_vararg: vec![false; param_count],
         type_params,
+        owner_eff_param: None,
         eff_param: None,
         param_fn_effect_eff_base: vec![None; param_count],
         param_nominal_eff_eff_base: vec![None; param_count],

@@ -33,12 +33,16 @@ impl<'a> HirLowering<'a> {
         let name = decl.name.text(self.source).to_string();
         let fqn = join_prefix(owner_prefix, &name);
         self.push_type_params(&decl.type_params);
+        let eff_pushed = self.push_missing_fun_effect_placeholder(decl.eff_param.as_ref());
         let type_params = self.lower_decl_type_params(&decl.type_params);
         let supertypes = self.lower_supertype_decls(&decl.supertypes);
         let interfaces = self.interface_fqns(&supertypes);
         let constructors = self.lower_nominal_ctor_decls(decl);
         let mut members = self.lower_primary_ctor_field_members(&fqn, decl.primary_ctor.as_ref());
         members.extend(self.lower_decl_members(&fqn, decl.body.as_ref()));
+        if eff_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params();
         NominalDecl {
             span: decl.span,

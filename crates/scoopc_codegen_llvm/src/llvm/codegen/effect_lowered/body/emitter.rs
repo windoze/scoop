@@ -13,7 +13,7 @@ pub(super) struct CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) abi: &'cg ProgramAbiQuery<'ctx>,
     pub(super) callable: &'a LateLoweredCallable,
     pub(super) mir_fun: &'a LateLoweredSourceCallable,
-    pub(super) body: &'a LateLoweredSourceBody,
+    pub(super) lir_body: &'a LirExecutableBody,
     pub(super) function: FunctionValue<'ctx>,
     pub(super) slots: Vec<MirLocalSlot<'ctx>>,
     pub(super) used_locals: HashSet<LocalId>,
@@ -45,7 +45,6 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         abi: &'cg ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
         mir_fun: &'a LateLoweredSourceCallable,
-        body: &'a LateLoweredSourceBody,
         function: FunctionValue<'ctx>,
         return_projection: Option<
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
@@ -66,6 +65,18 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 callable_layout.root_fqn(),
             )));
         }
+        let _source_body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "body lowering callable `{}` 缺少 LIR-owned source body contract",
+                callable.root_fqn()
+            ))
+        })?;
+        let lir_body = callable.executable_body().ok_or_else(|| {
+            frontend_error(format!(
+                "body lowering callable `{}` 缺少 LIR executable body",
+                callable.root_fqn()
+            ))
+        })?;
         let body_step_schema = callable.body_step_schema().ok_or_else(|| {
             frontend_error(format!(
                 "body lowering callable `{}` 缺少 control-body step schema",
@@ -80,6 +91,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     .ok_or_else(|| frontend_error("missing local effect ABI schema".to_string()))
             })
             .unwrap_or(body_step_schema);
+        let abi_step_schema = if program.step_type(abi_step_schema).is_some() {
+            abi_step_schema
+        } else {
+            body_step_schema
+        };
+        codegen.function_cx.current_lir_callable_id = program.callable_id_for(callable);
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
@@ -94,7 +111,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 abi_step_schema.as_u32()
             ))
         })?;
-        let slots = codegen.create_mir_local_slots(body, source_types)?;
+        let slots = codegen.create_lir_local_slots(lir_body, source_types)?;
         codegen.current_source_id = codegen.source_id_for_path(
             callable
                 .body_version_key()
@@ -104,7 +121,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 .as_path(),
             mir_fun.span,
         )?;
-        let used_locals = super::super::super::mir_body::collect_mir_local_uses(body);
+        let mut used_locals =
+            super::super::super::mir_body::collect_lir_local_uses(lir_body, source_types);
+        collect_callable_contract_local_uses(callable, &mut used_locals);
         let frame_root_slot = codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {
@@ -132,7 +151,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             abi,
             callable,
             mir_fun,
-            body,
+            lir_body,
             function,
             slots,
             used_locals,
@@ -152,12 +171,18 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     }
 
     pub(super) fn value_primitives(&mut self) -> ValuePrimitives<'_, 'a, 'ctx> {
+        let body = self.mir_fun.body.as_ref().unwrap_or_else(|| {
+            panic!(
+                "CallableEmitter::new validated source body for `{}`",
+                self.callable.root_fqn()
+            )
+        });
         ValuePrimitives::new(
             &mut *self.codegen,
             self.program,
             self.callable.plain_abi().map(|plain| plain.call_sites()),
             self.source_types,
-            self.body,
+            body,
             &self.slots,
             self.abi,
         )

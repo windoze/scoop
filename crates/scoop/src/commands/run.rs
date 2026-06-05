@@ -238,10 +238,6 @@ mod tests {
 
     #[cfg(all(feature = "llvm", not(windows)))]
     fn ensure_scoopc_binary_for_test() {
-        if crate::compiler_tool::locate_compiler_bin().is_ok() {
-            return;
-        }
-
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let output = Command::new(cargo)

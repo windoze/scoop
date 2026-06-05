@@ -50,6 +50,7 @@ impl EmitArtifactKind {
         }
     }
 
+    #[cfg(feature = "llvm")]
     fn llvm_kind(self) -> crate::pipeline::LlvmArtifactKind {
         match self {
             EmitArtifactKind::LlvmIr => crate::pipeline::LlvmArtifactKind::LlvmIr,
@@ -59,6 +60,7 @@ impl EmitArtifactKind {
     }
 }
 
+#[cfg(feature = "llvm")]
 pub fn run_emit_artifact(
     input: PathBuf,
     output: PathBuf,

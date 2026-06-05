@@ -324,10 +324,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if let [binder] = binders
             && self
-                .body
-                .locals
+                .lir_body
+                .locals()
                 .get(binder.local().as_u32() as usize)
-                .is_some_and(|local| local.ty == payload_ty)
+                .is_some_and(|local| local.ty() == payload_ty)
         {
             if let Some(raw) = payload {
                 let _ = self.store_loaded_raw_local(self.mir_fun.span, binder.local(), raw)?;

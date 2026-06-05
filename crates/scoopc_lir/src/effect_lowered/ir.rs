@@ -1,16 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use scoopc_ids::{BodyVersionKey, LirCallableHash, LirCallableId, StableLirCallableKey};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteKind, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts,
-    ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan,
-    PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
+    CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallableAbiKind, CaseTag,
+    ClassCtorSiteEffectFacts, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
+    HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
 use crate::stable_id::StableInstanceKey;
 use crate::ty::MonoTypeId;
 use crate::ty::{EffectRow, TypeId};
+
+use super::instruction::{
+    LirBodyAnchor, LirExecutableBody, LirStateBody, LirStatement, LirStatementIndex,
+};
 
 /// LIR-owned source payload namespace.
 ///
@@ -51,8 +57,37 @@ pub struct LateLoweredProgram {
     resume_packings: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
+    #[serde(default)]
+    stage_summary: scoopc_lir_facts::LirStageSummary,
+    #[serde(default)]
+    opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts,
+    #[serde(default)]
+    global_init: scoopc_lir_facts::LirGlobalInitFacts,
+    #[serde(default)]
+    physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts,
+    #[serde(default)]
+    type_context: scoopc_lir_facts::LirTypeContextFacts,
+    #[serde(default)]
+    step_type_facts:
+        BTreeMap<scoopc_lir_facts::LirStepSchemaKey, scoopc_lir_facts::LirStepTypeFacts>,
+    #[serde(default)]
+    resume_packing_facts:
+        BTreeMap<scoopc_lir_facts::LirResumePackingKey, scoopc_lir_facts::LirResumePackingFacts>,
+    #[serde(default)]
+    continuation_object_facts: BTreeMap<
+        scoopc_lir_facts::LirContinuationObjectKey,
+        scoopc_lir_facts::LirContinuationObjectFacts,
+    >,
+    #[serde(default)]
+    surface_resume_dispatch_facts: BTreeMap<
+        scoopc_lir_facts::LirContinuationSchemaKey,
+        scoopc_lir_facts::LirSurfaceResumeDispatchFacts,
+    >,
     callables: Vec<LateLoweredCallable>,
+    #[serde(default)]
+    callable_declarations: Vec<LateLoweredCallableDeclaration>,
     class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
+    source_class_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     dump_type_texts: HashMap<TypeId, String>,
     #[serde(skip, default)]
@@ -74,8 +109,19 @@ impl LateLoweredProgram {
             resume_packings,
             continuation_objects,
             surface_resume_dispatch_inventory,
+            stage_summary: scoopc_lir_facts::LirStageSummary::default(),
+            opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts::default(),
+            global_init: scoopc_lir_facts::LirGlobalInitFacts::default(),
+            physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts::default(),
+            type_context: scoopc_lir_facts::LirTypeContextFacts::default(),
+            step_type_facts: BTreeMap::new(),
+            resume_packing_facts: BTreeMap::new(),
+            continuation_object_facts: BTreeMap::new(),
+            surface_resume_dispatch_facts: BTreeMap::new(),
             callables,
+            callable_declarations: Vec::new(),
             class_ctor_init_bodies: HashMap::new(),
+            source_class_ctor_calls: Vec::new(),
             stable_instance_keys: HashMap::new(),
             dump_type_texts: HashMap::new(),
             dump_body_labels: HashMap::new(),
@@ -100,6 +146,25 @@ impl LateLoweredProgram {
         self
     }
 
+    pub fn with_lir_callable_identities(
+        mut self,
+        identities: HashMap<LateLoweredBodyVersionKey, (StableLirCallableKey, BodyVersionKey)>,
+    ) -> Self {
+        self.callables = self
+            .callables
+            .into_iter()
+            .map(|callable| {
+                let Some((callable_key, body_version_key)) =
+                    identities.get(callable.body_version_key()).cloned()
+                else {
+                    return callable;
+                };
+                callable.with_lir_identity(callable_key, body_version_key)
+            })
+            .collect();
+        self
+    }
+
     #[cfg(test)]
     #[allow(dead_code)]
     pub fn with_surface_resume_dispatch_inventory(
@@ -112,8 +177,19 @@ impl LateLoweredProgram {
             resume_packings: self.resume_packings.clone(),
             continuation_objects: self.continuation_objects.clone(),
             surface_resume_dispatch_inventory,
+            stage_summary: self.stage_summary,
+            opt_pipeline: self.opt_pipeline.clone(),
+            global_init: self.global_init.clone(),
+            physical_layout: self.physical_layout.clone(),
+            type_context: self.type_context.clone(),
+            step_type_facts: self.step_type_facts.clone(),
+            resume_packing_facts: self.resume_packing_facts.clone(),
+            continuation_object_facts: self.continuation_object_facts.clone(),
+            surface_resume_dispatch_facts: self.surface_resume_dispatch_facts.clone(),
             callables: self.callables.clone(),
+            callable_declarations: self.callable_declarations.clone(),
             class_ctor_init_bodies: self.class_ctor_init_bodies.clone(),
+            source_class_ctor_calls: self.source_class_ctor_calls.clone(),
             stable_instance_keys: self.stable_instance_keys.clone(),
             dump_type_texts: self.dump_type_texts.clone(),
             dump_body_labels: self.dump_body_labels.clone(),
@@ -184,8 +260,269 @@ impl LateLoweredProgram {
             .find(|entry| entry.continuation_schema() == continuation_schema)
     }
 
+    pub fn stage_summary(&self) -> &scoopc_lir_facts::LirStageSummary {
+        &self.stage_summary
+    }
+
+    pub fn opt_pipeline(&self) -> &scoopc_lir_facts::LirOptPipelineFacts {
+        &self.opt_pipeline
+    }
+
+    pub fn global_init(&self) -> &scoopc_lir_facts::LirGlobalInitFacts {
+        &self.global_init
+    }
+
+    pub fn physical_layout(&self) -> &scoopc_lir_facts::LirPhysicalLayoutFacts {
+        &self.physical_layout
+    }
+
+    pub fn type_context(&self) -> &scoopc_lir_facts::LirTypeContextFacts {
+        &self.type_context
+    }
+
+    pub fn abi_symbol_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirAbiSymbolFact> {
+        self.physical_layout
+            .abi_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn.as_deref() == Some(root_fqn))
+    }
+
+    pub fn root_for_callable_ref(&self, target: scoopc_lir_facts::LirCallableRef) -> Option<&str> {
+        match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                self.callable_by_id(id).map(LateLoweredCallable::root_fqn)
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(_) => self
+                .physical_layout
+                .abi_symbols
+                .values()
+                .find_map(|symbol| {
+                    (symbol.callable == Some(target))
+                        .then_some(symbol.root_fqn.as_deref())
+                        .flatten()
+                }),
+        }
+    }
+
     pub fn callables(&self) -> &[LateLoweredCallable] {
         &self.callables
+    }
+
+    pub fn callable_by_id(&self, id: LirCallableId) -> Option<&LateLoweredCallable> {
+        self.callables.get(id.as_usize())
+    }
+
+    pub fn callable_id_for(&self, callable: &LateLoweredCallable) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, candidate)| {
+                std::ptr::eq(candidate, callable)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    pub fn callable_id_by_root(&self, root_fqn: &str) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, callable)| {
+                (callable.root_fqn() == root_fqn)
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    pub fn callable_id_by_source_signature(&self, root_fqn: &str) -> Option<LirCallableId> {
+        self.callables
+            .iter()
+            .enumerate()
+            .find_map(|(index, callable)| {
+                callable
+                    .source_signature(root_fqn)
+                    .is_some()
+                    .then(|| LirCallableId::from_index(index))
+                    .flatten()
+            })
+    }
+
+    pub fn callable_declarations(&self) -> &[LateLoweredCallableDeclaration] {
+        &self.callable_declarations
+    }
+
+    pub fn source_signatures(
+        &self,
+    ) -> impl Iterator<Item = &scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.callables
+            .iter()
+            .flat_map(LateLoweredCallable::source_signatures)
+            .chain(
+                self.callable_declarations
+                    .iter()
+                    .filter_map(LateLoweredCallableDeclaration::source_signature),
+            )
+    }
+
+    pub fn source_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.callables
+            .iter()
+            .find_map(|callable| callable.source_signature(root_fqn))
+            .or_else(|| {
+                self.callable_declarations
+                    .iter()
+                    .find_map(|declaration| declaration.source_signature_for_root(root_fqn))
+            })
+    }
+
+    pub fn intrinsic_callables(
+        &self,
+    ) -> impl Iterator<Item = &scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.callables
+            .iter()
+            .flat_map(LateLoweredCallable::intrinsic_callables)
+            .chain(
+                self.callable_declarations
+                    .iter()
+                    .filter_map(LateLoweredCallableDeclaration::intrinsic_callable),
+            )
+    }
+
+    pub fn intrinsic_callable(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.callables
+            .iter()
+            .find_map(|callable| callable.intrinsic_callable(root_fqn))
+            .or_else(|| {
+                self.callable_declarations
+                    .iter()
+                    .find_map(|declaration| declaration.intrinsic_callable_for_root(root_fqn))
+            })
+    }
+
+    pub fn with_published_callable_fact_payloads(
+        mut self,
+        mut callable_facts: BTreeMap<LirCallableId, scoopc_lir_facts::LirCallableFacts>,
+        mut source_signatures: BTreeMap<
+            LirCallableId,
+            Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        >,
+        mut intrinsic_callables: BTreeMap<
+            LirCallableId,
+            Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
+        >,
+        callable_declarations: Vec<LateLoweredCallableDeclaration>,
+    ) -> Self {
+        for (index, callable) in self.callables.iter_mut().enumerate() {
+            let id = LirCallableId::from_index(index)
+                .expect("LateLoweredProgram callable index must fit in LirCallableId");
+            callable.attach_published_fact_payloads(
+                callable_facts.remove(&id),
+                source_signatures.remove(&id).unwrap_or_default(),
+                intrinsic_callables.remove(&id).unwrap_or_default(),
+            );
+        }
+        self.callable_declarations = callable_declarations;
+        self
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_published_program_fact_payloads(
+        mut self,
+        summary: scoopc_lir_facts::LirStageSummary,
+        opt_pipeline: scoopc_lir_facts::LirOptPipelineFacts,
+        global_init: scoopc_lir_facts::LirGlobalInitFacts,
+        physical_layout: scoopc_lir_facts::LirPhysicalLayoutFacts,
+        type_context: scoopc_lir_facts::LirTypeContextFacts,
+        step_type_facts: BTreeMap<
+            scoopc_lir_facts::LirStepSchemaKey,
+            scoopc_lir_facts::LirStepTypeFacts,
+        >,
+        resume_packing_facts: BTreeMap<
+            scoopc_lir_facts::LirResumePackingKey,
+            scoopc_lir_facts::LirResumePackingFacts,
+        >,
+        continuation_object_facts: BTreeMap<
+            scoopc_lir_facts::LirContinuationObjectKey,
+            scoopc_lir_facts::LirContinuationObjectFacts,
+        >,
+        surface_resume_dispatch_facts: BTreeMap<
+            scoopc_lir_facts::LirContinuationSchemaKey,
+            scoopc_lir_facts::LirSurfaceResumeDispatchFacts,
+        >,
+        mut class_ctor_inits: BTreeMap<
+            scoopc_lir_facts::LirClassCtorInitKey,
+            scoopc_lir_facts::LirClassCtorInitFacts,
+        >,
+    ) -> Self {
+        self.stage_summary = summary;
+        self.opt_pipeline = opt_pipeline;
+        self.global_init = global_init;
+        self.physical_layout = physical_layout;
+        self.type_context = type_context;
+        self.step_type_facts = step_type_facts;
+        self.resume_packing_facts = resume_packing_facts;
+        self.continuation_object_facts = continuation_object_facts;
+        self.surface_resume_dispatch_facts = surface_resume_dispatch_facts;
+        for init_body in self.class_ctor_init_bodies.values_mut() {
+            init_body.attach_published_init_facts(class_ctor_inits.remove(init_body.key()));
+        }
+        self
+    }
+
+    pub fn published_lir_facts_snapshot(&self) -> scoopc_lir_facts::LirFacts {
+        let groups = scoopc_lir_facts::LirFactGroups {
+            global_init: self.global_init.clone(),
+            physical_layout: self.physical_layout.clone(),
+            type_context: self.type_context.clone(),
+            source_signatures: self
+                .source_signatures()
+                .map(|signature| (signature.root_fqn.clone(), signature.clone()))
+                .collect(),
+            intrinsic_callables: self
+                .intrinsic_callables()
+                .map(|intrinsic| (intrinsic.root_fqn.clone(), intrinsic.clone()))
+                .collect(),
+            class_ctor_inits: self
+                .class_ctor_init_bodies()
+                .filter_map(|body| {
+                    body.published_init_facts()
+                        .map(|facts| (facts.key.clone(), facts.clone()))
+                })
+                .collect(),
+            callables: self
+                .callables()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, callable)| {
+                    let id = LirCallableId::from_index(index)?;
+                    callable
+                        .published_callable_facts()
+                        .map(|facts| (id, facts.clone()))
+                })
+                .collect(),
+            step_types: self.step_type_facts.clone(),
+            resume_packings: self.resume_packing_facts.clone(),
+            continuation_objects: self.continuation_object_facts.clone(),
+            surface_resume_dispatches: self.surface_resume_dispatch_facts.clone(),
+        };
+        scoopc_lir_facts::LirFacts::from_parts_with_opt_pipeline(
+            self.stage_summary,
+            self.opt_pipeline.clone(),
+            groups,
+        )
+    }
+
+    pub fn callable_index(&self) -> Result<LirCallableIndex, LirCallableIndexError> {
+        LirCallableIndex::from_program(self)
     }
 
     pub fn with_class_ctor_init_bodies(
@@ -208,6 +545,18 @@ impl LateLoweredProgram {
 
     pub fn class_ctor_init_bodies(&self) -> impl Iterator<Item = &LateLoweredClassCtorInitBody> {
         self.class_ctor_init_bodies.values()
+    }
+
+    pub fn with_source_class_ctor_calls(
+        mut self,
+        source_class_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
+    ) -> Self {
+        self.source_class_ctor_calls = source_class_ctor_calls;
+        self
+    }
+
+    pub fn source_class_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
+        &self.source_class_ctor_calls
     }
 
     pub fn callable(&self, root_fqn: &str) -> Option<&LateLoweredCallable> {
@@ -272,6 +621,146 @@ impl LateLoweredProgram {
     }
 }
 
+/// Artifact-local callable index built once at the LIR handoff boundary.
+#[derive(Debug, Clone)]
+pub struct LirCallableIndex {
+    key_to_id: HashMap<StableLirCallableKey, LirCallableId>,
+    hash_to_id: HashMap<LirCallableHash, LirCallableId>,
+    key_by_id: Vec<StableLirCallableKey>,
+    hash_by_id: Vec<LirCallableHash>,
+}
+
+impl LirCallableIndex {
+    pub fn from_program(program: &LateLoweredProgram) -> Result<Self, LirCallableIndexError> {
+        let mut keys = Vec::with_capacity(program.callables().len());
+        for (index, callable) in program.callables().iter().enumerate() {
+            let Some(key) = callable.lir_callable_key() else {
+                return Err(LirCallableIndexError::MissingPublishedKey {
+                    index,
+                    root_fqn: callable.root_fqn().to_string(),
+                });
+            };
+            keys.push(key.clone());
+        }
+        Self::from_published_keys(keys)
+    }
+
+    pub fn from_published_keys<I>(keys: I) -> Result<Self, LirCallableIndexError>
+    where
+        I: IntoIterator<Item = StableLirCallableKey>,
+    {
+        let key_by_id = keys.into_iter().collect::<Vec<_>>();
+        let mut key_to_id = HashMap::with_capacity(key_by_id.len());
+        let mut hash_to_id = HashMap::with_capacity(key_by_id.len());
+        let mut hash_by_id = Vec::with_capacity(key_by_id.len());
+        for (index, key) in key_by_id.iter().enumerate() {
+            let Some(id) = LirCallableId::from_index(index) else {
+                return Err(LirCallableIndexError::TooManyCallables {
+                    count: key_by_id.len(),
+                });
+            };
+            if let Some(first) = key_to_id.get(key).copied() {
+                return Err(LirCallableIndexError::DuplicatePublishedKey {
+                    key: key.clone(),
+                    first,
+                    duplicate: id,
+                });
+            }
+            let hash = LirCallableHash::from_stable_key(key);
+            key_to_id.insert(key.clone(), id);
+            if let Some(first) = hash_to_id.insert(hash, id) {
+                return Err(LirCallableIndexError::DuplicatePublishedHash {
+                    hash,
+                    first,
+                    duplicate: id,
+                });
+            }
+            hash_by_id.push(hash);
+        }
+        Ok(Self {
+            key_to_id,
+            hash_to_id,
+            key_by_id,
+            hash_by_id,
+        })
+    }
+
+    pub fn id_for_key(
+        &self,
+        key: &StableLirCallableKey,
+    ) -> Result<LirCallableId, LirCallableIndexError> {
+        self.key_to_id
+            .get(key)
+            .copied()
+            .ok_or_else(|| LirCallableIndexError::UnknownPublishedKey { key: key.clone() })
+    }
+
+    pub fn key_for_id(
+        &self,
+        id: LirCallableId,
+    ) -> Result<&StableLirCallableKey, LirCallableIndexError> {
+        self.key_by_id
+            .get(id.as_usize())
+            .ok_or(LirCallableIndexError::UnknownCallableId {
+                id,
+                len: self.key_by_id.len(),
+            })
+    }
+
+    pub fn hash_for_id(&self, id: LirCallableId) -> Result<LirCallableHash, LirCallableIndexError> {
+        self.hash_by_id.get(id.as_usize()).copied().ok_or(
+            LirCallableIndexError::UnknownCallableId {
+                id,
+                len: self.hash_by_id.len(),
+            },
+        )
+    }
+
+    pub fn id_for_hash(
+        &self,
+        hash: LirCallableHash,
+    ) -> Result<LirCallableId, LirCallableIndexError> {
+        self.hash_to_id
+            .get(&hash)
+            .copied()
+            .ok_or(LirCallableIndexError::UnknownPublishedHash { hash })
+    }
+
+    pub fn len(&self) -> usize {
+        self.key_by_id.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_by_id.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum LirCallableIndexError {
+    #[error("LIR callable at index {index} (`{root_fqn}`) has no stable LIR callable key")]
+    MissingPublishedKey { index: usize, root_fqn: String },
+    #[error("LIR callable count {count} exceeds the u32 id space")]
+    TooManyCallables { count: usize },
+    #[error("stable LIR callable key `{key:?}` appears at both {first:?} and {duplicate:?}")]
+    DuplicatePublishedKey {
+        key: StableLirCallableKey,
+        first: LirCallableId,
+        duplicate: LirCallableId,
+    },
+    #[error("stable LIR callable hash `{hash:?}` appears at both {first:?} and {duplicate:?}")]
+    DuplicatePublishedHash {
+        hash: LirCallableHash,
+        first: LirCallableId,
+        duplicate: LirCallableId,
+    },
+    #[error("stable LIR callable key `{key:?}` is not present in this artifact")]
+    UnknownPublishedKey { key: StableLirCallableKey },
+    #[error("stable LIR callable hash `{hash:?}` is not present in this artifact")]
+    UnknownPublishedHash { hash: LirCallableHash },
+    #[error("LIR callable id {id:?} is outside this artifact's callable table of length {len}")]
+    UnknownCallableId { id: LirCallableId, len: usize },
+}
+
 /// callable surface instance 在 P5 中对应的具体 body 版本 identity。
 ///
 /// 该 key 显式区分：
@@ -289,15 +778,7 @@ pub struct LateLoweredBodyVersionKey {
     needs_reentry: bool,
 }
 
-/// LIR-owned source body payload consumed by backend body emission.
-///
-/// The payload is captured while constructing `LateLoweredProgram`, so LLVM body
-/// emission does not have to query the residual materialized MIR pass view for a
-/// callable body.  The wrapped source statement/value model is intentionally kept
-/// behind LIR names here; later P7 cleanup can narrow the payload further without
-/// reintroducing a backend lookup edge.
 pub type LateLoweredSourceCallable = crate::mir::FunDecl;
-
 pub type LateLoweredSourceBody = crate::mir::Body;
 
 pub type LateLoweredSourceStatement = crate::mir::Statement;
@@ -340,6 +821,100 @@ pub type LateLoweredSourceClassCtorCallArg = class_ctor_source::CallArg;
 pub type LateLoweredSourceClassCtorExpr = class_ctor_source::Expr;
 
 pub type LateLoweredSourceClassCtorBlock = class_ctor_source::Block;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredSourceCallSiteMetadata {
+    site_id: SiteId,
+    callee_fqn: String,
+    intrinsic_entry_name: Option<String>,
+    generic_type_args: Vec<TypeId>,
+}
+
+impl LateLoweredSourceCallSiteMetadata {
+    pub fn new(
+        site_id: SiteId,
+        callee_fqn: String,
+        intrinsic_entry_name: Option<String>,
+        generic_type_args: Vec<TypeId>,
+    ) -> Self {
+        Self {
+            site_id,
+            callee_fqn,
+            intrinsic_entry_name,
+            generic_type_args,
+        }
+    }
+
+    pub fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub fn callee_fqn(&self) -> &str {
+        &self.callee_fqn
+    }
+
+    pub fn intrinsic_entry_name(&self) -> Option<&str> {
+        self.intrinsic_entry_name.as_deref()
+    }
+
+    pub fn generic_type_args(&self) -> &[TypeId] {
+        &self.generic_type_args
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredClassCtorSourceCallContract {
+    source_path: PathBuf,
+    call_span: Span,
+    class_fqn: String,
+    target: scoopc_lir_facts::LirClassCtorInitKey,
+    result_ty: TypeId,
+    arg_mapping: Vec<Option<usize>>,
+}
+
+impl LateLoweredClassCtorSourceCallContract {
+    pub fn new(
+        source_path: PathBuf,
+        call_span: Span,
+        class_fqn: String,
+        target: scoopc_lir_facts::LirClassCtorInitKey,
+        result_ty: TypeId,
+        arg_mapping: Vec<Option<usize>>,
+    ) -> Self {
+        Self {
+            source_path,
+            call_span,
+            class_fqn,
+            target,
+            result_ty,
+            arg_mapping,
+        }
+    }
+
+    pub fn call_span(&self) -> Span {
+        self.call_span
+    }
+
+    pub fn source_path(&self) -> &Path {
+        self.source_path.as_path()
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn target(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
+        &self.target
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub fn arg_mapping(&self) -> &[Option<usize>] {
+        &self.arg_mapping
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredClassCtorParam {
@@ -557,6 +1132,9 @@ pub struct LateLoweredClassCtorInitBody {
     implicit_super: Option<LateLoweredClassCtorSuperCall>,
     delegation: Option<LateLoweredClassCtorDelegation>,
     steps: Vec<LateLoweredClassCtorInitStep>,
+    source_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
+    #[serde(default)]
+    published_init_facts: Option<Box<scoopc_lir_facts::LirClassCtorInitFacts>>,
 }
 
 impl LateLoweredClassCtorInitBody {
@@ -572,6 +1150,7 @@ impl LateLoweredClassCtorInitBody {
         implicit_super: Option<LateLoweredClassCtorSuperCall>,
         delegation: Option<LateLoweredClassCtorDelegation>,
         steps: Vec<LateLoweredClassCtorInitStep>,
+        source_ctor_calls: Vec<LateLoweredClassCtorSourceCallContract>,
     ) -> Self {
         Self {
             key,
@@ -584,7 +1163,16 @@ impl LateLoweredClassCtorInitBody {
             implicit_super,
             delegation,
             steps,
+            source_ctor_calls,
+            published_init_facts: None,
         }
+    }
+
+    fn attach_published_init_facts(
+        &mut self,
+        facts: Option<scoopc_lir_facts::LirClassCtorInitFacts>,
+    ) {
+        self.published_init_facts = facts.map(Box::new);
     }
 
     pub fn key(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
@@ -625,6 +1213,14 @@ impl LateLoweredClassCtorInitBody {
 
     pub fn steps(&self) -> &[LateLoweredClassCtorInitStep] {
         &self.steps
+    }
+
+    pub fn source_ctor_calls(&self) -> &[LateLoweredClassCtorSourceCallContract] {
+        &self.source_ctor_calls
+    }
+
+    pub fn published_init_facts(&self) -> Option<&scoopc_lir_facts::LirClassCtorInitFacts> {
+        self.published_init_facts.as_deref()
     }
 }
 
@@ -674,10 +1270,65 @@ pub struct LateLoweredPlainBodySlice {
 /// Plain body 不拥有 state-machine boundary map；因此普通 call / effect-step callee call 的 ABI
 /// 选择必须直接发布在 source-slice call contract 上，供 P6 按 ordinary call 或 Step dispatch 消费。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LateLoweredCallSiteMaterializedKind {
+    Direct,
+    Closure,
+    FunValue,
+    FunPtr,
+    Virtual {
+        owner_fqn: String,
+        member_name: String,
+        member_fqn: String,
+        receiver_ty: TypeId,
+    },
+    Interface {
+        owner_fqn: String,
+        member_name: String,
+        member_fqn: String,
+        receiver_ty: TypeId,
+    },
+    Resume,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredCallSiteMaterializedMetadata {
+    kind: LateLoweredCallSiteMaterializedKind,
+    arg_count: usize,
+    carrier_source_ty: Option<TypeId>,
+}
+
+impl LateLoweredCallSiteMaterializedMetadata {
+    pub fn new(
+        kind: LateLoweredCallSiteMaterializedKind,
+        arg_count: usize,
+        carrier_source_ty: Option<TypeId>,
+    ) -> Self {
+        Self {
+            kind,
+            arg_count,
+            carrier_source_ty,
+        }
+    }
+
+    pub fn kind(&self) -> &LateLoweredCallSiteMaterializedKind {
+        &self.kind
+    }
+
+    pub fn arg_count(&self) -> usize {
+        self.arg_count
+    }
+
+    pub fn carrier_source_ty(&self) -> Option<TypeId> {
+        self.carrier_source_ty
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredPlainCallSite {
     site_id: SiteId,
     source_slice: LateLoweredPlainBodySlice,
     statement_index: u32,
+    metadata: LateLoweredCallSiteMaterializedMetadata,
     facts: CallSiteEffectFacts,
 }
 
@@ -759,12 +1410,14 @@ impl LateLoweredPlainCallSite {
         site_id: SiteId,
         source_slice: LateLoweredPlainBodySlice,
         statement_index: u32,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
         facts: CallSiteEffectFacts,
     ) -> Self {
         Self {
             site_id,
             source_slice,
             statement_index,
+            metadata,
             facts,
         }
     }
@@ -779,6 +1432,10 @@ impl LateLoweredPlainCallSite {
 
     pub fn statement_index(&self) -> u32 {
         self.statement_index
+    }
+
+    pub fn metadata(&self) -> &LateLoweredCallSiteMaterializedMetadata {
+        &self.metadata
     }
 
     pub fn facts(&self) -> &CallSiteEffectFacts {
@@ -959,6 +1616,60 @@ impl LateLoweredEffectStepCallable {
     }
 }
 
+/// Per-root callable metadata that has no local executable LIR body in this artifact.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LateLoweredCallableDeclaration {
+    root_fqn: String,
+    #[serde(default)]
+    source_signature: Option<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+    #[serde(default)]
+    intrinsic_callable: Option<scoopc_lir_facts::LirIntrinsicCallableFact>,
+}
+
+impl LateLoweredCallableDeclaration {
+    pub fn new(
+        root_fqn: String,
+        source_signature: Option<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        intrinsic_callable: Option<scoopc_lir_facts::LirIntrinsicCallableFact>,
+    ) -> Self {
+        Self {
+            root_fqn,
+            source_signature,
+            intrinsic_callable,
+        }
+    }
+
+    pub fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub fn source_signature(&self) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.source_signature.as_ref()
+    }
+
+    pub fn source_signature_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        (self.root_fqn == root_fqn)
+            .then_some(self.source_signature.as_ref())
+            .flatten()
+    }
+
+    pub fn intrinsic_callable(&self) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.intrinsic_callable.as_ref()
+    }
+
+    pub fn intrinsic_callable_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        (self.root_fqn == root_fqn)
+            .then_some(self.intrinsic_callable.as_ref())
+            .flatten()
+    }
+}
+
 /// callable version 在 P5 handoff 中选择的 ABI contract。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredCallableAbi {
@@ -976,9 +1687,22 @@ pub struct LateLoweredCallable {
     root_fqn: String,
     stable_instance_key: StableInstanceKey,
     body_version_key: LateLoweredBodyVersionKey,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lir_callable_key: Option<StableLirCallableKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lir_body_version_key: Option<BodyVersionKey>,
+    source_kind: scoopc_lir_facts::LirCallableSourceKind,
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
     source_callable: Option<LateLoweredSourceCallable>,
+    executable_body: Option<LirExecutableBody>,
+    source_call_site_metadata: Vec<LateLoweredSourceCallSiteMetadata>,
+    #[serde(default)]
+    published_callable_facts: Option<Box<scoopc_lir_facts::LirCallableFacts>>,
+    #[serde(default)]
+    source_signatures: Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+    #[serde(default)]
+    intrinsic_callables: Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
 }
 
 impl PartialEq for LateLoweredCallable {
@@ -986,12 +1710,58 @@ impl PartialEq for LateLoweredCallable {
         self.root_fqn == other.root_fqn
             && self.stable_instance_key == other.stable_instance_key
             && self.body_version_key == other.body_version_key
+            && self.lir_callable_key == other.lir_callable_key
+            && self.lir_body_version_key == other.lir_body_version_key
+            && self.source_kind == other.source_kind
             && self.resolved_outward_cases == other.resolved_outward_cases
             && self.abi == other.abi
+            && self.executable_body == other.executable_body
+            && self.source_call_site_metadata == other.source_call_site_metadata
+            && self.published_callable_facts == other.published_callable_facts
+            && self.source_signatures == other.source_signatures
+            && self.intrinsic_callables == other.intrinsic_callables
     }
 }
 
 impl Eq for LateLoweredCallable {}
+
+fn collect_source_call_site_metadata(
+    source_callable: &crate::mir::FunDecl,
+) -> Vec<LateLoweredSourceCallSiteMetadata> {
+    let mut out = Vec::new();
+    let Some(body) = &source_callable.body else {
+        return out;
+    };
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign {
+                value:
+                    crate::mir::Rvalue::Call {
+                        site_id,
+                        kind:
+                            crate::mir::CallKind::Direct {
+                                callee_fqn,
+                                intrinsic_entry_name,
+                                generic_type_args,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            out.push(LateLoweredSourceCallSiteMetadata::new(
+                *site_id,
+                callee_fqn.clone(),
+                intrinsic_entry_name.clone(),
+                generic_type_args.clone(),
+            ));
+        }
+    }
+    out
+}
 
 impl LateLoweredCallable {
     #[allow(clippy::too_many_arguments)]
@@ -1013,6 +1783,9 @@ impl LateLoweredCallable {
             root_fqn,
             stable_instance_key,
             body_version_key,
+            lir_callable_key: None,
+            lir_body_version_key: None,
+            source_kind: scoopc_lir_facts::LirCallableSourceKind::TopLevel,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::EffectStep(Box::new(LateLoweredEffectStepCallable::new(
                 step_schema,
@@ -1025,6 +1798,11 @@ impl LateLoweredCallable {
                 resume_packings,
             ))),
             source_callable: None,
+            executable_body: None,
+            source_call_site_metadata: Vec::new(),
+            published_callable_facts: None,
+            source_signatures: Vec::new(),
+            intrinsic_callables: Vec::new(),
         }
     }
 
@@ -1039,15 +1817,66 @@ impl LateLoweredCallable {
             root_fqn,
             stable_instance_key,
             body_version_key,
+            lir_callable_key: None,
+            lir_body_version_key: None,
+            source_kind: scoopc_lir_facts::LirCallableSourceKind::TopLevel,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
             source_callable: None,
+            executable_body: None,
+            source_call_site_metadata: Vec::new(),
+            published_callable_facts: None,
+            source_signatures: Vec::new(),
+            intrinsic_callables: Vec::new(),
         }
     }
 
-    pub fn with_source_callable(mut self, source_callable: &LateLoweredSourceCallable) -> Self {
+    pub fn with_lir_identity(
+        mut self,
+        lir_callable_key: StableLirCallableKey,
+        lir_body_version_key: BodyVersionKey,
+    ) -> Self {
+        self.lir_callable_key = Some(lir_callable_key);
+        self.lir_body_version_key = Some(lir_body_version_key);
+        self
+    }
+
+    pub fn with_source_kind(
+        mut self,
+        source_kind: scoopc_lir_facts::LirCallableSourceKind,
+    ) -> Self {
+        self.source_kind = source_kind;
+        self
+    }
+
+    pub fn with_source_callable(mut self, source_callable: &crate::mir::FunDecl) -> Self {
+        self.source_call_site_metadata = collect_source_call_site_metadata(source_callable);
         self.source_callable = Some(source_callable.clone());
         self
+    }
+
+    pub fn with_source_callable_payload(
+        mut self,
+        source_callable: LateLoweredSourceCallable,
+    ) -> Self {
+        self.source_callable = Some(source_callable);
+        self
+    }
+
+    pub fn with_executable_body(mut self, executable_body: LirExecutableBody) -> Self {
+        self.executable_body = Some(executable_body);
+        self
+    }
+
+    pub fn attach_published_fact_payloads(
+        &mut self,
+        callable_facts: Option<scoopc_lir_facts::LirCallableFacts>,
+        source_signatures: Vec<scoopc_lir_facts::LirSourceCallableSignatureFacts>,
+        intrinsic_callables: Vec<scoopc_lir_facts::LirIntrinsicCallableFact>,
+    ) {
+        self.published_callable_facts = callable_facts.map(Box::new);
+        self.source_signatures = source_signatures;
+        self.intrinsic_callables = intrinsic_callables;
     }
 
     pub fn with_source_statement_classifications(
@@ -1083,10 +1912,60 @@ impl LateLoweredCallable {
         self.source_callable.as_ref()
     }
 
+    pub fn executable_body(&self) -> Option<&LirExecutableBody> {
+        self.executable_body.as_ref()
+    }
+
     pub fn source_body(&self) -> Option<&LateLoweredSourceBody> {
         self.source_callable
             .as_ref()
             .and_then(|callable| callable.body.as_ref())
+    }
+
+    pub fn source_kind(&self) -> scoopc_lir_facts::LirCallableSourceKind {
+        self.source_kind
+    }
+
+    pub fn lir_callable_key(&self) -> Option<&StableLirCallableKey> {
+        self.lir_callable_key.as_ref()
+    }
+
+    pub fn lir_body_version_key(&self) -> Option<&BodyVersionKey> {
+        self.lir_body_version_key.as_ref()
+    }
+
+    pub fn source_call_site_metadata(&self) -> &[LateLoweredSourceCallSiteMetadata] {
+        &self.source_call_site_metadata
+    }
+
+    pub fn published_callable_facts(&self) -> Option<&scoopc_lir_facts::LirCallableFacts> {
+        self.published_callable_facts.as_deref()
+    }
+
+    pub fn source_signatures(&self) -> &[scoopc_lir_facts::LirSourceCallableSignatureFacts] {
+        &self.source_signatures
+    }
+
+    pub fn source_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirSourceCallableSignatureFacts> {
+        self.source_signatures
+            .iter()
+            .find(|signature| signature.root_fqn == root_fqn)
+    }
+
+    pub fn intrinsic_callables(&self) -> &[scoopc_lir_facts::LirIntrinsicCallableFact] {
+        &self.intrinsic_callables
+    }
+
+    pub fn intrinsic_callable(
+        &self,
+        root_fqn: &str,
+    ) -> Option<&scoopc_lir_facts::LirIntrinsicCallableFact> {
+        self.intrinsic_callables
+            .iter()
+            .find(|intrinsic| intrinsic.root_fqn == root_fqn)
     }
 
     pub fn call_abi_kind(&self) -> CallableAbiKind {
@@ -1216,16 +2095,43 @@ impl LateLoweredCallable {
             .unwrap_or(&[])
     }
 
+    pub fn source_statement_classification_by_anchor(
+        &self,
+        anchor: LirBodyAnchor,
+    ) -> Option<&LateLoweredSourceStatementClassification> {
+        self.source_statement_classifications()
+            .iter()
+            .find(|entry| entry.anchor() == anchor)
+    }
+
     pub fn source_statement_classification(
         &self,
         source_slice: LateLoweredStateSlice,
         statement_index: u32,
     ) -> Option<&LateLoweredSourceStatementClassification> {
-        self.source_statement_classifications()
-            .iter()
-            .find(|entry| {
-                entry.source_slice() == source_slice && entry.statement_index() == statement_index
-            })
+        for state in self.state_graph().states() {
+            let mut local_offset = 0u32;
+            for slice in state.source_slices() {
+                let slice_len = slice
+                    .end_statement_index()
+                    .saturating_sub(slice.start_statement_index());
+                let contains_statement = slice.block_id() == source_slice.block_id()
+                    && statement_index >= slice.start_statement_index()
+                    && statement_index < slice.end_statement_index();
+                if contains_statement {
+                    let local_index = local_offset
+                        + statement_index.saturating_sub(slice.start_statement_index());
+                    return self.source_statement_classification_by_anchor(
+                        LirBodyAnchor::statement(
+                            state.state_id(),
+                            LirStatementIndex::new(local_index),
+                        ),
+                    );
+                }
+                local_offset += slice_len;
+            }
+        }
+        None
     }
 
     pub fn continuation_object(&self) -> ContinuationObjectId {
@@ -2010,6 +2916,8 @@ fn build_surface_resume_dispatch_inventory(
                     else {
                         continue;
                     };
+                    let target_step_schemas =
+                        call_site_target_step_schemas(callables, lowering.facts());
                     for composition in lowering.continuation_compositions() {
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
@@ -2019,7 +2927,7 @@ fn build_surface_resume_dispatch_inventory(
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
-                            &carrier_target_step_schemas,
+                            &target_step_schemas,
                             true,
                         );
                     }
@@ -2105,18 +3013,42 @@ fn register_call_boundary_callee_wrapper_projection(
         return;
     }
 
+    // Dynamic fallback call sites may not publish a closed callee step set, so publish every
+    // ABI-compatible continuation object and let the LLVM surface dispatch pick by descriptor.
+    let target_set_is_open = carrier_target_step_schemas.is_empty();
+    let mut registered_owner_targets = wrapper_projections
+        .get(&wrapper_contract.continuation_schema())
+        .into_iter()
+        .flat_map(|projections| projections.iter())
+        .filter_map(|projection| {
+            surface_resume_projection_owner_identity_for_targets(projection, continuation_objects)
+                .map(|(owner, object)| (owner.clone(), object))
+        })
+        .collect::<Vec<_>>();
     let mut candidates = Vec::new();
     for object in continuation_objects {
         for method in object.methods() {
             if method.reachability() != LateLoweredContinuationMethodReachability::Reachable
                 || method.resume_tuple_ty() != wrapper_contract.resume_tuple_ty()
                 || method.answer_ty() != wrapper_contract.answer_ty()
-                || method.surface_ty() != wrapper_contract.surface_ty()
                 || method.concrete_op_key() != wrapper_case.concrete_op_key()
             {
                 continue;
             }
-            if carrier_target_step_schemas.is_empty() {
+            if !target_set_is_open
+                && method.surface_ty() != wrapper_contract.surface_ty()
+                && !carrier_target_step_schemas.contains(&method.out_step_schema())
+            {
+                continue;
+            }
+            if target_set_is_open {
+                let candidate_owner = (object.owner_version_key().clone(), object.object_id());
+                if registered_owner_targets
+                    .iter()
+                    .any(|existing| existing == &candidate_owner)
+                {
+                    continue;
+                }
                 let caller_contract = composition.caller_continuation_contract();
                 if method.out_step_schema() == caller_contract.out_step_schema()
                     && wrapper_contract.continuation_schema()
@@ -2124,6 +3056,7 @@ fn register_call_boundary_callee_wrapper_projection(
                 {
                     continue;
                 }
+                registered_owner_targets.push(candidate_owner);
             } else if !carrier_target_step_schemas.contains(&method.out_step_schema()) {
                 continue;
             }
@@ -2185,6 +3118,27 @@ fn register_call_boundary_callee_wrapper_projection(
             projection,
         );
     }
+}
+
+fn call_site_target_step_schemas(
+    callables: &[LateLoweredCallable],
+    facts: &CallSiteEffectFacts,
+) -> BTreeSet<StepSchemaId> {
+    let target_instances = match facts.target() {
+        CallSiteTarget::KnownInstance(instance) => std::slice::from_ref(instance),
+        CallSiteTarget::CandidateSet(instances) => instances.as_slice(),
+        CallSiteTarget::BodylessDirect { .. } => return BTreeSet::new(),
+        CallSiteTarget::DynamicFallback => return BTreeSet::new(),
+    };
+    target_instances
+        .iter()
+        .filter_map(|instance| {
+            callables
+                .iter()
+                .find(|callable| callable.instance_key() == instance)
+                .and_then(LateLoweredCallable::body_step_schema)
+        })
+        .collect()
 }
 
 fn build_call_boundary_resume_boundary_projection(
@@ -2349,6 +3303,21 @@ fn surface_resume_projection_owner_identity(
         } => Some((owner_version_key, *owner_continuation_object)),
         LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
         | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => None,
+    }
+}
+
+fn surface_resume_projection_owner_identity_for_targets<'a>(
+    projection: &'a LateLoweredSurfaceResumeWrapperProjection,
+    continuation_objects: &'a [LateLoweredContinuationObject],
+) -> Option<(&'a LateLoweredBodyVersionKey, ContinuationObjectId)> {
+    match projection.underlying_route().publication() {
+        LateLoweredSurfaceResumeDispatchPublication::InternalMethod { object_id, .. } => {
+            continuation_objects
+                .iter()
+                .find(|object| object.object_id() == *object_id)
+                .map(|object| (object.owner_version_key(), object.object_id()))
+        }
+        _ => surface_resume_projection_owner_identity(projection),
     }
 }
 
@@ -3225,10 +4194,6 @@ pub enum LateLoweredStateRole {
     Drop,
 }
 
-/// 单个 late-lowered state 当前覆盖的 direct-style MIR 片段。
-///
-/// P5-T03 先把 segmentation skeleton 固定到“block + statement slice (+ 可选 terminator)”这一层，
-/// 以便后续 frame lifting / boundary lowering 在不回 P3 MIR 猜测的前提下，继续沿用同一套切分结果。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredStateSlice {
     block_id: BasicBlockId,
@@ -3269,33 +4234,48 @@ impl LateLoweredStateSlice {
     }
 }
 
-/// source-slice 中单条 statement 的 published 用途分类。
+/// LIR-owned executable body 中单条 statement 的 published 用途分类。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LateLoweredSourceStatementClassification {
+    anchor: LirBodyAnchor,
     source_slice: LateLoweredStateSlice,
-    statement_index: u32,
+    source_statement_index: u32,
     kind: LateLoweredSourceStatementClassificationKind,
 }
 
 impl LateLoweredSourceStatementClassification {
     pub fn new(
+        anchor: LirBodyAnchor,
         source_slice: LateLoweredStateSlice,
-        statement_index: u32,
+        source_statement_index: u32,
         kind: LateLoweredSourceStatementClassificationKind,
     ) -> Self {
         Self {
+            anchor,
             source_slice,
-            statement_index,
+            source_statement_index,
             kind,
         }
     }
 
-    pub fn source_slice(&self) -> LateLoweredStateSlice {
-        self.source_slice
+    pub fn anchor(&self) -> LirBodyAnchor {
+        self.anchor
+    }
+
+    pub fn state_id(&self) -> StateId {
+        match self.anchor {
+            LirBodyAnchor::State { state }
+            | LirBodyAnchor::Statement { state, .. }
+            | LirBodyAnchor::Terminator { state } => state,
+        }
     }
 
     pub fn statement_index(&self) -> u32 {
-        self.statement_index
+        self.source_statement_index
+    }
+
+    pub fn source_slice(&self) -> LateLoweredStateSlice {
+        self.source_slice
     }
 
     pub fn kind(&self) -> LateLoweredSourceStatementClassificationKind {
@@ -3327,6 +4307,10 @@ pub enum LateLoweredSourceStatementClassificationKind {
     HandleSyntheticCarrierBinder {
         site_id: SiteId,
         state_id: StateId,
+    },
+    DynamicInvokeCall {
+        site_id: SiteId,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
     },
     ElidedUnreachable,
     Unsupported {
@@ -3414,7 +4398,7 @@ impl LateLoweredCompletionPayloadSource {
     }
 }
 
-/// boundary 在 owner state source-slice 中消费哪一个 anchor。
+/// boundary 在 owner state LIR body 中消费哪一个 anchor。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LateLoweredBoundarySourceConsumption {
     Statement {
@@ -4234,7 +5218,7 @@ pub struct LateLoweredState {
     state_id: StateId,
     role: LateLoweredStateRole,
     source_slices: Vec<LateLoweredStateSlice>,
-    terminator: LateLoweredStateTerminator,
+    body: LirStateBody,
     successors: Vec<StateId>,
 }
 
@@ -4242,7 +5226,24 @@ impl LateLoweredState {
     pub fn new(
         state_id: StateId,
         role: LateLoweredStateRole,
+        statements: Vec<LirStatement>,
+        terminator: LateLoweredStateTerminator,
+    ) -> Self {
+        let successors = terminator.successors();
+        Self {
+            state_id,
+            role,
+            source_slices: Vec::new(),
+            body: LirStateBody::new(statements, terminator),
+            successors,
+        }
+    }
+
+    pub fn new_with_source_slices(
+        state_id: StateId,
+        role: LateLoweredStateRole,
         source_slices: Vec<LateLoweredStateSlice>,
+        statements: Vec<LirStatement>,
         terminator: LateLoweredStateTerminator,
     ) -> Self {
         let successors = terminator.successors();
@@ -4250,7 +5251,18 @@ impl LateLoweredState {
             state_id,
             role,
             source_slices,
-            terminator,
+            body: LirStateBody::new(statements, terminator),
+            successors,
+        }
+    }
+
+    pub fn from_body(state_id: StateId, role: LateLoweredStateRole, body: LirStateBody) -> Self {
+        let successors = body.terminator().successors();
+        Self {
+            state_id,
+            role,
+            source_slices: Vec::new(),
+            body,
             successors,
         }
     }
@@ -4263,12 +5275,20 @@ impl LateLoweredState {
         self.role
     }
 
+    pub fn body(&self) -> &LirStateBody {
+        &self.body
+    }
+
+    pub fn statements(&self) -> &[LirStatement] {
+        self.body.statements()
+    }
+
     pub fn source_slices(&self) -> &[LateLoweredStateSlice] {
         &self.source_slices
     }
 
     pub fn terminator(&self) -> &LateLoweredStateTerminator {
-        &self.terminator
+        self.body.terminator()
     }
 
     pub fn successors(&self) -> &[StateId] {
@@ -4276,11 +5296,12 @@ impl LateLoweredState {
     }
 
     pub fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
-        Self::new(
+        Self::new_with_source_slices(
             self.state_id,
             self.role,
             self.source_slices,
-            self.terminator.with_drop_state(drop_state),
+            self.body.statements().to_vec(),
+            self.body.terminator().clone().with_drop_state(drop_state),
         )
     }
 }
@@ -4804,6 +5825,7 @@ impl LateLoweredResumeBoundaryOperandContract {
 pub struct LateLoweredCallBoundaryLowering {
     facts: CallSiteEffectFacts,
     result_local: LocalId,
+    metadata: LateLoweredCallSiteMaterializedMetadata,
     operand_contract: Box<LateLoweredCallBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
     continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
@@ -4814,6 +5836,7 @@ impl LateLoweredCallBoundaryLowering {
     pub fn new(
         facts: CallSiteEffectFacts,
         result_local: LocalId,
+        metadata: LateLoweredCallSiteMaterializedMetadata,
         operand_contract: LateLoweredCallBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
         continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
@@ -4822,6 +5845,7 @@ impl LateLoweredCallBoundaryLowering {
         Self {
             facts,
             result_local,
+            metadata,
             operand_contract: Box::new(operand_contract),
             dispatch,
             continuation_compositions,
@@ -4835,6 +5859,10 @@ impl LateLoweredCallBoundaryLowering {
 
     pub fn result_local(&self) -> LocalId {
         self.result_local
+    }
+
+    pub fn metadata(&self) -> &LateLoweredCallSiteMaterializedMetadata {
+        &self.metadata
     }
 
     pub fn operand_contract(&self) -> &LateLoweredCallBoundaryOperandContract {
@@ -5494,6 +6522,81 @@ mod wire_tests {
         assert!(decoded.is_empty());
         assert!(decoded.class_ctor_init_bodies.is_empty());
         assert!(decoded.dump_type_texts.is_empty());
+    }
+
+    #[test]
+    fn lir_callable_index_maps_keys_to_program_indices() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let alpha_with_different_debug_path =
+            StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha.renamed");
+        let beta = StableLirCallableKey::new("lir_callable(beta)", "pkg.beta");
+        let index = LirCallableIndex::from_published_keys(vec![alpha.clone(), beta.clone()])
+            .expect("unique callable keys build an index");
+
+        let alpha_id = LirCallableId::from_raw(0);
+        let beta_id = LirCallableId::from_raw(1);
+
+        assert_eq!(index.len(), 2);
+        assert_eq!(index.id_for_key(&alpha), Ok(alpha_id));
+        assert_eq!(
+            index.id_for_key(&alpha_with_different_debug_path),
+            Ok(alpha_id)
+        );
+        assert_eq!(index.id_for_key(&beta), Ok(beta_id));
+        assert_eq!(index.key_for_id(beta_id), Ok(&beta));
+        assert_eq!(
+            index.hash_for_id(alpha_id),
+            Ok(LirCallableHash::from_stable_key(&alpha))
+        );
+    }
+
+    #[test]
+    fn lir_callable_index_reports_misses_without_panicking() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let missing = StableLirCallableKey::new("lir_callable(missing)", "pkg.missing");
+        let index = LirCallableIndex::from_published_keys(vec![alpha.clone()])
+            .expect("unique callable keys build an index");
+
+        assert_eq!(
+            index.id_for_key(&missing),
+            Err(LirCallableIndexError::UnknownPublishedKey { key: missing })
+        );
+        assert_eq!(
+            index.key_for_id(LirCallableId::from_raw(7)),
+            Err(LirCallableIndexError::UnknownCallableId {
+                id: LirCallableId::from_raw(7),
+                len: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn lir_callable_index_rejects_duplicate_published_keys() {
+        let alpha = StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha");
+        let alpha_with_different_debug_path =
+            StableLirCallableKey::new("lir_callable(alpha)", "pkg.alpha.renamed");
+        let error = LirCallableIndex::from_published_keys(vec![
+            alpha,
+            alpha_with_different_debug_path.clone(),
+        ])
+        .expect_err("duplicate callable keys are rejected");
+
+        match error {
+            LirCallableIndexError::DuplicatePublishedKey {
+                key,
+                first,
+                duplicate,
+            } => {
+                assert_eq!(key.as_str(), alpha_with_different_debug_path.as_str());
+                assert_eq!(
+                    key.readable_path(),
+                    alpha_with_different_debug_path.readable_path()
+                );
+                assert_eq!(first, LirCallableId::from_raw(0));
+                assert_eq!(duplicate, LirCallableId::from_raw(1));
+            }
+            other => panic!("expected duplicate-key error, got {other:?}"),
+        }
     }
 }
 

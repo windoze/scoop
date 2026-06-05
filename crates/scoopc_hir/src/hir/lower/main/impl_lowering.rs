@@ -30,11 +30,25 @@ impl<'a> HirLowering<'a> {
         "scoop.lang.string.StringBuilder.toString";
     pub(in crate::hir::lower) const TO_STRING_INTERFACE_METHOD_FQN: &'static str =
         "scoop.core.ToString.toString";
-    pub(in crate::hir::lower) const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
-    pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
-    pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
-    pub(in crate::hir::lower) const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
     pub(in crate::hir::lower) const PANIC_FQN: &'static str = "scoop.core.panic";
+
+    pub(in crate::hir::lower) fn builtin_to_string_method_fqn_for_ty(
+        &self,
+        ty: TypeId,
+    ) -> Option<&'static str> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
+            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                Some("scoop.core.String.toString")
+            }
+            _ => None,
+        }
+    }
 
     pub(crate) fn new(
         source: &'a SourceFile,
@@ -457,6 +471,7 @@ impl<'a> HirLowering<'a> {
                         pkg_prefix,
                         &owner_fqn,
                         &decl.type_params,
+                        decl.eff_param.as_ref(),
                         decl.name.span,
                         fun,
                     ));
@@ -498,6 +513,7 @@ impl<'a> HirLowering<'a> {
                         pkg_prefix,
                         &owner_fqn,
                         &[],
+                        None,
                         this_decl_span,
                         fun,
                     ));
@@ -583,13 +599,15 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         // receiver 已作为显式参数降入 `params`，因此 HIR 的 function type 不再单独保留 receiver 位。
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -611,6 +629,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -701,6 +721,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -718,11 +740,13 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         owner_fqn: &str,
         owner_type_params: &[ast::TypeParam],
+        owner_eff_param: Option<&ast::EffectRowParam>,
         this_decl_span: Span,
         fun: &ast::FunDecl,
     ) -> FunDecl {
         // owner type params 在 member 方法体内可见（例如 `class Box<T> { fun get(): T }`）。
         self.push_type_params(owner_type_params);
+        let owner_eff_binding_pushed = self.push_missing_fun_effect_placeholder(owner_eff_param);
         self.push_type_params(&fun.type_params);
         let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
 
@@ -734,7 +758,18 @@ impl<'a> HirLowering<'a> {
             .iter()
             .filter_map(|p| self.lookup_type_param(p.name.text(self.source)))
             .collect();
-        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, None);
+        let this_eff = owner_eff_param.and_then(|eff_param| {
+            let name = eff_param.name.text(self.source);
+            self.effect_row_param_scopes
+                .iter()
+                .rev()
+                .find_map(|scope| scope.get(name))
+                .map(|binding| match binding {
+                    EffectRowParamBinding::Placeholder(marker) => EffectRow::new(vec![*marker]),
+                    EffectRowParamBinding::Concrete(row) => row.clone(),
+                })
+        });
+        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, this_eff);
 
         let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + 1);
         params.push(Param {
@@ -767,12 +802,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -787,6 +824,9 @@ impl<'a> HirLowering<'a> {
             self.pop_effect_row_param_binding();
         }
         self.pop_type_params(); // fun type params
+        if owner_eff_binding_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params(); // owner type params
 
         FunDecl {
@@ -795,6 +835,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -883,6 +925,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -990,6 +1034,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -1066,12 +1112,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
@@ -1088,6 +1136,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -1113,6 +1163,7 @@ impl<'a> HirLowering<'a> {
         owner_fqn: &str,
         this_decl_span: Span,
         this_concrete_args: &[TypeId],
+        this_concrete_eff: Option<EffectRow>,
         fun: &ast::FunDecl,
     ) -> FunDecl {
         // 方法自身的 type params（如果有的话）仍然需要 push；
@@ -1124,7 +1175,11 @@ impl<'a> HirLowering<'a> {
         let fqn = format!("{owner_fqn}.{name}");
 
         let this_id = self.intern_local_symbol(this_decl_span, false);
-        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_concrete_args.to_vec(), None);
+        let this_ty = self.intern_nominal(
+            owner_fqn.to_string(),
+            this_concrete_args.to_vec(),
+            this_concrete_eff,
+        );
 
         let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + 1);
         params.push(Param {
@@ -1157,12 +1212,14 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any);
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let declared_effects = fun.effects.as_ref().map(|_| effects.clone());
+        let effects_closed = fun.effects.as_ref().is_some_and(|r| r.closed);
         let ty = self.types.ty_function(
             None,
             params.iter().map(|p| p.ty).collect(),
             return_ty,
             effects,
-            fun.effects.as_ref().is_some_and(|r| r.closed),
+            effects_closed,
         );
 
         let body = match &fun.body {
@@ -1183,6 +1240,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects,
+            effects_closed,
             params,
             return_ty,
             body,
@@ -1258,6 +1317,8 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             ty,
+            declared_effects: None,
+            effects_closed: false,
             params,
             return_ty,
             body,
@@ -1300,8 +1361,15 @@ impl<'a> HirLowering<'a> {
         ret_ty: TypeId,
         intrinsic_entry_name: Option<&str>,
     ) -> Expr {
+        let binding_args = args.clone();
         let expr = self.call_top_level_fun(span, fqn, args, ret_ty);
-        self.record_synthetic_top_level_fun_call_binding(expr.span, fqn, intrinsic_entry_name);
+        self.record_synthetic_top_level_fun_call_binding(
+            expr.span,
+            fqn,
+            &binding_args,
+            ret_ty,
+            intrinsic_entry_name,
+        );
         expr
     }
 
@@ -1359,6 +1427,14 @@ impl<'a> HirLowering<'a> {
             }
         }
 
+        self.record_synthetic_member_fun_call_binding(
+            span,
+            &target_fqn,
+            receiver_ty,
+            &args,
+            ret_ty,
+        );
+
         let mut call_args = Vec::with_capacity(args.len() + 1);
         call_args.push(CallArg::Positional(receiver));
         call_args.extend(args.into_iter().map(CallArg::Positional));
@@ -1380,10 +1456,68 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn record_synthetic_member_fun_call_binding(
+        &mut self,
+        span: Span,
+        fqn: &str,
+        receiver_ty: TypeId,
+        args: &[Expr],
+        ret_ty: TypeId,
+    ) {
+        let mut bindings = self.file.top_level_fun_call_bindings();
+
+        let Some(overload) = self.index.by_fqn.get(fqn).and_then(|syms| syms.fun.first()) else {
+            return;
+        };
+        let (mut type_args, owner_eff) = match self.types.kind(receiver_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (nominal.args.clone(), nominal.eff.clone())
+            }
+            _ => (Vec::new(), None),
+        };
+        if type_args.is_empty()
+            && owner_eff.is_none()
+            && overload.sig.type_params.is_empty()
+            && self.builtin_to_string_method_fqn_for_ty(receiver_ty) != Some(fqn)
+        {
+            return;
+        }
+        if !overload.sig.type_params.is_empty() {
+            type_args.extend(std::iter::repeat_n(
+                self.builtins.any,
+                overload.sig.type_params.len(),
+            ));
+        }
+        let eff_args = owner_eff.into_iter().collect::<Vec<_>>();
+        let mut param_tys = Vec::with_capacity(args.len() + 1);
+        param_tys.push(receiver_ty);
+        param_tys.extend(args.iter().map(|arg| arg.ty));
+
+        bindings.insert(
+            span,
+            crate::ast::TopLevelFunCallBinding {
+                fqn: fqn.to_string(),
+                decl_file: overload.symbol.decl_file.clone(),
+                decl_span: overload.symbol.span,
+                is_intrinsic: overload.sig.builtin_flags.is_intrinsic,
+                intrinsic_entry_name: overload.sig.builtin_flags.intrinsic_entry_name.clone(),
+                param_tys,
+                return_ty: Some(ret_ty),
+                type_args,
+                eff_args,
+                types_are_hir: true,
+            },
+        );
+        self.file.replace_top_level_fun_call_bindings(bindings);
+    }
+
     pub(crate) fn record_synthetic_top_level_fun_call_binding(
         &self,
         span: Span,
         fqn: &str,
+        args: &[Expr],
+        ret_ty: TypeId,
         intrinsic_entry_name: Option<&str>,
     ) {
         let mut bindings = self.file.top_level_fun_call_bindings();
@@ -1391,16 +1525,41 @@ impl<'a> HirLowering<'a> {
             return;
         }
 
-        let (decl_file, decl_span, is_intrinsic) = self
+        let (decl_file, decl_span, is_intrinsic, type_args, eff_args, param_tys, return_ty) = self
             .index
             .by_fqn
             .get(fqn)
             .and_then(|syms| syms.fun.first())
             .map(|fun| {
+                let (mut type_args, owner_eff) = fqn
+                    .rsplit_once('.')
+                    .and_then(|(owner_fqn, _)| args.first().map(|arg| (owner_fqn, arg.ty)))
+                    .and_then(
+                        |(owner_fqn, receiver_ty)| match self.types.kind(receiver_ty) {
+                            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                            | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                                if nominal.fqn == owner_fqn =>
+                            {
+                                Some((nominal.args.clone(), nominal.eff.clone()))
+                            }
+                            _ => None,
+                        },
+                    )
+                    .unwrap_or_else(|| (Vec::new(), None));
+                if !fun.sig.type_params.is_empty() {
+                    type_args.extend(std::iter::repeat_n(
+                        self.builtins.any,
+                        fun.sig.type_params.len(),
+                    ));
+                }
                 (
                     fun.symbol.decl_file.clone(),
                     fun.symbol.span,
                     fun.sig.builtin_flags.is_intrinsic,
+                    type_args,
+                    owner_eff.into_iter().collect::<Vec<_>>(),
+                    args.iter().map(|arg| arg.ty).collect::<Vec<_>>(),
+                    Some(ret_ty),
                 )
             })
             .unwrap_or_else(|| {
@@ -1408,6 +1567,10 @@ impl<'a> HirLowering<'a> {
                     self.source.path().to_path_buf(),
                     span,
                     intrinsic_entry_name.is_some(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
                 )
             });
 
@@ -1419,10 +1582,11 @@ impl<'a> HirLowering<'a> {
                 decl_span,
                 is_intrinsic,
                 intrinsic_entry_name: intrinsic_entry_name.map(str::to_string),
-                param_tys: Vec::new(),
-                return_ty: None,
-                type_args: Vec::new(),
-                eff_args: Vec::new(),
+                param_tys,
+                return_ty,
+                type_args,
+                eff_args,
+                types_are_hir: true,
             },
         );
         self.file.replace_top_level_fun_call_bindings(bindings);
@@ -1467,6 +1631,7 @@ impl<'a> HirLowering<'a> {
                 return_ty: None,
                 type_args: Vec::new(),
                 eff_args: Vec::new(),
+                types_are_hir: true,
             },
         );
         self.file.replace_top_level_fun_call_bindings(bindings);

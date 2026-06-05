@@ -32,26 +32,24 @@ pub(super) fn materialize_generic_mir(
 pub(super) struct TemplateRootInfo {
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) family: Vec<FunDecl>,
 }
 
 #[derive(Clone)]
 pub(super) struct TemplateRootCandidate {
-    pub(super) request_lookup_key: RequestTemplateKey,
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) signature_key: String,
     pub(super) root_fun: FunDecl,
 }
 
 #[derive(Clone)]
 pub(super) struct DeclOnlyTemplateCandidate {
-    pub(super) request_lookup_key: RequestTemplateKey,
     pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) signature_key: String,
     pub(super) signature: CallableSignatureInfo,
 }
@@ -66,9 +64,8 @@ pub(super) struct TemplateCatalogCandidate {
 
 #[derive(Clone)]
 pub(super) struct TemplateSignatureInfo {
-    pub(super) template: TemplateKey,
     pub(super) type_param_names: Vec<String>,
-    pub(super) eff_param_name: Option<String>,
+    pub(super) eff_param_names: Vec<String>,
     pub(super) fun_ty: TypeId,
     pub(super) return_ty: TypeId,
     pub(super) params: Vec<CallableSignatureParam>,
@@ -310,15 +307,15 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) request_root_funs: Vec<ReachableMirFun>,
     pub(super) hir_direct_instance_keys_by_fun: HashMap<(PathBuf, Span), Vec<InstanceKey>>,
     pub(super) generic_family_fqns: HashSet<String>,
-    pub(super) request_templates: HashMap<RequestTemplateKey, TemplateKey>,
+    pub(super) templates_by_stable_key: HashMap<StableTemplateKey, TemplateKey>,
     pub(super) roots: HashMap<TemplateKey, TemplateRootInfo>,
     pub(super) source_callable_signatures: Vec<super::MaterializedCallableSignature>,
+    pub(super) source_callable_effects: Vec<super::MaterializedCallableEffectTemplate>,
     pub(super) template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
     pub(super) stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) nongeneric_callable_stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
     pub(super) template_symbol_suffixes: HashMap<TemplateKey, String>,
     pub(super) roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
-    pub(super) explicit_dispatch_candidate_instances: HashMap<String, Vec<InstanceKey>>,
     pub(super) direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub(super) top_level_vars: crate::hir::TopLevelVarIndex,
@@ -361,25 +358,21 @@ pub(super) struct ReachableRvalueScanContext<'a> {
     pub(super) substitution: &'a InstanceSubstitution,
 }
 
-pub(super) struct DirectCallInferenceInput<'a> {
-    pub(super) template_source_path: &'a Path,
-    pub(super) call_span: Span,
-    pub(super) callee_fqn: &'a str,
-    pub(super) args: &'a [CallArg],
-    pub(super) result_ty: Option<TypeId>,
-    pub(super) locals: &'a [LocalDecl],
-    pub(super) substitution: &'a InstanceSubstitution,
-}
-
 #[derive(Clone, Copy)]
 pub(super) struct DirectCallRewriteContext<'a> {
     pub(super) template_source_path: &'a Path,
     pub(super) caller_fqn: &'a str,
     pub(super) block_id: BasicBlockId,
     pub(super) call_span: Span,
-    pub(super) result_ty: Option<TypeId>,
     pub(super) locals: &'a [LocalDecl],
     pub(super) substitution: &'a InstanceSubstitution,
+}
+
+pub(super) struct DirectCallStableIdentity<'a> {
+    pub(super) stable_template_key: &'a mut Option<Box<StableTemplateKey>>,
+    pub(super) stable_instance_key: &'a mut Option<Box<StableInstanceKey>>,
+    pub(super) generic_type_args: &'a [TypeId],
+    pub(super) generic_eff_args: &'a [EffectRow],
 }
 
 pub(super) fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
@@ -394,6 +387,84 @@ pub(super) fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
         TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
         TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
         _ => None,
+    }
+}
+
+pub(super) fn nominal_eff_row_from_type(types: &TypeStore, ty: TypeId) -> Option<EffectRow> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.eff.clone(),
+        _ => None,
+    }
+}
+
+pub(super) fn collect_effect_row_param_names_in_type(
+    types: &TypeStore,
+    ty: TypeId,
+    out: &mut HashSet<String>,
+) {
+    match types.kind(ty).clone() {
+        TypeKind::Param(param) => {
+            if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE {
+                out.insert(param.name);
+            }
+        }
+        TypeKind::StarProjection(star) => {
+            collect_effect_row_param_names_in_type(types, star.read_ty, out);
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            collect_effect_row_param_names_in_type(types, inner, out);
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            for element in elements {
+                collect_effect_row_param_names_in_type(types, element, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            for arg in nominal.args {
+                collect_effect_row_param_names_in_type(types, arg, out);
+            }
+            if let Some(row) = nominal.eff {
+                collect_effect_row_param_names_in_row(types, &row, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            if let Some(receiver) = fun.receiver {
+                collect_effect_row_param_names_in_type(types, receiver, out);
+            }
+            for param in fun.params {
+                collect_effect_row_param_names_in_type(types, param, out);
+            }
+            collect_effect_row_param_names_in_type(types, fun.return_ty, out);
+            collect_effect_row_param_names_in_row(types, &fun.effects, out);
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            for variant in union.variants {
+                collect_effect_row_param_names_in_type(types, variant, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+    }
+}
+
+fn collect_effect_row_param_names_in_row(
+    types: &TypeStore,
+    row: &EffectRow,
+    out: &mut HashSet<String>,
+) {
+    for term in &row.terms {
+        collect_effect_row_param_names_in_type(types, *term, out);
     }
 }
 

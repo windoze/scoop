@@ -5,7 +5,7 @@ package fixtures.run_pass_cone.managed_abi_string_gc
 
 import scoop.core.*
 
-@Extern("__scoop_abi0_fun__fixtures_run_pass_cone_managed_abi_string_gc_helper__h411fc9ef612d37f749170cc50aa965f6", abi = "scoop")
+@Extern("__scoop_abi0_fun__fixtures_run_pass_cone_managed_abi_string_gc_helper__h163d64bdec978fad321ab72137cfc856", abi = "scoop")
 fun helperExtern(): String
 
 public fun main() / Pure! {

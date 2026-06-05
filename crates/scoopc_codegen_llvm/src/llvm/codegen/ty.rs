@@ -139,14 +139,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })),
             "scoop.core.Float64" | "scoop.core.Double" => Some(CgTy::Float64),
             "scoop.core.Float32" => Some(CgTy::Float32),
+            "scoop.core.Array"
+            | "scoop.core.List"
+            | "scoop.collections.Set"
+            | "scoop.collections.MapView"
+            | "scoop.core.MutableArray"
+            | "scoop.core.MutableList"
+            | "scoop.collections.MutableSet"
+            | "scoop.collections.MutableMap" => Some(CgTy::Ref),
             "scoop.core.Int" => Some(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
             })),
-            "scoop.core.UInt" | "scoop.core.UIntPtr" => Some(CgTy::Int(IntTy {
-                bits: self.host.word_bit_width(),
-                signed: false,
-            })),
+            "scoop.core.UInt" | "scoop.core.UIntPtr" | "scoop.unsafe.Ptr" => {
+                Some(CgTy::Int(IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: false,
+                }))
+            }
             "scoop.core.Int8" => Some(CgTy::Int(IntTy {
                 bits: 8,
                 signed: true,
@@ -326,7 +336,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: self.host.word_bit_width(),
                 signed: false,
             })),
-            "scoop.core.UIntPtr" => Ok(CgTy::Int(IntTy {
+            "scoop.core.UIntPtr" | "scoop.unsafe.Ptr" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: false,
             })),

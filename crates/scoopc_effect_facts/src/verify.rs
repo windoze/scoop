@@ -4,7 +4,9 @@ use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use crate::facts::{CallableAbiKind, SiteEffectFacts};
+use crate::facts::{
+    CallSiteKind, CallSiteTarget, CallableAbiKind, EffectPrecision, SiteEffectFacts,
+};
 use crate::schema::{CaseSet, CaseTag, ContinuationSchemaId, StepSchemaId};
 use crate::{EffectFacts, StepSchema};
 
@@ -34,6 +36,21 @@ pub enum VerifyError {
     },
     CallableAbiSchemaMismatch {
         callable: String,
+    },
+    CallSiteTargetModeMismatch {
+        context: String,
+    },
+    EmptyCallSiteCandidateSet {
+        context: String,
+    },
+    InvalidCallSiteFallbackPrecision {
+        context: String,
+    },
+    CallSiteAbiSchemaMismatch {
+        context: String,
+    },
+    MissingLocalControlStepSchema {
+        body: String,
     },
 }
 
@@ -66,6 +83,23 @@ impl fmt::Display for VerifyError {
             Self::CallableAbiSchemaMismatch { callable } => write!(
                 f,
                 "callable `{callable}` has ABI/schema fields that disagree"
+            ),
+            Self::CallSiteTargetModeMismatch { context } => write!(
+                f,
+                "{context} has target_mode that does not match its target payload"
+            ),
+            Self::EmptyCallSiteCandidateSet { context } => {
+                write!(f, "{context} has an empty call target candidate set")
+            }
+            Self::InvalidCallSiteFallbackPrecision { context } => {
+                write!(f, "{context} still uses signature-fallback precision")
+            }
+            Self::CallSiteAbiSchemaMismatch { context } => {
+                write!(f, "{context} has ABI/schema fields that disagree")
+            }
+            Self::MissingLocalControlStepSchema { body } => write!(
+                f,
+                "body `{body}` has plain local effect/control but no local_control_step_schema"
             ),
         }
     }
@@ -166,6 +200,15 @@ fn verify_callables(facts: &EffectFacts) -> Result<()> {
 fn verify_bodies(facts: &EffectFacts) -> Result<()> {
     for (key, body) in &facts.bodies {
         let body_name = key.readable_path();
+        if facts.callables.get(key).is_some_and(|callable| {
+            matches!(callable.call_abi_kind(), CallableAbiKind::Plain)
+                && body_needs_plain_local_control(body)
+        }) && body.local_control_step_schema().is_none()
+        {
+            return Err(VerifyError::MissingLocalControlStepSchema {
+                body: body_name.to_string(),
+            });
+        }
         if let Some(schema) = body.local_control_step_schema() {
             verify_step_schema_exists(
                 facts,
@@ -197,9 +240,20 @@ fn verify_bodies(facts: &EffectFacts) -> Result<()> {
     Ok(())
 }
 
+fn body_needs_plain_local_control(body: &crate::facts::BodyEffectFacts) -> bool {
+    body.sites().values().any(|site| match site {
+        SiteEffectFacts::Call(call) => !call.resolved_cases().is_empty(),
+        SiteEffectFacts::ClassCtor(class_ctor) => !class_ctor.emitted_cases().is_empty(),
+        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
+            true
+        }
+    })
+}
+
 fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: String) -> Result<()> {
     match site {
         SiteEffectFacts::Call(call) => {
+            verify_call_site_shape(facts, call, &context)?;
             if let Some(schema) = call.callee_step_schema() {
                 verify_step_schema_exists(facts, schema, format!("{context} callee_schema"))?;
             }
@@ -269,6 +323,72 @@ fn verify_site_facts(facts: &EffectFacts, site: &SiteEffectFacts, context: Strin
                     arm.arm_outward_cases(),
                     format!("{context} arm {index} outward_cases"),
                 )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_call_site_shape(
+    _facts: &EffectFacts,
+    call: &crate::facts::CallSiteEffectFacts,
+    context: &str,
+) -> Result<()> {
+    if call.target_mode() != call.target().mode() {
+        return Err(VerifyError::CallSiteTargetModeMismatch {
+            context: context.to_string(),
+        });
+    }
+    if matches!(call.target(), CallSiteTarget::CandidateSet(keys) if keys.is_empty()) {
+        return Err(VerifyError::EmptyCallSiteCandidateSet {
+            context: context.to_string(),
+        });
+    }
+    if matches!(call.precision(), EffectPrecision::SignatureFallback) {
+        return Err(VerifyError::InvalidCallSiteFallbackPrecision {
+            context: context.to_string(),
+        });
+    }
+    match call.target() {
+        CallSiteTarget::KnownInstance(_) | CallSiteTarget::CandidateSet(_) => {}
+        CallSiteTarget::BodylessDirect { fqn } => {
+            if fqn.is_empty() {
+                return Err(VerifyError::CallSiteTargetModeMismatch {
+                    context: format!("{context} bodyless direct target is empty"),
+                });
+            }
+        }
+        CallSiteTarget::DynamicFallback => {
+            if matches!(
+                call.kind(),
+                CallSiteKind::Direct | CallSiteKind::Virtual | CallSiteKind::Interface
+            ) {
+                return Err(VerifyError::CallSiteTargetModeMismatch {
+                    context: format!(
+                        "{context} direct/dispatch call must not use dynamic fallback"
+                    ),
+                });
+            }
+        }
+    }
+    match call.callee_abi_kind() {
+        CallableAbiKind::Plain => {
+            if call.callee_step_schema().is_some() || !call.resolved_cases().is_empty() {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
+            }
+        }
+        CallableAbiKind::EffectStep => {
+            let Some(schema) = call.callee_step_schema() else {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
+            };
+            if call.resolved_cases().schema() != schema {
+                return Err(VerifyError::CallSiteAbiSchemaMismatch {
+                    context: context.to_string(),
+                });
             }
         }
     }

@@ -5,7 +5,6 @@ use super::*;
 mod atomic;
 mod builtin;
 mod named;
-mod sync;
 mod sysroot;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {

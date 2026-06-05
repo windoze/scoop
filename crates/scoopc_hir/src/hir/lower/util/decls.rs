@@ -426,6 +426,7 @@ pub(in crate::hir::lower) fn resolve_supertypes(
 pub(in crate::hir::lower) struct InitCollectionCx<'a> {
     pub source: &'a SourceFile,
     pub file: &'a ast::File,
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub index: &'a Index,
     pub type_kinds: &'a HashMap<String, ast::TypeKind>,
     pub typecheck_types: Option<&'a TypeStore>,
@@ -449,6 +450,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
     let InitCollectionCx {
         source,
         file,
+        compilation_unit,
         index,
         type_kinds,
         typecheck_types,
@@ -456,13 +458,13 @@ pub(in crate::hir::lower) fn collect_object_inits(
         materialize_direct_call_targets,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
-    let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
+    let default_arg_structs = super::super::collect_default_arg_structs(compilation_unit);
     let computed_property_accessors =
-        super::super::collect_computed_property_accessor_fqns(&compilation_unit);
+        super::super::collect_computed_property_accessor_fqns(compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(index, &compilation_unit);
+        collect_generic_template_symbol_suffixes(index, compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -472,7 +474,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             computed_property_getters: &computed_property_accessors.getters,
             computed_property_setters: &computed_property_accessors.setters,
@@ -481,6 +483,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             materialize_direct_call_targets,
         },
     );
+    ctx.next_synthetic_call_site = 50_000;
 
     let mut out: ObjectInitIndex = HashMap::new();
     for item in &file.items {
@@ -630,6 +633,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
     let InitCollectionCx {
         source,
         file,
+        compilation_unit,
         index,
         type_kinds,
         typecheck_types,
@@ -637,13 +641,13 @@ pub(in crate::hir::lower) fn collect_class_inits(
         materialize_direct_call_targets,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
-    let default_arg_structs = super::super::collect_default_arg_structs(&compilation_unit);
+    let delegated_properties =
+        collect_delegated_properties(compilation_unit, index, typecheck_types);
+    let default_arg_structs = super::super::collect_default_arg_structs(compilation_unit);
     let computed_property_accessors =
-        super::super::collect_computed_property_accessor_fqns(&compilation_unit);
+        super::super::collect_computed_property_accessor_fqns(compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(index, &compilation_unit);
+        collect_generic_template_symbol_suffixes(index, compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -653,7 +657,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             computed_property_getters: &computed_property_accessors.getters,
             computed_property_setters: &computed_property_accessors.setters,
@@ -662,6 +666,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             materialize_direct_call_targets,
         },
     );
+    ctx.next_synthetic_call_site = 100_000;
 
     let mut out: GenericClassDeclIndex = HashMap::new();
     let mut mono_out: ClassInitIndex = HashMap::new();
@@ -857,6 +862,7 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     // T0125：泛型 class 的 ctor 参数类型可能引用 type params（如 `T`），
     // 需要在 lowering 之前推入 type param 作用域，使 `lower_type_ref` 能够解析为 `TypeKind::Param`。
     ctx.push_type_params(&decl.type_params);
+    let type_eff_pushed = ctx.push_missing_fun_effect_placeholder(decl.eff_param.as_ref());
 
     // primary ctor（若存在）。注意：resolver 当前只会把”显式 primary ctor”加入 constructors overload set，
     // 因此这里也只收集显式 primary ctor。
@@ -927,199 +933,73 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                             .map(|t| ctx.lower_type_ref(t))
                             .unwrap_or(ctx.builtins.any);
 
-                    // delegated property（spec §10.4）：标准 delegates（lazy/observable/vetoable）与 map-backed。
+                    // delegated property（spec §10.4）：store the delegate object in a normal
+                    // `$delegate` field; reads/writes lower to `getValue` / `setValue` calls.
                     if let Some(delegate_expr) = p.delegate.as_ref() {
-                        match parse_std_delegate_expr(ctx.source, delegate_expr) {
-                            Some(ParsedStdDelegateExpr::Lazy { mode, .. }) => {
-                                // lazy：为属性生成两个隐藏字段：
-                                // - `<name>$lazy_inited: Bool`
-                                // - `<name>$lazy_value: T`
-                                // - （可选）`<name>$lazy_mutex: Mutex`（当 mode 需要互斥锁时）
-                                //
-                                // getter 会在首次访问时写入 `<name>$lazy_value` 并把 `<name>$lazy_inited` 置 true。
-                                let inited_fqn = format!("{class_fqn}.{name}$lazy_inited");
-                                let value_fqn = format!("{class_fqn}.{name}$lazy_value");
-                                let mutex_fqn = format!("{class_fqn}.{name}$lazy_mutex");
-
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: inited_fqn.clone(),
-                                        name: format!("{name}$lazy_inited"),
-                                        mutable: true,
-                                        ty: ctx.builtins.bool_,
-                                    },
-                                );
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: value_fqn,
-                                        name: format!("{name}$lazy_value"),
-                                        mutable: true,
-                                        ty,
-                                    },
-                                );
-
-                                if mode.requires_mutex() {
-                                    let mutex_ty = ctx.intern_nominal(
-                                        HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
-                                        Vec::new(),
-                                        None,
-                                    );
-                                    insert_field(
-                                        &mut init,
-                                        ClassField {
-                                            fqn: mutex_fqn.clone(),
-                                            name: format!("{name}$lazy_mutex"),
-                                            mutable: false,
-                                            ty: mutex_ty,
-                                        },
-                                    );
-                                    init.steps.push(ClassInitStep::PropertyInit {
-                                        field_fqn: mutex_fqn,
-                                        init: ctx.call_top_level_fun(
-                                            p.name.span,
-                                            HirLowering::SYNC_MUTEX_CREATE_FQN,
-                                            Vec::new(),
-                                            mutex_ty,
-                                        ),
-                                    });
+                        let field_fqn = format!("{class_fqn}.{name}$delegate");
+                        let property_fqn = format!("{class_fqn}.{name}");
+                        let delegate_ty = ctx
+                            .delegated_properties
+                            .get(&property_fqn)
+                            .cloned()
+                            .map(|info| {
+                                if info.delegate_ty.is_none()
+                                    && let Some(class_fqn) = info.delegate_class_fqn.as_ref()
+                                    && ctx.type_param_count_for_nominal_fqn(class_fqn) == Some(1)
+                                {
+                                    ctx.intern_nominal(class_fqn.clone(), vec![ty], None)
+                                } else {
+                                    ctx.specialized_delegated_property_delegate_ty(&info, ty)
                                 }
-
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn: inited_fqn,
-                                    init: super::super::Expr {
-                                        span: p.name.span,
-                                        ty: ctx.builtins.bool_,
-                                        kind: super::super::ExprKind::Literal(LiteralKind::Bool(
-                                            false,
-                                        )),
-                                    },
-                                });
-                            }
-                            Some(ParsedStdDelegateExpr::Observable { initial, .. })
-                            | Some(ParsedStdDelegateExpr::Vetoable { initial, .. }) => {
-                                // observable/vetoable：在 early stage 采用“编译器内建 delegate”策略：
-                                // - 把当前值落到真实字段 `<name>`；
-                                // - 注入一个内部互斥锁字段 `<name>$delegate_mutex: Mutex`；
-                                // - 在 getter/setter lowering 时通过该 mutex 保障并发可见性（T1326b）。
-                                let mutex_fqn = format!("{class_fqn}.{name}$delegate_mutex");
-                                let mutex_ty = ctx.intern_nominal(
-                                    HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
-                                    Vec::new(),
-                                    None,
-                                );
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: mutex_fqn.clone(),
-                                        name: format!("{name}$delegate_mutex"),
-                                        mutable: false,
-                                        ty: mutex_ty,
-                                    },
-                                );
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn: mutex_fqn,
-                                    init: ctx.call_top_level_fun(
-                                        p.name.span,
-                                        HirLowering::SYNC_MUTEX_CREATE_FQN,
-                                        Vec::new(),
-                                        mutex_ty,
-                                    ),
-                                });
-
-                                // 把当前值落到真实字段 `<name>`，并在初始化时写入 `initial`。
-                                let field_fqn = format!("{class_fqn}.{name}");
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: field_fqn.clone(),
-                                        name,
-                                        mutable: true,
-                                        ty,
-                                    },
-                                );
-                                let lowered = ctx.lower_expr(pkg_prefix, &initial);
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn,
-                                    init: lowered,
-                                });
-                            }
-                            Some(ParsedStdDelegateExpr::MapBacked { delegate }) => {
-                                // map-backed：早期阶段在初始化时把 `by data` 的值写入真实字段 `<name>`。
-                                //
-                                // 约束：目前只支持 delegate 为 `this.data` 这类“class 字段访问”，
-                                // 并要求 delegate 类型存在同名字段（`data.<name>`）。
-                                let field_fqn = format!("{class_fqn}.{name}");
-                                insert_field(
-                                    &mut init,
-                                    ClassField {
-                                        fqn: field_fqn.clone(),
-                                        name: name.clone(),
-                                        mutable: false,
-                                        ty,
-                                    },
-                                );
-
-                                let delegate_field_fqn = match &delegate.kind {
-                                    ast::ExprKind::MemberAccess { member, .. } => {
-                                        let Some(ast::ResolvedMemberRef::Value { fqn }) =
-                                            member.resolved.as_ref()
-                                        else {
-                                            continue;
-                                        };
-                                        fqn.clone()
-                                    }
-                                    _ => continue,
-                                };
-
-                                let Some(idx) =
-                                    init.field_indices.get(&delegate_field_fqn).copied()
-                                else {
-                                    continue;
-                                };
-                                let Some(delegate_field) = init.fields.get(idx as usize) else {
-                                    continue;
-                                };
-
-                                let delegate_ty_fqn = match ctx.types.kind(delegate_field.ty) {
-                                    TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                                        nominal.fqn.clone()
-                                    }
-                                    TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                                        nominal.fqn.clone()
-                                    }
-                                    _ => continue,
-                                };
-
-                                let delegate_member_fqn = format!("{delegate_ty_fqn}.{name}");
-                                let delegate_recv = ctx.lower_expr(pkg_prefix, &delegate);
-                                let init_expr = super::super::Expr {
-                                    span: p.name.span,
-                                    ty: ctx.builtins.any,
-                                    kind: super::super::ExprKind::MemberAccess {
-                                        receiver: Box::new(delegate_recv),
-                                        member: MemberAccess {
-                                            span: p.name.span,
-                                            name: name.clone(),
-                                            resolved: Some(MemberRef::Value {
-                                                id: ctx
-                                                    .symbols
-                                                    .intern_top_level(delegate_member_fqn.clone()),
-                                                fqn: delegate_member_fqn,
-                                            }),
-                                        },
-                                    },
-                                };
-                                init.steps.push(ClassInitStep::PropertyInit {
-                                    field_fqn,
-                                    init: init_expr,
-                                });
-                            }
-                            None => {
-                                // 非标准 delegated property：当前阶段不纳入 class init side table。
-                            }
+                            })
+                            .unwrap_or(ctx.builtins.any);
+                        let expected_fun_binding = ctx
+                            .typechecked_top_level_fun_call_binding(delegate_expr.span)
+                            .map(|binding| {
+                                ctx.fun_call_binding_with_expected_return(
+                                    binding,
+                                    Some(delegate_ty),
+                                )
+                            });
+                        let mut init_expr = ctx.lower_expr_with_expected(
+                            pkg_prefix,
+                            delegate_expr,
+                            ExpectedExpr {
+                                value_ty: Some(delegate_ty),
+                                ..ExpectedExpr::default()
+                            },
+                        );
+                        let materialized_target = expected_fun_binding
+                            .as_ref()
+                            .and_then(|binding| {
+                                ctx.materialized_direct_call_target_fqn_for_binding(binding)
+                            })
+                            .or_else(|| {
+                                materialized_delegate_factory_target_fqn(
+                                    ctx,
+                                    delegate_expr,
+                                    delegate_ty,
+                                )
+                            });
+                        if let Some(target_fqn) = materialized_target
+                            && let super::super::ExprKind::Call { callee, .. } = &mut init_expr.kind
+                        {
+                            **callee =
+                                ctx.top_level_callee_expr_with_fqn(delegate_expr.span, target_fqn);
                         }
+                        insert_field(
+                            &mut init,
+                            ClassField {
+                                fqn: field_fqn.clone(),
+                                name: format!("{name}$delegate"),
+                                mutable: false,
+                                ty: delegate_ty,
+                            },
+                        );
+                        init.steps.push(ClassInitStep::PropertyInit {
+                            field_fqn,
+                            init: init_expr,
+                        });
                         continue;
                     }
 
@@ -1208,6 +1088,9 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         }
     }
 
+    if type_eff_pushed {
+        ctx.pop_effect_row_param_binding();
+    }
     ctx.pop_type_params();
 
     // 非泛型 class 在此处直接构造 MonoClassInit；泛型 class 仅入 generic_class_decls，
@@ -1236,6 +1119,50 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         }
     }
     Ok(())
+}
+
+fn materialized_delegate_factory_target_fqn(
+    ctx: &HirLowering<'_>,
+    delegate_expr: &ast::Expr,
+    delegate_ty: TypeId,
+) -> Option<String> {
+    let ast::ExprKind::Call { callee, args } = &delegate_expr.kind else {
+        return None;
+    };
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+    let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+        return None;
+    };
+    let (type_args, eff_args) = match ctx.types.kind(delegate_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let eff_args = nominal.eff.clone().into_iter().collect::<Vec<_>>();
+            (nominal.args.clone(), eff_args)
+        }
+        _ => return None,
+    };
+    if type_args.is_empty() {
+        return None;
+    }
+    let overload = ctx.index.by_fqn.get(fqn).and_then(|symbols| {
+        symbols
+            .fun
+            .iter()
+            .find(|overload| overload.sig.params.len() == args.len())
+            .or_else(|| symbols.fun.first())
+    })?;
+    if overload.sig.type_params.len() != type_args.len() {
+        return None;
+    }
+    Some(ctx.materialized_instance_fqn_for_decl(
+        fqn,
+        overload.symbol.decl_file.as_path(),
+        overload.symbol.span,
+        &type_args,
+        &eff_args,
+    ))
 }
 
 #[cfg(test)]

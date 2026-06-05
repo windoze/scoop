@@ -97,6 +97,11 @@ extern uint64_t* scoop_once_guard_canonicalize(const char* symbol_name, uint64_t
 extern uint32_t scoop_once_begin(uint64_t* guard_word);
 extern void scoop_once_end(uint64_t* guard_word);
 
+// This test links scoop_once.c in isolation rather than a full GC backend. The
+// real runtime provides this safepoint hook; the guard canonicalization test only
+// needs a no-op while waiting for another plugin's once init to finish.
+void scoop_gc_safepoint_poll(void) {{}}
+
 // macOS：dlsym("NAME") 会按 C 语义查找，并自动补一个前导 '_' 变为 "_NAME"。
 // 因此为了让 `dlsym(RTLD_DEFAULT, "{guard_symbol}")` 能命中，这里把实际导出符号名设为 "_{guard_symbol}"。
 // Linux：dlsym 不会自动补 '_'，所以直接使用 "{guard_symbol}" 即可。

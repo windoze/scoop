@@ -40,8 +40,9 @@ pub use emit::{
     emit_main_obj_to_file_from_stage_output,
 };
 pub use handoff::{
-    CachedDepArtifactHandoff, LlvmArtifactKind, LlvmCallableSourceContract, LlvmCodegenStageOutput,
-    LlvmDispatchCallKey, LlvmStageBaseContext,
+    CachedDepArtifactHandoff, EntryMainArgShape, EntryRef, LlvmArtifactKind,
+    LlvmCallableSourceContract, LlvmCodegenStageOutput, LlvmDepLirArtifactHandoff,
+    LlvmStageBaseContext,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 

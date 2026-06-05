@@ -47,8 +47,8 @@ use super::{
     Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
     FieldDecl, FieldOrigin, File, FunDecl, GenericClassDeclIndex, Item, MemberFunDecl, MemberRef,
     NominalDecl, NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param,
-    PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl,
-    ValDecl, ValueRef, WithUpdateSiteIndex,
+    PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TopLevelFunValueRefIndex,
+    TopLevelVarStorage, TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
 };
 
 use types::*;
@@ -64,6 +64,18 @@ fn collect_top_level_fun_call_sites(
         }
     }
     sites
+}
+
+fn collect_top_level_fun_value_refs(
+    files: &[(&SourceFile, &ast::File)],
+) -> TopLevelFunValueRefIndex {
+    let mut refs = HashMap::new();
+    for (source, file) in files {
+        for (span, binding) in file.top_level_fun_value_refs() {
+            refs.insert(CallSite::new(source.path().to_path_buf(), span), binding);
+        }
+    }
+    refs
 }
 
 fn collect_synthetic_named_intrinsic_call_sites(
@@ -429,6 +441,7 @@ fn named_intrinsic_binding_for_callee(
         return_ty: None,
         type_args: Vec::new(),
         eff_args: Vec::new(),
+        types_are_hir: true,
     })
 }
 
@@ -463,6 +476,7 @@ fn synthetic_array_helper_binding_for_call(
         return_ty: None,
         type_args,
         eff_args: Vec::new(),
+        types_are_hir: true,
     })
 }
 
@@ -517,6 +531,9 @@ fn collect_top_level_fun_call_sites_with_type_remap(
         return sites;
     };
     for binding in sites.values_mut() {
+        if binding.types_are_hir {
+            continue;
+        }
         binding.param_tys = binding
             .param_tys
             .iter()
@@ -542,8 +559,40 @@ fn collect_top_level_fun_call_sites_with_type_remap(
                 )
             })
             .collect();
+        binding.types_are_hir = true;
     }
     sites
+}
+
+fn collect_top_level_fun_value_refs_with_type_remap(
+    files: &[(&SourceFile, &ast::File)],
+    typecheck_types: Option<&TypeStore>,
+    types: &mut TypeStore,
+) -> TopLevelFunValueRefIndex {
+    let mut refs = collect_top_level_fun_value_refs(files);
+    let Some(typecheck_types) = typecheck_types else {
+        return refs;
+    };
+    for binding in refs.values_mut() {
+        binding.type_args = binding
+            .type_args
+            .iter()
+            .map(|&ty| types.re_intern_from(typecheck_types, ty))
+            .collect();
+        binding.eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                crate::ty::EffectRow::new(
+                    row.terms
+                        .iter()
+                        .map(|&ty| types.re_intern_from(typecheck_types, ty))
+                        .collect(),
+                )
+            })
+            .collect();
+    }
+    refs
 }
 
 fn collect_call_arg_bindings(files: &[(&SourceFile, &ast::File)]) -> CallArgBindingSiteIndex {
@@ -574,9 +623,8 @@ struct HirLowering<'a> {
     /// - `receiver.prop` 读取：降糖为 `receiver.prop$delegate.getValue(receiver, PropertyMeta)`；
     /// - `receiver.prop = value` 写入：降糖为 `receiver.prop$delegate.setValue(receiver, PropertyMeta, value)`。
     ///
-    /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
-    /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
-    delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    /// `$delegate` 字段由 class init side table 初始化，`PropertyMeta` 在调用点按值合成。
+    delegated_properties: &'a DelegatedPropertyIndex,
     /// 当前 lowering 可见的完整编译单元 AST（含 sysroot/同编译单元其它文件）。
     ///
     /// 用途：
@@ -673,7 +721,7 @@ struct HirLowering<'a> {
 struct HirLoweringSetup<'a> {
     typecheck_types: Option<&'a TypeStore>,
     type_kinds: &'a HashMap<String, ast::TypeKind>,
-    delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    delegated_properties: &'a DelegatedPropertyIndex,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     computed_property_getters: &'a HashSet<String>,

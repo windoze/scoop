@@ -9,10 +9,10 @@ use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 
 use crate::effect_lowered::mir_source::{
-    self as mir, AggregateTransportMetadata, ArrayElementTransportMetadata, CallTransportMetadata,
-    ClosureEnvTransportMetadata, GcIntrinsicTransportMetadata, MirBoxingReason, MirTransportKind,
-    Rvalue, StatementKind, TerminatorKind, ValueTransportMetadata,
+    self as mir, AggregateTransportMetadata, ArrayElementTransportMetadata,
+    ClosureEnvTransportMetadata, MirBoxingReason, MirTransportKind, ValueTransportMetadata,
 };
+use crate::effect_lowered::{LirExecutableBody, LirRvalue, LirStatementKind};
 use crate::llvm::{BackendGateError, LlvmEmitError};
 use crate::span::Span;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_list, canonical_record};
@@ -105,122 +105,122 @@ fn composite_transport_kind_key(kind: MirTransportKind) -> &'static str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(super) fn verify_mir_body_composite_transport_contract(
+    pub(super) fn verify_lir_body_composite_transport_contract(
         &mut self,
         body_fqn: &str,
-        body_span: Span,
-        body: &mir::Body,
-        mir_types: &TypeStore,
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
     ) -> Result<(), LlvmEmitError> {
-        for block in &body.blocks {
-            for stmt in &block.stmts {
-                if let StatementKind::Assign { value, .. } = &stmt.kind {
-                    self.verify_rvalue_composite_transport_contract(
-                        body_fqn, stmt.span, value, mir_types,
-                    )?;
-                }
-            }
-
-            if let TerminatorKind::Perform { metadata, .. } = &block.terminator.kind {
-                for transport in &metadata.payload_transport {
-                    self.verify_value_composite_transport_contract(
+        for state in body.states().states() {
+            for stmt in state.body().statements() {
+                if let LirStatementKind::Assign { value, .. } = &stmt.kind {
+                    self.verify_lir_rvalue_composite_transport_contract(
                         body_fqn,
-                        block.terminator.span,
-                        mir_types,
-                        transport,
+                        stmt.span,
+                        value,
+                        source_types,
                     )?;
                 }
             }
         }
 
-        if body.blocks.is_empty() {
+        if body.states().states().is_empty() {
             return Err(composite_transport_gate_error(
                 body_fqn,
-                body_span,
+                body.header().span(),
                 "PIPELINE_GAPS §4.1",
-                "composite transport verifier reached an empty body before layout contract checks",
+                "composite transport verifier reached an empty LIR body before layout contract checks",
             ));
         }
 
         Ok(())
     }
 
-    fn verify_rvalue_composite_transport_contract(
+    fn verify_lir_rvalue_composite_transport_contract(
         &mut self,
         body_fqn: &str,
         span: Span,
-        value: &Rvalue,
-        mir_types: &TypeStore,
+        value: &LirRvalue,
+        source_types: &TypeStore,
     ) -> Result<(), LlvmEmitError> {
         match value {
-            Rvalue::EnumVariant { payload, .. }
-            | Rvalue::MakeTuple {
+            LirRvalue::EnumVariant { payload, .. }
+            | LirRvalue::MakeTuple {
                 transport: payload, ..
             }
-            | Rvalue::StructLit {
+            | LirRvalue::StructLit {
                 transport: payload, ..
-            } => self
-                .verify_aggregate_composite_transport_contract(body_fqn, span, mir_types, payload),
-            Rvalue::MakeClosure { env_contract, .. } => self
+            } => self.verify_aggregate_composite_transport_contract(
+                body_fqn,
+                span,
+                source_types,
+                payload,
+            ),
+            LirRvalue::MakeClosure { env_contract, .. } => self
                 .verify_closure_env_composite_transport_contract(
                     body_fqn,
                     span,
-                    mir_types,
+                    source_types,
                     env_contract,
                 ),
-            Rvalue::Call { transport, .. } => {
-                self.verify_call_composite_transport_contract(body_fqn, span, mir_types, transport)
-            }
-            Rvalue::Transport { transport, .. } => {
-                self.verify_value_composite_transport_contract(body_fqn, span, mir_types, transport)
-            }
-            Rvalue::Use(_)
-            | Rvalue::TopLevelRef(_)
-            | Rvalue::UnresolvedName { .. }
-            | Rvalue::TypeCheck { .. }
-            | Rvalue::Cast { .. }
-            | Rvalue::MemberAccess { .. }
-            | Rvalue::ClassCtor { .. }
-            | Rvalue::SizeOf { .. }
-            | Rvalue::KindOf { .. }
-            | Rvalue::AlignOf { .. }
-            | Rvalue::DescOf { .. }
-            | Rvalue::TypeMetadataLiteral(_)
-            | Rvalue::InterpolatedString { .. }
-            | Rvalue::TupleGet { .. }
-            | Rvalue::PatternMatch { .. }
-            | Rvalue::PatternExtract { .. }
-            | Rvalue::PerformResult { .. }
-            | Rvalue::Todo(_) => Ok(()),
+            LirRvalue::Call { transport, .. } => self.verify_lir_call_composite_transport_contract(
+                body_fqn,
+                span,
+                source_types,
+                transport,
+            ),
+            LirRvalue::Transport { transport, .. } => self
+                .verify_value_composite_transport_contract(body_fqn, span, source_types, transport),
+            LirRvalue::Use(_)
+            | LirRvalue::TopLevelRef(_)
+            | LirRvalue::TypeCheck { .. }
+            | LirRvalue::Cast { .. }
+            | LirRvalue::MemberAccess { .. }
+            | LirRvalue::ClassCtor { .. }
+            | LirRvalue::SizeOf { .. }
+            | LirRvalue::KindOf { .. }
+            | LirRvalue::AlignOf { .. }
+            | LirRvalue::DescOf { .. }
+            | LirRvalue::TypeMetadataLiteral(_)
+            | LirRvalue::InterpolatedString { .. }
+            | LirRvalue::TupleGet { .. }
+            | LirRvalue::PatternMatch { .. }
+            | LirRvalue::PatternExtract { .. }
+            | LirRvalue::PerformResult { .. } => Ok(()),
         }
     }
 
-    fn verify_call_composite_transport_contract(
+    fn verify_lir_call_composite_transport_contract(
         &mut self,
         body_fqn: &str,
         span: Span,
-        mir_types: &TypeStore,
-        transport: &CallTransportMetadata,
+        source_types: &TypeStore,
+        transport: &crate::effect_lowered::LirCallTransportMetadata,
     ) -> Result<(), LlvmEmitError> {
         self.verify_value_composite_transport_contract(
             body_fqn,
             span,
-            mir_types,
+            source_types,
             &transport.result,
         )?;
         if let Some(aggregate_return) = &transport.aggregate_return {
             self.verify_value_composite_transport_contract(
                 body_fqn,
                 span,
-                mir_types,
+                source_types,
                 aggregate_return,
             )?;
         }
         if let Some(array) = &transport.array {
-            self.verify_array_composite_transport_contract(body_fqn, span, mir_types, array)?;
+            self.verify_array_composite_transport_contract(body_fqn, span, source_types, array)?;
         }
         if let Some(gc) = &transport.gc {
-            self.verify_gc_intrinsic_composite_transport_contract(body_fqn, span, mir_types, gc)?;
+            self.verify_value_composite_transport_contract(
+                body_fqn,
+                span,
+                source_types,
+                &gc.subject,
+            )?;
         }
         Ok(())
     }
@@ -290,16 +290,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         metadata: &ArrayElementTransportMetadata,
     ) -> Result<(), LlvmEmitError> {
         self.verify_value_composite_transport_contract(body_fqn, span, mir_types, &metadata.element)
-    }
-
-    fn verify_gc_intrinsic_composite_transport_contract(
-        &mut self,
-        body_fqn: &str,
-        span: Span,
-        mir_types: &TypeStore,
-        metadata: &GcIntrinsicTransportMetadata,
-    ) -> Result<(), LlvmEmitError> {
-        self.verify_value_composite_transport_contract(body_fqn, span, mir_types, &metadata.subject)
     }
 
     fn verify_value_composite_transport_contract(
@@ -746,11 +736,7 @@ pub(in crate::llvm::codegen) fn composite_transport_codegen_guard_error<'a, 'ctx
     detail: &'static str,
 ) -> LlvmEmitError {
     composite_transport_gate_error(
-        codegen
-            .function_cx
-            .current_callable_fqn
-            .as_deref()
-            .unwrap_or("<unknown>"),
+        &codegen.current_callable_diagnostic_label(),
         span,
         gap_id,
         detail,

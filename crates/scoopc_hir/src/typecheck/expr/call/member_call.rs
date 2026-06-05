@@ -1078,12 +1078,16 @@ pub(super) fn infer_member_call_expr_type(
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
-            let eff_bindings: Vec<(String, EffectRow)> = chosen
-                .sig
-                .eff_param
-                .as_ref()
-                .map(|p| vec![(p.name.clone(), chosen.eff_arg.clone())])
-                .unwrap_or_default();
+            let mut eff_bindings: Vec<(String, EffectRow)> = Vec::new();
+            if let Some(owner_eff_param) = chosen.sig.owner_eff_param.as_ref() {
+                eff_bindings.push((
+                    owner_eff_param.name.clone(),
+                    owner_eff_param.default.clone(),
+                ));
+            }
+            if let Some(fun_eff_param) = chosen.sig.eff_param.as_ref() {
+                eff_bindings.push((fun_eff_param.name.clone(), chosen.eff_arg.clone()));
+            }
             let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
                 &chosen.sig.decl_file,
                 type_param_bindings,
@@ -1104,12 +1108,13 @@ pub(super) fn infer_member_call_expr_type(
             // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
             // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
             // 放在函数自身 type args 之前，形成可复用的实例身份。
-            let eff_args = chosen
-                .sig
-                .eff_param
-                .as_ref()
-                .map(|_| vec![chosen.eff_arg.clone()])
-                .unwrap_or_default();
+            let mut eff_args = Vec::new();
+            if let Some(owner_eff_param) = chosen.sig.owner_eff_param.as_ref() {
+                eff_args.push(owner_eff_param.default.clone());
+            }
+            if chosen.sig.eff_param.is_some() {
+                eff_args.push(chosen.eff_arg.clone());
+            }
             let type_args = combined_member_instance_type_args(
                 chosen_fqn,
                 actual_receiver_ty,
@@ -1136,6 +1141,7 @@ pub(super) fn infer_member_call_expr_type(
                     return_ty: Some(chosen.instantiated.return_ty),
                     type_args,
                     eff_args,
+                    types_are_hir: false,
                 },
             );
             if let Some(binding) =
@@ -1963,11 +1969,16 @@ pub(super) fn infer_member_call_expr_type(
 
         // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
         let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
-        let eff_bindings: Vec<(String, EffectRow)> = sig
-            .eff_param
-            .as_ref()
-            .map(|p| vec![(p.name.clone(), eff_arg.clone())])
-            .unwrap_or_default();
+        let mut eff_bindings: Vec<(String, EffectRow)> = Vec::new();
+        if let Some(owner_eff_param) = sig.owner_eff_param.as_ref() {
+            eff_bindings.push((
+                owner_eff_param.name.clone(),
+                owner_eff_param.default.clone(),
+            ));
+        }
+        if let Some(fun_eff_param) = sig.eff_param.as_ref() {
+            eff_bindings.push((fun_eff_param.name.clone(), eff_arg.clone()));
+        }
         let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
             &sig.decl_file,
             type_param_bindings,
@@ -1988,11 +1999,13 @@ pub(super) fn infer_member_call_expr_type(
         // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
         // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
         // 放在函数自身 type args 之前，形成可复用的实例身份。
-        let eff_args = sig
-            .eff_param
-            .as_ref()
-            .map(|_| vec![eff_arg.clone()])
-            .unwrap_or_default();
+        let mut eff_args = Vec::new();
+        if let Some(owner_eff_param) = sig.owner_eff_param.as_ref() {
+            eff_args.push(owner_eff_param.default.clone());
+        }
+        if sig.eff_param.is_some() {
+            eff_args.push(eff_arg.clone());
+        }
         let type_args = combined_member_instance_type_args(
             &callee_fqn,
             actual_receiver_ty,
@@ -2019,6 +2032,7 @@ pub(super) fn infer_member_call_expr_type(
                 return_ty: Some(instantiated.return_ty),
                 type_args,
                 eff_args,
+                types_are_hir: false,
             },
         );
         if let Some(binding) =
@@ -2601,12 +2615,16 @@ pub(super) fn infer_member_call_expr_type(
 
     // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
     let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
-    let eff_bindings: Vec<(String, EffectRow)> = chosen
-        .sig
-        .eff_param
-        .as_ref()
-        .map(|p| vec![(p.name.clone(), chosen.eff_arg.clone())])
-        .unwrap_or_default();
+    let mut eff_bindings: Vec<(String, EffectRow)> = Vec::new();
+    if let Some(owner_eff_param) = chosen.sig.owner_eff_param.as_ref() {
+        eff_bindings.push((
+            owner_eff_param.name.clone(),
+            owner_eff_param.default.clone(),
+        ));
+    }
+    if let Some(fun_eff_param) = chosen.sig.eff_param.as_ref() {
+        eff_bindings.push((fun_eff_param.name.clone(), chosen.eff_arg.clone()));
+    }
     let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
         &chosen.sig.decl_file,
         type_param_bindings,
@@ -2627,12 +2645,13 @@ pub(super) fn infer_member_call_expr_type(
     // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
     // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
     // 放在函数自身 type args 之前，形成可复用的实例身份。
-    let eff_args = chosen
-        .sig
-        .eff_param
-        .as_ref()
-        .map(|_| vec![chosen.eff_arg.clone()])
-        .unwrap_or_default();
+    let mut eff_args = Vec::new();
+    if let Some(owner_eff_param) = chosen.sig.owner_eff_param.as_ref() {
+        eff_args.push(owner_eff_param.default.clone());
+    }
+    if chosen.sig.eff_param.is_some() {
+        eff_args.push(chosen.eff_arg.clone());
+    }
     let type_args = combined_member_instance_type_args(
         chosen_fqn,
         actual_receiver_ty,
@@ -2659,6 +2678,7 @@ pub(super) fn infer_member_call_expr_type(
             return_ty: Some(chosen.instantiated.return_ty),
             type_args,
             eff_args,
+            types_are_hir: false,
         },
     );
     if let Some(binding) =

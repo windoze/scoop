@@ -29,6 +29,12 @@
 
 #include "platform/platform.h"
 
+// 协作式 GC safepoint poll（定义在 scoop_gc*.c，属 runtime ABI）。
+// 下面 INITIALIZING 等待是“等待 once 初始化完成”的纯忙循环；若不轮询 safepoint，
+// 自旋在此的线程无法为 stop-the-world 让出（park）。当初始化线程在 init 中分配内存
+// 触发 GC 成为 STW initiator 时，会与本线程互等而死锁。
+void scoop_gc_safepoint_poll(void);
+
 enum {
   SCOOP_ONCE_STATE_UNINITIALIZED = 0u,
   SCOOP_ONCE_STATE_INITIALIZING = 1u,
@@ -140,6 +146,7 @@ uint32_t scoop_once_begin(uint64_t *guard_word) {
     // 其它线程正在初始化：等待其完成。
     while (scoop_once_state(__atomic_load_n(guard_word, __ATOMIC_ACQUIRE)) ==
            SCOOP_ONCE_STATE_INITIALIZING) {
+      scoop_gc_safepoint_poll();
       scoop_platform_thread_yield();
     }
     // 回到循环：看最终状态。

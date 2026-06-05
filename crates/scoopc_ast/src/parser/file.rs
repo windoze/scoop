@@ -175,6 +175,7 @@ impl<'a> Parser<'a> {
             typechecked_ctor_call_bindings: std::cell::RefCell::new(
                 std::collections::HashMap::new(),
             ),
+            release_hook_bindings: std::cell::RefCell::new(std::collections::HashMap::new()),
         })
     }
 

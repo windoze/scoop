@@ -29,6 +29,8 @@ pub(in crate::typecheck::expr) struct MatchedCtorOverload {
     pub(in crate::typecheck::expr) specificity: SpecificityCandidate,
     /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
     pub(in crate::typecheck::expr) inferred_type_args: Vec<TypeId>,
+    /// owner `eff` 参数的具体 row（若该 class/struct 声明了 owner effect 参数）。
+    pub(in crate::typecheck::expr) inferred_eff_arg: Option<EffectRow>,
 }
 
 type InstantiatedCtorParamTypes = (Vec<TypeId>, Vec<TypeId>);
@@ -37,6 +39,8 @@ struct CtorTypeParamContext {
     owner_type_param_count: usize,
     type_params: Vec<TypeId>,
     bindings: Vec<(String, TypeId)>,
+    eff_bindings: Vec<(String, EffectRow)>,
+    owner_eff_arg: Option<EffectRow>,
     where_constraints: Vec<FunWhereConstraintInfo>,
 }
 
@@ -68,8 +72,9 @@ fn ctor_type_param_context(
     source: &SourceFile,
     owner_fqn: &str,
     ctor: &ConstructorOverload,
+    expected_owner_eff: Option<&EffectRow>,
     lower: &mut TypeLowering<'_>,
-) -> CtorTypeParamContext {
+) -> Result<CtorTypeParamContext, ExprTypeError> {
     let owner_sym = lower.env().type_symbol(owner_fqn).cloned();
     let owner_names = owner_sym
         .as_ref()
@@ -86,6 +91,23 @@ fn ctor_type_param_context(
         let ty = lower.ty_param_named(name.clone(), owner_decl_file.clone(), Span::new(0, 0));
         type_params.push(ty);
         bindings.push((name.clone(), ty));
+    }
+    let mut eff_bindings = Vec::new();
+    let mut owner_eff_arg = None;
+    if let Some(eff_param) = owner_sym.as_ref().and_then(|sym| sym.eff_param.as_ref()) {
+        let row = if let Some(expected) = expected_owner_eff {
+            expected.clone()
+        } else if let Some(sym) = owner_sym.as_ref() {
+            lower.lower_effect_row_expr_in_decl_file_with_bindings(
+                &sym.decl_file,
+                bindings.iter().cloned(),
+                eff_param.default.as_ref(),
+            )?
+        } else {
+            EffectRow::pure()
+        };
+        eff_bindings.push((eff_param.name.clone(), row.clone()));
+        owner_eff_arg = Some(row);
     }
 
     for param in &ctor.type_params {
@@ -122,12 +144,14 @@ fn ctor_type_param_context(
     }
     where_constraints.extend(ctor_constraints);
 
-    CtorTypeParamContext {
+    Ok(CtorTypeParamContext {
         owner_type_param_count: owner_names.len(),
         type_params,
         bindings,
+        eff_bindings,
+        owner_eff_arg,
         where_constraints,
-    }
+    })
 }
 
 pub(super) struct CtorParamInstantiationRequest<'a> {
@@ -211,6 +235,11 @@ pub(super) fn instantiate_ctor_param_tys(
         for param_ty in type_params.iter().copied() {
             let mut candidates: Vec<TypeId> = Vec::new();
             for found_ty in &found_tys {
+                if expected_ty == param_ty
+                    && matches!(lower.type_kind(*found_ty), TypeKind::Param(_))
+                {
+                    candidates.push(*found_ty);
+                }
                 collect_type_arg_candidates_for_single_type_param(
                     expected_ty,
                     *found_ty,
@@ -254,6 +283,10 @@ pub(super) fn instantiate_ctor_param_tys(
         let chosen = if let Some(t) = explicit_at {
             if let Some(bound) = arg_inferred
                 && bound != t
+                && !matches!(
+                    (lower.type_kind(bound), lower.type_kind(t)),
+                    (TypeKind::Param(_), TypeKind::Param(_))
+                )
             {
                 return Ok(None);
             }
@@ -307,6 +340,7 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
     exclude_ctor_span: Option<Span>,
     explicit_type_args: Option<&[TypeId]>,
     expected_owner_args: Option<&[TypeId]>,
+    expected_owner_eff: Option<&EffectRow>,
     strict_named_args: bool,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Vec<MatchedCtorOverload>, ExprTypeError> {
@@ -346,7 +380,8 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
 
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
     for ctor in visible {
-        let type_param_context = ctor_type_param_context(source, owner_fqn, ctor, lower);
+        let type_param_context =
+            ctor_type_param_context(source, owner_fqn, ctor, expected_owner_eff, lower)?;
         let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
         let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
         let param_is_vararg: Vec<bool> = ctor.params.iter().map(|p| p.is_vararg).collect();
@@ -368,9 +403,10 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
                 ok = false;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &ctor.decl_file,
                 type_param_context.bindings.iter().cloned(),
+                type_param_context.eff_bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_tys.push(ty);
@@ -486,6 +522,7 @@ pub(in crate::typecheck::expr) fn collect_matched_ctor_overloads_for_owner(
             specificity,
             signature,
             inferred_type_args,
+            inferred_eff_arg: type_param_context.owner_eff_arg.clone(),
         });
     }
 
@@ -514,7 +551,8 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
             continue;
         }
 
-        let type_param_context = ctor_type_param_context(inputs.source, owner_fqn, ctor, lower);
+        let type_param_context =
+            ctor_type_param_context(inputs.source, owner_fqn, ctor, None, lower)?;
         let mut param_tys = Vec::with_capacity(ctor.params.len());
         let mut param_ty_strs = Vec::with_capacity(ctor.params.len());
         let mut malformed = false;
@@ -523,9 +561,10 @@ pub(in crate::typecheck::expr) fn collect_ctor_overload_rejections_for_owner(
                 malformed = true;
                 break;
             };
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &ctor.decl_file,
                 type_param_context.bindings.iter().cloned(),
+                type_param_context.eff_bindings.iter().cloned(),
                 ty_ref,
             )?;
             param_ty_strs.push(lower.fmt_type(ty));
@@ -583,6 +622,7 @@ pub(in crate::typecheck::expr) fn select_ctor_overload_for_owner(
         callee_for_diag,
         call_args,
         exclude_ctor_span,
+        None,
         None,
         None,
         true,
@@ -666,17 +706,20 @@ pub(in crate::typecheck::expr) fn try_infer_nominal_constructor_call_expr_type_w
         return Ok(None);
     }
 
-    let (expected_fqn, expected_args) = match lower.type_kind(expected_ty) {
+    let (expected_fqn, expected_args, expected_eff) = match lower.type_kind(expected_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(nominal))
-        | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+        | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args, nominal.eff),
         _ => return Ok(None),
     };
     if expected_args.is_empty() {
         return Ok(None);
     }
 
-    let expected_owner_args: Option<(&str, &[TypeId])> =
-        Some((expected_fqn.as_str(), expected_args.as_slice()));
+    let expected_owner: Option<(&str, &[TypeId], Option<&EffectRow>)> = Some((
+        expected_fqn.as_str(),
+        expected_args.as_slice(),
+        expected_eff.as_ref(),
+    ));
 
     infer_nominal_constructor_call_expr_type(
         inputs,
@@ -684,7 +727,7 @@ pub(in crate::typecheck::expr) fn try_infer_nominal_constructor_call_expr_type_w
         id,
         args,
         explicit_type_args.as_deref(),
-        expected_owner_args,
+        expected_owner,
         lower,
     )
 }
@@ -760,6 +803,7 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         None,
         explicit_type_args,
         None,
+        None,
         true,
         lower,
     )?;
@@ -796,9 +840,10 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
             if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
                 lower.record_typechecked_call_arg_binding(call_expr.span, binding);
             }
-            let ty = lower.lower_type_fqn_with_args(
+            let ty = lower.lower_type_fqn_with_args_and_eff(
                 chosen.owner_fqn,
                 chosen.inferred_type_args,
+                chosen.inferred_eff_arg,
                 use_span,
             )?;
             return Ok(Some(ty));
@@ -822,8 +867,12 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
     if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
-    let ty =
-        lower.lower_type_fqn_with_args(chosen.owner_fqn, chosen.inferred_type_args, use_span)?;
+    let ty = lower.lower_type_fqn_with_args_and_eff(
+        chosen.owner_fqn,
+        chosen.inferred_type_args,
+        chosen.inferred_eff_arg,
+        use_span,
+    )?;
     Ok(Some(ty))
 }
 
@@ -854,7 +903,7 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
     callee: &ast::ValueIdent,
     args: &[ast::Expr],
     explicit_type_args: Option<&[TypeId]>,
-    expected_owner_args: Option<(&str, &[TypeId])>,
+    expected_owner: Option<(&str, &[TypeId], Option<&EffectRow>)>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
@@ -922,9 +971,9 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
 
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
     for (owner_fqn, _) in &ctor_owners {
-        let owner_expected_args = expected_owner_args
-            .filter(|(fqn, _)| *fqn == owner_fqn.as_str())
-            .map(|(_, args)| args);
+        let owner_expected = expected_owner.filter(|(fqn, _, _)| *fqn == owner_fqn.as_str());
+        let owner_expected_args = owner_expected.map(|(_, args, _)| args);
+        let owner_expected_eff = owner_expected.and_then(|(_, _, eff)| eff);
         matched.extend(collect_matched_ctor_overloads_for_owner(
             inputs,
             owner_fqn,
@@ -934,6 +983,7 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
             None,
             explicit_type_args,
             owner_expected_args,
+            owner_expected_eff,
             true,
             lower,
         )?);
@@ -974,9 +1024,10 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
             if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
                 lower.record_typechecked_call_arg_binding(call_expr.span, binding);
             }
-            let ty = lower.lower_type_fqn_with_args(
+            let ty = lower.lower_type_fqn_with_args_and_eff(
                 chosen.owner_fqn,
                 chosen.inferred_type_args,
+                chosen.inferred_eff_arg,
                 callee.span,
             )?;
             return Ok(Some(ty));
@@ -1000,8 +1051,12 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
     if let Some(binding) = call_arg_binding_from_mapping(&chosen.arg_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
-    let ty =
-        lower.lower_type_fqn_with_args(chosen.owner_fqn, chosen.inferred_type_args, callee.span)?;
+    let ty = lower.lower_type_fqn_with_args_and_eff(
+        chosen.owner_fqn,
+        chosen.inferred_type_args,
+        chosen.inferred_eff_arg,
+        callee.span,
+    )?;
     Ok(Some(ty))
 }
 

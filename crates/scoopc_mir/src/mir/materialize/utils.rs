@@ -115,6 +115,7 @@ pub(super) fn rewrite_family_symbol_name(
         .then(|| format!("{instance_root_fqn}{suffix}"))
 }
 
+#[cfg(test)]
 pub(super) fn re_intern_effect_row_from(
     types: &mut TypeStore,
     other: &TypeStore,
@@ -267,39 +268,6 @@ pub(super) fn is_canonical_array_member_intrinsic_fqn(fqn: &str) -> bool {
             | "scoop.core.MutableArray.get"
             | "scoop.core.MutableArray.set"
     )
-}
-
-pub(super) fn map_call_args_to_signature_params(
-    params: &[CallableSignatureParam],
-    args: &[CallArg],
-) -> Option<Vec<usize>> {
-    let mut used = vec![false; params.len()];
-    let mut next_pos = 0;
-    let mut out = Vec::with_capacity(args.len());
-
-    for arg in args {
-        let param_idx = match arg.name.as_deref() {
-            Some(name) => params
-                .iter()
-                .enumerate()
-                .find_map(|(idx, param)| (!used[idx] && param.name == name).then_some(idx))?,
-            None => {
-                while used.get(next_pos).copied().unwrap_or(false) {
-                    next_pos += 1;
-                }
-                let idx = next_pos;
-                if idx >= params.len() {
-                    return None;
-                }
-                next_pos += 1;
-                idx
-            }
-        };
-        used[param_idx] = true;
-        out.push(param_idx);
-    }
-
-    Some(out)
 }
 
 #[cfg(test)]
