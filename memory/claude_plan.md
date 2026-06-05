@@ -1,32 +1,42 @@
-# 当前执行计划
+# 执行计划
 
-## 约束
+## 当前状态
 
-- 以 `TODO.md` 为任务排序和完成状态的唯一来源。
-- 本次只完成第一个标题未标记 `[DONE]` 的任务，然后停止。
-- 不做开放式历史问题清扫；只处理当前任务相关或验证中暴露且未被明确排期的问题。
-- 如遇到阻塞当前任务的缺失功能、规格不匹配或失败测试，优先修复；若不能在本次完成，则在 `TODO.md` 中插入最小必要前置任务并提交后停止。
-- 只有阶段级计划、依赖或完成标准变化时才更新 `PLAN.md`。
+- 本次调用目标：根据 `TODO.md` 的顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 约束：先识别任务，不做开放式历史问题扫查；如遇到阻塞当前任务的未排期缺陷，先修复或在 `TODO.md` 中插入最小必要前置任务并提交后停止。
+- 说明：本文件记录可审阅的执行计划、进度和关键决策，不记录私有推理过程。
 
-## 步骤
+## 初始步骤
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并记录任务要求、依赖和验证要求。
-2. 检查最近提交信息，判断是否有与该任务直接相关的未完成事项需要纳入本次任务或作为前置任务记录。
-3. 阅读与当前任务相关的代码、测试和文档，确认实现边界。
-4. 按任务要求做最小且完整的代码或文档修改，避免绕过规格或只针对夹具的特殊处理。
-5. 按要求运行格式化、lint、相关测试；如任务影响编译行为，再运行完整 Rust 测试和夹具套件。
-6. 若验证通过，将当前任务标题加上 `[DONE]`，更新完成记录；若出现未排期失败，修复或在 `TODO.md` 插入前置任务。
-7. 检查工作区差异，提交本次所有相关修改，提交信息包含任务编号。
-8. 停止，不继续处理下一个任务。
+1. 阅读 `TODO.md`，按标题 `[DONE]` 前缀判断第一个未完成任务。
+2. 查看最近提交，确认是否明确提到与该任务直接相关的未完成问题。
+3. 阅读当前任务涉及的计划、规格、源码和测试上下文，仅限于完成当前任务所需范围。
+4. 如任务可直接实施，进行最小正确代码/测试/文档修改。
+5. 按要求先运行 `cargo fmt`，再运行 `cargo clippy --all-targets -- -D warnings`，最后运行相关测试、完整 Rust 测试和完整 fixture suite；如仅文档变化且已有可复用绿色结果，则记录跳过原因。
+6. 若所有验证通过，更新 `TODO.md`：在任务标题前加 `[DONE]` 并补充完成记录。
+7. 检查 `git status`、`git diff`、最近提交，确认提交范围包含本任务相关改动且不回退他人改动。
+8. 使用任务编号编写清晰提交信息并提交。
+9. 停止，不推进下一个任务。
 
-## 进度
+## 后续更新
 
-- 已创建本执行计划，下一步读取 `TODO.md`。
-- 已读取 `TODO.md`，第一个未完成任务为 `TC-03：effect 路径语句改 walk LIR`。
-- 最近提交为 `f9644fbb [TC-02-R] Review plain LIR codegen`，未直接声明 TC-03 的未完成 blocker；下一步检查 effect-step 语句发射入口和 LIR state body 结构。
-- 已检查 `effect_lowered/body`、`effect_lowered/value.rs` 与 `LirExecutableBody`。实施策略：`CallableEmitter` 保存 callable 的 `LirExecutableBody`，slot/used-local 与 state 语句遍历改走 LIR；动态 invoke/class ctor boundary 通过 LIR statement 和分类 anchor 定位，不再回读 MIR source slice 中的 statement。
-- 已完成第一轮代码迁移：`body` 目录的验收 grep（`.source_body()` / `.source_slices()` / `LateLoweredSourceBody` / `mir::Rvalue` / `mir::Statement`）已无命中。下一步运行格式化/检查，修复编译与 lint 问题。
-- `cargo fmt` 和 `cargo clippy --all-targets -- -D warnings` 已通过；期间删除了已无调用的 MIR local-use 收集函数。下一步执行完整验证基线。
-- 完整 fixture 首跑发现 2 个 class init cleanup GC fixture 失败，根因是 LIR class ctor boundary 成功迁移后没有像旧路径一样清理失败构造对象的临时 GC root；已修复 LIR class ctor root 清理，并将 spill root clear store 标记为 volatile。两个失败 fixture 单独重跑已通过，下一步重新跑完整基线。
-- 完整验证基线已全部通过：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
-- 已将 `TODO.md` 中 `TC-03` 标记为 `[DONE]` 并补充完成记录；下一步检查 git 差异并提交。
+- 已识别当前任务：`TC-03-R：Review TC-03`。
+- 最近提交：`1cfb3dc0 [TC-03] Emit effect body statements from LIR`，直接对应本 review 范围，未在标题中提示额外未完事项。
+
+## TC-03-R 执行计划
+
+1. 复核 `TC-03` 相关 codegen 路径，确认 effect-step state 内语句来自 LIR `LirExecutableBody` / state-owned statements，不再经 MIR source slice 消费语句。
+2. 按任务验收运行 grep：确认 `effect_lowered/body` 中 `.source_body()`、`.source_slices()`、`LateLoweredSourceBody`、`mir::Rvalue`、`mir::Statement` 语句消费残留清零。
+3. 检查是否存在新增 `lir_*_to_mir`、占位、输入 `Result`/panic/expect 等与 TC-03 review 直接相关的反模式。
+4. 如发现 TC-03 回归或阻塞问题，先修复；如发现无法在本任务内正确修复的前置缺口，则更新 `TODO.md` 插入前置任务并停止。
+5. 验证通过后按基线顺序运行：`cargo fmt`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo build -p scoop -p scoopc`、`python3 tools/dependency_gate.py`、`python3 tools/spec_fixtures.py check`、`python3 tools/run_fixtures.py`。
+6. 更新 `TODO.md`：将 `TC-03-R` 标题标记为 `[DONE]`，补充 completion record。
+7. 检查 diff 和最近提交，提交本 review 记录及必要改动，然后停止。
+
+## TC-03-R 进度
+
+- 已确认 `effect_lowered/body` 验收 grep 对 `.source_body()`、`.source_slices()`、`LateLoweredSourceBody`、`mir::Rvalue`、`mir::Statement` 无命中。
+- Review 发现 TC-03 迁移后的 `used_locals` 只收集 LIR statements/Return/Branch，漏掉 published boundary operand contracts 中被 Call/Perform/Resume 终止器消费的 locals；这可能让 `codegen_lir_statement` 误跳过仅由 boundary payload/args/continuation 使用的 top-level refs。
+- 已修复：在 effect body emitter 初始化 `used_locals` 时并入 callable published contracts 的 local consumers，包括 boundary operand sources、completion payload source、handle completion payload sources 和 frame-slot source locals；resume payload consumer locals 是写入目标，未计作旧值 use。修复保持语句发射 LIR-native，不回读 MIR terminator args。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
+- 已更新 `TODO.md`：`TC-03-R` 标题标记为 `[DONE]` 并补充完成记录。

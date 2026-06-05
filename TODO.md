@@ -231,9 +231,15 @@
 - 更新 LLVM runtime type primitive 单测中 `!is` 的 IR 名称期望，从旧 MIR label 切到 LIR label。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-03-R：Review TC-03
+### [DONE] TC-03-R：Review TC-03
 - **关注点**：effect-step 每条语句来自 LIR、与原 MIR slice 等价；boundary/state 控制流仍正确；无 MIR 语句 slice 残留、无占位/`Result`-on-input。
 - **确认**：上述 grep 清零；effect 相关 golden/fixture 行为不变；§9 绿。
+
+**完成记录（2026-06-05）**：
+- 审查 `TC-03` 落地结果：`CallableEmitter::lower_state_statements` 逐 state 遍历 `LateLoweredState::statements()`，并以 `LirBodyAnchor::statement` 查 published classification；effect-neutral 和 dynamic invoke 语句均进入 `lower_effect_neutral_statement` / `lower_published_call_statement` 的 LIR statement 路径。
+- 修复 review 中发现的 LIR local-use 漏收集：`used_locals` 现在除 LIR statements/terminators 外，还并入 boundary operand contracts、frame-slot source locals、completion payload sources 和 handle completion payload sources，避免仅由 Call/Perform/Resume boundary payload/args/continuation 消费的 top-level refs 被误判 unused 并跳过。
+- 反模式检查通过：`rg -n "\.source_body\(\)|\.source_slices\(\)|LateLoweredSourceBody|mir::Rvalue|mir::Statement" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中；`rg -n "lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen/effect_lowered/body` 无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-04：FQN 引用改句柄
 

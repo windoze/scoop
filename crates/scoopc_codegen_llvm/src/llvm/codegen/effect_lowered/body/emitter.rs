@@ -122,8 +122,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 .as_path(),
             mir_fun.span,
         )?;
-        let used_locals =
+        let mut used_locals =
             super::super::super::mir_body::collect_lir_local_uses(lir_body, source_types);
+        collect_callable_contract_local_uses(callable, &mut used_locals);
         let frame_root_slot = codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {

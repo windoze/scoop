@@ -201,6 +201,91 @@ fn boundary_complete_result_local(boundary: &LateLoweredBoundary) -> Option<Loca
     }
 }
 
+fn collect_callable_contract_local_uses(
+    callable: &LateLoweredCallable,
+    out: &mut HashSet<LocalId>,
+) {
+    for boundary in callable.boundary_map().entries() {
+        if let Some(lowering) = boundary.lowering() {
+            collect_boundary_lowering_local_uses(lowering, out);
+        }
+    }
+    for slot in callable.frame_schema().slots() {
+        if let Some(local) = frame_slot_local(slot.kind()) {
+            out.insert(local);
+        }
+    }
+    for binding in callable.frame_schema().completion_payload_bindings() {
+        collect_completion_payload_source_local_use(binding.payload_source(), out);
+    }
+    for state in callable.state_graph().states() {
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator() else {
+            continue;
+        };
+        collect_handle_dispatch_contract_local_uses(contract, out);
+    }
+}
+
+fn collect_boundary_lowering_local_uses(
+    lowering: &LateLoweredBoundaryLowering,
+    out: &mut HashSet<LocalId>,
+) {
+    match lowering {
+        LateLoweredBoundaryLowering::Call(lowering) => {
+            if let Some(source) = lowering.operand_contract().carrier_source() {
+                collect_operand_source_local_use(source, out);
+            }
+            for source in lowering.operand_contract().arg_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::Perform(lowering) => {
+            for source in lowering.operand_contract().payload_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::Resume(lowering) => {
+            collect_operand_source_local_use(
+                lowering.operand_contract().continuation_source(),
+                out,
+            );
+            for source in lowering.operand_contract().arg_sources() {
+                collect_operand_source_local_use(source, out);
+            }
+        }
+        LateLoweredBoundaryLowering::ClassCtor(_)
+        | LateLoweredBoundaryLowering::RuntimeError(_)
+        | LateLoweredBoundaryLowering::Handle(_) => {}
+    }
+}
+
+fn collect_handle_dispatch_contract_local_uses(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    out: &mut HashSet<LocalId>,
+) {
+    if let Some(source) = contract.body_completion_payload_source() {
+        collect_completion_payload_source_local_use(source, out);
+    }
+    for arm in contract.handled_arms() {
+        collect_completion_payload_source_local_use(arm.completion_payload_source(), out);
+    }
+}
+
+fn collect_completion_payload_source_local_use(
+    source: &LateLoweredCompletionPayloadSource,
+    out: &mut HashSet<LocalId>,
+) {
+    if let Some(source) = source.operand_source() {
+        collect_operand_source_local_use(source, out);
+    }
+}
+
+fn collect_operand_source_local_use(source: &LateLoweredOperandSource, out: &mut HashSet<LocalId>) {
+    if let LateLoweredOperandValueSource::Local(local) = source.value() {
+        out.insert(*local);
+    }
+}
+
 fn completion_payload_source_is_local(
     source: &LateLoweredCompletionPayloadSource,
     local: LocalId,
