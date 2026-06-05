@@ -80,8 +80,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<&LirCallableFacts, LlvmEmitError> {
         let callable = self
             .program
-            .callable_id_by_root(root_fqn)
-            .and_then(|id| self.program.callable_by_id(id))
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == root_fqn)
             .ok_or_else(|| {
                 frontend_error(format!(
                     "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR body"

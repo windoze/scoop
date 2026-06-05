@@ -25,7 +25,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let program = self.published_late_lowered_program()?;
         let source_types = self.published_late_lowered_types()?;
-        let callable_id = program.callable_id_by_root(fqn)?;
+        let callable_id =
+            program
+                .callables()
+                .iter()
+                .enumerate()
+                .find_map(|(index, callable)| {
+                    (callable.root_fqn() == fqn)
+                        .then(|| LirCallableId::from_index(index))
+                        .flatten()
+                })?;
         let callable = program.callable_by_id(callable_id)?;
         let source_callable = callable.source_callable()?;
         callable.executable_body()?;
@@ -64,10 +73,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_block = self.expect_insert_block("LIR source closure body lookup");
         let mut child = self.fresh_child_codegen();
-        child.function_cx.current_lir_callable_id = child
-            .active_lir_program()
-            .and_then(|active| active.callable_id_by_root(fn_ptr))
-            .or(Some(callable_id));
+        child.function_cx.current_lir_callable_id = Some(callable_id);
         child.current_source_id = child.lir_source_callable_source_id(fn_ptr, span)?;
         let llvm_fun = child.declare_lir_source_closure_fun(span, source_fun, source_types)?;
         if llvm_fun.count_basic_blocks() == 0 {
@@ -196,9 +202,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let llvm_name = match surface {
-            LlvmFunctionDeclarationSurface::ExportedAbi => {
-                self.exported_abi_symbol_for_lir_root(&source_fun.fqn)?
-            }
+            LlvmFunctionDeclarationSurface::ExportedAbi => llvm_name.to_string(),
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
             | LlvmFunctionDeclarationSurface::CompilerPrivateHelper => llvm_name.to_string(),
         };
@@ -287,10 +291,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
                 if owner_fqn == "main" {
                     "main".to_string()
-                } else if llvm_name != owner_fqn {
-                    llvm_name.to_string()
                 } else {
-                    self.exported_abi_symbol_for_lir_root(owner_fqn)?
+                    llvm_name.to_string()
                 }
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
@@ -410,7 +412,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .published_late_lowered_program()
             .and_then(|program| {
                 program
-                    .callable_id_by_root(&source_fun.fqn)
+                    .callables()
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, callable)| {
+                        (callable.root_fqn() == source_fun.fqn)
+                            .then(|| LirCallableId::from_index(index))
+                            .flatten()
+                    })
                     .and_then(|id| program.callable_by_id(id))
             })
             .and_then(|callable| callable.executable_body())

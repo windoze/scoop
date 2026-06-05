@@ -1927,7 +1927,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_name = if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
             extern_fun.symbol.clone()
         } else {
-            self.exported_abi_symbol_for_lir_root(&signature_owner_fqn)?
+            self.published_symbol_for_source_root_text(&signature_owner_fqn)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "call callee `{signature_owner_fqn}` 缺少 published ABI symbol fact"
+                    ),
+                })?
         };
         let llvm_fun = match self.module.get_function(&llvm_name) {
             Some(function) => function,
@@ -2178,7 +2183,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn callable_root_has_abi_surface(&self, root: &str) -> bool {
         self.published_named_intrinsic_entry_name(root).is_some()
             || self.extern_funs.contains_key(root)
-            || self.exported_abi_symbol_for_lir_root(root).is_ok()
+            || self.published_symbol_for_source_root_text(root).is_some()
     }
 
     pub(in crate::llvm::codegen) fn emit_enter_native_for_extern_call_impl(

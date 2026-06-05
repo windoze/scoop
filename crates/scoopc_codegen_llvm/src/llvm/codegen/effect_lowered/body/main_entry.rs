@@ -26,6 +26,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(program));
             if callable.plain_abi().is_some() {
                 child.codegen_plain_callable_entry(program, source_types, abi, callable)?;
             } else {
@@ -42,6 +43,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(abi_program));
             if callable.plain_abi().is_some() {
                 child.codegen_plain_callable_entry(abi_program, abi_source_types, abi, callable)?;
             } else {
@@ -55,6 +57,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             let mut child = self.fresh_child_codegen();
+            child.set_active_lir_program(Some(abi_program));
             child.codegen_callable_carrier_entry_shell(
                 kind,
                 carrier_fqn,
@@ -471,10 +474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .as_path(),
             source_span,
         )?;
-        self.function_cx.current_lir_callable_id = self
-            .active_lir_program()
-            .and_then(|active| active.callable_id_by_root(callable.root_fqn()))
-            .or_else(|| program.callable_id_for(callable));
+        self.function_cx.current_lir_callable_id = program.callable_id_for(callable);
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;

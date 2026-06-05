@@ -287,25 +287,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|symbol| symbol.callable == Some(callable))
     }
 
-    pub(in crate::llvm::codegen) fn lir_callable_ref_for_root(
-        &self,
-        root: &str,
-    ) -> Option<scoopc_lir_facts::LirCallableRef> {
-        let program = self.active_lir_program()?;
-        if let Some(id) = program.callable_id_by_root(root) {
-            return Some(scoopc_lir_facts::LirCallableRef::Local(id));
-        }
-        program
-            .physical_layout()
-            .abi_symbols
-            .values()
-            .find_map(|symbol| {
-                (symbol.root_fqn.as_deref() == Some(root))
-                    .then_some(symbol.callable)
-                    .flatten()
-            })
-    }
-
     pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable_ref(
         &self,
         callable: scoopc_lir_facts::LirCallableRef,
@@ -362,32 +343,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ))
     }
 
-    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_root(
+    pub(in crate::llvm::codegen) fn published_symbol_for_source_root_text(
         &self,
         root: &str,
-    ) -> Result<String, LlvmEmitError> {
+    ) -> Option<String> {
         if root == "main" {
-            return Ok("main".to_string());
+            return Some("main".to_string());
         }
-        let program = self.expect_active_lir_program("exported_abi_symbol_for_lir_root");
-        if let Some(id) = program.callable_id_by_root(root) {
-            return self.exported_abi_symbol_for_lir_callable_id(id);
-        }
-        let callable = program
+        let program = self.active_lir_program()?;
+        program
             .physical_layout()
-            .abi_symbols
+            .callable_symbols
             .values()
-            .find_map(|symbol| {
-                (symbol.root_fqn.as_deref() == Some(root))
-                    .then_some(symbol.callable)
-                    .flatten()
+            .find(|facts| facts.root_fqn == root)
+            .and_then(|facts| {
+                facts.exported_symbol.clone().or_else(|| {
+                    facts
+                        .native
+                        .as_ref()
+                        .map(|native| native.symbol.clone())
+                        .or_else(|| facts.extern_.as_ref().map(|extern_| extern_.symbol.clone()))
+                })
             })
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "LIR callable `{root}` is missing a published target-bound ABI symbol fact"
-                ),
-            })?;
-        self.exported_abi_symbol_for_lir_callable_ref(callable)
+            .or_else(|| {
+                program
+                    .physical_layout()
+                    .abi_symbols
+                    .values()
+                    .find(|symbol| symbol.root_fqn.as_deref() == Some(root))
+                    .map(|symbol| symbol.symbol.clone())
+            })
     }
 
     pub(in crate::llvm::codegen) fn enter_root_callable_identity(

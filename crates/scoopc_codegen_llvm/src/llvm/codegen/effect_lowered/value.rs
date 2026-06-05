@@ -80,22 +80,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: Span,
         abi: &ProgramAbiQuery<'ctx>,
-        callee_fqn: &str,
+        callee: scoopc_lir_facts::LirCallableRef,
+        callee_label: &str,
         args: &[LirCallArg],
         body: &crate::effect_lowered::LirExecutableBody,
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let layout = abi.callable_layout_by_root_fqn(callee_fqn).map_err(|err| {
+        let program = self.expect_active_lir_program("codegen_lir_pure_effect_step_direct_call");
+        let layout = abi.callable_layout_for_ref(program, callee).map_err(|err| {
             frontend_error(format!(
-                "LIR pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
+                "LIR pure statement call 缺少 callee `{callee_label}` 的 published LIR callable contract: {err:?}"
             ))
         })?;
         let entry = layout.direct_entry();
         if entry.return_step_schema() != layout.step_schema() {
             return Err(frontend_error(format!(
-                "LIR pure statement call `{callee_fqn}` direct entry return schema 漂移：entry=s{} layout=s{}",
+                "LIR pure statement call `{callee_label}` direct entry return schema 漂移：entry=s{} layout=s{}",
                 entry.return_step_schema().as_u32(),
                 layout.step_schema().as_u32()
             )));
@@ -115,7 +117,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get_function(entry.symbol_name())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LIR pure statement call `{callee_fqn}` 缺少 direct entry shell `{}`",
+                    "LIR pure statement call `{callee_label}` 缺少 direct entry shell `{}`",
                     entry.symbol_name()
                 ))
             })?;
@@ -125,7 +127,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 payload
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "LIR pure statement call `{callee_fqn}` 需要 non-elided args payload"
+                            "LIR pure statement call `{callee_label}` 需要 non-elided args payload"
                         ))
                     })?
                     .into(),
@@ -136,7 +138,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_call(callee, &call_args, "lir_pure_call_step")?;
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(format!(
-                "LIR pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
+                "LIR pure statement call `{callee_label}` direct entry 未返回 Step_F"
             ))
         })?;
         self.extract_lir_pure_call_complete(span, abi, layout, step, target_cg)
@@ -421,7 +423,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn plain_call_param_names(&self, callee_fqn: &str, param_count: usize) -> Vec<String> {
         self.program
-            .callable(callee_fqn)
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callee_fqn)
             .and_then(|callable| callable.source_callable())
             .map(|source| {
                 source
@@ -441,13 +445,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         target_cg: super::super::types::CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let layout = self.abi.plain_callable_layout_by_root_fqn(callee_fqn)?;
+        let layout = self.abi.plain_callable_layout_for_root_text(callee_fqn)?;
         let entry = layout.direct_entry();
         let mut param_tys = entry.param_tys().to_vec();
         if args.iter().any(|arg| arg.name.is_some())
             && self
                 .program
-                .callable(callee_fqn)
+                .callables()
+                .iter()
+                .find(|callable| callable.root_fqn() == callee_fqn)
                 .and_then(|callable| callable.source_callable())
                 .is_none()
         {
@@ -1276,7 +1282,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_by_root_fqn(fn_ptr)?
+            .maybe_plain_callable_layout_for_root_text(fn_ptr)?
             .is_some()
         {
             return self
@@ -1384,13 +1390,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         let surface_ty = match kind {
             mir::CallKind::Direct { callee_fqn, .. } => {
-                if let Ok(layout) = self.abi.callable_layout_by_root_fqn(callee_fqn) {
+                if let Ok(layout) = self.abi.callable_layout_for_root_text(callee_fqn) {
                     source_carrier_types(
                         self.source_types,
                         layout.direct_entry().invoke_args_tuple_ty(),
                     )
                     .and_then(|tys| tys.get(arg_index).copied())
-                } else if let Ok(layout) = self.abi.plain_callable_layout_by_root_fqn(callee_fqn) {
+                } else if let Ok(layout) = self.abi.plain_callable_layout_for_root_text(callee_fqn)
+                {
                     layout.direct_entry().param_tys().get(arg_index).copied()
                 } else {
                     None
@@ -1547,7 +1554,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         adapter: ClosureSurfaceLayout<'ctx>,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
-        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
         let return_step_layout = self
             .abi
             .step_layout(adapter.return_step_schema)
@@ -1597,7 +1604,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let entry = self.codegen.context.append_basic_block(function, "entry");
         self.codegen.builder.position_at_end(entry);
 
-        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
         let plain_fun = self
             .codegen
             .module
@@ -2213,7 +2220,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
+            .maybe_plain_callable_layout_for_root_text(callee_fqn)?
             .is_some()
         {
             return self.lower_published_plain_direct_call(span, callee_fqn, args, target_cg);
@@ -2238,7 +2245,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
             );
         }
-        let layout = self.abi.callable_layout_by_root_fqn(callee_fqn).map_err(|err| {
+        let layout = self.abi.callable_layout_for_root_text(callee_fqn).map_err(|err| {
             frontend_error(format!(
                 "pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
             ))

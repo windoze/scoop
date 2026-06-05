@@ -16,7 +16,7 @@ use crate::effect_lowered::ir::{
     LateLoweredHandlePendingCompletionOrigin, LateLoweredHandlePendingPayloadTransport,
     LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPerformBoundaryOperandContract,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredProgram, LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
     LateLoweredResumePayloadBinding, LateLoweredSurfaceResumeDispatchSourceKind,
     LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -2924,7 +2924,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             .get(&AbiProgramOrigin::primary_step(step_schema))
     }
 
-    pub(super) fn callable_layout_by_root_fqn(
+    pub(super) fn callable_layout_for_root_text(
         &self,
         root_fqn: &str,
     ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
@@ -2979,6 +2979,47 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             })
     }
 
+    pub(super) fn callable_layout_for_ref(
+        &self,
+        program: &LateLoweredProgram,
+        callable: scoopc_lir_facts::LirCallableRef,
+    ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
+        match callable {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                let callable =
+                    program
+                        .callable_by_id(id)
+                        .ok_or_else(|| LlvmEmitError::Frontend {
+                            message: format!(
+                                "LLVM ABI query 缺少 local callable id {:?} 的 callable body",
+                                id
+                            ),
+                        })?;
+                self.callable_layout_by_version_key(callable.body_version_key())
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => self
+                .unique_callable_layout_by_hash(hash)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI query 缺少 external callable hash {:?} 的 callable layout",
+                        hash
+                    ),
+                }),
+        }
+    }
+
+    fn unique_callable_layout_by_hash(
+        &self,
+        hash: scoopc_ids::LirCallableHash,
+    ) -> Option<&CallableLayout<'ctx>> {
+        let mut matches = self.callable_layouts.values().filter(|layout| {
+            scoopc_ids::LirCallableHash::from_canonical_text(layout.stable_callable_key_text())
+                == hash
+        });
+        let first = matches.next()?;
+        matches.next().is_none().then_some(first)
+    }
+
     pub(super) fn callable_version_is_primary(
         &self,
         version_key: &LateLoweredBodyVersionKey,
@@ -3010,6 +3051,63 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         })
     }
 
+    pub(super) fn plain_callable_layout_for_id(
+        &self,
+        program: &LateLoweredProgram,
+        callable_id: scoopc_ids::LirCallableId,
+    ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
+        let callable =
+            program
+                .callable_by_id(callable_id)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "LLVM ABI query 缺少 local callable id {:?} 的 plain callable body",
+                        callable_id
+                    ),
+                })?;
+        self.plain_callable_layout_by_version_key(callable.body_version_key())
+    }
+
+    pub(super) fn maybe_plain_callable_layout_for_ref(
+        &self,
+        program: &LateLoweredProgram,
+        callable: scoopc_lir_facts::LirCallableRef,
+    ) -> Result<Option<&PlainCallableLayout<'ctx>>, LlvmEmitError> {
+        match callable {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                let Some(callable) = program.callable_by_id(id) else {
+                    return Err(LlvmEmitError::Frontend {
+                        message: format!(
+                            "LLVM ABI query 缺少 local callable id {:?} 的 plain callable body",
+                            id
+                        ),
+                    });
+                };
+                self.plain_callable_layout_by_version_key(callable.body_version_key())
+                    .map(Some)
+                    .or(Ok(None))
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                Ok(self.unique_plain_callable_layout_by_hash(hash))
+            }
+        }
+    }
+
+    fn unique_plain_callable_layout_by_hash(
+        &self,
+        hash: scoopc_ids::LirCallableHash,
+    ) -> Option<&PlainCallableLayout<'ctx>> {
+        let mut matches = self
+            .plain_callable_layouts_by_version_key
+            .values()
+            .filter(|layout| {
+                scoopc_ids::LirCallableHash::from_canonical_text(layout.stable_callable_key_text())
+                    == hash
+            });
+        let first = matches.next()?;
+        matches.next().is_none().then_some(first)
+    }
+
     fn unique_compatible_plain_callable_layout(
         &self,
         version_key: &LateLoweredBodyVersionKey,
@@ -3030,7 +3128,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         matches.next().is_none().then_some(first)
     }
 
-    pub(super) fn plain_callable_layout_by_root_fqn(
+    pub(super) fn plain_callable_layout_for_root_text(
         &self,
         root_fqn: &str,
     ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
@@ -3061,7 +3159,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         }
     }
 
-    pub(super) fn maybe_plain_callable_layout_by_root_fqn(
+    pub(super) fn maybe_plain_callable_layout_for_root_text(
         &self,
         root_fqn: &str,
     ) -> Result<Option<&PlainCallableLayout<'ctx>>, LlvmEmitError> {
@@ -3111,6 +3209,21 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Option<&CallableCarrierTargetLayout> {
         self.callable_carrier_target_layouts
             .get(&(kind, callable_fqn.to_string()))
+    }
+
+    pub(super) fn maybe_callable_carrier_target_layout_for_id(
+        &self,
+        program: &LateLoweredProgram,
+        kind: CallableCarrierKind,
+        callable_id: scoopc_ids::LirCallableId,
+    ) -> Option<&CallableCarrierTargetLayout> {
+        let version_key = program.callable_by_id(callable_id)?.body_version_key();
+        self.callable_carrier_target_layouts
+            .iter()
+            .find_map(|((candidate_kind, _), layout)| {
+                (*candidate_kind == kind && layout.body_version_key() == version_key)
+                    .then_some(layout)
+            })
     }
 
     pub(super) fn callable_carrier_target_layouts(

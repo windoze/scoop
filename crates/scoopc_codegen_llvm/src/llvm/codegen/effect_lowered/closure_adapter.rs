@@ -300,10 +300,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         else {
             return Ok(None);
         };
-        let fn_root = self.lir_callable_root_for_closure_adapter(fn_ptr, span)?;
-        if let Some(source_target) =
-            abi.maybe_callable_carrier_target_layout(CallableCarrierKind::ClosureObject, &fn_root)
-        {
+        let program = self.published_late_lowered_program().ok_or_else(|| {
+            frontend_error(format!(
+                "LIR closure adapter at {span:?} requires a published LIR program"
+            ))
+        })?;
+        let fn_label = self.lir_callable_root_for_closure_adapter(fn_ptr, span)?;
+        if let Some(source_target) = abi.maybe_callable_carrier_target_layout_for_id(
+            program,
+            CallableCarrierKind::ClosureObject,
+            fn_ptr,
+        ) {
             let source_step_schema = source_target.step_schema();
             let source_symbol_name = source_target.symbol_name().to_string();
             if source_step_schema == layout.return_step_schema {
@@ -313,24 +320,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_effect_typed_effectful_closure_adapter(
                     span,
                     abi,
-                    &fn_root,
+                    &fn_label,
                     layout,
                     source_step_schema,
                     &source_symbol_name,
                 )
                 .map(Some);
         }
-        if abi
-            .maybe_plain_callable_layout_by_root_fqn(&fn_root)?
-            .is_some()
-        {
+        if abi.plain_callable_layout_for_id(program, fn_ptr).is_ok() {
             return self
-                .build_effect_typed_plain_closure_adapter(span, abi, &fn_root, &fun_ty, layout)
+                .build_effect_typed_plain_closure_adapter(span, abi, fn_ptr, &fn_label, layout)
                 .map(Some);
         }
         Err(frontend_error(format!(
             "effect-typed LIR closure surface `{}` 缺少 published closure carrier target 或 plain callable layout",
-            fn_root,
+            fn_label,
         )))
     }
 
@@ -485,15 +489,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: Span,
         abi: &ProgramAbiQuery<'ctx>,
-        fn_ptr: &str,
-        fun_ty: &crate::ty::FunctionType,
+        fn_ptr: scoopc_ids::LirCallableId,
+        fn_label: &str,
         adapter: ClosureSurfaceLayout<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let plain = abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let program = self.expect_active_lir_program("build_effect_typed_plain_closure_adapter");
+        let plain = abi.plain_callable_layout_for_id(program, fn_ptr)?;
         let return_step_layout = abi.step_layout(adapter.return_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "effect-typed LIR plain adapter `{}` 缺少 return step schema s{} layout",
-                fn_ptr,
+                fn_label,
                 adapter.return_step_schema.as_u32(),
             ))
         })?;
@@ -510,7 +515,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(existing) = self.module.get_function(&name) {
             if existing.count_basic_blocks() == 0 {
                 self.define_effect_typed_plain_closure_adapter(
-                    span, abi, fn_ptr, fun_ty, adapter, existing,
+                    span, abi, fn_ptr, fn_label, adapter, existing,
                 )?;
             }
             return Ok(existing.as_global_value().as_pointer_value());
@@ -521,7 +526,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Linkage::Internal,
         );
         self.define_effect_typed_plain_closure_adapter(
-            span, abi, fn_ptr, fun_ty, adapter, function,
+            span, abi, fn_ptr, fn_label, adapter, function,
         )?;
         Ok(function.as_global_value().as_pointer_value())
     }
@@ -530,8 +535,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: Span,
         abi: &ProgramAbiQuery<'ctx>,
-        fn_ptr: &str,
-        _fun_ty: &crate::ty::FunctionType,
+        fn_ptr: scoopc_ids::LirCallableId,
+        fn_label: &str,
         adapter: ClosureSurfaceLayout<'ctx>,
         function: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -539,14 +544,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
 
-        let plain = abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let program = self.expect_active_lir_program("define_effect_typed_plain_closure_adapter");
+        let plain = abi.plain_callable_layout_for_id(program, fn_ptr)?;
         let plain_fun = self
             .module
             .get_function(plain.direct_entry().symbol_name())
             .ok_or_else(|| {
                 frontend_error(format!(
                     "effect-typed LIR plain adapter `{}` 缺少 plain entry `{}`",
-                    fn_ptr,
+                    fn_label,
                     plain.direct_entry().symbol_name(),
                 ))
             })?;
@@ -600,7 +606,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (count, _) => {
                 return Err(frontend_error(format!(
                     "effect-typed LIR plain adapter `{}` plain entry param count drift: entry={} expected={} or {}",
-                    fn_ptr,
+                    fn_label,
                     count,
                     plain_arg_count_without_sret,
                     plain_arg_count_without_sret + 1,
@@ -660,7 +666,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if payload.get_type() != expected_payload_ty {
                     return Err(frontend_error(format!(
                         "effect-typed LIR plain adapter `{}` direct payload type drift: expected {:?}, got {:?}",
-                        fn_ptr,
+                        fn_label,
                         expected_payload_ty,
                         payload.get_type(),
                     )));

@@ -271,7 +271,7 @@
 - 验收 grep 通过：`rg -n "program\.callable\(" crates/scoopc_codegen_llvm`；`rg -n "lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn" crates/scoopc_codegen_llvm`；`rg -n "published_signature_matches_hir_call" crates/scoopc_codegen_llvm` 均无命中。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-04-FIX1：清除 TC-04 review 发现的剩余 FQN live callable 查找
+### [DONE] TC-04-FIX1：清除 TC-04 review 发现的剩余 FQN live callable 查找
 
 **目标**：修复 `TC-04-R` 静态审查发现的 TC-04 残留：LLVM codegen 生产路径仍有按 root/FQN 字符串解析 callable、符号或 callable layout 的 live 查找。完成后 `TC-04-R` 才能确认「callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断」。
 
@@ -294,6 +294,13 @@
 - `rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无生产命中。
 - `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均为符号名、诊断、source-signature 文本字段，或明确非 callable 的 global/nominal layout key。
 - §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 删除/替换 TC-04 review 发现的生产路径 root/FQN callable 反查：`current_lir_callable_id` 改为随当前 active LIR program/body program 直接绑定；plain/effect layout 查询新增 `LirCallableId` / `LirCallableRef` / body-version-key 入口；`lir_callable_ref_for_root`、`exported_abi_symbol_for_lir_root` 和 root-named layout 查询不再作为生产 helper 暴露。
+- direct call、closure adapter、native callable wrapper、dispatch target declaration、source closure body、published signature 查询等路径改为消费 LIR handle、body version key、published symbol facts 或 source-signature 文本字段；未新增 `lir_*_to_mir` 反向转换。
+- 修复迁移中暴露的 LIR plain interface dispatch parity：补齐 LIR 静态 interface dispatch，避免 `println<String>` / `ToString` candidate-set 退化为空 itable 动态分派导致 `exit(7)`。
+- 验收 grep 通过：生产路径 `rg -n "\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无命中；`rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无命中。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-04-R：Review TC-04
 - **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。

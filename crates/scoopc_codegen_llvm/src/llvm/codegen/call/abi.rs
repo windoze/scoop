@@ -339,7 +339,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_fqn: &str,
     ) -> Option<&'a scoopc_lir_facts::LirCallableFacts> {
         self.active_lir_program()?
-            .callable(callable_fqn)?
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callable_fqn)?
             .published_callable_facts()
     }
 
@@ -373,8 +375,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let program = self.active_lir_program()?;
         let source_types = self.published_late_lowered_types()?;
         let callable = program
-            .callable_id_by_root(callable_fqn)
-            .and_then(|id| program.callable_by_id(id))?;
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == callable_fqn)?;
         if let Some(plain) = callable.plain_abi() {
             return Some((source_types, plain.param_tys().to_vec(), plain.return_ty()));
         }
@@ -396,8 +399,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.published_callable_signature_impl(callable_fqn)
         {
             let callable_facts = program
-                .callable_id_by_root(callable_fqn)
-                .and_then(|id| program.callable_by_id(id))?
+                .callables()
+                .iter()
+                .find(|callable| callable.root_fqn() == callable_fqn)?
                 .published_callable_facts()?;
             return Some((
                 source_types,

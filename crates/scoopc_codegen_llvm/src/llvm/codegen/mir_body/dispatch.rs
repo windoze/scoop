@@ -289,6 +289,158 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn codegen_lir_plain_static_interface_dispatch_call(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &LirOperand,
+        args: &[LirCallArg],
+        body: &LirExecutableBody,
+        source_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        source_ty: TypeId,
+        impl_fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let impl_sig = self
+            .published_codegen_callable_signature(impl_fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "static LIR interface dispatch target `{impl_fqn}` missing LIR signature"
+                ))
+            })?;
+        if impl_sig.param_tys.len() != args.len() + 1 {
+            std::panic::panic_any(
+                "codegen_lir_plain_static_interface_dispatch_call: LIR verifier accepted static interface arity drift",
+            );
+        }
+        if self
+            .direct_call_abi_identity(&impl_sig.fqn)
+            .uses_effect_bridge_abi()
+        {
+            panic!(
+                "codegen_lir_plain_static_interface_dispatch_call: effect boundary router accepted outward-effect static dispatch target in plain lowering at {span:?}"
+            );
+        }
+
+        let ret_cg = self.try_cg_ty_of_type_id(impl_sig.return_ty).unwrap_or_else(|| {
+            panic!(
+                "codegen_lir_plain_static_interface_dispatch_call: LIR verifier accepted unsupported return type"
+            )
+        });
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let hidden_sret_slot = if hidden_sret_result_ty.is_some() {
+            Some(self.create_entry_alloca(span, "lir_static_iface_call_sret", ret_cg)?)
+        } else {
+            None
+        };
+        let direct_result_storage =
+            if hidden_sret_result_ty.is_none() && !matches!(ret_cg, CgTy::Unit | CgTy::Never) {
+                Some(self.create_entry_alloca(span, "lir_static_iface_call_result", ret_cg)?)
+            } else {
+                None
+            };
+
+        let source_cg = self.cg_ty_of_type_id(source_ty, "static LIR interface receiver type");
+        let receiver_value =
+            self.codegen_lir_operand_expected(span, receiver, slots, Some(source_cg))?;
+        let receiver_value = self.coerce_value(span, receiver_value, source_cg)?;
+        let receiver_arg = if self
+            .ordinary_param_abi(span, source_ty)?
+            .pointee_ty()
+            .is_some()
+        {
+            let receiver_slot =
+                self.create_entry_alloca(span, "lir_static_iface_receiver", source_cg)?;
+            let _ = self.store_local_value(span, receiver_slot, source_cg, receiver_value)?;
+            receiver_slot.into()
+        } else {
+            self.as_llvm_arg_value(span, source_cg, receiver_value)?
+        };
+
+        let explicit_param_names = impl_sig.param_names[1..].to_vec();
+        let explicit_param_tys = impl_sig.param_tys[1..].to_vec();
+        let evaluated_explicit_args = self.codegen_bound_lir_call_args_from_signature(
+            span,
+            &explicit_param_names,
+            &explicit_param_tys,
+            args,
+            body,
+            source_types,
+            slots,
+            false,
+            self.types,
+        )?;
+        let explicit_args = evaluated_explicit_args
+            .iter()
+            .map(|arg| arg.value)
+            .collect::<Vec<_>>();
+
+        let llvm_name = self
+            .published_symbol_for_source_root_text(&impl_sig.fqn)
+            .unwrap_or_else(|| impl_sig.fqn.clone());
+        let function = self.declare_lir_plain_fun_with_symbol(
+            &llvm_name,
+            LlvmFunctionDeclarationSurface::ExportedAbi,
+            &impl_sig.fqn,
+            &impl_sig.param_tys,
+            impl_sig.return_ty,
+            self.types,
+            false,
+        )?;
+        let fn_i8 = function.as_global_value().as_pointer_value();
+        self.emit_interface_dispatch_case_call_to_storage(
+            span,
+            span,
+            &impl_sig.fqn,
+            fn_i8,
+            receiver_arg,
+            source_ty,
+            &explicit_param_tys,
+            &explicit_args,
+            ret_cg,
+            hidden_sret_result_ty,
+            hidden_sret_slot,
+            false,
+            None,
+            direct_result_storage,
+        )?;
+        self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
+
+        if let Some(result_ptr) = hidden_sret_slot {
+            self.sync_hidden_sret_result_roots(
+                span,
+                ret_cg,
+                result_ptr,
+                "lir_static_iface_call_sret",
+            )?;
+        }
+
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                if let Some(result_ptr) = hidden_sret_slot {
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "lir_static_iface_call_sret",
+                    )
+                } else {
+                    self.load_dispatch_result_from_storage(
+                        span,
+                        ret_cg,
+                        direct_result_storage.unwrap_or_else(|| {
+                            std::panic::panic_any(
+                                "codegen_lir_plain_static_interface_dispatch_call: direct return must publish result storage",
+                            )
+                        }),
+                    )
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn codegen_mir_plain_dispatch_call(
         &mut self,
         span: crate::span::Span,
@@ -576,6 +728,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ..
         } = &target
         {
+            if let Some((source_ty, impl_fqn)) = self.static_interface_dispatch_impl(
+                source_types,
+                *receiver_ty,
+                *interface_id,
+                *slot,
+            ) {
+                return self.codegen_lir_plain_static_interface_dispatch_call(
+                    span,
+                    receiver,
+                    args,
+                    body,
+                    source_types,
+                    slots,
+                    source_ty,
+                    &impl_fqn,
+                );
+            }
+
             let signature = self.instantiate_interface_dispatch_signature(signature, *receiver_ty);
             let receiver_value =
                 self.codegen_lir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;

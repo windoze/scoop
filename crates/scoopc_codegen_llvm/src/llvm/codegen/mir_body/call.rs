@@ -93,10 +93,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let LirCallKind::Interface { dispatch, .. } = kind
                     && dispatch.owner.as_str() == "scoop.core.ToString"
                     && dispatch.member_name == "toString"
-                    && let Some(impl_fqn) = self.lir_builtin_to_string_impl_fqn_for_operand(
-                        body,
+                    && let Some(receiver_ty) = self.lir_operand_type_id(body, receiver)
+                    && let Some(impl_ref) = self.lir_call_target_matching_receiver_ty(
+                        site_id,
+                        receiver_ty,
                         source_types,
-                        receiver,
                     )
                 {
                     let mut direct_args = Vec::with_capacity(args.len() + 1);
@@ -106,11 +107,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         value: receiver.clone(),
                     });
                     direct_args.extend(args.iter().cloned());
-                    let impl_ref = self.lir_callable_ref_for_root(impl_fqn).unwrap_or_else(|| {
-                        panic!(
-                            "codegen_lir_call: LIR verifier accepted ToString impl without callable ref"
-                        )
-                    });
                     return self.codegen_lir_direct_call_with_type_args(
                         span,
                         site_id,
@@ -1126,25 +1122,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
-    fn lir_builtin_to_string_impl_fqn_for_operand(
+    fn lir_exact_or_single_call_target(
         &self,
-        body: &LirExecutableBody,
+        site_id: mir_source::SiteId,
+    ) -> Option<scoopc_lir_facts::LirCallableRef> {
+        let contract = self.lir_call_site_contract(site_id)?;
+        contract
+            .exact_callee
+            .as_ref()
+            .map(|exact| exact.target_callable)
+            .or(match contract.target_callables.as_slice() {
+                [target] => Some(*target),
+                _ => None,
+            })
+    }
+
+    fn lir_call_target_matching_receiver_ty(
+        &self,
+        site_id: mir_source::SiteId,
+        receiver_ty: TypeId,
         source_types: &TypeStore,
-        operand: &LirOperand,
-    ) -> Option<&'static str> {
-        let ty = self.lir_operand_type_id(body, operand)?;
-        match source_types.kind(ty) {
-            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
-            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
-            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
-            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
-            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
-            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
-                Some("scoop.core.String.toString")
-            }
-            _ => None,
+    ) -> Option<scoopc_lir_facts::LirCallableRef> {
+        let contract = self.lir_call_site_contract(site_id)?;
+        contract.target_callables.iter().copied().find(|target| {
+            self.lir_callable_first_param_ty(*target)
+                .is_some_and(|param_ty| {
+                    param_ty == receiver_ty
+                        || self.equivalent_codegen_type_id(source_types, param_ty)
+                            == self.equivalent_codegen_type_id(source_types, receiver_ty)
+                })
+        })
+    }
+
+    fn lir_callable_first_param_ty(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<TypeId> {
+        let program = self.published_late_lowered_program()?;
+        match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => program
+                .callable_by_id(id)
+                .and_then(|callable| callable.plain_abi())
+                .and_then(|plain| plain.param_tys().first().copied()),
+            scoopc_lir_facts::LirCallableRef::ExternalHash(_) => None,
         }
+    }
+
+    fn lir_call_site_contract(
+        &self,
+        site_id: mir_source::SiteId,
+    ) -> Option<&scoopc_lir_facts::LirCallSiteContract> {
+        let source_site = self.published_lir_source_call_site(site_id);
+        let plain_site = source_site
+            .is_none()
+            .then(|| self.published_lir_plain_call_site(site_id))
+            .flatten();
+        source_site
+            .map(|site| &site.contract)
+            .or_else(|| plain_site.map(|site| &site.contract))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1621,6 +1656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_lir_pure_effect_step_direct_call(
                 span,
                 abi,
+                target_callable,
                 concrete_fqn,
                 args,
                 body,
@@ -2123,18 +2159,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let _ = fn_ptr;
         let call_may_suspend = self
-            .published_late_lowered_program()
-            .and_then(|program| {
-                program
-                    .callable_id_by_root(fn_ptr)
-                    .and_then(|id| program.callable_by_id(id))
-            })
-            .map(|callable| callable.effect_step_abi().is_some())
-            .unwrap_or_else(|| {
-                self.managed_callable_abi_identity_from_fun_ty(fun_ty)
-                    .uses_effect_bridge_abi()
-            });
+            .managed_callable_abi_identity_from_fun_ty(fun_ty)
+            .uses_effect_bridge_abi();
         let callee_value =
             self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
