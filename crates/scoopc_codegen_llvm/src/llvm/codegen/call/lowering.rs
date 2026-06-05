@@ -677,12 +677,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     continue;
                 }
                 let idx = slot as usize;
-                let Some(impl_fqn) = entry.method_impl_fqns.get(idx) else {
+                let Some(target) = entry
+                    .method_impl_targets
+                    .get(idx)
+                    .and_then(|target| *target)
+                else {
                     continue;
                 };
-                if impl_fqn.is_empty() {
-                    continue;
-                }
+                let impl_label = target.display_text();
                 let receiver_type_id = entry
                     .method_receiver_type_ids
                     .get(idx)
@@ -696,7 +698,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 cases.push(InterfaceValueReceiverCase {
                     receiver_type_id,
                     source_ty,
-                    impl_fqn: impl_fqn.clone(),
+                    impl_label,
+                    target,
                 });
             }
         }
@@ -1009,7 +1012,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for (case, (_, case_bb)) in value_cases.iter().zip(case_bbs.iter()) {
                 self.builder.position_at_end(*case_bb);
                 let impl_sig = self
-                    .published_codegen_callable_signature(&case.impl_fqn)
+                    .published_codegen_callable_signature_for_ref(case.target)
                     .unwrap_or_else(|| panic!("emit_interface_dispatch_indirect_call: verifier accepted missing value receiver LIR signature"));
                 let receiver_value = self.load_interface_value_box_payload(
                     callee_span,
@@ -1040,7 +1043,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.emit_interface_dispatch_case_call_to_storage(
                     span,
                     callee_span,
-                    &case.impl_fqn,
+                    &case.impl_label,
                     lookup.fn_i8,
                     receiver_arg,
                     case.source_ty,

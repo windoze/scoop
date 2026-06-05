@@ -430,6 +430,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.published_codegen_callable_signature_impl(callable_fqn)
     }
 
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_ref(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<CodegenCallableSignature> {
+        self.published_codegen_callable_signature_for_ref_impl(target)
+    }
+
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count(
         &self,
         uses_explicit_effect_hidden_abi: bool,

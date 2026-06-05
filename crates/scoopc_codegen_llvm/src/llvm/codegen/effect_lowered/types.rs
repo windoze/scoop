@@ -25,7 +25,7 @@ use crate::effect_lowered::source::ClassInstanceKey;
 use crate::llvm::LlvmEmitError;
 use crate::ty::TypeId;
 
-use super::super::CallableCarrierKind;
+use super::super::{CallableCarrierKind, CallableCarrierTargetKey};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum AbiProgramOrigin {
@@ -769,7 +769,7 @@ pub(super) struct DynamicInvokeLayout<'ctx> {
     args_abi: AbiValue<'ctx>,
     return_step_schema: StepSchemaId,
     carrier: DynamicInvokeCarrierLayout<'ctx>,
-    candidate_targets: Vec<String>,
+    candidate_target_refs: Vec<scoopc_lir_facts::LirCallableRef>,
 }
 
 impl<'ctx> DynamicInvokeLayout<'ctx> {
@@ -784,7 +784,7 @@ impl<'ctx> DynamicInvokeLayout<'ctx> {
         args_abi: AbiValue<'ctx>,
         return_step_schema: StepSchemaId,
         carrier: DynamicInvokeCarrierLayout<'ctx>,
-        candidate_targets: Vec<String>,
+        candidate_target_refs: Vec<scoopc_lir_facts::LirCallableRef>,
     ) -> Self {
         Self {
             owner_step_schema,
@@ -796,7 +796,7 @@ impl<'ctx> DynamicInvokeLayout<'ctx> {
             args_abi,
             return_step_schema,
             carrier,
-            candidate_targets,
+            candidate_target_refs,
         }
     }
 
@@ -836,8 +836,8 @@ impl<'ctx> DynamicInvokeLayout<'ctx> {
         &self.carrier
     }
 
-    pub(super) fn candidate_targets(&self) -> &[String] {
-        &self.candidate_targets
+    pub(super) fn candidate_target_refs(&self) -> &[scoopc_lir_facts::LirCallableRef] {
+        &self.candidate_target_refs
     }
 }
 
@@ -2111,6 +2111,7 @@ impl<'ctx> ContinuationObjectLayout<'ctx> {
 /// 单个 callable version 暴露给后续 body emitter 的 LLVM ABI 查询面。
 pub(super) struct CallableLayout<'ctx> {
     origin: AbiProgramOrigin,
+    callable_hash: scoopc_ids::LirCallableHash,
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     stable_callable_key_text: String,
@@ -2125,6 +2126,7 @@ impl<'ctx> CallableLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         origin: AbiProgramOrigin,
+        callable_hash: scoopc_ids::LirCallableHash,
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         stable_callable_key_text: String,
@@ -2136,6 +2138,7 @@ impl<'ctx> CallableLayout<'ctx> {
     ) -> Self {
         Self {
             origin,
+            callable_hash,
             root_fqn,
             body_version_key,
             stable_callable_key_text,
@@ -2149,6 +2152,10 @@ impl<'ctx> CallableLayout<'ctx> {
 
     pub(super) fn root_fqn(&self) -> &str {
         &self.root_fqn
+    }
+
+    pub(super) fn callable_hash(&self) -> scoopc_ids::LirCallableHash {
+        self.callable_hash
     }
 
     pub(super) fn origin(&self) -> AbiProgramOrigin {
@@ -2194,6 +2201,7 @@ impl<'ctx> CallableLayout<'ctx> {
 
 /// 单个 plain callable version 暴露给 body emitter 的普通 ABI 查询面。
 pub(super) struct PlainCallableLayout<'ctx> {
+    callable_hash: scoopc_ids::LirCallableHash,
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     stable_callable_key_text: String,
@@ -2202,12 +2210,14 @@ pub(super) struct PlainCallableLayout<'ctx> {
 
 impl<'ctx> PlainCallableLayout<'ctx> {
     pub(super) fn new(
+        callable_hash: scoopc_ids::LirCallableHash,
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         stable_callable_key_text: String,
         direct_entry: PlainCallableEntryLayout<'ctx>,
     ) -> Self {
         Self {
+            callable_hash,
             root_fqn,
             body_version_key,
             stable_callable_key_text,
@@ -2217,6 +2227,10 @@ impl<'ctx> PlainCallableLayout<'ctx> {
 
     pub(super) fn root_fqn(&self) -> &str {
         &self.root_fqn
+    }
+
+    pub(super) fn callable_hash(&self) -> scoopc_ids::LirCallableHash {
+        self.callable_hash
     }
 
     pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
@@ -2239,7 +2253,6 @@ impl<'ctx> PlainCallableLayout<'ctx> {
 /// runtime callable carrier 对应的 canonical dynamic entry target contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct CallableCarrierTargetLayout {
-    callable_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     step_schema: StepSchemaId,
     symbol_name: String,
@@ -2247,21 +2260,15 @@ pub(super) struct CallableCarrierTargetLayout {
 
 impl CallableCarrierTargetLayout {
     pub(super) fn new(
-        callable_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         step_schema: StepSchemaId,
         symbol_name: String,
     ) -> Self {
         Self {
-            callable_fqn,
             body_version_key,
             step_schema,
             symbol_name,
         }
-    }
-
-    pub(super) fn callable_fqn(&self) -> &str {
-        &self.callable_fqn
     }
 
     pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
@@ -2294,8 +2301,7 @@ pub(crate) struct ProgramAbiQuery<'ctx> {
     plain_callable_layouts_by_version_key:
         HashMap<LateLoweredBodyVersionKey, PlainCallableLayout<'ctx>>,
     known_instance_callable_versions: HashMap<(InstanceKey, AbiStepKey), LateLoweredBodyVersionKey>,
-    callable_carrier_target_layouts:
-        HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+    callable_carrier_target_layouts: HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>,
     dynamic_invoke_layouts: BTreeMap<(AbiStepKey, SiteId), DynamicInvokeLayout<'ctx>>,
     call_boundary_operand_layouts: BTreeMap<(AbiStepKey, SiteId), CallBoundaryOperandLayout>,
     perform_boundary_operand_layouts: BTreeMap<(AbiStepKey, SiteId), PerformBoundaryOperandLayout>,
@@ -2408,7 +2414,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             LateLoweredBodyVersionKey,
         >,
         callable_carrier_target_layouts: HashMap<
-            (CallableCarrierKind, String),
+            CallableCarrierTargetKey,
             CallableCarrierTargetLayout,
         >,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
@@ -2659,7 +2665,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
 
     fn merge_callable_carrier_target_layouts(
         &mut self,
-        source: HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+        source: HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>,
         dep_label: &str,
     ) -> Result<(), LlvmEmitError> {
         for (key, layout) in source {
@@ -2671,8 +2677,8 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 }
                 return Err(LlvmEmitError::Frontend {
                     message: format!(
-                        "LLVM ABI materialization 合并 {dep_label} 时发现 callable carrier `{}` 指向不同 body version",
-                        key.1
+                        "LLVM ABI materialization 合并 {dep_label} 时发现 callable carrier {:?} 指向不同 body version",
+                        key
                     ),
                 });
             }
@@ -3012,10 +3018,10 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         hash: scoopc_ids::LirCallableHash,
     ) -> Option<&CallableLayout<'ctx>> {
-        let mut matches = self.callable_layouts.values().filter(|layout| {
-            scoopc_ids::LirCallableHash::from_canonical_text(layout.stable_callable_key_text())
-                == hash
-        });
+        let mut matches = self
+            .callable_layouts
+            .values()
+            .filter(|layout| layout.callable_hash() == hash);
         let first = matches.next()?;
         matches.next().is_none().then_some(first)
     }
@@ -3100,10 +3106,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         let mut matches = self
             .plain_callable_layouts_by_version_key
             .values()
-            .filter(|layout| {
-                scoopc_ids::LirCallableHash::from_canonical_text(layout.stable_callable_key_text())
-                    == hash
-            });
+            .filter(|layout| layout.callable_hash() == hash);
         let first = matches.next()?;
         matches.next().is_none().then_some(first)
     }
@@ -3188,27 +3191,24 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
 
     pub(super) fn callable_carrier_target_layout(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
     ) -> Result<&CallableCarrierTargetLayout, LlvmEmitError> {
         self.callable_carrier_target_layouts
-            .get(&(kind, callable_fqn.to_string()))
+            .get(&key)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM ABI query 缺少 {} `{}` 的 callable version 选择 contract",
-                    kind.label(),
-                    callable_fqn,
+                    "LLVM ABI query 缺少 {} `{:?}` 的 callable version 选择 contract",
+                    key.kind().label(),
+                    key.callable_hash(),
                 ),
             })
     }
 
     pub(super) fn maybe_callable_carrier_target_layout(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
     ) -> Option<&CallableCarrierTargetLayout> {
-        self.callable_carrier_target_layouts
-            .get(&(kind, callable_fqn.to_string()))
+        self.callable_carrier_target_layouts.get(&key)
     }
 
     pub(super) fn maybe_callable_carrier_target_layout_for_id(
@@ -3217,21 +3217,19 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         kind: CallableCarrierKind,
         callable_id: scoopc_ids::LirCallableId,
     ) -> Option<&CallableCarrierTargetLayout> {
-        let version_key = program.callable_by_id(callable_id)?.body_version_key();
-        self.callable_carrier_target_layouts
-            .iter()
-            .find_map(|((candidate_kind, _), layout)| {
-                (*candidate_kind == kind && layout.body_version_key() == version_key)
-                    .then_some(layout)
-            })
+        let callable = program.callable_by_id(callable_id)?;
+        let stable_key = callable.lir_callable_key()?;
+        let key = CallableCarrierTargetKey::new(
+            kind,
+            scoopc_ids::LirCallableHash::from_stable_key(stable_key),
+        );
+        self.callable_carrier_target_layouts.get(&key)
     }
 
     pub(super) fn callable_carrier_target_layouts(
         &self,
-    ) -> impl Iterator<Item = (CallableCarrierKind, &str, &CallableCarrierTargetLayout)> + '_ {
-        self.callable_carrier_target_layouts
-            .iter()
-            .map(|((kind, callable_fqn), layout)| (*kind, callable_fqn.as_str(), layout))
+    ) -> impl Iterator<Item = (&CallableCarrierTargetKey, &CallableCarrierTargetLayout)> + '_ {
+        self.callable_carrier_target_layouts.iter()
     }
 
     pub(super) fn dynamic_invoke_layout(

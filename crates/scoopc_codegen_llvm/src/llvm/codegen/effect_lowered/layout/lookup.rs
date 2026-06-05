@@ -74,23 +74,30 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         format!("{fqn}<{arg_text}>")
     }
 
-    pub(super) fn callable_facts_for_root(
+    pub(super) fn callable_facts_for_ref(
         &self,
-        root_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<&LirCallableFacts, LlvmEmitError> {
-        let callable = self
-            .program
-            .callables()
-            .iter()
-            .find(|callable| callable.root_fqn() == root_fqn)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR body"
-                ))
-            })?;
+        let callable = match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => self.program.callable_by_id(id),
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                self.program.callables().iter().find(|callable| {
+                    callable.lir_callable_key().is_some_and(|key| {
+                        scoopc_ids::LirCallableHash::from_stable_key(key) == hash
+                    })
+                })
+            }
+        }
+        .ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 缺少 callable target `{}` 的 LIR body",
+                target.display_text()
+            ))
+        })?;
         self.callable_facts(callable).map_err(|_| {
             frontend_error(format!(
-                "LLVM ABI materialization 缺少 callable `{root_fqn}` 的 LIR facts"
+                "LLVM ABI materialization 缺少 callable target `{}` 的 LIR facts",
+                target.display_text()
             ))
         })
     }
@@ -137,44 +144,24 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
     }
 
-    pub(super) fn effect_step_callable_facts_for_root(
+    pub(super) fn effect_step_callable_facts_for_ref(
         &self,
-        root_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<&scoopc_lir_facts::LirEffectStepCallableFacts, LlvmEmitError> {
-        match &self.callable_facts_for_root(root_fqn)?.contract {
+        match &self.callable_facts_for_ref(target)?.contract {
             LirCallableContract::EffectStep(effect) => Ok(effect),
             LirCallableContract::Plain(_) => Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 callable `{root_fqn}` 的 LIR facts 不是 effect-step ABI"
+                "LLVM ABI materialization 发现 callable target `{}` 的 LIR facts 不是 effect-step ABI",
+                target.display_text()
             ))),
         }
     }
 
-    pub(super) fn lir_target_roots(
+    pub(super) fn lir_target_refs(
         &self,
         contract: &LirDynamicInvokeContract,
-    ) -> Result<Vec<String>, LlvmEmitError> {
-        contract
-            .call
-            .target_callables
-            .iter()
-            .map(|key| {
-                self.program
-                    .physical_layout()
-                    .abi_symbols
-                    .values()
-                    .find_map(|symbol| {
-                        (symbol.callable == Some(*key))
-                            .then(|| symbol.root_fqn.clone())
-                            .flatten()
-                    })
-                    .ok_or_else(|| {
-                        frontend_error(format!(
-                            "LLVM ABI materialization 的 dynamic-invoke contract 引用了缺失的 target callable `{}`",
-                            key.display_text()
-                        ))
-                    })
-            })
-            .collect()
+    ) -> Result<Vec<scoopc_lir_facts::LirCallableRef>, LlvmEmitError> {
+        Ok(contract.call.target_callables.clone())
     }
 
     pub(super) fn is_funptr_source_ty(&self, ty: TypeId) -> bool {

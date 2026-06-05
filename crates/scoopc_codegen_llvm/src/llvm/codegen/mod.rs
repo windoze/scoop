@@ -51,7 +51,7 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
-use scoopc_ids::{LirCallableId, SiteId};
+use scoopc_ids::{LirCallableHash, LirCallableId, SiteId};
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
@@ -129,7 +129,8 @@ struct InterfaceItableSlotLookup<'ctx> {
 struct InterfaceValueReceiverCase {
     receiver_type_id: u64,
     source_ty: TypeId,
-    impl_fqn: String,
+    impl_label: String,
+    target: scoopc_lir_facts::LirCallableRef,
 }
 
 /// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
@@ -409,8 +410,8 @@ struct SharedCodegenCaches {
     class_init_layout_cache: RefCell<HashMap<hir::ClassInstanceKey, hir::MonoClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
     callable_carrier_contract_enabled: Cell<bool>,
-    callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
-    plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
+    carrier_entry_symbols_by_key: RefCell<HashMap<CallableCarrierTargetKey, String>>,
+    plain_carrier_fallback_keys: RefCell<HashSet<CallableCarrierTargetKey>>,
     exported_abi_symbols: RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
     string_byte_data_globals: RefCell<StringByteDataGlobalRegistry>,
 }
@@ -462,6 +463,67 @@ impl CallableCarrierKind {
             Self::InterfaceItable => "interface itable slot",
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct CallableCarrierTargetKey {
+    kind: CallableCarrierKind,
+    callable_hash: LirCallableHash,
+}
+
+impl CallableCarrierTargetKey {
+    pub(super) const fn new(kind: CallableCarrierKind, callable_hash: LirCallableHash) -> Self {
+        Self {
+            kind,
+            callable_hash,
+        }
+    }
+
+    pub(super) const fn kind(self) -> CallableCarrierKind {
+        self.kind
+    }
+
+    pub(super) const fn callable_hash(self) -> LirCallableHash {
+        self.callable_hash
+    }
+}
+
+pub(super) fn lir_callable_hash_for_ref(
+    program: &crate::effect_lowered::LateLoweredProgram,
+    target: scoopc_lir_facts::LirCallableRef,
+    context: &str,
+) -> Result<LirCallableHash, LlvmEmitError> {
+    match target {
+        scoopc_lir_facts::LirCallableRef::Local(id) => {
+            let callable = program
+                .callable_by_id(id)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!("{context}: LIR callable ref {target:?} has no local body"),
+                })?;
+            let stable_key =
+                callable
+                    .lir_callable_key()
+                    .ok_or_else(|| LlvmEmitError::Frontend {
+                        message: format!(
+                            "{context}: LIR callable ref {target:?} has no stable callable key"
+                        ),
+                    })?;
+            Ok(LirCallableHash::from_stable_key(stable_key))
+        }
+        scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => Ok(hash),
+    }
+}
+
+pub(super) fn callable_carrier_target_key_for_ref(
+    program: &crate::effect_lowered::LateLoweredProgram,
+    kind: CallableCarrierKind,
+    target: scoopc_lir_facts::LirCallableRef,
+    context: &str,
+) -> Result<CallableCarrierTargetKey, LlvmEmitError> {
+    Ok(CallableCarrierTargetKey::new(
+        kind,
+        lir_callable_hash_for_ref(program, target, context)?,
+    ))
 }
 
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的稳定输入与共享状态。

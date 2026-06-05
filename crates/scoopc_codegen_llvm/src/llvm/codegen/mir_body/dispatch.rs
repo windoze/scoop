@@ -90,17 +90,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let [target] = dispatch.candidate_targets.as_slice() else {
             return None;
         };
-        let root = self
-            .expect_active_lir_program("unique_dispatch_target_signature")
-            .physical_layout()
-            .abi_symbols
-            .values()
-            .find_map(|symbol| {
-                (symbol.callable == Some(*target))
-                    .then_some(symbol.root_fqn.as_deref())
-                    .flatten()
-            })?;
-        self.published_codegen_callable_signature(root)
+        self.published_codegen_callable_signature_for_ref(*target)
     }
 
     pub(in crate::llvm::codegen) fn static_interface_receiver_owner_fqn(
@@ -130,7 +120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver_ty: TypeId,
         interface_id: u64,
         slot: u32,
-    ) -> Option<(TypeId, String)> {
+    ) -> Option<(TypeId, scoopc_lir_facts::LirCallableRef, String)> {
         let (owner_fqn, source_ty) =
             self.static_interface_receiver_owner_fqn(mir_types, receiver_ty)?;
         let itable = self
@@ -142,8 +132,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .entries
             .iter()
             .find(|entry| entry.interface_id == interface_id)?;
-        let impl_fqn = entry.method_impl_fqns.get(slot as usize)?.clone();
-        (!impl_fqn.is_empty()).then_some((source_ty, impl_fqn))
+        let idx = slot as usize;
+        let target = entry
+            .method_impl_targets
+            .get(idx)
+            .and_then(|target| *target)?;
+        let target_label = target.display_text();
+        Some((source_ty, target, target_label))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -154,14 +149,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[mir_source::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         source_ty: TypeId,
-        impl_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
+        target_label: &str,
         allow_effect_typed_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let impl_sig = self
-            .published_codegen_callable_signature(impl_fqn)
+            .published_codegen_callable_signature_for_ref(target)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "static interface dispatch target `{impl_fqn}` missing LIR signature"
+                    "static interface dispatch target `{target_label}` missing LIR signature"
                 ))
             })?;
         if impl_sig.param_tys.len() != args.len() + 1 {
@@ -298,13 +294,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         source_ty: TypeId,
-        impl_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
+        target_label: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let impl_sig = self
-            .published_codegen_callable_signature(impl_fqn)
+            .published_codegen_callable_signature_for_ref(target)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "static LIR interface dispatch target `{impl_fqn}` missing LIR signature"
+                    "static LIR interface dispatch target `{target_label}` missing LIR signature"
                 ))
             })?;
         if impl_sig.param_tys.len() != args.len() + 1 {
@@ -475,7 +472,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ..
         } = &target
         {
-            if let Some((source_ty, impl_fqn)) =
+            if let Some((source_ty, target, target_label)) =
                 self.static_interface_dispatch_impl(mir_types, *receiver_ty, *interface_id, *slot)
             {
                 return self.codegen_mir_plain_static_interface_dispatch_call(
@@ -484,7 +481,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                     slots,
                     source_ty,
-                    &impl_fqn,
+                    target,
+                    &target_label,
                     allow_effect_typed_signature,
                 );
             }
@@ -728,7 +726,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ..
         } = &target
         {
-            if let Some((source_ty, impl_fqn)) = self.static_interface_dispatch_impl(
+            if let Some((source_ty, target, target_label)) = self.static_interface_dispatch_impl(
                 source_types,
                 *receiver_ty,
                 *interface_id,
@@ -742,7 +740,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     source_types,
                     slots,
                     source_ty,
-                    &impl_fqn,
+                    target,
+                    &target_label,
                 );
             }
 

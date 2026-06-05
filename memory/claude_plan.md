@@ -1,27 +1,51 @@
-# 当前执行计划
+# Claude 执行计划
 
 ## 范围
 
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 本轮只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 如果遇到阻塞当前任务的缺失功能、规格不一致、失败测试或未排期问题，优先修复；若无法在本轮直接完成，则在 `TODO.md` 中加入最小必要前置任务并提交后停止。
+- 以 `TODO.md` 作为权威任务列表和完成状态来源。
+- 只选择第一个标题未带 `[DONE]` 的任务并完成它，然后停止。
+- 除非阶段级计划或依赖关系实际变化，否则不更新 `PLAN.md`。
 
-## 步骤
+## 通用步骤
 
-1. 读取 `TODO.md`，定位第一个未完成任务，并检查其依赖、验证要求和完成记录。
-2. 查看最近提交信息，确认是否有与该任务直接相关的未完成事项；若有，将其纳入当前任务或作为前置任务记录到 `TODO.md`。
-3. 根据任务内容读取最小必要的相关代码、测试、规格或文档，避免无关历史问题扫查。
-4. 按任务要求实现最小正确变更；如发现必须先修复的具体阻塞问题，先处理该阻塞或更新 `TODO.md` 后停止。
-5. 增加或调整针对当前任务的测试/fixture，确保覆盖指定行为和回归风险。
-6. 依次运行格式化、lint、相关测试；在需要全量验证时按要求运行完整 Rust 测试和 fixture 测试并使用足够超时。
-7. 若发现未排期失败测试/fixture，修复或在 `TODO.md` 中加入正确顺序的任务，不能将当前任务标记完成。
-8. 任务完成后，在 `TODO.md` 中给任务标题加 `[DONE]` 并更新完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
-9. 检查工作区差异，确保只提交预期文件；如本轮是恢复未提交任务，则按要求包含当前未提交文件。
-10. 使用符合项目风格的提交信息提交，然后停止，不继续下一项任务。
+1. 读取 `TODO.md` 并识别第一个未完成任务。
+2. 检查当前工作区状态和最新提交，确认是否有与该任务直接相关的未完成事项。
+3. 阅读当前任务涉及的最小必要代码、测试、fixture 和文档。
+4. 按任务要求实现，不通过缩小范围、FQN 反查、shim 或 fixture-only hack 绕过问题。
+5. 添加或更新必要的测试/fixture。
+6. 先运行 `cargo fmt`。
+7. 再运行 `cargo clippy --all-targets -- -D warnings`。
+8. 按任务要求运行相关测试、完整 Rust 测试、构建和 fixture 基线。
+9. 若发现未排期失败，修复它或在 `TODO.md` 中加入最小必要前置任务。
+10. 完成后在 `TODO.md` 中给任务标题加 `[DONE]` 并更新完成记录。
+11. 检查差异并提交本轮任务变更。
 
-## 进度记录
+## 当前任务
 
-- 已创建本计划，下一步读取 `TODO.md` 识别第一个未完成任务。
-- 已识别本轮任务：`TC-04-R：Review TC-04`。最新提交 `TC-04-FIX1` 是该 review 的直接前置修复，下一步按 TC-04-R 验收项执行静态检查与抽样审查。
-- TC-04-R 静态检查发现旧 `program.callable` / `callable_id_by_root` / `lir_*_to_mir` 模式已清零，但 carrier/dispatch 发布路径仍有 callable root/FQN live layout/facts 选择：`carrier.rs` 的 `published_callable_roots` / `plain_callable_roots` / `callable_layout_for_carrier_target` / `effect_step_callable_facts_for_root`，以及物理 vtable/itable 的 `impl_member_fqn` / `method_impl_fqns` 消费。该问题阻塞 TC-04-R 完成，下一步在 `TODO.md` 中插入最小前置任务 `TC-04-FIX2` 并停止。
-- 已在 `TODO.md` 中插入 `TC-04-FIX2：清除 carrier/dispatch 残留 FQN callable 选择`，并更新 `TC-04-R` 依赖与审查阻塞记录。由于本轮只修改任务/计划文档且未改编译产物，按项目规则不运行格式化、lint、完整测试或 fixture；下一步检查差异并提交。
+- 已选择第一个未完成任务：`TC-04-FIX2`。
+- 目标：清除 carrier/dispatch 生产路径中仍以 callable FQN/root 字符串做 live target/layout/facts 选择的残留，改为 `LirCallableRef`、stable callable hash 或 body-version/contract 查询。
+- 最新提交 `ee793352 [TC-04-R] Schedule carrier FQN lookup fix` 直接对应当前任务。
+
+## 进度
+
+- 已确认初始验收 grep 命中集中在 carrier target map、dynamic invoke candidate target、carrier shell 发布、class vtable/itable global、static interface dispatch 和 fallback registry。
+- 已将 carrier target registry 从 `(CallableCarrierKind, String)` 改为 `CallableCarrierTargetKey { kind, LirCallableHash }`。
+- 已将 dynamic invoke candidate target、carrier layout 查询、entry symbol registry、plain fallback registry、vtable/itable target declaration 和 static interface dispatch 改为消费 LIR callable handle/hash。
+- 已将 physical layout 消费从 `impl_member_fqn` / `method_impl_fqns` 切到 `impl_member_target` / `method_impl_targets`；FQN 仅保留为符号名、source-signature 文本、诊断或 nominal/global layout key。
+- 已为 callable layout 保存 stable `LirCallableHash`，修复 external hash 与 callable layout 的匹配路径。
+- 验收 grep 已通过：carrier target map、physical FQN target field、旧 FQN lookup helper 三组生产路径 grep 均无命中。
+
+## 验证记录
+
+- `cargo fmt` 通过。
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- `cargo test --all --all-targets` 通过。
+- `cargo build -p scoop -p scoopc` 通过。
+- `python3 tools/dependency_gate.py` 通过。
+- `python3 tools/spec_fixtures.py check` 通过。
+- `python3 tools/run_fixtures.py` 通过。
+
+## 下一步
+
+- `TODO.md` 已更新 `TC-04-FIX2` 完成记录。
+- 下一步检查最终差异并提交本轮任务变更。

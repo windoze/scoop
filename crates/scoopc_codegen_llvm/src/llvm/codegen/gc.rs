@@ -6,65 +6,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn declare_dispatch_target_fun(
         &mut self,
         _at: crate::span::Span,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
+        target_label: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let signature = self
-            .published_codegen_callable_signature(callable_fqn)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "dispatch target callable `{callable_fqn}` 缺少 LIR callable/source signature contract"
-                ),
-            })?;
         let program = self.expect_active_lir_program("declare_dispatch_target_fun");
         let symbol_facts = program
             .physical_layout()
             .callable_symbols
-            .values()
-            .find(|facts| facts.root_fqn == callable_fqn);
-        let callable_ref = symbol_facts
-            .map(|facts| scoopc_lir_facts::LirCallableRef::Local(facts.callable))
-            .or_else(|| {
-                program
-                    .physical_layout()
-                    .abi_symbols
-                    .values()
-                    .find_map(|symbol| {
-                        (symbol.root_fqn.as_deref() == Some(callable_fqn))
-                            .then_some(symbol.callable)
-                            .flatten()
-                    })
-            });
-        let abi_symbol_fact =
-            callable_ref.and_then(|callable| self.abi_symbol_for_lir_callable_ref(callable));
+            .get(&target.local_id().ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target `{target_label}` uses external callable ref `{}` without local symbol facts",
+                    target.display_text(),
+                ),
+            })?)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{target_label}` 缺少 LIR callable symbol facts"
+                ),
+            })?;
+        let source_types =
+            self.published_late_lowered_types()
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "dispatch target callable `{target_label}` 缺少 LIR TypeStore contract"
+                    ),
+                })?;
+        let (param_tys, return_ty) = self
+            .published_signature_tys_as_codegen_tys_impl(
+                source_types,
+                symbol_facts.param_tys.clone(),
+                symbol_facts.return_ty,
+            )
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{target_label}` 的 LIR signature 无法映射到 LLVM codegen TypeStore"
+                ),
+            })?;
+        let signature = CodegenCallableSignature {
+            fqn: symbol_facts.root_fqn.clone(),
+            param_names: symbol_facts.param_names.clone(),
+            param_tys,
+            return_ty,
+        };
+        let abi_symbol_fact = self.abi_symbol_for_lir_callable_ref(target);
         let llvm_name = symbol_facts
-            .and_then(|facts| {
-                facts.exported_symbol.as_deref().or_else(|| {
-                    facts
-                        .native
-                        .as_ref()
-                        .map(|native| native.symbol.as_str())
-                        .or_else(|| {
-                            facts
-                                .extern_
-                                .as_ref()
-                                .map(|extern_| extern_.symbol.as_str())
-                        })
+            .exported_symbol
+            .as_deref()
+            .or_else(|| {
+                symbol_facts
+                    .native
+                    .as_ref()
+                    .map(|native| native.symbol.as_str())
+                    .or_else(|| {
+                        symbol_facts
+                            .extern_
+                            .as_ref()
+                            .map(|extern_| extern_.symbol.as_str())
+                    })
                 })
-            })
             .or_else(|| abi_symbol_fact.map(|fact| fact.symbol.as_str()))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "dispatch target callable `{callable_fqn}` 的 LIR callable ABI symbol fact 缺少 symbol"
+                    "dispatch target callable `{target_label}` 的 LIR callable ABI symbol fact 缺少 symbol"
                 ),
             })?
             .to_string();
         if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
-        let surface = if symbol_facts.is_none()
-            && abi_symbol_fact.is_some_and(|fact| {
-                matches!(fact.role.as_str(), "native_callable" | "extern_callable")
-            }) {
+        let surface = if abi_symbol_fact
+            .is_some_and(|fact| matches!(fact.role.as_str(), "native_callable" | "extern_callable"))
+        {
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
         } else {
             LlvmFunctionDeclarationSurface::ExportedAbi
@@ -175,7 +187,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             args.push(self.as_llvm_arg_value(at, param_cg, coerced)?);
         }
 
-        let target = self.declare_dispatch_target_fun(at, &hook.target_fqn)?;
+        let llvm_name = self
+            .published_symbol_for_source_root_text(&hook.target_fqn)
+            .unwrap_or_else(|| hook.target_fqn.clone());
+        let target = self.declare_lir_plain_fun_with_symbol(
+            &llvm_name,
+            LlvmFunctionDeclarationSurface::ExportedAbi,
+            &signature.fqn,
+            &signature.param_tys,
+            signature.return_ty,
+            self.types,
+            false,
+        )?;
         let call = self
             .builder
             .build_call(target, &args, "release_hook_call")?;
@@ -1526,21 +1549,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let methods_gv = if let Some(existing) = self.module.get_global(&methods_gv_name) {
                 existing
             } else {
-                let arr_ty = i8_ptr_ty.array_type(entry.method_impl_fqns.len() as u32);
+                let arr_ty = i8_ptr_ty.array_type(entry.method_impl_targets.len() as u32);
                 let gv = self.module.add_global(arr_ty, None, &methods_gv_name);
 
                 let mut inits: Vec<PointerValue<'ctx>> =
-                    Vec::with_capacity(entry.method_impl_fqns.len());
-                for impl_fqn in &entry.method_impl_fqns {
-                    if impl_fqn.is_empty() {
+                    Vec::with_capacity(entry.method_impl_targets.len());
+                for target in &entry.method_impl_targets {
+                    let Some(target) = *target else {
                         inits.push(i8_ptr_ty.const_null());
                         continue;
-                    }
-                    let llvm_fun = self.declare_dispatch_target_fun(at, impl_fqn)?;
+                    };
+                    let target_label = target.display_text();
+                    let llvm_fun = self.declare_dispatch_target_fun(at, target, &target_label)?;
+                    let key = callable_carrier_target_key_for_ref(
+                        self.expect_active_lir_program("class itable carrier target"),
+                        CallableCarrierKind::InterfaceItable,
+                        target,
+                        "class itable carrier target",
+                    )?;
 
                     let fn_ptr = self.callable_carrier_target_fn_ptr(
-                        CallableCarrierKind::InterfaceItable,
-                        impl_fqn,
+                        key,
+                        &target_label,
                         llvm_fun.as_global_value().as_pointer_value(),
                     )?;
                     inits.push(fn_ptr.const_cast(i8_ptr_ty));
@@ -1575,7 +1605,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(existing) = self.module.get_global(&receiver_types_gv_name) {
                         existing
                     } else {
-                        let arr_ty = i64_ty.array_type(entry.method_impl_fqns.len() as u32);
+                        let arr_ty = i64_ty.array_type(entry.method_impl_targets.len() as u32);
                         let gv = self
                             .module
                             .add_global(arr_ty, None, &receiver_types_gv_name);
@@ -1586,7 +1616,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .chain(std::iter::repeat(
                                 crate::itable::ITABLE_RECEIVER_REF_TYPE_ID,
                             ))
-                            .take(entry.method_impl_fqns.len())
+                            .take(entry.method_impl_targets.len())
                             .map(|id| i64_ty.const_int(id, false))
                             .collect::<Vec<_>>();
                         gv.set_initializer(&i64_ty.const_array(&inits));
@@ -1693,11 +1723,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut inits: Vec<PointerValue<'ctx>> = Vec::with_capacity(slots.len());
         for slot in slots {
-            let llvm_fun = self.declare_dispatch_target_fun(at, &slot.impl_member_fqn)?;
+            let target = slot.impl_member_target;
+            let target_label = target.display_text();
+            let llvm_fun = self.declare_dispatch_target_fun(at, target, &target_label)?;
+            let key = callable_carrier_target_key_for_ref(
+                self.expect_active_lir_program("class vtable carrier target"),
+                CallableCarrierKind::ClassVtable,
+                target,
+                "class vtable carrier target",
+            )?;
 
             let fn_ptr = self.callable_carrier_target_fn_ptr(
-                CallableCarrierKind::ClassVtable,
-                &slot.impl_member_fqn,
+                key,
+                &target_label,
                 llvm_fun.as_global_value().as_pointer_value(),
             )?;
             inits.push(fn_ptr.const_cast(i8_ptr_ty));

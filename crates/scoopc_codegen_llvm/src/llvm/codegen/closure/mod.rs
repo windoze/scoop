@@ -389,21 +389,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        if fun_ty.effects.is_pure()
-            || !self
-                .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str())
+        let carrier_key = self
+            .lir_source_callable(closure_identity.callable_fqn.as_str())
+            .map(|(callable_id, _, _)| {
+                let program = self.expect_active_lir_program("direct HIR closure carrier target");
+                callable_carrier_target_key_for_ref(
+                    program,
+                    CallableCarrierKind::ClosureObject,
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                    "direct HIR closure carrier target",
+                )
+            })
+            .transpose()?;
+
+        if let Some(key) = carrier_key
+            && (fun_ty.effects.is_pure()
+                || !self.callable_uses_explicit_effect_hidden_abi(
+                    closure_identity.callable_fqn.as_str(),
+                ))
         {
             self.register_plain_callable_carrier_fallback(
-                CallableCarrierKind::ClosureObject,
+                key,
                 closure_identity.callable_fqn.as_str(),
             )?;
         }
 
-        let fn_ptr = self.callable_carrier_target_fn_ptr(
-            CallableCarrierKind::ClosureObject,
-            closure_identity.callable_fqn.as_str(),
-            llvm_fun.as_global_value().as_pointer_value(),
-        )?;
+        let fn_ptr = match carrier_key {
+            Some(key) => self.callable_carrier_target_fn_ptr(
+                key,
+                closure_identity.callable_fqn.as_str(),
+                llvm_fun.as_global_value().as_pointer_value(),
+            )?,
+            None => llvm_fun.as_global_value().as_pointer_value(),
+        };
         let fn_i8 = self
             .builder
             .build_pointer_cast(fn_ptr, i8_ptr_ty, "closure_fn_i8")?;

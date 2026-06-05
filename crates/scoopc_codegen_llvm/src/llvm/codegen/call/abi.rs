@@ -438,6 +438,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<CodegenCallableSignature> {
+        let program = self.active_lir_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let callable = match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => program.callable_by_id(id)?,
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => {
+                program.callables().iter().find(|callable| {
+                    callable.lir_callable_key().is_some_and(|key| {
+                        scoopc_ids::LirCallableHash::from_stable_key(key) == hash
+                    })
+                })?
+            }
+        };
+        let (param_names, param_tys, return_ty) = if let Some(plain) = callable.plain_abi() {
+            let names = callable
+                .published_callable_facts()
+                .map(|facts| facts.param_names.clone())
+                .unwrap_or_else(|| plain.param_tys().iter().map(|_| String::new()).collect());
+            (names, plain.param_tys().to_vec(), plain.return_ty())
+        } else {
+            let effect = callable.effect_step_abi()?;
+            let facts = callable.published_callable_facts()?;
+            let param_tys = self.callable_source_carrier_tys_impl(
+                source_types,
+                effect.dynamic_invoke_entry().invoke_args_tuple_ty(),
+            )?;
+            let return_ty = program.step_type(effect.step_schema())?.complete_ty();
+            (facts.param_names.clone(), param_tys, return_ty)
+        };
+        let (param_tys, return_ty) =
+            self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
+        Some(CodegenCallableSignature {
+            fqn: callable.root_fqn().to_string(),
+            param_names,
+            param_tys,
+            return_ty,
+        })
+    }
+
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(
         &self,
         uses_explicit_effect_hidden_abi: bool,

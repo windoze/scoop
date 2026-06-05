@@ -654,17 +654,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let program = self
-            .published_late_lowered_program()
-            .unwrap_or_else(|| panic!("codegen_lir_make_closure: missing published LIR program"));
-        let callable = program.callable_by_id(fn_ptr).unwrap_or_else(|| {
-            panic!("codegen_lir_make_closure: LIR verifier accepted unknown closure callable id")
-        });
-        let fn_root = callable.root_fqn().to_string();
         self.codegen_lir_make_closure_impl(
             span,
             env,
-            &fn_root,
+            fn_ptr,
             env_contract,
             source_types,
             env_cg,
@@ -687,19 +680,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         target_fn_ptr: PointerValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let program = self.published_late_lowered_program().unwrap_or_else(|| {
-            panic!("codegen_lir_make_closure_with_target_fn_ptr: missing published LIR program")
-        });
-        let callable = program.callable_by_id(fn_ptr).unwrap_or_else(|| {
-            panic!(
-                "codegen_lir_make_closure_with_target_fn_ptr: LIR verifier accepted unknown closure callable id"
-            )
-        });
-        let fn_root = callable.root_fqn().to_string();
         self.codegen_lir_make_closure_impl(
             span,
             env,
-            &fn_root,
+            fn_ptr,
             env_contract,
             source_types,
             env_cg,
@@ -740,7 +724,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         env: &LirOperand,
-        fn_ptr: &str,
+        fn_ptr: LirCallableId,
         env_contract: &mir_source::ClosureEnvTransportMetadata,
         source_types: &TypeStore,
         env_cg: CgTy,
@@ -754,9 +738,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )
         }
 
+        let (fn_root, carrier_key) = {
+            let program = self.published_late_lowered_program().unwrap_or_else(|| {
+                panic!("codegen_lir_make_closure_impl: missing published LIR program")
+            });
+            let callable = program.callable_by_id(fn_ptr).unwrap_or_else(|| {
+                panic!(
+                    "codegen_lir_make_closure_impl: LIR verifier accepted unknown closure callable id"
+                )
+            });
+            let key = callable_carrier_target_key_for_ref(
+                program,
+                CallableCarrierKind::ClosureObject,
+                scoopc_lir_facts::LirCallableRef::Local(fn_ptr),
+                "LIR closure carrier target",
+            )?;
+            (callable.root_fqn().to_string(), key)
+        };
+
         let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys_from_contract(
             span,
-            fn_ptr,
+            &fn_root,
             source_types,
             env_cg,
             env_contract,
@@ -773,7 +775,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let closure_obj_ty = self.llvm_closure_object_type();
         let obj_size_bytes = self.target_data.get_store_size(&closure_obj_ty);
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let closure_desc = self.get_or_create_mir_closure_object_type_desc_global(span, fn_ptr)?;
+        let closure_desc =
+            self.get_or_create_mir_closure_object_type_desc_global(span, &fn_root)?;
         let closure_desc_i8 = self.builder.build_pointer_cast(
             closure_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -822,7 +825,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if capture_field_cgs.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
+            let closure_key = self.stable_closure_key_for_lir_source_callable(&fn_root, span)?;
             let env_ty =
                 self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
@@ -903,29 +906,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let use_plain_fallback = self
-            .plain_callable_carrier_fallback_allowed(CallableCarrierKind::ClosureObject, fn_ptr);
+        let use_plain_fallback = self.plain_callable_carrier_fallback_allowed(carrier_key);
         let fallback_target = if target_fn_ptr.is_some()
             || (self.callable_carrier_contract_enabled() && !use_plain_fallback)
         {
             self.llvm_i8_ptr_type().const_null()
         } else if let Some(plain_entry) = self
             .module
-            .get_function(&self.lir_source_closure_body_symbol(fn_ptr, span)?)
+            .get_function(&self.lir_source_closure_body_symbol(&fn_root, span)?)
         {
             plain_entry.as_global_value().as_pointer_value()
         } else {
-            self.ensure_lir_source_closure_callable_defined(span, fn_ptr)?
+            self.ensure_lir_source_closure_callable_defined(span, &fn_root)?
                 .as_global_value()
                 .as_pointer_value()
         };
         let fn_ptr = match target_fn_ptr {
             Some(ptr) => ptr,
-            None => self.callable_carrier_target_fn_ptr(
-                CallableCarrierKind::ClosureObject,
-                fn_ptr,
-                fallback_target,
-            )?,
+            None => self.callable_carrier_target_fn_ptr(carrier_key, &fn_root, fallback_target)?,
         };
         let fn_i8 = self
             .builder
@@ -1127,8 +1125,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let use_plain_fallback = self
-            .plain_callable_carrier_fallback_allowed(CallableCarrierKind::ClosureObject, fn_ptr);
+        let carrier_key = if let Some((callable_id, _, _)) = self.lir_source_callable(fn_ptr) {
+            let program = self.expect_active_lir_program("MIR closure carrier target");
+            Some(callable_carrier_target_key_for_ref(
+                program,
+                CallableCarrierKind::ClosureObject,
+                scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                "MIR closure carrier target",
+            )?)
+        } else {
+            None
+        };
+        let use_plain_fallback =
+            carrier_key.is_some_and(|key| self.plain_callable_carrier_fallback_allowed(key));
         let fallback_target = if target_fn_ptr.is_some() {
             self.llvm_i8_ptr_type().const_null()
         } else if self.callable_carrier_contract_enabled() && !use_plain_fallback {
@@ -1147,11 +1156,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let fn_ptr = match target_fn_ptr {
             Some(ptr) => ptr,
-            None => self.callable_carrier_target_fn_ptr(
-                CallableCarrierKind::ClosureObject,
-                fn_ptr,
-                fallback_target,
-            )?,
+            None => match carrier_key {
+                Some(key) => self.callable_carrier_target_fn_ptr(key, fn_ptr, fallback_target)?,
+                None => fallback_target,
+            },
         };
         let fn_i8 = self
             .builder

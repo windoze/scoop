@@ -49,7 +49,10 @@ use scoopc_lir_facts::{
 };
 
 use super::super::types::IntTy;
-use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
+use super::super::{
+    CallableCarrierKind, CallableCarrierTargetKey, LlvmFunctionDeclarationSurface, MainCodegen,
+    callable_carrier_target_key_for_ref, lir_callable_hash_for_ref,
+};
 use super::stable_naming;
 use super::types::{
     AbiProgramOrigin, AbiValue, CallBoundaryOperandLayout, CallableCarrierTargetLayout,

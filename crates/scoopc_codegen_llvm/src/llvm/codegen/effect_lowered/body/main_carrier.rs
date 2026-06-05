@@ -66,7 +66,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_callable_carrier_entry_shell(
         &mut self,
         kind: CallableCarrierKind,
-        carrier_fqn: &str,
         target: &super::super::types::CallableCarrierTargetLayout,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
@@ -92,7 +91,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let direct_entry = target_layout.direct_entry();
         let args_payload = self.build_carrier_direct_args(
             kind,
-            carrier_fqn,
             function,
             target_callable,
             mir_fun,
@@ -269,7 +267,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn build_carrier_direct_args(
         &mut self,
         kind: CallableCarrierKind,
-        carrier_fqn: &str,
         function: FunctionValue<'ctx>,
         target_callable: &LateLoweredCallable,
         mir_fun: &mir::FunDecl,
@@ -282,7 +279,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let receiver = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
                 "carrier shell `{}` 缺少 receiver/carrier 参数",
-                carrier_fqn
+                target_callable.root_fqn()
             ))
         })?;
         let mut components = vec![None; direct_component_count.max(mir_fun.params.len())];
@@ -314,7 +311,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CallableCarrierKind::ClassVtable | CallableCarrierKind::InterfaceItable => {
                 if components.is_empty() {
                     return Err(frontend_error(format!(
-                        "dispatch carrier `{carrier_fqn}` direct entry 缺少 receiver 参数"
+                        "dispatch carrier `{}` direct entry 缺少 receiver 参数",
+                        target_callable.root_fqn()
                     )));
                 }
                 components[0] = Some(receiver);

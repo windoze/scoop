@@ -42,26 +42,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn register_callable_carrier_entry_symbol(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
+        target_label: &str,
         symbol_name: &str,
     ) -> Result<(), LlvmEmitError> {
-        let mut symbols = self
-            .shared_caches
-            .callable_carrier_entry_symbols
-            .borrow_mut();
-        let key = (kind, callable_fqn.to_string());
+        let mut symbols = self.shared_caches.carrier_entry_symbols_by_key.borrow_mut();
         if self
             .shared_caches
-            .plain_callable_carrier_fallback_targets
+            .plain_carrier_fallback_keys
             .borrow()
             .contains(&key)
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "callable carrier contract 同时把 {} `{}` 发布为 plain fallback 和 effect-step target",
-                    kind.label(),
-                    callable_fqn,
+                    key.kind().label(),
+                    target_label,
                 ),
             });
         }
@@ -72,8 +68,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "callable carrier contract 为 {} `{}` 重复发布了不同 target：已有 `{}`，新值 `{}`",
-                    kind.label(),
-                    callable_fqn,
+                    key.kind().label(),
+                    target_label,
                     existing,
                     symbol_name,
                 ),
@@ -85,26 +81,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn register_plain_callable_carrier_fallback(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
+        target_label: &str,
     ) -> Result<(), LlvmEmitError> {
-        let key = (kind, callable_fqn.to_string());
         if self
             .shared_caches
-            .callable_carrier_entry_symbols
+            .carrier_entry_symbols_by_key
             .borrow()
             .contains_key(&key)
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "callable carrier contract 同时把 {} `{}` 发布为 effect-step target 和 plain fallback",
-                    kind.label(),
-                    callable_fqn,
+                    key.kind().label(),
+                    target_label,
                 ),
             });
         }
         self.shared_caches
-            .plain_callable_carrier_fallback_targets
+            .plain_carrier_fallback_keys
             .borrow_mut()
             .insert(key);
         Ok(())
@@ -112,14 +107,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn callable_carrier_entry_symbol(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
+        target_label: &str,
     ) -> Result<Option<String>, LlvmEmitError> {
         if let Some(symbol) = self
             .shared_caches
-            .callable_carrier_entry_symbols
+            .carrier_entry_symbols_by_key
             .borrow()
-            .get(&(kind, callable_fqn.to_string()))
+            .get(&key)
             .cloned()
         {
             return Ok(Some(symbol));
@@ -127,17 +122,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if self.callable_carrier_contract_enabled() {
             if self
                 .shared_caches
-                .plain_callable_carrier_fallback_targets
+                .plain_carrier_fallback_keys
                 .borrow()
-                .contains(&(kind, callable_fqn.to_string()))
+                .contains(&key)
             {
                 return Ok(None);
             }
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "callable carrier contract 缺少 {} `{}` 的 published target entry",
-                    kind.label(),
-                    callable_fqn,
+                    key.kind().label(),
+                    target_label,
                 ),
             });
         }
@@ -146,22 +141,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn plain_callable_carrier_fallback_allowed(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
     ) -> bool {
         self.shared_caches
-            .plain_callable_carrier_fallback_targets
+            .plain_carrier_fallback_keys
             .borrow()
-            .contains(&(kind, callable_fqn.to_string()))
+            .contains(&key)
     }
 
     pub(in crate::llvm::codegen) fn callable_carrier_target_fn_ptr(
         &self,
-        kind: CallableCarrierKind,
-        callable_fqn: &str,
+        key: CallableCarrierTargetKey,
+        target_label: &str,
         fallback_target: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let Some(symbol_name) = self.callable_carrier_entry_symbol(kind, callable_fqn)? else {
+        let Some(symbol_name) = self.callable_carrier_entry_symbol(key, target_label)? else {
             return Ok(fallback_target);
         };
         let function = self
@@ -170,8 +164,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "callable carrier contract 为 {} `{}` 发布了 target `{symbol_name}`，但 LLVM module 中缺少对应 function shell",
-                    kind.label(),
-                    callable_fqn,
+                    key.kind().label(),
+                    target_label,
                 ),
             })?;
         Ok(function.as_global_value().as_pointer_value())

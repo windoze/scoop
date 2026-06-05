@@ -302,7 +302,7 @@
 - 验收 grep 通过：生产路径 `rg -n "\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无命中；`rg -n "program\.callable\(|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm` 无命中。
 - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
-### [TODO] TC-04-FIX2：清除 carrier/dispatch 残留 FQN callable 选择
+### [DONE] TC-04-FIX2：清除 carrier/dispatch 残留 FQN callable 选择
 
 **目标**：修复 `TC-04-R` 复审发现的剩余生产路径 root/FQN callable 选择：carrier/dispatch 发布、fallback registry、dynamic carrier target、vtable/itable target 与 effect-step facts/layout 查询必须改为消费 LIR callable handle、body-version key 或已发布 callable contract；FQN 字符串只能保留为 LLVM symbol 名、诊断文本、source-signature 文本字段，或非 callable 的 nominal/global layout key。
 
@@ -326,6 +326,14 @@
 - `rg -n "program\.callable\(|\.callable\(|callable_id_by_root|lir_callable_ref_for_root|exported_abi_symbol_for_lir_root|callable_layout_by_root_fqn|plain_callable_layout_by_root_fqn|maybe_plain_callable_layout_by_root_fqn|lir_callable_id_for_root|abi_symbol_for_root|current_callable_fqn|lir_.*_to_mir" crates/scoopc_codegen_llvm/src/llvm/codegen --glob '*.rs' --glob '!**/tests/**'` 无生产命中。
 - `rg -n "_fqn" crates/scoopc_codegen_llvm/src/llvm/codegen` 抽样确认剩余均非 live callable 查找。
 - §9 基线绿。
+
+**完成记录（2026-06-05）**：
+- 将 callable carrier target registry 从 `(CallableCarrierKind, String)` 改为 `CallableCarrierTargetKey { kind, LirCallableHash }`；dynamic invoke candidate target、carrier target layout 查询、entry symbol registry 与 plain fallback registry 均按 LIR callable handle/hash 选择。
+- carrier 发布改用 `LirCallableRef` / stable callable hash / body-version contract；删除生产路径 `callable_facts_for_root` / `effect_step_callable_facts_for_root`，closure、vtable、itable carrier ABI facts 均通过 handle-native callable facts 读取。
+- class vtable/itable、value-box itable、static interface dispatch 与 dispatch target declaration 改读 `impl_member_target` / `method_impl_targets`；物理 `impl_member_fqn` / `method_impl_fqns` 不再作为 target 选择/查找路径。
+- 为 callable layouts 保存 stable `LirCallableHash`，修正 carrier/ABI query 中 external hash 与 body-version selector 的匹配路径；保留 FQN 仅用于 LLVM symbol、source-signature 文本、诊断或 nominal/global layout key。
+- 验收 grep 通过：carrier target map / physical FQN target field / 旧 FQN lookup helper 三组生产路径 grep 均无命中；`_fqn` 抽样未发现本任务范围内新增 live callable FQN 查找。
+- 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo build -p scoop -p scoopc`；`python3 tools/dependency_gate.py`；`python3 tools/spec_fixtures.py check`；`python3 tools/run_fixtures.py`。
 
 ### [TODO] TC-04-R：Review TC-04
 - **关注点**：callee/符号/布局 live 引用全句柄；FQN 仅作符号名/诊断；无「FQN 查不到 fallback」、无句柄→FQN 反转。

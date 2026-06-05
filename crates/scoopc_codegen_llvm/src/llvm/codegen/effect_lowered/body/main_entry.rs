@@ -50,7 +50,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 child.codegen_callable_entries(abi_program, abi_source_types, abi, callable)?;
             }
         }
-        for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
+        for (key, target) in abi.callable_carrier_target_layouts() {
             // Cached dep carrier shells are defined by the dep artifact object;
             // the consumer module only needs their declarations through ABI materialization.
             if !abi.callable_version_is_primary(target.body_version_key()) {
@@ -59,8 +59,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut child = self.fresh_child_codegen();
             child.set_active_lir_program(Some(abi_program));
             child.codegen_callable_carrier_entry_shell(
-                kind,
-                carrier_fqn,
+                key.kind(),
                 target,
                 abi_program,
                 abi_source_types,

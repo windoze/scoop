@@ -14,40 +14,45 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
-    ) -> Result<HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>, LlvmEmitError>
-    {
-        let published_callable_roots = self
+    ) -> Result<HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>, LlvmEmitError> {
+        let published_callable_targets = self
             .program
             .callables()
             .iter()
             .filter(|callable| callable.effect_step_abi().is_some())
-            .map(|callable| callable.root_fqn())
-            .collect::<BTreeSet<_>>();
-        let plain_callable_roots = self
+            .map(|callable| {
+                self.callable_id(callable)
+                    .map(scoopc_lir_facts::LirCallableRef::Local)
+            })
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        let plain_callable_targets = self
             .program
             .callables()
             .iter()
             .filter(|callable| callable.plain_abi().is_some())
-            .map(|callable| callable.root_fqn())
-            .collect::<BTreeSet<_>>();
-        let closure_targets = published_callable_roots.clone();
-        let plain_closure_targets = plain_callable_roots.clone();
+            .map(|callable| {
+                self.callable_id(callable)
+                    .map(scoopc_lir_facts::LirCallableRef::Local)
+            })
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        let closure_targets = published_callable_targets.clone();
+        let plain_closure_targets = plain_callable_targets.clone();
         // Vtable/itable carrier publication consumes the LIR physical layout inventory.
         let class_vtable_targets = self
             .program
             .physical_layout()
             .class_vtables
             .values()
-            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
-            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
+            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_target))
+            .filter(|target| published_callable_targets.contains(target))
             .collect::<BTreeSet<_>>();
         let plain_class_vtable_targets = self
             .program
             .physical_layout()
             .class_vtables
             .values()
-            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
-            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
+            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_target))
+            .filter(|target| plain_callable_targets.contains(target))
             .collect::<BTreeSet<_>>();
         let mut interface_itable_targets = self
             .program
@@ -55,45 +60,35 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .class_itables
             .values()
             .flat_map(|entries| {
-                entries.entries.iter().flat_map(|entry| {
-                    entry
-                        .method_impl_fqns
-                        .iter()
-                        .filter(|impl_fqn| !impl_fqn.is_empty())
-                })
+                entries
+                    .entries
+                    .iter()
+                    .flat_map(|entry| entry.method_impl_targets.iter().flatten().copied())
             })
-            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn.as_str()))
-            .cloned()
-            .collect::<BTreeSet<String>>();
+            .filter(|target| published_callable_targets.contains(target))
+            .collect::<BTreeSet<_>>();
         let mut plain_interface_itable_targets = self
             .program
             .physical_layout()
             .class_itables
             .values()
             .flat_map(|entries| {
-                entries.entries.iter().flat_map(|entry| {
-                    entry
-                        .method_impl_fqns
-                        .iter()
-                        .filter(|impl_fqn| !impl_fqn.is_empty())
-                })
+                entries
+                    .entries
+                    .iter()
+                    .flat_map(|entry| entry.method_impl_targets.iter().flatten().copied())
             })
-            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn.as_str()))
-            .cloned()
-            .collect::<BTreeSet<String>>();
+            .filter(|target| plain_callable_targets.contains(target))
+            .collect::<BTreeSet<_>>();
 
         for source_ty in self.codegen.types.iter_ids() {
             for entry in self.codegen.mir_value_box_itable_entries(source_ty)? {
-                for impl_fqn in entry
-                    .method_impl_fqns
-                    .iter()
-                    .filter(|impl_fqn| !impl_fqn.is_empty())
-                {
-                    if published_callable_roots.contains(impl_fqn.as_str()) {
-                        interface_itable_targets.insert(impl_fqn.clone());
+                for target in entry.method_impl_targets.iter().flatten().copied() {
+                    if published_callable_targets.contains(&target) {
+                        interface_itable_targets.insert(target);
                     }
-                    if plain_callable_roots.contains(impl_fqn.as_str()) {
-                        plain_interface_itable_targets.insert(impl_fqn.clone());
+                    if plain_callable_targets.contains(&target) {
+                        plain_interface_itable_targets.insert(target);
                     }
                 }
             }
@@ -102,49 +97,44 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let mut carrier_layouts = HashMap::new();
         let dynamic_dispatch_targets =
             self.dynamic_dispatch_carrier_targets(dynamic_invoke_layouts)?;
-        for callable_fqn in plain_closure_targets {
-            self.publish_plain_carrier_fallback_target(
-                CallableCarrierKind::ClosureObject,
-                callable_fqn,
-            )?;
+        for target in plain_closure_targets {
+            self.publish_plain_carrier_fallback_target(CallableCarrierKind::ClosureObject, target)?;
         }
-        for impl_fqn in plain_class_vtable_targets {
-            self.publish_plain_carrier_fallback_target(CallableCarrierKind::ClassVtable, impl_fqn)?;
+        for target in plain_class_vtable_targets {
+            self.publish_plain_carrier_fallback_target(CallableCarrierKind::ClassVtable, target)?;
         }
-        for impl_fqn in plain_interface_itable_targets {
+        for target in plain_interface_itable_targets {
             self.publish_plain_carrier_fallback_target(
                 CallableCarrierKind::InterfaceItable,
-                &impl_fqn,
+                target,
             )?;
         }
-        for callable_fqn in closure_targets {
+        for target in closure_targets {
             self.publish_closure_carrier_entry_shell(
-                callable_fqn,
+                target,
                 callable_layouts,
                 step_layouts,
                 &mut carrier_layouts,
             )?;
         }
-        for impl_fqn in class_vtable_targets {
-            let return_step_schema = dynamic_dispatch_targets
-                .get(&(CallableCarrierKind::ClassVtable, impl_fqn.to_string()))
-                .copied();
+        for target in class_vtable_targets {
+            let key = self.carrier_target_key(CallableCarrierKind::ClassVtable, target)?;
+            let return_step_schema = dynamic_dispatch_targets.get(&key).copied();
             self.publish_dispatch_carrier_entry_shell(
                 CallableCarrierKind::ClassVtable,
-                impl_fqn,
+                target,
                 return_step_schema,
                 callable_layouts,
                 step_layouts,
                 &mut carrier_layouts,
             )?;
         }
-        for impl_fqn in interface_itable_targets {
-            let return_step_schema = dynamic_dispatch_targets
-                .get(&(CallableCarrierKind::InterfaceItable, impl_fqn.to_string()))
-                .copied();
+        for target in interface_itable_targets {
+            let key = self.carrier_target_key(CallableCarrierKind::InterfaceItable, target)?;
+            let return_step_schema = dynamic_dispatch_targets.get(&key).copied();
             self.publish_dispatch_carrier_entry_shell(
                 CallableCarrierKind::InterfaceItable,
-                &impl_fqn,
+                target,
                 return_step_schema,
                 callable_layouts,
                 step_layouts,
@@ -159,18 +149,20 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_plain_carrier_fallback_target(
         &self,
         kind: CallableCarrierKind,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<(), LlvmEmitError> {
+        let key = self.carrier_target_key(kind, target)?;
+        let target_label = self.carrier_target_label(target);
         self.codegen
-            .register_plain_callable_carrier_fallback(kind, callable_fqn)?;
+            .register_plain_callable_carrier_fallback(key, &target_label)?;
         Ok(())
     }
 
     pub(super) fn dynamic_dispatch_carrier_targets(
         &self,
         dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
-    ) -> Result<HashMap<(CallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
-        let mut targets = HashMap::<(CallableCarrierKind, String), StepSchemaId>::new();
+    ) -> Result<HashMap<CallableCarrierTargetKey, StepSchemaId>, LlvmEmitError> {
+        let mut targets = HashMap::<CallableCarrierTargetKey, StepSchemaId>::new();
         for layout in dynamic_invoke_layouts.values() {
             let kind = match layout.carrier() {
                 DynamicInvokeCarrierLayout::VirtualReceiver(_) => CallableCarrierKind::ClassVtable,
@@ -180,15 +172,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 DynamicInvokeCarrierLayout::ClosureObject(_)
                 | DynamicInvokeCarrierLayout::FunPtr(_) => continue,
             };
-            for fqn in layout.candidate_targets() {
-                let key = (kind, fqn.clone());
-                if let Some(existing) = targets.insert(key.clone(), layout.return_step_schema())
+            for target in layout.candidate_target_refs() {
+                let key = self.carrier_target_key(kind, *target)?;
+                if let Some(existing) = targets.insert(key, layout.return_step_schema())
                     && existing != layout.return_step_schema()
                 {
                     return Err(frontend_error(format!(
                         "LLVM ABI materialization 发现 {} `{}` 需要多个 dynamic carrier return schema：s{} 与 s{}",
                         kind.label(),
-                        fqn,
+                        self.carrier_target_label(*target),
                         existing.as_u32(),
                         layout.return_step_schema().as_u32(),
                     )));
@@ -200,27 +192,28 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn publish_closure_carrier_entry_shell(
         &mut self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+        carrier_layouts: &mut HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
-        let callable_layout = self.callable_layout_for_carrier_target(
+        let target_label = self.carrier_target_label(target);
+        let callable_layout = self.callable_layout_for_carrier_ref(
             callable_layouts,
             CallableCarrierKind::ClosureObject,
-            callable_fqn,
+            target,
         )?;
         let step_layout = step_layouts
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
                     "LLVM ABI materialization 缺少 callable `{}` closure carrier target 的 step layout {}",
-                    callable_fqn,
+                    target_label,
                     callable_layout.step_schema().as_u32(),
                 ))
             })?;
         let step_ty = step_layout.llvm_ty();
-        let args_abi = self.closure_carrier_args_abi(callable_fqn)?;
+        let args_abi = self.closure_carrier_args_abi(target)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
             vec![self.codegen.llvm_gc_i8_ptr_type().into()];
         if !args_abi.is_elided() {
@@ -236,7 +229,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         );
         self.register_callable_carrier_target_contract(
             CallableCarrierKind::ClosureObject,
-            callable_fqn,
+            target,
             callable_layout,
             callable_layout.step_schema(),
             &symbol_name,
@@ -248,14 +241,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_dispatch_carrier_entry_shell(
         &mut self,
         kind: CallableCarrierKind,
-        impl_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
         return_step_schema: Option<StepSchemaId>,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+        carrier_layouts: &mut HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
+        let target_label = self.carrier_target_label(target);
         let callable_layout =
-            self.callable_layout_for_carrier_target(callable_layouts, kind, impl_fqn)?;
+            self.callable_layout_for_carrier_ref(callable_layouts, kind, target)?;
         let return_step_schema = return_step_schema.unwrap_or(callable_layout.step_schema());
         let step_ty = step_layouts
             .get(&return_step_schema)
@@ -263,7 +257,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 frontend_error(format!(
                     "LLVM ABI materialization 缺少 {} `{}` target 的 step layout {}",
                     kind.label(),
-                    impl_fqn,
+                    target_label,
                     return_step_schema.as_u32(),
                 ))
             })?
@@ -274,11 +268,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 frontend_error(format!(
                     "LLVM ABI materialization 缺少 {} `{}` owner step layout {}",
                     kind.label(),
-                    impl_fqn,
+                    target_label,
                     callable_layout.step_schema().as_u32(),
                 ))
             })?;
-        let (receiver_abi, args_abi) = self.dispatch_carrier_receiver_and_args_abi(impl_fqn)?;
+        let (receiver_abi, args_abi) = self.dispatch_carrier_receiver_and_args_abi(target)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = vec![receiver_abi.llvm_ty().into()];
         if !args_abi.is_elided() {
             params.push(args_abi.llvm_ty().into());
@@ -297,7 +291,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         );
         self.register_callable_carrier_target_contract(
             kind,
-            impl_fqn,
+            target,
             callable_layout,
             return_step_schema,
             &symbol_name,
@@ -309,18 +303,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn register_callable_carrier_target_contract(
         &self,
         kind: CallableCarrierKind,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
         callable_layout: &CallableLayout<'ctx>,
         return_step_schema: StepSchemaId,
         symbol_name: &str,
-        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+        carrier_layouts: &mut HashMap<CallableCarrierTargetKey, CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
+        let key = self.carrier_target_key(kind, target)?;
+        let target_label = self.carrier_target_label(target);
         self.codegen
-            .register_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;
+            .register_callable_carrier_entry_symbol(key, &target_label, symbol_name)?;
 
-        let key = (kind, callable_fqn.to_string());
         let published = CallableCarrierTargetLayout::new(
-            callable_fqn.to_string(),
             callable_layout.body_version_key().clone(),
             return_step_schema,
             symbol_name.to_string(),
@@ -330,7 +324,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 return Err(frontend_error(format!(
                     "LLVM ABI materialization 发现 {} `{}` 重复发布了不兼容的 callable version contract：已有 {:?}，新值 {:?}",
                     kind.label(),
-                    callable_fqn,
+                    target_label,
                     existing,
                     published,
                 )));
@@ -341,27 +335,48 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn callable_layout_for_carrier_target<'b>(
+    pub(super) fn callable_layout_for_carrier_ref<'b>(
         &self,
         callable_layouts: &'b BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         kind: CallableCarrierKind,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<&'b CallableLayout<'ctx>, LlvmEmitError> {
+        let target_label = self.carrier_target_label(target);
+        if let scoopc_lir_facts::LirCallableRef::Local(id) = target {
+            let callable = self.program.callable_by_id(id).ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 {} `{}` 的 local callable body，无法发布 carrier target",
+                    kind.label(),
+                    target_label,
+                ))
+            })?;
+            return callable_layouts
+                .values()
+                .find(|layout| layout.body_version_key() == callable.body_version_key())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "LLVM ABI materialization 缺少 {} `{}` 的 published callable version，无法发布 carrier target",
+                        kind.label(),
+                        target_label,
+                    ))
+                });
+        }
+        let target_hash = lir_callable_hash_for_ref(self.program, target, "carrier target layout")?;
         let matches = callable_layouts
             .values()
-            .filter(|layout| layout.root_fqn() == callable_fqn)
+            .filter(|layout| layout.callable_hash() == target_hash)
             .collect::<Vec<_>>();
         match matches.as_slice() {
             [] => Err(frontend_error(format!(
                 "LLVM ABI materialization 缺少 {} `{}` 的 published callable version，无法发布 carrier target",
                 kind.label(),
-                callable_fqn,
+                target_label,
             ))),
             [layout] => Ok(*layout),
             _ => Err(frontend_error(format!(
                 "LLVM ABI materialization 发现 {} `{}` 存在多个 published callable version {:?}，缺少 authoritative version selector，无法发布 carrier target",
                 kind.label(),
-                callable_fqn,
+                target_label,
                 matches
                     .iter()
                     .map(|layout| layout.body_version_key())
@@ -372,22 +387,23 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn closure_carrier_args_abi(
         &mut self,
-        root_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
-        let facts = self.effect_step_callable_facts_for_root(root_fqn)?;
+        let facts = self.effect_step_callable_facts_for_ref(target)?;
         let component_tys = facts.closure_carrier_arg_tys.clone();
         self.canonical_tuple_abi_from_types(self.source_types, &component_tys)
     }
 
     pub(super) fn dispatch_carrier_receiver_and_args_abi(
         &mut self,
-        impl_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Result<(AbiValue<'ctx>, AbiValue<'ctx>), LlvmEmitError> {
-        let facts = self.effect_step_callable_facts_for_root(impl_fqn)?;
+        let facts = self.effect_step_callable_facts_for_ref(target)?;
         let param_tys = facts.param_tys.clone();
         let Some((receiver, explicit_params)) = param_tys.split_first() else {
             return Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 dispatch target `{impl_fqn}` 没有 receiver 参数，无法发布 vtable/itable carrier target"
+                "LLVM ABI materialization 发现 dispatch target `{}` 没有 receiver 参数，无法发布 vtable/itable carrier target",
+                self.carrier_target_label(target)
             )));
         };
         let receiver = *receiver;
@@ -396,6 +412,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             self.abi_value_from_types(self.source_types, receiver)?,
             self.canonical_tuple_abi_from_types(self.source_types, &args)?,
         ))
+    }
+
+    fn carrier_target_key(
+        &self,
+        kind: CallableCarrierKind,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Result<CallableCarrierTargetKey, LlvmEmitError> {
+        callable_carrier_target_key_for_ref(self.program, kind, target, "carrier target")
+    }
+
+    fn carrier_target_label(&self, target: scoopc_lir_facts::LirCallableRef) -> String {
+        self.program
+            .root_for_callable_ref(target)
+            .map(str::to_string)
+            .unwrap_or_else(|| target.display_text())
     }
 
     pub(super) fn canonical_tuple_abi_from_types(

@@ -2830,10 +2830,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!("codegen_mir_plain_dynamic_call_with_policy: MIR verifier accepted non-function plain closure callee")
                     });
                 if !fun_ty.effects.is_pure() {
-                    if self.plain_callable_carrier_fallback_allowed(
-                        CallableCarrierKind::ClosureObject,
-                        fn_ptr,
-                    ) {
+                    let carrier_key = self
+                        .lir_source_callable(fn_ptr)
+                        .map(|(callable_id, _, _)| {
+                            let program = self.expect_active_lir_program(
+                                "plain MIR closure dynamic call carrier target",
+                            );
+                            callable_carrier_target_key_for_ref(
+                                program,
+                                CallableCarrierKind::ClosureObject,
+                                scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                                "plain MIR closure dynamic call carrier target",
+                            )
+                        })
+                        .transpose()?;
+                    if carrier_key
+                        .is_some_and(|key| self.plain_callable_carrier_fallback_allowed(key))
+                    {
                         return self.codegen_mir_plain_function_value_call(
                             span, callee, args, &fun_ty, slots,
                         );

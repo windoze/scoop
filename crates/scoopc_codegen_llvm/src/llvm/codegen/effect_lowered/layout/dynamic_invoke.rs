@@ -188,7 +188,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             args_abi,
             callee_schema,
             carrier,
-            self.lir_target_roots(contract)?,
+            self.lir_target_refs(contract)?,
         ))
     }
 }

@@ -31,7 +31,7 @@ use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeK
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{CallableCarrierKind, MainCodegen};
+use super::super::{CallableCarrierKind, MainCodegen, callable_carrier_target_key_for_ref};
 use super::stable_naming;
 use super::types::{
     CallableEntryLayout, CallableLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind,
@@ -1261,9 +1261,23 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let Some(layout) = self.effect_typed_closure_surface_layout(&fun_ty)? else {
             return Ok(None);
         };
-        if let Some(source_target) = self
-            .abi
-            .maybe_callable_carrier_target_layout(CallableCarrierKind::ClosureObject, fn_ptr)
+        let carrier_key = self
+            .codegen
+            .lir_source_callable(fn_ptr)
+            .map(|(callable_id, _, _)| {
+                let program = self
+                    .codegen
+                    .expect_active_lir_program("effect value closure carrier target");
+                callable_carrier_target_key_for_ref(
+                    program,
+                    CallableCarrierKind::ClosureObject,
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                    "effect value closure carrier target",
+                )
+            })
+            .transpose()?;
+        if let Some(source_target) =
+            carrier_key.and_then(|key| self.abi.maybe_callable_carrier_target_layout(key))
         {
             let source_step_schema = source_target.step_schema();
             let source_symbol_name = source_target.symbol_name().to_string();
