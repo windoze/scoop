@@ -108,7 +108,13 @@ impl Diagnostic {
 
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}[{}]: {}", self.severity.as_str(), self.code, self.message)
+        write!(
+            f,
+            "{}[{}]: {}",
+            self.severity.as_str(),
+            self.code,
+            self.message
+        )
     }
 }
 
@@ -220,7 +226,12 @@ pub fn render_diagnostic(source: &SourceFile, diag: &Diagnostic) -> String {
         ));
         out.push_str(&format!("{:>width$} |\n", "", width = gutter));
         let line_text = source.line_text(line);
-        out.push_str(&format!("{:>width$} | {}\n", line, line_text, width = gutter));
+        out.push_str(&format!(
+            "{:>width$} | {}\n",
+            line,
+            line_text,
+            width = gutter
+        ));
         // 标注行：列以字符计，下划线长度至少为 1。
         let line_start = source.line_start_offset(line).unwrap_or(0);
         let span_len = if label.span.is_empty() {
@@ -258,7 +269,12 @@ pub fn render_diagnostic(source: &SourceFile, diag: &Diagnostic) -> String {
     }
 
     if let Some(help) = &diag.help {
-        out.push_str(&format!("{:>width$} = help: {}\n", "", help, width = gutter));
+        out.push_str(&format!(
+            "{:>width$} = help: {}\n",
+            "",
+            help,
+            width = gutter
+        ));
     }
     out
 }
@@ -279,11 +295,17 @@ mod tests {
     #[test]
     fn render_includes_code_path_and_line_col() {
         let file = SourceFile::new_virtual("main.scoop", "fun main() {\n    val x = }\n}\n");
-        let diag = Diagnostic::error("scoop::parse::expected_expression", "期望表达式，但遇到了 `}`")
-            .with_primary(Span::new(25, 26), "期望表达式")
-            .with_help("检查是否漏写了右操作数");
+        let diag = Diagnostic::error(
+            "scoop::parse::expected_expression",
+            "期望表达式，但遇到了 `}`",
+        )
+        .with_primary(Span::new(25, 26), "期望表达式")
+        .with_help("检查是否漏写了右操作数");
         let text = render_diagnostic(&file, &diag);
-        assert!(text.contains("error[scoop::parse::expected_expression]"), "{text}");
+        assert!(
+            text.contains("error[scoop::parse::expected_expression]"),
+            "{text}"
+        );
         assert!(text.contains("--> main.scoop:2:13"), "{text}");
         assert!(text.contains("^ 期望表达式"), "{text}");
         assert!(text.contains("= help: 检查是否漏写了右操作数"), "{text}");
