@@ -628,3 +628,148 @@ pub fn nogc_call_forbidden(callee: &str, span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+// ===== @ReleaseHook 校验（spec §15.x release hook）=====
+
+/// `scoop::typecheck::release_hook_host_must_be_class`。
+pub fn release_hook_host_must_be_class(type_fqn: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_host_must_be_class",
+        format!(
+            "`@ReleaseHook` 只能用于普通 `class` 宿主（不支持 struct / enum / interface / annotation class）：{type_fqn} 是 {found}"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_host_must_be_non_generic`。
+pub fn release_hook_host_must_be_non_generic(type_fqn: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_host_must_be_non_generic",
+        format!("`@ReleaseHook` 宿主必须是 non-generic class：{type_fqn} 声明了类型参数"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_host_must_be_final`。
+pub fn release_hook_host_must_be_final(type_fqn: &str, modifier: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_host_must_be_final",
+        format!("`@ReleaseHook` 宿主必须是 final class：{type_fqn} 带有 `{modifier}` 修饰符"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_host_requires_experimental`。
+pub fn release_hook_host_requires_experimental(type_fqn: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_host_requires_experimental",
+        format!(
+            "`@ReleaseHook` 宿主 `{type_fqn}` 必须同时标注 `@Experimental(feature = \"releaseHook\")`"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_function_not_found`。
+pub fn release_hook_function_not_found(
+    type_fqn: &str,
+    function_fqn: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_function_not_found",
+        format!("`@ReleaseHook` 宿主 `{type_fqn}` 的释放函数 `{function_fqn}` 不存在"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_function_must_be_nogc_or_c_extern`。
+pub fn release_hook_function_must_be_nogc_or_c_extern(
+    function_fqn: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_function_must_be_nogc_or_c_extern",
+        format!(
+            "`@ReleaseHook` 释放函数 `{function_fqn}` 必须是 `@NoGC` 或 `@Extern(abi = \"c\")`"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_function_return_must_be_unit`。
+pub fn release_hook_function_return_must_be_unit(
+    function_fqn: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_function_return_must_be_unit",
+        format!("`@ReleaseHook` 释放函数 `{function_fqn}` 的返回类型必须是 Unit，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_arg_count_mismatch`。
+pub fn release_hook_arg_count_mismatch(
+    type_fqn: &str,
+    function_fqn: &str,
+    field_count: usize,
+    param_count: usize,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_arg_count_mismatch",
+        format!(
+            "`@ReleaseHook` 宿主 `{type_fqn}` 的 args 数量与释放函数 `{function_fqn}` 参数数量不匹配：args 有 {field_count} 个，参数有 {param_count} 个"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_arg_field_not_found`。
+pub fn release_hook_arg_field_not_found(
+    type_fqn: &str,
+    field_name: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_arg_field_not_found",
+        format!("`@ReleaseHook` 宿主 `{type_fqn}` 没有名为 `{field_name}` 的字段"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_arg_field_must_be_gc_free`。
+pub fn release_hook_arg_field_must_be_gc_free(
+    type_fqn: &str,
+    field_name: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_arg_field_must_be_gc_free",
+        format!(
+            "`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 必须是 GC-free 值类型，但得到 {found}"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::release_hook_arg_type_mismatch`。
+pub fn release_hook_arg_type_mismatch(
+    type_fqn: &str,
+    field_name: &str,
+    field_ty: &str,
+    param_ty: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::release_hook_arg_type_mismatch",
+        format!(
+            "`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 类型与释放函数参数不匹配：字段是 {field_ty}，参数是 {param_ty}"
+        ),
+    )
+    .with_primary(span, "这里")
+}

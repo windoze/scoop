@@ -17,6 +17,7 @@ pub mod env;
 pub mod expr;
 pub mod extern_fn;
 pub mod lower;
+pub mod release_hook;
 
 pub use env::TypeEnv;
 pub use lower::TypeLowering;
@@ -194,6 +195,10 @@ fn check_file_bodies(
                 if is_annotation && let Some(err) = annotation_class_error(d, env.interner) {
                     // 与 legacy 一致：按固定顺序短路，仅报首个 annotation-class 错误。
                     diags.push(err);
+                }
+                // @ReleaseHook 宿主 / 释放函数 / 实参契约（短路）。
+                if has_annotation(&d.annotations, "ReleaseHook", env.interner) {
+                    release_hook::check_release_hook(env, diags, d, package_prefix);
                 }
                 let is_intrinsic_type = has_annotation(&d.annotations, "Intrinsic", env.interner);
                 // @Intrinsic 类型不能声明字段（ctor param-property + body property + body var field）。

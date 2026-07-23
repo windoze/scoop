@@ -25,6 +25,14 @@ pub struct Signature {
     pub type_param_count: usize,
 }
 
+/// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
+#[derive(Clone, Copy, Default, Debug)]
+pub struct FunAttrs {
+    pub is_nogc: bool,
+    /// `@Extern` 且 ABI 为缺省或 `"c"`（native C ABI leaf）。
+    pub is_native_extern: bool,
+}
+
 /// typecheck 类型环境。
 pub struct TypeEnv<'i> {
     pub store: TypeStore,
@@ -40,6 +48,8 @@ pub struct TypeEnv<'i> {
     member_signatures: HashMap<Symbol, HashMap<Symbol, Vec<Signature>>>,
     /// 带 `@CLayout` 注解的 struct FQN 集合（native `@Extern` ABI 允许的 nominal 值类型）。
     clayout_structs: HashSet<Symbol>,
+    /// 顶层函数 FQN → 注解属性（release-hook cross-reference 校验用）。
+    fun_attrs: HashMap<Symbol, FunAttrs>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -53,12 +63,18 @@ impl<'i> TypeEnv<'i> {
             ctors: HashMap::new(),
             member_signatures: HashMap::new(),
             clayout_structs: HashSet::new(),
+            fun_attrs: HashMap::new(),
         }
     }
 
     /// `@CLayout` struct 查询（native `@Extern` ABI 用）。
     pub fn is_clayout_struct(&self, fqn: Symbol) -> bool {
         self.clayout_structs.contains(&fqn)
+    }
+
+    /// 顶层函数注解属性查询（release-hook 用）。
+    pub fn fun_attrs(&self, fqn: Symbol) -> Option<FunAttrs> {
+        self.fun_attrs.get(&fqn).copied()
     }
 
     /// 顶层函数（非扩展、非成员）的签名重载集。
@@ -83,6 +99,11 @@ impl<'i> TypeEnv<'i> {
         self.members
             .get(&type_fqn)
             .and_then(|m| m.get(&member_name).copied())
+    }
+
+    /// 类型的全部字段成员类型（GC-free 递归校验用）。
+    pub fn member_types(&self, type_fqn: Symbol) -> Option<&HashMap<Symbol, TypeId>> {
+        self.members.get(&type_fqn)
     }
 
     /// 内建标量 / String / Unit / Nothing 名字 → [`TypeId`]。
@@ -184,7 +205,55 @@ pub fn register_top_level_signatures(
             }
         };
         env.signatures.entry(fqn).or_default().push(sig);
+        env.fun_attrs.insert(
+            fqn,
+            FunAttrs {
+                is_nogc: has_annotation(&d.annotations, "NoGC", env.interner),
+                is_native_extern: is_native_c_extern(&d.annotations, env.interner),
+            },
+        );
     }
+}
+
+/// 注解路径末段文本匹配。
+fn has_annotation(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    name: &str,
+    interner: &Interner,
+) -> bool {
+    anns.iter().any(|a| {
+        a.path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == name)
+    })
+}
+
+/// `@Extern` 且 ABI 为缺省或 `"c"`（native leaf）。
+fn is_native_c_extern(anns: &[crate::syntax::ast::AnnotationUse], interner: &Interner) -> bool {
+    use crate::syntax::ast::ExprKind;
+    let Some(ext) = anns.iter().find(|a| {
+        a.path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == "Extern")
+    }) else {
+        return false;
+    };
+    // 若给出 `abi=`，必须是 "c"。
+    for arg in &ext.args {
+        if arg
+            .name
+            .as_ref()
+            .is_some_and(|n| interner.resolve(n.symbol) == "abi")
+        {
+            if let ExprKind::StringLit(s) = &arg.value.kind {
+                return s.value.trim().eq_ignore_ascii_case("c");
+            }
+            return false;
+        }
+    }
+    true
 }
 
 /// 把文件的类型 / object 的**属性成员**（含主构造 param-property）类型降级并登记进
