@@ -170,6 +170,16 @@ fn check_file_bodies(
                     if d.body.is_some() {
                         diags.push(diagnostics::annotation_class_body_not_supported(item.span));
                     }
+                    if d.where_clause.is_some() {
+                        diags.push(diagnostics::annotation_class_where_clause_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    if !d.supertypes.is_empty() {
+                        diags.push(diagnostics::annotation_class_supertypes_not_supported(
+                            d.supertypes[0].span,
+                        ));
+                    }
                     // 类型参数（不含 eff 行）。
                     if d.type_params
                         .as_ref()
@@ -188,24 +198,25 @@ fn check_file_bodies(
                             d.name.span,
                         ));
                     }
-                    if d.where_clause.is_some() {
-                        diags.push(diagnostics::annotation_class_where_clause_not_supported(
-                            d.name.span,
-                        ));
-                    }
-                    if !d.supertypes.is_empty() {
-                        diags.push(diagnostics::annotation_class_supertypes_not_supported(
-                            d.name.span,
-                        ));
-                    }
                     // annotation class 的其他修饰符不允许。
-                    let has_other_mods = d.modifiers.iter().any(|m| {
-                        !matches!(m.kind, ModifierKind::Annotation | ModifierKind::Public)
-                    });
-                    if has_other_mods {
-                        diags.push(diagnostics::annotation_class_modifier_not_supported(
-                            d.name.span,
-                        ));
+                    for m in &d.modifiers {
+                        if !matches!(m.kind, ModifierKind::Annotation | ModifierKind::Public) {
+                            let mod_name = match m.kind {
+                                ModifierKind::Open => "open",
+                                ModifierKind::Sealed => "sealed",
+                                ModifierKind::Abstract => "abstract",
+                                ModifierKind::Internal => "internal",
+                                ModifierKind::Private => "private",
+                                ModifierKind::Override => "override",
+                                ModifierKind::Operator => "operator",
+                                _ => "modifier",
+                            };
+                            diags.push(
+                                diagnostics::annotation_class_modifier_not_supported_detail(
+                                    mod_name, m.span,
+                                ),
+                            );
+                        }
                     }
                     // annotation class 主构造参数必须是 val。
                     if let Some(ctor) = &d.primary_ctor {

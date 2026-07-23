@@ -376,13 +376,18 @@ pub fn annotation_class_must_be_class(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::annotation_class_modifier_not_supported`。
-pub fn annotation_class_modifier_not_supported(span: Span) -> Diagnostic {
+/// `scoop::typecheck::annotation_class_modifier_not_supported`：annotation class 不支持指定修饰符。
+pub fn annotation_class_modifier_not_supported_detail(mod_name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_modifier_not_supported",
-        "annotation class 不支持修饰符",
+        format!("annotation class 不支持修饰符 `{mod_name}`"),
     )
     .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_modifier_not_supported`（旧接口，不使用）。
+pub fn annotation_class_modifier_not_supported(span: Span) -> Diagnostic {
+    annotation_class_modifier_not_supported_detail("modifier", span)
 }
 
 /// `scoop::typecheck::annotation_class_effect_param_not_supported`。
