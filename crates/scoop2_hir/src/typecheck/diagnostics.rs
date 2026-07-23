@@ -40,3 +40,22 @@ pub fn unresolved_type_ref(name: &str, span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::unsupported_in_this_phase`：该语法形式在当前类型检查里程碑
+/// 尚未覆盖（仅在里程碑之间过渡使用；M8 退出闸门要求零到达）。
+pub fn unsupported_in_this_phase(what: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unsupported_in_this_phase",
+        format!("当前类型检查阶段暂不支持：{what}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::break_not_in_loop`：`break`/`continue` 出现在循环体外。
+pub fn break_not_in_loop(what: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::break_not_in_loop",
+        format!("`{what}` 只能出现在循环体内"),
+    )
+    .with_primary(span, "这里")
+}
