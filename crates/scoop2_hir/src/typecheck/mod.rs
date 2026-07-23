@@ -401,6 +401,10 @@ fn check_one_fun(
 ) {
     use scoop2_base::FileId;
     let Some(body) = &d.body else { return };
+    // @Intrinsic 成员函数不能有 body。
+    if has_annotation(&d.annotations, "Intrinsic", env.interner) {
+        diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
+    }
     // 构建类型参数作用域：外层类型参数 + 本函数自身的类型参数。
     let mut tp = enclosing_type_params.clone();
     if let Some(type_params) = &d.type_params {
