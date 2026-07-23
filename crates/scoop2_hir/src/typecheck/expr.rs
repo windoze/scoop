@@ -362,8 +362,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn walk_local_val(&mut self, val: &ast::ValDecl, stmt: &Stmt) {
         let declared = val.ty.as_ref().map(|t| self.lower_type(t));
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
-        if let (Some(d), Some(i)) = (declared, init_ty) {
-            self.check_assignable(i, d, stmt.span);
+        if let (Some(d), Some(i)) = (declared, init_ty)
+            && !self.assignable(i, d)
+        {
+            self.diags.push(diagnostics::initializer_type_mismatch(
+                &self.describe(d),
+                &self.describe(i),
+                stmt.span,
+            ));
         }
         let ty = declared
             .or(init_ty)
@@ -767,7 +773,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         span: Span,
     ) -> TypeId {
         if param_types.len() != args.len() {
-            self.diags.push(diagnostics::arity_mismatch(
+            self.diags.push(diagnostics::call_arity_mismatch(
                 param_types.len(),
                 args.len(),
                 span,
@@ -779,7 +785,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         for (i, a) in args.iter().enumerate() {
             let at = self.walk_expr(&a.value);
-            self.check_assignable(at, param_types[i], a.value.span);
+            if !self.assignable(at, param_types[i]) {
+                self.diags.push(diagnostics::call_arg_type_mismatch(
+                    &self.describe(param_types[i]),
+                    &self.describe(at),
+                    a.value.span,
+                ));
+            }
         }
         return_ty
     }
@@ -1391,7 +1403,7 @@ mod tests {
         assert!(
             codes
                 .iter()
-                .any(|c| c == "scoop::typecheck::arity_mismatch"),
+                .any(|c| c == "scoop::typecheck::call_arity_mismatch"),
             "{codes:?}"
         );
     }
@@ -1401,7 +1413,9 @@ mod tests {
         let codes =
             check_program("fun id(x: Int): Int { return x }\nfun main(): Int { return id(true) }");
         assert!(
-            codes.iter().any(|c| c == "scoop::typecheck::type_mismatch"),
+            codes
+                .iter()
+                .any(|c| c == "scoop::typecheck::call_arg_type_mismatch"),
             "{codes:?}"
         );
     }

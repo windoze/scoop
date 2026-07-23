@@ -285,3 +285,57 @@ pub fn return_value_required(expected: &str, span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::call_arity_mismatch`：调用实参数量与形参不符（调用专用码）。
+pub fn call_arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_arity_mismatch",
+        format!("参数数量不匹配：期望 {expected} 个，但传入 {found} 个"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::call_arg_type_mismatch`：调用实参类型不匹配（调用专用码）。
+pub fn call_arg_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_arg_type_mismatch",
+        format!("参数类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::initializer_type_mismatch`：val/property 初始化值类型不匹配。
+pub fn initializer_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::initializer_type_mismatch",
+        format!("初始化值类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::array_lit_element_type_mismatch`：数组字面量元素类型不匹配。
+pub fn array_lit_element_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::array_lit_element_type_mismatch",
+        format!("数组元素类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
+pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unknown_call_arg_name",
+        format!("未知的命名实参：{name}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::call_arg_duplicate`：调用中重复使用了同一命名实参。
+pub fn call_arg_duplicate(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_arg_duplicate",
+        format!("重复的命名实参：{name}"),
+    )
+    .with_primary(span, "这里")
+}
