@@ -24,7 +24,7 @@ use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, CastOp, Expr, ExprKind, FunBody, MemberName,
     Param, Stmt, StmtKind, StructLitField, TypeRef, UnaryOp, ValBinding,
 };
-use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
+use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
 use super::diagnostics;
 use super::env::{Signature, TypeEnv};
@@ -345,18 +345,45 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 annotations: _,
                 expr: e,
             } => self.walk_expr(e),
-            // 其余形式属于后续里程碑。
+            ExprKind::SafeMemberAccess { receiver, member } => {
+                let rt = self.walk_expr(receiver);
+                let base_ty = match self.env.store.kind(rt) {
+                    TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => *inner,
+                    _ => rt,
+                };
+                let member_ty = self.member_access_type(base_ty, *member, expr.span);
+                self.env.store.option(member_ty)
+            }
+            ExprKind::WithUpdate { base, updates } => {
+                let base_ty = self.walk_expr(base);
+                for u in updates {
+                    self.walk_expr(&u.value);
+                }
+                base_ty
+            }
+            ExprKind::Lambda(lambda) => self.type_lambda(lambda),
+            ExprKind::When { subject, arms } => self.type_when(subject, arms),
+            ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            } => {
+                self.walk_block(body);
+                for arm in arms {
+                    self.walk_expr(&arm.body);
+                }
+                if let Some(f) = finally {
+                    self.walk_block(f);
+                }
+                self.env.store.unit()
+            }
+            ExprKind::TypeApply { callee, .. } => self.walk_expr(callee),
+            // 仍需方法解析 / prelude nominal / 反射的形式。
             ExprKind::ArrayLit(_)
-            | ExprKind::Lambda(_)
-            | ExprKind::When { .. }
-            | ExprKind::Handle { .. }
-            | ExprKind::SafeMemberAccess { .. }
             | ExprKind::SpliceField { .. }
             | ExprKind::Index { .. }
-            | ExprKind::TypeApply { .. }
             | ExprKind::ClassLit { .. }
-            | ExprKind::InfixCall { .. }
-            | ExprKind::WithUpdate { .. } => self.unsupported("该表达式形式", expr.span),
+            | ExprKind::InfixCall { .. } => self.unsupported("该表达式形式", expr.span),
         }
     }
 
@@ -554,6 +581,99 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         } else {
             self.env.store.value_nominal(nominal)
         }
+    }
+
+    /// lambda → 函数类型（参数有标注则降级；无标注 → Nothing，精确推断推迟）。
+    fn type_lambda(&mut self, lambda: &ast::LambdaExpr) -> TypeId {
+        let mut param_types: Vec<TypeId> = Vec::new();
+        for p in &lambda.params {
+            let ty = match &p.ty {
+                Some(t) => self.lower_type(t),
+                None => self.env.store.nothing(),
+            };
+            self.locals.insert(p.name.symbol, ty);
+            param_types.push(ty);
+        }
+        let return_ty = match &lambda.body {
+            ast::LambdaBody::Block(b) => {
+                self.walk_block(b);
+                self.env.store.unit()
+            }
+            ast::LambdaBody::Expr(e) => self.walk_expr(e),
+        };
+        self.env.store.function(FunctionType {
+            receiver: None,
+            params: param_types,
+            return_ty,
+            effects: EffectRow::pure(),
+            closed: false,
+        })
+    }
+
+    /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。
+    fn type_when(&mut self, subject: &Expr, arms: &[ast::WhenArm]) -> TypeId {
+        let _ = self.walk_expr(subject);
+        let mut arm_types: Vec<TypeId> = Vec::new();
+        for arm in arms {
+            self.bind_pattern_locals(&arm.pat);
+            if let Some(g) = &arm.guard {
+                let gt = self.walk_expr(g);
+                let bool_ty = self.env.store.bool();
+                self.check_assignable(gt, bool_ty, g.span);
+            }
+            arm_types.push(self.walk_expr(&arm.body));
+        }
+        if arm_types.is_empty() {
+            return self.env.store.unit();
+        }
+        let first = arm_types[0];
+        if arm_types.iter().all(|&t| t == first) {
+            first
+        } else {
+            self.env.store.unit()
+        }
+    }
+
+    /// 把模式中的绑定名登记为 Nothing 类型局部（精确模式类型在 M5 补齐）。
+    fn bind_pattern_locals(&mut self, pat: &ast::Pattern) {
+        let mut names: Vec<Symbol> = Vec::new();
+        collect_pattern_binders(&pat.kind, &mut names);
+        for name in names {
+            self.locals.insert(name, self.env.store.nothing());
+        }
+    }
+}
+
+/// 收集模式中的绑定名（`Bind` / struct 简写）。
+fn collect_pattern_binders(kind: &ast::PatternKind, out: &mut Vec<Symbol>) {
+    match kind {
+        ast::PatternKind::Bind(name) => out.push(name.symbol),
+        ast::PatternKind::Tuple(elems) => {
+            for e in elems {
+                collect_pattern_binders(&e.kind, out);
+            }
+        }
+        ast::PatternKind::Struct { fields, .. } => {
+            for f in fields {
+                match &f.pattern {
+                    None => out.push(f.name.symbol),
+                    Some(p) => collect_pattern_binders(&p.kind, out),
+                }
+            }
+        }
+        ast::PatternKind::Variant { args, .. } => {
+            if let Some(elems) = args {
+                for e in elems {
+                    collect_pattern_binders(&e.kind, out);
+                }
+            }
+        }
+        ast::PatternKind::Or(alts) => {
+            for a in alts {
+                collect_pattern_binders(&a.kind, out);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -932,6 +1052,22 @@ mod tests {
     #[test]
     fn cast_as_returns_target() {
         let codes = check_program("fun main(): Int { return 1 as Int }");
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn lambda_typed_params_function_type() {
+        let codes = check_program(
+            "fun main(): Int { val f: (Int) -> Int = { x: Int -> x + 1 }\nreturn f(5) }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn when_expr_lub_same_type() {
+        let codes = check_program(
+            "fun main(): Int { val v = 1\nval r = when (v) { 1 -> 2\nelse -> 3 }\nreturn r }",
+        );
         assert!(codes.is_empty(), "{codes:?}");
     }
 
