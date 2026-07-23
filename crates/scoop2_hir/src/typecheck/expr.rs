@@ -310,8 +310,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             StmtKind::Return { value } => {
                 if let Some(e) = value {
                     let t = self.walk_expr(e);
-                    if let Some(expected) = self.return_ty {
-                        self.check_assignable(t, expected, e.span);
+                    if let Some(expected) = self.return_ty
+                        && !self.assignable(t, expected)
+                    {
+                        self.diags.push(diagnostics::return_type_mismatch(
+                            &self.describe(expected),
+                            &self.describe(t),
+                            e.span,
+                        ));
                     }
                 }
             }
@@ -1240,10 +1246,12 @@ mod tests {
     }
 
     #[test]
-    fn type_mismatch_on_int_bool_return() {
+    fn return_type_mismatch_on_int_bool_return() {
         let (codes, _) = check(&main_returning("Int", "return true"));
         assert!(
-            codes.iter().any(|c| c == "scoop::typecheck::type_mismatch"),
+            codes
+                .iter()
+                .any(|c| c == "scoop::typecheck::return_type_mismatch"),
             "{codes:?}"
         );
     }

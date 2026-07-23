@@ -77,3 +77,102 @@ pub fn ambiguous_overload(span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::return_type_mismatch`：return 表达式类型与声明返回类型不匹配。
+pub fn return_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::return_type_mismatch",
+        format!("返回类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_body_not_supported`：annotation class 不支持类型体。
+pub fn annotation_class_body_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_body_not_supported",
+        "annotation class 不支持类型体",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_type_param_not_supported`：annotation class 不支持类型参数。
+pub fn annotation_class_type_param_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_type_param_not_supported",
+        "annotation class 不支持类型参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_eff_param_not_supported`：annotation class 不支持 eff 参数。
+pub fn annotation_class_eff_param_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_eff_param_not_supported",
+        "annotation class 不支持 eff 参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::builtin_annotation_invalid_target`：内建注解目标不合法。
+pub fn builtin_annotation_invalid_target(ann: &str, allowed: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::builtin_annotation_invalid_target",
+        format!("内建注解 `{ann}` 只能用于 {allowed}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
+pub fn intrinsic_decl_requires_trusted_syslib(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::intrinsic_decl_requires_trusted_syslib",
+        "@Intrinsic 声明只能在受信任的系统库（sysroot）中使用",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::intrinsic_fun_must_have_no_body`：@Intrinsic 函数不能有 body。
+pub fn intrinsic_fun_must_have_no_body(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::intrinsic_fun_must_have_no_body",
+        "@Intrinsic 函数不能有函数体",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::required_effect_not_declared`：函数体执行了未声明的 effect。
+pub fn required_effect_not_declared(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::required_effect_not_declared",
+        "函数体执行了 effect，但签名中未声明 effect row",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::static_initializer_must_be_pure`：顶层初始化器必须 Pure。
+pub fn static_initializer_must_be_pure(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::static_initializer_must_be_pure",
+        "顶层 val 初始化器必须是 Pure",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::binary_op_operand_type_mismatch`：二元运算符操作数类型不匹配。
+pub fn binary_op_operand_type_mismatch(op: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::binary_op_operand_type_mismatch",
+        format!("运算符 `{op}` 的操作数类型不匹配：{found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::operator_overload_not_found`：找不到运算符重载方法。
+pub fn operator_overload_not_found(op: &str, ty: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::operator_overload_not_found",
+        format!("类型 {ty} 没有运算符 `{op}` 的重载方法"),
+    )
+    .with_primary(span, "这里")
+}

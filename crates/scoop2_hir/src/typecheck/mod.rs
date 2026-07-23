@@ -115,7 +115,7 @@ pub fn run_typecheck(
     }
 }
 
-/// 检查一个文件的**顶层 + 成员**函数体。
+/// 检查一个文件的**顶层 + 成员**函数体 + 声明头语义检查。
 fn check_file_bodies(
     file: &crate::syntax::ast::File,
     env: &mut TypeEnv,
@@ -124,12 +124,16 @@ fn check_file_bodies(
     diags: &mut DiagnosticSink,
     package_prefix: &str,
 ) {
-    use crate::syntax::ast::ItemKind;
+    use crate::syntax::ast::{ItemKind, ModifierKind};
     use std::collections::HashMap;
     let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
     for item in &file.items {
         match &item.kind {
             ItemKind::Fun(d) => {
+                // @Intrinsic 函数不能有 body。
+                if has_annotation(&d.annotations, "Intrinsic", env.interner) && d.body.is_some() {
+                    diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
+                }
                 check_one_fun(
                     d,
                     env,
@@ -142,6 +146,31 @@ fn check_file_bodies(
                 );
             }
             ItemKind::Type(d) => {
+                // annotation class 限制（spec P5 §9）。
+                let is_annotation = d
+                    .modifiers
+                    .iter()
+                    .any(|m| m.kind == ModifierKind::Annotation);
+                if is_annotation {
+                    if d.body.is_some() {
+                        diags.push(diagnostics::annotation_class_body_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    if d.type_params.is_some() {
+                        diags.push(diagnostics::annotation_class_type_param_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    if d.type_params
+                        .as_ref()
+                        .is_some_and(|tp| tp.effect_row.is_some())
+                    {
+                        diags.push(diagnostics::annotation_class_eff_param_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
                 if let Some(body) = &d.body {
                     check_member_funs(
@@ -174,6 +203,20 @@ fn check_file_bodies(
             _ => {}
         }
     }
+}
+
+/// 检查注解使用路径末段文本是否匹配给定名称。
+fn has_annotation(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    name: &str,
+    interner: &scoop2_base::Interner,
+) -> bool {
+    anns.iter().any(|a| {
+        a.path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == name)
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
