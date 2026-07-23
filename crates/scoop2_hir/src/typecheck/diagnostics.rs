@@ -481,6 +481,24 @@ pub fn entry_point_main_invalid_signature(detail: &str, span: Span) -> Diagnosti
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::entry_point_must_be_pure`：程序入口必须 Pure。
+pub fn entry_point_must_be_pure(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::entry_point_must_be_pure",
+        "程序入口 `main` 的 effect row 必须是 Pure",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::entry_point_must_be_closed_pure`：程序入口 effect row 必须闭合。
+pub fn entry_point_must_be_closed_pure(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::entry_point_must_be_closed_pure",
+        "程序入口 `main` 必须使用闭合 effect row（`Pure!`）",
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。

@@ -162,7 +162,7 @@ fn check_file_bodies(
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);
                 if name_text == "main" && d.receiver.is_none() {
-                    check_main_signature(d, env, diags);
+                    check_main_signature(d, env, imports, package_prefix, diags);
                 }
                 // 扩展函数：this = 接收者类型（lowered）。
                 let ext_this_ty = d.receiver.as_ref().map(|recv| {
@@ -332,12 +332,31 @@ fn check_file_bodies(
 }
 
 /// 检查 entry-point `main` 的签名（spec P4 §13）。
-/// 合法形式：`fun main()` 或 `fun main(args: Array<String>)`。
+/// 合法形式：`fun main()` 或 `fun main(args: Array<String>)`；effect row 必须是闭合 Pure。
 fn check_main_signature(
     d: &crate::syntax::ast::FunDecl,
     env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
     diags: &mut DiagnosticSink,
 ) {
+    // effect row：必须是 Pure；若显式给出则必须是闭合的（`Pure!`）。
+    if let Some(eff) = &d.effect {
+        let is_pure = eff.terms.iter().all(|t| {
+            t.path
+                .segments
+                .last()
+                .is_some_and(|s| env.interner.resolve(s.symbol) == "Pure")
+        });
+        if !is_pure {
+            diags.push(diagnostics::entry_point_must_be_pure(eff.span));
+            return;
+        }
+        if eff.closed.is_none() {
+            diags.push(diagnostics::entry_point_must_be_closed_pure(eff.span));
+            return;
+        }
+    }
     // 参数数量：0 或 1。
     if d.params.len() > 1 {
         diags.push(diagnostics::entry_point_main_invalid_signature(
@@ -350,12 +369,11 @@ fn check_main_signature(
     if d.params.len() == 1
         && let Some(param) = d.params.first()
     {
-        let empty_imports = crate::resolve::imports::ImportTable::new();
         let mut lower = crate::typecheck::lower::TypeLowering::new(
             env,
-            &empty_imports,
+            imports,
             std::collections::HashMap::new(),
-            String::new(),
+            package_prefix.to_string(),
             diags,
         );
         let param_ty = param
@@ -395,7 +413,28 @@ fn check_main_signature(
                                 crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(an)) => {
                                     env.interner.resolve(an.fqn).to_string()
                                 }
-                                _ => format!("{:?}", env.store.kind(*a)),
+                                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => {
+                                    "String".to_string()
+                                }
+                                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) => {
+                                    "Any".to_string()
+                                }
+                                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int) => {
+                                    "Int".to_string()
+                                }
+                                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt) => {
+                                    "UInt".to_string()
+                                }
+                                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Bool) => {
+                                    "Bool".to_string()
+                                }
+                                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Char) => {
+                                    "Char".to_string()
+                                }
+                                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(
+                                    an,
+                                )) => env.interner.resolve(an.fqn).to_string(),
+                                other => format!("{other:?}"),
                             })
                             .collect();
                         let args_text = if inner.is_empty() {
