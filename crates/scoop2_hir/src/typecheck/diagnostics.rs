@@ -254,7 +254,7 @@ pub fn struct_lit_field_type_mismatch(
 ) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::struct_lit_field_type_mismatch",
-        format!("字段 `{field}` 类型不匹配：期望 {expected}，但得到 {found}"),
+        format!("字段 `{field}` 初始化值类型不匹配：期望 {expected}，但得到 {found}"),
     )
     .with_primary(span, "这里")
 }
@@ -263,7 +263,7 @@ pub fn struct_lit_field_type_mismatch(
 pub fn struct_lit_duplicate_field(field: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::struct_lit_duplicate_field",
-        format!("struct 字面量中字段 `{field}` 重复"),
+        format!("字段 `{field}` 重复"),
     )
     .with_primary(span, "这里")
 }
