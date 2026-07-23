@@ -257,6 +257,11 @@ impl<'a> TypeResolver<'a> {
     fn annotation_path_resolves(&self, path: &TypePath) -> bool {
         if path.segments.len() == 1 {
             let name = path.segments[0].symbol;
+            // 内建注解名（spec P5 §12）始终可解析——它们不需要在 sysroot 中声明为 class。
+            let name_text = self.interner.resolve(name);
+            if is_builtin_annotation(name_text) {
+                return true;
+            }
             return self.current_package_type_exists(name) || self.imported_type_exists(name);
         }
         let path_text = path_text(path, self.interner);
@@ -308,6 +313,31 @@ fn type_param_names(tpl: Option<&ast::TypeParamList>) -> HashSet<Symbol> {
         }
     }
     s
+}
+
+/// 内建注解名（spec P5 §12）：始终可解析，无需在 sysroot 中声明为 class。
+fn is_builtin_annotation(name: &str) -> bool {
+    matches!(
+        name,
+        "Extern"
+            | "Intrinsic"
+            | "AllowIntrinsic"
+            | "Unsafe"
+            | "Safe"
+            | "NoGC"
+            | "Deprecated"
+            | "ReplaceWith"
+            | "CLayout"
+            | "TailRec"
+            | "Global"
+            | "ThreadLocal"
+            | "InteriorMutable"
+            | "Target"
+            | "Retention"
+            | "Suppress"
+            | "Experimental"
+            | "CallingConvention"
+    )
 }
 
 fn path_text(path: &TypePath, interner: &Interner) -> String {
