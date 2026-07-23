@@ -576,12 +576,45 @@ impl<'a> BodyResolver<'a> {
             self.interner.resolve(name.symbol)
         );
         let member_name_text = self.interner.resolve(name.symbol).to_string();
-        match self.interner.get(&mfqn_text) {
-            Some(mfqn) if self.index.lookup(mfqn).is_some() => {}
-            _ => self
-                .diags
-                .push(errors::unresolved_member(&member_name_text, name.span)),
+        let found = self
+            .interner
+            .get(&mfqn_text)
+            .is_some_and(|mfqn| self.index.lookup(mfqn).is_some());
+        if found {
+            return;
         }
+        // 成员缺失：若 receiver 是 class/struct/enum/interface 名（非 object、非值），
+        // 即通过类型名做静态/companion 访问但类型无 companion → missing_companion_object；
+        // 否则（object 名 / 实例值）→ unresolved_member。
+        if self.is_class_type_qualifier(receiver, owner_fqn) {
+            let ExprKind::Ident(ident) = &receiver.kind else {
+                return;
+            };
+            let type_name = self.interner.resolve(ident.symbol).to_string();
+            self.diags
+                .push(errors::missing_companion_object(&type_name, ident.span));
+        } else {
+            self.diags
+                .push(errors::unresolved_member(&member_name_text, name.span));
+        }
+    }
+
+    /// receiver 是否是「class 类型的限定符」（通过类型名做静态/companion 访问）：
+    /// 裸 Ident、不是 `this`、不是局部值（参数），且 owner 是 kind=Type 的类型符号
+    /// （class/struct/enum/interface，**非** object）。
+    fn is_class_type_qualifier(&self, receiver: &Expr, owner_fqn: Symbol) -> bool {
+        let ExprKind::Ident(ident) = &receiver.kind else {
+            return false;
+        };
+        if self.interner.resolve(ident.symbol) == "this" {
+            return false;
+        }
+        if self.local_types.contains_key(&ident.symbol) {
+            return false;
+        }
+        self.index
+            .lookup_type(owner_fqn)
+            .is_some_and(|s| s.kind == crate::resolve::symbol::SymbolKind::Type)
     }
 
     /// 推导 receiver 的「类型 FQN」（成员访问用）：`this` → 当前成员类型；局部
