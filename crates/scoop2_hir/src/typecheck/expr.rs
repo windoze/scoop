@@ -13,7 +13,7 @@
 //! 赋值性（M1）：类型相等或 `found` 为 `Nothing`（bottom）。子类型 / 继承 / 强制
 //! 转换在后续里程碑补齐。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{NodeId, Span, Symbol};
@@ -815,14 +815,39 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let Some(fqn) = self.callee_type_fqn(name.symbol) else {
             return self.unsupported("该 struct 字面量的类型名", span);
         };
+        let type_name = self.env.interner.resolve(name.symbol).to_string();
+        let mut seen: HashSet<Symbol> = HashSet::new();
         for f in fields {
+            let field_name_text = self.env.interner.resolve(f.name.symbol).to_string();
+            // 重复字段检查。
+            if seen.contains(&f.name.symbol) {
+                self.diags.push(diagnostics::struct_lit_duplicate_field(
+                    &field_name_text,
+                    f.span,
+                ));
+                self.walk_expr(&f.value);
+                continue;
+            }
+            seen.insert(f.name.symbol);
             match self.env.member_type(fqn, f.name.symbol) {
                 Some(expected) => {
                     let vt = self.walk_expr(&f.value);
-                    self.check_assignable(vt, expected, f.value.span);
+                    if !self.assignable(vt, expected) {
+                        self.diags.push(diagnostics::struct_lit_field_type_mismatch(
+                            &field_name_text,
+                            &self.describe(expected),
+                            &self.describe(vt),
+                            f.value.span,
+                        ));
+                    }
                 }
                 None => {
-                    self.unsupported("未知字段", f.span);
+                    self.walk_expr(&f.value);
+                    self.diags.push(diagnostics::struct_lit_unknown_field(
+                        &field_name_text,
+                        &type_name,
+                        f.span,
+                    ));
                 }
             }
         }
