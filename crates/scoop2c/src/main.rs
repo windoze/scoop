@@ -164,6 +164,19 @@ fn locate_sysroot() -> Option<PathBuf> {
     if p.is_dir() { Some(p) } else { None }
 }
 
+/// 收集 fixture 的 `.sysroot` overlay 目录中的 `.scoop` 文件。
+fn collect_overlay_files() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(overlay) = std::env::var("SCOOP_SYSROOT_OVERLAY") {
+        let p = PathBuf::from(&overlay);
+        if p.is_dir() {
+            walk_inner(&p, &mut out);
+            out.sort();
+        }
+    }
+    out
+}
+
 /// 递归收集 `dir` 下的所有 `*.scoop` 文件路径（按路径排序，保证确定性）。
 fn walk_scoop_files(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -213,6 +226,12 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     }
                 }
             }
+            // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）。
+            for path in collect_overlay_files() {
+                if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                    parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+                }
+            }
             let user_parse_ok = !parsed[0].diagnostics.has_errors();
             for pf in &parsed {
                 diags.extend(pf.diagnostics.iter().cloned());
@@ -248,6 +267,12 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
                         parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
                     }
+                }
+            }
+            // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）。
+            for path in collect_overlay_files() {
+                if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                    parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
                 }
             }
             let user_parse_ok = !parsed[0].diagnostics.has_errors();
