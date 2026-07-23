@@ -176,3 +176,112 @@ pub fn operator_overload_not_found(op: &str, ty: &str, span: Span) -> Diagnostic
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::return_not_in_function_body`：`return` 出现在 lambda / init 块中。
+pub fn return_not_in_function_body(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::return_not_in_function_body",
+        "`return` 只能出现在命名函数体内",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::conflicting_overloads`：签名相同的重载冲突。
+pub fn conflicting_overloads(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::conflicting_overloads",
+        format!("重载冲突：{name} 存在签名相同的重载"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::binary_op_operand_type_mismatch`：二元运算操作数类型不匹配。
+pub fn binary_op_operand_type_mismatch_detail(
+    op: &str,
+    left: &str,
+    right: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::binary_op_operand_type_mismatch",
+        format!("运算符 `{op}` 的操作数类型不匹配：{left} 与 {right}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_non_exhaustive_missing_variants`：when 不穷尽。
+pub fn when_non_exhaustive_missing_variants(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_non_exhaustive_missing_variants",
+        "when 表达式不穷尽：缺少 enum variant / else 分支",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::where_constraint_not_satisfied`：where 约束不满足。
+pub fn where_constraint_not_satisfied(constraint: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::where_constraint_not_satisfied",
+        format!("where 约束不满足：{constraint}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::virtual_method_cannot_be_generic`：虚方法不能有方法级类型参数。
+pub fn virtual_method_cannot_be_generic(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::virtual_method_cannot_be_generic",
+        "虚方法（open/abstract/override/interface 方法）不能引入方法级类型参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::struct_lit_unknown_field`：struct 字面量中的未知字段。
+pub fn struct_lit_unknown_field(field: &str, ty: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_unknown_field",
+        format!("类型 {ty} 没有字段 `{field}`"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::struct_lit_field_type_mismatch`：struct 字面量字段类型不匹配。
+pub fn struct_lit_field_type_mismatch(
+    field: &str,
+    expected: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_field_type_mismatch",
+        format!("字段 `{field}` 类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::struct_lit_duplicate_field`：struct 字面量中的重复字段。
+pub fn struct_lit_duplicate_field(field: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_duplicate_field",
+        format!("struct 字面量中字段 `{field}` 重复"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::closure_var_capture_not_allowed`：lambda 不能捕获外层 `var`。
+pub fn closure_var_capture_not_allowed(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::closure_var_capture_not_allowed",
+        format!("lambda 不能捕获可变局部变量 `{name}`"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::return_value_required`：函数声明了非 Unit 返回类型但 return 无值。
+pub fn return_value_required(expected: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::return_value_required",
+        format!("需要返回值：函数返回类型为 {expected}，但 return 无表达式"),
+    )
+    .with_primary(span, "这里")
+}

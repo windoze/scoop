@@ -55,6 +55,7 @@ pub fn check_function<'a, 'i>(
         return_ty: None,
         in_loop: 0u32,
         this_ty,
+        in_function_body: true,
     };
     for p in params {
         let ty = match &p.ty {
@@ -107,6 +108,8 @@ struct ExprChecker<'a, 'i> {
     in_loop: u32,
     /// 成员函数体的 `this` 类型（lowered nominal）；非成员函数为 `None`。
     this_ty: Option<TypeId>,
+    /// 当前是否在命名函数体内（非 lambda / 非 init 块）。`return` 只允许在此上下文。
+    in_function_body: bool,
 }
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
@@ -308,6 +311,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             StmtKind::LocalVal(val) => self.walk_local_val(val, stmt),
             StmtKind::Return { value } => {
+                if !self.in_function_body {
+                    self.diags
+                        .push(diagnostics::return_not_in_function_body(stmt.span));
+                    return;
+                }
                 if let Some(e) = value {
                     let t = self.walk_expr(e);
                     if let Some(expected) = self.return_ty
@@ -841,6 +849,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.locals.insert(p.name.symbol, ty);
             param_types.push(ty);
         }
+        // lambda 体内 `return` 不是 non-local return（spec §7.2 / T4013）。
+        let saved_fn = self.in_function_body;
+        self.in_function_body = false;
         let return_ty = match &lambda.body {
             ast::LambdaBody::Block(b) => {
                 self.walk_block(b);
@@ -848,6 +859,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ast::LambdaBody::Expr(e) => self.walk_expr(e),
         };
+        self.in_function_body = saved_fn;
         self.env.store.function(FunctionType {
             receiver: None,
             params: param_types,
