@@ -266,26 +266,26 @@ impl<'a> Collector<'a> {
         }
     }
 
-    fn insert_type(&mut self, sym: DeclSymbol, name_ident: Ident) {
-        let name_text = self.interner.resolve(name_ident.symbol).to_string();
+    fn insert_type(&mut self, sym: DeclSymbol, _name_ident: Ident) {
+        let fqn_text = self.interner.resolve(sym.fqn).to_string();
         let span = sym.span;
         match self.index.insert_type(sym) {
             Ok(()) => {}
             Err(first_span) => {
                 self.diags
-                    .push(errors::duplicate_definition(&name_text, first_span, span));
+                    .push(errors::duplicate_definition(&fqn_text, first_span, span));
             }
         }
     }
 
-    fn insert_value(&mut self, sym: DeclSymbol, name_ident: Ident) {
-        let name_text = self.interner.resolve(name_ident.symbol).to_string();
+    fn insert_value(&mut self, sym: DeclSymbol, _name_ident: Ident) {
+        let fqn_text = self.interner.resolve(sym.fqn).to_string();
         let span = sym.span;
         match self.index.insert_value(sym) {
             Ok(()) => {}
             Err(first_span) => {
                 self.diags
-                    .push(errors::duplicate_definition(&name_text, first_span, span));
+                    .push(errors::duplicate_definition(&fqn_text, first_span, span));
             }
         }
     }
