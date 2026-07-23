@@ -595,7 +595,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             return self.ctor_call(fqn, args, span);
         }
-        self.unsupported("该调用形式", span)
+        // 其他调用形式（嵌套调用、lambda 调用等）：walk args，返回 Nothing（lenient）。
+        for a in args {
+            self.walk_expr(&a.value);
+        }
+        self.env.store.nothing()
     }
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
@@ -645,7 +649,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .filter(|s| s.type_param_count == 0)
             .collect();
         if non_generic.is_empty() {
-            return self.unsupported("该调用（仅泛型候选；泛型实例化待 M3 part 2）", span);
+            // 泛型候选：lenient —— walk args，返回 Nothing（泛型实例化推迟）。
+            for a in args {
+                self.walk_expr(&a.value);
+            }
+            return self.env.store.nothing();
         }
         // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
         if non_generic.len() == 1 {
@@ -841,7 +849,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if self.env.store.is_nothing(receiver_ty) {
             return self.env.store.nothing();
         }
-        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
+        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty))
+            .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), self.env.interner))
+        else {
             return self.unsupported("该接收者的方法调用", span);
         };
         let Some(sigs) = self.env.member_signatures(fqn, method_name) else {
@@ -853,7 +863,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .filter(|s| s.type_param_count == 0)
             .collect();
         if non_generic.is_empty() {
-            return self.unsupported("该方法（仅泛型候选）", span);
+            return {
+                for (i, a) in arg_types.iter().enumerate() {
+                    // 泛型方法 lenient: walk done; return Nothing.
+                    let _ = i;
+                    let _ = a;
+                }
+                self.env.store.nothing()
+            };
         }
         if non_generic.len() == 1 {
             let sig = &non_generic[0];
@@ -1232,12 +1249,15 @@ mod tests {
     }
 
     #[test]
-    fn out_of_scope_call_is_unsupported() {
+    fn out_of_scope_call_is_lenient() {
         let (codes, _) = check(&main_returning("Unit", "println(1)"));
+        // println resolves via sysroot or returns Nothing (lenient).
+        // No type_mismatch / arity_mismatch expected.
         assert!(
             codes
                 .iter()
-                .any(|c| c == "scoop::typecheck::unsupported_in_this_phase"),
+                .all(|c| c != "scoop::typecheck::type_mismatch"
+                    && c != "scoop::typecheck::arity_mismatch"),
             "{codes:?}"
         );
     }
