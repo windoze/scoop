@@ -235,7 +235,44 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             }
             report_diagnostics(&source, diags)
         }
-        cli::Phase::Typecheck | cli::Phase::Infer | cli::Phase::Lower => not_wired("check-source"),
+        cli::Phase::Typecheck => {
+            let mut interner = scoop2_base::Interner::new();
+            let mut diags = scoop2_base::diag::DiagnosticSink::new();
+            let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
+            parsed.push(scoop2_syntax::parser::parse_file_with(
+                &source,
+                &mut interner,
+            ));
+            if let Some(sysroot) = locate_sysroot() {
+                for path in walk_scoop_files(&sysroot.join("lib")) {
+                    if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                        parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+                    }
+                }
+            }
+            let user_parse_ok = !parsed[0].diagnostics.has_errors();
+            for pf in &parsed {
+                diags.extend(pf.diagnostics.iter().cloned());
+            }
+            if user_parse_ok {
+                let inputs: Vec<scoop2_hir::resolve::InputFile> = parsed
+                    .iter()
+                    .enumerate()
+                    .map(|(i, pf)| scoop2_hir::resolve::InputFile {
+                        file: &pf.file,
+                        file_id: scoop2_base::FileId(i as u32),
+                        origin: if i == 0 {
+                            scoop2_hir::resolve::InputOrigin::User
+                        } else {
+                            scoop2_hir::resolve::InputOrigin::Sysroot
+                        },
+                    })
+                    .collect();
+                scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags);
+            }
+            report_diagnostics(&source, diags)
+        }
+        cli::Phase::Infer | cli::Phase::Lower => not_wired("check-source"),
     }
 }
 
