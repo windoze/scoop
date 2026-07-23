@@ -1243,7 +1243,7 @@ mod tests {
     #[test]
     fn subtyping_interface_impl() {
         let codes = check_program(
-            "interface Animal {}\nstruct Dog : Animal {}\nfun takeAnimal(a: Animal) {}\nfun main(): Unit { takeAnimal(Dog {}) }",
+            "interface Animal {}\nclass Dog : Animal {}\nfun main(): Animal { val d = Dog()\nreturn d }",
         );
         assert!(codes.is_empty(), "{codes:?}");
     }
