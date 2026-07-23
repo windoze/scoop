@@ -120,6 +120,65 @@ pub fn check_extern_var(diags: &mut DiagnosticSink, init_span: scoop2_base::Span
     diags.push(diagnostics::extern_var_initializer_not_allowed(init_span));
 }
 
+/// 校验独立 `@CallingConvention` 函数（与 native C ABI 同面）：不支持泛型、不允许非 Pure
+/// effect row、签名必须在 native value surface 上。短路：首个错误即返回。
+pub fn check_calling_convention(
+    env: &mut TypeEnv,
+    imports: &ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    d: &FunDecl,
+) {
+    // 泛型。
+    if let Some(first) = d.type_params.as_ref().and_then(|tp| tp.params.first()) {
+        diags.push(diagnostics::calling_convention_fun_generics_not_supported(
+            first.span,
+        ));
+        return;
+    }
+    // 非 Pure effect row。
+    if let Some(eff) = &d.effect
+        && !is_pure_effect_row(eff, env.interner)
+    {
+        diags.push(diagnostics::calling_convention_fun_effects_not_allowed(
+            eff.span,
+        ));
+        return;
+    }
+    // native ABI 签名面。
+    let tp_map = type_param_map(d);
+    let mut ty_refs: Vec<&TypeRef> = Vec::new();
+    for p in &d.params {
+        if let Some(t) = &p.ty {
+            ty_refs.push(t);
+        }
+    }
+    if let Some(ret) = &d.return_ty {
+        ty_refs.push(ret);
+    }
+    for ty_ref in ty_refs {
+        let ty = {
+            let mut lower = TypeLowering::new(
+                env,
+                imports,
+                tp_map.clone(),
+                package_prefix.to_string(),
+                diags,
+            );
+            lower.lower(ty_ref)
+        };
+        if !is_native_abi_value_type(env, ty) {
+            diags.push(
+                diagnostics::calling_convention_fun_signature_not_supported_by_native_abi(
+                    &fmt_type(env, ty),
+                    ty_ref.span,
+                ),
+            );
+            return;
+        }
+    }
+}
+
 // ===== 实参解析 =====
 
 fn find_extern_annotation<'a>(

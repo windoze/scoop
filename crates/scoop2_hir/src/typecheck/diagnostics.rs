@@ -844,6 +844,38 @@ pub fn nogc_call_forbidden(callee: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::calling_convention_fun_generics_not_supported`。
+pub fn calling_convention_fun_generics_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::calling_convention_fun_generics_not_supported",
+        "`@CallingConvention` 当前不支持泛型函数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::calling_convention_fun_effects_not_allowed`。
+pub fn calling_convention_fun_effects_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::calling_convention_fun_effects_not_allowed",
+        "`@CallingConvention` 函数不允许声明非 Pure 的 effect row",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::calling_convention_fun_signature_not_supported_by_native_abi`。
+pub fn calling_convention_fun_signature_not_supported_by_native_abi(
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::calling_convention_fun_signature_not_supported_by_native_abi",
+        format!(
+            "`@CallingConvention` 函数的 native ABI 签名只接受当前 native value surface：标量、`UIntPtr`、`Ptr<T>`、tuple、`@CLayout` struct；不接受 {found}"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @ReleaseHook 校验（spec §15.x release hook）=====
 
 /// `scoop::typecheck::release_hook_host_must_be_class`。

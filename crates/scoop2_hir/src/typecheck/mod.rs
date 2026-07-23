@@ -161,6 +161,10 @@ fn check_file_bodies(
                         extern_fn::ExternSite::TopLevel,
                     );
                 }
+                // 独立 `@CallingConvention`（未叠加 `@Extern`）的 native ABI 校验。
+                if !is_extern && has_annotation(&d.annotations, "CallingConvention", env.interner) {
+                    extern_fn::check_calling_convention(env, imports, diags, package_prefix, d);
+                }
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);
                 if name_text == "main" && d.receiver.is_none() {
