@@ -71,7 +71,17 @@ pub fn check_function<'a, 'i>(
         }
         FunBody::Expr(e) => {
             let t = c.walk_expr(e);
-            if let Some(expected) = c.return_ty
+            // 块表达式体（`fun f(): T = { ... return x }`）：return 类型由 return 语句检查，
+            // 不在此检查块值（块值可能为 Unit 因为最后一条是 return 而非 expr）。
+            let is_block_body = matches!(
+                e.kind,
+                ExprKind::Block(_)
+                    | ExprKind::DoBlock(_)
+                    | ExprKind::UnsafeBlock(_)
+                    | ExprKind::SafeBlock(_)
+            );
+            if !is_block_body
+                && let Some(expected) = c.return_ty
                 && !c.assignable(t, expected)
             {
                 c.diags.push(diagnostics::type_mismatch(
