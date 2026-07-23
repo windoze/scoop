@@ -1,0 +1,13 @@
+[package]
+name = "scoop2c"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "scoop2c"
+path = "src/main.rs"
+
+[dependencies]
+scoop2_base = { path = "../scoop2_base" }
+scoop2_syntax = { path = "../scoop2_syntax" }
+scoop2_hir = { path = "../scoop2_hir" }

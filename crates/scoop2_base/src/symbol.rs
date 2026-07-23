@@ -1,0 +1,104 @@
+//! 字符串 interning：AST/HIR 中的标识符一律使用 [`Symbol`]。
+
+use std::collections::HashMap;
+use std::fmt;
+
+/// interned 字符串句柄。比较与哈希都是 O(1) 的整数操作。
+///
+/// `Symbol` 只在产出它的 [`Interner`] 内有意义；调试输出需要配合 interner
+/// 解析为文本（见 [`Interner::resolve`]）。
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Symbol(u32);
+
+impl Symbol {
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl fmt::Debug for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "sym#{}", self.0)
+    }
+}
+
+/// 字符串 interner。同一文本多次 intern 返回同一 [`Symbol`]。
+#[derive(Debug, Default)]
+pub struct Interner {
+    map: HashMap<Box<str>, Symbol>,
+    strings: Vec<Box<str>>,
+}
+
+impl Interner {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// intern 一段文本，返回其稳定句柄。
+    pub fn intern(&mut self, text: &str) -> Symbol {
+        if let Some(&sym) = self.map.get(text) {
+            return sym;
+        }
+        let sym = Symbol(self.strings.len() as u32);
+        let owned: Box<str> = text.into();
+        self.strings.push(owned.clone());
+        self.map.insert(owned, sym);
+        sym
+    }
+
+    /// 解析句柄为文本。
+    ///
+    /// # Panics
+    /// `sym` 不是由本 interner 产出时 panic（属于编译器内部 bug）。
+    pub fn resolve(&self, sym: Symbol) -> &str {
+        &self.strings[sym.as_usize()]
+    }
+
+    /// 尝试解析句柄；非法句柄返回 `None`。
+    pub fn try_resolve(&self, sym: Symbol) -> Option<&str> {
+        self.strings.get(sym.as_usize()).map(|s| &**s)
+    }
+
+    pub fn len(&self) -> usize {
+        self.strings.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.strings.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interning_is_stable_and_deduplicating() {
+        let mut it = Interner::new();
+        let a1 = it.intern("alpha");
+        let b = it.intern("beta");
+        let a2 = it.intern("alpha");
+        assert_eq!(a1, a2);
+        assert_ne!(a1, b);
+        assert_eq!(it.len(), 2);
+        assert_eq!(it.resolve(a1), "alpha");
+        assert_eq!(it.resolve(b), "beta");
+    }
+
+    #[test]
+    fn try_resolve_rejects_foreign_symbol() {
+        let it = Interner::new();
+        assert_eq!(it.try_resolve(Symbol::as_u32_raw(7)), None);
+    }
+
+    impl Symbol {
+        fn as_u32_raw(raw: u32) -> Symbol {
+            // 测试辅助：直接构造一个非法句柄。
+            Symbol(raw)
+        }
+    }
+}

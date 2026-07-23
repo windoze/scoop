@@ -1,0 +1,7 @@
+[package]
+name = "scoop2_syntax"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scoop2_base = { path = "../scoop2_base" }
