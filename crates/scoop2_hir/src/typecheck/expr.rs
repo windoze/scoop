@@ -371,7 +371,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let bool_ty = self.env.store.bool();
                 match builtin_binop(*op, cat, lt, rt, bool_ty) {
                     Some(t) => t,
-                    None => self.unsupported("该运算符 / 操作数组合", expr.span),
+                    None => {
+                        // 尝试运算符重载方法调用（a.plus(b) 等）。
+                        if let Some(m) =
+                            binop_to_method_name(*op).and_then(|n| self.env.interner.get(n))
+                        {
+                            return self.method_call_return_type(lt, m, &[rt], expr.span);
+                        }
+                        self.unsupported("该运算符 / 操作数组合", expr.span)
+                    }
                 }
             }
             ExprKind::Unary { op, expr: e } => {
@@ -392,12 +400,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let bool_ty = self.env.store.bool();
                 self.check_assignable(ct, bool_ty, cond.span);
                 let tt = self.walk_expr(then_branch);
-                let et = match else_branch {
-                    Some(e) => self.walk_expr(e),
-                    None => self.env.store.unit(),
-                };
-                // M1 LUB：两分支同类型 → 该类型；否则 Unit（精确 LUB 在后续里程碑）。
-                if tt == et { tt } else { self.env.store.unit() }
+                match else_branch {
+                    Some(e) => {
+                        let et = self.walk_expr(e);
+                        if self.assignable(et, tt) {
+                            tt
+                        } else if self.assignable(tt, et) {
+                            et
+                        } else {
+                            self.env.store.unit()
+                        }
+                    }
+                    None => tt,
+                }
             }
             ExprKind::Block(b)
             | ExprKind::DoBlock(b)
@@ -1009,6 +1024,31 @@ fn builtin_unary(op: UnaryOp, cat: ScalarCat, t: TypeId, bool_ty: TypeId) -> Opt
             }
         }
     }
+}
+
+/// BinaryOp → 运算符重载方法名（`+` → `plus`，`<` → `lt` 等）。逻辑/Elvis 运算为 None。
+fn binop_to_method_name(op: BinaryOp) -> Option<&'static str> {
+    use BinaryOp as B;
+    Some(match op {
+        B::Add => "plus",
+        B::Sub => "minus",
+        B::Mul => "times",
+        B::Div => "div",
+        B::Rem => "rem",
+        B::Shl => "shl",
+        B::Shr => "shr",
+        B::BitAnd => "and",
+        B::BitXor => "xor",
+        B::BitOr => "or",
+        B::Lt => "lt",
+        B::Le => "le",
+        B::Gt => "gt",
+        B::Ge => "ge",
+        B::Eq => "equals",
+        B::Ne => "notEquals",
+        B::Range => "rangeTo",
+        B::LogAnd | B::LogOr | B::Elvis => return None,
+    })
 }
 
 /// 抑制未用导入警告（NodeId 在 M1 尚未写回 typed 结果）。
