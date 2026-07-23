@@ -452,3 +452,12 @@ pub fn fun_must_have_body(span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::entry_point_main_invalid_signature`：main 函数签名不合法。
+pub fn entry_point_main_invalid_signature(detail: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::entry_point_main_invalid_signature",
+        format!("entry-point `main` 签名不合法：{detail}"),
+    )
+    .with_primary(span, "这里")
+}

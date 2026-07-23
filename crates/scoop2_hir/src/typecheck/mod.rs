@@ -140,6 +140,11 @@ fn check_file_bodies(
                 if d.body.is_none() && !is_extern && !is_intrinsic {
                     diags.push(diagnostics::fun_must_have_body(d.name.span));
                 }
+                // entry-point `main` 签名校验（spec P4 §13）。
+                let name_text = env.interner.resolve(d.name.symbol);
+                if name_text == "main" && d.receiver.is_none() {
+                    check_main_signature(d, env, diags);
+                }
                 // 扩展函数：this = 接收者类型（lowered）。
                 let ext_this_ty = d.receiver.as_ref().map(|recv| {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(
@@ -277,6 +282,91 @@ fn check_file_bodies(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+/// 检查 entry-point `main` 的签名（spec P4 §13）。
+/// 合法形式：`fun main()` 或 `fun main(args: Array<String>)`。
+fn check_main_signature(
+    d: &crate::syntax::ast::FunDecl,
+    env: &mut TypeEnv,
+    diags: &mut DiagnosticSink,
+) {
+    // 参数数量：0 或 1。
+    if d.params.len() > 1 {
+        diags.push(diagnostics::entry_point_main_invalid_signature(
+            &format!("不允许带 {} 个参数", d.params.len()),
+            d.name.span,
+        ));
+        return;
+    }
+    // 单参数必须是 Array<String>。
+    if d.params.len() == 1
+        && let Some(param) = d.params.first()
+    {
+        let empty_imports = crate::resolve::imports::ImportTable::new();
+        let mut lower = crate::typecheck::lower::TypeLowering::new(
+            env,
+            &empty_imports,
+            std::collections::HashMap::new(),
+            String::new(),
+            diags,
+        );
+        let param_ty = param
+            .ty
+            .as_ref()
+            .map(|t| lower.lower(t))
+            .unwrap_or_else(|| env.store.nothing());
+        let string_fqn = env
+            .interner
+            .get("scoop.core.String")
+            .or_else(|| env.interner.get("String"));
+        let array_fqn = env
+            .interner
+            .get("scoop.core.Array")
+            .or_else(|| env.interner.get("Array"));
+        if let (Some(sfqn), Some(afqn)) = (string_fqn, array_fqn) {
+            let string_nominal = crate::ty::NominalType {
+                fqn: sfqn,
+                args: vec![],
+                eff: None,
+            };
+            let string_ty = env.store.ref_nominal(string_nominal);
+            let array_nominal = crate::ty::NominalType {
+                fqn: afqn,
+                args: vec![string_ty],
+                eff: None,
+            };
+            let expected = env.store.ref_nominal(array_nominal);
+            if param_ty != expected {
+                let ty_desc = match env.store.kind(param_ty) {
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                        let fqn_text = env.interner.resolve(n.fqn);
+                        let inner: Vec<String> = n
+                            .args
+                            .iter()
+                            .map(|a| match env.store.kind(*a) {
+                                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(an)) => {
+                                    env.interner.resolve(an.fqn).to_string()
+                                }
+                                _ => format!("{:?}", env.store.kind(*a)),
+                            })
+                            .collect();
+                        let args_text = if inner.is_empty() {
+                            String::new()
+                        } else {
+                            format!("<{}>", inner.join(", "))
+                        };
+                        format!("`{fqn_text}{args_text}`")
+                    }
+                    _ => format!("{:?}", env.store.kind(param_ty)),
+                };
+                diags.push(diagnostics::entry_point_main_invalid_signature(
+                    &format!("参数类型为 {ty_desc}，必须是 Array<String>"),
+                    param.name.span,
+                ));
+            }
         }
     }
 }
