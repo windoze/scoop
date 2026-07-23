@@ -21,8 +21,8 @@ use scoop2_base::{NodeId, Span, Symbol};
 use crate::resolve::imports::ImportTable;
 use crate::resolve::output::{Resolution, ResolvedValue};
 use crate::syntax::ast::{
-    self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, MemberName, Param,
-    Stmt, StmtKind, StructLitField, TypeRef, UnaryOp, ValBinding,
+    self, AssignTargetKind, BinaryOp, Block, CallArg, CastOp, Expr, ExprKind, FunBody, MemberName,
+    Param, Stmt, StmtKind, StructLitField, TypeRef, UnaryOp, ValBinding,
 };
 use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
@@ -317,6 +317,34 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let types: Vec<TypeId> = els.iter().map(|e| self.walk_expr(e)).collect();
                 self.env.store.tuple(types)
             }
+            ExprKind::TypeCheck { expr: e, .. } => {
+                self.walk_expr(e);
+                self.env.store.bool()
+            }
+            ExprKind::Cast {
+                expr: e, op, ty, ..
+            } => {
+                self.walk_expr(e);
+                let target = self.lower_type(ty);
+                match op {
+                    CastOp::As => target,
+                    CastOp::AsSafe => {
+                        let t = target;
+                        self.env.store.option(t)
+                    }
+                }
+            }
+            ExprKind::NotNullAssert { expr: e } => {
+                let t = self.walk_expr(e);
+                match self.env.store.kind(t) {
+                    TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => *inner,
+                    _ => t,
+                }
+            }
+            ExprKind::Annotated {
+                annotations: _,
+                expr: e,
+            } => self.walk_expr(e),
             // 其余形式属于后续里程碑。
             ExprKind::ArrayLit(_)
             | ExprKind::Lambda(_)
@@ -325,14 +353,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::SafeMemberAccess { .. }
             | ExprKind::SpliceField { .. }
             | ExprKind::Index { .. }
-            | ExprKind::NotNullAssert { .. }
             | ExprKind::TypeApply { .. }
             | ExprKind::ClassLit { .. }
             | ExprKind::InfixCall { .. }
-            | ExprKind::TypeCheck { .. }
-            | ExprKind::Cast { .. }
-            | ExprKind::WithUpdate { .. }
-            | ExprKind::Annotated { .. } => self.unsupported("该表达式形式", expr.span),
+            | ExprKind::WithUpdate { .. } => self.unsupported("该表达式形式", expr.span),
         }
     }
 
@@ -896,6 +920,18 @@ mod tests {
     #[test]
     fn tuple_literal_types() {
         let codes = check_program("fun main(): (Int, Bool) { return (1, true) }");
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn type_check_is_returns_bool() {
+        let codes = check_program("fun main(): Bool { return 1 is Int }");
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn cast_as_returns_target() {
+        let codes = check_program("fun main(): Int { return 1 as Int }");
         assert!(codes.is_empty(), "{codes:?}");
     }
 
