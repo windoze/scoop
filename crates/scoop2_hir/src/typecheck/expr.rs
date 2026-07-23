@@ -22,7 +22,7 @@ use crate::resolve::imports::ImportTable;
 use crate::resolve::output::{Resolution, ResolvedValue};
 use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, MemberName, Param,
-    Stmt, StmtKind, TypeRef, UnaryOp, ValBinding,
+    Stmt, StmtKind, StructLitField, TypeRef, UnaryOp, ValBinding,
 };
 use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
@@ -312,10 +312,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let rt = self.walk_expr(receiver);
                 self.member_access_type(rt, *member, expr.span)
             }
+            ExprKind::StructLit { name, fields } => self.type_struct_lit(*name, fields, expr.span),
             // 其余形式属于后续里程碑。
             ExprKind::TupleLit(_)
             | ExprKind::ArrayLit(_)
-            | ExprKind::StructLit { .. }
             | ExprKind::Lambda(_)
             | ExprKind::When { .. }
             | ExprKind::Handle { .. }
@@ -492,6 +492,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         match self.env.member_type(fqn, name.symbol) {
             Some(t) => t,
             None => self.unsupported("该成员（方法调用 / 未注册成员）", span),
+        }
+    }
+
+    /// struct 字面量 `Type { field: value, ... }`：返回该 nominal 类型，
+    /// 检查每个字段值可赋值到对应成员类型。
+    fn type_struct_lit(
+        &mut self,
+        name: ast::Ident,
+        fields: &[StructLitField],
+        span: Span,
+    ) -> TypeId {
+        let Some(fqn) = self.callee_type_fqn(name.symbol) else {
+            return self.unsupported("该 struct 字面量的类型名", span);
+        };
+        for f in fields {
+            match self.env.member_type(fqn, f.name.symbol) {
+                Some(expected) => {
+                    let vt = self.walk_expr(&f.value);
+                    self.check_assignable(vt, expected, f.value.span);
+                }
+                None => {
+                    self.unsupported("未知字段", f.span);
+                }
+            }
+        }
+        let nominal = NominalType {
+            fqn,
+            args: vec![],
+            eff: None,
+        };
+        if self.env.is_reference_nominal(fqn) {
+            self.env.store.ref_nominal(nominal)
+        } else {
+            self.env.store.value_nominal(nominal)
         }
     }
 }
@@ -844,6 +878,14 @@ mod tests {
     fn constructor_call_returns_nominal() {
         let codes = check_program(
             "struct Point(val x: Int, val y: Int)\nfun main(): Point { return Point(1, 2) }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn struct_literal_field_check() {
+        let codes = check_program(
+            "struct Point(val x: Int, val y: Int)\nfun main(): Point { return Point { x: 1, y: 2 } }",
         );
         assert!(codes.is_empty(), "{codes:?}");
     }
