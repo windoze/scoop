@@ -980,15 +980,28 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         if non_generic.len() == 1 {
             let sig = &non_generic[0];
+            // Unit sugar：0 实参 + 1 个 Unit 参数 → 匹配。
+            if arg_types.is_empty()
+                && sig.params.len() == 1
+                && sig.params[0] == self.env.store.unit()
+            {
+                return sig.return_ty;
+            }
             if sig.params.len() != arg_types.len() {
-                self.diags.push(diagnostics::arity_mismatch(
+                self.diags.push(diagnostics::call_arity_mismatch(
                     sig.params.len(),
                     arg_types.len(),
                     span,
                 ));
             } else {
                 for (i, &at) in arg_types.iter().enumerate() {
-                    self.check_assignable(at, sig.params[i], span);
+                    if !self.assignable(at, sig.params[i]) {
+                        self.diags.push(diagnostics::call_arg_type_mismatch(
+                            &self.describe(sig.params[i]),
+                            &self.describe(at),
+                            span,
+                        ));
+                    }
                 }
             }
             return sig.return_ty;

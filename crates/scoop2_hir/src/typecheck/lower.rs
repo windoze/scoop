@@ -98,11 +98,16 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
     fn lower_path(&mut self, path: &TypePath, args: &[TypeArg], span: Span) -> TypeId {
         let name_text = path_text(path, self.env.interner);
 
-        // 1. 内建标量 / String / Unit / Nothing（无类型实参）。
-        if args.is_empty()
-            && let Some(b) = self.env.builtin(&name_text)
-        {
-            return b;
+        // 1. 内建标量 / String / Unit / Nothing / Any（无类型实参）。
+        if args.is_empty() {
+            if let Some(b) = self.env.builtin(&name_text) {
+                return b;
+            }
+            // Any → Ref(RefTypeKind::Any)（spec P2 §2.1 根引用类型）。
+            let stripped = name_text.strip_prefix("scoop.core.").unwrap_or(&name_text);
+            if stripped == "Any" {
+                return self.env.store.any();
+            }
         }
 
         // 2. Option<T>（与 T? 一致）。
