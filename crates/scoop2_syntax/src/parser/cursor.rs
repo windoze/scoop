@@ -511,9 +511,7 @@ impl<'a> Parser<'a> {
             let tok = self.bump();
             match tok.kind {
                 TokenKind::Symbol(Symbol::LBrace) => depth_brace += 1,
-                TokenKind::Symbol(Symbol::RBrace) => {
-                    depth_brace = depth_brace.saturating_sub(1)
-                }
+                TokenKind::Symbol(Symbol::RBrace) => depth_brace = depth_brace.saturating_sub(1),
                 _ => {}
             }
         }
@@ -592,9 +590,7 @@ impl<'a> Parser<'a> {
             TokenKind::Symbol(Symbol::LBrace) => *depth_brace += 1,
             TokenKind::Symbol(Symbol::RBrace) => *depth_brace = depth_brace.saturating_sub(1),
             TokenKind::Symbol(Symbol::LBracket) => *depth_bracket += 1,
-            TokenKind::Symbol(Symbol::RBracket) => {
-                *depth_bracket = depth_bracket.saturating_sub(1)
-            }
+            TokenKind::Symbol(Symbol::RBracket) => *depth_bracket = depth_bracket.saturating_sub(1),
             _ => {}
         }
     }
@@ -622,7 +618,12 @@ impl<'a> Parser<'a> {
     }
 
     fn type_apply_can_end_here(&self, next: usize) -> bool {
-        match self.tokens.get(next).map(|t| t.kind).unwrap_or(TokenKind::Eof) {
+        match self
+            .tokens
+            .get(next)
+            .map(|t| t.kind)
+            .unwrap_or(TokenKind::Eof)
+        {
             TokenKind::Symbol(
                 Symbol::LParen
                 | Symbol::LBrace
@@ -799,10 +800,7 @@ impl ScanCursor<'_> {
     }
 
     fn kind_at(&self, i: usize) -> TokenKind {
-        self.tokens
-            .get(i)
-            .map(|t| t.kind)
-            .unwrap_or(TokenKind::Eof)
+        self.tokens.get(i).map(|t| t.kind).unwrap_or(TokenKind::Eof)
     }
 
     fn text(&self) -> &str {

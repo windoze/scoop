@@ -2,8 +2,8 @@
 
 use scoop2_base::Span;
 
-use crate::ast::types::*;
 use crate::ast::TypePath;
+use crate::ast::types::*;
 use crate::token::{Symbol, TokenKind};
 
 use super::{PResult, Parser};
@@ -45,14 +45,12 @@ impl<'a> Parser<'a> {
             } else {
                 // 透明分组 `(T)` → `T`（不产生节点）。
                 let mut elements = paren.elements;
-                elements
-                    .pop()
-                    .unwrap_or_else(|| TypeRef {
-                        // invariant: had_comma == false 且非空时恰好一个元素；防御性兜底。
-                        id: self.nid(),
-                        span: paren.span,
-                        kind: TypeRefKind::Unit,
-                    })
+                elements.pop().unwrap_or_else(|| TypeRef {
+                    // invariant: had_comma == false 且非空时恰好一个元素；防御性兜底。
+                    id: self.nid(),
+                    span: paren.span,
+                    kind: TypeRefKind::Unit,
+                })
             }
         } else {
             self.parse_path_type()?

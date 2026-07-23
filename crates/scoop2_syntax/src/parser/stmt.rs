@@ -89,18 +89,18 @@ impl<'a> Parser<'a> {
         // `return expr?`。
         if self.at_kw(Keyword::Return) {
             let kw = self.bump();
-            let value = if self.at_eof() || self.at_sym(Symbol::Semicolon) || self.at_sym(Symbol::RBrace)
-            {
-                None
-            } else if self.is_expr_start_for_return() {
-                Some(self.expr()?)
-            } else if self.is_stmt_start() {
-                // 恢复启发式（§7）：下一个 token 能开始语句但不能开始表达式 → 无值 return。
-                None
-            } else {
-                let tok = self.peek();
-                return Err(self.err_expected("表达式（return 的返回值）", tok));
-            };
+            let value =
+                if self.at_eof() || self.at_sym(Symbol::Semicolon) || self.at_sym(Symbol::RBrace) {
+                    None
+                } else if self.is_expr_start_for_return() {
+                    Some(self.expr()?)
+                } else if self.is_stmt_start() {
+                    // 恢复启发式（§7）：下一个 token 能开始语句但不能开始表达式 → 无值 return。
+                    None
+                } else {
+                    let tok = self.peek();
+                    return Err(self.err_expected("表达式（return 的返回值）", tok));
+                };
 
             let mut span = Span::new(
                 kw.span.start,
@@ -232,7 +232,9 @@ impl<'a> Parser<'a> {
                 "语法错误：赋值左侧必须是标识符、成员访问或下标（`a[i]`）",
             )
             .with_primary(eq.span, "非法的赋值左侧")
-            .with_help("合法形式：`x = v` / `a.b = v` / `a[i] = v`；`?.` 链与调用结果不能作为赋值目标"),
+            .with_help(
+                "合法形式：`x = v` / `a.b = v` / `a[i] = v`；`?.` 链与调用结果不能作为赋值目标",
+            ),
         );
         super::Abort
     }
@@ -330,10 +332,7 @@ impl<'a> Parser<'a> {
         {
             let tok = self.peek();
             // 找到模式的开括号并消费平衡分组，避免级联错误。
-            while !self.at_eof()
-                && !self.at_sym(Symbol::LParen)
-                && !self.at_sym(Symbol::LBrace)
-            {
+            while !self.at_eof() && !self.at_sym(Symbol::LParen) && !self.at_sym(Symbol::LBrace) {
                 self.bump();
             }
             if self.at_sym(Symbol::LParen) {

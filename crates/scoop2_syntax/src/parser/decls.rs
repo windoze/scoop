@@ -14,10 +14,7 @@ use super::{PResult, Parser};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FunContext {
     TopLevel,
-    Member {
-        in_interface: bool,
-        in_effect: bool,
-    },
+    Member { in_interface: bool, in_effect: bool },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -402,7 +399,6 @@ impl<'a> Parser<'a> {
             }
             break;
         }
-
 
         let in_effect = matches!(
             ctx,
@@ -1372,12 +1368,10 @@ impl<'a> Parser<'a> {
                         Err(_abort) => self.skip_type_member_fallback(),
                     }
                 }
-                TokenKind::Keyword(Keyword::Object) => {
-                    match self.parse_object_decl(false) {
-                        Ok(decl) => members.push(self.member(TypeMemberKind::Object(decl))),
-                        Err(_abort) => self.skip_type_member_fallback(),
-                    }
-                }
+                TokenKind::Keyword(Keyword::Object) => match self.parse_object_decl(false) {
+                    Ok(decl) => members.push(self.member(TypeMemberKind::Object(decl))),
+                    Err(_abort) => self.skip_type_member_fallback(),
+                },
                 TokenKind::Keyword(Keyword::Val | Keyword::Var) => {
                     match self.parse_property_decl() {
                         Ok(decl) => members.push(self.member(TypeMemberKind::Property(decl))),
@@ -1406,7 +1400,10 @@ impl<'a> Parser<'a> {
                 },
                 _ => {
                     // 未知 member 形态：先记录硬错误，再平衡括号恢复（§3.4）。
-                    self.err_expected("类型体成员（fun/val/var/类型声明/object/init/constructor）", head);
+                    self.err_expected(
+                        "类型体成员（fun/val/var/类型声明/object/init/constructor）",
+                        head,
+                    );
                     self.skip_type_member_fallback();
                 }
             }
@@ -1618,7 +1615,10 @@ impl<'a> Parser<'a> {
         } else {
             // 既无 `: T` 也无 `= init`：targeted 错误，节点保留（partial-but-valid）。
             let tok = self.peek();
-            self.err_expected("`: 类型` 或 `= 初始化表达式`（属性需要类型标注或初始化）", tok);
+            self.err_expected(
+                "`: 类型` 或 `= 初始化表达式`（属性需要类型标注或初始化）",
+                tok,
+            );
         }
 
         // accessors（delegated 后不允许，§3.6）。
@@ -1736,7 +1736,10 @@ impl<'a> Parser<'a> {
             let seg = self.bump();
             segments.push(self.ident(seg));
         }
-        let end = segments.last().map(|s| s.span.end).unwrap_or(first.span.end);
+        let end = segments
+            .last()
+            .map(|s| s.span.end)
+            .unwrap_or(first.span.end);
         Ok(TypePath {
             segments,
             span: Span::new(start, end),

@@ -89,10 +89,7 @@ fn fstring_parses_as_interpolated_string() {
         panic!("期望 val");
     };
     let init = v.init.as_ref().expect("val 应有 initializer");
-    assert!(matches!(
-        init.kind,
-        ExprKind::InterpolatedString { .. }
-    ));
+    assert!(matches!(init.kind, ExprKind::InterpolatedString { .. }));
 }
 
 #[test]
@@ -108,7 +105,8 @@ fn parse_import_alias_decl() {
 
 #[test]
 fn parse_type_decls() {
-    let (file, _i) = ok("open class A(x: Int) : B(x)\nstruct P(val x: Int)\nenum E { A, B }\nfun main() {}");
+    let (file, _i) =
+        ok("open class A(x: Int) : B(x)\nstruct P(val x: Int)\nenum E { A, B }\nfun main() {}");
     assert_eq!(file.items.len(), 4);
 }
 
@@ -121,7 +119,11 @@ fn parse_annotation_class_decl() {
         panic!("期望第一个 item 为类型声明");
     };
     assert_eq!(t.kind, TypeKind::Class);
-    assert!(t.modifiers.iter().any(|m| m.kind == ModifierKind::Annotation));
+    assert!(
+        t.modifiers
+            .iter()
+            .any(|m| m.kind == ModifierKind::Annotation)
+    );
     let _ = interner;
 }
 
@@ -152,17 +154,25 @@ fn parse_fun_decl_with_annotations() {
 
 #[test]
 fn parse_target_annotation_with_enum_values() {
-    let (file, interner) = ok("package a\n@Target(AnnotationTarget.Field)\nannotation class Column\n");
+    let (file, interner) =
+        ok("package a\n@Target(AnnotationTarget.Field)\nannotation class Column\n");
     let ItemKind::Type(t) = &file.items[0].kind else {
         panic!("期望类型声明");
     };
-    assert!(t.modifiers.iter().any(|m| m.kind == ModifierKind::Annotation));
+    assert!(
+        t.modifiers
+            .iter()
+            .any(|m| m.kind == ModifierKind::Annotation)
+    );
     assert_eq!(interner.resolve(t.name.symbol), "Column");
     assert_eq!(t.annotations.len(), 1);
     let ann = &t.annotations[0];
     assert_eq!(interner.resolve(ann.path.segments[0].symbol), "Target");
     assert_eq!(ann.args.len(), 1);
-    assert!(matches!(ann.args[0].value.kind, ExprKind::MemberAccess { .. }));
+    assert!(matches!(
+        ann.args[0].value.kind,
+        ExprKind::MemberAccess { .. }
+    ));
 }
 
 #[test]
@@ -206,7 +216,8 @@ fn parse_unsafe_block_requires_do() {
 
 #[test]
 fn parse_char_literal_expr_and_when_pattern() {
-    let (file, _i) = ok("package a\nval plain = 'A'\nval choice = when (c) { 'x' -> 1 else -> 2 }\n");
+    let (file, _i) =
+        ok("package a\nval plain = 'A'\nval choice = when (c) { 'x' -> 1 else -> 2 }\n");
     assert_eq!(file.items.len(), 2);
     let ItemKind::Val(plain) = &file.items[0].kind else {
         panic!("期望 val");
@@ -232,7 +243,8 @@ fn parse_char_literal_expr_and_when_pattern() {
 
 #[test]
 fn parse_when_variant_payload_or_pattern() {
-    let (file, interner) = ok("package a\nval choice = when (x) { Hit(0) | Miss() -> 1 else -> 2 }\n");
+    let (file, interner) =
+        ok("package a\nval choice = when (x) { Hit(0) | Miss() -> 1 else -> 2 }\n");
     let ItemKind::Val(choice) = &file.items[0].kind else {
         panic!("期望 val");
     };
@@ -541,8 +553,9 @@ fn parse_prefixed_int_literals_as_single_tokens() {
 
 #[test]
 fn parse_float_literals_and_int_member_call() {
-    let (file, interner) =
-        ok("package a\nval plain = 2.75\nval sci = 1.5e3\nval f32v = 0.5f\nval call = 1.toString()\n");
+    let (file, interner) = ok(
+        "package a\nval plain = 2.75\nval sci = 1.5e3\nval f32v = 0.5f\nval call = 1.toString()\n",
+    );
     let ItemKind::Val(plain) = &file.items[0].kind else {
         panic!("期望 val");
     };
@@ -765,16 +778,15 @@ fn sysroot_sources_parse_without_errors() {
             let mut sink = result.diagnostics;
             sink.sort_by_offset();
             for d in sink.iter() {
-                failures.push(format!(
-                    "{}: {}: {}",
-                    path.display(),
-                    d.code,
-                    d.message
-                ));
+                failures.push(format!("{}: {}: {}", path.display(), d.code, d.message));
             }
         }
         // NodeId 空间应与 AST 节点数一致（>0）。
-        assert!(result.node_count > 0, "{}: node_count 应大于 0", path.display());
+        assert!(
+            result.node_count > 0,
+            "{}: node_count 应大于 0",
+            path.display()
+        );
     }
 
     assert!(
@@ -806,7 +818,8 @@ fn collect_scoop_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>)
 #[test]
 fn changelog_expression_body_fun() {
     // §14.1：`fun f(): T = expr`（顶层与成员）。
-    let (file, _i) = ok("fun add(a: Int, b: Int): Int = a + b\nclass C {\n    fun one(): Int = 1\n}\n");
+    let (file, _i) =
+        ok("fun add(a: Int, b: Int): Int = a + b\nclass C {\n    fun one(): Int = 1\n}\n");
     let ItemKind::Fun(f) = &file.items[0].kind else {
         panic!("期望 fun");
     };
@@ -834,7 +847,8 @@ fn changelog_expression_body_fun_trailing_junk_is_hard_error() {
 #[test]
 fn changelog_index_read_and_assign() {
     // §14.2：`a[i]` / `a[i, j] = v`。
-    let (file, _i) = ok("fun f() {\n    val x = a[i]\n    val y = a[i, j]\n    a[i] = v\n    a[i, j] = w\n}\n");
+    let (file, _i) =
+        ok("fun f() {\n    val x = a[i]\n    val y = a[i, j]\n    a[i] = v\n    a[i, j] = w\n}\n");
     let b = first_fun_body_block(&file, 0);
 
     let StmtKind::LocalVal(x) = &b.stmts[0].kind else {
@@ -875,7 +889,8 @@ fn changelog_index_read_and_assign() {
 #[test]
 fn changelog_contextual_infix_until_downto_step() {
     // §14.3：`until` / `downTo` / `step` 上下文中缀（与 `..` 同级、左结合）。
-    let (file, interner) = ok("fun f() {\n    val a = 1 until 10\n    val b = 5 downTo 1 step 2\n}\n");
+    let (file, interner) =
+        ok("fun f() {\n    val a = 1 until 10\n    val b = 5 downTo 1 step 2\n}\n");
     let b = first_fun_body_block(&file, 0);
 
     let StmtKind::LocalVal(a) = &b.stmts[0].kind else {
@@ -963,7 +978,10 @@ fn changelog_gteq_split_after_nested_generics() {
     let TypeArgKind::Type(inner) = &args[0].kind else {
         panic!("期望类型实参");
     };
-    let TypeRefKind::Path { args: inner_args, .. } = &inner.kind else {
+    let TypeRefKind::Path {
+        args: inner_args, ..
+    } = &inner.kind
+    else {
         panic!("期望路径类型");
     };
     assert_eq!(inner_args.len(), 1);
@@ -1031,7 +1049,10 @@ fn removed_perform_keyword() {
 
 #[test]
 fn removed_inline_modifier() {
-    expect_err("inline fun f() {}\n", "scoop::parse::inline_modifier_removed");
+    expect_err(
+        "inline fun f() {}\n",
+        "scoop::parse::inline_modifier_removed",
+    );
     // 错误记录后解析继续：fun 仍应被保留。
     let result = parse("inline fun f() {}\n");
     assert_eq!(result.file.items.len(), 1);
@@ -1055,7 +1076,10 @@ fn removed_handle_immediate_resume() {
 
 #[test]
 fn removed_bound_keyword_in_type_position() {
-    expect_err("val x: ref = 1\n", "scoop::parse::bound_keyword_type_position");
+    expect_err(
+        "val x: ref = 1\n",
+        "scoop::parse::bound_keyword_type_position",
+    );
     expect_err(
         "fun f(v: value) {}\n",
         "scoop::parse::bound_keyword_type_position",
@@ -1072,12 +1096,18 @@ fn removed_assignment_expression() {
 
 #[test]
 fn removed_spread_arg_outside_call() {
-    expect_err("fun f() { val y = *xs }\n", "scoop::parse::spread_arg_outside_call");
+    expect_err(
+        "fun f() { val y = *xs }\n",
+        "scoop::parse::spread_arg_outside_call",
+    );
 }
 
 #[test]
 fn removed_named_arg_outside_call() {
-    expect_err("fun f() { val y = [x = 1] }\n", "scoop::parse::named_arg_outside_call");
+    expect_err(
+        "fun f() { val y = [x = 1] }\n",
+        "scoop::parse::named_arg_outside_call",
+    );
 }
 
 #[test]
@@ -1114,17 +1144,15 @@ fn removed_anonymous_object_expression() {
 
 #[test]
 fn parse_handle_expr_with_escape_continuation() {
-    let (file, interner) =
-        ok("fun f() {\n    val x = handle { g() } on {\n        Raise<IOError>.raise(e), k -> k.resume(1)\n        Query.ask<Int>() -> 42\n    } finally { cleanup() }\n}\n");
+    let (file, interner) = ok(
+        "fun f() {\n    val x = handle { g() } on {\n        Raise<IOError>.raise(e), k -> k.resume(1)\n        Query.ask<Int>() -> 42\n    } finally { cleanup() }\n}\n",
+    );
     let b = first_fun_body_block(&file, 0);
     let StmtKind::LocalVal(v) = &b.stmts[0].kind else {
         panic!("期望 val");
     };
     let init = v.init.as_ref().expect("应有 initializer");
-    let ExprKind::Handle {
-        arms, finally, ..
-    } = &init.kind
-    else {
+    let ExprKind::Handle { arms, finally, .. } = &init.kind else {
         panic!("期望 handle 表达式");
     };
     assert_eq!(arms.len(), 2);
@@ -1147,15 +1175,13 @@ fn parse_handle_expr_with_escape_continuation() {
 
 #[test]
 fn parse_try_catch_desugars_to_handle() {
-    let (file, interner) = ok("fun f() {\n    try { g() } catch (e: IOError) { h() } finally { cleanup() }\n}\n");
+    let (file, interner) =
+        ok("fun f() {\n    try { g() } catch (e: IOError) { h() } finally { cleanup() }\n}\n");
     let b = first_fun_body_block(&file, 0);
     let StmtKind::Expr(e) = &b.stmts[0].kind else {
         panic!("期望表达式语句");
     };
-    let ExprKind::Handle {
-        arms, finally, ..
-    } = &e.kind
-    else {
+    let ExprKind::Handle { arms, finally, .. } = &e.kind else {
         panic!("try/catch 应脱糖为 handle，实际为 {:?}", e.kind);
     };
     assert_eq!(arms.len(), 1);
@@ -1219,7 +1245,8 @@ fn parse_secondary_ctor_init_companion() {
 
 #[test]
 fn parse_enum_with_fields_and_discriminant() {
-    let (file, interner) = ok("enum E : Int {\n    A(val x: Int) = 1,\n    B,\n    C(val y: Int, val z: Int),\n}\n");
+    let (file, interner) =
+        ok("enum E : Int {\n    A(val x: Int) = 1,\n    B,\n    C(val y: Int, val z: Int),\n}\n");
     let ItemKind::Type(t) = &file.items[0].kind else {
         panic!("期望 enum");
     };
@@ -1242,7 +1269,8 @@ fn parse_enum_with_fields_and_discriminant() {
 
 #[test]
 fn parse_effect_decl_and_op() {
-    let (file, interner) = ok("public effect Raise<in E> {\n    public fun raise(error: E): Nothing\n}\n");
+    let (file, interner) =
+        ok("public effect Raise<in E> {\n    public fun raise(error: E): Nothing\n}\n");
     let ItemKind::Type(t) = &file.items[0].kind else {
         panic!("期望 effect");
     };
@@ -1336,7 +1364,8 @@ fn parse_type_apply_follower_rules() {
 
 #[test]
 fn parse_class_lit_splice_tuple_index() {
-    let (file, _i) = ok("val k = String::class\nval q = a.b.C::class\nval s = rec.[field]\nval t = pair.0\n");
+    let (file, _i) =
+        ok("val k = String::class\nval q = a.b.C::class\nval s = rec.[field]\nval t = pair.0\n");
     assert_eq!(file.items.len(), 4);
     let ItemKind::Val(k) = &file.items[0].kind else {
         panic!("期望 val");
@@ -1400,7 +1429,10 @@ fn parse_lambda_forms_and_trailing_lambda() {
     };
     let init = d.init.as_ref().expect("应有 initializer");
     let ExprKind::Call { args, .. } = &init.kind else {
-        panic!("多个 trailing lambda 应折叠为一个 Call，实际为 {:?}", init.kind);
+        panic!(
+            "多个 trailing lambda 应折叠为一个 Call，实际为 {:?}",
+            init.kind
+        );
     };
     assert_eq!(args.len(), 3, "combine(1) + 两个 trailing lambda");
 }
@@ -1466,7 +1498,8 @@ fn parse_file_annotations() {
 
 #[test]
 fn parse_operator_fun_and_modifiers_sorted() {
-    let (file, _i) = ok("public operator fun plus(a: Int, b: Int): Int = a + b\noverride open class C\n");
+    let (file, _i) =
+        ok("public operator fun plus(a: Int, b: Int): Int = a + b\noverride open class C\n");
     let ItemKind::Fun(f) = &file.items[0].kind else {
         panic!("期望 fun");
     };

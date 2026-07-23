@@ -646,12 +646,12 @@ impl<'a> Parser<'a> {
             TokenKind::StringLiteral(kind) => {
                 self.bump();
                 match kind {
-                    StringKind::Normal {
-                        interpolated: true,
-                    } => self.parse_interpolated_string_expr(tok, false),
-                    StringKind::Raw {
-                        interpolated: true,
-                    } => self.parse_interpolated_string_expr(tok, true),
+                    StringKind::Normal { interpolated: true } => {
+                        self.parse_interpolated_string_expr(tok, false)
+                    }
+                    StringKind::Raw { interpolated: true } => {
+                        self.parse_interpolated_string_expr(tok, true)
+                    }
                     _ => {
                         let lit = self.decode_string(tok);
                         Ok(Expr {
@@ -1013,10 +1013,7 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            let end = ty
-                .as_ref()
-                .map(|t| t.span.end)
-                .unwrap_or(name_tok.span.end);
+            let end = ty.as_ref().map(|t| t.span.end).unwrap_or(name_tok.span.end);
             params.push(LambdaParam {
                 id: self.nid(),
                 span: Span::new(name_tok.span.start, end),
@@ -1264,8 +1261,11 @@ impl<'a> Parser<'a> {
             let with_kw = self.bump();
             if self.at_sym(Symbol::LBrace) {
                 let open = self.bump();
-                let _ =
-                    self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start);
+                let _ = self.consume_balanced_after_open(
+                    Symbol::LBrace,
+                    Symbol::RBrace,
+                    open.span.start,
+                );
                 if self.at_kw(Keyword::Finally) {
                     self.bump();
                     if self.at_sym(Symbol::LBrace) {
@@ -1748,10 +1748,9 @@ impl<'a> Parser<'a> {
 
             if b == b'$' && i + 1 < content_end && bytes[i + 1] == b'{' {
                 if text_start < i {
-                    parts.push(StringPart::Text(self.decode_f_string_text(
-                        raw,
-                        Span::new(text_start, i),
-                    )));
+                    parts.push(StringPart::Text(
+                        self.decode_f_string_text(raw, Span::new(text_start, i)),
+                    ));
                 }
 
                 let expr_start = i + 2;
