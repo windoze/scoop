@@ -20,6 +20,7 @@
 
 pub mod collect;
 pub mod errors;
+pub mod imports;
 pub mod index;
 pub mod output;
 pub mod symbol;

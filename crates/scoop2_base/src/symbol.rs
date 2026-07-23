@@ -58,6 +58,14 @@ impl Interner {
         &self.strings[sym.as_usize()]
     }
 
+    /// 查找文本对应的已 intern 句柄；不存在则 `None`（**不创建**）。
+    ///
+    /// 用于只读查询场景（如按 `prefix.name` 文本探测某 FQN 是否已被 intern），
+    /// 避免为了查询而副作用地新增句柄。
+    pub fn get(&self, text: &str) -> Option<Symbol> {
+        self.map.get(text).copied()
+    }
+
     /// 尝试解析句柄；非法句柄返回 `None`。
     pub fn try_resolve(&self, sym: Symbol) -> Option<&str> {
         self.strings.get(sym.as_usize()).map(|s| &**s)
