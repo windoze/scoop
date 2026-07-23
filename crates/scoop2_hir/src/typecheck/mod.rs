@@ -198,6 +198,29 @@ fn check_file_bodies(
                     // 与 legacy 一致：按固定顺序短路，仅报首个 annotation-class 错误。
                     diags.push(err);
                 }
+                // `@Target` / `@Retention` 只能用于 annotation class 声明。
+                if !is_annotation {
+                    for ann in &d.annotations {
+                        let Some(name) = ann
+                            .path
+                            .segments
+                            .last()
+                            .map(|s| env.interner.resolve(s.symbol))
+                        else {
+                            continue;
+                        };
+                        if matches!(name, "Target" | "Retention") {
+                            diags.push(diagnostics::meta_annotation_invalid_target(
+                                &format!("@{name}"),
+                                ann.path
+                                    .segments
+                                    .last()
+                                    .map(|s| s.span)
+                                    .unwrap_or(ann.path.span),
+                            ));
+                        }
+                    }
+                }
                 // @ReleaseHook 宿主 / 释放函数 / 实参契约（短路）。
                 if has_annotation(&d.annotations, "ReleaseHook", env.interner) {
                     release_hook::check_release_hook(env, diags, d, package_prefix);

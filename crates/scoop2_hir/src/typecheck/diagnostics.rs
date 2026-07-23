@@ -105,11 +105,11 @@ pub fn annotation_class_type_param_not_supported(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::annotation_class_effect_param_not_supported`：annotation class 不支持 eff 参数。
+/// `scoop::typecheck::annotation_class_effect_param_not_supported`：annotation class 不支持 effect 参数。
 pub fn annotation_class_eff_param_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_effect_param_not_supported",
-        "annotation class 不支持 eff 参数",
+        "annotation class 不支持 effect 参数",
     )
     .with_primary(span, "这里")
 }
@@ -434,7 +434,7 @@ pub fn annotation_class_where_clause_not_supported(span: Span) -> Diagnostic {
 pub fn annotation_class_supertypes_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_supertypes_not_supported",
-        "annotation class 不支持超类型",
+        "annotation class 不支持继承",
     )
     .with_primary(span, "这里")
 }
@@ -475,7 +475,7 @@ pub fn annotation_class_modifier_not_supported(span: Span) -> Diagnostic {
 pub fn annotation_class_effect_param_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_effect_param_not_supported",
-        "annotation class 不支持 eff 参数",
+        "annotation class 不支持 effect 参数",
     )
     .with_primary(span, "这里")
 }
@@ -503,6 +503,15 @@ pub fn annotation_invalid_target(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_invalid_target",
         "注解目标不合法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::meta_annotation_invalid_target`：`@Target`/`@Retention` 只能用于 annotation class。
+pub fn meta_annotation_invalid_target(ann: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::meta_annotation_invalid_target",
+        format!("内建注解 `{ann}` 只能用于 annotation class"),
     )
     .with_primary(span, "这里")
 }
