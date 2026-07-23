@@ -695,6 +695,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             return self.env.store.nothing();
         }
+        // Unit sugar：0 实参 + 候选有 1 个 Unit 参数 → 补 Unit 实参（spec §5.5）。
+        let unit_ty = self.env.store.unit();
+        let arg_count = args.len();
+        if arg_count == 0
+            && non_generic
+                .iter()
+                .any(|s| s.params.len() == 1 && s.params[0] == unit_ty)
+        {
+            let sig = non_generic
+                .into_iter()
+                .find(|s| s.params.len() == 1 && s.params[0] == unit_ty)
+                .expect("checked above");
+            return sig.return_ty;
+        }
         // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
         if non_generic.len() == 1 {
             let sig = non_generic.into_iter().next().expect("len == 1");
