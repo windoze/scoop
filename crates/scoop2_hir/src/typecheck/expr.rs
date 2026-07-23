@@ -981,10 +981,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if non_generic.len() == 1 {
             let sig = &non_generic[0];
             // Unit sugar：0 实参 + 1 个 Unit 参数 → 匹配。
+            // 也处理泛型方法签名中的 TypeParam 参数（无法知道实例化后是否为 Unit → lenient）。
             if arg_types.is_empty()
                 && sig.params.len() == 1
-                && sig.params[0] == self.env.store.unit()
+                && (sig.params[0] == self.env.store.unit()
+                    || matches!(self.env.store.kind(sig.params[0]), TypeKind::Param(_)))
             {
+                return sig.return_ty;
+            }
+            // 泛型方法签名：param 类型含 TypeParam → lenient on arity + types。
+            let has_param = sig
+                .params
+                .iter()
+                .any(|p| matches!(self.env.store.kind(*p), TypeKind::Param(_)));
+            if has_param {
                 return sig.return_ty;
             }
             if sig.params.len() != arg_types.len() {
