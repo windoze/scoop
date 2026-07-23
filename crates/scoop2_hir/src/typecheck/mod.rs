@@ -227,10 +227,28 @@ fn check_one_fun(
     resolution: &crate::resolve::Resolution,
     diags: &mut DiagnosticSink,
     package_prefix: &str,
-    type_params: &std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamType>,
+    enclosing_type_params: &std::collections::HashMap<
+        scoop2_base::Symbol,
+        crate::ty::TypeParamType,
+    >,
     this_ty: Option<crate::ty::TypeId>,
 ) {
+    use scoop2_base::FileId;
     let Some(body) = &d.body else { return };
+    // 构建类型参数作用域：外层类型参数 + 本函数自身的类型参数。
+    let mut tp = enclosing_type_params.clone();
+    if let Some(type_params) = &d.type_params {
+        for p in &type_params.params {
+            tp.insert(
+                p.name.symbol,
+                crate::ty::TypeParamType {
+                    name: p.name.symbol,
+                    file: FileId(0),
+                    span: p.name.span,
+                },
+            );
+        }
+    }
     expr::check_function(
         &d.params,
         d.return_ty.as_ref(),
@@ -240,7 +258,7 @@ fn check_one_fun(
         resolution,
         diags,
         package_prefix,
-        type_params.clone(),
+        tp,
         this_ty,
     );
 }
