@@ -66,7 +66,9 @@ pub fn check_function<'a, 'i>(
     let ret = return_ty.map(|t| c.lower_type(t));
     c.return_ty = ret;
     match body {
-        FunBody::Block(b) => c.walk_block(b),
+        FunBody::Block(b) => {
+            c.walk_block(b);
+        }
         FunBody::Expr(e) => {
             let t = c.walk_expr(e);
             if let Some(expected) = c.return_ty
@@ -216,10 +218,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     // ---- 语句 / 块 ----
 
-    fn walk_block(&mut self, block: &Block) {
+    fn walk_block(&mut self, block: &Block) -> TypeId {
+        let mut result = self.env.store.unit();
         for s in &block.stmts {
-            self.walk_stmt(s);
+            match &s.kind {
+                StmtKind::Expr(e) => result = self.walk_expr(e),
+                _ => {
+                    self.walk_stmt(s);
+                    result = self.env.store.unit();
+                }
+            }
         }
+        result
     }
 
     fn walk_stmt(&mut self, stmt: &Stmt) {
@@ -332,8 +342,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(&t) = self.locals.get(&ident.symbol) {
                     return t;
                 }
-                // 顶层值 / 函数引用 / 类型名 → M2+。
-                self.unsupported("非局部名字引用", expr.span)
+                // 顶层值 / 函数引用 / 类型名 → 推迟精确类型（返回 Nothing，避免假错误）。
+                self.env.store.nothing()
             }
             ExprKind::IntLit(_) => self.env.store.int(),
             ExprKind::FloatLit(lit) => {
@@ -392,10 +402,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::Block(b)
             | ExprKind::DoBlock(b)
             | ExprKind::UnsafeBlock(b)
-            | ExprKind::SafeBlock(b) => {
-                self.walk_block(b);
-                self.env.store.unit()
-            }
+            | ExprKind::SafeBlock(b) => self.walk_block(b),
             ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
             ExprKind::MemberAccess { receiver, member } => {
                 let rt = self.walk_expr(receiver);
