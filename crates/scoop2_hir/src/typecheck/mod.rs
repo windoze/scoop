@@ -229,6 +229,36 @@ fn check_file_bodies(
                                 ));
                             }
                         }
+                        // interface override 必须是带 body 的普通 method：
+                        // `@Extern`/`@Intrinsic` override → 专用码；普通 override 缺 body → fun_must_have_body。
+                        for m in &body.members {
+                            if let crate::syntax::ast::TypeMemberKind::Fun(fd) = &m.kind
+                                && fd
+                                    .modifiers
+                                    .iter()
+                                    .any(|x| x.kind == ModifierKind::Override)
+                            {
+                                let is_native =
+                                    has_annotation(&fd.annotations, "Extern", env.interner)
+                                        || has_annotation(
+                                            &fd.annotations,
+                                            "Intrinsic",
+                                            env.interner,
+                                        );
+                                if is_native {
+                                    diags.push(
+                                        diagnostics::intrinsic_type_interface_override_must_be_bodied_regular_method(
+                                            fd.name.span,
+                                        ),
+                                    );
+                                } else if fd.body.is_none() {
+                                    diags.push(diagnostics::fun_must_have_body_detail(
+                                        "普通成员函数必须提供函数体",
+                                        fd.name.span,
+                                    ));
+                                }
+                            }
+                        }
                     }
                 }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
