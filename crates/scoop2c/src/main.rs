@@ -15,6 +15,7 @@
 
 #![forbid(unsafe_code)]
 
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 mod cli {
@@ -146,6 +147,45 @@ fn load_source(path: &std::path::Path) -> Result<scoop2_base::SourceFile, ExitCo
     })
 }
 
+/// 定位 sysroot 目录：优先环境变量 `SCOOP_SYSROOT`，否则相对当前可执行文件
+/// （`target/debug/scoop2c` → `<root>/sysroot`）。找不到返回 `None`（前端仍可对
+/// 不依赖内置类型的程序解析）。
+fn locate_sysroot() -> Option<PathBuf> {
+    if let Ok(s) = std::env::var("SCOOP_SYSROOT") {
+        let p = PathBuf::from(s);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    let exe = std::env::current_exe().ok()?;
+    // exe = <root>/target/<profile>/scoop2c
+    let root = exe.parent()?.parent()?.parent()?;
+    let p = root.join("sysroot");
+    if p.is_dir() { Some(p) } else { None }
+}
+
+/// 递归收集 `dir` 下的所有 `*.scoop` 文件路径（按路径排序，保证确定性）。
+fn walk_scoop_files(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    walk_inner(dir, &mut out);
+    out.sort();
+    out
+}
+
+fn walk_inner(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_inner(&path, out);
+        } else if path.extension().is_some_and(|ext| ext == "scoop") {
+            out.push(path);
+        }
+    }
+}
+
 fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
     let _ = (&args.source, &args.target_platform);
     let source = match load_source(&args.input) {
@@ -158,19 +198,42 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             report_diagnostics(&source, result.diagnostics)
         }
         cli::Phase::Resolve => {
-            let result = scoop2_syntax::parser::parse_file(&source);
-            // 先把 parse 诊断接管；若无 parse 错误，继续跑 resolve 管线并把其诊断
-            // 追加进同一 sink。
-            let scoop2_syntax::parser::ParseResult {
-                file,
-                mut interner,
-                mut diagnostics,
-                node_count: _,
-            } = result;
-            if !diagnostics.has_errors() {
-                scoop2_hir::resolve::run_file(&file, &mut interner, &mut diagnostics);
+            let mut interner = scoop2_base::Interner::new();
+            let mut diags = scoop2_base::diag::DiagnosticSink::new();
+            // 解析用户文件（FileId 0）+ sysroot 全量（作为 prelude/依赖符号）。
+            let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
+            parsed.push(scoop2_syntax::parser::parse_file_with(
+                &source,
+                &mut interner,
+            ));
+            if let Some(sysroot) = locate_sysroot() {
+                for path in walk_scoop_files(&sysroot.join("lib")) {
+                    if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                        parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+                    }
+                }
             }
-            report_diagnostics(&source, diagnostics)
+            let user_parse_ok = !parsed[0].diagnostics.has_errors();
+            for pf in &parsed {
+                diags.extend(pf.diagnostics.iter().cloned());
+            }
+            if user_parse_ok {
+                let inputs: Vec<scoop2_hir::resolve::InputFile> = parsed
+                    .iter()
+                    .enumerate()
+                    .map(|(i, pf)| scoop2_hir::resolve::InputFile {
+                        file: &pf.file,
+                        file_id: scoop2_base::FileId(i as u32),
+                        origin: if i == 0 {
+                            scoop2_hir::resolve::InputOrigin::User
+                        } else {
+                            scoop2_hir::resolve::InputOrigin::Sysroot
+                        },
+                    })
+                    .collect();
+                scoop2_hir::resolve::run_program(&inputs, &mut interner, &mut diags);
+            }
+            report_diagnostics(&source, diags)
         }
         cli::Phase::Typecheck | cli::Phase::Infer | cli::Phase::Lower => not_wired("check-source"),
     }

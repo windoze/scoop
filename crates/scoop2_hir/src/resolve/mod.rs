@@ -26,6 +26,7 @@ pub mod index;
 pub mod output;
 pub mod scopes;
 pub mod symbol;
+pub mod type_refs;
 
 pub use errors::*;
 pub use index::{Index, PendingExtension};
@@ -37,31 +38,81 @@ pub use symbol::{
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{FileId, Interner};
 
-/// 单文件 resolve 管线（header 收集 → import → body 名字解析），把诊断**追加**进
+/// 一个待解析的输入文件。
+#[derive(Clone, Copy)]
+pub struct InputFile<'a> {
+    pub file: &'a crate::syntax::ast::File,
+    pub file_id: FileId,
+    pub origin: InputOrigin,
+}
+
+/// 输入来源：决定 cone 种类与是否解析 body。
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum InputOrigin {
+    /// 用户文件（解析 body / 类型引用）。
+    User,
+    /// sysroot 文件（只收集 header，作为 prelude/依赖符号来源）。
+    Sysroot,
+}
+
+/// 多文件 resolve 管线：先收集所有文件（sysroot + 用户）的 header 到共享
+/// [`Index`]，再对**用户文件**做 import / 类型引用 / body 名字解析；诊断追加进
 /// `diags`。
 ///
-/// 适用于无 sysroot 的单文件检查（如 `check-source --phase resolve` 对不依赖内置
-/// 类型的负向 fixture）。多文件 / 带 prelude 的解析在 db 集成增量补齐。
+/// sysroot 文件**不**解析 body（受信任，仅提供符号）。cone 按各文件 `package`
+/// 声明归类（sysroot → [`ConeKind::Syslib`]，用户 → [`ConeKind::Bin`]）。
+pub fn run_program(inputs: &[InputFile], interner: &mut Interner, diags: &mut DiagnosticSink) {
+    let mut index = Index::new();
+    // Phase 1：收集所有 header。
+    for inp in inputs {
+        let cone_name = collect::package_prefix_of(inp.file, interner);
+        let cone_kind = match inp.origin {
+            InputOrigin::User => ConeKind::Bin,
+            InputOrigin::Sysroot => ConeKind::Syslib,
+        };
+        let cone = if cone_name.is_empty() {
+            let fallback = match inp.origin {
+                InputOrigin::User => "<user>",
+                InputOrigin::Sysroot => "<sysroot>",
+            };
+            index.intern_cone(fallback, cone_kind)
+        } else {
+            index.intern_cone(&cone_name, cone_kind)
+        };
+        collect::collect_file(inp.file, inp.file_id, cone, &mut index, interner, diags);
+    }
+    // Phase 2：解析用户文件。
+    for inp in inputs.iter().filter(|i| i.origin == InputOrigin::User) {
+        let prefix = collect::package_prefix_of(inp.file, interner);
+        let imports = imports::ImportTable::collect(inp.file, inp.file_id, &index, interner, diags);
+        type_refs::resolve_file_type_refs(inp.file, &index, &imports, interner, diags, &prefix);
+        let mut resolution = Resolution::new();
+        body::resolve_file_bodies(
+            inp.file,
+            &index,
+            &imports,
+            interner,
+            diags,
+            &mut resolution,
+            &prefix,
+        );
+        let _ = resolution.value_refs.len();
+    }
+}
+
+/// 单文件 resolve 管线（无 sysroot）；等价于只含一个用户文件的 [`run_program`]。
 pub fn run_file(
     file: &crate::syntax::ast::File,
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
 ) {
-    let mut index = Index::new();
-    let cone = index.intern_cone("<user>", ConeKind::Bin);
-    let prefix = collect::package_prefix_of(file, interner);
-    collect::collect_file(file, FileId(0), cone, &mut index, interner, diags);
-    let imports = imports::ImportTable::collect(file, FileId(0), &index, interner, diags);
-    let mut resolution = Resolution::new();
-    body::resolve_file_bodies(
-        file,
-        &index,
-        &imports,
+    run_program(
+        &[InputFile {
+            file,
+            file_id: FileId(0),
+            origin: InputOrigin::User,
+        }],
         interner,
         diags,
-        &mut resolution,
-        &prefix,
     );
-    // resolution（值引用侧表）目前供 typecheck 消费；本阶段不输出，保留以防被优化掉。
-    let _ = resolution.value_refs.len();
 }

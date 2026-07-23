@@ -73,6 +73,44 @@ pub fn parse_file(source: &SourceFile) -> ParseResult {
     }
 }
 
+/// 解析结果（不含 interner；调用方拥有共享 interner）。
+///
+/// 用于多文件编译：所有文件共享同一个 [`Interner`]，使跨文件 FQN 符号一致。
+/// NodeId 仍是每文件独立分配（语义侧表按 `(FileId, NodeId)` 定位）。
+#[derive(Debug)]
+pub struct ParsedFile {
+    pub file: ast::File,
+    pub diagnostics: DiagnosticSink,
+    pub node_count: usize,
+}
+
+/// 用**共享** interner 解析一个源文件（多文件编译用）。
+///
+/// 任何输入都不会 panic：lexer/parser 错误一律进入诊断。
+pub fn parse_file_with(source: &SourceFile, interner: &mut Interner) -> ParsedFile {
+    let lexed = lexer::lex(source.text());
+    let mut ids = NodeIdAllocator::new();
+    let id_base = ids.len();
+    let mut parser = Parser {
+        source: source.text(),
+        tokens: lexed.tokens,
+        i: 0,
+        interner,
+        ids: &mut ids,
+        diagnostics: lexed.diagnostics,
+        depth: 0,
+    };
+    let file = parser.parse_file_root();
+    let node_count = parser.ids.len() - id_base;
+    let diagnostics = std::mem::take(&mut parser.diagnostics);
+    drop(parser);
+    ParsedFile {
+        file,
+        diagnostics,
+        node_count,
+    }
+}
+
 /// 表达式/类型递归深度上限（防止病态输入撑爆栈；正常代码远低于该值）。
 const MAX_NESTING_DEPTH: u32 = 300;
 
@@ -287,7 +325,10 @@ impl<'a> Parser<'a> {
                 "scoop::parse::perform_keyword_removed",
                 "语法错误：`perform` 关键字已移除；请直接调用 effect operation",
             )
-            .with_primary(span, "这里的 `perform` 不再作为 effect operation 调用前缀解析")
+            .with_primary(
+                span,
+                "这里的 `perform` 不再作为 effect operation 调用前缀解析",
+            )
             .with_help("将 `perform Effect.op(args)` 改写为 `Effect.op(args)`"),
         );
         Abort
@@ -388,7 +429,9 @@ impl<'a> Parser<'a> {
                 "语法错误：局部 `@Unsafe` block 必须写成 `@Unsafe do { ... }`",
             )
             .with_primary(span, "这里的裸 `{ ... }` 不再作为局部 unsafe block 解析")
-            .with_help("将 `@Unsafe { ... }` 改写为 `@Unsafe do { ... }`；裸 `{ ... }` 保留给 closure"),
+            .with_help(
+                "将 `@Unsafe { ... }` 改写为 `@Unsafe do { ... }`；裸 `{ ... }` 保留给 closure",
+            ),
         );
         Abort
     }
