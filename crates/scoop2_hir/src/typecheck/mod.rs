@@ -87,12 +87,20 @@ pub fn run_typecheck(
     }
 
     // ---- Phase 3：类型检查 ----
+    // 先为所有文件构建 imports（ImportTable::collect 需要 &mut interner）。
+    let mut file_state: Vec<(usize, String, imports::ImportTable)> = Vec::new();
+    for (i, inp) in inputs.iter().enumerate() {
+        let prefix = collect::package_prefix_of(inp.file, interner);
+        let imports = imports::ImportTable::collect(inp.file, inp.file_id, &index, interner, diags);
+        file_state.push((i, prefix, imports));
+    }
+    // 创建 TypeEnv（借用 interner 不可变）。
     let mut env = TypeEnv::new(&index, interner);
-    // 登记所有用户文件的签名 / 成员 / 构造器。
-    for uf in &user_files {
-        env::register_top_level_signatures(&mut env, uf.file, &uf.imports, &uf.prefix, diags);
-        env::register_members(&mut env, uf.file, &uf.imports, &uf.prefix, diags);
-        env::register_constructors(&mut env, uf.file, &uf.imports, &uf.prefix, diags);
+    for &(i, ref prefix, ref imports) in &file_state {
+        let inp = &inputs[i];
+        env::register_top_level_signatures(&mut env, inp.file, imports, prefix, diags);
+        env::register_members(&mut env, inp.file, imports, prefix, diags);
+        env::register_constructors(&mut env, inp.file, imports, prefix, diags);
     }
     // 检查每个用户文件的函数体。
     for uf in &user_files {
