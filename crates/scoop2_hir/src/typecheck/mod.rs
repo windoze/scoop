@@ -178,87 +178,11 @@ fn check_file_bodies(
                     .modifiers
                     .iter()
                     .any(|m| m.kind == ModifierKind::Annotation);
-                if is_annotation {
-                    // annotation 修饰符只能用于 class。
-                    if !matches!(d.kind, crate::syntax::ast::TypeKind::Class) {
-                        diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
-                    }
-                    if d.body.is_some() {
-                        diags.push(diagnostics::annotation_class_body_not_supported(item.span));
-                    }
-                    if d.where_clause.is_some() {
-                        diags.push(diagnostics::annotation_class_where_clause_not_supported(
-                            d.name.span,
-                        ));
-                    }
-                    if !d.supertypes.is_empty() {
-                        diags.push(diagnostics::annotation_class_supertypes_not_supported(
-                            d.supertypes[0].span,
-                        ));
-                    }
-                    // 类型参数（不含 eff 行）。
-                    if d.type_params
-                        .as_ref()
-                        .is_some_and(|tp| !tp.params.is_empty())
-                    {
-                        diags.push(diagnostics::annotation_class_type_param_not_supported(
-                            d.name.span,
-                        ));
-                    }
-                    // eff 行参数。
-                    if d.type_params
-                        .as_ref()
-                        .is_some_and(|tp| tp.effect_row.is_some())
-                    {
-                        diags.push(diagnostics::annotation_class_eff_param_not_supported(
-                            d.name.span,
-                        ));
-                    }
-                    // annotation class 的其他修饰符不允许。
-                    for m in &d.modifiers {
-                        if !matches!(m.kind, ModifierKind::Annotation | ModifierKind::Public) {
-                            let mod_name = match m.kind {
-                                ModifierKind::Open => "open",
-                                ModifierKind::Sealed => "sealed",
-                                ModifierKind::Abstract => "abstract",
-                                ModifierKind::Internal => "internal",
-                                ModifierKind::Private => "private",
-                                ModifierKind::Override => "override",
-                                ModifierKind::Operator => "operator",
-                                _ => "modifier",
-                            };
-                            diags.push(
-                                diagnostics::annotation_class_modifier_not_supported_detail(
-                                    mod_name, m.span,
-                                ),
-                            );
-                        }
-                    }
-                    // annotation class 主构造参数必须是 val。
-                    if let Some(ctor) = &d.primary_ctor {
-                        for cp in &ctor.params {
-                            if cp.property.is_none() {
-                                let name_text = env.interner.resolve(cp.name.symbol).to_string();
-                                diags.push(diagnostics::annotation_class_param_must_be_val(
-                                    &name_text,
-                                    cp.name.span,
-                                ));
-                            }
-                        }
-                    }
+                if is_annotation && let Some(err) = annotation_class_error(d, env.interner) {
+                    // 与 legacy 一致：按固定顺序短路，仅报首个 annotation-class 错误。
+                    diags.push(err);
                 }
-                // annotation 修饰符用于非 class 类型 → must_be_class。
-                if !is_annotation
-                    && d.modifiers
-                        .iter()
-                        .any(|m| m.kind == ModifierKind::Annotation)
-                {
-                    // Already caught by is_annotation check above (if is_annotation is false
-                    // but has Annotation modifier, it's a non-class with annotation → error).
-                    diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
-                }
-                let is_intrinsic_type =
-                    has_annotation_type(&d.annotations, "Intrinsic", env.interner);
+                let is_intrinsic_type = has_annotation(&d.annotations, "Intrinsic", env.interner);
                 // @Intrinsic 类型不能声明字段（ctor param-property + body property + body var field）。
                 if is_intrinsic_type {
                     let owner_fqn_text = {
@@ -436,13 +360,87 @@ fn check_main_signature(
     }
 }
 
-/// 检查类型声明是否带有指定注解。
-fn has_annotation_type(
-    anns: &[crate::syntax::ast::AnnotationUse],
-    name: &str,
+/// annotation class 声明头校验（spec §15.2）。与 legacy 一致：按固定顺序**短路**，
+/// 只返回首个错误（`must_be_class` → 修饰符 → eff 参数 → where → 类型参数 → 超类型 →
+/// 类型体 → 主构造参数必须为 `val`）。
+fn annotation_class_error(
+    d: &crate::syntax::ast::TypeDecl,
     interner: &scoop2_base::Interner,
-) -> bool {
-    has_annotation(anns, name, interner)
+) -> Option<scoop2_base::diag::Diagnostic> {
+    use crate::syntax::ast::{ModifierKind, TypeKind, ValKind};
+    // annotation 修饰符只能用于 class。
+    if d.kind != TypeKind::Class {
+        return Some(diagnostics::annotation_class_must_be_class(d.name.span));
+    }
+    // 仅允许 public/internal/private/annotation 修饰符。
+    for m in &d.modifiers {
+        if !matches!(
+            m.kind,
+            ModifierKind::Annotation
+                | ModifierKind::Public
+                | ModifierKind::Internal
+                | ModifierKind::Private
+        ) {
+            let mod_name = match m.kind {
+                ModifierKind::Open => "open",
+                ModifierKind::Sealed => "sealed",
+                ModifierKind::Abstract => "abstract",
+                ModifierKind::Override => "override",
+                ModifierKind::Operator => "operator",
+                // invariant: 上面 matches 已排除其余种类。
+                _ => "modifier",
+            };
+            return Some(diagnostics::annotation_class_modifier_not_supported_detail(
+                mod_name,
+                d.name.span,
+            ));
+        }
+    }
+    // compile-time marker 不引入 effect 参数。
+    if let Some(tp) = &d.type_params
+        && let Some(eff) = &tp.effect_row
+    {
+        return Some(diagnostics::annotation_class_eff_param_not_supported(
+            eff.span,
+        ));
+    }
+    // compile-time marker 不引入 where 约束。
+    if let Some(wc) = &d.where_clause {
+        return Some(diagnostics::annotation_class_where_clause_not_supported(
+            wc.span,
+        ));
+    }
+    // compile-time marker 不引入泛型实例化面。
+    if let Some(tp) = &d.type_params
+        && let Some(first) = tp.params.first()
+    {
+        return Some(diagnostics::annotation_class_type_param_not_supported(
+            first.span,
+        ));
+    }
+    // 不支持超类型。
+    if let Some(st) = d.supertypes.first() {
+        return Some(diagnostics::annotation_class_supertypes_not_supported(
+            st.span,
+        ));
+    }
+    // 不支持类型体成员。
+    if let Some(body) = &d.body {
+        return Some(diagnostics::annotation_class_body_not_supported(body.span));
+    }
+    // 所有主构造参数必须是 `val`。
+    if let Some(ctor) = &d.primary_ctor {
+        for cp in &ctor.params {
+            if cp.property != Some(ValKind::Val) {
+                let name_text = interner.resolve(cp.name.symbol).to_string();
+                return Some(diagnostics::annotation_class_param_must_be_val(
+                    &name_text,
+                    cp.name.span,
+                ));
+            }
+        }
+    }
+    None
 }
 
 /// 检查注解使用路径末段文本是否匹配给定名称。
