@@ -128,7 +128,7 @@ fn check_file_bodies(
     package_prefix: &str,
 ) {
     use crate::syntax::ast::{ItemKind, ModifierKind};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
     for item in &file.items {
         // @Experimental 注解校验（item 级目标是合法的）。
@@ -293,6 +293,21 @@ fn check_file_bodies(
                     }
                 }
                 if let Some(body) = &d.body {
+                    // enum variant 字段重名检查。
+                    if d.kind == crate::syntax::ast::TypeKind::Enum {
+                        for m in &body.members {
+                            if let crate::syntax::ast::TypeMemberKind::EnumVariant(ev) = &m.kind {
+                                let mut seen: HashSet<scoop2_base::Symbol> = HashSet::new();
+                                for fld in &ev.fields {
+                                    if !seen.insert(fld.name.symbol) {
+                                        diags.push(diagnostics::duplicate_enum_variant_field(
+                                            fld.name.span,
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
                     check_member_funs(
                         &body.members,
                         this_ty,

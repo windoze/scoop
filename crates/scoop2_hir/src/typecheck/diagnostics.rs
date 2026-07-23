@@ -186,6 +186,15 @@ pub fn unknown_suppress_warning_code(code: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::duplicate_enum_variant_field`：enum variant 字段重名。
+pub fn duplicate_enum_variant_field(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::duplicate_enum_variant_field",
+        "enum variant 字段重复定义",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(span: Span) -> Diagnostic {
     Diagnostic::error(
