@@ -499,6 +499,68 @@ pub fn entry_point_must_be_closed_pure(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+// ===== `with` 更新表达式校验（spec §2.6 / §8.4）=====
+
+/// `scoop::typecheck::with_update_base_not_supported`。
+pub fn with_update_base_not_supported(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_base_not_supported",
+        format!("`with` 的 base 必须是可复制更新的值类型（struct/tuple/enum），但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::with_update_duplicate_path`。
+pub fn with_update_duplicate_path(path: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_duplicate_path",
+        format!("`with` 更新字段路径重复：{path}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::with_update_overlapping_paths`。
+pub fn with_update_overlapping_paths(parent: &str, child: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_overlapping_paths",
+        format!("`with` 更新字段路径冲突：{parent} 与 {child}（并行语义不允许一条路径包含另一条）"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::with_update_unknown_field`。
+pub fn with_update_unknown_field(struct_name: &str, field: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_unknown_field",
+        format!("`{struct_name}` 不存在字段：{field}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::with_update_field_type_mismatch`。
+pub fn with_update_field_type_mismatch(
+    struct_name: &str,
+    field: &str,
+    expected: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_field_type_mismatch",
+        format!("`{struct_name}.{field}` 更新值类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::tuple_member_old_syntax`。
+pub fn tuple_member_old_syntax(old: &str, new: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::tuple_member_old_syntax",
+        format!("tuple 字段索引请写成 `{new}`；旧写法 `{old}` 已移除"),
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。

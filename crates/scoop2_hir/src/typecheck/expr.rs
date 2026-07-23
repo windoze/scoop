@@ -533,13 +533,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let member_ty = self.member_access_type(base_ty, *member, expr.span);
                 self.env.store.option(member_ty)
             }
-            ExprKind::WithUpdate { base, updates } => {
-                let base_ty = self.walk_expr(base);
-                for u in updates {
-                    self.walk_expr(&u.value);
-                }
-                base_ty
-            }
+            ExprKind::WithUpdate { base, updates } => self.type_with_update(base, updates),
             ExprKind::Lambda(lambda) => self.type_lambda(lambda),
             ExprKind::When { subject, arms } => self.type_when(subject, arms),
             ExprKind::Handle {
@@ -875,6 +869,264 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// `with` 更新表达式 `base with { path: v, ... }`：返回 base 类型。
+    /// 校验路径冲突、字段存在性、值类型匹配（短路：首个错误即返回）。
+    /// enum base 的逐段校验暂未实现（variant payload 未在 Index 登记）。
+    fn type_with_update(&mut self, base: &Expr, updates: &[ast::WithUpdateField]) -> TypeId {
+        let base_ty = self.walk_expr(base);
+        let base_kind = self.with_update_aggregate_kind(base_ty);
+        if base_kind.is_none() {
+            self.diags.push(diagnostics::with_update_base_not_supported(
+                &self.describe(base_ty),
+                base.span,
+            ));
+            for u in updates {
+                self.walk_expr(&u.value);
+            }
+            return base_ty;
+        }
+        let base_kind = base_kind.unwrap();
+
+        // Phase 1：路径冲突筛查（精确重复 / 前缀包含）。
+        let mut seen_exact: HashMap<String, Span> = HashMap::new();
+        let mut seen_paths: Vec<(Vec<String>, Span)> = Vec::new();
+        for u in updates {
+            let segs: Vec<String> = u
+                .path
+                .segments
+                .iter()
+                .map(|s| self.member_name_text(s))
+                .collect();
+            let path = segs.join(".");
+            if seen_exact.contains_key(&path) {
+                self.diags
+                    .push(diagnostics::with_update_duplicate_path(&path, u.path.span));
+                for u2 in updates {
+                    self.walk_expr(&u2.value);
+                }
+                return base_ty;
+            }
+            let mut overlapped: Option<(String, String)> = None;
+            for (prev, _pspan) in &seen_paths {
+                if is_strict_prefix(prev, &segs) {
+                    overlapped = Some((prev.join("."), path.clone()));
+                    break;
+                }
+                if is_strict_prefix(&segs, prev) {
+                    overlapped = Some((path.clone(), prev.join(".")));
+                    break;
+                }
+            }
+            if let Some((parent, child)) = overlapped {
+                self.diags.push(diagnostics::with_update_overlapping_paths(
+                    &parent,
+                    &child,
+                    u.path.span,
+                ));
+                for u2 in updates {
+                    self.walk_expr(&u2.value);
+                }
+                return base_ty;
+            }
+            seen_exact.insert(path, u.path.span);
+            seen_paths.push((segs, u.path.span));
+        }
+
+        // Phase 2：逐项路径解析 + 值类型检查。
+        for (idx, u) in updates.iter().enumerate() {
+            if !self.check_with_update_path(&base_kind, u) {
+                // 短路：首个错误后停止后续更新（仍需消费剩余 value 的副作用）。
+                for u2 in &updates[idx + 1..] {
+                    self.walk_expr(&u2.value);
+                }
+                return base_ty;
+            }
+        }
+        base_ty
+    }
+
+    /// `with` 更新项的路径解析；返回是否成功（false = 已报错，调用方短路）。
+    fn check_with_update_path(
+        &mut self,
+        base_kind: &WithUpdateAggregate,
+        u: &ast::WithUpdateField,
+    ) -> bool {
+        // enum base 的 variant payload 逐段校验暂未实现（payload 未在 Index 登记）。
+        if matches!(base_kind, WithUpdateAggregate::Enum(_)) {
+            self.walk_expr(&u.value);
+            return true;
+        }
+        if u.path.segments.is_empty() {
+            self.walk_expr(&u.value);
+            return true;
+        }
+        let mut current_kind = base_kind.clone();
+        let last = u.path.segments.len() - 1;
+        for (idx, seg) in u.path.segments.iter().enumerate() {
+            // enum 中段同样跳过（variant payload 未登记）。
+            if matches!(current_kind, WithUpdateAggregate::Enum(_)) {
+                self.walk_expr(&u.value);
+                return true;
+            }
+            let is_last = idx == last;
+            let owner_name = current_kind.owner_name(self.env);
+            match self.with_update_step(&current_kind, seg, &owner_name) {
+                Ok(field_ty) => {
+                    if is_last {
+                        // 值类型检查（精确相等 + 字面量吸收）。
+                        let found = self.walk_expr(&u.value);
+                        if found != field_ty && !self.literal_absorbs_to(&u.value, field_ty) {
+                            let field_name = self.member_name_text(seg);
+                            self.diags
+                                .push(diagnostics::with_update_field_type_mismatch(
+                                    &owner_name,
+                                    &field_name,
+                                    &self.describe(field_ty),
+                                    &self.describe(found),
+                                    u.value.span,
+                                ));
+                            return false;
+                        }
+                    } else {
+                        // 中间段：必须是 aggregate 才能继续。
+                        match self.with_update_aggregate_kind(field_ty) {
+                            Some(k) => current_kind = k,
+                            None => {
+                                // 非 aggregate 中间段：停止（无专用 fixture，安静停止）。
+                                self.walk_expr(&u.value);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                Err(diag) => {
+                    self.diags.push(diag);
+                    self.walk_expr(&u.value);
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    /// 单段路径解析：返回该段的字段类型，或一个诊断（仅 Struct/Tuple；Enum 由调用方跳过）。
+    #[allow(clippy::result_large_err)]
+    fn with_update_step(
+        &self,
+        kind: &WithUpdateAggregate,
+        seg: &ast::MemberName,
+        owner_name: &str,
+    ) -> Result<TypeId, scoop2_base::diag::Diagnostic> {
+        match kind {
+            WithUpdateAggregate::Struct(fqn) => {
+                if let ast::MemberName::Named(name) = seg {
+                    match self.env.member_type(*fqn, name.symbol) {
+                        Some(t) => Ok(t),
+                        None => Err(diagnostics::with_update_unknown_field(
+                            owner_name,
+                            &self.member_name_text(seg),
+                            self.member_name_span(seg),
+                        )),
+                    }
+                } else {
+                    Err(diagnostics::with_update_unknown_field(
+                        owner_name,
+                        &self.member_name_text(seg),
+                        self.member_name_span(seg),
+                    ))
+                }
+            }
+            WithUpdateAggregate::Tuple(els) => {
+                let text = self.member_name_text(seg);
+                if let Some(new) = old_tuple_member_replacement(&text) {
+                    return Err(diagnostics::tuple_member_old_syntax(
+                        &text,
+                        &new,
+                        self.member_name_span(seg),
+                    ));
+                }
+                let Some(idx) = text.parse::<usize>().ok() else {
+                    return Err(diagnostics::with_update_unknown_field(
+                        owner_name,
+                        &text,
+                        self.member_name_span(seg),
+                    ));
+                };
+                els.get(idx).copied().ok_or_else(|| {
+                    diagnostics::with_update_unknown_field(
+                        owner_name,
+                        &text,
+                        self.member_name_span(seg),
+                    )
+                })
+            }
+            WithUpdateAggregate::Enum(_) => {
+                // invariant: 调用方对 Enum base/中段均提前跳过，不会进入此分支。
+                unreachable!("enum with-update step is skipped by caller")
+            }
+        }
+    }
+
+    /// base / 中间类型是否为 `with` 支持的 aggregate 值类型。
+    fn with_update_aggregate_kind(&self, ty: TypeId) -> Option<WithUpdateAggregate> {
+        match self.env.store.kind(ty) {
+            TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => {
+                Some(WithUpdateAggregate::Tuple(els.to_vec()))
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                match self.env.index.category(n.fqn) {
+                    Some(crate::resolve::symbol::NominalCategory::Struct) => {
+                        Some(WithUpdateAggregate::Struct(n.fqn))
+                    }
+                    Some(crate::resolve::symbol::NominalCategory::Enum) => {
+                        Some(WithUpdateAggregate::Enum(n.fqn))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn member_name_text(&self, m: &ast::MemberName) -> String {
+        match m {
+            ast::MemberName::Named(id) => self.env.interner.resolve(id.symbol).to_string(),
+            ast::MemberName::TupleIndex { value, .. } => value.to_string(),
+        }
+    }
+
+    fn member_name_span(&self, m: &ast::MemberName) -> Span {
+        match m {
+            ast::MemberName::Named(id) => id.span,
+            ast::MemberName::TupleIndex { span, .. } => *span,
+        }
+    }
+
+    /// 字面量吸收：无后缀 int → 任意整数类型；无后缀 float → Float32。
+    fn literal_absorbs_to(&self, expr: &Expr, expected: TypeId) -> bool {
+        match &expr.kind {
+            ExprKind::IntLit(l) => {
+                l.suffix.is_none()
+                    && matches!(
+                        self.env.store.kind(expected),
+                        TypeKind::Value(
+                            crate::ty::ValueTypeKind::Int
+                                | crate::ty::ValueTypeKind::UInt
+                                | crate::ty::ValueTypeKind::IntN(_)
+                                | crate::ty::ValueTypeKind::UIntN(_)
+                        )
+                    )
+            }
+            ExprKind::FloatLit(_) => {
+                matches!(
+                    self.env.store.kind(expected),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Float32)
+                )
+            }
+            _ => false,
+        }
+    }
+
     /// lambda → 函数类型（参数有标注则降级；无标注 → Nothing，精确推断推迟）。
     fn type_lambda(&mut self, lambda: &ast::LambdaExpr) -> TypeId {
         let mut param_types: Vec<TypeId> = Vec::new();
@@ -1145,6 +1397,42 @@ fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
         _ => None,
     }
+}
+
+/// `with` 更新的 aggregate 基类型。
+#[derive(Clone)]
+enum WithUpdateAggregate {
+    Struct(Symbol),
+    Tuple(Vec<TypeId>),
+    Enum(Symbol),
+}
+
+impl WithUpdateAggregate {
+    fn owner_name(&self, env: &TypeEnv) -> String {
+        match self {
+            WithUpdateAggregate::Struct(fqn) | WithUpdateAggregate::Enum(fqn) => {
+                env.interner.resolve(*fqn).to_string()
+            }
+            WithUpdateAggregate::Tuple(_) => "tuple".to_string(),
+        }
+    }
+}
+
+/// `a` 是否为 `b` 的严格前缀（逐段字符串相等，且更短）。
+fn is_strict_prefix(a: &[String], b: &[String]) -> bool {
+    if a.len() >= b.len() {
+        return false;
+    }
+    a.iter().zip(b.iter()).all(|(x, y)| x == y)
+}
+
+/// 旧式 tuple 成员写法 `_N` → 新写法 `N`（仅 `_` + 数字）。
+fn old_tuple_member_replacement(text: &str) -> Option<String> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(digits.to_string())
 }
 
 /// 标量类别（用于运算结果判定）。
