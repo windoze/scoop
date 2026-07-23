@@ -176,6 +176,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let (Some(ffqn), Some(efqn)) = nominal {
             return self.fqn_is_subtype(ffqn, efqn);
         }
+        // 内建标量的 nominal 子类型（Int → scoop.core.Int 的超类型链）。
+        if let (Some(sfqn), Some(efqn)) = (scalar_fqn(fk, self.env.interner), nominal_fqn_of(ek)) {
+            return self.fqn_is_subtype(sfqn, efqn);
+        }
         // 函数：参数逆变 + 返回协变
         if let Some((ff, ef)) = func {
             return ff.params.len() == ef.params.len()
@@ -917,6 +921,30 @@ fn collect_pattern_binders(kind: &ast::PatternKind, out: &mut Vec<Symbol>) {
         }
         _ => {}
     }
+}
+
+/// 内建标量的 nominal FQN（`Int` → `scoop.core.Int` 等），用于子类型检查。
+fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> Option<Symbol> {
+    use crate::ty::{RefTypeKind, ValueTypeKind};
+    let name: &'static str = match kind {
+        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
+        TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt",
+        TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool",
+        TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char",
+        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64",
+        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32",
+        TypeKind::Value(ValueTypeKind::IntN(8)) => "scoop.core.Int8",
+        TypeKind::Value(ValueTypeKind::IntN(16)) => "scoop.core.Int16",
+        TypeKind::Value(ValueTypeKind::IntN(32)) => "scoop.core.Int32",
+        TypeKind::Value(ValueTypeKind::IntN(64)) => "scoop.core.Int64",
+        TypeKind::Value(ValueTypeKind::UIntN(8)) => "scoop.core.UInt8",
+        TypeKind::Value(ValueTypeKind::UIntN(16)) => "scoop.core.UInt16",
+        TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
+        TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
+        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
+        _ => return None,
+    };
+    interner.get(name)
 }
 
 /// 若 `kind` 是 nominal（ref 或 value），返回其 FQN。
