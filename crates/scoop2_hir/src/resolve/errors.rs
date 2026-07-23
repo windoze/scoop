@@ -27,6 +27,14 @@ pub fn unresolved_type(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+pub fn unresolved_value(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::resolve::unresolved_value",
+        format!("未解析的名字：{name}"),
+    )
+    .with_primary(span, "这里")
+}
+
 pub fn unresolved_type_param(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::resolve::unresolved_type_param",

@@ -18,16 +18,18 @@
 //! - [`collect`]：header 收集（顶层声明 → [`Index`] + 重复/可见性诊断）；
 //! - [`errors`]：`scoop::resolve::*` 诊断构造辅助。
 
+pub mod body;
 pub mod collect;
 pub mod errors;
 pub mod imports;
 pub mod index;
 pub mod output;
+pub mod scopes;
 pub mod symbol;
 
 pub use errors::*;
 pub use index::{Index, PendingExtension};
-pub use output::NodeIdTable;
+pub use output::{NodeIdTable, Resolution, ResolvedValue};
 pub use symbol::{
     ConeId, ConeInfo, ConeKind, DeclSymbol, ModifierSet, NamespacedSymbols, SymbolKind, Visibility,
 };
