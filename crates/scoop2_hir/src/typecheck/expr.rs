@@ -138,6 +138,31 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if found == expected || self.env.store.is_nothing(found) {
             return true;
         }
+        // 整数字面量吸收：Int 可赋值给任何整数类型（Int8/UInt/.../Byte/...）。
+        if matches!(
+            self.env.store.kind(found),
+            TypeKind::Value(crate::ty::ValueTypeKind::Int)
+        ) && matches!(
+            self.env.store.kind(expected),
+            TypeKind::Value(
+                crate::ty::ValueTypeKind::Int
+                    | crate::ty::ValueTypeKind::UInt
+                    | crate::ty::ValueTypeKind::IntN(_)
+                    | crate::ty::ValueTypeKind::UIntN(_)
+            )
+        ) {
+            return true;
+        }
+        // 浮点字面量吸收：Float64 可赋值给 Float32。
+        if matches!(
+            self.env.store.kind(found),
+            TypeKind::Value(crate::ty::ValueTypeKind::Float64)
+        ) && matches!(
+            self.env.store.kind(expected),
+            TypeKind::Value(crate::ty::ValueTypeKind::Float32)
+        ) {
+            return true;
+        }
         let fk = self.env.store.kind(found);
         let ek = self.env.store.kind(expected);
         // Any：所有类型可装箱赋值给 Any（spec P2 §2.1）。
@@ -1254,10 +1279,8 @@ mod tests {
         // println resolves via sysroot or returns Nothing (lenient).
         // No type_mismatch / arity_mismatch expected.
         assert!(
-            codes
-                .iter()
-                .all(|c| c != "scoop::typecheck::type_mismatch"
-                    && c != "scoop::typecheck::arity_mismatch"),
+            codes.iter().all(|c| c != "scoop::typecheck::type_mismatch"
+                && c != "scoop::typecheck::arity_mismatch"),
             "{codes:?}"
         );
     }
