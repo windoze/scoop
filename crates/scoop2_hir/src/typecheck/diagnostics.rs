@@ -59,3 +59,21 @@ pub fn break_not_in_loop(what: &str, span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::no_applicable_overload`：没有重载候选可接受给定的实参。
+pub fn no_applicable_overload(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::no_applicable_overload",
+        "没有匹配的重载候选（实参类型 / 数量不匹配）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::ambiguous_overload`：多个重载候选同等匹配，无法选择。
+pub fn ambiguous_overload(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::ambiguous_overload",
+        "重载解析有歧义：多个候选同等匹配",
+    )
+    .with_primary(span, "这里")
+}

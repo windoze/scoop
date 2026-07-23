@@ -333,7 +333,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    // ---- 调用（M2：单候选） ----
+    // ---- 调用（M2 单候选 + M3 多候选重载解析） ----
 
     fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span) -> TypeId {
         // 1. 函数类型局部值 / 参数调用。
@@ -347,20 +347,53 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let ExprKind::Ident(_) = &callee.kind {
             let resolved = self.resolution.value_refs.get(callee.id).copied();
             if let Some(ResolvedValue::TopLevelFun { fqn }) = resolved {
-                let sigs: Vec<Signature> = self.env.signatures(fqn).unwrap_or(&[]).to_vec();
-                // M2：仅 1 个非泛型候选时按位置检查（arity / 实参类型）；多候选 / 泛型 → M3。
-                let non_generic: Vec<Signature> = sigs
-                    .into_iter()
-                    .filter(|s| s.type_param_count == 0)
-                    .collect();
-                if non_generic.len() == 1 {
-                    let sig = non_generic.into_iter().next().expect("len == 1");
-                    return self.check_call_args(sig.params, sig.return_ty, args, span);
-                }
-                return self.unsupported("该调用（重载 / 泛型）", span);
+                return self.resolve_top_level_call(fqn, args, span);
             }
         }
         self.unsupported("该调用形式", span)
+    }
+
+    /// 顶层函数重载解析：单候选 → 直接检查（arity / 实参）；多候选 → 适用性过滤。
+    fn resolve_top_level_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+        let sigs: Vec<Signature> = self.env.signatures(fqn).unwrap_or(&[]).to_vec();
+        let non_generic: Vec<Signature> = sigs
+            .into_iter()
+            .filter(|s| s.type_param_count == 0)
+            .collect();
+        if non_generic.is_empty() {
+            return self.unsupported("该调用（仅泛型候选；泛型实例化待 M3 part 2）", span);
+        }
+        // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
+        if non_generic.len() == 1 {
+            let sig = non_generic.into_iter().next().expect("len == 1");
+            return self.check_call_args(sig.params, sig.return_ty, args, span);
+        }
+        // 多候选：先走一遍实参类型，再按适用性过滤。
+        let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+        let applicable: Vec<&Signature> = non_generic
+            .iter()
+            .filter(|s| {
+                s.params.len() == arg_types.len()
+                    && arg_types
+                        .iter()
+                        .zip(&s.params)
+                        .all(|(a, p)| self.assignable(*a, *p))
+            })
+            .collect();
+        match applicable.len() {
+            0 => {
+                self.diags.push(diagnostics::no_applicable_overload(span));
+                non_generic
+                    .first()
+                    .map(|s| s.return_ty)
+                    .unwrap_or_else(|| self.env.store.nothing())
+            }
+            1 => applicable[0].return_ty,
+            _ => {
+                self.diags.push(diagnostics::ambiguous_overload(span));
+                applicable[0].return_ty
+            }
+        }
     }
 
     /// 若 `ft` 是函数类型，返回其（克隆的）`FunctionType`。
@@ -728,6 +761,29 @@ mod tests {
             "struct Point { val x: Int\nval y: Int }\nfun main(p: Point): Int { return p.x }",
         );
         assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    // ---- M3：多候选重载解析 ----
+
+    #[test]
+    fn overload_resolves_by_arg_type() {
+        let codes = check_program(
+            "fun f(x: Int): Int { return x }\nfun f(x: Bool): Bool { return x }\nfun main(): Int { return f(1) }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn overload_no_applicable() {
+        let codes = check_program(
+            "fun f(x: Int): Int { return x }\nfun f(x: Bool): Bool { return x }\nfun main(): Unit { f(\"hi\") }",
+        );
+        assert!(
+            codes
+                .iter()
+                .any(|c| c == "scoop::typecheck::no_applicable_overload"),
+            "{codes:?}"
+        );
     }
 
     // 抑制未用（TypeKind/Interner 在某些路径间接使用）。
