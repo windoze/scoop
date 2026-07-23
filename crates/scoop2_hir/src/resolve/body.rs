@@ -15,12 +15,15 @@
 //! 类型本身（`TypeRef`、`::class`、`is`/`as` 的类型、`StructLit`/`Call` 的类型
 //! 实参）的解析是 type-ref lowering（typecheck 阶段），不在本模块。
 
+use std::collections::HashMap;
+
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{Interner, NodeId, Symbol};
 
 use crate::syntax::ast::{
-    self, AnnotationUse, AssignTargetKind, Block, CallArg, Expr, ExprKind, File, FunBody, ItemKind,
-    LambdaExpr, Pattern, PatternKind, Stmt, StmtKind, ValBinding, ValDecl,
+    self, AnnotationUse, AssignTargetKind, Block, CallArg, CtorParam, Expr, ExprKind, File,
+    FunBody, ItemKind, LambdaExpr, MemberName, Pattern, PatternKind, Stmt, StmtKind,
+    TypeMemberKind, ValBinding, ValDecl,
 };
 
 use super::errors;
@@ -49,25 +52,11 @@ pub fn resolve_file_bodies(
         resolution,
         package_prefix: package_prefix.to_string(),
         scopes: ScopeStack::new(),
+        this_type: None,
+        local_types: HashMap::new(),
     };
     for item in &file.items {
-        match &item.kind {
-            ItemKind::Fun(d) => {
-                if let Some(body) = &d.body {
-                    r.resolve_function(&d.params, body);
-                }
-            }
-            ItemKind::Val(d) => {
-                if let Some(init) = &d.init {
-                    r.resolve_top_level_init(init, &d.binding, Some(item.id));
-                }
-            }
-            // 扩展属性 / typealias / object / type 的成员体在成员解析增量处理。
-            ItemKind::ExtensionProperty(_)
-            | ItemKind::TypeAlias(_)
-            | ItemKind::Object(_)
-            | ItemKind::Type(_) => {}
-        }
+        r.resolve_top_level_item(item);
     }
 }
 
@@ -79,10 +68,127 @@ struct BodyResolver<'a> {
     resolution: &'a mut Resolution,
     package_prefix: String,
     scopes: ScopeStack,
+    /// 当前（成员）函数体的接收者类型 FQN；非成员函数为 `None`。
+    this_type: Option<Symbol>,
+    /// 当前函数作用域内 名字→类型 FQN（参数类型，用于成员访问解析）。函数级，每函数重置。
+    local_types: HashMap<Symbol, Symbol>,
 }
 
 impl<'a> BodyResolver<'a> {
-    fn resolve_function(&mut self, params: &[ast::Param], body: &FunBody) {
+    fn resolve_top_level_item(&mut self, item: &ast::Item) {
+        match &item.kind {
+            ItemKind::Fun(d) => {
+                if let Some(body) = &d.body {
+                    self.resolve_function(&d.params, body, None);
+                }
+            }
+            ItemKind::Val(d) => {
+                if let Some(init) = &d.init {
+                    self.resolve_top_level_init(init, &d.binding, Some(item.id));
+                }
+            }
+            ItemKind::Object(d) => {
+                if let (Some(name), Some(body)) = (&d.name, &d.body) {
+                    let owner = self.fqn_of_simple(name.symbol);
+                    self.resolve_member_bodies(owner, &body.members, &[]);
+                }
+            }
+            ItemKind::Type(d) => {
+                if let Some(body) = &d.body {
+                    let owner = self.fqn_of_simple(d.name.symbol);
+                    let ctor_params = d
+                        .primary_ctor
+                        .as_ref()
+                        .map(|c| c.params.as_slice())
+                        .unwrap_or(&[]);
+                    self.resolve_member_bodies(owner, &body.members, ctor_params);
+                }
+            }
+            ItemKind::ExtensionProperty(_) | ItemKind::TypeAlias(_) => {}
+        }
+    }
+
+    /// 解析类型体成员的函数体（`this` = `owner_fqn`）。`ctor_params` 是主构造参数，
+    /// 对本类型全部成员体可见（在成员体外层作用域绑定）。
+    fn resolve_member_bodies(
+        &mut self,
+        owner_fqn: Symbol,
+        members: &[ast::TypeMember],
+        ctor_params: &[CtorParam],
+    ) {
+        self.scopes.enter();
+        // 主构造参数对本类型成员可见。
+        for cp in ctor_params {
+            self.define_synthetic(cp.name.symbol, cp.name.span);
+        }
+        for m in members {
+            match &m.kind {
+                TypeMemberKind::Fun(d) => {
+                    if let Some(body) = &d.body {
+                        self.resolve_function(&d.params, body, Some(owner_fqn));
+                    }
+                }
+                TypeMemberKind::Property(d) => {
+                    // 属性 init / accessor 体：this = owner。
+                    self.this_type = Some(owner_fqn);
+                    self.local_types.clear();
+                    self.scopes.enter();
+                    if let Some(init) = &d.init {
+                        self.walk_expr(init);
+                    }
+                    for a in &d.accessors {
+                        match &a.body {
+                            ast::AccessorBody::Block(b) => self.walk_block(b),
+                            ast::AccessorBody::Expr(e) => self.walk_expr(e),
+                        }
+                    }
+                    self.scopes.leave();
+                }
+                TypeMemberKind::InitBlock(d) => {
+                    self.this_type = Some(owner_fqn);
+                    self.local_types.clear();
+                    self.scopes.enter();
+                    for s in &d.body.stmts {
+                        self.walk_stmt(s);
+                    }
+                    self.scopes.leave();
+                }
+                TypeMemberKind::Object(d) => {
+                    if d.companion {
+                        // companion 是单例，不持有外类构造参数。
+                        if let Some(b) = &d.body {
+                            self.resolve_member_bodies(owner_fqn, &b.members, &[]);
+                        }
+                    } else if let (Some(name), Some(b)) = (d.name, &d.body) {
+                        let fqn = self.fqn_under(owner_fqn, name.symbol);
+                        self.resolve_member_bodies(fqn, &b.members, &[]);
+                    }
+                }
+                TypeMemberKind::Type(d) => {
+                    if let Some(b) = &d.body {
+                        let fqn = self.fqn_under(owner_fqn, d.name.symbol);
+                        let inner_ctor = d
+                            .primary_ctor
+                            .as_ref()
+                            .map(|c| c.params.as_slice())
+                            .unwrap_or(&[]);
+                        self.resolve_member_bodies(fqn, &b.members, inner_ctor);
+                    }
+                }
+                TypeMemberKind::SecondaryCtor(_) | TypeMemberKind::EnumVariant(_) => {}
+            }
+        }
+        self.scopes.leave();
+    }
+
+    fn resolve_function(
+        &mut self,
+        params: &[ast::Param],
+        body: &FunBody,
+        this_type: Option<Symbol>,
+    ) {
+        self.this_type = this_type;
+        self.local_types.clear();
         self.scopes.enter();
         for p in params {
             let outcome = self.scopes.define(
@@ -94,6 +200,12 @@ impl<'a> BodyResolver<'a> {
             );
             if let DefineOutcome::Redefined { prev } = outcome {
                 self.report_duplicate(p.name.symbol, prev.span, p.name.span);
+            }
+            // 记录参数类型 FQN（供成员访问解析）。
+            if let Some(ty) = &p.ty
+                && let Some(fqn) = self.type_fqn_of(ty)
+            {
+                self.local_types.insert(p.name.symbol, fqn);
             }
         }
         match body {
@@ -247,8 +359,11 @@ impl<'a> BodyResolver<'a> {
                     self.walk_block(f);
                 }
             }
-            ExprKind::MemberAccess { receiver, .. }
-            | ExprKind::SafeMemberAccess { receiver, .. } => self.walk_expr(receiver),
+            ExprKind::MemberAccess { receiver, member }
+            | ExprKind::SafeMemberAccess { receiver, member } => {
+                self.walk_expr(receiver);
+                self.resolve_member_access(receiver, *member, expr.id);
+            }
             ExprKind::SpliceField { receiver, field } => {
                 self.walk_expr(receiver);
                 self.walk_expr(field);
@@ -334,6 +449,10 @@ impl<'a> BodyResolver<'a> {
         if name_text == "true" || name_text == "false" {
             return;
         }
+        // `this` 在成员体内解析为接收者（值位置误用由 typecheck 判定）；成员体外落入 unresolved。
+        if name_text == "this" && self.this_type.is_some() {
+            return;
+        }
         // 1. 局部
         if let Some(local) = self.scopes.resolve(ident.symbol) {
             self.resolution
@@ -410,15 +529,141 @@ impl<'a> BodyResolver<'a> {
             self.resolution
                 .value_refs
                 .set(expr_id, ResolvedValue::TopLevelValue { fqn });
-            true
-        } else if !ns.funs.is_empty() {
+            return true;
+        }
+        if !ns.funs.is_empty() {
             self.resolution
                 .value_refs
                 .set(expr_id, ResolvedValue::TopLevelFun { fqn });
-            true
+            return true;
+        }
+        // 命中纯类型命名空间：作为限定符/类型引用合法（值位置误用由 typecheck 判定）。
+        ns.ty.is_some()
+    }
+
+    // ---- 成员访问 / 类型 FQN ----
+
+    fn fqn_of_simple(&self, name: Symbol) -> Symbol {
+        let name_text = self.interner.resolve(name);
+        let fqn_text = if self.package_prefix.is_empty() {
+            name_text.to_string()
         } else {
-            // 命中纯类型命名空间：值位置引用类型名由 typecheck 判定，不记录不报错。
-            false
+            format!("{}.{}", self.package_prefix, name_text)
+        };
+        // 该 FQN 已由 collect 阶段 intern（类型符号登记时）；只读探测即可。
+        self.interner.get(&fqn_text).unwrap_or(name)
+    }
+
+    fn fqn_under(&self, owner: Symbol, name: Symbol) -> Symbol {
+        let owner_text = self.interner.resolve(owner);
+        let name_text = self.interner.resolve(name);
+        let fqn_text = format!("{owner_text}.{name_text}");
+        self.interner.get(&fqn_text).unwrap_or(name)
+    }
+
+    /// 成员访问 `receiver.member`：已知 receiver 类型 FQN 时查 `<type>.member`；
+    /// 不在 Index 则 `unresolved_member`。TupleIndex / 未知 receiver 类型 → defer。
+    fn resolve_member_access(&mut self, receiver: &Expr, member: MemberName, _expr_id: NodeId) {
+        let MemberName::Named(name) = member else {
+            return; // `t.0` 等需类型信息，defer。
+        };
+        let Some(owner_fqn) = self.receiver_type_fqn(receiver) else {
+            return;
+        };
+        let mfqn_text = format!(
+            "{}.{}",
+            self.interner.resolve(owner_fqn),
+            self.interner.resolve(name.symbol)
+        );
+        let member_name_text = self.interner.resolve(name.symbol).to_string();
+        match self.interner.get(&mfqn_text) {
+            Some(mfqn) if self.index.lookup(mfqn).is_some() => {}
+            _ => self
+                .diags
+                .push(errors::unresolved_member(&member_name_text, name.span)),
+        }
+    }
+
+    /// 推导 receiver 的「类型 FQN」（成员访问用）：`this` → 当前成员类型；局部
+    /// （参数）→ 其类型 FQN；类型/object 符号 → 其 FQN。其余 → `None`（defer）。
+    fn receiver_type_fqn(&self, receiver: &Expr) -> Option<Symbol> {
+        let ExprKind::Ident(ident) = &receiver.kind else {
+            return None;
+        };
+        if self.interner.resolve(ident.symbol) == "this" {
+            return self.this_type;
+        }
+        if let Some(&t) = self.local_types.get(&ident.symbol) {
+            return Some(t);
+        }
+        if let Some(f) = self.current_package_type_fqn(ident.symbol) {
+            return Some(f);
+        }
+        self.imported_type_fqn(ident.symbol)
+    }
+
+    /// 把声明的 TypeRef 解析为 nominal 根类型 FQN（成员访问用）。
+    fn type_fqn_of(&self, ty: &ast::TypeRef) -> Option<Symbol> {
+        let ast::TypeRefKind::Path { path, .. } = &ty.kind else {
+            return None;
+        };
+        if path.segments.len() == 1 {
+            let name = path.segments[0].symbol;
+            if let Some(f) = self.current_package_type_fqn(name) {
+                return Some(f);
+            }
+            return self.imported_type_fqn(name);
+        }
+        let fqn_text = path
+            .segments
+            .iter()
+            .map(|s| self.interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".");
+        let fqn = self.interner.get(&fqn_text)?;
+        if self
+            .index
+            .lookup(fqn)
+            .and_then(|ns| ns.ty.as_ref())
+            .is_some()
+        {
+            Some(fqn)
+        } else {
+            None
+        }
+    }
+
+    fn current_package_type_fqn(&self, name: Symbol) -> Option<Symbol> {
+        let name_text = self.interner.resolve(name);
+        let fqn_text = if self.package_prefix.is_empty() {
+            name_text.to_string()
+        } else {
+            format!("{}.{}", self.package_prefix, name_text)
+        };
+        let fqn = self.interner.get(&fqn_text)?;
+        if self
+            .index
+            .lookup(fqn)
+            .and_then(|ns| ns.ty.as_ref())
+            .is_some()
+        {
+            Some(fqn)
+        } else {
+            None
+        }
+    }
+
+    fn imported_type_fqn(&self, name: Symbol) -> Option<Symbol> {
+        let fqn = self.imports.resolve_name(name, self.index, self.interner)?;
+        if self
+            .index
+            .lookup(fqn)
+            .and_then(|ns| ns.ty.as_ref())
+            .is_some()
+        {
+            Some(fqn)
+        } else {
+            None
         }
     }
 
