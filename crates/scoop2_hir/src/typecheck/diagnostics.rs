@@ -240,7 +240,7 @@ pub fn virtual_method_cannot_be_generic(span: Span) -> Diagnostic {
 pub fn struct_lit_unknown_field(field: &str, ty: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::struct_lit_unknown_field",
-        format!("类型 {ty} 没有字段 `{field}`"),
+        format!("类型 {ty} 不存在字段 `{field}`"),
     )
     .with_primary(span, "这里")
 }
@@ -263,7 +263,7 @@ pub fn struct_lit_field_type_mismatch(
 pub fn struct_lit_duplicate_field(field: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::struct_lit_duplicate_field",
-        format!("字段 `{field}` 重复"),
+        format!("字段重复：`{field}`"),
     )
     .with_primary(span, "这里")
 }
