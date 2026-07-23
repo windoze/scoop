@@ -148,15 +148,32 @@ fn load_source(path: &std::path::Path) -> Result<scoop2_base::SourceFile, ExitCo
 
 fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
     let _ = (&args.source, &args.target_platform);
-    if args.phase != cli::Phase::Parse {
-        return not_wired("check-source");
-    }
     let source = match load_source(&args.input) {
         Ok(source) => source,
         Err(code) => return code,
     };
-    let result = scoop2_syntax::parser::parse_file(&source);
-    report_parse_result(&source, result.diagnostics)
+    match args.phase {
+        cli::Phase::Parse => {
+            let result = scoop2_syntax::parser::parse_file(&source);
+            report_diagnostics(&source, result.diagnostics)
+        }
+        cli::Phase::Resolve => {
+            let result = scoop2_syntax::parser::parse_file(&source);
+            // 先把 parse 诊断接管；若无 parse 错误，继续跑 resolve 管线并把其诊断
+            // 追加进同一 sink。
+            let scoop2_syntax::parser::ParseResult {
+                file,
+                mut interner,
+                mut diagnostics,
+                node_count: _,
+            } = result;
+            if !diagnostics.has_errors() {
+                scoop2_hir::resolve::run_file(&file, &mut interner, &mut diagnostics);
+            }
+            report_diagnostics(&source, diagnostics)
+        }
+        cli::Phase::Typecheck | cli::Phase::Infer | cli::Phase::Lower => not_wired("check-source"),
+    }
 }
 
 fn run_dump_ast(input: &std::path::Path) -> ExitCode {
@@ -166,14 +183,17 @@ fn run_dump_ast(input: &std::path::Path) -> ExitCode {
     };
     let result = scoop2_syntax::parser::parse_file(&source);
     if result.diagnostics.has_errors() {
-        return report_parse_result(&source, result.diagnostics);
+        return report_diagnostics(&source, result.diagnostics);
     }
-    print!("{}", scoop2_syntax::dump::dump_file(&result.file, &result.interner));
+    print!(
+        "{}",
+        scoop2_syntax::dump::dump_file(&result.file, &result.interner)
+    );
     ExitCode::SUCCESS
 }
 
-/// 渲染 parse 阶段诊断；有错误返回退出码 1，否则 0。
-fn report_parse_result(
+/// 渲染诊断；有错误返回退出码 1，否则 0。
+fn report_diagnostics(
     source: &scoop2_base::SourceFile,
     mut diagnostics: scoop2_base::diag::DiagnosticSink,
 ) -> ExitCode {

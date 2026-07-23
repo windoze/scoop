@@ -18,8 +18,8 @@ fn workspace_root() -> PathBuf {
 }
 
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = std::fs::read_dir(dir)
-        .unwrap_or_else(|err| panic!("cannot read {}: {err}", dir.display()));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|err| panic!("cannot read {}: {err}", dir.display()));
     for entry in entries {
         let path = entry.expect("dir entry").path();
         if path.is_dir() {

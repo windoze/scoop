@@ -33,3 +33,35 @@ pub use output::{NodeIdTable, Resolution, ResolvedValue};
 pub use symbol::{
     ConeId, ConeInfo, ConeKind, DeclSymbol, ModifierSet, NamespacedSymbols, SymbolKind, Visibility,
 };
+
+use scoop2_base::diag::DiagnosticSink;
+use scoop2_base::{FileId, Interner};
+
+/// 单文件 resolve 管线（header 收集 → import → body 名字解析），把诊断**追加**进
+/// `diags`。
+///
+/// 适用于无 sysroot 的单文件检查（如 `check-source --phase resolve` 对不依赖内置
+/// 类型的负向 fixture）。多文件 / 带 prelude 的解析在 db 集成增量补齐。
+pub fn run_file(
+    file: &crate::syntax::ast::File,
+    interner: &mut Interner,
+    diags: &mut DiagnosticSink,
+) {
+    let mut index = Index::new();
+    let cone = index.intern_cone("<user>", ConeKind::Bin);
+    let prefix = collect::package_prefix_of(file, interner);
+    collect::collect_file(file, FileId(0), cone, &mut index, interner, diags);
+    let imports = imports::ImportTable::collect(file, FileId(0), &index, interner, diags);
+    let mut resolution = Resolution::new();
+    body::resolve_file_bodies(
+        file,
+        &index,
+        &imports,
+        interner,
+        diags,
+        &mut resolution,
+        &prefix,
+    );
+    // resolution（值引用侧表）目前供 typecheck 消费；本阶段不输出，保留以防被优化掉。
+    let _ = resolution.value_refs.len();
+}

@@ -30,7 +30,7 @@ pub fn unresolved_type(name: &str, span: Span) -> Diagnostic {
 pub fn unresolved_value(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::resolve::unresolved_value",
-        format!("未解析的名字：{name}"),
+        format!("未解析的值：{name}"),
     )
     .with_primary(span, "这里")
 }

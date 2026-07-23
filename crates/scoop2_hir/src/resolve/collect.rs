@@ -51,7 +51,7 @@ pub fn collect_file(
 }
 
 /// 由 `package a.b.c` 得到点分前缀 `"a.b.c"`；无 package 则空串。
-fn package_prefix_of(file: &File, interner: &Interner) -> String {
+pub(crate) fn package_prefix_of(file: &File, interner: &Interner) -> String {
     match &file.package {
         Some(pkg) => pkg
             .path
