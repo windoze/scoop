@@ -339,3 +339,102 @@ pub fn call_arg_duplicate(name: &str, span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::annotation_class_where_clause_not_supported`。
+pub fn annotation_class_where_clause_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_where_clause_not_supported",
+        "annotation class 不支持 where 子句",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_supertypes_not_supported`。
+pub fn annotation_class_supertypes_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_supertypes_not_supported",
+        "annotation class 不支持超类型",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_param_must_be_val`。
+pub fn annotation_class_param_must_be_val(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_param_must_be_val",
+        format!("annotation class 参数 `{name}` 必须是 val"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_must_be_class`。
+pub fn annotation_class_must_be_class(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_must_be_class",
+        "`annotation` 修饰符只能用于 class",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_modifier_not_supported`。
+pub fn annotation_class_modifier_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_modifier_not_supported",
+        "annotation class 不支持其他修饰符",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_class_effect_param_not_supported`。
+pub fn annotation_class_effect_param_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_class_effect_param_not_supported",
+        "annotation class 不支持 eff 参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_type_is_not_annotation_class`。
+pub fn annotation_type_is_not_annotation_class(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_type_is_not_annotation_class",
+        format!("`{name}` 不是 annotation class"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_arg_not_const`。
+pub fn annotation_arg_not_const(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_arg_not_const",
+        "注解实参必须是编译时常量",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_invalid_target`。
+pub fn annotation_invalid_target(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_invalid_target",
+        "注解目标不合法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::call_arg_positional_after_named`。
+pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_arg_positional_after_named",
+        "位置实参不能出现在命名实参之后",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::array_lit_type_annotation_required`。
+pub fn array_lit_type_annotation_required(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::array_lit_type_annotation_required",
+        "空数组字面量需要类型标注",
+    )
+    .with_primary(span, "这里")
+}

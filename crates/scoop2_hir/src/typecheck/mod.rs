@@ -163,6 +163,10 @@ fn check_file_bodies(
                     .iter()
                     .any(|m| m.kind == ModifierKind::Annotation);
                 if is_annotation {
+                    // annotation 修饰符只能用于 class。
+                    if !matches!(d.kind, crate::syntax::ast::TypeKind::Class) {
+                        diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
+                    }
                     if d.body.is_some() {
                         diags.push(diagnostics::annotation_class_body_not_supported(
                             d.name.span,
@@ -177,10 +181,51 @@ fn check_file_bodies(
                         .as_ref()
                         .is_some_and(|tp| tp.effect_row.is_some())
                     {
-                        diags.push(diagnostics::annotation_class_eff_param_not_supported(
+                        diags.push(diagnostics::annotation_class_effect_param_not_supported(
                             d.name.span,
                         ));
                     }
+                    if d.where_clause.is_some() {
+                        diags.push(diagnostics::annotation_class_where_clause_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    if !d.supertypes.is_empty() {
+                        diags.push(diagnostics::annotation_class_supertypes_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    // annotation class 的其他修饰符不允许。
+                    let has_other_mods = d.modifiers.iter().any(|m| {
+                        !matches!(m.kind, ModifierKind::Annotation | ModifierKind::Public)
+                    });
+                    if has_other_mods {
+                        diags.push(diagnostics::annotation_class_modifier_not_supported(
+                            d.name.span,
+                        ));
+                    }
+                    // annotation class 主构造参数必须是 val。
+                    if let Some(ctor) = &d.primary_ctor {
+                        for cp in &ctor.params {
+                            if cp.property.is_none() {
+                                let name_text = env.interner.resolve(cp.name.symbol).to_string();
+                                diags.push(diagnostics::annotation_class_param_must_be_val(
+                                    &name_text,
+                                    cp.name.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+                // annotation 修饰符用于非 class 类型 → must_be_class。
+                if !is_annotation
+                    && d.modifiers
+                        .iter()
+                        .any(|m| m.kind == ModifierKind::Annotation)
+                {
+                    // Already caught by is_annotation check above (if is_annotation is false
+                    // but has Annotation modifier, it's a non-class with annotation → error).
+                    diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
                 }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
                 if let Some(body) = &d.body {
