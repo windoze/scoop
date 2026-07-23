@@ -51,6 +51,14 @@ pub fn missing_companion_object(type_name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+pub fn forward_reference(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::resolve::forward_reference",
+        format!("初始化阶段非法前向引用：{name}"),
+    )
+    .with_primary(span, "这里")
+}
+
 pub fn unresolved_type_param(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::resolve::unresolved_type_param",

@@ -15,7 +15,7 @@
 //! 类型本身（`TypeRef`、`::class`、`is`/`as` 的类型、`StructLit`/`Call` 的类型
 //! 实参）的解析是 type-ref lowering（typecheck 阶段），不在本模块。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{Interner, NodeId, Symbol};
@@ -54,6 +54,8 @@ pub fn resolve_file_bodies(
         scopes: ScopeStack::new(),
         this_type: None,
         local_types: HashMap::new(),
+        in_init_block: false,
+        init_visible_props: HashSet::new(),
     };
     for item in &file.items {
         r.resolve_top_level_item(item);
@@ -72,6 +74,10 @@ struct BodyResolver<'a> {
     this_type: Option<Symbol>,
     /// 当前函数作用域内 名字→类型 FQN（参数类型，用于成员访问解析）。函数级，每函数重置。
     local_types: HashMap<Symbol, Symbol>,
+    /// 是否正在解析 `init` 块（用于前向引用检测）。
+    in_init_block: bool,
+    /// 当前类型体中按源码顺序「已初始化」的属性简单名集合（init 块可见性判定）。
+    init_visible_props: HashSet<Symbol>,
 }
 
 impl<'a> BodyResolver<'a> {
@@ -121,7 +127,9 @@ impl<'a> BodyResolver<'a> {
         for cp in ctor_params {
             self.define_synthetic(cp.name.symbol, cp.name.span);
         }
+        self.init_visible_props.clear();
         for m in members {
+            self.in_init_block = false;
             match &m.kind {
                 TypeMemberKind::Fun(d) => {
                     if let Some(body) = &d.body {
@@ -143,8 +151,11 @@ impl<'a> BodyResolver<'a> {
                         }
                     }
                     self.scopes.leave();
+                    // 该属性自身初始化完成，对后续 init 块可见。
+                    self.init_visible_props.insert(d.name.symbol);
                 }
                 TypeMemberKind::InitBlock(d) => {
+                    self.in_init_block = true;
                     self.this_type = Some(owner_fqn);
                     self.local_types.clear();
                     self.scopes.enter();
@@ -570,6 +581,19 @@ impl<'a> BodyResolver<'a> {
         let Some(owner_fqn) = self.receiver_type_fqn(receiver) else {
             return;
         };
+        // init 块内 `this.<prop>`：prop 是属性但尚未（按源码顺序）初始化 → 前向引用。
+        if self.in_init_block
+            && matches!(
+                &receiver.kind,
+                ExprKind::Ident(i) if self.interner.resolve(i.symbol) == "this"
+            )
+            && self.is_uninitialized_init_prop(owner_fqn, name.symbol)
+        {
+            let member_name_text = self.interner.resolve(name.symbol).to_string();
+            self.diags
+                .push(errors::forward_reference(&member_name_text, name.span));
+            return;
+        }
         let mfqn_text = format!(
             "{}.{}",
             self.interner.resolve(owner_fqn),
@@ -615,6 +639,23 @@ impl<'a> BodyResolver<'a> {
         self.index
             .lookup_type(owner_fqn)
             .is_some_and(|s| s.kind == crate::resolve::symbol::SymbolKind::Type)
+    }
+
+    /// `<owner>.name` 是否是值命名空间属性成员（property/field）且尚未初始化
+    ///（不在当前 init_visible_props 集合中）—— 用于 init 块前向引用检测。
+    fn is_uninitialized_init_prop(&self, owner_fqn: Symbol, name: Symbol) -> bool {
+        let owner_text = self.interner.resolve(owner_fqn);
+        let name_text = self.interner.resolve(name);
+        let mfqn_text = format!("{owner_text}.{name_text}");
+        let Some(mfqn) = self.interner.get(&mfqn_text) else {
+            return false;
+        };
+        let is_prop = self
+            .index
+            .lookup(mfqn)
+            .and_then(|ns| ns.value.as_ref())
+            .is_some();
+        is_prop && !self.init_visible_props.contains(&name)
     }
 
     /// 推导 receiver 的「类型 FQN」（成员访问用）：`this` → 当前成员类型；局部

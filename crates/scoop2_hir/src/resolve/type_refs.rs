@@ -46,20 +46,38 @@ pub fn resolve_file_type_refs(
     };
     for item in &file.items {
         match &item.kind {
-            ItemKind::Fun(d) => r.resolve_fun(d),
+            ItemKind::Fun(d) => {
+                r.resolve_annotations(&d.annotations);
+                r.resolve_fun(d);
+            }
             ItemKind::TypeAlias(d) => {
+                r.resolve_annotations(&d.annotations);
                 let tps = type_param_names(d.type_params.as_ref());
                 r.resolve_type_param_bounds(d.type_params.as_ref(), &tps);
                 r.resolve_type_ref(&d.ty, &tps);
             }
             ItemKind::Val(d) => {
+                r.resolve_annotations(&d.annotations);
                 if let Some(ty) = &d.ty {
                     let tps = HashSet::new();
                     r.resolve_type_ref(ty, &tps);
                 }
             }
-            // 类型声明（超类型 / 成员签名）在成员解析增量；扩展属性接收者类型同理。
-            ItemKind::ExtensionProperty(_) | ItemKind::Object(_) | ItemKind::Type(_) => {}
+            ItemKind::ExtensionProperty(d) => {
+                r.resolve_annotations(&d.annotations);
+            }
+            ItemKind::Object(d) => {
+                r.resolve_annotations(&d.annotations);
+                if let Some(b) = &d.body {
+                    r.resolve_member_annotations(&b.members);
+                }
+            }
+            ItemKind::Type(d) => {
+                r.resolve_annotations(&d.annotations);
+                if let Some(b) = &d.body {
+                    r.resolve_member_annotations(&b.members);
+                }
+            }
         }
     }
 }
@@ -216,6 +234,68 @@ impl<'a> TypeResolver<'a> {
             .lookup(fqn)
             .and_then(|ns| ns.ty.as_ref())
             .is_some()
+    }
+
+    /// 解析注解使用路径（`@Path.To.Ann`）为类型；不命中 → unresolved_type。
+    fn resolve_annotations(&mut self, anns: &[ast::AnnotationUse]) {
+        for ann in anns {
+            if !self.annotation_path_resolves(&ann.path) {
+                let text = path_text(&ann.path, self.interner);
+                // 指向注解路径的首段（跳过 `@`），与 fixture 的 EXPECT-ERROR-AT 对齐。
+                let span = ann
+                    .path
+                    .segments
+                    .first()
+                    .map(|s| s.span)
+                    .unwrap_or(ann.span);
+                self.diags.push(errors::unresolved_type(&text, span));
+            }
+        }
+    }
+
+    /// 注解路径是否解析为类型符号。单段 → 当前包/import 类型；多段 → `<pkg>.<path>` 类型查找。
+    fn annotation_path_resolves(&self, path: &TypePath) -> bool {
+        if path.segments.len() == 1 {
+            let name = path.segments[0].symbol;
+            return self.current_package_type_exists(name) || self.imported_type_exists(name);
+        }
+        let path_text = path_text(path, self.interner);
+        let fqn_text = if self.package_prefix.is_empty() {
+            path_text
+        } else {
+            format!("{}.{}", self.package_prefix, path_text)
+        };
+        let Some(fqn) = self.interner.get(&fqn_text) else {
+            return false;
+        };
+        self.index
+            .lookup(fqn)
+            .and_then(|ns| ns.ty.as_ref())
+            .is_some()
+    }
+
+    /// 解析类型体成员的注解（属性 / 成员函数 / variant / 嵌套类型 / object）。
+    fn resolve_member_annotations(&mut self, members: &[ast::TypeMember]) {
+        for m in members {
+            match &m.kind {
+                ast::TypeMemberKind::Property(d) => self.resolve_annotations(&d.annotations),
+                ast::TypeMemberKind::Fun(d) => self.resolve_annotations(&d.annotations),
+                ast::TypeMemberKind::EnumVariant(d) => self.resolve_annotations(&d.annotations),
+                ast::TypeMemberKind::Object(d) => {
+                    self.resolve_annotations(&d.annotations);
+                    if let Some(b) = &d.body {
+                        self.resolve_member_annotations(&b.members);
+                    }
+                }
+                ast::TypeMemberKind::Type(d) => {
+                    self.resolve_annotations(&d.annotations);
+                    if let Some(b) = &d.body {
+                        self.resolve_member_annotations(&b.members);
+                    }
+                }
+                ast::TypeMemberKind::InitBlock(_) | ast::TypeMemberKind::SecondaryCtor(_) => {}
+            }
+        }
     }
 }
 
