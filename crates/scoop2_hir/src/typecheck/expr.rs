@@ -225,13 +225,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     AssignTargetKind::Ident(ident) => {
                         if let Some(&expected) = self.locals.get(&ident.symbol) {
                             self.check_assignable(val_ty, expected, value.span);
-                        } else {
-                            // 非局部赋值目标（成员 / 顶层）→ M2+。
-                            self.unsupported("非局部赋值", target.span);
                         }
+                        // 非局部赋值（顶层 var / this）→ 值已 walk；目标类型检查推迟。
                     }
-                    AssignTargetKind::Member { .. } | AssignTargetKind::Index { .. } => {
-                        self.unsupported("成员 / 下标赋值", target.span);
+                    AssignTargetKind::Member { receiver, member } => {
+                        let rt = self.walk_expr(receiver);
+                        if let MemberName::Named(name) = member
+                            && let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt))
+                            && let Some(expected) = self.env.member_type(fqn, name.symbol)
+                        {
+                            self.check_assignable(val_ty, expected, value.span);
+                        }
+                        // 未知成员 / 非名义接收者 → 值已 walk；推迟。
+                    }
+                    AssignTargetKind::Index { receiver, indices } => {
+                        self.walk_expr(receiver);
+                        for idx in indices {
+                            self.walk_expr(idx);
+                        }
+                        // operator set 解析推迟。
                     }
                 }
             }
