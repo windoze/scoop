@@ -17,3 +17,4 @@ pub use scoop2_syntax as syntax;
 
 pub mod resolve;
 pub mod ty;
+pub mod typecheck;

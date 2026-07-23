@@ -24,7 +24,7 @@ use crate::syntax::ast::{
 
 use super::errors;
 use super::index::{Index, PendingExtension};
-use super::symbol::{ConeId, DeclSymbol, ModifierSet, SymbolKind, Visibility};
+use super::symbol::{ConeId, DeclSymbol, ModifierSet, NominalCategory, SymbolKind, Visibility};
 
 /// 收集一个文件的顶层声明到 `index`。
 ///
@@ -173,6 +173,7 @@ impl<'a> Collector<'a> {
                         let sym =
                             self.make_member_symbol(SymbolKind::Object, name, &d.modifiers, fqn);
                         self.insert_type(sym, name);
+                        self.index.record_category(fqn, NominalCategory::Object);
                         if let Some(body) = &d.body {
                             self.collect_type_body_members(fqn, &body.members);
                         }
@@ -182,6 +183,9 @@ impl<'a> Collector<'a> {
                     let fqn = self.fqn_under(owner_fqn, d.name.symbol);
                     let sym = self.make_member_symbol(SymbolKind::Type, d.name, &d.modifiers, fqn);
                     self.insert_type(sym, d.name);
+                    if let Some(cat) = NominalCategory::from_ast_type_kind(d.kind) {
+                        self.index.record_category(fqn, cat);
+                    }
                     if let Some(body) = &d.body {
                         self.collect_type_body_members(fqn, &body.members);
                     }
@@ -238,6 +242,8 @@ impl<'a> Collector<'a> {
                     let sym = self.make_symbol(SymbolKind::Object, name, &d.modifiers);
                     let owner_fqn = sym.fqn;
                     self.insert_type(sym, name);
+                    self.index
+                        .record_category(owner_fqn, NominalCategory::Object);
                     if let Some(body) = &d.body {
                         self.collect_type_body_members(owner_fqn, &body.members);
                     }
@@ -249,6 +255,9 @@ impl<'a> Collector<'a> {
                 let sym = self.make_symbol(SymbolKind::Type, d.name, &d.modifiers);
                 let owner_fqn = sym.fqn;
                 self.insert_type(sym, d.name);
+                if let Some(cat) = NominalCategory::from_ast_type_kind(d.kind) {
+                    self.index.record_category(owner_fqn, cat);
+                }
                 // 主构造 param-property（`class C(val x: T)`）：x 是 C 的属性成员。
                 if let Some(ctor) = &d.primary_ctor {
                     for cp in &ctor.params {

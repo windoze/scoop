@@ -186,6 +186,44 @@ pub enum SymbolKind {
     ExtensionProperty,
 }
 
+/// nominal 类型声明的具体类别（供 typecheck 判定 ref vs value、成员解析等）。
+///
+/// `Class`/`Interface`/`Object`/`Effect` → 引用类型；`Struct`/`Enum` → 值类型。
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NominalCategory {
+    Class,
+    Interface,
+    Struct,
+    Enum,
+    Effect,
+    Object,
+}
+
+impl NominalCategory {
+    /// 是否引用类型（GC 托管、按引用传递）。
+    pub fn is_reference(self) -> bool {
+        matches!(
+            self,
+            NominalCategory::Class
+                | NominalCategory::Interface
+                | NominalCategory::Object
+                | NominalCategory::Effect
+        )
+    }
+
+    /// 由 AST 的 `TypeKind` 构造（type 声明）。
+    pub fn from_ast_type_kind(k: crate::syntax::ast::TypeKind) -> Option<Self> {
+        use crate::syntax::ast::TypeKind as T;
+        Some(match k {
+            T::Class => NominalCategory::Class,
+            T::Interface => NominalCategory::Interface,
+            T::Struct => NominalCategory::Struct,
+            T::Enum => NominalCategory::Enum,
+            T::Effect => NominalCategory::Effect,
+        })
+    }
+}
+
 /// 一个已登记的声明符号。
 #[derive(Clone, Debug)]
 pub struct DeclSymbol {

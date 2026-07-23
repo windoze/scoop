@@ -12,7 +12,8 @@ use scoop2_base::{FileId, Interner, Span, Symbol};
 use crate::syntax::ast;
 
 use super::symbol::{
-    ConeId, ConeInfo, ConeKind, DeclSymbol, ModifierSet, NamespacedSymbols, SymbolKind, Visibility,
+    ConeId, ConeInfo, ConeKind, DeclSymbol, ModifierSet, NamespacedSymbols, NominalCategory,
+    SymbolKind, Visibility,
 };
 
 /// 一个待解析接收者的扩展声明（header 收集阶段登记，成员解析阶段消费）。
@@ -48,6 +49,8 @@ pub struct Index {
     extensions: HashMap<Symbol, Vec<DeclSymbol>>,
     /// 待解析接收者的扩展声明（header 收集产出，成员解析消费）。
     pending_extensions: Vec<PendingExtension>,
+    /// nominal 类型 FQN → 类别（供 typecheck 判定 ref/value）。
+    categories: HashMap<Symbol, NominalCategory>,
 }
 
 /// 插入类型/值命名空间的结果：`Ok(())` 或 `Err(first)`（首定义的 span）。
@@ -217,6 +220,18 @@ impl Index {
     /// 迭代所有 (FQN, namespaces)（顺序不确定；需要确定性输出时由调用方排序）。
     pub fn iter(&self) -> impl Iterator<Item = (Symbol, &NamespacedSymbols)> {
         self.by_fqn.iter().map(|(&fqn, ns)| (fqn, ns))
+    }
+
+    // ----- nominal 类别（供 typecheck） -----
+
+    /// 记录一个 nominal 类型的类别（class/interface/struct/enum/effect/object）。
+    pub fn record_category(&mut self, fqn: Symbol, category: NominalCategory) {
+        self.categories.insert(fqn, category);
+    }
+
+    /// 查询 nominal 类型的类别。
+    pub fn category(&self, fqn: Symbol) -> Option<NominalCategory> {
+        self.categories.get(&fqn).copied()
     }
 }
 
