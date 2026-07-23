@@ -24,7 +24,7 @@ use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, MemberName, Param,
     Stmt, StmtKind, TypeRef, UnaryOp, ValBinding,
 };
-use crate::ty::{FunctionType, TypeId, TypeKind, TypeParamType};
+use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
 use super::diagnostics;
 use super::env::{Signature, TypeEnv};
@@ -350,7 +350,52 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 return self.resolve_top_level_call(fqn, args, span);
             }
         }
+        // 3. 构造器调用（callee 是类型名 `Type(args)`）。
+        if let ExprKind::Ident(ident) = &callee.kind
+            && let Some(fqn) = self.callee_type_fqn(ident.symbol)
+        {
+            return self.ctor_call(fqn, args, span);
+        }
         self.unsupported("该调用形式", span)
+    }
+
+    /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
+    fn ctor_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+        let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
+        let nominal = NominalType {
+            fqn,
+            args: vec![],
+            eff: None,
+        };
+        let result = if self.env.is_reference_nominal(fqn) {
+            self.env.store.ref_nominal(nominal)
+        } else {
+            self.env.store.value_nominal(nominal)
+        };
+        self.check_call_args(params, result, args, span)
+    }
+
+    /// 名字是否解析为类型符号（当前包 / import）；返回其 FQN。用于构造器调用判定。
+    fn callee_type_fqn(&self, name: Symbol) -> Option<Symbol> {
+        let name_text = self.env.interner.resolve(name);
+        let fqn_text = if self.package_prefix.is_empty() {
+            name_text.to_string()
+        } else {
+            format!("{}.{}", self.package_prefix, name_text)
+        };
+        if let Some(fqn) = self.env.interner.get(&fqn_text)
+            && self.env.index.lookup_type(fqn).is_some()
+        {
+            return Some(fqn);
+        }
+        let fqn = self
+            .imports
+            .resolve_name(name, self.env.index, self.env.interner)?;
+        if self.env.index.lookup_type(fqn).is_some() {
+            Some(fqn)
+        } else {
+            None
+        }
     }
 
     /// 顶层函数重载解析：单候选 → 直接检查（arity / 实参）；多候选 → 适用性过滤。
@@ -618,6 +663,13 @@ mod tests {
             &prefix,
             &mut diags,
         );
+        crate::typecheck::env::register_constructors(
+            &mut env,
+            &result.file,
+            &imports,
+            &prefix,
+            &mut diags,
+        );
         let mut resolution = Resolution::new();
         crate::resolve::body::resolve_file_bodies(
             &result.file,
@@ -784,6 +836,16 @@ mod tests {
                 .any(|c| c == "scoop::typecheck::no_applicable_overload"),
             "{codes:?}"
         );
+    }
+
+    // ---- M4：构造器调用 ----
+
+    #[test]
+    fn constructor_call_returns_nominal() {
+        let codes = check_program(
+            "struct Point(val x: Int, val y: Int)\nfun main(): Point { return Point(1, 2) }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
     }
 
     // 抑制未用（TypeKind/Interner 在某些路径间接使用）。

@@ -34,6 +34,8 @@ pub struct TypeEnv<'i> {
     signatures: HashMap<Symbol, Vec<Signature>>,
     /// 类型 FQN → (成员名 → 成员类型)。属性 / 字段（含主构造 param-property）。
     members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    /// 类型 FQN → 主构造参数类型列表。
+    ctors: HashMap<Symbol, Vec<TypeId>>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -44,12 +46,18 @@ impl<'i> TypeEnv<'i> {
             interner,
             signatures: HashMap::new(),
             members: HashMap::new(),
+            ctors: HashMap::new(),
         }
     }
 
     /// 顶层函数（非扩展、非成员）的签名重载集。
     pub fn signatures(&self, fqn: Symbol) -> Option<&[Signature]> {
         self.signatures.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// 类型的主构造参数类型列表。
+    pub fn ctor_params(&self, fqn: Symbol) -> Option<&[TypeId]> {
+        self.ctors.get(&fqn).map(|v| v.as_slice())
     }
 
     /// 类型的属性 / 字段成员类型（`type_fqn.member_name`）。
@@ -355,6 +363,44 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 把类型的主构造参数类型降级并登记进 `env.ctors`（用于 `Type(args)` 构造器调用）。
+pub fn register_constructors(
+    env: &mut TypeEnv,
+    file: &File,
+    imports: &ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    for item in &file.items {
+        let ItemKind::Type(d) = &item.kind else {
+            continue;
+        };
+        let owner = fqn_of(env, package_prefix, d.name.symbol);
+        if let Some(ctor) = &d.primary_ctor {
+            let tp_map = build_tp_map(d.type_params.as_ref());
+            let unit_ty = env.store.unit();
+            let params: Vec<TypeId> = ctor
+                .params
+                .iter()
+                .map(|cp| match &cp.ty {
+                    Some(t) => {
+                        let mut lower = TypeLowering::new(
+                            env,
+                            imports,
+                            tp_map.clone(),
+                            package_prefix.to_string(),
+                            diags,
+                        );
+                        lower.lower(t)
+                    }
+                    None => unit_ty,
+                })
+                .collect();
+            env.ctors.insert(owner, params);
+        }
+    }
 }
 
 #[cfg(test)]
