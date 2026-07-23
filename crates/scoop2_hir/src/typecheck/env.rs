@@ -4,16 +4,34 @@
 //! [`Interner`] 的引用，并提供**内建类型表**（标量 / String / Unit / Nothing）。
 //! nominal 类型（class/struct/enum/...）的 ref/value 由 [`Index::category`] 决定。
 
-use scoop2_base::{Interner, Symbol};
+use std::collections::HashMap;
 
+use scoop2_base::diag::DiagnosticSink;
+use scoop2_base::{FileId, Interner, Symbol};
+
+use crate::resolve::imports::ImportTable;
 use crate::resolve::index::Index;
-use crate::ty::{TypeId, TypeStore};
+use crate::syntax::ast::{File, ItemKind};
+use crate::ty::{TypeId, TypeParamType, TypeStore};
+
+use super::lower::TypeLowering;
+
+/// 一个函数签名（已降级；M2 用于单候选调用）。
+#[derive(Clone, Debug)]
+pub struct Signature {
+    pub params: Vec<TypeId>,
+    pub return_ty: TypeId,
+    /// 类型参数个数（>0 表示泛型；M3 才支持实例化）。
+    pub type_param_count: usize,
+}
 
 /// typecheck 类型环境。
 pub struct TypeEnv<'i> {
     pub store: TypeStore,
     pub index: &'i Index,
     pub interner: &'i Interner,
+    /// FQN → 函数签名重载集（顶层函数；M2）。
+    signatures: HashMap<Symbol, Vec<Signature>>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -22,7 +40,13 @@ impl<'i> TypeEnv<'i> {
             store: TypeStore::new(),
             index,
             interner,
+            signatures: HashMap::new(),
         }
+    }
+
+    /// 顶层函数（非扩展、非成员）的签名重载集。
+    pub fn signatures(&self, fqn: Symbol) -> Option<&[Signature]> {
+        self.signatures.get(&fqn).map(|v| v.as_slice())
     }
 
     /// 内建标量 / String / Unit / Nothing 名字 → [`TypeId`]。
@@ -56,6 +80,74 @@ impl<'i> TypeEnv<'i> {
     /// nominal 类型是否引用类型（按 [`Index::category`]）。
     pub fn is_reference_nominal(&self, fqn: Symbol) -> bool {
         self.index.category(fqn).is_some_and(|c| c.is_reference())
+    }
+}
+
+/// 把文件的**顶层函数**（非扩展、非成员）签名降级并登记进 `env.signatures`。
+/// 成员函数 / 构造器 / 扩展函数的签名在成员调用里程碑补齐。
+pub fn register_top_level_signatures(
+    env: &mut TypeEnv,
+    file: &File,
+    imports: &ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    for item in &file.items {
+        let ItemKind::Fun(d) = &item.kind else {
+            continue;
+        };
+        if d.receiver.is_some() {
+            continue; // 扩展函数：M2 暂不
+        }
+        let name_text = env.interner.resolve(d.name.symbol);
+        let fqn_text = if package_prefix.is_empty() {
+            name_text.to_string()
+        } else {
+            format!("{package_prefix}.{name_text}")
+        };
+        let Some(fqn) = env.interner.get(&fqn_text) else {
+            continue;
+        };
+        // 类型参数映射（用于降低签名中的类型参数引用）。
+        let tp_map: HashMap<Symbol, TypeParamType> = d
+            .type_params
+            .iter()
+            .flat_map(|tpl| tpl.params.iter())
+            .map(|p| {
+                (
+                    p.name.symbol,
+                    TypeParamType {
+                        name: p.name.symbol,
+                        file: FileId(0),
+                        span: p.name.span,
+                    },
+                )
+            })
+            .collect();
+        let tpc = tp_map.len();
+        let unit_ty = env.store.unit();
+        let sig = {
+            let mut lower =
+                TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+            let params: Vec<TypeId> = d
+                .params
+                .iter()
+                .map(|p| match &p.ty {
+                    Some(t) => lower.lower(t),
+                    None => unit_ty,
+                })
+                .collect();
+            let return_ty = match &d.return_ty {
+                Some(t) => lower.lower(t),
+                None => unit_ty,
+            };
+            Signature {
+                params,
+                return_ty,
+                type_param_count: tpc,
+            }
+        };
+        env.signatures.entry(fqn).or_default().push(sig);
     }
 }
 

@@ -11,7 +11,7 @@
 use scoop2_base::{NodeId, Symbol};
 
 /// 一个值引用（`Ident` / 调用 callee）的解析结果。
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ResolvedValue {
     /// 局部绑定（参数 / 局部 `val`·`var`）；`decl` 为绑定声明节点（`for`/模式等
     /// 无专属节点的绑定为 `None`，待 typecheck 落地时改为合成 NodeId）。

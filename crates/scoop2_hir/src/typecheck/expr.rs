@@ -19,33 +19,34 @@ use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{NodeId, Span, Symbol};
 
 use crate::resolve::imports::ImportTable;
-use crate::resolve::output::Resolution;
+use crate::resolve::output::{Resolution, ResolvedValue};
 use crate::syntax::ast::{
-    self, AssignTargetKind, BinaryOp, Block, Expr, ExprKind, FunBody, Param, Stmt, StmtKind,
-    TypeRef, UnaryOp, ValBinding,
+    self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, Param, Stmt,
+    StmtKind, TypeRef, UnaryOp, ValBinding,
 };
-use crate::ty::{TypeId, TypeKind, TypeParamType};
+use crate::ty::{FunctionType, TypeId, TypeKind, TypeParamType};
 
 use super::diagnostics;
-use super::env::TypeEnv;
+use super::env::{Signature, TypeEnv};
 use super::lower::TypeLowering;
 
-/// 检查一个函数体（M1）。
+/// 检查一个函数体（M1+）。
 #[allow(clippy::too_many_arguments)]
-pub fn check_function(
+pub fn check_function<'a, 'i>(
     params: &[Param],
     return_ty: Option<&TypeRef>,
     body: &FunBody,
-    env: &mut TypeEnv,
-    imports: &ImportTable,
-    _resolution: &Resolution,
-    diags: &mut DiagnosticSink,
+    env: &mut TypeEnv<'i>,
+    imports: &'a ImportTable,
+    resolution: &'a Resolution,
+    diags: &'a mut DiagnosticSink,
     package_prefix: &str,
     type_params: HashMap<Symbol, TypeParamType>,
 ) {
     let mut c = ExprChecker {
         env,
         imports,
+        resolution,
         diags,
         package_prefix: package_prefix.to_string(),
         type_params,
@@ -82,6 +83,7 @@ pub fn check_function(
 struct ExprChecker<'a, 'i> {
     env: &'a mut TypeEnv<'i>,
     imports: &'a ImportTable,
+    resolution: &'a Resolution,
     diags: &'a mut DiagnosticSink,
     package_prefix: String,
     type_params: HashMap<Symbol, TypeParamType>,
@@ -295,6 +297,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.walk_block(b);
                 self.env.store.unit()
             }
+            ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
             // 其余形式属于后续里程碑。
             ExprKind::TupleLit(_)
             | ExprKind::ArrayLit(_)
@@ -308,7 +311,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::Index { .. }
             | ExprKind::NotNullAssert { .. }
             | ExprKind::TypeApply { .. }
-            | ExprKind::Call { .. }
             | ExprKind::ClassLit { .. }
             | ExprKind::InfixCall { .. }
             | ExprKind::TypeCheck { .. }
@@ -316,6 +318,70 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::WithUpdate { .. }
             | ExprKind::Annotated { .. } => self.unsupported("该表达式形式", expr.span),
         }
+    }
+
+    // ---- 调用（M2：单候选） ----
+
+    fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span) -> TypeId {
+        // 1. 函数类型局部值 / 参数调用。
+        if let ExprKind::Ident(ident) = &callee.kind
+            && let Some(&ft) = self.locals.get(&ident.symbol)
+            && let Some(f) = self.function_type_of(ft)
+        {
+            return self.check_call_args(f.params, f.return_ty, args, span);
+        }
+        // 2. 顶层函数调用（resolve 解析到 TopLevelFun）。
+        if let ExprKind::Ident(_) = &callee.kind {
+            let resolved = self.resolution.value_refs.get(callee.id).copied();
+            if let Some(ResolvedValue::TopLevelFun { fqn }) = resolved {
+                let sigs: Vec<Signature> = self.env.signatures(fqn).unwrap_or(&[]).to_vec();
+                // M2：仅 1 个非泛型候选时按位置检查（arity / 实参类型）；多候选 / 泛型 → M3。
+                let non_generic: Vec<Signature> = sigs
+                    .into_iter()
+                    .filter(|s| s.type_param_count == 0)
+                    .collect();
+                if non_generic.len() == 1 {
+                    let sig = non_generic.into_iter().next().expect("len == 1");
+                    return self.check_call_args(sig.params, sig.return_ty, args, span);
+                }
+                return self.unsupported("该调用（重载 / 泛型）", span);
+            }
+        }
+        self.unsupported("该调用形式", span)
+    }
+
+    /// 若 `ft` 是函数类型，返回其（克隆的）`FunctionType`。
+    fn function_type_of(&self, ft: TypeId) -> Option<FunctionType> {
+        match self.env.store.kind(ft) {
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => Some(f.clone()),
+            _ => None,
+        }
+    }
+
+    /// 按位置检查调用实参（M2：仅位置实参；命名 / spread 在 M3）。
+    fn check_call_args(
+        &mut self,
+        param_types: Vec<TypeId>,
+        return_ty: TypeId,
+        args: &[CallArg],
+        span: Span,
+    ) -> TypeId {
+        if param_types.len() != args.len() {
+            self.diags.push(diagnostics::arity_mismatch(
+                param_types.len(),
+                args.len(),
+                span,
+            ));
+            for a in args {
+                self.walk_expr(&a.value);
+            }
+            return return_ty;
+        }
+        for (i, a) in args.iter().enumerate() {
+            let at = self.walk_expr(&a.value);
+            self.check_assignable(at, param_types[i], a.value.span);
+        }
+        return_ty
     }
 }
 
@@ -463,7 +529,23 @@ mod tests {
         let imports =
             ImportTable::collect(&result.file, FileId(0), &index, &mut interner, &mut diags);
         let mut env = TypeEnv::new(&index, &interner);
-        let resolution = Resolution::new();
+        crate::typecheck::env::register_top_level_signatures(
+            &mut env,
+            &result.file,
+            &imports,
+            &prefix,
+            &mut diags,
+        );
+        let mut resolution = Resolution::new();
+        crate::resolve::body::resolve_file_bodies(
+            &result.file,
+            &index,
+            &imports,
+            &interner,
+            &mut diags,
+            &mut resolution,
+            &prefix,
+        );
         // 找到 main 并检查其体。
         for item in &result.file.items {
             if let crate::syntax::ast::ItemKind::Fun(d) = &item.kind
@@ -553,6 +635,41 @@ mod tests {
     fn while_body_checked() {
         let (codes, _) = check(&main_returning("Unit", "while (1 < 2) { val z = 5 }"));
         assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    // ---- M2：调用 ----
+
+    fn check_program(src: &str) -> Vec<String> {
+        check(src).0
+    }
+
+    #[test]
+    fn top_level_call_returns_int() {
+        let codes = check_program(
+            "fun inc(x: Int): Int { return x + 1 }\nfun main(): Int { return inc(5) }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn call_arity_mismatch() {
+        let codes = check_program("fun one(): Int { return 1 }\nfun main(): Int { return one(5) }");
+        assert!(
+            codes
+                .iter()
+                .any(|c| c == "scoop::typecheck::arity_mismatch"),
+            "{codes:?}"
+        );
+    }
+
+    #[test]
+    fn call_arg_type_mismatch() {
+        let codes =
+            check_program("fun id(x: Int): Int { return x }\nfun main(): Int { return id(true) }");
+        assert!(
+            codes.iter().any(|c| c == "scoop::typecheck::type_mismatch"),
+            "{codes:?}"
+        );
     }
 
     // 抑制未用（TypeKind/Interner 在某些路径间接使用）。
