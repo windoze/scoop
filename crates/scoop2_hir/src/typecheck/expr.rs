@@ -434,7 +434,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let bool_ty = self.env.store.bool();
                 match builtin_unary(*op, cat, t, bool_ty) {
                     Some(t) => t,
-                    None => self.unsupported("该一元运算", expr.span),
+                    None => {
+                        // 尝试运算符重载方法调用（a.unaryMinus() / a.inv() 等）。
+                        let method = unop_to_method_name(*op);
+                        if let Some(m) = method.and_then(|n| self.env.interner.get(n)) {
+                            return self.method_call_return_type(t, m, &[], expr.span);
+                        }
+                        self.unsupported("该一元运算", expr.span)
+                    }
                 }
             }
             ExprKind::If {
@@ -877,8 +884,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         arg_types: &[TypeId],
         span: Span,
     ) -> TypeId {
-        // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
-        if self.env.store.is_nothing(receiver_ty) {
+        // Nothing / TypeParam 接收者（类型未知 / 泛型）→ lenient（返回 Nothing，不报错误）。
+        if self.env.store.is_nothing(receiver_ty)
+            || matches!(self.env.store.kind(receiver_ty), TypeKind::Param(_))
+        {
             return self.env.store.nothing();
         }
         let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty))
@@ -1113,7 +1122,7 @@ fn builtin_unary(op: UnaryOp, cat: ScalarCat, t: TypeId, bool_ty: TypeId) -> Opt
     }
 }
 
-/// BinaryOp → 运算符重载方法名（`+` → `plus`，`<` → `lt` 等）。逻辑/Elvis 运算为 None。
+/// BinaryOp → 运算符重载方法名。
 fn binop_to_method_name(op: BinaryOp) -> Option<&'static str> {
     use BinaryOp as B;
     Some(match op {
@@ -1135,6 +1144,15 @@ fn binop_to_method_name(op: BinaryOp) -> Option<&'static str> {
         B::Ne => "notEquals",
         B::Range => "rangeTo",
         B::LogAnd | B::LogOr | B::Elvis => return None,
+    })
+}
+
+/// UnaryOp → 运算符重载方法名（`-` → `unaryMinus`，`~` → `inv`，`!` → None (逻辑)）。
+fn unop_to_method_name(op: UnaryOp) -> Option<&'static str> {
+    Some(match op {
+        UnaryOp::Neg => "unaryMinus",
+        UnaryOp::BitNot => "inv",
+        UnaryOp::Not => return None,
     })
 }
 
