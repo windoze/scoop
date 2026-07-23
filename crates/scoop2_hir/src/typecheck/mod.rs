@@ -338,6 +338,8 @@ fn check_file_bodies(
                             }
                         }
                     }
+                    let mut tp_map = std::collections::HashMap::new();
+                    merge_type_params(&mut tp_map, d.type_params.as_ref());
                     check_member_funs(
                         &body.members,
                         this_ty,
@@ -346,6 +348,7 @@ fn check_file_bodies(
                         resolution,
                         diags,
                         package_prefix,
+                        &tp_map,
                     );
                 }
             }
@@ -361,6 +364,7 @@ fn check_file_bodies(
                             resolution,
                             diags,
                             package_prefix,
+                            &empty_tp,
                         );
                     }
                 }
@@ -895,6 +899,7 @@ fn check_one_fun(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_member_funs(
     members: &[crate::syntax::ast::TypeMember],
     this_ty: Option<crate::ty::TypeId>,
@@ -903,10 +908,12 @@ fn check_member_funs(
     resolution: &crate::resolve::Resolution,
     diags: &mut DiagnosticSink,
     package_prefix: &str,
+    enclosing_type_params: &std::collections::HashMap<
+        scoop2_base::Symbol,
+        crate::ty::TypeParamType,
+    >,
 ) {
     use crate::syntax::ast::TypeMemberKind;
-    use std::collections::HashMap;
-    let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
     for m in members {
         match &m.kind {
             TypeMemberKind::Fun(d) => {
@@ -917,7 +924,7 @@ fn check_member_funs(
                     resolution,
                     diags,
                     package_prefix,
-                    &empty_tp,
+                    enclosing_type_params,
                     this_ty,
                 );
             }
@@ -934,12 +941,16 @@ fn check_member_funs(
                         resolution,
                         diags,
                         package_prefix,
+                        enclosing_type_params,
                     );
                 }
             }
             TypeMemberKind::Type(d) => {
                 if let Some(b) = &d.body {
                     let nested = make_nominal_under(env, this_ty, d.name.symbol);
+                    // 嵌套类型：合并外层 + 自身类型参数。
+                    let mut merged = enclosing_type_params.clone();
+                    merge_type_params(&mut merged, d.type_params.as_ref());
                     check_member_funs(
                         &b.members,
                         nested,
@@ -948,10 +959,31 @@ fn check_member_funs(
                         resolution,
                         diags,
                         package_prefix,
+                        &merged,
                     );
                 }
             }
             _ => {}
+        }
+    }
+}
+
+/// 把类型参数列表合并进已有 map（用于嵌套类型累积外层 + 自身类型参数）。
+fn merge_type_params(
+    map: &mut std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamType>,
+    tp: Option<&crate::syntax::ast::TypeParamList>,
+) {
+    use scoop2_base::FileId;
+    if let Some(tp) = tp {
+        for p in &tp.params {
+            map.insert(
+                p.name.symbol,
+                crate::ty::TypeParamType {
+                    name: p.name.symbol,
+                    file: FileId(0),
+                    span: p.name.span,
+                },
+            );
         }
     }
 }
