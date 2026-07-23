@@ -253,6 +253,29 @@ fn check_file_bodies(
                     diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
                 }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
+                // 虚方法（open/abstract/override/interface 方法）不能引入方法级类型参数（spec P3 §4.5）。
+                if let Some(body) = &d.body {
+                    for m in &body.members {
+                        if let crate::syntax::ast::TypeMemberKind::Fun(fd) = &m.kind
+                            && fd.type_params.is_some()
+                        {
+                            let is_virtual = d.kind == crate::syntax::ast::TypeKind::Interface
+                                || fd.modifiers.iter().any(|m| {
+                                    matches!(
+                                        m.kind,
+                                        ModifierKind::Open
+                                            | ModifierKind::Abstract
+                                            | ModifierKind::Override
+                                    )
+                                });
+                            if is_virtual {
+                                diags.push(diagnostics::virtual_method_cannot_be_generic(
+                                    fd.name.span,
+                                ));
+                            }
+                        }
+                    }
+                }
                 if let Some(body) = &d.body {
                     check_member_funs(
                         &body.members,
