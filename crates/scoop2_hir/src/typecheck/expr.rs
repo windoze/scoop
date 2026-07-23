@@ -205,7 +205,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let (Some(sfqn), Some(efqn)) = (scalar_fqn(fk, self.env.interner), nominal_fqn_of(ek)) {
             return self.fqn_is_subtype(sfqn, efqn);
         }
-        // 函数：参数逆变 + 返回协变
+        // 函数：参数逆变 + 返回协变 + effect 行放宽（lenient：effect 行未完整实现）
         if let Some((ff, ef)) = func {
             return ff.params.len() == ef.params.len()
                 && ff
@@ -213,7 +213,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .iter()
                     .zip(&ef.params)
                     .all(|(fp, ep)| self.assignable(*ep, *fp))
-                && self.assignable(ff.return_ty, ef.return_ty);
+                && self.assignable(ff.return_ty, ef.return_ty)
+                && ff.receiver.is_some() == ef.receiver.is_some();
         }
         // Option 协变
         if let Some((fi, ei)) = opt {
@@ -518,14 +519,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 arms,
                 finally,
             } => {
-                self.walk_block(body);
+                let body_ty = self.walk_block(body);
                 for arm in arms {
                     self.walk_expr(&arm.body);
                 }
                 if let Some(f) = finally {
                     self.walk_block(f);
                 }
-                self.env.store.unit()
+                body_ty
             }
             ExprKind::TypeApply { callee, .. } => self.walk_expr(callee),
             ExprKind::Index { receiver, indices } => {
