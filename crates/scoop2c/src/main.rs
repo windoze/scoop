@@ -258,6 +258,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             let mut interner = scoop2_base::Interner::new();
             let mut diags = scoop2_base::diag::DiagnosticSink::new();
             let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
+            let mut user_indices: Vec<usize> = vec![0]; // 主文件始终是 user
             parsed.push(scoop2_syntax::parser::parse_file_with(
                 &source,
                 &mut interner,
@@ -269,9 +270,10 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     }
                 }
             }
-            // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）。
+            // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）→ 当作用户代码检查。
             for path in collect_overlay_files() {
                 if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                    user_indices.push(parsed.len());
                     parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
                 }
             }
@@ -286,7 +288,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     .map(|(i, pf)| scoop2_hir::resolve::InputFile {
                         file: &pf.file,
                         file_id: scoop2_base::FileId(i as u32),
-                        origin: if i == 0 {
+                        origin: if user_indices.contains(&i) {
                             scoop2_hir::resolve::InputOrigin::User
                         } else {
                             scoop2_hir::resolve::InputOrigin::Sysroot
