@@ -424,7 +424,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         {
                             return self.method_call_return_type(lt, m, &[rt], expr.span);
                         }
-                        self.unsupported("该运算符 / 操作数组合", expr.span)
+                        // 运算符方法也不可用（可能是泛型/未知类型操作数）→ lenient。
+                        self.env.store.nothing()
                     }
                 }
             }
@@ -896,7 +897,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return self.unsupported("该接收者的方法调用", span);
         };
         let Some(sigs) = self.env.member_signatures(fqn, method_name) else {
-            return self.unsupported("该方法（未注册）", span);
+            // 方法未注册（可能是 typealias / 继承 / 扩展）→ lenient Nothing。
+            return self.env.store.nothing();
         };
         let sigs: Vec<Signature> = sigs.to_vec();
         let non_generic: Vec<Signature> = sigs
