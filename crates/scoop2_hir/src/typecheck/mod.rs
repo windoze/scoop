@@ -134,6 +134,12 @@ fn check_file_bodies(
                 if has_annotation(&d.annotations, "Intrinsic", env.interner) && d.body.is_some() {
                     diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
                 }
+                // 普通函数必须提供函数体（@Intrinsic / @Extern 允许省略；abstract/interface 成员由声明上下文判定）。
+                let is_extern = has_annotation(&d.annotations, "Extern", env.interner);
+                let is_intrinsic = has_annotation(&d.annotations, "Intrinsic", env.interner);
+                if d.body.is_none() && !is_extern && !is_intrinsic {
+                    diags.push(diagnostics::fun_must_have_body(d.name.span));
+                }
                 // 扩展函数：this = 接收者类型（lowered）。
                 let ext_this_ty = d.receiver.as_ref().map(|recv| {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(

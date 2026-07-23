@@ -443,3 +443,12 @@ pub fn array_lit_type_annotation_required(span: Span) -> Diagnostic {
     )
     .with_primary(span, "这里")
 }
+
+/// `scoop::typecheck::fun_must_have_body`：普通函数必须提供函数体。
+pub fn fun_must_have_body(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::fun_must_have_body",
+        "普通函数必须提供函数体",
+    )
+    .with_primary(span, "这里")
+}
