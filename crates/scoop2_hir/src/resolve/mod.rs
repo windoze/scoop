@@ -81,6 +81,8 @@ pub fn run_program(inputs: &[InputFile], interner: &mut Interner, diags: &mut Di
         };
         collect::collect_file(inp.file, inp.file_id, cone, &mut index, interner, diags);
     }
+    // 解析待处理扩展（接收者 → FQN，登记为 `<receiver>.<name>` 成员）。
+    index.resolve_extensions(interner);
     // Phase 2：解析用户文件。
     for inp in inputs.iter().filter(|i| i.origin == InputOrigin::User) {
         let prefix = collect::package_prefix_of(inp.file, interner);

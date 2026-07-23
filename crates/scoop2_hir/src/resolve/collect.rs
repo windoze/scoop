@@ -309,6 +309,7 @@ impl<'a> Collector<'a> {
             visibility,
             modifiers,
             kind,
+            package_prefix: self.package_prefix.clone(),
         });
     }
 }

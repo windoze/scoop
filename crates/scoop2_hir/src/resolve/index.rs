@@ -7,7 +7,7 @@
 
 use hashbrown::HashMap;
 
-use scoop2_base::{FileId, Span, Symbol};
+use scoop2_base::{FileId, Interner, Span, Symbol};
 
 use crate::syntax::ast;
 
@@ -29,6 +29,8 @@ pub struct PendingExtension {
     pub visibility: Visibility,
     pub modifiers: ModifierSet,
     pub kind: SymbolKind,
+    /// 声明所在文件的 package 前缀（用于解析接收者 TypeRef）。
+    pub package_prefix: String,
 }
 
 /// 全局符号表。
@@ -137,6 +139,44 @@ impl Index {
         &self.pending_extensions
     }
 
+    /// 解析所有待处理扩展：把接收者 TypeRef 解析为 FQN，按 `<receiver>.<name>` 登记
+    /// （扩展函数→fun 命名空间，扩展属性→value 命名空间），使成员访问 `r.ext()` 命中。
+    /// 接收者无法解析（未知类型）的扩展被丢弃（类型错误留给 typecheck）。
+    pub fn resolve_extensions(&mut self, interner: &mut Interner) {
+        let pending = std::mem::take(&mut self.pending_extensions);
+        for ext in pending {
+            // 登记到 `<receiver>.<name>` 时，扩展函数/属性成为接收者的成员 fun/value。
+            let (member_kind, is_fun) = match ext.kind {
+                SymbolKind::ExtensionFun => (SymbolKind::Fun, true),
+                SymbolKind::ExtensionProperty => (SymbolKind::Value, false),
+                _ => continue,
+            };
+            let Some(receiver_fqn) =
+                type_ref_fqn(&ext.receiver, &ext.package_prefix, self, interner)
+            else {
+                continue;
+            };
+            let receiver_text = interner.resolve(receiver_fqn);
+            let name_text = interner.resolve(ext.name);
+            let member_fqn = interner.intern(&format!("{receiver_text}.{name_text}"));
+            let sym = DeclSymbol {
+                kind: member_kind,
+                fqn: member_fqn,
+                simple_name: ext.name,
+                span: ext.span,
+                file: ext.file,
+                cone: ext.cone,
+                visibility: ext.visibility,
+                modifiers: ext.modifiers,
+            };
+            if is_fun {
+                self.insert_fun(sym);
+            } else {
+                let _ = self.insert_value(sym);
+            }
+        }
+    }
+
     // ----- 查询 -----
 
     pub fn lookup(&self, fqn: Symbol) -> Option<&NamespacedSymbols> {
@@ -187,6 +227,39 @@ impl SymbolKind {
             self,
             SymbolKind::Type | SymbolKind::Object | SymbolKind::TypeAlias
         )
+    }
+}
+
+/// 把一个 TypeRef 的 nominal 根解析为 FQN（按 package 前缀 + Index 类型命名空间）。
+/// 单段 → `<prefix>.<name>`；多段 → 完整路径。非 Path（tuple/function/nullable）→ `None`。
+fn type_ref_fqn(
+    ty: &ast::TypeRef,
+    package_prefix: &str,
+    index: &Index,
+    interner: &Interner,
+) -> Option<Symbol> {
+    let ast::TypeRefKind::Path { path, .. } = &ty.kind else {
+        return None;
+    };
+    let fqn_text = if path.segments.len() == 1 {
+        let n = interner.resolve(path.segments[0].symbol);
+        if package_prefix.is_empty() {
+            n.to_string()
+        } else {
+            format!("{package_prefix}.{n}")
+        }
+    } else {
+        path.segments
+            .iter()
+            .map(|s| interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".")
+    };
+    let fqn = interner.get(&fqn_text)?;
+    if index.lookup(fqn).and_then(|ns| ns.ty.as_ref()).is_some() {
+        Some(fqn)
+    } else {
+        None
     }
 }
 
