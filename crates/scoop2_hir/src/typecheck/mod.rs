@@ -134,6 +134,17 @@ fn check_file_bodies(
                 if has_annotation(&d.annotations, "Intrinsic", env.interner) && d.body.is_some() {
                     diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
                 }
+                // 扩展函数：this = 接收者类型（lowered）。
+                let ext_this_ty = d.receiver.as_ref().map(|recv| {
+                    let mut lower = crate::typecheck::lower::TypeLowering::new(
+                        env,
+                        imports,
+                        empty_tp.clone(),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    lower.lower(recv)
+                });
                 check_one_fun(
                     d,
                     env,
@@ -142,7 +153,7 @@ fn check_file_bodies(
                     diags,
                     package_prefix,
                     &empty_tp,
-                    None,
+                    ext_this_ty,
                 );
             }
             ItemKind::Type(d) => {

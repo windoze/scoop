@@ -85,7 +85,15 @@ impl<'a> BodyResolver<'a> {
         match &item.kind {
             ItemKind::Fun(d) => {
                 if let Some(body) = &d.body {
-                    self.resolve_function(&d.params, body, None);
+                    // 扩展函数：this = 接收者类型 FQN。
+                    let this_type = d.receiver.as_ref().and_then(|recv| {
+                        if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &recv.kind {
+                            Some(self.fqn_of_simple(path.segments.last()?.symbol))
+                        } else {
+                            None
+                        }
+                    });
+                    self.resolve_function(&d.params, body, this_type);
                 }
             }
             ItemKind::Val(d) => {
