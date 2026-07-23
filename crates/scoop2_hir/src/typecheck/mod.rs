@@ -284,15 +284,12 @@ fn check_file_bodies(
                     // 类型体字段。
                     if let Some(body) = &d.body {
                         for m in &body.members {
-                            match &m.kind {
-                                crate::syntax::ast::TypeMemberKind::Property(pd) => {
-                                    let fname = env.interner.resolve(pd.name.symbol);
-                                    diags.push(diagnostics::intrinsic_type_field_not_supported(
-                                        &format!("{owner_fqn_text}.{fname}"),
-                                        pd.name.span,
-                                    ));
-                                }
-                                _ => {}
+                            if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind {
+                                let fname = env.interner.resolve(pd.name.symbol);
+                                diags.push(diagnostics::intrinsic_type_field_not_supported(
+                                    &format!("{owner_fqn_text}.{fname}"),
+                                    pd.name.span,
+                                ));
                             }
                         }
                     }
