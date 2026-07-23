@@ -168,20 +168,23 @@ fn check_file_bodies(
                         diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
                     }
                     if d.body.is_some() {
-                        diags.push(diagnostics::annotation_class_body_not_supported(
-                            d.name.span,
-                        ));
+                        diags.push(diagnostics::annotation_class_body_not_supported(item.span));
                     }
-                    if d.type_params.is_some() {
+                    // 类型参数（不含 eff 行）。
+                    if d.type_params
+                        .as_ref()
+                        .is_some_and(|tp| !tp.params.is_empty())
+                    {
                         diags.push(diagnostics::annotation_class_type_param_not_supported(
                             d.name.span,
                         ));
                     }
+                    // eff 行参数。
                     if d.type_params
                         .as_ref()
                         .is_some_and(|tp| tp.effect_row.is_some())
                     {
-                        diags.push(diagnostics::annotation_class_effect_param_not_supported(
+                        diags.push(diagnostics::annotation_class_eff_param_not_supported(
                             d.name.span,
                         ));
                     }

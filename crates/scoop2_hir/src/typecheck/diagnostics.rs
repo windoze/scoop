@@ -96,19 +96,19 @@ pub fn annotation_class_body_not_supported(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::annotation_class_type_param_not_supported`：annotation class 不支持类型参数。
+/// `scoop::typecheck::annotation_class_type_params_not_supported`：annotation class 不支持类型参数。
 pub fn annotation_class_type_param_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
-        "scoop::typecheck::annotation_class_type_param_not_supported",
+        "scoop::typecheck::annotation_class_type_params_not_supported",
         "annotation class 不支持类型参数",
     )
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::annotation_class_eff_param_not_supported`：annotation class 不支持 eff 参数。
+/// `scoop::typecheck::annotation_class_effect_param_not_supported`：annotation class 不支持 eff 参数。
 pub fn annotation_class_eff_param_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
-        "scoop::typecheck::annotation_class_eff_param_not_supported",
+        "scoop::typecheck::annotation_class_effect_param_not_supported",
         "annotation class 不支持 eff 参数",
     )
     .with_primary(span, "这里")
@@ -362,7 +362,7 @@ pub fn annotation_class_supertypes_not_supported(span: Span) -> Diagnostic {
 pub fn annotation_class_param_must_be_val(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_param_must_be_val",
-        format!("annotation class 参数 `{name}` 必须是 val"),
+        format!("annotation class 参数 `{name}` 必须是 `val`"),
     )
     .with_primary(span, "这里")
 }
@@ -371,7 +371,7 @@ pub fn annotation_class_param_must_be_val(name: &str, span: Span) -> Diagnostic 
 pub fn annotation_class_must_be_class(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_must_be_class",
-        "`annotation` 修饰符只能用于 class",
+        "`annotation` 修饰符必须是 `class`",
     )
     .with_primary(span, "这里")
 }
@@ -380,7 +380,7 @@ pub fn annotation_class_must_be_class(span: Span) -> Diagnostic {
 pub fn annotation_class_modifier_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_class_modifier_not_supported",
-        "annotation class 不支持其他修饰符",
+        "annotation class 不支持修饰符",
     )
     .with_primary(span, "这里")
 }
