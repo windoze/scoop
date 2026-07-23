@@ -313,9 +313,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.member_access_type(rt, *member, expr.span)
             }
             ExprKind::StructLit { name, fields } => self.type_struct_lit(*name, fields, expr.span),
+            ExprKind::TupleLit(els) => {
+                let types: Vec<TypeId> = els.iter().map(|e| self.walk_expr(e)).collect();
+                self.env.store.tuple(types)
+            }
             // 其余形式属于后续里程碑。
-            ExprKind::TupleLit(_)
-            | ExprKind::ArrayLit(_)
+            ExprKind::ArrayLit(_)
             | ExprKind::Lambda(_)
             | ExprKind::When { .. }
             | ExprKind::Handle { .. }
@@ -887,6 +890,12 @@ mod tests {
         let codes = check_program(
             "struct Point(val x: Int, val y: Int)\nfun main(): Point { return Point { x: 1, y: 2 } }",
         );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn tuple_literal_types() {
+        let codes = check_program("fun main(): (Int, Bool) { return (1, true) }");
         assert!(codes.is_empty(), "{codes:?}");
     }
 
