@@ -257,6 +257,46 @@ fn check_file_bodies(
                     // but has Annotation modifier, it's a non-class with annotation → error).
                     diags.push(diagnostics::annotation_class_must_be_class(d.name.span));
                 }
+                let is_intrinsic_type =
+                    has_annotation_type(&d.annotations, "Intrinsic", env.interner);
+                // @Intrinsic 类型不能声明字段（ctor param-property + body property + body var field）。
+                if is_intrinsic_type {
+                    let owner_fqn_text = {
+                        let name_text = env.interner.resolve(d.name.symbol);
+                        if package_prefix.is_empty() {
+                            name_text.to_string()
+                        } else {
+                            format!("{package_prefix}.{name_text}")
+                        }
+                    };
+                    // 主构造 param-property。
+                    if let Some(ctor) = &d.primary_ctor {
+                        for cp in &ctor.params {
+                            if cp.property.is_some() {
+                                let fname = env.interner.resolve(cp.name.symbol);
+                                diags.push(diagnostics::intrinsic_type_field_not_supported(
+                                    &format!("{owner_fqn_text}.{fname}"),
+                                    cp.name.span,
+                                ));
+                            }
+                        }
+                    }
+                    // 类型体字段。
+                    if let Some(body) = &d.body {
+                        for m in &body.members {
+                            match &m.kind {
+                                crate::syntax::ast::TypeMemberKind::Property(pd) => {
+                                    let fname = env.interner.resolve(pd.name.symbol);
+                                    diags.push(diagnostics::intrinsic_type_field_not_supported(
+                                        &format!("{owner_fqn_text}.{fname}"),
+                                        pd.name.span,
+                                    ));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
                 // 虚方法（open/abstract/override/interface 方法）不能引入方法级类型参数（spec P3 §4.5）。
                 if let Some(body) = &d.body {
@@ -397,6 +437,15 @@ fn check_main_signature(
             }
         }
     }
+}
+
+/// 检查类型声明是否带有指定注解。
+fn has_annotation_type(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    name: &str,
+    interner: &scoop2_base::Interner,
+) -> bool {
+    has_annotation(anns, name, interner)
 }
 
 /// 检查注解使用路径末段文本是否匹配给定名称。

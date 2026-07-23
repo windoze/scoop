@@ -454,6 +454,24 @@ pub fn fun_must_have_body_detail(what: &str, span: Span) -> Diagnostic {
     Diagnostic::error("scoop::typecheck::fun_must_have_body", what).with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::intrinsic_type_field_not_supported`：@Intrinsic 类型不能声明字段。
+pub fn intrinsic_type_field_not_supported(field_fqn: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::intrinsic_type_field_not_supported",
+        format!("`@Intrinsic` 类型不能声明字段：{field_fqn}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::intrinsic_type_interface_override_must_be_bodied_regular_method`。
+pub fn intrinsic_type_interface_override_must_be_bodied_regular_method(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::intrinsic_type_interface_override_must_be_bodied_regular_method",
+        "`@Intrinsic` 类型的 interface override 必须是带 body 的普通 method",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::entry_point_main_invalid_signature`：main 函数签名不合法。
 pub fn entry_point_main_invalid_signature(detail: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
