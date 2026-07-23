@@ -120,6 +120,21 @@ impl<'a> Collector<'a> {
         self.interner.intern(text)
     }
 
+    /// 把超类型路径解析为 FQN（单段 → package.name；多段 → 完整路径）。
+    fn supertype_fqn(&mut self, path: &ast::TypePath) -> Sym {
+        if path.segments.len() == 1 {
+            self.fqn_of(path.segments[0].symbol)
+        } else {
+            let text = path
+                .segments
+                .iter()
+                .map(|s| self.interner.resolve(s.symbol))
+                .collect::<Vec<_>>()
+                .join(".");
+            self.intern_str(&text)
+        }
+    }
+
     /// 构造一个成员符号（FQN 由调用方给出，不用 package 前缀）。
     fn make_member_symbol(
         &mut self,
@@ -257,6 +272,18 @@ impl<'a> Collector<'a> {
                 self.insert_type(sym, d.name);
                 if let Some(cat) = NominalCategory::from_ast_type_kind(d.kind) {
                     self.index.record_category(owner_fqn, cat);
+                }
+                // 记录超类型（`: Base(args), Iface`）用于子类型 / assignability。
+                let sup_fqns: Vec<Sym> = d
+                    .supertypes
+                    .iter()
+                    .filter_map(|st| match &st.ty.kind {
+                        ast::TypeRefKind::Path { path, .. } => Some(self.supertype_fqn(path)),
+                        _ => None,
+                    })
+                    .collect();
+                if !sup_fqns.is_empty() {
+                    self.index.record_supertypes(owner_fqn, sup_fqns);
                 }
                 // 主构造 param-property（`class C(val x: T)`）：x 是 C 的属性成员。
                 if let Some(ctor) = &d.primary_ctor {

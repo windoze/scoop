@@ -120,9 +120,73 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    /// M1 赋值性：相等，或 `found` 为 `Nothing`。
+    /// 赋值性（M1+）：相等、`Nothing` bottom、nominal 子类型（继承/接口）、
+    /// 函数逆变/协变、Option/元组协变。
     fn assignable(&self, found: TypeId, expected: TypeId) -> bool {
-        found == expected || self.env.store.is_nothing(found)
+        if found == expected || self.env.store.is_nothing(found) {
+            return true;
+        }
+        let fk = self.env.store.kind(found);
+        let ek = self.env.store.kind(expected);
+        // 提取所有需递归检查的数据到 owned（释放 store 借用）。
+        let nominal = (nominal_fqn_of(fk), nominal_fqn_of(ek));
+        let func = match (fk, ek) {
+            (
+                TypeKind::Ref(crate::ty::RefTypeKind::Function(ff)),
+                TypeKind::Ref(crate::ty::RefTypeKind::Function(ef)),
+            ) => Some((ff.clone(), ef.clone())),
+            _ => None,
+        };
+        let opt = match (fk, ek) {
+            (
+                TypeKind::Value(crate::ty::ValueTypeKind::Option(fi)),
+                TypeKind::Value(crate::ty::ValueTypeKind::Option(ei)),
+            ) => Some((*fi, *ei)),
+            _ => None,
+        };
+        let tup = match (fk, ek) {
+            (
+                TypeKind::Value(crate::ty::ValueTypeKind::Tuple(fs)),
+                TypeKind::Value(crate::ty::ValueTypeKind::Tuple(es)),
+            ) => Some((fs.clone(), es.clone())),
+            _ => None,
+        };
+        // nominal 子类型
+        if let (Some(ffqn), Some(efqn)) = nominal {
+            return self.fqn_is_subtype(ffqn, efqn);
+        }
+        // 函数：参数逆变 + 返回协变
+        if let Some((ff, ef)) = func {
+            return ff.params.len() == ef.params.len()
+                && ff
+                    .params
+                    .iter()
+                    .zip(&ef.params)
+                    .all(|(fp, ep)| self.assignable(*ep, *fp))
+                && self.assignable(ff.return_ty, ef.return_ty);
+        }
+        // Option 协变
+        if let Some((fi, ei)) = opt {
+            return self.assignable(fi, ei);
+        }
+        // 元组协变
+        if let Some((fs, es)) = tup {
+            return fs.len() == es.len()
+                && fs.iter().zip(&es).all(|(f, e)| self.assignable(*f, *e));
+        }
+        false
+    }
+
+    /// FQN 子类型 DFS：fqn_a == fqn_b 或 fqn_a 的超类型链包含 fqn_b。
+    fn fqn_is_subtype(&self, fqn_a: Symbol, fqn_b: Symbol) -> bool {
+        if fqn_a == fqn_b {
+            return true;
+        }
+        self.env
+            .index
+            .supertypes_of(fqn_a)
+            .iter()
+            .any(|&sup| self.fqn_is_subtype(sup, fqn_b))
     }
 
     fn check_assignable(&mut self, found: TypeId, expected: TypeId, span: Span) {
@@ -1172,6 +1236,14 @@ mod tests {
     fn when_expr_lub_same_type() {
         let codes = check_program(
             "fun main(): Int { val v = 1\nval r = when (v) { 1 -> 2\nelse -> 3 }\nreturn r }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn subtyping_interface_impl() {
+        let codes = check_program(
+            "interface Animal {}\nstruct Dog : Animal {}\nfun takeAnimal(a: Animal) {}\nfun main(): Unit { takeAnimal(Dog {}) }",
         );
         assert!(codes.is_empty(), "{codes:?}");
     }

@@ -51,6 +51,8 @@ pub struct Index {
     pending_extensions: Vec<PendingExtension>,
     /// nominal 类型 FQN → 类别（供 typecheck 判定 ref/value）。
     categories: HashMap<Symbol, NominalCategory>,
+    /// nominal 类型 FQN → 直接超类型 FQN 列表（供 typecheck 子类型 / assignability）。
+    supertypes: HashMap<Symbol, Vec<Symbol>>,
 }
 
 /// 插入类型/值命名空间的结果：`Ok(())` 或 `Err(first)`（首定义的 span）。
@@ -232,6 +234,19 @@ impl Index {
     /// 查询 nominal 类型的类别。
     pub fn category(&self, fqn: Symbol) -> Option<NominalCategory> {
         self.categories.get(&fqn).copied()
+    }
+
+    /// 记录一个 nominal 类型的直接超类型 FQN 列表。
+    pub fn record_supertypes(&mut self, fqn: Symbol, supertypes: Vec<Symbol>) {
+        self.supertypes.insert(fqn, supertypes);
+    }
+
+    /// 查询一个 nominal 类型的直接超类型 FQN 列表。
+    pub fn supertypes_of(&self, fqn: Symbol) -> &[Symbol] {
+        self.supertypes
+            .get(&fqn)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 }
 
