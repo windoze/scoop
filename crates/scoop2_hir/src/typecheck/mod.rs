@@ -131,6 +131,8 @@ fn check_file_bodies(
     use std::collections::HashMap;
     let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
     for item in &file.items {
+        // @Experimental 注解校验（item 级目标是合法的）。
+        check_experimental_annotations(item_annotations(item), false, env.interner, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
                 // @Intrinsic 函数不能有 body。
@@ -574,6 +576,19 @@ fn annotation_class_error(
     None
 }
 
+/// 提取 item 的注解（各 decl 都把注解放在顶层字段）。
+fn item_annotations(item: &crate::syntax::ast::Item) -> &[crate::syntax::ast::AnnotationUse] {
+    use crate::syntax::ast::ItemKind;
+    match &item.kind {
+        ItemKind::Fun(d) => &d.annotations,
+        ItemKind::Type(d) => &d.annotations,
+        ItemKind::Val(d) => &d.annotations,
+        ItemKind::Object(d) => &d.annotations,
+        ItemKind::TypeAlias(d) => &d.annotations,
+        ItemKind::ExtensionProperty(d) => &d.annotations,
+    }
+}
+
 /// 检查注解使用路径末段文本是否匹配给定名称。
 fn has_annotation(
     anns: &[crate::syntax::ast::AnnotationUse],
@@ -586,6 +601,134 @@ fn has_annotation(
             .last()
             .is_some_and(|s| interner.resolve(s.symbol) == name)
     })
+}
+
+/// 校验 `@Experimental(feature = "x")` 注解（spec §15.x）。`is_expr_target` 表示用于
+/// 表达式前缀（非法目标）。
+pub(crate) fn check_experimental_annotation(
+    ann: &crate::syntax::ast::AnnotationUse,
+    is_expr_target: bool,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    let name_span = ann
+        .path
+        .segments
+        .last()
+        .map(|s| s.span)
+        .unwrap_or(ann.path.span);
+    if is_expr_target {
+        diags.push(diagnostics::builtin_annotation_invalid_target(
+            "@Experimental",
+            "函数 / 类型 / 属性 / 文件",
+            name_span,
+        ));
+        return;
+    }
+    use crate::syntax::ast::ExprKind;
+    if ann.args.is_empty() {
+        diags.push(diagnostics::annotation_arg_missing_required(
+            "@Experimental",
+            "feature",
+            name_span,
+        ));
+        return;
+    }
+    let mut feature_count = 0u32;
+    let mut feature_value: Option<&ExprKind> = None;
+    let mut has_positional = false;
+    let mut has_other_named = false;
+    for arg in &ann.args {
+        match &arg.name {
+            Some(n) if interner.resolve(n.symbol) == "feature" => {
+                feature_count += 1;
+                feature_value = Some(&arg.value.kind);
+            }
+            Some(_) => has_other_named = true,
+            None => has_positional = true,
+        }
+    }
+    if has_positional || feature_count != 1 || has_other_named {
+        diags.push(diagnostics::experimental_annotation_invalid_arg_shape(
+            name_span,
+        ));
+        return;
+    }
+    if !matches!(feature_value, Some(ExprKind::StringLit(_))) {
+        diags.push(diagnostics::experimental_annotation_arg_must_be_string(
+            name_span,
+        ));
+    }
+}
+
+/// 扫描一组注解中的 `@Experimental` / `@Suppress`，逐个校验。
+pub(crate) fn check_experimental_annotations(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    is_expr_target: bool,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        match interner.resolve(last.symbol) {
+            "Experimental" => {
+                check_experimental_annotation(ann, is_expr_target, interner, diags);
+            }
+            "Suppress" => {
+                check_suppress_annotation(ann, interner, diags);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// 校验 `@Suppress("code", ...)` 注解（spec §15.x）。
+fn check_suppress_annotation(
+    ann: &crate::syntax::ast::AnnotationUse,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ExprKind;
+    let name_span = ann
+        .path
+        .segments
+        .last()
+        .map(|s| s.span)
+        .unwrap_or(ann.path.span);
+    if ann.args.is_empty() {
+        diags.push(diagnostics::suppress_annotation_requires_warning_codes(
+            name_span,
+        ));
+        return;
+    }
+    for arg in &ann.args {
+        let span = arg.value.span;
+        if arg.name.is_some() {
+            diags.push(diagnostics::suppress_annotation_named_args_not_supported(
+                span,
+            ));
+            return;
+        }
+        let ExprKind::StringLit(s) = &arg.value.kind else {
+            diags.push(diagnostics::suppress_annotation_arg_must_be_string(span));
+            return;
+        };
+        if !is_known_warning_code(&s.value) {
+            diags.push(diagnostics::unknown_suppress_warning_code(&s.value, span));
+            return;
+        }
+    }
+    let _ = interner;
+}
+
+/// 已知 warning code（复刻 legacy `is_known_warning_code`）。
+fn is_known_warning_code(code: &str) -> bool {
+    matches!(
+        code,
+        "deprecated" | "enum-size-disparity" | "redundant-when-else"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

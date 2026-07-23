@@ -521,9 +521,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             ExprKind::Annotated {
-                annotations: _,
+                annotations,
                 expr: e,
-            } => self.walk_expr(e),
+            } => {
+                // 表达式前缀注解：`@Experimental` 等在此为非法目标。
+                super::check_experimental_annotations(
+                    annotations,
+                    true,
+                    self.env.interner,
+                    self.diags,
+                );
+                self.walk_expr(e)
+            }
             ExprKind::SafeMemberAccess { receiver, member } => {
                 let rt = self.walk_expr(receiver);
                 let base_ty = match self.env.store.kind(rt) {

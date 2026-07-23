@@ -123,6 +123,69 @@ pub fn builtin_annotation_invalid_target(ann: &str, allowed: &str, span: Span) -
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::annotation_arg_missing_required`：注解缺少必填参数。
+pub fn annotation_arg_missing_required(ann: &str, param: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_arg_missing_required",
+        format!("注解 `{ann}` 缺少必填参数 `{param}`"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::experimental_annotation_arg_must_be_string`。
+pub fn experimental_annotation_arg_must_be_string(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::experimental_annotation_arg_must_be_string",
+        "`@Experimental` 的 `feature` 参数必须是字符串字面量",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::experimental_annotation_invalid_arg_shape`。
+pub fn experimental_annotation_invalid_arg_shape(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::experimental_annotation_invalid_arg_shape",
+        "`@Experimental` 只支持固定形状 `@Experimental(feature = \"some_feature\")`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::suppress_annotation_requires_warning_codes`。
+pub fn suppress_annotation_requires_warning_codes(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::suppress_annotation_requires_warning_codes",
+        "`@Suppress` 至少需要一个 warning code",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::suppress_annotation_named_args_not_supported`。
+pub fn suppress_annotation_named_args_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::suppress_annotation_named_args_not_supported",
+        "`@Suppress` 不支持命名参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::suppress_annotation_arg_must_be_string`。
+pub fn suppress_annotation_arg_must_be_string(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::suppress_annotation_arg_must_be_string",
+        "`@Suppress` 的参数必须是字符串字面量",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unknown_suppress_warning_code`。
+pub fn unknown_suppress_warning_code(code: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unknown_suppress_warning_code",
+        format!("未知的 warning code：`{code}`"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(span: Span) -> Diagnostic {
     Diagnostic::error(
