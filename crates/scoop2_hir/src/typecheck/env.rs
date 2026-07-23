@@ -4,7 +4,7 @@
 //! [`Interner`] 的引用，并提供**内建类型表**（标量 / String / Unit / Nothing）。
 //! nominal 类型（class/struct/enum/...）的 ref/value 由 [`Index::category`] 决定。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{FileId, Interner, Symbol};
@@ -38,6 +38,8 @@ pub struct TypeEnv<'i> {
     ctors: HashMap<Symbol, Vec<TypeId>>,
     /// 类型 FQN → (方法名 → 签名重载集)。成员函数（含扩展）。
     member_signatures: HashMap<Symbol, HashMap<Symbol, Vec<Signature>>>,
+    /// 带 `@CLayout` 注解的 struct FQN 集合（native `@Extern` ABI 允许的 nominal 值类型）。
+    clayout_structs: HashSet<Symbol>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -50,7 +52,13 @@ impl<'i> TypeEnv<'i> {
             members: HashMap::new(),
             ctors: HashMap::new(),
             member_signatures: HashMap::new(),
+            clayout_structs: HashSet::new(),
         }
+    }
+
+    /// `@CLayout` struct 查询（native `@Extern` ABI 用）。
+    pub fn is_clayout_struct(&self, fqn: Symbol) -> bool {
+        self.clayout_structs.contains(&fqn)
     }
 
     /// 顶层函数（非扩展、非成员）的签名重载集。
@@ -403,6 +411,33 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 收集文件中带 `@CLayout` 注解的 struct FQN（native `@Extern` ABI 允许的 nominal 值类型）。
+pub fn register_clayout_structs(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+    for item in &file.items {
+        let ItemKind::Type(d) = &item.kind else {
+            continue;
+        };
+        if d.kind != crate::syntax::ast::TypeKind::Struct {
+            continue;
+        }
+        if d.annotations
+            .iter()
+            .any(|a| annotation_last_text(a, env.interner) == Some("CLayout"))
+        {
+            env.clayout_structs
+                .insert(fqn_of(env, package_prefix, d.name.symbol));
+        }
+    }
+}
+
+/// 注解路径末段文本（用于 `@CLayout` 等内建注解识别）。
+fn annotation_last_text<'i>(
+    ann: &crate::syntax::ast::AnnotationUse,
+    interner: &'i Interner,
+) -> Option<&'i str> {
+    ann.path.segments.last().map(|s| interner.resolve(s.symbol))
 }
 
 /// 把类型的主构造参数类型降级并登记进 `env.ctors`（用于 `Type(args)` 构造器调用）。

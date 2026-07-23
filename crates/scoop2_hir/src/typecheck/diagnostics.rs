@@ -480,3 +480,151 @@ pub fn entry_point_main_invalid_signature(detail: &str, span: Span) -> Diagnosti
     )
     .with_primary(span, "这里")
 }
+
+// ===== @Extern 函数 ABI 校验（spec §15.x）=====
+
+/// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。
+pub fn extern_annotation_abi_not_supported(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_annotation_abi_not_supported",
+        format!("暂不支持的 `@Extern` ABI：{name}（当前仅支持 \"c\" / \"scoop\"）"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_annotation_arg_duplicate`：`@Extern` 命名参数重复指定。
+pub fn extern_annotation_arg_duplicate(param: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_annotation_arg_duplicate",
+        format!("`@Extern` 参数 `{param}` 重复指定"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_annotation_args_invalid`：`@Extern` 实参形态不合法。
+pub fn extern_annotation_args_invalid(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_annotation_args_invalid",
+        "`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`，以及函数声明上的 `abi`、`callingConvention`（字符串字面量）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::calling_convention_not_supported`：暂不支持的 calling convention。
+pub fn calling_convention_not_supported(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::calling_convention_not_supported",
+        format!("暂不支持的 calling convention：{name}（当前仅支持默认 C ABI：\"c\"/\"cdecl\"）"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_calling_convention_annotation_not_allowed`。
+pub fn extern_fun_calling_convention_annotation_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_calling_convention_annotation_not_allowed",
+        "`@Extern` 函数不再支持单独叠加 `@CallingConvention`；请改用 `@Extern(..., callingConvention = \"...\")`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_c_abi_modifier_redundant`：`abi = "c"` 已隐含该修饰符。
+pub fn extern_fun_c_abi_modifier_redundant(annotation: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_c_abi_modifier_redundant",
+        format!("`abi = \"c\"` 的 `@Extern` 已隐含 `{annotation}`，不允许重复标注"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_scoop_abi_modifier_not_supported`：scoop ABI 不支持该修饰符。
+pub fn extern_fun_scoop_abi_modifier_not_supported(annotation: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_scoop_abi_modifier_not_supported",
+        format!("`abi = \"scoop\"` 的 `@Extern` 不支持 `{annotation}`"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported`。
+pub fn extern_fun_scoop_abi_calling_convention_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported",
+        "`abi = \"scoop\"` 当前不支持 `callingConvention`；Managed ABI 不是 machine calling convention 扩展点",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_eff_param_not_allowed`：`@Extern` 不允许 effect row 参数。
+pub fn extern_fun_eff_param_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_eff_param_not_allowed",
+        "`@Extern` 函数不允许声明 effect row 参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_effects_not_allowed`：`@Extern` 不允许非 Pure effect row。
+pub fn extern_fun_effects_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_effects_not_allowed",
+        "`@Extern` 函数不允许声明非 Pure 的 effect row",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_scoop_abi_requires_top_level_fun`。
+pub fn extern_fun_scoop_abi_requires_top_level_fun(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_scoop_abi_requires_top_level_fun",
+        "`abi = \"scoop\"` 当前只支持无 receiver 的顶层函数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_scoop_abi_generics_not_supported`。
+pub fn extern_fun_scoop_abi_generics_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_scoop_abi_generics_not_supported",
+        "`abi = \"scoop\"` 当前不支持泛型函数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_scoop_abi_callable_surface_not_supported`。
+pub fn extern_fun_scoop_abi_callable_surface_not_supported(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_scoop_abi_callable_surface_not_supported",
+        format!("`abi = \"scoop\"` v1 暂不支持 function value / continuation 跨边界：{found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_fun_signature_not_supported_by_native_abi`。
+pub fn extern_fun_signature_not_supported_by_native_abi(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_fun_signature_not_supported_by_native_abi",
+        format!(
+            "`@Extern` 函数的 native ABI 签名只接受当前 native value surface：标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple，以及 `@CLayout` struct；不接受 {found}；长期 opaque token 请 round-trip `GcHandle.raw: UIntPtr`，短时裸地址借出请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::extern_var_initializer_not_allowed`：extern 顶层变量不允许 initializer。
+pub fn extern_var_initializer_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extern_var_initializer_not_allowed",
+        "extern 顶层变量声明必须省略 initializer（外部符号由链接提供）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::nogc_call_forbidden`：`@NoGC` 上下文禁止调用受管函数。
+pub fn nogc_call_forbidden(callee: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::nogc_call_forbidden",
+        format!("`@NoGC` 上下文禁止调用非 `@NoGC` / native `@Extern` 函数：{callee}"),
+    )
+    .with_primary(span, "这里")
+}

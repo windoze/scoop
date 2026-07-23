@@ -15,6 +15,7 @@
 pub mod diagnostics;
 pub mod env;
 pub mod expr;
+pub mod extern_fn;
 pub mod lower;
 
 pub use env::TypeEnv;
@@ -101,6 +102,7 @@ pub fn run_typecheck(
         env::register_top_level_signatures(&mut env, inp.file, imports, prefix, diags);
         env::register_members(&mut env, inp.file, imports, prefix, diags);
         env::register_constructors(&mut env, inp.file, imports, prefix, diags);
+        env::register_clayout_structs(&mut env, inp.file, prefix);
     }
     // 检查每个用户文件的函数体。
     for uf in &user_files {
@@ -144,6 +146,17 @@ fn check_file_bodies(
                         "普通顶层函数必须提供函数体"
                     };
                     diags.push(diagnostics::fun_must_have_body_detail(what, d.name.span));
+                }
+                // @Extern 函数 ABI 契约校验（顶层）。
+                if is_extern {
+                    extern_fn::check_extern_fun(
+                        env,
+                        imports,
+                        diags,
+                        package_prefix,
+                        d,
+                        extern_fn::ExternSite::TopLevel,
+                    );
                 }
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);
@@ -268,6 +281,14 @@ fn check_file_bodies(
                             package_prefix,
                         );
                     }
+                }
+            }
+            ItemKind::Val(d) => {
+                // @Extern 顶层变量声明必须省略 initializer（外部符号由链接提供）。
+                if has_annotation(&d.annotations, "Extern", env.interner)
+                    && let Some(init) = &d.init
+                {
+                    extern_fn::check_extern_var(diags, init.span);
                 }
             }
             _ => {}
