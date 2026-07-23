@@ -115,7 +115,7 @@ pub fn run_typecheck(
     }
 }
 
-/// 检查一个文件的**顶层**函数体（含 `= expr` 表达式体）。
+/// 检查一个文件的**顶层 + 成员**函数体。
 fn check_file_bodies(
     file: &crate::syntax::ast::File,
     env: &mut TypeEnv,
@@ -126,24 +126,188 @@ fn check_file_bodies(
 ) {
     use crate::syntax::ast::ItemKind;
     use std::collections::HashMap;
+    let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
     for item in &file.items {
-        if let ItemKind::Fun(d) = &item.kind
-            && let Some(body) = &d.body
-        {
-            let type_params: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> =
-                HashMap::new(); // 泛型函数实例化推迟
-            expr::check_function(
-                &d.params,
-                d.return_ty.as_ref(),
-                body,
-                env,
-                imports,
-                resolution,
-                diags,
-                package_prefix,
-                type_params,
-                None,
-            );
+        match &item.kind {
+            ItemKind::Fun(d) => {
+                check_one_fun(
+                    d,
+                    env,
+                    imports,
+                    resolution,
+                    diags,
+                    package_prefix,
+                    &empty_tp,
+                    None,
+                );
+            }
+            ItemKind::Type(d) => {
+                let this_ty = make_nominal(env, package_prefix, d.name.symbol);
+                if let Some(body) = &d.body {
+                    check_member_funs(
+                        &body.members,
+                        this_ty,
+                        env,
+                        imports,
+                        resolution,
+                        diags,
+                        package_prefix,
+                    );
+                }
+            }
+            ItemKind::Object(d) => {
+                if let Some(name) = &d.name {
+                    let this_ty = make_nominal(env, package_prefix, name.symbol);
+                    if let Some(body) = &d.body {
+                        check_member_funs(
+                            &body.members,
+                            this_ty,
+                            env,
+                            imports,
+                            resolution,
+                            diags,
+                            package_prefix,
+                        );
+                    }
+                }
+            }
+            _ => {}
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_one_fun(
+    d: &crate::syntax::ast::FunDecl,
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    resolution: &crate::resolve::Resolution,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    type_params: &std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamType>,
+    this_ty: Option<crate::ty::TypeId>,
+) {
+    let Some(body) = &d.body else { return };
+    expr::check_function(
+        &d.params,
+        d.return_ty.as_ref(),
+        body,
+        env,
+        imports,
+        resolution,
+        diags,
+        package_prefix,
+        type_params.clone(),
+        this_ty,
+    );
+}
+
+fn check_member_funs(
+    members: &[crate::syntax::ast::TypeMember],
+    this_ty: Option<crate::ty::TypeId>,
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    resolution: &crate::resolve::Resolution,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+) {
+    use crate::syntax::ast::TypeMemberKind;
+    use std::collections::HashMap;
+    let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
+    for m in members {
+        match &m.kind {
+            TypeMemberKind::Fun(d) => {
+                check_one_fun(
+                    d,
+                    env,
+                    imports,
+                    resolution,
+                    diags,
+                    package_prefix,
+                    &empty_tp,
+                    this_ty,
+                );
+            }
+            TypeMemberKind::Object(d) => {
+                if let Some(name) = &d.name
+                    && let Some(b) = &d.body
+                {
+                    let nested = make_nominal_under(env, this_ty, name.symbol);
+                    check_member_funs(
+                        &b.members,
+                        nested,
+                        env,
+                        imports,
+                        resolution,
+                        diags,
+                        package_prefix,
+                    );
+                }
+            }
+            TypeMemberKind::Type(d) => {
+                if let Some(b) = &d.body {
+                    let nested = make_nominal_under(env, this_ty, d.name.symbol);
+                    check_member_funs(
+                        &b.members,
+                        nested,
+                        env,
+                        imports,
+                        resolution,
+                        diags,
+                        package_prefix,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn make_nominal(
+    env: &mut TypeEnv,
+    prefix: &str,
+    name: scoop2_base::Symbol,
+) -> Option<crate::ty::TypeId> {
+    let name_text = env.interner.resolve(name);
+    let fqn_text = if prefix.is_empty() {
+        name_text.to_string()
+    } else {
+        format!("{prefix}.{name_text}")
+    };
+    let fqn = env.interner.get(&fqn_text)?;
+    let nominal = crate::ty::NominalType {
+        fqn,
+        args: vec![],
+        eff: None,
+    };
+    Some(if env.is_reference_nominal(fqn) {
+        env.store.ref_nominal(nominal)
+    } else {
+        env.store.value_nominal(nominal)
+    })
+}
+
+fn make_nominal_under(
+    env: &mut TypeEnv,
+    parent: Option<crate::ty::TypeId>,
+    name: scoop2_base::Symbol,
+) -> Option<crate::ty::TypeId> {
+    let pfqn = parent.and_then(|tid| match env.store.kind(tid) {
+        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+        | crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
+    })?;
+    let pt = env.interner.resolve(pfqn);
+    let nt = env.interner.resolve(name);
+    let fqn = env.interner.get(&format!("{pt}.{nt}"))?;
+    let nominal = crate::ty::NominalType {
+        fqn,
+        args: vec![],
+        eff: None,
+    };
+    Some(if env.is_reference_nominal(fqn) {
+        env.store.ref_nominal(nominal)
+    } else {
+        env.store.value_nominal(nominal)
+    })
 }
