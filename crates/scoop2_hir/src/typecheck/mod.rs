@@ -64,6 +64,7 @@ pub fn run_typecheck(
         prefix: String,
         imports: imports::ImportTable,
         resolution: Resolution,
+        trusted: bool,
     }
     let mut user_files: Vec<UserFile> = Vec::new();
     for inp in inputs.iter().filter(|i| i.origin == InputOrigin::User) {
@@ -85,6 +86,7 @@ pub fn run_typecheck(
             prefix,
             imports,
             resolution,
+            trusted: inp.trusted,
         });
     }
 
@@ -114,6 +116,7 @@ pub fn run_typecheck(
             &uf.resolution,
             diags,
             &uf.prefix,
+            uf.trusted,
         );
     }
 }
@@ -126,6 +129,7 @@ fn check_file_bodies(
     resolution: &crate::resolve::Resolution,
     diags: &mut DiagnosticSink,
     package_prefix: &str,
+    trusted: bool,
 ) {
     use crate::syntax::ast::{ItemKind, ModifierKind};
     use std::collections::{HashMap, HashSet};
@@ -135,6 +139,15 @@ fn check_file_bodies(
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
+                // @Intrinsic 只能在受信任 syslib cone 中声明。
+                if !trusted && has_annotation(&d.annotations, "Intrinsic", env.interner) {
+                    let name_text = env.interner.resolve(d.name.symbol).to_string();
+                    diags.push(diagnostics::intrinsic_decl_requires_trusted_syslib(
+                        "函数",
+                        &name_text,
+                        d.name.span,
+                    ));
+                }
                 // @Intrinsic 函数不能有 body。
                 if has_annotation(&d.annotations, "Intrinsic", env.interner) && d.body.is_some() {
                     diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
@@ -237,6 +250,22 @@ fn check_file_bodies(
                     release_hook::check_release_hook(env, diags, d, package_prefix);
                 }
                 let is_intrinsic_type = has_annotation(&d.annotations, "Intrinsic", env.interner);
+                // @Intrinsic 只能在受信任 syslib cone 中声明。
+                if !trusted && is_intrinsic_type {
+                    let fqn_text = {
+                        let name_text = env.interner.resolve(d.name.symbol);
+                        if package_prefix.is_empty() {
+                            name_text.to_string()
+                        } else {
+                            format!("{package_prefix}.{name_text}")
+                        }
+                    };
+                    diags.push(diagnostics::intrinsic_decl_requires_trusted_syslib(
+                        "类型",
+                        &fqn_text,
+                        d.name.span,
+                    ));
+                }
                 // @Intrinsic 类型不能声明字段（ctor param-property + body property + body var field）。
                 if is_intrinsic_type {
                     let owner_fqn_text = {

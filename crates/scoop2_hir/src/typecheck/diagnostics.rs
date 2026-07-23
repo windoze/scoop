@@ -205,10 +205,10 @@ pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
 }
 
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
-pub fn intrinsic_decl_requires_trusted_syslib(span: Span) -> Diagnostic {
+pub fn intrinsic_decl_requires_trusted_syslib(kind: &str, name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::intrinsic_decl_requires_trusted_syslib",
-        "@Intrinsic 声明只能在受信任的系统库（sysroot）中使用",
+        format!("{kind} `{name}` 只能在 trusted `syslib` cone 中声明 `@Intrinsic`"),
     )
     .with_primary(span, "这里")
 }

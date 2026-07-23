@@ -44,6 +44,9 @@ pub struct InputFile<'a> {
     pub file: &'a crate::syntax::ast::File,
     pub file_id: FileId,
     pub origin: InputOrigin,
+    /// 该文件是否属于受信任的 syslib cone（sysroot 或 fixture `.sysroot` overlay）。
+    /// `@Intrinsic` 等只在受信任 cone 中允许的声明以此为据。
+    pub trusted: bool,
 }
 
 /// 输入来源：决定 cone 种类与是否解析 body。
@@ -113,6 +116,7 @@ pub fn run_file(
             file,
             file_id: FileId(0),
             origin: InputOrigin::User,
+            trusted: false,
         }],
         interner,
         diags,

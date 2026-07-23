@@ -248,6 +248,8 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                         } else {
                             scoop2_hir::resolve::InputOrigin::Sysroot
                         },
+                        // 主文件（i==0）非受信任；sysroot 文件受信任。
+                        trusted: i != 0,
                     })
                     .collect();
                 scoop2_hir::resolve::run_program(&inputs, &mut interner, &mut diags);
@@ -293,6 +295,8 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                         } else {
                             scoop2_hir::resolve::InputOrigin::Sysroot
                         },
+                        // 主文件（i==0）非受信任；sysroot + `.sysroot` overlay 文件受信任。
+                        trusted: i != 0,
                     })
                     .collect();
                 scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags);
