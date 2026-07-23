@@ -1031,8 +1031,53 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.diags.push(diagnostics::no_applicable_overload(span));
                 non_generic[0].return_ty
             }
-            _ => applicable[0].return_ty,
+            _ => self.pick_most_specific(&applicable, span),
         }
+    }
+
+    /// 从适用候选中选择最具体的（spec P3 §4.5）。
+    /// A 比 B 更具体 ⟺ ∀i: A.params[i] <: B.params[i]。
+    fn pick_most_specific(&mut self, candidates: &[&Signature], span: Span) -> TypeId {
+        let n = candidates.len();
+        // best[i] = true 如果候选 i 比所有其他候选更具体（或并列）。
+        let mut best_idx = 0;
+        for i in 1..n {
+            // i 比 best_idx 更具体？
+            let i_more = candidates[i]
+                .params
+                .iter()
+                .zip(&candidates[best_idx].params)
+                .all(|(ip, bp)| self.assignable(*ip, *bp));
+            let best_more = candidates[best_idx]
+                .params
+                .iter()
+                .zip(&candidates[i].params)
+                .all(|(bp, ip)| self.assignable(*bp, *ip));
+            if i_more && !best_more {
+                best_idx = i;
+            }
+        }
+        // 验证 best_idx 确实比所有其他候选更具体。
+        let unique_best = candidates.iter().enumerate().all(|(j, _)| {
+            j == best_idx || {
+                // best_idx 不比 j 差（j 不严格比 best_idx 更具体）
+                let j_strictly_better = candidates[j]
+                    .params
+                    .iter()
+                    .zip(&candidates[best_idx].params)
+                    .all(|(jp, bp)| self.assignable(*jp, *bp))
+                    && candidates[best_idx]
+                        .params
+                        .iter()
+                        .zip(&candidates[j].params)
+                        .any(|(bp, jp)| !self.assignable(*bp, *jp));
+                !j_strictly_better
+            }
+        });
+        if !unique_best && n > 1 {
+            self.diags.push(diagnostics::ambiguous_overload(span));
+        }
+        candidates[best_idx].return_ty
     }
 }
 

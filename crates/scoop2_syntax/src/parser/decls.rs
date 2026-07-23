@@ -447,14 +447,8 @@ impl<'a> Parser<'a> {
             self.check_body_boundary(ctx, "函数表达式体");
             Some(FunBody::Expr(Box::new(expr)))
         } else {
-            // 缺 body：只在允许省略的位置合法（§3.2 注）。
-            if !self.fun_body_may_be_omitted(ctx, &annotations, &modifiers) {
-                let tok = self.peek();
-                self.err_expected(
-                    "函数体（`{ ... }` 或 `= 表达式`；仅 abstract/interface 成员、effect operation 与带注解的 intrinsic/extern 声明可省略）",
-                    tok,
-                );
-            }
+            // 缺 body：parser 不再在此报错——保留 body: None 的 partial-but-valid 节点，
+            // 由 typecheck 阶段判定 body 省略是否合法（grammar §3.2 注 / §14.7）。
             None
         };
 
@@ -478,6 +472,7 @@ impl<'a> Parser<'a> {
     ///
     /// 顶层非注解函数缺 body 是 parse error；是否允许的具体语义（如非 abstract
     /// class 含无体成员）由 typecheck 负责。
+    #[allow(dead_code)]
     fn fun_body_may_be_omitted(
         &self,
         ctx: FunContext,

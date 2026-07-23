@@ -138,7 +138,12 @@ fn check_file_bodies(
                 let is_extern = has_annotation(&d.annotations, "Extern", env.interner);
                 let is_intrinsic = has_annotation(&d.annotations, "Intrinsic", env.interner);
                 if d.body.is_none() && !is_extern && !is_intrinsic {
-                    diags.push(diagnostics::fun_must_have_body(d.name.span));
+                    let what = if d.receiver.is_some() {
+                        "普通扩展函数必须提供函数体"
+                    } else {
+                        "普通顶层函数必须提供函数体"
+                    };
+                    diags.push(diagnostics::fun_must_have_body_detail(what, d.name.span));
                 }
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);

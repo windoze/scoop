@@ -446,11 +446,12 @@ pub fn array_lit_type_annotation_required(span: Span) -> Diagnostic {
 
 /// `scoop::typecheck::fun_must_have_body`：普通函数必须提供函数体。
 pub fn fun_must_have_body(span: Span) -> Diagnostic {
-    Diagnostic::error(
-        "scoop::typecheck::fun_must_have_body",
-        "普通函数必须提供函数体",
-    )
-    .with_primary(span, "这里")
+    fun_must_have_body_detail("普通函数必须提供函数体", span)
+}
+
+/// `scoop::typecheck::fun_must_have_body`（带上下文详情）。
+pub fn fun_must_have_body_detail(what: &str, span: Span) -> Diagnostic {
+    Diagnostic::error("scoop::typecheck::fun_must_have_body", what).with_primary(span, "这里")
 }
 
 /// `scoop::typecheck::entry_point_main_invalid_signature`：main 函数签名不合法。
