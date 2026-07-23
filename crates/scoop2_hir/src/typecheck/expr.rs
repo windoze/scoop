@@ -661,11 +661,11 @@ fn collect_pattern_binders(kind: &ast::PatternKind, out: &mut Vec<Symbol>) {
                 }
             }
         }
-        ast::PatternKind::Variant { args, .. } => {
-            if let Some(elems) = args {
-                for e in elems {
-                    collect_pattern_binders(&e.kind, out);
-                }
+        ast::PatternKind::Variant {
+            args: Some(elems), ..
+        } => {
+            for e in elems {
+                collect_pattern_binders(&e.kind, out);
             }
         }
         ast::PatternKind::Or(alts) => {
