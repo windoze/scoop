@@ -132,6 +132,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if matches!(ek, TypeKind::Ref(crate::ty::RefTypeKind::Any)) {
             return true;
         }
+        // TypeParam：leniently accept（泛型实例化推迟；签名中的类型参数可接受任何实参）。
+        if matches!(fk, TypeKind::Param(_)) || matches!(ek, TypeKind::Param(_)) {
+            return true;
+        }
         let ek = self.env.store.kind(expected);
         // 提取所有需递归检查的数据到 owned（释放 store 借用）。
         let nominal = (nominal_fqn_of(fk), nominal_fqn_of(ek));
@@ -304,8 +308,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ValBinding::Name(name) => {
                 self.locals.insert(name.symbol, ty);
             }
-            ValBinding::Pattern(_) => {
-                self.unsupported("解构绑定", stmt.span);
+            ValBinding::Pattern(p) => {
+                self.bind_pattern_locals(p);
             }
         }
     }
