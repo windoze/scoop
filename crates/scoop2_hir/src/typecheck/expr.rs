@@ -188,8 +188,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.walk_block(body);
                 self.in_loop -= 1;
             }
-            StmtKind::For { .. } => {
-                self.unsupported("for 循环", stmt.span);
+            StmtKind::For { binder, iter, body } => {
+                self.walk_expr(iter);
+                self.in_loop += 1;
+                self.locals.insert(binder.symbol, self.env.store.nothing());
+                self.walk_block(body);
+                self.in_loop -= 1;
             }
             StmtKind::Break => {
                 if self.in_loop == 0 {
@@ -422,8 +426,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     None => self.unsupported("Array 字面量（prelude 未加载）", expr.span),
                 }
             }
-            // 仅剩反射形式（极罕见）。
-            ExprKind::SpliceField { .. } => self.unsupported("该表达式形式", expr.span),
+            // 反射形式 `value.["field"]`：walk 接收者 + 字段表达式，返回 Nothing（精确类型需反射信息）。
+            ExprKind::SpliceField { receiver, field } => {
+                self.walk_expr(receiver);
+                self.walk_expr(field);
+                self.env.store.nothing()
+            }
         }
     }
 
