@@ -128,6 +128,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let fk = self.env.store.kind(found);
         let ek = self.env.store.kind(expected);
+        // Any：所有类型可装箱赋值给 Any（spec P2 §2.1）。
+        if matches!(ek, TypeKind::Ref(crate::ty::RefTypeKind::Any)) {
+            return true;
+        }
+        let ek = self.env.store.kind(expected);
         // 提取所有需递归检查的数据到 owned（释放 store 借用）。
         let nominal = (nominal_fqn_of(fk), nominal_fqn_of(ek));
         let func = match (fk, ek) {
@@ -514,6 +519,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     // ---- 调用（M2 单候选 + M3 多候选重载解析） ----
 
     fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span) -> TypeId {
+        // Unwrap explicit type args `f<T>(x)` / `obj.m<T>(x)`。
+        let callee = match &callee.kind {
+            ExprKind::TypeApply { callee: inner, .. } => inner,
+            _ => callee,
+        };
         // 1. 函数类型局部值 / 参数调用。
         if let ExprKind::Ident(ident) = &callee.kind
             && let Some(&ft) = self.locals.get(&ident.symbol)
@@ -528,7 +538,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 return self.resolve_top_level_call(fqn, args, span);
             }
         }
-        // 3. 构造器调用（callee 是类型名 `Type(args)`）。
+        // 3. 方法调用 `receiver.method(args)`。
+        if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            let rt = self.walk_expr(receiver);
+            let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+            match member {
+                MemberName::Named(name) => {
+                    return self.method_call_return_type(rt, name.symbol, &arg_types, span);
+                }
+                MemberName::TupleIndex { .. } => {}
+            }
+        }
+        // 4. 构造器调用（callee 是类型名 `Type(args)`）。
         if let ExprKind::Ident(ident) = &callee.kind
             && let Some(fqn) = self.callee_type_fqn(ident.symbol)
         {
