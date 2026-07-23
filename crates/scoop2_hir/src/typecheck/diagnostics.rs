@@ -195,6 +195,15 @@ pub fn duplicate_enum_variant_field(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::effectful_function_type_cast_not_supported`。
+pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::effectful_function_type_cast_not_supported",
+        "当前语言 contract 下，带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(span: Span) -> Diagnostic {
     Diagnostic::error(

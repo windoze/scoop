@@ -22,7 +22,7 @@ use crate::resolve::imports::ImportTable;
 use crate::resolve::output::{Resolution, ResolvedValue};
 use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, CastOp, Expr, ExprKind, FunBody, MemberName,
-    Param, Stmt, StmtKind, StructLitField, TypeRef, UnaryOp, ValBinding,
+    Param, Stmt, StmtKind, StructLitField, TypeRef, TypeRefKind, UnaryOp, ValBinding,
 };
 use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
@@ -503,8 +503,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::Cast {
                 expr: e, op, ty, ..
             } => {
-                self.walk_expr(e);
+                let operand_ty = self.walk_expr(e);
                 let target = self.lower_type(ty);
+                // 带非 Pure effect row 的函数类型不能参与显式 `as`/`as?`（检查目标 TypeRef
+                // 与操作数已降级类型）。
+                if is_effectful_function_type_ref(ty, self.env.interner)
+                    || is_effectful_function_type(self.env, operand_ty)
+                {
+                    // 指向 `as` / `as?` 运算符（位于操作数与目标类型之间）。
+                    let op_start = e.span.end + 1;
+                    let op_len = match op {
+                        CastOp::As => 2,
+                        CastOp::AsSafe => 3,
+                    };
+                    self.diags
+                        .push(diagnostics::effectful_function_type_cast_not_supported(
+                            Span::new(op_start, op_start + op_len),
+                        ));
+                }
                 match op {
                     CastOp::As => target,
                     CastOp::AsSafe => {
@@ -1442,6 +1458,34 @@ fn old_tuple_member_replacement(text: &str) -> Option<String> {
         return None;
     }
     Some(digits.to_string())
+}
+
+/// 是否为带非 Pure effect row 的函数类型（显式 `as`/`as?` 不支持）。
+fn is_effectful_function_type(env: &TypeEnv, id: TypeId) -> bool {
+    matches!(
+        env.store.kind(id),
+        TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) if !f.effects.is_pure()
+    )
+}
+
+/// TypeRef 是否为带非 Pure effect 行的函数类型（直接看 AST effect 注解，无需降级 effect）。
+fn is_effectful_function_type_ref(ty: &TypeRef, interner: &scoop2_base::Interner) -> bool {
+    let effect = match &ty.kind {
+        TypeRefKind::Function { effect, .. } | TypeRefKind::ReceiverFunction { effect, .. } => {
+            effect.as_ref()
+        }
+        _ => return false,
+    };
+    let Some(eff) = effect else {
+        return false;
+    };
+    // 任一非 Pure 项 → effectful。
+    eff.terms.iter().any(|t| {
+        !t.path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == "Pure")
+    })
 }
 
 /// 标量类别（用于运算结果判定）。
