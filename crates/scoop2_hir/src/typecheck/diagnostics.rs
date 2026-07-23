@@ -516,6 +516,24 @@ pub fn meta_annotation_invalid_target(ann: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::where_target_not_in_current_decl`。
+pub fn where_target_not_in_current_decl(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::where_target_not_in_current_decl",
+        "where 约束目标必须是当前声明的类型参数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::duplicate_where_constraint`。
+pub fn duplicate_where_constraint(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::duplicate_where_constraint",
+        "重复的 where 约束",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_arg_positional_after_named`。
 pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
     Diagnostic::error(

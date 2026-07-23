@@ -198,6 +198,13 @@ fn check_file_bodies(
                     // 与 legacy 一致：按固定顺序短路，仅报首个 annotation-class 错误。
                     diags.push(err);
                 }
+                // where 子句校验（目标在当前声明 / 无重复）。
+                check_where_clause(
+                    d.where_clause.as_ref(),
+                    d.type_params.as_ref(),
+                    env.interner,
+                    diags,
+                );
                 // `@Target` / `@Retention` 只能用于 annotation class 声明。
                 if !is_annotation {
                     for ann in &d.annotations {
@@ -614,6 +621,61 @@ fn annotation_class_error(
     None
 }
 
+/// 校验 where 子句：约束目标必须在当前声明的类型参数中；同一 (目标, 约束) 不得重复。
+fn check_where_clause(
+    where_clause: Option<&crate::syntax::ast::WhereClause>,
+    type_params: Option<&crate::syntax::ast::TypeParamList>,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    let Some(wc) = where_clause else {
+        return;
+    };
+    let param_names: std::collections::HashSet<scoop2_base::Symbol> = type_params
+        .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+        .unwrap_or_default();
+    let mut seen: std::collections::HashMap<(scoop2_base::Symbol, String), scoop2_base::Span> =
+        std::collections::HashMap::new();
+    for c in &wc.constraints {
+        // 目标必须在当前声明的类型参数中。
+        if !param_names.contains(&c.name.symbol) {
+            diags.push(diagnostics::where_target_not_in_current_decl(c.name.span));
+            return;
+        }
+        let key = (c.name.symbol, bound_key(&c.bound, interner));
+        if let Some(first_span) = seen.get(&key) {
+            // 指向首次声明（与 legacy 一致）。
+            diags.push(diagnostics::duplicate_where_constraint(*first_span));
+            return;
+        }
+        seen.insert(key, c.span);
+    }
+}
+
+/// where 约束的判重键（类型约束用 path 文本；ref/value 用固定标记）。
+fn bound_key(bound: &crate::syntax::ast::GenericBound, interner: &scoop2_base::Interner) -> String {
+    use crate::syntax::ast::GenericBound;
+    match bound {
+        GenericBound::Ref(_) => "ref".to_string(),
+        GenericBound::Value(_) => "value".to_string(),
+        GenericBound::Type(t) => type_ref_text(t, interner),
+    }
+}
+
+/// TypeRef 的路径文本（用于 where 约束判重）。
+fn type_ref_text(t: &crate::syntax::ast::TypeRef, interner: &scoop2_base::Interner) -> String {
+    use crate::syntax::ast::TypeRefKind;
+    match &t.kind {
+        TypeRefKind::Path { path, .. } => path
+            .segments
+            .iter()
+            .map(|s| interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join("."),
+        _ => format!("{:?}", t.kind),
+    }
+}
+
 /// 提取 item 的注解（各 decl 都把注解放在顶层字段）。
 fn item_annotations(item: &crate::syntax::ast::Item) -> &[crate::syntax::ast::AnnotationUse] {
     use crate::syntax::ast::ItemKind;
@@ -784,7 +846,23 @@ fn check_one_fun(
     this_ty: Option<crate::ty::TypeId>,
 ) {
     use scoop2_base::FileId;
-    let Some(body) = &d.body else { return };
+    let Some(body) = &d.body else {
+        // 即便无 body，where 子句仍需校验（header 检查）。
+        check_where_clause(
+            d.where_clause.as_ref(),
+            d.type_params.as_ref(),
+            env.interner,
+            diags,
+        );
+        return;
+    };
+    // where 子句校验（目标在当前声明 / 无重复）。
+    check_where_clause(
+        d.where_clause.as_ref(),
+        d.type_params.as_ref(),
+        env.interner,
+        diags,
+    );
     // @Intrinsic 成员函数不能有 body。
     if has_annotation(&d.annotations, "Intrinsic", env.interner) {
         diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
