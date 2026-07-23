@@ -36,6 +36,8 @@ pub struct TypeEnv<'i> {
     members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
     /// 类型 FQN → 主构造参数类型列表。
     ctors: HashMap<Symbol, Vec<TypeId>>,
+    /// 类型 FQN → (方法名 → 签名重载集)。成员函数（含扩展）。
+    member_signatures: HashMap<Symbol, HashMap<Symbol, Vec<Signature>>>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -47,12 +49,20 @@ impl<'i> TypeEnv<'i> {
             signatures: HashMap::new(),
             members: HashMap::new(),
             ctors: HashMap::new(),
+            member_signatures: HashMap::new(),
         }
     }
 
     /// 顶层函数（非扩展、非成员）的签名重载集。
     pub fn signatures(&self, fqn: Symbol) -> Option<&[Signature]> {
         self.signatures.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// 类型上的成员函数签名重载集（`type_fqn.method_name`）。
+    pub fn member_signatures(&self, type_fqn: Symbol, method: Symbol) -> Option<&[Signature]> {
+        self.member_signatures
+            .get(&type_fqn)
+            .and_then(|m| m.get(&method).map(|v| v.as_slice()))
     }
 
     /// 类型的主构造参数类型列表。
@@ -303,8 +313,38 @@ fn register_body_members(
                     );
                 }
             }
-            TypeMemberKind::Fun(_)
-            | TypeMemberKind::EnumVariant(_)
+            TypeMemberKind::Fun(d) => {
+                let tp_map = build_tp_map(type_params);
+                let unit_ty = env.store.unit();
+                let sig = {
+                    let mut lower =
+                        TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+                    let params: Vec<TypeId> = d
+                        .params
+                        .iter()
+                        .map(|p| match &p.ty {
+                            Some(t) => lower.lower(t),
+                            None => unit_ty,
+                        })
+                        .collect();
+                    let return_ty = match &d.return_ty {
+                        Some(t) => lower.lower(t),
+                        None => unit_ty,
+                    };
+                    Signature {
+                        params,
+                        return_ty,
+                        type_param_count: 0,
+                    }
+                };
+                env.member_signatures
+                    .entry(owner)
+                    .or_default()
+                    .entry(d.name.symbol)
+                    .or_default()
+                    .push(sig);
+            }
+            TypeMemberKind::EnumVariant(_)
             | TypeMemberKind::InitBlock(_)
             | TypeMemberKind::SecondaryCtor(_) => {}
         }

@@ -378,12 +378,52 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.env.store.unit()
             }
             ExprKind::TypeApply { callee, .. } => self.walk_expr(callee),
-            // 仍需方法解析 / prelude nominal / 反射的形式。
-            ExprKind::ArrayLit(_)
-            | ExprKind::SpliceField { .. }
-            | ExprKind::Index { .. }
-            | ExprKind::ClassLit { .. }
-            | ExprKind::InfixCall { .. } => self.unsupported("该表达式形式", expr.span),
+            ExprKind::Index { receiver, indices } => {
+                let rt = self.walk_expr(receiver);
+                let idx_types: Vec<TypeId> = indices.iter().map(|i| self.walk_expr(i)).collect();
+                let Some(get_sym) = self.env.interner.get("get") else {
+                    return self.unsupported("下标访问（operator get 未注册）", expr.span);
+                };
+                self.method_call_return_type(rt, get_sym, &idx_types, expr.span)
+            }
+            ExprKind::InfixCall {
+                receiver,
+                name,
+                arg,
+            } => {
+                let rt = self.walk_expr(receiver);
+                let at = self.walk_expr(arg);
+                self.method_call_return_type(rt, name.symbol, &[at], expr.span)
+            }
+            ExprKind::ClassLit { .. } => self.env.store.string(),
+            ExprKind::ArrayLit(els) => {
+                let elem_ty = if els.is_empty() {
+                    self.env.store.nothing()
+                } else {
+                    self.walk_expr(&els[0])
+                };
+                for e in &els[1..] {
+                    self.walk_expr(e);
+                }
+                let array_fqn = self
+                    .env
+                    .interner
+                    .get("scoop.core.Array")
+                    .or_else(|| self.env.interner.get("Array"));
+                match array_fqn {
+                    Some(fqn) => {
+                        let nominal = NominalType {
+                            fqn,
+                            args: vec![elem_ty],
+                            eff: None,
+                        };
+                        self.env.store.ref_nominal(nominal)
+                    }
+                    None => self.unsupported("Array 字面量（prelude 未加载）", expr.span),
+                }
+            }
+            // 仅剩反射形式（极罕见）。
+            ExprKind::SpliceField { .. } => self.unsupported("该表达式形式", expr.span),
         }
     }
 
@@ -640,6 +680,63 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         collect_pattern_binders(&pat.kind, &mut names);
         for name in names {
             self.locals.insert(name, self.env.store.nothing());
+        }
+    }
+
+    /// 方法调用（`receiver.method(args)` / `receiver[args]` / `receiver until arg`）：
+    /// 查 receiver nominal 类型的成员函数签名，按适用性选择，返回返回类型。
+    fn method_call_return_type(
+        &mut self,
+        receiver_ty: TypeId,
+        method_name: Symbol,
+        arg_types: &[TypeId],
+        span: Span,
+    ) -> TypeId {
+        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
+            return self.unsupported("该接收者的方法调用", span);
+        };
+        let Some(sigs) = self.env.member_signatures(fqn, method_name) else {
+            return self.unsupported("该方法（未注册）", span);
+        };
+        let sigs: Vec<Signature> = sigs.to_vec();
+        let non_generic: Vec<Signature> = sigs
+            .into_iter()
+            .filter(|s| s.type_param_count == 0)
+            .collect();
+        if non_generic.is_empty() {
+            return self.unsupported("该方法（仅泛型候选）", span);
+        }
+        if non_generic.len() == 1 {
+            let sig = &non_generic[0];
+            if sig.params.len() != arg_types.len() {
+                self.diags.push(diagnostics::arity_mismatch(
+                    sig.params.len(),
+                    arg_types.len(),
+                    span,
+                ));
+            } else {
+                for (i, &at) in arg_types.iter().enumerate() {
+                    self.check_assignable(at, sig.params[i], span);
+                }
+            }
+            return sig.return_ty;
+        }
+        let applicable: Vec<&Signature> = non_generic
+            .iter()
+            .filter(|s| {
+                s.params.len() == arg_types.len()
+                    && arg_types
+                        .iter()
+                        .zip(&s.params)
+                        .all(|(a, p)| self.assignable(*a, *p))
+            })
+            .collect();
+        match applicable.len() {
+            0 => {
+                self.diags.push(diagnostics::no_applicable_overload(span));
+                non_generic[0].return_ty
+            }
+            _ => applicable[0].return_ty,
         }
     }
 }
