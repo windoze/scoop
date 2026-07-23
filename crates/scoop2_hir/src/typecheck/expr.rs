@@ -21,8 +21,8 @@ use scoop2_base::{NodeId, Span, Symbol};
 use crate::resolve::imports::ImportTable;
 use crate::resolve::output::{Resolution, ResolvedValue};
 use crate::syntax::ast::{
-    self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, Param, Stmt,
-    StmtKind, TypeRef, UnaryOp, ValBinding,
+    self, AssignTargetKind, BinaryOp, Block, CallArg, Expr, ExprKind, FunBody, MemberName, Param,
+    Stmt, StmtKind, TypeRef, UnaryOp, ValBinding,
 };
 use crate::ty::{FunctionType, TypeId, TypeKind, TypeParamType};
 
@@ -42,6 +42,7 @@ pub fn check_function<'a, 'i>(
     diags: &'a mut DiagnosticSink,
     package_prefix: &str,
     type_params: HashMap<Symbol, TypeParamType>,
+    this_ty: Option<TypeId>,
 ) {
     let mut c = ExprChecker {
         env,
@@ -53,6 +54,7 @@ pub fn check_function<'a, 'i>(
         locals: HashMap::new(),
         return_ty: None,
         in_loop: 0u32,
+        this_ty,
     };
     for p in params {
         let ty = match &p.ty {
@@ -91,6 +93,8 @@ struct ExprChecker<'a, 'i> {
     locals: HashMap<Symbol, TypeId>,
     return_ty: Option<TypeId>,
     in_loop: u32,
+    /// 成员函数体的 `this` 类型（lowered nominal）；非成员函数为 `None`。
+    this_ty: Option<TypeId>,
 }
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
@@ -230,6 +234,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if name == "true" || name == "false" {
                     return self.env.store.bool();
                 }
+                if name == "this" {
+                    if let Some(t) = self.this_ty {
+                        return t;
+                    }
+                    return self.unsupported("`this` 在非成员上下文", expr.span);
+                }
                 if let Some(&t) = self.locals.get(&ident.symbol) {
                     return t;
                 }
@@ -298,6 +308,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.env.store.unit()
             }
             ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
+            ExprKind::MemberAccess { receiver, member } => {
+                let rt = self.walk_expr(receiver);
+                self.member_access_type(rt, *member, expr.span)
+            }
             // 其余形式属于后续里程碑。
             ExprKind::TupleLit(_)
             | ExprKind::ArrayLit(_)
@@ -305,7 +319,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::Lambda(_)
             | ExprKind::When { .. }
             | ExprKind::Handle { .. }
-            | ExprKind::MemberAccess { .. }
             | ExprKind::SafeMemberAccess { .. }
             | ExprKind::SpliceField { .. }
             | ExprKind::Index { .. }
@@ -382,6 +395,35 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.check_assignable(at, param_types[i], a.value.span);
         }
         return_ty
+    }
+
+    // ---- 成员访问（M2 part 2：属性 / 字段读取） ----
+
+    fn member_access_type(
+        &mut self,
+        receiver_ty: TypeId,
+        member: MemberName,
+        span: Span,
+    ) -> TypeId {
+        let MemberName::Named(name) = member else {
+            return self.unsupported("元组下标成员访问", span);
+        };
+        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
+            return self.unsupported("该接收者的成员访问", span);
+        };
+        match self.env.member_type(fqn, name.symbol) {
+            Some(t) => t,
+            None => self.unsupported("该成员（方法调用 / 未注册成员）", span),
+        }
+    }
+}
+
+/// 若 `kind` 是 nominal（ref 或 value），返回其 FQN。
+fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
+    match kind {
+        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
     }
 }
 
@@ -536,6 +578,13 @@ mod tests {
             &prefix,
             &mut diags,
         );
+        crate::typecheck::env::register_members(
+            &mut env,
+            &result.file,
+            &imports,
+            &prefix,
+            &mut diags,
+        );
         let mut resolution = Resolution::new();
         crate::resolve::body::resolve_file_bodies(
             &result.file,
@@ -562,6 +611,7 @@ mod tests {
                     &mut diags,
                     &prefix,
                     HashMap::new(),
+                    None,
                 );
             }
         }
@@ -670,6 +720,14 @@ mod tests {
             codes.iter().any(|c| c == "scoop::typecheck::type_mismatch"),
             "{codes:?}"
         );
+    }
+
+    #[test]
+    fn member_access_on_struct_param() {
+        let codes = check_program(
+            "struct Point { val x: Int\nval y: Int }\nfun main(p: Point): Int { return p.x }",
+        );
+        assert!(codes.is_empty(), "{codes:?}");
     }
 
     // 抑制未用（TypeKind/Interner 在某些路径间接使用）。
