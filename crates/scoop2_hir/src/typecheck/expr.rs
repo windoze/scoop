@@ -808,6 +808,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         arg_types: &[TypeId],
         span: Span,
     ) -> TypeId {
+        // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
+        if self.env.store.is_nothing(receiver_ty) {
+            return self.env.store.nothing();
+        }
         let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
             return self.unsupported("该接收者的方法调用", span);
         };
