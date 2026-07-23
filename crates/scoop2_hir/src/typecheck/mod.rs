@@ -319,11 +319,47 @@ fn check_file_bodies(
                 }
             }
             ItemKind::Val(d) => {
+                let is_extern_var = has_annotation(&d.annotations, "Extern", env.interner);
                 // @Extern 顶层变量声明必须省略 initializer（外部符号由链接提供）。
-                if has_annotation(&d.annotations, "Extern", env.interner)
-                    && let Some(init) = &d.init
-                {
+                if is_extern_var && let Some(init) = &d.init {
                     extern_fn::check_extern_var(diags, init.span);
+                }
+                // 顶层 `var` 存储策略校验（@Extern var 豁免——外部符号）。
+                if d.kind == crate::syntax::ast::ValKind::Var && !is_extern_var {
+                    let name_span = match &d.binding {
+                        crate::syntax::ast::ValBinding::Name(id) => id.span,
+                        // invariant: 顶层 `var` 解构是 parse error，binding 必为 Name。
+                        _ => {
+                            d.ty.as_ref()
+                                .map_or(scoop2_base::Span::default(), |t| t.span)
+                        }
+                    };
+                    let has_tl = has_annotation(&d.annotations, "ThreadLocal", env.interner);
+                    let has_global = has_annotation(&d.annotations, "Global", env.interner);
+                    if has_tl && has_global {
+                        diags.push(diagnostics::top_level_var_storage_policy_conflict(
+                            name_span,
+                        ));
+                    } else if !has_tl && !has_global {
+                        diags.push(diagnostics::top_level_var_requires_threadlocal_or_global(
+                            name_span,
+                        ));
+                    } else if has_global && let Some(ty_ref) = &d.ty {
+                        let ty = {
+                            let mut lower = crate::typecheck::lower::TypeLowering::new(
+                                env,
+                                imports,
+                                empty_tp.clone(),
+                                package_prefix.to_string(),
+                                diags,
+                            );
+                            lower.lower(ty_ref)
+                        };
+                        if !release_hook::is_gc_free_value_type(env, ty) {
+                            diags
+                                .push(diagnostics::top_level_var_type_must_be_gc_free(ty_ref.span));
+                        }
+                    }
                 }
             }
             _ => {}

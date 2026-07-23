@@ -700,6 +700,33 @@ pub fn extern_var_initializer_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::top_level_var_requires_threadlocal_or_global`。
+pub fn top_level_var_requires_threadlocal_or_global(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::top_level_var_requires_threadlocal_or_global",
+        "顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::top_level_var_storage_policy_conflict`。
+pub fn top_level_var_storage_policy_conflict(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::top_level_var_storage_policy_conflict",
+        "不能同时标注 `@ThreadLocal` 与 `@Global`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::top_level_var_type_must_be_gc_free`。
+pub fn top_level_var_type_must_be_gc_free(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::top_level_var_type_must_be_gc_free",
+        "顶层 `var` 的类型必须是 GC-free 值类型",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::nogc_call_forbidden`：`@NoGC` 上下文禁止调用受管函数。
 pub fn nogc_call_forbidden(callee: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

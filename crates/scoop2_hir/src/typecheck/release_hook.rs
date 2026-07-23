@@ -147,8 +147,7 @@ pub fn check_release_hook(
             ));
             return;
         };
-        let mut visiting = HashSet::new();
-        if !is_gc_free_value_type(env, field_ty, &mut visiting) {
+        if !is_gc_free_value_type(env, field_ty) {
             diags.push(diagnostics::release_hook_arg_field_must_be_gc_free(
                 &type_fqn,
                 field_name,
@@ -282,7 +281,13 @@ fn modifier_name(mk: ModifierKind) -> &'static str {
 
 // ===== GC-free 值类型（递归；复刻 legacy is_gc_free_value_type）=====
 
-fn is_gc_free_value_type(env: &TypeEnv, id: TypeId, visiting: &mut HashSet<TypeId>) -> bool {
+/// GC-free 值类型查询（release-hook / 顶层 global var 共用）。
+pub(crate) fn is_gc_free_value_type(env: &TypeEnv, id: TypeId) -> bool {
+    let mut visiting = HashSet::new();
+    is_gc_free_value_type_inner(env, id, &mut visiting)
+}
+
+fn is_gc_free_value_type_inner(env: &TypeEnv, id: TypeId, visiting: &mut HashSet<TypeId>) -> bool {
     if !visiting.insert(id) {
         return false; // 递归环保守判否。
     }
@@ -299,10 +304,10 @@ fn is_gc_free_value_type(env: &TypeEnv, id: TypeId, visiting: &mut HashSet<TypeI
             | ValueTypeKind::UInt
             | ValueTypeKind::IntN(_)
             | ValueTypeKind::UIntN(_) => true,
-            ValueTypeKind::Option(inner) => is_gc_free_value_type(env, *inner, visiting),
-            ValueTypeKind::Tuple(els) => {
-                els.iter().all(|e| is_gc_free_value_type(env, *e, visiting))
-            }
+            ValueTypeKind::Option(inner) => is_gc_free_value_type_inner(env, *inner, visiting),
+            ValueTypeKind::Tuple(els) => els
+                .iter()
+                .all(|e| is_gc_free_value_type_inner(env, *e, visiting)),
             ValueTypeKind::Nominal(n) => is_gc_free_nominal(env, n.fqn, visiting),
         },
     };
@@ -327,7 +332,7 @@ fn is_gc_free_nominal(
     match env.member_types(fqn) {
         Some(fields) => fields
             .values()
-            .all(|ty| is_gc_free_value_type(env, *ty, visiting)),
+            .all(|ty| is_gc_free_value_type_inner(env, *ty, visiting)),
         None => false,
     }
 }
