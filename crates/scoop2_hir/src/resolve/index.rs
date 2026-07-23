@@ -236,6 +236,19 @@ impl Index {
         self.categories.get(&fqn).copied()
     }
 
+    /// 按简单名查找值符号（enum variant / top-level val），用于裸名解析回退。
+    /// 返回首个匹配的 FQN。O(n) 搜索——仅在常规解析全部失败时调用。
+    pub fn find_value_by_simple_name(&self, name: Symbol) -> Option<Symbol> {
+        for (&fqn, ns) in &self.by_fqn {
+            if let Some(value) = &ns.value
+                && value.simple_name == name
+            {
+                return Some(fqn);
+            }
+        }
+        None
+    }
+
     /// 记录一个 nominal 类型的直接超类型 FQN 列表。
     pub fn record_supertypes(&mut self, fqn: Symbol, supertypes: Vec<Symbol>) {
         self.supertypes.insert(fqn, supertypes);

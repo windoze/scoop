@@ -487,7 +487,14 @@ impl<'a> BodyResolver<'a> {
         {
             return;
         }
-        // 4. unresolved
+        // 4. enum variant / 值符号裸名回退（Some、None、Ok 等）。
+        if let Some(fqn) = self.index.find_value_by_simple_name(ident.symbol) {
+            self.resolution
+                .value_refs
+                .set(expr_id, ResolvedValue::TopLevelValue { fqn });
+            return;
+        }
+        // 5. unresolved
         self.diags
             .push(errors::unresolved_value(name_text, ident.span));
     }
