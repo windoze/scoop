@@ -2012,9 +2012,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return applicable[0].1.return_ty;
         }
         // Unit sugar：0 实参 + 候选有 1 个 Unit 参数 → 补 Unit 实参（spec §5.5）。
+        // 但若存在真正的 0 参候选，优先 exact-arity（不回退到 Unit sugar）。
         let unit_ty = self.env.store.unit();
         let arg_count = args.len();
+        let has_zero_arity = non_generic.iter().any(|s| s.params.is_empty());
         if arg_count == 0
+            && !has_zero_arity
             && non_generic
                 .iter()
                 .any(|s| s.params.len() == 1 && s.params[0] == unit_ty)
