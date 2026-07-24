@@ -234,8 +234,77 @@ pub fn register_top_level_signatures(
         let ItemKind::Fun(d) = &item.kind else {
             continue;
         };
-        if d.receiver.is_some() {
-            continue; // 扩展函数：M2 暂不
+        // 扩展函数：注册到 receiver 类型的 member_signatures（M3 扩展方法调用支持）。
+        if let Some(receiver_ref) = &d.receiver {
+            // 降级 receiver 类型 → FQN。
+            let recv_fqn = {
+                let mut lower = TypeLowering::new(
+                    env,
+                    imports,
+                    build_tp_map(d.type_params.as_ref()),
+                    package_prefix.to_string(),
+                    diags,
+                );
+                let rt = lower.lower(receiver_ref);
+                let kind = env.store.kind(rt);
+                crate::typecheck::expr::nominal_fqn_of(kind)
+                    .or_else(|| crate::typecheck::expr::scalar_fqn(kind, env.interner))
+            };
+            if let Some(recv_fqn) = recv_fqn {
+                let tp_map = build_tp_map(d.type_params.as_ref());
+                let unit_ty = env.store.unit();
+                let (params, tpb) = {
+                    let mut lower =
+                        TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+                    let params: Vec<TypeId> = d
+                        .params
+                        .iter()
+                        .map(|p| match &p.ty {
+                            Some(t) => lower.lower(t),
+                            None => unit_ty,
+                        })
+                        .collect();
+                    let tpb = lower_type_param_bounds(d.type_params.as_ref(), &mut lower);
+                    (params, tpb)
+                };
+                let return_ty = match &d.return_ty {
+                    Some(t) => {
+                        let mut lower = TypeLowering::new(
+                            env,
+                            imports,
+                            build_tp_map(d.type_params.as_ref()),
+                            package_prefix.to_string(),
+                            diags,
+                        );
+                        lower.lower(t)
+                    }
+                    None => unit_ty,
+                };
+                env.member_signatures
+                    .entry(recv_fqn)
+                    .or_default()
+                    .entry(d.name.symbol)
+                    .or_default()
+                    .push(Signature {
+                        param_names: d.params.iter().map(|p| p.name.symbol).collect(),
+                        has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                        params,
+                        return_ty,
+                        type_param_count: d
+                            .type_params
+                            .as_ref()
+                            .map(|tp| tp.params.len())
+                            .unwrap_or(0),
+                        type_param_bounds: tpb,
+                        modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(
+                            &d.modifiers,
+                        ),
+                        effect: d.effect.clone(),
+                        has_body: d.body.is_some(),
+                        decl_span: d.name.span,
+                    });
+            }
+            continue;
         }
         let name_text = env.interner.resolve(d.name.symbol);
         let fqn_text = if package_prefix.is_empty() {

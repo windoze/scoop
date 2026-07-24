@@ -366,7 +366,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .zip(&ef.params)
                     .all(|(fp, ep)| self.assignable_with(*ep, *fp, absorb))
                 && self.assignable_with(ff.return_ty, ef.return_ty, absorb)
-                && ff.receiver.is_some() == ef.receiver.is_some()
+                && (ff.receiver.is_none() || ef.receiver.is_some())
                 && ff.effects.is_subset_of(&ef.effects);
         }
         // Option 协变
@@ -3277,7 +3277,7 @@ fn collect_pattern_binders(kind: &ast::PatternKind, out: &mut Vec<Symbol>) {
 }
 
 /// 内建标量的 nominal FQN（`Int` → `scoop.core.Int` 等），用于子类型检查。
-fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> Option<Symbol> {
+pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> Option<Symbol> {
     use crate::ty::{RefTypeKind, ValueTypeKind};
     let name: &'static str = match kind {
         TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
