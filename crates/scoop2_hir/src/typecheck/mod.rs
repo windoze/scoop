@@ -207,6 +207,13 @@ fn check_file_bodies(
                 {
                     diags.push(diagnostics::nogc_fun_effects_not_allowed(eff.span));
                 }
+                // `@NoGC` 函数不允许声明 effect row 参数（`<eff E>`）。
+                if has_annotation(&d.annotations, "NoGC", env.interner)
+                    && let Some(tp) = &d.type_params
+                    && let Some(er) = &tp.effect_row
+                {
+                    diags.push(diagnostics::nogc_fun_eff_param_not_allowed(er.span));
+                }
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);
                 if name_text == "main" && d.receiver.is_none() {

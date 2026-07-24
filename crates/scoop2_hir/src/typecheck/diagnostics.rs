@@ -384,6 +384,15 @@ pub fn nogc_fun_effects_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::nogc_fun_eff_param_not_allowed`：`@NoGC` 函数不允许声明 effect row 参数。
+pub fn nogc_fun_eff_param_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::nogc_fun_eff_param_not_allowed",
+        "`@NoGC` 函数不允许声明 effect row 参数",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::static_initializer_must_be_pure`：顶层/object 初始化器必须 `Pure!`。
 ///
 /// `what` 为初始化器描述前缀，如 `顶层绑定 \`Broken\``、`object \`pkg.Holder\` init block`、
