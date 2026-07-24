@@ -15,7 +15,7 @@ use scoop2_base::{Interner, Span, Symbol};
 
 use crate::resolve::imports::ImportTable;
 use crate::syntax::ast::{TypeArg, TypeArgKind, TypePath, TypeRef, TypeRefKind};
-use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeParamType};
+use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
 use super::diagnostics;
 use super::env::TypeEnv;
@@ -173,6 +173,8 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 _ => None, // Star / Effect 实参：M0 不降级。
             })
             .collect();
+        // 6. where 约束满足性检查：类型实参必须满足声明处的 where / 直接 bound。
+        self.check_type_arg_constraints(fqn, &lowered_args, span);
         let nominal = NominalType {
             fqn,
             args: lowered_args,
@@ -183,6 +185,70 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         } else {
             self.env.store.value_nominal(nominal)
         }
+    }
+
+    /// 检查类型实参是否满足声明处的 where 约束（保守：仅在确定违反时报错）。
+    fn check_type_arg_constraints(&mut self, fqn: Symbol, args: &[TypeId], span: Span) {
+        use crate::syntax::ast::GenericBound;
+        let Some((param_names, constraints)) = self.env.type_constraints(fqn) else {
+            return;
+        };
+        let param_names: Vec<Symbol> = param_names.to_vec();
+        let constraints: Vec<(Symbol, GenericBound)> = constraints.to_vec();
+        for (name, bound) in &constraints {
+            let Some(idx) = param_names.iter().position(|n| n == name) else {
+                continue;
+            };
+            let Some(&arg) = args.get(idx) else {
+                continue;
+            };
+            let violated = match bound {
+                GenericBound::Ref(_) => !matches!(self.env.store.kind(arg), TypeKind::Ref(_)),
+                GenericBound::Value(_) => !matches!(self.env.store.kind(arg), TypeKind::Value(_)),
+                GenericBound::Type(t) => {
+                    // 实参必须是 bound 类型的子类型。
+                    let bound_ty = {
+                        let mut lower = TypeLowering::new(
+                            self.env,
+                            self.imports,
+                            HashMap::new(),
+                            self.package_prefix.clone(),
+                            self.diags,
+                        );
+                        lower.lower(t)
+                    };
+                    !self.arg_satisfies_bound(arg, bound_ty)
+                }
+            };
+            if violated {
+                self.diags.push(diagnostics::where_constraint_not_satisfied(
+                    &bound_desc(bound, self.env.interner),
+                    span,
+                ));
+                return;
+            }
+        }
+    }
+
+    /// 实参是否满足 bound 类型（子类型 / 相等 / TypeParam lenient）。
+    fn arg_satisfies_bound(&self, arg: TypeId, bound: TypeId) -> bool {
+        if arg == bound {
+            return true;
+        }
+        let ak = self.env.store.kind(arg);
+        let bk = self.env.store.kind(bound);
+        // TypeParam：lenient（泛型推迟）。
+        if matches!(ak, TypeKind::Param(_)) || matches!(bk, TypeKind::Param(_)) {
+            return true;
+        }
+        // nominal 子类型。
+        let arg_fqn = nominal_fqn_of(ak).or_else(|| scalar_fqn(ak, self.env.interner));
+        let bound_fqn = nominal_fqn_of(bk);
+        if let (Some(a), Some(b)) = (arg_fqn, bound_fqn) {
+            return self.env.fqn_is_subtype(a, b);
+        }
+        // 无法判定 → lenient（不报）。
+        true
     }
 
     /// 取类型实参里的**第一个类型**（用于 `Option<T>`）；无类型实参返回 `None`。
@@ -251,6 +317,61 @@ fn path_text(path: &TypePath, interner: &Interner) -> String {
 
 fn is_option_name(name: &str) -> bool {
     name == "Option" || name == "scoop.core.Option"
+}
+
+/// 若 `kind` 是 nominal（ref 或 value），返回其 FQN。
+fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
+    match kind {
+        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
+    }
+}
+
+/// 标量 → scoop.core 短名 FQN。
+fn scalar_fqn(kind: &TypeKind, interner: &Interner) -> Option<Symbol> {
+    use crate::ty::{RefTypeKind, ValueTypeKind};
+    let name: &'static str = match kind {
+        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
+        TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt",
+        TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool",
+        TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char",
+        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64",
+        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32",
+        TypeKind::Value(ValueTypeKind::IntN(8)) => "scoop.core.Int8",
+        TypeKind::Value(ValueTypeKind::IntN(16)) => "scoop.core.Int16",
+        TypeKind::Value(ValueTypeKind::IntN(32)) => "scoop.core.Int32",
+        TypeKind::Value(ValueTypeKind::IntN(64)) => "scoop.core.Int64",
+        TypeKind::Value(ValueTypeKind::UIntN(8)) => "scoop.core.UInt8",
+        TypeKind::Value(ValueTypeKind::UIntN(16)) => "scoop.core.UInt16",
+        TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
+        TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
+        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
+        _ => return None,
+    };
+    interner.get(name)
+}
+
+/// where 约束的人类可读描述。
+fn bound_desc(bound: &crate::syntax::ast::GenericBound, interner: &Interner) -> String {
+    use crate::syntax::ast::GenericBound;
+    match bound {
+        GenericBound::Ref(_) => "ref".to_string(),
+        GenericBound::Value(_) => "value".to_string(),
+        GenericBound::Type(t) => type_ref_text(t, interner),
+    }
+}
+
+fn type_ref_text(t: &TypeRef, interner: &Interner) -> String {
+    match &t.kind {
+        TypeRefKind::Path { path, .. } => path
+            .segments
+            .iter()
+            .map(|s| interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join("."),
+        _ => format!("{:?}", t.kind),
+    }
 }
 
 #[cfg(test)]

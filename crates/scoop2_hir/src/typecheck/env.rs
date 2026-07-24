@@ -52,6 +52,10 @@ pub struct TypeEnv<'i> {
     fun_attrs: HashMap<Symbol, FunAttrs>,
     /// typealias FQN → (RHS TypeRef, 类型参数名序列)。
     type_aliases: HashMap<Symbol, (crate::syntax::ast::TypeRef, Vec<Symbol>)>,
+    /// 类型 FQN → (类型参数名序列, where 约束 [(参数名, bound)])。
+    #[allow(clippy::type_complexity)]
+    type_constraints:
+        HashMap<Symbol, (Vec<Symbol>, Vec<(Symbol, crate::syntax::ast::GenericBound)>)>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -67,7 +71,30 @@ impl<'i> TypeEnv<'i> {
             clayout_structs: HashSet::new(),
             fun_attrs: HashMap::new(),
             type_aliases: HashMap::new(),
+            type_constraints: HashMap::new(),
         }
+    }
+
+    /// nominal 子类型（传递超类型链）。
+    pub fn fqn_is_subtype(&self, sub: Symbol, sup: Symbol) -> bool {
+        if sub == sup {
+            return true;
+        }
+        self.index
+            .supertypes_of(sub)
+            .iter()
+            .any(|&s| self.fqn_is_subtype(s, sup))
+    }
+
+    /// 类型约束查询（where-satisfaction 用）。
+    #[allow(clippy::type_complexity)]
+    pub fn type_constraints(
+        &self,
+        fqn: Symbol,
+    ) -> Option<(&[Symbol], &[(Symbol, crate::syntax::ast::GenericBound)])> {
+        self.type_constraints
+            .get(&fqn)
+            .map(|(n, c)| (n.as_slice(), c.as_slice()))
     }
 
     /// typealias 查询（展开用）。
@@ -488,6 +515,39 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 收集类型的 where 约束（FQN → (参数名序列, 约束)），供 lower 做类型实参满足性检查。
+pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+    use crate::syntax::ast::{GenericBound, ItemKind};
+    for item in &file.items {
+        let ItemKind::Type(d) = &item.kind else {
+            continue;
+        };
+        let owner = fqn_of(env, package_prefix, d.name.symbol);
+        let param_names: Vec<Symbol> = d
+            .type_params
+            .as_ref()
+            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .unwrap_or_default();
+        let mut constraints: Vec<(Symbol, GenericBound)> = Vec::new();
+        // where 子句约束。
+        if let Some(wc) = &d.where_clause {
+            for c in &wc.constraints {
+                constraints.push((c.name.symbol, c.bound.clone()));
+            }
+        }
+        // 直接类型参数 bound（`<T: Show>`）。
+        if let Some(tp) = &d.type_params {
+            for p in &tp.params {
+                if let Some(b) = &p.bound {
+                    constraints.push((p.name.symbol, b.clone()));
+                }
+            }
+        }
+        env.type_constraints
+            .insert(owner, (param_names, constraints));
+    }
 }
 
 /// 收集文件中的 typealias（FQN → RHS + 类型参数名），供 lower 展开。
