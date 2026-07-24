@@ -338,7 +338,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.in_loop -= 1;
             }
             StmtKind::For { binder, iter, body } => {
-                self.walk_expr(iter);
+                let iter_ty = self.walk_expr(iter);
+                // iterable 契约：iterator() → (next() → Option<T>)。
+                self.check_for_iterable(iter_ty, iter.span);
                 self.in_loop += 1;
                 self.locals.insert(binder.symbol, self.env.store.nothing());
                 self.walk_block(body);
@@ -381,6 +383,48 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ValBinding::Pattern(p) => {
                 self.bind_pattern_locals(p);
             }
+        }
+    }
+
+    /// 校验 for 循环 iterable：iterator() → (next() → Option<T>)。
+    fn check_for_iterable(&mut self, iter_ty: TypeId, span: Span) {
+        let Some(iter_fqn) = nominal_fqn_of(self.env.store.kind(iter_ty)) else {
+            return;
+        };
+        let iterator_sym = self.env.interner.get("iterator");
+        let next_sym = self.env.interner.get("next");
+        // iterator() 必须存在。
+        let Some(it_ret) = iterator_sym.and_then(|m| self.env.member_signatures(iter_fqn, m))
+        else {
+            self.diags
+                .push(diagnostics::for_missing_iterator_method(span));
+            return;
+        };
+        let Some(it_sig) = it_ret.first() else {
+            self.diags
+                .push(diagnostics::for_missing_iterator_method(span));
+            return;
+        };
+        let it_ret_ty = it_sig.return_ty;
+        // iterator() 返回类型必须有 next()。
+        let Some(it_ret_fqn) = nominal_fqn_of(self.env.store.kind(it_ret_ty)) else {
+            return;
+        };
+        let Some(next_sigs) = next_sym.and_then(|m| self.env.member_signatures(it_ret_fqn, m))
+        else {
+            self.diags.push(diagnostics::for_missing_next_method(span));
+            return;
+        };
+        let Some(next_sig) = next_sigs.first() else {
+            self.diags.push(diagnostics::for_missing_next_method(span));
+            return;
+        };
+        // next() 返回必须是 Option<T>。
+        if !matches!(
+            self.env.store.kind(next_sig.return_ty),
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
+        ) {
+            self.diags.push(diagnostics::for_next_not_option(span));
         }
     }
 

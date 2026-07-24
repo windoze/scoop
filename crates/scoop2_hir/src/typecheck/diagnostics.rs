@@ -204,6 +204,33 @@ pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::for_missing_iterator_method`：iterable 缺少 `iterator()`。
+pub fn for_missing_iterator_method(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::for_missing_iterator_method",
+        "for 循环的 iterable 必须提供 `iterator()` 方法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::for_missing_next_method`：iterator 缺少 `next()`。
+pub fn for_missing_next_method(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::for_missing_next_method",
+        "for 循环的 iterator 必须提供 `next()` 方法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::for_next_not_option`：next() 必须返回 `Option<T>`。
+pub fn for_next_not_option(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::for_next_not_option",
+        "for 循环的 `next()` 必须返回 `Option<T>`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(kind: &str, name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
