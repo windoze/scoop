@@ -1528,6 +1528,32 @@ fn is_known_warning_code(code: &str) -> bool {
     )
 }
 
+/// 闭合 effect row（`...!`）不允许引用 effect row 变量：闭合行必须是完全已知的 effect 集合。
+fn check_closed_effect_row_no_row_var(d: &crate::syntax::ast::FunDecl, diags: &mut DiagnosticSink) {
+    use crate::syntax::ast::EffectRowExpr;
+    let Some(eff): Option<&EffectRowExpr> = d.effect.as_ref() else {
+        return;
+    };
+    if eff.closed.is_none() {
+        return;
+    }
+    // 该声明的 eff row 变量名（`<eff E>`）。
+    let Some(row_var) = d
+        .type_params
+        .as_ref()
+        .and_then(|tp| tp.effect_row.as_ref())
+        .map(|er| er.name.symbol)
+    else {
+        return;
+    };
+    for term in &eff.terms {
+        if term.path.segments.last().map(|s| s.symbol) == Some(row_var) {
+            diags.push(diagnostics::closed_effect_row_contains_row_var(eff.span));
+            return;
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn check_one_fun(
     d: &crate::syntax::ast::FunDecl,
@@ -1543,6 +1569,8 @@ fn check_one_fun(
     this_ty: Option<crate::ty::TypeId>,
 ) {
     use scoop2_base::FileId;
+    // 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）—— header 级检查。
+    check_closed_effect_row_no_row_var(d, diags);
     let Some(body) = &d.body else {
         // 即便无 body，where 子句仍需校验（header 检查）。
         check_where_clause(

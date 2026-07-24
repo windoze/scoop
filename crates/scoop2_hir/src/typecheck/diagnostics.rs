@@ -641,6 +641,16 @@ pub fn continuation_impl_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::closed_effect_row_contains_row_var`：
+/// 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）。
+pub fn closed_effect_row_contains_row_var(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::closed_effect_row_contains_row_var",
+        "闭合 effect row 不允许引用 row 变量（闭合行必须是完全已知的 effect 集合）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
