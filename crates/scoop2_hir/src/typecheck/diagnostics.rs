@@ -564,6 +564,29 @@ pub fn call_arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnos
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
+pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_receiver_type_mismatch",
+        format!("receiver 类型不匹配：期望 receiver 为 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::call_arity_mismatch`（带函数名）。
+pub fn call_arity_mismatch_detail(
+    name: &str,
+    expected: usize,
+    found: usize,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_arity_mismatch",
+        format!("调用参数数量不匹配：{name} 期望 {expected} 个，但提供了 {found} 个"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_arg_type_mismatch`：调用实参类型不匹配（调用专用码）。
 pub fn call_arg_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

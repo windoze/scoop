@@ -1036,6 +1036,56 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             && let Some(&ft) = self.locals.get(&ident.symbol)
             && let Some(f) = self.function_type_of(ft)
         {
+            // receiver function：`String.(Int) -> Int` 的 receiver 作为第一个参数。
+            let mut all_params = Vec::new();
+            if let Some(recv) = f.receiver {
+                all_params.push(recv);
+            }
+            all_params.extend(f.params.iter().copied());
+            // receiver function 的 arity / receiver-type 检查（不受 lenient 影响）。
+            if let Some(recv_ty_id) = f.receiver
+                && !args.iter().any(|a| a.name.is_some())
+            {
+                if all_params.len() != args.len() {
+                    let callee_name = self.env.interner.resolve(ident.symbol);
+                    self.diags.push(diagnostics::call_arity_mismatch_detail(
+                        callee_name,
+                        all_params.len(),
+                        args.len(),
+                        span,
+                    ));
+                    for a in args {
+                        self.walk_expr(&a.value);
+                    }
+                    return f.return_ty;
+                }
+                // receiver 类型检查。
+                let recv_ty = self.walk_expr(&args[0].value);
+                if !self.assignable(recv_ty, recv_ty_id) {
+                    let expected_desc = self.describe(recv_ty_id);
+                    let found_desc = self.describe(recv_ty);
+                    self.diags.push(diagnostics::call_receiver_type_mismatch(
+                        &expected_desc,
+                        &found_desc,
+                        args[0].value.span,
+                    ));
+                }
+                // 其余参数类型检查。
+                for (i, a) in args.iter().enumerate().skip(1) {
+                    let at = self.walk_expr(&a.value);
+                    if let Some(&pt) = f.params.get(i - 1)
+                        && !self.assignable(at, pt)
+                        && !self.lenient_type_errors
+                    {
+                        self.diags.push(diagnostics::call_arg_type_mismatch(
+                            &self.describe(pt),
+                            &self.describe(at),
+                            a.value.span,
+                        ));
+                    }
+                }
+                return f.return_ty;
+            }
             return self.check_call_args(f.params, f.return_ty, args, span);
         }
         // 2. 顶层函数调用（resolve 解析到 TopLevelFun）。
