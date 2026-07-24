@@ -700,6 +700,15 @@ pub fn array_lit_type_annotation_required(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::missing_type_annotation`：顶层 val/var 缺少类型注解。
+pub fn missing_type_annotation(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::missing_type_annotation",
+        "顶层 `val`/`var` 声明缺少类型注解",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::fun_must_have_body`：普通函数必须提供函数体。
 pub fn fun_must_have_body(span: Span) -> Diagnostic {
     fun_must_have_body_detail("普通函数必须提供函数体", span)

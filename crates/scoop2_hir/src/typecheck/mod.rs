@@ -449,6 +449,14 @@ fn check_file_bodies(
             }
             ItemKind::Val(d) => {
                 let is_extern_var = has_annotation(&d.annotations, "Extern", env.interner);
+                // 顶层 `val`/`var` 必须显式标注类型（顶层不做类型推断）。
+                if d.ty.is_none() {
+                    let name_span = match &d.binding {
+                        crate::syntax::ast::ValBinding::Name(id) => id.span,
+                        _ => scoop2_base::Span::default(),
+                    };
+                    diags.push(diagnostics::missing_type_annotation(name_span));
+                }
                 // 降级类型注解（触发 where-satisfaction / unresolved_type_ref；
                 // 不检查 initializer 以避免 ExprChecker 在顶层上下文的局限）。
                 if let Some(ty_ref) = &d.ty {
