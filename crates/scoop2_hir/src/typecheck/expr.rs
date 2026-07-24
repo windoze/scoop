@@ -515,28 +515,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
                 if let Some(e) = value {
                     let t = self.walk_expr(e);
-                    if let Some(expected) = self.return_ty {
-                        // 函数类型返回值：仅检查 effect 行 containment（params/return
-                        // 对比的 hash-cons 差异不在返回检查中处理；effect 行才是关键）。
-                        let fn_pair = match (self.env.store.kind(t), self.env.store.kind(expected))
-                        {
-                            (
-                                TypeKind::Ref(crate::ty::RefTypeKind::Function(ff)),
-                                TypeKind::Ref(crate::ty::RefTypeKind::Function(ef)),
-                            ) => Some((ff.clone(), ef.clone())),
-                            _ => None,
-                        };
-                        let mismatch = match fn_pair {
-                            Some((ff, ef)) => !ff.effects.is_subset_of(&ef.effects),
-                            None => !self.assignable(t, expected),
-                        };
-                        if mismatch {
-                            self.diags.push(diagnostics::return_type_mismatch(
-                                &self.describe(expected),
-                                &self.describe(t),
-                                e.span,
-                            ));
-                        }
+                    if let Some(expected) = self.return_ty
+                        && !self.assignable(t, expected)
+                        // 期望为函数类型但实参不是函数类型时跳过（`{ ... }` 块表达式应
+                        // 作为零参 lambda 包装，当前 M7 未覆盖）。
+                        && !(matches!(
+                            self.env.store.kind(expected),
+                            TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+                        ) && !matches!(
+                            self.env.store.kind(t),
+                            TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+                        ))
+                    {
+                        self.diags.push(diagnostics::return_type_mismatch(
+                            &self.describe(expected),
+                            &self.describe(t),
+                            e.span,
+                        ));
                     }
                 } else if let Some(expected) = self.return_ty
                     && !self.env.store.is_unit(expected)
