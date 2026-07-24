@@ -1260,6 +1260,15 @@ pub fn invalid_cast(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::unsupported_expr`：当前阶段不支持的表达式形式。
+pub fn unsupported_expr(what: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unsupported_expr",
+        format!("不支持的表达式形式：{what}"),
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。

@@ -542,6 +542,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     fn walk_local_val(&mut self, val: &ast::ValDecl, stmt: &Stmt) {
+        // 局部 val/var 必须有 initializer（无 definite assignment）。
+        if val.init.is_none() {
+            let span = match &val.binding {
+                ast::ValBinding::Name(n) => n.span,
+                ast::ValBinding::Pattern(_) => stmt.span,
+            };
+            self.diags.push(diagnostics::unsupported_expr(
+                "局部 val/var（缺少 initializer）",
+                span,
+            ));
+            return;
+        }
         let declared = val.ty.as_ref().map(|t| self.lower_type(t));
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
         if let (Some(d), Some(i)) = (declared, init_ty)
