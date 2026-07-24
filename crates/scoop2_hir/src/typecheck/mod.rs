@@ -157,6 +157,8 @@ fn check_file_bodies(
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
         // 未知注解类型检查。
         check_annotation_uses(item_annotations(item), env, package_prefix, diags);
+        // 内建注解目标检查。
+        check_builtin_annotation_targets(item, env.interner, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
                 // @Intrinsic 只能在受信任 syslib cone 中声明。
@@ -1200,6 +1202,32 @@ pub(crate) fn check_experimental_annotations(
     }
 }
 
+/// 内建注解目标检查：`@InteriorMutable` 只能用于 class/struct，不能用于 typealias/val/fun。
+fn check_builtin_annotation_targets(
+    item: &crate::syntax::ast::Item,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ItemKind;
+    let anns = item_annotations(item);
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        let name = interner.resolve(last.symbol);
+        let span = last.span;
+        if name == "InteriorMutable"
+            && !matches!(&item.kind, ItemKind::Type(d) if matches!(d.kind, crate::syntax::ast::TypeKind::Class | crate::syntax::ast::TypeKind::Struct))
+        {
+            diags.push(diagnostics::builtin_annotation_invalid_target(
+                "@InteriorMutable",
+                "struct / class 类型声明",
+                span,
+            ));
+        }
+    }
+}
+
 /// 已知内建注解名（不需解析为 annotation class）。
 const BUILTIN_ANNOTATIONS: &[&str] = &[
     "Intrinsic",
@@ -1218,6 +1246,8 @@ const BUILTIN_ANNOTATIONS: &[&str] = &[
     "Target",
     "Retention",
     "ReleaseHook",
+    "InteriorMutable",
+    "ReplaceWith",
 ];
 
 /// 扫描所有注解使用：对非内建注解，检查是否解析为 annotation class；
