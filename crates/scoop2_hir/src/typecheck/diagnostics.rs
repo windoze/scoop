@@ -304,10 +304,19 @@ pub fn binary_op_operand_type_mismatch(op: &str, found: &str, span: Span) -> Dia
 }
 
 /// `scoop::typecheck::operator_overload_not_found`：找不到运算符重载方法。
-pub fn operator_overload_not_found(op: &str, ty: &str, span: Span) -> Diagnostic {
+pub fn operator_overload_not_found(op: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::operator_overload_not_found",
-        format!("类型 {ty} 没有运算符 `{op}` 的重载方法"),
+        format!("操作符 `{op}` 未找到可用的重载"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unary_operator_overload_not_found`：找不到一元运算符重载方法。
+pub fn unary_operator_overload_not_found(op: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unary_operator_overload_not_found",
+        format!("操作符 `{op}` 未找到可用的重载"),
     )
     .with_primary(span, "这里")
 }

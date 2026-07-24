@@ -503,9 +503,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         if let Some(m) =
                             binop_to_method_name(*op).and_then(|n| self.env.interner.get(n))
                         {
-                            return self.method_call_return_type(lt, m, &[rt], expr.span);
+                            let has_method = nominal_fqn_of(self.env.store.kind(lt))
+                                .or_else(|| scalar_fqn(self.env.store.kind(lt), self.env.interner))
+                                .is_some_and(|f| self.env.member_signatures(f, m).is_some());
+                            if has_method {
+                                return self.method_call_return_type(lt, m, &[rt], expr.span);
+                            }
+                            // 接收者是已知 nominal 但缺运算符方法 → 报错。
+                            if !self.env.store.is_nothing(lt)
+                                && !matches!(self.env.store.kind(lt), TypeKind::Param(_))
+                                && nominal_fqn_of(self.env.store.kind(lt)).is_some()
+                            {
+                                let sym = binop_symbol(*op);
+                                let start = lhs.span.end + 1;
+                                self.diags.push(diagnostics::operator_overload_not_found(
+                                    sym,
+                                    Span::new(start, start + sym.len()),
+                                ));
+                            }
                         }
-                        // 运算符方法也不可用（可能是泛型/未知类型操作数）→ lenient。
                         self.env.store.nothing()
                     }
                 }
@@ -520,9 +536,26 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         // 尝试运算符重载方法调用（a.unaryMinus() / a.inv() 等）。
                         let method = unop_to_method_name(*op);
                         if let Some(m) = method.and_then(|n| self.env.interner.get(n)) {
-                            return self.method_call_return_type(t, m, &[], expr.span);
+                            let has_method = nominal_fqn_of(self.env.store.kind(t))
+                                .or_else(|| scalar_fqn(self.env.store.kind(t), self.env.interner))
+                                .is_some_and(|f| self.env.member_signatures(f, m).is_some());
+                            if has_method {
+                                return self.method_call_return_type(t, m, &[], expr.span);
+                            }
+                            if !self.env.store.is_nothing(t)
+                                && !matches!(self.env.store.kind(t), TypeKind::Param(_))
+                                && nominal_fqn_of(self.env.store.kind(t)).is_some()
+                            {
+                                let sym = unop_symbol(*op);
+                                let start = e.span.start.saturating_sub(1);
+                                self.diags
+                                    .push(diagnostics::unary_operator_overload_not_found(
+                                        sym,
+                                        Span::new(start, start + sym.len()),
+                                    ));
+                            }
                         }
-                        self.unsupported("该一元运算", expr.span)
+                        self.env.store.nothing()
                     }
                 }
             }
@@ -1710,6 +1743,42 @@ fn unop_to_method_name(op: UnaryOp) -> Option<&'static str> {
         UnaryOp::BitNot => "inv",
         UnaryOp::Not => return None,
     })
+}
+
+/// BinaryOp → 源码符号（诊断用）。
+fn binop_symbol(op: BinaryOp) -> &'static str {
+    use BinaryOp as B;
+    match op {
+        B::Add => "+",
+        B::Sub => "-",
+        B::Mul => "*",
+        B::Div => "/",
+        B::Rem => "%",
+        B::Shl => "<<",
+        B::Shr => ">>",
+        B::BitAnd => "&",
+        B::BitXor => "^",
+        B::BitOr => "|",
+        B::Lt => "<",
+        B::Le => "<=",
+        B::Gt => ">",
+        B::Ge => ">=",
+        B::Eq => "==",
+        B::Ne => "!=",
+        B::Range => "..",
+        B::LogAnd => "&&",
+        B::LogOr => "||",
+        B::Elvis => "?:",
+    }
+}
+
+/// UnaryOp → 源码符号（诊断用）。
+fn unop_symbol(op: UnaryOp) -> &'static str {
+    match op {
+        UnaryOp::Neg => "-",
+        UnaryOp::BitNot => "~",
+        UnaryOp::Not => "!",
+    }
 }
 
 /// 抑制未用导入警告（NodeId 在 M1 尚未写回 typed 结果）。
