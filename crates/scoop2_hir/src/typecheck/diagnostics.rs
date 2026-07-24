@@ -375,6 +375,15 @@ pub fn required_effect_not_declared(effect: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::use_site_eff_arg_not_allowed`：use-site eff 实参只能在声明了 eff 形参的类型上使用。
+pub fn use_site_eff_arg_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::use_site_eff_arg_not_allowed",
+        "当前语言 contract 下，只有显式声明 effect row 形参的名义类型才允许 use-site effect row 实参",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::nogc_fun_effects_not_allowed`：`@NoGC` 函数不允许声明非 Pure 的 effect row。
 pub fn nogc_fun_effects_not_allowed(span: Span) -> Diagnostic {
     Diagnostic::error(

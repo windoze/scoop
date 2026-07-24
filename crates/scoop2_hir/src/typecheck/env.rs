@@ -76,6 +76,8 @@ pub struct TypeEnv<'i> {
     top_level_vals: HashMap<Symbol, TypeId>,
     /// enum FQN → variant 名列表（when 穷尽性检查用）。
     enum_variants: HashMap<Symbol, Vec<Symbol>>,
+    /// 声明了 eff 形参的类型 FQN 集合（use-site eff 实参合法性检查用）。
+    eff_param_types: HashSet<Symbol>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -95,6 +97,7 @@ impl<'i> TypeEnv<'i> {
             type_constraints: HashMap::new(),
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),
+            eff_param_types: HashSet::new(),
         }
     }
 
@@ -117,6 +120,11 @@ impl<'i> TypeEnv<'i> {
     /// enum variant 列表查询（when 穷尽性用）。
     pub fn enum_variants(&self, fqn: Symbol) -> Option<&[Symbol]> {
         self.enum_variants.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// 类型是否声明了 eff 形参。
+    pub fn has_eff_param(&self, fqn: Symbol) -> bool {
+        self.eff_param_types.contains(&fqn)
     }
 
     /// 类型约束查询（where-satisfaction 用）。
@@ -748,6 +756,10 @@ pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix:
         }
         env.type_constraints
             .insert(owner, (param_names, constraints));
+        // 记录该类型/函数是否声明了 eff 形参。
+        if type_params.is_some_and(|tp| tp.effect_row.is_some()) {
+            env.eff_param_types.insert(owner);
+        }
     };
     for item in &file.items {
         match &item.kind {

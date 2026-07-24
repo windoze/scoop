@@ -243,6 +243,16 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             TypeArgKind::Effect(e) => Some(self.lower_effect_row(Some(e))),
             _ => None,
         });
+        // use-site eff 实参只能在声明了 eff 形参的类型上使用。
+        if nominal_eff.is_some() && !self.env.has_eff_param(fqn) {
+            let name = self.env.interner.resolve(fqn);
+            let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+            // Continuation 是 compiler-owned 但声明了 eff param（prelude）。
+            if stripped != "Continuation" {
+                self.diags
+                    .push(super::diagnostics::use_site_eff_arg_not_allowed(span));
+            }
+        }
         let nominal = NominalType {
             fqn,
             args: lowered_args,
