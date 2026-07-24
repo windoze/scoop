@@ -388,6 +388,15 @@ pub fn when_non_exhaustive_missing_variants_detail(missing: &str, span: Span) ->
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::when_missing_else`：非穷尽类型需 else 分支。
+pub fn when_missing_else(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_missing_else",
+        "when 表达式必须包含 `else` 分支",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::where_constraint_not_satisfied`：where 约束不满足。
 pub fn where_constraint_not_satisfied(constraint: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

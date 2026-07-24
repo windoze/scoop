@@ -567,6 +567,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// `when` 缺少的分支（None = 穷尽；Some(missing) = 缺少的 case 描述）。
     fn when_missing_case(&self, subject_ty: TypeId, arms: &[ast::WhenArm]) -> Option<String> {
         use crate::syntax::ast::{PatternKind, PatternLiteral};
+        // else / 通配 / 绑定 → 穷尽。
         if arms.iter().any(|a| {
             matches!(
                 a.pat.kind,
@@ -575,13 +576,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }) {
             return None;
         }
+        // 带守卫的 Literal/Variant 模式不保证覆盖（守卫可能失败）。
+        let unguarded_arms: Vec<&ast::WhenArm> =
+            arms.iter().filter(|a| a.guard.is_none()).collect();
+        // Bool：需 true + false（仅无守卫分支计数）。
         if matches!(
             self.env.store.kind(subject_ty),
             TypeKind::Value(crate::ty::ValueTypeKind::Bool)
         ) {
             let mut has_true = false;
             let mut has_false = false;
-            for arm in arms {
+            for arm in &unguarded_arms {
                 if let PatternKind::Literal(PatternLiteral::Bool { value, .. }) = &arm.pat.kind {
                     if *value {
                         has_true = true;
@@ -598,13 +603,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             return None;
         }
+        // Option：需 Some + None（仅无守卫分支计数）。
         if matches!(
             self.env.store.kind(subject_ty),
             TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
         ) {
             let mut has_some = false;
             let mut has_none = false;
-            for arm in arms {
+            for arm in &unguarded_arms {
                 if let PatternKind::Variant { path, .. } = &arm.pat.kind
                     && let Some(seg) = path.segments.last()
                 {
@@ -624,7 +630,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             return None;
         }
-        // enum：需覆盖所有 variant。
+        // enum：需覆盖所有 variant（仅无守卫分支计数）。
         let enum_fqn = match self.env.store.kind(subject_ty) {
             TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
             | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
@@ -633,7 +639,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let Some(fqn) = enum_fqn
             && let Some(variants) = self.env.enum_variants(fqn)
         {
-            let covered: HashSet<Symbol> = arms
+            let covered: HashSet<Symbol> = unguarded_arms
                 .iter()
                 .filter_map(|a| match &a.pat.kind {
                     PatternKind::Variant { path, .. } => path.segments.last().map(|s| s.symbol),
@@ -646,6 +652,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             return None;
+        }
+        // 其他已知类型（标量 / nominal）→ 无穷值域，需 else。
+        if !self.env.store.is_nothing(subject_ty) {
+            return Some("else".to_string());
         }
         None
     }
@@ -1536,10 +1546,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         // 穷尽性检查：Bool 需 true+false；Option 需 Some+None；否则需要 else/通配。
         if let Some(missing) = self.when_missing_case(subject_ty, arms) {
-            self.diags
-                .push(diagnostics::when_non_exhaustive_missing_variants_detail(
-                    &missing, span,
-                ));
+            if missing == "else" {
+                self.diags.push(diagnostics::when_missing_else(span));
+            } else {
+                self.diags
+                    .push(diagnostics::when_non_exhaustive_missing_variants_detail(
+                        &missing, span,
+                    ));
+            }
         }
         if arm_types.is_empty() {
             return self.env.store.unit();
