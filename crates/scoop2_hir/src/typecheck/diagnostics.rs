@@ -249,6 +249,15 @@ pub fn struct_lit_missing_fields(fields: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::field_used_without_backing_field`：computed field 引用了 `field`。
+pub fn field_used_without_backing_field(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::field_used_without_backing_field",
+        "不能引用 `field`：该属性没有 backing field（computed property）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::splice_field_name_not_static`：`value.[expr]` 的字段名必须静态。
 pub fn splice_field_name_not_static(span: Span) -> Diagnostic {
     Diagnostic::error(
@@ -559,7 +568,7 @@ pub fn call_arg_type_mismatch(expected: &str, found: &str, span: Span) -> Diagno
 pub fn initializer_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::initializer_type_mismatch",
-        format!("初始化值类型不匹配：期望 {expected}，但得到 {found}"),
+        format!("初始化表达式类型不匹配：期望 {expected}，但得到 {found}"),
     )
     .with_primary(span, "这里")
 }

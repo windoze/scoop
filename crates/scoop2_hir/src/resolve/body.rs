@@ -472,6 +472,10 @@ impl<'a> BodyResolver<'a> {
         if name_text == "this" && self.this_type.is_some() {
             return;
         }
+        // `field` 是 backing field 的隐式引用（由 typecheck 判定合法性）。
+        if name_text == "field" {
+            return;
+        }
         // 1. 局部
         if let Some(local) = self.scopes.resolve(ident.symbol) {
             self.resolution

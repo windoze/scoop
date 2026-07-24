@@ -474,6 +474,8 @@ fn check_file_bodies(
                         package_prefix,
                         &tp_map,
                     );
+                    // computed property 引用 `field` 检查。
+                    check_computed_property_field_ref(&body.members, env.interner, diags);
                 }
             }
             ItemKind::Object(d) => {
@@ -1199,6 +1201,116 @@ pub(crate) fn check_experimental_annotations(
             }
             _ => {}
         }
+    }
+}
+
+/// computed property 引用 `field` 检查：有自定义 getter 的属性不能引用 `field`。
+fn check_computed_property_field_ref(
+    members: &[crate::syntax::ast::TypeMember],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::{AccessorKind, TypeMemberKind};
+    let field_sym = interner.get("field");
+    let Some(field_sym) = field_sym else {
+        return;
+    };
+    for m in members {
+        let TypeMemberKind::Property(pd) = &m.kind else {
+            continue;
+        };
+        for acc in &pd.accessors {
+            if acc.kind != AccessorKind::Get {
+                continue;
+            }
+            // 在 getter body 中查找 `field` 引用。
+            let found = match &acc.body {
+                crate::syntax::ast::AccessorBody::Block(b) => block_contains_ident(b, field_sym),
+                crate::syntax::ast::AccessorBody::Expr(e) => expr_contains_ident(e, field_sym),
+            };
+            if found {
+                // 找到 `field` 标识符的精确 span。
+                let field_span = find_ident_span_in_accessor(&acc.body, field_sym);
+                diags.push(diagnostics::field_used_without_backing_field(field_span));
+            }
+        }
+    }
+}
+
+/// 块中是否包含对指定标识符的引用。
+fn block_contains_ident(block: &crate::syntax::ast::Block, sym: scoop2_base::Symbol) -> bool {
+    for stmt in &block.stmts {
+        match &stmt.kind {
+            crate::syntax::ast::StmtKind::Return { value } => {
+                if let Some(v) = value
+                    && expr_contains_ident(v, sym)
+                {
+                    return true;
+                }
+            }
+            crate::syntax::ast::StmtKind::Expr(e) if expr_contains_ident(e, sym) => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// 表达式中是否包含对指定标识符的引用。
+fn expr_contains_ident(e: &crate::syntax::ast::Expr, sym: scoop2_base::Symbol) -> bool {
+    match &e.kind {
+        crate::syntax::ast::ExprKind::Ident(id) => id.symbol == sym,
+        crate::syntax::ast::ExprKind::Binary { lhs, rhs, .. } => {
+            expr_contains_ident(lhs, sym) || expr_contains_ident(rhs, sym)
+        }
+        crate::syntax::ast::ExprKind::Unary { expr, .. } => expr_contains_ident(expr, sym),
+        _ => false,
+    }
+}
+
+/// 在访问器体中查找 `field` 标识符的 span。
+fn find_ident_span_in_accessor(
+    body: &crate::syntax::ast::AccessorBody,
+    sym: scoop2_base::Symbol,
+) -> scoop2_base::Span {
+    match body {
+        crate::syntax::ast::AccessorBody::Block(b) => {
+            for stmt in &b.stmts {
+                match &stmt.kind {
+                    crate::syntax::ast::StmtKind::Return { value } => {
+                        if let Some(v) = value
+                            && let Some(s) = find_ident_span(v, sym)
+                        {
+                            return s;
+                        }
+                    }
+                    crate::syntax::ast::StmtKind::Expr(e) => {
+                        if let Some(s) = find_ident_span(e, sym) {
+                            return s;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            scoop2_base::Span::default()
+        }
+        crate::syntax::ast::AccessorBody::Expr(e) => find_ident_span(e, sym).unwrap_or_default(),
+    }
+}
+
+/// 递归查找标识符的 span。
+fn find_ident_span(
+    e: &crate::syntax::ast::Expr,
+    sym: scoop2_base::Symbol,
+) -> Option<scoop2_base::Span> {
+    match &e.kind {
+        crate::syntax::ast::ExprKind::Ident(id) if id.symbol == sym => Some(id.span),
+        crate::syntax::ast::ExprKind::Binary { lhs, rhs, .. } => {
+            find_ident_span(lhs, sym).or_else(|| find_ident_span(rhs, sym))
+        }
+        crate::syntax::ast::ExprKind::Unary { expr, .. } => find_ident_span(expr, sym),
+        _ => None,
     }
 }
 
