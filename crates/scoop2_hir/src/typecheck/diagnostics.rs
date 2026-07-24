@@ -922,6 +922,25 @@ pub fn when_variant_pat_too_short(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::with_update_unknown_variant`：enum `with` 首段不是已知 variant。
+pub fn with_update_unknown_variant(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_unknown_variant",
+        "enum `with` 更新的首段不是该 enum 的 variant（不存在 variant）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::with_update_variant_field_required`：
+/// enum `with` 选择 variant 后必须继续给出 payload 字段路径。
+pub fn with_update_variant_field_required(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::with_update_variant_field_required",
+        "enum `with` 选择 variant 后必须继续给出 payload 字段路径",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

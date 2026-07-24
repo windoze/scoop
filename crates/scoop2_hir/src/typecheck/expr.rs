@@ -2123,8 +2123,27 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         base_kind: &WithUpdateAggregate,
         u: &ast::WithUpdateField,
     ) -> bool {
-        // enum base 的 variant payload 逐段校验暂未实现（payload 未在 Index 登记）。
-        if matches!(base_kind, WithUpdateAggregate::Enum(_)) {
+        // enum base：首段必须是已知 variant；选中 variant 后必须给出 payload 字段路径。
+        if let WithUpdateAggregate::Enum(enum_fqn) = base_kind {
+            if let Some(first) = u.path.segments.first() {
+                let first_name = self.member_name_text(first);
+                let is_variant = self.env.enum_variants(*enum_fqn).is_some_and(|vs| {
+                    vs.iter().any(|&v| {
+                        let vn = self.env.interner.resolve(v);
+                        vn == first_name || vn.ends_with(&format!(".{first_name}"))
+                    })
+                });
+                if !is_variant {
+                    self.diags.push(diagnostics::with_update_unknown_variant(
+                        self.member_name_span(first),
+                    ));
+                } else if u.path.segments.len() < 2 {
+                    self.diags
+                        .push(diagnostics::with_update_variant_field_required(
+                            u.value.span,
+                        ));
+                }
+            }
             self.walk_expr(&u.value);
             return true;
         }
