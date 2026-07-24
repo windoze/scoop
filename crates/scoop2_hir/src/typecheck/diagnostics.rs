@@ -913,6 +913,15 @@ pub fn when_tuple_pat_too_short(needed: usize, actual: usize, span: Span) -> Dia
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::when_variant_pat_too_short`：variant pattern 带 rest 时前缀超过 payload 字段数。
+pub fn when_variant_pat_too_short(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_variant_pat_too_short",
+        "variant pattern 参数不足：带 `..` 时前缀超过 variant payload 字段数",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

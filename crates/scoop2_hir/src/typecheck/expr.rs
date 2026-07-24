@@ -2412,7 +2412,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .push(diagnostics::when_string_pat_not_string(pat.span));
                 }
             }
-            PatternKind::Variant { .. } => {
+            PatternKind::Variant { path, args } => {
                 // enum nominal 或内建 Option<T>（variant 模式可用的 subject）。
                 let is_enum = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Option(_)))
                     || nominal_fqn_of(kind)
@@ -2423,6 +2423,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if !is_enum {
                     self.diags
                         .push(diagnostics::when_variant_pat_not_enum(pat.span));
+                } else if let Some(args) = args {
+                    // 带 rest 时，对已知 arity 的 variant（Option 等）检查前缀不超过 payload 数。
+                    let has_rest = args.iter().any(|a| matches!(a.kind, PatternKind::Rest));
+                    if has_rest
+                        && let Some(last) = path.segments.last()
+                        && let Some(arity) = self.known_enum_variant_arity(last.symbol)
+                    {
+                        let non_rest = args
+                            .iter()
+                            .filter(|a| !matches!(a.kind, PatternKind::Rest))
+                            .count();
+                        if non_rest > arity {
+                            self.diags
+                                .push(diagnostics::when_variant_pat_too_short(pat.span));
+                        }
+                    }
                 }
             }
             PatternKind::Tuple(elems) => {
