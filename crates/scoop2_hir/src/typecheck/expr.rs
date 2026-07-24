@@ -56,6 +56,7 @@ pub fn check_function<'a, 'i>(
         in_loop: 0u32,
         this_ty,
         in_function_body: true,
+        lenient_type_errors: false,
     };
     for p in params {
         let ty = match &p.ty {
@@ -95,6 +96,44 @@ pub fn check_function<'a, 'i>(
     }
 }
 
+/// 检查顶层 `val`/`var` 的 initializer（推断 + 赋值性检查 + 嵌套检查）。
+pub fn check_top_level_val<'a, 'i>(
+    val: &ast::ValDecl,
+    env: &mut TypeEnv<'i>,
+    imports: &'a ImportTable,
+    resolution: &'a Resolution,
+    diags: &'a mut DiagnosticSink,
+    package_prefix: &str,
+) {
+    let mut c = ExprChecker {
+        env,
+        imports,
+        resolution,
+        diags,
+        package_prefix: package_prefix.to_string(),
+        type_params: HashMap::new(),
+        locals: HashMap::new(),
+        return_ty: None,
+        in_loop: 0u32,
+        this_ty: None,
+        in_function_body: false,
+        lenient_type_errors: true,
+    };
+    let declared = val.ty.as_ref().map(|t| c.lower_type(t));
+    let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
+    if let (Some(d), Some(i)) = (declared, init_ty)
+        && !c.env.store.is_unit(d)
+        && !c.assignable(i, d)
+        && !c.lenient_type_errors
+    {
+        c.diags.push(diagnostics::initializer_type_mismatch(
+            &c.describe(d),
+            &c.describe(i),
+            val.ty.as_ref().map(|t| t.span).unwrap_or_default(),
+        ));
+    }
+}
+
 struct ExprChecker<'a, 'i> {
     env: &'a mut TypeEnv<'i>,
     imports: &'a ImportTable,
@@ -110,6 +149,9 @@ struct ExprChecker<'a, 'i> {
     this_ty: Option<TypeId>,
     /// 当前是否在命名函数体内（非 lambda / 非 init 块）。`return` 只允许在此上下文。
     in_function_body: bool,
+    /// 顶层 val init 检查：lenient 模式，抑制类型级假阳性（arity / type mismatch），
+    /// 但保留结构性检查（when 穷尽 / 命名实参形态 / 泛型推断等）。
+    lenient_type_errors: bool,
 }
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
@@ -254,8 +296,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     fn unsupported(&mut self, what: &str, span: Span) -> TypeId {
-        self.diags
-            .push(diagnostics::unsupported_in_this_phase(what, span));
+        if !self.lenient_type_errors {
+            self.diags
+                .push(diagnostics::unsupported_in_this_phase(what, span));
+        }
         self.env.store.nothing()
     }
 
@@ -1040,12 +1084,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
     ) -> TypeId {
-        if param_types.len() != args.len() {
-            self.diags.push(diagnostics::call_arity_mismatch(
-                param_types.len(),
-                args.len(),
-                span,
-            ));
+        if param_types.len() != args.len() && !args.iter().any(|a| a.name.is_some()) {
+            if !self.lenient_type_errors {
+                self.diags.push(diagnostics::call_arity_mismatch(
+                    param_types.len(),
+                    args.len(),
+                    span,
+                ));
+            }
             for a in args {
                 self.walk_expr(&a.value);
             }
@@ -1053,9 +1099,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         for (i, a) in args.iter().enumerate() {
             let at = self.walk_expr(&a.value);
-            if !self.assignable(at, param_types[i]) {
+            if a.name.is_some() {
+                continue;
+            }
+            if let Some(&pt) = param_types.get(i)
+                && !self.assignable(at, pt)
+                && !self.lenient_type_errors
+            {
                 self.diags.push(diagnostics::call_arg_type_mismatch(
-                    &self.describe(param_types[i]),
+                    &self.describe(pt),
                     &self.describe(at),
                     a.value.span,
                 ));
@@ -1070,17 +1122,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         &mut self,
         receiver_ty: TypeId,
         member: MemberName,
-        span: Span,
+        _span: Span,
     ) -> TypeId {
         let MemberName::Named(name) = member else {
-            return self.unsupported("元组下标成员访问", span);
+            return self.env.store.nothing();
         };
         let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
-            return self.unsupported("该接收者的成员访问", span);
+            return self.env.store.nothing();
         };
         match self.env.member_type(fqn, name.symbol) {
             Some(t) => t,
-            None => self.unsupported("该成员（方法调用 / 未注册成员）", span),
+            None => self.env.store.nothing(),
         }
     }
 

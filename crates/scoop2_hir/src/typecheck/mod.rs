@@ -461,9 +461,10 @@ fn check_file_bodies(
                     };
                     diags.push(diagnostics::missing_type_annotation(name_span));
                 }
-                // 降级类型注解（触发 where-satisfaction / unresolved_type_ref；
-                // 不检查 initializer 以避免 ExprChecker 在顶层上下文的局限）。
-                if let Some(ty_ref) = &d.ty {
+                // 降级类型注解 + 检查 initializer。
+                if d.init.is_some() {
+                    expr::check_top_level_val(d, env, imports, resolution, diags, package_prefix);
+                } else if let Some(ty_ref) = &d.ty {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(
                         env,
                         imports,
