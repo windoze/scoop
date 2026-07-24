@@ -65,33 +65,35 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             TypeRefKind::Function {
                 params,
                 ret,
-                effect: _,
+                effect,
             } => {
                 let params: Vec<TypeId> = params.iter().map(|p| self.lower(p)).collect();
                 let ret = self.lower(ret);
+                let effects = self.lower_effect_row(effect.as_ref());
                 self.env.store.function(FunctionType {
                     receiver: None,
                     params,
                     return_ty: ret,
-                    effects: EffectRow::pure(),
-                    closed: false,
+                    effects,
+                    closed: effect.as_ref().is_some_and(|e| e.closed.is_some()),
                 })
             }
             TypeRefKind::ReceiverFunction {
                 receiver,
                 params,
                 ret,
-                effect: _,
+                effect,
             } => {
                 let receiver = self.lower(receiver);
                 let params: Vec<TypeId> = params.iter().map(|p| self.lower(p)).collect();
                 let ret = self.lower(ret);
+                let effects = self.lower_effect_row(effect.as_ref());
                 self.env.store.function(FunctionType {
                     receiver: Some(receiver),
                     params,
                     return_ty: ret,
-                    effects: EffectRow::pure(),
-                    closed: false,
+                    effects,
+                    closed: effect.as_ref().is_some_and(|e| e.closed.is_some()),
                 })
             }
             TypeRefKind::Nullable(inner) => {
@@ -99,6 +101,45 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 self.env.store.option(inner)
             }
         }
+    }
+
+    /// 宽容降级 effect 行：每项解析为 nominal TypeId（不报 unresolved_type_ref）。
+    /// 未解析的项跳过（不计入行）；`Pure` / 空行 → 空 EffectRow。
+    fn lower_effect_row(
+        &mut self,
+        effect: Option<&crate::syntax::ast::EffectRowExpr>,
+    ) -> EffectRow {
+        let Some(eff) = effect else {
+            return EffectRow::pure();
+        };
+        let mut terms: Vec<TypeId> = Vec::new();
+        for term in &eff.terms {
+            // Pure 项不计入行。
+            if term
+                .path
+                .segments
+                .last()
+                .is_some_and(|s| self.env.interner.resolve(s.symbol) == "Pure")
+            {
+                continue;
+            }
+            // 尝试解析为 nominal（不带类型实参——effect 行按 FQN 短名比较）。
+            if let Some(fqn) = self.resolve_type_fqn(&term.path) {
+                let nominal = NominalType {
+                    fqn,
+                    args: vec![],
+                    eff: None,
+                };
+                let ty = if self.env.is_reference_nominal(fqn) {
+                    self.env.store.ref_nominal(nominal)
+                } else {
+                    self.env.store.value_nominal(nominal)
+                };
+                terms.push(ty);
+            }
+            // 未解析 → 跳过（宽容，不报错）。
+        }
+        EffectRow::from_terms(terms)
     }
 
     fn lower_path(&mut self, path: &TypePath, args: &[TypeArg], span: Span) -> TypeId {
