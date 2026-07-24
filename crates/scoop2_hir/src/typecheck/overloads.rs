@@ -77,6 +77,8 @@ struct OverloadInfo {
     effective_params: Vec<String>,
     has_defaults: Vec<bool>,
     return_ty: Option<TypeId>,
+    /// effect 行规范键（去重排序后的 effect 短名 + 闭合标记）。纯（无项或 Pure）= ""。
+    effect_row: String,
     candidate: String,
 }
 
@@ -129,8 +131,31 @@ fn build_info(
         effective_params: eff,
         has_defaults: defaults,
         return_ty,
+        effect_row: effect_row_key(d, env.interner),
         candidate,
     }
+}
+
+/// effect 行的规范键：去重排序后的 effect 短名（`Pure`/无项 = 空），尾随 `!` 表示闭合行。
+/// 仅用于判断两个重载的 effect 行是否相同——不参与重载决议，仅作为冲突理由细分。
+fn effect_row_key(d: &FunDecl, interner: &scoop2_base::Interner) -> String {
+    let Some(eff) = &d.effect else {
+        return String::new();
+    };
+    let mut names: Vec<&str> = eff
+        .terms
+        .iter()
+        .filter_map(|t| t.path.segments.last())
+        .map(|seg| interner.resolve(seg.symbol))
+        .filter(|n| *n != "Pure")
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    let mut s = names.join("+");
+    if eff.closed.is_some() {
+        s.push('!');
+    }
+    s
 }
 
 /// 类型参数名 → 有效约束串（复刻 legacy `collect_callable_type_param_effective_bounds`：
@@ -187,10 +212,13 @@ fn check_pair(
 
     // 1. 有效签名等价（参数数量 + 逐位有效类型相等）。
     if is_equivalent(&ia, &ib) {
-        let reason = match (ia.return_ty, ib.return_ty) {
-            (Some(ra), Some(rb)) if ra != rb => "仅返回类型不同（返回类型不参与重载决议）",
-            // effect row 差异当前无法检测（effect 未降级）。
-            _ => "重复或不可区分的签名",
+        let reason = if ia.effect_row != ib.effect_row {
+            "仅 effect row 不同（effect row 不参与重载决议）"
+        } else {
+            match (ia.return_ty, ib.return_ty) {
+                (Some(ra), Some(rb)) if ra != rb => "仅返回类型不同（返回类型不参与重载决议）",
+                _ => "重复或不可区分的签名",
+            }
         };
         return Some(diagnostics::conflicting_overloads_detail(
             &fqn_text,
