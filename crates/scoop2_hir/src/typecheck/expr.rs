@@ -1131,6 +1131,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
     ) -> TypeId {
+        // 命名实参形态校验（结构性，不受 lenient 影响）：重复 / 位置在命名之后。
+        let mut seen_named = false;
+        let mut seen_names: HashSet<Symbol> = HashSet::new();
+        for a in args {
+            if let Some(name) = &a.name {
+                if !seen_names.insert(name.symbol) {
+                    self.diags.push(diagnostics::call_arg_duplicate(
+                        self.env.interner.resolve(name.symbol),
+                        name.span,
+                    ));
+                }
+                seen_named = true;
+            } else if seen_named {
+                self.diags
+                    .push(diagnostics::call_arg_positional_after_named(a.span));
+            }
+        }
         if param_types.len() != args.len() && !args.iter().any(|a| a.name.is_some()) {
             if !self.lenient_type_errors {
                 self.diags.push(diagnostics::call_arity_mismatch(

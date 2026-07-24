@@ -704,7 +704,7 @@ pub fn delegated_property_set_value_signature_mismatch(
 pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::call_arg_positional_after_named",
-        "位置实参不能出现在命名实参之后",
+        "位置实参不能出现在命名参数之后",
     )
     .with_primary(span, "这里")
 }
