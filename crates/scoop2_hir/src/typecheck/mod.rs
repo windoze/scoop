@@ -292,6 +292,37 @@ fn check_file_bodies(
                             d.name.symbol,
                             &body.members,
                         );
+                        // 有主构造器时，次构造器必须 `: this(...)` 委托（不能省略 / 不能 super）。
+                        if d.primary_ctor.is_some() {
+                            for m in &body.members {
+                                if let crate::syntax::ast::TypeMemberKind::SecondaryCtor(c) =
+                                    &m.kind
+                                {
+                                    match &c.delegation {
+                                        None => {
+                                            diags.push(
+                                                diagnostics::secondary_ctor_delegation_required(
+                                                    c.span,
+                                                ),
+                                            );
+                                        }
+                                        Some(del)
+                                            if matches!(
+                                                del.kind,
+                                                crate::syntax::ast::CtorDelegationKind::Super
+                                            ) =>
+                                        {
+                                            diags.push(
+                                                diagnostics::secondary_ctor_delegation_must_be_this(
+                                                    del.span,
+                                                ),
+                                            );
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 // where 子句校验（目标在当前声明 / 无重复）。

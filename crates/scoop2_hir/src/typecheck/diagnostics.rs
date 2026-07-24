@@ -793,6 +793,26 @@ pub fn generic_overload_shape_mismatch(primary_span: Span, related_span: Span) -
     .with_related(related_span, "第一次声明在这里")
 }
 
+/// `scoop::typecheck::secondary_ctor_delegation_required`：
+/// 有主构造器的 class 中，次构造器必须显式 `: this(...)` 委托。
+pub fn secondary_ctor_delegation_required(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::secondary_ctor_delegation_required",
+        "class 有主构造器时，次构造器必须写 `: this(...)` 显式委托",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::secondary_ctor_delegation_must_be_this`：
+/// 有主构造器时，次构造器只能委托到 `this(...)`，不能 `super(...)`。
+pub fn secondary_ctor_delegation_must_be_this(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::secondary_ctor_delegation_must_be_this",
+        "class 有主构造器时，次构造器只能委托到 `this(...)`，不能 `super(...)`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

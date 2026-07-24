@@ -1483,7 +1483,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_ctor_delegation_call(&mut self) -> PResult<CtorDelegation> {
-        let colon = self.expect_sym(Symbol::Colon)?;
+        self.expect_sym(Symbol::Colon)?;
 
         let tok = self.peek();
         let kind = if tok.kind == TokenKind::Ident {
@@ -1499,7 +1499,7 @@ impl<'a> Parser<'a> {
 
         let (args_span, args) = self.parse_call_arg_list()?;
         Ok(CtorDelegation {
-            span: Span::new(colon.span.start, args_span.end),
+            span: Span::new(tok.span.start, args_span.end),
             kind,
             args,
         })
