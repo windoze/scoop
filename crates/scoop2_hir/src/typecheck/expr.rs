@@ -953,7 +953,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 .or_else(|| scalar_fqn(self.env.store.kind(lt), self.env.interner))
                                 .is_some_and(|f| self.env.member_signatures(f, m).is_some());
                             if has_method {
-                                return self.method_call_return_type(lt, m, &[rt], expr.span);
+                                return self.method_call_return_type(lt, m, &[rt], &[], expr.span);
                             }
                             // 接收者是已知 nominal 但缺运算符方法 → 报错。
                             if !self.env.store.is_nothing(lt)
@@ -999,7 +999,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 .or_else(|| scalar_fqn(self.env.store.kind(t), self.env.interner))
                                 .is_some_and(|f| self.env.member_signatures(f, m).is_some());
                             if has_method {
-                                return self.method_call_return_type(t, m, &[], expr.span);
+                                return self.method_call_return_type(t, m, &[], &[], expr.span);
                             }
                             if !self.env.store.is_nothing(t)
                                 && !matches!(self.env.store.kind(t), TypeKind::Param(_))
@@ -1186,7 +1186,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let Some(get_sym) = self.env.interner.get("get") else {
                     return self.unsupported("下标访问（operator get 未注册）", expr.span);
                 };
-                self.method_call_return_type(rt, get_sym, &idx_types, expr.span)
+                self.method_call_return_type(rt, get_sym, &idx_types, &[], expr.span)
             }
             ExprKind::InfixCall {
                 receiver,
@@ -1195,7 +1195,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             } => {
                 let rt = self.walk_expr(receiver);
                 let at = self.walk_expr(arg);
-                self.method_call_return_type(rt, name.symbol, &[at], expr.span)
+                self.method_call_return_type(rt, name.symbol, &[at], &[], expr.span)
             }
             ExprKind::ClassLit { .. } => self.env.store.string(),
             ExprKind::ArrayLit(els) => {
@@ -1452,7 +1452,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             match member {
                 MemberName::Named(name) => {
-                    return self.method_call_return_type(rt, name.symbol, &arg_types, span);
+                    return self.method_call_return_type(rt, name.symbol, &arg_types, args, span);
                 }
                 MemberName::TupleIndex { .. } => {}
             }
@@ -1671,16 +1671,140 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 记录被调用函数声明的 effect 到 performed_effects（effect 传播）。
     /// 在 handle/lambda 体内不记录（被捕获）。
-    fn record_callee_effects(&mut self, sig: &Signature, span: Span) {
+    /// 泛型 `<eff E>` 函数：从 lambda 实参体推断 E 的 effect 集，记录之。
+    fn record_callee_effects(&mut self, sig: &Signature, args: &[CallArg], span: Span) {
         if self.effect_suspend_depth > 0 {
             return;
         }
-        let names: Vec<String> = extract_effect_row_names(sig.effect.as_ref(), self.env.interner)
-            .into_iter()
+        let all_names = extract_effect_row_names(sig.effect.as_ref(), self.env.interner);
+        let names: Vec<String> = all_names
+            .iter()
             .filter(|name| self.is_effect_type_name(name))
+            .cloned()
             .collect();
-        for name in names {
+        // 泛型 `<eff E>` 推断：effect 行引用 E（eff 变量）但无具体 effect 名时，
+        // 从 lambda 实参体推断 E 的值。
+        let has_eff_var = all_names
+            .iter()
+            .any(|n| !self.is_effect_type_name(n) && n != "Pure");
+        let inferred: Vec<String> = if has_eff_var {
+            self.infer_eff_from_lambda_args(args)
+        } else {
+            Vec::new()
+        };
+        for name in names.into_iter().chain(inferred) {
             self.performed_effects.push((name, span));
+        }
+    }
+
+    /// 从 lambda 实参体中扫描 effect 操作（AST 级扫描，不触发诊断）。
+    fn infer_eff_from_lambda_args(&self, args: &[CallArg]) -> Vec<String> {
+        let mut effects: Vec<String> = Vec::new();
+        for arg in args {
+            // Lambda 实参：扫描 body 中的 effect 操作。
+            if let ast::ExprKind::Lambda(lambda) = &arg.value.kind {
+                match &lambda.body {
+                    ast::LambdaBody::Block(b) => {
+                        self.scan_block_for_effect_ops(b, &mut effects);
+                    }
+                    ast::LambdaBody::Expr(e) => {
+                        self.scan_expr_for_effect_ops(e, &mut effects);
+                    }
+                }
+            }
+            // 非 lambda 实参：也可能是内联 effect 操作（如 `use(Raise.raise(1))`）。
+            self.scan_expr_for_effect_ops(&arg.value, &mut effects);
+        }
+        effects
+    }
+
+    fn scan_block_for_effect_ops(&self, block: &ast::Block, effects: &mut Vec<String>) {
+        for s in &block.stmts {
+            match &s.kind {
+                ast::StmtKind::Expr(e) => self.scan_expr_for_effect_ops(e, effects),
+                ast::StmtKind::Assign { value, .. } => {
+                    self.scan_expr_for_effect_ops(value, effects)
+                }
+                ast::StmtKind::Return { value: Some(e) } => {
+                    self.scan_expr_for_effect_ops(e, effects)
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn scan_expr_for_effect_ops(&self, expr: &ast::Expr, effects: &mut Vec<String>) {
+        use crate::syntax::ast::ExprKind;
+        match &expr.kind {
+            ExprKind::Call { callee, args } => {
+                // EffectName.op(...) → 记录 EffectName。
+                if let ExprKind::MemberAccess { receiver, .. } = &callee.kind
+                    && let ExprKind::Ident(id) = &receiver.kind
+                {
+                    let name = self.env.interner.resolve(id.symbol);
+                    let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+                    if self.is_effect_type_name(stripped) && !effects.iter().any(|e| e == stripped)
+                    {
+                        effects.push(stripped.to_string());
+                    }
+                }
+                self.scan_expr_for_effect_ops(callee, effects);
+                for a in args {
+                    self.scan_expr_for_effect_ops(&a.value, effects);
+                }
+            }
+            ExprKind::Block(b)
+            | ExprKind::DoBlock(b)
+            | ExprKind::UnsafeBlock(b)
+            | ExprKind::SafeBlock(b) => {
+                self.scan_block_for_effect_ops(b, effects);
+            }
+            ExprKind::Lambda(_) => {
+                // 嵌套 lambda 的 effect 由该 lambda 自己的 `<eff E>` 捕获，不传播。
+            }
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.scan_expr_for_effect_ops(cond, effects);
+                self.scan_expr_for_effect_ops(then_branch, effects);
+                if let Some(e) = else_branch {
+                    self.scan_expr_for_effect_ops(e, effects);
+                }
+            }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.scan_expr_for_effect_ops(lhs, effects);
+                self.scan_expr_for_effect_ops(rhs, effects);
+            }
+            ExprKind::Unary { expr: e, .. } => {
+                self.scan_expr_for_effect_ops(e, effects);
+            }
+            ExprKind::MemberAccess { receiver, .. } => {
+                self.scan_expr_for_effect_ops(receiver, effects);
+            }
+            ExprKind::Index { receiver, indices } => {
+                self.scan_expr_for_effect_ops(receiver, effects);
+                for i in indices {
+                    self.scan_expr_for_effect_ops(i, effects);
+                }
+            }
+            ExprKind::TupleLit(els) | ExprKind::ArrayLit(els) => {
+                for e in els {
+                    self.scan_expr_for_effect_ops(e, effects);
+                }
+            }
+            ExprKind::NotNullAssert { expr: e } => {
+                self.scan_expr_for_effect_ops(e, effects);
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for p in parts {
+                    if let ast::StringPart::Expr(e) = p {
+                        self.scan_expr_for_effect_ops(e, effects);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1978,7 +2102,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let (idx, sig) = applicable.into_iter().next().expect("non-empty");
                 let _ = idx;
                 self.check_generic_call_constraints(fqn, &sig, &arg_types, span);
-                self.record_callee_effects(&sig, span);
+                self.record_callee_effects(&sig, args, span);
                 return sig.return_ty;
             }
             // 多候选：按 bound 特异性比较（bound1 <: bound2 → 更具体）。
@@ -2010,7 +2134,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let sig = &applicable[winners[0]].1;
                 let ret = sig.return_ty;
                 self.check_generic_call_constraints(fqn, sig, &arg_types, span);
-                self.record_callee_effects(sig, span);
+                self.record_callee_effects(sig, args, span);
                 return ret;
             }
             // 歧义：构造 incomparable 诊断 + related 标签。
@@ -2059,7 +2183,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 .into_iter()
                 .find(|s| s.params.len() == 1 && s.params[0] == unit_ty)
                 .expect("checked above");
-            self.record_callee_effects(&sig, span);
+            self.record_callee_effects(&sig, args, span);
             return sig.return_ty;
         }
         // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
@@ -2113,7 +2237,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
-            self.record_callee_effects(&sig, span);
+            self.record_callee_effects(&sig, args, span);
             return self.check_call_args(sig.params, sig.return_ty, args, span);
         }
         // 多候选：先走一遍实参类型，再按适用性过滤。
@@ -2180,7 +2304,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             _ => {
                 // 特殊性：若存在唯一最具体的候选，直接选择。
                 if let Some(idx) = self.select_most_specific(&applicable) {
-                    self.record_callee_effects(applicable[idx], span);
+                    self.record_callee_effects(applicable[idx], args, span);
                     return applicable[idx].return_ty;
                 }
                 let fqn_text = self.env.interner.resolve(fqn).to_string();
@@ -2935,6 +3059,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         receiver_ty: TypeId,
         method_name: Symbol,
         arg_types: &[TypeId],
+        args: &[CallArg],
         span: Span,
     ) -> TypeId {
         // Nothing / TypeParam 接收者（类型未知 / 泛型）→ lenient（返回 Nothing，不报错误）。
@@ -3003,7 +3128,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
-            self.record_callee_effects(sig, span);
+            self.record_callee_effects(sig, args, span);
             return sig.return_ty;
         }
         let applicable: Vec<&Signature> = non_generic
@@ -3024,7 +3149,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             _ => {
                 // 特异性选择 + effect 传播。
                 if let Some(idx) = self.select_most_specific(&applicable) {
-                    self.record_callee_effects(applicable[idx], span);
+                    self.record_callee_effects(applicable[idx], args, span);
                     applicable[idx].return_ty
                 } else {
                     self.pick_most_specific(&applicable, span)
