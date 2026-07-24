@@ -624,6 +624,29 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             return None;
         }
+        // enum：需覆盖所有 variant。
+        let enum_fqn = match self.env.store.kind(subject_ty) {
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+            _ => None,
+        };
+        if let Some(fqn) = enum_fqn
+            && let Some(variants) = self.env.enum_variants(fqn)
+        {
+            let covered: HashSet<Symbol> = arms
+                .iter()
+                .filter_map(|a| match &a.pat.kind {
+                    PatternKind::Variant { path, .. } => path.segments.last().map(|s| s.symbol),
+                    _ => None,
+                })
+                .collect();
+            for v in variants {
+                if !covered.contains(v) {
+                    return Some(self.env.interner.resolve(*v).to_string());
+                }
+            }
+            return None;
+        }
         None
     }
 

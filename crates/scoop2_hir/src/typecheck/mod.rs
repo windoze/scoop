@@ -110,6 +110,7 @@ pub fn run_typecheck(
         env::register_type_aliases(&mut env, inp.file, prefix);
         env::register_type_constraints(&mut env, inp.file, prefix);
         env::register_top_level_vals(&mut env, inp.file, imports, prefix, diags);
+        env::register_enum_variants(&mut env, inp.file, prefix);
     }
     // 检查每个用户文件的函数体。
     for uf in &user_files {

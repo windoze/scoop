@@ -58,6 +58,8 @@ pub struct TypeEnv<'i> {
         HashMap<Symbol, (Vec<Symbol>, Vec<(Symbol, crate::syntax::ast::GenericBound)>)>,
     /// 顶层 val/var 简单名 → 已降级类型（供表达式引用解析）。
     top_level_vals: HashMap<Symbol, TypeId>,
+    /// enum FQN → variant 名列表（when 穷尽性检查用）。
+    enum_variants: HashMap<Symbol, Vec<Symbol>>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -75,6 +77,7 @@ impl<'i> TypeEnv<'i> {
             type_aliases: HashMap::new(),
             type_constraints: HashMap::new(),
             top_level_vals: HashMap::new(),
+            enum_variants: HashMap::new(),
         }
     }
 
@@ -92,6 +95,11 @@ impl<'i> TypeEnv<'i> {
     /// 顶层 val 类型查询（表达式引用解析用）。
     pub fn top_level_val(&self, name: Symbol) -> Option<TypeId> {
         self.top_level_vals.get(&name).copied()
+    }
+
+    /// enum variant 列表查询（when 穷尽性用）。
+    pub fn enum_variants(&self, fqn: Symbol) -> Option<&[Symbol]> {
+        self.enum_variants.get(&fqn).map(|v| v.as_slice())
     }
 
     /// 类型约束查询（where-satisfaction 用）。
@@ -523,6 +531,28 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 收集 enum 的 variant 名（FQN → [variant_name]），供 when 穷尽性检查。
+pub fn register_enum_variants(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+    for item in &file.items {
+        let ItemKind::Type(d) = &item.kind else {
+            continue;
+        };
+        if !matches!(d.kind, crate::syntax::ast::TypeKind::Enum) {
+            continue;
+        }
+        let fqn = fqn_of(env, package_prefix, d.name.symbol);
+        let mut variants: Vec<Symbol> = Vec::new();
+        if let Some(body) = &d.body {
+            for m in &body.members {
+                if let TypeMemberKind::EnumVariant(ev) = &m.kind {
+                    variants.push(ev.name.symbol);
+                }
+            }
+        }
+        env.enum_variants.insert(fqn, variants);
+    }
 }
 
 /// 收集顶层 val/var 的类型（简单名 → TypeId），供表达式引用解析。
