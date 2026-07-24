@@ -1211,6 +1211,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let Some(fqn) = self.callee_type_fqn(name.symbol) else {
             return self.unsupported("该 struct 字面量的类型名", span);
         };
+        // struct 字面量只能用于 struct 类型。
+        let is_struct = self
+            .env
+            .index
+            .category(fqn)
+            .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Struct));
+        if !is_struct {
+            if !self.lenient_type_errors {
+                self.diags.push(diagnostics::struct_lit_not_struct(
+                    self.env.interner.resolve(name.symbol),
+                    span,
+                ));
+            }
+            // 非 struct 类型：walk values 后返回 Nothing（避免假 initializer_type_mismatch）。
+            for f in fields {
+                self.walk_expr(&f.value);
+            }
+            return self.env.store.nothing();
+        }
         let type_name = self.env.interner.resolve(name.symbol).to_string();
         let mut seen: HashSet<Symbol> = HashSet::new();
         for f in fields {
@@ -1252,6 +1271,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             args: vec![],
             eff: None,
         };
+        // 缺少必填字段检查。
+        if !self.lenient_type_errors
+            && let Some(members) = self.env.member_types(fqn)
+        {
+            let missing: Vec<String> = members
+                .keys()
+                .filter(|k| !seen.contains(k))
+                .map(|k| self.env.interner.resolve(*k).to_string())
+                .collect();
+            if !missing.is_empty() {
+                self.diags.push(diagnostics::struct_lit_missing_fields(
+                    &missing.join(", "),
+                    Span::new(span.end.saturating_sub(1), span.end),
+                ));
+            }
+        }
         if self.env.is_reference_nominal(fqn) {
             self.env.store.ref_nominal(nominal)
         } else {

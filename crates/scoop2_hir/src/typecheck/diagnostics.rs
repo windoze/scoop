@@ -213,6 +213,24 @@ pub fn struct_field_must_be_val(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::struct_lit_not_struct`：struct 字面量用于非 struct 类型。
+pub fn struct_lit_not_struct(ty: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_not_struct",
+        format!("`{ty}` 必须是 struct 才能使用 struct 字面量语法"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::struct_lit_missing_fields`：struct 字面量缺少必填字段。
+pub fn struct_lit_missing_fields(fields: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_missing_fields",
+        format!("struct 字面量缺少字段：{fields}"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::effectful_function_type_cast_not_supported`。
 pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
