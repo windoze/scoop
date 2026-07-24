@@ -11,7 +11,7 @@ use scoop2_base::{FileId, Interner, Symbol};
 
 use crate::resolve::imports::ImportTable;
 use crate::resolve::index::Index;
-use crate::syntax::ast::{File, ItemKind, TypeMember, TypeMemberKind, TypeParamList};
+use crate::syntax::ast::{File, ItemKind, TypeMember, TypeMemberKind, TypeParamList, ValBinding};
 use crate::ty::{TypeId, TypeParamType, TypeStore};
 
 use super::lower::TypeLowering;
@@ -56,6 +56,8 @@ pub struct TypeEnv<'i> {
     #[allow(clippy::type_complexity)]
     type_constraints:
         HashMap<Symbol, (Vec<Symbol>, Vec<(Symbol, crate::syntax::ast::GenericBound)>)>,
+    /// 顶层 val/var 简单名 → 已降级类型（供表达式引用解析）。
+    top_level_vals: HashMap<Symbol, TypeId>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -72,6 +74,7 @@ impl<'i> TypeEnv<'i> {
             fun_attrs: HashMap::new(),
             type_aliases: HashMap::new(),
             type_constraints: HashMap::new(),
+            top_level_vals: HashMap::new(),
         }
     }
 
@@ -84,6 +87,11 @@ impl<'i> TypeEnv<'i> {
             .supertypes_of(sub)
             .iter()
             .any(|&s| self.fqn_is_subtype(s, sup))
+    }
+
+    /// 顶层 val 类型查询（表达式引用解析用）。
+    pub fn top_level_val(&self, name: Symbol) -> Option<TypeId> {
+        self.top_level_vals.get(&name).copied()
     }
 
     /// 类型约束查询（where-satisfaction 用）。
@@ -515,6 +523,37 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 收集顶层 val/var 的类型（简单名 → TypeId），供表达式引用解析。
+pub fn register_top_level_vals(
+    env: &mut TypeEnv,
+    file: &File,
+    imports: &ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    for item in &file.items {
+        let ItemKind::Val(d) = &item.kind else {
+            continue;
+        };
+        let ValBinding::Name(name) = &d.binding else {
+            continue;
+        };
+        if let Some(ty_ref) = &d.ty {
+            let ty = {
+                let mut lower = TypeLowering::new(
+                    env,
+                    imports,
+                    HashMap::new(),
+                    package_prefix.to_string(),
+                    diags,
+                );
+                lower.lower(ty_ref)
+            };
+            env.top_level_vals.insert(name.symbol, ty);
+        }
+    }
 }
 
 /// 收集类型/函数的 where 约束（FQN → (参数名序列, 约束)），供类型实参满足性检查。

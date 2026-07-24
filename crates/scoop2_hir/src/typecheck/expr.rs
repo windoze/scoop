@@ -564,18 +564,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         true
     }
 
-    /// `when` 是否穷尽：有 else/通配/绑定，或覆盖了 Bool 的 true+false / Option 的 Some+None。
-    fn when_is_exhaustive(&self, subject_ty: TypeId, arms: &[ast::WhenArm]) -> bool {
+    /// `when` 缺少的分支（None = 穷尽；Some(missing) = 缺少的 case 描述）。
+    fn when_missing_case(&self, subject_ty: TypeId, arms: &[ast::WhenArm]) -> Option<String> {
         use crate::syntax::ast::{PatternKind, PatternLiteral};
         if arms.iter().any(|a| {
             matches!(
                 a.pat.kind,
                 PatternKind::Else | PatternKind::Wildcard | PatternKind::Bind(_)
-            ) || a.guard.is_some()
+            )
         }) {
-            return true;
+            return None;
         }
-        // Bool：需 true + false。
         if matches!(
             self.env.store.kind(subject_ty),
             TypeKind::Value(crate::ty::ValueTypeKind::Bool)
@@ -591,9 +590,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
-            return has_true && has_false;
+            if !has_true {
+                return Some("true".to_string());
+            }
+            if !has_false {
+                return Some("false".to_string());
+            }
+            return None;
         }
-        // Option：需 Some + None。
         if matches!(
             self.env.store.kind(subject_ty),
             TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
@@ -612,9 +616,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
-            return has_some && has_none;
+            if !has_some {
+                return Some("Some".to_string());
+            }
+            if !has_none {
+                return Some("None".to_string());
+            }
+            return None;
         }
-        true
+        None
     }
 
     // ---- 表达式 ----
@@ -633,6 +643,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return self.unsupported("`this` 在非成员上下文", expr.span);
                 }
                 if let Some(&t) = self.locals.get(&ident.symbol) {
+                    return t;
+                }
+                // 顶层 val 引用 → 返回其已降级类型。
+                if let Some(t) = self.env.top_level_val(ident.symbol) {
                     return t;
                 }
                 // 泛型函数作为值使用（无类型实参）→ 无法推断类型实参。
@@ -835,7 +849,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::WithUpdate { base, updates } => self.type_with_update(base, updates),
             ExprKind::Lambda(lambda) => self.type_lambda(lambda),
-            ExprKind::When { subject, arms } => self.type_when(subject, arms),
+            ExprKind::When { subject, arms } => self.type_when(subject, arms, expr.span),
             ExprKind::Handle {
                 body,
                 arms,
@@ -1485,7 +1499,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。
-    fn type_when(&mut self, subject: &Expr, arms: &[ast::WhenArm]) -> TypeId {
+    fn type_when(&mut self, subject: &Expr, arms: &[ast::WhenArm], span: Span) -> TypeId {
         let subject_ty = self.walk_expr(subject);
         let mut arm_types: Vec<TypeId> = Vec::new();
         for arm in arms {
@@ -1498,10 +1512,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             arm_types.push(self.walk_expr(&arm.body));
         }
         // 穷尽性检查：Bool 需 true+false；Option 需 Some+None；否则需要 else/通配。
-        if !self.when_is_exhaustive(subject_ty, arms) {
+        if let Some(missing) = self.when_missing_case(subject_ty, arms) {
             self.diags
-                .push(diagnostics::when_non_exhaustive_missing_variants(
-                    subject.span,
+                .push(diagnostics::when_non_exhaustive_missing_variants_detail(
+                    &missing, span,
                 ));
         }
         if arm_types.is_empty() {

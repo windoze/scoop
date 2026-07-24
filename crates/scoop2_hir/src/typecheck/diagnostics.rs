@@ -379,6 +379,15 @@ pub fn when_non_exhaustive_missing_variants(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::when_non_exhaustive_missing_variants`（带缺失分支名）。
+pub fn when_non_exhaustive_missing_variants_detail(missing: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_non_exhaustive_missing_variants",
+        format!("when 表达式不穷尽：缺少 `{missing}` 分支或 else"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::where_constraint_not_satisfied`：where 约束不满足。
 pub fn where_constraint_not_satisfied(constraint: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
