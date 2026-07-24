@@ -369,6 +369,7 @@ fn check_file_bodies(
                 );
                 // 具体类型的成员函数必须提供函数体（interface / effect / abstract / @Intrinsic / @Extern 除外）。
                 check_member_funs_have_body(d, env.interner, diags);
+                check_variance_positions(d, diags);
                 // @CLayout struct 字段必须 GC-free；packed 实参必须是 2 的幂且 <= 16。
                 if d.kind == crate::syntax::ast::TypeKind::Struct
                     && has_annotation(&d.annotations, "CLayout", env.interner)
@@ -2050,6 +2051,90 @@ fn substituted_effect_names(
         }
     }
     set
+}
+
+/// `out T` 变型位置检查：out 类型参数不能出现在逆变位置（成员方法的参数类型）。
+fn check_variance_positions(d: &crate::syntax::ast::TypeDecl, diags: &mut DiagnosticSink) {
+    use crate::syntax::ast::{TypeMemberKind, Variance};
+    use std::collections::HashSet;
+    // 收集 `out T` 的类型参数名。
+    let out_params: HashSet<scoop2_base::Symbol> = d
+        .type_params
+        .as_ref()
+        .map(|tp| {
+            tp.params
+                .iter()
+                .filter(|p| matches!(p.variance, Some(Variance::Out)))
+                .map(|p| p.name.symbol)
+                .collect()
+        })
+        .unwrap_or_default();
+    if out_params.is_empty() {
+        return;
+    }
+    let Some(body) = &d.body else {
+        return;
+    };
+    // 扫描成员方法的参数类型引用中的类型名。
+    for m in &body.members {
+        if let TypeMemberKind::Fun(fd) = &m.kind {
+            for p in &fd.params {
+                if let Some(ty) = &p.ty {
+                    scan_typeref_for_out_var(&out_params, ty, diags);
+                }
+            }
+        }
+    }
+}
+
+/// 递归扫描 TypeRef 中的路径段名是否匹配 `out T`。
+fn scan_typeref_for_out_var(
+    out_params: &std::collections::HashSet<scoop2_base::Symbol>,
+    ty: &crate::syntax::ast::TypeRef,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::TypeRefKind;
+    match &ty.kind {
+        TypeRefKind::Path { path, args } => {
+            if let Some(last) = path.segments.last()
+                && out_params.contains(&last.symbol)
+            {
+                diags.push(diagnostics::variance_position_violation("T", ty.span));
+            }
+            for a in args {
+                if let crate::syntax::ast::TypeArgKind::Type(t) = &a.kind {
+                    scan_typeref_for_out_var(out_params, t, diags);
+                }
+            }
+        }
+        TypeRefKind::Tuple(elems) => {
+            for e in elems {
+                scan_typeref_for_out_var(out_params, e, diags);
+            }
+        }
+        TypeRefKind::Function { params, ret, .. } => {
+            for p in params {
+                scan_typeref_for_out_var(out_params, p, diags);
+            }
+            scan_typeref_for_out_var(out_params, ret, diags);
+        }
+        TypeRefKind::ReceiverFunction {
+            receiver,
+            params,
+            ret,
+            ..
+        } => {
+            scan_typeref_for_out_var(out_params, receiver, diags);
+            for p in params {
+                scan_typeref_for_out_var(out_params, p, diags);
+            }
+            scan_typeref_for_out_var(out_params, ret, diags);
+        }
+        TypeRefKind::Nullable(inner) => {
+            scan_typeref_for_out_var(out_params, inner, diags);
+        }
+        TypeRefKind::Unit => {}
+    }
 }
 
 /// 具体类型（class/struct/object/enum）的成员函数必须提供函数体；

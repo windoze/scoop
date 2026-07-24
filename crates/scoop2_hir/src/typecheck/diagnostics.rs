@@ -384,6 +384,17 @@ pub fn use_site_eff_arg_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::variance_position_violation`：`out T` 出现在逆变位置（参数）。
+pub fn variance_position_violation(param: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::variance_position_violation",
+        format!(
+            "变型位置不合法：`out {param}` 类型参数只能出现在协变位置（返回值），不能出现在参数位置"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::nogc_fun_effects_not_allowed`：`@NoGC` 函数不允许声明非 Pure 的 effect row。
 pub fn nogc_fun_effects_not_allowed(span: Span) -> Diagnostic {
     Diagnostic::error(
