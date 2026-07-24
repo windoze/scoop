@@ -517,28 +517,24 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
         .unwrap_or(name)
 }
 
-/// 收集类型的 where 约束（FQN → (参数名序列, 约束)），供 lower 做类型实参满足性检查。
+/// 收集类型/函数的 where 约束（FQN → (参数名序列, 约束)），供类型实参满足性检查。
 pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix: &str) {
-    use crate::syntax::ast::{GenericBound, ItemKind};
-    for item in &file.items {
-        let ItemKind::Type(d) = &item.kind else {
-            continue;
-        };
-        let owner = fqn_of(env, package_prefix, d.name.symbol);
-        let param_names: Vec<Symbol> = d
-            .type_params
-            .as_ref()
+    use crate::syntax::ast::{GenericBound, ItemKind, TypeParamList, WhereClause};
+    let collect_one = |env: &mut TypeEnv,
+                       name: Symbol,
+                       type_params: Option<&TypeParamList>,
+                       where_clause: Option<&WhereClause>| {
+        let owner = fqn_of(env, package_prefix, name);
+        let param_names: Vec<Symbol> = type_params
             .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
             .unwrap_or_default();
         let mut constraints: Vec<(Symbol, GenericBound)> = Vec::new();
-        // where 子句约束。
-        if let Some(wc) = &d.where_clause {
+        if let Some(wc) = where_clause {
             for c in &wc.constraints {
                 constraints.push((c.name.symbol, c.bound.clone()));
             }
         }
-        // 直接类型参数 bound（`<T: Show>`）。
-        if let Some(tp) = &d.type_params {
+        if let Some(tp) = type_params {
             for p in &tp.params {
                 if let Some(b) = &p.bound {
                     constraints.push((p.name.symbol, b.clone()));
@@ -547,6 +543,27 @@ pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix:
         }
         env.type_constraints
             .insert(owner, (param_names, constraints));
+    };
+    for item in &file.items {
+        match &item.kind {
+            ItemKind::Type(d) => {
+                collect_one(
+                    env,
+                    d.name.symbol,
+                    d.type_params.as_ref(),
+                    d.where_clause.as_ref(),
+                );
+            }
+            ItemKind::Fun(d) if d.receiver.is_none() => {
+                collect_one(
+                    env,
+                    d.name.symbol,
+                    d.type_params.as_ref(),
+                    d.where_clause.as_ref(),
+                );
+            }
+            _ => {}
+        }
     }
 }
 

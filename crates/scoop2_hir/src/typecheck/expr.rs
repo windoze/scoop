@@ -451,6 +451,75 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// 泛型函数调用的 where 约束检查：从位置实参推断类型实参，检查每个约束。
+    fn check_generic_call_constraints(
+        &mut self,
+        fqn: Symbol,
+        sig: &Signature,
+        arg_types: &[TypeId],
+        span: Span,
+    ) {
+        use crate::syntax::ast::GenericBound;
+        // 推断：param[i] 若为 Param(p) → p.name = arg_types[i]。
+        let mut subst: HashMap<Symbol, TypeId> = HashMap::new();
+        for (i, p) in sig.params.iter().enumerate() {
+            if let TypeKind::Param(tp) = self.env.store.kind(*p)
+                && let Some(&arg) = arg_types.get(i)
+            {
+                subst.insert(tp.name, arg);
+            }
+        }
+        let Some((_, constraints)) = self.env.type_constraints(fqn) else {
+            return;
+        };
+        let constraints: Vec<(Symbol, GenericBound)> = constraints.to_vec();
+        for (name, bound) in &constraints {
+            let Some(&arg) = subst.get(name) else {
+                continue;
+            };
+            let violated = match bound {
+                GenericBound::Ref(_) => !matches!(self.env.store.kind(arg), TypeKind::Ref(_)),
+                GenericBound::Value(_) => !matches!(self.env.store.kind(arg), TypeKind::Value(_)),
+                GenericBound::Type(_) => !self.arg_satisfies_type_bound(arg, bound),
+            };
+            if violated {
+                self.diags.push(diagnostics::where_constraint_not_satisfied(
+                    &generic_bound_desc(bound, self.env.interner),
+                    span,
+                ));
+                return;
+            }
+        }
+    }
+
+    /// 实参是否满足一个 Type bound（子类型 / TypeParam lenient）。
+    fn arg_satisfies_type_bound(
+        &mut self,
+        arg: TypeId,
+        bound: &crate::syntax::ast::GenericBound,
+    ) -> bool {
+        use crate::syntax::ast::GenericBound;
+        let GenericBound::Type(t) = bound else {
+            return true;
+        };
+        let bound_ty = self.lower_type(t);
+        if arg == bound_ty {
+            return true;
+        }
+        if matches!(self.env.store.kind(arg), TypeKind::Param(_))
+            || matches!(self.env.store.kind(bound_ty), TypeKind::Param(_))
+        {
+            return true;
+        }
+        let arg_fqn = nominal_fqn_of(self.env.store.kind(arg))
+            .or_else(|| scalar_fqn(self.env.store.kind(arg), self.env.interner));
+        let bound_fqn = nominal_fqn_of(self.env.store.kind(bound_ty));
+        if let (Some(a), Some(b)) = (arg_fqn, bound_fqn) {
+            return self.env.fqn_is_subtype(a, b);
+        }
+        true
+    }
+
     // ---- 表达式 ----
 
     fn walk_expr(&mut self, expr: &Expr) -> TypeId {
@@ -833,13 +902,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn resolve_top_level_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
         let sigs: Vec<Signature> = self.env.signatures(fqn).unwrap_or(&[]).to_vec();
         let non_generic: Vec<Signature> = sigs
-            .into_iter()
+            .iter()
             .filter(|s| s.type_param_count == 0)
+            .cloned()
             .collect();
         if non_generic.is_empty() {
-            // 泛型候选：lenient —— walk args，返回 Nothing（泛型实例化推迟）。
-            for a in args {
-                self.walk_expr(&a.value);
+            // 泛型候选：推断类型实参 + where 约束满足性检查。
+            let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+            if let Some(sig) = sigs.first() {
+                self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+                return sig.return_ty;
             }
             return self.env.store.nothing();
         }
@@ -1573,6 +1645,27 @@ fn old_tuple_member_replacement(text: &str) -> Option<String> {
         return None;
     }
     Some(digits.to_string())
+}
+
+/// where 约束的人类可读描述（诊断用）。
+fn generic_bound_desc(
+    bound: &crate::syntax::ast::GenericBound,
+    interner: &scoop2_base::Interner,
+) -> String {
+    use crate::syntax::ast::{GenericBound, TypeRefKind};
+    match bound {
+        GenericBound::Ref(_) => "ref".to_string(),
+        GenericBound::Value(_) => "value".to_string(),
+        GenericBound::Type(t) => match &t.kind {
+            TypeRefKind::Path { path, .. } => path
+                .segments
+                .iter()
+                .map(|s| interner.resolve(s.symbol))
+                .collect::<Vec<_>>()
+                .join("."),
+            _ => format!("{:?}", t.kind),
+        },
+    }
 }
 
 /// 是否为带非 Pure effect row 的函数类型（显式 `as`/`as?` 不支持）。
