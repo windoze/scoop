@@ -761,6 +761,14 @@ fn check_file_bodies(
                     }
                 }
             }
+            ItemKind::ExtensionProperty(d) => {
+                // 扩展属性不允许 initializer（计算属性 / 带 accessor）。
+                if let Some(init) = &d.init {
+                    diags.push(diagnostics::extension_property_initializer_not_allowed(
+                        init.span,
+                    ));
+                }
+            }
             _ => {}
         }
     }

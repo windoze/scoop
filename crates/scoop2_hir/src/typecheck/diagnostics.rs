@@ -1022,6 +1022,15 @@ pub fn cyclic_type_alias(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::extension_property_initializer_not_allowed`：扩展属性不允许 initializer。
+pub fn extension_property_initializer_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::extension_property_initializer_not_allowed",
+        "扩展属性不允许 initializer（应为计算属性或带 accessor）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
