@@ -904,6 +904,15 @@ pub fn when_tuple_pat_not_tuple(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::when_tuple_pat_too_short`：tuple pattern 带 rest 时前缀超过 tuple 长度。
+pub fn when_tuple_pat_too_short(needed: usize, actual: usize, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_tuple_pat_too_short",
+        format!("tuple pattern 需要至少 {needed} 个元素，但 tuple 只有 {actual} 个"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

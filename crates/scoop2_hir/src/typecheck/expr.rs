@@ -2425,11 +2425,28 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .push(diagnostics::when_variant_pat_not_enum(pat.span));
                 }
             }
-            PatternKind::Tuple(_) => {
+            PatternKind::Tuple(elems) => {
                 let is_tuple = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_)));
                 if !is_tuple {
                     self.diags
                         .push(diagnostics::when_tuple_pat_not_tuple(pat.span));
+                } else if let TypeKind::Value(crate::ty::ValueTypeKind::Tuple(subject_elems)) = kind
+                {
+                    // 带 rest 时，pattern 前缀（非 rest 元素）不能超过 tuple 长度。
+                    let has_rest = elems.iter().any(|e| matches!(e.kind, PatternKind::Rest));
+                    if has_rest {
+                        let non_rest = elems
+                            .iter()
+                            .filter(|e| !matches!(e.kind, PatternKind::Rest))
+                            .count();
+                        if non_rest > subject_elems.len() {
+                            self.diags.push(diagnostics::when_tuple_pat_too_short(
+                                non_rest,
+                                subject_elems.len(),
+                                pat.span,
+                            ));
+                        }
+                    }
                 }
             }
             _ => {}
