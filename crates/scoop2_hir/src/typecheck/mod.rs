@@ -333,6 +333,8 @@ fn check_file_bodies(
                     package_prefix,
                     diags,
                 );
+                // 具体类型的成员函数必须提供函数体（interface / effect / abstract / @Intrinsic / @Extern 除外）。
+                check_member_funs_have_body(d, env.interner, diags);
                 // 主构造 param-property 重名检查。
                 let is_intrinsic_type_early =
                     has_annotation(&d.annotations, "Intrinsic", env.interner);
@@ -1967,6 +1969,40 @@ fn substituted_effect_names(
     set
 }
 
+/// 具体类型（class/struct/object/enum）的成员函数必须提供函数体；
+/// interface / effect 操作 / `abstract` / `@Intrinsic` / `@Extern` 方法可省略。
+fn check_member_funs_have_body(
+    d: &crate::syntax::ast::TypeDecl,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::{ModifierKind, TypeMemberKind};
+    let Some(body) = &d.body else {
+        return;
+    };
+    let exempt_kind = matches!(
+        d.kind,
+        crate::syntax::ast::TypeKind::Interface | crate::syntax::ast::TypeKind::Effect
+    );
+    for m in &body.members {
+        if let TypeMemberKind::Fun(fd) = &m.kind
+            && fd.body.is_none()
+            && !exempt_kind
+            && !fd
+                .modifiers
+                .iter()
+                .any(|x| x.kind == ModifierKind::Abstract)
+            && !has_annotation(&fd.annotations, "Intrinsic", interner)
+            && !has_annotation(&fd.annotations, "Extern", interner)
+        {
+            diags.push(diagnostics::fun_must_have_body_detail(
+                "普通成员函数必须提供函数体",
+                fd.name.span,
+            ));
+        }
+    }
+}
+
 /// 签名参数匹配：数量相等；若 base 含 owner 类型参数（跨泛型边界），仅按数量匹配。
 fn params_match(
     store: &crate::ty::TypeStore,
@@ -2059,6 +2095,12 @@ fn check_one_fun(
     use scoop2_base::FileId;
     // 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）—— header 级检查。
     check_closed_effect_row_no_row_var(d, diags);
+    // 函数参数必须显式标注类型（无参数类型推断）。
+    for p in &d.params {
+        if p.ty.is_none() {
+            diags.push(diagnostics::missing_type_annotation(p.name.span));
+        }
+    }
     let Some(body) = &d.body else {
         // 即便无 body，where 子句仍需校验（header 检查）。
         check_where_clause(
