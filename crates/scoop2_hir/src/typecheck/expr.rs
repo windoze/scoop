@@ -454,6 +454,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                     AssignTargetKind::Member { receiver, member } => {
                         let rt = self.walk_expr(receiver);
+                        // 值类型（struct/enum）的字段不可直接赋值（值语义；应用 with-update）。
+                        if self.env.store.is_value(rt)
+                            && !self.env.store.is_nothing(rt)
+                            && !self.env.store.is_unit(rt)
+                        {
+                            let (fname, fspan) = match member {
+                                MemberName::Named(n) => {
+                                    (self.env.interner.resolve(n.symbol).to_string(), n.span)
+                                }
+                                MemberName::TupleIndex { value, span } => {
+                                    (value.to_string(), *span)
+                                }
+                            };
+                            self.diags
+                                .push(diagnostics::assignment_target_not_mutable(&fname, fspan));
+                        }
                         if let MemberName::Named(name) = member
                             && let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt))
                             && let Some(expected) = self.env.member_type(fqn, name.symbol)
