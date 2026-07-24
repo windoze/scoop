@@ -276,6 +276,23 @@ pub fn conflicting_overloads(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::conflicting_overloads`（带 reason / 候选 / 双 label）。
+pub fn conflicting_overloads_detail(
+    fqn: &str,
+    reason: &str,
+    candidate_a: &str,
+    candidate_b: &str,
+    primary_span: Span,
+    related_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::conflicting_overloads",
+        format!("重载签名冲突：{fqn}（{reason}）：{candidate_a} <-> {candidate_b}"),
+    )
+    .with_primary(primary_span, "冲突声明在这里")
+    .with_related(related_span, "第一次声明在这里")
+}
+
 /// `scoop::typecheck::binary_op_operand_type_mismatch`：二元运算操作数类型不匹配。
 pub fn binary_op_operand_type_mismatch_detail(
     op: &str,

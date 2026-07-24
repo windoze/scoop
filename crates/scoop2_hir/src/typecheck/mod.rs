@@ -17,6 +17,7 @@ pub mod env;
 pub mod expr;
 pub mod extern_fn;
 pub mod lower;
+pub mod overloads;
 pub mod release_hook;
 
 pub use env::TypeEnv;
@@ -134,6 +135,19 @@ fn check_file_bodies(
     use crate::syntax::ast::{ItemKind, ModifierKind};
     use std::collections::{HashMap, HashSet};
     let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
+    // 顶层函数重载冲突检测（pre-pass）。
+    let top_funs: Vec<&crate::syntax::ast::FunDecl> = file
+        .items
+        .iter()
+        .filter_map(|it| {
+            if let ItemKind::Fun(d) = &it.kind {
+                Some(d)
+            } else {
+                None
+            }
+        })
+        .collect();
+    overloads::check_top_level_overload_conflicts(env, imports, diags, package_prefix, &top_funs);
     for item in &file.items {
         // @Experimental 注解校验（item 级目标是合法的）。
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
