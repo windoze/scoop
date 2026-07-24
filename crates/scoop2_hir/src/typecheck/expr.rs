@@ -1271,8 +1271,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             args: vec![],
             eff: None,
         };
-        // 缺少必填字段检查。
+        // 缺少必填字段检查（lenient 模式下跳过——成员注册不完整）。
         if !self.lenient_type_errors
+            && is_struct
             && let Some(members) = self.env.member_types(fqn)
         {
             let missing: Vec<String> = members
