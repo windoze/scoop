@@ -2314,6 +2314,15 @@ fn check_one_fun(
             );
         }
     }
+    // private/internal 函数省略 effect row 时，由函数体推断（不报错）。
+    let skip_effect_check = d.effect.is_none()
+        && d.modifiers.iter().any(|m| {
+            matches!(
+                m.kind,
+                crate::syntax::ast::ModifierKind::Private
+                    | crate::syntax::ast::ModifierKind::Internal
+            )
+        });
     expr::check_function(
         &d.params,
         d.return_ty.as_ref(),
@@ -2326,6 +2335,7 @@ fn check_one_fun(
         package_prefix,
         tp,
         this_ty,
+        skip_effect_check,
     );
 }
 

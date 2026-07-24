@@ -44,6 +44,7 @@ pub fn check_function<'a, 'i>(
     package_prefix: &str,
     type_params: HashMap<Symbol, TypeParamType>,
     this_ty: Option<TypeId>,
+    skip_effect_check: bool,
 ) {
     let mut c = ExprChecker {
         env,
@@ -100,12 +101,15 @@ pub fn check_function<'a, 'i>(
         }
     }
     // effect 检查：函数体执行的 effect 必须在声明的 effect row 中。
-    let declared = ExprChecker::extract_effect_names(declared_effect, c.env.interner);
-    for (performed, span) in &c.performed_effects {
-        if !declared.contains(performed) {
-            c.diags
-                .push(diagnostics::required_effect_not_declared(*span));
-            break;
+    // private/internal 函数省略 effect row 时跳过（由函数体推断）。
+    if !skip_effect_check {
+        let declared = ExprChecker::extract_effect_names(declared_effect, c.env.interner);
+        for (performed, span) in &c.performed_effects {
+            if !declared.contains(performed) {
+                c.diags
+                    .push(diagnostics::required_effect_not_declared(*span));
+                break;
+            }
         }
     }
 }
@@ -3576,6 +3580,7 @@ mod tests {
                     &prefix,
                     HashMap::new(),
                     None,
+                    false,
                 );
             }
         }
