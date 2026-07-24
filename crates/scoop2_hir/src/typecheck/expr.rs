@@ -428,6 +428,29 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// 校验 `GC.handleNew/handleGet/handleDrop` 的参数契约。
+    fn check_gc_handle_call(&mut self, method: &str, arg_ty: TypeId, span: Span) {
+        let is_ref = matches!(self.env.store.kind(arg_ty), TypeKind::Ref(_));
+        let is_gchandle = nominal_fqn_of(self.env.store.kind(arg_ty))
+            .map(|f| self.env.interner.resolve(f).ends_with(".GcHandle"))
+            .unwrap_or(false);
+        match method {
+            "handleNew" if !is_ref => {
+                self.diags
+                    .push(diagnostics::gc_handle_new_requires_ref(span));
+            }
+            "handleGet" if !is_gchandle => {
+                self.diags
+                    .push(diagnostics::gc_handle_get_requires_handle(span));
+            }
+            "handleDrop" if !is_gchandle => {
+                self.diags
+                    .push(diagnostics::gc_handle_drop_requires_handle(span));
+            }
+            _ => {}
+        }
+    }
+
     // ---- 表达式 ----
 
     fn walk_expr(&mut self, expr: &Expr) -> TypeId {
@@ -699,6 +722,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
             let rt = self.walk_expr(receiver);
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+            // GC.handleNew/handleGet/handleDrop 参数契约（按 receiver 名识别 GC object）。
+            if let MemberName::Named(name) = member {
+                let is_gc = matches!(&receiver.kind, ExprKind::Ident(id)
+                    if self.env.interner.resolve(id.symbol) == "GC");
+                if is_gc
+                    && let (Some(&first_arg), Some(first_call_arg)) =
+                        (arg_types.first(), args.first())
+                {
+                    self.check_gc_handle_call(
+                        self.env.interner.resolve(name.symbol),
+                        first_arg,
+                        first_call_arg.value.span,
+                    );
+                }
+            }
             match member {
                 MemberName::Named(name) => {
                     return self.method_call_return_type(rt, name.symbol, &arg_types, span);

@@ -231,6 +231,33 @@ pub fn for_next_not_option(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::gc_handle_new_requires_ref`：handleNew 参数必须是引用类型。
+pub fn gc_handle_new_requires_ref(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::gc_handle_new_requires_ref",
+        "`GC.handleNew` 的参数必须是可追踪的引用类型",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::gc_handle_get_requires_handle`：handleGet 参数必须是 GcHandle。
+pub fn gc_handle_get_requires_handle(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::gc_handle_get_requires_handle",
+        "`GC.handleGet` 的参数必须是 `GcHandle`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::gc_handle_drop_requires_handle`：handleDrop 参数必须是 GcHandle。
+pub fn gc_handle_drop_requires_handle(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::gc_handle_drop_requires_handle",
+        "`GC.handleDrop` 的参数必须是 `GcHandle`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(kind: &str, name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
