@@ -213,6 +213,15 @@ pub fn duplicate_enum_variant(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::enum_variant_ctor_arity_mismatch`：enum variant 构造实参数量不匹配。
+pub fn enum_variant_ctor_arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::enum_variant_ctor_arity_mismatch",
+        format!("参数数量不匹配：期望 {expected} 个，但传入 {found} 个"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::duplicate_struct_field`：struct/class 字段重名。
 pub fn duplicate_struct_field(span: Span) -> Diagnostic {
     Diagnostic::error(

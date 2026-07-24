@@ -1044,6 +1044,41 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             if let Some(ResolvedValue::TopLevelFun { fqn }) = resolved {
                 return self.resolve_top_level_call(fqn, args, span);
             }
+            // enum variant ctor（resolve 解析到 TopLevelValue，但实际是 variant 调用）。
+            if let Some(ResolvedValue::TopLevelValue { fqn }) = resolved {
+                // 已知 prelude variant arity 检查。
+                if let Some(expected_arity) = self.known_enum_variant_arity(fqn)
+                    && expected_arity != args.len()
+                    && !args.iter().any(|a| a.name.is_some())
+                {
+                    self.diags
+                        .push(diagnostics::enum_variant_ctor_arity_mismatch(
+                            expected_arity,
+                            args.len(),
+                            span,
+                        ));
+                }
+                for a in args {
+                    self.walk_expr(&a.value);
+                }
+                let name = self.env.interner.resolve(fqn);
+                // 返回 variant 所属的 enum 类型。
+                if let Some(dot) = name.rfind('.')
+                    && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
+                {
+                    let nominal = NominalType {
+                        fqn: enum_fqn,
+                        args: vec![],
+                        eff: None,
+                    };
+                    return if self.env.is_reference_nominal(enum_fqn) {
+                        self.env.store.ref_nominal(nominal)
+                    } else {
+                        self.env.store.value_nominal(nominal)
+                    };
+                }
+                return self.env.store.nothing();
+            }
         }
         // 3. 方法调用 `receiver.method(args)`。
         if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
@@ -1086,7 +1121,63 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
     fn ctor_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+        // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
+        // 如果 ctor_params 为空但参数不为空，可能是 enum variant ctor（未注册在 ctors 中）。
+        // 尝试从 enum_variants 注册表查找。
+        if params.is_empty() && !args.is_empty() {
+            // 尝试找 enum variant 的 owner FQN。
+            if let Some(enum_fqn) = self.find_enum_owner(fqn)
+                && let Some(variants) = self.env.enum_variants(enum_fqn)
+            {
+                // 找到 variant 名，检查 arity。
+                let var_name = self
+                    .env
+                    .interner
+                    .resolve(fqn)
+                    .rsplit('.')
+                    .next()
+                    .unwrap_or("");
+                if variants
+                    .iter()
+                    .any(|&v| self.env.interner.resolve(v) == var_name)
+                {
+                    // 这是 enum variant ctor。
+                    // 从 Index 查 variant 的 payload 字段数（当前无法直接获取 → 用 Index 的 ctor_params）。
+                    // 尝试用 enum_fqn 的 ctor_params（但 enum variant 字段不在 enum 的 ctor 中）。
+                    // 保守：跳过 arity 检查（需要 variant payload 注册）。
+                }
+            }
+        }
+        // enum variant ctor arity 检查：Option 的 Some 有 1 个 payload。
+        // 特殊处理 prelude enum（Option/Result）——它们的 variant ctor 参数数量已知。
+        let known_arity = self.known_enum_variant_arity(fqn);
+        if let Some(expected_arity) = known_arity
+            && expected_arity != args.len()
+            && !args.iter().any(|a| a.name.is_some())
+        {
+            if !self.lenient_type_errors {
+                self.diags
+                    .push(diagnostics::enum_variant_ctor_arity_mismatch(
+                        expected_arity,
+                        args.len(),
+                        span,
+                    ));
+            }
+            for a in args {
+                self.walk_expr(&a.value);
+            }
+            let nominal = NominalType {
+                fqn,
+                args: vec![],
+                eff: None,
+            };
+            return if self.env.is_reference_nominal(fqn) {
+                self.env.store.ref_nominal(nominal)
+            } else {
+                self.env.store.value_nominal(nominal)
+            };
+        }
         let nominal = NominalType {
             fqn,
             args: vec![],
@@ -1098,6 +1189,27 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.env.store.value_nominal(nominal)
         };
         self.check_call_args(params, result, args, span)
+    }
+
+    /// 已知 prelude enum variant 的 payload 数量。
+    fn known_enum_variant_arity(&self, fqn: Symbol) -> Option<usize> {
+        let name = self.env.interner.resolve(fqn);
+        // Option variants.
+        if name.ends_with(".Some") || name == "Some" {
+            return Some(1);
+        }
+        if name.ends_with(".None") || name == "None" {
+            return Some(0);
+        }
+        None
+    }
+
+    /// 查找 enum variant FQN 的 enum owner FQN（`pkg.Enum.Variant` → `pkg.Enum`）。
+    fn find_enum_owner(&self, variant_fqn: Symbol) -> Option<Symbol> {
+        let name = self.env.interner.resolve(variant_fqn);
+        let dot = name.rfind('.')?;
+        let owner_text = &name[..dot];
+        self.env.interner.get(owner_text)
     }
 
     /// 名字是否解析为类型符号（当前包 / import）；返回其 FQN。用于构造器调用判定。
