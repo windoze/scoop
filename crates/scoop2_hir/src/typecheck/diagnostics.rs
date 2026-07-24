@@ -706,6 +706,39 @@ pub fn override_effect_row_not_contained(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::missing_interface_member`：类未实现接口的某个方法。
+pub fn missing_interface_member(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::missing_interface_member",
+        "类未实现接口要求的成员方法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_arg_type_mismatch`：注解命名实参类型不匹配。
+pub fn annotation_arg_type_mismatch(
+    param: &str,
+    expected: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_arg_type_mismatch",
+        format!("注解参数 `{param}` 类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::deprecated_annotation_only_first_arg_positional`：
+/// `@Deprecated` 只有第一个参数允许位置传递，其余必须命名。
+pub fn deprecated_annotation_only_first_arg_positional(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::deprecated_annotation_only_first_arg_positional",
+        "`@Deprecated` 只有第一个参数允许使用位置参数，其余参数必须使用命名实参",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

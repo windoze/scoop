@@ -152,11 +152,15 @@ fn check_file_bodies(
         })
         .collect();
     overloads::check_top_level_overload_conflicts(env, imports, diags, package_prefix, &top_funs);
+    // 文件级注解目标检查（`@file:...`）。
+    check_file_annotation_targets(file, env.interner, diags);
     for item in &file.items {
         // @Experimental / @Suppress 注解校验（item 级目标是合法的）。
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
         // 未知注解类型检查。
         check_annotation_uses(item_annotations(item), env, package_prefix, diags);
+        // `@Deprecated` 实参校验（位置/命名/类型）。
+        check_deprecated_annotation_args(item_annotations(item), env.interner, diags);
         // 内建注解目标检查。
         check_builtin_annotation_targets(item, env.interner, diags);
         match &item.kind {
@@ -1388,6 +1392,72 @@ fn find_ident_span(
     }
 }
 
+/// `@Deprecated` 实参校验：
+/// - 至多一个位置实参（第一个=`message`），其余必须命名；
+/// - 命名实参 `message` 必须是字符串字面量。
+fn check_deprecated_annotation_args(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ExprKind;
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        if interner.resolve(last.symbol) != "Deprecated" {
+            continue;
+        }
+        let mut positional = 0usize;
+        for arg in &ann.args {
+            match &arg.name {
+                None => {
+                    positional += 1;
+                    if positional > 1 {
+                        diags.push(
+                            diagnostics::deprecated_annotation_only_first_arg_positional(arg.span),
+                        );
+                    }
+                }
+                Some(name) => {
+                    let pname = interner.resolve(name.symbol);
+                    if pname == "message" && !matches!(&arg.value.kind, ExprKind::StringLit(_)) {
+                        let found = match &arg.value.kind {
+                            ExprKind::IntLit(_) => "Int",
+                            ExprKind::FloatLit(_) => "Float",
+                            _ => "非字符串",
+                        };
+                        diags.push(diagnostics::annotation_arg_type_mismatch(
+                            "message", "String", found, arg.span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 文件级注解目标检查（`@file:...`）：内建注解 `@Deprecated` 只能用于 函数/类型/属性，不能用于文件。
+fn check_file_annotation_targets(
+    file: &crate::syntax::ast::File,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in &file.file_annotations {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        let name = interner.resolve(last.symbol);
+        if name == "Deprecated" {
+            diags.push(diagnostics::builtin_annotation_invalid_target(
+                "@Deprecated",
+                "函数 / 类型 / 属性",
+                last.span,
+            ));
+        }
+    }
+}
+
 /// 内建注解目标检查：`@InteriorMutable` 只能用于 class/struct，不能用于 typealias/val/fun。
 fn check_builtin_annotation_targets(
     item: &crate::syntax::ast::Item,
@@ -1408,6 +1478,27 @@ fn check_builtin_annotation_targets(
             diags.push(diagnostics::builtin_annotation_invalid_target(
                 "@InteriorMutable",
                 "struct / class 类型声明",
+                span,
+            ));
+        }
+        // `@AllowIntrinsic` 只能用于 文件/模块（任何 item 级使用均非法）。
+        if name == "AllowIntrinsic" {
+            diags.push(diagnostics::builtin_annotation_invalid_target(
+                "@AllowIntrinsic",
+                "文件 / 模块",
+                span,
+            ));
+        }
+        // `@Deprecated` 只能用于 函数/类型/属性。
+        if name == "Deprecated"
+            && !matches!(
+                &item.kind,
+                ItemKind::Fun(_) | ItemKind::Type(_) | ItemKind::Val(_)
+            )
+        {
+            diags.push(diagnostics::builtin_annotation_invalid_target(
+                "@Deprecated",
+                "函数 / 类型 / 属性",
                 span,
             ));
         }
