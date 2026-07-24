@@ -23,6 +23,8 @@ pub struct Signature {
     pub return_ty: TypeId,
     /// 类型参数个数（>0 表示泛型；M3 才支持实例化）。
     pub type_param_count: usize,
+    /// 参数名（与 params 等长）。
+    pub param_names: Vec<Symbol>,
 }
 
 /// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
@@ -250,6 +252,7 @@ pub fn register_top_level_signatures(
                 None => unit_ty,
             };
             Signature {
+                param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                 params,
                 return_ty,
                 type_param_count: tpc,
@@ -460,6 +463,7 @@ fn register_body_members(
                         None => unit_ty,
                     };
                     Signature {
+                        param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         params,
                         return_ty,
                         type_param_count: 0,

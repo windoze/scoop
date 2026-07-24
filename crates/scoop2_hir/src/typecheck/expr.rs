@@ -1173,7 +1173,47 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .collect();
         match applicable.len() {
             0 => {
-                self.diags.push(diagnostics::no_applicable_overload(span));
+                // 构建候选详情 + related labels。
+                let fqn_text = self.env.interner.resolve(fqn).to_string();
+                let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
+                let decls = self.env.index.lookup_funs(fqn);
+                let mut msg = "没有匹配的重载候选".to_string();
+                let mut diag = scoop2_base::diag::Diagnostic::error(
+                    "scoop::typecheck::no_applicable_overload",
+                    "",
+                )
+                .with_primary(span, "这里");
+                for (i, sig) in non_generic.iter().enumerate() {
+                    let params = sig
+                        .params
+                        .iter()
+                        .map(|p| self.describe(*p))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    msg.push_str(&format!("\n  {fun_name}({params})"));
+                    if sig.params.len() == arg_types.len() {
+                        for (j, (at, pt)) in arg_types.iter().zip(&sig.params).enumerate() {
+                            if !self.assignable(*at, *pt) {
+                                let pname = sig
+                                    .param_names
+                                    .get(j)
+                                    .map(|s| self.env.interner.resolve(*s))
+                                    .unwrap_or("");
+                                msg.push_str(&format!(
+                                    "\n    argument {} type {} is not a subtype of parameter `{pname}` type {}",
+                                    j + 1,
+                                    self.describe(*at),
+                                    self.describe(*pt),
+                                ));
+                            }
+                        }
+                    }
+                    if let Some(d) = decls.get(i) {
+                        diag = diag.with_related(d.span, format!("{fun_name}({params})"));
+                    }
+                }
+                diag.message = msg;
+                self.diags.push(diag);
                 non_generic
                     .first()
                     .map(|s| s.return_ty)
@@ -1181,7 +1221,35 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             1 => applicable[0].return_ty,
             _ => {
-                self.diags.push(diagnostics::ambiguous_overload(span));
+                let fqn_text = self.env.interner.resolve(fqn).to_string();
+                let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
+                let decls = self.env.index.lookup_funs(fqn);
+                let mut msg = format!("重载决议歧义：`{fun_name}` 有多个同等匹配的候选");
+                let mut diag = scoop2_base::diag::Diagnostic::error(
+                    "scoop::typecheck::ambiguous_overload",
+                    "",
+                )
+                .with_primary(span, "这里");
+                for sig in applicable.iter() {
+                    let params = sig
+                        .params
+                        .iter()
+                        .map(|p| self.describe(*p))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    msg.push_str(&format!("\n  {fun_name}({params})"));
+                    let orig_idx = non_generic
+                        .iter()
+                        .position(|s| s.params == sig.params && s.return_ty == sig.return_ty);
+                    if let Some(oi) = orig_idx
+                        && let Some(d) = decls.get(oi)
+                    {
+                        diag = diag.with_related(d.span, format!("{fun_name}({params})"));
+                    }
+                }
+                msg.push_str("\n  reason: 多个候选同等匹配");
+                diag.message = msg;
+                self.diags.push(diag);
                 applicable[0].return_ty
             }
         }
