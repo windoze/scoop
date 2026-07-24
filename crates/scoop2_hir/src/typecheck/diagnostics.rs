@@ -749,6 +749,39 @@ pub fn annotation_modifier_invalid_target(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::vararg_overlaps_non_vararg`：vararg 重载与非 vararg 重载在某 arity 下不可区分。
+pub fn vararg_overlaps_non_vararg(
+    fqn: &str,
+    candidate_a: &str,
+    candidate_b: &str,
+    primary_span: Span,
+    related_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::vararg_overlaps_non_vararg",
+        format!(
+            "vararg 重载与非 vararg 重载在相同 arity 下不可区分：{fqn}：{candidate_a} <-> {candidate_b}"
+        ),
+    )
+    .with_primary(primary_span, "vararg 声明在这里")
+    .with_related(related_span, "第一次声明在这里")
+}
+
+/// `scoop::typecheck::vararg_spread_requires_array_or_tuple`：
+/// spread 实参 `*expr` 的类型必须是 Array 或 tuple。
+pub fn vararg_spread_requires_array_or_tuple(span: Span, suggest_toarray: bool) -> Diagnostic {
+    let msg = if suggest_toarray {
+        "spread 实参类型不支持：仅接受 Array / tuple，请使用 `.toArray()` 桥接"
+    } else {
+        "spread 实参类型不支持：仅接受 Array / tuple"
+    };
+    Diagnostic::error(
+        "scoop::typecheck::vararg_spread_requires_array_or_tuple",
+        msg,
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

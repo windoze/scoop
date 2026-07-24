@@ -79,6 +79,8 @@ struct OverloadInfo {
     return_ty: Option<TypeId>,
     /// effect 行规范键（去重排序后的 effect 短名 + 闭合标记）。纯（无项或 Pure）= ""。
     effect_row: String,
+    /// 最后一个参数是否为 vararg。
+    is_vararg: bool,
     candidate: String,
 }
 
@@ -132,6 +134,7 @@ fn build_info(
         has_defaults: defaults,
         return_ty,
         effect_row: effect_row_key(d, env.interner),
+        is_vararg: d.params.last().is_some_and(|p| p.is_vararg),
         candidate,
     }
 }
@@ -210,6 +213,10 @@ fn check_pair(
     let ib = build_info(env, imports, diags, package_prefix, b);
     let fqn_text = env.interner.resolve(fqn).to_string();
 
+    // 0. vararg 与非 vararg 重载在某 arity 下不可区分（优先于通用等价判断）。
+    if let Some(diag) = vararg_overlap(&ia, &ib, &fqn_text) {
+        return Some(diag);
+    }
     // 1. 有效签名等价（参数数量 + 逐位有效类型相等）。
     if is_equivalent(&ia, &ib) {
         let reason = if ia.effect_row != ib.effect_row {
@@ -242,6 +249,45 @@ fn check_pair(
         ));
     }
     None
+}
+
+/// vararg 重载与非 vararg 重载的重叠：若非 vararg 重载的固定 arity 落在 vararg 重载
+/// 的可接受 arity 范围内，且参数类型兼容（前缀相等 + 剩余等于 vararg 元素类型），则冲突。
+fn vararg_overlap(ia: &OverloadInfo, ib: &OverloadInfo, fqn_text: &str) -> Option<Diagnostic> {
+    if ia.is_vararg == ib.is_vararg {
+        return None;
+    }
+    let (var_info, fix_info) = if ia.is_vararg { (ia, ib) } else { (ib, ia) };
+    let var_params = &var_info.effective_params;
+    if var_params.is_empty() {
+        return None;
+    }
+    let var_min = var_params.len() - 1;
+    let element = var_params.last().unwrap();
+    let fix_n = fix_info.effective_params.len();
+    if fix_n < var_min {
+        return None;
+    }
+    let prefix_ok = var_params[..var_min]
+        .iter()
+        .zip(fix_info.effective_params[..var_min].iter())
+        .all(|(a, b)| a == b);
+    if !prefix_ok {
+        return None;
+    }
+    let rest_ok = fix_info.effective_params[var_min..]
+        .iter()
+        .all(|p| p == element);
+    if !rest_ok {
+        return None;
+    }
+    Some(diagnostics::vararg_overlaps_non_vararg(
+        fqn_text,
+        &var_info.candidate,
+        &fix_info.candidate,
+        var_info.name_span,
+        fix_info.name_span,
+    ))
 }
 
 fn is_equivalent(a: &OverloadInfo, b: &OverloadInfo) -> bool {

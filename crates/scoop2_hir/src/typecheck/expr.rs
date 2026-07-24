@@ -1152,6 +1152,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::TypeApply { callee: inner, .. } => inner,
             _ => callee,
         };
+        // spread 实参 `*expr` 类型校验：必须是 Array / tuple（MutableArray 等需 toArray() 桥接）。
+        for a in args {
+            if a.is_spread {
+                let ty = self.walk_expr(&a.value);
+                self.check_spread_arg(ty, a.span);
+            }
+        }
         // 1. 函数类型局部值 / 参数调用。
         if let ExprKind::Ident(ident) = &callee.kind
             && let Some(&ft) = self.locals.get(&ident.symbol)
@@ -1413,6 +1420,30 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.env.store.value_nominal(nominal)
         };
         self.check_call_args(params, result, args, span)
+    }
+
+    /// spread 实参 `*expr` 类型校验：必须是 Array / tuple；MutableArray/MutableList 等集合建议 toArray()。
+    fn check_spread_arg(&mut self, ty: TypeId, span: Span) {
+        let (ok, suggest) = {
+            let kind = self.env.store.kind(ty);
+            let nominal = nominal_fqn_of(kind).map(|fqn| {
+                let n = self.env.interner.resolve(fqn);
+                n.strip_prefix("scoop.core.").unwrap_or(n).to_string()
+            });
+            let is_array = nominal.as_deref() == Some("Array");
+            let is_tuple = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_)));
+            let suggest = matches!(
+                nominal.as_deref(),
+                Some("MutableArray" | "MutableList" | "List")
+            );
+            (is_array || is_tuple, suggest)
+        };
+        if !ok {
+            self.diags
+                .push(diagnostics::vararg_spread_requires_array_or_tuple(
+                    span, suggest,
+                ));
+        }
     }
 
     /// 名称是否是已知 effect 类型（prelude + 用户声明）。
