@@ -958,11 +958,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::ClassLit { .. } => self.env.store.string(),
             ExprKind::ArrayLit(els) => {
-                let elem_ty = if els.is_empty() {
-                    self.env.store.nothing()
-                } else {
-                    self.walk_expr(&els[0])
-                };
+                if els.is_empty() {
+                    self.diags
+                        .push(diagnostics::array_lit_type_annotation_required(expr.span));
+                    return self.env.store.nothing();
+                }
+                let elem_ty = self.walk_expr(&els[0]);
                 for e in &els[1..] {
                     self.walk_expr(e);
                 }

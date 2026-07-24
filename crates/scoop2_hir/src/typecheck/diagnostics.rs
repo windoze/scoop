@@ -343,7 +343,7 @@ pub fn intrinsic_decl_requires_trusted_syslib(kind: &str, name: &str, span: Span
 pub fn intrinsic_fun_must_have_no_body(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::intrinsic_fun_must_have_no_body",
-        "@Intrinsic 函数不能有函数体",
+        "`@Intrinsic` 函数必须省略函数体",
     )
     .with_primary(span, "这里")
 }
@@ -794,7 +794,7 @@ pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
 pub fn array_lit_type_annotation_required(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::array_lit_type_annotation_required",
-        "空数组字面量需要类型标注",
+        "空数组字面量需要显式类型标注",
     )
     .with_primary(span, "这里")
 }
